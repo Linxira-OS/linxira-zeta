@@ -20,7 +20,7 @@ import {
 import type { AssistantMessage, Context, Model, ModelSpec, Tool, ToolResultMessage } from "@linxiraos/pi-ai/types";
 import { sanitizeOpenAIResponsesHistoryItemsForReplay } from "@linxiraos/pi-ai/utils";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 function model<TApi extends "openai-responses" | "openai-codex-responses">(
 	api: TApi,

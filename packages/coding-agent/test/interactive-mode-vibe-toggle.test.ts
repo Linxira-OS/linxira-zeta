@@ -10,7 +10,7 @@ import { Effort } from "@linxiraos/pi-catalog/effort";
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, type AgentTool, type StreamFn } from "@linxiraos/pi-agent-core";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";

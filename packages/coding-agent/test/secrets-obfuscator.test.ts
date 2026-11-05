@@ -7,7 +7,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import { buildOpenAiNativeHistory } from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessage, Context, Message, TextContent } from "@linxiraos/pi-ai";

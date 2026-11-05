@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { OmpErrors } from "@linxiraos/pi-omptype";
+import { OmpErrors } from "@linxiraos/zeta-schema";
 import { getModelsConfigSchema } from "@linxiraos/zeta/config/models-config-schema-bundle";
 import { type ProviderValidationConfig, validateProviderConfiguration } from "@linxiraos/zeta/config/models-config";
 import { type ModelsConfig, ModelsConfigSchema } from "@linxiraos/zeta/config/models-config-schema";

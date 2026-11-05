@@ -1,6 +1,6 @@
 import type { GlobToolDetails } from "@linxiraos/pi-tui/tools/glob";
 import * as fs from "node:fs";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import * as natives from "@linxiraos/pi-natives";
 import { formatGroupedPaths, hasFsCode, isEnoent, prompt, untilAborted } from "@linxiraos/pi-utils";

@@ -35,6 +35,47 @@ ZetaServer's unified reverse proxy.
 > (kernel origin), `--no-open`. Env: `ZETA_WEB_GATEWAY_URL`,
 > `ZETA_WEB_GATEWAY_PORT`, `ZETA_WEB_HOSTNAME`, `ZETA_WEB_NO_OPEN`.
 
+## Studio renderer and host (same origin)
+
+`zetacode serve` also serves the Studio renderer build (`web-app/`) on its own
+origin, so the browser needs no second process:
+
+- every path outside `/api/*` is served from `web-app/dist` — hashed assets
+  from `/assets/` are cached immutably, `index.html` never is, and any other
+  path falls back to `index.html` (client-side routing). A missing asset is a
+  404, never the HTML entry;
+- the build is optional. Without one (a package that ships no renderer) `/`
+  keeps answering the placeholder page and every `/api/*` route still works;
+- `ZETA_WEB_APP_DIR` points at a different build directory;
+- the renderer's Content-Security-Policy is sent as a response header and is
+  the same policy the packaged `index.html` carries as a meta tag.
+
+The renderer speaks the Studio host contract on the same origin:
+
+| Route | Auth | Purpose |
+|---|---|---|
+| `GET /health` | none | `{ok:true, protocolVersion:1}` — "is this a Studio host" |
+| `POST /api/v1/pair` | pairing code | Sets the `studio_session` cookie, returns `{csrf, expiresAt}` |
+| `POST /api/v1/session/revoke` | cookie + `X-Studio-CSRF` | Drops the session |
+| `GET /api/v1/bootstrap` | cookie | Identity, runtime status, surfaces, capability manifest |
+| `POST /api/v1/query` | cookie | `ClientQueryRequest` → `ClientQueryResponse` |
+| `POST /api/v1/command` | cookie + `X-Studio-CSRF` | `ClientCommandRequest` → 202 `ClientCommandAccepted` |
+| `WS /api/v1/events` | cookie | Event subscription (`ClientEvent`) |
+
+`zetacode serve` prints the single-use pairing code (60 s TTL); set
+`ZETA_STUDIO_PAIRING_CODE` to pin it for scripted runs. Bodies are capped at
+1 MiB, one session may hold eight commands in flight, and every route except
+`/health` requires a loopback `Origin`.
+
+The capability manifest is built from the operations this host implements, so
+a surface Zeta cannot serve is not advertised and the renderer hides it. An
+unimplemented operation answers `{ok:false, queryName, error:{code:"unsupported", message}}`
+for a query and `400` with the same envelope for a command.
+
+During renderer development, `vite dev` keeps its proxy: `/api` and `/health`
+are forwarded to the gateway port (`--gateway-port`, default `43143`), so the
+same host contract serves the dev page.
+
 ## `zetacode serve`
 
 Start both the Stats Dashboard and Web UI simultaneously.

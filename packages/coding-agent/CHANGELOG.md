@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+### Added
+
+- The web gateway now serves the Studio Git page's read surface in-process over the pi-vcs addon: `GET /api/git/{status,diff,remotes,show,worktrees}` (no `git` subprocess). `branches` gains `headOid`/`upstream`/`ahead`/`behind` and `log` gains `parents`/`authorName`/`authorDate`/`refs` without dropping their existing fields; `log` pages up to 500 rows.
+- The Studio renderer now ships each locale as its own chunk: English stays in the entry bundle and the Chinese dictionary loads on demand, cutting the entry script by 111 kB (2,196 → 2,085 kB) for every page that never shows Chinese. First paint waits for that one request, so strings never flash in the wrong language.
+- Renderer preferences moved from `omp.*` to `zeta.*` in browser storage; a one-time migration copies the old keys so layouts, theme, language and annotations survive the rename.
+- `compat.importLegacyOmp` ("Read legacy OMP configuration", Settings → Interaction → Compatibility) exposes the read-only `~/.omp` import as a persisted setting. `ZETA_OMP_COMPAT` still wins; the setting is the same switch without an environment variable, and toggling it reloads the model registry without a restart.
+
 ## [1.4.10] - 2026-11-05
 
 ### Added

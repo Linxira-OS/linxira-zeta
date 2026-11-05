@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@linxiraos/pi-snapcompact",
+  "name": "@linxiraos/zeta-compact",
   "version": "1.4.10",
   "description": "Bitmap-frame context compression for vision-capable LLMs",
   "homepage": "https://linxira-os.github.io/zeta/",
@@ -36,7 +36,7 @@
     "@linxiraos/pi-natives": "catalog:",
     "@linxiraos/pi-utils": "catalog:",
     "@linxiraos/pi-wire": "catalog:",
-    "@linxiraos/pi-omptype": "catalog:"
+    "@linxiraos/zeta-schema": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:"

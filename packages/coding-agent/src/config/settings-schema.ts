@@ -5860,6 +5860,32 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	// Registry entries live in `session/settings.ts`; these schema twins keep
+	// them in the web/desktop settings panel (`getPathsForTab` enumerates this
+	// object, not the registry).
+	"editor.autoInstall": {
+		type: "boolean",
+		default: true,
+		ui: {
+			tab: "interaction",
+			group: "Agent",
+			label: "Auto-install Editor",
+			description:
+				"Install the @linxiraos/editor package automatically when a switch to the editor needs it and the package is missing",
+		},
+	},
+
+	"compat.importLegacyOmp": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "interaction",
+			group: "Compatibility",
+			label: "Read legacy OMP configuration",
+			description: "Read ~/.omp models, credentials and dotenv files (read-only).",
+		},
+	},
+
 	"providers.kimiApiFormat": {
 		type: "enum",
 		values: ["auto", "openai", "anthropic"] as const,

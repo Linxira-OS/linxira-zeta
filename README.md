@@ -26,6 +26,21 @@ in [`LICENSE`](./LICENSE); [`NOTICE`](./NOTICE) names the integrated upstream
 release and Zeta's modifications. The sync ledger is
 [`document/upstream-sync.md`](./document/upstream-sync.md).
 
+## Built on
+
+Three projects make Zeta possible, and we thank their authors and contributors.
+
+| Project | What Zeta takes from it |
+| ------- | ----------------------- |
+| [OMP](https://github.com/can1357/oh-my-pi) (oh-my-pi), MIT | the runtime tree: agent, tools, TUI, model catalog, wire protocol |
+| [OMP Studio](https://github.com/the-snowpear/omp-studio), MIT | the web UI: renderer, client, and the host contract it speaks |
+| [TermIDE](https://github.com/termide/termide), MIT | `zetaide` and the built-in editor pane |
+
+Two further upstreams shaped earlier work and stay credited: OMP Web (the origin
+of the previous `web-ui/` snapshot) and Pi / Pi Web (the source of semantic
+ports). Per-tree modification ledgers and the full fork declaration are in
+[`THIRD-PARTY-NOTICES.txt`](./THIRD-PARTY-NOTICES.txt).
+
 ## The Suite
 
 | Command    | Package           | What it is                                            |
@@ -388,6 +403,20 @@ Zeta 是一套终端工作台套件：一个可平铺真实终端的工作区，
 工具——编码 Agent、编辑器、终端 IDE 和文件管理器。它是 **Agent 开发环境
 （ADE）**，不是"IDE 加聊天框"：会话是工作单元，每个窗格都是 agent 可以
 使用的工作面。Linux 是主力平台；支持 Windows x64;不提供 macOS 构建。
+
+### 基础上游（致谢）
+
+三个项目使 Zeta 成为可能，感谢它们的作者与贡献者。
+
+| 项目 | Zeta 取自它的部分 |
+| --- | --- |
+| [OMP](https://github.com/can1357/oh-my-pi)（oh-my-pi），MIT | 运行时树：agent、工具、TUI、模型 catalog、wire 协议 |
+| [OMP Studio](https://github.com/the-snowpear/omp-studio)，MIT | Web UI：renderer、client 及其 host 契约 |
+| [TermIDE](https://github.com/termide/termide)，MIT | `zetaide` 与内置编辑器面板 |
+
+另外两个上游塑造了更早的工作并仍在致谢之列：OMP Web（上一版 `web-ui/` 快照的来源）、
+Pi / Pi Web（语义移植来源）。逐树改动账目与完整 fork 声明见
+[`THIRD-PARTY-NOTICES.txt`](./THIRD-PARTY-NOTICES.txt)。
 
 ### 目录与分层
 

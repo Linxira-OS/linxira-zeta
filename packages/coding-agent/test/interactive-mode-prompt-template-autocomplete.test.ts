@@ -8,7 +8,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";

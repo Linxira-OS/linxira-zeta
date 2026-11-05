@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { prompt } from "@linxiraos/pi-utils";
 import { resolveModelOverrideWithAuthFallback, resolveSessionModelSelector } from "../config/model-resolver";
 import { sessionFilesFromDisk } from "../internal-urls/registry-helpers";

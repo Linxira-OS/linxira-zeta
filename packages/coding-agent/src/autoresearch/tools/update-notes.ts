@@ -1,6 +1,6 @@
 import { type UpdateNotesDetails } from "@linxiraos/pi-tui/tools/autoresearch";
 import { updateNotesToolRenderer } from "@linxiraos/pi-tui/tools/autoresearch";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 
 import type { ToolDefinition } from "../../extensibility/extensions";

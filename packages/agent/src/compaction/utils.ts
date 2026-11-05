@@ -6,20 +6,20 @@ import type { Message, ToolCall } from "@linxiraos/pi-ai";
 import { type Dialect, getDialectDefinition } from "@linxiraos/pi-ai/dialect";
 import { escapeHarmonyControlTokens } from "@linxiraos/pi-ai/utils/harmony-leak";
 import { prompt, stringifyJson } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import type { AgentMessage } from "../types";
 import summarizationSystemPrompt from "./prompts/summarization-system.md" with { type: "text" };
 
-/** @deprecated Import these from `@linxiraos/pi-snapcompact`. */
+/** @deprecated Import these from `@linxiraos/zeta-compact`. */
 export {
 	computeFileLists,
 	createFileOps,
 	type FileOperations,
 	isUrlSchemePath,
 	upsertFileOperations,
-} from "@linxiraos/pi-snapcompact";
+} from "@linxiraos/zeta-compact";
 
-/** @deprecated Use `upsertFileOperations("", readFiles, modifiedFiles, readSet)` from `@linxiraos/pi-snapcompact`. */
+/** @deprecated Use `upsertFileOperations("", readFiles, modifiedFiles, readSet)` from `@linxiraos/zeta-compact`. */
 export function formatFileOperations(
 	readFiles: string[],
 	modifiedFiles: string[],

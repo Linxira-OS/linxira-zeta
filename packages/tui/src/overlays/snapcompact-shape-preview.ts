@@ -27,7 +27,7 @@ import {
 	type ShapeGeometry,
 	type ShapeTarget,
 	type ShapeVariantName,
-} from "@linxiraos/pi-snapcompact";
+} from "@linxiraos/zeta-compact";
 import { theme } from "../theme/theme";
 import sampleDoc from "./snapcompact-shape-preview-doc.md" with { type: "text" };
 import type { DescribeContext, NativeNode } from "../native/node";

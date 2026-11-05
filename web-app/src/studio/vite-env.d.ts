@@ -1,0 +1,307 @@
+/// <reference types="vite/client" />
+
+import type { StudioClient } from "@linxiraos/studio-contract";
+import type { ZetaStudioDesktopApi } from "@linxiraos/studio-transport-desktop";
+
+declare global {
+  /**
+   * Semantic client injected by the hosting shell (local WebUI bridge or a
+   * test harness) before the renderer bundle runs. Optional at runtime:
+   * when absent, the Vite entry renders an explicit unavailable state
+   * instead of crashing. The renderer never imports a transport.
+   */
+  var OMP_STUDIO_CLIENT: StudioClient | undefined;
+
+  /**
+   * Desktop preload bridge exposed by the Electron shell (frozen
+   * `ZetaStudioDesktopApi`: bootstrap/query/command/subscribe/close only —
+   * no generic invoke). Used by the Vite entry as a fallback: when
+   * `OMP_STUDIO_CLIENT` is absent but this is present, the entry wraps it
+   * in a desktop transport + `StudioClientImpl` itself.
+   */
+  var zetaStudio: ZetaStudioDesktopApi | undefined;
+  var zetaStudioRemote: import("../../desktop/src/remote/shared").RemoteApi | undefined;
+
+  /**
+   * Window-chrome helpers (not the Host transport). Theme sync talks to the
+   * native caption buttons; workspace actions resolve paths in Main and never
+   * send a filesystem path back to the Renderer.
+   */
+  type WorkspaceShellEditorResult =
+    | { readonly status: "opened"; readonly editorName?: string }
+    | { readonly status: "cancelled" };
+
+  /** Explorer 文件树单个节点的桌面定位（工作区相对路径 + 节点类型）。 */
+  type WorkspaceFileTargetInput = {
+    readonly workspaceId: string;
+    readonly path: string;
+    readonly kind: "file" | "dir";
+  };
+
+  type WorkspaceFileActionResult =
+    | { readonly status: "opened" }
+    | { readonly status: "cancelled" }
+    | { readonly status: "failed"; readonly message: string };
+
+  type StudioServiceDefinition = { id: string; revision: number; workspaceId: string; updatedAt: string; spec: import("@linxiraos/studio-protocol").StudioServiceSpec };
+  type StudioServiceDefinitionsInput = { workspaceId: string; id?: string; revision?: number; spec?: import("@linxiraos/studio-protocol").StudioServiceSpec };
+  type StudioServiceDefinitionResult = { ok: true; definitions: StudioServiceDefinition[] } | { ok: false; message: string };
+  type StudioArtifactFileResult = { ok: true; cancelled: boolean; artifact?: import("@linxiraos/studio-protocol").ArtifactRecord; storage?: import("@linxiraos/studio-protocol").ArtifactStorageState } | { ok: false; message: string };
+
+  /**
+   * Machine-performance probe installed by the hosting shell (desktop preload or
+   * the web host). Optional: without it the tier control applies only the user's
+   * motion preference and stays at L0.
+   */
+  var zetaStudioPerf: import("./perf/tierControl").TierControlSource | undefined;
+
+  var zetaStudioChrome:
+    | {
+        revealSkillshareToken?(input: { secretId: string; sessionId: string }): Promise<{ ok: boolean; token?: string; name?: string; message?: string }>;
+        attachLiveAudio?(input: { audioId: string; sessionId: string }): Promise<{ ok: boolean; message?: string }>;
+        attachPrediction?(input: import("@linxiraos/studio-protocol").PredictionChannel): Promise<{ok:boolean;message?:string}>;
+        predictionInput?(input:{channelId:string;input:Exclude<import("@linxiraos/studio-protocol").PredictionInput,{kind:"import"}>}):Promise<{ok:boolean;message?:string}>;
+        detachPrediction?(input:{channelId:string}):Promise<{ok:boolean;message?:string}>;
+        importPredictionHistory?(input:{channelId:string}):Promise<{ok:boolean;cancelled?:boolean;message?:string;count?:number;truncated?:boolean}>;
+        onPrediction?(listener:(event:import("@linxiraos/studio-protocol").PredictionEvent)=>void):()=>void;
+        attachBrowserObservation?(input: { observationId: string; sessionId: string; tabId: string }): Promise<{ ok: boolean; message?: string }>;
+        readComputerCapture?(input: { captureId: string; sessionId: string; targetId: string }): Promise<{ ok: true; data: ArrayBuffer; width: number; height: number } | { ok: false; message: string }>;
+        controlBrowserObservation?(input: { observationId: string; input: import("@linxiraos/studio-protocol").BrowserObservationInput }): Promise<{ ok: boolean; message?: string }>;
+        detachBrowserObservation?(input: { observationId: string }): Promise<{ ok: boolean; message?: string }>;
+        onBrowserObservation?(listener: (event: import("@linxiraos/studio-protocol").BrowserObservationEvent) => void): () => void;
+        appendLiveAudio?(input: { audioId: string; sequence: number; bytes: ArrayBuffer }): Promise<{ ok: boolean; message?: string }>;
+        detachLiveAudio?(input: { audioId: string }): Promise<{ ok: boolean; message?: string }>;
+        beginMediaUpload?(input: { kind: "audio" | "image" | "video"; name: string; mimeType: string; workspaceId?: string; sessionId?: string }): Promise<{ ok: boolean; uploadId?: string; message?: string }>;
+        appendMediaUpload?(input: { uploadId: string; sequence: number; bytes: ArrayBuffer }): Promise<{ ok: boolean; message?: string }>;
+        finishMediaUpload?(input: { uploadId: string }): Promise<{ ok: boolean; artifact?: import("@linxiraos/studio-protocol").ArtifactRecord; message?: string }>;
+        abortMediaUpload?(input: { uploadId: string }): Promise<{ ok: boolean; message?: string }>;
+        listServiceDefinitions?(input: StudioServiceDefinitionsInput): Promise<StudioServiceDefinitionResult>;
+        saveServiceDefinition?(input: StudioServiceDefinitionsInput): Promise<StudioServiceDefinitionResult>;
+        removeServiceDefinition?(input: StudioServiceDefinitionsInput): Promise<StudioServiceDefinitionResult>;
+        chooseArtifactDirectory?(): Promise<StudioArtifactFileResult>;
+        importArtifact?(input: { kind: import("@linxiraos/studio-protocol").ArtifactKind; sessionId?: string; workspaceId?: string }): Promise<StudioArtifactFileResult>;
+        exportArtifact?(input: { artifactId: string }): Promise<StudioArtifactFileResult>;
+        /** Initial workbench health; absent on older installed main/preload versions. */
+        reportPayloadHealth?(status: "ready" | "failed"): Promise<boolean>;
+        reportPerformanceSample?(sample: import("@linxiraos/studio-protocol").MemorySample): Promise<boolean>;
+        setConversationViewState?(state: { runtimeEpoch: number; visibleSessionIds: readonly string[]; blockedSessionIds?: readonly string[] }): Promise<boolean>;
+        setTheme(theme: "light" | "dark", tint?: { color: string; symbolColor: string }): Promise<void>;
+        /** Fixed by the preload; read it through `src/platform.ts`. Absent on older installs. */
+        readonly platform?: "win32" | "darwin" | "linux";
+        /** macOS menu bar commands (allowlisted ids from Main). */
+        onMenuCommand?(listener: (command: "app.settings" | "file.newChat" | "file.openProject" | "view.commandPalette" | "view.toggleSidebar" | "view.toggleBottomPanel" | "view.toggleSkills" | "help.shortcuts") => void): () => void;
+        /** macOS microphone permission (TCC); Windows always reports granted. */
+        requestMicrophoneAccess?(): Promise<"granted" | "denied">;
+        /** Opens System Settings › Privacy & Security › Microphone (macOS only). */
+        openMicrophoneSettings?(): Promise<boolean>;
+        /** App 级系统通知（固定文案；非 Host / Studio Bridge 面）。 */
+        notify(payload: { title: string; body?: string }): Promise<void>;
+        /** 用系统默认浏览器打开 https 链接（Main `shell.openExternal`，不是 Electron 窗）。 */
+        openUrl(payload: { url: string }): Promise<void>;
+        /** 打开 Host 日志目录。路径留在 Main，不回传。 */
+        openLogDir(): Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }>;
+        /** 另存近期 Host 日志。路径留在 Main，不回传。 */
+        exportLogs(): Promise<
+          | { readonly ok: true }
+          | { readonly ok: false; readonly cancelled: true }
+          | { readonly ok: false; readonly message: string }
+        >;
+        /** 把处理后的头像写入 `%APPDATA%\omp-studio\profile\`，不回传路径。 */
+        saveAvatar(input: { mime: "image/jpeg" | "image/webp" | "image/png"; bytes: Uint8Array }): Promise<
+          { readonly ok: true } | { readonly ok: false; readonly message: string }
+        >;
+        loadAvatar(): Promise<{ readonly mime: "image/jpeg" | "image/webp" | "image/png"; readonly bytes: Uint8Array } | null>;
+        clearAvatar(): Promise<void>;
+        openProjectInEditor(workspaceId: string): Promise<WorkspaceShellEditorResult>;
+        openProjectDirectory(workspaceId: string): Promise<void>;
+        /** Electron `webUtils.getPathForFile` for dropped / pasted File objects. */
+        getPathForFile(file: File): string | null;
+        /**
+         * `scope: "workspace"` → `path` is workspace-relative;
+         * `scope: "absolute"` → the drop came from elsewhere on the machine.
+         */
+        resolveDroppedPaths(
+          workspaceId: string,
+          paths: readonly string[],
+        ): Promise<
+          ReadonlyArray<
+            | {
+                readonly ok: true;
+                readonly kind: "file" | "dir" | "image";
+                readonly scope: "workspace" | "absolute";
+                readonly path: string;
+                readonly name: string;
+              }
+            | { readonly ok: false; readonly reason: "missing" | "invalid" }
+          >
+        >;
+        /**
+         * 原生另存为对话框选计划保存位置（Main 弹窗，默认 `<工作区>/PLAN.md`）。
+         * `picked` 回传工作区相对路径（正斜杠）；`outside-workspace` = 选到工作区外。
+         */
+        pickPlanSavePath(input: { workspaceId: string }): Promise<
+          | { readonly status: "picked"; readonly relativePath: string }
+          | { readonly status: "cancelled" }
+          | { readonly status: "outside-workspace"; readonly fileName: string }
+        >;
+        /** 用系统默认关联程序打开工作区文件（Main 解析绝对路径并校验）。 */
+        openFile(input: WorkspaceFileTargetInput): Promise<WorkspaceFileActionResult>;
+        /** 用所选编辑器 / 系统「打开方式」打开文件或目录。 */
+        openFileWith(
+          input: WorkspaceFileTargetInput & { readonly openerId: "vscode" | "cursor" | "windsurf" | "choose" },
+        ): Promise<WorkspaceFileActionResult>;
+        /** 文件在资源管理器中选中 / 目录在资源管理器中打开。 */
+        revealFileInFileManager(input: WorkspaceFileTargetInput): Promise<WorkspaceFileActionResult>;
+        /** 解析工作区相对路径为绝对路径（Main 校验存在性与包含性后回传）。 */
+        resolveFileAbsolutePath(input: WorkspaceFileTargetInput): Promise<string>;
+        /** 本机已安装编辑器清单（「打开方式」子菜单数据）。 */
+        listFileOpeners(input: { workspaceId: string }): Promise<
+          ReadonlyArray<{ readonly id: string; readonly name: string }>
+        >;
+        /**
+         * 一次进程内存采样（Main 投影自 `app.getAppMetrics()`）。
+         * 不含 pid 与可执行路径；不可用时返回 null。
+         */
+        sampleProcessMemory(): Promise<{
+          readonly capturedAt: string;
+          readonly totalWorkingSetKb: number;
+          readonly rows: ReadonlyArray<{
+            readonly kind: string;
+            readonly ordinal: number;
+            readonly workingSetKb: number;
+            readonly peakWorkingSetKb?: number;
+          }>;
+        } | null>;
+        copyImage(input: {          mime: "image/png" | "image/jpeg" | "image/gif" | "image/webp" | "image/svg+xml";
+          bytes: Uint8Array;
+        }): Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }>;
+        saveImage(input: {
+          mime: "image/png" | "image/jpeg" | "image/gif" | "image/webp" | "image/svg+xml";
+          bytes: Uint8Array;
+          suggestedName: string;
+        }): Promise<
+          | { readonly ok: true }
+          | { readonly ok: false; readonly cancelled: true }
+          | { readonly ok: false; readonly message: string }
+        >;
+        /** 检查更新索引（应用热更新/全量更新与 Runtime 更新）。 */
+        getUpdateSnapshot?(): Promise<import("@linxiraos/studio-runtime-installer").UnifiedUpdateSnapshot | null>;
+        prepareUpdates?(target: "all" | "app" | "runtime"): Promise<import("@linxiraos/studio-runtime-installer").UnifiedUpdateSnapshot>;
+        subscribeUpdates?(listener: (snapshot: import("@linxiraos/studio-runtime-installer").UnifiedUpdateSnapshot) => void): () => void;
+        checkUpdates(): Promise<{
+          readonly checkedAt: string;
+          readonly app: {
+            readonly currentVersion?: string;
+            readonly plan: "none" | "hot" | "full";
+            readonly version?: string;
+            readonly reason?: string;
+            readonly sizeBytes?: number;
+            readonly releaseNotesUrl?: string;
+          };
+          readonly runtime: {
+            readonly plan: "none" | "available" | "blocked";
+            readonly runtimeVersion?: string;
+            readonly reason?: string;
+            readonly sizeBytes?: number;
+          };
+          readonly error?: string;
+        } | null>;
+        /** 从本地文件/目录导入已签名的更新工件。 */
+        importLocalUpdate(input: {
+          readonly kind: "app" | "runtime";
+          readonly source: "file" | "directory";
+        }): Promise<{
+          readonly ok: boolean;
+          readonly jobId?: string;
+          readonly cancelled?: boolean;
+          readonly runtimeVersion?: string;
+          readonly runtimeChannel?: "stable" | "canary";
+          readonly message?: string;
+        }>;
+        /** 取消正在进行中的更新下载或任务。 */
+        cancelUpdate(jobId: string): Promise<void>;
+        /** 读取更新偏好设置。 */
+        getUpdatePrefs(): Promise<{
+          readonly mirrorPrefix: string;
+          readonly autoCheck: boolean;
+  readonly autoDownload?: boolean;
+          readonly skippedAppVersion: string;
+          readonly runtimeChannel: "stable" | "canary";
+          readonly preferHotUpdate: boolean;
+          readonly lastIndexSequence: number;
+        } | null>;
+        /** 写入更新偏好设置。 */
+        setUpdatePrefs(patch: {
+          readonly mirrorPrefix?: string;
+          readonly autoCheck?: boolean;
+  readonly autoDownload?: boolean;
+          readonly skippedAppVersion?: string;
+          readonly runtimeChannel?: "stable" | "canary";
+          readonly preferHotUpdate?: boolean;
+        }): Promise<{
+          readonly mirrorPrefix: string;
+          readonly autoCheck: boolean;
+  readonly autoDownload?: boolean;
+          readonly skippedAppVersion: string;
+          readonly runtimeChannel: "stable" | "canary";
+          readonly preferHotUpdate: boolean;
+          readonly lastIndexSequence: number;
+        } | null>;
+        /** 启动在线应用热更新下载。 */
+        startApp(): Promise<{ readonly ok: boolean; readonly jobId?: string; readonly message?: string }>;
+        /** 启动在线 Runtime 下载与验签。 */
+        startRuntime(): Promise<{ readonly ok: boolean; readonly jobId?: string; readonly message?: string }>;
+        /** 应用已就绪的热更新。 */
+        applyUpdate(): Promise<{ readonly ok: boolean; readonly deferred?: boolean; readonly message?: string }>;
+        getAppVersion(): Promise<{ readonly version: string; readonly bundledVersion: string; readonly payloadVersion?: string }>;
+        rollbackRuntimeUpdate(): Promise<{ readonly ok: boolean; readonly deferred?: boolean; readonly message?: string }>;
+        pruneRuntimeUpdates(): Promise<{ readonly ok: boolean; readonly deferred?: boolean; readonly message?: string }>;
+        /** 回滚当前应用热更新负载。 */
+        rollbackUpdate(): Promise<{ readonly ok: boolean; readonly deferred?: boolean; readonly message?: string }>;
+        /** 订阅更新进度事件。 */
+        subscribeUpdateProgress(
+          listener: (event: {
+            readonly jobId: string;
+            readonly kind: "app" | "runtime";
+            readonly phase:
+              | "resolving"
+              | "downloading"
+              | "verifying"
+              | "extracting"
+              | "installing"
+              | "activating"
+              | "awaiting-apply"
+              | "done"
+              | "failed"
+              | "cancelled";
+            readonly step: number;
+            readonly steps: number;
+            readonly receivedBytes?: number;
+            readonly totalBytes?: number;
+            readonly bytesPerSecond?: number;
+            readonly message?: string;
+          }) => void,
+        ): () => void;
+      }
+    | undefined;
+
+  /**
+   * Desktop-chrome local shell (not Host / Studio Bridge). Present only
+   * when the Electron preload exposed `zetaStudioTerminal`.
+   */
+  var zetaStudioTerminal:
+    | {
+        create(size?: { cols?: number; rows?: number; targetId?: string; workspaceId?: string }): Promise<{ id: string; name: string; cwd: string }>;
+        write(id: string, data: string): Promise<void>;
+        resize(id: string, cols: number, rows: number): Promise<void>;
+        dispose(id: string): Promise<void>;
+        recordingStart?(input: { id: string; workspaceId?: string; sessionId?: string }): Promise<{ terminalId: string; state: "idle" | "recording" | "saving" | "saved" | "failed"; elapsedMs: number; bytes: number; artifactId?: string; notice?: string }>;
+        recordingStop?(id: string): Promise<{ terminalId: string; state: "idle" | "recording" | "saving" | "saved" | "failed"; elapsedMs: number; bytes: number; artifactId?: string; notice?: string }>;
+        recordingStatus?(id: string): Promise<{ terminalId: string; state: "idle" | "recording" | "saving" | "saved" | "failed"; elapsedMs: number; bytes: number; artifactId?: string; notice?: string }>;
+        onData(listener: (event: { id: string; data: string }) => void): () => void;
+        onExit(listener: (event: { id: string }) => void): () => void;
+      }
+    | undefined;
+}
+
+export {};

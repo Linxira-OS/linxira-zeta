@@ -1,5 +1,5 @@
 import type { MemoryRetainDetails } from "@linxiraos/pi-tui/tools/memory";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { prompt, withLoopPhase } from "@linxiraos/pi-utils";
 import { isHindsightConfigured, loadHindsightConfig } from "../hindsight/config";

@@ -6,7 +6,7 @@ import type { AgentTool, StreamFn } from "@linxiraos/pi-agent-core";
 import type { Model, ToolResultMessage } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { logger, removeSyncWithRetries, Snowflake, untilAborted } from "@linxiraos/pi-utils";
 import type { ImControlParams } from "@linxiraos/zeta/channels/im-control";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";

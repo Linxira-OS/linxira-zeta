@@ -15,17 +15,17 @@
 	"bin": {
 		"zeta-web": "bin/zeta-web.js"
 	},
-  "files": [
-    "bin",
-    ".next",
-    "!.next/cache",
-    "!.next/dev",
-    "!.next/**/*.js.map",
-    "lib",
-    "public",
-    "next.config.ts",
-    "package.json"
-  ],
+	"files": [
+		"bin",
+		".next",
+		"!.next/cache",
+		"!.next/dev",
+		"!.next/**/*.js.map",
+		"lib",
+		"public",
+		"next.config.ts",
+		"package.json"
+	],
 	"publishConfig": {
 		"access": "public"
 	},
@@ -46,7 +46,30 @@
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",
 		"undici": "8.5.0",
-		"yaml": "^2.7.0"
+		"yaml": "^2.7.0",
+		"@codemirror/autocomplete": "^6.20.3",
+		"@codemirror/commands": "^6.10.4",
+		"@codemirror/lang-json": "^6.0.2",
+		"@codemirror/lang-yaml": "^6.1.3",
+		"@codemirror/language": "^6.12.4",
+		"@codemirror/lint": "^6.9.7",
+		"@codemirror/search": "^6.7.1",
+		"@codemirror/state": "^6.7.1",
+		"@codemirror/view": "^6.43.8",
+		"@lezer/highlight": "^1.2.3",
+		"@tanstack/react-virtual": "^3.14.10",
+		"@xterm/addon-fit": "^0.11.0",
+		"@xterm/xterm": "^6.0.0",
+		"codemirror": "^6.0.2",
+		"fflate": "0.8.3",
+		"image-meta": "0.3.0",
+		"lowlight": "3.3.0",
+		"mermaid": "^11.16.1",
+		"react-markdown": "^10.1.0",
+		"rehype-highlight": "^7.0.2",
+		"remark-gfm": "^4.0.1",
+		"three": "0.186.1",
+		"x_ite": "16.4.3"
 	},
 	"devDependencies": {
 		"@babel/core": "^8.0.1",
@@ -119,7 +142,8 @@
 		"sonner": "^2.0.8",
 		"tailwind-merge": "^3.6.0",
 		"tailwindcss": "^4.2.2",
-		"typescript": "^5"
+		"typescript": "^5",
+		"@types/three": "0.186.0"
 	},
 	"engines": {
 		"node": ">=22.19.0"

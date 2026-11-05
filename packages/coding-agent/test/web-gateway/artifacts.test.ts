@@ -16,7 +16,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
 import { resolveLocalRoot } from "../../src/internal-urls/local-protocol";
-import { handleListArtifacts, handleReadArtifact, handleWriteArtifact } from "../../src/server/web-gateway/artifacts";
+import {
+	handleDeleteArtifact,
+	handleListArtifacts,
+	handleReadArtifact,
+	handleWriteArtifact,
+} from "../../src/server/web-gateway/artifacts";
 import { invalidateSessionListCache } from "../../src/server/web-gateway/sessions";
 import { SessionManager } from "../../src/session/session-manager";
 
@@ -101,6 +106,61 @@ describe("gateway session artifacts", () => {
 		);
 		expect(put.status).toBe(403);
 		expect(await fs.readFile(join(artifactsDir, "outside.md"), "utf8")).toBe("secret");
+	});
+
+	test("the listing carries the Studio artifact record, and delete removes one", async () => {
+		await setup();
+		const { id, artifactsDir } = await seedSession();
+		const localRoot = resolveLocalRoot({ getArtifactsDir: () => artifactsDir, getSessionId: () => id });
+		await fs.mkdir(join(localRoot, "recordings"), { recursive: true });
+		await fs.writeFile(join(localRoot, "judgment-1.json"), '{"ok":true}', "utf8");
+		await fs.writeFile(join(localRoot, "recording-2026.webm"), "webm-bytes", "utf8");
+		await fs.writeFile(join(localRoot, "notes.md"), "# notes", "utf8");
+
+		const listed = await handleListArtifacts(id);
+		const body = (await listed.json()) as {
+			entries: Array<{
+				name: string;
+				artifactId: string;
+				kind: string;
+				mimeType: string;
+				bytes: number;
+				createdAt: string;
+				sha256: string;
+			}>;
+			total: number;
+			totalBytes: number;
+			nextCursor?: string;
+		};
+		// `ArtifactRecord.sha256` is required by the client contract, so a listing
+		// without a digest would be unusable for the Studio artifacts page.
+		const byName = new Map(body.entries.map(entry => [entry.name, entry]));
+		expect(byName.get("judgment-1.json")?.kind).toBe("judgment");
+		expect(byName.get("judgment-1.json")?.mimeType).toBe("application/json");
+		expect(byName.get("judgment-1.json")?.artifactId).toBe("judgment-1.json");
+		expect(byName.get("recording-2026.webm")?.kind).toBe("recording");
+		expect(byName.get("notes.md")?.kind).toBe("export");
+		expect(byName.get("notes.md")?.bytes).toBe(7);
+		expect(byName.get("notes.md")?.sha256).toMatch(/^[0-9a-f]{64}$/);
+		expect(Number.isNaN(Date.parse(byName.get("notes.md")?.createdAt ?? ""))).toBe(false);
+		expect(body.total).toBe(3);
+		expect(body.totalBytes).toBe(body.entries.reduce((sum, entry) => sum + entry.bytes, 0));
+
+		const firstPage = await handleListArtifacts(id, { limit: "2" });
+		const page = (await firstPage.json()) as { entries: Array<{ name: string }>; nextCursor?: string };
+		expect(page.entries).toHaveLength(2);
+		expect(page.nextCursor).toBe(page.entries[1]?.name);
+		const secondPage = await handleListArtifacts(id, { limit: "2", cursor: page.nextCursor ?? "" });
+		const rest = (await secondPage.json()) as { entries: Array<{ name: string }>; nextCursor?: string };
+		expect(rest.entries).toHaveLength(1);
+		expect(rest.nextCursor).toBeUndefined();
+
+		const deleted = await handleDeleteArtifact(id, encodeURIComponent("notes.md"));
+		expect(deleted.status).toBe(204);
+		await expect(fs.readFile(join(localRoot, "notes.md"), "utf8")).rejects.toThrow();
+		// Containment is checked before the unlink: a traversal name never deletes.
+		const traversal = await handleDeleteArtifact(id, encodeURIComponent("../outside.md"));
+		expect(traversal.status).toBe(403);
 	});
 
 	test("unknown session is a miss", async () => {

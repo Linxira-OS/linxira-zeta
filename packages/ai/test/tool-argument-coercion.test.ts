@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { Tool, ToolCall } from "@linxiraos/pi-ai/types";
 import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 function createHistoryTool(keyword: "anyOf" | "oneOf"): Tool {
 	return {

@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@linxiraos/pi-natives": "catalog:",
-    "@linxiraos/pi-omptype": "catalog:"
+    "@linxiraos/zeta-schema": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:"

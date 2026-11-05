@@ -1,0 +1,400 @@
+/* ============================================================
+   OMP Studio — Design Tokens
+   Light / Dark 双主题，通过 html[data-theme] 切换
+   ============================================================ */
+
+:root {
+  /* Typography */
+  --font-ui-default: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  /* ui-monospace / Menlo / Monaco only resolve on macOS; Windows still lands on Consolas. */
+  --font-mono-default: "JetBrains Mono", "Cascadia Code", ui-monospace, "SF Mono", Menlo, Monaco,
+    Consolas, "Courier New", monospace;
+  --font-ui: var(--font-ui-default);
+  --font-mono: var(--font-mono-default);
+  --font-terminal: var(--font-mono-default);
+  --font-output: var(--font-ui-default);
+  --font-output-code: var(--font-mono-default);
+  --ui-font-scale: 1;
+  --text-font-scale: var(--ui-font-scale);
+  --output-font-scale: 1;
+  --terminal-font-size: 12px;
+
+  /* Typography scale: clear hierarchy with meaningful steps.
+     Removed --fs-13 (too close to 12px to be distinguishable).
+     The ladder now follows ~1.17x ratio for legible hierarchy. */
+  --ui-fs-11: calc(11px * var(--ui-font-scale));
+  --fs-11: var(--ui-fs-11);   /* Smallest UI text: timestamps, metadata, helper text */
+  --ui-fs-12: calc(12px * var(--ui-font-scale));
+  --fs-12: var(--ui-fs-12);   /* Standard UI text: buttons, labels, tree items */
+  --ui-fs-14: calc(14px * var(--ui-font-scale));
+  --fs-14: var(--ui-fs-14);   /* Secondary headings, emphasized text, section labels */
+  --ui-fs-16: calc(16px * var(--ui-font-scale));
+  --fs-16: var(--ui-fs-16);   /* Body text, input fields, conversation content */
+  --ui-fs-18: calc(18px * var(--ui-font-scale));
+  --fs-18: var(--ui-fs-18);   /* Page titles, panel headings */
+  --ui-fs-22: calc(22px * var(--ui-font-scale));
+  --fs-22: var(--ui-fs-22);   /* Large headings, welcome messages */
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* Radius — soft, not sharp. Every tier moved up so the UI reads as
+     rounded rather than boxy; the ladder keeps its relative steps so
+     nested corners still nest correctly (outer must exceed inner). */
+  --r-4: 6px;    /* inline chips, tree rows, small controls */
+  --r-6: 9px;    /* buttons, menu items, tool cards */
+  --r-8: 12px;   /* cards, panels, popovers */
+  --r-10: 16px;  /* modals, composer, command palette */
+  --r-full: 999px;
+
+  /* Spacing scale — --sp-14 was referenced ~30 times as var(--sp-14, 14px)
+     without ever being declared. Declared here so the fallback stops being
+     load-bearing and the step can be retuned in one place.
+     信息密度（设置 → 常规）经 --density-scale 等比缩放整条间距阶梯，
+     不动字号与布局度量（--sidebar-w / --panel-w 等由 JS 按像素写入）。 */
+  --density-scale: 1;
+  --sp-2: calc(2px * var(--density-scale));
+  --sp-4: calc(4px * var(--density-scale));
+  --sp-6: calc(6px * var(--density-scale));
+  --sp-8: calc(8px * var(--density-scale));
+  --sp-10: calc(10px * var(--density-scale));
+  --sp-12: calc(12px * var(--density-scale));
+  --sp-14: calc(14px * var(--density-scale));
+  --sp-16: calc(16px * var(--density-scale));
+  --sp-20: calc(20px * var(--density-scale));
+  --sp-24: calc(24px * var(--density-scale));
+  --sp-32: calc(32px * var(--density-scale));
+
+  /* Minimum pointer target (WCAG 2.2 SC 2.5.8 Target Size Minimum = 24px).
+     Dense IDE chrome draws smaller icons than this; the hit area is padded
+     out to --tap-min so the visual size and the target size can differ. */
+  --tap-min: 24px;
+
+  /* Layout metrics */
+  --topbar-h: 44px;
+  --sidebar-w: 272px;
+  --sidebar-min: 200px;
+  --sidebar-max: 400px;
+  --minimap-w: 36px;
+  --panel-w: 480px;
+  --doc-max-w: 768px;
+  --bottom-panel-h: 240px;
+
+  /* Motion — one curve for everything reads as mechanical. Entrances decelerate
+     into place (ease-out), exits accelerate away (ease-in), and exits run at
+     ~65% of entrance duration so dismissing never feels like waiting.
+     Tactile feedback uses a snappier duration to feel immediate. */
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-out: cubic-bezier(0.16, 0.84, 0.44, 1);
+  --ease-in: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);  /* Slight overshoot for playful interactions */
+  /* iOS 风格滑动手感：起步轻快、全程均匀缓出、末尾柔和停下（easeOutCubic 类），
+     给滑动指示器（模型配置标签栏气泡 / 二级页导航气泡）用的丝滑曲线。 */
+  --ease-ios: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  /* 切换页面标签栏（顶部导航气泡）专用：Apple iOS 弹簧曲线 —— 起步更猛、
+     长尾缓降，曲线感强、无过冲、结尾不戛然而止。 */
+  --ease-nav: cubic-bezier(0.32, 0.72, 0, 1);
+  /* 上面两条曲线的镜像（cubic-bezier(x1,y1,x2,y2) 的反向 =
+     cubic-bezier(1-x2,1-y2,1-x1,1-y1)）。收起动画要「就是展开倒着播」时用它，
+     而不是换成通用的 --ease-in —— 换了曲线就不是同一段动作倒放了。 */
+  --ease-out-rev: cubic-bezier(0.56, 0, 0.84, 0.16);
+  --ease-nav-rev: cubic-bezier(1, 0, 0.68, 0.28);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 250ms;
+  --dur-toast: 320ms;  /* 浮窗提示的浮入/浮出动画时长，放慢一些更醒目 */
+  --dur-chart: 420ms;  /* 首页 Token 折线年/月/周/日变形 */
+  --dur-chart-axis: 160ms;  /* 折线坐标刻度交叉淡入淡出 */
+  /* 悬停提示（data-tip）的出现延迟：指针静止停留后才弹标签，扫过按钮
+     时不闪现。与动效时长分开命名，因为它是等待时间而不是动画时间。 */
+  --tip-delay: 500ms;
+  --dur-slide: 230ms;  /* 标签栏切换气泡的滑动时长，独立于页面切换的 --dur-slow */
+  --dur-exit: 120ms;
+  --dur-tactile: 80ms;  /* Quick feedback for button presses */
+
+  /* Z-index — the scale is the contract; raw values in component files are not.
+     Every layer below is referenced by name from the component CSS. */
+  --z-base: 1;
+  --z-resizer: 5;
+  --z-scroll-aid: 9;
+  --z-rail: 10;
+  --z-rail-tools: 11;
+  --z-topbar: 20;
+  --z-panel: 30;
+  --z-fab: 40;
+  --z-menu: 60;
+  /* BTW 浮窗/胶囊：压住所有 popover 与菜单，但让位给独占式 modal —— 否则确认框
+     会被浮窗盖住而点不到。 */
+  --z-float: 70;
+  --z-modal: 80;
+  /* Hover tips sit above modal content, below toast. */
+  --z-tip: 90;
+  --z-toast: 100;
+}
+
+/* ---------------- 信息密度（设置 → 常规） ----------------
+   只缩放间距阶梯：紧凑 ~0.85x，宽松 ~1.15x。字号与布局度量不动。 */
+:root[data-density="compact"] { --density-scale: 0.85; }
+:root[data-density="cozy"] { --density-scale: 1.15; }
+
+/* ---------------- Light (default) ---------------- */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* 背景组合来自 redesigning-skill-card-components.zip：
+     侧栏/抽屉 = --bg-inset（sb-bg），对话区 = --bg（sb-panel） */
+  --bg: #fbfbfc;
+  --bg-inset: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f2f2f5;
+  --surface-3: #e8e8ec;
+  --surface-hover: rgba(20, 20, 30, 0.045);
+  --surface-active: rgba(20, 20, 30, 0.08);
+
+  --border: rgba(15, 18, 25, 0.09);
+  --border-strong: rgba(15, 18, 25, 0.16);
+
+  /* Text ramp. --text-faint was #8f96a1 — only 2.95:1 on white, and it carries
+     real text (thread timestamps, line numbers, diff durations, palette kind
+     labels), not just decoration. Both lower tiers were pulled down until they
+     clear 4.5:1 while keeping a visible step between them:
+       text-2  7.34:1   text-3  5.95:1   text-faint  4.72:1  */
+  --text: #1d2129;
+  --text-2: #4e5560;
+  --text-3: #5c636e;
+  --text-faint: #6d7480;
+  --text-on-accent: #ffffff;
+  /* Non-text greys (icon hairlines, rail dots, disabled glyphs) keep the old
+     lighter tone — they only owe 3:1, and using the text ramp there would make
+     the chrome heavier than the content. */
+  --glyph-faint: #8b929d;
+
+  --accent: #6e56cf;
+  --accent-hover: #5f48c0;
+  --accent-soft: rgba(110, 86, 207, 0.1);
+  --accent-softer: rgba(110, 86, 207, 0.06);
+  --accent-border: rgba(110, 86, 207, 0.35);
+
+  /* Status colors darkened to clear 4.5:1 on white — the originals sat at
+     3.2-3.9:1, which fails for the small mono text they carry. */
+  --green: #137a52;
+  --green-soft: rgba(19, 122, 82, 0.12);
+  --amber: #8f5a05;
+  --amber-soft: rgba(143, 90, 5, 0.12);
+  --red: #c0272c;
+  --red-soft: rgba(192, 39, 44, 0.1);
+  /* 警告橙红（Full Access 权限模式专用）：深胡萝卜橙（orange-700 档），
+     比上一版红橙混合更偏橙；亮色主题下对白底约 5.2:1。
+     -soft 直接用主色的低透明度版本，色相干净不发脏。 */
+  --danger-orange: #c2410c;
+  --danger-orange-soft: color-mix(in srgb, var(--danger-orange) 14%, transparent);
+  /* 呼吸外发光的淡橙黄色（Full Access 光晕专用）：比主色浅很多，
+     光晕只做氛围点缀，文字警示色仍用 --danger-orange。 */
+  --danger-glow: #ffc46b;
+  --blue: #1f6ba3;
+  --blue-soft: rgba(31, 107, 163, 0.12);
+  --purple: var(--accent);
+  --purple-soft: var(--accent-soft);
+
+  /* 角色主题色调板 — 给「模型配置 → 角色」列表卡片分配不同颜色。
+     主色取高饱和纯色（图标色），-soft 用于 hover 光环，
+     图标底色由 CSS color-mix 与 --bg-inset 混合生成，保证通透不灰。 */
+  --tint-green: #16a34a;
+  --tint-green-soft: rgba(22, 163, 74, 0.13);
+  --tint-green-border: rgba(22, 163, 74, 0.35);
+  --tint-blue: #0284c7;
+  --tint-blue-soft: rgba(2, 132, 199, 0.13);
+  --tint-blue-border: rgba(2, 132, 199, 0.35);
+  --tint-teal: #0d9488;
+  --tint-teal-soft: rgba(13, 148, 136, 0.13);
+  --tint-teal-border: rgba(13, 148, 136, 0.35);
+  --tint-violet: #7c3aed;
+  --tint-violet-soft: rgba(124, 58, 237, 0.13);
+  --tint-violet-border: rgba(124, 58, 237, 0.35);
+  --tint-pink: #db2777;
+  --tint-pink-soft: rgba(219, 39, 119, 0.13);
+  --tint-pink-border: rgba(219, 39, 119, 0.35);
+  --tint-orange: #ea580c;
+  --tint-orange-soft: rgba(234, 88, 12, 0.13);
+  --tint-orange-border: rgba(234, 88, 12, 0.35);
+  --tint-cyan: #0891b2;
+  --tint-cyan-soft: rgba(8, 145, 178, 0.13);
+  --tint-cyan-border: rgba(8, 145, 178, 0.35);
+  --tint-lime: #65a30d;
+  --tint-lime-soft: rgba(101, 163, 13, 0.13);
+  --tint-lime-border: rgba(101, 163, 13, 0.35);
+  --tint-indigo: #4f46e5;
+  --tint-indigo-soft: rgba(79, 70, 229, 0.13);
+  --tint-indigo-border: rgba(79, 70, 229, 0.35);
+  --tint-rose: #e11d48;
+  --tint-rose-soft: rgba(225, 29, 72, 0.13);
+  --tint-rose-border: rgba(225, 29, 72, 0.35);
+
+  /* Git file status — deliberately separate from the semantic scale above,
+     so a tree full of modified files doesn't read as a tree full of
+     warnings. Mirrors ver2's split. Untracked reads as green (VS Code
+     convention); the U/A letters carry the added-vs-untracked distinction. */
+  --git-modified: #96570a;
+  --git-added: #177e33;
+  --git-deleted: #c7283a;
+  --git-renamed: #0a66c2;
+  --git-untracked: #1a7f37;
+  --git-conflict: #c7283a;
+
+  --diff-add-bg: rgba(19, 122, 82, 0.11);
+  --diff-add-gutter: rgba(19, 122, 82, 0.2);
+  --diff-del-bg: rgba(192, 39, 44, 0.09);
+  --diff-del-gutter: rgba(192, 39, 44, 0.18);
+
+  --code-bg: #f4f4f7;
+  --code-chip-bg: rgba(110, 86, 207, 0.09);
+  --code-chip-text: #5a45b8;
+
+  /* Flat: depth comes from borders + surface steps, never shadow stacks.
+     Detached surfaces use --border-float instead, which is strong enough
+     to separate them from the page without faking elevation. */
+  --shadow-menu: none;
+  --shadow-modal: none;
+  --border-float: #9b958c;
+
+  --scrollbar: rgba(20, 20, 30, 0.18);
+  --scrollbar-hover: rgba(20, 20, 30, 0.32);
+  --minimap-viewport: rgba(20, 20, 30, 0.08);
+  --selection: rgba(110, 86, 207, 0.2);
+}
+
+/* ---------------- Dark ---------------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #121519;
+  --bg-inset: #0e1013;
+  --surface: #1a1b1f;
+  --surface-2: #222329;
+  --surface-3: #2b2c33;
+  --surface-hover: rgba(235, 235, 245, 0.05);
+  --surface-active: rgba(235, 235, 245, 0.09);
+
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+
+  /* Same treatment in dark, measured against --surface (#1a1b1f) rather than
+     --bg, since --surface is the lighter of the two backgrounds text sits on:
+       text-2  8.1:1   text-3  5.37:1   text-faint  4.55:1  */
+  --text: #e7e8eb;
+  --text-2: #a7abb4;
+  --text-3: #8b909a;
+  --text-faint: #7c828c;
+  --glyph-faint: #676b74;
+  /* Dark accent is a light lilac — white on it is only 2.76:1. The
+     foreground has to invert to the app background instead (6.73:1). */
+  --text-on-accent: #121316;
+
+  --accent: #9e8cfc;
+  --accent-hover: #b0a2ff;
+  --accent-soft: rgba(158, 140, 252, 0.14);
+  --accent-softer: rgba(158, 140, 252, 0.08);
+  --accent-border: rgba(158, 140, 252, 0.4);
+
+  --green: #46b983;
+  --green-soft: rgba(70, 185, 131, 0.15);
+  --amber: #e0a23c;
+  --amber-soft: rgba(224, 162, 60, 0.15);
+  --red: #f06568;
+  --red-soft: rgba(240, 101, 104, 0.14);
+  /* 警告橙红（Full Access 权限模式专用）：暖橙，暗色主题下对比约 6.7:1。
+     -soft 直接用主色的低透明度版本，色相干净不发脏。 */
+  --danger-orange: #ff7a45;
+  --danger-orange-soft: color-mix(in srgb, var(--danger-orange) 14%, transparent);
+  /* 呼吸外发光的淡橙黄色（暗色主题）：比亮色主题更浅，暗底上仍清晰可见。 */
+  --danger-glow: #ffd9a8;
+  --blue: #5da9e0;
+  --blue-soft: rgba(93, 169, 224, 0.15);
+
+  /* 角色主题色调板 — 深色主题亮色档（400 级高饱和） */
+  --tint-green: #4ade80;
+  --tint-green-soft: rgba(74, 222, 128, 0.16);
+  --tint-green-border: rgba(74, 222, 128, 0.4);
+  --tint-blue: #38bdf8;
+  --tint-blue-soft: rgba(56, 189, 248, 0.16);
+  --tint-blue-border: rgba(56, 189, 248, 0.4);
+  --tint-teal: #2dd4bf;
+  --tint-teal-soft: rgba(45, 212, 191, 0.16);
+  --tint-teal-border: rgba(45, 212, 191, 0.4);
+  --tint-violet: #a78bfa;
+  --tint-violet-soft: rgba(167, 139, 250, 0.16);
+  --tint-violet-border: rgba(167, 139, 250, 0.4);
+  --tint-pink: #f472b6;
+  --tint-pink-soft: rgba(244, 114, 182, 0.16);
+  --tint-pink-border: rgba(244, 114, 182, 0.4);
+  --tint-orange: #fb923c;
+  --tint-orange-soft: rgba(251, 146, 60, 0.16);
+  --tint-orange-border: rgba(251, 146, 60, 0.4);
+  --tint-cyan: #22d3ee;
+  --tint-cyan-soft: rgba(34, 211, 238, 0.16);
+  --tint-cyan-border: rgba(34, 211, 238, 0.4);
+  --tint-lime: #a3e635;
+  --tint-lime-soft: rgba(163, 230, 53, 0.16);
+  --tint-lime-border: rgba(163, 230, 53, 0.4);
+  --tint-indigo: #818cf8;
+  --tint-indigo-soft: rgba(129, 140, 248, 0.16);
+  --tint-indigo-border: rgba(129, 140, 248, 0.4);
+  --tint-rose: #fb7185;
+  --tint-rose-soft: rgba(251, 113, 133, 0.16);
+  --tint-rose-border: rgba(251, 113, 133, 0.4);
+
+  --git-modified: #e3a008;
+  --git-added: #3fb950;
+  --git-deleted: #f0616d;
+  --git-renamed: #4a9eff;
+  --git-untracked: #7ee787;
+  --git-conflict: #f0616d;
+
+  --diff-add-bg: rgba(70, 185, 131, 0.16);
+  --diff-add-gutter: rgba(70, 185, 131, 0.28);
+  --diff-del-bg: rgba(240, 101, 104, 0.14);
+  --diff-del-gutter: rgba(240, 101, 104, 0.26);
+
+  --code-bg: #141519;
+  --code-chip-bg: rgba(158, 140, 252, 0.14);
+  --code-chip-text: #b3a5fd;
+
+  --shadow-menu: none;
+  --shadow-modal: none;
+  --border-float: #46505f;
+
+  --scrollbar: rgba(235, 235, 245, 0.16);
+  --scrollbar-hover: rgba(235, 235, 245, 0.3);
+  --minimap-viewport: rgba(235, 235, 245, 0.07);
+  --selection: rgba(158, 140, 252, 0.3);
+}
+
+/* Compatibility names from older feature panes reuse the established Studio
+   scale. They are aliases, not extra colors, font sizes, or corner styles. */
+:root {
+  --danger: var(--red);
+  --orange: var(--amber);
+  --surface-muted: var(--surface-2);
+  --surface-1: var(--surface);
+  --accent-subtle: var(--accent-softer);
+  --bg-subtle: var(--surface-2);
+  --bg-hover: var(--surface-hover);
+  --border-subtle: var(--border);
+  --text-muted: var(--text-3);
+  --text-1: var(--text);
+  --r-12: var(--r-8);
+  --fs-10: var(--fs-11);
+  --fs-13: var(--fs-12);
+  --fs-15: var(--fs-14);
+  --sp-3: var(--sp-4);
+  --sp-5: var(--sp-6);
+  --sp-18: var(--sp-20);
+  --shadow-sm: var(--shadow-menu);
+  --tint-purple: var(--tint-violet);
+  --tint-purple-soft: var(--tint-violet-soft);
+  --warning-soft: var(--amber-soft);
+}

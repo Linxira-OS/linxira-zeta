@@ -188,13 +188,13 @@ mkdir -p "$TARBALL_APP_DIR"
 		pkg.overrides = {
 			'@linxiraos/pi-utils': '$utils_tgz',
 			'@linxiraos/pi-wire': '$wire_tgz',
-			'@linxiraos/pi-omptype': '$omptype_tgz',
+			'@linxiraos/zeta-schema': '$omptype_tgz',
 			'@linxiraos/pi-natives': '$natives_tgz',
 			'@linxiraos/pi-natives-$host_tag': '$natives_leaf_tgz',
 			'@linxiraos/pi-ai': '$ai_tgz',
 			'@linxiraos/pi-catalog': '$catalog_tgz',
 			'@linxiraos/pi-mnemopi': '$mnemopi_tgz',
-			'@linxiraos/pi-snapcompact': '$snapcompact_tgz',
+			'@linxiraos/zeta-compact': '$snapcompact_tgz',
 			'@linxiraos/pi-agent-core': '$agent_tgz',
 			'@linxiraos/pi-tui': '$tui_tgz',
 			'@linxiraos/pi-stats': '$stats_tgz',
@@ -220,16 +220,16 @@ mkdir -p "$TARBALL_APP_DIR"
       exit 1
    }
    omptype_probe="$(bun -e '
-      import { type } from "@linxiraos/pi-omptype";
-      import { Type } from "@linxiraos/pi-omptype/typebox";
-      import { z } from "@linxiraos/pi-omptype/zod";
+      import { type } from "@linxiraos/zeta-schema";
+      import { Type } from "@linxiraos/zeta-schema/typebox";
+      import { z } from "@linxiraos/zeta-schema/zod";
       const root = type({ name: "string", enabled: "boolean = false" }).assert({ name: "omp" });
       const typebox = Type.Object({ name: Type.String() }).assert({ name: "tb" });
       const zod = z.object({ name: z.string() }).parse({ name: "z" });
       process.stdout.write(`${root.name}:${root.enabled}:${typebox.name}:${zod.name}`);
    ')"
    [ "$omptype_probe" = "omp:false:tb:z" ] || {
-      echo "Unexpected @linxiraos/pi-omptype probe result: $omptype_probe"
+      echo "Unexpected @linxiraos/zeta-schema probe result: $omptype_probe"
       exit 1
    }
    [ -f "node_modules/@linxiraos/collab-web/dist/index.html" ] || {

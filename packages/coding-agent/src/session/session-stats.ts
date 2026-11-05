@@ -6,7 +6,7 @@ import {
 	type SessionMessageEntry,
 } from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessage, Model, ProviderResponseMetadata, Usage } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
 

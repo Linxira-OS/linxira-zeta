@@ -185,7 +185,7 @@ function normalizeForUpstreamComparison(text: string): string {
 	const codingAgentDir = "CODING_AGENT_DIR";
 	return text
 		.replaceAll("@linxiraos/zeta", `${upstreamScope}pi-coding-agent`)
-		.replaceAll("@linxiraos/pi-snapcompact", `${upstreamScope}snapcompact`)
+		.replaceAll("@linxiraos/zeta-compact", `${upstreamScope}snapcompact`)
 		.replaceAll("@linxiraos/", upstreamScope)
 		.replaceAll(`ZETA_${codingAgentDir}`, `PI_${codingAgentDir}`)
 		.replaceAll("zetacode", "omp")

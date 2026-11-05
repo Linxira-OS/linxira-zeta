@@ -13,9 +13,9 @@ import type {
 	ToolLoadMode,
 	ToolTier,
 } from "@linxiraos/pi-agent-core";
-import type { type as ArkType } from "@linxiraos/pi-omptype";
-import type * as TypeBox from "@linxiraos/pi-omptype/typebox";
-import type * as zod from "@linxiraos/pi-omptype/zod";
+import type { type as ArkType } from "@linxiraos/zeta-schema";
+import type * as TypeBox from "@linxiraos/zeta-schema/typebox";
+import type * as zod from "@linxiraos/zeta-schema/zod";
 import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
 import type { FetchImpl, Model, Static, TSchema } from "@linxiraos/pi-ai";
 import type { Component } from "@linxiraos/pi-tui";

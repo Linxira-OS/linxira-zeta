@@ -8,7 +8,7 @@ import {
 	isImageDataUrl,
 } from "./blob-store";
 import type { FileEntry } from "./session-entries";
-import { PRESERVE_KEY as SNAPCOMPACT_PRESERVE_KEY } from "@linxiraos/pi-snapcompact";
+import { PRESERVE_KEY as SNAPCOMPACT_PRESERVE_KEY } from "@linxiraos/zeta-compact";
 
 const MAX_PERSIST_CHARS = 500_000;
 const TRUNCATION_NOTICE = "\n\n[Session persistence truncated large content]";

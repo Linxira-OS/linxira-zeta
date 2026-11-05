@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { Tool } from "@linxiraos/pi-ai/types";
 import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 describe("Eval-tool language whitespace normalization", () => {
 	it("trims a trailing newline on the ArkType-emitted language enum", () => {

@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { isEnoent, logger, slugify } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 import { expandAtImports } from "../discovery/at-imports";

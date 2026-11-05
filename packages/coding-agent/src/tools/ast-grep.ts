@@ -1,5 +1,5 @@
 import type { AstGrepToolDetails } from "@linxiraos/pi-tui/tools/ast-grep";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { ToolExample } from "@linxiraos/pi-ai";
 import { type AstFindMatch, astGrep, type ShellFilesystem } from "@linxiraos/pi-natives";

@@ -1,0 +1,1483 @@
+/* ============================================================
+   OMP Studio — 复合侧栏
+   左上操作区 / 项目+对话 / 可拖分隔 / 文件树 / 左下 OMP 状态
+   ============================================================ */
+
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-min);
+  max-width: var(--sidebar-max);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: var(--bg-inset);
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-top-right-radius: 15px;
+  position: relative;
+  z-index: var(--z-panel);
+  transition: margin-left var(--dur-slow) var(--ease-out);
+  overflow: visible;
+}
+.sidebar.collapsed { margin-left: calc(-1 * var(--sidebar-w)); }
+/* Shadow layer sits behind content, same rounded box as the rail, so the
+   glow follows the 15px corner. z-index:-1 keeps it in this stacking
+   context, so the workbench cannot punch a hole in the mid-panel. */
+.sidebar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-top-right-radius: 15px;
+  background: var(--bg-inset);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--text) 16%, transparent);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* 拖拽手柄（右侧缘） */
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  /* 技能&插件抽屉（--z-rail:10）打开时全宽覆盖 .sb-section 区，若 resizer 低于它
+     手柄会被抽屉吃掉命中，侧栏宽度就无法拖拽了。resizer 必须始终可拖，抬到抽屉之上。 */
+  z-index: var(--z-rail-tools);
+}
+.sidebar-resizer:hover, .sidebar-resizer.dragging { background: var(--accent-border); }
+/* Now keyboard-operable (role="separator" + arrow keys), so it needs a visible
+   focus state — a 6px transparent strip has no shape of its own to outline. */
+.sidebar-resizer:focus-visible {
+  background: var(--accent);
+  outline: none;
+}
+
+/* ---------- 左上操作区 ---------- */
+.sb-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  /* 底距 0：下方 .sb-actions 紧贴，工具栏与 action 行之间无间距 */
+  padding: var(--sp-10) var(--sp-10) 0;
+  flex: none;
+  overflow: hidden;
+  border-top-right-radius: 15px;
+}
+.sb-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  flex: 1;
+  min-width: 0;
+  padding: 4px var(--sp-6);
+  border-radius: var(--r-6);
+  cursor: pointer;
+}
+/* Now a real <button> instead of a click-handled <div>. Buttons center their
+   text and shrink to content, so both are reset to match the old div layout. */
+.sb-brand { text-align: left; }
+.sb-brand:hover { background: var(--surface-hover); }
+.sb-brand .logo {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-6);
+  display: block;
+  flex: none;
+  object-fit: contain;
+}
+.sb-brand .name { font-weight: var(--fw-semibold); font-size: var(--fs-14); }
+.sb-top .icon-btn { width: 28px; height: 28px; }
+
+/* 左上应用菜单弹层：portal 到 body，JS 按锚点定位并做视口钳制，
+   覆盖 .menu 的 absolute 定位（min-width 240px 对齐 ver1）。 */
+.app-menu-popover {
+  position: fixed;
+  min-width: 240px;
+  z-index: var(--z-menu);
+}
+
+/* ---------- 区域通用头 ---------- */
+.sb-section { display: flex; flex-direction: column; min-height: 0; }
+.sb-section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-6) var(--sp-12) var(--sp-4);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-semibold);
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex: none;
+  user-select: none;
+}
+/* Section titles are real headings now (they were <span>, so the sidebar had no
+   heading structure to navigate by). h2 brings its own 1.5em default, which
+   would render these section labels at ~17px inside an 11px head — reset to
+   inherit so the visual result is identical to the old span. */
+.sb-section-head h2 {
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  margin: 0;
+}
+#sbFilesTitle {
+  letter-spacing: 0.1em;
+}
+.sb-section-head .icon-btn { width: 20px; height: 20px; margin-left: auto; }
+.sb-section-head .icon-btn + .icon-btn { margin-left: 0; }
+/* Explorer 操作组：默认隐藏，悬停标题栏显示（对齐 ver2 交互）
+   margin-left:auto 把整组顶到右侧，收起 chevron 作为最后一个子元素
+   紧跟其后、位于最右端。组内按钮因不在 `+ .icon-btn` 相邻选择器范围，
+   需显式清零 margin-left。 */
+.sb-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.sb-section-head:hover .sb-head-actions,
+.sb-section-head:focus-within .sb-head-actions { opacity: 1; }
+.sb-head-actions .icon-btn { width: 20px; height: 20px; margin-left: 0; }
+/* 收起 chevron 紧贴操作组右侧：.icon-btn 的通用 auto 会与操作组的 auto
+   平分剩余空间，造成操作组与收起按钮之间的大空隙，这里清零让两者紧贴。 */
+.sb-head-actions + .icon-btn { margin-left: 0; }
+
+.sb-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: var(--sp-8);
+  overscroll-behavior: contain;
+}
+
+/* ---------- 项目块 ---------- */
+.project { margin: 0 var(--sp-6) var(--sp-2); border-radius: var(--r-8); }
+/* 行容器：悬停高亮与操作区挂在整行上。项目头是 <button>，操作按钮不能嵌进
+   button（无效 HTML），所以做成行内兄弟节点。 */
+.project-head-row {
+  display: flex;
+  align-items: center;
+  border-radius: var(--r-8);
+}
+.project-head-row:hover,
+.project-head-row:focus-within { background: var(--surface-hover); }
+.project-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  flex: 1;
+  min-width: 0;
+  padding: 3px var(--sp-8);
+  border-radius: var(--r-8);
+  cursor: pointer;
+}
+/* 悬停操作区：最右 +（在此项目下新建文件），其左 ⋯（更多）。功能未接入，仅占位。
+   display:none 时不在 tab 序里；:focus-within 让键盘聚焦操作按钮后保持可见
+   （与 .tree-row .fop 同一规则）。 */
+.p-actions {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  padding-right: var(--sp-4);
+}
+.project-head-row:hover .p-actions,
+.project-head-row:focus-within .p-actions { display: inline-flex; }
+.p-actions .icon-btn { width: 20px; height: 20px; }
+/* 左侧图标位：默认显示文件夹图标（展开 folder-open / 收起 folder），悬停整行时
+   换为折叠箭头（chevron-d / chevron-r）。固定 14px 槽位 + 居中，图标切换时
+   项目名不位移。 */
+.project-head .tw {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.project-head .tw .tw-chev { display: none; }
+.project-head .tw .tw-folder { color: var(--text-3); }
+.project-head .tw .tw-chev { color: var(--glyph-faint); }
+.project-head-row:hover .tw .tw-folder,
+.project-head-row:focus-within .tw .tw-folder { display: none; }
+.project-head-row:hover .tw .tw-chev,
+.project-head-row:focus-within .tw .tw-chev { display: inline-flex; }
+.project-head .p-name {
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-12);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  min-width: 0;
+  flex: 1;
+}
+.project-head .p-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex: none;
+  object-fit: contain;
+}
+.project-flags { display: flex; align-items: center; gap: var(--sp-6); margin-left: auto; flex: none; }
+
+.thread {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  width: 100%;
+  min-width: 0;
+  /* 左内边距与项目头相同：8px + 14px 文件夹槽 + 6px gap，标题与项目名对齐。 */
+  padding: 6px var(--sp-8);
+  border-radius: var(--r-6);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+}
+.thread:hover { background: var(--surface-hover); }
+/* 悬停高亮挂整行（与 .project-head-row 同规则）：指针移到右侧操作按钮上时
+   行背景不熄灭。active 行悬停仍保持 accent-soft。 */
+.thread-row:hover .thread { background: var(--surface-hover); }
+.thread-row:hover .thread.active { background: var(--accent-soft); }
+.thread.active { background: var(--accent-soft); }
+.thread.active .t-title { color: var(--accent); font-weight: var(--fw-medium); }
+/* 会话行外壳：thread 是 button，归档/更多操作按钮不能嵌在里面（嵌套交互
+   元素非法），平铺为兄弟节点后用绝对定位浮在行右侧。 */
+.thread-row { position: relative; display: flex; align-items: center; }
+.thread-row .thread { flex: 1 1 0; width: auto; }
+/* 悬停操作区：最右「归档」，其左「⋯ 更多」。仅 :hover 显现——点击选中
+   会话后行按钮持有焦点，若用 :focus-within 会让选中行一直挂着操作按钮。
+   常驻布局 + opacity/visibility 过渡：隐藏时不可聚焦也不挡点击；
+   显隐与标题/时间戳的淡出用同一时长和曲线，交叉渐变不打架。 */
+.t-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  position: absolute;
+  right: var(--sp-4);
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out), visibility var(--dur-fast) var(--ease-out);
+}
+.thread-row:hover .t-actions {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+/* 等待胶囊占着最右槽：悬停也不露出归档 / 更多，避免和胶囊抢位。 */
+.thread-row.has-wait:hover .t-actions {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+/* 悬停行抬升一层：.t-actions 的 transform 让它自成层叠上下文，气泡的
+   z-index(--z-menu) 只在该上下文内有效；后续 .thread-row 同为 positioned、
+   按 DOM 顺序后绘，会把向下弹出的 tip 盖住，看起来像 tip 半透明透出下一行。
+   悬停/聚焦时把整行提到 z-index:1，气泡恢复盖在相邻行之上。 */
+.thread-row:hover,
+.thread-row:focus-within { z-index: 1; }
+/* 会话行 ⋯ 菜单弹层（ThreadRowMenu portal 到 body）：比顶栏 crumb 弹层
+   （.menu 基础 min-width 240px）稍窄；定位与视口钳制由 JS 计算。 */
+.thread-row-popover { position: fixed; min-width: 208px; }
+/* Explorer 文件/目录行 ⋯ 菜单弹层（FileRowMenu portal 到 body）：
+   宽度、钳制与翻叠同会话行弹层；「打开方式」子菜单在弹层内绝对定位。 */
+.explorer-file-popover { position: fixed; min-width: 216px; }
+.explorer-openwith-zone { position: relative; }
+.explorer-openwith-zone > .menu-item .icon:last-child { margin-left: auto; }
+.explorer-openwith-flyout {
+  position: absolute;
+  top: 0;
+  min-width: 200px;
+  z-index: 1;
+}
+.explorer-openwith-flyout.side-right { left: calc(100% + 8px); }
+.explorer-openwith-flyout.side-left { right: calc(100% + 8px); }
+.t-actions .icon-btn { width: 20px; height: 20px; }
+/* 悬停态坐标推导（相对【行】右缘，再换算到【标题盒】右缘）：
+   .t-actions 距行右缘 4px（--sp-4），宽 42px（20 + 2 + 20），
+   ⋯ 左缘 = 4 + 42 = 46px；加 2px 余量 → 完全透明点在行右缘 48px 处。
+   时间戳收 0 后，标题右缘距行右缘 = .thread 右内边距 8px（--sp-8），
+   换算标题坐标：clear = 48 - 8 = 40px，带宽 18px → fade = 58px。
+   即：文字恰好在 ⋯ 按钮左缘前完全消失，之前保持可见。 */
+.thread-row:hover .t-meta { opacity: 0; max-width: 0; }
+.thread-row:hover .t-title {
+  --title-fade: 58px;
+  --title-clear: 40px;
+}
+/* 等待状态位于会话按钮内的独立 flex 槽，按实际语言宽度让出空间。 */
+.thread-row.has-wait .t-title,
+.thread-row.has-wait:hover .t-title {
+  --title-fade: 18px;
+  --title-clear: 0px;
+}
+@property --title-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 18px;
+}
+@property --title-clear {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+/* 悬停自动滚读：长标题被右侧操作按钮遮挡时，文本滑到「尾端抵达渐隐带
+   起点」为止（完全可读的右边界），到头即停、不循环。终点位移在【悬停态
+   声明】里计算：100cqw = 标题盒宽 C（.t-title 的 container-type 提供），
+   transform 的 100% = 文本自身宽 W，终点 = C − W − 58px（58 = 悬停态
+   渐隐带宽，用字面量：--title-fade 注册为 inherits:false，子元素取不到）；
+   未溢出时被 min() 钳到 0，短标题纹丝不动（长标题位移为负 = 向左滚，
+   短标题为正 = 恒为 0）。
+   用 transition 而不是 @keyframes：cqw 写进 keyframes 时 Chromium 可能
+   回退按视口解析，终点恒为正、被钳 0，表现为完全不动；普通声明里的
+   cqw 在 computed-value 阶段稳定按容器解析。transition 只挂在悬停态，
+   移开悬停基态无过渡，瞬时复位；延时 800ms 比 tooltip 的意图确认
+   （--tip-delay 500ms）再晚一拍，确认是真的在阅读这行才开始滚。 */
+.thread .t-scroll {
+  display: inline-block;
+  white-space: nowrap;
+}
+.thread-row:hover .t-scroll {
+  transform: translateX(min(100cqw - 100% - 58px, 0px));
+  transition: transform 3s linear 800ms;
+}
+.thread-row.has-wait:hover .t-scroll {
+  transform: translateX(min(100cqw - 100% - 18px, 0px));
+}
+/* 「展开更多」：第 7 位起的出现口，与会话标题同左缘（文件夹槽 + gap）。 */
+.load-more {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 2px 0 2px var(--sp-8);
+  padding: 4px var(--sp-8) 4px calc(14px + var(--sp-6));
+  border-radius: var(--r-6);
+  font-size: var(--fs-11);
+  color: var(--text-3);
+  cursor: pointer;
+  text-align: left;
+}
+.load-more:hover { background: var(--surface-hover); color: var(--text-2); }
+.load-more .lm-count { margin-left: auto; color: var(--text-faint); font-size: calc(10.5px * var(--text-font-scale)); }
+.thread .t-title {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: var(--fs-12);
+  /* 容器上下文：给 .t-scroll 的 100cqw 提供标题盒宽。宽度本就来自
+     flex 分配（flex:1 1 0 + min-width:0），不依赖内容，inline-size
+     包含在此无副作用。 */
+  container-type: inline-size;
+  /* 右缘渐隐遮罩的两端做成变量，坐标相对【标题盒】右缘：--title-fade 是
+     渐隐带起点（不透明边界），--title-clear 是完全透明点，带宽 18px。
+     常态 clear=0：渐隐到标题右缘，只负责截断软化。悬停态换算见下方
+     .thread-row:hover 覆盖处的坐标推导。@property 注册后两个长度随
+     transition 平滑滑动；不支持的环境退化为瞬切，遮罩仍生效。 */
+  --title-fade: 18px;
+  --title-clear: 0px;
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--title-fade)), transparent calc(100% - var(--title-clear)));
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--title-fade)), transparent calc(100% - var(--title-clear)));
+  transition: --title-fade var(--dur-fast) var(--ease-out), --title-clear var(--dur-fast) var(--ease-out);
+}
+.thread .t-meta {
+  font-size: calc(10.5px * var(--text-font-scale));
+  color: var(--text-faint);
+  flex: none;
+  margin-left: auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  /* 悬停时宽度收到 0（与图标淡入同步），让标题右缘到行右缘的距离恒为
+     .thread 的 8px 右内边距——标题遮罩坐标才有精确解。max-width 用 80px
+     上限（shrink-to-fit，常态不影响实际宽度），overflow 防收窄时换行。 */
+  overflow: hidden;
+  max-width: 80px;
+  transition: opacity var(--dur-fast) var(--ease-out), max-width var(--dur-fast) var(--ease-out);
+}
+/* Pinned marker. Was a 📌 emoji inline in the title string: font-dependent,
+   uncontrollable by token, and it rendered full-colour against a monochrome
+   sidebar. Now the same vector set as every other icon. */
+.thread .t-pin,
+.hist-row .t-pin {
+  display: inline-flex;
+  vertical-align: -2px;
+  margin-right: 3px;
+  color: var(--text-3);
+}
+.thread .t-badges { display: flex; gap: 3px; align-items: center; flex: none; }
+/* 状态胶囊参与行布局，点击仍落在包含它的会话按钮上。 */
+.t-wait {
+  position: static;
+  flex: 0 0 auto;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  border-radius: var(--r-full);
+}
+/* 比 chip.xs 更高更宽，字号仍是 10.5px。 */
+.t-wait.chip.xs {
+  height: 20px;
+  padding: 0 10px;
+  font-size: calc(10.5px * var(--text-font-scale));
+}
+/* 与项目头 .tw 同宽的文件夹列：运行中在此转圈，空闲留空，标题左缘对齐。 */
+.thread .t-gutter {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.thread .t-spin {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  border: 1.4px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: var(--r-full);
+  animation: omp-spin 0.8s linear infinite;
+}
+.thread .unread {
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: calc(9.5px * var(--text-font-scale));
+  font-weight: var(--fw-semibold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------- 上下区分隔 ---------- */
+.sb-divider {
+  flex: none;
+  height: 9px;
+  margin: 0 calc(-1 * var(--sp-2));
+  cursor: row-resize;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  overflow: hidden;
+}
+.sb-divider::before {
+  content: "";
+  width: 100%;
+  height: 1px;
+  background: var(--border);
+}
+.sb-divider.dragging::before,
+.sb-divider:focus-visible::before { background: var(--accent-border); }
+.sb-divider:focus-visible { outline: none; }
+
+/* 区域收起态 */
+.sb-section.collapse:not(#sbFiles) .sb-scroll { display: none; }
+.sb-section.collapse:not(#sbFiles) { flex: none !important; }
+#sbProjects {
+  flex: 1 1 var(--sb-proj-basis, 46%);
+  min-height: 0;
+  overflow: hidden;
+  transition: flex-grow var(--dur-slow) var(--ease-out),
+              flex-basis var(--dur-slow) var(--ease-out);
+}
+#sbFiles {
+  flex: 1 1 var(--sb-files-basis, 54%);
+  min-height: 34px;
+  overflow: hidden;
+  transition: flex-grow var(--dur-slow) var(--ease-out),
+              flex-basis var(--dur-slow) var(--ease-out);
+}
+#sbFiles.collapse {
+  flex-grow: 0;
+  flex-basis: 0%;
+}
+.sidebar.explorer-collapsed #sbProjects {
+  flex-grow: 1;
+  flex-basis: 100%;
+}
+.sidebar.explorer-collapsed .sb-divider {
+  display: none;
+}
+.sidebar.sb-splitting #sbProjects,
+.sidebar.sb-splitting #sbFiles,
+.sidebar.sb-splitting .sb-divider {
+  transition: none;
+}
+#sbFiles .sb-scroll {
+  transition: opacity var(--dur) var(--ease);
+}
+#sbFiles.collapse .sb-scroll {
+  opacity: 0;
+  pointer-events: none;
+}
+.sb-collapse-btn .icon {
+  transition: transform var(--dur) var(--ease-out);
+}
+
+/* ---------- 文件树 ---------- */
+.tree { min-height: 100%; padding: 0 var(--sp-6); font-size: var(--fs-12); }
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  /* Depth indent arrives as --depth-pad from the renderer (it is data, not
+     style). Keeping it in a custom property means this rule still owns the box,
+     so padding-right and the fallback cannot be clobbered by the inline value. */
+  padding-left: var(--depth-pad, var(--sp-6));
+  padding-right: var(--sp-6);
+  /* Explorer rows stay tight — the softened global radius reads as bubbly
+     on a 24px row in a dense tree. */
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-2);
+  position: relative;
+}
+.tree-row:hover { background: var(--surface-hover); color: var(--text); }
+.tree-row[aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-hover));
+  color: var(--text);
+}
+.tree-row:focus-visible {
+  outline: 1px solid color-mix(in srgb, var(--accent) 68%, transparent);
+  outline-offset: -1px;
+}
+.tree-row .tw { width: 14px; height: 14px; flex: none; color: var(--glyph-faint); display: inline-flex; }
+.tree-row .tw .icon { width: 12px; height: 12px; transform: rotate(0deg); transform-origin: center; transition: transform var(--dur-fast) var(--ease-out); }
+.tree-row.open > .tw .icon { transform: rotate(90deg); }
+.tree-row .fi { color: var(--text-3); display: inline-flex; flex: none; }
+/* Folders carry the accent so the eye can find structure without reading
+   names; files stay neutral. Mirrors ver2's Explorer. */
+.tree-row[data-dir] .fi { color: var(--accent); }
+.tree-row .fi .icon { width: 14px; height: 14px; }
+.tree-row .fname { flex: 1; min-width: 0; }
+/* Git 状态指示：行尾彩色字母（M/A/D/R/U/! = 修改/新增/删除/重命名/未跟踪/冲突）。
+   字母 + 文件名着色双通道，不单靠颜色（WCAG color-not-only）；
+   文件树与 Changes 面板共用；目录显示聚合后的后代状态。 */
+.fstat {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 12px; height: 16px;
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  /* 文件行悬停时徽章淡出并收宽，给浮层按钮让位（同 .thread .t-meta）。
+     max-width 上限取字母实际宽度之上，常态不影响；min/max 同时过渡，
+     收窄过程字母被 overflow 裁住。 */
+  overflow: hidden;
+  max-width: 14px;
+  transition: opacity var(--dur-fast) var(--ease-out), min-width var(--dur-fast) var(--ease-out), max-width var(--dur-fast) var(--ease-out);
+}
+.fstat.m { color: var(--git-modified); }
+.fstat.a { color: var(--git-added); }
+.fstat.d { color: var(--git-deleted); }
+.fstat.r { color: var(--git-renamed); }
+.fstat.u { color: var(--git-untracked); }
+.fstat.x { color: var(--git-conflict); }
+/* Row actions were revealed on :hover only via display, which makes them
+   unreachable without a pointer AND pops them in/out abruptly. Same recipe
+   as .thread-row .t-actions: absolutely positioned over the row's right
+   edge, always laid out, opacity/visibility cross-fade; the hidden state
+   cannot be tabbed into and does not catch clicks. Row focus (:focus-within)
+   keeps the keyboard path. */
+.tree-row .fop {
+  display: inline-flex;
+  gap: 2px;
+  flex: none;
+  position: absolute;
+  right: var(--sp-4);
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out), visibility var(--dur-fast) var(--ease-out);
+}
+.tree-row:hover .fop,
+.tree-row:focus-visible .fop,
+.tree-row:focus-within .fop {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+.tree-row .fop .icon-btn { width: 18px; height: 18px; }
+/* 文件名右缘渐隐遮罩（同 .thread .t-title）：常态 18px 软化截断，
+   悬停时把被浮层按钮遮住的段落渐隐。悬停坐标推导（相对【行】右缘，
+   再换算【文件名盒】右缘）：.fop 距行右缘 4px（--sp-4），宽 38px
+   （18 + 2 + 18），左按钮左缘 = 4 + 38 = 42px；+2px 余量 → 完全透明点
+   在行右缘 44px。徽章收 0 后文件名右缘距行右缘 = 6px 右内边距
+   （--sp-6）+ 5px 行内 gap = 11px，换算文件名坐标：clear = 44 - 11
+   = 33px，带宽 18px → fade = 51px。文件行与文件夹行都是「添加上下文 +
+   更多」两枚按钮，悬停渐隐同一套坐标。 */
+.tree-row .fname {
+  --fname-fade: 18px;
+  --fname-clear: 0px;
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--fname-fade)), transparent calc(100% - var(--fname-clear)));
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--fname-fade)), transparent calc(100% - var(--fname-clear)));
+  transition: --fname-fade var(--dur-fast) var(--ease-out), --fname-clear var(--dur-fast) var(--ease-out);
+}
+.tree-row:where([data-file], [data-dir]):where(:hover, :focus-visible, :focus-within) .fname {
+  --fname-fade: 51px;
+  --fname-clear: 33px;
+}
+/* 徽章与按钮显隐同步淡出（状态集与 .fop 显隐完全一致）。 */
+.tree-row:where([data-file], [data-dir]):where(:hover, :focus-visible, :focus-within) .fstat,
+.tree-row:where([data-file], [data-dir]):where(:hover, :focus-visible, :focus-within) .live {
+  opacity: 0;
+  min-width: 0;
+  max-width: 0;
+}
+@property --fname-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 18px;
+}
+@property --fname-clear {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+.tree-children { display: none; }
+.tree-row.open + .tree-children { display: block; }
+.tree-new-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  margin: 4px var(--sp-6) 5px 0;
+  padding: 2px 4px 2px var(--depth-pad, var(--sp-6));
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border-strong));
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  box-shadow: inset 2px 0 var(--accent);
+}
+.tree-new-row .tw { width: 14px; height: 14px; flex: none; }
+.tree-new-row .fi { color: var(--accent); display: inline-flex; flex: none; }
+.tree-new-row .fi .icon { width: 14px; height: 14px; }
+.tree-new-row .input {
+  min-width: 0;
+  height: 24px;
+  flex: 1;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--fs-12);
+}
+.tree-new-row .input:focus,
+.tree-new-row .input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 58%, transparent);
+  background: var(--surface);
+}
+.tree-new-row .icon-btn { width: 22px; height: 22px; flex: none; }
+.tree-new-status {
+  padding-left: var(--depth-pad, var(--sp-6));
+  padding-right: var(--sp-6);
+  margin: -1px var(--sp-6) 4px 0;
+  line-height: 1.35;
+}
+.tree-new-status.error { color: var(--red); }
+
+/* 过程状态标记 */
+.tree-row .live {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  max-width: 24px;
+  transition: opacity var(--dur-fast) var(--ease-out), min-width var(--dur-fast) var(--ease-out), max-width var(--dur-fast) var(--ease-out);
+}
+.tree-row.turn-file .fname { font-weight: var(--fw-medium); color: var(--text); }
+.tree-row .diag {
+  width: 5px; height: 5px; border-radius: var(--r-full); flex: none;
+}
+.diag.err { background: var(--red); }
+.diag.warn { background: var(--amber); }
+/* Git 状态文件名着色：字母徽标之外的第二通道。放在 .turn-file 之后，
+   「本轮已触碰」的加粗与 git 颜色叠加（同特异性，源顺序决定颜色取 git）。 */
+.tree-row[data-git="m"] .fname { color: var(--git-modified); }
+.tree-row[data-git="a"] .fname { color: var(--git-added); }
+.tree-row[data-git="d"] .fname { color: var(--git-deleted); }
+.tree-row[data-git="r"] .fname { color: var(--git-renamed); }
+.tree-row[data-git="u"] .fname { color: var(--git-untracked); }
+.tree-row[data-git="x"] .fname { color: var(--git-conflict); }
+
+/* ---------- 左下用户与 OMP 状态 ---------- */
+.sb-footer {
+  flex: none;
+  /* margin-top:auto 把用户区钉在左下角：上方区域即使全部折叠、只剩头部高度，
+     空余空间也被这条 auto margin 吸收，用户区不会跟着上移。 */
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding: var(--sp-8) var(--sp-10);
+}
+.sb-user {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: 4px var(--sp-6);
+  border-radius: var(--r-6);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+.sb-user:hover { background: var(--surface-hover); }
+.avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: calc(11px * var(--text-font-scale));
+  font-weight: var(--fw-semibold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  object-fit: cover;
+  overflow: hidden;
+}
+/* The name/status pair moved from \<div\> to \<span\> (a \<div\> inside a \<button\> is
+   invalid HTML, and the button is what makes this focusable). Spans are inline,
+   so the two-line stack is now declared here rather than inherited from the
+   old block-level default. */
+.sb-user > span:not(.avatar) {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.sb-user .u-name { font-size: var(--fs-12); font-weight: var(--fw-medium); }
+.sb-user .u-status {
+  font-size: var(--fs-11);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.sb-user .u-status.ok { color: var(--green); }
+.sb-user .u-status.warn { color: var(--amber); }
+.sb-user .u-status.err { color: var(--red); }
+.sb-user .icon { margin-left: auto; color: var(--glyph-faint); }
+
+/* OMP 环境菜单：portal 到 body，按 ver1 overlay `up-left` 用 fixed 贴按钮上方 */
+.omp-menu {
+  position: fixed;
+  min-width: 260px;
+}
+.omp-menu-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-8);
+  padding: var(--sp-4) var(--sp-8) var(--sp-8);
+}
+.omp-menu-profile {
+  width: calc(100% - 2 * var(--sp-6));
+  margin: var(--sp-2) var(--sp-6) 0;
+  padding: var(--sp-4) var(--sp-8) var(--sp-8);
+  border: 0;
+  border-radius: var(--r-6);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.omp-menu-profile .avatar {
+  width: 32px;
+  height: 32px;
+  font-size: calc(13px * var(--text-font-scale));
+}
+.omp-menu-profile:hover { background: var(--surface-hover); }
+.omp-menu-profile > span:not(.avatar) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.omp-menu-profile .u-name,
+.omp-menu-head .v {
+  overflow: hidden;
+  white-space: nowrap;
+  mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+}
+.omp-menu-profile .u-name { font-weight: var(--fw-semibold); }
+.omp-menu-head .logo {
+  width: 26px; height: 26px; border-radius: var(--r-6);
+  background: var(--accent);
+  color: var(--text-on-accent); display: flex; align-items: center; justify-content: center;
+  font-weight: var(--fw-bold);
+}
+.omp-menu-head .v { font-size: var(--fs-11); color: var(--text-3); font-family: var(--font-mono); }
+.omp-menu-err {
+  margin: 0 var(--sp-6) var(--sp-6);
+  padding: var(--sp-8);
+  border-radius: var(--r-6);
+  background: var(--red-soft);
+  color: var(--red);
+  font-size: var(--fs-11);
+  display: flex;
+  gap: var(--sp-6);
+  align-items: flex-start;
+}
+
+/* ============================================================
+   任务级常驻 action 区：两行 ghost row（对齐 Codex 截图）
+   行 1：[+] 新建对话
+   行 2：[⊞] 技能 & 插件 (3) →
+   不是 chip，而是整行宽的菜单项风格：圆角轻、左侧图标 + 文字、右侧徽章/箭头。
+   视觉重量低于 h2 标题（项目与对话），但仍可单独点击。
+   ============================================================ */
+.sb-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* 顶距 5px：两行 action 与 .sb-top（OMP Studio 工具栏）之间留 5px（按需求微调） */
+  padding: 5px var(--sp-10) var(--sp-4);
+  flex: none;
+}
+
+/* 通用 ghost row：.action-row 整行可点 */
+.sb-actions .action-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  width: 100%;
+  height: 30px;
+  padding: 0 var(--sp-10);
+  border-radius: var(--r-6);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-regular);
+  text-align: left;
+  cursor: pointer;
+  border: 0;
+  transition: background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+.sb-actions .action-row:hover { background: var(--surface-hover); }
+.sb-actions .action-row .icon {
+  color: var(--text-3);
+  flex: none;
+  transition: color var(--dur-fast) var(--ease);
+}
+.sb-actions .action-row:hover .icon { color: var(--text); }
+.sb-actions .action-row .lbl {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* 右侧元数据（徽章 / 箭头） */
+.sb-actions .action-row .meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  font-size: var(--fs-11);
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  flex: none;
+}
+.sb-actions .action-row .meta .count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: var(--r-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: calc(10px * var(--text-font-scale)); font-weight: var(--fw-semibold);
+  font-family: var(--font-mono);
+}
+.sb-actions .action-row .meta .chev {
+  color: var(--glyph-faint);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.sb-actions .action-row:hover .meta .chev { color: var(--text-3); }
+
+/* 新建对话：第一行，主操作。加号在文字左边，右侧仅文案提示。 */
+.sb-actions .new-convo-btn .icon { color: var(--accent); }
+.sb-actions .new-convo-btn:hover .icon { color: var(--accent-hover); }
+.sb-actions .new-convo-btn .lbl { font-weight: var(--fw-medium); }
+.sb-actions .new-convo-btn .meta .hint {
+  font-family: var(--font-ui);
+  font-size: var(--fs-11);
+  color: var(--text-faint);
+}
+
+/* 技能 & 插件：第二行，toggle chip。选中态 = 行底色变 accent-soft，徽章实心。 */
+.sb-actions .skills-btn[aria-expanded="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.sb-actions .skills-btn[aria-expanded="true"] .icon { color: var(--accent); }
+.sb-actions .skills-btn[aria-expanded="true"] .meta .count {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.sb-actions .skills-btn[aria-expanded="true"] .meta .chev { color: var(--accent); }
+
+/* ============================================================
+   侧栏内嵌技能抽屉面板
+   关键约束：覆盖 .sb-section 列表（项目与对话 + Explorer），
+   不覆盖 .sb-top 与 .sb-footer。
+   ============================================================ */
+.sb-drawer-mask {
+  position: absolute;
+  left: 0; right: 0;
+  top: var(--drawer-top, 56px);
+  bottom: var(--drawer-bottom, 56px);
+  background: var(--bg-inset);
+  display: flex; flex-direction: column;
+  z-index: var(--z-rail);
+  transform: translateX(-12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform var(--dur-slow) var(--ease-out),
+              opacity var(--dur-slow) var(--ease);
+}
+.sb-drawer-mask.open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 抽屉顶部 */
+.sd-head {
+  flex: none;
+  display: flex; align-items: center; gap: var(--sp-8);
+  padding: var(--sp-10) var(--sp-12) var(--sp-8);
+}
+.sd-title {
+  display: flex; align-items: center; gap: var(--sp-8);
+  font-size: var(--fs-12); font-weight: var(--fw-semibold);
+  color: var(--text); letter-spacing: 0.02em;
+  min-width: 0;
+}
+.sd-title .icon { color: var(--accent); flex: none; }
+.sd-title .count {
+  margin-left: 2px; font-size: var(--fs-11); color: var(--text-3);
+  font-weight: var(--fw-regular); font-family: var(--font-mono);
+}
+.sd-head .spacer { flex: 1; }
+.sd-head .icon-btn { width: 24px; height: 24px; }
+
+/* 搜索框 */
+.sd-search {
+  flex: none;
+  margin: 0 var(--sp-12) var(--sp-8);
+  display: flex; align-items: center; gap: var(--sp-8);
+  padding: 0 var(--sp-10);
+  height: 30px;
+  border-radius: var(--r-8);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: var(--fs-12);
+  transition: border-color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
+}
+/* 聚焦特效 = 外发光，边框不变色 */
+.sd-search:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-softer),
+              0 0 14px 1px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.sd-search input {
+  flex: 1; min-width: 0; border: 0; outline: none;
+  background: transparent; color: var(--text); font: inherit;
+}
+.sd-search input::placeholder { color: var(--text-faint); }
+.sd-search .kbd {
+  font-family: var(--font-mono); font-size: calc(10px * var(--text-font-scale));
+  color: var(--text-faint); padding: 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px; background: var(--bg-inset);
+}
+
+/* 分类 tab */
+.sd-tabs {
+  flex: none;
+  display: flex; gap: 4px;
+  padding: 0 var(--sp-12) var(--sp-8);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.sd-tab {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 24px; padding: 0 var(--sp-10);
+  border-radius: var(--r-full);
+  color: var(--text-3);
+  font-size: var(--fs-11);
+  white-space: nowrap; flex: none;
+  cursor: pointer; background: transparent;
+  border: 0;
+  transition: background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+.sd-tab:hover { background: var(--surface-hover); color: var(--text); }
+.sd-tab.active { background: var(--accent-soft); color: var(--accent); }
+.sd-tab .count { font-family: var(--font-mono); font-size: calc(10px * var(--text-font-scale)); opacity: .7; }
+
+/* 抽屉正文 */
+.sd-body {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 var(--sp-6) var(--sp-12);
+}
+
+/* 1:1 row treatment from redesigning-skill-card-components.zip */
+.sk-group { margin-bottom: 2px; }
+.sk-group-head {
+  display:flex; align-items:center; gap:5px; width:100%; height:26px; padding:0 8px;
+  color:var(--text-3); cursor:pointer; text-align:left; background:var(--bg-inset); border:0;
+  overflow:hidden;
+  transition:
+    height calc(var(--dur-slow) + var(--dur-fast)) var(--ease-nav),
+    opacity var(--dur-slide) var(--ease-ios);
+}
+.sk-group-chevron { display:inline-flex; color:var(--text-faint); transition:transform 120ms ease-out; }
+.sk-group:not(.is-collapsed) .sk-group-chevron { transform:rotate(90deg); }
+.sk-group-head:hover { color:var(--text); }
+.sk-group-label { font-size: calc(10.5px * var(--text-font-scale)); font-weight:600; letter-spacing:.06em; }
+.sk-group-count,.sk-meta { color:var(--text-faint); font-family:var(--font-mono); font-size: calc(10px * var(--text-font-scale)); }
+.sk-group-rule { flex:1; height:1px; background:var(--border); }
+.sk-group-items {
+  --sk-h: 54px;
+  --sk-gap: 6px;
+  --sk-stagger-step: 40ms;
+  --sk-leave-slide-d: var(--dur-slide);
+  --sk-leave-h-d: calc(var(--dur-slow) + var(--dur-fast));
+  --sk-enter-h-d: calc(var(--dur-slow) + var(--dur));
+  --sk-enter-slide-d: calc(var(--dur-slow) + var(--dur-slide));
+  --sk-leave-h-delay: var(--dur-tactile);
+  --sk-enter-h-delay: var(--dur);
+  --sk-enter-slide-delay: calc(var(--dur-slow) + var(--dur));
+  display:flex;
+  flex-direction:column;
+  gap:0;
+}
+.sk-group.is-leave { margin-bottom: 0; }
+.sk-group.is-leave .sk-group-head {
+  height: 0; opacity: 0; pointer-events: none;
+  transition-delay: var(--dur-tactile);
+}
+.sk-group.is-enter .sk-group-head { height: 0; opacity: 0; }
+.sk-group.is-enter.is-in .sk-group-head {
+  height: 26px; opacity: 1;
+  transition:
+    height calc(var(--dur-slow) + var(--dur)) var(--ease-nav),
+    opacity var(--dur-slow) var(--ease-ios);
+  transition-delay: var(--dur);
+}
+
+.sk-slot {
+  display: grid;
+  grid-template-rows: var(--sk-h);
+  margin-bottom: var(--sk-gap);
+  min-height: 0;
+  transition:
+    grid-template-rows var(--sk-leave-h-d) var(--ease-nav),
+    margin-bottom var(--sk-leave-h-d) var(--ease-nav);
+}
+.sk-slot-clip { min-height: 0; overflow: hidden; }
+.sk-slot .sk-card {
+  transition:
+    background 220ms var(--ease-out),
+    transform var(--sk-leave-slide-d) var(--ease-nav),
+    opacity var(--sk-leave-slide-d) var(--ease-ios);
+}
+.sk-slot.is-leave {
+  grid-template-rows: 0px;
+  margin-bottom: 0;
+  transition-delay: calc(var(--sk-leave-h-delay) + (var(--sk-stagger, 0) * var(--sk-stagger-step)));
+}
+.sk-slot.is-leave .sk-card {
+  transform: translate3d(-16px, 0, 0);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--sk-leave-slide-d) var(--ease-nav),
+    opacity var(--sk-leave-slide-d) var(--ease-ios);
+  transition-delay: calc(var(--sk-stagger, 0) * var(--sk-stagger-step));
+}
+.sk-slot.is-enter {
+  grid-template-rows: 0px;
+  margin-bottom: 0;
+  transition: none;
+}
+.sk-slot.is-enter .sk-card {
+  transform: translate3d(-16px, 0, 0);
+  opacity: 0;
+  transition: none;
+}
+.sk-slot.is-enter.is-in {
+  grid-template-rows: var(--sk-h);
+  margin-bottom: var(--sk-gap);
+  transition:
+    grid-template-rows var(--sk-enter-h-d) var(--ease-nav),
+    margin-bottom var(--sk-enter-h-d) var(--ease-nav);
+  transition-delay: calc(var(--sk-enter-h-delay) + (var(--sk-stagger, 0) * var(--sk-stagger-step)));
+}
+.sk-slot.is-enter.is-in .sk-card {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+  transition:
+    opacity var(--sk-enter-h-d) var(--ease-ios),
+    transform var(--sk-enter-slide-d) var(--ease-ios);
+  transition-delay:
+    calc(var(--sk-enter-h-delay) + (var(--sk-stagger, 0) * var(--sk-stagger-step))),
+    calc(var(--sk-enter-slide-delay) + (var(--sk-stagger, 0) * var(--sk-stagger-step)));
+}
+
+.sk-card {
+  --sk-tone: var(--accent);
+  --sk-tone-soft: var(--accent-soft);
+  position:relative; display:flex; align-items:center; width:100%; height:54px;
+  padding:0 8px; gap:10px; border-radius:8px; overflow:hidden;
+  background:transparent; border:0; color:var(--text); cursor:pointer; outline:0;
+  transition: background 220ms var(--ease-out);
+}
+.sk-card[data-tone="purple"], .sk-fly[data-tone="purple"] { --sk-tone: var(--accent); --sk-tone-soft: var(--accent-soft); }
+.sk-card[data-tone="blue"], .sk-fly[data-tone="blue"] { --sk-tone: var(--blue); --sk-tone-soft: var(--blue-soft); }
+.sk-card[data-tone="green"], .sk-fly[data-tone="green"] { --sk-tone: var(--green); --sk-tone-soft: var(--green-soft); }
+.sk-card[data-tone="amber"], .sk-fly[data-tone="amber"] { --sk-tone: var(--amber); --sk-tone-soft: var(--amber-soft); }
+.sk-card[data-tone="teal"], .sk-fly[data-tone="teal"] {
+  --sk-tone: color-mix(in srgb, var(--green) 62%, var(--blue));
+  --sk-tone-soft: color-mix(in srgb, var(--green-soft) 55%, var(--blue-soft));
+}
+.sk-card[data-tone="cyan"], .sk-fly[data-tone="cyan"] {
+  --sk-tone: color-mix(in srgb, var(--blue) 72%, var(--green));
+  --sk-tone-soft: var(--blue-soft);
+}
+.sk-card[data-tone="rose"], .sk-fly[data-tone="rose"] {
+  --sk-tone: color-mix(in srgb, var(--red) 38%, var(--accent));
+  --sk-tone-soft: color-mix(in srgb, var(--red-soft) 40%, var(--accent-soft));
+}
+.sk-card[data-tone="gray"], .sk-fly[data-tone="gray"] { --sk-tone: var(--text-3); --sk-tone-soft: var(--surface-2); }
+.sk-card[data-tone="red"], .sk-fly[data-tone="red"] { --sk-tone: var(--red); --sk-tone-soft: var(--red-soft); }
+.sk-card:hover,.sk-card:focus-visible { background:var(--surface-hover); }
+.sk-card.is-added { background: var(--sk-tone-soft); }
+.sk-card.has-error { background:transparent; }
+.sk-card::before {
+  content:''; position:absolute; left:0; top:50%; width:2px; height:18px;
+  transform:translateY(-50%) scaleY(0.35); opacity:0; transform-origin:center;
+  border-radius:0 999px 999px 0; background:var(--sk-tone); pointer-events:none;
+  transition: transform 240ms var(--ease-spring), opacity 160ms var(--ease-out), background 180ms ease;
+}
+.sk-card.is-added::before,.sk-card.has-error::before {
+  transform:translateY(-50%) scaleY(1); opacity:1;
+}
+.sk-card.has-error::before { background:var(--red); }
+.sk-card.is-disabled { opacity:.5; cursor:not-allowed; }
+
+.sk-icon {
+  position:relative; display:inline-flex; align-items:center; justify-content:center;
+  width:28px; height:28px; flex:none; border-radius:8px;
+  color:var(--sk-tone);
+  /* 亮色：右上受光、左下沉色。 */
+  background:
+    radial-gradient(130% 100% at 14% 88%,
+      color-mix(in srgb, var(--sk-tone) 30%, transparent),
+      color-mix(in srgb, var(--sk-tone) 7%, transparent) 64%);
+  box-shadow:
+    inset -1px 1px 0 color-mix(in srgb, #fff 42%, transparent),
+    inset 1px -1px 0 color-mix(in srgb, var(--sk-tone) 16%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--sk-tone) 18%, transparent);
+  transition: transform 280ms var(--ease-spring), background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+.sk-icon::after {
+  content:""; position:absolute; inset:1px; border-radius:7px; pointer-events:none; z-index:0;
+  background:linear-gradient(225deg, color-mix(in srgb, #fff 38%, transparent) 0%, transparent 58%);
+}
+.sk-icon .icon {
+  position:relative; z-index:1;
+  width:15px; height:15px; stroke-width:1.45;
+}
+.sk-card.is-added .sk-icon { transform:scale(1.06); }
+.sk-icon-plugin {
+  border-radius:9px;
+  box-shadow:
+    inset -1px 1px 0 color-mix(in srgb, #fff 36%, transparent),
+    inset 1px -1px 0 color-mix(in srgb, var(--sk-tone) 22%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--sk-tone) 36%, transparent);
+}
+:root[data-theme="dark"] .sk-icon {
+  background:
+    radial-gradient(120% 90% at 28% 18%,
+      color-mix(in srgb, var(--sk-tone) 34%, transparent),
+      color-mix(in srgb, var(--sk-tone) 10%, transparent) 64%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 20%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--sk-tone) 22%, transparent);
+}
+:root[data-theme="dark"] .sk-icon::after {
+  background:linear-gradient(180deg, color-mix(in srgb, #fff 14%, transparent), transparent 46%);
+}
+:root[data-theme="dark"] .sk-icon-plugin {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 16%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--sk-tone) 40%, transparent);
+}
+.sk-added-mark {
+  position:absolute; z-index:2; right:-3px; bottom:-3px; display:inline-flex;
+  align-items:center; justify-content:center; width:11px; height:11px; border-radius:999px;
+  background:var(--sk-tone); color:#fff; box-shadow:0 0 0 2px var(--bg-inset);
+  opacity:0; transform:scale(0.25); pointer-events:none;
+  transition: transform 280ms var(--ease-spring), opacity 160ms var(--ease-out), background 180ms ease;
+}
+.sk-card.is-added .sk-added-mark { opacity:1; transform:scale(1); }
+.sk-added-mark .icon { width:7px; height:7px; stroke-width:3.4; }
+.sk-used-mark {
+  position:absolute; z-index:2; left:-3px; bottom:-3px; display:inline-flex;
+  align-items:center; justify-content:center; width:11px; height:11px; border-radius:999px;
+  background:var(--text-3); color:#fff; box-shadow:0 0 0 2px var(--bg-inset);
+  opacity:0; transform:scale(0.25); pointer-events:none;
+  transition: transform 280ms var(--ease-spring), opacity 160ms var(--ease-out), background 180ms ease;
+}
+.sk-card.is-used .sk-used-mark { opacity:1; transform:scale(1); }
+.sk-used-mark .icon { width:7px; height:7px; stroke-width:3.4; }
+.sk-error-mark { position:absolute; z-index:2; right:-3px; bottom:-3px; width:9px; height:9px; border-radius:999px; background:var(--red); box-shadow:0 0 0 2px var(--bg-inset); }
+
+.sk-content { flex:1; min-width:0; }
+.sk-row1 { display:flex; align-items:center; gap:6px; min-width:0; }
+.sk-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--font-mono); font-size: calc(13px * var(--text-font-scale)); line-height:18px; font-weight:600; color:var(--text); }
+.sk-scope { flex:none; font-size: calc(10px * var(--text-font-scale)); line-height:14px; letter-spacing:.04em; font-weight:500; opacity:.85; }
+.sk-scope-workspace { color:var(--accent); }.sk-scope-global { color:var(--green); }.sk-scope-builtin { color:var(--text-3); }.sk-scope-plugin { color:var(--amber); }
+.sk-external { display:inline-flex; flex:none; color:var(--text-faint); }.sk-external .icon { width:12px; height:12px; }
+.sk-desc { min-width:0; margin-top:1px; overflow:hidden; font-size: calc(12px * var(--text-font-scale)); line-height:16px; color:var(--text-2); text-overflow:ellipsis; white-space:nowrap; }
+.sk-card.has-error .sk-desc { color:var(--red); }.sk-desc .icon { width:11px; height:11px; margin-right:5px; vertical-align:-2px; }
+
+.sk-preview-hit {
+  display:flex; align-items:center; gap:10px;
+  flex:1; min-width:0; height:100%;
+}
+
+.sk-action-zone {
+  position:absolute; z-index:2; right:0; top:0;
+  display:flex; align-items:center; height:100%;
+  max-width:0; padding:0;
+  overflow:hidden; background:transparent;
+  pointer-events:none;
+  transition: max-width 200ms var(--ease-out),
+              padding 200ms var(--ease-out),
+              background 160ms ease;
+}
+.sk-card:hover .sk-action-zone,
+.sk-card:focus-visible .sk-action-zone,
+.sk-card:has(:focus-visible) .sk-action-zone,
+.sk-card.is-retrying .sk-action-zone {
+  max-width:160px;
+  padding:0 6px 0 28px;
+  background:linear-gradient(to right,transparent 0%,color-mix(in srgb,var(--bg-inset) 70%,var(--surface) 30%) 26px);
+}
+.sk-actions { display:flex; align-items:center; gap:2px; transform:translateX(12px); opacity:0; transition:transform 200ms var(--ease-out),opacity 160ms ease; }
+.sk-card:hover .sk-actions,
+.sk-card:focus-visible .sk-actions,
+.sk-card:has(:focus-visible) .sk-actions,
+.sk-card.is-retrying .sk-actions { transform:translateX(0); opacity:1; }
+.sk-actions .hover-action,
+.sk-actions .open-hub { display:inline-flex; pointer-events:auto; }
+.sk-card:hover .sk-persistent,
+.sk-card:focus-visible .sk-persistent,
+.sk-card:has(:focus-visible) .sk-persistent,
+.sk-card:hover .persistent-retry,
+.sk-card:focus-visible .persistent-retry,
+.sk-card:has(:focus-visible) .persistent-retry { display:none; }
+.sk-actions .add-btn { display:inline-flex; align-items:center; gap:3px; height:22px; padding:0 7px; border-radius:6px; font-size: calc(11px * var(--text-font-scale)); font-weight:500; color:var(--sk-tone); background:color-mix(in srgb, var(--sk-tone) 12%, transparent); white-space:nowrap; }
+.sk-actions .add-btn:hover { filter:brightness(1.12); }.sk-actions .add-btn .icon { width:11px; height:11px; }
+.sk-actions .add-btn.retry-hover { color:var(--red); background:var(--red-soft); }
+.sk-actions .icon-btn { width:22px; height:22px; color:var(--text-3); }.sk-actions .icon-btn:hover { background:var(--surface-hover); color:var(--text); }
+.sk-persistent { display:inline-flex; max-width:42px; overflow:hidden; text-overflow:ellipsis; padding-right:3px; color:var(--sk-tone); font-size: calc(10px * var(--text-font-scale)); letter-spacing:.04em; white-space:nowrap; }
+.persistent-retry { opacity:1!important; pointer-events:auto!important; color:var(--red)!important; background:var(--red-soft)!important; }
+.sk-card.is-retrying .sk-icon .icon { animation:sk-row-spin .9s linear infinite; }
+@keyframes sk-row-spin { to { transform:rotate(360deg); } }
+
+/* 悬停简介：从卡片右侧浮入工作台，不被抽屉 overflow 裁切 */
+.sk-fly {
+  position: fixed;
+  z-index: var(--z-menu);
+  width: 268px;
+  padding: 11px 14px 12px 14px;
+  border-radius: var(--r-8);
+  background: var(--bg-inset);
+  border: 1px solid var(--sk-tone);
+  box-shadow: inset 0 0 7px color-mix(in srgb, var(--sk-tone) 8%, transparent);
+  pointer-events: none;
+  transform-origin: left center;
+  opacity: 0;
+  transform: translate3d(-6px, 0, 0);
+  transition:
+    opacity var(--dur-exit) var(--ease-in),
+    transform var(--dur-exit) var(--ease-in);
+}
+.sk-fly.is-open {
+  pointer-events: auto;
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition:
+    opacity var(--dur-slow) var(--ease-ios),
+    transform var(--dur-slow) var(--ease-ios);
+}
+.sk-fly[data-side="left"] {
+  transform-origin: right center;
+  transform: translate3d(6px, 0, 0);
+}
+.sk-fly[data-side="left"].is-open {
+  transform: translate3d(0, 0, 0);
+}
+.sk-fly-arrow {
+  position: absolute;
+  left: -5px; top: 18px;
+  width: 9px; height: 9px;
+  background: var(--bg-inset);
+  border-left: 1px solid var(--sk-tone);
+  border-bottom: 1px solid var(--sk-tone);
+  transform: rotate(45deg);
+  z-index: 1;
+}
+.sk-fly[data-side="left"] .sk-fly-arrow {
+  left: auto; right: -5px;
+  border-left: 0; border-bottom: 0;
+  border-right: 1px solid var(--sk-tone);
+  border-top: 1px solid var(--sk-tone);
+}
+.sk-fly-bridge {
+  position: absolute;
+  left: -16px; top: 0;
+  width: 16px; height: 100%;
+}
+.sk-fly[data-side="left"] .sk-fly-bridge {
+  left: auto; right: -16px;
+}
+.sk-fly-kicker {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 6px;
+  font-size: calc(10px * var(--text-font-scale)); letter-spacing: .06em; font-weight: 600;
+  color: var(--text-3); text-transform: uppercase;
+}
+.sk-fly-kicker .chip { text-transform: none; letter-spacing: 0; }
+.sk-fly-kicker .sk-icon {
+  width: 18px; height: 18px; border-radius: 5px;
+}
+.sk-fly-kicker .sk-icon::after { border-radius: 4px; }
+.sk-fly-kicker .sk-icon .icon { width: 11px; height: 11px; }
+.sk-fly-name {
+  font-family: var(--font-mono);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  line-height: 1.3;
+  color: var(--text);
+  word-break: break-word;
+}
+.sk-fly-rule {
+  height: 1px;
+  margin: 8px 0 7px;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    color-mix(in srgb, var(--sk-tone) 55%, transparent) 50%,
+    transparent 100%
+  );
+}
+.sk-fly-desc {
+  font-size: var(--fs-12);
+  line-height: 1.5;
+  color: var(--text-2);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  overflow: hidden;
+}
+.sk-fly.has-error .sk-fly-desc { color: var(--red); }
+
+/* 空态 */
+.sd-empty {
+  margin: var(--sp-24) var(--sp-12);
+  text-align: center;
+  color: var(--text-faint);
+  font-size: var(--fs-11);
+  line-height: 1.6;
+}
+.sd-empty .icon {
+  display: block; margin: 0 auto var(--sp-8);
+  color: var(--glyph-faint);
+}
+
+/* 抽屉底部固定：进入能力中心入口 */
+.sd-foot {
+  flex: none;
+  padding: var(--sp-8) var(--sp-12);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-inset);
+}
+.sd-foot-link {
+  display: flex; align-items: center; gap: var(--sp-8);
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  text-decoration: none;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-medium);
+  transition: border-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease);
+}
+.sd-foot-link:hover {
+  border-color: var(--accent-border);
+  color: var(--accent);
+  background: var(--accent-softer);
+  text-decoration: none;
+}
+.sd-foot-link .icon { color: var(--accent); flex: none; }
+.sd-foot-link .label { flex: 1; }
+.sd-foot-link .kbd {
+  font-family: var(--font-mono); font-size: calc(10px * var(--text-font-scale));
+  color: var(--text-faint);
+}
+
+/* 减少动效 */
+@media (prefers-reduced-motion: reduce) {
+  .thread .t-spin { animation: none; }
+  .sb-drawer-mask { transition: opacity var(--dur-fast) linear; transform: none; }
+  .sb-drawer-mask.open { transform: none; }
+  .new-convo-btn:active, .skills-btn:active, .add-btn:active { transform: none; }
+  .sk-card, .sk-card::before, .sk-icon, .sk-added-mark, .sk-used-mark { transition: none; }
+  .sk-card.is-added .sk-icon { transform: none; }
+  .sk-slot, .sk-slot.is-leave, .sk-slot.is-enter, .sk-slot.is-enter.is-in,
+  .sk-slot.is-leave .sk-card, .sk-slot.is-enter .sk-card, .sk-slot.is-enter.is-in .sk-card,
+  .sk-group-head, .sk-group.is-leave .sk-group-head, .sk-group.is-enter.is-in .sk-group-head {
+    transition: none;
+  }
+  .sk-fly, .sk-fly.is-open, .sk-fly[data-side="left"], .sk-fly[data-side="left"].is-open {
+    animation: none;
+    transition: opacity var(--dur-fast) linear;
+    transform: none;
+  }
+}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { Tool } from "@linxiraos/pi-ai/types";
 import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 // Issue #8886 — some providers (notably Gemini) serialize array arguments as
 // flattened property paths (`questions[0].id`) instead of a nested array.

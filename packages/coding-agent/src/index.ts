@@ -2,8 +2,8 @@ import { HookEditorComponent, HookInputComponent, HookSelectorComponent } from "
 
 // Core session management
 
-export * as zod from "@linxiraos/pi-omptype/zod";
-export { z } from "@linxiraos/pi-omptype/zod";
+export * as zod from "@linxiraos/zeta-schema/zod";
+export { z } from "@linxiraos/zeta-schema/zod";
 // Re-export TUI components for custom tool rendering
 export { Container, Markdown, Spacer, Text } from "@linxiraos/pi-tui";
 // Logging

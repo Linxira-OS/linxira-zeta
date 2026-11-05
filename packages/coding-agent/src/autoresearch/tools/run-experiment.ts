@@ -1,7 +1,7 @@
 import { runExperimentToolRenderer } from "@linxiraos/pi-tui/tools/autoresearch";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 
 import { formatBytes, procmgr } from "@linxiraos/pi-utils";

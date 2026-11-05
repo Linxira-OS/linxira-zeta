@@ -12,7 +12,7 @@
  * so the next prompt rebuild reflects it immediately.
  */
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { prompt, withFileLock } from "@linxiraos/pi-utils";
 
 import { cfgMemoryBackend } from "../memory-backend/settings";

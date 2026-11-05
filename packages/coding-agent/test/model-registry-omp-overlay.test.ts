@@ -18,6 +18,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Snowflake } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../src/config/model-registry";
+import { Settings } from "../src/config/settings";
 import { AuthStorage } from "../src/session/auth-storage";
 
 const PROVIDER = "deepseek";
@@ -134,5 +135,69 @@ describe("ModelRegistry OMP overlay credential tier", () => {
 		const registry = newRegistry();
 		expect(registry.getOmpOriginProviders().has(PROVIDER)).toBe(false);
 		await expect(authStorage.keys.get(PROVIDER)).resolves.toBe("oauth-access");
+	});
+});
+
+/**
+ * The compatibility switch has three sources with a fixed precedence:
+ * `ZETA_OMP_COMPAT` > the `compat.importLegacyOmp` setting > off. The setting is
+ * the one the settings panel writes, so a host that only knows the setting must
+ * still reach the same overlay — and an explicit `ZETA_OMP_COMPAT=0` in the
+ * environment must keep compatibility off whatever the file says.
+ */
+describe("ModelRegistry OMP overlay switch precedence", () => {
+	let tempDir: string;
+	let ompAgentDir: string;
+	let authStorage: AuthStorage;
+	let originalOmpCompat: string | undefined;
+	let originalDeepseekEnv: string | undefined;
+
+	function registryWith(setting: boolean, env?: string): ModelRegistry {
+		if (env === undefined) delete Bun.env.ZETA_OMP_COMPAT;
+		else Bun.env.ZETA_OMP_COMPAT = env;
+		const settings = Settings.isolated({ "compat.importLegacyOmp": setting });
+		return new ModelRegistry(authStorage, path.join(tempDir, "models.json"), { ompAgentDir, settings });
+	}
+
+	beforeEach(async () => {
+		tempDir = path.join(os.tmpdir(), `zeta-test-omp-switch-${Snowflake.next()}`);
+		fs.mkdirSync(tempDir, { recursive: true });
+		ompAgentDir = path.join(tempDir, "omp-agent");
+		seedOmpAgentDb(ompAgentDir, { [PROVIDER]: "omp-upstream-key" });
+		originalDeepseekEnv = Bun.env.DEEPSEEK_API_KEY;
+		delete Bun.env.DEEPSEEK_API_KEY;
+		originalOmpCompat = Bun.env.ZETA_OMP_COMPAT;
+		authStorage = await AuthStorage.create(":memory:");
+	});
+
+	afterEach(async () => {
+		if (originalDeepseekEnv === undefined) delete Bun.env.DEEPSEEK_API_KEY;
+		else Bun.env.DEEPSEEK_API_KEY = originalDeepseekEnv;
+		if (originalOmpCompat === undefined) delete Bun.env.ZETA_OMP_COMPAT;
+		else Bun.env.ZETA_OMP_COMPAT = originalOmpCompat;
+		authStorage.close();
+		await fs.promises.rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch(() => {});
+	});
+
+	test("the persisted setting alone enables the overlay", async () => {
+		const registry = registryWith(true);
+		expect(registry.getOmpOriginProviders().has(PROVIDER)).toBe(true);
+		await expect(authStorage.keys.get(PROVIDER)).resolves.toBe("omp-upstream-key");
+	});
+
+	test("setting off and no env leaves the overlay off", () => {
+		const registry = registryWith(false);
+		expect(registry.getOmpOriginProviders().has(PROVIDER)).toBe(false);
+	});
+
+	test("an explicit ZETA_OMP_COMPAT=0 outranks the setting", () => {
+		const registry = registryWith(true, "0");
+		expect(registry.getOmpOriginProviders().has(PROVIDER)).toBe(false);
+	});
+
+	test("ZETA_OMP_COMPAT=1 outranks a setting that is off", async () => {
+		const registry = registryWith(false, "1");
+		expect(registry.getOmpOriginProviders().has(PROVIDER)).toBe(true);
+		await expect(authStorage.keys.get(PROVIDER)).resolves.toBe("omp-upstream-key");
 	});
 });

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { buildTransformedCodexRequestBody } from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import { type OpenAIResponsesOptions, streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
 import { openAIResponsesReplaysNativeHistory } from "@linxiraos/pi-ai/providers/openai-responses-state";

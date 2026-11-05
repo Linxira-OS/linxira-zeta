@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
 import { SpeculativeOperationCoordinator } from "@linxiraos/pi-agent-core/speculative-execution";
 import type { AgentTool, AgentMessage, AgentContext, AgentLoopConfig } from "@linxiraos/pi-agent-core/types";

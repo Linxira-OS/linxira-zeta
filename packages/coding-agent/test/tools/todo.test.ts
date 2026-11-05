@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { ToolSession } from "@linxiraos/zeta/tools";

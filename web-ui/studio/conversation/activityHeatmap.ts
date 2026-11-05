@@ -1,0 +1,120 @@
+import { DAY_MS, fmtTokens, intensity, startOfDay } from "../usage/tokenUsage";
+
+export const MONTH_LABEL_MIN_GAP = 2;
+export const ACTIVITY_HEAT_WEEKDAYS_ZH = ["一", "二", "三", "四", "五", "六", "日"] as const;
+export const ACTIVITY_HEAT_WEEKDAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+export const ACTIVITY_HEAT_MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+
+export type ActivityHeatLevel = 0 | 1 | 2 | 3 | 4;
+
+export type ActivityHeatCell = {
+  readonly ts: number;
+  readonly week: number;
+  readonly dow: number;
+  readonly tokens: number;
+  readonly level: ActivityHeatLevel;
+  readonly future: boolean;
+  readonly pad: boolean;
+};
+
+export type ActivityHeatMonth = {
+  readonly week: number;
+  readonly label: string;
+};
+
+export type ActivityHeatmap = {
+  readonly weeks: number;
+  readonly cells: readonly ActivityHeatCell[];
+  readonly months: readonly ActivityHeatMonth[];
+  readonly tokens: number;
+  readonly activeDays: number;
+  readonly heatCap: number;
+};
+
+export function usageLevel(tokens: number, cap: number): ActivityHeatLevel {
+  if (tokens <= 0 || cap <= 0) return 0;
+  return Math.min(4, Math.ceil(intensity(tokens, cap) * 5) - 1) as ActivityHeatLevel;
+}
+
+export function heatDayLabel(ts: number, lang: "zh" | "en" = "zh"): string {
+  const date = new Date(ts);
+  const dowIndex = (date.getDay() + 6) % 7;
+  if (lang === "en") {
+    const month = ACTIVITY_HEAT_MONTHS_EN[date.getMonth()] ?? "";
+    const weekday = ACTIVITY_HEAT_WEEKDAYS_EN[dowIndex] ?? "";
+    return `${month} ${date.getDate()}, ${weekday}`;
+  }
+  const weekday = ACTIVITY_HEAT_WEEKDAYS_ZH[dowIndex] ?? "";
+  return `${date.getMonth() + 1}月${date.getDate()}日 周${weekday}`;
+}
+
+export function heatCellTip(cell: ActivityHeatCell, lang: "zh" | "en" = "zh"): string {
+  const day = heatDayLabel(cell.ts, lang);
+  if (cell.future) return lang === "en" ? `Future · ${day}` : `未来 · ${day}`;
+  if (cell.pad) return day;
+  if (cell.tokens > 0) return `${fmtTokens(cell.tokens)} tok · ${day}`;
+  return lang === "en" ? `No usage · ${day}` : `无用量 · ${day}`;
+}
+
+export function yearWindowStart(now = Date.now()): {
+  readonly today: number;
+  readonly yearStart: number;
+  readonly yearEnd: number;
+  readonly start: number;
+  readonly weeks: number;
+} {
+  const today = startOfDay(now);
+  const year = new Date(today).getFullYear();
+  const yearStart = new Date(year, 0, 1).getTime();
+  const yearEnd = new Date(year, 11, 31).getTime();
+  const start = yearStart - ((new Date(yearStart).getDay() + 6) % 7) * DAY_MS;
+  const weeks = Math.floor((yearEnd - start) / (7 * DAY_MS)) + 1;
+  return { today, yearStart, yearEnd, start, weeks };
+}
+
+export function buildActivityHeatmap(
+  totalsByDay: ReadonlyMap<number, number>,
+  now = Date.now(),
+  lang: "zh" | "en" = "zh",
+): ActivityHeatmap {
+  const { today, yearStart, yearEnd, start, weeks } = yearWindowStart(now);
+  const windowTotals: number[] = [];
+  const cells: ActivityHeatCell[] = [];
+  const months: ActivityHeatMonth[] = [];
+  let prevMonth = -1;
+
+  for (let week = 0; week < weeks; week++) {
+    const weekTs = start + week * 7 * DAY_MS;
+    const month = new Date(weekTs < yearStart ? yearStart : weekTs).getMonth();
+    if (month !== prevMonth) {
+      const last = months[months.length - 1];
+      if (last === undefined || week - last.week >= MONTH_LABEL_MIN_GAP) {
+        const label = lang === "en" ? (ACTIVITY_HEAT_MONTHS_EN[month] ?? `${month + 1}`) : `${month + 1}月`;
+        months.push({ week, label });
+      }
+      prevMonth = month;
+    }
+    for (let dow = 0; dow < 7; dow++) {
+      const ts = start + (week * 7 + dow) * DAY_MS;
+      const pad = ts < yearStart || ts > yearEnd;
+      const future = !pad && ts > today;
+      const value = future || pad ? 0 : (totalsByDay.get(ts) ?? 0);
+      if (!future && !pad) windowTotals.push(value);
+      cells.push({ ts, week, dow, tokens: value, level: 0, future, pad });
+    }
+  }
+
+  const tokens = windowTotals.reduce((sum, value) => sum + value, 0);
+  const activeDays = windowTotals.filter((value) => value > 0).length;
+  const heatCap = Math.max(1, ...windowTotals);
+  return {
+    weeks,
+    cells: cells.map((cell) => (
+      cell.future || cell.pad ? cell : { ...cell, level: usageLevel(cell.tokens, heatCap) }
+    )),
+    months,
+    tokens,
+    activeDays,
+    heatCap,
+  };
+}

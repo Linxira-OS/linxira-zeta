@@ -383,6 +383,35 @@ export async function handleSettingsGet(req: Request): Promise<Response> {
 }
 
 /**
+ * GET /api/settings/values?path=a&path=b — the current value of any REGISTERED
+ * setting, with or without `ui` metadata.
+ *
+ * The panel payload (`GET /api/settings`) is a UI document: it lists only rows
+ * the panel can render. Callers that compose state instead of rendering it —
+ * the Studio host toggling one entry of `disabledProviders`, or carrying the
+ * user's `cycleOrder` into a read model — need the stored value even when the
+ * row is intentionally hidden. Unknown paths answer `null`.
+ */
+export async function handleSettingsValuesGet(req: Request): Promise<Response> {
+	if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+	const url = new URL(req.url);
+	const paths = url.searchParams.getAll("path");
+	if (paths.length === 0) return json({ error: "path query parameter is required" }, 400);
+	try {
+		const cwd = req.headers.get("x-zeta-cwd") ?? process.cwd();
+		const settings = await Settings.loadIsolated({ cwd, agentDir: getAgentDir() });
+		const values: Record<string, unknown> = {};
+		for (const path of paths) {
+			const setting = lookup(path);
+			values[path] = setting ? readSetting(settings, path) : null;
+		}
+		return json({ values });
+	} catch (error) {
+		return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+}
+
+/**
  * PUT /api/settings — body `{ path, value }`. Persists the setting through the
  * same `Settings.set()` + `flush()` channel the CLI uses. Unknown paths or
  * paths without a `ui:` block are rejected with 400; persistence failures are
@@ -396,9 +425,13 @@ export async function handleSettingsPut(req: Request): Promise<Response> {
 			return json({ error: `Unknown setting path: ${String(path)}` }, 400);
 		}
 		const setting = lookup(path);
-		if (!setting || !hasUi(path)) {
-			return json({ error: `Setting has no UI metadata: ${path}` }, 400);
+		if (!setting) {
+			return json({ error: `Unknown setting path: ${path}` }, 400);
 		}
+		// `ui` metadata decides what the settings PANEL lists, not what an
+		// authenticated caller may write: model provider order and the enabled
+		// provider set are registered settings without a `ui` block, and the
+		// Studio host writes them like any other setting.
 		if (path === "backend.autostart" && detectInstallForm() !== "bundled") {
 			return json({ error: "Autostart is only supported for the bundled Zeta desktop app." }, 400);
 		}
@@ -412,6 +445,10 @@ export async function handleSettingsPut(req: Request): Promise<Response> {
 		// instance cannot tell us that on its own — its layers predate the reload
 		// the live instances are about to do, so re-read before reporting.
 		await reloadLiveSettingsInstances();
+		// Settings feed the model composition (disabled providers, the legacy-OMP
+		// overlay, catalog refresh): force one static reload so a toggle reaches
+		// `/api/models` without a gateway restart.
+		await refreshSharedModelRegistry(true);
 		const provenance = setting.provenance(settings);
 		return json({
 			ok: true,

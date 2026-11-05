@@ -15,7 +15,7 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { encodeRawPng } from "@linxiraos/zeta/utils/png-encode";
 import { AUTO_THINKING, resolveProvisionalAutoLevel } from "@linxiraos/pi-tui/thinking";
 import { TempDir } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
 describe("AgentSession model persistence", () => {

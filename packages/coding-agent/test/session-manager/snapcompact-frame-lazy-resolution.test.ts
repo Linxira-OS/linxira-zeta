@@ -6,7 +6,7 @@ import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import * as blobStore from "@linxiraos/zeta/session/blob-store";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { getAgentDir, getBlobsDir, setAgentDir } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 
 const FRAME_COUNT = 10;
 const FRAME_RAW_BYTES = 300_000;

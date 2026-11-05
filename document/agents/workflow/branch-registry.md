@@ -38,12 +38,9 @@
 | `feat/taste-memory` | feat | P0–P2 上游 host/默认值清理 + `check-no-upstream-defaults` / `check-doc-host-parity` 两个新门禁；随后在此之上做 P4 `taste` super-memory 层（`packages/coding-agent/src/taste/`）。worktree `temp/taste-memory` | agent | 2026-11-02 | P4 落地并入 `main` 后删（合并前记 SHA） |
 | `feat/design-bridge` | feat | 工作区级 OpenDesign 桥：`.zeta/design.yml` 开关、`/design` 命令、单个 `design` 工具（托管 MCP + `od` CLI）、安装/daemon/MCP 状态检测；默认关闭，不写全局；worktree `temp/design-bridge` | agent | 2026-11-04 | 合入 `main` 后删（删前记 SHA） |
 | `fix/ui-audit-p0` | fix | `document/ui-bugfix-report.md` 的 P0/P1/P2 UI/功能修复：托盘驻留、分栏/页脚、会话删除、modal 交互与浮岛视觉；附带 Git 面板提交全部更改/推送闭环；worktree `temp/ui-audit-fixes` | agent | 2026-11-04 | 修复合入 `main` 后删（删前记 SHA） |
-| `feat/web-ui-studio-migration` | feat | Web UI Studio 迁移（`local://web-ui-studio-migration-plan.md`）：`web-ui/components/studio/**` + `web-ui/styles/studio/**` 接管产品 UI 层，`zetawork` 变原生外壳托管 `web-ui`，`@linxiraos/zeta-web` 浏览器面与桌面打包共用一份构建；`/api/projects` GET/PUT 注册表、git stage/commit/push/pull/log 网关族。基于 `c1f6c6c6a79`，worktree `temp/web-ui-studio` | agent | 2026-11-05 | 全量验证（W1–W8 + `bun check` + branch CI）并入 `main` 后删（删前记 SHA） |
-| `port/studio-pages` | port | Studio 页面层移植（W3/W4/W5）：`web-ui/components/studio/pages/**`（Git 面板 + 提交图、History、Skills/Plugins、Usage + token 曲线、Models、Settings）与 `client-handlers.ts`（Studio 操作名 → `/api/git/*`、`/api/sessions*`、`/api/skills*`、`/api/plugins`、`/api/models-config*`、`/api/usage`、`/api/stats/timeseries`、`/api/webui/stats-url`）；无端点面板（MCP/IDA/媒体/评测/诊断/SSH/skillshare/GitHub/结构化编辑器）按规则省略并上报。基于 `feat/web-ui-studio-migration`，worktree `temp/port-pages` | agent | 2026-11-05 | 并入 `feat/web-ui-studio-migration` 后删（删前记 SHA） |
+| `feat/web-ui-studio-migration` | feat | Web UI Studio 迁移（`local://web-ui-studio-migration-plan.md`）：`web-ui/components/studio/**` + `web-ui/styles/studio/**` 接管产品 UI 层，`zetawork` 变原生外壳托管 `web-ui`，`@linxiraos/zeta-web` 浏览器面与桌面打包共用一份构建；`/api/projects` GET/PUT 注册表、git stage/commit/push/pull/log 网关族。**2026-11-05 追加 web-app 切换**：`web-app/` 自带 Vite 7 构建取代 Next 渲染层、`server/studio-host/` 回答 `/api/v1/*` 宿主契约（pair/CSRF/query/command/events）、`@omp-studio/*` 与 `ompStudio*` 全局名全部迁到 `@linxiraos/studio-*` / `zetaStudio*`、`pi-omptype`/`pi-snapcompact` 改名 `zeta-schema`/`zeta-compact`、`compat.importLegacyOmp` 设置与 `zeta serve` 同源静态托管。基于 `c1f6c6c6a79`，worktree `temp/web-ui-studio` | agent | 2026-11-05 | 全量验证（W1–W8 + `bun check` + branch CI）并入 `main` 后删（删前记 SHA） |
 | `backup/pre-studio-ui-2026-11-05` | backup | Studio 迁移前冻结快照，`c1f6c6c6a79789ed99e37c42b14f3648e00fe624`（`v1.4.10` 线）；已推 `origin` | agent | 2026-11-05 | 迁移分支通过全量验证后再删（删前记 SHA） |
-| `port/studio-deck` | port | Studio 交互 Deck 与 Agent Hub 移植：`web-ui/components/studio/deck/**`（审批/提问卡、计划审核、`client-handlers.ts`）、`web-ui/components/studio/agents/**`（roster、子 Agent 对话记录、检查卡、`client-handlers.ts`）、`web-ui/styles/studio/deck.css`；`ChatWindow` 的 `PlanApproval` 换成 Studio 计划面。基于 `feat/web-ui-studio-migration`，worktree `temp/port-deck` | agent | 2026-11-05 | 合入 `feat/web-ui-studio-migration` 后删（删前记 SHA） |
 | `dev/main-v1830-wip` | dev | v18.3.0 合并 WIP（2026-09-25，已被 v18.14.2 远超） | user | 2026-09-25 | **用户决定**；技术上是死的 |
-| `port/studio-shell` | port | Studio 窗口外壳与页面宿主移植（`local://web-ui-studio-migration-plan.md` W1 的 chrome 切片）：`web-ui/components/studio/chrome/**` = `StudioTitlebar`（导航轨迹 + 原生窗口按钮，仅在 `capabilities.windowControls`）、`TitleMenu`/`TitleMenuScope`、`StudioTitleMenus`（文件/编辑/视图菜单）、`StudioSecondaryPage`（`pageTransition` 二级页框架）、`StudioCommandPalette` + `palette-catalog` + `shortcuts`、`StudioRuntimeBanner`、`client-handlers`（chrome 侧无 Studio 操作，逐项记在 `CHROME_UNMAPPED_OPERATIONS`）；样式 `web-ui/styles/studio/chrome.css`；`studio.chrome.*` 词条进 `lib/i18n/messages/{en,zh-CN}.ts`。基于 `feat/web-ui-studio-migration` 的 `379e12ca8e5`（已并入 `ab0bf63680a` 的基础修复），worktree `temp/port-shell` | agent | 2026-11-05 | 由 `feat/web-ui-studio-migration` 合入后删（删前记 SHA） |
 
 ## 已退役（删除前登记）
 
@@ -74,6 +71,9 @@
 | `vendor/termide-0.46.0` | `1855260d837`(远端) | 2026-11-01 | 已合入 `main` |
 | `ci/fix-41464951855` | `99748129aad` | 2026-11-03 | 内容已被 `5e99ac37dc8` 及其后续修复取代；worktree 干净，仅用于复现，退役 |
 | `feat/plugin-dist`（远端同名） | — | — | 若远端仍存在，交由用户决定是否删除远端分支 |
+| `port/studio-pages` | `a5cdafcdb77` | 2026-11-05 | 已并入 `feat/web-ui-studio-migration`（`a5cdafcdb77` 即该分支末端合并提交），worktree `temp/port-pages` 已删；内容随迁移分支走 |
+| `port/studio-deck` | `f20aef45342` | 2026-11-05 | 已并入 `feat/web-ui-studio-migration`，worktree `temp/port-deck` 已删（`.git` 文件在中止的删除中被抹掉，`worktree prune` + `safe-remove-tree apply` 清理）；内容随迁移分支走 |
+| `port/studio-shell` | `917c777a3c6` | 2026-11-05 | 已并入 `feat/web-ui-studio-migration`，worktree `temp/port-shell` 已删；内容随迁移分支走 |
 
 ## 定期动作
 

@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { completeSimple, Effort, retryTransientCompletion } from "@linxiraos/pi-ai";
 import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { prompt, withFileLock } from "@linxiraos/pi-utils";
 
 import type { ModelRegistry } from "../config/model-registry";

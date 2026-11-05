@@ -5,7 +5,7 @@ import type { CompactionEntry, FileEntry, SessionMessageEntry } from "@linxiraos
 import { formatSessionHistoryMarkdown } from "@linxiraos/zeta/session/session-history-format";
 import { loadSessionMessagesReadOnly, resolveBlobRefsInEntries } from "@linxiraos/zeta/session/session-loader";
 import { TempDir } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 
 const timestamp = new Date(0).toISOString();
 const header = { type: "session", version: 3, id: "session", timestamp, cwd: "/tmp" };

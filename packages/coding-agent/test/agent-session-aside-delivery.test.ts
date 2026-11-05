@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as path from "node:path";
 import { setImmediate } from "node:timers/promises";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import { AsyncJobManager } from "@linxiraos/zeta/async";
 import type { AssistantMessage, Context, ImageContent } from "@linxiraos/pi-ai";

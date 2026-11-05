@@ -17,7 +17,7 @@ Primary implementation: `packages/tui/src/theme/theme.ts`.
 
 ## Theme JSON shape
 
-Custom theme files are JSON objects validated by `validateThemeJson()` in `packages/tui/src/theme/schema-validation.ts` (using `@linxiraos/pi-omptype`). Types live in `schema.ts`; the editor-facing JSON schema is `packages/tui/src/theme/theme-schema.json`. Embedded built-in themes bypass runtime validation.
+Custom theme files are JSON objects validated by `validateThemeJson()` in `packages/tui/src/theme/schema-validation.ts` (using `@linxiraos/zeta-schema`). Types live in `schema.ts`; the editor-facing JSON schema is `packages/tui/src/theme/theme-schema.json`. Embedded built-in themes bypass runtime validation.
 
 Top-level fields:
 
@@ -364,6 +364,6 @@ Use this workflow:
 
 - All `colors` tokens are required for custom themes except optional `thinkingMax` (falls back to `thinkingXhigh`) and `assistantMessageText` (unset keeps the terminal default foreground).
 - `export` and `symbols` are optional.
-- `$schema` in theme JSON is informational; custom-theme runtime validation is enforced by `@linxiraos/pi-omptype` in `packages/tui/src/theme/schema-validation.ts`.
+- `$schema` in theme JSON is informational; custom-theme runtime validation is enforced by `@linxiraos/zeta-schema` in `packages/tui/src/theme/schema-validation.ts`.
 - `setTheme` failure falls back to `dark`; `previewTheme` failure does not replace current theme.
 - File watcher reload errors or temporary missing files keep the current loaded theme until a successful reload or explicit theme switch.

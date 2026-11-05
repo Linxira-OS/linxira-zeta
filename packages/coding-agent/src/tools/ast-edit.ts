@@ -1,5 +1,5 @@
 import type { AstEditToolDetails } from "@linxiraos/pi-tui/tools/ast-edit";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type {
 	AgentTool,
 	AgentToolContext,

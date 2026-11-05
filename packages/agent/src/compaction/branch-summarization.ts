@@ -9,7 +9,7 @@ import type { Api, ApiKey, AssistantMessage, Context, Model, SimpleStreamOptions
 import { resolveCatalogPolicy } from "@linxiraos/pi-catalog/compat/catalog-policy";
 import { preferredDialect } from "@linxiraos/pi-catalog/identity";
 import { prompt } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { type AgentTelemetry, instrumentedCompleteSimple } from "../telemetry";
 import { Tokenizer } from "../tokenizer";
 import type { AgentMessage } from "../types";

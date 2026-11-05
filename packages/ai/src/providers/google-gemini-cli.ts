@@ -13,7 +13,7 @@ import {
 	getAntigravityModelWireProfile,
 	getGeminiCliHeaders,
 } from "@linxiraos/pi-catalog/wire/gemini-headers";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { extractHttpStatusFromError, fetchWithRetry, readSseJson } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import { oauthAccountKey } from "../auth/types";

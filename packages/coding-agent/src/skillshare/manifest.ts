@@ -7,7 +7,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { OmpErrors, type } from "@linxiraos/pi-omptype";
+import { OmpErrors, type } from "@linxiraos/zeta-schema";
 import { getAgentDir, hasFsCode, isEnoent } from "@linxiraos/pi-utils";
 import { resolveOrDefaultProjectRegistryPath } from "../discovery/helpers";
 import { replaceFileAtomically } from "../utils/atomic-file";

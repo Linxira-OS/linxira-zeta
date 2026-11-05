@@ -6,8 +6,8 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
-import * as zod from "@linxiraos/pi-omptype/zod";
+import { type } from "@linxiraos/zeta-schema";
+import * as zod from "@linxiraos/zeta-schema/zod";
 import {
 	getAgentDir,
 	getProjectDir,

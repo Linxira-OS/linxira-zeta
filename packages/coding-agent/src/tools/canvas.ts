@@ -7,7 +7,7 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { summarizeCanvas } from "../internal-urls/canvas";
 import canvasDescription from "../prompts/tools/canvas.md" with { type: "text" };

@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { Tool } from "@linxiraos/pi-ai/types";
 import { isArkSchema, toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
 import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 // ---------------------------------------------------------------------------
 // Phase-1 parity gate: ArkType schemas must flow through the same wire-emission

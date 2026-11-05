@@ -1,4 +1,4 @@
-import { type Type, type } from "@linxiraos/pi-omptype";
+import { type Type, type } from "@linxiraos/zeta-schema";
 import type {
 	ForkSessionResponse,
 	LoadSessionResponse,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-completions";
 import type { Context, Model, ModelSpec, Tool, ToolChoice } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 interface ChatCompletionsPayload {
 	tool_choice?: unknown;

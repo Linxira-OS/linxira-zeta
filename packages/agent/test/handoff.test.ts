@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentMessage, AgentTool } from "@linxiraos/pi-agent-core";
 import {
 	createCompactionSummaryMessage,

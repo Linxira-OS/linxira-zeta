@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import type { VcsGitRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
-import { type } from "@linxiraos/pi-omptype";
-import type * as TypeBox from "@linxiraos/pi-omptype/typebox";
-import * as zod from "@linxiraos/pi-omptype/zod";
+import { type } from "@linxiraos/zeta-schema";
+import type * as TypeBox from "@linxiraos/zeta-schema/typebox";
+import * as zod from "@linxiraos/zeta-schema/zod";
 import * as piCodingAgent from "@linxiraos/zeta";
 import { GreenCommand } from "@linxiraos/zeta/extensibility/custom-commands/bundled/ci-green";
 import type { CustomCommandAPI } from "@linxiraos/zeta/extensibility/custom-commands/types";

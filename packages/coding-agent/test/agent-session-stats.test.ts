@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Message, Model, Usage, UserMessage } from "@linxiraos/pi-ai";
 import { TempDir } from "@linxiraos/pi-utils";

@@ -8,7 +8,7 @@
  * previous `<parameter>`-per-key JSON Schema dump dropped entirely.
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { Model, Usage } from "@linxiraos/pi-ai";
 import { formatSessionDumpText, formatSubagentDumpText } from "@linxiraos/zeta/session/session-dump-format";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";

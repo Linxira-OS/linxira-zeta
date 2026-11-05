@@ -4,7 +4,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { readTargetsPlan, readTargetsPlanArtifact } from "../plan-mode/plan-protection";
 import { type EditStore, notebookToEditableText } from "@linxiraos/pi-natives";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type {
 	AgentTool,
 	AgentToolContext,

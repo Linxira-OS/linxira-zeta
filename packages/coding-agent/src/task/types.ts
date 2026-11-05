@@ -7,7 +7,7 @@ export type {
 	SubagentProgressPayload,
 	SubagentLifecyclePayload,
 } from "@linxiraos/pi-tui/overlays/session-observer-registry";
-import { type BaseType, type FluentType, type } from "@linxiraos/pi-omptype";
+import { type BaseType, type FluentType, type } from "@linxiraos/zeta-schema";
 import { $env, isRecord } from "@linxiraos/pi-utils";
 
 import type { AgentSessionEvent } from "../session/agent-session";

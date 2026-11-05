@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { type IpcConnection, IpcServer } from "@linxiraos/pi-natives";
 import { isRecord, logger, postmortem, ptree, setProcessName } from "@linxiraos/pi-utils";
 import { encodeMessageFrame, MessageFramer } from "../../jsonrpc/message-framing";

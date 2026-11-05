@@ -10,7 +10,7 @@ import type {
 	SessionMessageEntry,
 	ThinkingLevelChangeEntry,
 } from "@linxiraos/zeta/session/session-entries";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 
 function msg(id: string, parentId: string | null, role: "user" | "assistant", text: string): SessionMessageEntry {
 	const base = { type: "message" as const, id, parentId, timestamp: "2025-01-01T00:00:00Z" };

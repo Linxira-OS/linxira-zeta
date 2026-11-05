@@ -25,7 +25,7 @@ import {
 } from "@linxiraos/pi-tui/tools/hashline-format";
 import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
 import { prompt } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import type { SnapcompactFrameSink } from "../blob-broker/service";
 import contextFramesNote from "../prompts/system/snapcompact-context-frames-note.md" with { type: "text" };
 import contextStub from "../prompts/system/snapcompact-context-stub.md" with { type: "text" };
@@ -56,7 +56,7 @@ export type SnapcompactSavingsSink = (
 	model: Model,
 ) => void;
 
-// Per-deployment image-count budgets come from the catalog via @linxiraos/pi-snapcompact
+// Per-deployment image-count budgets come from the catalog via @linxiraos/zeta-compact
 // (`providerImageBudget`): snapcompact frames are 1568px (<2000px) so
 // dimension/size limits never bind; only COUNT does. Once the budget is
 // spent by already-attached archive/system-prompt images, tool results ship

@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import { DEFAULT_SHAKE_CONFIG } from "@linxiraos/pi-agent-core/compaction";
 import { streamSimple } from "@linxiraos/pi-ai/stream";

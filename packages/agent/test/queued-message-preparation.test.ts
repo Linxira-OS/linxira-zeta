@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { createAssistantMessage, createUserMessage } from "./helpers";

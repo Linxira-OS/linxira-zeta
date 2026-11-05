@@ -27,13 +27,13 @@
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
         "@linxiraos/pi-natives": "catalog:",
-        "@linxiraos/pi-snapcompact": "catalog:",
+        "@linxiraos/zeta-compact": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
         "@linxiraos/pi-wire": "catalog:",
         "@opentelemetry/api": "catalog:",
       },
       "devDependencies": {
-        "@linxiraos/pi-omptype": "catalog:",
+        "@linxiraos/zeta-schema": "catalog:",
         "@opentelemetry/context-async-hooks": "catalog:",
         "@opentelemetry/sdk-trace-base": "catalog:",
         "@types/bun": "catalog:",
@@ -45,7 +45,7 @@
       "dependencies": {
         "@linxiraos/pi-catalog": "catalog:",
         "@linxiraos/pi-natives": "catalog:",
-        "@linxiraos/pi-omptype": "catalog:",
+        "@linxiraos/zeta-schema": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
         "@linxiraos/pi-wire": "catalog:",
       },
@@ -65,7 +65,7 @@
       "name": "@linxiraos/pi-catalog",
       "version": "1.4.10",
       "dependencies": {
-        "@linxiraos/pi-omptype": "catalog:",
+        "@linxiraos/zeta-schema": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
       },
       "devDependencies": {
@@ -103,8 +103,8 @@
         "@linxiraos/pi-channels": "catalog:",
         "@linxiraos/pi-mnemopi": "catalog:",
         "@linxiraos/pi-natives": "catalog:",
-        "@linxiraos/pi-omptype": "catalog:",
-        "@linxiraos/pi-snapcompact": "catalog:",
+        "@linxiraos/zeta-schema": "catalog:",
+        "@linxiraos/zeta-compact": "catalog:",
         "@linxiraos/pi-stats": "catalog:",
         "@linxiraos/pi-tui": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
@@ -225,7 +225,7 @@
       },
     },
     "packages/omptype": {
-      "name": "@linxiraos/pi-omptype",
+      "name": "@linxiraos/zeta-schema",
       "version": "1.4.10",
       "devDependencies": {
         "@ark/attest": "0.56.3",
@@ -238,13 +238,13 @@
       },
     },
     "packages/snapcompact": {
-      "name": "@linxiraos/pi-snapcompact",
+      "name": "@linxiraos/zeta-compact",
       "version": "1.4.10",
       "dependencies": {
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
         "@linxiraos/pi-natives": "catalog:",
-        "@linxiraos/pi-omptype": "catalog:",
+        "@linxiraos/zeta-schema": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
         "@linxiraos/pi-wire": "catalog:",
       },
@@ -280,8 +280,8 @@
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
         "@linxiraos/pi-natives": "catalog:",
-        "@linxiraos/pi-omptype": "catalog:",
-        "@linxiraos/pi-snapcompact": "catalog:",
+        "@linxiraos/zeta-schema": "catalog:",
+        "@linxiraos/zeta-compact": "catalog:",
         "@linxiraos/pi-utils": "catalog:",
         "@linxiraos/pi-wire": "catalog:",
       },
@@ -318,7 +318,7 @@
       "version": "1.4.10",
       "dependencies": {
         "@linxiraos/pi-natives": "catalog:",
-        "@linxiraos/pi-omptype": "catalog:",
+        "@linxiraos/zeta-schema": "catalog:",
       },
       "devDependencies": {
         "@types/bun": "catalog:",
@@ -366,8 +366,8 @@
     "@linxiraos/pi-channels": "1.4.10",
     "@linxiraos/pi-mnemopi": "1.4.10",
     "@linxiraos/pi-natives": "1.4.10",
-    "@linxiraos/pi-omptype": "1.4.10",
-    "@linxiraos/pi-snapcompact": "1.4.10",
+    "@linxiraos/zeta-schema": "1.4.10",
+    "@linxiraos/zeta-compact": "1.4.10",
     "@linxiraos/pi-stats": "1.4.10",
     "@linxiraos/pi-tui": "1.4.10",
     "@linxiraos/pi-utils": "1.4.10",
@@ -609,9 +609,9 @@
 
     "@linxiraos/pi-natives": ["@linxiraos/pi-natives@workspace:packages/natives"],
 
-    "@linxiraos/pi-omptype": ["@linxiraos/pi-omptype@workspace:packages/omptype"],
+    "@linxiraos/zeta-schema": ["@linxiraos/zeta-schema@workspace:packages/omptype"],
 
-    "@linxiraos/pi-snapcompact": ["@linxiraos/pi-snapcompact@workspace:packages/snapcompact"],
+    "@linxiraos/zeta-compact": ["@linxiraos/zeta-compact@workspace:packages/snapcompact"],
 
     "@linxiraos/pi-stats": ["@linxiraos/pi-stats@workspace:packages/stats"],
 

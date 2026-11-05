@@ -14,8 +14,8 @@ import type {
 	TextContent,
 	TSchema,
 } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
-import * as zod from "@linxiraos/pi-omptype/zod";
+import { type } from "@linxiraos/zeta-schema";
+import * as zod from "@linxiraos/zeta-schema/zod";
 import { isBuiltinComposerStyle, type KeyId } from "@linxiraos/pi-tui";
 import { hasFsCode, isEacces, isEnoent, logger } from "@linxiraos/pi-utils";
 import { type ExtensionModule, extensionModuleCapability } from "../../capability/extension-module";

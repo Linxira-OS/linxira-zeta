@@ -106,7 +106,7 @@
 
 ## [1.1.9] - 2026-09-05
 
-- v18.1.10 sync baseline (published as @linxiraos/pi-omptype; zod/typebox subpaths intact).
+- v18.1.10 sync baseline (published as @linxiraos/zeta-schema; zod/typebox subpaths intact).
 
 ## [1.1.8] - 2026-09-04
 

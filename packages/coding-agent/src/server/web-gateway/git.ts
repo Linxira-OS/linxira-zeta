@@ -11,7 +11,9 @@
  * pi-vcs native addon, same as `projects.ts` — no git CLI spawning.
  */
 
+import type { VcsGitRepo } from "@linxiraos/pi-natives";
 import { git, isVcsError } from "@linxiraos/pi-natives/vcs";
+import { branchDivergence, resolveBranchUpstream } from "./git-reads";
 
 function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });
@@ -24,6 +26,43 @@ function isValidBranchName(name: string): boolean {
 	return BRANCH_NAME_RE.test(name) && !name.startsWith("-") && !name.endsWith("/") && !name.includes("..");
 }
 
+/** Past this many branches the listing stops resolving per-branch detail. */
+const MAX_ENRICHED_BRANCHES = 100;
+
+interface BranchRow {
+	name: string;
+	current: boolean;
+	headOid?: string;
+	upstream?: string;
+	ahead?: number;
+	behind?: number;
+}
+
+/**
+ * One row per local branch: identity plus, while the repository is small
+ * enough to answer cheaply, the head commit, its tracking ref and how far the
+ * branch has moved from it. Beyond {@link MAX_ENRICHED_BRANCHES} the extra
+ * fields are absent rather than stale or guessed.
+ */
+async function branchRows(repo: VcsGitRepo, current: string | null): Promise<BranchRow[]> {
+	const names = await repo.listBranches(false);
+	if (names.length > MAX_ENRICHED_BRANCHES) return names.map(name => ({ name, current: name === current }));
+	return Promise.all(
+		names.map(async name => {
+			const row: BranchRow = { name, current: name === current };
+			const headOid = await repo.resolveRef(`refs/heads/${name}`).catch(() => null);
+			if (headOid) row.headOid = headOid;
+			const upstream = await resolveBranchUpstream(repo, name);
+			if (!upstream) return row;
+			row.upstream = upstream.name;
+			const { ahead, behind } = await branchDivergence(repo, upstream);
+			row.ahead = ahead;
+			row.behind = behind;
+			return row;
+		}),
+	);
+}
+
 /** GET /api/git/branches?cwd=… — local branches plus the current one. */
 export async function handleGitBranches(req: Request): Promise<Response> {
 	const cwd = new URL(req.url).searchParams.get("cwd");
@@ -32,7 +71,7 @@ export async function handleGitBranches(req: Request): Promise<Response> {
 	if (!repo) return json({ isGitRepository: false });
 	// Detached HEAD → null; no local branch is then flagged current.
 	const current = repo.headSync().branch ?? null;
-	const branches = (await repo.listBranches(false)).map(name => ({ name, current: name === current }));
+	const branches = await branchRows(repo, current);
 	return json({ isGitRepository: true, current, branches });
 }
 

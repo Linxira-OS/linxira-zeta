@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "../src/config/settings";
 import { resolveLocalRoot } from "../src/internal-urls";

@@ -1,0 +1,49 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "tsBuildInfoFile": "node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "baseUrl": ".",
+    "paths": {
+      "@/lib/studio-protocol/contract": [
+        "src/protocol/contract/index.ts"
+      ],
+      "@/lib/studio-protocol/protocol": [
+        "src/protocol/protocol/index.ts"
+      ],
+      "@linxiraos/studio-contract": [
+        "src/vendor/client-contract/src/index.ts"
+      ],
+      "@linxiraos/studio-protocol": [
+        "src/vendor/studio-protocol/src/index.ts"
+      ],
+      "@linxiraos/studio-client": [
+        "src/vendor/client/src/index.ts"
+      ],
+      "@linxiraos/studio-transport-web": [
+        "src/vendor/transport-web/src/index.ts"
+      ],
+      "@linxiraos/studio-platform": [
+        "src/vendor/platform/src/index.ts"
+      ],
+      "@linxiraos/studio-testkit": [
+        "src/vendor/testkit/src/index.ts"
+      ],
+      "@linxiraos/studio-transport-desktop": [
+        "src/zeta/transport-desktop.ts"
+      ],
+      "@linxiraos/studio-runtime-installer": [
+        "src/zeta/runtime-installer.ts"
+      ]
+    }
+  },
+  "include": [
+    "src"
+  ]
+}

@@ -6,7 +6,7 @@ import {
 	DEFAULT_COMPACTION_SETTINGS,
 	generateHandoff,
 } from "@linxiraos/pi-agent-core/compaction";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
 import * as ai from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";

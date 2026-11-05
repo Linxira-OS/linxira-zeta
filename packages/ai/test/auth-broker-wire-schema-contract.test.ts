@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as wireSchemas from "@linxiraos/pi-ai/auth-broker/wire-schemas";
-import { Type, type } from "@linxiraos/pi-omptype";
+import { Type, type } from "@linxiraos/zeta-schema";
 
 const REFRESHER = {
 	enabled: false,

@@ -6,7 +6,7 @@ import {
 	type TodoCompletionTransition,
 	type TodoToolDetails,
 } from "@linxiraos/pi-tui/tools/todo";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 
 import { isRecord, prompt } from "@linxiraos/pi-utils";

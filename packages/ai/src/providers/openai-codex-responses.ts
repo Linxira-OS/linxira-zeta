@@ -1,5 +1,5 @@
 import { scheduler } from "node:timers/promises";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import { calculateCost } from "@linxiraos/pi-catalog/models";
 import {

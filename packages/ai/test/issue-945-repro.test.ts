@@ -3,7 +3,7 @@ import { type OpenAICompletionsOptions, streamOpenAICompletions } from "@linxira
 import { type OpenAIResponsesOptions, streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
 import type { Context, Model, Tool } from "@linxiraos/pi-ai/types";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 const echoTool: Tool = {
 	name: "echo",

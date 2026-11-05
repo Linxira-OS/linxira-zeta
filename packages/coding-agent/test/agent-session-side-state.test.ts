@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, type StreamFn, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Context, FetchImpl, Message, Model, ProviderSessionState } from "@linxiraos/pi-ai";
 import { streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";

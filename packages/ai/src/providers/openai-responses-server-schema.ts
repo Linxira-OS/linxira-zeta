@@ -8,7 +8,7 @@
  * is a worse outcome than dropping them on the floor.
  */
 
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type {
 	EasyInputMessage,
 	ResponseCreateParams,

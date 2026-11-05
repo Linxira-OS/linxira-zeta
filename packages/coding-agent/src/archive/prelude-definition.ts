@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { EvalPreludeDefinition } from "../eval/preludes";

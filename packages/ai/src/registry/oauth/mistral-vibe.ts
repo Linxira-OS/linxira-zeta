@@ -8,7 +8,7 @@
  *
  * The minted key is a regular Mistral API key billed against the plan's Vibe Code quota.
  */
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { isRecord, ptree } from "@linxiraos/pi-utils";
 import * as AIError from "../../error";
 import type { FetchImpl } from "../../types";

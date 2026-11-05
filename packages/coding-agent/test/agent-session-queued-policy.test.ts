@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { setImmediate } from "node:timers/promises";
-import { Type } from "@linxiraos/pi-omptype/typebox";
+import { Type } from "@linxiraos/zeta-schema/typebox";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { Context, ImageContent } from "@linxiraos/pi-ai";
 import { createMockModel, type MockResponseSource } from "@linxiraos/pi-ai/providers/mock";

@@ -47,7 +47,9 @@ function logRequest(cwd: string, query = ""): Request {
 
 async function makeTempDir(prefix: string): Promise<string> {
 	const dir = await mkdtemp(join(tmpdir(), prefix));
-	cleanups.push(() => rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }).catch(() => undefined));
+	cleanups.push(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }).catch(() => undefined),
+	);
 	return dir;
 }
 
@@ -82,10 +84,31 @@ describe("gateway git actions", () => {
 		expect(body.sha).toBe(await head(repo));
 
 		const log = await handleGitLog(logRequest(repo, "&limit=5"));
-		const entries = (await log.json()) as { commits: Array<{ sha: string; subject: string }>; hasMore: boolean };
+		const entries = (await log.json()) as {
+			commits: Array<{
+				sha: string;
+				subject: string;
+				parents?: string[];
+				authorName?: string;
+				authorDate?: string;
+				refs?: string[];
+			}>;
+			hasMore: boolean;
+		};
 		// `--oneline` abbreviates the hash; the row identity is that short form.
 		expect(entries.commits[0]?.subject).toBe("add a");
 		expect(body.sha.startsWith(entries.commits[0]?.sha ?? "\u0000")).toBe(true);
+		// The enrichment adds the full parents, author and decorations at the
+		// commit the branch points at; `sha` itself stays the oneline form.
+		await $`git tag v1`.cwd(repo).quiet();
+		const tagged = await handleGitLog(logRequest(repo, "&limit=5"));
+		const taggedEntries = (await tagged.json()) as {
+			commits: Array<{ refs?: string[] }>;
+		};
+		expect(entries.commits[0]?.parents?.[0]?.startsWith(entries.commits[1]?.sha ?? "\u0000")).toBe(true);
+		expect(entries.commits[0]?.authorName).toBe("Test");
+		expect(typeof entries.commits[0]?.authorDate).toBe("string");
+		expect(taggedEntries.commits[0]?.refs).toEqual(["HEAD -> main", "tag: v1"]);
 		expect(entries.commits[1]?.subject).toBe("baseline");
 		expect(entries.hasMore).toBe(false);
 	}, 30_000);

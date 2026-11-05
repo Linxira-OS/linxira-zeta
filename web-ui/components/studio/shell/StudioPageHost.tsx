@@ -1,23 +1,20 @@
 "use client";
 
 /**
- * StudioPageHost — routes a non-workbench Studio page.
+ * StudioPageHost — Studio's non-workbench route switch.
  *
- * Each page is a real surface over the gateway, never a mock: a page whose data
- * has no endpoint is absent from `STUDIO_ROUTES` rather than rendered empty.
- * The shared `StudioPage` frame supplies the Studio page chrome (title row +
- * scroll body) so pages only render their own content.
+ * The route union is Studio's (`App.tsx` → `type Route`) and each case mounts a
+ * ported Studio page bound to the Zeta gateway. A Studio route with no Zeta
+ * backend (`diagnostics`, `media`, `evaluation`, `statistics`) is absent from
+ * `STUDIO_ROUTES`, so the sidebar never offers it — it is not a placeholder.
+ *
+ * Git and worktrees are workbench panels in Studio, not routes; `GitPage` is
+ * mounted from the workbench panel slot, not here.
  */
 
-import type { ReactNode } from "react";
-import { useI18n } from "@/hooks/useI18n";
 import type { StudioProjectSummary, StudioRoute } from "../adapters/types";
-import { StudioGitPage } from "./StudioGitPage";
-import { StudioUsagePage } from "./StudioUsagePage";
-import { StudioSkillsPage } from "./StudioSkillsPage";
-import { StudioModelsPage } from "./StudioModelsPage";
 import { AgentHubPage } from "../agents/AgentHub";
-import { StudioSettingsPage } from "./StudioSettingsPage";
+import { HistoryPage, ModelsPage, SettingsPage, SkillsPage, UsagePage } from "../pages";
 
 interface Props {
 	route: Exclude<StudioRoute, "workbench">;
@@ -28,48 +25,20 @@ interface Props {
 	onNavigate(route: StudioRoute): void;
 }
 
-/** Page frame: title row + independently scrolling body. */
-export function StudioPage({
-	title,
-	subtitle,
-	actions,
-	children,
-}: {
-	title: string;
-	subtitle?: string | null;
-	actions?: ReactNode;
-	children: ReactNode;
-}) {
-	return (
-		<section className="page">
-			<header className="page-head">
-				<div className="page-head-text">
-					<h1 className="page-title">{title}</h1>
-					{subtitle ? <p className="page-subtitle">{subtitle}</p> : null}
-				</div>
-				{actions ? <div className="page-actions">{actions}</div> : null}
-			</header>
-			<div className="page-body">{children}</div>
-		</section>
-	);
-}
-
 export function StudioPageHost(props: Props) {
-	const { t } = useI18n();
-	const title = t(`studio.route.${props.route}`);
 	switch (props.route) {
-		case "git":
-			return <StudioGitPage cwd={props.cwd} title={title} />;
-		case "usage":
-			return <StudioUsagePage title={title} />;
-		case "skills":
-			return <StudioSkillsPage cwd={props.cwd} title={title} />;
-		case "models":
-			return <StudioModelsPage title={title} />;
-		case "agents":
-			return <AgentHubPage sessionId={props.sessionId} title={title} />;
+		case "home":
+			return <UsagePage />;
+		case "history":
+			return <HistoryPage cwd={props.cwd} />;
+		case "capabilities":
+			return <SkillsPage cwd={props.cwd} onNavigate={props.onNavigate} />;
+		case "model-config":
+			return <ModelsPage />;
+		case "agent-hub":
+			return <AgentHubPage sessionId={props.sessionId} />;
 		case "settings":
-			return <StudioSettingsPage cwd={props.cwd} onNavigateHome={() => props.onNavigate("workbench")} />;
+			return <SettingsPage cwd={props.cwd} onNavigateHome={() => props.onNavigate("workbench")} />;
 		default:
 			return null;
 	}

@@ -56,6 +56,7 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	"Startup & Updates": "启动与更新",
 	"Power (macOS)": "电源（macOS）",
 	Agent: "智能体",
+	Compatibility: "兼容性",
 	Git: "Git 仓库",
 	Compaction: "压缩",
 	"Zeta Context Cache": "Zeta 上下文缓存",
@@ -400,6 +401,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"editor.autoInstall": {
 		label: "自动安装编辑器",
 		description: "切换到编辑器时若未安装 @linxiraos/editor 包则自动安装",
+	},
+	"compat.importLegacyOmp": {
+		label: "读取旧版 OMP 配置",
+		description: "读取 ~/.omp 的模型、凭据与 dotenv 文件（只读）",
 	},
 	"images.autoResize": {
 		label: "自动调整图片大小",

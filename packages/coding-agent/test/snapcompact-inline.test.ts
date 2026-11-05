@@ -19,7 +19,7 @@ import {
 	SnapcompactInlineTransformer,
 } from "@linxiraos/zeta/session/snapcompact-inline";
 import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 

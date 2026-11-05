@@ -66,9 +66,25 @@ import { checkRemoteAccess } from "./web-gateway/remote-access";
 import { isRemoteTokenAccepted } from "../utils/remote-token";
 import { handleChannelCredentials, handleChannelSend } from "./web-gateway/channels";
 import { handleAgentContextUsage } from "./web-gateway/context-usage";
+import {
+	handleCwdBrowseGet,
+	handleCwdValidatePost,
+	handleDefaultCwdPost,
+	handleFsDirectoriesGet,
+	handleFsDirectoriesPost,
+} from "./web-gateway/cwd";
 import { handleDesktopInfoGet } from "./web-gateway/desktop";
 import { handleDocsGet } from "./web-gateway/docs";
+import { handleFileIndexGet } from "./web-gateway/file-index";
+import { handleFilesGet, handleFilesPost } from "./web-gateway/files";
 import { handleGitBranch, handleGitBranches, handleGitCheckout } from "./web-gateway/git";
+import {
+	handleGitDiff,
+	handleGitRemotes,
+	handleGitShow,
+	handleGitStatus,
+	handleGitWorktrees,
+} from "./web-gateway/git-reads";
 import {
 	handleGitCommit,
 	handleGitFetch,
@@ -100,7 +116,12 @@ import { handleProjectsGet, handleProjectsPut } from "./web-gateway/projects";
 import { handlePluginsGet, handlePluginsPost } from "./web-gateway/plugins";
 import { getRunningSessionIds } from "./web-gateway/running-sessions";
 import { isGatewayDraining, setGatewayDraining } from "./web-gateway/draining";
-import { handleListArtifacts, handleReadArtifact, handleWriteArtifact } from "./web-gateway/artifacts";
+import {
+	handleDeleteArtifact,
+	handleListArtifacts,
+	handleReadArtifact,
+	handleWriteArtifact,
+} from "./web-gateway/artifacts";
 import {
 	handleDeleteProject,
 	handleDeleteSession,
@@ -113,12 +134,18 @@ import {
 	handleThinking,
 	handleUsageStats,
 } from "./web-gateway/sessions";
-import { handleSettingsGet, handleSettingsPut, handleSettingsReload } from "./web-gateway/settings";
+import {
+	handleSettingsGet,
+	handleSettingsPut,
+	handleSettingsReload,
+	handleSettingsValuesGet,
+} from "./web-gateway/settings";
 import {
 	handleSkillsCheck,
 	handleSkillsGet,
 	handleSkillsInstall,
 	handleSkillsPatch,
+	handleSkillsReveal,
 	handleSkillsSearch,
 	handleSkillsUpdate,
 } from "./web-gateway/skills";
@@ -144,6 +171,8 @@ import {
 	type TerminalWsData,
 } from "./web-gateway/terminal";
 import { handleRpcWsUpgrade, isRpcWsUpgradeRequest, rpcWebSocketHandler, type RpcWsData } from "./web-gateway/rpc-ws";
+import { hostIsLoopback, isAllowedOrigin } from "./web-gateway/origin";
+import { isStudioRequest, isStudioWsUpgradeRequest, studioHost } from "./studio-host";
 
 /** Both data planes share one listener; `kind` routes a socket to its handler. */
 type GatewayWsData = TerminalWsData | RpcWsData;
@@ -222,10 +251,20 @@ const UPDATE_INSTALL_RE = /^\/api\/update\/install$/;
 const PLUGINS_RE = /^\/api\/plugins$/;
 const SETTINGS_RE = /^\/api\/settings$/;
 const SETTINGS_RELOAD_RE = /^\/api\/settings\/reload$/;
+const SETTINGS_VALUES_RE = /^\/api\/settings\/values$/;
 const TRACKING_RE = /^\/api\/tracking\/?$/;
 const TRACKING_EVENTS_RE = /^\/api\/tracking\/events$/;
 const PLAN_RE = /^\/api\/plan$/;
 const WEB_CONFIG_RE = /^\/api\/web-config$/;
+// Workspace/file surface ported from the retired Next app (see
+// web-gateway/{cwd,files,file-index}.ts). `/api/files/<path>` is a catch-all;
+// its segments are decoded by `decodePathSegments` before the handler runs.
+const DEFAULT_CWD_RE = /^\/api\/default-cwd$/;
+const CWD_BROWSE_RE = /^\/api\/cwd\/browse$/;
+const CWD_VALIDATE_RE = /^\/api\/cwd\/validate$/;
+const FS_DIRECTORIES_RE = /^\/api\/fs\/directories$/;
+const FILE_INDEX_RE = /^\/api\/file-index$/;
+const FILES_RE = /^\/api\/files\/(.+)$/;
 // Remote access: pairing QR + token lifecycle (settings → Remote Access).
 const REMOTE_PAIRING_RE = /^\/api\/remote\/pairing$/;
 const REMOTE_TOKEN_ROTATE_RE = /^\/api\/remote\/token\/rotate$/;
@@ -258,6 +297,22 @@ function capture(pathname: string, re: RegExp): string[] | null {
 }
 
 /**
+ * Decode a catch-all `/api/files/<…>` tail. Next decodes route params before
+ * the handler sees them; a malformed escape is rejected rather than guessed,
+ * because the decoded string is what the path confinement checks.
+ */
+function decodePathSegments(raw: string): string[] | null {
+	try {
+		return raw
+			.split("/")
+			.filter(segment => segment.length > 0)
+			.map(segment => decodeURIComponent(segment));
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Normalize the agent-dir env, then rebuild the dirs resolver so
  * `getAgentDir()` honors the result in this process. `ZETA_CODING_AGENT_DIR`
  * → `~/.zeta/agent` (the runtime default). Idempotent; safe to call repeatedly.
@@ -268,33 +323,8 @@ export function ensureAgentDirEnv(): void {
 	refreshDirsFromEnv();
 }
 
-/**
- * CSRF guard for browser clients: cross-site requests carry an `Origin`
- * header (even on simple POSTs), so reject any Origin that is not a local
- * loopback origin. Non-browser clients (curl, the desktop shell, the IM
- * channels) send no Origin and are unaffected. Only enforced for
- * unauthenticated loopback callers — a valid remote token already
- * authenticates the request (see {@link authorizedForAccess}). The terminal
- * WS upgrade applies the same guard (exported for that use).
- */
-export function isAllowedOrigin(origin: string | null): boolean {
-	if (!origin) return true;
-	try {
-		const url = new URL(origin);
-		const host = url.hostname;
-		return host === "127.0.0.1" || host === "localhost" || host === "::1";
-	} catch {
-		return false;
-	}
-}
-/** Whether the request originates from a loopback socket address (local UI /
- *  desktop shell). Uses the SOCKET peer address — never the client-controlled
- *  `Host` header, which a remote attacker can spoof to pose as loopback. */
-export function hostIsLoopback(_req: Request, remoteAddr?: string): boolean {
-	const addr = (remoteAddr ?? "").replace(/^\[|\]$/g, "").toLowerCase();
-	if (addr === "") return false;
-	return addr === "127.0.0.1" || addr === "::1" || addr === "localhost";
-}
+/** Both guards live in `./web-gateway/origin` so surfaces can share them. */
+export { hostIsLoopback, isAllowedOrigin };
 
 /**
  * Access control: loopback requests (the local web UI, desktop shell, dev
@@ -400,8 +430,36 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return json({ error: "Method not allowed" }, 405);
 	}
 
+	// Read surface for the Studio Git page: status, diff, remotes, one commit,
+	// worktrees. All literal paths, matched before the generic captures below.
+	if (pathname === "/api/git/status") {
+		if (req.method === "GET") return handleGitStatus(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/git/diff") {
+		if (req.method === "GET") return handleGitDiff(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/git/remotes") {
+		if (req.method === "GET") return handleGitRemotes(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/git/show") {
+		if (req.method === "GET") return handleGitShow(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/git/worktrees") {
+		if (req.method === "GET") return handleGitWorktrees(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
 	// Mutations that write: staged through the pi-vcs addon, never a spawned
-	// `git`. Next owns `/api/git/*` at the edge and proxies these six here.
+	// `git`. The whole `/api/git/*` family is gateway-owned (Next proxies it
+	// through `resolveGatewayUrl()`); these six are the write half.
 	if (pathname === "/api/git/stage") {
 		if (req.method === "POST") return handleGitStage(req);
 		return json({ error: "Method not allowed" }, 405);
@@ -480,7 +538,14 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	// one into its own editor and pushes the edited copy back.
 	const artifacts = capture(pathname, SESSION_ARTIFACTS_RE);
 	if (artifacts) {
-		if (req.method === "GET") return handleListArtifacts(artifacts[0]);
+		if (req.method === "GET") {
+			const search = new URL(req.url).searchParams;
+			return handleListArtifacts(artifacts[0], {
+				kind: search.get("kind"),
+				limit: search.get("limit"),
+				cursor: search.get("cursor"),
+			});
+		}
 		return json({ error: "Method not allowed" }, 405);
 	}
 
@@ -488,6 +553,7 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (artifact) {
 		if (req.method === "GET") return handleReadArtifact(artifact[0], artifact[1]);
 		if (req.method === "PUT") return handleWriteArtifact(req, artifact[0], artifact[1]);
+		if (req.method === "DELETE") return handleDeleteArtifact(artifact[0], artifact[1]);
 		return json({ error: "Method not allowed" }, 405);
 	}
 
@@ -702,6 +768,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return json({ error: "Method not allowed" }, 405);
 	}
 
+	if (pathname === "/api/skills/reveal") {
+		if (req.method === "POST") return handleSkillsReveal(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
 	if (SKILLS_INSTALL_RE.test(pathname)) {
 		if (req.method === "POST") return handleSkillsInstall(req);
 		return json({ error: "Method not allowed" }, 405);
@@ -800,6 +871,9 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return json({ error: "Method not allowed" }, 405);
 	}
 
+	if (SETTINGS_VALUES_RE.test(pathname)) {
+		return handleSettingsValuesGet(req);
+	}
 	if (SETTINGS_RELOAD_RE.test(pathname)) {
 		return handleSettingsReload(req);
 	}
@@ -813,6 +887,43 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (WEB_CONFIG_RE.test(pathname)) {
 		if (req.method === "GET") return handleWebConfigGet(req);
 		if (req.method === "PUT") return handleWebConfigPut(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	// Workspace/file surface: the file tree, editor, preview panes, uploads and
+	// the @-mention index. All of these used to be answered by the Next child.
+	if (DEFAULT_CWD_RE.test(pathname)) {
+		if (req.method === "POST") return handleDefaultCwdPost();
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (CWD_BROWSE_RE.test(pathname)) {
+		if (req.method === "GET") return handleCwdBrowseGet(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (CWD_VALIDATE_RE.test(pathname)) {
+		if (req.method === "POST") return handleCwdValidatePost(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (FS_DIRECTORIES_RE.test(pathname)) {
+		if (req.method === "GET") return handleFsDirectoriesGet(req);
+		if (req.method === "POST") return handleFsDirectoriesPost(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (FILE_INDEX_RE.test(pathname)) {
+		if (req.method === "GET") return handleFileIndexGet(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const filesTail = capture(pathname, FILES_RE);
+	if (filesTail) {
+		const segments = decodePathSegments(filesTail[0]);
+		if (!segments) return json({ error: "Invalid file path" }, 400);
+		if (req.method === "GET") return handleFilesGet(req, segments);
+		if (req.method === "POST") return handleFilesPost(req, segments);
 		return json({ error: "Method not allowed" }, 405);
 	}
 
@@ -944,14 +1055,23 @@ export async function startWebGateway(port?: number): Promise<WebGatewayInstance
 		idleTimeout: 0,
 		websocket: {
 			open(ws) {
+				if (ws.data.kind === "studio") {
+					studioHost().attachSocket(ws.data.sessionId, ws);
+					return;
+				}
 				if (ws.data.kind === "rpc") rpcWebSocketHandler.open(ws);
 				else terminalWebSocketHandler.open?.(ws);
 			},
 			message(ws, message) {
+				if (ws.data.kind === "studio") return;
 				if (ws.data.kind === "rpc") rpcWebSocketHandler.message(ws, message);
 				else terminalWebSocketHandler.message?.(ws, message);
 			},
 			close(ws) {
+				if (ws.data.kind === "studio") {
+					studioHost().detachSocket(ws.data.sessionId, ws);
+					return;
+				}
 				if (ws.data.kind === "rpc") rpcWebSocketHandler.close(ws);
 				else terminalWebSocketHandler.close?.(ws, 1000, "");
 			},
@@ -959,6 +1079,13 @@ export async function startWebGateway(port?: number): Promise<WebGatewayInstance
 		fetch: async (req, srv) => {
 			// Data-plane upgrades bypass webGatewayFetch (it can only return
 			// Responses); auth lives in each upgrade handler.
+			if (isStudioWsUpgradeRequest(req)) {
+				const response = studioHost().upgrade(req, srv);
+				return response ?? new Response(null);
+			}
+			// The Studio host owns `/health` and `/api/v1/*` on this listener too:
+			// `vite dev` proxies `/api` and `/health` here.
+			if (isStudioRequest(req)) return studioHost().handle(req);
 			if (isTerminalWsUpgradeRequest(req)) {
 				const remoteAddr = srv?.requestIP(req)?.address;
 				const response = await handleTerminalWsUpgrade(req, srv, remoteAddr);

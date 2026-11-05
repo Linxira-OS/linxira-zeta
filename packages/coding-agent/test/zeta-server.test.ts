@@ -57,13 +57,24 @@ describe("ZetaServer routing", () => {
 		expect(classify("/api/tracking/events?cwd=/repo").type).toBe("gateway");
 	});
 
-	it("keeps the Next-owned families in the Web UI child", () => {
-		// Next serves /api/git/* end to end (status/diff locally, the rest as
-		// request-time gateway proxies) and resolves the origin itself.
-		expect(classify("/api/git/branches?cwd=/repo").type).toBe("webui");
-		expect(classify("/api/git/status?cwd=/repo").type).toBe("webui");
-		expect(classify("/api/fs/directories").type).toBe("webui");
-		expect(classify("/api/files/tmp/a.png").type).toBe("webui");
+	it("serves the workspace/file family in-process now that the gateway owns it", () => {
+		// The renderer is served from this origin, so a route that still needed
+		// the Next child would 503 whenever that child is absent. The family moved
+		// into web-gateway/files.ts, cwd.ts and file-index.ts.
+		expect(classify("/api/fs/directories").type).toBe("gateway");
+		expect(classify("/api/files/tmp/a.png").type).toBe("gateway");
+		expect(classify("/api/cwd/browse?path=/repo").type).toBe("gateway");
+		expect(classify("/api/file-index?cwd=/repo").type).toBe("gateway");
+		expect(classify("/api/default-cwd").type).toBe("gateway");
+	});
+
+	it("serves the git family in-process now that the gateway owns the reads", () => {
+		// status/diff/show/remotes/worktrees joined branches/log/mutations in
+		// web-gateway/git*.ts, so no git route needs the Next child any more.
+		expect(classify("/api/git/branches?cwd=/repo").type).toBe("gateway");
+		expect(classify("/api/git/status?cwd=/repo").type).toBe("gateway");
+		expect(classify("/api/git/worktrees?cwd=/repo").type).toBe("gateway");
+		expect(classify("/api/git/show?cwd=/repo&oid=HEAD").type).toBe("gateway");
 	});
 
 	it("still sends the other gateway families to the gateway", () => {
@@ -89,7 +100,8 @@ describe("ZetaServer routing", () => {
 		// and `attach` use keeps working.
 		const degraded = (path: string) => classifyRequest(new Request(`http://127.0.0.1:30141${path}`), 0, true);
 		expect(degraded("/").type).toBe("unavailable");
-		expect(degraded("/api/fs/directories").type).toBe("unavailable");
+		expect(degraded("/api/plugin-pages").type).toBe("unavailable");
+		expect(degraded("/api/fs/directories").type).toBe("gateway");
 		expect(degraded("/api/sessions").type).toBe("gateway");
 		expect(degraded("/api/agent/running/events").type).toBe("gateway");
 		expect(degraded("/api/stats/overview").type).toBe("stats");

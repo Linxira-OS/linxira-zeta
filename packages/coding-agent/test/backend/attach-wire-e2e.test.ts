@@ -14,7 +14,7 @@ import * as path from "node:path";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
 import { Composer } from "@linxiraos/pi-tui/prompt/composer";
 import { initTheme } from "@linxiraos/pi-tui/theme";

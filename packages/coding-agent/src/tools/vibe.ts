@@ -12,7 +12,7 @@ import { type VibeToolDetails } from "@linxiraos/pi-tui/tools/vibe";
  * stacked, each showing its tool calls and streamed text as it works.
  */
 
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 
 import { prompt } from "@linxiraos/pi-utils";

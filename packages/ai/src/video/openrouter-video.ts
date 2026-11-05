@@ -1,5 +1,5 @@
 import type { Api, FetchImpl, Model, Usage } from "@linxiraos/pi-catalog/types";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { type ApiKey, withAuth } from "../auth-retry";
 import * as AIError from "../error";
 import type {

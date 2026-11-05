@@ -6,7 +6,7 @@
  * IDB lock and one Python worker, and serves NDJSON requests on {@link idaHostEndpoint}.
  */
 import { ipcEndpoint } from "@linxiraos/pi-natives";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 export { IDA_HOST_WORKER_ARG } from "../cli/worker-selectors";
 
 /** Environment key carrying the JSON {@link IdaHostConfig} for the daemon. */

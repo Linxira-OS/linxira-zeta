@@ -1,8 +1,8 @@
 # omptype Guide (schema authoring in this repo)
 
-Internal schemas use **`@linxiraos/pi-omptype`** — an ArkType-compatible validator
+Internal schemas use **`@linxiraos/zeta-schema`** — an ArkType-compatible validator
 with a lazy JIT runtime (`packages/omptype`). Author types with
-`import { type } from "@linxiraos/pi-omptype"`.
+`import { type } from "@linxiraos/zeta-schema"`.
 
 ## Why omptype (runtime contract)
 
@@ -52,7 +52,7 @@ schema on the wire.
 ## Validating (same as arktype)
 
 ```ts
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 const out = schema(value);
 if (out instanceof type.errors) {
 	// out.summary → human message; entries have .path (array) and .problem
@@ -92,7 +92,7 @@ Recursive or mutually-referencing schemas go through named scopes
 (`packages/omptype/src/type.ts`, `scope()` / `type.scope()`):
 
 ```ts
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 const types = type.module({
 	tree: { value: "number", "children?": "tree[]" },
@@ -135,8 +135,8 @@ const types = type.module({
 TypeBox-style and Zod-style authoring are backed by the omptype runtime:
 
 ```ts
-import { Type, type Static } from "@linxiraos/pi-omptype/typebox";
-import { z } from "@linxiraos/pi-omptype/zod";
+import { Type, type Static } from "@linxiraos/zeta-schema/typebox";
+import { z } from "@linxiraos/zeta-schema/zod";
 
 const User = z.object({ name: z.string() });
 type User = z.infer<typeof User>;

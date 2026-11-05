@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Effort } from "@linxiraos/pi-catalog/effort";
 import { streamFactoryDroid } from "../src/providers/factory-droid";
 import { encodeFactoryDroidCompletionsToolName } from "../src/providers/factory-droid/tool-names";

@@ -165,7 +165,7 @@ import {
 	withFileLock,
 } from "@linxiraos/pi-utils";
 import { writeArchive } from "@linxiraos/pi-utils/ar";
-import { frameDataBytesBudget, readerIncludesThinking } from "@linxiraos/pi-snapcompact";
+import { frameDataBytesBudget, readerIncludesThinking } from "@linxiraos/zeta-compact";
 import type { AdvisorConfig } from "@linxiraos/pi-tui/overlays/advisor-config";
 import { formatUsageResetWindow } from "@linxiraos/pi-tui/overlays/usage-display";
 import { loadAdvisorTranscriptCosts } from "../advisor";

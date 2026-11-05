@@ -4,7 +4,7 @@ import { assertNotHeldOpen } from "@linxiraos/pi-utils/held-file";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type {
 	AgentTool,
 	AgentToolContext,

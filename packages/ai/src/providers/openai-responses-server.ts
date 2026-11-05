@@ -9,7 +9,7 @@
  * Inverse direction (source-of-truth for item shapes): ../../providers/openai-responses.ts
  */
 
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { isRecord, logger, structuredCloneJSON } from "@linxiraos/pi-utils";
 import {
 	isOpenAIReasoningEffort,

@@ -149,9 +149,9 @@ const LEGACY_AUTHOR_SCOPE = "@mariozechner/";
 const RENAME_BY_TAIL: Record<string, string> = {
 	hashline: "pi-hashline",
 	"omp-stats": "pi-stats",
-	omptype: "pi-omptype",
+	omptype: "zeta-schema",
 	"pi-coding-agent": "zeta",
-	snapcompact: "pi-snapcompact",
+	snapcompact: "zeta-compact",
 };
 
 function zetaKeyFor(ompKey: string): string | null {

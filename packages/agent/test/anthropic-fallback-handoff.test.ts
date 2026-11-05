@@ -5,7 +5,7 @@
  * breaks or the user aborts after the handoff.
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
 import type { AgentMessage, AgentTool } from "@linxiraos/pi-agent-core/types";
 import type { FetchImpl, Message, Model } from "@linxiraos/pi-ai";

@@ -1,7 +1,7 @@
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { isRecord, untilAborted } from "@linxiraos/pi-utils";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { Cookie, CookieParam, Page } from "puppeteer-core";

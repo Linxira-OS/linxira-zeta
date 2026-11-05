@@ -539,7 +539,7 @@
   "dependencies": {
     "@babel/parser": "catalog:",
     "@linxiraos/pi-stats": "catalog:",
-    "@linxiraos/pi-omptype": "catalog:",
+    "@linxiraos/zeta-schema": "catalog:",
     "@linxiraos/pi-agent-core": "catalog:",
     "@linxiraos/pi-ai": "catalog:",
     "@linxiraos/pi-catalog": "catalog:",
@@ -548,7 +548,7 @@
     "@linxiraos/pi-tui": "catalog:",
     "@linxiraos/pi-utils": "catalog:",
     "@linxiraos/pi-wire": "catalog:",
-    "@linxiraos/pi-snapcompact": "catalog:",
+    "@linxiraos/zeta-compact": "catalog:",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",
     "@opentelemetry/context-async-hooks": "catalog:",

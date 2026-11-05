@@ -8,8 +8,8 @@ import type { CompactionEntry, FileEntry, SessionMessageEntry } from "@linxiraos
 import { resolveBlobRefsInEntries } from "@linxiraos/zeta/session/session-loader";
 import { forgetExternalizedImages, prepareEntryForPersistence } from "@linxiraos/zeta/session/session-persistence";
 import { TempDir } from "@linxiraos/pi-utils";
-import type { Archive } from "@linxiraos/pi-snapcompact";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import type { Archive } from "@linxiraos/zeta-compact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 
 type ImagePayload = { data: string; mimeType: string; type?: "image" };
 type ToolResultMessage = Extract<AgentMessage, { role: "toolResult" }>;

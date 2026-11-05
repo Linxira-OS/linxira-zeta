@@ -31,7 +31,7 @@ import { buildModel } from "@linxiraos/pi-catalog/build";
 import { Effort } from "@linxiraos/pi-catalog/effort";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import type { ModelSpec } from "@linxiraos/pi-catalog/types";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 
 const ZERO_USAGE: Usage = {
 	input: 0,

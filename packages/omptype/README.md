@@ -1,4 +1,4 @@
-# @linxiraos/pi-omptype
+# @linxiraos/zeta-schema
 
 Fast, ArkType-compatible schema validation for JavaScript and TypeScript.
 Schemas start with a small interpreter and lazily compile after repeated use,
@@ -7,9 +7,9 @@ keeping construction cheap without giving up hot-path validation speed.
 ## Installation
 
 ```sh
-npm install @linxiraos/pi-omptype
+npm install @linxiraos/zeta-schema
 # or
-bun add @linxiraos/pi-omptype
+bun add @linxiraos/zeta-schema
 ```
 
 Runs on Node 20+ (published as compiled ESM with bundled type declarations)
@@ -19,7 +19,7 @@ export condition). No runtime dependencies.
 ## Usage
 
 ```ts
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 const Config = type({
 	name: "string",
@@ -74,8 +74,8 @@ options.
 TypeBox-style and Zod-style builders produce native omptype schemas:
 
 ```ts
-import { Type, type Static } from "@linxiraos/pi-omptype/typebox";
-import { z } from "@linxiraos/pi-omptype/zod";
+import { Type, type Static } from "@linxiraos/zeta-schema/typebox";
+import { z } from "@linxiraos/zeta-schema/zod";
 
 const TypeBoxUser = Type.Object({ name: Type.String() });
 type TypeBoxUser = Static<typeof TypeBoxUser>;
@@ -84,7 +84,7 @@ const ZodUser = z.object({ name: z.string() });
 const user = ZodUser.parse({ name: "Ada" });
 ```
 
-`@linxiraos/pi-omptype/ark` provides the repository's ArkType compatibility facade
+`@linxiraos/zeta-schema/ark` provides the repository's ArkType compatibility facade
 and re-exports the same `type` and `scope` implementations.
 
 ## Performance

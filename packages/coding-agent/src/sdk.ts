@@ -41,7 +41,7 @@ import * as postmortem from "@linxiraos/pi-utils/postmortem";
 import * as prompt from "@linxiraos/pi-utils/prompt";
 import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
-import { DEFAULT_FRAME_DATA_BYTES_BUDGET, frameDataBytesBudget } from "@linxiraos/pi-snapcompact";
+import { DEFAULT_FRAME_DATA_BYTES_BUDGET, frameDataBytesBudget } from "@linxiraos/zeta-compact";
 import {
 	discoverAdvisorConfigs,
 	discoverWatchdogFiles,

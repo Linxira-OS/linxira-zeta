@@ -1,0 +1,3353 @@
+import { AppSelect } from "./AppSelect";
+import { AgentModelDetails } from "./models/AgentModelDetails";
+import { PREVIEW_AGENT_DEFINITIONS } from "./preview/agentSpawnPreview";
+import { ModelDelegationList } from "./ModelDelegationList";
+import { AgentBtwPane } from "./btw/AgentBtwPane";
+import { ServicesPane } from "./services/ServicesPane";
+import {
+  WorkspacePanel,
+  WorkspaceStatus,
+  WorkspaceTabs,
+} from "./workspaces/Workspace";
+import { useI18n } from "./i18n";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  ReactNode,
+  RefObject,
+} from "react";
+import type {
+  ClientBootstrap,
+  CommandInput,
+  CommandName,
+  SessionId,
+  StudioClient,
+} from "@linxiraos/studio-contract";
+import type {
+  AgentId,
+  AgentTranscriptMessage,
+  OpaqueCursor,
+  OperatorStateSnapshot,
+  JobWidgetView,
+  StudioAgentSnapshot,
+  StudioJobSnapshot,
+} from "@linxiraos/studio-protocol";
+import { CompletionRing, JobWidget } from "./conversation/JobWidget";
+import { JobInspector } from "./conversation/JobInspector";
+import { agentJobTree, buildJobTree, type JobTreeRow } from "./conversation/jobTree";
+import type { MentionCandidate } from "./composer/types";
+import { RuntimeLossBanner } from "./RuntimeLossBanner";
+import { Icon } from "./icons";
+import { buildPreviewHub, previewJobInspections } from "./hubPreview";
+import type { PreviewAgent, PreviewJob, PreviewMetrics } from "./hubPreview";
+import { usePreviewMode } from "./preview/PreviewContext";
+import { hostErrorMessage, waitReceipt } from "./hostError";
+import { SubagentConversationPane } from "./conversation/SubagentConversationPane";
+import type { SubagentComposerAgent } from "./conversation/subagentComposerGate";
+import {
+  isRealSubagentId,
+  type SubagentHubTarget,
+} from "./conversation/toolMeta";
+import { isTickingAgentStatus } from "./conversation/SubagentMetrics";
+import {
+  pageMotionReduced,
+  TAB_PANE_MS,
+  tabPaneRole,
+  useOverlappingTabs,
+  type SlideDir,
+  type TabPaneRole,
+} from "./pageTransition";
+
+export const HUB_INTENT_KEY = "zeta.hubIntent";
+const HUB_STATE_KEY = "zeta.agentHub.state";
+
+export type HubTab = "overview" | "transcript" | "jobs" | "messages" | "btw";
+export type HubIntentTab = HubTab | "chat";
+export type HubView = "flat" | "tree";
+
+type HubStatus = "running" | "idle" | "parked" | "aborted";
+type Notice = { kind: "ok" | "warn" | "err"; text: string };
+type Modal = { kind: "spawn" } | { kind: "kill"; agentId: string };
+
+type HubAgent = {
+  id: string;
+  name: string;
+  kind: string;
+  parentId?: string;
+  status: HubStatus;
+  rawStatus: StudioAgentSnapshot["status"] | HubStatus;
+  activity?: string;
+  task: string;
+  currentTool?: { name: string; args?: string } | null;
+  lastIntent?: string | null;
+  retryState?: {
+    attempt: number;
+    maxAttempts: number;
+    errorMessage?: string;
+  } | null;
+  modelRole?: string;
+  resolvedModel?: string;
+  fallback?: string | null;
+  metrics?: PreviewMetrics;
+  readOnly: boolean;
+  unread: number;
+  outputPath?: string | null;
+  patchPath?: string | null;
+  branchName?: string | null;
+  nestedPatchPaths?: readonly string[];
+  isolated?: boolean;
+  canRevive?: boolean;
+  children: string[];
+  activeJobIds: string[];
+  stage?: string;
+  completionPercent?: number;
+  startedAt?: number;
+  lastActivity: number;
+  hasLiveSession: boolean;
+  hasTranscript: boolean;
+  generation: number;
+};
+
+type HubJob = {
+  id: string;
+  type: string;
+  status: StudioJobSnapshot["status"];
+  label: string;
+  durationMs: number;
+  ownerId: string;
+  /** Subagent this job runs (task jobs); its own jobs nest under this row. */
+  agentId?: string;
+  generation: number;
+  resultText?: string;
+  errorText?: string;
+  stage?: string;
+  completionPercent?: number;
+  widget?: JobWidgetView;
+};
+
+type Caps = {
+  open: boolean;
+  openWhy: string | null;
+  chat: boolean;
+  chatWhy: string | null;
+  revive: boolean;
+  reviveWhy: string | null;
+  kill: boolean;
+  killWhy: string | null;
+  release: boolean;
+  releaseWhy: string | null;
+};
+
+type Persisted = {
+  selectedBySession: Record<string, string>;
+  tab: HubTab;
+  view: HubView;
+};
+
+const STATUS_LABEL: Record<HubStatus, string> = {
+  running: "running",
+  idle: "idle",
+  parked: "parked",
+  aborted: "aborted",
+};
+
+const HUB_WORDS: Record<string, string> = {
+  running: "运行中",
+  idle: "空闲",
+  parked: "已停驻",
+  aborted: "已中止",
+  Streaming: "生成中",
+  archived: "已归档",
+  plan: "计划",
+  vibe: "常规",
+  Overview: "概览",
+  Transcript: "对话记录",
+  Jobs: "任务",
+  Messages: "消息",
+  Task: "任务",
+  Current: "当前活动",
+  Tool: "工具",
+  "Last intent": "最近意图",
+  Retry: "重试",
+  Activity: "当前活动",
+  "Active jobs": "运行中的任务",
+  Usage: "用量",
+  Metrics: "统计",
+  Context: "上下文",
+  Lineage: "父子关系",
+  "Spawned by": "父代理",
+  Children: "子代理",
+  Registered: "创建时间",
+  Changes: "变更",
+  Mode: "模式",
+  Output: "输出",
+  Patch: "补丁",
+  "Nested patch": "嵌套项目补丁",
+  Isolation: "隔离状态",
+  "Worktree branch": "工作区分支",
+};
+function hubWord(value: string, zh: boolean): string {
+  if (!zh) return value;
+  if (value.startsWith("Running Tool"))
+    return value.replace("Running Tool", "工具执行中");
+  return HUB_WORDS[value] ?? value;
+}
+
+const STATUS_DOT: Record<HubStatus, string> = {
+  running: "green pulse",
+  idle: "blue",
+  parked: "gray",
+  aborted: "red",
+};
+
+const TABS: ReadonlyArray<readonly [HubTab, string]> = [
+  ["overview", "Overview"],
+  ["transcript", "Transcript"],
+  ["jobs", "Jobs"],
+  ["messages", "Messages"],
+  ["btw", "BTW"],
+];
+
+const JOB_CHIP: Record<StudioJobSnapshot["status"], string> = {
+  queued: "gray",
+  running: "blue",
+  completed: "green",
+  failed: "red",
+  cancelled: "gray",
+};
+
+const CONTRACT = {
+  chat: "发送（暂未实现）",
+  revive: "Revive（暂未实现）",
+  kill: "停止（暂未实现）",
+  release: "释放（暂未实现）",
+  spawn: "派生（暂未实现）",
+  cancel: "取消（暂未实现）",
+  transcript: "无 transcript",
+  irc: "IRC（暂未实现）",
+  previewWrite: "预览模式",
+  historicalWrite: "历史会话只读",
+} as const;
+
+type HubIntent = { agentId: string; tab?: HubTab; chat?: boolean };
+
+export function setHubIntent(agentId: string, tab?: HubIntentTab): void {
+  if (!isRealSubagentId(agentId)) return;
+  try {
+    const openChat = tab === "chat";
+    sessionStorage.setItem(
+      HUB_INTENT_KEY,
+      JSON.stringify({
+        agentId,
+        tab: openChat ? null : (tab ?? null),
+        ...(openChat ? { chat: true } : {}),
+      }),
+    );
+  } catch {
+    /* sessionStorage may be blocked; navigation still opens the hub. */
+  }
+}
+
+function parseHubTab(value: unknown): HubTab | undefined {
+  if (value === "btw") return value;
+  if (
+    value === "overview" ||
+    value === "transcript" ||
+    value === "jobs" ||
+    value === "messages"
+  )
+    return value;
+  return undefined;
+}
+
+function parseHubIntent(raw: string): HubIntent | null {
+  try {
+    const parsed = JSON.parse(raw) as {
+      agentId?: unknown;
+      tab?: unknown;
+      chat?: unknown;
+    };
+    if (typeof parsed.agentId !== "string" || !isRealSubagentId(parsed.agentId))
+      return null;
+    const tab = parseHubTab(parsed.tab);
+    return {
+      agentId: parsed.agentId,
+      ...(tab !== undefined ? { tab } : {}),
+      ...(parsed.chat === true ? { chat: true } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readHubIntent(): HubIntent | null {
+  try {
+    const raw = sessionStorage.getItem(HUB_INTENT_KEY);
+    if (!raw) return null;
+    const parsed = parseHubIntent(raw);
+    if (!parsed) sessionStorage.removeItem(HUB_INTENT_KEY);
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function clearHubIntent(): void {
+  try {
+    sessionStorage.removeItem(HUB_INTENT_KEY);
+  } catch {
+    /* sessionStorage may be blocked. */
+  }
+}
+
+function parseSelectedMap(value: unknown): Record<string, string> {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return {};
+  const next: Record<string, string> = {};
+  for (const [key, id] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof id === "string" && isRealSubagentId(id)) next[key] = id;
+  }
+  return next;
+}
+
+function loadPersisted(): Persisted {
+  try {
+    const saved = JSON.parse(localStorage.getItem(HUB_STATE_KEY) || "{}") as {
+      selected?: unknown;
+      selectedBySession?: unknown;
+      tab?: unknown;
+      view?: unknown;
+    };
+    const selectedBySession = parseSelectedMap(saved.selectedBySession);
+    if (
+      typeof saved.selected === "string" &&
+      isRealSubagentId(saved.selected) &&
+      selectedBySession[""] === undefined
+    ) {
+      selectedBySession[""] = saved.selected;
+    }
+    return {
+      selectedBySession,
+      tab: parseHubTab(saved.tab) ?? "overview",
+      view: saved.view === "tree" ? "tree" : "flat",
+    };
+  } catch {
+    return { selectedBySession: {}, tab: "overview", view: "flat" };
+  }
+}
+
+function persist(state: Persisted): void {
+  try {
+    localStorage.setItem(HUB_STATE_KEY, JSON.stringify(state));
+  } catch {
+    /* localStorage may be blocked; UI state stays in-memory. */
+  }
+}
+
+function parseTs(value?: string): number {
+  if (!value) return Number.NaN;
+  return Date.parse(value);
+}
+
+function fmtAge(ts: number, now: number, zh = true): string {
+  const s = Math.max(0, Math.round((now - ts) / 1000));
+  if (!Number.isFinite(s)) return "—";
+  if (s < 5) return zh ? "刚刚" : "just now";
+  if (s < 60) return `${s}s${zh ? " 前" : " ago"}`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m${zh ? " 前" : " ago"}`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h${zh ? " 前" : " ago"}`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d${zh ? " 前" : " ago"}`;
+  return `${Math.floor(d / 30)}mo${zh ? " 前" : " ago"}`;
+}
+
+function fmtDur(ms: number): string {
+  const s = Math.round(ms / 1000);
+  if (!Number.isFinite(s)) return "—";
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rs = s % 60;
+  if (m < 60) return rs ? `${m}m ${rs}s` : `${m}m`;
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return rm ? `${h}h ${rm}m` : `${h}h`;
+}
+
+function fmtClock(ts: number): string {
+  if (!Number.isFinite(ts)) return "—";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "—";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function fmtHM(ts: number): string {
+  return fmtClock(ts).slice(0, 5);
+}
+
+function fmtCost(cost: number): string {
+  if(!Number.isFinite(cost)||cost===0)return "—";
+  if (cost < 0.01) return `$${cost.toFixed(4)}`;
+  if (cost < 1) return `$${cost.toFixed(3)}`;
+  return `$${cost.toFixed(2)}`;
+}
+
+function fmtNum(value: number): string {
+  if (value >= 1000) return `${(value / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return String(value);
+}
+
+function fmtMetrics(metrics?: PreviewMetrics): string {
+  if (!metrics) return "usage —";
+  return `${fmtCost(metrics.cost)} · ${fmtDur(metrics.durationMs)} · ${metrics.requests} req · ${metrics.tools} tools · ${fmtNum(metrics.tokens)} tok`;
+}
+
+function sparkLevel(tokens: number): number {
+  return Math.max(1, Math.min(3, Math.round(tokens / 40000)));
+}
+
+function hubStatus(status: StudioAgentSnapshot["status"]): HubStatus {
+  if (status === "starting" || status === "running" || status === "reviving")
+    return "running";
+  if (status === "idle") return "idle";
+  if (status === "parked") return "parked";
+  return "aborted";
+}
+
+/**
+ * 卡片/详情页显示的运行时长：已测量的 usage → 仍在跑时按当前时间走 → 已停止冻结在
+ * 最后活动时间。停靠或中止后 `lastActivity` 不再前进，计数就此停住。
+ */
+function hubDurationMs(agent: HubAgent, now: number): number | undefined {
+  const measured = agent.metrics?.durationMs;
+  if (measured !== undefined && Number.isFinite(measured))
+    return Math.max(0, measured);
+  if (agent.startedAt === undefined || !Number.isFinite(agent.startedAt))
+    return undefined;
+  const ended = isTickingAgentStatus(agent.rawStatus)
+    ? now
+    : agent.lastActivity;
+  if (!Number.isFinite(ended)) return undefined;
+  return Math.max(0, ended - agent.startedAt);
+}
+
+function isAdvisor(agent: HubAgent): boolean {
+  return agent.kind === "advisor";
+}
+
+function hubComposerAgents(
+  roster: readonly HubAgent[],
+): SubagentComposerAgent[] {
+  return roster.map((agent) => ({
+    agentId: agent.id,
+    kind: agent.kind,
+    status: agent.rawStatus,
+    readOnly: agent.readOnly,
+    generation: agent.generation,
+  }));
+}
+
+function hubFaceClass(role: TabPaneRole | null, dir: SlideDir): string {
+  return role ? `hub-face hub-face-${role}-${dir}` : "hub-face";
+}
+
+/** Shrink the roster grid from the chat-preview height in the same 320ms as the back-facing pane swap. */
+function useHubChatCloseMotion(
+  chatOpen: boolean,
+  incoming: "chat" | "detail",
+  colsRef: RefObject<HTMLDivElement | null>,
+): boolean {
+  const [closing, setClosing] = useState(false);
+  const fromRef = useRef(0);
+  const fromHoldRef = useRef(0);
+  const toHoldRef = useRef(0);
+
+  useLayoutEffect(() => {
+    if (!chatOpen) return;
+    const el = colsRef.current;
+    if (el) fromRef.current = el.getBoundingClientRect().height;
+  });
+
+  useLayoutEffect(() => {
+    const el = colsRef.current;
+    if (chatOpen) {
+      if (el) {
+        el.style.height = "";
+        el.style.transition = "";
+      }
+      if (closing) setClosing(false);
+      return;
+    }
+    if (incoming !== "detail") return;
+    if (pageMotionReduced() || !el) {
+      fromRef.current = 0;
+      if (closing) setClosing(false);
+      return;
+    }
+    if (!closing) {
+      const from = fromRef.current;
+      fromRef.current = 0;
+      if (from <= 0) return;
+      const to = el.getBoundingClientRect().height;
+      if (Math.abs(from - to) < 1) return;
+      fromHoldRef.current = from;
+      toHoldRef.current = to;
+      setClosing(true);
+      return;
+    }
+    const from = fromHoldRef.current;
+    const to = toHoldRef.current;
+    el.style.height = `${from}px`;
+    el.style.transition = "none";
+    void el.getBoundingClientRect();
+    let cancelled = false;
+    const frame = window.requestAnimationFrame(() => {
+      if (cancelled) return;
+      el.style.transition = `height ${TAB_PANE_MS}ms var(--ease-nav)`;
+      el.style.height = `${to}px`;
+    });
+    const finish = () => {
+      if (cancelled) return;
+      cancelled = true;
+      el.style.height = "";
+      el.style.transition = "";
+      setClosing(false);
+    };
+    const onEnd = (event: TransitionEvent) => {
+      if (event.target !== el || event.propertyName !== "height") return;
+      finish();
+    };
+    el.addEventListener("transitionend", onEnd);
+    const fallback = window.setTimeout(finish, TAB_PANE_MS + 80);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+      el.removeEventListener("transitionend", onEnd);
+      window.clearTimeout(fallback);
+      el.style.height = "";
+      el.style.transition = "";
+    };
+  }, [chatOpen, closing, colsRef, incoming]);
+
+  return closing;
+}
+
+function activityPill(
+  agent: HubAgent,
+  zh = false,
+): { cls: string; label: string } {
+  const copy = (cn: string, en: string) => (zh ? cn : en);
+  if (agent.status === "aborted" || agent.rawStatus === "failed") {
+    return {
+      cls: "aborted",
+      label:
+        agent.rawStatus === "failed"
+          ? copy("失败", "Failed")
+          : copy("已中止", "Aborted"),
+    };
+  }
+  if (agent.status === "running") {
+    if (agent.activity === "tool") {
+      return {
+        cls: "tool",
+        label: agent.currentTool?.name
+          ? `${copy("工具执行中", "Running tool")} · ${agent.currentTool.name}`
+          : copy("工具执行中", "Running tool"),
+      };
+    }
+    return { cls: "thinking", label: copy("思考中", "Thinking") };
+  }
+  if (agent.status === "idle") {
+    if (agent.activity === "waiting")
+      return { cls: "waiting", label: copy("等待输入", "Waiting for User") };
+    if (agent.activity === "failed")
+      return { cls: "aborted", label: copy("失败", "Failed") };
+    return { cls: "idle", label: copy("空闲", "Idle") };
+  }
+  if (agent.status === "parked")
+    return { cls: "parked", label: copy("已停驻", "Parked") };
+  return { cls: "parked", label: agent.status };
+}
+
+function toHubAgent(agent: StudioAgentSnapshot, children: string[]): HubAgent {
+  const usage = agent.usage;
+  const metrics: PreviewMetrics | undefined = usage
+    ? {
+        cost: usage.cost,
+        durationMs: usage.durationMs,
+        ...(usage.durationKind !== undefined
+          ? { durationKind: usage.durationKind }
+          : {}),
+        requests: usage.requests,
+        tools: usage.tools,
+        tokens: usage.tokens,
+        ...(usage.contextTokens !== undefined &&
+        usage.contextWindow !== undefined
+          ? {
+              contextTokens: usage.contextTokens,
+              contextWindow: usage.contextWindow,
+            }
+          : {}),
+      }
+    : undefined;
+  return {
+    id: agent.agentId,
+    name: agent.displayName,
+    kind: agent.kind,
+    ...(agent.parentAgentId ? { parentId: agent.parentAgentId } : {}),
+    status: hubStatus(agent.status),
+    rawStatus: agent.status,
+    task: agent.assignment ?? agent.summary ?? "—",
+    ...(agent.modelRole !== undefined ? { modelRole: agent.modelRole } : {}),
+    ...(agent.resolvedModel !== undefined
+      ? { resolvedModel: agent.resolvedModel }
+      : {}),
+    ...(agent.modelIsFallback === true && agent.resolvedModel !== undefined
+      ? { fallback: agent.resolvedModel }
+      : {}),
+    ...(metrics ? { metrics } : {}),
+    readOnly: agent.kind === "advisor" || agent.readOnly === true,
+    unread: agent.unreadCount,
+    ...(agent.outputPath !== undefined ? { outputPath: agent.outputPath } : {}),
+    ...(agent.patchPath !== undefined ? { patchPath: agent.patchPath } : {}),
+    ...(agent.branchName !== undefined ? { branchName: agent.branchName } : {}),
+    ...(agent.nestedPatchPaths === undefined
+      ? {}
+      : { nestedPatchPaths: agent.nestedPatchPaths }),
+    ...(agent.isolated === undefined ? {} : { isolated: agent.isolated }),
+    ...(agent.canRevive === undefined ? {} : { canRevive: agent.canRevive }),
+    children,
+    activeJobIds: agent.activeJobIds,
+    ...(agent.stage ? { stage: agent.stage } : {}),
+    ...(agent.completionPercent !== undefined ? { completionPercent: agent.completionPercent } : {}),
+    ...(Number.isFinite(parseTs(agent.startedAt))
+      ? { startedAt: parseTs(agent.startedAt) }
+      : {}),
+    lastActivity: Number.isFinite(parseTs(agent.updatedAt))
+      ? parseTs(agent.updatedAt)
+      : Date.now(),
+    hasLiveSession: agent.hasLiveSession,
+    hasTranscript: agent.hasTranscript,
+    generation: agent.generation,
+  };
+}
+
+function hubSelectorId(id: string): string {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function")
+    return CSS.escape(id);
+  return id.replace(/[\n\r\\"\]]/g, (ch) => `\\${ch}`);
+}
+
+function hubChatTarget(agent: HubAgent): SubagentHubTarget {
+  return {
+    agentId: agent.id,
+    toolCallId: agent.id,
+    ...(agent.task && agent.task !== "—" ? { task: agent.task } : {}),
+  };
+}
+
+function toHubJob(job: StudioJobSnapshot): HubJob {
+  const started = parseTs(job.startedAt);
+  const ended = parseTs(job.completedAt);
+  const durationMs = Number.isFinite(started)
+    ? Math.max(0, (Number.isFinite(ended) ? ended : Date.now()) - started)
+    : 0;
+  return {
+    id: job.jobId,
+    type: job.type,
+    status: job.status,
+    label: job.label,
+    durationMs,
+    ownerId: job.ownerAgentId,
+    ...(job.agentId ? { agentId: job.agentId } : {}),
+    generation: job.generation,
+    ...(job.status === "completed" && job.summary
+      ? { resultText: job.summary }
+      : {}),
+    ...(job.status === "failed" && job.summary
+      ? { errorText: job.summary }
+      : {}),
+    ...(job.stage ? { stage: job.stage } : {}),
+    ...(job.completionPercent !== undefined
+      ? { completionPercent: job.completionPercent }
+      : {}),
+    ...(job.widget ? { widget: job.widget } : {}),
+  };
+}
+
+function fromPreviewAgent(agent: PreviewAgent): HubAgent {
+  return {
+    id: agent.id,
+    name: agent.name,
+    kind: agent.kind,
+    ...(agent.parentId ? { parentId: agent.parentId } : {}),
+    status: agent.status,
+    rawStatus: agent.status,
+    activity: agent.activity,
+    task: agent.task,
+    currentTool: agent.currentTool ?? null,
+    lastIntent: agent.lastIntent ?? null,
+    retryState: agent.retryState ?? null,
+    ...(agent.modelRole ? { modelRole: agent.modelRole } : {}),
+    ...(agent.resolvedModel ? { resolvedModel: agent.resolvedModel } : {}),
+    fallback: agent.fallback ?? null,
+    ...(agent.metrics ? { metrics: agent.metrics } : {}),
+    readOnly: Boolean(agent.readOnly || agent.kind === "advisor"),
+    unread: agent.ircUnread ?? 0,
+    outputPath: agent.outputPath ?? null,
+    patchPath: agent.patchPath ?? null,
+    ...(agent.isolated === undefined
+      ? {}
+      : { isolated: agent.isolated, canRevive: !agent.isolated }),
+    ...(agent.nestedPatchPaths === undefined
+      ? {}
+      : { nestedPatchPaths: agent.nestedPatchPaths }),
+    branchName: agent.branchName ?? null,
+    children: agent.children,
+    activeJobIds: [],
+    ...(agent.stage ? { stage: agent.stage } : {}),
+    ...(agent.completionPercent !== undefined
+      ? { completionPercent: agent.completionPercent }
+      : {}),
+    startedAt: agent.createdAt,
+    lastActivity: agent.lastActivity,
+    hasLiveSession: agent.status !== "aborted",
+    hasTranscript: Boolean(agent.hasTranscript),
+    generation: 1,
+  };
+}
+
+function fromPreviewJob(job: PreviewJob): HubJob {
+  return {
+    id: job.id,
+    type: job.type,
+    status: job.status,
+    label: job.label,
+    durationMs: job.durationMs,
+    ownerId: job.ownerId,
+    ...(job.agentId ? { agentId: job.agentId } : {}),
+    generation: 1,
+    ...(job.resultText ? { resultText: job.resultText } : {}),
+    ...(job.errorText ? { errorText: job.errorText } : {}),
+    ...(job.stage ? { stage: job.stage } : {}),
+    ...(job.completionPercent !== undefined
+      ? { completionPercent: job.completionPercent }
+      : {}),
+    ...(job.widget ? { widget: job.widget } : {}),
+  };
+}
+
+const UNKNOWN_CREATION = Number.MAX_SAFE_INTEGER;
+
+/**
+ * 列表顺序固定为「创建顺序」：注册时间升序，只按这个排。
+ * 状态与最后活动时间都会在运行期变化，任何一项进排序键，卡片就会在每次
+ * 状态翻转或 usage 更新时跳位（以前是「谁刚动过谁在最上面」）。缺少
+ * `startedAt` 的行（归档快照没这个字段）落到末尾，用 id 保证顺序稳定。
+ */
+function creationKey(agent: HubAgent): number {
+  return agent.startedAt !== undefined && Number.isFinite(agent.startedAt)
+    ? agent.startedAt
+    : UNKNOWN_CREATION;
+}
+
+function byCreation(a: HubAgent, b: HubAgent): number {
+  return (
+    creationKey(a) - creationKey(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
+}
+
+function sortByCreation(rows: HubAgent[]): HubAgent[] {
+  return rows.slice().sort(byCreation);
+}
+
+function treeGroups(rows: HubAgent[]): {
+  groups: Array<{ head: HubAgent; kids: HubAgent[] }>;
+  orphans: HubAgent[];
+} {
+  const byId = new Map(rows.map((agent) => [agent.id, agent]));
+  const hasVisParent = (agent: HubAgent) =>
+    Boolean(
+      agent.parentId && agent.parentId !== "main" && byId.has(agent.parentId),
+    );
+  const isGroupHead = (agent: HubAgent) =>
+    !hasVisParent(agent) && rows.some((row) => row.parentId === agent.id);
+  const heads = sortByCreation(rows.filter(isGroupHead));
+  const used = new Set(heads.map((head) => head.id));
+  const groups = heads.map((head) => {
+    const kids = sortByCreation(rows.filter((row) => row.parentId === head.id));
+    kids.forEach((kid) => used.add(kid.id));
+    return { head, kids };
+  });
+  return {
+    groups,
+    orphans: sortByCreation(rows.filter((agent) => !used.has(agent.id))),
+  };
+}
+
+function linearSeq(rows: HubAgent[], view: HubView): HubAgent[] {
+  if (view !== "tree") return sortByCreation(rows);
+  const tree = treeGroups(rows);
+  return [
+    ...tree.groups.flatMap((group) => [group.head, ...group.kids]),
+    ...tree.orphans,
+  ];
+}
+
+function missingCap(
+  capabilities: ClientBootstrap["capabilityManifest"] | undefined,
+  id: string,
+): boolean {
+  const entry = capabilities?.capabilities.find((item) => item.id === id);
+  return !entry || entry.grade === "unavailable";
+}
+
+function lockedWhy(agent: HubAgent): string {
+  return isAdvisor(agent) ? "只读" : "read-only";
+}
+
+function capsFor(
+  agent: HubAgent | undefined,
+  connOnline: boolean,
+  capabilities: ClientBootstrap["capabilityManifest"] | undefined,
+  hasClient: boolean,
+  preview: boolean,
+  viewingLive: boolean,
+): Caps {
+  if (!agent) {
+    return {
+      open: false,
+      openWhy: null,
+      chat: false,
+      chatWhy: null,
+      revive: false,
+      reviveWhy: null,
+      kill: false,
+      killWhy: null,
+      release: false,
+      releaseWhy: null,
+    };
+  }
+  const dead = agent.status === "aborted";
+  const cannotRevive =
+    agent.status === "parked" &&
+    (agent.isolated === true || agent.canRevive === false);
+  const locked = isAdvisor(agent) || agent.readOnly;
+  const chatMissing = missingCap(capabilities, "agent.send");
+  const reviveMissing = missingCap(capabilities, "agent.revive");
+  const killMissing = missingCap(capabilities, "agent.kill");
+  const releaseMissing = missingCap(capabilities, "agent.release");
+  const hostReady = connOnline && hasClient && viewingLive;
+  return {
+    open: !dead,
+    openWhy: dead ? "已结束" : null,
+    chat:
+      !locked &&
+      !dead &&
+      !cannotRevive &&
+      !preview &&
+      hostReady &&
+      !chatMissing,
+    chatWhy: locked
+      ? lockedWhy(agent)
+      : cannotRevive
+        ? "隔离或不可恢复的 agent 仅能查看记录"
+        : dead
+          ? "已结束"
+          : preview
+            ? CONTRACT.previewWrite
+            : !viewingLive
+              ? CONTRACT.historicalWrite
+              : !hasClient
+                ? "无 Studio client"
+                : !connOnline
+                  ? "未连接"
+                  : chatMissing
+                    ? CONTRACT.chat
+                    : null,
+    revive:
+      !preview &&
+      !locked &&
+      !cannotRevive &&
+      agent.status === "parked" &&
+      hostReady &&
+      !reviveMissing,
+    reviveWhy: preview
+      ? CONTRACT.previewWrite
+      : !viewingLive
+        ? CONTRACT.historicalWrite
+        : locked
+          ? lockedWhy(agent)
+          : cannotRevive
+            ? "隔离或不可恢复的 agent 仅能查看记录"
+            : agent.status !== "parked"
+              ? "仅 parked"
+              : !hasClient
+                ? "无 Studio client"
+                : !connOnline
+                  ? "未连接"
+                  : reviveMissing
+                    ? CONTRACT.revive
+                    : null,
+    kill: !preview && !locked && !dead && hostReady && !killMissing,
+    killWhy: preview
+      ? CONTRACT.previewWrite
+      : !viewingLive
+        ? CONTRACT.historicalWrite
+        : locked
+          ? lockedWhy(agent)
+          : dead
+            ? "已结束"
+            : !hasClient
+              ? "无 Studio client"
+              : !connOnline
+                ? "未连接"
+                : killMissing
+                  ? CONTRACT.kill
+                  : null,
+    release: !preview && !locked && dead && hostReady && !releaseMissing,
+    releaseWhy: preview
+      ? CONTRACT.previewWrite
+      : !viewingLive
+        ? CONTRACT.historicalWrite
+        : locked
+          ? lockedWhy(agent)
+          : !dead
+            ? "仅终态"
+            : !hasClient
+              ? "无 Studio client"
+              : !connOnline
+                ? "未连接"
+                : releaseMissing
+                  ? CONTRACT.release
+                  : null,
+  };
+}
+
+function KbdHint() {
+  const zh = useI18n().resolvedLanguage === "zh";
+  return (
+    <div className="hub-kbd-hint">
+      {zh
+        ? "j/k 选择 · Enter 打开 · r 恢复 · x 停止 · t 切换视图"
+        : "j/k Select · Enter Open · r Revive · x Stop · t Switch view"}
+    </div>
+  );
+}
+
+function StatusDot({ status }: { status: HubStatus }) {
+  return (
+    <span
+      className={`hub-sd ${status}${status === "running" ? " pulse" : ""}`}
+      aria-hidden="true"
+    />
+  );
+}
+
+function FlagChips({ agent, kids }: { agent: HubAgent; kids?: number }) {
+  return (
+    <>
+      {agent.unread > 0 ? (
+        <span className="hub-unread" data-tip={`${agent.unread} 未读`}>
+          <Icon name="message" extra="sm" />
+          {agent.unread}
+        </span>
+      ) : null}
+      {agent.readOnly ? <span className="hub-ro-tag">read-only</span> : null}
+      {kids ? (
+        <span className="hub-ro-tag" data-tip="子 Agent">
+          ↳ {kids} 子
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+function Spark({ tokens }: { tokens: number }) {
+  const hot = sparkLevel(tokens);
+  return (
+    <svg
+      className="hc-spark"
+      width="13"
+      height="8"
+      viewBox="0 0 13 8"
+      aria-hidden="true"
+    >
+      {[1, 2, 3].map((index) => (
+        <rect
+          key={index}
+          className={`hb-bar${index <= hot ? " hot" : ""}`}
+          x={(index - 1) * 5}
+          y={8 - index * 2}
+          width="3"
+          height={index * 2}
+          rx="1"
+        />
+      ))}
+    </svg>
+  );
+}
+
+function ArtChips({ agent }: { agent: HubAgent }) {
+  const chips = [
+    agent.outputPath ? "out" : null,
+    agent.patchPath ? "patch" : null,
+    agent.branchName ? "branch" : null,
+  ].filter((chip): chip is string => Boolean(chip));
+  if (!chips.length) return null;
+  return (
+    <span className="hc-art">
+      {chips.map((chip) => (
+        <span className="hub-art" key={chip}>
+          {chip}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function ModelLine({ agent }: { agent: HubAgent }) {
+  const zh = useI18n().resolvedLanguage === "zh";
+  if (agent.fallback)
+    return (
+      <span className="hub-model hub-fallback">
+        {zh ? "回退模型" : "Fallback"} → {agent.fallback}
+      </span>
+    );
+  if (agent.resolvedModel)
+    return <span className="hub-model">{agent.resolvedModel}</span>;
+  return null;
+}
+
+function AgentCard({
+  agent,
+  selected,
+  kids,
+  now,
+  onSelect,
+}: {
+  agent: HubAgent;
+  selected: boolean;
+  kids: number;
+  now: number;
+  onSelect: (id: string) => void;
+}) {
+  const zh = useI18n().resolvedLanguage === "zh";
+  const pill = activityPill(agent, zh);
+  const metrics = agent.metrics;
+  const durationMs = hubDurationMs(agent, now);
+  return (
+    <button
+      className={`hub-card${selected ? " sel" : ""}`}
+      type="button"
+      role="option"
+      aria-selected={selected}
+      data-hub-id={agent.id}
+      onClick={() => onSelect(agent.id)}
+    >
+      <span className="hc-main">
+        <span className="hc-top">
+          <span className={`hub-act ${pill.cls}`}>{pill.label}</span>
+          <span className="hc-name">
+            <StatusDot status={agent.status} />
+            <span>{agent.name}</span>
+          </span>
+          {agent.unread > 0 || agent.readOnly || kids > 0 ? (
+            <span className="hc-flags">
+              <FlagChips agent={agent} kids={kids} />
+            </span>
+          ) : null}
+        </span>
+        <span className="hc-task">{agent.task}</span>
+        <AgentStage agent={agent} />
+        <span className="hc-foot">
+          {agent.modelRole ? (
+            <span className="hub-role">{agent.modelRole}</span>
+          ) : null}
+          <ModelLine agent={agent} />
+          <ArtChips agent={agent} />
+        </span>
+      </span>
+      <span className="hc-side">
+        {agent.startedAt ? (
+          <span
+            className="hc-start"
+            data-tip={`已运行 ${durationMs === undefined ? "—" : fmtDur(durationMs)}`}
+          >
+            <Icon name="clock" extra="sm" />
+            {fmtHM(agent.startedAt)}
+          </span>
+        ) : null}
+        {metrics ? (
+          <span className="hc-tokens">
+            <b>{fmtNum(metrics.tokens)}</b>
+            <i>tok</i>
+            <Spark tokens={metrics.tokens} />
+          </span>
+        ) : null}
+        {metrics ? (
+          <span className="hc-pace">
+            <span className="hub-num">
+              <i>req</i>
+              <b>{metrics.requests}</b>
+            </span>
+            <span className="hub-num">
+              <i>tools</i>
+              <b>{metrics.tools}</b>
+            </span>
+          </span>
+        ) : null}
+        <span className="hc-cost">
+          {metrics ? fmtCost(metrics.cost) : "usage —"}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/** The subagent's current step: its running task's stage and completion estimate. */
+function AgentStage({ agent }: { agent: HubAgent }) {
+  if (!agent.stage && agent.completionPercent === undefined) return null;
+  return (
+    <span className="hub-agent-stage">
+      {agent.completionPercent !== undefined ? <CompletionRing percent={agent.completionPercent} size={16} /> : null}
+      {agent.stage ? <span className="ellipsis" title={agent.stage}>{agent.stage}</span> : null}
+    </span>
+  );
+}
+
+function AgentNode({
+  agent,
+  selected,
+  now,
+  onSelect,
+}: {
+  agent: HubAgent;
+  selected: boolean;
+  now: number;
+  onSelect: (id: string) => void;
+}) {
+  const zh = useI18n().resolvedLanguage === "zh";
+  const pill = activityPill(agent, zh);
+  return (
+    <button
+      className={`hub-node st-${agent.status}${selected ? " sel" : ""}`}
+      type="button"
+      role="option"
+      aria-selected={selected}
+      data-hub-id={agent.id}
+      onClick={() => onSelect(agent.id)}
+    >
+      <span className="hn-top">
+        <span className={`hub-act ${pill.cls}`}>{pill.label}</span>
+        <span className="hn-name">
+          <StatusDot status={agent.status} />
+          <span>{agent.name}</span>
+        </span>
+        {agent.unread > 0 || agent.readOnly ? (
+          <span className="hn-flags">
+            <FlagChips agent={agent} />
+          </span>
+        ) : null}
+        {agent.metrics ? (
+          <span className="hn-cost">{fmtCost(agent.metrics.cost)}</span>
+        ) : null}
+      </span>
+      <span className="hn-task">{agent.task}</span>
+      <AgentStage agent={agent} />
+      <span className="hn-foot">
+        {agent.modelRole ? (
+          <span className="hub-role">{agent.modelRole}</span>
+        ) : null}
+        <span className="mono">
+          {agent.fallback
+            ? `${zh ? "回退模型" : "Fallback"} → ${agent.fallback}`
+            : (agent.resolvedModel ?? "")}
+        </span>
+        <span>{fmtAge(agent.lastActivity, now, zh)}</span>
+        <span className="hn-art">
+          <ArtChips agent={agent} />
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function TreeGroup({
+  head,
+  kids,
+  selected,
+  now,
+  onSelect,
+}: {
+  head: HubAgent;
+  kids: HubAgent[];
+  selected: string | null;
+  now: number;
+  onSelect: (id: string) => void;
+}) {
+  const zh = useI18n().resolvedLanguage === "zh";
+  const pill = activityPill(head, zh);
+  const cost = [head, ...kids].reduce(
+    (sum, agent) => sum + (agent.metrics?.cost ?? 0),
+    0,
+  );
+  return (
+    <div className="hub-tgroup">
+      <button
+        className={`hub-tg-head${selected === head.id ? " sel" : ""}`}
+        type="button"
+        role="option"
+        aria-selected={selected === head.id}
+        data-hub-id={head.id}
+        onClick={() => onSelect(head.id)}
+      >
+        <span className="tg-ic">
+          <Icon name="bot" extra="sm" />
+        </span>
+        <span className={`hub-act ${pill.cls}`}>{pill.label}</span>
+        <span className="tg-name">
+          <StatusDot status={head.status} />
+          <span>{head.name}</span>
+        </span>
+        <span className="tg-task">{head.task}</span>
+        <span className="tg-right">
+          <FlagChips agent={head} kids={kids.length} />
+          <span className="tg-cost">{fmtCost(cost)}</span>
+          <span className="tg-caret">
+            <Icon name="chevron-d" extra="sm" />
+          </span>
+        </span>
+      </button>
+      <div className="hub-tchildren">
+        <span className="hub-trail" aria-hidden="true" />
+        <div className="hub-tleaves">
+          {kids.map((kid) => (
+            <AgentNode
+              key={kid.id}
+              agent={kid}
+              selected={selected === kid.id}
+              now={now}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Kv({
+  label,
+  children,
+  mono,
+}: {
+  label: string;
+  children: ReactNode;
+  mono?: boolean;
+}) {
+  const zh = useI18n().resolvedLanguage === "zh";
+  return (
+    <div className="kv">
+      <div className="k">{hubWord(label, zh)}</div>
+      <div className={`v${mono ? " mono" : ""}`}>{children}</div>
+    </div>
+  );
+}
+
+function EmptyBlock({
+  icon,
+  title,
+  detail,
+}: {
+  icon: string;
+  title?: string;
+  detail: string;
+}) {
+  return (
+    <div
+      className="hub-empty-list"
+      style={{ border: "none", padding: "var(--sp-24)" }}
+    >
+      <Icon name={icon} />
+      {title ? <b>{title}</b> : null}
+      <span>{detail}</span>
+    </div>
+  );
+}
+
+export function AgentHubPage({
+  snapshot,
+  runtime,
+  resyncRequired,
+  capabilities,
+  client,
+  canSend,
+  runtimeConnected,
+  agents,
+  persistedReady = true,
+  parentSessionId,
+  liveSessionId,
+  pendingInteraction,
+  workspaceId,
+  loadMentions,
+  onOpenMain,
+  onOpenDiagnostics,
+}: {
+  snapshot?: OperatorStateSnapshot;
+  runtime?: ClientBootstrap["runtime"];
+  resyncRequired?: boolean;
+  capabilities?: ClientBootstrap["capabilityManifest"];
+  client?: StudioClient;
+  canSend?: boolean;
+  runtimeConnected?: boolean;
+  agents?: readonly StudioAgentSnapshot[];
+  persistedReady?: boolean;
+  parentSessionId?: SessionId;
+  liveSessionId?: SessionId;
+  pendingInteraction?: boolean;
+  workspaceId?: string;
+  loadMentions?: (
+    trigger: "@" | "/" | "^",
+    query: string,
+  ) => Promise<readonly MentionCandidate[]>;
+  onOpenMain: () => void;
+  onOpenDiagnostics?: () => void;
+}) {
+  const initial = useMemo(loadPersisted, []);
+  const sessionKey = parentSessionId ?? "";
+  const [selectedBySession, setSelectedBySession] = useState<
+    Record<string, string>
+  >(initial.selectedBySession);
+  const selected = selectedBySession[sessionKey] ?? null;
+  const [tab, setTab] = useState<HubTab>(initial.tab);
+  const [view, setView] = useState<HubView>(initial.view);
+  const [query, setQuery] = useState("");
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [modal, setModal] = useState<Modal | null>(null);
+  const [now, setNow] = useState(Date.now());
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= 900,
+  );
+  const [commandBusy, setCommandBusy] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [spawnTask, setSpawnTask] = useState("");
+  const [spawnEffort, setSpawnEffort] = useState("");
+  const spawnLock = useRef(false);
+  const spawnEpoch = useRef(0);
+  const [spawnSolutionSpace, setSpawnSolutionSpace] = useState("");
+  const [spawnDefinition, setSpawnDefinition] = useState("");
+  const [spawnDefinitions, setSpawnDefinitions] = useState<ReadonlyArray<{
+    name: string;
+    description: string;
+    model?: readonly string[];
+  }> | null>(null);
+  const [transcriptPage, setTranscriptPage] = useState<{
+    agentId: string;
+    generation: number;
+    messages: AgentTranscriptMessage[];
+    nextCursor?: string;
+    eof: boolean;
+  } | null>(null);
+  const [transcriptBusy, setTranscriptBusy] = useState(false);
+  const [transcriptError, setTranscriptError] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const colsRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const transcriptReq = useRef(0);
+
+  useEffect(() => {
+    persist({ selectedBySession, tab, view });
+  }, [selectedBySession, tab, view]);
+
+  useEffect(() => {
+    if (parentSessionId === undefined) return;
+    setSelectedBySession((prev) => {
+      if (prev[parentSessionId] !== undefined || prev[""] === undefined)
+        return prev;
+      const next = { ...prev, [parentSessionId]: prev[""] };
+      delete next[""];
+      return next;
+    });
+  }, [parentSessionId]);
+
+  const sessionKeyRef = useRef(sessionKey);
+  useEffect(() => {
+    if (sessionKeyRef.current === sessionKey) return;
+    sessionKeyRef.current = sessionKey;
+    setChatOpen(false);
+    setDrawerOpen(false);
+  }, [sessionKey]);
+
+  useEffect(() => {
+    const tick = window.setInterval(() => setNow(Date.now()), 5000);
+    return () => window.clearInterval(tick);
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => setNarrow(window.innerWidth <= 900);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const { preview } = usePreviewMode();
+  const { resolvedLanguage } = useI18n();
+  const zh = resolvedLanguage === "zh";
+  const [workspaceTab, setWorkspaceTab] = useState<
+    "agents" | "jobs" | "services"
+  >("agents");
+  const runtimeStatus = runtime?.status ?? "unavailable";
+  const connOnline = runtimeStatus === "connected" && !resyncRequired;
+  const viewingLive =
+    parentSessionId === undefined || snapshot?.sessionId === parentSessionId;
+  const spawnAvailable =
+    preview ||
+    (viewingLive &&
+      connOnline &&
+      client !== undefined &&
+      !missingCap(capabilities, "agent.spawn"));
+  useEffect(() => {
+    spawnEpoch.current++;
+    spawnLock.current = false;
+    setSpawnDefinitions(preview ? PREVIEW_AGENT_DEFINITIONS : null);
+    setSpawnDefinition(preview ? PREVIEW_AGENT_DEFINITIONS[0]!.name : "");
+    setSpawnEffort("");
+    return () => {
+      spawnEpoch.current++;
+    };
+  }, [client, preview, parentSessionId, snapshot?.sessionId]);
+  const chatRuntimeConnected = viewingLive && (runtimeConnected ?? connOnline);
+  const chatCanSend = (canSend ?? false) && viewingLive && !preview;
+  const limited = runtime?.classification === "limited-system";
+  const connKind =
+    runtimeStatus === "unavailable" || runtimeStatus === "disconnected"
+      ? "offline"
+      : runtimeStatus === "connecting"
+        ? "reconnecting"
+        : resyncRequired
+          ? "resync"
+          : "online";
+
+  const mapped = useMemo(() => {
+    if (preview) {
+      const fixture = buildPreviewHub();
+      return {
+        preview: true,
+        roster: fixture.agents.map(fromPreviewAgent),
+        jobs: fixture.jobs.map(fromPreviewJob),
+        jobAgents: fixture.jobAgents as ReadonlyArray<{ id: string; parentId?: string }>,
+        mainName: fixture.main.name,
+        mainStatus: fixture.main.statusText,
+        mainTask: fixture.main.task,
+        mainMeta: `${fixture.main.model} · ${fmtDur(fixture.main.durationMs)} · ctx ${fixture.main.contextPct}%`,
+        runtimeLabel: fixture.runtimeLabel,
+      };
+    }
+    const source = agents !== undefined ? agents : (snapshot?.agents ?? []);
+    if (source.length === 0) {
+      return {
+        preview: false,
+        roster: [],
+        jobs: viewingLive ? (snapshot?.jobs ?? []).map(toHubJob) : [],
+        jobAgents: (viewingLive ? (snapshot?.jobAgents ?? []) : []) as ReadonlyArray<{ id: string; parentId?: string }>,
+        mainName: "主对话",
+        mainStatus:
+          viewingLive && snapshot?.isStreaming
+            ? "Streaming"
+            : viewingLive
+              ? (snapshot?.activeMode ?? "idle")
+              : "archived",
+        mainTask:
+          viewingLive && snapshot
+            ? `session ${snapshot.sessionId}`
+            : parentSessionId
+              ? `session ${parentSessionId}`
+              : "等待 Runtime snapshot",
+        mainMeta:
+          viewingLive && snapshot
+            ? `${snapshot.activeMode} · pending ${snapshot.pendingMessages}`
+            : parentSessionId
+              ? `session ${parentSessionId}`
+              : "usage —",
+        runtimeLabel: undefined as string | undefined,
+      };
+    }
+    const childMap = new Map<string, string[]>();
+    for (const agent of source) {
+      if (!agent.parentAgentId) continue;
+      const list = childMap.get(agent.parentAgentId) ?? [];
+      list.push(agent.agentId);
+      childMap.set(agent.parentAgentId, list);
+    }
+    const all = source.map((agent) =>
+      toHubAgent(agent, childMap.get(agent.agentId) ?? []),
+    );
+    const main = all.find((agent) => agent.kind === "main");
+    const roster = all.filter((agent) => agent.kind !== "main");
+    const telemetry = snapshot?.telemetry;
+    const liveHeader = viewingLive && snapshot !== undefined;
+    const mainMeta =
+      liveHeader && telemetry
+        ? `${snapshot.activeMode ?? "idle"} · ${fmtNum(telemetry.tokens.total)} tok · ${fmtCost(telemetry.tokens.cost)} · ctx ${telemetry.context ? `${Math.round(telemetry.context.percent)}%` : "—"}`
+        : liveHeader
+          ? `${snapshot.activeMode} · pending ${snapshot.pendingMessages} · agents ${roster.length}`
+          : parentSessionId
+            ? `session ${parentSessionId} · agents ${roster.length}`
+            : "usage —";
+    return {
+      preview: false,
+      roster,
+      jobs: viewingLive ? (snapshot?.jobs ?? []).map(toHubJob) : [],
+      jobAgents: (viewingLive ? (snapshot?.jobAgents ?? []) : []) as ReadonlyArray<{ id: string; parentId?: string }>,
+      mainName: main?.name ?? "主对话",
+      mainStatus:
+        liveHeader && snapshot.isStreaming
+          ? "Streaming"
+          : liveHeader
+            ? snapshot.activeMode
+            : "archived",
+      mainTask:
+        main?.task ??
+        (parentSessionId
+          ? `session ${parentSessionId}`
+          : liveHeader
+            ? `session ${snapshot.sessionId}`
+            : "等待 Runtime snapshot"),
+      mainMeta,
+      runtimeLabel: undefined as string | undefined,
+    };
+  }, [preview, snapshot, agents, viewingLive, parentSessionId]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return mapped.roster;
+    return mapped.roster.filter((agent) =>
+      `${agent.name} ${agent.id} ${agent.task} ${agent.kind} ${agent.modelRole ?? ""} ${agent.resolvedModel ?? ""}`
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [mapped.roster, query]);
+
+  const selectedAgent = mapped.roster.find((agent) => agent.id === selected);
+  const caps = capsFor(
+    selectedAgent,
+    connOnline,
+    capabilities,
+    client !== undefined,
+    preview,
+    viewingLive,
+  );
+  const killTarget =
+    modal?.kind === "kill"
+      ? mapped.roster.find((agent) => agent.id === modal.agentId)
+      : undefined;
+  const killCaps = capsFor(
+    killTarget,
+    connOnline,
+    capabilities,
+    client !== undefined,
+    preview,
+    viewingLive,
+  );
+
+  const runCommand = useCallback(
+    async <TName extends CommandName>(
+      name: TName,
+      input: CommandInput<TName>,
+      okText: string,
+    ): Promise<boolean> => {
+      if (preview) {
+        setNotice({ kind: "warn", text: CONTRACT.previewWrite });
+        return false;
+      }
+      if (!viewingLive) {
+        setNotice({ kind: "warn", text: CONTRACT.historicalWrite });
+        return false;
+      }
+      if (!client) {
+        setNotice({ kind: "warn", text: "无 Studio client（桌面桥未注入）" });
+        return false;
+      }
+      setCommandBusy(true);
+      try {
+        const handle = await client.command(name, input);
+        await waitReceipt(client, handle.requestId);
+        setNotice({ kind: "ok", text: okText });
+        return true;
+      } catch (error) {
+        setNotice({ kind: "err", text: hostErrorMessage(error, "操作失败") });
+        return false;
+      } finally {
+        setCommandBusy(false);
+      }
+    },
+    [client, preview, viewingLive],
+  );
+
+  const cancelJob = useCallback(
+    (job: HubJob) => {
+      void runCommand(
+        "job.cancel",
+        { jobId: job.id, expectedGeneration: job.generation },
+        `job ${job.id} 取消已提交`,
+      );
+    },
+    [runCommand],
+  );
+
+  const reviveAgent = useCallback(
+    (agent: HubAgent) => {
+      void runCommand(
+        "agent.revive",
+        { agentId: agent.id, expectedGeneration: agent.generation },
+        `${agent.name} revive 已提交`,
+      );
+    },
+    [runCommand],
+  );
+
+  const releaseAgent = useCallback(
+    (agent: HubAgent) => {
+      void runCommand(
+        "agent.release",
+        { agentId: agent.id, expectedGeneration: agent.generation },
+        `${agent.name} release 已提交`,
+      );
+    },
+    [runCommand],
+  );
+
+  const killAgent = useCallback(
+    (agent: HubAgent) => {
+      void runCommand(
+        "agent.kill",
+        { agentId: agent.id, expectedGeneration: agent.generation },
+        `${agent.name} 已结束`,
+      );
+    },
+    [runCommand],
+  );
+
+  const sendDraft = useCallback(
+    (agent: HubAgent) => {
+      const text = draft.trim();
+      if (!text) return;
+      void runCommand(
+        "agent.send",
+        {
+          agentId: agent.id,
+          expectedGeneration: agent.generation,
+          text,
+          mode: "prompt",
+        },
+        `消息已发送给 ${agent.name}`,
+      ).then((ok) => {
+        if (ok) setDraft("");
+      });
+    },
+    [draft, runCommand],
+  );
+
+  const select = useCallback(
+    (id: string, opts?: { scroll?: boolean }) => {
+      setSelectedBySession((prev) =>
+        prev[sessionKey] === id ? prev : { ...prev, [sessionKey]: id },
+      );
+      setNotice(null);
+      if (typeof window !== "undefined" && window.innerWidth <= 900)
+        setDrawerOpen(true);
+      if (opts?.scroll) {
+        requestAnimationFrame(() => {
+          const row = listRef.current?.querySelector(
+            `[data-hub-id="${hubSelectorId(id)}"]`,
+          );
+          if (row && typeof row.scrollIntoView === "function") {
+            row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          }
+        });
+      }
+    },
+    [sessionKey],
+  );
+
+  useEffect(() => {
+    const intent = readHubIntent();
+    if (!intent) return;
+    if (mapped.roster.some((agent) => agent.id === intent.agentId)) {
+      if (intent.tab) setTab(intent.tab);
+      if (intent.chat) setChatOpen(true);
+      select(intent.agentId, { scroll: true });
+      clearHubIntent();
+      return;
+    }
+    if (mapped.preview) {
+      clearHubIntent();
+      return;
+    }
+    if (!persistedReady) return;
+    if (snapshot === undefined && agents === undefined) return;
+    clearHubIntent();
+  }, [agents, mapped.preview, mapped.roster, persistedReady, select, snapshot]);
+
+  const openChat = useCallback(
+    (id: string) => {
+      setChatOpen(true);
+      select(id);
+    },
+    [select],
+  );
+
+  useEffect(() => {
+    if (chatOpen && selectedAgent === undefined) setChatOpen(false);
+  }, [chatOpen, selectedAgent]);
+
+  const chatFace: "chat" | "detail" = chatOpen ? "chat" : "detail";
+  const { incoming, outgoing, dir, live, stageRef } = useOverlappingTabs(
+    chatFace,
+    chatOpen ? 1 : 0,
+  );
+  const chatClosing = useHubChatCloseMotion(chatOpen, incoming, colsRef);
+  const hubFaces: ReadonlyArray<"detail" | "chat"> =
+    outgoing != null && outgoing !== incoming
+      ? [outgoing, incoming]
+      : [incoming];
+
+  const warn = (text: string) => setNotice({ kind: "warn", text });
+
+  const agentId = selectedAgent?.id;
+  const agentGeneration = selectedAgent?.generation;
+  useEffect(() => {
+    const req = ++transcriptReq.current;
+    if (
+      preview ||
+      !viewingLive ||
+      tab !== "transcript" ||
+      agentId === undefined ||
+      client === undefined
+    ) {
+      setTranscriptPage(null);
+      setTranscriptError(null);
+      return;
+    }
+    let cancelled = false;
+    setTranscriptBusy(true);
+    setTranscriptError(null);
+    client
+      .query("agent.transcript.read", {
+        agentId: agentId as AgentId,
+        limit: 50,
+      })
+      .then((page) => {
+        if (cancelled || req !== transcriptReq.current) return;
+        setTranscriptPage({
+          agentId,
+          generation: page.generation,
+          messages: page.messages,
+          ...(page.nextCursor !== undefined
+            ? { nextCursor: page.nextCursor }
+            : {}),
+          eof: page.eof,
+        });
+      })
+      .catch((error) => {
+        if (!cancelled && req === transcriptReq.current)
+          setTranscriptError(hostErrorMessage(error, "读取 transcript 失败"));
+      })
+      .finally(() => {
+        if (!cancelled && req === transcriptReq.current)
+          setTranscriptBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [preview, viewingLive, tab, agentId, agentGeneration, client]);
+
+  const loadMoreTranscript = useCallback(() => {
+    if (
+      preview ||
+      !viewingLive ||
+      client === undefined ||
+      selectedAgent === undefined ||
+      transcriptPage?.nextCursor === undefined
+    )
+      return;
+    const cursor = transcriptPage.nextCursor as OpaqueCursor;
+    const agent = selectedAgent;
+    const req = transcriptReq.current;
+    setTranscriptBusy(true);
+    client
+      .query("agent.transcript.read", {
+        agentId: agent.id as AgentId,
+        cursor,
+        limit: 50,
+      })
+      .then((page) => {
+        if (req !== transcriptReq.current) return;
+        setTranscriptPage((current) => {
+          if (current === null || current.agentId !== agent.id) return current;
+          const seen = new Set(current.messages.map((message) => message.id));
+          const merged = [
+            ...current.messages,
+            ...page.messages.filter((message) => !seen.has(message.id)),
+          ];
+          return {
+            agentId: current.agentId,
+            generation: page.generation,
+            messages: merged,
+            ...(page.nextCursor !== undefined
+              ? { nextCursor: page.nextCursor }
+              : {}),
+            eof: page.eof,
+          };
+        });
+      })
+      .catch((error) => {
+        if (req === transcriptReq.current)
+          setTranscriptError(hostErrorMessage(error, "读取 transcript 失败"));
+      })
+      .finally(() => {
+        if (req === transcriptReq.current) setTranscriptBusy(false);
+      });
+  }, [preview, viewingLive, client, selectedAgent, transcriptPage?.nextCursor]);
+
+  useEffect(() => {
+    if (
+      modal?.kind !== "spawn" ||
+      preview ||
+      !viewingLive ||
+      client === undefined ||
+      spawnDefinitions !== null
+    )
+      return;
+    let cancelled = false;
+    client
+      .query("agents.definitions.get", {})
+      .then((model) => {
+        if (cancelled) return;
+        const agents = model.agents.map((definition) => ({
+          name: definition.name,
+          description: definition.description,
+          ...(definition.model ? { model: definition.model } : {}),
+        }));
+        setSpawnDefinitions(agents);
+        setSpawnDefinition((current) => current || agents[0]?.name || "");
+      })
+      .catch(() => {
+        if (!cancelled) setSpawnDefinitions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [modal, preview, viewingLive, client, spawnDefinitions]);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const inField = Boolean(
+        target?.closest(
+          "input, textarea, select, [contenteditable]:not([contenteditable='false'])",
+        ),
+      );
+      if (inField && event.key !== "Escape") return;
+      if (document.querySelector(".modal-backdrop")) return;
+      if (chatOpen) {
+        if (event.key === "Escape" && !event.defaultPrevented) {
+          event.preventDefault();
+          setChatOpen(false);
+        }
+        return;
+      }
+      const seq = linearSeq(filtered, view);
+      const index = seq.findIndex((agent) => agent.id === selected);
+      switch (event.key) {
+        case "j":
+        case "ArrowDown":
+          event.preventDefault();
+          if (seq.length)
+            select(
+              seq[
+                Math.min(
+                  seq.length - 1,
+                  Math.max(0, index) + (index < 0 ? 0 : 1),
+                )
+              ]!.id,
+              { scroll: true },
+            );
+          break;
+        case "k":
+        case "ArrowUp":
+          event.preventDefault();
+          if (seq.length)
+            select(seq[Math.max(0, index < 0 ? 0 : index - 1)]!.id, {
+              scroll: true,
+            });
+          break;
+        case "Enter":
+          if (selectedAgent) {
+            event.preventDefault();
+            if (caps.open) openChat(selectedAgent.id);
+            else warn(caps.openWhy ?? "已结束");
+          }
+          break;
+        case "t":
+          event.preventDefault();
+          setView((current) => (current === "flat" ? "tree" : "flat"));
+          break;
+        case "r":
+          if (selectedAgent) {
+            event.preventDefault();
+            if (caps.revive) reviveAgent(selectedAgent);
+            else warn(caps.reviveWhy ?? CONTRACT.revive);
+          }
+          break;
+        case "x":
+          if (selectedAgent) {
+            event.preventDefault();
+            if (caps.kill)
+              setModal({ kind: "kill", agentId: selectedAgent.id });
+            else warn(caps.killWhy ?? CONTRACT.kill);
+          }
+          break;
+        case "Escape":
+          if (event.defaultPrevented) break;
+          if (drawerOpen) setDrawerOpen(false);
+          break;
+        default:
+          break;
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [
+    caps.kill,
+    caps.killWhy,
+    caps.open,
+    caps.openWhy,
+    caps.revive,
+    caps.reviveWhy,
+    chatOpen,
+    drawerOpen,
+    filtered,
+    openChat,
+    reviveAgent,
+    select,
+    selected,
+    selectedAgent,
+    view,
+  ]);
+
+  const counts = useMemo(() => {
+    const next: Partial<Record<HubStatus, number>> = {};
+    for (const agent of mapped.roster)
+      next[agent.status] = (next[agent.status] ?? 0) + 1;
+    return next;
+  }, [mapped.roster]);
+
+  const runtimeLabel =
+    mapped.runtimeLabel ??
+    (limited ? "Limited Runtime" : (runtime?.classification ?? "OMP Runtime"));
+  const mainName =
+    mapped.mainName === "主对话" && !zh ? "Main conversation" : mapped.mainName;
+  const mainTask = mapped.mainTask;
+  const mainStatus = hubWord(mapped.mainStatus, zh);
+  const mainMeta = mapped.mainMeta;
+  const usage = useMemo(() => {
+    const metrics = filtered
+      .map((agent) => agent.metrics)
+      .filter((item): item is PreviewMetrics => Boolean(item));
+    if (!metrics.length) return `Usage — · 0/${filtered.length} measured`;
+    const seed = {
+      cost: 0,
+      durationMs: 0,
+      requests: 0,
+      tools: 0,
+      tokens: 0,
+      timed: 0,
+    };
+    const total = metrics.reduce(
+      (sum, item) => ({
+        cost: sum.cost + item.cost,
+        durationMs: sum.durationMs + item.durationMs,
+        requests: sum.requests + item.requests,
+        tools: sum.tools + item.tools,
+        tokens: sum.tokens + item.tokens,
+        timed:
+          sum.timed +
+          (item.durationKind && item.durationKind !== "unknown" ? 1 : 0),
+      }),
+      seed,
+    );
+    return `${fmtCost(total.cost)} · ${fmtDur(total.durationMs)} active agent time · ${total.requests} req · ${total.tools} tools · ${fmtNum(total.tokens)} tok · ${total.timed}/${metrics.length} timed · ${metrics.length}/${filtered.length} measured`;
+  }, [filtered]);
+
+  const renderList = () => {
+    if (!filtered.length) {
+      if (query.trim()) {
+        return (
+          <div className="hub-empty-list">
+            <Icon name="search" />
+            <b>没有匹配的 Agent</b>
+            <span>试试其他 id、名称、任务或模型关键字。</span>
+          </div>
+        );
+      }
+      return (
+        <div className="hub-empty-list">
+          <Icon name="bot" />
+          <b>No agents in this session</b>
+          <span>
+            Finished, parked, and killed subagents remain with the session that
+            created them.
+          </span>
+          <span className="tiny">
+            Resume that session with{" "}
+            <span className="mono">omp --continue</span>, or spawn a task here.
+          </span>
+          <button
+            className="btn small primary"
+            type="button"
+            disabled={!spawnAvailable || commandBusy}
+            data-tip={
+              preview
+                ? zh
+                  ? "演示创建，不会执行任务"
+                  : "Preview creation; no task runs"
+                : !viewingLive
+                  ? CONTRACT.historicalWrite
+                  : missingCap(capabilities, "agent.spawn")
+                    ? CONTRACT.spawn
+                    : undefined
+            }
+            onClick={() => {
+              setNotice(null);
+              setModal({ kind: "spawn" });
+            }}
+          >
+            <Icon name="plus" extra="sm" />
+            {zh ? "创建代理" : "New Agent"}
+          </button>
+        </div>
+      );
+    }
+    if (view === "tree") {
+      const tree = treeGroups(filtered);
+      const childIds = new Set(
+        tree.groups.flatMap((group) => group.kids.map((kid) => kid.id)),
+      );
+      return (
+        <>
+          {tree.groups.map((group) => (
+            <TreeGroup
+              key={group.head.id}
+              head={group.head}
+              kids={group.kids}
+              selected={selected}
+              now={now}
+              onSelect={select}
+            />
+          ))}
+          {tree.orphans.map((agent) => (
+            <AgentCard
+              key={agent.id}
+              agent={agent}
+              selected={selected === agent.id}
+              kids={agent.children.filter((id) => !childIds.has(id)).length}
+              now={now}
+              onSelect={select}
+            />
+          ))}
+          <KbdHint />
+        </>
+      );
+    }
+    return (
+      <>
+        {sortByCreation(filtered).map((agent) => (
+          <AgentCard
+            key={agent.id}
+            agent={agent}
+            selected={selected === agent.id}
+            kids={agent.children.length}
+            now={now}
+            onSelect={select}
+          />
+        ))}
+        <KbdHint />
+      </>
+    );
+  };
+
+  const renderOverview = (agent: HubAgent) => {
+    const metrics = agent.metrics;
+    const ctxPct = metrics?.contextWindow
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            Math.round(
+              ((metrics.contextTokens ?? 0) / metrics.contextWindow) * 100,
+            ),
+          ),
+        )
+      : null;
+    const currentEmpty =
+      !agent.currentTool &&
+      !agent.lastIntent &&
+      !agent.retryState &&
+      agent.activeJobIds.length === 0 &&
+      !(agent.status === "running" && agent.task !== "—");
+    return (
+      <>
+        <div className="hub-sec-title">{hubWord("Task", zh)}</div>
+        <div className="hub-kv">
+          <Kv label="Task">{agent.task}</Kv>
+        </div>
+        <div className="hub-sec-title">{hubWord("Current", zh)}</div>
+        <div className="hub-kv">
+          {agent.currentTool ? (
+            <Kv label="Tool">
+              <span className="chip blue xs">{agent.currentTool.name}</span>
+              {agent.currentTool.args ? ` ${agent.currentTool.args}` : ""}
+            </Kv>
+          ) : null}
+          {agent.lastIntent ? (
+            <Kv label="Last intent">{agent.lastIntent}</Kv>
+          ) : null}
+          {agent.retryState ? (
+            <Kv label="Retry">
+              <span style={{ color: "var(--amber)" }}>
+                retry {agent.retryState.attempt}/{agent.retryState.maxAttempts}
+              </span>
+              {agent.retryState.errorMessage
+                ? ` · ${agent.retryState.errorMessage}`
+                : ""}
+            </Kv>
+          ) : null}
+          {agent.status === "running" && agent.task !== "—" ? (
+            <Kv label="Activity">{agent.task}</Kv>
+          ) : null}
+          {agent.activeJobIds.length ? (
+            <Kv label="Active jobs" mono>
+              {agent.activeJobIds.join(" · ")}
+            </Kv>
+          ) : null}
+          {currentEmpty ? (
+            <Kv label="—">
+              {zh ? "无进行中的工具调用" : "No tool is running"}
+            </Kv>
+          ) : null}
+        </div>
+        <div className="hub-sec-title">{hubWord("Usage", zh)}</div>
+        <div className="hub-kv">
+          <Kv label="Metrics" mono>
+            {fmtMetrics(metrics)}
+          </Kv>
+          {ctxPct != null && metrics?.contextWindow != null ? (
+            <div className="kv">
+              <div className="k">{hubWord("Context", zh)}</div>
+              <div className="v">
+                <div className="hub-ctx">
+                  <div
+                    className={`meter${ctxPct > 80 ? " danger" : ctxPct > 60 ? " warn" : ""}`}
+                  >
+                    <i style={{ width: `${ctxPct}%` }} />
+                  </div>
+                  <span className="mono">
+                    {fmtNum(metrics.contextTokens ?? 0)} /{" "}
+                    {fmtNum(metrics.contextWindow)} · {ctxPct}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+        <div className="hub-sec-title">{hubWord("Lineage", zh)}</div>
+        <div className="hub-kv">
+          <Kv label="Spawned by">{agent.parentId ?? "main"}</Kv>
+          <div className="kv">
+            <div className="k">{hubWord("Children", zh)}</div>
+            <div className="v">
+              {agent.children.length ? (
+                <span className="hub-lineage-row">
+                  {agent.children.map((id) => (
+                    <button
+                      key={id}
+                      className="hub-child-link"
+                      type="button"
+                      onClick={() => select(id, { scroll: true })}
+                    >
+                      <Icon name="bot" extra="sm" />
+                      {id}
+                    </button>
+                  ))}
+                </span>
+              ) : zh ? (
+                "无子代理"
+              ) : (
+                "No children"
+              )}
+            </div>
+          </div>
+          <Kv label="Registered" mono>
+            {agent.startedAt ? new Date(agent.startedAt).toISOString() : "—"}
+          </Kv>
+        </div>
+        <div className="hub-sec-title">{hubWord("Changes", zh)}</div>
+        <div className="hub-kv">
+          <Kv label="Mode">
+            {isAdvisor(agent) || agent.readOnly
+              ? zh
+                ? "只读 · 无代码变更"
+                : "Read-only · 0 LoC"
+              : zh
+                ? "共享工作区 · 不按代理推算代码行数"
+                : "Shared workspace · per-agent LoC not attributable"}
+          </Kv>
+          {agent.outputPath ? (
+            <Kv label="Output" mono>
+              {agent.outputPath}{" "}
+              <span className="tiny muted">agent://{agent.id}</span>
+            </Kv>
+          ) : null}
+          {agent.patchPath ? (
+            <Kv label="Patch" mono>
+              {agent.patchPath}
+            </Kv>
+          ) : null}
+          {agent.nestedPatchPaths?.map((patch) => (
+            <Kv key={patch} label="Nested patch" mono>
+              {patch}
+            </Kv>
+          ))}
+          {agent.isolated ? (
+            <Kv label="Isolation">
+              Isolated · {agent.hasLiveSession ? "live" : "transcript only"}
+            </Kv>
+          ) : null}
+          {agent.branchName ? (
+            <Kv label="Worktree branch" mono>
+              {agent.branchName}
+            </Kv>
+          ) : null}
+        </div>
+      </>
+    );
+  };
+
+  const renderJobRow = (row: JobTreeRow<HubJob>, agent?: HubAgent) => {
+    const job = row.job;
+    const open = selectedJobId === job.id;
+    const toggle = () => setSelectedJobId(open ? null : job.id);
+    return (
+      <div key={job.id}>
+        <div
+          className={`hub-job${open ? " selected" : ""}`}
+          role="button"
+          tabIndex={0}
+          aria-expanded={open}
+          aria-label={`${job.label} · ${job.status}`}
+          data-job-id={job.id}
+          data-depth={row.depth}
+          style={row.depth > 0 ? { marginLeft: `calc(${row.depth} * var(--sp-16, 16px))` } : undefined}
+          onClick={toggle}
+          onKeyDown={(event) => {
+            if (event.target !== event.currentTarget) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              toggle();
+            }
+          }}
+        >
+          <span
+            className={`a-ic ${job.type === "bash" ? "blue" : "purple"}`}
+            aria-hidden="true"
+          >
+            <Icon
+              name={job.type === "bash" ? "terminal" : "bot"}
+              extra="sm"
+            />
+          </span>
+          <div className="jb-label">
+            <span className="ellipsis" style={{ display: "block" }}>
+              {job.label}
+            </span>
+            <span className="mono hub-job-meta">
+              {job.id} · {job.type} · {fmtDur(job.durationMs)}
+              {agent && job.ownerId !== agent.id ? ` · owner ${job.ownerId}` : ""}
+              {row.descendants > 0 ? ` · ${row.descendants} ${zh ? "个子任务" : "nested"}` : ""}
+              {job.completionPercent !== undefined && job.status === "running" ? (
+                <CompletionRing percent={job.completionPercent} size={16} />
+              ) : null}
+            </span>
+            {job.stage ?? job.widget?.stage ? (
+              <span className="ellipsis" style={{ display: "block", color: "var(--text-2)" }}>
+                {job.stage ?? job.widget?.stage}
+              </span>
+            ) : null}
+            {job.widget && job.widget.blocks.length > 0 && !open ? (
+              <div className="hub-job-widget">
+                <JobWidget view={job.widget} compact />
+              </div>
+            ) : null}
+            {job.errorText ? (
+              <span className="mono" style={{ color: "var(--red)" }}>
+                {job.errorText}
+              </span>
+            ) : null}
+            {job.resultText ? (
+              <span className="mono" style={{ color: "var(--green)" }}>
+                {job.resultText}
+              </span>
+            ) : null}
+          </div>
+          <WorkspaceStatus state={job.status} />
+          {job.status === "running" &&
+          (!agent || job.ownerId === agent.id) ? (
+            <button
+              className="btn small outline"
+              type="button"
+              disabled={
+                preview ||
+                !viewingLive ||
+                commandBusy ||
+                !connOnline ||
+                !client ||
+                missingCap(capabilities, "job.cancel")
+              }
+              data-tip={
+                !viewingLive
+                  ? CONTRACT.historicalWrite
+                  : missingCap(capabilities, "job.cancel")
+                    ? CONTRACT.cancel
+                    : undefined
+              }
+              onClick={(event) => {
+                event.stopPropagation();
+                cancelJob(job);
+              }}
+            >
+              取消
+            </button>
+          ) : null}
+        </div>
+        {open ? (
+          <JobInspector
+            job={job}
+            client={client}
+            sessionId={parentSessionId ?? snapshot?.sessionId}
+            available={!preview && viewingLive && connOnline && !resyncRequired}
+            {...(preview ? { previewInspection: previewJobInspections()[job.id] ?? null } : {})}
+            onClose={() => setSelectedJobId(null)}
+          />
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderJobs = (agent?: HubAgent) => {
+    // Subagent jobs nest under the task job that runs the subagent; an agent's
+    // own tab lists only the jobs it owns (with what nests under them).
+    const rows = agent
+      ? agentJobTree(mapped.jobs, mapped.jobAgents, agent.id)
+      : buildJobTree(mapped.jobs, mapped.jobAgents);
+    return (
+      <>
+        <div className="hub-cap-note" style={{ marginBottom: "var(--sp-8)" }}>
+          <Icon name="lock" extra="sm" />
+          {missingCap(capabilities, "job.cancel")
+            ? CONTRACT.cancel
+            : "取消走 runtime 确认门；运行中的 job 才可取消（owner-scoped）"}
+        </div>
+        {rows.length ? (
+          <div className="hub-job-tree">
+            {rows.map((row) => renderJobRow(row, agent))}
+          </div>
+        ) : (
+          <EmptyBlock
+            icon="terminal"
+            detail={agent ? (zh ? "没有该 Agent 的 job" : "This agent has no jobs") : zh ? "没有 job" : "No jobs"}
+          />
+        )}
+      </>
+    );
+  };
+
+  const renderDetailBody = (agent: HubAgent) => {
+    if(tab === "btw")return <AgentBtwPane key={`${parentSessionId ?? snapshot?.sessionId}:${agent.id}`} client={client} sessionId={parentSessionId ?? snapshot?.sessionId} agentId={agent.id} available={connOnline && viewingLive && !resyncRequired && agent.kind!=="main" && agent.hasLiveSession && !missingCap(capabilities,"agent.btw.read")}/>;
+    if (tab === "transcript") {
+      if (preview) {
+        return (
+          <>
+            <div className="hub-transcript" id="hubTranscript">
+              <EmptyBlock
+                icon="message"
+                detail={
+                  agent.hasTranscript
+                    ? "预览模式不读取真实 transcript"
+                    : "No messages yet."
+                }
+              />
+            </div>
+            <div className="hub-ro-banner">
+              <Icon name="lock" extra="sm" />
+              <span>预览模式不调用 Host 写操作</span>
+            </div>
+          </>
+        );
+      }
+      if (!viewingLive) {
+        return (
+          <>
+            <div className="hub-transcript" id="hubTranscript">
+              <EmptyBlock
+                icon="message"
+                detail="历史会话请用「打开」查看归档对话，不读取 live transcript。"
+              />
+            </div>
+            <div className="hub-ro-banner">
+              <Icon name="lock" extra="sm" />
+              <span>{CONTRACT.historicalWrite}</span>
+            </div>
+          </>
+        );
+      }
+      const page = transcriptPage?.agentId === agent.id ? transcriptPage : null;
+      return (
+        <>
+          <div className="hub-transcript" id="hubTranscript">
+            {transcriptBusy && !page ? (
+              <EmptyBlock icon="message" detail="读取 transcript…" />
+            ) : null}
+            {transcriptError ? (
+              <EmptyBlock icon="alert" detail={transcriptError} />
+            ) : null}
+            {!transcriptBusy && !transcriptError && !page ? (
+              <EmptyBlock
+                icon="message"
+                detail={
+                  agent.hasTranscript ? CONTRACT.transcript : "No messages yet."
+                }
+              />
+            ) : null}
+            {page
+              ? page.messages.map((message) => (
+                  <div
+                    className={`hub-tr-msg ${message.role}`}
+                    key={message.id}
+                  >
+                    <div className="tr-head">
+                      <span className="tr-role">{message.role}</span>
+                      <span className="mono tiny muted">
+                        {fmtClock(message.ts)}
+                      </span>
+                    </div>
+                    <div className="tr-body">{message.text}</div>
+                  </div>
+                ))
+              : null}
+            {page && page.nextCursor !== undefined ? (
+              <button
+                className="btn small outline"
+                type="button"
+                disabled={transcriptBusy}
+                style={{ margin: "var(--sp-8) auto" }}
+                onClick={loadMoreTranscript}
+              >
+                加载更早消息
+              </button>
+            ) : null}
+          </div>
+          <div className="hub-send">
+            <input
+              className="input"
+              type="text"
+              placeholder={
+                caps.chat
+                  ? `发消息给 ${agent.name}（prompt）…`
+                  : (caps.chatWhy ?? CONTRACT.chat)
+              }
+              aria-label="发送消息"
+              value={draft}
+              disabled={!caps.chat || commandBusy}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") event.currentTarget.blur();
+                if (
+                  event.key === "Enter" &&
+                  !event.nativeEvent.isComposing &&
+                  draft.trim()
+                ) {
+                  event.preventDefault();
+                  sendDraft(agent);
+                }
+              }}
+            />
+            <button
+              className="btn small primary"
+              type="button"
+              disabled={!caps.chat || commandBusy || !draft.trim()}
+              data-tip={caps.chatWhy ?? undefined}
+              onClick={() => sendDraft(agent)}
+            >
+              <Icon name="message" extra="sm" />
+              发送
+            </button>
+          </div>
+          {agent.status === "parked" ? (
+            <div className="hub-cap-note">
+              <Icon name="clock" extra="sm" />
+              {agent.isolated || agent.canRevive === false
+                ? "仅保留记录和产物，不可自动 revive"
+                : "parked agent：发送将自动 revive（outcome=revived）"}
+            </div>
+          ) : null}
+        </>
+      );
+    }
+    if (tab === "jobs") return renderJobs(agent);
+    if (tab === "messages") {
+      return (
+        <>
+          <div className="hub-ro-banner" style={{ margin: "0 0 var(--sp-12)" }}>
+            <Icon name="lock" extra="sm" />
+            <span>{CONTRACT.irc}</span>
+          </div>
+          <div className="hub-irc-list">
+            <EmptyBlock
+              icon="message"
+              detail={
+                agent.unread > 0
+                  ? `${agent.unread} 条未读（内容读取本轮未接入）`
+                  : "没有与该 Agent 的 IRC 往来"
+              }
+            />
+          </div>
+        </>
+      );
+    }
+    return renderOverview(agent);
+  };
+
+  const onSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") searchRef.current?.blur();
+  };
+
+  const composerAgents = preview
+    ? hubComposerAgents(mapped.roster)
+    : agents !== undefined
+      ? agents
+      : (snapshot?.agents ?? []);
+
+  return (
+    <div
+      className={`hub-page${chatOpen && workspaceTab === "agents" ? " is-chat-preview" : ""}${chatClosing && workspaceTab === "agents" ? " is-chat-closing" : ""}`}
+      id="hubRoot"
+    >
+      <WorkspaceTabs<"agents" | "jobs" | "services">
+        id="hub-workspace"
+        label={zh ? "代理工作区" : "Agent workspace"}
+        value={workspaceTab}
+        onChange={setWorkspaceTab}
+        items={[
+          { id: "agents", label: zh ? "代理" : "Agents", icon: "bot" },
+          {
+            id: "jobs",
+            label: zh ? "后台任务" : "Background jobs",
+            icon: "terminal",
+          },
+          { id: "services", label: zh ? "服务" : "Services", icon: "server" },
+        ]}
+      />
+      {!modal && notice ? (
+        <div
+          className={`hub-notice ${notice.kind}`}
+          role={notice.kind === "ok" ? "status" : "alert"}
+        >
+          <Icon name={notice.kind === "ok" ? "check" : "alert"} extra="sm" />
+          <span>{notice.text}</span>
+        </div>
+      ) : null}
+      <WorkspacePanel
+        id="hub-workspace"
+        name="services"
+        active={workspaceTab === "services"}
+      >
+        <ServicesPane
+          standalone
+          visible={workspaceTab === "services"}
+          key={
+            (workspaceId ?? "") +
+            ":" +
+            (parentSessionId ?? snapshot?.sessionId ?? "") +
+            ":" +
+            preview
+          }
+          client={client}
+          workspaceId={workspaceId}
+          sessionId={parentSessionId ?? snapshot?.sessionId}
+          available={connOnline && viewingLive && !resyncRequired}
+          capabilities={capabilities}
+        />
+      </WorkspacePanel>
+      <WorkspacePanel
+        id="hub-workspace"
+        name="jobs"
+        active={workspaceTab === "jobs"}
+      >
+        {renderJobs()}
+      </WorkspacePanel>
+      <WorkspacePanel
+        id="hub-workspace"
+        name="agents"
+        active={workspaceTab === "agents"}
+      >
+        {connKind === "offline" ? (
+          <RuntimeLossBanner
+            {...(runtime === undefined ? {} : { runtime })}
+            {...(client === undefined ? {} : { client })}
+            preview={preview}
+            variant="hub"
+            {...(onOpenDiagnostics === undefined ? {} : { onOpenDiagnostics })}
+          />
+        ) : null}
+        {connKind === "reconnecting" ? (
+          <div className="hub-conn amber">
+            <span className="spinner" />
+            <b>正在重连</b>
+            <span className="hc-detail">
+              与 runtime 的连接中断，正在重试… roster 为最后一次同步的快照。
+            </span>
+          </div>
+        ) : null}
+        {connKind === "resync" ? (
+          <div className="hub-conn blue">
+            <span className="spinner" />
+            <b>状态回源中</b>
+            <span className="hc-detail">
+              正在恢复最新 Runtime 状态，敏感操作已暂停。
+            </span>
+          </div>
+        ) : null}
+
+        <div className="hub-main">
+          <span className="hm-ic">
+            <Icon name="message" />
+          </span>
+          <div className="hm-main">
+            <div className="hm-title">
+              {mainName}
+              <span className="chip blue xs">{mainStatus}</span>
+            </div>
+            <div className="hm-sub">
+              <span className="hm-task ellipsis">{mainTask}</span>
+              <span className="hm-meta mono">{mainMeta}</span>
+              <span className="hm-meta mono hm-conn">
+                {runtimeLabel === "Full Parity Runtime"
+                  ? zh
+                    ? "托管 Runtime"
+                    : "Managed Runtime"
+                  : runtimeLabel}
+                <span className={`hm-dot${connOnline ? " on" : ""}`} />
+                {connOnline
+                  ? zh
+                    ? "已连接"
+                    : "Connected"
+                  : zh
+                    ? "未连接"
+                    : "Disconnected"}{" "}
+                · {zh ? "更新于" : "Updated"} {fmtClock(now)}
+              </span>
+            </div>
+          </div>
+          <div className="hm-actions">
+            <button
+              className="btn small primary"
+              type="button"
+              onClick={onOpenMain}
+            >
+              <Icon name="external" extra="sm" />
+              {zh ? "打开主对话" : "Open main conversation"}
+            </button>
+          </div>
+        </div>
+
+        <div className="hub-roster-head">
+          <div className="seg" role="group" aria-label="Roster 视图">
+            <button
+              type="button"
+              className={view === "flat" ? "active" : undefined}
+              onClick={() => setView("flat")}
+            >
+              {zh ? "平铺" : "Flat"}
+            </button>
+            <button
+              type="button"
+              className={view === "tree" ? "active" : undefined}
+              onClick={() => setView("tree")}
+            >
+              {zh ? "按父代理" : "By parent"}
+            </button>
+          </div>
+          <div className="hub-status-counts">
+            {(["running", "idle", "parked", "aborted"] as const)
+              .filter((key) => counts[key])
+              .map((key) => (
+                <span className="sc-item" key={key}>
+                  <span className={`dot ${STATUS_DOT[key]}`} />
+                  {counts[key]} {hubWord(STATUS_LABEL[key], zh)}
+                </span>
+              ))}
+          </div>
+          <span className="spacer" />
+          <input
+            ref={searchRef}
+            className="input hub-search"
+            type="search"
+            placeholder={
+              zh ? "搜索名称 / 任务 / 模型…" : "Search name / task / model…"
+            }
+            aria-label="搜索 Agent"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={onSearchKeyDown}
+          />
+        </div>
+
+        {filtered.length ? (
+          <div className="hub-usage">
+            <span>{usage}</span>
+            <span className="spacer" />
+            <button
+              className="btn small primary"
+              type="button"
+              disabled={!spawnAvailable || commandBusy}
+              data-tip={
+                preview
+                  ? zh
+                    ? "演示创建，不会执行任务"
+                    : "Preview creation; no task runs"
+                  : !viewingLive
+                    ? CONTRACT.historicalWrite
+                    : missingCap(capabilities, "agent.spawn")
+                      ? CONTRACT.spawn
+                      : undefined
+              }
+              onClick={() => {
+                setNotice(null);
+                setModal({ kind: "spawn" });
+              }}
+            >
+              <Icon name="plus" extra="sm" />
+              {zh ? "创建代理" : "New Agent"}
+            </button>
+          </div>
+        ) : null}
+
+        <div
+          className={`hub-cols${chatOpen ? " is-chat-preview" : ""}`}
+          ref={colsRef}
+        >
+          <div
+            className={`hub-list${view === "tree" ? " tree" : ""}`}
+            id="hubList"
+            ref={listRef}
+            role="listbox"
+            aria-label="子 Agent 列表"
+          >
+            {renderList()}
+          </div>
+          {selectedAgent ? (
+            <div
+              className={`hub-detail${drawerOpen || !narrow ? " open" : ""}${chatOpen || chatClosing ? " is-chat" : ""}`}
+              id="hubDetail"
+            >
+              <div className="hub-face-stage" ref={stageRef}>
+                {hubFaces.map((face) => {
+                  const role = tabPaneRole(face, incoming, outgoing, live);
+                  return (
+                    <div
+                      key={face}
+                      className={hubFaceClass(role, dir)}
+                      data-tab-pane={face}
+                      data-hub-face={face}
+                      {...(role === "leave"
+                        ? { "aria-hidden": true, inert: true }
+                        : {})}
+                    >
+                      {face === "chat" ? (
+                        <>
+                          <div className="hub-chat-bar">
+                            <button
+                              className="btn small outline"
+                              type="button"
+                              onClick={() => setChatOpen(false)}
+                            >
+                              <Icon name="arrow-l" extra="sm" />
+                              返回
+                            </button>
+                          </div>
+                          <SubagentConversationPane
+                            target={hubChatTarget(selectedAgent)}
+                            preview={preview}
+                            client={preview ? null : (client ?? null)}
+                            sendClient={preview ? null : (client ?? null)}
+                            agents={composerAgents}
+                            canSend={chatCanSend}
+                            runtimeConnected={chatRuntimeConnected}
+                            {...(parentSessionId === undefined
+                              ? {}
+                              : { parentSessionId })}
+                            {...(liveSessionId === undefined
+                              ? {}
+                              : { liveSessionId })}
+                            {...(pendingInteraction === undefined
+                              ? {}
+                              : { pendingInteraction })}
+                            composerId="hubAgentComposer"
+                            autoFocusComposer
+                            {...(preview ? { previewComposer: true } : {})}
+                            {...(preview || workspaceId === undefined
+                              ? {}
+                              : { workspaceId })}
+                            {...(preview || loadMentions === undefined
+                              ? {}
+                              : { loadMentions })}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <div className="hub-detail-head">
+                            <div className="hd-title">
+                              <button
+                                className="icon-btn small hub-drawer-back"
+                                type="button"
+                                data-tip="返回"
+                                onClick={() => setDrawerOpen(false)}
+                              >
+                                <Icon name="arrow-l" extra="sm" />
+                              </button>
+                              <b>{selectedAgent.name}</b>
+
+                              <span
+                                className={`chip ${selectedAgent.kind === "advisor" ? "gray" : "purple"} xs`}
+                              >
+                                {selectedAgent.kind === "advisor"
+                                  ? zh
+                                    ? "顾问"
+                                    : "Advisor"
+                                  : zh
+                                    ? "子代理"
+                                    : "Subagent"}
+                              </span>
+                              {selectedAgent.parentId ? (
+                                <button
+                                  className="hub-child-link tiny"
+                                  type="button"
+                                  onClick={() =>
+                                    !mapped.roster.some(
+                                      (agent) =>
+                                        agent.id === selectedAgent.parentId,
+                                    )
+                                      ? onOpenMain()
+                                      : select(selectedAgent.parentId!, {
+                                          scroll: true,
+                                        })
+                                  }
+                                >
+                                  {zh ? "父代理" : "Parent"}:{" "}
+                                  {mapped.roster.find(
+                                    (agent) =>
+                                      agent.id === selectedAgent.parentId,
+                                  )?.name ??
+                                    (selectedAgent.parentId === "main"
+                                      ? zh
+                                        ? "主对话"
+                                        : "Main"
+                                      : selectedAgent.parentId)}
+                                </button>
+                              ) : null}
+                              <span className="spacer" />
+                              <span
+                                className={`hub-act ${activityPill(selectedAgent, zh).cls}`}
+                              >
+                                {activityPill(selectedAgent, zh).label}
+                              </span>
+                            </div>
+                            <div className="hd-sub">
+                              <span className="hub-status-line">
+                                <span
+                                  className={`dot ${STATUS_DOT[selectedAgent.status]}`}
+                                />
+                                {hubWord(
+                                  STATUS_LABEL[selectedAgent.status],
+                                  zh,
+                                )}{" "}
+                                ·{" "}
+                                {(() => {
+                                  const durationMs = hubDurationMs(
+                                    selectedAgent,
+                                    now,
+                                  );
+                                  return durationMs === undefined
+                                    ? "—"
+                                    : fmtDur(durationMs);
+                                })()}{" "}
+                                · {zh ? "最近活动" : "Last active"}{" "}
+                                {fmtAge(selectedAgent.lastActivity, now, zh)}
+                              </span>
+                              {selectedAgent.modelRole ? (
+                                <span className="hub-role">
+                                  {selectedAgent.modelRole}
+                                </span>
+                              ) : null}
+                              {selectedAgent.fallback ? (
+                                <span className="hub-model hub-fallback">
+                                  {zh ? "回退模型" : "Fallback"} →{" "}
+                                  {selectedAgent.fallback}
+                                </span>
+                              ) : selectedAgent.resolvedModel ? (
+                                <span className="hub-model">
+                                  {selectedAgent.resolvedModel}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                          <details className="small hub-native-details">
+                            <summary>
+                              {zh
+                                ? "身份与原始状态"
+                                : "Identity and native state"}
+                            </summary>
+                            <p className="mono">
+                              {selectedAgent.id} ·{" "}
+                              {selectedAgent.rawStatus ?? selectedAgent.status}{" "}
+                              · {selectedAgent.kind}
+                            </p>
+                          </details>
+                          <AgentModelDetails
+                            client={client}
+                            sessionId={snapshot?.sessionId}
+                            agentId={selectedAgent.id}
+                            available={viewingLive && connOnline}
+                            capabilities={capabilities}
+                            running={selectedAgent.status === "running"}
+                            previewModel={selectedAgent.resolvedModel}
+                            previewSaved={!selectedAgent.hasLiveSession}
+                          />
+                          <div className="hub-detail-actions">
+                            <button
+                              className="btn small primary"
+                              type="button"
+                              disabled={!caps.open}
+                              data-tip={caps.openWhy ?? undefined}
+                              onClick={() => openChat(selectedAgent.id)}
+                            >
+                              <Icon name="external" extra="sm" />
+                              {zh ? "打开" : "Open"}
+                            </button>
+                            <button
+                              className="btn small outline"
+                              type="button"
+                              disabled={!caps.chat || commandBusy}
+                              data-tip={caps.chatWhy ?? undefined}
+                              onClick={() => openChat(selectedAgent.id)}
+                            >
+                              <Icon name="message" extra="sm" />
+                              {zh ? "发消息" : "Send message"}
+                            </button>
+                            <button
+                              className="btn small outline"
+                              type="button"
+                              disabled={!caps.revive || commandBusy}
+                              data-tip={caps.reviveWhy ?? undefined}
+                              onClick={() => reviveAgent(selectedAgent)}
+                            >
+                              <Icon name="refresh" extra="sm" />
+                              {zh ? "恢复" : "Revive"}
+                            </button>
+                            <button
+                              className="btn small danger"
+                              type="button"
+                              disabled={!caps.kill || commandBusy}
+                              data-tip={caps.killWhy ?? undefined}
+                              onClick={() => {
+                                if (!caps.kill)
+                                  warn(caps.killWhy ?? CONTRACT.kill);
+                                else
+                                  setModal({
+                                    kind: "kill",
+                                    agentId: selectedAgent.id,
+                                  });
+                              }}
+                            >
+                              <Icon name="stop" extra="sm" />
+                              {zh ? "停止" : "Stop"}
+                            </button>
+                            {selectedAgent.status === "aborted" ? (
+                              <button
+                                className="btn small outline"
+                                type="button"
+                                disabled={!caps.release || commandBusy}
+                                data-tip={caps.releaseWhy ?? undefined}
+                                onClick={() => releaseAgent(selectedAgent)}
+                              >
+                                <Icon name="x" extra="sm" />
+                                {zh ? "释放" : "Release"}
+                              </button>
+                            ) : null}
+                          </div>
+                          <div className="hub-detail-tabs">
+                            <div
+                              className="tabs"
+                              role="tablist"
+                              aria-label="Agent 详情"
+                              id="hubTabs"
+                            >
+                              {TABS.map(([id, label]) => (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  role="tab"
+                                  className={tab === id ? "active" : undefined}
+                                  aria-selected={tab === id}
+                                  tabIndex={tab === id ? 0 : -1}
+                                  onClick={() => {
+                                    setTab(id);
+                                    setNotice(null);
+                                  }}
+                                >
+                                  {hubWord(label, zh)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="hub-detail-body" id="hubDetailBody">
+                            {renderDetailBody(selectedAgent)}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="hub-detail hub-detail-placeholder">
+              <div className="hub-empty-list" style={{ border: "none" }}>
+                <Icon name="cursor" />
+                <b>未选择 Agent</b>
+                <span>从左侧列表选择一个子 Agent 查看详情。</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <ModelDelegationList
+          client={client ?? null}
+          preview={preview}
+          {...(parentSessionId ? { sessionId: parentSessionId } : {})}
+        />
+      </WorkspacePanel>
+      {modal ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={() => setModal(null)}
+        >
+          <div
+            className="modal hub-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={
+              modal.kind === "spawn"
+                ? zh
+                  ? "创建代理"
+                  : "New Agent"
+                : "结束任务"
+            }
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            {modal.kind === "spawn" ? (
+              <>
+                <div className="modal-head">
+                  <b>{zh ? "创建代理" : "New Agent"}</b>
+                  <button
+                    className="icon-btn small"
+                    type="button"
+                    aria-label={zh ? "关闭" : "Close"}
+                    data-tip={zh ? "关闭" : "Close"}
+                    onClick={() => setModal(null)}
+                  >
+                    <Icon name="x" extra="sm" />
+                  </button>
+                </div>
+                <div className="modal-body">
+                  {notice && notice.kind !== "ok" ? (
+                    <div className={`hub-notice ${notice.kind}`} role="alert">
+                      {notice.text}
+                    </div>
+                  ) : null}
+                  <div className="hub-na-grid">
+                    <div className="hub-na-row">
+                      <div className="field">
+                        <label className="tiny muted" htmlFor="naTask">
+                          {zh ? "任务描述" : "Assignment"}
+                        </label>
+                        <textarea
+                          className="input"
+                          id="naTask"
+                          rows={3}
+                          placeholder={
+                            zh
+                              ? "描述代理需要完成的工作…"
+                              : "Describe the work for this agent…"
+                          }
+                          value={spawnTask}
+                          onChange={(event) => setSpawnTask(event.target.value)}
+                          disabled={!spawnAvailable || commandBusy}
+                        />
+                      </div>
+                    </div>
+                    <div className="hub-na-row">
+                      <div className="field">
+                        <label className="tiny muted" htmlFor="naSolutionSpace">解题范围 / Solution space</label>
+                        <textarea className="input" id="naSolutionSpace" rows={3} maxLength={65536} value={spawnSolutionSpace} onChange={event => setSpawnSolutionSpace(event.target.value)} placeholder="允许探索的方案、限制与边界 / Allowed approaches and constraints" disabled={!preview && (commandBusy || missingCap(capabilities, "session.skills.list"))} />
+                        <label className="tiny muted" htmlFor="naRole">
+                          {zh ? "代理定义" : "Agent definition"}
+                        </label>
+                        <AppSelect
+                          className="select"
+                          id="naRole"
+                          value={spawnDefinition}
+                          onChange={(event) =>
+                            setSpawnDefinition(event.target.value)
+                          }
+                          disabled={
+                            !spawnAvailable ||
+                            commandBusy ||
+                            spawnDefinitions === null ||
+                            spawnDefinitions.length === 0
+                          }
+                        >
+                          {spawnDefinitions === null ? (
+                            <option value="">
+                              {zh ? "读取定义中…" : "Loading definitions…"}
+                            </option>
+                          ) : spawnDefinitions.length === 0 ? (
+                            <option value="">
+                              {zh
+                                ? "暂无可用代理定义"
+                                : "No agent definitions available"}
+                            </option>
+                          ) : (
+                            spawnDefinitions.map((definition) => (
+                              <option
+                                key={definition.name}
+                                value={definition.name}
+                              >
+                                {definition.name}
+                                {definition.description
+                                  ? ` — ${definition.description.slice(0, 60)}`
+                                  : ""}
+                              </option>
+                            ))
+                          )}
+                        </AppSelect>
+                      </div>
+                      <div className="field">
+                        <label className="tiny muted" htmlFor="naEffort">
+                          {zh ? "本次思考强度" : "Thinking effort for this run"}
+                        </label>
+                        <AppSelect
+                          className="select"
+                          id="naEffort"
+                          value={spawnEffort}
+                          onChange={(event) =>
+                            setSpawnEffort(event.target.value)
+                          }
+                          disabled={!spawnAvailable || commandBusy}
+                        >
+                          <option value="">
+                            {zh ? "继承代理定义" : "Inherit agent definition"}
+                          </option>
+                          <option value="lo">{zh ? "轻量" : "Low"}</option>
+                          <option value="med">{zh ? "标准" : "Medium"}</option>
+                          <option value="hi">{zh ? "深入" : "High"}</option>
+                        </AppSelect>
+                      </div>
+                    </div>
+                    <div className="agent-spawn-config" role="status">
+                      <strong>{zh ? "使用代理配置" : "Agent configuration"}</strong>
+                      <p className="small muted">{zh
+                        ? "模型和备用链由所选代理的配置决定，可在模型工作区的代理页编辑。"
+                        : "Models and fallbacks come from the selected agent. Edit them in Models → Agents."}</p>
+                      <code>{spawnDefinitions?.find(item => item.name === spawnDefinition)?.model?.join(" → ")
+                        || (zh ? "使用原生角色与代理模型配置" : "Use native role and agent model settings")}</code>
+                    </div>
+                    {preview ? (
+                      <p className="tiny muted">
+                        {zh
+                          ? "演示：只预览任务配置，不会创建真实代理或调用模型。"
+                          : "Demo: preview task configuration without creating an agent or calling a model."}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="modal-foot">
+                  <button
+                    className="btn outline"
+                    type="button"
+                    onClick={() => setModal(null)}
+                  >
+                    {zh ? "取消" : "Cancel"}
+                  </button>
+                  <button
+                    className="btn primary"
+                    type="button"
+                    disabled={
+                      !spawnAvailable ||
+                      commandBusy ||
+                      !spawnTask.trim() ||
+                      !spawnDefinition
+                    }
+                    data-tip={
+                      preview
+                        ? zh
+                          ? "演示创建，不会执行任务"
+                          : "Preview creation; no task runs"
+                        : !viewingLive
+                          ? CONTRACT.historicalWrite
+                          : missingCap(capabilities, "agent.spawn")
+                            ? CONTRACT.spawn
+                            : undefined
+                    }
+                    onClick={() => {
+                      if (spawnLock.current || !spawnAvailable) return;
+                      const definition = spawnDefinition.trim();
+                      if (
+                        !(spawnDefinitions ?? []).some(
+                          (item) => item.name === definition,
+                        )
+                      ) {
+                        setNotice({
+                          kind: "warn",
+                          text: zh
+                            ? "请选择可用的代理定义"
+                            : "Choose an available agent definition",
+                        });
+                        return;
+                      }
+                      if (preview) {
+                        setNotice({
+                          kind: "ok",
+                          text: zh
+                            ? `演示任务已配置：${definition} · 使用代理配置${spawnEffort ? " · " + spawnEffort : ""}。未执行真实任务。`
+                            : `Demo task configured: ${definition}. No real task was executed.`,
+                        });
+                        setModal(null);
+                        return;
+                      }
+                      const epoch = spawnEpoch.current;
+                      spawnLock.current = true;
+                      void runCommand(
+                        "agent.spawn",
+                        {
+                          definition,
+                          assignment: spawnTask.trim(),
+                          ...(spawnSolutionSpace.trim() ? { solutionSpace: spawnSolutionSpace.trim() } : {}),
+                          async: true,
+                          ...(spawnEffort ? { effort: spawnEffort } : {}),
+                        },
+                        zh ? "代理任务已提交" : "Agent task submitted",
+                      )
+                        .then((ok) => {
+                          if (ok && epoch === spawnEpoch.current) {
+                            setModal(null);
+                            setSpawnTask("");
+                            setSpawnSolutionSpace("");
+                          }
+                        })
+                        .finally(() => {
+                          if (epoch === spawnEpoch.current)
+                            spawnLock.current = false;
+                        });
+                    }}
+                  >
+                    {preview
+                      ? zh
+                        ? "预览创建"
+                        : "Preview creation"
+                      : zh
+                        ? "创建并启动"
+                        : "Create and start"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="modal-head">
+                  <b>结束任务？</b>
+                  <button
+                    className="icon-btn small"
+                    type="button"
+                    aria-label={zh ? "关闭" : "Close"}
+                    data-tip={zh ? "关闭" : "Close"}
+                    onClick={() => setModal(null)}
+                  >
+                    <Icon name="x" extra="sm" />
+                  </button>
+                </div>
+                <div className="modal-body">
+                  <div
+                    className="small"
+                    style={{ color: "var(--text-2)", lineHeight: 1.6 }}
+                  >
+                    确定结束
+                    {killTarget?.name ? `「${killTarget.name}」` : "这个任务"}
+                    吗？结束后无法恢复。
+                    {killCaps.killWhy ? (
+                      <div style={{ marginTop: 8 }}>{killCaps.killWhy}</div>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="modal-foot">
+                  <button
+                    className="btn outline"
+                    type="button"
+                    onClick={() => setModal(null)}
+                  >
+                    {zh ? "取消" : "Cancel"}
+                  </button>
+                  <button
+                    className="btn danger solid"
+                    type="button"
+                    disabled={!killCaps.kill || commandBusy}
+                    onClick={() => {
+                      if (killTarget && killCaps.kill) {
+                        killAgent(killTarget);
+                        setModal(null);
+                      }
+                    }}
+                  >
+                    Kill
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}

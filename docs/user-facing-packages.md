@@ -38,9 +38,9 @@ Sources: [`packages/stats/README.md`](../packages/stats/README.md), [`packages/s
 
 Sources: [`packages/omptype/README.md`](../packages/omptype/README.md), [`packages/omptype/package.json`](../packages/omptype/package.json), and the repository [omptype authoring guide](./omptype-guide.md).
 
-- Package: public `@linxiraos/pi-omptype`; install with `bun add @linxiraos/pi-omptype`. Its manifest declares Node 20 or newer and Bun 1.4.4 or newer.
+- Package: public `@linxiraos/zeta-schema`; install with `bun add @linxiraos/zeta-schema`. Its manifest declares Node 20 or newer and Bun 1.4.4 or newer.
 - Feature: callable ArkType-compatible schemas with cheap interpreted startup, lazy hot-path compilation, validation errors, defaults and morphs, and JSON Schema emission.
-- Public surfaces: `@linxiraos/pi-omptype` for native authoring, `/typebox` and `/zod` for compatibility builders, and `/ark` for the alias-free ArkType compatibility facade.
+- Public surfaces: `@linxiraos/zeta-schema` for native authoring, `/typebox` and `/zod` for compatibility builders, and `/ark` for the alias-free ArkType compatibility facade.
 - Runtime behavior: schema calls return the validated value or `type.errors`; `.assert()` returns the value or throws; `.allows()` performs a boolean check.
 - Limits: this is an intentionally focused compatibility surface rather than a complete implementation of every ArkType, TypeBox, or Zod API.
 
@@ -101,7 +101,7 @@ Sources: [`packages/collab-web/README.md`](../packages/collab-web/README.md), [`
 
 Sources: [`packages/snapcompact/README.md`](../packages/snapcompact/README.md), [`packages/snapcompact/package.json`](../packages/snapcompact/package.json), [`packages/snapcompact/src/index.ts`](../packages/snapcompact/src/index.ts).
 
-- Package: public `@linxiraos/pi-snapcompact`; install with `bun add @linxiraos/pi-snapcompact`; requires
+- Package: public `@linxiraos/zeta-compact`; install with `bun add @linxiraos/zeta-compact`; requires
   Bun 1.4.4 or newer.
 - Feature: deterministic local serialization and PNG rendering of discarded conversation history
   for vision-model context compaction; no model call or API key is required.

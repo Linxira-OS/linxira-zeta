@@ -75,14 +75,55 @@ describe("gateway git branches", () => {
 
 		const res = await handleGitBranches(getRequest(repo));
 		expect(res.status).toBe(200);
+		const sha = (await $`git rev-parse HEAD`.cwd(repo).quiet().text()).trim();
 		expect(await res.json()).toEqual({
 			isGitRepository: true,
 			current: "main",
 			branches: [
-				{ name: "feature/x", current: false },
-				{ name: "main", current: true },
+				{ name: "feature/x", current: false, headOid: sha },
+				{ name: "main", current: true, headOid: sha },
 			],
 		});
+	});
+
+	test("branch rows carry the tracking ref and its divergence once configured", async () => {
+		const root = await makeTempDir("zeta-gw-git-up-");
+		const origin = join(root, "origin.git");
+		await $`git init -q --bare --initial-branch=main ${origin}`.quiet();
+		const repo = join(root, "work");
+		await $`git clone -q ${origin} ${repo}`.quiet();
+		await $`git config user.email test@example.com`.cwd(repo).quiet();
+		await $`git config user.name Test`.cwd(repo).quiet();
+		await Bun.write(join(repo, "README.md"), "# fixture\n");
+		await $`git add -A`.cwd(repo).quiet();
+		await $`git commit -q -m baseline`.cwd(repo).quiet();
+		await $`git push -q origin main`.cwd(repo).quiet();
+		await Bun.write(join(repo, "ahead.txt"), "ahead\n");
+		await $`git add -A`.cwd(repo).quiet();
+		await $`git commit -q -m ahead`.cwd(repo).quiet();
+
+		const res = await handleGitBranches(getRequest(repo));
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			branches: Array<{
+				name: string;
+				current: boolean;
+				headOid?: string;
+				upstream?: string;
+				ahead?: number;
+				behind?: number;
+			}>;
+		};
+		expect(body.branches).toEqual([
+			{
+				name: "main",
+				current: true,
+				headOid: (await $`git rev-parse HEAD`.cwd(repo).quiet().text()).trim(),
+				upstream: "origin/main",
+				ahead: 1,
+				behind: 0,
+			},
+		]);
 	});
 
 	test("checkout switches HEAD; branch create adds a local branch without switching", async () => {
@@ -102,10 +143,12 @@ describe("gateway git branches", () => {
 		// …and the new branch shows up in the listing, not flagged current.
 		const branches = (await (await handleGitBranches(getRequest(repo))).json()) as {
 			current: string;
-			branches: Array<{ name: string; current: boolean }>;
+			branches: Array<{ name: string; current: boolean; headOid?: string }>;
 		};
 		expect(branches.current).toBe("feature/x");
-		expect(branches.branches).toContainEqual({ name: "side/work", current: false });
+		expect(branches.branches).toContainEqual(
+			expect.objectContaining({ name: "side/work", current: false, headOid: expect.any(String) }),
+		);
 	});
 
 	test("checkout refuses a dirty tree with 409 { error: dirty, files }", async () => {

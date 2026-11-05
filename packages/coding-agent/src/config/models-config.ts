@@ -2,7 +2,7 @@
  * Custom model/provider config file handle and validation.
  */
 
-import type { FluentType } from "@linxiraos/pi-omptype";
+import type { FluentType } from "@linxiraos/zeta-schema";
 import type { Api, ModelSpec } from "@linxiraos/pi-ai/types";
 import { AXES } from "@linxiraos/pi-catalog/compat/axes";
 import { type ModelKind, servedKinds } from "@linxiraos/pi-catalog/types";

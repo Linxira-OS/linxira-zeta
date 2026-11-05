@@ -15,7 +15,7 @@
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import type { Api, Model } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";

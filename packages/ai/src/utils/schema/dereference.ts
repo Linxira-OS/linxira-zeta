@@ -9,7 +9,7 @@
  *
  * After dereferencing, `$defs` and `definitions` are stripped from the root.
  */
-import { parseLocalRefPointer } from "@linxiraos/pi-omptype";
+import { parseLocalRefPointer } from "@linxiraos/zeta-schema";
 import { isJsonObject, type JsonObject } from "./types";
 
 // Only schema-valued keywords may contain references; literal JSON is opaque.

@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { isEnoent } from "@linxiraos/pi-utils";
 import { PluginManager, validateSetting } from "../extensibility/plugins/manager";

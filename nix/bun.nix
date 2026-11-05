@@ -406,8 +406,8 @@
   "@linxiraos/pi-metaharness" = copyPathToStore ../packages/metaharness;
   "@linxiraos/pi-mnemopi" = copyPathToStore ../packages/mnemopi;
   "@linxiraos/pi-natives" = copyPathToStore ../packages/natives;
-  "@linxiraos/pi-omptype" = copyPathToStore ../packages/omptype;
-  "@linxiraos/pi-snapcompact" = copyPathToStore ../packages/snapcompact;
+  "@linxiraos/zeta-schema" = copyPathToStore ../packages/omptype;
+  "@linxiraos/zeta-compact" = copyPathToStore ../packages/snapcompact;
   "@linxiraos/pi-stats" = copyPathToStore ../packages/stats;
   "@linxiraos/pi-tui" = copyPathToStore ../packages/tui;
   "@linxiraos/pi-utils" = copyPathToStore ../packages/utils;

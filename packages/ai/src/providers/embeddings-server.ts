@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import * as AIError from "../error";
 import type { EmbeddingRequest, EmbeddingResult } from "../embeddings/types";
 

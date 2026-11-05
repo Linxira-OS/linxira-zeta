@@ -353,7 +353,7 @@ describe("merge rules", () => {
 describe("zetaKeyFor", () => {
 	it("maps the upstream scope to the Zeta scope with rename awareness", () => {
 		expect(zetaKeyFor("@oh-my-pi/pi-ai")).toBe("@linxiraos/pi-ai");
-		expect(zetaKeyFor("@oh-my-pi/pi-omptype")).toBe("@linxiraos/pi-omptype");
+		expect(zetaKeyFor("@oh-my-pi/omptype")).toBe("@linxiraos/zeta-schema");
 		expect(zetaKeyFor("@oh-my-pi/omp-stats")).toBe("@linxiraos/pi-stats");
 		expect(zetaKeyFor("@oh-my-pi/pi-coding-agent")).toBe("@linxiraos/zeta");
 	});
@@ -364,7 +364,7 @@ describe("zetaKeyFor", () => {
 		// "Cannot find package '@mariozechner/pi-coding-agent'" failure class.
 		expect(zetaKeyFor("@mariozechner/pi-coding-agent")).toBe("@linxiraos/zeta");
 		expect(zetaKeyFor("@mariozechner/pi-ai")).toBe("@linxiraos/pi-ai");
-		expect(zetaKeyFor("@mariozechner/omptype")).toBe("@linxiraos/pi-omptype");
+		expect(zetaKeyFor("@mariozechner/omptype")).toBe("@linxiraos/zeta-schema");
 		expect(zetaKeyFor("@mariozechner/pi-natives")).toBe("@linxiraos/pi-natives");
 	});
 

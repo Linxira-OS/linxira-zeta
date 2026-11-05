@@ -5,6 +5,50 @@ This generated, self-contained aggregate accompanies Zeta release artifacts.
 It does not replace package-level license files. First-party licensing grants
 no rights in third-party code, fonts, data, or marks identified below.
 
+ZETA IS A FORK AND REDISTRIBUTION
+=================================
+
+Zeta is a downstream distribution of oh-my-pi (OMP), and it also contains forks
+of OMP Web, OMP Studio and TermIDE. Upstream copyright notices stay with their
+files and are not restated here. This section states, for every forked or
+vendored application tree, where it came from, what Zeta changed, and why.
+Upstream URLs are the ones configured in `.git/config`; the per-tree deviation
+ledgers are authoritative for details.
+
+Forked application trees:
+
+| Path | Upstream | Snapshot | License | What Zeta changed |
+|---|---|---|---|---|
+| `packages/ main/ crates/ python/ lsp/ sdk/ types/ skills/` | oh-my-pi (OMP), https://github.com/can1357/oh-my-pi | integrated through tag `v18.15.0` (`document/upstream-sync.md`) | see upstream files | product name, paths, command names and env prefixes; branded assets; internal identifiers renamed to `__zeta*` |
+| `web-ui/` | OMP Web, https://github.com/17380936778/omp-web | frozen snapshot + manual cherry-picks (`document/upstream-sync.md`) | see upstream files | gateway transport, theme token bridge, page routing |
+| `web-app/src/studio`, `web-app/src/vendor/*` | OMP Studio 0.1.17, https://github.com/the-snowpear/omp-studio | `0.1.17` | MIT | **unmodified**; Zeta connects through the published host contract (`/health`, `/api/v1/{bootstrap,query,command,pair,session/revoke}`) |
+| `termide/` | TermIDE, https://github.com/termide/termide | tag `0.46.0` = `a027ca788cd4c9d24f060cdcd3195ca2e475617b` | MIT | deviations listed in `termide/VENDOR.md` (28 entries) |
+| `editor/npm/*` (`@linxiraos/editor*`) | TermIDE `panel-editor` | same tree as `termide/` | MIT | built as the editor-only bin `termide-editor` (`editor/npm/editor/VENDOR.md`) |
+| `plugins/official/*` | per plugin | per plugin | per plugin | each directory carries `plugin.json`, README with source, and its license |
+
+Why the fork renames things at all: the upstream licenses and the product
+identity both require that a downstream distribution not present itself as the
+upstream. Renames therefore cover the product name, command names
+(`zetawork` / `zetacode` / `zetaide`), the `zeta://` scheme, the npm scope
+`@linxiraos/*`, and release asset names (`zeta-cli-*`). User-visible
+configuration keeps accepting the legacy names during the transition, so an
+existing installation does not silently break.
+
+Brand and assets:
+
+* Product marks — name, logos, app icons, wordmarks, splash art — are Zeta's own
+  and are not redistributed from any upstream. Upstream marks are not shipped.
+* Assets that do come from an upstream are enumerated in the per-tree ledgers
+  above; each keeps its upstream license notice in place.
+
+Frozen counterpart constants (interoperability, not branding):
+
+* Stencil OIDC `client-id "omp"`, its issuer and scopes; `catalog.stencil.so`;
+  `docs.stencil.so/tern/protocol/`; `my.omp.sh` as the collaboration relay
+  constant; the `__omp_judgment_images` upload key. These are wire-compatible
+  identifiers Zeta must keep, listed here so that a brand sweep does not break
+  them.
+
 PYTHON DEPENDENCY DISTRIBUTION ROLE
 ===================================
 

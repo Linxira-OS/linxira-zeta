@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { FetchImpl } from "@linxiraos/pi-utils";
 import { collapseVariants, type VariantCollapseTable } from "../compat/collapse";
 import { compareRevision, parseRevision } from "../compat/revision";

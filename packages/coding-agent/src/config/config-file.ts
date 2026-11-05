@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { OmpErrors, type Type } from "@linxiraos/pi-omptype";
+import { OmpErrors, type Type } from "@linxiraos/zeta-schema";
 import { getAgentDir, isEnoent, logger, stringifyYamlConfig } from "@linxiraos/pi-utils";
 import { JSONC, YAML } from "bun";
 import { writeFileAtomicallySync } from "../utils/atomic-file";

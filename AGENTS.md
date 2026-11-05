@@ -149,10 +149,14 @@ Risks 之类填充是噪声。计划文件写进会话 artifacts（`local://` �
   新方向先开本地分支，不直接在 `main` 上开发；`dev/*` 只能用户开，永不并入 `main`。
 - 子代理自建 worktree，**不推、不合并 `main`、不打 tag、不改根 checkout**；委托时把
   这条写进 brief。
-- 推任何集成分支前先 `git merge main` 并跑本地门禁。Zeta 自己的工作**不开 PR**：
-  证据 = 本地门禁 + 该分支 CI。`sync/omp-release/**` 与 `port/**` 的 push 会
-  自动触发 `ci.yml`（非 PR 路径，会真构建 natives）；其他集成分支仍用唯一一次
+- 推任何集成分支前先 `git merge main` 并跑本地门禁。**集成分支（`feat/**`、
+  `port/**`）各开一个 PR**：PR 就是评审面与 CI 面；**合并永远由用户手动点**，
+  agent 不合并自己的 PR。短命的子代理分支只在本地并入集成分支，**不开自己的 PR**。
+  `sync/omp-release/**` 与 `port/**` 的 push 会自动触发 `ci.yml`（非 PR 路径，会
+  真构建 natives）；其他集成分支仍用唯一一次
   `gh workflow run ci.yml --ref <branch>` 手动 dispatch。
+- **worktree 分支上允许阶段性 commit（不推）**：一轮落地以「本地门禁全绿」为结束
+  条件，中间状态可以分多次提交，但**只在收尾推一次**。
 - **一轮落地 ≤1 次 push**；在途 run 不推同一分支（先看 `gh run list --branch <b>`）；
   `cancelled` 不是失败也不是通过——**它没有信号**，不得当绿。
 - **分支登记**：每条本地分支都要登记在
@@ -187,6 +191,9 @@ Risks 之类填充是噪声。计划文件写进会话 artifacts（`local://` �
 目标 + 文本即算确认）。"处理 PR 反馈"只授权改代码和起草回复，不授权直接发。授权
 resolve 时，回复必须说明改动与验证，经批准后在原 thread 发，**发成功才许 resolve**。
 改 PR 不等于授权发无关评论或开 issue。
+
+**开 PR 也是 GitHub 写操作**：标题 + 正文先给用户过目，批准后再 `gh pr create`。
+PR 只承担评审与 CI，**合并由用户点**——agent 不自行 merge 自己的 PR。
 
 细节（PR 模板、贡献者原话、changelog 归属）：`document/agents/workflow/github.md`。
 

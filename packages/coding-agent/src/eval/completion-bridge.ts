@@ -12,7 +12,7 @@
  * in, text (or, with `schema`, a structured object) out.
  */
 
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { instrumentedCompleteSimple, resolveTelemetry } from "@linxiraos/pi-agent-core";
 import { type Api, type AssistantMessage, Effort, type Model, type Tool } from "@linxiraos/pi-ai";
 import { clampThinkingLevelForModel, getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";

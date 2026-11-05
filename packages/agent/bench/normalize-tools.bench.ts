@@ -7,7 +7,7 @@
  *
  * Run: bun packages/agent/bench/normalize-tools.bench.ts
  */
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { normalizeTools } from "../src/agent-loop";
 import type { AgentTool } from "../src/types";
 

@@ -1,0 +1,26 @@
+{
+  "name": "@linxiraos/studio-transport-web",
+  "version": "0.1.17",
+  "private": true,
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "test:built": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@linxiraos/studio-contract": "0.1.17"
+  }
+}

@@ -5,7 +5,7 @@ import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-compl
 import { streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
 import type { Context, Model, Tool, ToolChoice } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import * as piUtils from "@linxiraos/pi-utils";
 
 const TEST_INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";

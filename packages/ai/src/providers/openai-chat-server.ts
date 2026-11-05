@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import {
 	isOpenAIReasoningEffort,
 	isOpenAIServiceTier,

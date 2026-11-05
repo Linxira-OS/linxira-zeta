@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import { AsyncJobManager } from "@linxiraos/zeta/async";
 import { Settings } from "@linxiraos/zeta/config/settings";

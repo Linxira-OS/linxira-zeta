@@ -26,7 +26,7 @@ import {
 } from "@linxiraos/pi-utils";
 import { isTaskToolDetails, type StructuredSubagentSchemaMode } from "@linxiraos/pi-tui/tools/task";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { moveFileAcrossDevices } from "../utils/atomic-file";
 import { moveSessionToTrash } from "./session-trash";
 import { hasAnnotationDraftsSync } from "../extensibility/custom-commands/bundled/annotate/draft-store";

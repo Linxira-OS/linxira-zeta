@@ -12,7 +12,7 @@
 import { describe, expect, it } from "bun:test";
 import { usageReportSchema } from "@linxiraos/pi-ai";
 import { usageResponseSchema } from "@linxiraos/pi-ai/auth-broker/wire-schemas";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 const PROVIDER_NOTE = "Usage data can be delayed by up to five minutes.";
 

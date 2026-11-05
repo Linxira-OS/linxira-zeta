@@ -1,5 +1,5 @@
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { prompt } from "@linxiraos/pi-utils";
 import type { CustomTool } from "../extensibility/custom-tools/types";
 import designDescription from "../prompts/tools/design.md" with { type: "text" };

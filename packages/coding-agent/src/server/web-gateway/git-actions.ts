@@ -1,10 +1,9 @@
 /**
  * Web Gateway — git mutations for the Studio Git surface.
  *
- * The read side (`status`, `diff`) is a Next route because it serves the same
- * shapes the file viewer already needs. Everything that *writes* lives here so
- * it goes through the pi-vcs native addon instead of spawning `git` from the
- * web process:
+ * The read side (`status`, `diff`, `remotes`, `show`, `worktrees`) lives in
+ * `git-reads.ts`; both halves go through the pi-vcs native addon rather than
+ * spawning `git` from the web process. Everything that *writes* lives here:
  *
  *   POST /api/git/stage   { cwd, paths?: string[], all?: boolean } → { ok, staged }
  *   POST /api/git/unstage { cwd, paths: string[] }                 → { ok }
@@ -25,6 +24,7 @@
 
 import { isAbsolute, relative, resolve } from "node:path";
 import { git, isVcsError, requireGit } from "@linxiraos/pi-natives/vcs";
+import { enrichLogRows } from "./git-reads";
 
 function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });
@@ -259,15 +259,19 @@ export async function handleGitLog(req: Request): Promise<Response> {
 	const url = new URL(req.url);
 	const cwd = url.searchParams.get("cwd");
 	if (!cwd) return json({ error: "cwd query parameter is required" }, 400);
-	const limit = clampInt(url.searchParams.get("limit"), 50, 1, 200);
+	const limit = clampInt(url.searchParams.get("limit"), 50, 1, 500);
 	const skip = clampInt(url.searchParams.get("skip"), 0, 0, 10_000);
 	const repo = git(cwd);
 	if (!repo) return json({ isGitRepository: false });
 	try {
 		// The addon has no offset window, so read one extra row to answer `hasMore`.
 		const onelines = await repo.logOnelines(limit + skip + 1);
-		const rows = onelines.slice(skip, skip + limit).map(parseOneline).filter(row => row.sha !== "");
-		return json({ commits: rows, hasMore: onelines.length > skip + limit });
+		const rows = onelines
+			.slice(skip, skip + limit)
+			.map(parseOneline)
+			.filter(row => row.sha !== "");
+		const commits = await enrichLogRows(repo, rows);
+		return json({ commits, hasMore: onelines.length > skip + limit });
 	} catch (error) {
 		return json({ error: errorMessage(error) }, 500);
 	}

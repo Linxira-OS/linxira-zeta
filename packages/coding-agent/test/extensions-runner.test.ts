@@ -5,7 +5,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Type } from "@linxiraos/pi-omptype/typebox";
+import { Type } from "@linxiraos/zeta-schema/typebox";
 import type { AgentMessage, AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
 import { streamAnthropic } from "@linxiraos/pi-ai/providers/anthropic";
 import type { MessageCreateParams } from "@linxiraos/pi-ai/providers/anthropic-wire";

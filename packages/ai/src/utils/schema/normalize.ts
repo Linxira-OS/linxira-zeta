@@ -6,7 +6,7 @@
  * exposes one option-driven core plus thin dispatchers that pin the option set
  * for each target.
  */
-import { parseLocalRefPointer } from "@linxiraos/pi-omptype";
+import { parseLocalRefPointer } from "@linxiraos/zeta-schema";
 import { logger } from "@linxiraos/pi-utils";
 import * as AIError from "../../error";
 import { dereferenceJsonSchema } from "./dereference";

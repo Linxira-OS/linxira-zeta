@@ -14,6 +14,7 @@ import {
 	type ResumeProject,
 	type ResumeWorkspace,
 	loadResumeDirectory,
+	loadResumePreferences,
 	registerProject,
 	setProjectPreference,
 	unregisterProject,
@@ -148,6 +149,13 @@ export interface WebWorkspaceSummary {
 	isWorktree: boolean;
 	pinned: boolean;
 	lastActivity: string | null;
+	/**
+	 * Epoch ms the project containing this workspace was last opened, from the
+	 * persisted preferences. Distinct from `lastActivity` (newest conversation):
+	 * a registered workspace with no conversations has a `lastOpened` and no
+	 * activity, and callers must be able to date it without inventing a value.
+	 */
+	lastOpened: number | null;
 	counts: ResumeWorkspace["counts"];
 }
 
@@ -166,6 +174,7 @@ function toWorkspaceSummary(workspace: ResumeWorkspace): WebWorkspaceSummary {
 		isWorktree: workspace.isWorktree,
 		pinned: workspace.pinned,
 		lastActivity: isoOrNull(workspace.lastActivity),
+		lastOpened: null,
 		counts: workspace.counts,
 	};
 }
@@ -205,7 +214,15 @@ function toProjectsResponse(directory: ResumeDirectory): WebProjectsResponse {
 }
 
 async function loadResponse(): Promise<WebProjectsResponse> {
-	return toProjectsResponse(await loadResumeDirectory({ filterSubagents: true }));
+	const response = toProjectsResponse(await loadResumeDirectory({ filterSubagents: true }));
+	// `lastOpened` lives in the preferences file, not in the directory scan; a
+	// registered workspace with zero conversations is dated only by it.
+	const preferences = await loadResumePreferences();
+	for (const project of response.projects) {
+		const lastOpened = preferences.projects[project.key]?.lastOpened ?? null;
+		for (const workspace of project.workspaces) workspace.lastOpened = lastOpened;
+	}
+	return response;
 }
 
 /** GET /api/projects — every registered project with its workspaces. */

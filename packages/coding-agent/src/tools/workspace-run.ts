@@ -8,7 +8,7 @@
  */
 
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import workspaceRunDescription from "../prompts/tools/workspace-run.md" with { type: "text" };
 import type { ToolSession } from "./index";
 

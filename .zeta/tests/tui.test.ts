@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
-import * as zod from "@linxiraos/pi-omptype/zod";
+import * as zod from "@linxiraos/zeta-schema/zod";
 import { TempDir } from "@linxiraos/pi-utils";
 import createTool, { type TuiParams } from "../tools/tui";
 

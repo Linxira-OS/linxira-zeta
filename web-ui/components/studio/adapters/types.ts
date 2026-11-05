@@ -21,22 +21,34 @@
 export type StudioMode = "app" | "panel";
 
 /** Top-level product routes. `workbench` is the conversation surface. */
+/**
+ * Studio's own route union (`apps/renderer/src/App.tsx` → `type Route`).
+ *
+ * This is the navigation contract, not a Zeta one: a surface that Studio routes
+ * to is a route here, and no Zeta concept gets its own route. Git and worktrees
+ * are workbench panels in Studio, so they are not routes.
+ */
 export type StudioRoute =
+	| "home"
 	| "workbench"
-	| "skills"
-	| "models"
-	| "agents"
-	| "git"
-	| "usage"
-	| "settings";
+	| "history"
+	| "agent-hub"
+	| "capabilities"
+	| "model-config"
+	| "settings"
+	| "diagnostics"
+	| "media"
+	| "evaluation"
+	| "statistics";
 
+/** Routes this build can actually paint; the rest have no Zeta backend. */
 export const STUDIO_ROUTES: readonly StudioRoute[] = [
+	"home",
 	"workbench",
-	"skills",
-	"models",
-	"agents",
-	"git",
-	"usage",
+	"history",
+	"agent-hub",
+	"capabilities",
+	"model-config",
 	"settings",
 ];
 
