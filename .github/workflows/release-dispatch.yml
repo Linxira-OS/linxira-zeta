@@ -1,0 +1,54 @@
+name: Release dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Explicit stable version, e.g. 1.4.10"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: ./.github/actions/bun-install
+      - name: Install bazelisk and sd
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/bin/bazelisk" \
+            https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64
+          chmod +x "$RUNNER_TEMP/bin/bazelisk"
+          cat > "$RUNNER_TEMP/bin/sd" <<'SH'
+          #!/usr/bin/env bun
+          const [pattern, replacement, file] = Bun.argv.slice(2);
+          if (!pattern || replacement === undefined || !file) process.exit(2);
+          const input = await Bun.file(file).text();
+          await Bun.write(file, input.replace(new RegExp(pattern, "gm"), replacement));
+          SH
+          chmod +x "$RUNNER_TEMP/bin/sd"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Configure git
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Remove temporary workflow from the release commit
+        shell: bash
+        run: |
+          git rm .github/workflows/release-dispatch.yml
+          git commit -m "chore: remove temporary release dispatch workflow"
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bun scripts/release-v2.ts "${{ inputs.version }}" --no-ci-wait
