@@ -25,6 +25,7 @@
  *   bun scripts/gen-bazel-lock.ts --check  # exit 1 when MODULE.bazel.lock is stale
  */
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { collectLockDriftInput, findLockDrift } from "./bazel-lock-drift";
 
@@ -125,9 +126,10 @@ const args = [...extraArgs, "fetch", "--repo=@crates", `--lockfile_mode=${check 
 let hiddenBazelIgnore: string | undefined;
 if (process.platform === "win32") {
 	const ignorePath = path.join(repoRoot, ".bazelignore");
-	const backupPath = `${ignorePath}.gen-bazel-lock`;
+	const backupPath = path.join(os.tmpdir(), `.bazelignore.gen-bazel-lock-${process.pid}`);
 	try {
-		fs.renameSync(ignorePath, backupPath);
+		fs.copyFileSync(ignorePath, backupPath);
+		fs.unlinkSync(ignorePath);
 		hiddenBazelIgnore = backupPath;
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
@@ -143,7 +145,8 @@ try {
 } finally {
 	if (hiddenBazelIgnore) {
 		try {
-			fs.renameSync(hiddenBazelIgnore, path.join(repoRoot, ".bazelignore"));
+			fs.copyFileSync(hiddenBazelIgnore, path.join(repoRoot, ".bazelignore"));
+			fs.unlinkSync(hiddenBazelIgnore);
 		} catch (error) {
 			console.error(`gen-bazel-lock: failed to restore .bazelignore: ${errorMessage(error)}`);
 			process.exitCode = 1;
