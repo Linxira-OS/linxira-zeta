@@ -94,7 +94,7 @@ const STORY_CARDS: readonly { readonly [key: string]: JsonValue }[] = [
     status: "done",
     dur: "6s",
     preview: "先核对 package.json 钉住的上游版本，再扫 docs 里现有同步说明。本地 Studio Bridge 和会话目录不要写回 pi-web。",
-    full: "目标：把 pi-web v0.8.1 合进 omp-web。\n保留 packages/studio-bridge 与 ~/.omp/agent/sessions。\n文档落到 docs/UPSTREAM-SYNC.md，README 加入口。",
+    full: "目标：把 pi-web v0.8.1 合进 omp-web。\n保留 packages/studio-bridge 与 ~/.zeta/agent/sessions。\n文档落到 docs/UPSTREAM-SYNC.md，README 加入口。",
   },
   {
     kind: "read",
@@ -139,7 +139,7 @@ const STORY_CARDS: readonly { readonly [key: string]: JsonValue }[] = [
     created: true,
     lines: 86,
     encoding: "UTF-8",
-    preview: ["# 上游同步记录", "", "## v0.8.1", "", "- 保留 Studio Bridge", "- 会话目录仍走 ~/.omp"],
+    preview: ["# 上游同步记录", "", "## v0.8.1", "", "- 保留 Studio Bridge", "- 会话目录仍走 ~/.zeta"],
   },
   {
     kind: "edit",

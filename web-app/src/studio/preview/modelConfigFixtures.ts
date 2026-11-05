@@ -105,7 +105,7 @@ export const MODEL_API_TYPES: ReadonlyArray<{ id: ModelApiKind | string; label: 
 ];
 
 export const MODEL_AUTH_TYPES: ReadonlyArray<{ id: ModelAuthType; label: string; hint: string }> = [
-  { id: "oauth", label: "OMP Login / OAuth", hint: "用 omp login 写入本机凭据" },
+  { id: "oauth", label: "Zeta Login / OAuth", hint: "用 zetacode login 写入本机凭据" },
   { id: "api-key", label: "API Key", hint: "密钥写入 models.yml" },
   { id: "env", label: "Environment Variable", hint: "从环境变量读取，不写密钥" },
   { id: "command", label: "External Command", hint: "用命令取密，Secret 不落盘" },

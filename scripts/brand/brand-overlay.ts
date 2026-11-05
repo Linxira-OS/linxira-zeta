@@ -73,7 +73,7 @@ const REWRITES: Array<{ name: string; from: RegExp; to: string; exclude?: RegExp
 		// CHANGELOG.md prose documents history (upstream paths as they were), and
 		// config/omp-compat|model-registry name the upstream root on purpose.
 		exclude:
-			/discovery\/(helpers|omp-plugins|claude-plugins)|omp-extension-roots|legacy-pi|title-generator|export\/share|browser-relay|plugins\/|loader\.ts|CHANGELOG\.md|config\/(omp-compat|model-registry)/,
+			/discovery\/(helpers|omp-plugins|claude-plugins)|omp-extension-roots|legacy-pi|title-generator|export\/share|browser-relay|plugins\/|loader\.ts|CHANGELOG\.md|config\/(omp-compat|model-registry)|utils\/(src\/env\.ts|test\/env\.test\.ts)/,
 	},
 	{
 		name: "omp-xdg-doc",

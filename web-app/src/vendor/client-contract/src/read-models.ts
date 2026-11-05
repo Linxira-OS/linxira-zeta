@@ -353,7 +353,7 @@ export interface TokenUsageReadModel {
 }
 
 /**
- * Loopback endpoint of the native `omp stats` dashboard, which the statistics
+ * Loopback endpoint of the native `zetacode stats` dashboard, which the statistics
  * page embeds. The Host starts the dashboard on demand and probes it with its
  * own identity header, so `available` reflects a server that answered — not a
  * path that was found on disk. `url` is loopback-only and carries a deep link
@@ -643,7 +643,7 @@ export interface WebSearchProviderRecord {
   readonly hasCredential: boolean;
   /** Env vars the runtime accepts for this provider's credential (empty for keyless engines). */
   readonly envKeys?: ReadonlyArray<string>;
-  /** `omp login` provider id when an in-app OAuth login exists; absent otherwise. */
+  /** `zetacode login` provider id when an in-app OAuth login exists; absent otherwise. */
   readonly loginId?: string;
   /** agent.db provider id the engine reads an api_key from; absent when there is no direct key path. */
   readonly apiKeyId?: string;
@@ -734,7 +734,7 @@ export interface ModelWebSearchSetInput {
 /**
  * Studio-managed web-search credential write: stores an `api_key` credential
  * for the engine in the local OMP credential store (agent.db) so the runtime
- * picks it up natively — no `omp login` and no environment variables needed.
+ * picks it up natively — no `zetacode login` and no environment variables needed.
  */
 export interface ModelWebSearchCredentialSetInput {
   /** Search engine id (catalog id, e.g. `tavily`). */
@@ -805,7 +805,7 @@ export type PluginSourceKind = "npm" | "marketplace" | "link" | "git";
 export type PluginConfigStatus = "configured" | "error";
 
 /**
- * One configured plugin from ~/.omp/plugins (and project overrides).
+ * One configured plugin from ~/.zeta/plugins (and project overrides).
  * Contribution lists are declared entry names from the package manifest,
  * not Runtime-registered tools.
  */
@@ -829,7 +829,7 @@ export interface PluginRecord {
 }
 
 /**
- * Configured skills + plugins inventory. This is a disk scan of OMP-native
+ * Configured skills + plugins inventory. This is a disk scan of Zeta-native
  * locations, not the Runtime effective/loaded set.
  */
 export interface ExtensibilityReadModel {
@@ -862,7 +862,7 @@ export interface McpLastProbe {
 }
 
 /**
- * One configured MCP server from OMP-native mcp.json discovery.
+ * One configured MCP server from Zeta-native mcp.json discovery.
  * Never includes command, args, env, url, headers, or OAuth secrets.
  */
 export interface McpServerRecord {
@@ -882,7 +882,7 @@ export interface McpServerRecord {
 }
 
 /**
- * Configured MCP server inventory. Disk scan of OMP-native mcp.json paths,
+ * Configured MCP server inventory. Disk scan of Zeta-native mcp.json paths,
  * not live MCPManager connection state.
  */
 export interface McpReadModel {

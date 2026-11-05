@@ -7,6 +7,7 @@ import { useAppSettings } from "../settings/appSettings";
 import { useI18n } from "../i18n";
 import {
   applyRecordedFrame,
+  RECORDING_ACCEPT,
   RECORDING_MAX_BYTES,
   type PlaybackRecording,
   type RecordedScreen,
@@ -223,7 +224,7 @@ export function RecordingPlayer({
         const event = recording.events[cursor.current++]!;
         changed = true;
         renderedAt.current = event.at;
-        if (recording.format === "ompcast") {
+        if (recording.format === "zetacast") {
           applyRecordedFrame(screen.current!, event.frame);
           screenDirty.current = true;
         } else if (event.frame.t === "resize")
@@ -233,7 +234,7 @@ export function RecordingPlayer({
           await new Promise((resolve) => setTimeout(resolve, 0));
       }
       if (
-        recording.format === "ompcast" &&
+        recording.format === "zetacast" &&
         screen.current &&
         (changed || screenDirty.current)
       ) {
@@ -268,7 +269,7 @@ export function RecordingPlayer({
             ref={fileInput}
             hidden
             type="file"
-            accept=".ompcast,.studiocast"
+            accept={RECORDING_ACCEPT}
             aria-label={zh ? "选择录制文件" : "Choose recording"}
             onChange={(event) => {
               const file = event.target.files?.[0];

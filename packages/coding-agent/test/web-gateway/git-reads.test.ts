@@ -15,7 +15,7 @@
  * - the gateway dispatches both literal paths above the generic captures.
  */
 
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,6 +30,10 @@ import {
 	handleGitStatus,
 	handleGitWorktrees,
 } from "../../src/server/web-gateway/git-reads";
+
+// The fixtures build real repositories with `git`; a cold Windows git can spend
+// five seconds on `init` + `fetch` alone, so the suite sets its own ceiling.
+setDefaultTimeout(120_000);
 
 const cleanups: Array<() => Promise<void>> = [];
 

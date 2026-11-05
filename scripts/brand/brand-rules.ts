@@ -96,6 +96,8 @@ export const OMP_PATH_ALLOW = [
 	/config\/discovery\/builtin\.ts$/, // Builtin provider probing OMP installs
 	/export\/share\.ts$/, // .ompshare gist export
 	/utils\/title-generator\.ts$/, // \uE000omp-title-visible\uE000 wire sentinel
+	/utils\/src\/env\.ts$/, // legacy OMP dotenv reader: the switch reads the old root on purpose
+	/utils\/test\/env\.test\.ts$/, // its fixtures must keep the legacy path distinct from the new one
 	/legacy-pi-compat\.ts$|legacy-pi-coding-agent-shim\.ts$/,
 	// `packages/browser-relay/**` used to be exempted wholesale (twice: the
 	// chrome.storage key family + the README's OMP-compatible CLI surface).

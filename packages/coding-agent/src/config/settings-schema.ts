@@ -5882,7 +5882,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "interaction",
 			group: "Compatibility",
 			label: "Read legacy OMP configuration",
-			description: "Read ~/.omp models, credentials and dotenv files (read-only).",
+			description: "Read the legacy OMP configuration directory (models, credentials, dotenv; read-only).",
 		},
 	},
 

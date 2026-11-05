@@ -204,17 +204,17 @@ export const NATIVE_TOOL_GALLERY: readonly { readonly [key: string]: JsonValue }
   },
   {
     kind: "retain", name: "Retain", status: "done", dur: "0.3s",
-    stored: 2, items: ["omp-web 会话目录是 ~/.omp/agent/sessions/", "代码主题走 useCodeTheme"],
+    stored: 2, items: ["omp-web 会话目录是 ~/.zeta/agent/sessions/", "代码主题走 useCodeTheme"],
   },
   {
     kind: "recall", name: "Recall", target: "omp-web 路径适配", status: "done", dur: "0.4s",
     query: "omp-web 路径适配", count: 1,
-    excerpts: ["会话、models.json、config.yml 都在 ~/.omp/agent/ 下，不要写回 pi-web 路径。"],
+    excerpts: ["会话、models.json、config.yml 都在 ~/.zeta/agent/ 下，不要写回 pi-web 路径。"],
   },
   {
     kind: "reflect", name: "Reflect", target: "这次同步该保留什么？", status: "done", dur: "0.6s",
     query: "这次同步该保留什么？",
-    answer: "保留包名、CLI 名、~/.omp/agent/ 路径和 useCodeTheme；吸纳 DirectoryPicker 与 loopback 监听。",
+    answer: "保留包名、CLI 名、~/.zeta/agent/ 路径和 useCodeTheme；吸纳 DirectoryPicker 与 loopback 监听。",
   },
   {
     kind: "memory_edit", name: "Memory Edit", target: "update mem_02", status: "done", dur: "0.2s",
@@ -229,7 +229,7 @@ export const NATIVE_TOOL_GALLERY: readonly { readonly [key: string]: JsonValue }
   {
     kind: "manage_skill", name: "Manage Skill", target: "create upstream-sync", status: "done", dur: "0.5s",
     args: { action: "create", name: "upstream-sync" },
-    output: "skill created at .omp/skills/upstream-sync/SKILL.md",
+    output: "skill created at .zeta/skills/upstream-sync/SKILL.md",
   },
   {
     kind: "yield", name: "Submit Result", target: "type: result", status: "done", dur: "0.1s",

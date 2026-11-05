@@ -1,77 +1,56 @@
-<!-- 从根 AGENTS.md 原文移出（2026-10-25 精简，未改写）。代码落点（桌面/Web/网关/频道/工作台）与上游面 vs Zeta 自有面的路径归属。 -->
+<!-- 从根 AGENTS.md 原文移出（2026-10-25 精简，未改写）。代码落点（渲染器/宿主/网关/频道/工作台）与上游面 vs Zeta 自有面的路径归属。 -->
 
 # 代码落点与路径归属
 
-> 一句话版在根 AGENTS.md 的「代码落点」；**本文是展开版**，含退役中的 Electron 内嵌架构说明。
-> 新增代码不要按本文的 desktop 叙述去扩展——`desktop/` 是待退役遗留。
+> 一句话版在根 AGENTS.md 的「代码落点」；**本文是展开版**。
+> **2026-11-05 渲染器切换**：产品 UI 是 `web-app/`（Vite 7），`web-ui/` 冻结只作快照；
+> Studio 宿主契约在 `packages/coding-agent/src/server/studio-host/`。新增代码按本表，
+> 不要往 `web-ui/` 或 `desktop/` 里加。
 
-### Code Location Rules — desktop vs web-ui vs gateway
+### Code Location Rules — renderer vs host vs gateway
 
-Three top-level surfaces have **distinct homes**. Put code only where it belongs;
+Each surface has a **distinct home**. Put code only where it belongs;
 never guess from a feature's name. When a task spans surfaces, split the change
 across the correct directories.
 
 | Surface | Location | Engineering rules |
 |---|---|---|
-| **Desktop shell** (Electron: tray, autostart, window lifecycle, serving the built web-ui + stats) | repo root `desktop/` | Standalone Electron project, **not** a Bun workspace package. Own `package.json`, `package-lock.json`, `electron-builder.yml`, `scripts/`, `src/main.ts`. Install with `npm`/`npm ci`, build with `electron-builder`. Code here talks to the backend only over HTTP (`http://127.0.0.1:43141` web-ui, `http://127.0.0.1:43147` stats). It must never import from `packages/*` or `web-ui/*` source — it launches the built runtime via `resolveServeCommand()`. |
-| **Web UI** (Next.js app: components, pages, client libraries) | repo root `web-ui/` | Standalone OMP Web snapshot, **not** a root Bun workspace package. Own package manager + lockfiles; read `web-ui/AGENTS.md` for its rules. All React components/pages/hooks/client helpers live here (`web-ui/components/`, `web-ui/lib/`, `web-ui/hooks/`). Talks to the backend only via `fetch` to the gateway `/api/*` on `http://127.0.0.1:43141`. Never place `.ts` server code or Electron code here. |
-| **Server-side gateway** (REST API handlers behind the web-ui runtime) | `packages/coding-agent/src/server/web-gateway/` (one handler module per resource, e.g. `settings.ts`, `models.ts`, `open.ts`, `web-config.ts`, `terminal.ts`) | Bun runtime code. Route regexes live in `packages/coding-agent/src/server/web-gateway.ts` (`*_RE` constants + dispatch in `webGatewayFetch`). `terminal.ts` is the WS precedent (upgrade wiring in `zeta-server.ts`, one-time tickets for browser WS auth) — new WebSocket endpoints follow its pattern. Handler modules import from `packages/coding-agent/src/**` only. |
+| **Studio renderer** (product UI: React components, pages, hooks, styles) | repo root `web-app/` (`src/studio/`) | Vite 7 app with its own `package.json` + `package-lock.json`, **not** a root Bun workspace member (root `workspaces.packages` covers `packages/*`, `plugins/*`, `python/robomp/web`, not `web-app/`). Renderer entry is `web-app/src/studio/main.tsx` (`mountRenderer(element, client)`). It talks to the backend only over `fetch`/WebSocket to `/api/v1/*`. Never place server code here. Build gate: CI `check` job (`npm ci` + `npm run build:ci`); `zeta serve` serves `web-app/dist`. |
+| **Frozen Web snapshot** | repo root `web-ui/` | OMP Web snapshot, **not** a root Bun workspace package; own package manager + lockfiles. **Frozen 2026-11-05** — `web_ui_build` retired 2026-11-05, no new features. Legacy installs can still be served as the Next child, and its npm publish leg only runs with the `publish_web_ui` dispatch input. If a cherry-pick must touch it, `web-ui/AGENTS.md` still applies. |
+| **Studio host** (`/health`, `/api/v1/{pair,session/revoke,bootstrap,query,command}`, `/api/v1/events` WS) | `packages/coding-agent/src/server/studio-host/` | The browser-facing contract the renderer speaks. `server.ts` owns auth (Origin allowlist, `studio_session` cookie, `X-Studio-CSRF` on mutations, 1 MiB body cap) and routing; `registry.ts` merges operation families and builds the capability manifest (a registered handler is what makes a surface reachable); `bootstrap.ts` builds `ClientBootstrap`; `ops/<family>.ts` maps one domain onto gateway routes; `gateway.ts` is the only path from an operation to Zeta state. `zeta-server.ts` classifies and dispatches — it never answers these routes itself. |
+| **Renderer static serving** | `packages/coding-agent/src/server/studio-web-app.ts` | Serves `web-app/dist` with history fallback, immutable hashed assets, no-store `index.html`, and `STUDIO_RENDERER_CSP`; `ZETA_WEB_APP_DIR` overrides the build location. A missing build is the placeholder page, not an error. |
+| **Server-side gateway** (REST API handlers behind `/api/*`) | `packages/coding-agent/src/server/web-gateway/` (one handler module per resource, e.g. `settings.ts`, `models.ts`, `open.ts`, `web-config.ts`, `terminal.ts`) | Bun runtime code. Route regexes live in `packages/coding-agent/src/server/web-gateway.ts` (`*_RE` constants + dispatch in `webGatewayFetch`). `terminal.ts` is the WS precedent (upgrade wiring in `zeta-server.ts`, one-time tickets for browser WS auth) — new WebSocket endpoints follow its pattern. Handler modules import from `packages/coding-agent/src/**` only. |
 | **Channel / bot runtime** (WeChat/Feishu/Telegram, plan-image, workspace routing) | `packages/coding-agent/src/channels/` | Bun runtime, embedded in `zeta serve` (`packages/coding-agent/src/server/zeta-server.ts`). Channel tools (`channel_send`, `workspace_run`) live in `packages/coding-agent/src/tools/`. |
 | **Config layer** (web.yml: tray/autostart/channels/remote) | `packages/coding-agent/src/config/web-config.ts` | Bun runtime, read by both the gateway and (via `zeta serve` HTTP) the desktop shell. |
-
-> **方向变更（2026-10-15 用户裁决）**：`web-ui/` **冻结**——不再作为独立桌面应用分发
-> （Electron 桌面长期起不来：`The Zeta service did not become ready in time.` /
-> `The running Zeta service at http://127.0.0.1:43141 did not answer.`，根因是"外部服务端口
-> 就绪"这条链），只保留为 **zetawork 桌面应用内部可选的渲染后端**；**桌面应用本体 =
-> zetawork**，其家迁到 `desktop/`（现有 Electron 外壳退役中）。上表的 desktop/web-ui 分工
-> 按此方向读：Electron 行与"内嵌 Next standalone"链路属**待退役**遗留。渲染方式（原生
-> ratatui ／ Web UI）由用户在应用内选择；启动后保底由工作台自己拉起/内嵌 `zetacode`，
-> **不依赖外部服务端口就绪**。
 
 **Dependency direction (never invert):**
 
 ```
-desktop/ (Electron)  ──HTTP──▶  zeta serve (zeta-server.ts)  ──▶  packages/coding-agent/src/**
-web-ui/ (Next.js)    ──HTTP──▶  webGatewayFetch (/api/*)     ──▶  packages/coding-agent/src/server/web-gateway/
+web-app/ (Vite, browser) ──HTTP/WS /api/v1/*──▶ studio-host/ ──▶ gateway.ts ──▶ packages/coding-agent/src/**
+web-ui/  (Next, frozen)     ──HTTP /api/*──────▶ webGatewayFetch ──▶ packages/coding-agent/src/server/web-gateway/
+desktop/ (Electron, paused) ──HTTP──▶ zeta serve
 ```
 
-**Desktop ↔ Web UI relationship (nested, not alternatives):** the desktop app is
-not a second UI — `desktop/` is an Electron shell that **embeds a standalone
-build of `web-ui/`** plus the compiled `zeta` runtime and a bundled Node. One
-package, three layers:
-
-```
-build (desktop/scripts/prepare-runtime.mjs)
-  web-ui: npm run build (NEXT_OUTPUT_STANDALONE=1) ─▶ .next/standalone + .next/static + public
-  zeta:   bun run build (packages/coding-agent)    ─▶ zeta binary + Node executable
-  ─▶ staged to temp/desktop/staging/zeta/, folded into the Electron app via extraResources
-
-runtime (desktop/src/main.ts)
-  spawns `zeta serve` (ZETA_DESKTOP=1) ─▶ serves the embedded web-ui
-  window.loadURL(WEB_UI_URL = http://127.0.0.1:43141) ─▶ web-ui /api/* ─▶ webGatewayFetch ─▶ gateway
-```
-
-- **One source, two outputs**: the web-ui the desktop embeds is the same source
-  and the same build as the browser UI (`NEXT_OUTPUT_STANDALONE=1` makes it a
-  self-contained deployment). There is no separate desktop UI codebase —
-  `desktop/` holds only the Electron shell.
-- **Build-time nesting** (`desktop/scripts/prepare-runtime.mjs`): runs the web-ui
-  build, then stages `.next/standalone` + `.next/static` + `public` next to the
-  compiled `zeta` binary and `process.execPath` as the bundled Node. The target
-  machine needs neither Bun nor Node.
-- **Runtime**: `desktop/src/main.ts` launches `zeta serve` and points the Electron
-  window at `WEB_UI_URL` (`http://127.0.0.1:43141`); the shell and the web-ui never
-  share code — only the HTTP loopback. Web-ui and desktop each depend on the
-  gateway side (`packages/coding-agent/src/**`) via HTTP, never via imports.
-- **CI** (`desktop_linux`/`desktop_windows` jobs): `npm ci` (web-ui
-  + desktop deps) → `npm test` (platform contracts) → `npm run dist` (= build +
-  `prepare:runtime` + `package-desktop`) → smoke → upload `zeta-desktop-*` assets. macOS exited the release surface 2026-10-01 — no `desktop_mac` job; do not reintroduce darwin consumers.
+- **One renderer, one origin**: `zeta serve` is the whole product surface — the
+  same origin answers `/api/*`, `/api/v1/*` and serves `web-app/dist`, so the
+  Studio pairing cookie stays first-party and the browser needs no proxy.
+- **Legacy chain (retired)**: `desktop/` used to embed a Next standalone build of
+  `web-ui/` staged by `desktop/scripts/prepare-runtime.mjs`; the Electron shell is
+  **paused (2026-11-05)** and `web-ui/` is frozen. `release_desktop_archives` still
+  packs the frozen `web-ui` build into zetawork installers, and `web_desktop_tests`
+  still runs the desktop/launcher contracts — neither is a promise that the
+  zetawork surface is resumed. Do not extend that chain; `@linxiraos/main` only
+  publishes when the `publish_zetawork` dispatch input asks for it.
+- **The renderer never shares code with the host**: only HTTP/WS. `web-app`
+  imports its vendored `@linxiraos/studio-*` packages; it never imports
+  `packages/coding-agent/**`.
 
 **Hard rules:**
-- Electron/Tray/autostart code goes in `desktop/src/main.ts` — never in `web-ui/`, never in `packages/`, never in a new directory under `packages/coding-agent/desktop/` (that path does not exist).
-- React components/pages/hooks go in `web-ui/` — never in `packages/*`, never in `desktop/`.
-- Gateway REST handlers go in `packages/coding-agent/src/server/web-gateway/` and are registered in `web-gateway.ts` — never inline in `web-ui/` or `desktop/`.
-- `desktop/src/main.ts` already owns `resolveServeCommand()`, `createWindow()`, `buildMenu()`, `boot()`, and the `WEB_UI_URL`/`STATS_URL` constants. Extend it in place; do not rewrite it wholesale.
+- React components/pages/hooks go in `web-app/src/studio/` — never in `web-ui/` (frozen), never in `packages/*`, never in `desktop/`.
+- `/api/v1/*` semantics go in `studio-host/` (`ops/<family>.ts` for a new operation); never inline in `zeta-server.ts`, never in the renderer.
+- Gateway REST handlers go in `packages/coding-agent/src/server/web-gateway/` and are registered in `web-gateway.ts` — never inline in `web-app/` or `desktop/`.
+- `desktop/src/main.ts` is paused; it owns `resolveServeCommand()`, `createWindow()`, `buildMenu()`, `boot()`, and the `WEB_UI_URL`/`STATS_URL` constants — do not extend it with the product surface.
+- `web-ui/` changes are cherry-picks from `omp-web-upstream` only (recorded in `document/upstream-sync.md`); no features.
 
 **Catalog import convention**: code in this repo imports catalog _values_ (bundled models, model-thinking helpers, identity, descriptors, model manager/cache) from `@linxiraos/pi-catalog/<module>` — never via `@linxiraos/pi-ai`. The pi-ai barrel re-exports only the model/effort _types_ its own signatures use (`Model`, `Api`, `ThinkingConfig`, `Effort`, …); type-only imports of those from `@linxiraos/pi-ai` are fine.
 
@@ -85,11 +64,12 @@ runtime (desktop/src/main.ts)
 
 | 自有面 | 是什么 |
 |---|---|
-| `main/` | zetawork：TUI（`main/crates/zeta-main/`）+ GUI（`main/crates/zetawork-gui/`），独立 Cargo workspace |
+| `main/` | zetawork：TUI（`main/crates/zeta-main/`）+ GUI（`main/crates/zetawork-gui/`），独立 Cargo workspace；发布暂停（`publish_zetawork`） |
 | `termide/` | vendored TermIDE = `zetaide`（`@linxiraos/ide`），另有 Zeta 新增的 `termide-editor` bin |
 | `editor/` | `@linxiraos/editor` 的 npm 面（载荷 = `termide-editor`） |
-| `web-ui/` | 浏览器远程 UI（降级维护） |
-| `desktop/` | 待退役 Electron 壳（不新增代码） |
+| `web-app/` | **产品渲染器**（Vite 7；`src/studio/`、`src/vendor/`、自己的 `package-lock.json`），2026-11-05 起取代 `web-ui` 的渲染层 |
+| `web-ui/` | 冻结的 OMP Web 快照（仅 cherry-pick；`web_ui_build` 已于 2026-11-05 退役，不再有独立构建门禁——只有安装包 job 仍构建它） |
+| `desktop/` | 暂停的 Electron 壳（不新增代码） |
 | `.gitea/` | Gitea 本地 CI 镜像（见 `document/local-ci.md`） |
 
 - 改/删这些目录**只按路径判定**：不需要与上游协商，也不会与同步分支冲突
@@ -101,4 +81,3 @@ runtime (desktop/src/main.ts)
   快照的任何偏离都要在 `termide/VENDOR.md` 的偏离清单登记一行。
 - 新增/删除一个 CI job 必须同步三处（`ci.yml` / `local-ci.yml` 或 `EXCLUDED` /
   `document/local-ci.md` 的 job map），见该文档的同步规则。
-

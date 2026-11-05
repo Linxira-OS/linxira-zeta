@@ -200,8 +200,8 @@ function providerNode(document: ProviderDocument, id: string): Readonly<Record<s
 
 /**
  * Read the merged document. `providers` carries `origin` markers: `user` for the
- * hand-written `models.yml`, `web` for the panel layer, `omp` for read-only
- * upstream mirrors. The document also carries every plaintext `apiKey`; it is
+ * hand-written `models.yml`, `web` for the panel layer, and the legacy
+ * upstream-mirror origin for read-only entries. The document also carries every plaintext `apiKey`; it is
  * only ever round-tripped back to the gateway, never returned to a client.
  */
 async function readProviderDocument(): Promise<ProviderDocument> {
@@ -217,7 +217,8 @@ async function readProviderDocument(): Promise<ProviderDocument> {
 /**
  * Rewrite the panel layer with `providers`. The gateway drops `origin` markers,
  * ignores ids the hand-written layer owns (and reports them in `ignored`), and
- * skips `omp` mirrors, so a full-document write never touches upstream state.
+ * skips the legacy upstream mirrors, so a full-document write never touches
+ * upstream state.
  */
 async function writeProviderDocument(providers: Readonly<Record<string, unknown>>): Promise<ProviderWriteAck> {
 	const body = await gatewayJson<unknown>(MODELS_CONFIG_ROUTE, { method: "PUT", body: { providers } });

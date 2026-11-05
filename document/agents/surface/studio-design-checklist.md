@@ -1,7 +1,9 @@
-# Studio 界面设计检查表（web-ui 产品面）
+# Studio 界面设计检查表（冻结的 web-ui 快照）
 
 作用：`web-ui/components/studio/**` + `web-ui/styles/studio/**` 的视觉验收标准。
-每次改动产品面照此自查；判据可被 `scripts/check-style-literals.mjs` 与人工
+**2026-11-05 起 `web-ui/` 冻结、产品渲染器是 `web-app/`：本表只约束这份快照，
+`web-app/src/studio/**` 不适用**（它的色值/token 在 `web-app/src/studio/styles/tokens.css`）。
+改快照时照此自查；判据可被 `web-ui/scripts/check-style-literals.mjs` 与人工
 截图复核。颜色/主题的机器判据见 `document/agents/brand/registry.md` 与
 `web-ui/lib/theme/tokens.ts`，本文只管**层级、尺度、状态**。
 

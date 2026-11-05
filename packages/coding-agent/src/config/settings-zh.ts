@@ -404,7 +404,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"compat.importLegacyOmp": {
 		label: "读取旧版 OMP 配置",
-		description: "读取 ~/.omp 的模型、凭据与 dotenv 文件（只读）",
+		description: "读取旧版 OMP 配置目录的模型、凭据与 dotenv 文件（只读）",
 	},
 	"images.autoResize": {
 		label: "自动调整图片大小",

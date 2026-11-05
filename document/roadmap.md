@@ -2,7 +2,7 @@
 
 > **执行计划状态（2026-10-16 更新）**：原「UI 迁移 / 桌面交接」执行计划
 > （`webui-desktop-overhaul-plan.md`，2026-10-02 起）**已被 2026-10-16 的裁决取代并关闭**，
-> 其唯一未完项（跨端来源标记）已收编进下文的 Web workbench 条目。GUI 开发启动时，
+> 其唯一未完项（跨端来源标记）已收编进下文的「Cross-client provenance」条目。GUI 开发启动时，
 > 执行细节的载体是**本文档 + 项目 tracking**（`<project>/.zeta/tracking/`）。
 > 文档规范：`document/` 只放三类（①当前执行计划 ②未开发的后期规划 ③架构设计文档）；
 > 旧计划随新计划生效即删；未开发的后期规划一律登记在本文档的 Deferred Queue。
@@ -65,7 +65,7 @@ These exist today (headline capabilities are marked in the root `README.md`):
 | Agent mesh (1.4.0)                             | `packages/coding-agent/src/mesh/`                                           | Cross-process mesh: loopback socket / named pipe with a per-workspace token, `<workspaceId>/<agentId>` addressing, heartbeat + `gone`, offline mailbox + wake, mutual-wait probe that answers both sides; `@agent list`/`@agent use`/`@team`; `document/agent-mesh.md` |
 | CLI-hosted IM channels (1.4.0)                 | `packages/coding-agent/src/channels/cli.ts`, `src/cli-commands/channels.ts` | `zetacode channels` `status`/`login`/`logout`/`enable`/`disable` (+`--json`), terminal QR (UTF-8 half blocks), WeChat login state machine, one instance lock shared with `serve`, `session-host.ts` for interactive and `--print` |
 | Default workspace bootstrap (1.4.0)            | `packages/coding-agent/src/default-workspace/`                              | First use: `git init`, `.zeta/settings.json` (`memory.backend = mnemopi`), `AGENTS.md`, `PERSONA.md`, first commit; idempotent; persona injected after the personality block; `document/default-workspace-scenarios.md` |
-| Declarative plugin panels (1.4.0)              | `src/extensibility/plugins/ui.ts` + GUI `plugin_panels.rs` + `pages/plugins/view` | Manifest `ui.panels[]` (`list`/`form`/`chart`/`html`); GUI draws the first three natively, HTML panels run in a webview; `zetacode plugins panel`; example plugin + `zeta-plugin-example-<ver>.zip`; TUI carries no plugin surface, zetaide carries TermIDE's own 0.46 plugin layer (not Zeta's plugin surface) |
+| Declarative plugin panels (1.4.0)              | `src/extensibility/plugins/panels.ts` + GUI `plugin_panels.rs` + `web-ui/pages/plugins/view` | Manifest `ui.panels[]` (`list`/`form`/`chart`/`html`); GUI draws the first three natively, HTML panels run in a webview; `zetacode plugins panel`; example plugin + `zeta-plugin-example-<ver>.zip`; TUI carries no plugin surface, zetaide carries TermIDE's own 0.46 plugin layer (not Zeta's plugin surface) |
 | Workbench terminal graphics (1.4.0)            | `termide/crates/panel-terminal/src/kitty.rs`, `reports.rs` + GUI `blit.rs`   | Kitty graphics subset (PNG/RGBA, chunks, c/r, C=1, z, q) painted 1:1 at device-pixel cell metrics; the five capability queries answered by both the local PTY and the `serve` backend; `TERM_PROGRAM=zetawork` |
 | GUI settings schema + i18n (1.4.0)             | `main/crates/zetawork-gui/src/settings_schema.rs` + `i18n.rs`               | 「全部设置」 generated from `GET /api/settings` (tabs/groups/typed controls/search/masking), PUT then re-GET, language switch re-fetches; guard test requires an en row for every CJK `t!` key |
 | Session-scoped settings + config durability (1.4.0) | `src/config/settings.ts` (`sessionForCwd`), `src/config/web-config.ts`  | A session keeps its own project settings layer and reloads after a write; `web.yml` writes are read-modify-write under one lock with a shared reader; channel instance lock published atomically; `channels.reportPolicy` honoured |
@@ -81,82 +81,33 @@ These exist today (headline capabilities are marked in the root `README.md`):
 
 ## Priorities
 
-### P0 — 桌面形态定稿：`zetawork` 是唯一桌面应用（2026-10-15 裁决，2026-10-16 修订）
+### P0 — 渲染器定稿：`web-app` 由 `zetacode serve` 托管（2026-11-05 裁决，取代 2026-10-15/16 桌面裁决）
 
-**2026-10-16 生效裁决（当前口径；与本节其余段落冲突时以此为准）**：
+**2026-11-05 裁决（Superseding）：`zetawork` 暂挂，渲染器换成 `web-app`**
 
-- **`web-ui/` 保留、不删、降级**：职责只剩两件 —— ① **服务端**：`zetacode serve` 的 `/api/*`，
-  供**浏览器远程连接**（已有降级页面，保持能用即可）；② **插件接口**。**不再做后续复杂维护**，
-  也不再承担"产品第二界面"的职责。
-- **"渲染方式由用户选"作废**：不再做"在 GUI 里选终端渲染 / 选 Web UI 渲染"的开关
-  （一开始即裁决不做，现彻底放弃）。
-- **GUI 渲染路线 A（先行）**：GUI 用**虚拟终端**承载 TUI（pty + VT 渲染）；`zetacode`（TS TUI）与
-  `zetawork` 自己的 ratatui TUI **都只当面板内容**。zetawork 侧沿用已验证的
-  `ratatui Buffer → blit → egui`（`main/crates/zetawork-gui/src/tui_view.rs` 已把每行 cell 范围
-  变成点击区）。结构化通道（原生控件 / 浏览器渲染）**后置，不属于当前需求**。
-- **新 GUI 按用户给的 HTML 稿做**：`Downloads/index.html` 与 `Downloads/workspace-v2.html`
-  （仓库内副本 `temp/zetawork-ui-mock/`；证据归档 `~/.zeta/parked-evidence/2026-10-16/`）。
-  **两份各有侧重，按各自侧重开发**：
-  `index.html` → **信息面**（右栏四页·含上下文页、设置与用量两个模态、状态栏信息）；
-  `workspace-v2.html` → **工作区组织**（项目→工作区→大标签页→面板的增删改与切换、TUI 形态）。
-  共同基底：系统标题栏 + 应用菜单栏 + 左中右三栏 + 状态栏。实现语言是 **Rust 原生 GUI
-  （`main/crates/zetawork-gui`，egui/eframe）**；HTML 只作设计参照，**不得实现成 web 前端**。
-- **术语与层级（用户口径）**：**项目 → 工作区**，且 **工作区 = 一个大标签页**；`工作区 1-1`
-  读作「项目一 · 第一个大标签页」；每个大标签页下若干**子页面 / 面板**；第一个大标签页 = **总面板**
-  （所有项目合并一张表）。
-- **右栏插件宿主**：已落地（1.4.0）——同一右栏既画声明式原生面板（`list`/`form`/`chart`），
-  也把 `html` 面板送进 webview；`zetaide` 与工作台 TUI 不承载插件面（守卫测试钉住）。
-- **TUI 只保基本功能**：不再加需求，减法为主；后续投入全在 GUI。
-  **2026-10-30 例外**：TUI 已有 `tui.sidebar` gutter（36 列，context/todos/subagents/MCP）；
-  允许在其上补内容（如 Git 历史/提交）与修正文档，但**不扩成 dsh-TUI 的完整 PanelHost**
-  （不做标签页、拖拽 resize、插件 panel 宿主）；仍不新增用户模式。
-  **已交付（2026-10-30）**：TUI 右栏 Git widget——branch/工作区状态/ahead-behind/最近五次提交；
-  `SidebarSources` 注入缓存快照，渲染路径零 IO；不新增设置、不改状态栏归属。
-- **内置编辑器要"像专业编辑器"，但不要代码补全**（能力缺口审计后逐项登记）。
+- 产品渲染层 = `web-app/`（我们自己的 Vite 7 构建），由 `zetacode serve` 直接托管
+  （`server/studio-web-app.ts`，CSP / immutable 资产 / history fallback）。宿主契约
+  `/api/v1/*` 由 `server/studio-host/` 回答，能力清单只广播已实现的操作。
+- **`zetawork`（`main/crates/zeta-main` 的 TUI + `zetawork-gui` 的 GUI）与 `desktop/`
+  Electron 壳一并暂挂**：不新增代码、不随 release 构建、不再发 npm。Rust 侧 i18n
+  相关工作随之搁置（`zeta-main` 零 i18n 不是缺陷，是暂挂面的状态）。
+- **`@linxiraos/main` 包名保留**：暂挂发布（`main-publish.yml` 仍可手动 dispatch，
+  release 链改由 `publish_zetawork` 输入显式开启）。后续把「main 面」——super agent /
+  Room / resident agent——装进这个包时再恢复自动发布，届时它的 `bin` 语义是**宿主**，
+  不是拉起 ratatui 二进制。
+- 已发布版本（`@linxiraos/main`、`main-{linux,windows}-x64`、`@linxiraos/zeta-web`）
+  不删除，只 `npm deprecate`；`@linxiraos/ide`（zetaide / TermIDE）是独立发布线，不受影响。
 
-**2026-10-15 裁决（保留为历史记录；与上面冲突处以 2026-10-16 为准）**：
-
-**当时的裁决内容**：
-
-- **`web-ui/` 冻结**：开发到此为止，**不再作为独立桌面应用分发**；只保留为 zetawork 桌面应用
-  内部**可选的渲染后端**。理由（用户原话指向的两个现场报错）：
-  `The Zeta service did not become ready in time.` 与
-  `The running Zeta service at http://127.0.0.1:43141 did not answer.` —— Electron 外壳要先 spawn
-  `zetacode serve` 再轮询端口就绪，这条链长期不稳，桌面维护成本高。
-- **桌面应用本体 = zetawork**，开发位置整体迁到 `desktop/`（现有 Electron 外壳退役）。
-- **启动形态**：启动后**保底有一个 `zetacode` 进程**（由工作台自己拉起/内嵌），**不依赖外部服务
-  端口就绪** —— 上面那两类错误从形态上消失。
-- ~~**渲染方式由用户选**：同一个 zetawork 里可选**原生渲染（ratatui）**或 **Web UI 渲染**；于是
-  "单独维护的只剩 web-ui 的包"，维护面显著变小。~~
-  **（2026-10-16 作废：不做渲染切换开关；渲染形态由上面的「路线 A」定死。）**
-- ~~**编辑器分工**（`@linxiraos/editor` 不能浪费）：工作台内嵌编辑器 = termide `panel-editor`
-  （进程内 Panel，LSP/tree-sitter/git 全套）；**`@linxiraos/editor`（vendored TTT，Go）
-  改作"外部编辑器"**分发——`$EDITOR`/`$VISUAL`（git commit/rebase todo/credential）、大文件与
-  最小环境兜底、平台编辑器二进制 `+N file` 交接（它没有独立命令名，按平台二进制路径解析）。
-  **随之要改的是指令注册**：`editor` 斜杠命令
-  的语义需从"打开工作台编辑器"改为"交给外部编辑器"，与工作台内 termide 面板区分开。~~
-  **2026-10-16 修订**：`@linxiraos/editor`（vendored TTT）按**退场**裁决处理
-  （YML 文件只改不删、发布包替换干净）——`editor/` 整包已删除，`zeta-editor-*` 资产名与
-  `editor_tests` 一并退场；工作台内嵌编辑器仍是 termide `panel-editor`（专业化、无代码补全）。
-  **2026-10-17 接续（已执行）**：包名与发布链**由内置编辑器接手**——`editor/npm/`
-  重建为 launcher（无 bin）+ 两个平台叶，载荷是 vendored termide 新增的**编辑器专用入口**
-  `termide-editor`（只起编辑器面板、`$EDITOR` 语义、位置参数 `FILE[:line[:col]]`，
-  `--editor` 链/`editor-publish.yml`/`release_editor_packages` 全部改回实发），
-  pi-messenger 的 `/editor` 改用它并经命令行传目标，`~/.zeta/handoff.json` 契约退场；
-  用户可见命令面不变（`@linxiraos/editor` 仍无 bin）。
-- **路径链接复用原生逻辑**（同批裁决）：终端输出里"任何标准路径/URL → 悬停可点"不自己造；OSC8
-  消费端已通（`termide` `hyperlink.rs` → `OpenPath` → `app.rs` `open_path_in_ide`），要找的是现成的
-  普通路径/URL 识别并接到 Rust 侧。修饰键语义照参照实现：点击=动作菜单 · Ctrl+点击=切工作区 ·
-  Shift+Ctrl+点击=打开文件夹。
-
-**待开工（2026-10-16 修订）**：①Electron 外壳退役 + `desktop/` 改作 zetawork 的家（连带发布面：
-`desktop_linux`/`desktop_windows` job、`zeta-desktop-*` 资产、`@linxiraos/zeta-web` 的桌面用途）；
-②**GUI 按 HTML 稿重做**（见新增的 P0 条目）；③详情栏 4 页（文件 / Agents 历史对话 / 分支·PR /
-用量）+ 范围切换（工作区·项目·全部）+ 点会话切工作区（左栏没有就新建）；④路径链接（普通路径识别 +
-修饰键）与发射端 `packages/tui/src/render/hyperlink.ts` 的 line/col 修复。
-~~②渲染切换接线~~（2026-10-16 作废）；~~⑤外部编辑器化的指令注册改造 + 打包分发~~（同日由退场裁决取代，2026-10-17 以「内置编辑器接手该包名」重开并已执行：见上）。
+**2026-11-05 审计记录**：本节原「`zetawork` 是唯一桌面应用」（2026-10-15 裁决 + 2026-10-16 修订）
+整段已删除 —— 被上方 2026-11-05 裁决取代（zetawork 暂挂；产品渲染器是 `web-app/`，
+`web-app/` 由 `zetacode serve` 托管，见 `packages/coding-agent/src/server/studio-web-app.ts`）。
+历史原文见 git 历史（本文件 2026-11-05 之前的版本）。
 
 ### P0 — GUI 按 HTML 稿重做（`main/crates/zetawork-gui`）
+
+**2026-11-05 暂挂**：zetawork（含 GUI）已按当日的渲染器裁决暂停，本项不新增代码。
+重启条件 = `main-publish.yml` 的 `publish_zetawork` 恢复自动发布、GUI 重新进入 release 构建
+（`.github/workflows/ci.yml` 的 `publish_zetawork` 门控）。
 
 - **唯一基准 = 用户的两份 HTML 稿**：`Downloads/index.html` 与 `Downloads/workspace-v2.html`；
   两份**各有侧重、按各自侧重开发** —— 信息面（右栏四页·含上下文页、设置/用量模态、状态栏）
@@ -170,6 +121,10 @@ These exist today (headline capabilities are marked in the root `README.md`):
 - **边界**：TUI 只保基本功能（减法为主）；web-ui 降级为"服务端 + 插件接口"。
 
 ### P0 — 工作区 ↔ 会话绑定与布局持久化（布局与会话分离）
+
+**2026-11-05 暂挂**：本项是 zetawork 的布局面，随 zetawork 一并暂停；`main/crates/zeta-main/src/settings.rs`
+至今只写 `shell`/`drag`/`focus_follows_mouse`/`close_confirmation` + `[[slots]]`，没有 `[[workspace]]`。
+重启条件 = zetawork 恢复（`publish_zetawork` 重新自动发布）。
 
 **核心原则**：**布局与会话分离** —— 工作区/面板/面板内标签属于**布局**；会话只是面板上的一个
 **可空引用**。因此删会话永远不毁布局。
@@ -200,6 +155,10 @@ These exist today (headline capabilities are marked in the root `README.md`):
   不逐次弹窗）。
 
 ### P1 — 标准 IDE 页（`panel-ide`）与编辑器能力补齐（2026-10-17 修订）
+
+**2026-11-05 状态**：GUI 侧的「在 pane 里渲染同一个面板」随 zetawork 暂挂；`termide`/`zetaide`
+这条发布线独立（`.github/workflows/ide-publish.yml`），本项继续，已落地部分为
+`termide/crates/panel-ide/src/{formatters,notepad,ports,spell,board}.rs`。
 
 **方向修正**：早先"专业编辑器、**明确不含补全**"是**自研渲染层**的口径。现在改为**复用
 termide 的 Rust 编辑器核心**（`panel-editor` + `lsp` + `highlight` + `buffer`），只换渲染层
@@ -236,7 +195,7 @@ Go）、cheat-sheet/http-client 类玩具。**PDF** 已落地为 GUI 页（1.4.0
 参考物：`temp/ttt`（TTT 上游原版，`github.com/eugenioenko/ttt`）的形态与
 `community-plugins.json`（45 条 = 24 `lsp-*` + 7 `formatter-*` + 14 功能插件）。
 
-### P0 - Web workbench foundation and desktop handoff
+### P0 — Cross-client provenance (last open item of the deleted Web workbench plan)
 
 The delivery-order items have landed: Web UI typecheck plus desktop/Web CI
 restored (item 1), project grouping and concurrent-session status preserved
@@ -244,7 +203,8 @@ through the visual recomposition (item 2), the desktop file-manager/editor
 bridge (item 3), AppImage packaging + Linux CI artifact validation (item 5),
 and the workbench visual recomposition (item 6 — see Shipped). These landed on
 the locked design/typography/port-boundary contracts; the full spec lived in the
-now-deleted `document/webui-desktop-overhaul-plan.md` §14. One item remains open:
+now-deleted `document/webui-desktop-overhaul-plan.md` §14. Its desktop half is
+moot since `desktop/` is paused (2026-11-05). One item remains open:
 
 - **Cross-client provenance (item 4)**: session/run provenance must record the
   initiating client — `cli`, `web`, `desktop`, or non-interactive `automation`
@@ -266,22 +226,6 @@ service/agent split is not complete.
 - **Remaining acceptance**: a dedicated compaction agent split, and granular
   per-phase progress events (today only `auto_compaction_start`/`_end`).
 
-### P0 — Long-term tracking document + prompt-cache contract
-
-The rule (encoded in `src/tools/tracking.ts` + `src/prompts/tools/tracking.md`): **before the provider
-caches the conversation, the model must have written current state into the
-long-term tracking document**. Anything that would mutate the cached prefix
-(hidden reminders, injected updates, tracking nudges) must go through the
-document or a tool instead of the conversation. The standing system guidance
-stays byte-stable so DeepSeek/Anthropic prefix caches survive long sessions,
-and compaction resumes with the same cached prefix.
-
-- **Status**: the tool, its `tracking.enabled` opt-in gate, and compaction's
-  session cache-key sharing are done; the cache-write ordering rule itself is
-  still unbuilt.
-- **Remaining acceptance**: any dynamic injection path either lands in the
-  tracking document before cache write or is rejected by review.
-
 ### P1 — Migrate OpenCode's official commands (all three categories)
 
 OpenCode commands fall into three kinds; migrate them in that order:
@@ -300,10 +244,10 @@ OpenCode commands fall into three kinds; migrate them in that order:
 
 Zeta already has the TypeScript command layer and markdown command files
 (`<config-dir>/commands/*.md` at user + project level with `$ARGUMENTS`
-substitution). Remaining gaps vs OpenCode:
+substitution). Command hot reload has since shipped
+(`packages/coding-agent/src/extensibility/custom-commands/watcher.ts`: directory
+watch + debounce + last-good state), so the remaining gap vs OpenCode is:
 
-- **Hot reload**: OpenCode V2 reloads commands from `config.changes` with a
-  debounce window; Zeta loads commands at startup (`/reload-plugins` is manual).
 - **`agent` field on commands** so a command can pin which agent/agent model
   runs it.
 
@@ -375,6 +319,10 @@ HTML 页面定一个版本化宿主协议。设计见
 把“用户 ↔ 多个仓库主代理 ↔ 各自团队/子代理”做成 Room 原语，实验性、默认关闭。
 设计见 [`document/super-agent-rooms.md`](./super-agent-rooms.md)。
 
+**2026-11-05 状态**：暂挂 —— 没有可运行的宿主（zetawork / `@linxiraos/main` 一并暂停），
+`Room` 原语在代码里也还没有实现（全树无 `SuperRoom`/`RepoRoom` 标识）。
+重启条件 = main 面（super agent / Room / resident agent）装进 `@linxiraos/main` 时。
+
 - **Room 是基建**：独立事件日志、宿主分配 `seq`、`sentAt`、parallel/serial/mention
   三种调度；成员回复按宿主顺序落盘，Agent 不自行排序。
 - **层级**：Super Room（跨仓库主代理）→ Repo Room（同仓库多主代理）→ Main Room
@@ -388,6 +336,8 @@ HTML 页面定一个版本化宿主协议。设计见
   端口映射外包，Zeta 只提供 TLS/WSS 接口与鉴权。
 - **验收**：两个仓库成员在 Room 内有序发言且上下文不互相泄漏；resident 可 park/revive；
   GUI 可从联系人进入 Room，不暴露底层 session。
+- **发布载体**：`@linxiraos/main` 这个包名留给 main 面（2026-11-05 裁决）——zetawork
+  暂挂后它停止自动发布，恢复时以「宿主」为语义重新实现 `bin`，不要在新包名下重开第二条线。
 
 ### P1 — Context learning modes: sliding windows / window batch（2026-11-03）
 
@@ -580,14 +530,14 @@ subagents never do. Preserve that invariant in merges. Hardening remaining:
   (see Mermaid/SVG above) or paired with an explicit
   `refreshBaseSystemPrompt` on every surface that can flip them.
 
-### P2 — Memory ↔ tracking boundary (prompt contract)
+### P2 — `/tracking start` copy (memory boundary)
 
-`prompts/tools/tracking.md` gains a hard constraint: tracking = project-level
-working state (plan/progress/blockers/decisions) that travels with the project;
-memory = learned facts across projects. tracking must never store learned
-facts — cross-reference by topic into memory instead. `/tracking start` copy
-already points users at the Web UI panel; extend it to name the memory
-boundary and the `tracking.enabled` gate.
+The hard constraint has shipped: `packages/coding-agent/src/prompts/tools/tracking.md`
+now carries the **Memory boundary** clause (tracking = process state; learned
+facts belong to `retain`/`recall`/`memory_edit`; the two stores stay disjoint).
+What remains is the slash-command copy — `packages/coding-agent/src/slash-commands/builtin-zeta.ts:302`
+still says only `用 /tracking start 开始维护项目追踪文档`, without naming the memory
+boundary or the `tracking.enabled` gate.
 
 ### P2 — Stats read-only tracking snapshot (cross-package)
 
@@ -617,6 +567,11 @@ git context, shimmer, `plan://`, `jobs://`. Each needs its own scoping pass
 before work starts.
 
 ### P1 — Mobile remote control (phone-first web access)
+
+**2026-11-05 状态校正**：下文 "shipped foundation / this wave" 的 Web 侧产物都在**冻结的
+`web-ui/`** 里（`web-ui/public/` 的 manifest + service worker、`web-ui/lib/lazy-media.ts`）；
+新的渲染器 `web-app/` 的 `web-app/public/` 目前只有 `brands/`、`favicon.ico`、`icon.png`，**没有 manifest/offline shell**。
+所以"手机优先的 Web UI"这一半要随渲染器迁移重做，服务端那一半（token/TLS/远程绑定）继续有效。
 
 Phone control of the desktop agent over the user's own network path. **No
 embedded tunneling**: users bring their own port mapping, server, or frp; Zeta's
@@ -663,58 +618,6 @@ each is an adapter over the same minimal channel interface; add on demand,
 reference `temp/openclaw-ref` (checked out for this survey) for wire
 protocols and auth flows.
 
-### ~~P2 — TTT editor About branding~~ (RETIRED 2026-10-16: the editor is gone)
-
-**Retired.** The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor`)
-was removed wholesale on 2026-10-16 by maintainer ruling, so this whole item —
-zh UI (shipped) and the remaining About-branding work — has no target left.
-The `@linxiraos/editor` package name came back on 2026-10-17 carrying the
-zetawork built-in editor's payload (termide's editor-only entry, resolved by
-path, no `bin`), so if that payload ever grows its own About dialog, the
-`Zeta Editor · v<zeta version> · <upstream version>` identity line below is the
-carried-over requirement.
-
-- ~~**zh UI**~~ DONE (before retirement): `editor/internal/app/i18n.go` carried a full zh
-  string table (settings tabs/labels, menus, footer actions, dialog
-  chrome); the settings view exposes an English/中文（简体） selector.
-- ~~**About branding (remaining)**~~: upstream attribution was already cleaned —
-  Source pointed at `github.com/Linxira-OS/linxira-zeta` and the upstream
-  website line is gone (VENDOR.md). Still upstream-flavored: the dialog
-  title remained "About TTT Editor" and the version line showed TTT's own
-  semver. The planned work (a Zeta distribution identity line
-  `Zeta Editor · v<zeta version> · TTT <upstream version>`,
-  Chinese-first copy) is void with the tree.
-
-### Deferred — TTT 形态的兼容层与小工具（2026-10-17 调查结论）
-
-- **Vim / Emacs 兼容层**（TTT `vim`/`emacs`）：独立工程，人群小；需要时再做。
-- **Docker Manager**（容器/镜像/卷）：重、与 coding agent 工作流无直接关系。
-- **Go Test Runner**：我们不写 Go（TTT 已退场），不做。
-- ~~**PDF Viewer**~~ DONE (1.4.0): GUI 文档页（`SessionKind::Pdf` + `pdf.rs`，hayro 纯 Rust
-  光栅化），从文件树/显式路径打开；TUI 仍永不渲染（`zeta-main` 拒绝 `.pdf`，测试
-  `the_workbench_never_renders_a_pdf`）。说明见 `docs/gui-pdf-viewer.md`。
-- **cheat-sheet / http-client**：玩具型，不做。
-
-### 许可分层（2026-10-18 定稿）
-
-| 路径 | 许可 | 说明 |
-|---|---|---|
-| `main/`（zetawork：TUI/GUI + `main/npm/*`） | **AGPL-3.0-only** | 我们原创；依赖无 CDDL，AGPL 兼容 |
-| `packages/`、`crates/`、`sdk/`、`web-ui/`、`desktop/` | **MIT** | OMP 派生，不能重授权 |
-| `termide/`、`editor/` | **MIT** | vendored；分发二进制必须带 MIT 声明 |
-| 根 `LICENSE` | 分层声明 | GitHub 只能显示一个，因此显示 Other；README 表格解释 |
-
-**为什么不是整仓**：`crates/pi-natives` 直接依赖 `inferno`（CDDL-1.0），与 AGPL
-不兼容。整仓 AGPL 需要先替换 inferno。
-
-**商业授权**：README 只写"可协商"，不写条款与价格；对外双授权需要 CLA 与
-完整版权审计，暂不推进。
-
-**机械守卫**：`scripts/check-license-map.ts`（CI `check` job + 本地最低门槛六项
-里的第四项）钉住 manifest 许可、`main/` 的 SPDX 头、vendored LICENSE、根
-LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红。
-
-
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
 - **Attach 会话生命周期命令仍在 replica 上执行（2026-10-22 登记）**：附着 TUI 的控制面
@@ -731,7 +634,7 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
     路由与 web-ui 面板各判一次 stage，词汇一致但迁移规则各写一遍。收口需要一处"归一化 +
     迁移"实现，前端只消费结果；属于重构，不改行为。
   - **`@status` 只做投影、不做校验**：`@status` 汇总的层信息来自 `Settings.sessionForCwd`，
-    但用户层/项目层的**写入**仍只落一层（见上一条记忆设置），面板没有层级选择器；
+    但用户层/项目层的**写入**仍只落一层（见下文「记忆设置的写入层级」），面板没有层级选择器；
     两侧要一起改才有意义。
   - **`@workspace use` 的 mode 校验**：`switchToWorkspace` 只校验 `resolveDir(alias)`，
     不区分 `sessionMappings.mode`；在 mixed 配置下，一个无会话映射的工作区别名会静默切到
@@ -757,34 +660,17 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   仅脚本与文档）的批量驱动方案；两者生成的**素材不在 MIT 范围**，不可入库。
   Deferred：素材批量生成器与运行时本体要单独立项。
 
-- ~~**跨工作区多主代理消息**~~ DONE (1.4.0)：跨进程网格已落地（回环 socket / 命名管道 +
-  每工作区令牌、`<workspaceId>/<agentId>` 地址、心跳与 `gone`、离线信箱 + wake、
-  互相等待两端都能拿到 `peer-waiting-on-you`）。见文首 Shipped 表的 Agent mesh 行与
-  `document/agent-mesh.md`。
-
 - **`document/agent-team-plugin.md` 悬空引用（2026-10-20 取证）**:`document/plugin-system.md:213`
   把「agent-team 完整开发规格（编排器 / `team_*` 工具 / 人设群聊 / Web pages）」指向
   `document/agent-team-plugin.md`，但该文件**不存在**（`ls document/agent-team-plugin.md`
   → No such file or directory）。补写规格或把链接改指到现有文档，二者择一，未定；
   在补齐前该链接保持悬空。
 
-- **面板补齐（2026-10-18 评估 Stencil Term 面板集，仅登记）**：参考其 Git / 看板 /
-  SQL / Notebook / 资源五个面板，结论如下——
-  - **值得做**：① **资源面板**（CPU、内存、GPU 占比 + 进程列表按 CPU 排序）——`termide`
-    已有 `system-monitor` crate，缺的是面板与接线；② **看板 Board**（三列
-    Todo/Doing/Done，带标签）——把现有 TODO 扫描器（`panel-ide/todo.rs`）升级成看板，
-    而不是另写一套解析。**① 与 ② 均已在 1.4.0 交付**，见文首 Shipped 表（资源面板 1.3.2、
-    用户看板 1.4.0）。
-  - **已有、不重复**：SQL（`panel-db`）、Markdown/HTML/Mermaid/图片/Outline/诊断/文件
-    管理器/Git diff·log·status/终端/编辑器。
-  - **明确不做**：Notebook（重、与 zetacode eval 重复）；Stencil 式 Git 图与提交泳道
-    （用户裁决"华而不实"，我们的 Git 中心保持现状）。
-  - **已落地**：资源面板（1.3.2）；**PDF Viewer**（1.4.0）——GUI 文档页
-    （`SessionKind::Pdf` + `main/crates/zetawork-gui/src/pdf.rs`，hayro 纯 Rust
-    光栅化），从文件树/显式路径打开；TUI 永不渲染（见 `docs/gui-pdf-viewer.md`）。
-  - **仍未开发（沿用旧登记）**：Vim/Emacs 兼容层、Docker Manager、Go Test Runner。
-
-- **任务面板 = 官方插件（2026-10-18/19 用户定方向，仅登记，设计待推敲）**：
+- **任务面板 = 官方插件（2026-10-18/19 用户定方向；设计已成文，实现未开始）**：
+  设计规格是 `document/task-panel-design.md`（决策完整：单 `task` 工具带 `op`、per-repo
+  `<project>/.zeta/tasks/<id>.md`、工作区绑定文件、失效规则、与用户看板分层、sticky disable、
+  23 条验收场景；见文首 Shipped 的 "Multi-repo task panel design" 行）。**代码尚未开始**：
+  全树没有 `.zeta/tasks` 的读写实现。
   一个**对 agent 可见、以工具暴露**的任务面板，**多仓库**——一个面板可以绑定多个
   repo，同一份任务视图跨仓库聚合；面板本体做成 **official 插件**（`plugins/official/`），
   **由 GUI 自动激活**（开面板即装/启，不要求用户手动启用）。
@@ -806,8 +692,9 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
     artifact/brief/run）和 `od` CLI（media/export/brand/design-systems/figma 等），
     **不把 22 个 MCP 工具注册给会话**；默认关闭，不写全局，其他仓库零开销。
     `/design status` 分别检测 CLI、daemon、MCP。
-  - **未落地**:zetawork 原生设置页、Web UI 集成、OpenDesign 自身 React UI 内嵌。
-    后续若做 Web UI，只经 gateway 调同一桥，不 import `packages/*` 源码。
+  - **未落地（2026-11-05 暂挂）**:zetawork 原生设置页、Web UI 集成、OpenDesign 自身 React UI 内嵌。
+    zetawork 暂停、`web-ui/` 冻结，两个宿主都不在开发面；重启条件 = zetawork 恢复或
+    `web-app/` 决定接设计面（届时只经 gateway 调同一桥，不 import `packages/*` 源码）。
   - **许可与分发边界**:它是独立上游 Apache-2.0，但捆绑的 design system/plugin/
     资产须单独核 provenance，**不得把 copyleft 链进我们的 MIT 发布面**；首版只调用
     外部 CLI/MCP，不分发其资产。
@@ -848,69 +735,22 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   - ⑦`python/robomp/` 散文仍通篇以 "omp" 称呼产品(如 `README.md:50,58,226`):
     品牌扫描 `SKIP_PREFIXES` 有意跳过 `python/`,随 ②的 env 迁移一并处理。
 
-- **tea CLI 工具套件(2026-10-07 用户裁决)**:自托管 Gitea 与 gitea.com 的 gh 工具族
-  对等集成。**一期已落**:`packages/coding-agent/src/tools/tea.ts`(单工具 op 判别联合,
-  omptype)+ `packages/coding-agent/src/tools/tea-common.ts`(owner/repo 解析、实例→login)
-  + `packages/coding-agent/src/utils/gitea.ts` 运行器;注册三点经 `gitea.enabled` 门控
-  (默认 false);提示词 `packages/coding-agent/src/prompts/tools/gitea.md`;文档
-  `docs/tools/tea.md`(真实文件名 `tea.md`,原条目写的 `gitea.md` 只是配方细节);测试
-  `packages/coding-agent/test/tools/tea.test.ts`。**剩余仅二期**:`issue://`/`pr://`
-  内部 URL 族 + Gitea Actions run watch。设计输入:tea repo create 静默失败(URL 打印但
-  仓不存在),push-create 可靠——建仓操作优先 push-create 或 API 回读验证。实测环境:LAN
-  NAS Gitea 28(192.168.11.172:3000,SSH 2222 别名 gitea,钥匙 BHYS-gitea-lan;git 调用
-  需显式 -i 钥匙,本仓曾 shallow 需先 unshallow)。
-
-- **v18.8.8 合并后专项排查产出（2026-10-11）**：
-  - **tracking 架构项（原④，2026-10-20 复核：四项均已实现）**：`status.json` 的
-    读改写走项目租约 `withFileLock(trackingLockPath(dir))`
-    （`packages/coding-agent/src/tools/tracking.ts:289-305`，锁键 :193-200，
-    临时文件+rename 原子写 :202-220）；`actions.jsonl` 由 `RotatingFileSink`
-    按 5 MiB / 3 份轮转（`packages/coding-agent/src/tools/tracking-actions-log.ts:17-21,40-41`），
-    读取端走有界尾读（同文件 :77-110）；`summaries/` 已有面板子页
-    （`web-ui/components/TrackingPanel.tsx:34,42,203`，服务端
-    `packages/coding-agent/src/server/web-gateway/tracking.ts:183`）；`updatedAt`
-    改为内容派生——取被服务文件 mtime 最大值
-    （`packages/coding-agent/src/server/web-gateway/tracking.ts:156-175`，响应装配 :192）。
-    **真实残留**：`sessions/`/`summaries/`/`plans/` 的 markdown 仍无条数/字节上限且
-    整篇读入（`readMarkdownDir`，同文件 :127-148），面板一次拉全量。
-  - **文档漂移（已收尾）**：版本线叙述已全树对齐到机制——稳定符号
-    `pi_natives_build_version()` + `__piNativesBuildVersion` 构建期值戳，逐版本
-    哨兵名（含 set-version 的改名步骤）已无残留；涉及 AGENTS.md、
-    `document/release.md`、`document/dev-conventions.md`、`document/merge-playbook.md`、
-    `document/design-principles.md`、`document/merge-review.md`、
-    `scripts/set-version.ts`、`scripts/release-v2.ts`。本条备注至此收尾。
+- **tracking 面板读取上限（v18.8.8 专项的唯一残留，2026-10-20 复核）**：`sessions/`/`summaries/`/`plans/`
+  的 markdown 仍无条数/字节上限且整篇读入（`readMarkdownDir`，
+  `packages/coding-agent/src/server/web-gateway/tracking.ts:127-148`），面板一次拉全量。
+  同批的「租约锁 / actions 轮转 / summaries 子页 / `updatedAt` 内容派生」四项已实现，
+  版本线文档漂移已收尾。
 
 - **pi v1.0.0 语义移植评估(2026-10-02 四子代理调查,结论入账)**:对比
   基线=上游树上 pi 重写点(5d826095780≈v0.30.x,2026-01-01)→pi v1.0.0,我方
   基线 977ec83(2026-07-31)距其 1389 提交。裁决:**durable 子系统暂缓**——
-  OMP 作者有主动引入意愿,等上游带进来再随 release 合并吸收,不自建。②
-  cacheWarming 三档**已落**(`providers.cacheWarming`,默认 `idle`)。仍排队:
+  OMP 作者有主动引入意愿,等上游带进来再随 release 合并吸收,不自建。（②
+  cacheWarming 三档已落:`providers.cacheWarming`,默认 `idle`。）仍排队:
   ①codemode/tool_search 官方内置扩展激活(defaultTools 设置页组,默认关)
-  ③TUI/UX 开关包(默认关清单逐项裁断)④provider stream events 语义移植。官方
-  插件生态参照:llama.cpp/codemode/tool_search/mcp 四内置,replaceable:true
-  让位机制,tuiText(key,fallback) 宿主注入 i18n。
-- **teamagent 修正(pi-messenger 插件审计,2026-10-02)**:①user scope 目录
-  (getAgentDir()/agents)、②project scope opt-in + trust 门控、⑤重启提示失实
-  ——三项均已修并带测试。**④已修(2026-10-20 复核)**:role 写入端发的是规范键
-  `thinking:`(`plugins/official/pi-messenger/teamagent-command.ts:83`),发现端同时接受
-  `thinkingLevel` 与 legacy `thinking`
-  (`packages/coding-agent/src/discovery/helpers.ts:367-374`),双读者往返有测试覆盖
-  (`plugins/official/pi-messenger/tests/teamagent-command.test.ts:137-172`)。
-  **③已修**:非编辑角色写入子代理文件时默认带最小工具白名单
-  `NON_EDITING_ROLE_TOOLS`(`teamagent-command.ts:38`,与 plan mode 的
-  `PLAN_MODE_TOOLS`——`packages/coding-agent/src/task/structured-subagent.ts:237`——
-  同值;插件独立发布,故本地定义),`renderAgentMarkdown` 输出 `tools: [...]`
-  (同文件 :85),`addTeamAgent` 对非编辑角色兜底、显式 `role.tools` 优先
-  (`teamagent-command.ts:126-132`),crew 镜像回读保留该键
-  (`crew/team/subagent-roles.ts:75`)。小项:usage 文案已列 `agents` 与 `--project`
-  (`teamagent-command.ts:240-251`)、`--user`+`--project` 冲突改为报错
-  (同文件 :256-261)、未知子命令提示列真实动词(同文件 :351-353)、测试覆盖补齐——
-  均已修。`.pi` 路径仅剩 legacy 迁移读取(`crew/utils/install.ts:26-28`、
-  `crew/utils/migrations.ts:60,104`),不在 `crew/team/*`。随 feat 分支落地,不经 dev/*。
-- **rail 拖拽排序**:`@dnd-kit/*` 已在 `web-ui/package.json` 声明却从未使用
-  (`useSortable`/`arrayMove`/`DndContext` 全库零命中);实际出货的是排序菜单,且
-  没有持久化任何顺序。要么接线 dnd-kit + localStorage 持久化,要么删掉未用的依赖
-  (随 U6 SidePane 框架一起评估)。
+  ③TUI/UX 开关包(默认关清单逐项裁断)④provider stream events 语义移植（全树
+  无 `provider_stream_event`，未落）。官方插件生态参照:
+  llama.cpp/codemode/tool_search/mcp 四内置,replaceable:true 让位机制,
+  tuiText(key,fallback) 宿主注入 i18n。
 - **TUI 套件命名定稿与 zeta 工作台(2026-09-30 用户裁定,取代上方的
   "TUI 三件套整合设计"旧条;命名口径 2026-10-15 收口)**:产品形态 =
   `zetawork` 打开**嵌套终端工作台**
@@ -956,28 +796,17 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   Alt+T 等全部热键)、Windows 默认 shell 修正(pwsh/powershell,不再
   落 System32 bash.exe 的 WSL 陷阱)、无色 chrome(终端自身底色)。
 
-- **模型侧「AI 崩溃度」统计(2026-10-11 用户裁决:用户侧先落,本项排队;用户复核「这是比较重要的统计量」,但先保主线稳定,按本队列延后)**:Frustration
-  页面目前只测**用户侧**。另一半是模型侧(用户原话:「统计 ai 的崩溃程度」),它的文本形态
-  完全不同——markdown/代码围栏/工具调用与结果/emoji——所以要复用 `stripStructuredContent`
-  一类剥离逻辑再加自己的信号(致歉与自责标记、反复重述、含糊兜底、工具失败螺旋、啰嗦度)。
-  **混语言硬约束(2026-10-11 用户裁定)**:模型思维链绝大多数是英文,正文可能英文、中文或
-  中英混杂,少数情况下思维链被强制成中文;所以模型侧分析必须语言中立、en+zh 词典同时生效,
-  绝不能按 UI 语言选词典——中文用户的统计天生是双语的。用户侧已据此落地(每条消息同时跑
-  en+zh 词典、ASR 优先词典、不依赖 emoji、词典未覆盖脚本显示为未评分);judge 提示词已改
-  改为语言中立且适配单条消息内混语言。
+  **2026-11-05 暂挂**：zetawork（含 `main/crates/zeta-main` 的 TUI）暂停，本项不新增代码；
+  重启条件 = `publish_zetawork` 恢复自动发布。命名口径仍有效（`@linxiraos/main` 包名留给
+  main 面），下面作为决策记录保留。另：迭代队列里的「tab 会话/handoff 联动（`handoff.json`
+  机制扩展）」随 `~/.zeta/handoff.json` 契约于 2026-10-17 退场而作废。
 
-- **~~插件宿主 i18n 机制~~ 已实现(2026-10-20)**:原待开发三步全部落地——①
-  `ExtensionContext.t(key, fallback?)` 按扩展注入(`extensions/runner.ts` 的
-  `withExtensionCatalog`/`scopeContextToExtension`,覆盖 handler、tool、command、
-  shortcut);② `PluginManifest.locales?: { zh?, en? }` 及解析
-  (`plugins/types.ts`、`plugins/parser.ts` 的 `parsePluginLocales`,非字符串路径报明确
-  错误);③ loader 读取 `locales/*.json`(`plugins/locales.ts`,清单未声明时回落约定
-  路径、按插件缓存、坏 JSON 只告警),查找顺序「当前语言 → en → fallback → key」,
-  语言实时读取,`/language` 切换无需重载。`docs/plugins.md`、
-  `document/plugin-system.md`、`plugins/official/README.md` 已从「预留」改为实现契约。
-  **仍排队**:pi-messenger 的用户可见字符串抽取(overlay / 命令 / 工具描述 / handler
-  文案,11 个文件量级、约 200+ 条字面量)+ zh 条目;抽取前必须划清「用户可见 UI 文案」
-  与「模型可见提示词(工具 description、crew/skills)」的边界——后者本地化会改变模型
+- **pi-messenger 用户可见文案抽取（插件宿主 i18n 的最后一环，2026-10-20 机制已实现）**：
+  `ExtensionContext.t(key, fallback?)`、`PluginManifest.locales`、`plugins/locales.ts`
+  的「当前语言 → en → fallback → key」查找均已在树（`docs/plugins.md` 为实现契约）。
+  仍排队 = pi-messenger 的用户可见字符串抽取（overlay / 命令 / 工具描述 / handler 文案，
+  11 个文件量级、约 200+ 条字面量）+ zh 条目；抽取前必须划清「用户可见 UI 文案」
+  与「模型可见提示词（工具 description、crew/skills）」的边界——后者本地化会改变模型
   行为。
 
 - **上游 2.0 评估：被推迟的三项(2026-10-13 用户裁决)**:完整决策记录见
@@ -1070,45 +899,6 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
     SDK/host 层「pi 兼容模式」而不是改默认。**开工前先定**:①兼容开关的承载层(SDK 选项 vs wire 版本
     协商);②`message_start`/`message_end` 之间增量装配的责任归属;③对既有 Web UI/desktop 消费面的回归范围。
 
-- **P2「按 DeepSeek Reasonix 补齐复杂控件」12 片(2026-10-13 用户裁决;2026-10-30 用户裁决：完全不做，整节关闭)**:范围 =
-  纯前端(`web-ui/**` + `desktop/**`)补齐 Reasonix 交互复杂度最高的控件,**12 个互不阻塞的独立 PR**,零网关/DTO 契约改动。
-  **2026-10-30 关闭：不做 S1–S12，不做 web-ui 新复杂控件；本节只留历史记录。**
-  **分叉已决**:`F1` 只做前端(解禁 `packages/**` 的四类后端控件另列,见本队列后两条);`F2` 引入会话多标签(不塞进本批,
-  另立计划,见下条);`F3` 终端留在右 dock(不做底部抽屉);`F4` 保留 textarea(不移植 contentEditable atom,chip 化放上下文行);
-  `F5` 独立 AskCard(须依赖 ask 通道 → 见本队列第三条,本批只做 `S6` 的 DecisionShelf 子集)。
-  **逐片一句话**:①`S1` 覆盖层三件套 `AnchoredPopover`/`ContextMenu`/`Tooltip` + 纯定位数学(唯一共享弹出层,替掉
-  `DraftContextBar`/`ChatInput`/`AppShell` 的手写定位);②`S2` slash 参数补全(ArgMenu:`model`/`skill`/`plugin`/`session`
-  等二级取值,复用既有零引用孤儿 `lib/models-cache.ts`)+ @/slash 菜单虚拟化(已存 `@tanstack/react-virtual`);
-  ③`S3` 输入面手感:粘贴折块(≥12 行或 ≥1200 字)、附件 SHA-256 去重、输入框右键菜单、`Alt+↑/↓` 键盘调高并随草稿持久化;
-  ④`S4` 草稿跨刷新(`localStorage` `zeta-web:draft:<key>` + LRU)+ 跨会话提示历史(↑/↓ 磁带,源=会话 JSONL,上限 50 会话);
-  ⑤`S5` 转写选区浮动菜单(Copy/加入对话)+ composer 上下文 chip(附件/工作区/会话引用/选中文本);⑥`S6` TodoPanel
-  (composer 上方常驻任务清单:done/total、当前任务、按批次持久化折叠、全完成自动折叠;后端 `GET /api/agent/<id>` 的
-  `todos` 已就绪)+ 最小 `DecisionShelf` 子集;⑦`S7` 工具调用分组/只读批次折叠 + 折叠态按会话持久化(`tool-buckets.ts`
-  在 `ChatWindow` 轮次构建期批处理,不下沉 `MessageView`);⑧`S8` 转写虚拟化(hot/warm/cold 三层窗口替换 `visibleCount`
-  分页,流式期间历史不重建 —— 本批最高风险片,旧路径留 flag 回退);⑨`S9` 底部状态栏(模型/工作区/分支/缓存命中%/
-  tokens/成本/轮次/上下文%,项可勾选排序,设置页新增分区);⑩`S10` 终端多会话 rail(≤4 活,复用已有
-  list/create/delete 路由)+ 终端输出「加入对话」插入 composer;⑪`S11` 代码查看器搜索(大文件 >400 行切 CodeMirror 6
-  只读视图,包已在 `package.json` 且全库零 import,不新增依赖;字面量+正则搜索、命中计数、行号);⑫`S12` Markdown/数学加固
-  (货币不误判、LLM LaTeX 修复、复制回原始 TeX、Young 图)+ Mermaid 串行队列·`svg-sanitize` 消毒·pan/zoom。
-  **量级**:**约 30–45 agent-日 [推断]**(单列 `S8` 约 5–10;其余各 1–5)。**为什么推迟**:1.2.1 只带已合内容;
-  且 `S1`/`S9`/`S10` 触碰 `AppShell.tsx`、`panel-registry.tsx`(被 P1 `feat/desktop-ui-p1-stats-branch` 占用),
-  `S8` 须与窗口滚动修复串行,**必须等 P1 合入 main 后 rebase,不并行**。**开工前先定**:①P1(stats/branches)与滚动修复的
-  合并窗口(硬串行前置);②整批按依赖图开工(`S1 → S2/S3/S4/S5`、`S7 → S8`,其余独立)还是先做 `S1` 共享件;
-  ③每片的真实浏览器证据目录与验收形态(用户硬性要求,已写死在计划 §3)。
-  **取证(本地,`temp/` 不随仓库发布)**:`temp/.omp-tmp/reasonix-controls-plan.md`(含逐片范围/验收/依赖图/F1–F5)。
-
-- **会话多标签 B/C 两片(2026-10-13 用户裁决;A 已合 PR #168,B/C 待做)**:范围 = 在已合并的 PR A(标签骨架:纯模型
-  `lib/session-tabs.ts` + `SessionTabBar` + 切换/新建/关闭 + 保活 + 单活动 SSE)之上补齐两片。**B(持久化+恢复+徽章+关闭族)**:
-  刷新后标签/顺序/活动项恢复(`zeta-web:session-tabs-v1` + 编解码/校验/淘汰,冷标签零请求)、后台运行徽章(只吃已消费信号)、
-  右键「关闭其他/关闭右侧」、上限淘汰(**12**,LRU 且**不中止**运行)、draft 标签关闭确认。**C(DnD+快捷键+收口)**:HTML5 DnD
-  重排持久化、`Alt+1..9` 与桌面壳 `Ctrl+W`、活动标签自动滚入可视区、roving tabindex/ARIA 达标、订正 `web-ui/AGENTS.md`
-  File Map。**另列(不在 B/C)**:审批徽章接线(`extension_ui_request` → 「等待审批」)依赖 **ask 通道**(见本队列第三条),
-  且会改变既有交互行为,须独立立项与独立证据(计划分叉点 4 的推荐 = 不做,仅记录降级)。**量级**:B/C 各 1 PR,
-  **约 4–8 agent-日 [推断]**;**为什么推迟**:1.2.1 只带已合内容;`B` 依赖已合的 A,`C` 依赖 B,审批徽章依赖 ask 通道。
-  **开工前先定**:①上限 **12** 与「失活但运行中保留 ≤2 条流」的默认值(计划分叉点 1/2 的推荐值,需确认);
-  ②「关闭标签不中止运行」(默认)与菜单项「关闭并中止运行」是否同批;③是否顺带接线 `extension_ui_request`(推荐:本批不做)。
-  **取证(本地)**:`temp/.omp-tmp/session-tabs-plan.md`(含 B/C 逐条范围文件、可观察验收、风险与回滚)。
-
 - **审批内核钩子(自建能力第三批;**唯一触及内核面的项**;2026-10-13 用户裁决 F5=B)**:范围 = 把审批从「文本 `select`」升格为
   结构化事件:**内核**在 `ExtensionUIContext` 新增**可选** `approvalRequest?({toolCallId,toolName,tier,approvalMode,reason?,prompt,expiresAt?})
   → ApprovalDecision("allow_once"|"allow_always"|"reject_once"|"reject_always")`,发射点 `wrapper.ts` 的 `approvalCheck.required`
@@ -1144,43 +934,16 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   ③`local` 文件面只做只读清单还是允许编辑(推荐只读);④可选 `memory_changed` 事件是否做(推荐不做,避免与 `state_changed`
   抢语义)。**取证(本地)**:`temp/.omp-tmp/capability-contracts.md` §2 与 §5.1/§9(逐后端现状 `文件:行号`、拟议契约、代价、未决项)。
 
-- **Node 残留清点后续:web-ui 生产产物改用 Next 官方 Bun adapter(P0;2026-10-13 用户裁决:此项入队待排,P2 另行先做)**:
-  范围 = 把 `web-ui/` 的生产产物从 **Node 目标**的 `.next/standalone`(`web-ui/next.config.ts:17` `output: "standalone"`)
-  换成 Next 官方 **Bun adapter**(`nextjs/adapter-bun`,产出 `bun-dist/` + Bun 启动的 `server.js`),并把
-  `packages/coding-agent/src/commands/web-ui-launcher.ts:20` 的 `ZETA_WEB_RUNTIME || "node"` 默认改为 `bun`
-  (保留 `ZETA_WEB_RUNTIME=node` 逃生阀)。这是唯一"web 面脱离 Node、并解锁删除 desktop 内置 Node"的实质大改。
-  **量级**:**中高**——1 个构建+运行时改造 PR + 原生依赖矩阵逐个体测,**约 5–15 agent-日 [推断]**。
-  **为什么推迟**:1.2.1 只带已合内容;且它本质是"换产物形态",风险集中在 `web-ui/next.config.ts:28-38` 的
-  `serverExternalPackages`(`better-sqlite3`/`undici`/`fastembed`/`onnxruntime-node`/`tar`/`@anush008/tokenizers*`)——
-  Node-API 原生模块在 Bun 上是否可用**必须实测**(`better-sqlite3` 在 Bun 侧最稳的替代是 `bun:sqlite`,但 API 不同需改代码)。
-  **开工前先定**:**原生依赖矩阵逐个体测的清单与通过标准**(每个模块:能否在 Bun 下加载 / 关键路径冒烟 / 失败是否阻塞发布);
-  另需定 `bun --bun next start` 与 adapter `bun-dist/` 两条路径的取舍口径——Next 官方自 v16.4.0 起把 Bun 列为
-  **Verified Adapter**,但我们今天打包的是 **Node 目标产物**,**不在其承诺面内**(把 Node 产物塞给 `bun` 跑 ≠ 官方支持)。
-  **取证(本地,`temp/` 不随仓库发布)**:`temp/.omp-tmp/node-residency-report.md` §1.3(a)、§3 第 1/10 条、§4.1、§5.1(两条 P0)。
-
-- **Node 残留清点后续:删 desktop 内置 Node staging + npm 启动器/安装文档成对改(P1;依赖上一条 P0)**:
-  范围 = ①删 desktop 打包期的内置 Node staging——`desktop/scripts/prepare-runtime.mjs:53`
-  (`fs.copyFileSync(process.execPath, stagedNode)`)、`desktop/scripts/platform.mjs:12`(`nodeBinaryName`)、
-  `desktop/src/main.ts:66` 的 `WEB_RUNTIME_NAME`(及其 `webRuntimeName` 契约面:`desktop/src/serve-resolution.ts:59,123,141`、
-  `desktop/src/tool-resolution.ts:44`);②把 2 个 npm 启动器(`main/npm/main/bin/zeta.js`、`termide/npm/ide/bin/zeta-ide.js`)的 shebang 从 `#!/usr/bin/env node` 改为 `bun`、`engines` 声明改为
-  `{"bun": ">=1.3.14"}`,**并同步把安装文档改为 `bun install -g`**(`README.md:33` 的 "Node 18+ or Bun"、
-  `docs/user-guide.md:14-18`、`docs/user-guide.zh-CN.md:13`)。**量级**:低——2 个 PR,**约 1–3 agent-日 [推断]**。
-  **为什么推迟**:**依赖 P0**——内置 Node 存在的唯一理由是托管 Next standalone 的 `server.js`(Node 目标产物),
-  P0 不落地就删不掉;且**启动器 shebang 与安装文档必须成对改**:npm 生成的 Windows `.cmd` shim **硬编码 `node`**
-  (本仓实物证据:`web-ui/node_modules/.bin/next.cmd` 里 `SET "_prog=node"`;`desktop/node_modules/.bin/electron-builder.cmd` 同理),
-  只改 shebang 而安装方式仍是 `npm i -g` 就是**假迁移**(Windows 上 `npm i -g @linxiraos/zeta` → `zetacode` 会用系统 Node
-  跑 Bun 目标 bundle,因 `Bun.semver` 未定义而抛错)。**开工前先定**:①删 staging 后"目标机无需 Node"改由 Bun 承担的口径,
-  以及 `desktop/README.md`、`AGENTS.md`、desktop smoke 断言的同步改动清单;②`bun install -g` 在
-  Windows/macOS/Linux 三端生成 shim 的行为确认(不再是 `.cmd`/`node`,而是 `.exe`/`bunx` 侧)。**取证(本地)**:
-  `temp/.omp-tmp/node-residency-report.md` §1.3(b)、§2.1、§2.2、§3 第 2/4/5 条、§4.2、§5.1(两条 P1)。
-  （行号说明:报告写作 `main.ts:59-60`、`README.md:36`、`run-ci.sh:178`,登记时已漂移;上列为登记时的 main 实测行号。）
-
-- **Node 残留清点后续:清理项(P3;2026-10-13 登记)**:
-  范围 = ①`packages/omptype/package.json:43-46` 删 `engines.node`(只保留 `bun`;它是唯一同时声明 node 的工作区包);
-  ②`scripts/install-tests/run-ci.sh:185` 的 `node -e "..."`(写 `pkg.overrides`)换成 `bun -e`。**量级**:极低——1 PR,
-  **约 0.5 agent-日 [推断]**。**为什么推迟**:纯一致性清理,无收益无风险,排在 P0/P1 之后。**开工前先定**:无实质分叉,
-  仅需在 CI 环境确认 `bun -e` 对那段 `require('fs')`/`JSON.parse` 脚本的等价性。**取证(本地)**:
-  `temp/.omp-tmp/node-residency-report.md` §2.2、§2.3、§3 第 13/14 条、§5.1(P3 行)。
+- **Node 残留：npm 启动器 shebang/engines + 安装文档成对改（2026-10-13 登记；2026-11-05 收窄）**:
+  原条目 ①「删 desktop 打包期的内置 Node staging」随 `desktop/` 暂停作废（
+  `desktop/scripts/prepare-runtime.mjs:53` 仍在，但该壳不再构建）。剩下 ② 仍有效：
+  `termide/npm/ide/bin/zetaide.js` 仍是 `#!/usr/bin/env node`、`termide/npm/ide/package.json`
+  的 `engines` 仍是 `{"node": ">=18"}`（`main/npm/main/` 同形，但 `main/` 已暂停）；
+  **必须与安装文档成对改**（`README.md:112` 仍写 "Node 18+ or Bun"），否则 `npm i -g` 生成的
+  Windows `.cmd` shim 仍硬编码 `node`，等于假迁移。**量级**:低——2 个 PR,**约 1–3 agent-日 [推断]**。
+  **开工前先定**:`bun install -g` 在 Windows/macOS/Linux 三端生成 shim 的行为确认。
+  **取证(本地)**:`temp/.omp-tmp/node-residency-report.md` §1.3(b)、§2.1、§2.2、§3 第 2/4/5 条、
+  §4.2、§5.1(两条 P1)。
 
 - **Node 残留:「明确不改」清单(防后人误改;2026-10-13 登记)**:
   下列均为**刻意保留 Node**,不是漏改、不是待办;任何人**不得**以"全线 Bun"为名改动:①**Electron 主进程**
@@ -1195,6 +958,10 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   `temp/.omp-tmp/node-residency-report.md` §5.2(逐条原因)、§3 第 3/8/9/11 条。
 
 - **Node 残留清点后续:P2 已开工 + NAPI/Bun "best effort" 风险事实(2026-10-13 记录)**:
+  **2026-11-05 复核**：CI 的 Bun natives 回归已是阻塞性（`.github/workflows/ci.yml` 的
+  "Bun natives regression" job，注释写明 "A real Bun gap found here is a release blocker"），
+  `Cargo.toml:358-359` 显示 addon 只用到 level 8 type-tag 校验；`findNpxCli()` 的 Bun 分支未逐条复核。
+  下面是保留的风险事实：
   状态 = P2 三项(`napi10` 降到实际所需的最低 Node-API level、CI 为 Bun 的 natives 加**阻塞性**(而非
   `continue-on-error`)回归、`packages/coding-agent/src/server/web-gateway/npx.ts:29-45` 的 `findNpxCli()` 增加 Bun 分支)
   **已另派、开工中**,不属本队列(此处仅留状态与风险)。**关键风险事实**(须先记牢):我们的 addon 用 **Node-API level 10**
@@ -1205,7 +972,7 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   迁移收益为零(已经在 Bun 上),风险是"某次 Bun 升级把深水区 NAPI 语义改坏"。**取证(本地)**:
   `temp/.omp-tmp/node-residency-report.md` §4.3、§5.1(两条 P2)。
 
-- **README 语义修正项(待定;2026-10-13 登记)**:`README.md:33`(报告记作 :36)的 "Install the workspace
+- **README 语义修正项(待定;2026-10-13 登记)**:`README.md:112`(登记时报告记作 :36)的 "Install the workspace
   (**Node 18+ or Bun** on the machine)" 与实测不符——`@linxiraos/zeta` 实际**需要 Bun**(发布产物是 Bun 目标 bundle,
   `packages/coding-agent/src/cli.ts:47` 模块顶层访问 `Bun.semver`);`@linxiraos/zeta-web` 需要 **Node ≥ 22.19.0**
   (`web-ui/bin/node-version.js:3` 硬门禁);真正只需系统 Node 的是 main/ide 两个 Rust 工具的**启动器**。
@@ -1244,13 +1011,6 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   **为什么待定**:属**既定策略**,非本次 flake 的成因(#187 未触碰),且放宽/收紧回拨会影响额度耗尽时的失败面,需用户裁断。
   **开工前先定**:阈值取值与「窗口极短时优先用 fallback 而非主模型」是否符合产品意图(与我们默认 YOLO、不新增审批层的姿态一致)。
   **取证**:`pr://187` 根因 2(含逐档阈值与 `model_change`/`isSelectorSuppressed()` 时间线探针)。
-
-- **右栏 HTML 插件宿主（2026-10-16 用户裁决；只登记，不暴露、不开发）**:用户口径 —— **右栏要接
-  HTML 插件宿主**，但**先把"插件"这件事在路线图里放好，暂不对外暴露**。本轮只登记方向：右栏面板
-  需要一个能挂第三方 HTML 页面的宿主，形态二选一 —— **GUI 内嵌 WebView2 面板**（倾向此项：spike
-  已证明 WebView2 子窗口在本机可行、GUI 内可缩放），或复用 `zetacode serve` 服务端 + GUI 内浏览器
-  视图。插件体系本身已有设计文档（`document/plugin-system.md`、`plugin-storage-spec.md`、
-  `plugin-manager-installer-plumbing.md`），本项**只做宿主接线**，不重做那三份设计。
 
 - **双向 subagent relay / `zeta-relay`（2026-10-30 用户裁决；暂不开发）**:只登记方向，不排期。
   形态是**对端进程 + 主会话**，不是 DSH `ctx.subagents` 的 child，也不走 `dsh-subagent-acp`：
@@ -1296,7 +1056,8 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   `codex app-server` JSON-RPC（进程级，工具归 Codex）。
   ③ **Command Code**：**研究中**（闭源，对外只有 `cmd acp`）。
   ④ **味觉算法并入记忆**：可能把 Command Code 的 **taste 算法**与我们的记忆叠加——我们本身已加
-  **tracking**（见 P0「Long-term tracking document + prompt-cache contract」）。**关键事实**：我们
+  **tracking**（见 `packages/coding-agent/src/prompts/tools/tracking.md` 与文首 Shipped 的
+  Long-term tracking documents 行）。**关键事实**：我们
   现有记忆工程（`packages/coding-agent/src/sharpshooter/` → 项目决策
   `architecture.md`/`product.md`/`style.md`，存 `<agentDir>/memories/sharpshooter/<bank>/`；
   `@linxiraos/pi-mnemopi` SQLite recall）与 tracking **都靠模型自觉性**（LLM 抽取/写入），
@@ -1318,3 +1079,22 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
 - `document/upstream-sync.md` records the release-baseline ledger; this document
   is the product-side counterpart.
 - Re-check upstream for competing roadmaps before each priority starts.
+- **2026-11-05 审计记录（删掉的条目及其理由；roadmap 只留未建计划）**：
+  - **被新裁决取代**：2026-10-15/16「`zetawork` 是唯一桌面应用」两段裁决整段删除 —— 由 2026-11-05
+    渲染器裁决取代（zetawork / desktop 暂挂，渲染器 `web-app/`，`packages/coding-agent/src/server/studio-web-app.ts`）。
+  - **已交付/已解决（删除；已有 Shipped 行的标了 Shipped）**：跨工作区多主代理消息（Agent mesh，`packages/coding-agent/src/mesh/`，
+    见 Shipped 行）、long-term tracking 缓存契约（`packages/coding-agent/src/prompts/tools/tracking.md`
+    的 Cache ordering / Sanctioned delivery path 段；原文已明示"no enforcement point"，这是设计而非缺口）、
+    模型侧崩溃度统计（`packages/stats/src/model-side.ts`）、`tea` 二期（`tools/tea-issue-pr.ts`）、
+    teamagent 修正（`plugins/official/pi-messenger/teamagent-command.ts` + 测试）、rail 拖拽
+    （`@dnd-kit` 已接线 `web-ui/components/sidebar/SidebarProjectsList.tsx`）、
+    Node 清理项 P3（`packages/omptype/package.json` 的 `engines` 只剩 `bun`；`run-ci.sh` 已无 `node -e`）、
+    右栏 HTML 插件宿主（`packages/coding-agent/src/extensibility/plugins/panels.ts:178` 的 `html` 面板 +
+    GUI `plugin_panels.rs`）、TTT About branding 与 TTT 小工具（vendored TTT 编辑器 2026-10-16 退场，
+    包名 2026-10-17 由 termide 的编辑器入口接手，见 `editor/npm/`；PDF Viewer 已交付，见 Shipped）、
+    许可分层（已定稿：`LICENSE` 分层声明、`README.md:386`、
+    `scripts/check-license-map.ts`；整仓 AGPL 需先替换 `crates/pi-natives` 的 CDDL `inferno`）。
+  - **裁定不做**：Reasonix 12 片（2026-10-30 用户裁决）；面板集里的 Notebook / Stencil Git 图 /
+    Vim-Emacs 兼容层 / Docker Manager / Go Test Runner；Node 残留 P0（web-ui 的 Next Bun adapter）
+    与 P1 的 desktop Node staging —— `web-ui/` 冻结、渲染器换成 `web-app/`、`desktop/` 暂停，前提消失。
+  - **宿主消失**：会话多标签 C 片（`web-ui/` 冻结，`web-app/src/studio` 里没有标签实现）。

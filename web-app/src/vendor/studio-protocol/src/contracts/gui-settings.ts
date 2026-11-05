@@ -25,12 +25,6 @@ export const GUI_SETTING_DEFINITIONS = {
     "zh": "OpenAI 实时纠偏",
     "en": "OpenAI live steering"
   },
-  "telemetry.otlpExportEnabled": {
-    "type": "boolean",
-    "default": true,
-    "zh": "OTLP 导出",
-    "en": "OTLP export"
-  },
   "advisor.evictStaleResults": {
     "type": "boolean",
     "default": true,

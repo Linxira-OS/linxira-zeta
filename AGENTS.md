@@ -14,12 +14,15 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
 |---|---|
 | OMP（`omp-upstream`） | 运行时树；**只按官方 release tag 集成**（§6） |
 | Pi（`pi-upstream`） | 语义移植来源；永不直接 merge（`port/pi/<scope>` 分支） |
-| OMP Web（`omp-web-upstream`） | **冻结**：`web-ui/` 已分叉，只手工 cherry-pick，记进 `document/upstream-sync.md` |
+| OMP Web（`omp-web-upstream`） | **冻结**：`web-ui/` 只作快照（2026-11-05 起非产品面），只手工 cherry-pick，记进 `document/upstream-sync.md`；产品渲染器是 `web-app/` |
 | Pi Web（`pi-web-upstream`） | Web 特性的语义移植来源（`port/pi-web/<scope>` 分支） |
 
 分支：`main` = 产品分支；`sync/omp` = 上游未改镜像（只快进，永不并入 `main`）；
 `web-ui/` 是独立快照（自己的包管理器与 `web-ui/AGENTS.md`，不是根 workspace 包，
-不得有自己的 GitHub workflow——根 `.github/workflows/ci.yml` 覆盖它）。
+不得有自己的 GitHub workflow——根 `.github/workflows/ci.yml` 覆盖它）；**2026-11-05
+起冻结**（构建门禁 `web_ui_build` 同日退役），不再作为产品 UI。产品渲染器是 `web-app/`
+（Vite 7，自己的 `package-lock.json`，同样不是根 workspace 成员）；它的构建在 CI
+`check` job 里（`npm ci` + `npm run build:ci`），`zeta serve` 服务 `web-app/dist`。
 
 `temp/` = 仓库内 scratch（gitignore，永不提交）：外部参考克隆 + 自己的 worktree
 （`temp/<topic>`）。**必须在仓库路径内**，绝不用系统临时目录（重启即清空）。
@@ -51,7 +54,10 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
     `__ompLegacy*` 等仍在上游名下），扫齐清单见 `document/agents/brand/registry.md`
     §「待扫清单」；代价是每次同步多解冲突，接受。
   - **用户可见配置走读旧写新**：`OMP_*` 环境变量（145 个）与 `.omp-plugin` 在过渡期
-    同时接受旧名；一次性改名会静默破坏用户配置（旧裁定理由仍成立）。
+    同时接受旧名；一次性改名会静默破坏用户配置（旧裁定理由仍成立）。上游状态目录
+    （`~/.omp` 的 models/credentials/dotenv）默认**不读**：只有设置
+    `compat.importLegacyOmp`（env `ZETA_OMP_COMPAT`，默认 false，env 优先）打开时
+    才做只读导入（`packages/coding-agent/src/config/omp-compat.ts`）。
   - **共享端点归台账管**：`my.omp.sh` 现仅作协作中继常量（`DEFAULT_RELAY_URL`，绝对
     冻结，改了切断 `/join`）；分享上传面已于 2026-11-02 退役（`/share` 只把脱敏后的
     转录稿交给 agent 走 GitHub 发布，不再上传）。`check-shared-infra` 只钉落点、
@@ -76,17 +82,20 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
 
 | 写什么 | 放哪里 |
 |---|---|
-| React 组件 / pages / hooks | `web-ui/` |
+| React 组件 / pages / hooks | `web-app/src/studio/`（产品渲染器；`web-ui/` 已冻结，不再加功能） |
+| Studio 宿主 `/api/v1/*`（pair / CSRF / query / command / events） | `packages/coding-agent/src/server/studio-host/`（`ops/` 一家族一文件；`zeta-server.ts` 只做路由分派） |
+| 渲染器静态服务（`web-app/dist`、history fallback、CSP） | `packages/coding-agent/src/server/studio-web-app.ts`（`ZETA_WEB_APP_DIR` 覆盖） |
 | Gateway REST handler | `packages/coding-agent/src/server/web-gateway/`（路由在 `web-gateway.ts`） |
 | 频道 / 机器人运行时 | `packages/coding-agent/src/channels/` |
 | 配置层（web.yml） | `packages/coding-agent/src/config/web-config.ts` |
-| zetawork（TUI / GUI） | `main/crates/zeta-main/`、`main/crates/zetawork-gui/` |
+| zetawork（TUI / GUI，**暂停**） | `main/crates/zeta-main/`、`main/crates/zetawork-gui/`（`@linxiraos/main` 只在 `publish_zetawork` 输入时发布） |
 | zetaide / vendored TermIDE | `termide/`（**不要**在 `main/` 里重写 vendored 面板库） |
 | `@linxiraos/editor` npm 面 | `editor/` |
-| Electron 壳 | `desktop/src/main.ts`（**退役中，不新增代码**） |
+| Electron 壳（**暂停**） | `desktop/src/main.ts`（不新增代码） |
 
-依赖方向不可倒：`desktop/`、`web-ui/` 只经 HTTP 访问 `zeta serve` /
-`webGatewayFetch`，**不得 import `packages/*` 源码**。
+依赖方向不可倒：`web-app/` 只经 HTTP 打 `/api/v1/*`（Studio 宿主，由它转 gateway）；
+`desktop/`、`web-ui/` 属冻结/暂停面，同样只走 HTTP，
+**不得 import `packages/*` 源码**。
 
 Catalog 值（models、identity、descriptors、cache）从 `@linxiraos/pi-catalog/<module>` 引；
 `@linxiraos/pi-ai` 只导出它自己签名用到的类型，别经它拿 catalog 值。
@@ -94,7 +103,8 @@ Catalog 值（models、identity、descriptors、cache）从 `@linxiraos/pi-catal
 插件代码与登记一律放 `plugins/`（`official/` 放源码，`community/` 只放指针），
 不放 `packages/`。体系见 `document/plugin-system.md`。
 
-展开版（含退役前的 desktop/web-ui 内嵌架构）：`document/agents/surface/code-locations.md`。
+展开版（含 `web-app/` 与 `studio-host/` 归属、退役前的 desktop/web-ui 内嵌架构）：
+`document/agents/surface/code-locations.md`。
 
 ## 5. 文档边界
 
@@ -200,8 +210,9 @@ PR 只承担评审与 CI，**合并由用户点**——agent 不自行 merge 自
 ## 10. `document/` 目录结构
 
 - `document/agents/` — 从本文件移出的操作知识，**按问题分目录**：`merge/`（同步细节、
-  损伤类别、文件所有权）、`brand/`（品牌注册表）、`surface/`（代码落点、包清单）、
-  `workflow/`（分支、发布、GitHub）。索引见 `document/agents/README.md`。
+  损伤类别、文件所有权）、`brand/`（品牌注册表）、`surface/`（代码落点、包清单、
+  Studio 设计与渲染性能）、`workflow/`（分支、发布、GitHub）。索引见
+  `document/agents/README.md`。
 - 其余 `document/*.md` — 架构与流程正本（`architecture-layers.md`、
   `merge-playbook.md`、`release.md`、`dev-conventions.md`、`local-ci.md`、
   `upstream-sync.md` 台账等）。
@@ -215,6 +226,7 @@ PR 只承担评审与 CI，**合并由用户点**——agent 不自行 merge 自
 | 同步流程、六阶段、合并前核对 | `document/agents/merge/sync-procedure.md`、`document/merge-review.md` |
 | 品牌残留、包名 / bin / 资产名 | `document/agents/brand/registry.md`、`document/brand-surface-rules.md` |
 | 代码该放哪个目录、包与插件布局 | `document/agents/surface/code-locations.md`、`document/agents/surface/packages.md` |
+| Studio 渲染器 / 宿主 `/api/v1/*` / 渲染性能 | `document/agents/surface/code-locations.md`、`packages/coding-agent/src/server/studio-host/index.ts`、`document/agents/surface/web-app-performance.md` |
 | 分支 / 推送 / 整合批次 / worktree | `document/agents/workflow/branches.md` |
 | 发布链、tag、更新日志、版本线 | `document/release.md`、`document/agents/workflow/release-publish.md` |
 | 上游 issue→PR→发布哨兵自动化 | `document/agents/workflow/robomp.md` |

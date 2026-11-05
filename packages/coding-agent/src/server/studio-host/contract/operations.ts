@@ -191,7 +191,7 @@ export interface QueryResultMap extends ContextViewResultMap {
 	/** Host workspace inventory. Paths never leave the Host registry. */
 	"projects.list": WorkspaceListReadModel;
 	"workspace.fileTree": WorkspaceFileTreeReadModel;
-	/** Homepage token heatmap / curve. Aggregates from omp stats.db only. */
+	/** Homepage token heatmap / curve. Aggregates from the `zetacode stats` database (`stats.db`) only. */
 	"usage.get": TokenUsageReadModel;
 	/** Loopback URL of the native statistics dashboard, for in-app embedding. */
 	"stats.dashboard": StatsDashboardReadModel;
@@ -586,7 +586,7 @@ interface CoreCommandInputMap {
 	"models.roles.create": ModelRoleCreateInput;
 	/** Delete a custom role (`modelTags` + `modelRoles`). Built-in roles are rejected. */
 	"models.roles.delete": { readonly roleId: string };
-	/** Switch `modelRoleStorage` between global config and `<cwd>/.omp/config.yml`. */
+	/** Switch `modelRoleStorage` between global config and `<cwd>/.zeta/config.yml`. */
 	"models.roleStorage.set": { readonly storage: "global" | "project" };
 	/** Persist `retry.fallbackChains` and optional `retry.fallbackRevertPolicy`. */
 	"models.fallback.set": ModelFallbackSetInput;
@@ -609,7 +609,7 @@ interface CoreCommandInputMap {
 	"models.provider.test": ModelProviderTestInput;
 	/** One-shot discovery HTTP probe. Does not write `models.db`. */
 	"models.provider.probe": ModelProviderProbeInput;
-	/** Force `omp models refresh` so runtime discovery rewrites `models.db`. */
+	/** Force `zetacode models refresh` so runtime discovery rewrites `models.db`. */
 	"models.discovery.refresh": EmptyInput;
 	"models.catalog.refresh": EmptyInput;
 	/** Persist the quick model-switch rotation order into config.yml. */
@@ -631,7 +631,7 @@ interface CoreCommandInputMap {
 	/**
 	 * Whole-package plugin enable/disable: whether the plugin enters the
 	 * Runtime session. Never uninstalls or touches node_modules. Writes the
-	 * OMP-native files (installed_plugins.json / omp-plugins.lock.json /
+	 * Zeta-native files (installed_plugins.json / omp-plugins.lock.json /
 	 * plugin-overrides.json) so `skills.get` reflects the change immediately.
 	 */
 	"plugins.setEnabled": {
@@ -652,7 +652,7 @@ interface CoreCommandInputMap {
 		readonly scope?: "user" | "project";
 	};
 	/**
-	 * Enable/disable a configured MCP server in OMP-native mcp.json
+	 * Enable/disable a configured MCP server in Zeta-native mcp.json
 	 * (and user-level disabledServers / enabledServers). Reflects in `mcp.get`
 	 * immediately; Runtime reconnect is `new-session`.
 	 */
@@ -675,8 +675,8 @@ interface CoreCommandInputMap {
 		readonly scope?: "user" | "project";
 	};
 	/**
-	 * Open the native OMP skills root (user `~/.omp/agent/skills` or project
-	 * `.omp/skills`) in the system file manager. Creates the directory if missing.
+	 * Open the native OMP skills root (user `~/.zeta/agent/skills` or project
+	 * `.zeta/skills`) in the system file manager. Creates the directory if missing.
 	 */
 	"skills.revealRoot": {
 		readonly scope?: "user" | "project";
@@ -696,13 +696,13 @@ interface CoreCommandInputMap {
 		readonly name: string;
 		readonly scope?: "user" | "project";
 	};
-	/** Create or replace a user/project `.omp/agents/*.md` definition. */
+	/** Create or replace a user/project `.zeta/agents/*.md` definition. */
 	"agents.definition.upsert": AgentDefinitionUpsertInput;
 	/** Remove a user/project task-agent file. Bundled/plugin agents cannot be deleted. */
 	"agents.definition.delete": AgentDefinitionDeleteInput;
 	/** Persist per-agent overlays in config.yml (disable / model / prewalk / advisor). */
 	"agents.definition.configure": AgentDefinitionConfigureInput;
-	/** Open the native `omp stats` dashboard in the default browser. */
+	/** Open the native `zetacode stats` dashboard in the default browser. */
 	"usage.openDashboard": EmptyInput;
 	/** Execute one strictly typed Host-owned Git operation. */
 	"git.execute": GitExecuteInput;

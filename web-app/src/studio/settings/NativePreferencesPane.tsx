@@ -22,7 +22,30 @@ export interface NativePreferencesContext {
   available: boolean;
   capabilities?: ClientBootstrap["capabilityManifest"] | undefined;
 }
-const descriptions: Record<NativePreferenceKey, [string, string]> = {
+/**
+ * Keys this pane exposes. The deleted telemetry export opt-in is deliberately
+ * absent: Zeta runs no collector, so there is no export switch to render.
+ */
+const PANE_KEYS = [
+  "advisor.enabled",
+  "advisor.reviewMode",
+  "advisor.reviewInterval",
+  "advisor.syncBacklog",
+  "advisor.immuneTurns",
+  "advisor.maxNotesPerUpdate",
+  "advisor.evictStaleResults",
+  "advisor.continueSeverity",
+  "lsp.requestTimeout",
+  "sharpshooter.minPromptLength",
+  "title.icons",
+  "title.generator",
+  "title.refreshOnReplan",
+] as const;
+type PaneKey = (typeof PANE_KEYS)[number];
+type PaneRow = NativePreference & { key: PaneKey };
+const isPaneRow = (row: NativePreference): row is PaneRow =>
+  (PANE_KEYS as readonly string[]).includes(row.key);
+const descriptions: Record<PaneKey, [string, string]> = {
   "advisor.enabled": [
     "启用 Advisor",
     "按所选 Advisor 模型审查任务，可能产生额外模型调用。",
@@ -72,12 +95,8 @@ const descriptions: Record<NativePreferenceKey, [string, string]> = {
     "重新规划时刷新标题",
     "待办计划重新初始化时更新自动标题；手动命名不受影响。",
   ],
-  "telemetry.otlpExportEnabled": [
-    "OTLP 导出",
-    "控制是否向已配置的 OTEL 目标导出追踪、日志和指标；保存后下次启动生效。",
-  ],
 };
-const englishDescriptions: Record<NativePreferenceKey, [string, string]> = {
+const englishDescriptions: Record<PaneKey, [string, string]> = {
   "advisor.enabled": [
     "Enable Advisor",
     "Review tasks with the Advisor model. Additional model calls may be billed.",
@@ -127,12 +146,8 @@ const englishDescriptions: Record<NativePreferenceKey, [string, string]> = {
     "Refresh title on replan",
     "Update automatic titles when a plan is reinitialized. Manual titles are preserved.",
   ],
-  "telemetry.otlpExportEnabled": [
-    "OTLP export",
-    "Export to configured OTEL destinations. Takes effect on the next launch.",
-  ],
 };
-const demo = (): NativePreference[] =>
+const demo = (): PaneRow[] =>
   [
     ["advisor.enabled", false, undefined],
     ["advisor.reviewMode", "turn", ["turn", "agent-end"]],
@@ -147,18 +162,15 @@ const demo = (): NativePreference[] =>
     ["title.icons", "emoji", ["nf+emoji", "emoji", "boring"]],
     ["title.generator", "fork", ["fork", "tiny"]],
     ["title.refreshOnReplan", true, undefined],
-    ["telemetry.otlpExportEnabled", true, undefined],
   ].map(([key, value, choices]) => ({
-    key: key as NativePreferenceKey,
+    key: key as PaneKey,
     group: String(key).startsWith("advisor.")
       ? "advisor"
       : String(key).startsWith("title.")
         ? "titles"
-        : String(key).startsWith("telemetry.")
-          ? "diagnostics"
-          : "tools",
-    label: englishDescriptions[key as NativePreferenceKey][0],
-    description: englishDescriptions[key as NativePreferenceKey][1],
+        : "tools",
+    label: englishDescriptions[key as PaneKey][0],
+    description: englishDescriptions[key as PaneKey][1],
     value: value as NativePreferenceValue,
     effective: value as NativePreferenceValue,
     source: "default",
@@ -189,7 +201,7 @@ export function NativePreferencesPane({
   >({});
   const [scope, setScope] = useState<"session" | "global">("session");
   const [pending, setPending] = useState<{
-    row: NativePreference;
+    row: PaneRow;
     value: NativePreferenceValue;
     scope: "session" | "global";
     clear: boolean;
@@ -200,7 +212,7 @@ export function NativePreferencesPane({
   const epoch = useRef(0);
   const saveLock = useRef(false);
   const demoGlobals = useRef<
-    Partial<Record<NativePreferenceKey, NativePreference>>
+    Partial<Record<PaneKey, PaneRow>>
   >({});
   const can = (kind: string) =>
     preview ||
@@ -282,17 +294,12 @@ export function NativePreferencesPane({
           row = {
             ...pending.row,
             value: pending.value,
-            effective:
-              pending.row.key === "telemetry.otlpExportEnabled"
-                ? pending.row.effective
-                : pending.value,
+            effective: pending.value,
             source: pending.scope === "global" ? "global" : "runtime",
-            restartRequired:
-              pending.row.key === "telemetry.otlpExportEnabled" &&
-              pending.value !== pending.row.effective,
+            restartRequired: false,
           };
           if (pending.scope === "global") {
-            demoGlobals.current[row.key] = row;
+            if (isPaneRow(row)) demoGlobals.current[row.key] = row;
             if (pending.row.source === "runtime") row = pending.row;
           }
         }
@@ -345,7 +352,8 @@ export function NativePreferencesPane({
       }
     }
   };
-  const label = (row: NativePreference) =>
+  const paneRows = rows.filter(isPaneRow);
+  const label = (row: PaneRow) =>
     zh ? descriptions[row.key][0] : englishDescriptions[row.key][0];
   const choice = (value: NativePreferenceValue) =>
     zh
@@ -404,7 +412,7 @@ export function NativePreferencesPane({
         </p>
       ) : null}
       {notice ? <p role="status">{notice}</p> : null}
-      {(["advisor", "tools", "titles", "diagnostics"] as const).map((group) => (
+      {(["advisor", "tools", "titles"] as const).map((group) => (
         <SettingSection
           key={group}
           title={
@@ -414,16 +422,12 @@ export function NativePreferencesPane({
                 ? zh
                   ? "工具"
                   : "Tools"
-                : group === "titles"
-                ? zh
+                : zh
                   ? "标题"
                   : "Titles"
-                : zh
-                  ? "诊断导出"
-                  : "Diagnostic export"
           }
         >
-          {rows
+          {paneRows
             .filter((row) => row.group === group)
             .map((row) => (
               <SettingRow
@@ -486,10 +490,7 @@ export function NativePreferencesPane({
                       setPending({
                         row,
                         value: drafts[row.key] ?? row.value,
-                        scope:
-                          row.key === "telemetry.otlpExportEnabled"
-                            ? "global"
-                            : scope,
+                        scope,
                         clear: false,
                       })
                     }

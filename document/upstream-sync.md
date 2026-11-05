@@ -1,6 +1,10 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.15.0
+## Integrated through: v18.16.0
+
+_(`v18.15.0` was the header until 2026-11-05; the v18.16.0 round below merged to
+`main` at `1ea59944579` and shipped as `v1.4.9` (`04fe9e6e0c5`), and is an
+ancestor of the 1.4.10 tree — the header had lagged one round.)_
 
 ## Sync cadence: on demand (2026-10-21 ruling)
 

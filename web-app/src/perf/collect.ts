@@ -285,7 +285,7 @@ type StreamMeasurement = {
   readonly longTaskSupported: boolean;
 };
 
-async function measureStream(omp: OmpPerf): Promise<StreamMeasurement> {
+async function measureStream(perf: OmpPerf): Promise<StreamMeasurement> {
   const durations: number[] = [];
   let supported = false;
   const observer = typeof PerformanceObserver === "function"
@@ -299,7 +299,7 @@ async function measureStream(omp: OmpPerf): Promise<StreamMeasurement> {
   }
   let result: PerfResult;
   try {
-    result = await omp.run(STREAM);
+    result = await perf.run(STREAM);
   } finally {
     await delay(0);
     if (observer !== null) {
@@ -317,10 +317,10 @@ type ScrollMeasurement = {
 
 /** Programmatic ping-pong over the mounted transcript for ~2 s, one scroll
  *  write per animation frame; the interval samples are the rendered frames. */
-async function measureScroll(omp: OmpPerf): Promise<ScrollMeasurement> {
+async function measureScroll(perf: OmpPerf): Promise<ScrollMeasurement> {
   const scroller = await waitForSelector<HTMLElement>(".convo-scroll", 3000);
   if (scroller === null) throw new Error("transcript scroller `.convo-scroll` not found");
-  const rowProbe = await omp.run({ ...STREAM, frames: 0 });
+  const rowProbe = await perf.run({ ...STREAM, frames: 0 });
   scroller.scrollTop = scroller.scrollHeight;
   await afterPaint();
   const maxScroll = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
@@ -514,8 +514,8 @@ function buildReport(input: {
 async function collect(): Promise<PerfReport> {
   const errors: string[] = [];
   const notes: string[] = [];
-  const omp = await attempt(errors, "harness", () => waitForHarness());
-  if (omp === null) throw new Error("perf harness unavailable: window.ompPerf is missing");
+  const perf = await attempt(errors, "harness", () => waitForHarness());
+  if (perf === null) throw new Error("perf harness unavailable: window.ompPerf is missing");
 
   // Let the first paint of the mounted page land before reading "after load".
   await frame();
@@ -536,20 +536,20 @@ async function collect(): Promise<PerfReport> {
   if (memoryInfo() === null) notes.push("performance.memory is unavailable in this browser: heap metrics are null.");
 
   const sessionRows = await attempt(errors, "500-message session", async () => {
-    await omp.reset(FIXTURE);
+    await perf.reset(FIXTURE);
     await settleTranscript();
-    const probe = await omp.run({ ...STREAM, frames: 0 });
+    const probe = await perf.run({ ...STREAM, frames: 0 });
     return probe.rows;
   });
   const sessionHeap = sessionRows === null ? null : await heapAfterGc();
 
-  const stream = await attempt(errors, "20-message stream", () => measureStream(omp));
+  const stream = await attempt(errors, "20-message stream", () => measureStream(perf));
   if (stream !== null && !stream.longTaskSupported) notes.push("longtask observer unsupported: long tasks during the stream are null.");
 
   const scroll = await attempt(errors, "scroll frame rate", async () => {
-    await omp.reset(FIXTURE);
+    await perf.reset(FIXTURE);
     await settleTranscript();
-    return measureScroll(omp);
+    return measureScroll(perf);
   });
   if (scroll === null) notes.push("scroll frame rate needs the 500-turn transcript; see errors.");
 

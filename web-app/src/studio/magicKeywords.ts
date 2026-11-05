@@ -1,7 +1,7 @@
 /**
  * Magic-keyword detection for Studio (OMP-aligned).
  *
- * Matching mirrors oh-my-pi `modes/magic-keyword-boundary.ts` + `markdown-prose.ts`:
+ * Matching mirrors upstream `modes/magic-keyword-boundary.ts` + `markdown-prose.ts`:
  * lowercase standalone prose only; skip fenced/inline code and HTML/XML.
  */
 

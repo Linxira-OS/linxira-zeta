@@ -45,8 +45,8 @@ ports). Per-tree modification ledgers and the full fork declaration are in
 
 | Command    | Package           | What it is                                            |
 | ---------- | ----------------- | ----------------------------------------------------- |
-| `zetawork` | `@linxiraos/main` | The workspace: nested-terminal workbench (Rust)       |
-| `zeta`     | `@linxiraos/main` | Suite index — a bare `zeta` prints the help/command map |
+| `zetawork` | `@linxiraos/main` | **Paused (2026-11-05)** — the nested-terminal workbench; the renderer is now `web-app` served by `zetacode serve` |
+| `zeta`     | `@linxiraos/main` | **Paused (2026-11-05)** — the suite index; the name is reserved for the main/super-agent surface |
 | `zetacode` | `@linxiraos/zeta` | Coding agent CLI                                      |
 | `zetaide`  | `@linxiraos/ide`  | Terminal IDE (TermIDE, vendored Rust)                 |
 
@@ -109,14 +109,15 @@ own tools instead.
 
 ## Quick Start
 
-Install the workspace (Node 18+ or Bun on the machine):
+Install the CLI and serve the workbench in your browser (Node 18+ or Bun):
 
 ```sh
-npm i -g @linxiraos/main      # or: bun add -g @linxiraos/main
-zetawork                      # opens the workspace in the current directory
-zetawork web                  # serves the full Web UI on loopback for your browser
-zetawork doctor               # suite install status + exact fixes
+npm i -g @linxiraos/zeta      # or: bun add -g @linxiraos/zeta
+zetacode serve                # serves the Web UI on loopback
 ```
+
+`npm i -g @linxiraos/main` still installs, but that workbench is paused (2026-11-05);
+`zetacode serve` is the supported entry point.
 
 `zetawork doctor` lists every suite tool with installed/missing state and the
 exact install command for what is missing. Missing tools also self-install
@@ -345,7 +346,7 @@ supported development/target platform; macOS is not built.
 
 | Surface                              | Linux      | Windows | macOS |
 | ------------------------------------ | ---------- | ------- | ----- |
-| `zetawork` workspace (`@linxiraos/main`) | x64        | x64     | —     |
+| `zetawork` workspace (`@linxiraos/main`) — paused | —     | —       | —     |
 | `zetacode` CLI                         | x64, arm64 | x64     | —     |
 | `zetaide` (`@linxiraos/ide`)        | x64        | x64     | —     |
 | `zetacode serve` (web workbench)       | x64, arm64 | x64     | —     |
@@ -447,8 +448,8 @@ Pi / Pi Web（语义移植来源）。逐树改动账目与完整 fork 声明见
 
 | 命令       | 包                  | 是什么                                          |
 | ---------- | ------------------- | ----------------------------------------------- |
-| `zetawork` | `@linxiraos/main`   | 工作区：嵌套终端工作台(Rust)                    |
-| `zeta`     | `@linxiraos/main`   | 套件索引——裸 `zeta` 打印帮助/命令表            |
+| `zetawork` | `@linxiraos/main`   | **已暂停（2026-11-05）**——嵌套终端工作台；渲染器改为 `web-app`，由 `zetacode serve` 托管 |
+| `zeta`     | `@linxiraos/main`   | **已暂停（2026-11-05）**——套件索引；包名保留给 main/super-agent 面 |
 | `zetacode` | `@linxiraos/zeta`   | 编码 Agent CLI                                  |
 | `zetaide`  | `@linxiraos/ide`    | 终端 IDE(TermIDE,vendored Rust)                 |
 

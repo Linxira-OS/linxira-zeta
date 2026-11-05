@@ -2012,7 +2012,7 @@ export function AgentHubPage({
           </span>
           <span className="tiny">
             Resume that session with{" "}
-            <span className="mono">omp --continue</span>, or spawn a task here.
+            <span className="mono">zetacode --continue</span>, or spawn a task here.
           </span>
           <button
             className="btn small primary"
