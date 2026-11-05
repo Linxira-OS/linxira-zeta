@@ -1,6 +1,130 @@
 ## [Unreleased]
 
+## [1.4.10] - 2026-11-05
+
 - Released as part of Zeta 1.4.10; no package-specific user-visible changes.
+
+## [9.4.0] - 2026-01-31
+
+### Added
+
+- Exported `padding` utility function for creating space-padded strings efficiently
+
+### Changed
+
+- Optimized padding operations across all components to use pre-allocated space buffer for better performance
+
+## [8.4.1] - 2026-01-25
+
+### Added
+
+- Added fuzzy match function for autocomplete suggestions
+
+## [8.4.0] - 2026-01-25
+
+### Fixed
+
+- Terminal gracefully handles write failures by marking dead instead of exiting the process
+
+## [8.2.0] - 2026-01-24
+
+### Added
+
+- Added mermaid diagram rendering engine (renderMermaidToPng) with mmdc CLI integration
+
+### Fixed
+
+- Fixed crash when terminal becomes unavailable (EIO errors) by exiting gracefully instead of throwing
+
+## [6.8.3] - 2026-01-21
+
+### Added
+
+- Added undo support in the editor via `Ctrl+-`
+
+### Changed
+
+- Improved fuzzy matching to handle alphanumeric swaps
+
+## [5.6.7] - 2026-01-18
+
+### Added
+
+- Added configurable editor padding via `editorPaddingX` theme option
+
+### Changed
+
+- Updated tab bar rendering to wrap text across multiple lines when content exceeds available width
+
+### Fixed
+
+- Fixed key detection for shifted symbol characters
+
+## [5.1.0] - 2026-01-14
+
+### Changed
+
+- Changed `OverlayOptions` to use `SizeValue` type for `width`, `maxHeight`, `row`, and `col` properties
+
+### Fixed
+
+- Fixed numbered list items showing "1." for all items when code blocks break list continuity
+
+## [4.6.0] - 2026-01-12
+
+### Added
+
+- Add fuzzy matching module (`fuzzyMatch`, `fuzzyFilter`) for command autocomplete
+
+## [4.2.1] - 2026-01-11
+
+### Fixed
+
+- Fixed editor redraw glitch when canceling autocomplete suggestions
+
+## [4.1.0] - 2026-01-10
+
+### Added
+
+- Added persistent prompt history storage support via `setHistoryStorage()` method, allowing history to be saved and restored across sessions
+
+## [3.32.0] - 2026-01-08
+
+### Fixed
+
+- Fixed text wrapping allowing long whitespace tokens to exceed line width
+
+## [3.20.0] - 2026-01-06
+
+### Changed
+
+- Settings list descriptions now wrap to the available width instead of truncating
+
+### Fixed
+
+- Fixed Shift+Enter detection in legacy terminals that send ESC+CR sequence
+
+## [3.15.0] - 2026-01-05
+
+### Added
+
+- Added `inputCursor` symbol for customizing the text input cursor character
+
+## [3.9.1337] - 2026-01-04
+
+### Changed
+
+- Changed Editor component to use proper box borders with vertical side borders instead of horizontal-only borders
+
+## [1.500.0] - 2026-01-03
+
+### Added
+
+- Added `getText()` method to Text component for retrieving current text content
+
+## [1.337.0] - 2026-01-02
+
+Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
 ## [1.4.9] - 2026-11-03
 
@@ -214,128 +338,6 @@ Older entries are archived in [packages/tui/CHANGELOG.md@58141d4e5fa8](https://g
 - Removed `visibleWidth` benchmark file in favor of Kitty sequence benchmarking
 - Removed `truncateToWidth`, `sliceWithWidth`, and `extractSegments` functions from public API (now re-exported directly from @linxiraos/pi-natives)
 - `SingleResult` (and the task tool's settled payload) carries the failure diagnostics an agent-driven model switch needs: optional `failureClass` (`usage-limit` / `auth` / `account-policy` / `context-overflow` / `transient` / `aborted` / `unknown`), optional `fallbackCandidates` (other selectors this session could run), and optional `modelChange` (`{ source: "spawn-param" | "wake-param", from?, to }`) recording that a caller-supplied model replaced the default one. All three stay absent unless a run actually reports them.
-
-## [9.4.0] - 2026-01-31
-
-### Added
-
-- Exported `padding` utility function for creating space-padded strings efficiently
-
-### Changed
-
-- Optimized padding operations across all components to use pre-allocated space buffer for better performance
-
-## [8.4.1] - 2026-01-25
-
-### Added
-
-- Added fuzzy match function for autocomplete suggestions
-
-## [8.4.0] - 2026-01-25
-
-### Fixed
-
-- Terminal gracefully handles write failures by marking dead instead of exiting the process
-
-## [8.2.0] - 2026-01-24
-
-### Added
-
-- Added mermaid diagram rendering engine (renderMermaidToPng) with mmdc CLI integration
-
-### Fixed
-
-- Fixed crash when terminal becomes unavailable (EIO errors) by exiting gracefully instead of throwing
-
-## [6.8.3] - 2026-01-21
-
-### Added
-
-- Added undo support in the editor via `Ctrl+-`
-
-### Changed
-
-- Improved fuzzy matching to handle alphanumeric swaps
-
-## [5.6.7] - 2026-01-18
-
-### Added
-
-- Added configurable editor padding via `editorPaddingX` theme option
-
-### Changed
-
-- Updated tab bar rendering to wrap text across multiple lines when content exceeds available width
-
-### Fixed
-
-- Fixed key detection for shifted symbol characters
-
-## [5.1.0] - 2026-01-14
-
-### Changed
-
-- Changed `OverlayOptions` to use `SizeValue` type for `width`, `maxHeight`, `row`, and `col` properties
-
-### Fixed
-
-- Fixed numbered list items showing "1." for all items when code blocks break list continuity
-
-## [4.6.0] - 2026-01-12
-
-### Added
-
-- Add fuzzy matching module (`fuzzyMatch`, `fuzzyFilter`) for command autocomplete
-
-## [4.2.1] - 2026-01-11
-
-### Fixed
-
-- Fixed editor redraw glitch when canceling autocomplete suggestions
-
-## [4.1.0] - 2026-01-10
-
-### Added
-
-- Added persistent prompt history storage support via `setHistoryStorage()` method, allowing history to be saved and restored across sessions
-
-## [3.32.0] - 2026-01-08
-
-### Fixed
-
-- Fixed text wrapping allowing long whitespace tokens to exceed line width
-
-## [3.20.0] - 2026-01-06
-
-### Changed
-
-- Settings list descriptions now wrap to the available width instead of truncating
-
-### Fixed
-
-- Fixed Shift+Enter detection in legacy terminals that send ESC+CR sequence
-
-## [3.15.0] - 2026-01-05
-
-### Added
-
-- Added `inputCursor` symbol for customizing the text input cursor character
-
-## [3.9.1337] - 2026-01-04
-
-### Changed
-
-- Changed Editor component to use proper box borders with vertical side borders instead of horizontal-only borders
-
-## [1.500.0] - 2026-01-03
-
-### Added
-
-- Added `getText()` method to Text component for retrieving current text content
-
-## [1.337.0] - 2026-01-02
-
-Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
 ## [1.4.7] - 2026-10-30
 

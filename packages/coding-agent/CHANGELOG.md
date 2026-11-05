@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.10] - 2026-11-05
+
 ### Added
 
 - Added a workspace-scoped OpenDesign bridge: `/design status|enable|disable` and a single `design` tool that wraps the OpenDesign MCP project/artifact/run surface and the allowlisted `od` CLI. It is off unless `.zeta/design.yml` enables it; no global MCP server or CLI registration is written.

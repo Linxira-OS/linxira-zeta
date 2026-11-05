@@ -1,18 +1,8 @@
 ## [Unreleased]
 
+## [1.4.10] - 2026-11-05
+
 - Released as part of Zeta 1.4.10; no package-specific user-visible changes.
-
-## [1.4.9] - 2026-11-03
-
-- Synced with upstream OMP v18.16.0; no package-specific user-visible changes.
-
-### Added
-
-- Added automatic extraction of embedded native addon to `~/.zeta/natives/<version>` on first run for compiled binaries
-
-### Changed
-
-- Embedded native addon payload for compiled binaries and extract to `~/.zeta/natives/<version>` on first run
 
 ## [9.8.0] - 2026-02-01
 
@@ -160,6 +150,18 @@
 ### Fixed
 
 - Fixed potential crashes when updating native binaries by using safe copy strategy that avoids overwriting in-memory binaries
+
+## [1.4.9] - 2026-11-03
+
+- Synced with upstream OMP v18.16.0; no package-specific user-visible changes.
+
+### Added
+
+- Added automatic extraction of embedded native addon to `~/.zeta/natives/<version>` on first run for compiled binaries
+
+### Changed
+
+- Embedded native addon payload for compiled binaries and extract to `~/.zeta/natives/<version>` on first run
 
 ## [1.4.6] - 2026-10-28
 
