@@ -49,16 +49,14 @@ import type {
 import { StudioSidebar } from "./StudioSidebar";
 import { StudioPageHost } from "./StudioPageHost";
 import { StudioStatusBar } from "./StudioStatusBar";
-
-const ROUTE_TITLES: Record<StudioRoute, string> = {
-	workbench: "workbench",
-	skills: "skills",
-	models: "models",
-	agents: "agents",
-	git: "git",
-	usage: "usage",
-	settings: "settings",
-};
+import {
+	StudioCommandPalette,
+	StudioTitleMenus,
+	StudioTitlebar,
+	TitleMenuScope,
+	type StudioPaletteActions,
+} from "../chrome";
+import { platformCapabilities } from "@/lib/pi-desktop";
 
 /** Session row shape this shell renders (gateway `SessionInfo` → view model). */
 function toSessionSummary(
@@ -109,6 +107,7 @@ function StudioShellContent({ mode }: { mode: StudioMode }) {
 	const [refreshKey, setRefreshKey] = useState(0);
 	const [picker, setPicker] = useState<{ open: boolean; initial: string | null }>({ open: false, initial: null });
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+	const [paletteOpen, setPaletteOpen] = useState(false);
 	const [selectedProjectKey, setSelectedProjectKey] = useState<string | null>(null);
 	const [selectedWorkspacePath, setSelectedWorkspacePath] = useState<string | null>(null);
 	const [tabMeta, setTabMeta] = useState<Record<string, TabRuntimeMeta>>({});
@@ -356,81 +355,67 @@ function StudioShellContent({ mode }: { mode: StudioMode }) {
 		[sessionTabs, t],
 	);
 
+	const capabilities = useMemo(() => platformCapabilities(), []);
+
+	const paletteActions = useMemo<StudioPaletteActions>(
+		() => ({
+			go: setRoute,
+			openSession: id => {
+				const summary = sessionSummaries.find(entry => entry.id === id);
+				if (summary) openSession(summary);
+			},
+			newSession: () => startSession(activeCwd),
+			toggleSidebar: () => setSidebarCollapsed(value => !value),
+			refresh: () => setRefreshKey(key => key + 1),
+			openPalette: () => setPaletteOpen(true),
+		}),
+		[activeCwd, openSession, sessionSummaries, startSession],
+	);
+
+	// Studio's bindings: ⌘/Ctrl+K opens the palette, ⌘/Ctrl+N starts a session.
+	useEffect(() => {
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+			const key = event.key.toLowerCase();
+			if (key === "k") {
+				event.preventDefault();
+				setPaletteOpen(true);
+			} else if (key === "n" && !event.shiftKey) {
+				event.preventDefault();
+				startSession(activeCwd);
+			}
+		};
+		window.addEventListener("keydown", onKeyDown);
+		return () => window.removeEventListener("keydown", onKeyDown);
+	}, [activeCwd, startSession]);
+
 	// --- render -------------------------------------------------------------
 	const showWorkbench = route === "workbench";
 
 	return (
 		<div className="studio-root" data-studio-mode={mode} data-studio-route={route}>
 			<div className="app" id="studioAppRoot">
-				<div className="topbar">
-					<div className="tb-left">
-						<button
-							type="button"
-							className="icon-btn tb-toggle"
-							onClick={() => setSidebarCollapsed(value => !value)}
-							title={t(sidebarCollapsed ? "layout.expandSidebar" : "layout.collapseToRail")}
-							aria-label={t(sidebarCollapsed ? "layout.expandSidebar" : "layout.collapseToRail")}
-							aria-pressed={!sidebarCollapsed}
-						>
-							<span className="hamburger" aria-hidden>
-								<i />
-								<i />
-								<i />
-							</span>
-						</button>
-						<nav className="tb-crumb" aria-label={t("layout.breadcrumbs")}>
-							<button
-								type="button"
-								className="crumb-item"
-								onClick={() => setRoute("workbench")}
-								title={selectedProject?.path ?? undefined}
-							>
-								{selectedProject?.displayName ?? t("projects.none")}
-							</button>
-							{selectedWorkspace ? (
-								<>
-									<span className="crumb-sep" aria-hidden>
-										/
-									</span>
-									<span className="crumb-item" title={selectedWorkspace.path}>
-										{selectedWorkspace.branch ?? selectedWorkspace.displayName}
-									</span>
-								</>
-							) : null}
-							{activeTab ? (
-								<>
-									<span className="crumb-sep" aria-hidden>
-										/
-									</span>
-									<span className="crumb-item crumb-current">{titleForTab(activeTab)}</span>
-								</>
-							) : null}
-						</nav>
-					</div>
-					<nav className="tb-nav" aria-label={t("studio.sidebar.label")}>
-						{(Object.keys(ROUTE_TITLES) as StudioRoute[]).map(entry => (
-							<button
-								key={entry}
-								type="button"
-								className={`tb-nav-item${route === entry ? " is-active" : ""}`}
-								onClick={() => setRoute(entry)}
-								aria-current={route === entry ? "page" : undefined}
-							>
-								{t(`studio.route.${entry}`)}
-							</button>
-						))}
-					</nav>
-					<div className="tb-right">
-						<button
-							type="button"
-							className="btn btn-ghost btn-xs"
-							onClick={() => setRefreshKey(key => key + 1)}
-							title={t("studio.action.refresh")}
-						>
-							{t("studio.action.refresh")}
-						</button>
-					</div>
-				</div>
+				<StudioTitlebar
+					capabilities={capabilities}
+					route={route}
+					onRoute={setRoute}
+					onToggleSidebar={() => setSidebarCollapsed(value => !value)}
+					sidebarCollapsed={sidebarCollapsed}
+					menus={
+						<TitleMenuScope>
+							<StudioTitleMenus actions={paletteActions} />
+						</TitleMenuScope>
+					}
+				>
+					<button
+						type="button"
+						className="btn btn-ghost btn-xs"
+						onClick={() => setRefreshKey(key => key + 1)}
+						title={t("studio.action.refresh")}
+					>
+						{t("studio.action.refresh")}
+					</button>
+				</StudioTitlebar>
 
 				<div className="shell-body">
 					{!sidebarCollapsed || isMobile ? (
@@ -459,8 +444,9 @@ function StudioShellContent({ mode }: { mode: StudioMode }) {
 					<main className="center" id="convoScroll">
 						{showWorkbench ? (
 							<>
-								<div className="tabs-slot">
-									<SessionTabBar
+								{tabs.length > 0 ? (
+									<div className="tabs-slot">
+										<SessionTabBar
 										tabs={tabs}
 										activeTabId={activeTabId}
 										runningTabIds={runningSet}
@@ -472,8 +458,9 @@ function StudioShellContent({ mode }: { mode: StudioMode }) {
 										onCloseRight={tabId => sessionTabs.closeRight(tabId)}
 										onNewTab={() => startSession(activeCwd)}
 										isMobile={isMobile}
-									/>
-								</div>
+										/>
+									</div>
+								) : null}
 								<div className="center-body">
 									{tabs.length === 0 ? (
 										<div className="convo-empty">
@@ -535,6 +522,13 @@ function StudioShellContent({ mode }: { mode: StudioMode }) {
 					route={route}
 				/>
 			</div>
+
+			<StudioCommandPalette
+				open={paletteOpen}
+				onOpenChange={setPaletteOpen}
+				sessions={sessionSummaries}
+				actions={paletteActions}
+			/>
 
 			<FolderPickerModal
 				open={picker.open}
