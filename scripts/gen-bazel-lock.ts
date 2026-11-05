@@ -32,6 +32,10 @@ const repoRoot = path.join(import.meta.dir, "..");
 const check = process.argv.includes("--check");
 const inputsOnly = process.argv.includes("--inputs-only");
 
+function errorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
 /**
  * The lock stores sha256 of the file bytes Bazel sees. On Windows a CRLF
  * checkout hashes differently from the LF blob CI checks out, so a worktree
@@ -113,8 +117,39 @@ if (!bazel) {
 // `--bazelrc=...`; GitHub leaves it unset and keeps the plain invocation.
 const extraArgs = (process.env.BAZEL_ARGS ?? "").trim().split(/\s+/).filter(Boolean);
 const args = [...extraArgs, "fetch", "--repo=@crates", `--lockfile_mode=${check ? "error" : "update"}`];
-const proc = Bun.spawn([bazel, ...args], { cwd: repoRoot, stdio: ["inherit", "inherit", "inherit"] });
-const code = await proc.exited;
+
+// Windows without Developer Mode cannot create the file symlink cargo-bazel
+// uses while splicing workspace crates (`.bazelignore -> %TEMP%/...`). The
+// file is not needed for this fetch, so hide it for the duration of the Bazel
+// invocation and restore it unconditionally. Linux never enters this path.
+let hiddenBazelIgnore: string | undefined;
+if (process.platform === "win32") {
+	const ignorePath = path.join(repoRoot, ".bazelignore");
+	const backupPath = `${ignorePath}.gen-bazel-lock`;
+	try {
+		fs.renameSync(ignorePath, backupPath);
+		hiddenBazelIgnore = backupPath;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+			console.warn(`gen-bazel-lock: could not hide .bazelignore (${errorMessage(error)}); continuing`);
+		}
+	}
+}
+
+let code: number;
+try {
+	const proc = Bun.spawn([bazel, ...args], { cwd: repoRoot, stdio: ["inherit", "inherit", "inherit"] });
+	code = await proc.exited;
+} finally {
+	if (hiddenBazelIgnore) {
+		try {
+			fs.renameSync(hiddenBazelIgnore, path.join(repoRoot, ".bazelignore"));
+		} catch (error) {
+			console.error(`gen-bazel-lock: failed to restore .bazelignore: ${errorMessage(error)}`);
+			process.exitCode = 1;
+		}
+	}
+}
 if (code === 0) {
 	if (check) {
 		console.log("MODULE.bazel.lock is up to date.");
