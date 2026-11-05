@@ -44,6 +44,7 @@
 @import "./runtime-catalog.css";
 @import "./plan-execution.css";
 @import "./secondary-interactions.css";
+@import "./deck.css";
 @import "./services.css";
 
 /* The chrome rows (secondary-page bar, window controls). Loaded after the
