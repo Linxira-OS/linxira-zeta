@@ -332,6 +332,7 @@ async function readSse(body: ReadableStream<Uint8Array>, onFrame: (payload: Reco
 function toClientEvent(frame: Record<string, unknown>, sessionId: string): ClientEvent | null {
 	const type = typeof frame.type === "string" ? frame.type : null;
 	if (!type) return null;
-	const { type: _type, ...payload } = frame;
+	const payload = { ...frame };
+	delete payload.type;
 	return { type: "snapshot" as never, payload: { ...payload, sessionId, kind: type } } as unknown as ClientEvent;
 }
