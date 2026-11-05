@@ -22,9 +22,23 @@ import { en } from "./locales/en";
 import { zh } from "./locales/zh";
 import type { AppLanguage, Locale, TranslationParams } from "./types";
 
+/**
+ * Studio's dictionaries are nested (`{ git: { stageAll: "Stage All" } }`) while
+ * every ported call site asks for the dotted path (`t("git.stageAll")`), so the
+ * lookup table is flattened once at module load.
+ */
+function flatten(source: Record<string, unknown>, prefix = "", out: Record<string, string> = {}) {
+	for (const [key, value] of Object.entries(source)) {
+		const path = prefix ? `${prefix}.${key}` : key;
+		if (typeof value === "string") out[path] = value;
+		else if (value !== null && typeof value === "object") flatten(value as Record<string, unknown>, path, out);
+	}
+	return out;
+}
+
 const dictionaries: Record<Locale, Record<string, string>> = {
-	zh: zh as unknown as Record<string, string>,
-	en: en as unknown as Record<string, string>,
+	zh: flatten(zh as unknown as Record<string, unknown>),
+	en: flatten(en as unknown as Record<string, unknown>),
 };
 
 interface StudioI18nValue {
