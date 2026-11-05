@@ -23,7 +23,16 @@ import { useI18n } from "@/components/studio/i18n";
 import { SettingsWindow } from "@/components/settings/SettingsWindow";
 import { PageFrame } from "./page-frame";
 
-export function SettingsPage({ cwd, title }: { cwd: string | null; title?: string }) {
+export function SettingsPage({
+	cwd,
+	title,
+	onClose,
+}: {
+	cwd: string | null;
+	title?: string;
+	/** Shell navigation for Escape/Close; absent on a page that owns the route. */
+	onClose?: () => void;
+}) {
 	const { t } = useI18n();
 	const [modelsOpen, setModelsOpen] = useState(false);
 
@@ -39,7 +48,7 @@ export function SettingsPage({ cwd, title }: { cwd: string | null; title?: strin
 		>
 			<SettingsWindow
 				open
-				onClose={() => undefined}
+				onClose={() => onClose?.()}
 				onOpenModelsConfig={() => setModelsOpen(true)}
 				cwd={cwd}
 			/>

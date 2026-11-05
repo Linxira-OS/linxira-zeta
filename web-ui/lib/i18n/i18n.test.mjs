@@ -76,6 +76,14 @@ const DYNAMIC_KEY_PREFIXES = [
 	{ prefix: "chat.command", reason: "ChatInput BUILTIN_COMMANDS description lookup and ternary" },
 	// ChatInput THINKING_LEVEL_DESC_KEYS maps thinking levels to keys.
 	{ prefix: "chat.thinking-", reason: "ChatInput THINKING_LEVEL_DESC_KEYS lookup" },
+	// StudioPageHost/StudioShell/StudioStatusBar build route labels from the
+	// StudioRoute union (`studio.route.${route}`), never as a literal.
+	{ prefix: "studio.route.", reason: "Studio shell t(`studio.route.${route}`) over STUDIO_ROUTES" },
+	// StudioShell picks these through a ternary inside t(...):
+	// t(sidebarCollapsed ? "layout.expandSidebar" : "layout.collapseToRail") and
+	// t(projects.length === 0 ? "studio.empty.noProject" : "studio.empty.noSession").
+	{ prefix: "layout.expandSidebar", reason: "StudioShell sidebar toggle ternary" },
+	{ prefix: "studio.empty.noSession", reason: "StudioShell empty-state ternary" },
 	// ChatWindow pluralizes via t(count === 1 ? "chat.message" : "chat.messages")
 	// and t(count === 1 ? "chat.tool-call" : "chat.tool-calls").
 	{ prefix: "chat.message", reason: "ChatWindow plural ternary" },

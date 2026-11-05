@@ -99,13 +99,14 @@ export function SkillsPage({ cwd, title }: { cwd: string | null; title?: string 
 		if (!cwd) return;
 		setBusy("check");
 		try {
+			// The gateway answers `{ updates }` (one row per installable skill).
 			const body = await fetch("/api/skills/check", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ cwd }),
-			}).then(res => readJson<{ results?: SkillUpdateResult[] }>(res, "skills check"));
+			}).then(res => readJson<{ updates?: SkillUpdateResult[] }>(res, "skills check"));
 			const map: Record<string, SkillUpdateResult> = {};
-			for (const result of body.results ?? []) map[`${result.package}@${result.scope}`] = result;
+			for (const result of body.updates ?? []) map[`${result.package}@${result.scope}`] = result;
 			setUpdates(map);
 			setNotice(t("studio.skills.checkDone"));
 		} catch (cause) {

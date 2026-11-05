@@ -127,7 +127,9 @@ export function HistoryPage({
 				</div>
 
 				{visible.length === 0 ? (
-					<PageEmpty>{t(scope === "archived" ? "studio.history.emptyArchived" : "studio.history.empty")}</PageEmpty>
+					<PageEmpty>
+						{scope === "archived" ? t("studio.history.emptyArchived") : t("studio.history.empty")}
+					</PageEmpty>
 				) : (
 					<div className="archive-columns">
 						<div className="archive-results" role="listbox" aria-label={t("studio.history.list")}>

@@ -53,7 +53,7 @@ function roleRows(entry: SettingEntry | undefined): Array<[string, string]> {
 }
 
 export function ModelsPage({ title }: { title?: string }) {
-	const { t } = useI18n();
+	const { t, resolvedLanguage } = useI18n();
 	const [models, setModels] = useState<ModelsData | null>(null);
 	const [providers, setProviders] = useState<Array<[string, ProviderRecord]>>([]);
 	const [roleEntry, setRoleEntry] = useState<SettingEntry | undefined>();
@@ -70,7 +70,7 @@ export function ModelsPage({ title }: { title?: string }) {
 				fetch("/api/models-config", { cache: "no-store" })
 					.then(res => (res.ok ? ((res.json() as Promise<ModelsConfigResponse>)) : { providers: {} }))
 					.catch(() => ({ providers: {} }) as ModelsConfigResponse),
-				fetchSettings("en").catch(() => null),
+				fetchSettings(resolvedLanguage).catch(() => null),
 			]);
 			setModels(catalog);
 			setProviders(
@@ -81,7 +81,7 @@ export function ModelsPage({ title }: { title?: string }) {
 		} catch (cause) {
 			setError(hostErrorMessage(cause, t("studio.models.loadError")));
 		}
-	}, [t]);
+	}, [t, resolvedLanguage]);
 
 	useEffect(() => {
 		void load();
