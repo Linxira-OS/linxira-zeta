@@ -38,15 +38,9 @@ jobs:
           SH
           chmod +x "$RUNNER_TEMP/bin/sd"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-      - name: Diagnose workspace drift
+      - name: Normalize git file mode
         shell: bash
-        run: |
-          set -x
-          git status --porcelain
-          git diff --summary
-          git diff -- packages/stats/src/index.ts | head -120
-          stat -c '%a %n' packages/stats/src/index.ts
-          exit 1
+        run: git config core.fileMode false
       - name: Configure git
         shell: bash
         run: |
