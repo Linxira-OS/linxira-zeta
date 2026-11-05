@@ -1,5 +1,11 @@
 # The right column: git branches, shipping and the context ring
 
+> **Status (2026-11-06).** This page documents the paused Rust GUI
+> (`main/crates/zetawork-gui`), which does not ship. The desktop surface is
+> **Work Studio** in the browser (`zetacode serve`); see
+> [`desktop-app.md`](./desktop-app.md).
+
+
 The Git tab can move between branches, commit all changes with a message, and
 push the current branch. 用量 draws its context share as a ring instead of a
 bar. This page covers what each one reads, what it writes, and where its

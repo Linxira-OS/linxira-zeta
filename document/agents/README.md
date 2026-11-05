@@ -19,7 +19,7 @@
 |---|---|---|
 | `merge/` | 上游 tag 同步的逐阶段规程、损伤类别、非代码文件归属 | 品牌值（`brand/`）、日常分支流程（`workflow/`） |
 | `brand/` | 品牌面逐行注册表、待扫清单、合并后恢复规则 | 判定分类（`document/brand-surface-rules.md`） |
-| `surface/` | 代码/包落点、Studio 设计检查表、渲染性能测量协议 | 架构解释（`document/architecture-layers.md`） |
+| `surface/` | 产品面定义、代码/包落点、Studio 设计检查表、渲染性能测量协议 | 架构解释（`document/architecture-layers.md`） |
 | `workflow/` | 分支登记与推送纪律、GitHub 交互、npm 发布、robomp | 发布链完整 job 表（`document/release.md`） |
 
 新增/移动本目录文件时，必须同时更新本索引与根 `AGENTS.md` §11。
@@ -34,6 +34,7 @@
 | `document/archive/squash-sync.md` | 想知道"为什么不能 squash" | 【历史档案】已废止的压缩式流程，**不是可选方案** |
 | `brand/registry.md` | OMP 合并后逐行核对品牌面 | 逐行注册表：canonical 值 + 守卫方式 + "刻意不改"清单 + 启动字符画定稿 |
 | `surface/code-locations.md` | 不确定代码该落哪个目录 | `web-app/`（渲染器）/ `studio-host/`（`/api/v1/*`）/ `studio-web-app.ts`（静态服务）/ gateway / channel / main / termide 归属、依赖方向、退役前的内嵌架构、上游面 vs Zeta 自有面 |
+| `surface/surfaces.md` | 不确定某功能属于哪个产品面 / 名字对不对 | 三个产品面（Work Studio / `zetacode` / `zetaide`）的入口、形态、代码落点与发布线；「不存在 Rust UI」、旧名 `zetawork` 的确切含义 |
 | `surface/packages.md` | 查包职责、插件目录约定 | 包清单表、`plugins/` 两层结构 |
 | `surface/studio-design-checklist.md` | 改**冻结的** `web-ui/` 快照里的 Studio 面（产品渲染器 `web-app/` 不适用） | 快照的设计验收标准：颜色归属（`--studio-*` 桥接 L2）、四个字号角色、4/8/12/16/24 节奏、状态覆盖（loading/empty/error/active/disabled）、焦点环与对比度底线 |
 | `surface/web-app-performance.md` | 要测渲染器性能 / 复现前后对比 | `web-app` 测量协议：六项基线指标、perf harness 的构建与启动、数字记录格式 |

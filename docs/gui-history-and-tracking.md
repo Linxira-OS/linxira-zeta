@@ -1,5 +1,11 @@
 # GUI history and tracking pages
 
+> **Status (2026-11-06).** This page documents the paused Rust GUI
+> (`main/crates/zetawork-gui`), which does not ship. The desktop surface is
+> **Work Studio** in the browser (`zetacode serve`); see
+> [`desktop-app.md`](./desktop-app.md).
+
+
 Two right-column pages now read data the web UI used to own. Both are inside
 `main/crates/zetawork-gui/src/`; neither adds a second store, a cache of
 invented data, or a new endpoint.

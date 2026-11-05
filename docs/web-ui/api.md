@@ -1,5 +1,12 @@
 # Web UI gateway API
 
+> **Frozen snapshot note (2026-11-06).** This describes the retired `web-ui/`
+> snapshot and its gateway. The shipped renderer is **Work Studio**
+> (`web-app/`); its host contract is `/api/v1/*` (see
+> [`../zeta-serve-web.md`](../zeta-serve-web.md)). The gateway endpoints below are
+> still served by `zetacode serve`.
+
+
 All endpoints below are served by the Web Gateway at
 `http://127.0.0.1:43141/api/*` (the port ZetaServer proxies). Unless noted,
 request and response bodies are JSON. Errors are `{ "error": string }` with a

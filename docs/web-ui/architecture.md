@@ -1,5 +1,12 @@
 # Web UI architecture
 
+> **Frozen snapshot note (2026-11-06).** This describes the retired `web-ui/`
+> snapshot and its gateway. The shipped renderer is **Work Studio**
+> (`web-app/`); its host contract is `/api/v1/*` (see
+> [`../zeta-serve-web.md`](../zeta-serve-web.md)). The gateway endpoints below are
+> still served by `zetacode serve`.
+
+
 Zeta's web interface is a standalone Next.js app (`web-ui/`) that talks to a
 local runtime over HTTP. `zetacode serve` starts one Bun process that hosts three
 backends and proxies them behind a single port, so the browser only ever sees

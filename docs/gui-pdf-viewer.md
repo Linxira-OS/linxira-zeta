@@ -1,5 +1,11 @@
 # GUI PDF page
 
+> **Status (2026-11-06).** This page documents the paused Rust GUI
+> (`main/crates/zetawork-gui`), which does not ship. The desktop surface is
+> **Work Studio** in the browser (`zetacode serve`); see
+> [`desktop-app.md`](./desktop-app.md).
+
+
 The desktop app (`zetawork`) can display a PDF inside a pane. The terminal app
 (`zetawork`'s TUI, `main/crates/zeta-main`) never renders a PDF; this page is
 the only PDF surface in the product.

@@ -1,5 +1,11 @@
 # Web UI 架构
 
+> **冻结快照说明（2026-11-06）**：本文描述的是退役的 `web-ui/` 快照及其网关。
+> 出货的渲染器是 **Work Studio**（`web-app/`），宿主契约是 `/api/v1/*`
+> （见 [`../zeta-serve-web.md`](../zeta-serve-web.md)）。下面的网关端点仍由
+> `zetacode serve` 提供。
+
+
 Zeta 的 Web 界面是一个独立的 Next.js 应用（`web-ui/`），通过 HTTP 与本地
 运行时通信。`zetacode serve` 启动一个 Bun 进程，同时托管三个后端并把它们
 代理到单个端口之后，浏览器只看到一个源（origin）。
