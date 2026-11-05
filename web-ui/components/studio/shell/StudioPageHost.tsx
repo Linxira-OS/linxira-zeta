@@ -16,7 +16,7 @@ import { StudioGitPage } from "./StudioGitPage";
 import { StudioUsagePage } from "./StudioUsagePage";
 import { StudioSkillsPage } from "./StudioSkillsPage";
 import { StudioModelsPage } from "./StudioModelsPage";
-import { StudioAgentHubPage } from "./StudioAgentHubPage";
+import { AgentHubPage } from "../agents/AgentHub";
 import { StudioSettingsPage } from "./StudioSettingsPage";
 
 interface Props {
@@ -67,7 +67,7 @@ export function StudioPageHost(props: Props) {
 		case "models":
 			return <StudioModelsPage title={title} />;
 		case "agents":
-			return <StudioAgentHubPage sessionId={props.sessionId} title={title} />;
+			return <AgentHubPage sessionId={props.sessionId} title={title} />;
 		case "settings":
 			return <StudioSettingsPage cwd={props.cwd} onNavigateHome={() => props.onNavigate("workbench")} />;
 		default:
