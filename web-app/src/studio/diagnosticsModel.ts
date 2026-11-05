@@ -10,7 +10,8 @@ import type {
   RuntimeInstallState,
   RuntimeUnavailableCode,
 } from "@linxiraos/studio-contract";
-import { translate, type TranslationParams } from "./i18n/I18nContext";
+import { translate } from "./i18n/I18nContext";
+import type { TranslationParams } from "./i18n/types";
 
 type CapabilityManifest = ClientBootstrap["capabilityManifest"];
 

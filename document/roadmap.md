@@ -751,6 +751,13 @@ protocols and auth flows.
   无 `provider_stream_event`，未落）。官方插件生态参照:
   llama.cpp/codemode/tool_search/mcp 四内置,replaceable:true 让位机制,
   tuiText(key,fallback) 宿主注入 i18n。
+- **TUI 文案覆盖与硬编码门禁（2026-11-06 暂挂）**：TS 侧目录已完整（`packages/tui/src/i18n.ts`、
+  `packages/coding-agent/src/i18n/{messages,en,zh}.ts` 3,098 key 且 `check-i18n-consistency` 全绿），
+  缺的是覆盖面：`packages/tui/src` 仍有 73 个 `actionButton("…")` 字面量与若干原始模板串不走
+  catalog，任何语言下都保持英文。**暂挂**：迁完一个目录才有一个可验证的增量，且与 `zetawork`
+  暂挂无关（这是 `zetacode` 的 TUI）。重启条件：确定要发布第二门语言，或某个面板的中英混排
+  被用户报告；届时先落"禁止新增硬编码文案"的扫描门禁，再按目录迁。Rust `zeta-main` 不在此列
+  （zetawork 暂停，见 P0 裁决）。
 - **TUI 套件命名定稿与 zeta 工作台(2026-09-30 用户裁定,取代上方的
   "TUI 三件套整合设计"旧条;命名口径 2026-10-15 收口)**:产品形态 =
   `zetawork` 打开**嵌套终端工作台**

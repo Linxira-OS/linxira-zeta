@@ -96,7 +96,9 @@ async function cleanBundleOutputs(outDir: string): Promise<void> {
 					(entry.startsWith("CHANGELOG-") && entry.endsWith(".md")) ||
 					obsoleteHtmlExportAssetPattern.test(entry),
 			)
-			.map(entry => fs.rm(path.join(outDir, entry), { force: true })),
+			// `official-plugins` is a directory; without `recursive` a second
+			// pack in the same workspace dies with EISDIR.
+			.map(entry => fs.rm(path.join(outDir, entry), { recursive: true, force: true })),
 	);
 }
 

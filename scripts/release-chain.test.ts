@@ -146,12 +146,7 @@ describe("release asset surfaces", () => {
 	it("uploads, hashes and preflights the same families", () => {
 		for (const family of [
 			`${STAGED_DIR}/zeta-cli-*`,
-			`${STAGED_DIR}/zeta-work-*`,
 			`${STAGED_DIR}/zeta-ide-*`,
-			`${STAGED_DIR}/linxira-zeta-*-setup-x64.exe`,
-			`${STAGED_DIR}/linxira-zeta-*-windows-x64.zip`,
-			`${STAGED_DIR}/linxira-zeta-*.AppImage`,
-			`${STAGED_DIR}/linxira-zeta-*.pkg.tar.zst`,
 			"packages/browser-relay/dist/zeta-browser-relay-extension.zip",
 			"plugins/dist/zeta-plugin-example-*.zip",
 			"LICENSE",
@@ -162,12 +157,25 @@ describe("release asset surfaces", () => {
 		}
 	});
 
-	it("preflights the example-plugin zip and the four desktop archives", () => {
+	it("leaves the paused zetawork families off every release surface", () => {
+		// zetawork is paused (2026-11-05 ruling): its TUI and the desktop
+		// archives are not release assets, so none of the three surfaces may
+		// name them — a leftover glob would silently re-publish a paused build.
+		for (const family of [
+			`${STAGED_DIR}/zeta-work-*`,
+			`${STAGED_DIR}/linxira-zeta-*-setup-x64.exe`,
+			`${STAGED_DIR}/linxira-zeta-*-windows-x64.zip`,
+			`${STAGED_DIR}/linxira-zeta-*.AppImage`,
+			`${STAGED_DIR}/linxira-zeta-*.pkg.tar.zst`,
+		]) {
+			expect(upload).not.toContain(family);
+			expect(checksums).not.toContain(family);
+		}
+		for (const suffix of ["-setup-x64.exe", "-windows-x64.zip", ".AppImage", ".pkg.tar.zst"]) {
+			expect(preflight).not.toContain(suffix);
+		}
 		expect(preflight).toContain("plugins/dist/zeta-plugin-example-*.zip");
 		expect(preflight).toContain("packages/browser-relay/dist/zeta-browser-relay-extension.zip");
-		for (const suffix of ["-setup-x64.exe", "-windows-x64.zip", ".AppImage", ".pkg.tar.zst"]) {
-			expect(preflight).toContain(suffix);
-		}
 	});
 });
 

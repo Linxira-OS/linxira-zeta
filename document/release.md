@@ -62,6 +62,12 @@ Build time belongs in the changelog and the git tag, not the version.
   The renderer moved to `web-app` inside the CLI and `zetawork` is paused
   (roadmap P0, 2026-11-05); the `web_ui_build` job was retired with its gate.
   The manual `main-publish.yml` / `ci:release:publish-web-ui` paths are intact.
+  The same ruling took zetawork's **release assets** off the surface: the
+  `zeta-work-*` and `zetawork-gui-*` legs are gone from the
+  `release_product_binaries` matrix, `release_desktop_archives` is
+  dispatch-only (`build_desktop_archives`), and `release_github` uploads
+  neither family. The npm line stays publishable through the manual
+  `publish_zetawork` gate.
 - `.github/workflows/ci.yml` is the **only** workflow GitHub executes. It
   covers the Bun workspace, crates, desktop, and install methods. `web-ui/` must never add its own `.github/` workflow (subdirectory
   workflows are never triggered); new web-ui checks go into the root CI. The
@@ -137,8 +143,10 @@ plugins/official/pi-messenger`，把插件目录原样打包）发布——两�
    `release_github_verify` / `release_brew` 四个 job 删除，darwin/ARM 矩阵
    leg 与 leaf tag 全部移除。`desktop_linux` / `desktop_windows` 也已删除：
    桌面产物的唯一打包点是 Zeta-only 的 `release_desktop_archives`
-   （Windows NSIS 安装器 + GUI-only zip、Linux AppImage + Arch 包），
-   `release_github` 依赖该 job 的产物（见下方损伤类别 5）。
+   （Windows NSIS 安装器 + GUI-only zip、Linux AppImage + Arch 包）。自
+   2026-11-05 zetawork 暂停起，该 job 只保留手动 `build_desktop_archives`
+   派发路径，普通 release 不再运行它，`release_github` 也不再依赖它的产物
+   （见下方损伤类别 5）。
 
    **方向注记（未实施）**：CLI 与桌面将来可能拆分版本线独立发布——桌面追稳定
    （低频、大版本），CLI 高频快跑。届时 tag/repo 级拆分（如 `cli-vX.Y.Z` 与
@@ -529,34 +537,38 @@ The staged-runtime row is `packages/coding-agent/binaries/` — the one director
 `scripts/ci-release-build-binaries.ts` stages every product into and
 `release_github` uploads from.
 
-**Release surface from 1.3.1 (user ruling 2026-10-18).** Everything ships
-except two deliberate holes:
+**Release surface (zetawork paused 2026-11-05; user ruling 2026-10-18 for
+everything else).** Zetacode, zetaide and the packaging-time artifacts ship;
+zetawork's TUI and the desktop product do not:
 
 | Product          | Release assets                                                                                                                   | npm                                           |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | zetacode         | `zeta-cli-{linux-x64,linux-musl-x64,windows-x64.exe}`                                                                            | `@linxiraos/zeta`                             |
-| zetawork TUI     | `zeta-work-{linux-x64,win-x64.exe}`                                                                                              | `@linxiraos/main` + the two leaves            |
-| Linxira Zeta desktop (the complete product) | `linxira-zeta-<ver>-setup-x64.exe` (NSIS: GUI + `zetacode.exe` + `zetaide.exe` + `zetawork.exe` + `WebView2Loader.dll`), `linxira-zeta-<ver>-windows-x64.zip` (same five files, portable), `linxira-zeta-<ver>-1-x86_64.pkg.tar.zst` (TUI on PATH, GUI + companions in `/usr/lib/zetawork`), `linxira-zeta-<ver>-x86_64.AppImage` (same payload) | **none** — the GUI never enters the npm chain. Component binaries keep their own `zeta-cli-*` / `zeta-ide-*` / `zeta-work-*` names: they are the small packages, the product is the complete one |
+| zetawork TUI     | — **paused** (2026-11-05): `zeta-work-*` left the build matrix and every release surface                                          | `@linxiraos/main` + the two leaves, only via the manual `publish_zetawork` gate |
+| Linxira Zeta desktop (the complete product) | — **paused** (2026-11-05): the installer/AppImage/Arch packaging job is dispatch-only (`build_desktop_archives`)                   | **none** — the GUI never enters the npm chain. Component binaries keep their own `zeta-cli-*` / `zeta-ide-*` names |
 | zetaide          | `zeta-ide-{linux-x64,win-x64.exe}`                                                                                               | `@linxiraos/ide`                              |
 | editor           | — (cloud component)                                                                                                              | `@linxiraos/editor`                           |
 | official plugins | `zeta-plugin-example-<ver>.zip`（三层插件教学环境：`scripts/build-example-plugin-zip.ts`，解压即含 `git` 历史） | `@linxiraos/pi-messenger`（`example-panel` 本期只以 zip 分发，不进 npm 发布腿） |
 
-The Electron desktop (`zeta-desktop-*`) is gone for good; "desktop" means
-`zetawork`'s GUI mode only. Windows ships an NSIS per-user installer
+The Electron desktop (`zeta-desktop-*`) is gone for good. The zetawork GUI
+mode and its installer set are paused with the workbench (2026-11-05): the
+formats below describe the packing code that is kept dispatchable, not assets
+a release publishes. Windows packaging produces an NSIS per-user installer
 (`$LOCALAPPDATA\Programs\zetawork`) that installs the GUI, both companions and
 the TUI beside each other, plus the legacy GUI-only zip (exe +
-`WebView2Loader.dll`) for users who already manage the companions themselves.
-Linux ships the **Arch package** (`.pkg.tar.zst`, `pacman -U`) as its primary
-form and the AppImage as the portable one — a raw Linux zip is not the story,
-and flatpak is out of scope. Both Linux shapes install the GUI and the two
+`WebView2Loader.dll`). Linux packaging produces the **Arch package**
+(`.pkg.tar.zst`, `pacman -U`) and the AppImage; both install the GUI and the two
 companions off PATH (`/usr/lib/zetawork/`, launched by the desktop entry), so
-the product keeps exactly three commands: `zetawork`, `zetacode`, `zetaide`;
-bare `zeta` prints the help that names them.
+the product keeps exactly three commands: `zetawork`, `zetacode`, `zetaide`.
 
-`release_desktop_archives` (Zeta-only job) builds the Windows installer + zip
-and the two Linux packages from the CLI and product legs; `release_github`
-waits on it, and `scripts/check-workbench-bundles.ts` fails when a shippable
-leg disappears or an upload family exists that the release does not create.
+`release_desktop_archives` (Zeta-only job) assembles those archives from the
+CLI and product legs. It is **dispatch-only** since 2026-11-05: a release never
+runs it, `release_github` no longer waits on it, and the build matrix no longer
+stages the zetawork legs it consumes, so a manual revival must stage
+`zetawork-gui-*` / `zeta-work-*` itself. `scripts/check-workbench-bundles.ts`
+holds the shipped families (zeta-cli/zeta-ide plus the relay, example-plugin
+and root texts) to the upload/checksum/preflight surfaces, and names
+`zetawork` / `zetawork-desktop` as unshipped so a staged leg for one fails.
 Every asset name carries the numeric version (`v` stripped).
 
 **Windows icon surface** — all shipped `.exe` files (GUI, TUI, `zetacode`,

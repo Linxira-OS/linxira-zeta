@@ -25,15 +25,18 @@
  *      so `node_modules/@linxiraos/` holds the whole suite and a Linux
  *      install never drags a Windows payload.
  *   2. **Staged runtime** — `scripts/ci-release-build-binaries.ts` stages one
- *      binary per command (`zeta-work-*` → zetawork, `zeta-cli-*` →
- *      zetacode, `zeta-ide-*` → zetaide) for linux and win32 into
- *      `packages/coding-agent/binaries/`, and every product target it declares
- *      is actually built by the `release_product_binaries` matrix — so the
- *      staged directory the GUI unpacks holds all three beside `zetawork`.
- *   3. **Release archives** — `release_github` uploads all three families,
+ *      binary per shipped command (`zeta-cli-*` → zetacode, `zeta-ide-*` →
+ *      zetaide) for linux and win32 into `packages/coding-agent/binaries/`,
+ *      and every product target it declares is actually built by the
+ *      `release_product_binaries` matrix. zetawork is paused (2026-11-05
+ *      ruling) and its `zeta-work-*` / `zetawork-gui-*` legs are named in
+ *      `UNSHIPPED_COMMANDS`, so a staged leg for one fails this guard.
+ *   3. **Release archives** — `release_github` uploads the shipped families,
  *      and `release_main_packages` runs after `release_npm` (zetacode) and
  *      `release_ide_packages` (zetaide): a launcher published before its
  *      companions only ever exists as an install with two missing commands.
+ *      (The zetawork npm line stays publishable through the manual
+ *      `publish_zetawork` gate even though its release assets are gone.)
  *
  * Also asserts this guard runs in both CI mirrors (GitHub + Gitea), so a
  * mirror edit cannot quietly drop it.
@@ -45,8 +48,8 @@
  * `bun scripts/stamp-workbench-leaves.ts`); this guard fails on a missing
  * stamp, a stamp older than the manifest, or a hash that no longer matches the
  * committed bytes. It also holds the three release-asset surfaces (upload,
- * checksums, preflight) to one list, so the example-plugin zip and the four
- * desktop archives cannot fall out of one of them.
+ * checksums, preflight) to one list, so the example-plugin zip and the relay
+ * extension cannot fall out of one of them.
  *
  * Static and hermetic: reads manifests, two scripts and two workflows. No
  * network, no build.
@@ -82,25 +85,26 @@ const WORKBENCH_LEAVES: Record<string, string> = {
 const PRODUCT_COMMANDS: Record<string, string> = {
 	work: "zetawork",
 	ide: "zetaide",
-	// The desktop app is not a command: it ships inside the `linxira-zeta-*` product
-	// archives
-	// (zip on Windows, .pkg.tar.zst + AppImage on Linux) and its binary is
-	// installed off PATH. Mapping it here keeps the per-platform staging
-	// check honest without advertising a fourth command.
+	// The desktop app is not a command: when the paused archives path runs it
+	// ships inside the `linxira-zeta-*` product archives (zip on Windows,
+	// .pkg.tar.zst + AppImage on Linux) and its binary is installed off PATH.
+	// Mapping it here keeps the unshipped-leg check honest without advertising
+	// a fourth command.
 	gui: "zetawork-desktop",
 };
 
 const PLATFORMS = ["linux", "win32"] as const;
 /**
- * The commands the release stages for both platforms. 1.3.1 restored the
- * workbench TUI after the 1.3.0 hold (user ruling 2026-10-18): `zetawork`
- * ships as `zeta-work-*`, and the desktop app ships beside it. The list, the
- * product legs in `ci-release-build-binaries.ts` and the
- * `release_product_binaries` matrix move together.
+ * The commands the release stages for both platforms. zetawork is paused
+ * (user ruling 2026-11-05, roadmap P0): its TUI (`zeta-work-*`) and desktop
+ * (`zetawork-gui-*`) legs left the release matrix, so only zetacode and
+ * zetaide stage binaries. The list, the product legs in
+ * `ci-release-build-binaries.ts` and the `release_product_binaries` matrix
+ * move together.
  */
-const COMMANDS = ["zetacode", "zetawork", "zetaide"] as const;
+const COMMANDS = ["zetacode", "zetaide"] as const;
 /** Products this release does NOT ship; a staged leg for one is a failure. */
-const UNSHIPPED_COMMANDS = [] as const;
+const UNSHIPPED_COMMANDS = ["zetawork", "zetawork-desktop"] as const;
 
 interface Manifest {
 	name?: string;
@@ -334,34 +338,7 @@ const preflightStep =
 	githubJobs.release_github?.steps?.find(step => step.name === "Preflight release assets")?.run ?? "";
 const RELEASE_ASSET_SURFACES: ReadonlyArray<{ family: string; checksum: string; preflight: string }> = [
 	{ family: `${STAGED_DIR}/zeta-cli-*`, checksum: `${STAGED_DIR}/zeta-cli-*`, preflight: `${STAGED_DIR}/zeta-cli-*` },
-	{
-		family: `${STAGED_DIR}/zeta-work-*`,
-		checksum: `${STAGED_DIR}/zeta-work-*`,
-		preflight: `${STAGED_DIR}/zeta-work-*`,
-	},
 	{ family: `${STAGED_DIR}/zeta-ide-*`, checksum: `${STAGED_DIR}/zeta-ide-*`, preflight: `${STAGED_DIR}/zeta-ide-*` },
-	// Desktop archives are version-pinned in the preflight (the tag's leading
-	// `v` is not part of the name) and globbed in the other two surfaces.
-	{
-		family: `${STAGED_DIR}/linxira-zeta-*-setup-x64.exe`,
-		checksum: `${STAGED_DIR}/linxira-zeta-*-setup-x64.exe`,
-		preflight: `-setup-x64.exe`,
-	},
-	{
-		family: `${STAGED_DIR}/linxira-zeta-*-windows-x64.zip`,
-		checksum: `${STAGED_DIR}/linxira-zeta-*-windows-x64.zip`,
-		preflight: `-windows-x64.zip`,
-	},
-	{
-		family: `${STAGED_DIR}/linxira-zeta-*.AppImage`,
-		checksum: `${STAGED_DIR}/linxira-zeta-*.AppImage`,
-		preflight: `.AppImage`,
-	},
-	{
-		family: `${STAGED_DIR}/linxira-zeta-*.pkg.tar.zst`,
-		checksum: `${STAGED_DIR}/linxira-zeta-*.pkg.tar.zst`,
-		preflight: `.pkg.tar.zst`,
-	},
 	{
 		family: "packages/browser-relay/dist/zeta-browser-relay-extension.zip",
 		checksum: "packages/browser-relay/dist/zeta-browser-relay-extension.zip",

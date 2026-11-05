@@ -38,18 +38,19 @@
 | `feat/taste-memory` | feat | P0–P2 上游 host/默认值清理 + `check-no-upstream-defaults` / `check-doc-host-parity` 两个新门禁；随后在此之上做 P4 `taste` super-memory 层（`packages/coding-agent/src/taste/`）。worktree `temp/taste-memory` | agent | 2026-11-02 | P4 落地并入 `main` 后删（合并前记 SHA） |
 | `feat/design-bridge` | feat | 工作区级 OpenDesign 桥：`.zeta/design.yml` 开关、`/design` 命令、单个 `design` 工具（托管 MCP + `od` CLI）、安装/daemon/MCP 状态检测；默认关闭，不写全局；worktree `temp/design-bridge` | agent | 2026-11-04 | 合入 `main` 后删（删前记 SHA） |
 | `fix/ui-audit-p0` | fix | `document/ui-bugfix-report.md` 的 P0/P1/P2 UI/功能修复：托盘驻留、分栏/页脚、会话删除、modal 交互与浮岛视觉；附带 Git 面板提交全部更改/推送闭环；worktree `temp/ui-audit-fixes` | agent | 2026-11-04 | 修复合入 `main` 后删（删前记 SHA） |
-| `feat/web-ui-studio-migration` | feat | Web UI Studio 迁移（`local://web-ui-studio-migration-plan.md`）：`web-ui/components/studio/**` + `web-ui/styles/studio/**` 原计划接管产品 UI 层、`zetawork` 原计划变原生外壳托管 `web-ui`（该方向已暂停）、`@linxiraos/zeta-web` 浏览器面与桌面打包共用一份构建；`/api/projects` GET/PUT 注册表、git stage/commit/push/pull/log 网关族。**2026-11-05 追加 web-app 切换**：`web-app/` 自带 Vite 7 构建取代 Next 渲染层、`server/studio-host/` 回答 `/api/v1/*` 宿主契约（pair/CSRF/query/command/events）、`@omp-studio/*` 与 `ompStudio*` 全局名全部迁到 `@linxiraos/studio-*` / `zetaStudio*`、`pi-omptype`/`pi-snapcompact` 改名 `zeta-schema`/`zeta-compact`、`compat.importLegacyOmp` 设置与 `zeta serve` 同源静态托管。基于 `c1f6c6c6a79`，worktree `temp/web-ui-studio` | agent | 2026-11-05 | 全量验证（W1–W8 + `bun check` + branch CI）并入 `main` 后删（删前记 SHA） |
 | `backup/pre-studio-ui-2026-11-05` | backup | Studio 迁移前冻结快照，`c1f6c6c6a79789ed99e37c42b14f3648e00fe624`（`v1.4.10` 线）；已推 `origin` | agent | 2026-11-05 | 迁移分支通过全量验证后再删（删前记 SHA） |
 | `dev/main-v1830-wip` | dev | v18.3.0 合并 WIP（2026-09-25，已被 v18.14.2 远超） | user | 2026-09-25 | **用户决定**；技术上是死的 |
 | `fix/browser-relay-hello-race` | fix | browser relay hello 竞态修复（`c1f6c6c6a79`；`git branch --merged main` 已含此分支） | unassigned | — | 已并入 `main`，删前记 SHA |
 | `port/studio-conversation` | port | Studio 会话面语义移植（`d2ab1add16f`，未并入 `main`；内容随 `feat/web-ui-studio-migration` 走） | agent | 2026-11-05 | 迁移分支合入 `main` 后删；删前记 SHA |
 | `port/studio-sidebar` | port | Studio 侧栏移植 + `port/studio-pages` 合并（`d5ef794bfd7`，未并入 `main`） | agent | 2026-11-05 | 迁移分支合入 `main` 后删；删前记 SHA |
 | `temp/release-dispatch` | temp | 临时 release dispatch 工作流实验（`89963b49b81`，未并入 `main`） | unassigned | — | 实验结束即删；删前记 SHA |
+| `feat/ship-webapp` | feat | 发行面收尾：渲染器打进 `@linxiraos/zeta`（方案 A）、退役 zetawork 的 release 资产族、渲染器自身类型债务；worktree `temp/ship-webapp` | agent | 2026-11-05 | 合入 `main` 后删（删前记 SHA） |
 
 ## 已退役（删除前登记）
 
 | 分支 | SHA | 退役日期 | 原因 |
 |---|---|---|---|
+| `feat/web-ui-studio-migration` | `b197d271a61` | 2026-11-05 | 已合并（`1d2fb36f731`，PR #233）：渲染器切到 `web-app`、Studio 宿主 `/api/v1/*`、命名归一、四项性能成本；CI run `42062805101` 33 job 全绿 |
 | `sync/omp-release/v18.16.0` | `88656c15a80`（远端 `2b083affafa`） | 2026-11-04 | OMP `v18.16.0` 真 merge 已合入 `main`；`main` CI `41662377662` 绿，Coverage `41662394241` 成功；worktree `temp/sync-v18.16.0` 已删除 |
 | `feat/attach-parity-full` | `fe712038e2e` | 2026-11-01 | 内容已全部在 `main`（`backend/subagent-mirror.ts`、`slash-commands/cleanse.ts`、`loop/continuation-controller.ts` 均存在；24 处冲突逐个解析后与 `main` 的差异只剩文档，已手工迁入）。该分支还提交了 `.bun-cache/bun-linux-x64-baseline-v1.4.3`（88 MB，`.gitignore` 已列却仍被加入），**永不合入** |
 | `backup/editor-ttt-1.6.0` | `2fa543c253b` | 2026-11-01 | 旧备份，内容早已并入 |

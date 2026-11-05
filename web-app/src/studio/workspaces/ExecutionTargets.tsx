@@ -2,7 +2,7 @@ import { modelConfigHasUnsavedChanges } from "../ModelConfigPage";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { StudioClientImpl } from "@linxiraos/studio-client";
 import type { StudioClient } from "@linxiraos/studio-contract";
-import type { RemoteApi, RemoteInventory, RemoteConnectionProfile, RemoteCredentials } from "../../../desktop/src/remote/shared";
+import type { RemoteApi, RemoteInventory, RemoteConnectionProfile, RemoteCredentials } from "./remoteShared";
 import { SshPasswordDialog } from "./SshPasswordDialog";
 import { SshPreparationDialog } from "./SshPreparationDialog";
 import { createRemoteTransport, type RemoteTransportState } from "./remoteTransport";

@@ -119,7 +119,7 @@ function receiveUnifiedUpdate(snapshot: import("@linxiraos/studio-runtime-instal
     receivedBytes: parts.reduce((n, p) => n + (p.receivedBytes ?? 0), 0),
     totalBytes: parts.reduce((n, p) => n + (p.totalBytes ?? 0), 0),
     updateInfo: {
-      component: current.component,
+      ...(current.component === undefined ? {} : { component: current.component }),
       available: Boolean(current.version), currentVersion: current.currentVersion ?? "",
       version: current.version, name: current.component === "runtime" ? `OMP Runtime ${current.version ?? ""}` : `Zeta ${current.version ?? ""}`,
       reason: "restart-update", blockedReason: current.blockedReason, htmlUrl: snapshot.releaseNotesUrl,

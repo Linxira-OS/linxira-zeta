@@ -22,7 +22,7 @@ describe("artifact reads through session approval", () => {
 	let session: AgentSession | undefined;
 
 	beforeEach(async () => {
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-artifact-approval-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-artifact-approval-"));
 	});
 
 	afterEach(async () => {

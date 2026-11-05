@@ -40,6 +40,7 @@
     "dist/CHANGELOG-*.md",
     "dist/*.node",
     "dist/*.json-*.zst",
+    "dist/web-app",
     "scripts",
     "examples",
     "README.md",
@@ -544,7 +545,8 @@
     "format-prompts": "bun scripts/format-prompts.ts",
     "gen:bundle": "bun scripts/bundle-dist.ts",
     "gen:rpc": "bun scripts/gen-rpc/index.ts",
-    "prepack": "bun run gen:export-viewer && bun run gen:bundle",
+    "gen:web-app": "bun scripts/build-web-app.ts",
+    "prepack": "bun run gen:export-viewer && bun run gen:bundle && bun run gen:web-app",
     "bench:guard": "bun scripts/bench-guard.ts",
     "gen:export-viewer": "bun --cwd=../collab-web run gen:export-viewer"
   },

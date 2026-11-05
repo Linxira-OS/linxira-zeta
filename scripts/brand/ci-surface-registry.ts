@@ -103,11 +103,13 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			},
 			{
 				job: "release_product_binaries",
-				why: "bare zeta-ide binary build/upload for distribution repackaging; release_github preflight expects zeta-ide-* assets (the zeta-work-* legs left with the 1.3.0 TUI hold, the zeta-editor-* legs retired 2026-10-16)",
+				why: "bare zeta-ide binary build/upload for distribution repackaging; release_github preflight expects zeta-ide-* assets (zetawork paused 2026-11-05: the zeta-work-*/zetawork-gui-* legs left the matrix, and the zeta-editor-* legs retired 2026-10-16)",
 			},
 			{
 				job: "release_desktop_archives",
-				why: "Zeta-only: packages the zetawork desktop surface (Windows NSIS installer with companions + GUI-only zip, Linux .pkg.tar.zst + AppImage with companions) from the CLI and product legs. It needs both platforms' companion legs, so it cannot live inside the matrix; release_github waits on it",
+				why: "Zeta-only: packages the zetawork desktop surface (Windows NSIS installer with companions + GUI-only zip, Linux .pkg.tar.zst + AppImage). PAUSED with zetawork (user ruling 2026-11-05): dispatch-only via `build_desktop_archives`, never on a release, and release_github no longer needs it. Keep the definition so a manual revival does not have to reconstruct the packaging chain",
+			},
+			{
 				job: "release_plugin_packages_manual",
 				why: "Zeta-only: the plugin publish without the release gate, driven by the `publish_plugins` dispatch input. npm validates a trusted-publisher entry only through a real publish and its window is days wide; retries must not queue behind the 40-minute bazel chain. Mutually exclusive with release_plugin_packages",
 			},
@@ -153,14 +155,8 @@ export const CI_SURFACE: WorkflowSurface[] = [
 		needsEdges: [
 			{
 				job: "release_github",
-				needs: [
-					"release_metadata",
-					"release_gate",
-					"release_binary",
-					"release_product_binaries",
-					"release_desktop_archives",
-				],
-				why: "damage class 10: every family the release uploads must be built and uploaded before the release is created (1.3.0: zeta-cli-* and zeta-ide-*)",
+				needs: ["release_metadata", "release_gate", "release_binary", "release_product_binaries"],
+				why: "damage class 10: every family the release uploads must be built and uploaded before the release is created (zetawork paused 2026-11-05: zeta-cli-* and zeta-ide-*; the dispatch-only archives job is deliberately not an edge)",
 			},
 			{
 				job: "web_desktop_tests",

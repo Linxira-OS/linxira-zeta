@@ -1,5 +1,5 @@
 /**
- * Static serving for the Studio renderer build (`web-app/dist`).
+ * Static serving for the Studio renderer build.
  *
  * `zeta serve` is the whole product surface: the same origin answers `/api/*`
  * and serves the renderer, so the browser needs no proxy and the Studio host's
@@ -7,9 +7,10 @@
  * `index.html` (client-side routing), while hashed assets are cached
  * immutably and `index.html` never is.
  *
- * The build is optional: a package that ships without one keeps the
- * `NO_WEB_UI_PAGE` placeholder, and a probe of `/` still proves the backend is
- * alive.
+ * The npm package ships the build at `dist/web-app`; a checkout serves
+ * `web-app/dist`. An install without either (a checkout before the first
+ * build, or a truncated tarball) keeps the `NO_WEB_UI_PAGE` placeholder, and a
+ * probe of `/` still proves the backend is alive.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -55,13 +56,39 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
 /**
  * Where the renderer build lives, or `null` when this install has none.
  *
- * `ZETA_WEB_APP_DIR` wins (tests, a packaged layout, a custom build); otherwise
- * the repository layout (`<repo>/web-app/dist`) is probed from this module's
- * location. A miss is not an error: the caller serves the placeholder page.
+ * Resolution order:
+ * 1. `ZETA_WEB_APP_DIR` — an explicit override. When set it is authoritative:
+ *    a bad path is reported as "no build", never silently replaced by another.
+ * 2. the build shipped inside the package (`<package-root>/dist/web-app`).
+ *    Both layouts this module can run from are probed, because the relative
+ *    path differs between the published bundle (`dist/cli.js`) and TypeScript
+ *    source (`src/server/studio-web-app.ts`, a checkout or source install).
+ * 3. the repository layout (`<repo>/web-app/dist`), for `bun install` in a
+ *    checkout where nobody ran the packaging step.
+ *
+ * A miss is not an error: the caller serves the placeholder page, which names
+ * these same ways to get a build.
  */
 export function resolveStudioWebAppDir(): string | null {
-	const explicit = process.env.ZETA_WEB_APP_DIR;
-	const candidates = explicit ? [explicit] : [fileURLToPath(new URL("../../../../web-app/dist", import.meta.url))];
+	return resolveStudioWebAppDirFrom(import.meta.url, process.env.ZETA_WEB_APP_DIR);
+}
+
+/**
+ * Testable form of {@link resolveStudioWebAppDir}: resolve relative to an
+ * explicit module URL and explicit override instead of this file and the
+ * ambient environment.
+ */
+export function resolveStudioWebAppDirFrom(moduleUrl: string | URL, explicitDir: string | undefined): string | null {
+	const candidates = explicitDir
+		? [explicitDir]
+		: [
+				// Published bundle: <package-root>/dist/cli.js.
+				fileURLToPath(new URL("../dist/web-app", moduleUrl)),
+				// TypeScript source: <package-root>/src/server/studio-web-app.ts.
+				fileURLToPath(new URL("../../dist/web-app", moduleUrl)),
+				// Repository checkout: <repo>/web-app/dist.
+				fileURLToPath(new URL("../../../../web-app/dist", moduleUrl)),
+			];
 	for (const candidate of candidates) {
 		try {
 			if (fs.statSync(path.join(candidate, "index.html")).isFile()) return path.resolve(candidate);

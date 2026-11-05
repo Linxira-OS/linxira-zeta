@@ -164,7 +164,12 @@ Composer 以 fixed 浮层挂在右下角，参与整页测量（与会话 pane �
    - `web-app/src/studio/usage/usagePolling.test.ts`（隐藏页暂停轮询）
 3. 仍未测的面：真实会话（长 transcript + 图片 chips）与真机 GPU 合成。
    要拿到可信的「前后差」，夹具需要改成 500 帧流式 + 400 字符拼写，并关掉
-   其他负载；这需要扩 `src/perf/collect.ts` 的场景常量，不在本轮范围。
+   其他负载；这需要扩 `src/perf/collect.ts` 的场景常量。
+
+**2026-11-06 裁定：夹具扩展暂不排期**。四项成本的收益已由单测固定
+（`snapshot-clone` / `draftPublish` / `usagePolling`），六个指标在合成夹具上
+分辨率不足是已知事实；在拿到真实用户会话的采样之前，扩夹具只会产出又一组
+"持平"数字。重启条件：有人报告流式卡顿或按键延迟，且能用本文协议复现。
 
 ## 6.1 运行登记
 

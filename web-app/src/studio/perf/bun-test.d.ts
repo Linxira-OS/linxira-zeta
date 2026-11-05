@@ -14,6 +14,8 @@ declare module "bun:test" {
 	export interface Expectation {
 		readonly not: Expectation;
 		toBe(expected: unknown): void;
+		toBeNull(): void;
+		toBeGreaterThan(expected: number): void;
 		toEqual(expected: unknown): void;
 		toThrow(): void;
 		toHaveBeenCalled(): void;

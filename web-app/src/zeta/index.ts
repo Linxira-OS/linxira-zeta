@@ -149,7 +149,7 @@ export class StudioClientImpl implements StudioClient {
 				classification: identity.app === "zeta" ? "compatible-system" : "unavailable",
 				runtimeId: `zeta:${identity.pid ?? 0}` as never,
 				runtimeEpoch: 1 as never,
-				runtimeVersion: identity.version,
+				...(identity.version === undefined ? {} : { runtimeVersion: identity.version }),
 			},
 			surface: {
 				terminalAttach: true,
