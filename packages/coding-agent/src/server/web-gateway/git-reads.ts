@@ -1,25 +1,31 @@
 /**
  * Web Gateway — git read handlers for the Studio Git surface.
  *
- * GET /api/git/status?cwd=            → { isGitRepository, current, ahead, behind, changes, truncated }
+ * GET /api/git/status?cwd=            → { isGitRepository, current, unborn, ahead, behind, stashCount?, changes, truncated }
  * GET /api/git/diff?cwd=&path=&staged= → { diff } (one working-tree/index file)
  * GET /api/git/diff?cwd=&oid=          → { diff } (one commit, header + patch)
  * GET /api/git/remotes?cwd=           → { remotes: [{ name, url }] }
  * GET /api/git/show?cwd=&oid=         → one commit with its per-file line counts
- * GET /api/git/worktrees?cwd=         → { worktrees: [{ path, branch, head, detached }] }
+ * GET /api/git/worktrees?cwd=         → { worktrees: [{ path, branch, head, detached, bare, locked, lockReason?, prunable }] }
+ * GET /api/git/log?cwd=&limit=&skip=  → { commits: [{ sha, subject, parents?, authorName?, authorDate?, refs?, relation? }], hasMore }
  *
  * Reads go through the pi-vcs native addon — no `git` subprocess. Outside a
  * checkout the routes answer 404 `{ error: "not a git repository" }`; an
  * unknown commit is 404, an oversized patch is 413, so a caller can tell a
  * refusal from an empty result.
  *
- * DTO gaps (the addon exposes no such fact, so the field is absent rather than
- * invented): `stashCount` in status, `bare`/`locked` in worktrees, and branch
- * decorations for remote-tracking refs in the log.
+ * Facts the addon's rows do not carry are read from the repository's own
+ * metadata (never a `git` child process): `unborn` from HEAD's resolved state,
+ * `stashCount` from the stash reflog, worktree `bare`/`locked`/`prunable` from
+ * the admin directories under `.git/worktrees/`, and a commit's `relation`
+ * from `mergeBase` against the branch's upstream. `stashCount` is omitted for
+ * reftable repositories, where reflogs live in tables; `relation` is omitted
+ * when the branch has no upstream. The addon still exposes no remote-tracking
+ * ref decorations for the log, so `refs` names local branches and tags only.
  */
 
-import { statSync } from "node:fs";
-import { isAbsolute, relative, resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { VcsGitRepo } from "@linxiraos/pi-natives";
 import { git, isVcsError } from "@linxiraos/pi-natives/vcs";
 
@@ -44,10 +50,20 @@ const MAX_DECORATED_COMMITS = 100;
 
 export type GitChangeStatus = "modified" | "added" | "deleted" | "renamed" | "copied" | "untracked" | "conflicted";
 
+/** One side of a porcelain pair; `unmodified` means that side carries no change. */
+export type GitSideStatus = GitChangeStatus | "unmodified";
+
 export interface GitStatusChange {
 	path: string;
 	status: GitChangeStatus;
 	staged: boolean;
+	/**
+	 * Index side of the porcelain pair. A file changed on both sides carries
+	 * its own value here and in {@link GitStatusChange.worktreeStatus}; the
+	 * collapsed `status` cannot express that.
+	 */
+	indexStatus: GitSideStatus;
+	worktreeStatus: GitSideStatus;
 }
 
 /** Porcelain v1 pairs that mean an unresolved merge conflict. */
@@ -72,6 +88,43 @@ function classify(index: string, worktree: string): GitChangeStatus {
 	return "modified";
 }
 
+/** One porcelain status character, as the side it describes. */
+function sideStatus(char: string): GitSideStatus {
+	switch (char) {
+		case "M":
+		case "T":
+			return "modified";
+		case "A":
+			return "added";
+		case "D":
+			return "deleted";
+		case "R":
+			return "renamed";
+		case "C":
+			return "copied";
+		case "U":
+			return "conflicted";
+		case "?":
+			return "untracked";
+		default:
+			return "unmodified";
+	}
+}
+
+/**
+ * Both sides of a porcelain row. A conflict pair carries the contract's single
+ * `conflicted` state on each side; `??` is untracked in the worktree only.
+ */
+function sidePair(
+	index: string,
+	worktree: string,
+	status: GitChangeStatus,
+): { indexStatus: GitSideStatus; worktreeStatus: GitSideStatus } {
+	if (status === "conflicted") return { indexStatus: "conflicted", worktreeStatus: "conflicted" };
+	if (status === "untracked") return { indexStatus: "unmodified", worktreeStatus: "untracked" };
+	return { indexStatus: sideStatus(index), worktreeStatus: sideStatus(worktree) };
+}
+
 /**
  * Porcelain v1 rows (`-z`, so paths are raw). A rename record is followed by
  * the original path, which is skipped: the row is the destination.
@@ -86,10 +139,12 @@ function parseStatusEntries(text: string, limit: number): { changes: GitStatusCh
 		const worktree = row[1];
 		if (index === "R" || index === "C" || worktree === "R" || worktree === "C") i += 1;
 		if (changes.length >= limit) return { changes, truncated: true };
+		const status = classify(index, worktree);
 		changes.push({
 			path: row.slice(3),
-			status: classify(index, worktree),
+			status,
 			staged: index !== " " && index !== "?",
+			...sidePair(index, worktree, status),
 		});
 	}
 	return { changes, truncated: false };
@@ -152,6 +207,23 @@ function openRepo(cwd: string): { repo: VcsGitRepo } | { response: Response } {
 	return { repo };
 }
 
+/**
+ * Stash entries in a file-backed repository.
+ *
+ * `logs/refs/stash` gets one line per `stash push` and loses one per
+ * `stash drop` (git rewrites the reflog), so the line count is the stash count;
+ * no file means no stash was ever pushed. Reftable repositories keep reflogs in
+ * tables instead, where this read would under-report, so the handler omits the
+ * field for them rather than answering a wrong zero.
+ */
+function readStashCount(commonDir: string): number {
+	const log = join(commonDir, "logs", "refs", "stash");
+	if (!existsSync(log)) return 0;
+	return readFileSync(log, "utf8")
+		.split("\n")
+		.filter(line => line.trim() !== "").length;
+}
+
 /** GET /api/git/status — working-tree status, one row per changed path. */
 export async function handleGitStatus(req: Request): Promise<Response> {
 	const cwd = new URL(req.url).searchParams.get("cwd");
@@ -161,12 +233,26 @@ export async function handleGitStatus(req: Request): Promise<Response> {
 	const { repo } = opened;
 	try {
 		// Detached HEAD → null; the DTO then reports no tracked divergence.
-		const current = repo.headSync().branch ?? null;
+		const head = repo.headSync();
+		const current = head.branch ?? null;
+		// A symbolic HEAD whose ref has no commit yet: git reports the branch
+		// name, the state has no commit. An unreadable HEAD reads the same way.
+		const unborn = !head.commit;
 		const upstream = current ? await resolveBranchUpstream(repo, current) : null;
 		const { ahead, behind } = await branchDivergence(repo, upstream);
 		const porcelain = await repo.statusPorcelain({ untracked: "normal", nulTerminated: true });
 		const { changes, truncated } = parseStatusEntries(porcelain, MAX_STATUS_CHANGES);
-		return json({ isGitRepository: true, current, ahead, behind, changes, truncated });
+		const info = repo.info();
+		return json({
+			isGitRepository: true,
+			current,
+			unborn,
+			ahead,
+			behind,
+			...(info.isReftable ? {} : { stashCount: readStashCount(info.commonDir) }),
+			changes,
+			truncated,
+		});
 	} catch (error) {
 		if (isVcsError(error) && error.code === "OutputTooLarge") {
 			return json({ error: "status too large", limit: MAX_STATUS_CHANGES }, 413);
@@ -418,11 +504,79 @@ export async function handleGitShow(req: Request): Promise<Response> {
 	}
 }
 
+interface WorktreeFacts {
+	readonly bare: boolean;
+	readonly locked: boolean;
+	readonly lockReason?: string;
+	readonly prunable: boolean;
+}
+
+/**
+ * Facts the addon's worktree row does not carry, read from the linked
+ * worktree's admin directory under `commonDir/worktrees/<id>/`.
+ *
+ * - `locked` is the presence of that directory's `locked` file; its first line
+ *   is git's own lock reason.
+ * - `prunable` is a `gitdir` pointer whose target (the worktree's `.git` file)
+ *   no longer exists — the directory was moved or removed, which is exactly
+ *   what `git worktree list` calls prunable.
+ *
+ * Keyed by the worktree root the pointer names, so an entry keeps its facts
+ * even after the checkout moved away (the admin directory survives).
+ */
+function linkedWorktreeFacts(commonDir: string): Map<string, WorktreeFacts> {
+	const facts = new Map<string, WorktreeFacts>();
+	let admins: string[];
+	try {
+		admins = readdirSync(join(commonDir, "worktrees"), { withFileTypes: true })
+			.filter(entry => entry.isDirectory())
+			.map(entry => entry.name);
+	} catch {
+		// No linked worktrees (or no `worktrees/` directory at all).
+		return facts;
+	}
+	for (const name of admins) {
+		const admin = join(commonDir, "worktrees", name);
+		let pointer: string;
+		try {
+			pointer = readFileSync(join(admin, "gitdir"), "utf8").trim();
+		} catch {
+			continue;
+		}
+		if (pointer === "") continue;
+		const dotGit = resolve(pointer);
+		const lockFile = join(admin, "locked");
+		const locked = existsSync(lockFile);
+		let lockReason: string | undefined;
+		if (locked) {
+			try {
+				const first = readFileSync(lockFile, "utf8").split("\n")[0].trim();
+				if (first !== "") lockReason = first;
+			} catch {
+				// Locked file unreadable: the lock still stands, the reason is absent.
+			}
+		}
+		facts.set(worktreeKey(dirname(dotGit)), {
+			bare: false,
+			locked,
+			...(lockReason === undefined ? {} : { lockReason }),
+			prunable: !existsSync(dotGit),
+		});
+	}
+	return facts;
+}
+
+/** Comparison key for a worktree root; both sides come from git's own paths. */
+function worktreeKey(path: string): string {
+	return resolve(path).replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
 /**
  * GET /api/git/worktrees — the primary checkout plus its linked worktrees.
  *
- * `bare` and `locked` are absent: the addon's listing row carries only
- * `path`/`head`/`branch`/`detached`.
+ * The primary checkout has no admin directory; git calls it bare when the
+ * directory carries no `.git` entry of its own. It is never locked or
+ * prunable.
  */
 export async function handleGitWorktrees(req: Request): Promise<Response> {
 	const cwd = new URL(req.url).searchParams.get("cwd");
@@ -431,16 +585,26 @@ export async function handleGitWorktrees(req: Request): Promise<Response> {
 	if ("response" in opened) return opened.response;
 	const { repo } = opened;
 	try {
+		const linked = linkedWorktreeFacts(repo.info().commonDir);
 		const entries = await repo.worktrees();
 		return json({
-			worktrees: entries.map(entry => ({
-				path: entry.path,
-				// The addon reports the checked-out ref (`refs/heads/x`); the DTO
-				// carries the branch name a caller can pass back.
-				branch: entry.branch === undefined ? null : entry.branch.replace(/^refs\/heads\//, ""),
-				head: entry.head ?? null,
-				detached: entry.detached,
-			})),
+			worktrees: entries.map(entry => {
+				const root = resolve(entry.path);
+				const facts: WorktreeFacts = linked.get(worktreeKey(root)) ?? {
+					bare: !existsSync(join(root, ".git")),
+					locked: false,
+					prunable: false,
+				};
+				return {
+					path: entry.path,
+					// The addon reports the checked-out ref (`refs/heads/x`); the DTO
+					// carries the branch name a caller can pass back.
+					branch: entry.branch === undefined ? null : entry.branch.replace(/^refs\/heads\//, ""),
+					head: entry.head ?? null,
+					detached: entry.detached,
+					...facts,
+				};
+			}),
 		});
 	} catch (error) {
 		return json({ error: errorMessage(error) }, 500);
@@ -457,6 +621,12 @@ export type EnrichedLogRow = LogRow & {
 	authorName?: string;
 	authorDate?: string;
 	refs?: string[];
+	/**
+	 * Position against the branch's upstream. Absent from every row when the
+	 * branch has none (or its upstream ref is gone), because then there is no
+	 * relationship to report — the caller refuses the read instead of guessing.
+	 */
+	relation?: "head" | "outgoing" | "incoming" | "common";
 };
 
 /** Local branch heads, keyed by commit id; skipped past the enrichment cap. */
@@ -478,15 +648,33 @@ async function branchHeads(repo: VcsGitRepo, current: string | null): Promise<Ma
 }
 
 /**
- * Add parents, author and decorations to a page of `--oneline` rows.
+ * Add parents, author, decorations and the row's upstream relation to a page
+ * of `--oneline` rows.
  *
  * `sha` keeps the addon's abbreviated id (the row identity the log page
- * already returns); `parents` are the full ids `commitDetails` reports. A row
- * whose details cannot be read keeps only what `--oneline` produced, and a
- * page past {@link MAX_DECORATED_COMMITS} carries no `refs` at all.
+ * already returns); `parents` and `relation` use the full ids
+ * `commitDetails` reports. A row whose details cannot be read keeps only what
+ * `--oneline` produced, and a page past {@link MAX_DECORATED_COMMITS} carries
+ * no `refs` at all.
+ *
+ * `relation` needs the upstream tip: one `mergeBase(head, upstream)` decides
+ * whether the history is comparable at all (a shallow clone or unrelated
+ * histories have no base), then each row is classified with
+ * `mergeBase(row, upstream) === row` ⇒ the upstream already contains it.
+ * Every row comes from HEAD's log, so it is HEAD-reachable by construction and
+ * the HEAD-only branch is `outgoing`; `incoming` rows are upstream-only and
+ * therefore never part of this page. With no upstream, no row is classified.
  */
 export async function enrichLogRows(repo: VcsGitRepo, rows: LogRow[]): Promise<EnrichedLogRow[]> {
-	const current = repo.headSync().branch ?? null;
+	const head = repo.headSync();
+	const current = head.branch ?? null;
+	const headOid = head.commit ?? null;
+	const upstream = current === null ? null : await resolveBranchUpstream(repo, current);
+	const upstreamOid = upstream?.oid ?? null;
+	const related =
+		headOid !== null && upstreamOid !== null
+			? (await repo.mergeBase(headOid, upstreamOid).catch(() => null)) !== null
+			: false;
 	const decorate = rows.length <= MAX_DECORATED_COMMITS;
 	const heads = decorate ? await branchHeads(repo, current) : new Map<string, string[]>();
 	return Promise.all(
@@ -502,6 +690,14 @@ export async function enrichLogRows(repo: VcsGitRepo, rows: LogRow[]): Promise<E
 			if (decorate) {
 				const tags = await repo.tagsAt(details.sha).catch(() => [] as string[]);
 				enriched.refs = [...(heads.get(details.sha) ?? []), ...tags.map(tag => `tag: ${tag}`)];
+			}
+			if (related && headOid !== null && upstreamOid !== null) {
+				if (details.sha === headOid) {
+					enriched.relation = "head";
+				} else {
+					const base = await repo.mergeBase(details.sha, upstreamOid).catch(() => null);
+					enriched.relation = base === details.sha ? "common" : "outgoing";
+				}
 			}
 			return enriched;
 		}),

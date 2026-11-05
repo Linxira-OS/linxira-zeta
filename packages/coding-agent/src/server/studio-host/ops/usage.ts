@@ -54,12 +54,7 @@ import type {
 	WorkspaceListReadModel,
 	WorkspaceRecord,
 } from "../contract/index.js";
-import type {
-	AgentId,
-	ConversationOpenResult,
-	ConversationTarget,
-	OperatorStateSnapshot,
-} from "../protocol/index.js";
+import type { AgentId, ConversationOpenResult, ConversationTarget, OperatorStateSnapshot } from "../protocol/index.js";
 import { resumePathKey } from "../../../resume/paths.js";
 import { readAgentConversationPage, readTranscriptPage, sessionOps } from "./session.js";
 import { workspaceOps } from "./workspace.js";
@@ -520,12 +515,12 @@ export const usageOps: StudioFamily = {
 	id: "usage",
 	queries: {
 		/** Both listings are read once per request and mapped together. */
-		"history.list": (input) => listHistory(input),
+		"history.list": input => listHistory(input),
 		/** Bootstrap facts + `session.state` + active history + workspace inventory. */
 		"home.get": (_input, context) => homeReadModel(context),
 		/** `/api/usage` session totals aggregated into the daily series. */
 		"usage.get": () => tokenUsage(),
 		"stats.dashboard": () => statsDashboard(),
-		"conversation.open": (input) => openConversation(input),
+		"conversation.open": input => openConversation(input),
 	},
 };

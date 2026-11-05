@@ -15,7 +15,7 @@
  * | `session.tree.branch` | `POST /api/agent/:id` `{type:"fork"}` at `targetId` |
  * | `session.model.set` | `POST /api/agent/:id` `{type:"set_model"}` (+ `set_thinking_level`) |
  * | `session.thinking.set` | `POST /api/agent/:id` `{type:"set_thinking_level"}` |
- * | `core.prompt` / `core.steer` / `core.followUp` / `core.abort` | `POST /api/agent/:id` |
+ * | `core.prompt` / `core.steer` / `core.followUp` / `core.abort` / `core.continue` | `POST /api/agent/:id` |
  * | `queue.enqueue` | `POST /api/agent/:id` `{type:"follow_up"}` |
  * | `interaction.respond` | `POST /api/extension-ui/response` |
  * | `session.transcript.read` / `session.transcript.readPage` | `GET /api/sessions/:id` (context + leaf + entry timestamps) |
@@ -24,11 +24,11 @@
  *
  * Deliberate omissions (Zeta cannot answer them, so the capability manifest
  * does not advertise them and Studio hides the surface):
- * `core.continue` (no continue command on the gateway), `session.fast.set`,
- * `session.taskModel.set`, `session.telemetry.read`, `session.handoff`,
- * `session.prewalk.*`, `session.resume`, `session.clearContext`,
- * `session.drop`, `agent.send|kill|revive|release|spawn`,
- * `agents.definition.*` (all C in `studio-host-spec.md`).
+ * `session.fast.set`, `session.taskModel.set`, `session.telemetry.read`,
+ * `session.handoff`, `session.prewalk.*`, `session.resume`,
+ * `session.clearContext`, `session.drop`,
+ * `agent.send|kill|revive|release|spawn`, `agents.definition.*`
+ * (all C in `studio-host-spec.md`).
  *
  * The contract's session commands carry no session id: they act on the live
  * Runtime session the client is driving. This file tracks that session (the
@@ -50,7 +50,7 @@ import {
 import type { StudioFamily } from "../registry.js";
 import type { ConversationTranscriptReadPage } from "../contract/conversation.js";
 import type { SessionId } from "../contract/ids.js";
-import type { SessionTreeCommandOutcome } from "../contract/operations.js";
+import type { ContinueTurnOutcome, SessionTreeCommandOutcome } from "../contract/operations.js";
 import type { ConfigWriteResult } from "../contract/read-models.js";
 import type {
 	AgentStatus,
@@ -88,13 +88,13 @@ import { truncateUtf8, utf8ByteLength } from "../protocol/conversation-text.js";
 const RUNTIME_EPOCH = 1 as RuntimeEpoch;
 
 /**
- * How long `core.prompt` waits for the gateway's dispatch call before it
- * assumes the runtime accepted a long turn. The gateway only settles `prompt`
- * when the *turn* ends, so awaiting it would hold the command receipt for
- * minutes; a short lease surfaces immediate failures while the live session
- * state still reports the running turn.
+ * How long a turn-opening command waits for the gateway's answer before it
+ * assumes the runtime accepted a long turn. The gateway settles `prompt` (and
+ * the synthetic branch of `continue`) only when the *turn* ends, so awaiting it
+ * would hold the command receipt for minutes; a short lease surfaces immediate
+ * failures while the live session state still reports the running turn.
  */
-const PROMPT_DISPATCH_LEASE_MS = 1500;
+const TURN_DISPATCH_LEASE_MS = 1500;
 
 // ---------------------------------------------------------------------------
 // Untrusted JSON narrowing (gateway answers are payloads, never trusted types)
@@ -998,7 +998,7 @@ async function dispatchTurn(sessionId: string, command: Record<string, unknown>)
 		settled = true;
 	});
 	const { promise: lease, resolve } = Promise.withResolvers<"timeout">();
-	const timer = setTimeout(() => resolve("timeout"), PROMPT_DISPATCH_LEASE_MS);
+	const timer = setTimeout(() => resolve("timeout"), TURN_DISPATCH_LEASE_MS);
 	try {
 		await Promise.race([dispatched, lease]);
 	} finally {
@@ -1008,6 +1008,38 @@ async function dispatchTurn(sessionId: string, command: Record<string, unknown>)
 	// the live session state, not by a receipt the renderer no longer waits on.
 	if (!settled) void dispatched.catch(() => undefined);
 	return await snapshotFor(sessionId);
+}
+
+/** Narrow the gateway's `{started, mode}` continue result to the contract outcome. */
+function continueTurnOutcome(data: Record<string, unknown> | undefined): ContinueTurnOutcome {
+	const started = data === undefined ? undefined : booleanField(data, "started");
+	const mode = data === undefined ? undefined : stringField(data, "mode");
+	if (started === undefined || (mode !== "restored" && mode !== "continue" && mode !== "none")) {
+		throw unavailable("the gateway returned no continue outcome");
+	}
+	return { started, mode };
+}
+
+/**
+ * Dispatch the gateway's `{type:"continue"}`. `AgentSession.resume()` answers
+ * immediately for "nothing to resume" and for the recovery branch, and only the
+ * hidden synthetic continue stays pending for a whole turn; a command that
+ * outlives the dispatch lease therefore *is* that continue, already running.
+ */
+async function dispatchContinue(sessionId: string): Promise<ContinueTurnOutcome> {
+	const dispatched = runAgentCommand(sessionId, { type: "continue" });
+	const { promise: lease, resolve } = Promise.withResolvers<"timeout">();
+	const timer = setTimeout(() => resolve("timeout"), TURN_DISPATCH_LEASE_MS);
+	try {
+		const raced = await Promise.race([dispatched, lease]);
+		if (raced === "timeout") {
+			void dispatched.catch(() => undefined);
+			return { started: true, mode: "continue" };
+		}
+		return continueTurnOutcome(raced);
+	} finally {
+		clearTimeout(timer);
+	}
 }
 
 function imagePayloads(images: unknown): unknown[] | undefined {
@@ -1372,6 +1404,9 @@ export const sessionOps: StudioFamily = {
 
 		/** `POST /api/agent/:id` `{type:"abort"}`. */
 		"core.abort": async () => commandSnapshot(await currentSessionId(), { type: "abort" }),
+
+		/** `POST /api/agent/:id` `{type:"continue"}` — the `.`/`c` resume path. */
+		"core.continue": async () => dispatchContinue(await currentSessionId()),
 
 		/** `queue.enqueue` is Zeta's `follow_up` queue. */
 		"queue.enqueue": async input => {

@@ -22,6 +22,7 @@ import { join } from "node:path";
 import { $ } from "bun";
 import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
 import { webGatewayFetch } from "../../src/server/web-gateway";
+import { handleGitLog } from "../../src/server/web-gateway/git-actions";
 import {
 	handleGitDiff,
 	handleGitRemotes,
@@ -67,9 +68,17 @@ async function head(dir: string): Promise<string> {
 interface StatusBody {
 	isGitRepository: boolean;
 	current: string | null;
+	unborn: boolean;
 	ahead: number;
 	behind: number;
-	changes: Array<{ path: string; status: string; staged: boolean }>;
+	stashCount?: number;
+	changes: Array<{
+		path: string;
+		status: string;
+		staged: boolean;
+		indexStatus: string;
+		worktreeStatus: string;
+	}>;
 	truncated: boolean;
 }
 
@@ -87,13 +96,33 @@ describe("gateway git reads", () => {
 		const body = (await response.json()) as StatusBody;
 		expect(body.isGitRepository).toBe(true);
 		expect(body.current).toBe("main");
+		expect(body.unborn).toBe(false);
 		expect(body.ahead).toBe(0);
 		expect(body.behind).toBe(0);
+		expect(body.stashCount).toBe(0);
 		expect(body.truncated).toBe(false);
 		const byPath = new Map(body.changes.map(change => [change.path, change]));
-		expect(byPath.get("README.md")).toEqual({ path: "README.md", status: "modified", staged: false });
-		expect(byPath.get("staged.txt")).toEqual({ path: "staged.txt", status: "added", staged: true });
-		expect(byPath.get("loose.txt")).toEqual({ path: "loose.txt", status: "untracked", staged: false });
+		expect(byPath.get("README.md")).toEqual({
+			path: "README.md",
+			status: "modified",
+			staged: false,
+			indexStatus: "unmodified",
+			worktreeStatus: "modified",
+		});
+		expect(byPath.get("staged.txt")).toEqual({
+			path: "staged.txt",
+			status: "added",
+			staged: true,
+			indexStatus: "added",
+			worktreeStatus: "unmodified",
+		});
+		expect(byPath.get("loose.txt")).toEqual({
+			path: "loose.txt",
+			status: "untracked",
+			staged: false,
+			indexStatus: "unmodified",
+			worktreeStatus: "untracked",
+		});
 	});
 
 	test("status reports ahead and behind against the configured upstream", async () => {
@@ -284,15 +313,24 @@ describe("gateway git reads", () => {
 		const response = await handleGitWorktrees(get("/api/git/worktrees", { cwd: repo }));
 		expect(response.status).toBe(200);
 		const body = (await response.json()) as {
-			worktrees: Array<{ path: string; branch: string | null; head: string | null; detached: boolean }>;
+			worktrees: Array<{
+				path: string;
+				branch: string | null;
+				head: string | null;
+				detached: boolean;
+				bare: boolean;
+				locked: boolean;
+				prunable: boolean;
+			}>;
 		};
 		expect(body.worktrees).toHaveLength(2);
 		for (const entry of body.worktrees) {
 			expect(entry.detached).toBe(false);
 			expect(typeof entry.head).toBe("string");
-			// `bare`/`locked` are not exposed by the addon and stay absent.
-			expect(entry).not.toHaveProperty("bare");
-			expect(entry).not.toHaveProperty("locked");
+			// A live linked worktree of a normal checkout is never any of these.
+			expect(entry.bare).toBe(false);
+			expect(entry.locked).toBe(false);
+			expect(entry.prunable).toBe(false);
 		}
 		const branches = body.worktrees.map(entry => entry.branch).sort();
 		expect(branches).toEqual(["feature", "main"]);
@@ -327,4 +365,112 @@ describe("gateway git reads", () => {
 			refreshDirsFromEnv();
 		}
 	}, 30_000);
+
+	test("status counts stash entries and reports an unborn repository", async () => {
+		const repo = await makeTempDir("zeta-gw-gitstash-");
+		await initRepo(repo);
+		await writeFile(join(repo, "one.txt"), "one\n");
+		await $`git stash push -u -q -m first`.cwd(repo).quiet();
+		await writeFile(join(repo, "two.txt"), "two\n");
+		await $`git stash push -u -q -m second`.cwd(repo).quiet();
+
+		const two = (await (await handleGitStatus(get("/api/git/status", { cwd: repo }))).json()) as StatusBody;
+		expect(two.stashCount).toBe(2);
+		expect(two.unborn).toBe(false);
+
+		// Dropping a stash rewrites the reflog, so the count follows it back down.
+		await $`git stash pop -q`.cwd(repo).quiet();
+		const one = (await (await handleGitStatus(get("/api/git/status", { cwd: repo }))).json()) as StatusBody;
+		expect(one.stashCount).toBe(1);
+
+		const fresh = await makeTempDir("zeta-gw-gitunborn-");
+		await $`git init -q --initial-branch=main`.cwd(fresh).quiet();
+		const response = await handleGitStatus(get("/api/git/status", { cwd: fresh }));
+		expect(response.status).toBe(200);
+		const unborn = (await response.json()) as StatusBody;
+		expect(unborn).toMatchObject({
+			isGitRepository: true,
+			current: "main",
+			unborn: true,
+			ahead: 0,
+			behind: 0,
+			stashCount: 0,
+		});
+		expect(unborn.changes).toEqual([]);
+	});
+
+	test("worktrees report lock state with its reason, and prunable checkouts", async () => {
+		const root = await makeTempDir("zeta-gw-gitwtfacts-");
+		const repo = join(root, "main");
+		await mkdir(repo, { recursive: true });
+		await initRepo(repo);
+		await $`git branch feature`.cwd(repo).quiet();
+		await $`git branch gone`.cwd(repo).quiet();
+		const lockedRoot = join(root, "wt-locked");
+		await $`git worktree add -q ${lockedRoot} feature`.cwd(repo).quiet();
+		await $`git worktree lock --reason in-use ${lockedRoot}`.cwd(repo).quiet();
+		const goneRoot = join(root, "wt-gone");
+		await $`git worktree add -q ${goneRoot} gone`.cwd(repo).quiet();
+		await rm(goneRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+
+		const response = await handleGitWorktrees(get("/api/git/worktrees", { cwd: repo }));
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as {
+			worktrees: Array<{
+				path: string;
+				branch: string | null;
+				bare: boolean;
+				locked: boolean;
+				lockReason?: string;
+				prunable: boolean;
+			}>;
+		};
+		const byBranch = new Map(body.worktrees.map(entry => [entry.branch, entry]));
+		expect(byBranch.get("main")).toMatchObject({ bare: false, locked: false, prunable: false });
+		expect(byBranch.get("feature")).toMatchObject({
+			bare: false,
+			locked: true,
+			lockReason: "in-use",
+			prunable: false,
+		});
+		expect(byBranch.get("gone")).toMatchObject({ prunable: true });
+	});
+
+	test("log rows classify against the upstream, and stay unclassified without one", async () => {
+		const root = await makeTempDir("zeta-gw-gitlogrel-");
+		const origin = join(root, "origin.git");
+		await $`git init -q --bare --initial-branch=main ${origin}`.quiet();
+		const work = join(root, "work");
+		await $`git clone -q ${origin} ${work}`.quiet();
+		await $`git config user.email test@example.com`.cwd(work).quiet();
+		await $`git config user.name Test`.cwd(work).quiet();
+		await Bun.write(join(work, "a.txt"), "a\n");
+		await $`git add -A`.cwd(work).quiet();
+		await $`git commit -q -m first`.cwd(work).quiet();
+		await $`git push -q origin main`.cwd(work).quiet();
+		await Bun.write(join(work, "b.txt"), "b\n");
+		await $`git add -A`.cwd(work).quiet();
+		await $`git commit -q -m local-side`.cwd(work).quiet();
+
+		const response = await handleGitLog(get("/api/git/log", { cwd: work }));
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as {
+			commits: Array<{ sha: string; subject: string; refs?: string[]; relation?: string }>;
+			hasMore: boolean;
+		};
+		expect(body.hasMore).toBe(false);
+		expect(body.commits.map(commit => commit.subject)).toEqual(["local-side", "first"]);
+		// HEAD is the branch tip; the pushed commit is shared with the upstream.
+		expect(body.commits[0]).toMatchObject({ relation: "head", refs: ["HEAD -> main"] });
+		expect(body.commits[1].relation).toBe("common");
+
+		const local = await makeTempDir("zeta-gw-gitloglocal-");
+		await initRepo(local);
+		const localResponse = await handleGitLog(get("/api/git/log", { cwd: local }));
+		expect(localResponse.status).toBe(200);
+		const localBody = (await localResponse.json()) as { commits: Array<{ relation?: string }> };
+		expect(localBody.commits.length).toBeGreaterThan(0);
+		// No upstream to compare against: the field is absent rather than guessed.
+		for (const commit of localBody.commits) expect(commit).not.toHaveProperty("relation");
+	});
 });

@@ -1,18 +1,23 @@
 /**
  * Studio operations — Git reads and execution.
  *
- * Owned operations: `git.branches.list`, `git.remotes.list`, `git.diff.get`,
- * `git.commit.changes`, `git.commit.diff` (queries) and `git.execute`
+ * Owned operations: `git.repository.get`, `git.branches.list`,
+ * `git.remotes.list`, `git.diff.get`, `git.log.list`, `git.commit.changes`,
+ * `git.commit.diff`, `git.worktrees.list` (queries) and `git.execute`
  * (command). Everything returned is built from the gateway payload; a name
- * this file does not export is simply absent from the capability manifest, so
- * its surface disappears instead of painting fixtures.
+ * this file does not export is absent from the capability manifest, so its
+ * surface disappears instead of painting fixtures.
  *
  * Operation → gateway route:
+ *   git.repository.get              → GET /api/git/status?cwd=
  *   git.branches.list               → GET /api/git/branches?cwd=
  *   git.diff.get                    → GET /api/git/diff?cwd=&path=&staged=
  *   git.remotes.list                → GET /api/git/remotes?cwd=
  *   git.commit.changes              → GET /api/git/show?cwd=&oid=
  *   git.commit.diff                 → GET /api/git/diff?cwd=&oid=
+ *   git.log.list                    → GET /api/git/log?cwd=&limit=&skip=
+ *                                     + GET /api/git/status?cwd= (divergence)
+ *   git.worktrees.list              → GET /api/git/worktrees?cwd=
  *   git.execute { stage }           → POST /api/git/stage
  *   git.execute { unstage }         → POST /api/git/unstage
  *   git.execute { commit }          → POST /api/git/commit
@@ -29,18 +34,16 @@
  * gateway as `cwd`. An absent id sends no `cwd` (the gateway's own default); an
  * id the registry does not know fails as an invalid argument.
  *
- * Not implemented, and why (each is blocked by a required contract field that
- * no gateway route carries, and inventing it would be a fixture):
- * - `git.repository.get` needs `stashCount` and `unborn`. `/api/git/status`
- *   reports neither (no stash surface exists; HEAD-resolution is not exposed).
- * - `git.log.list` needs a per-row `relation`: `head`/`outgoing`/`incoming`/
- *   `common` is a classification against the upstream tip that the log DTO
- *   does not carry (it has no merge base or upstream oid), and guessing it
- *   would mislabel every local-only commit as shared history.
- * - `git.worktrees.list` needs `bare`, `locked` and `prunable`; the worktree
- *   DTO row carries only `path`/`branch`/`head`/`detached` (bare and locked are
- *   documented DTO gaps, and the addon exposes no prune state).
- * - `git.toolchain.get` is C-class in the spec: Zeta exposes no toolchain
+ * Refusals instead of guesses (`UNAVAILABLE`, never a neutral value):
+ * - `git.repository.get` refuses when status omits `stashCount`, which the
+ *   gateway leaves out for reftable ref storage.
+ * - `git.log.list` refuses when rows carry no `relation`, which the gateway
+ *   omits for a branch with no upstream.
+ * - `git.branches.list` refuses past the gateway's 100-branch enrichment cap,
+ *   where rows lose `headOid`.
+ * - `git.commit.changes` refuses a truncated commit patch, where a changed
+ *   file has no `status`.
+ * - `git.toolchain.get` stays unregistered: C-class in the spec, no Zeta
  *   surface.
  *
  * `git.commit.diff` is the spec's one B-class Git read: its contract input is
@@ -49,6 +52,7 @@
  * requested file's section, which is what the contract's `path` field means.
  */
 import { createHash } from "node:crypto";
+import { basename } from "node:path";
 import { isRecord } from "@linxiraos/pi-utils";
 import { resumePathKey } from "../../../resume/paths.js";
 import type {
@@ -60,10 +64,20 @@ import type {
 	GitDiffReadModel,
 	GitDiffTarget,
 	GitExecuteInput,
+	GitFileChange,
+	GitFileState,
+	GitLogCommitRecord,
+	GitLogListReadModel,
+	GitLogRef,
+	GitLogRelation,
 	GitOperation,
 	GitOperationResult,
 	GitRemoteListReadModel,
 	GitRemoteRecord,
+	GitRepositoryReadModel,
+	GitWorktreeId,
+	GitWorktreeListReadModel,
+	GitWorktreeRecord,
 	QueryInput,
 } from "../contract/index.js";
 import type { StudioFamily } from "../registry.js";
@@ -96,6 +110,40 @@ function pathList(input: unknown, field: string): ReadonlyArray<string> {
 function stringField(record: Record<string, unknown>, field: string): string | undefined {
 	const value = record[field];
 	return typeof value === "string" && value !== "" ? value : undefined;
+}
+
+/** A required finite number from a gateway answer. */
+function requiredNumber(record: Record<string, unknown>, field: string): number {
+	const value = record[field];
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		throw unavailable(`git gateway answer is missing ${field}`);
+	}
+	return value;
+}
+
+/** A required boolean from a gateway answer. */
+function requiredBoolean(record: Record<string, unknown>, field: string): boolean {
+	const value = record[field];
+	if (typeof value !== "boolean") throw unavailable(`git gateway answer is missing ${field}`);
+	return value;
+}
+
+/** A required string list from a gateway answer. */
+function stringList(value: unknown, field: string): ReadonlyArray<string> {
+	if (!Array.isArray(value)) throw unavailable(`git gateway answer is missing ${field}`);
+	return value.map(entry => {
+		if (typeof entry !== "string" || entry === "") {
+			throw unavailable(`git gateway answer has a malformed ${field} entry`);
+		}
+		return entry;
+	});
+}
+
+/** A non-negative page parameter from an untrusted op input. */
+function pageNumber(value: unknown, field: string, fallback: number): number {
+	if (value === undefined) return fallback;
+	if (typeof value !== "number" || !Number.isFinite(value)) throw invalid(`${field} must be a number`);
+	return Math.max(Math.trunc(value), 0);
 }
 
 /** Every git route answers `{ isGitRepository: false }` (or 404) outside a checkout. */
@@ -380,6 +428,185 @@ async function readCommitDiff(input: QueryInput<"git.commit.diff">): Promise<Git
 }
 
 // ---------------------------------------------------------------------------
+// Repository, log and worktree reads
+// ---------------------------------------------------------------------------
+
+/** One side of a status row, as the contract names it. */
+function fileState(value: unknown): GitFileState | undefined {
+	if (
+		value === "unmodified" ||
+		value === "modified" ||
+		value === "added" ||
+		value === "deleted" ||
+		value === "renamed" ||
+		value === "copied" ||
+		value === "untracked" ||
+		value === "conflicted"
+	) {
+		return value;
+	}
+	return undefined;
+}
+
+/** One changed path of the working tree, both porcelain sides included. */
+function fileChange(raw: unknown): GitFileChange {
+	if (!isRecord(raw)) throw unavailable("git gateway answered a malformed status row");
+	const path = stringField(raw, "path");
+	const index = fileState(raw.indexStatus);
+	const worktree = fileState(raw.worktreeStatus);
+	if (path === undefined || index === undefined || worktree === undefined) {
+		throw unavailable("git gateway answered a status row without a path or a side state");
+	}
+	return {
+		path: path.replace(/\\/g, "/"),
+		index,
+		worktree,
+		conflicted: index === "conflicted" || worktree === "conflicted",
+	};
+}
+
+/** `git.repository.get` → `GET /api/git/status?cwd=`. */
+async function readRepository(input: QueryInput<"git.repository.get">): Promise<GitRepositoryReadModel> {
+	const cwd = await resolveWorkspaceCwd(input.workspaceId);
+	const body = gitAnswer(await gatewayJson<unknown>("/api/git/status", { query: queryString(cwd, {}) }), cwd);
+	if (!Array.isArray(body.changes)) throw unavailable("/api/git/status did not return a changes array");
+	const branch = stringField(body, "current");
+	const unborn = requiredBoolean(body, "unborn");
+	// The route omits the count for reftable ref storage, where the stash
+	// reflog is not a file; refusing beats reporting a stash-less repository.
+	if (typeof body.stashCount !== "number" || !Number.isFinite(body.stashCount)) {
+		throw unavailable("stash count is unavailable for this repository (reftable ref storage)");
+	}
+	return {
+		workspaceId: input.workspaceId,
+		isRepository: true,
+		...(branch === undefined ? {} : { branch }),
+		// An unborn branch still names itself; only a HEAD with no branch (and a
+		// commit) is detached.
+		detached: branch === undefined && !unborn,
+		unborn,
+		ahead: requiredNumber(body, "ahead"),
+		behind: requiredNumber(body, "behind"),
+		stashCount: body.stashCount,
+		changes: body.changes.map(fileChange),
+	};
+}
+
+/** A `git log` decoration, as the contract's ref record. */
+function logRef(raw: string): GitLogRef {
+	if (raw.startsWith("HEAD -> ")) return { name: raw.slice("HEAD -> ".length), kind: "head", current: true };
+	if (raw.startsWith("tag: ")) return { name: raw.slice("tag: ".length), kind: "tag", current: false };
+	if (raw.startsWith("refs/remotes/")) {
+		return { name: raw.slice("refs/remotes/".length), kind: "remote", current: false };
+	}
+	return { name: raw.replace(/^refs\/heads\//, ""), kind: "local", current: false };
+}
+
+function logRelation(value: unknown): GitLogRelation | undefined {
+	if (value === "head" || value === "outgoing" || value === "incoming" || value === "common") return value;
+	return undefined;
+}
+
+/** One log row. `relation` is required by the contract, so a page without it is refused. */
+function logCommit(raw: unknown): GitLogCommitRecord {
+	if (!isRecord(raw)) throw unavailable("git gateway answered a malformed log row");
+	const oid = stringField(raw, "sha");
+	const authorName = stringField(raw, "authorName");
+	const authorDate = stringField(raw, "authorDate");
+	const subject = typeof raw.subject === "string" ? raw.subject : undefined;
+	const relation = logRelation(raw.relation);
+	if (relation === undefined) {
+		throw unavailable("log rows carry no relation: the branch has no upstream to compare against");
+	}
+	if (oid === undefined || subject === undefined || authorName === undefined || authorDate === undefined) {
+		throw unavailable("log row is not enriched (past the gateway cap or an unreadable commit)");
+	}
+	return {
+		oid,
+		parents: stringList(raw.parents, "parents"),
+		subject,
+		authorName,
+		authorDate,
+		refs: stringList(raw.refs, "refs").map(logRef),
+		relation,
+	};
+}
+
+/** Page size the gateway still decorates with `refs` and reads details for. */
+const LOG_PAGE_CAP = 100;
+
+/** `git.log.list` → `GET /api/git/log`, plus the status divergence counts. */
+async function readLog(input: QueryInput<"git.log.list">): Promise<GitLogListReadModel> {
+	const cwd = await resolveWorkspaceCwd(input.workspaceId);
+	const skip = pageNumber(input.skip, "skip", 0);
+	// Past this page the gateway stops decorating rows, and the contract
+	// requires both `refs` and `relation`, so the page is capped and the caller
+	// sees `truncated` rather than rows with holes.
+	const limit = Math.max(Math.min(pageNumber(input.limit, "limit", 50), LOG_PAGE_CAP), 1);
+	const body = gitAnswer(
+		await gatewayJson<unknown>("/api/git/log", { query: queryString(cwd, { limit, skip }) }),
+		cwd,
+	);
+	if (!Array.isArray(body.commits)) throw unavailable("/api/git/log did not return a commits array");
+	const status = gitAnswer(await gatewayJson<unknown>("/api/git/status", { query: queryString(cwd, {}) }), cwd);
+	const commits = body.commits.map(logCommit);
+	return {
+		workspaceId: input.workspaceId,
+		commits,
+		truncated: body.hasMore === true,
+		// The log rows carry HEAD's abbreviated object id, and the Renderer's
+		// graph matches `headOid` against a row `oid`, so only a page that starts
+		// at the tip can name HEAD.
+		...(skip === 0 && commits[0] !== undefined ? { headOid: commits[0].oid } : {}),
+		ahead: requiredNumber(status, "ahead"),
+		behind: requiredNumber(status, "behind"),
+	};
+}
+
+/** Opaque identity for one worktree path; the path itself never leaves the host. */
+function worktreeIdOf(path: string): GitWorktreeId {
+	const digest = createHash("sha256")
+		.update(`zeta-worktree\u0000${resumePathKey(path)}`)
+		.digest("hex");
+	return `wt-${digest.slice(0, 16)}` as GitWorktreeId;
+}
+
+function worktreeRecord(raw: unknown, cwd: string | undefined): GitWorktreeRecord {
+	if (!isRecord(raw)) throw unavailable("git gateway answered a malformed worktree row");
+	const path = stringField(raw, "path");
+	if (path === undefined) throw unavailable("git gateway answered a worktree row without a path");
+	const branch = stringField(raw, "branch");
+	const headOid = stringField(raw, "head");
+	const lockReason = stringField(raw, "lockReason");
+	return {
+		worktreeId: worktreeIdOf(path),
+		name: basename(path),
+		...(branch === undefined ? {} : { branch }),
+		...(headOid === undefined ? {} : { headOid }),
+		current: cwd !== undefined && resumePathKey(path) === resumePathKey(cwd),
+		detached: raw.detached === true,
+		bare: requiredBoolean(raw, "bare"),
+		locked: requiredBoolean(raw, "locked"),
+		...(lockReason === undefined ? {} : { lockReason }),
+		prunable: requiredBoolean(raw, "prunable"),
+	};
+}
+
+/** `git.worktrees.list` → `GET /api/git/worktrees?cwd=`. */
+async function readWorktrees(input: QueryInput<"git.worktrees.list">): Promise<GitWorktreeListReadModel> {
+	const cwd = await resolveWorkspaceCwd(input.workspaceId);
+	const body = gitAnswer(await gatewayJson<unknown>("/api/git/worktrees", { query: queryString(cwd, {}) }), cwd);
+	if (!Array.isArray(body.worktrees)) throw unavailable("/api/git/worktrees did not return a worktrees array");
+	return {
+		workspaceId: input.workspaceId,
+		// Zeta has no worktree-root setting (`worktree.pickRoot` has no route), so
+		// the host never has a root to report.
+		rootConfigured: false,
+		worktrees: body.worktrees.map(raw => worktreeRecord(raw, cwd)),
+	};
+}
+
+// ---------------------------------------------------------------------------
 // Mutations
 //
 // Each helper performs one gateway call (or the two-call branch-create + switch
@@ -582,18 +809,20 @@ async function executeGit(input: GitExecuteInput): Promise<GitOperationResult> {
  * The Git family, one handler per route above.
  *
  * Queries read the gateway's git read surface; the command runs its write
- * surface. `git.repository.get`, `git.log.list`, `git.worktrees.list` and
- * `git.toolchain.get` are absent — see the file header for the exact contract
- * fields the gateway does not carry.
+ * surface. `git.toolchain.get` is the only `git.*` name left out — C-class in
+ * the spec, with no Zeta surface to serve it.
  */
 export const gitOps: StudioFamily = {
 	id: "git",
 	queries: {
+		"git.repository.get": readRepository,
 		"git.branches.list": readBranches,
 		"git.diff.get": readDiff,
 		"git.remotes.list": readRemotes,
+		"git.log.list": readLog,
 		"git.commit.changes": readCommitChanges,
 		"git.commit.diff": readCommitDiff,
+		"git.worktrees.list": readWorktrees,
 	},
 	commands: {
 		"git.execute": executeGit,
