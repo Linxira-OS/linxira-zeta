@@ -159,7 +159,7 @@ env:
    # without compiling natives or the Rust workspace. They restore the native
    # pair main built (or the latest npm leaf) instead. Main push and release
    # dispatch keep the full gate.
-   FAST_PATH: ${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && inputs.full != true)) && 'true' || 'false' }}
+   FAST_PATH: ${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') && inputs.full != true)) && 'true' || 'false' }}
    # Per-test wall-clock ceiling (seconds) for scripts/ci-test-ts.ts. The
    # SQLite/subprocess-heavy coding-agent suites run slowly enough on CI
    # runners that several cases (model-registry refresh, session fork,
@@ -192,7 +192,7 @@ jobs:
          release-tag: ${{ steps.detect.outputs.release-tag }}
          # PR and non-main dispatch runs take the fast path: no Rust or native
          # compilation; native addons come from main's cache or npm.
-         fast-path: ${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && inputs.full != true)) && 'true' || 'false' }}
+         fast-path: ${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') && inputs.full != true)) && 'true' || 'false' }}
          # Canary tags publish to npm's canary dist-tag (derived script-side), mark
          # the GitHub release prerelease, and skip the stable-only brew tap.
          channel: ${{ steps.detect.outputs.channel }}
@@ -1054,7 +1054,7 @@ jobs:
       strategy:
          fail-fast: false
          matrix:
-            shard: ${{ fromJSON((github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && inputs.full != true)) && '["1/3","2/3","3/3"]' || '["1/1"]') }}
+            shard: ${{ fromJSON((github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') && inputs.full != true)) && '["1/3","2/3","3/3"]' || '["1/1"]') }}
       steps:
          - uses: actions/checkout@v4
          - uses: ./.github/actions/bun-install
