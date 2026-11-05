@@ -773,6 +773,12 @@ jobs:
               # analysis and cached actions are shared through the persistent
               # server, so only the heavy links serialize.
               : > "$RUNNER_TEMP/bazel-build.log"
+              # A non-exact cache restore leaves the previous source state's
+              # addons here, possibly read-only. This build replaces them;
+              # drop the stale tree before copying so the old entry cannot
+              # fail the stage step with EACCES.
+              chmod -R u+w ci-natives 2>/dev/null || true
+              rm -rf ci-natives
               for target in $NATIVES_X64_TARGETS; do
                 bazelisk --bazelrc="${{ steps.cache.outputs.rc }}" build "//:$target" 2>&1 | tee -a "$RUNNER_TEMP/bazel-build.log"
               done
@@ -969,6 +975,10 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
+              # Same stale, read-only cache entry as native_addons: the build
+              # above replaced the source state, so do not copy over it.
+              chmod -R u+w ci-natives-cross 2>/dev/null || true
+              rm -rf ci-natives-cross
               for target in $NATIVES_CROSS_TARGETS; do
                 mkdir -p "ci-natives-cross/$target"
                 cp -L bazel-bin/"$target"/*.node "ci-natives-cross/$target/"
