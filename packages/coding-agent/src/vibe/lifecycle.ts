@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { type VibeCli } from "@linxiraos/pi-tui/tools/vibe";
 /**
  * Vibe session lifecycle vocabulary: the persisted `vibe-session-lifecycle`

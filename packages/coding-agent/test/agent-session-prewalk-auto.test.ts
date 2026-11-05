@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { type Api, type Context, Effort, type Model, type SimpleStreamOptions } from "@linxiraos/pi-ai";
 import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";

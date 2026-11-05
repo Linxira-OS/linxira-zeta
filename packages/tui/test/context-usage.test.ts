@@ -6,7 +6,7 @@
  * internals, which massively overcounts.
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import type { Model, ModelSpec } from "@linxiraos/pi-catalog/types";
 import { Tokenizer } from "@linxiraos/pi-agent-core";

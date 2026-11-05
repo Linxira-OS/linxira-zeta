@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype/ark";
+import { type } from "@linxiraos/zeta-schema/ark";
 
 it("no shallow default in tuple expression", () => {
 	expect(() => type(["string?", "|", "number"])).toThrow();

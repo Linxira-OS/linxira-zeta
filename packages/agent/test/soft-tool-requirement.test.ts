@@ -10,7 +10,7 @@ import type {
 import type { Message, ToolChoice } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { createHarmonyMitigationModel, createUserMessage } from "./helpers";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 function identityConverter(messages: AgentMessage[]): Message[] {
 	return messages.filter(m => m.role === "user" || m.role === "assistant" || m.role === "toolResult") as Message[];

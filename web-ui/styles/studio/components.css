@@ -1,0 +1,564 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+/* ============================================================
+   OMP Studio — Shared components
+   ============================================================ */
+
+/* ---------- Buttons ---------- */.studio-root .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  height: 28px;
+  padding: 0 var(--studio-sp-10);
+  border-radius: var(--studio-r-6);
+  font-size: var(--studio-fs-12);
+  font-weight: var(--studio-fw-medium);
+  color: var(--studio-text-2);
+  border: 1px solid transparent;
+  transition: background var(--studio-dur-fast) var(--studio-ease),
+    border-color var(--studio-dur-fast) var(--studio-ease), color var(--studio-dur-fast) var(--studio-ease),
+    transform var(--studio-dur-tactile) var(--studio-ease-out);
+  white-space: nowrap;
+  user-select: none;
+}.studio-root .btn:hover { background: var(--studio-surface-hover); color: var(--studio-text); }.studio-root .btn:active {
+  background: var(--studio-surface-active);
+  transform: translateY(1px);  /* Physical push feedback */
+}.studio-root .btn.primary {
+  background: var(--studio-accent);
+  color: var(--studio-text-on-accent);
+}.studio-root .btn.primary:hover { background: var(--studio-accent-hover); color: var(--studio-text-on-accent); }.studio-root .btn.primary:active {
+  background: var(--studio-accent-hover);
+  transform: translateY(1px);
+}.studio-root .btn.outline {
+  border-color: var(--studio-border-strong);
+  color: var(--studio-text-2);
+  background: var(--studio-surface);
+}.studio-root .btn.outline:hover { border-color: var(--studio-text-3); color: var(--studio-text); }.studio-root .btn.outline:active {
+  border-color: var(--studio-text-3);
+  color: var(--studio-text);
+  transform: translateY(1px);
+}.studio-root .btn.danger { color: var(--studio-red); }.studio-root .btn.danger:hover { background: var(--studio-red-soft); }.studio-root .btn.danger:active {
+  background: var(--studio-red-soft);
+  transform: translateY(1px);
+}.studio-root .btn.small { height: 24px; padding: 0 var(--studio-sp-8); font-size: var(--studio-fs-11); }
+/* 大号按钮：Deck 审批卡等需要突出决策的场合 */.studio-root .btn.lg { height: 32px; padding: 0 var(--studio-sp-12); font-size: var(--studio-fs-14); }
+/* Disabled: opacity alone can still read as "just quiet text" on a tinted
+   button, so pointer-events are dropped too — the control cannot be hovered
+   into looking live. 0.45 sits inside the 0.38-0.5 disabled range. */.studio-root .btn:disabled, .studio-root .btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+/* Destructive actions carry the danger colour on their own fill rather than
+   inheriting the neutral primary, so "确认恢复" cannot be mistaken for a
+   routine confirm. */.studio-root .btn.danger.solid {
+  background: var(--studio-red);
+  color: var(--zeta-alias-neutral-0);
+  border-color: var(--studio-red);
+}.studio-root .btn.danger.solid:hover { background: var(--studio-red); filter: brightness(0.92); }.studio-root .btn.danger.solid:active {
+  background: var(--studio-red);
+  filter: brightness(0.92);
+  transform: translateY(1px);
+}
+
+/* Icon-only button */.studio-root .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--studio-r-6);
+  color: var(--studio-text-3);
+  flex: none;
+  cursor: pointer;
+  transition: background var(--studio-dur-fast) var(--studio-ease),
+    color var(--studio-dur-fast) var(--studio-ease),
+    transform var(--studio-dur-tactile) var(--studio-ease-out);
+  position: relative;
+}.studio-root .icon-btn:hover { background: var(--studio-surface-hover); color: var(--studio-text); }.studio-root .icon-btn:active {
+  background: var(--studio-surface-active);
+  color: var(--studio-text);
+  transform: scale(0.92);  /* Subtle squeeze feedback */
+}.studio-root .icon-btn.active { background: var(--studio-accent-soft); color: var(--studio-accent); }.studio-root .icon-btn.small { width: 22px; height: 22px; }
+/* 主入口按钮（如 Agent Hub）：比标准 26px 大一圈 */.studio-root .icon-btn.lg { width: 32px; height: 32px; }
+/* Destructive icon button (e.g. delete on Skill cards). Same red treatment
+   as .btn.danger but sized for the 22px chrome. Without this the X reads as
+   a neutral close icon and the data-tip is the only warning. */.studio-root .icon-btn.danger { color: var(--studio-text-3); }.studio-root .icon-btn.danger:hover, .studio-root .icon-btn.danger:focus-visible {
+  background: var(--studio-red-soft);
+  color: var(--studio-red);
+}
+
+/* Pointer target expansion.
+   Dense IDE chrome draws 18-22px buttons, which are under the 24x24 CSS-pixel
+   minimum (WCAG 2.2 SC 2.5.8). Growing the visual box would break the
+   toolbars, so an invisible centred hit area is stretched to --tap-min
+   instead — the paint size is unchanged, the clickable size is compliant. */.studio-root .icon-btn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, var(--studio-tap-min));
+  height: max(100%, var(--studio-tap-min));
+  transform: translate(-50%, -50%);
+}
+/* Same for the smallest inline affordances. */.studio-root .ctx-chip .x, .studio-root .tree-row .fop .icon-btn, .studio-root .minimap-tools .icon-btn { position: relative; }.studio-root .icon-btn .badge-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--studio-r-full);
+  background: var(--studio-red);
+  border: 1.5px solid var(--studio-surface);
+}
+
+/* ---------- Status chip ---------- */.studio-root .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-4);
+  height: 20px;
+  padding: 0 var(--studio-sp-8);
+  border-radius: var(--studio-r-full);
+  font-size: var(--studio-fs-11);
+  font-weight: var(--studio-fw-medium);
+  white-space: nowrap;
+  user-select: none;
+}.studio-root .chip.green { background: var(--studio-green-soft); color: var(--studio-green); }.studio-root .chip.amber { background: var(--studio-amber-soft); color: var(--studio-amber); }.studio-root .chip.red { background: var(--studio-red-soft); color: var(--studio-red); }.studio-root .chip.blue { background: var(--studio-blue-soft); color: var(--studio-blue); }.studio-root .chip.purple { background: var(--studio-accent-soft); color: var(--studio-accent); }.studio-root .chip.gray { background: var(--studio-surface-2); color: var(--studio-text-3); }.studio-root .chip.outline {
+  background: transparent;
+  border: 1px solid var(--studio-border-strong);
+  color: var(--studio-text-2);
+}
+/* Compact chip tiers. These existed only as repeated inline
+   `style="height:16px;padding:0 5px"` on 23 call sites, which meant the sizes
+   were unversioned and drifted (16px vs 18px, 5px vs 6px). Same values,
+   now named. */.studio-root .chip.xs { height: 16px; padding: 0 var(--studio-sp-6); font-size: calc(10.5px * var(--studio-text-font-scale)); }.studio-root .chip.sm { height: 18px; padding: 0 var(--studio-sp-6); }
+
+/* ---------- Menu / Popover ---------- */.studio-root .menu {
+  position: absolute;
+  min-width: 240px;
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border-float);
+  border-radius: var(--studio-r-8);
+  box-shadow: var(--studio-shadow-menu);
+  padding: var(--studio-sp-6);
+  z-index: var(--studio-z-menu);
+  animation: omp-menu-in var(--studio-dur-fast) var(--studio-ease-out);
+}@keyframes omp-menu-in {from { opacity: 0; transform: translateY(-3px) scale(0.99); }to { opacity: 1; transform: none; }}.studio-root .menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  width: 100%;
+  padding: 6px var(--studio-sp-8);
+  border-radius: var(--studio-r-6);
+  font-size: var(--studio-fs-12);
+  color: var(--studio-text-2);
+  text-align: left;
+}.studio-root .menu-item:hover { background: var(--studio-surface-hover); color: var(--studio-text); }.studio-root .menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}.studio-root .menu-item:disabled:hover { background: transparent; color: var(--studio-text-2); }.studio-root .menu-item[aria-current="true"] { color: var(--studio-text); background: var(--studio-surface-hover); }.studio-root .menu-item .kbd, .studio-root .menu-item .hint {
+  margin-left: auto;
+  color: var(--studio-text-faint);
+  font-size: var(--studio-fs-11);
+}.studio-root .menu-item.danger { color: var(--studio-red); }.studio-root .menu-item.danger:hover { background: var(--studio-red-soft); }.studio-root .menu-sep { height: 1px; background: var(--studio-border); margin: var(--studio-sp-6) var(--studio-sp-4); }.studio-root .menu-label {
+  padding: var(--studio-sp-4) var(--studio-sp-8);
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-faint);
+  font-weight: var(--studio-fw-medium);
+}
+
+/* 分支菜单头部：分支名 + 状态详情（对齐 ver2 menu-header） */.studio-root .branch-menu-head {
+  padding: var(--studio-sp-6) var(--studio-sp-8) var(--studio-sp-8);
+  border-bottom: 1px solid var(--studio-border);
+  margin-bottom: var(--studio-sp-6);
+}.studio-root .branch-menu-head .bmh-title {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  font-size: var(--studio-fs-13);
+  color: var(--studio-text);
+}.studio-root .branch-menu-head .bmh-title .icon { color: var(--studio-accent); }.studio-root .branch-menu-head .bmh-meta {
+  margin-top: 3px;
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+  font-family: var(--studio-font-mono);
+}.studio-root .kbd {
+  font-family: var(--studio-font-mono);
+  font-size: calc(10.5px * var(--studio-text-font-scale));
+  padding: 1px 5px;
+  border: 1px solid var(--studio-border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--studio-r-4);
+  color: var(--studio-text-3);
+  background: var(--studio-surface);
+}
+
+/* ---------- Segmented control / Tabs ---------- */.studio-root .seg {
+  display: inline-flex;
+  background: var(--studio-surface-2);
+  border-radius: var(--studio-r-6);
+  padding: 2px;
+  gap: 2px;
+}.studio-root .seg button {
+  height: 22px;
+  padding: 0 var(--studio-sp-10);
+  border-radius: var(--studio-r-4);
+  font-size: var(--studio-fs-11);
+  font-weight: var(--studio-fw-medium);
+  color: var(--studio-text-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-4);
+}.studio-root .seg button:hover { color: var(--studio-text); }.studio-root .seg button.active {
+  background: var(--studio-surface);
+  color: var(--studio-text);
+  border: 1px solid var(--studio-border);
+}.studio-root .seg button:disabled, .studio-root .seg.is-disabled button {
+  cursor: not-allowed;
+  opacity: 0.55;
+}.studio-root .seg.is-disabled button:hover { color: var(--studio-text-3); }[data-theme="dark"] .studio-root .seg button.active { background: var(--studio-surface-3); }.studio-root .tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}.studio-root .tabs button {
+  height: 32px;
+  padding: 0 var(--studio-sp-10);
+  font-size: var(--studio-fs-12);
+  color: var(--studio-text-3);
+  font-weight: var(--studio-fw-medium);
+  border-bottom: 2px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+}.studio-root .tabs button:hover { color: var(--studio-text); }.studio-root .tabs button.active { color: var(--studio-accent); border-bottom-color: var(--studio-accent); }
+
+/* ---------- Card ---------- */.studio-root .card {
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8);
+}
+
+/* ---------- Banner (全局异常) ---------- */.studio-root .banner {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-10);
+  padding: 7px var(--studio-sp-16);
+  font-size: var(--studio-fs-12);
+  border-bottom: 1px solid var(--studio-border);
+  flex: none;
+}.studio-root .banner.amber { background: var(--studio-amber-soft); color: var(--studio-amber); }.studio-root .banner.red { background: var(--studio-red-soft); color: var(--studio-red); }.studio-root .banner .banner-detail { color: var(--studio-text-2); }.studio-root .banner .banner-actions { margin-left: auto; display: flex; gap: var(--studio-sp-6); flex: none; }.studio-root .banner.is-busy { flex-wrap: wrap; }.studio-root .banner .action-progress { flex: 1 1 100%; margin-top: 2px; }
+
+/* ---------- Action progress ---------- */.studio-root .action-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 var(--studio-sp-16);
+}.studio-root .action-progress.compact { margin: 0; }.studio-root .action-progress-copy {
+  display: flex;
+  align-items: baseline;
+  gap: var(--studio-sp-8);
+  font-size: var(--studio-fs-12);
+  color: var(--studio-text-2);
+}.studio-root .action-progress-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--studio-text-3);
+  font-size: var(--studio-fs-11);
+}.studio-root .progress {
+  height: 4px;
+  background: var(--studio-surface-3);
+  border-radius: var(--studio-r-full);
+  overflow: hidden;
+}.studio-root .progress-fill {
+  position: relative;
+  height: 100%;
+  background: var(--studio-accent);
+  border-radius: var(--studio-r-full);
+  transition: width var(--studio-dur) var(--studio-ease);
+  min-width: 8%;
+}.studio-root .progress-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--zeta-alias-neutral-0) 35%, transparent), transparent);
+  animation: action-progress-sheen 1.2s ease-in-out infinite;
+}@keyframes action-progress-sheen {0% { transform: translateX(-100%); }100% { transform: translateX(100%); }}
+
+/* ---------- Modal ---------- */.studio-root .modal-backdrop {
+  position: fixed;
+  inset: 0;
+  /* 0.4 was too weak to isolate a white modal from a light-mode workbench —
+     the dense UI behind it stayed legible and competed for attention. 0.5 is
+     in the 40-60% range that reliably reads as "the layer below is inert". */
+  background: color-mix(in srgb, var(--zeta-alias-neutral-1000) 50%, transparent);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: var(--studio-z-modal);
+  animation: omp-fade-in var(--studio-dur-fast) var(--studio-ease-out);
+  /* Long modal content (checkpoint scope lists) was unreachable — the backdrop
+     is a fixed full-viewport box with no scroll, so overflow was clipped. */
+  overflow-y: auto;
+  padding-bottom: var(--studio-sp-24);
+}[data-theme="dark"] .studio-root .modal-backdrop { background: color-mix(in srgb, var(--zeta-alias-neutral-1000) 60%, transparent); }@keyframes omp-fade-in {from { opacity: 0; }to { opacity: 1; }}.studio-root .modal {
+  width: 480px;
+  max-width: calc(100vw - 48px);
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border-float);
+  border-radius: var(--studio-r-10);
+  box-shadow: var(--studio-shadow-modal);
+  animation: omp-menu-in var(--studio-dur) var(--studio-ease-out);
+}.studio-root .modal-head {
+  padding: var(--studio-sp-16) var(--studio-sp-20) 0;
+  font-size: var(--studio-fs-14);
+  font-weight: var(--studio-fw-semibold);
+}.studio-root .modal-body { padding: var(--studio-sp-12) var(--studio-sp-20); color: var(--studio-text-2); font-size: var(--studio-fs-14); }.studio-root .modal-foot {
+  padding: var(--studio-sp-12) var(--studio-sp-20) var(--studio-sp-16);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--studio-sp-8);
+}
+
+/* ---------- Toast ---------- */.studio-root .toast-wrap {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--studio-z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--studio-sp-8);
+  align-items: center;
+}.studio-root .toast-wrap.is-top {
+  top: 52px;
+  bottom: auto;
+}.studio-root .toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--studio-sp-8);
+  max-width: min(560px, calc(100vw - 48px));
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border-float);
+  border-radius: var(--studio-r-8);
+  box-shadow: var(--studio-shadow-menu);
+  padding: 8px var(--studio-sp-14);
+  font-size: var(--studio-fs-12);
+  line-height: 1.45;
+  color: var(--studio-text);
+  animation: omp-toast-in var(--studio-dur-toast) var(--studio-ease-out);
+}.studio-root .toast > .icon { flex: none; margin-top: 1px; }.studio-root .toast > span { min-width: 0; }.studio-root .toast.is-busy { align-items: center; }.studio-root .toast.leaving {
+  animation: omp-toast-out var(--studio-dur-toast) var(--studio-ease-in) forwards;
+}@keyframes omp-toast-in {from { opacity: 0; transform: translateY(14px); }to { opacity: 1; transform: none; }}.studio-root .toast-wrap.is-top .toast {
+  animation-name: omp-toast-in-top;
+}.studio-root .toast-wrap.is-top .toast.leaving {
+  animation-name: omp-toast-out-top;
+}@keyframes omp-toast-in-top {from { opacity: 0; transform: translateY(-14px); }to { opacity: 1; transform: none; }}@keyframes omp-toast-out-top {from { opacity: 1; transform: none; }to { opacity: 0; transform: translateY(-14px); }}@keyframes omp-toast-out {from { opacity: 1; transform: none; }to { opacity: 0; transform: translateY(14px); }}
+
+/* ---------- Tooltip ----------
+   Painted by TipHost as a body portal. Do not use native `title` or
+   ancestor-clipped `::after` bubbles. */.studio-root .omp-tip-bubble {
+  position: fixed;
+  z-index: var(--studio-z-tip);
+  background: var(--studio-text);
+  color: var(--studio-bg);
+  font-size: var(--studio-fs-11);
+  line-height: 1.45;
+  padding: 3px 8px;
+  border-radius: var(--studio-r-4);
+  width: max-content;
+  max-width: 220px;
+  text-align: center;
+  pointer-events: none;
+  animation: omp-fade-in var(--studio-dur-fast) var(--studio-ease-out);
+}
+
+/* ---------- Form controls ---------- */.studio-root .field { display: flex; flex-direction: column; gap: var(--studio-sp-6); }.studio-root .field label { font-size: var(--studio-fs-12); font-weight: var(--studio-fw-medium); color: var(--studio-text-2); }.studio-root .field .desc { font-size: var(--studio-fs-11); color: var(--studio-text-3); }.studio-root .field .error {
+  font-size: var(--studio-fs-11);
+  color: var(--studio-red);
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-4);
+}.studio-root .input, .studio-root .select {
+  /* 30px was below the 4.5:1-adjacent usability floor for pointer targets and
+     forced 12px text; 32px fits the 4px rhythm and takes 13px comfortably. */
+  height: 32px;
+  padding: 0 var(--studio-sp-10);
+  border: 1px solid var(--studio-border-strong);
+  border-radius: var(--studio-r-6);
+  background: var(--studio-surface);
+  font-size: var(--studio-fs-14);
+  width: 100%;
+  transition: border-color var(--studio-dur-fast) var(--studio-ease),
+              box-shadow var(--studio-dur-fast) var(--studio-ease);
+}
+/* Chrome's UA placeholder is opacity 0.54 of the input color, and native
+   ::placeholder is painted off the control's compositor layer. An ancestor
+   page-in/out `transform` then shows that text at the wrong size for a frame
+   (especially on Windows ClearType when the layer is created or dropped).
+   Lock metrics to the field, use a faint color at opacity 1, and keep the
+   control on its own layer while any ancestor carries the animation class.
+   `.page-in` stays attached after the animation; dropping the layer is what
+   snaps the glyphs. */.studio-root .input::placeholder, .studio-root .select::placeholder {
+  color: var(--studio-text-faint);
+  opacity: 1;
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+}.studio-root .page-in input.input, .studio-root .page-out input.input, .studio-root .page-in .select, .studio-root .page-out .select {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+/* 聚焦特效 = 外发光：3px 柔光环 + 弥散光晕，边框颜色保持不变；
+   关闭全局 2px 实线 outline（即用户不想要的"紫色边线"）。 */.studio-root .input:focus, .studio-root .select:focus, .studio-root .input:focus-visible, .studio-root .select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--studio-accent-softer),
+              0 0 14px 1px color-mix(in srgb, var(--studio-accent) 22%, transparent);
+}.studio-root .input:disabled, .studio-root .select:disabled {
+  background: var(--studio-surface-2);
+  color: var(--studio-text-3);
+  cursor: not-allowed;
+}
+/* Read-only is not disabled: the value still matters and stays selectable, so
+   it keeps full text contrast and only loses the editable affordance. */.studio-root .input[readonly] {
+  background: var(--studio-surface-2);
+  border-style: dashed;
+  cursor: default;
+}.studio-root .input[aria-invalid="true"], .studio-root .select[aria-invalid="true"] { border-color: var(--studio-red); }
+/* Full Access 权限模式选中时：警告橙红描边/文字，聚焦光晕同色系 */.studio-root .select.danger {
+  color: var(--studio-danger-orange);
+  border-color: color-mix(in srgb, var(--studio-danger-orange) 45%, transparent);
+}.studio-root .select.danger:focus, .studio-root .select.danger:focus-visible {
+  box-shadow: 0 0 0 3px var(--studio-danger-orange-soft),
+              0 0 14px 1px color-mix(in srgb, var(--studio-danger-orange) 20%, transparent);
+}.studio-root textarea.input { height: auto; min-height: 72px; padding: var(--studio-sp-8) var(--studio-sp-10); resize: vertical; }
+
+/* ---------- AppSelect ----------
+   Native select popups cannot follow Studio's theme on every platform. The
+   trigger keeps the existing `.select` contract while the listbox is a small
+   portal surface with the same menu tokens as the rest of the app. */.studio-root .app-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--studio-sp-8);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}.studio-root .app-select:hover:not(:disabled) { border-color: var(--studio-accent-border); }.studio-root .app-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }.studio-root .app-select-chevron { flex: none; color: var(--studio-text-3); transition: transform var(--studio-dur-fast) var(--studio-ease); }.studio-root .app-select[aria-expanded="true"] .app-select-chevron { transform: rotate(180deg); color: var(--studio-accent); }.studio-root .app-select-popup {
+  position: fixed;
+  z-index: calc(var(--studio-z-modal) + 2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: var(--studio-sp-6);
+  border: 1px solid var(--studio-border-float);
+  border-radius: var(--studio-r-8);
+  background: var(--studio-surface);
+  box-shadow: var(--studio-shadow-menu);
+  animation: omp-menu-in var(--studio-dur-fast) var(--studio-ease-out);
+}.studio-root .app-select-popup[data-side="top"] { transform-origin: bottom center; }.studio-root .app-select-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }.studio-root .app-select-search {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  flex: none;
+  height: 30px;
+  margin-bottom: var(--studio-sp-4);
+  padding: 0 var(--studio-sp-8);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-6);
+  background: var(--studio-bg-inset);
+  color: var(--studio-text-3);
+}.studio-root .app-select-search:focus-within { border-color: var(--studio-accent); box-shadow: 0 0 0 2px var(--studio-accent-softer); }.studio-root .app-select-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--studio-text);
+  font: inherit;
+  font-size: var(--studio-fs-12);
+}.studio-root .app-select-search input::placeholder { color: var(--studio-text-faint); opacity: 1; }.studio-root .app-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--studio-sp-8);
+  width: 100%;
+  min-height: 30px;
+  padding: 5px var(--studio-sp-8);
+  border: 0;
+  border-radius: var(--studio-r-6);
+  background: transparent;
+  color: var(--studio-text-2);
+  font: inherit;
+  font-size: var(--studio-fs-12);
+  text-align: left;
+  cursor: pointer;
+}.studio-root .app-select-option > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.studio-root .app-select-option:hover:not(:disabled), .studio-root .app-select-option.is-active:not(:disabled) { background: var(--studio-surface-hover); color: var(--studio-text); }.studio-root .app-select-option[aria-selected="true"]:not(:disabled) { color: var(--studio-accent); background: var(--studio-accent-softer); }.studio-root .app-select-option:disabled { color: var(--studio-text-faint); cursor: not-allowed; }.studio-root .app-select-check { display: inline-flex; flex: none; width: 14px; color: var(--studio-accent); }.studio-root .app-select-group { padding: var(--studio-sp-6) var(--studio-sp-8) var(--studio-sp-4); color: var(--studio-text-faint); font-size: var(--studio-fs-11); font-weight: var(--studio-fw-medium); }.studio-root .app-select-empty { padding: var(--studio-sp-12) var(--studio-sp-8); color: var(--studio-text-3); font-size: var(--studio-fs-12); text-align: center; }@media (prefers-reduced-motion: reduce) {.studio-root .app-select-popup, .studio-root .app-select-chevron { animation: none; transition: none; }}
+
+/* Switch.
+   Rendered as <button role="switch"> rather than <span> so it is focusable,
+   operable with Space/Enter, and announces its on/off state. Visual state now
+   keys off [aria-checked] so the DOM attribute is the single source of truth
+   instead of a cosmetic .on class. */.studio-root .switch {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: var(--studio-r-full);
+  background: var(--studio-surface-3);
+  border: 1px solid var(--studio-border-strong);
+  flex: none;
+  padding: 0;
+  transition: background var(--studio-dur-fast) var(--studio-ease);
+  cursor: pointer;
+}.studio-root .switch::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--studio-r-full);
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border-strong);
+  transition: transform var(--studio-dur-fast) var(--studio-ease-out);
+}
+/* The 34x20 paint is under the 24px pointer minimum on one axis. */.studio-root .switch::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: var(--studio-tap-min);
+  transform: translate(-50%, -50%);
+}.studio-root .switch.on, .studio-root .switch[aria-checked="true"] { background: var(--studio-accent); border-color: var(--studio-accent); }.studio-root .switch.on::after, .studio-root .switch[aria-checked="true"]::after { transform: translateX(14px); }.studio-root .switch:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---------- Empty state ---------- */.studio-root .empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  padding: var(--studio-sp-32);
+  color: var(--studio-text-3);
+  font-size: var(--studio-fs-12);
+  text-align: center;
+}.studio-root .empty .icon { width: 28px; height: 28px; stroke-width: 1.2; color: var(--studio-glyph-faint); }
+
+/* ---------- Progress bar (context usage 等) ---------- */.studio-root .meter {
+  height: 4px;
+  border-radius: var(--studio-r-full);
+  background: var(--studio-surface-3);
+  overflow: hidden;
+  flex: none;
+}.studio-root .meter > i {
+  display: block;
+  height: 100%;
+  border-radius: var(--studio-r-full);
+  background: var(--studio-accent);
+  transition: width var(--studio-dur) var(--studio-ease);
+}.studio-root .meter.warn > i { background: var(--studio-amber); }.studio-root .meter.danger > i { background: var(--studio-red); }
+
+/* ---------- Agent status chip 颜色映射 ---------- */.studio-root .st-thinking { color: var(--studio-accent); }.studio-root .st-running { color: var(--studio-blue); }.studio-root .st-waiting { color: var(--studio-amber); }.studio-root .st-done { color: var(--studio-green); }.studio-root .st-failed { color: var(--studio-red); }.studio-root .st-aborted { color: var(--studio-text-3); }

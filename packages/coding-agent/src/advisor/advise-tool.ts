@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { type AdvisorSeverity, type AdvisorNote } from "@linxiraos/pi-tui/chat/messages";
 export { type AdvisorSeverity, type AdvisorNote, type AdvisorMessageDetails } from "@linxiraos/pi-tui/chat/messages";
 import type {

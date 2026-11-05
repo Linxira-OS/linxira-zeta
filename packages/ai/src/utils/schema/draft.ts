@@ -1,4 +1,4 @@
-import { formatLocalRefPointer, parseLocalRefPointer } from "@linxiraos/pi-omptype";
+import { formatLocalRefPointer, parseLocalRefPointer } from "@linxiraos/zeta-schema";
 import { areJsonValuesEqual } from "./equality";
 import { epochNext, once } from "./stamps";
 import { isJsonObject, type JsonObject } from "./types";

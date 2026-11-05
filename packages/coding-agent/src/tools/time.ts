@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { prompt } from "@linxiraos/pi-utils";

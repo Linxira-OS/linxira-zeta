@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { resolveAnthropicApiVersion } from "@linxiraos/pi-catalog/compat/anthropic";
 import { AnthropicHttpClient, type AnthropicClientOptions, type AnthropicRequestOptions } from "./anthropic-client";
 

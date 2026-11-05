@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { $which, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "../../src/config/settings";

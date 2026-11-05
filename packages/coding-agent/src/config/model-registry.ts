@@ -141,6 +141,7 @@ import {
 import { loadModelsLayers, mergeModelsConfigs, modelsWebConfigPath } from "./models-config-layers";
 import type { ModelOverride, ModelsConfig, ProviderAuthMode } from "./models-config-schema";
 import { isOmpCompatEnabled } from "@linxiraos/pi-utils/env";
+import { cfgCompatImportLegacyOmp } from "../session/settings";
 import { type OmpCompatSnapshot, defaultOmpAgentDir, probeOmpCompat } from "./omp-compat";
 import { type Settings, settings } from "./settings";
 
@@ -1239,9 +1240,18 @@ export class ModelRegistry {
 		}
 	}
 
+	/**
+	 * The legacy-OMP switch: `ZETA_OMP_COMPAT` outranks the persisted
+	 * `compat.importLegacyOmp` setting, which outranks the off default. Without a
+	 * settings scope (SDK embedding, early boot) only the env var can enable it.
+	 */
+	#ompCompatEnabled(): boolean {
+		return this.#settings ? cfgCompatImportLegacyOmp.get(this.#settings) : isOmpCompatEnabled();
+	}
+
 	#probeOmpCompatSafe(): OmpCompatSnapshot | undefined {
 		try {
-			return probeOmpCompat(this.#ompAgentDir);
+			return probeOmpCompat(this.#ompAgentDir, { enabled: this.#ompCompatEnabled() });
 		} catch (error) {
 			logger.debug("zeta compat probe failed; compatibility disabled", {
 				error: error instanceof Error ? error.message : String(error),
@@ -1256,7 +1266,7 @@ export class ModelRegistry {
 	 * upgrades/rollbacks — whenever upstream state actually changed on disk.
 	 */
 	#ompCompatFingerprint(): string | null {
-		if (!isOmpCompatEnabled()) return null;
+		if (!this.#ompCompatEnabled()) return null;
 		if (this.#ignoreLocalModelConfig) return null;
 		const agentDir = this.#ompAgentDir ?? defaultOmpAgentDir();
 		const parts = [agentDir];

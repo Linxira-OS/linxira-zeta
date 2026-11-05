@@ -27,13 +27,24 @@ Additional rule inside each `.env` file: every `OMP_*` key is mirrored to its `P
 
 ### Legacy OMP compatibility
 
-Reading OMP's old `models.yml`, `agent.db`, and `.env` files is **off by default**. Set:
+Reading OMP's old `models.yml`, `agent.db`, and `.env` files is **off by default**. Either set the
+environment variable:
 
 ```bash
 ZETA_OMP_COMPAT=1
 ```
 
-This one switch gates both the legacy dotenv fallback and the upstream OMP model/credential overlay. The switch itself must come from the process environment or a Zeta dotenv file (normally `~/.zeta/agent/.env`); it cannot be enabled from `~/.omp/agent/.env`, because that file is not read while the switch is off.
+or enable `compat.importLegacyOmp` ("Read legacy OMP configuration", Settings → Interaction →
+Compatibility), which is the same switch as a persisted setting. Precedence is
+**`ZETA_OMP_COMPAT` > setting > off**, so an explicit `ZETA_OMP_COMPAT=0` in the environment keeps
+compatibility off whatever the setting says.
+
+This one switch gates both the legacy dotenv fallback and the upstream OMP model/credential overlay.
+The environment form must come from the process environment or a Zeta dotenv file (normally
+`~/.zeta/agent/.env`); it cannot be enabled from `~/.omp/agent/.env`, because that file is not read
+while the switch is off. The persisted setting is resolved when the settings layer loads, after the
+Zeta dotenv files, so a value read before that point (an import-time one in a leaf package) sees
+only the environment form.
 
 Files already copied into `~/.zeta/agent` (for example a migrated `models.yml`) are native Zeta configuration and stay active; the switch only controls reading the legacy `~/.omp` tree. Use it only when migrating from an existing OMP installation. Zeta's own `.zeta` configuration always takes precedence; compatibility files are never written.
 
@@ -547,6 +558,8 @@ Shell subprocess filtering is separate (`packages/utils/src/env.ts`): it strips 
 | `ZETA_SERVE_TLS_CERT` / `ZETA_SERVE_TLS_KEY` | PEM certificate chain and private key used when `serve` runs its built-in TLS listener; `--tls-cert`/`--tls-key` and `remote.tls` in `web.yml` take precedence, and both variables must be set to take effect. |
 | `ZETA_SERVE_REGISTRY`       | Path override for the serve registry (default `<config root>/serve.json`), which records each running instance's pid, Web UI/stats/gateway URLs, version, cwd, and the open-bridge secret of a desktop-spawned instance. |
 | `ZETA_WEB_GATEWAY_PORT`     | Port for the web gateway listener (default `43143`); `zetacode serve --gateway-port` overrides it per run. Non-numeric values fail startup. |
+| `ZETA_WEB_APP_DIR`          | Directory holding the Studio renderer build (`index.html` + `assets/`) that `zetacode serve` serves on its main origin. Defaults to `<repo>/web-app/dist` when that build exists; unset with no build serves the placeholder page instead. |
+| `ZETA_STUDIO_PAIRING_CODE`  | Fixed pairing code for the Studio host (`/api/v1/pair`) instead of a fresh random one per serve run. Intended for scripted/local testing: it never expires and can pair repeatedly (a generated code is single-use and expires after 60 seconds). |
 | `ZETA_GATEWAY_URL`          | Base URL `zetacode attach` targets when `--url` is omitted (default `http://127.0.0.1:43143`); trailing slashes are trimmed. |
 | `ZETA_BIN_DIR`              | Platform path-list of directories probed **before** `PATH` when either local surfaces or the web gateway's terminal look for the suite binaries (`zetacode`, `zetawork`, `zetaide`); unset or empty disables the override. |
 

@@ -4,7 +4,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Type } from "@linxiraos/pi-omptype/typebox";
+import { Type } from "@linxiraos/zeta-schema/typebox";
 import type { AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { HookRunner, type LoadedHook } from "@linxiraos/zeta/extensibility/hooks";

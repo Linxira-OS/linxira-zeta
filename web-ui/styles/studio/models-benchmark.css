@@ -1,0 +1,103 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+.studio-root .benchmark-pane {
+  padding: 16px 0;
+}
+.studio-root .benchmark-setup {
+  border-bottom: 1px solid var(--studio-border);
+  padding: 12px 0 18px;
+}
+.studio-root .benchmark-setup > summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.studio-root .benchmark-config-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 1fr);
+  gap: 24px;
+  margin-bottom: 16px;
+}
+.studio-root .benchmark-config-grid label,
+.studio-root .benchmark-toolbar > label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.studio-root .benchmark-models {
+  max-height: 280px;
+  overflow: auto;
+  padding: 6px 0;
+}
+.studio-root .benchmark-models > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--studio-border);
+}
+.studio-root .benchmark-models small {
+  display: block;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+.studio-root .benchmark-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-content: start;
+}
+.studio-root .benchmark-fields textarea {
+  min-width: 0;
+  width: 100%;
+  resize: vertical;
+}
+.studio-root .benchmark-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+.studio-root .benchmark-review {
+  padding: 12px 16px;
+  background: var(--studio-surface-hover);
+  border-left: 3px solid var(--studio-accent);
+  margin: 16px 0;
+}
+.studio-root .benchmark-review .btn {
+  margin-right: 8px;
+}
+.studio-root .benchmark-review pre,
+.studio-root .benchmark-table pre {
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 11px;
+}
+.studio-root .benchmark-table {
+  overflow: auto;
+}
+.studio-root .benchmark-table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+  text-align: left;
+}
+.studio-root .benchmark-table td,
+.studio-root .benchmark-table th {
+  padding: 10px;
+  border-bottom: 1px solid var(--studio-border);
+  vertical-align: top;
+}
+.studio-root .benchmark-table td:nth-child(2) {
+  max-width: 360px;
+  overflow-wrap: anywhere;
+}
+.studio-root .benchmark-error {
+  color: var(--studio-red, var(--zeta-alias-status-error));
+}
+@media (max-width: 850px) {
+  .studio-root .benchmark-config-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -3,7 +3,7 @@ import { buildParams, convertTools } from "@linxiraos/pi-ai/providers/openai-res
 import type { Context, Model, ModelSpec, Tool } from "@linxiraos/pi-ai/types";
 import { findStrictToolSchemaViolation } from "@linxiraos/pi-ai/utils/schema";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 function makeModel(provider: "openai" | "xai-oauth" = "openai"): Model<"openai-responses"> {
 	return buildModel({

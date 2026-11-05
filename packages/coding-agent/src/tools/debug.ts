@@ -1,6 +1,6 @@
 import { type DebugToolDetails, formatLocation, formatSessionSnapshot } from "@linxiraos/pi-tui/tools/debug";
 import * as fs from "node:fs/promises";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type {
 	AgentTool,
 	AgentToolContext,

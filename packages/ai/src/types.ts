@@ -1,7 +1,7 @@
 export * from "@linxiraos/pi-catalog/effort";
 export * from "@linxiraos/pi-catalog/types";
 
-import type { Type } from "@linxiraos/pi-omptype";
+import type { Type } from "@linxiraos/zeta-schema";
 import type { AnthropicSlowModeHooks } from "./providers/anthropic-slow-mode";
 import type {
 	DeleteArgs,

@@ -1,3 +1,7 @@
+# `askTitle` is deliberately absent: the Studio renderer's own dictionary
+# (`web-app/src/studio/i18n/locales/en.ts`) defines a key with that name, so an
+# identifier scan cannot tell the two apart. If that web key is ever renamed,
+# this guard will report `askTitle` as a new orphan — pin it here then.
 # Catalogue keys with no call site, pinned as a reviewed backlog.
 # One key per line, sorted. The guard (test/i18n-message-references.test.ts) fails when
 # a key is NOT listed here (a new dead key) and when a listed key stops being an orphan
@@ -350,7 +354,6 @@ askQuestionOne
 askRecommendedSuffix
 askReviewAnswers
 askScrollIndicatorFmt
-askTitle
 askSpaceToggleNext
 askSpaceToggleSubmit
 askSubmitOption

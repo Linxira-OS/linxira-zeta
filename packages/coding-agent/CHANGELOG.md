@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+### Added
+
+- The web gateway now serves the Studio Git page's read surface in-process over the pi-vcs addon: `GET /api/git/{status,diff,remotes,show,worktrees}` (no `git` subprocess). `branches` gains `headOid`/`upstream`/`ahead`/`behind`, `log` gains `parents`/`authorName`/`authorDate`/`refs`/`relation`, `status` gains `unborn`/`stashCount` and both porcelain sides per change, and `worktrees` gains `bare`/`locked`/`lockReason`/`prunable` — all read from `.git` files and `mergeBase`, still with no `git` subprocess. `log` pages up to 500 rows.
+- The Studio host answers `core.continue`: the same hidden synthetic continue the TUI's `.`/`c` shortcut sends, exposed as `POST /api/agent/:id {"type":"continue"}` and reported as `{started, mode: "restored" | "continue" | "none"}`. It runs on the session's active model and never adds a user message to the transcript.
+- The Studio renderer now ships each locale as its own chunk: English stays in the entry bundle and the Chinese dictionary loads on demand, cutting the entry script by 111 kB (2,196 → 2,085 kB) for every page that never shows Chinese. First paint waits for that one request, so strings never flash in the wrong language.
+- Renderer preferences moved from `omp.*` to `zeta.*` in browser storage; a one-time migration copies the old keys so layouts, theme, language and annotations survive the rename.
+- `compat.importLegacyOmp` ("Read legacy OMP configuration", Settings → Interaction → Compatibility) exposes the read-only import of the legacy OMP configuration directory as a persisted setting. `ZETA_OMP_COMPAT` still wins; the setting is the same switch without an environment variable, and toggling it reloads the model registry without a restart.
+
 ## [1.4.10] - 2026-11-05
 
 ### Added

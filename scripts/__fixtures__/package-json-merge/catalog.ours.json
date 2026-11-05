@@ -87,7 +87,7 @@
     "gen:proto": "bun scripts/generate-protocols.ts"
   },
   "dependencies": {
-    "@linxiraos/pi-omptype": "catalog:",
+    "@linxiraos/zeta-schema": "catalog:",
     "@linxiraos/pi-utils": "catalog:"
   },
   "devDependencies": {

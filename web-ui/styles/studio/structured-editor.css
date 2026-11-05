@@ -1,0 +1,68 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+/* Shared JSON / YAML editor chrome. Token colors live in theme.ts (CodeMirror). */.studio-root .st-card.yml-card {
+  margin-top: var(--studio-sp-20);
+}.studio-root .st-card.st-card-embed {
+  margin-top: var(--studio-sp-8);
+  margin-bottom: 0;
+}.studio-root .st-lang.seg {
+  flex: none;
+}.studio-root .st-lang.seg button {
+  font-size: var(--studio-fs-11);
+  padding: var(--studio-sp-4) var(--studio-sp-8);
+  min-height: var(--studio-tap-min);
+}.studio-root .st-editor {
+  position: relative;
+  background: var(--studio-code-bg);
+  overflow: hidden;
+}.studio-root .st-editor .cm-content:focus, .studio-root .st-editor .cm-content:focus-visible {
+  outline: none;
+}.studio-root .st-editor .cm-scroller {
+  overflow: auto;
+}.studio-root .st-editor.is-focused {
+  box-shadow: inset 0 0 0 2px var(--studio-accent-border);
+}.studio-root .st-editor.is-disabled {
+  opacity: 0.72;
+}.studio-root .st-editor .cm-gutters {
+  min-height: 100%;
+}.studio-root .st-expand-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--studio-z-modal);
+  background: color-mix(in srgb, var(--zeta-alias-neutral-1000) 50%, transparent);
+  animation: omp-fade-in var(--studio-dur-fast) var(--studio-ease-out);
+}[data-theme="dark"] .studio-root .st-expand-scrim {
+  background: color-mix(in srgb, var(--zeta-alias-neutral-1000) 60%, transparent);
+}.studio-root .st-card.is-expanded {
+  position: fixed;
+  z-index: calc(var(--studio-z-modal) + 1);
+  top: calc(var(--studio-topbar-h) + 12px);
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border-color: var(--studio-border-float);
+  box-shadow: var(--studio-shadow-modal);
+  animation: omp-menu-in var(--studio-dur) var(--studio-ease-out);
+}.studio-root .st-card.is-expanded .yml-head {
+  flex: none;
+}.studio-root .st-card.is-expanded .st-editor {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}.studio-root .st-card.is-expanded .yml-error {
+  flex: none;
+}.studio-root .st-expand-slot {
+  visibility: hidden;
+  pointer-events: none;
+  margin-top: var(--studio-sp-20);
+  margin-bottom: var(--studio-sp-12);
+}.studio-root .st-expand-slot.st-card-embed {
+  margin-top: var(--studio-sp-8);
+  margin-bottom: 0;
+}.studio-root .st-holder {
+  display: contents;
+}

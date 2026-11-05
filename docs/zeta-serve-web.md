@@ -3,13 +3,78 @@
 CLI commands for one-click startup of the Stats Dashboard and Web UI, backed by
 ZetaServer's unified reverse proxy.
 
-> **Web UI status (2026-10-24).** The Web UI is deliberately **not shipped**
-> inside the package or the release binaries for now. With no Web UI build
-> present, `zetacode serve` answers the web port with a bilingual placeholder
-> page that says the Web UI is being completed; the terminal attach client and
-> the gateway keep working. A later release completes the Web UI and makes
-> `serve` fetch `@linxiraos/zeta-web` from npm on demand. The Stats Dashboard
-> ships in every build and has an EN ⇄ 中文 switch in its top-right corner.
+> **Web UI status (2026-11-05).** The Web UI ships as **two distributions from one
+> source** (`web-ui/`), never as a fork:
+>
+> | Distribution | Contains | Transport |
+> |---|---|---|
+> | `@linxiraos/zeta-web` (`zeta-web` bin) | Next server + the built UI only; **no agent kernel** | proxies every `/api/*` to an existing `zetacode serve` |
+> | `zetawork` desktop bundle | the same UI build plus bundled `zetacode serve` | hosts the UI in a native window (Windows WebView2) or the system browser (Linux) |
+>
+> The browser-only package **never starts a kernel**: `zeta-web` probes
+> `GET /api/server/identity` at the gateway it will use, insists on
+> `app: "zeta"`, and exits `2` with the exact `zetacode serve` command when no
+> kernel answers. This is deliberate — a UI that boots and then 502s every
+> request is worse than a launcher that stops and says why.
+>
+> Ports are the Zeta block, not OMP's: gateway `43143`
+> (`--gateway-port`/`ZETA_WEB_GATEWAY_PORT`), stats `43147`
+> (`--stats-port`/`NEXT_PUBLIC_STATS_URL`), UI `43141` (`--web-port`).
+> The UI validates the origin it proxies to, so a standalone `next start`
+> targets the same gateway `zetacode serve` binds instead of squatting OMP's
+> `30142`.
+>
+> ```bash
+> # Kernel first, then the browser-only UI against it
+> zetacode serve --web-only --web-port 43141 --gateway-port 43143
+> zeta-web --no-open                      # 127.0.0.1:30141 by default
+> zeta-web --gateway http://127.0.0.1:43143
+> ```
+>
+> `zeta-web` flags: `--port`/`-p` (UI), `--hostname`/`-H`, `--gateway`/`-g`
+> (kernel origin), `--no-open`. Env: `ZETA_WEB_GATEWAY_URL`,
+> `ZETA_WEB_GATEWAY_PORT`, `ZETA_WEB_HOSTNAME`, `ZETA_WEB_NO_OPEN`.
+
+## Studio renderer and host (same origin)
+
+`zetacode serve` also serves the Studio renderer build (`web-app/`) on its own
+origin, so the browser needs no second process:
+
+- every path outside `/api/*` is served from `web-app/dist` — hashed assets
+  from `/assets/` are cached immutably, `index.html` never is, and any other
+  path falls back to `index.html` (client-side routing). A missing asset is a
+  404, never the HTML entry;
+- the build is optional. Without one (a package that ships no renderer) `/`
+  keeps answering the placeholder page and every `/api/*` route still works;
+- `ZETA_WEB_APP_DIR` points at a different build directory;
+- the renderer's Content-Security-Policy is sent as a response header and is
+  the same policy the packaged `index.html` carries as a meta tag.
+
+The renderer speaks the Studio host contract on the same origin:
+
+| Route | Auth | Purpose |
+|---|---|---|
+| `GET /health` | none | `{ok:true, protocolVersion:1}` — "is this a Studio host" |
+| `POST /api/v1/pair` | pairing code | Sets the `studio_session` cookie, returns `{csrf, expiresAt}` |
+| `POST /api/v1/session/revoke` | cookie + `X-Studio-CSRF` | Drops the session |
+| `GET /api/v1/bootstrap` | cookie | Identity, runtime status, surfaces, capability manifest |
+| `POST /api/v1/query` | cookie | `ClientQueryRequest` → `ClientQueryResponse` |
+| `POST /api/v1/command` | cookie + `X-Studio-CSRF` | `ClientCommandRequest` → 202 `ClientCommandAccepted` |
+| `WS /api/v1/events` | cookie | Event subscription (`ClientEvent`) |
+
+`zetacode serve` prints the single-use pairing code (60 s TTL); set
+`ZETA_STUDIO_PAIRING_CODE` to pin it for scripted runs. Bodies are capped at
+1 MiB, one session may hold eight commands in flight, and every route except
+`/health` requires a loopback `Origin`.
+
+The capability manifest is built from the operations this host implements, so
+a surface Zeta cannot serve is not advertised and the renderer hides it. An
+unimplemented operation answers `{ok:false, queryName, error:{code:"unsupported", message}}`
+for a query and `400` with the same envelope for a command.
+
+During renderer development, `vite dev` keeps its proxy: `/api` and `/health`
+are forwarded to the gateway port (`--gateway-port`, default `43143`), so the
+same host contract serves the dev page.
 
 ## `zetacode serve`
 

@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
 import { mapOpenAIResponsesToolChoiceForTools } from "@linxiraos/pi-ai/providers/openai-responses";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry/registry";

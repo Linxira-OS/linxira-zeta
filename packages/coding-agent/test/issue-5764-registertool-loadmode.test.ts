@@ -6,7 +6,7 @@
  * / `write xd://<tool>`).
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { CustomToolAdapter } from "@linxiraos/zeta/extensibility/custom-tools/wrapper";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";

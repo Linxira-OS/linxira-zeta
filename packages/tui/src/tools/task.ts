@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { Usage } from "@linxiraos/pi-ai";
 import type { ThemeColor } from "../theme/theme";
 import type { ConfiguredThinkingLevel } from "../render/render-utils";

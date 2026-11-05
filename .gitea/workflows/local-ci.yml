@@ -9,7 +9,7 @@ name: local-ci
 # "与 ci.yml 重复 / 会漂移"为由删除：与 ci.yml 的逐 job 对应关系是刻意维护的。
 #
 # 与 .github/workflows/ci.yml 的对应关系（逐 job）：
-#   镜像：check / web_ui_build / bazel_lock / rust_validate / native_addons /
+#   镜像：check / bazel_lock / rust_validate / native_addons /
 #        test_coding_agent_native / test_workspace / test_coding_agent_singleton /
 #        test_ts_native / test_coding_agent_ui / test_coding_agent_runtime /
 #        test_smoke / install_methods / termide_tests / main_tests
@@ -535,79 +535,6 @@ jobs:
            # 镜像漂移检测：GitHub 侧新增/改名 job 或仓库脚本时，本地镜像
            # 必须同步更新（或显式登记为"有意排除"），否则这里红。
            run: bun scripts/check-local-ci-parity.ts
-
-   # ── 3. web-ui（镜像 web_ui_build）───────────────────────────────────────
-   web_ui_build:
-      name: Web UI build
-      needs: [preflight, toolchains]
-      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'gates') }}
-      runs-on: self-hosted
-      timeout-minutes: 45
-      steps:
-         # The NAS runner's egress to github.com is intermittent (observed:
-         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
-         # SSL unexpected eof` fetching a release asset), and actions/checkout
-         # has no retry - one reset loses the whole run. Clone from the Gitea
-         # instance instead: it is on the LAN and needs no action download.
-         - name: Checkout (local Gitea remote)
-           shell: bash
-           run: |
-              set -euo pipefail
-              ref="${{ github.ref }}"
-              sha="${{ github.sha }}"
-              host="${{ github.server_url }}"
-              host="${host#*://}"
-              token="${{ github.token }}"
-              auth=""
-              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
-              url="http://${auth}${host}/${{ github.repository }}.git"
-              if [ ! -d .git ]; then git init -q .; fi
-              if git remote get-url origin >/dev/null 2>&1; then
-                 git remote set-url origin "$url"
-              else
-                 git remote add origin "$url"
-              fi
-              git fetch -q --depth=1 --tags origin "$ref"
-              # --depth=1 only brings the ref tip; fall back to the full branch
-              # when the run's SHA is not that tip (branch moved mid-run).
-              if ! git checkout -q -f "$sha" 2>/dev/null; then
-                 git fetch -q --tags origin "$ref"
-                 git checkout -q -f "$sha"
-              fi
-              git log -1 --format='checked out %h %s'
-         - name: Toolchain PATH
-           shell: bash
-           run: |
-              set -euo pipefail
-              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
-              extra="${PATH_EXTRA:-}"
-              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
-              if [ -z "$extra" ]; then
-                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
-                 exit 1
-              fi
-              echo "$extra:$PATH" >> "$GITHUB_PATH"
-              # The host executor gives every job its own act/<hash> workdir;
-              # the toolchains job's node_modules is not visible here. Install
-              # the workspace graph before the job's bun commands (`oxlint`,
-              # test buckets, desktop launcher tests).
-              export PATH="$extra:$PATH"
-              bun install --frozen-lockfile
-         - name: Install dependencies
-           working-directory: web-ui
-           run: npm ci
-         - name: Type check
-           working-directory: web-ui
-           run: npx tsc --noEmit
-         - name: Lint
-           working-directory: web-ui
-           run: npm run lint
-         - name: Colour literal guard
-           working-directory: web-ui
-           run: node scripts/check-style-literals.mjs
-         - name: Build
-           working-directory: web-ui
-           run: npm run build
 
    # ── 4. MODULE.bazel.lock 新鲜度（镜像 bazel_lock）───────────────────────
    bazel_lock:

@@ -1,0 +1,4 @@
+# Build output (vite.config.ts → dist/, vite.perf.config.ts → dist-perf/).
+# Every `dist-*` directory is a measurement or comparison build; none is source.
+dist*/
+node_modules/

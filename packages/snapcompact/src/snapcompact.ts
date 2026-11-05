@@ -53,7 +53,7 @@
  * re-attached to the compaction summary message on every context rebuild.
  */
 
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { Api, ImageContent, Message, Model, TextContent } from "@linxiraos/pi-ai";
 import { reachesBudgetedHost } from "@linxiraos/pi-ai/providers/anthropic-state";
 import { resolveCatalogPolicy } from "@linxiraos/pi-catalog/compat/catalog-policy";

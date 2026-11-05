@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:te
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";

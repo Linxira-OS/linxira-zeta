@@ -112,10 +112,6 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				why: "Zeta-only: the plugin publish without the release gate, driven by the `publish_plugins` dispatch input. npm validates a trusted-publisher entry only through a real publish and its window is days wide; retries must not queue behind the 40-minute bazel chain. Mutually exclusive with release_plugin_packages",
 			},
 			{
-				job: "web_ui_build",
-				why: "Zeta-only web-ui pipeline job, absent upstream; silently lost in the squash-sync era (damage class 7)",
-			},
-			{
 				job: "web_desktop_tests",
 				why: "PR-path test job for the desktop contract suite + the CLI's Web UI launcher resolution (v1.2.1 shipped `npx zeta-web` 404 with the desktop adopting the corpse, because both live in release-only jobs); upstream has no counterpart, so a merge trimming ci.yml would re-open that hole",
 			},

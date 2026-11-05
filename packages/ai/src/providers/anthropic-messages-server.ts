@@ -1,5 +1,5 @@
 import { Effort } from "@linxiraos/pi-catalog/effort";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { logger } from "@linxiraos/pi-utils";
 import { captureRequestHeaders, resolvePromptCacheKey } from "../auth-gateway/http";
 import * as AIError from "../error";

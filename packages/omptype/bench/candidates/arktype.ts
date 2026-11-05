@@ -1,5 +1,5 @@
 /** Pipeline: `type(def)` compiles; each call returns data or ArkErrors directly. */
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { Candidate } from "../candidate";
 import type { Def } from "../ir";
 

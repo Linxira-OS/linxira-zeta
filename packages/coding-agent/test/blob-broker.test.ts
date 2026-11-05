@@ -5,7 +5,7 @@ import * as path from "node:path";
 import type { AssistantMessage, AssistantMessageEvent, Context, Model } from "@linxiraos/pi-ai";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { getProjectDir } from "@linxiraos/pi-utils";
 import { LocalBlobBackend } from "../src/blob-broker/broker";
 import { contextHasImageUrls, supportsRemoteImageUrls } from "../src/blob-broker/context-images";

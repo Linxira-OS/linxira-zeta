@@ -9,7 +9,7 @@
  *
  * Run: bun packages/agent/bench/stable-prefix.bench.ts
  */
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { StablePrefix } from "../src/append-only-context";
 import type { AgentTool } from "../src/types";
 

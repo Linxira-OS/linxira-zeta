@@ -1,5 +1,5 @@
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { prompt } from "@linxiraos/pi-utils";
 import modeDescription from "../prompts/tools/mode.md" with { type: "text" };

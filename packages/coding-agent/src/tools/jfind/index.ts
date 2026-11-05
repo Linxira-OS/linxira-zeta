@@ -5,7 +5,7 @@
  * contract and the model-facing report.
  */
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { FindToolDetails } from "@linxiraos/pi-tui/tools/find";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";

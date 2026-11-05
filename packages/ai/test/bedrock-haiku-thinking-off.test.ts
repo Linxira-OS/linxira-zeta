@@ -3,7 +3,7 @@ import { streamBedrock } from "@linxiraos/pi-ai/providers/amazon-bedrock";
 import { streamSimple } from "@linxiraos/pi-ai/stream";
 import type { Context, SimpleStreamOptions } from "@linxiraos/pi-ai/types";
 import { Effort } from "@linxiraos/pi-catalog/effort";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import {
 	BEDROCK_TEST_CONTEXT,
 	type BedrockCapture,

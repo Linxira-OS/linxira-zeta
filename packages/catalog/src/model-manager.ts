@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { logger, VERSION } from "@linxiraos/pi-utils";
 import { buildModel } from "./build";
 import { collapseBuiltVariants } from "./compat/collapse";

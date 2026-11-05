@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype/ark";
+import { type } from "@linxiraos/zeta-schema/ark";
 
 it("docs select config example", () => {
 	const SelectivelyConfigured = type({

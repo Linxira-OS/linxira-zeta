@@ -13,7 +13,7 @@ import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { Message } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
 import { TempDir, withTimeout } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";

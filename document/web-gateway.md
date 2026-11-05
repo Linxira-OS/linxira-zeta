@@ -40,7 +40,7 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 
 | 路径 | 归属 | 状态 |
 | --- | --- | --- |
-| `api/sessions`、`api/sessions/[id]`、`[id]/context`、`[id]/state`、`[id]/entries/[entryId]/thinking`、`[id]/export`、`[id]/artifacts`、`[id]/artifacts/[name]`（GET/PUT） | Gateway | W1 ✅ |
+| `api/sessions`、`api/sessions/[id]`、`[id]/context`、`[id]/state`、`[id]/entries/[entryId]/thinking`、`[id]/export`、`[id]/artifacts`、`[id]/artifacts/[name]`（GET/PUT/**DELETE**） | Gateway | W1 ✅；`[id]/artifacts` 另带 `artifactId`/`kind`/`mimeType`/`bytes`/`createdAt`/`sha256` 与 `kind`/`limit`/`cursor` 分页（Studio 宿主契约要求），`DELETE` 走同一 realpath 包含校验 |
 | `api/agent/new`、`api/agent/[id]`、`[id]/events`、`api/agent/running/events` | Gateway（rpc-manager 迁移） | W2 ✅ |
 | `api/agent/[id]/memory`、`[id]/memory/search`、`[id]/memory/items/[memId]` | Gateway（`MemoryRuntimeContext` + 会话级 `MnemopiSessionState`） | W5 ✅（**只读**：列表 / 搜索 / 单条；`PATCH` item 与 `POST /memory` 已占位但返回 501） |
 | `api/agent/[id]/bash-output` | Gateway | W2 不实现（运行时会话无 `pi-bash-*.log` 临时文件，bash 全量输出走 session artifact；`role === "bashExecution"` 消息在运行时会话文件中不存在，web-ui 永远不会为此构建链接 → 保持 404） |
@@ -53,7 +53,13 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 | `api/channels/send` | Gateway（新增，非迁移；`web-gateway/channels.ts` + `zeta-server.ts` 的 `registerChannelSend`） | ✅ **IM 写入口**：`{channelId,to,text}`（= 运行时 `ChatChannel.sendText` 的三个参数），200 带回执 / 400 缺字段或 peer 未配对 / 404 渠道未运行 / 500 平台拒绝；仅 `POST`（其余 405）。鉴权同 `channels/status` |
 | `api/board`、`api/board/[id]`、`[id]/move`、`[id]/handoff` | Gateway（新增，非迁移；`web-gateway/board.ts`） | ✅ 用户看板 CRUD：卡片 = `<cwd>/.zeta/board/<id>.md`，列表/单读/创建/更新/移动/删除 + `handoff` 返回 brief（**不代起会话**）；`assign: true` 记 `assignee: agent`。非法 id/字段/日期 400、缺卡 404、文件存在但无法解析 422 `{error:"not a card",reason}`；见 `docs/board.md` |
 | `api/tracking`、`api/tracking/events`（SSE） | Gateway（`tracking.ts`） | ✅ `zeta serve` 进程内分派（`classifyRequest`，不依赖 Next rewrite）；dev/standalone 经 Next rewrite |
-| `api/fs/*`、`api/files/*`、`api/cwd/*`、`api/git/*`、`api/home`、`api/default-cwd`、`api/worktrees`、`api/file-index` | **留在 Next**（纯 Node，无 runtime import）；其中 `api/git/{branches,checkout,branch}` 是**请求期网关代理**（`app/api/git/*` → `resolveGatewayUrl()`） | — |
+| `api/fs/directories`（GET/POST）、`api/files/[…path]`（GET/POST）、`api/cwd/{browse,validate}`、`api/default-cwd`、`api/file-index` | Gateway（`web-gateway/{cwd,files,file-index}.ts`，从 Next 迁移） | ✅ 文件树 / 编辑器读写 / 元数据 / 图片·音频·文档流 / DOCX 预览 / SSE 监听 / 上传 / 目录选择器 / @ 索引。JSON 与旧 Next 路由逐字段一致；路径按 allowed roots 双重校验（`realpath` 防符号链接逃逸），越界 403、文本超 256 KiB 与上传超限 413、重名文件夹/上传冲突 409 |
+| `api/git/*`（读面 + 写面） | Gateway（`web-gateway/{git,git-reads,git-actions}.ts`，全部经 pi-vcs addon；Next `app/api/git/*` 仅做请求期代理） | ✅ 写面：`branches`/`checkout`/`branch`/`stage`/`unstage`/`commit`/`push`/`fetch`/`pull`；读面新增：`status`、`diff`（单文件或单 commit）、`remotes`、`show`、`worktrees`、`log`（默认 50、最大 500）。非仓库 404、未知 commit 404、越界路径 400、补丁超 512 KiB 413；`branches` 增带 `headOid`/`upstream`/`ahead`/`behind`，`log` 增带 `parents`/`authorName`/`authorDate`/`refs` |
+| `api/home`、`api/worktrees`（Next 的创建/删除面） | **留在 Next**（纯 Node，无 runtime import） | — |
+| `api/settings/values?path=…` | Gateway（新增，非迁移；`web-gateway/settings.ts`） | ✅ 读任意**已注册**设置的当前值（`ui` 元数据可有可无），未知路径答 `null`。`GET /api/settings` 仍是「面板文档」（只列可渲染的行），组合状态的调用方用这条 |
+| `api/settings`（PUT） | Gateway | ✅ 写入放宽为「已注册即可」：`ui` 只决定面板是否列出，不再决定能否写（模型供应商顺序 / 启用集合本来就没有 `ui`）。未知路径仍 400 |
+| `api/skills/reveal` | Gateway（新增，非迁移） | ✅ 在系统文件管理器里打开**一个**技能目录：`{cwd, name, scope?}` 或 `{cwd, root:true, scope?}`。目录由服务端用 `GET /api/skills` 的同一扫描解析，客户端从不传路径；扫描里找不到 404，落在项目/agent 根之外 403 |
+| `health`、`api/v1/*` | Gateway（`studio-host/`，新增） | ✅ Studio 渲染器宿主契约：`/health`、`pair`、`session/revoke`、`bootstrap`、`query`、`command`、`events`（WS）。`zeta serve` 主监听器与网关监听器都挂载它（`vite dev` 的 `/api` 代理因此可用）。配对码 + `studio_session` cookie + `X-Studio-CSRF`；能力清单由已注册操作生成，未实现的面在渲染器里不可达 |
 
 ## 网关内部模块（`packages/coding-agent/src/server/web-gateway/`）
 
@@ -64,8 +70,10 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 - `sessions.ts` — W1：列表（`session-listing.listAllSessions` + 兜底文件扫描）、
   打开（`SessionManager.open` 语义 → DTO）、context（entryIds 配对）、
   state（running/streaming 状态）、thinking、export（`../export/html` + 递归补丁）。
-- `artifacts.ts` — 会话 `local://` 根：列表（recursive、新→旧）、单文件读、单文件写
-  （28 MiB 上限；`InternalUrlRouter.locate` 做 realpath + 根包含校验，穿越/逃逸符号链接返回 403）。
+- `artifacts.ts` — 会话 `local://` 根：列表（recursive、新→旧；带 Studio 宿主要的
+  `artifactId`/`kind`/`mimeType`/`bytes`/`createdAt`/`sha256`，`kind` 按文件名派生并缓存
+  摘要）、单文件读、单文件写、单文件删（28 MiB 上限；`InternalUrlRouter.locate` 做 realpath +
+  根包含校验，穿越/逃逸符号链接返回 403）。
   供远端 attach 的 `/local` 拉取-编辑-回写使用，与工具读写的是同一目录。
 - `agents.ts` — W2 ✅：`createAgentSession` + `AgentSessionWrapper` 注册表 +
   RPC 命令转发 + SSE（session/events、running/events）。web-ui 的
@@ -102,6 +110,15 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
   路径位于 `cwd` 内的条目按 project scope 显示，其余为 global；install/remove/
   update 幂等写配置，未落盘的包显示 `missing` + warning，与 OMP Web 一致；
   disable/enable 写 `disabledExtensions` 的 `extension-module:<name>` 条目）。
+
+- `git.ts` / `git-reads.ts` / `git-actions.ts` — Git 读面与写面：分支列表（含
+  `headOid`/`upstream`/`ahead`/`behind`，分支数 > 100 时省略派生字段）、
+  工作区状态（porcelain v1 `-z`，5000 行封顶并回带 `truncated`）、单文件/单 commit
+  补丁（512 KiB 封顶，超限 413；未跟踪文件用 `diffNoIndex` 对 `/dev/null` 合成补丁）、
+  remotes、单 commit（`numstat` 计数 + 补丁头判定 `status`，root commit 回退到补丁解析）、
+  worktrees（addon 不暴露 `bare`/`locked`，故不产出该字段）、log（`--oneline` 行 + 每行
+  `commitDetails`；行数 > 100 时省略 `refs`）。`stashCount` 无 addon API，不产出。
+  所有读操作都在进程内走 addon，不 spawn `git`。
 
 - `memory.ts` — W5 ✅：记忆**读面**（`list`/`search`/`item`）。逐后端能力矩阵
   （`MEMORY_CAPABILITIES`）是唯一真源，且每个响应都回带 `capabilities`；后端

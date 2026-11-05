@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { EVAL_TIMEOUT_PAUSE_OP, EVAL_TIMEOUT_RESUME_OP } from "@linxiraos/zeta/eval/bridge-timeout";

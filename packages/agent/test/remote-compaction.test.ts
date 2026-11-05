@@ -9,7 +9,7 @@ import {
 	prepareCompaction,
 	type SessionEntry,
 } from "@linxiraos/pi-agent-core/compaction";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import {
 	buildCompactionV2Request,
 	buildOpenAiNativeHistory,

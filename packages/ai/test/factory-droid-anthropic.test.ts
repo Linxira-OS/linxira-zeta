@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { Effort } from "@linxiraos/pi-catalog/effort";
 import { streamAnthropic } from "../src/providers/anthropic";

@@ -11,8 +11,8 @@
  * massage shapes the LLM almost got right.
  */
 
-import { type Type, type } from "@linxiraos/pi-omptype";
-import { parseLocalRefPointer } from "@linxiraos/pi-omptype";
+import { type Type, type } from "@linxiraos/zeta-schema";
+import { parseLocalRefPointer } from "@linxiraos/zeta-schema";
 import { isRecord, structuredCloneJSON } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import type { Tool, ToolCall } from "../types";

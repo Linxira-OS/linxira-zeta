@@ -1,0 +1,342 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+/*
+ * Renderer leftovers that are not in the ver1 workbench stylesheets:
+ * #root fill, Home / History pages, and a few Host-driven readouts.
+ * Workbench chrome comes from styles/{tokens,base,components,sidebar,workbench}.css.
+ */.studio-root #root {
+  height: 100%;
+}
+
+/* Codex-style window chrome: menus share one row with native caption buttons.
+   Electron titleBarOverlay reserves the right inset via env(titlebar-area-*). */.studio-root .app {
+  flex-direction: column;
+}.studio-root .app-titlebar {
+  height: 36px;
+  flex: none;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  /* The Window Controls Overlay leaves [titlebar-area-x, x + width] to the page:
+     Windows reserves its caption buttons on the right, macOS its traffic lights
+     on the left. Without an overlay both env() fall back to the full width. */
+  padding: 0 10px;
+  padding-left: max(10px, env(titlebar-area-x, 0px));
+  padding-right: max(10px, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)));
+  background: var(--studio-bg);
+  color: var(--studio-text-2);
+  -webkit-app-region: drag;
+  user-select: none;
+  overflow: visible;
+  position: relative;
+  z-index: var(--studio-z-menu);
+}.studio-root .app-titlebar .icon-btn, .studio-root .app-titlebar .title-menu, .studio-root .app-titlebar .title-menu-btn {
+  -webkit-app-region: no-drag;
+}.studio-root .app-titlebar .icon-btn {
+  width: 28px;
+  height: 28px;
+  color: var(--studio-text-3);
+}.studio-root .title-menus {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  margin-left: 2px;
+  -webkit-app-region: no-drag;
+}.studio-root .titlebar-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  flex: none;
+  -webkit-app-region: no-drag;
+}.studio-root .preview-switch {
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid var(--studio-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--studio-text-3);
+  font-size: calc(11px * var(--studio-text-font-scale));
+  line-height: 20px;
+  cursor: pointer;
+}.studio-root .preview-switch:hover {
+  background: var(--studio-surface-hover);
+  color: var(--studio-text);
+}.studio-root .preview-switch.on {
+  background: var(--studio-accent-soft);
+  border-color: color-mix(in srgb, var(--studio-accent) 35%, var(--studio-border));
+  color: var(--studio-accent);
+}.studio-root .title-menu {
+  position: relative;
+  flex: none;
+}.studio-root .title-menu-btn {
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--studio-text);
+  font-size: calc(12.5px * var(--studio-text-font-scale));
+  line-height: 26px;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
+  cursor: default;
+}.studio-root .title-menu-btn:hover, .studio-root .title-menu.open .title-menu-btn {
+  background: var(--studio-surface-hover);
+}.studio-root .title-menu-popover {
+  position: fixed;
+  min-width: 220px;
+  z-index: var(--studio-z-menu);
+}.studio-root .about-head {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+}.studio-root .about-app-icon {
+  border-radius: var(--studio-r-6);
+  flex: none;
+}.studio-root .about-list {
+  margin: 0;
+}.studio-root .about-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--studio-border);
+  font-size: var(--studio-fs-12);
+}.studio-root .about-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}.studio-root .about-row dt {
+  color: var(--studio-text-faint);
+  font-weight: var(--studio-fw-medium);
+}.studio-root .about-row dd {
+  margin: 0;
+  color: var(--studio-text);
+  text-align: right;
+}.studio-root .app-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  /* clip, not hidden: Chromium still scrolls overflow:hidden ancestors on
+     focus / scrollIntoView (inspect composer, minimap). clip is not a
+     scroll container, so the shell cannot be pushed under the titlebar. */
+  overflow: clip;
+  background: var(--studio-bg);
+}.studio-root .adaptive-workbench { position: relative; }.studio-root .adaptive-workbench .sidebar, .studio-root .adaptive-workbench .side-panel, .studio-root .adaptive-workbench .bottom-panel { transition: none; }.studio-root .adaptive-workbench .sidebar { width: var(--studio-sidebar-w); min-width: 0; max-width: none; }.studio-root .adaptive-workbench .side-panel { width: var(--studio-panel-w); min-width: 0; max-width: none; }.studio-root .adaptive-workbench .bottom-panel { min-height: 0; }.studio-root .layout-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--studio-text) 20%, transparent);
+  z-index: var(--studio-z-fab);
+  cursor: default;
+}.studio-root .adaptive-workbench[data-layout-overlay="sidebar"] > .sidebar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  margin: 0;
+  z-index: calc(var(--studio-z-fab) + 1);
+}.studio-root .adaptive-workbench[data-layout-overlay="side"] .side-panel {
+  position: absolute;
+  inset: 0 0 0 auto;
+  margin: 0;
+  z-index: calc(var(--studio-z-fab) + 1);
+}.studio-root .adaptive-workbench[data-layout-overlay="bottom"] .bottom-panel {
+  position: absolute;
+  inset: 44px 0 0;
+  height: auto;
+  z-index: calc(var(--studio-z-fab) + 1);
+}.studio-root .adaptive-workbench[data-layout-overlay="sidebar"] .sidebar-resizer, .studio-root .adaptive-workbench[data-layout-overlay="side"] .sp-resizer, .studio-root .adaptive-workbench[data-layout-overlay="bottom"] .bp-resizer { display: none; }.studio-root .layout-bottom-back { display: none; }.studio-root .adaptive-workbench[data-layout-overlay="bottom"] .layout-bottom-back { display: inline-flex; flex: none; }.studio-root .adaptive-workbench:not([data-layout-overlay="bottom"]) .layout-bottom-back { display: none; }.studio-root .adaptive-workbench .bp-head, .studio-root .adaptive-workbench .sp-head { min-width: 0; }.studio-root .adaptive-workbench .bp-head > .tabs, .studio-root .adaptive-workbench .sp-head > .tabs { min-width: 0; overflow-x: auto; scrollbar-width: none; }.studio-root .adaptive-workbench .bp-head > .tabs button, .studio-root .adaptive-workbench .sp-head > .tabs button { flex: none; }.studio-root .adaptive-workbench .bp-head > .icon-btn, .studio-root .adaptive-workbench .sp-head > .icon-btn { flex: none; }.studio-root .tb-overflow { display: none; position: relative; }.studio-root .tb-overflow-menu { top: 82px; right: 12px; left: auto; max-width: calc(100vw - 24px); max-height: calc(100dvh - 94px); overflow: auto; }.studio-root .title-menu-popover { max-width: calc(100vw - 16px); max-height: calc(100dvh - 52px); overflow-y: auto; }.studio-root .topbar:is([data-chrome-size="compact"], [data-chrome-size="narrow"]) .tb-left { min-width: 0; }.studio-root .topbar:is([data-chrome-size="compact"], [data-chrome-size="narrow"]) :is(.tb-optional, .telemetry) { display: none; }.studio-root .topbar:is([data-chrome-size="compact"], [data-chrome-size="narrow"]) .tb-right { flex: none; overflow: visible; }.studio-root .topbar:is([data-chrome-size="compact"], [data-chrome-size="narrow"]) .tb-overflow { display: block; }.studio-root .topbar:is([data-chrome-size="compact"], [data-chrome-size="narrow"]) .tb-crumb { flex: 1; }.studio-root .topbar[data-chrome-size="narrow"] { gap: var(--studio-sp-4); padding-inline: var(--studio-sp-6); }.studio-root .topbar[data-chrome-size="narrow"] :is(.crumb-project, .crumb-branch, .crumb-sep) { display: none; }.studio-root .topbar[data-chrome-size="narrow"] .tb-left { gap: 0; }.studio-root .topbar[data-chrome-size="narrow"] .crumb-menu:has(:is(.crumb-project, .crumb-branch)) { display: none; }.studio-root .sidebar, .studio-root .sidebar-resizer {
+  user-select: none;
+  -webkit-user-select: none;
+}.studio-root.is-resizing, .studio-root.is-resizing * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}.studio-root.is-resizing ::selection {
+  background: transparent !important;
+}.studio-root .app > .page {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}.studio-root .home-h {
+  font-size: calc(14px * var(--studio-text-font-scale));
+  font-weight: var(--studio-fw-semibold);
+  margin: 0 0 10px;
+}.studio-root .home-h-tight {
+  margin-bottom: 6px;
+}.studio-root .tk-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 210px;
+  margin-top: var(--studio-sp-24);
+}.studio-root button.proj-card, .studio-root button.activity-row {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+}.studio-root .page-nav a[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}.studio-root .tk-scale i[data-s="0"] { background: var(--studio-accent-softer); }.studio-root .tk-scale i[data-s="1"] { background: color-mix(in srgb, var(--studio-accent) 24%, var(--studio-accent-softer)); }.studio-root .tk-scale i[data-s="2"] { background: color-mix(in srgb, var(--studio-accent) 45%, var(--studio-surface-2)); }.studio-root .tk-scale i[data-s="3"] { background: color-mix(in srgb, var(--studio-accent) 68%, var(--studio-surface-2)); }.studio-root .tk-scale i[data-s="4"] { background: var(--studio-accent); }.studio-root button.project-head {
+  width: 100%;
+}
+
+/* Home / History sit in the same .app shell as the workbench. */.studio-root .page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--studio-sp-24) var(--studio-sp-32);
+}.studio-root .page-wide {
+  max-width: 1080px;
+  margin: 0 auto;
+}.studio-root .eyebrow {
+  margin: 0 0 var(--studio-sp-6);
+  color: var(--studio-accent);
+  font: var(--studio-fw-semibold) var(--studio-fs-11) var(--studio-font-mono);
+  letter-spacing: 0.08em;
+}.studio-root .home-hero {
+  margin-bottom: var(--studio-sp-24);
+}.studio-root .home-hero h1, .studio-root .page-heading h1 {
+  margin: 0 0 var(--studio-sp-4);
+  font-size: var(--studio-fs-22);
+  font-weight: var(--studio-fw-semibold);
+}.studio-root .home-quick {
+  display: flex;
+  gap: var(--studio-sp-8);
+  margin-top: var(--studio-sp-16);
+  flex-wrap: wrap;
+}.studio-root .section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--studio-sp-10);
+}.studio-root .section-title h2, .studio-root .home-status h2 {
+  margin: 0;
+  font-size: var(--studio-fs-16);
+}.studio-root .text-button {
+  border: 0;
+  border-radius: var(--studio-r-4);
+  padding: 4px var(--studio-sp-6);
+  background: none;
+  color: var(--studio-accent);
+  font: inherit;
+  font-size: var(--studio-fs-12);
+  cursor: pointer;
+}.studio-root .text-button:hover {
+  background: var(--studio-accent-soft);
+}.studio-root .session-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--studio-sp-10);
+  margin-bottom: var(--studio-sp-24);
+}.studio-root .session-card {
+  display: grid;
+  gap: 5px;
+  min-height: 82px;
+  padding: var(--studio-sp-14);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8);
+  background: var(--studio-surface);
+  color: var(--studio-text);
+  text-align: left;
+  cursor: pointer;
+}.studio-root .session-card:hover {
+  border-color: var(--studio-accent-border);
+}.studio-root .session-card span {
+  font-size: var(--studio-fs-11);
+}.studio-root .home-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--studio-sp-16);
+  padding: 18px;
+  border-top: 1px solid var(--studio-border);
+  border-bottom: 1px solid var(--studio-border);
+}.studio-root .empty-inline {
+  padding: var(--studio-sp-20);
+  color: var(--studio-text-3);
+  border: 1px dashed var(--studio-border-strong);
+  border-radius: var(--studio-r-8);
+}.studio-root .panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-10);
+  margin-bottom: var(--studio-sp-12);
+}.studio-root .panel-head h2 {
+  margin: 0;
+  font-size: var(--studio-fs-14);
+}.studio-root .actions {
+  display: flex;
+  gap: var(--studio-sp-8);
+  flex-wrap: wrap;
+}.studio-root .p4-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--studio-sp-16);
+  margin-top: var(--studio-sp-20);
+  padding-top: var(--studio-sp-16);
+  border-top: 1px solid var(--studio-border);
+}.studio-root .p4-grid h2 {
+  margin-bottom: var(--studio-sp-8);
+  font-size: var(--studio-fs-14);
+}.studio-root .generic-command {
+  margin-top: 18px;
+  padding-top: var(--studio-sp-16);
+  border-top: 1px solid var(--studio-border);
+}.studio-root .capability-note {
+  margin: var(--studio-sp-14) 0 0;
+  padding: var(--studio-sp-10) var(--studio-sp-12);
+  color: var(--studio-amber);
+  background: var(--studio-amber-soft);
+  border-radius: var(--studio-r-4);
+}.studio-root .lifecycle-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--studio-sp-4);
+  font-size: var(--studio-fs-12);
+}.studio-root .lifecycle-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  min-width: 0;
+  padding: 2px 0;
+}.studio-root .lifecycle-list .mono {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--studio-text-2);
+}.studio-root .event-transcript {
+  overflow: auto;
+  border-top: 1px solid var(--studio-border);
+  background: var(--studio-surface-2);
+}.studio-root .event-transcript > div {
+  position: relative;
+}.studio-root .event-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 32px;
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  padding: 0 var(--studio-sp-10);
+  border-bottom: 1px solid var(--studio-border);
+  font-size: var(--studio-fs-12);
+  background: var(--studio-surface-2);
+}.studio-root .event-cursor {
+  color: var(--studio-accent);
+}@media (max-width: 900px) {.studio-root .side-panel {
+    max-width: 100%;
+  }.studio-root .page-body {
+    padding: var(--studio-sp-20);
+  }.studio-root .p4-grid {
+    grid-template-columns: 1fr;
+  }}.studio-root .tool-media-list {display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.studio-root .tool-media-preview {display:block;max-width:280px;max-height:180px;border:1px solid var(--studio-border,color-mix(in srgb, var(--zeta-alias-neutral-1000) 13%, transparent));border-radius:6px;object-fit:contain;background:var(--studio-surface-muted,var(--zeta-alias-bg-subtle))}

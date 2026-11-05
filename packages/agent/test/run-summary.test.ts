@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { agentLoop, agentLoopDetailed } from "@linxiraos/pi-agent-core/agent-loop";
 import {
 	type AgentRunSummary,

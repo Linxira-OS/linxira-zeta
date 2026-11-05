@@ -72,12 +72,12 @@ const CATALOG_KEYS = [
 	"@linxiraos/pi-ai",
 	"@linxiraos/pi-tui",
 	"@linxiraos/pi-mnemopi",
-	"@linxiraos/pi-snapcompact",
+	"@linxiraos/zeta-compact",
 	"@linxiraos/pi-stats",
 	"@linxiraos/zeta",
 	"@linxiraos/pi-channels",
 	"@linxiraos/pi-natives",
-	"@linxiraos/pi-omptype",
+	"@linxiraos/zeta-schema",
 	"@linxiraos/pi-wire",
 ] as const;
 

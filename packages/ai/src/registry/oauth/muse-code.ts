@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { ptree } from "@linxiraos/pi-utils";
 import * as AIError from "../../error";
 import type { AfterExchangeHook, ExchangeContext } from "../hooks/types";

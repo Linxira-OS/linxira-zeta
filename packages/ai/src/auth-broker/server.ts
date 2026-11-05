@@ -10,7 +10,7 @@
  * the server only checks a bearer token against an allow-list per request.
  */
 
-import { type Type, type } from "@linxiraos/pi-omptype";
+import { type Type, type } from "@linxiraos/zeta-schema";
 import { logger } from "@linxiraos/pi-utils";
 import type { AuthCredentialSnapshotEntry, AuthStorage, StoredCredentialBlock } from "../auth-storage";
 import { parseBind } from "../utils/parse-bind";

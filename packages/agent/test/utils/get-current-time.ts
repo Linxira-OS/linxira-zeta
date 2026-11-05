@@ -1,5 +1,5 @@
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core/types";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 export interface GetCurrentTimeResult extends AgentToolResult<{ utcTimestamp: number }> {}
 

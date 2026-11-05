@@ -1,0 +1,1284 @@
+/*
+ * Studio shell layout.
+ *
+ * The ported Studio sheets own the *surfaces* they were written for (transcript,
+ * workbench, settings panes). This file owns the frame those surfaces sit in —
+ * the grid, the project sidebar, the tab strip, the page frame, and the few
+ * primitives the new pages use.
+ *
+ * Design contract (kept intentionally small so the chrome reads the same
+ * everywhere):
+ *
+ *   Type   4 roles only — page title 18/600 · section label 11/600 caps ·
+ *          body 13/400 · meta 11/400 muted. No fifth size in chrome.
+ *   Space  4 · 8 · 12 · 16 · 24. Nothing between those steps.
+ *   Height topbar 44 · list row 26 · status bar 24 · control 28.
+ *   Colour accent for the *one* thing that is active; one status hue at a
+ *          time; everything else is a neutral step. No gradients, no shadows
+ *          (depth comes from 1px borders and surface steps).
+ *   Align  every row in a column shares one inset; counts sit in a fixed-width
+ *          right gutter so they form a column of their own.
+ *   State  each surface defines empty, loading and error; active state uses a
+ *          tint *and* a marker, never colour alone.
+ */
+
+.studio-root {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	background: var(--studio-bg);
+	color: var(--studio-text);
+	font-family: var(--studio-font-ui);
+	font-size: 13px;
+	line-height: 1.45;
+	overflow: hidden;
+	-webkit-font-smoothing: antialiased;
+}
+
+.studio-root .app {
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr) auto;
+	height: 100%;
+	min-height: 0;
+}
+
+/* ---------------- topbar ----------------
+   One row above 1080px; below that the nav wraps onto its own scrollable row so
+   the breadcrumb never collapses to a single character. */
+.studio-root .topbar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px 12px;
+	min-height: 44px;
+	padding: 6px 12px;
+	border-bottom: 1px solid var(--studio-border);
+	background: var(--studio-bg);
+}
+
+.studio-root .tb-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+/* Three bars drawn in CSS: no font is asked for a glyph it may not have. */
+.studio-root .hamburger {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 3px;
+	width: 14px;
+}
+
+.studio-root .hamburger i {
+	display: block;
+	height: 1.5px;
+	border-radius: var(--studio-r-full);
+	background: currentColor;
+}
+
+.studio-root .tb-nav {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	min-width: 0;
+	flex: 0 1 auto;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.studio-root .tb-nav::-webkit-scrollbar {
+	display: none;
+}
+
+.studio-root .tb-nav-item {
+	position: relative;
+	flex: none;
+	height: 26px;
+	padding: 0 8px;
+	border: none;
+	border-radius: var(--studio-r-4);
+	background: none;
+	color: var(--studio-text-3);
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.studio-root .tb-nav-item:hover {
+	background: var(--studio-surface-hover);
+	color: var(--studio-text);
+}
+
+.studio-root .tb-nav-item.is-active {
+	background: var(--studio-surface-2);
+	color: var(--studio-text);
+	font-weight: var(--studio-fw-medium);
+}
+
+/* A 2px underline makes "where am I" survive a colour-blind viewer. */
+.studio-root .tb-nav-item.is-active::after {
+	content: "";
+	position: absolute;
+	inset-inline: 8px;
+	inset-block-end: -5px;
+	height: 2px;
+	border-radius: var(--studio-r-full);
+	background: var(--studio-accent);
+}
+
+.studio-root .tb-right {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-inline-start: auto;
+	flex: none;
+}
+
+.studio-root .tb-crumb {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	min-width: 0;
+	flex: 1 1 auto;
+	font-size: 12px;
+	color: var(--studio-text-3);
+}
+
+.studio-root .crumb-item {
+	flex: 0 1 auto;
+	min-width: 4ch;
+	max-width: 22ch;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	border: none;
+	background: none;
+	padding: 2px 4px;
+	border-radius: var(--studio-r-4);
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+.studio-root .crumb-item:hover {
+	background: var(--studio-surface-hover);
+	color: var(--studio-text);
+}
+
+.studio-root .crumb-current {
+	color: var(--studio-text);
+	font-weight: var(--studio-fw-medium);
+}
+
+.studio-root .crumb-sep {
+	flex: none;
+	color: var(--studio-glyph-faint);
+	padding-inline: 2px;
+}
+
+/* Wrap point: nav takes its own row, breadcrumbs keep the first one. */
+@media (max-width: 1080px) {
+	.studio-root .tb-nav {
+		order: 3;
+		flex: 1 1 100%;
+		padding-block: 2px;
+		border-top: 1px solid var(--studio-border);
+	}
+
+	.studio-root .tb-nav-item.is-active::after {
+		inset-block-end: -3px;
+	}
+}
+
+/* ---------------- shell body ---------------- */
+.studio-root .shell-body {
+	display: grid;
+	grid-template-columns: var(--studio-sidebar-w) minmax(0, 1fr);
+	min-height: 0;
+	overflow: hidden;
+}
+
+.studio-root[data-studio-mode="panel"] .shell-body {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+/* ---------------- sidebar ---------------- */
+.studio-root .sidebar {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	background: var(--studio-bg-inset);
+	border-inline-end: 1px solid var(--studio-border);
+	overflow: hidden;
+}
+
+.studio-root .sb-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	height: 36px;
+	padding: 0 8px 0 12px;
+	border-bottom: 1px solid var(--studio-border);
+	flex: none;
+}
+
+/* Section label: the only uppercase type in the chrome. */
+.studio-root .sb-title {
+	font-size: 11px;
+	font-weight: var(--studio-fw-semibold);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--studio-text-3);
+}
+
+.studio-root .sb-head-actions {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.studio-root .sb-scroll {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: 8px 8px 24px;
+}
+
+.studio-root .sb-empty {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	align-items: flex-start;
+	padding: 16px 12px;
+	color: var(--studio-text-3);
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.studio-root .sb-project + .sb-project {
+	margin-top: 4px;
+}
+
+.studio-root .sb-project-row {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	height: 26px;
+	padding-inline: 4px;
+	border-radius: var(--studio-r-4);
+	min-width: 0;
+}
+
+.studio-root .sb-project-row:hover {
+	background: var(--studio-surface-hover);
+}
+
+.studio-root .sb-disclosure {
+	flex: none;
+	width: 16px;
+	border: none;
+	background: none;
+	color: var(--studio-text-3);
+	cursor: pointer;
+	font-size: 10px;
+	line-height: 1;
+	padding: 0;
+}
+
+.studio-root .sb-project-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	border: none;
+	background: none;
+	color: var(--studio-text);
+	font: inherit;
+	font-size: 13px;
+	font-weight: var(--studio-fw-medium);
+	text-align: start;
+	cursor: pointer;
+}
+
+.studio-root .sb-project.is-open > .sb-project-row .sb-project-name {
+	color: var(--studio-accent);
+}
+
+.studio-root .sb-pin {
+	color: var(--studio-accent);
+	margin-inline-start: 4px;
+}
+
+/* Fixed right gutter: every count in the column lines up. */
+.studio-root .sb-count {
+	flex: none;
+	width: 3ch;
+	text-align: end;
+	font-size: 11px;
+	color: var(--studio-text-faint);
+	font-variant-numeric: tabular-nums;
+}
+
+.studio-root .sb-danger:hover {
+	color: var(--studio-red);
+}
+
+.studio-root .sb-workspaces,
+.studio-root .sb-sessions {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+/* One indent step (16px) per level; nothing deeper, so the tree stays legible. */
+.studio-root .sb-workspaces {
+	padding-inline-start: 16px;
+}
+
+.studio-root .sb-workspace-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	min-width: 0;
+	height: 26px;
+	padding-inline: 6px;
+	border: none;
+	background: none;
+	color: var(--studio-text-2);
+	font: inherit;
+	font-size: 12px;
+	text-align: start;
+	border-radius: var(--studio-r-4);
+	cursor: pointer;
+}
+
+.studio-root .sb-workspace-row:hover {
+	background: var(--studio-surface-hover);
+	color: var(--studio-text);
+}
+
+.studio-root .sb-workspace-row.is-active {
+	background: var(--studio-accent-soft);
+	color: var(--studio-text);
+	box-shadow: inset 2px 0 0 var(--studio-accent);
+}
+
+.studio-root .sb-branch {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-family: var(--studio-font-mono);
+	font-size: 11px;
+}
+
+.studio-root .sb-tag {
+	flex: none;
+	font-size: 10px;
+	color: var(--studio-text-faint);
+	border: 1px solid var(--studio-border);
+	border-radius: var(--studio-r-full);
+	padding: 0 6px;
+	line-height: 1.6;
+}
+
+.studio-root .sb-sessions {
+	padding-inline-start: 16px;
+}
+
+.studio-root .sb-session {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	min-width: 0;
+	height: 26px;
+	padding-inline: 6px;
+	border: none;
+	background: none;
+	color: var(--studio-text-2);
+	font: inherit;
+	font-size: 12px;
+	text-align: start;
+	border-radius: var(--studio-r-4);
+	cursor: pointer;
+}
+
+.studio-root .sb-session:hover {
+	background: var(--studio-surface-hover);
+	color: var(--studio-text);
+}
+
+.studio-root .sb-session.is-active {
+	background: var(--studio-surface-active);
+	color: var(--studio-text);
+	box-shadow: inset 2px 0 0 var(--studio-accent);
+}
+
+.studio-root .sb-running {
+	flex: none;
+	width: 6px;
+	height: 6px;
+	border-radius: var(--studio-r-full);
+	background: var(--studio-accent);
+}
+
+.studio-root .sb-session-title {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.studio-root .sb-session-count {
+	flex: none;
+	width: 3ch;
+	text-align: end;
+	font-size: 11px;
+	color: var(--studio-text-faint);
+	font-variant-numeric: tabular-nums;
+}
+
+.studio-root .sb-new {
+	margin: 4px 0 8px 16px;
+	height: 26px;
+	padding-inline: 6px;
+	border: none;
+	border-radius: var(--studio-r-4);
+	background: none;
+	color: var(--studio-accent);
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.studio-root .sb-new:hover {
+	background: var(--studio-accent-softer);
+}
+
+/* ---------------- center column ---------------- */
+.studio-root .center {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	background: var(--studio-bg);
+}
+
+.studio-root .tabs-slot {
+	flex: none;
+	min-height: 32px;
+	border-bottom: 1px solid var(--studio-border);
+	background: var(--studio-bg);
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.studio-root .center-body {
+	position: relative;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.studio-root .tab-pane {
+	position: absolute;
+	inset: 0;
+}
+
+.studio-root .tab-pane[hidden] {
+	display: none;
+}
+
+.studio-root .convo-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	height: 100%;
+	padding: 24px;
+	text-align: center;
+}
+
+.studio-root .convo-empty h2 {
+	margin: 0;
+	font-size: 18px;
+	font-weight: var(--studio-fw-semibold);
+}
+
+.studio-root .convo-empty p {
+	margin: 0;
+	max-width: 46ch;
+	line-height: 1.6;
+}
+
+.studio-root .convo-empty .btn {
+	margin-top: 8px;
+}
+
+/* ---------------- status bar ---------------- */
+.studio-root .statusbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex: none;
+	height: 24px;
+	padding: 0 12px;
+	border-top: 1px solid var(--studio-border);
+	background: var(--studio-bg-inset);
+	color: var(--studio-text-3);
+	font-size: 11px;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.studio-root .st-item {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 40ch;
+}
+
+.studio-root .st-item.is-live {
+	color: var(--studio-accent);
+}
+
+.studio-root .st-item.is-error {
+	color: var(--studio-red);
+}
+
+.studio-root .st-spacer {
+	flex: 1;
+}
+
+/* ---------------- page frame ---------------- */
+.studio-root .page {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	height: 100%;
+}
+
+.studio-root .page-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	flex: none;
+	padding: 16px 24px 12px;
+	border-bottom: 1px solid var(--studio-border);
+}
+
+.studio-root .page-head-text {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.studio-root .page-title {
+	margin: 0;
+	font-size: 18px;
+	font-weight: var(--studio-fw-semibold);
+	line-height: 1.3;
+}
+
+.studio-root .page-subtitle {
+	margin: 0;
+	font-size: 11px;
+	color: var(--studio-text-3);
+	font-family: var(--studio-font-mono);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.studio-root .page-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: none;
+}
+
+.studio-root .page-body {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 16px 24px 24px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+/* ---------------- primitives ---------------- */
+.studio-root .btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	height: 28px;
+	padding: 0 10px;
+	border: 1px solid var(--studio-border);
+	border-radius: var(--studio-r-6);
+	background: var(--studio-surface);
+	color: var(--studio-text);
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.studio-root .btn:hover:not(:disabled) {
+	background: var(--studio-surface-hover);
+	border-color: var(--studio-border-strong);
+}
+
+.studio-root .btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.studio-root .btn.is-active,
+.studio-root .btn[aria-current="page"] {
+	background: var(--studio-accent-soft);
+	border-color: var(--studio-accent-border);
+	color: var(--studio-accent);
+}
+
+.studio-root .btn-primary {
+	background: var(--studio-accent);
+	border-color: var(--studio-accent);
+	color: var(--studio-text-on-accent);
+}
+
+.studio-root .btn-primary:hover:not(:disabled) {
+	background: var(--studio-accent-hover);
+	border-color: var(--studio-accent-hover);
+}
+
+.studio-root .btn-ghost {
+	background: transparent;
+	border-color: transparent;
+	color: var(--studio-text-2);
+}
+
+.studio-root .btn-ghost:hover:not(:disabled) {
+	background: var(--studio-surface-hover);
+	border-color: transparent;
+	color: var(--studio-text);
+}
+
+.studio-root .btn-xs {
+	height: 22px;
+	padding: 0 8px;
+	font-size: 11px;
+}
+
+.studio-root .icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border: none;
+	border-radius: var(--studio-r-4);
+	background: transparent;
+	color: var(--studio-text-2);
+	font: inherit;
+	font-size: 14px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.studio-root .icon-btn:hover {
+	background: var(--studio-surface-hover);
+	color: var(--studio-text);
+}
+
+.studio-root .input {
+	width: 100%;
+	height: 28px;
+	padding: 0 8px;
+	border: 1px solid var(--studio-border);
+	border-radius: var(--studio-r-6);
+	background: var(--studio-surface);
+	color: var(--studio-text);
+	font: inherit;
+	font-size: 12px;
+}
+
+textarea.studio-root .input,
+.studio-root textarea.input {
+	height: auto;
+	padding: 8px;
+	line-height: 1.55;
+}
+
+.studio-root .input::placeholder {
+	color: var(--studio-text-faint);
+}
+
+/*
+ * One focus treatment for every interactive element in the shell. Ported
+ * sheets keep their own rings inside their own surfaces.
+ */
+.studio-root .input:focus-visible,
+.studio-root .btn:focus-visible,
+.studio-root .icon-btn:focus-visible,
+.studio-root .tb-nav-item:focus-visible,
+.studio-root .sb-session:focus-visible,
+.studio-root .sb-workspace-row:focus-visible,
+.studio-root .sb-project-name:focus-visible,
+.studio-root .sb-disclosure:focus-visible,
+.studio-root .sb-new:focus-visible,
+.studio-root .crumb-item:focus-visible,
+.studio-root .agent-row:focus-visible {
+	outline: 2px solid var(--studio-accent);
+	outline-offset: -2px;
+}
+
+/* Cards: a surface step plus a hairline, never a shadow. */
+.studio-root .card {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px 16px;
+	border: 1px solid var(--studio-border);
+	border-radius: var(--studio-r-8);
+	background: var(--studio-surface);
+	min-width: 0;
+}
+
+.studio-root .card-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.studio-root .card-title {
+	margin: 0;
+	font-size: 11px;
+	font-weight: var(--studio-fw-semibold);
+	color: var(--studio-text-3);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+.studio-root .card-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.studio-root .row {
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding-block: 8px;
+}
+
+.studio-root .row-main {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.studio-root .row-title {
+	font-weight: var(--studio-fw-medium);
+}
+
+.studio-root .chip {
+	display: inline-flex;
+	align-items: center;
+	flex: none;
+	padding: 0 6px;
+	border: 1px solid var(--studio-border);
+	border-radius: var(--studio-r-full);
+	font-size: 10px;
+	color: var(--studio-text-3);
+	line-height: 1.7;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.studio-root .chip-warn {
+	border-color: var(--studio-amber);
+	color: var(--studio-amber);
+}
+
+.studio-root .seg {
+	display: inline-flex;
+	gap: 2px;
+	padding: 2px;
+	border-radius: var(--studio-r-6);
+	background: var(--studio-surface-2);
+	align-self: flex-start;
+}
+
+.studio-root .seg-item {
+	height: 22px;
+	border: none;
+	border-radius: var(--studio-r-4);
+	background: none;
+	color: var(--studio-text-3);
+	font: inherit;
+	font-size: 11px;
+	padding: 0 8px;
+	cursor: pointer;
+}
+
+.studio-root .seg-item:hover {
+	color: var(--studio-text);
+}
+
+.studio-root .seg-item.is-active {
+	background: var(--studio-surface);
+	color: var(--studio-text);
+	font-weight: var(--studio-fw-medium);
+}
+
+.studio-root .table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 12px;
+}
+
+.studio-root .table th {
+	text-align: start;
+	font-size: 11px;
+	font-weight: var(--studio-fw-medium);
+	color: var(--studio-text-3);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	border-bottom: 1px solid var(--studio-border);
+	padding: 6px 8px;
+}
+
+.studio-root .table td {
+	padding: 5px 8px;
+	border-bottom: 1px solid var(--studio-border);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 40ch;
+}
+
+.studio-root .table tbody tr:hover {
+	background: var(--studio-surface-hover);
+}
+
+.studio-root .table .num {
+	text-align: end;
+	font-variant-numeric: tabular-nums;
+}
+
+.studio-root .banner {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 8px 12px;
+	border: 1px solid var(--studio-border);
+	border-inline-start-width: 3px;
+	border-radius: var(--studio-r-6);
+	font-size: 12px;
+	line-height: 1.5;
+	background: var(--studio-surface);
+}
+
+.studio-root .banner.red {
+	border-color: var(--studio-red);
+	color: var(--studio-red);
+	background: var(--studio-red-soft);
+}
+
+.studio-root .banner.green {
+	border-color: var(--studio-green);
+	color: var(--studio-green);
+	background: var(--studio-green-soft);
+}
+
+.studio-root .banner.amber {
+	border-color: var(--studio-amber);
+	color: var(--studio-amber);
+	background: var(--studio-amber-soft);
+}
+
+.studio-root .empty {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	align-items: flex-start;
+	padding: 24px 0;
+}
+
+.studio-root .muted {
+	color: var(--studio-text-3);
+}
+
+.studio-root .small {
+	font-size: 11px;
+}
+
+/* ---------------- statistics ---------------- */
+.studio-root .stat-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+	gap: 12px;
+}
+
+.studio-root .stat-card {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 12px 16px;
+	border: 1px solid var(--studio-border);
+	border-radius: var(--studio-r-8);
+	background: var(--studio-surface);
+}
+
+.studio-root .stat-label {
+	font-size: 11px;
+	color: var(--studio-text-3);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+.studio-root .stat-value {
+	font-size: 22px;
+	font-weight: var(--studio-fw-semibold);
+	font-variant-numeric: tabular-nums;
+	line-height: 1.2;
+}
+
+/* ---------------- git page ---------------- */
+.studio-root .git-grid,
+.studio-root .agents-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+	gap: 16px;
+	align-items: start;
+}
+
+.studio-root .git-files,
+.studio-root .git-branches,
+.studio-root .git-log,
+.studio-root .git-worktrees,
+.studio-root .agent-tree,
+.studio-root .agent-transcript {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	min-width: 0;
+}
+
+.studio-root .git-file,
+.studio-root .git-branch,
+.studio-root .git-log-row,
+.studio-root .git-worktree {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	height: 26px;
+	padding-inline: 4px;
+	border-radius: var(--studio-r-4);
+	font-size: 12px;
+}
+
+.studio-root .git-file:hover,
+.studio-root .git-branch:hover,
+.studio-root .git-log-row:hover {
+	background: var(--studio-surface-hover);
+}
+
+.studio-root .git-code {
+	flex: none;
+	width: 1.4em;
+	text-align: center;
+	font-family: var(--studio-font-mono);
+	font-size: 11px;
+	font-weight: var(--studio-fw-semibold);
+}
+
+.studio-root .git-modified {
+	color: var(--studio-git-modified);
+}
+
+.studio-root .git-added,
+.studio-root .git-untracked {
+	color: var(--studio-git-added);
+}
+
+.studio-root .git-deleted {
+	color: var(--studio-git-deleted);
+}
+
+.studio-root .git-renamed {
+	color: var(--studio-git-renamed);
+}
+
+.studio-root .git-conflict {
+	color: var(--studio-git-conflict);
+}
+
+.studio-root .git-path,
+.studio-root .git-subject {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.studio-root .git-path {
+	font-family: var(--studio-font-mono);
+	font-size: 11px;
+}
+
+.studio-root .git-sha {
+	flex: none;
+	font-family: var(--studio-font-mono);
+	font-size: 11px;
+	color: var(--studio-text-3);
+}
+
+.studio-root .git-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.studio-root .git-message {
+	font-family: inherit;
+	resize: vertical;
+}
+
+.studio-root .git-branch > span,
+.studio-root .git-worktree > span {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.studio-root .git-branch .is-current,
+.studio-root .git-worktree .is-current {
+	color: var(--studio-accent);
+	font-weight: var(--studio-fw-medium);
+}
+
+/* ---------------- skills ---------------- */
+.studio-root .skill-card {
+	gap: 8px;
+}
+
+.studio-root .skill-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.studio-root .skill-name {
+	margin: 0;
+	font-size: 13px;
+	font-weight: var(--studio-fw-semibold);
+}
+
+.studio-root .skill-desc {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.6;
+	color: var(--studio-text-2);
+}
+
+.studio-root .skill-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.studio-root .skill-path {
+	font-family: var(--studio-font-mono);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 46ch;
+}
+
+/* ---------------- agent hub ---------------- */
+.studio-root .agent-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	height: 26px;
+	padding-inline: 6px;
+	border: none;
+	border-radius: var(--studio-r-4);
+	background: none;
+	color: var(--studio-text-2);
+	font: inherit;
+	font-size: 12px;
+	text-align: start;
+	cursor: pointer;
+}
+
+.studio-root .agent-row:hover {
+	background: var(--studio-surface-hover);
+	color: var(--studio-text);
+}
+
+.studio-root .agent-row.is-active {
+	background: var(--studio-surface-active);
+	color: var(--studio-text);
+}
+
+.studio-root .agent-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.studio-root .dot {
+	flex: none;
+	width: 7px;
+	height: 7px;
+	border-radius: var(--studio-r-full);
+	background: var(--studio-text-faint);
+}
+
+.studio-root .dot-running {
+	background: var(--studio-accent);
+}
+
+.studio-root .dot-completed {
+	background: var(--studio-green);
+}
+
+.studio-root .dot-failed,
+.studio-root .dot-aborted {
+	background: var(--studio-red);
+}
+
+.studio-root .dot-parked,
+.studio-root .dot-idle {
+	background: var(--studio-amber);
+}
+
+.studio-root .agent-transcript {
+	gap: 8px;
+}
+
+.studio-root .agent-message-body {
+	margin: 0;
+	padding: 8px 12px;
+	border-radius: var(--studio-r-6);
+	background: var(--studio-code-bg);
+	font-family: var(--studio-font-mono);
+	font-size: 11px;
+	line-height: 1.6;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	max-height: 320px;
+	overflow-y: auto;
+}
+
+/* ---------------- scrollbars ---------------- */
+.studio-root ::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+
+.studio-root ::-webkit-scrollbar-thumb {
+	background: var(--studio-scrollbar);
+	border-radius: var(--studio-r-full);
+	border: 2px solid transparent;
+	background-clip: content-box;
+}
+
+.studio-root ::-webkit-scrollbar-thumb:hover {
+	background: var(--studio-scrollbar-hover);
+	background-clip: content-box;
+}
+
+.studio-root ::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+/* ---------------- narrow viewport ---------------- */
+@media (max-width: 760px) {
+	.studio-root .shell-body {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.studio-root .sidebar {
+		position: absolute;
+		inset-block: 0;
+		inset-inline-start: 0;
+		width: min(85vw, var(--studio-sidebar-w));
+		z-index: var(--studio-z-panel);
+		border-inline-end: 1px solid var(--studio-border-strong);
+	}
+
+	.studio-root .page-head,
+	.studio-root .page-body {
+		padding-inline: 16px;
+	}
+
+	.studio-root .page-head {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 8px;
+	}
+
+	/* Navigation stays reachable on a phone-width pane: it scrolls instead of
+	   disappearing, so no page becomes unreachable. Only the labels shrink. */
+	.studio-root .tb-nav-item {
+		padding-inline: 6px;
+		font-size: 11px;
+	}
+}
+
+/* Inline "new workspace" row: same inset as a workspace row, one line tall
+   until an error needs a second line. */
+.studio-root .sb-create {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 4px 0 4px 16px;
+	padding-inline-end: 4px;
+}
+
+.studio-root .sb-create .input {
+	height: 26px;
+	font-size: 12px;
+	font-family: var(--studio-font-mono);
+}

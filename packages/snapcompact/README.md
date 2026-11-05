@@ -1,4 +1,4 @@
-# @linxiraos/pi-snapcompact
+# @linxiraos/zeta-compact
 
 Bitmap-frame context compression for vision-capable LLMs.
 
@@ -31,7 +31,7 @@ A host that downscales images before the model reads them (catalog `image-max-ed
 ## Install
 
 ```sh
-bun add @linxiraos/pi-snapcompact
+bun add @linxiraos/zeta-compact
 ```
 
 Ships TypeScript source directly (no build step); requires Bun ≥ 1.4.4.
@@ -41,7 +41,7 @@ Ships TypeScript source directly (no build step); requires Bun ≥ 1.4.4.
 Render arbitrary text into LLM image blocks:
 
 ```ts
-import { renderMany, frames, resolveShape } from "@linxiraos/pi-snapcompact";
+import { renderMany, frames, resolveShape } from "@linxiraos/zeta-compact";
 
 const images = renderMany(longText, { model }); // ImageContent[], first page first
 const count = frames(longText, { model }); // frame count without rendering
@@ -51,7 +51,7 @@ const shape = resolveShape(model); // eval-optimal Shape for the reader
 Run a full compaction pass over prepared messages:
 
 ```ts
-import { compact } from "@linxiraos/pi-snapcompact";
+import { compact } from "@linxiraos/zeta-compact";
 
 const result = await compact(preparation, { model });
 // result.summary        — short "resume prior conversation" lead-in, reading guide, and FILES section

@@ -6,7 +6,7 @@ import {
 	WALL_TIME_NOTICE_MIN_MS,
 } from "@linxiraos/pi-tui/tools/bash";
 import * as fs from "node:fs";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type {
 	AgentTool,
 	AgentToolContext,

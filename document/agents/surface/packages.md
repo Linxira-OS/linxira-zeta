@@ -13,7 +13,8 @@
 | `packages/tui`          | Terminal UI library with differential rendering                                         |
 | `packages/natives`      | Bindings for native text/image/grep operations                                          |
 | `packages/stats`        | Local observability dashboard (`stats` 子命令；`zeta-c` 连字符 bin 已删除)              |
-| `packages/omptype`      | ArkType-compatible schema validation with a lazy JIT runtime                            |
+| `packages/omptype`      | `@linxiraos/zeta-schema`：ArkType-compatible schema validation with a lazy JIT runtime (2026-11-05 由 `pi-omptype` 改名) |
+| `packages/snapcompact`  | `@linxiraos/zeta-compact`：Bitmap-frame context compression for vision-capable LLMs (2026-11-05 由 `pi-snapcompact` 改名) |
 | `packages/utils`        | Shared utilities (logger, streams, temp files)                                          |
 | `crates/pi-natives`     | Rust crate for performance-critical text/grep ops                                       |
 | `packages/channels`     | IM channel adapters (WeChat/Feishu/Telegram) + ChannelHost coordinator, embedded in `zeta serve` |
@@ -25,6 +26,9 @@
 | `packages/typescript-edit-benchmark` | Internal TS edit-path benchmark (dev only)                                   |
 
 ---
+
+`web-app/`（Studio 渲染器）与 `web-ui/`（冻结快照）**都不是** workspace 包：各自带
+`package.json` + 锁文件，按 `npm ci` 安装。落点规则见 `code-locations.md`。
 
 ### `plugins/` — 插件目录（两层）
 

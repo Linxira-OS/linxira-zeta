@@ -1,15 +1,15 @@
 import { upgradeJsonSchemaTo202012, validateJsonSchemaValue } from "@linxiraos/pi-ai/utils/schema";
-import { type } from "@linxiraos/pi-omptype";
-import { IR_BRAND } from "@linxiraos/pi-omptype/ir";
+import { type } from "@linxiraos/zeta-schema";
+import { IR_BRAND } from "@linxiraos/zeta-schema/ir";
 import {
 	type AnySchema,
 	type ObjectOpts,
 	Type as OmpType,
 	type TypeBuilder as OmpTypeBuilder,
 	type TUnsafe,
-} from "@linxiraos/pi-omptype/typebox";
+} from "@linxiraos/zeta-schema/typebox";
 
-export * from "@linxiraos/pi-omptype/typebox";
+export * from "@linxiraos/zeta-schema/typebox";
 
 const VALIDATION_FAILURE = Symbol("zeta.typebox.validationFailure");
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { agentLoop, agentPauseGate, type AgentTool, TOOL_INTERRUPT_ABORT_REASON } from "@linxiraos/pi-agent-core";
 import { SpeculativeOperationCoordinator } from "@linxiraos/pi-agent-core/speculative-execution";
 import type { AgentEvent, AgentLoopConfig, AgentMessage, AsideMessage } from "@linxiraos/pi-agent-core/types";

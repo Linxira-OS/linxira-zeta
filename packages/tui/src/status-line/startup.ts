@@ -13,7 +13,7 @@
  * statusLine.attachToEditor(editor, getComposerStyle(shape));
  * ```
  */
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-catalog/types";
 import { parseThinkingLevel } from "../thinking";

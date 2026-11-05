@@ -6,7 +6,7 @@ import { buildParams } from "@linxiraos/pi-ai/providers/openai-responses";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { type EditPolicy, EditSession, EditStore, editDescription } from "@linxiraos/pi-natives";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { editDescriptionCompact } from "../src/edit/index";
 
 const WARMUP = 10;

@@ -11,7 +11,7 @@
  * `paint-encoder.ts`); the streamer is a pure multiplexer. The same screen
  * frames are persisted by session recordings (`recording.ts`).
  */
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { STREAM_HISTORY_LIMIT, type StreamChatMessage, type StreamRow } from "@linxiraos/pi-wire";
 
 export const STREAM_LOCAL_PROTO = 1;

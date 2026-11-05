@@ -6,7 +6,7 @@
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";

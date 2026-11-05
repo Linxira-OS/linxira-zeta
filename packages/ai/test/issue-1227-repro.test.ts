@@ -20,7 +20,7 @@ import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-compl
 import type { AssistantMessage, Context, Model, ModelSpec, Tool } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 function abortedSignal(): AbortSignal {
 	const controller = new AbortController();

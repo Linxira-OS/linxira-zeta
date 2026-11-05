@@ -120,6 +120,14 @@ on:
             description: "Run release_product_binaries + release_desktop_archives without a tag (packaging dry run)"
             type: boolean
             default: false
+         publish_web_ui:
+            description: "Publish the frozen @linxiraos/zeta-web snapshot on release (superseded by web-app)"
+            type: boolean
+            default: false
+         publish_zetawork:
+            description: "Publish the paused @linxiraos/main workbench packages on release (zetawork is suspended since 2026-11-05)"
+            type: boolean
+            default: false
 
 # Release runs publish a `v*` tag pushed atomically with main HEAD; sharing
 # the cheap branch-wide `CI-refs/heads/main` group meant a later main push
@@ -247,6 +255,17 @@ jobs:
       steps:
          - uses: actions/checkout@v4
          - uses: ./.github/actions/bun-install
+         # The renderer is the product UI now: `zeta serve` ships this build.
+         # web-app is its own npm project (not a root workspace member), so it
+         # installs and builds on its own. `build:ci` is `vite build` alone —
+         # the workspace type check cannot see this tree, and its own `tsc -b`
+         # is still red on the port (documented follow-up).
+         - name: Install web-app dependencies
+           working-directory: web-app
+           run: npm ci
+         - name: Build web-app
+           working-directory: web-app
+           run: npm run build:ci
          - name: Verify Rust license compliance (cargo-deny 0.20.2)
            run: |
               # Prebuilt release binary checked against digests pinned here:
@@ -477,56 +496,6 @@ jobs:
    # Linux-only under a comment naming the defect. Re-enable it when the
    # upstream issue closes; do not delete the rest of the leg again — the
    # Windows consumer is real and this leg is its only PR-time signal.
-   web_ui_build:
-      name: Web UI build (${{ matrix.os }})
-      runs-on: ${{ matrix.os }}
-      strategy:
-         fail-fast: false
-         matrix:
-            # macOS dropped from the release surface (2026-10-01): no darwin
-            # consumer exists. windows-2022 is back — see the block header.
-            os: [ubuntu-22.04, windows-2022]
-      defaults:
-         run:
-            working-directory: web-ui
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - uses: actions/setup-node@v4
-           with:
-              node-version: 22
-              cache: npm
-              cache-dependency-path: web-ui/package-lock.json
-         - name: Install dependencies
-           run: npm ci
-         - name: Type check
-           run: npx tsc --noEmit
-         - name: Lint
-           run: npm run lint
-         # Three-layer colour tokens (lib/theme/tokens.ts): raw values live only
-         # in L1 `--zeta-static-*`, feature CSS/TSX consume L2 `--zeta-alias-*`,
-         # and the unprefixed names stay as L3 redirects. This guard fails on a
-         # hex/rgb/hsl/oklch/named literal outside the L1 owner and the
-         # allow-listed terminal palettes.
-         - name: Colour literal guard
-           run: node scripts/check-style-literals.mjs
-         # web-ui's own `test` script (`node --test` over app/api, components and
-         # lib). Self-contained: jiti transpiles the TS/TSX sources in place, so
-         # nothing here needs `next build` output — run it before the production
-         # build so a failing assertion does not pay for it first.
-         - name: Unit tests (node --test)
-           run: npm test
-         # Upstream defect, not ours. `next build` on windows-2022 dies in
-         # Next's compile-phase glob with `EPERM scandir
-         # 'C:\Users\<user>\Application Data'` (the runner's junctioned
-         # AppData alias; vercel/next.js#40760 family) even with
-         # outputFileTracingRoot pinned to web-ui — reproduced 2026-10-20 in
-         # run 39356821804. Every other step on this leg runs on Windows and
-         # is the signal that matters here; re-enable the build when the
-         # upstream issue closes.
-         - name: Build
-           if: matrix.os != 'windows-2022'
-           run: npm run build
-
    # Cheap web/desktop contracts — a *test* job, so it carries no release gate
    # and no gating on `is-release`: it must run in both modes. It exists because
    # The Electron desktop's build+smoke legs retired with the 1.3.0 release
@@ -558,9 +527,7 @@ jobs:
            with:
               node-version: "24"
               cache: npm
-              cache-dependency-path: |
-                 desktop/package-lock.json
-                 web-ui/package-lock.json
+              cache-dependency-path: desktop/package-lock.json
          - uses: ./.github/actions/bun-install
          - uses: ./.github/actions/native-artifacts
            with:
@@ -573,15 +540,6 @@ jobs:
          # the type check plus the platform/discovery/readiness contracts.
          - name: Test desktop contract suite
            working-directory: desktop
-           run: npm test
-         # web-ui is its own npm project (not a root Bun workspace member), so it
-         # gets its own install; the suite is `node --test` over app/api,
-         # components and lib.
-         - name: Install web-ui dependencies
-           working-directory: web-ui
-           run: npm ci
-         - name: Test web-ui
-           working-directory: web-ui
            run: npm test
          - name: Test the Web UI launcher resolution
            run: bun test packages/coding-agent/test/web-ui-launcher.test.ts
@@ -2156,7 +2114,7 @@ jobs:
    # dependency to wait on: everything in the tarball is produced inside this
    # job from the tagged tree, so nothing can race an upload (unlike
    # release_npm, whose prepack loads the native_addons artifact). web-ui's own
-   # verification legs (`web_ui_build`: type check / lint / colour guard / unit
+   # verification legs (`web_ui_build`, retired 2026-11-05 with the frozen tree: type check / lint / colour guard / unit
    # tests / build) gate the PUSH run of the release source commit, not this
    # job — publishing never depends on a sibling test job (damage class 12), and
    # release-v2.ts refuses to tag until that push run is green.
@@ -2167,8 +2125,12 @@ jobs:
    # "previously published versions" output as already published).
    release_web_ui_packages:
       name: Publish web-ui npm package
+      # web-ui is frozen (the renderer moved to web-app, 2026-11-05): the
+      # package keeps its published versions but only republishes when the
+      # `publish_web_ui` dispatch input asks for it.
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.release_gate.result == 'success' &&
+         inputs.publish_web_ui &&
          !inputs.skip_npm }}
       needs: [release_metadata, release_gate]
       runs-on: ubuntu-22.04
@@ -2243,12 +2205,17 @@ jobs:
    # 1.3.1 restores the workbench npm line (user ruling 2026-10-18: the GUI
    # stays out of npm, the TUI does not). The leaves carry committed binaries,
    # so main-publish.yml packs the tree as committed — it never rebuilds.
+   # zetawork is suspended (2026-11-05, roadmap P0): the workbench packages stay
+   # published-but-frozen, and a release only dispatches this leg when
+   # `publish_zetawork` is set. `main-publish.yml` itself is untouched, so a
+   # manual `gh workflow run main-publish.yml` still works.
    release_main_packages:
       name: Publish zetawork npm packages
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.release_gate.result == 'success' &&
          needs.release_npm.result == 'success' &&
          needs.release_ide_packages.result == 'success' &&
+         inputs.publish_zetawork &&
          !inputs.skip_npm }}
       needs: [release_metadata, release_gate, release_npm, release_ide_packages]
       runs-on: ubuntu-22.04

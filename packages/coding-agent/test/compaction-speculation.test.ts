@@ -11,7 +11,7 @@ import { type CompactionMethod, resolveSpeculationMethod } from "@linxiraos/zeta
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionMaintenance, type SessionMaintenanceHost } from "@linxiraos/zeta/session/session-maintenance";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import * as snapcompactModule from "@linxiraos/pi-snapcompact";
+import * as snapcompactModule from "@linxiraos/zeta-compact";
 
 import {
 	cfgCompaction,

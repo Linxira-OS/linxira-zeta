@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype/ark";
+import { type } from "@linxiraos/zeta-schema/ark";
 import type { Eq } from "../type-assert";
 
 describe("variadic tuple", () => {

@@ -3,7 +3,7 @@ import { $ } from "bun";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import {
 	type AssistantMessage,
 	createAssistantMessageEventStream,

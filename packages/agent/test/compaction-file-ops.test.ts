@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { extractFileOpsFromMessage, stripReadSelector } from "../src/compaction/utils";
 import { createAssistantMessage } from "./helpers";
 

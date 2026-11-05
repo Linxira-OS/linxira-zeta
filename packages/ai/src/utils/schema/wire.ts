@@ -6,7 +6,7 @@
  * validators see the same JSON Schema dialect.
  */
 
-import type { Type } from "@linxiraos/pi-omptype";
+import type { Type } from "@linxiraos/zeta-schema";
 import { isRecord, structuredCloneJSON } from "@linxiraos/pi-utils";
 import type { Tool, TSchema } from "../../types";
 import { upgradeJsonSchemaTo202012 } from "./draft";

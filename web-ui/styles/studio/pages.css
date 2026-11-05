@@ -1,0 +1,905 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+/* ============================================================
+   OMP Studio — 二级页面（主页/环境检查/历史/能力中心/设置/诊断）
+   ============================================================ */.studio-root .page {
+  /* dvh, matching .app — 100vh overflows under mobile/tablet browser chrome. */
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 二级页面统一页头 */.studio-root .page-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-10);
+  height: var(--studio-topbar-h);
+  padding: 0 var(--studio-sp-16) 0 var(--studio-sp-8);
+  border-bottom: 1px solid var(--studio-border);
+  background: var(--studio-bg);
+}.studio-root .page-head .ph-title {
+  font-size: var(--studio-fs-14);
+  font-weight: var(--studio-fw-semibold);
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  /* 固定宽度槽位：消除切换页面时标题宽度变化导致的 nav 跳动。
+     宽度取最长标题（会话历史与 Time Travel ≈ 170px）+ nav 间距（16px）。
+     标题左对齐，长标题完整显示不截断。 */
+  width: 186px;
+  flex: none;
+}.studio-root .page-nav {
+  display: flex;
+  gap: 5px;
+  margin-left: var(--studio-sp-16);
+  /* 气泡 .nav-window 的包含块。 */
+  position: relative;
+}.studio-root .page-nav a {
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  padding: 0 var(--studio-sp-10);
+  border-radius: var(--studio-r-6);
+  font-size: var(--studio-fs-12);
+  color: var(--studio-text-3);
+}.studio-root .page-nav a:hover { background: var(--studio-surface-hover); color: var(--studio-text); text-decoration: none; }
+/* 激活态不再靠加重字体区分：font-weight 变化会让拉丁字形（"Time Travel" /
+   "OMP"）变宽，镜像克隆在激活项上错位。选中感由气泡底色 + 镜像紫色承担，
+   所有入口保持同一字重，镜像才能逐像素对齐。 */.studio-root .page-nav a.active { background: var(--studio-accent-soft); color: var(--studio-accent); }
+
+/* ---- 滑动激活气泡 + 紫色镜像 ----
+   .nav-window 是绝对定位的淡紫卡片，宽 = 激活入口宽；JS 直接写 left/width
+   （px），transition 在 left/width 上跑 —— 不要用 `translateX(var(--x))`：
+   Chromium 不对手写 var() 引用的 transform 做 transition，实测改了 --x
+   transform 纹丝不动。直接 px 必然可动。
+   pointer-events:none 不拦截基础链接的点击/悬停。
+   .nav-mirror 是气泡内一份紫色导航克隆，left 与气泡反向（-left）而始终钉
+   在基础层上；被气泡 overflow 裁剪，气泡盖住哪个入口就实时透紫。 */.studio-root .nav-window {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  border-radius: var(--studio-r-6);
+  background: var(--studio-accent-soft);
+  overflow: hidden;
+  pointer-events: none;
+  transition: left var(--studio-dur-slow) var(--studio-ease-nav),
+              width var(--studio-dur-slow) var(--studio-ease-nav);
+}.studio-root .nav-mirror {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;   /* 必须与 .page-nav 的 gap 一致，否则克隆逐项偏移 */
+  width: max-content;
+  /* 与 .nav-window 相同的时长/缓动：left 同步变化时镜像全程钉在气泡上
+     （反向），滑动途中气泡盖住的入口实时透出紫色。 */
+  transition: left var(--studio-dur-slow) var(--studio-ease-nav);
+}.studio-root .nav-mirror a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  height: 30px;
+  padding: 0 var(--studio-sp-10);
+  border-radius: var(--studio-r-6);
+  font-size: var(--studio-fs-12);
+  color: var(--studio-accent);
+  white-space: nowrap;
+}
+
+/* env-check 等不在导航里的页面：气泡无处安放，隐藏。 */.studio-root .page-nav.no-bubble .nav-window { display: none; }
+
+/* 场景切换器 FAB 是工作台专属（演示入口），二级页视图隐藏；
+   display:flex 与 [hidden] 冲突，需要 !important。 */.studio-root .scenario-fab[hidden] { display: none !important; }.studio-root .page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--studio-sp-24) var(--studio-sp-32);
+  /* 进出场动画见 base.css（.page-body.page-in / .page-out）。
+     页头恒定不参与，只动内容区。 */
+}.studio-root .page-narrow { max-width: 880px; margin: 0 auto; }.studio-root .page-wide { max-width: 1080px; margin: 0 auto; }
+
+/* ---------- 项目主页 ---------- */.studio-root .home-hero { margin-bottom: var(--studio-sp-24); }.studio-root .home-hero h1 { font-size: var(--studio-fs-22); font-weight: var(--studio-fw-semibold); margin-bottom: var(--studio-sp-4); }.studio-root .home-identity {
+  --home-avatar-d: calc(var(--studio-fs-22) * 1.55 + var(--studio-sp-4) + var(--studio-fs-14) * 1.55);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--studio-sp-12);
+}.studio-root .home-avatar-slot {
+  flex: none;
+  width: var(--studio-home-avatar-d);
+  height: var(--studio-home-avatar-d);
+}.studio-root .home-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--studio-r-full);
+  object-fit: cover;
+  background: var(--studio-accent);
+  color: var(--studio-text-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--studio-home-avatar-d) * 0.42);
+  font-weight: var(--studio-fw-semibold);
+  line-height: 1;
+  overflow: hidden;
+}.studio-root .home-identity-copy {
+  flex: 1;
+  min-width: 0;
+}.studio-root .home-identity-copy h1 {
+  margin: 0 0 var(--studio-sp-4);
+  font-size: var(--studio-fs-22);
+  line-height: 1.55;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.studio-root .home-identity-copy p {
+  margin: 0;
+  font-size: var(--studio-fs-14);
+  line-height: 1.55;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.studio-root .home-id-edit { flex: none; align-self: start; }.studio-root img.home-avatar, .studio-root img.profile-edit-avatar-img { display: block; }.studio-root .home-quick { display: flex; gap: var(--studio-sp-8); margin-top: var(--studio-sp-16); flex-wrap: wrap; }.studio-root .home-hero .action-progress { max-width: 420px; margin: var(--studio-sp-12) 0 0; }.studio-root .profile-edit-modal { width: 420px; }.studio-root .profile-edit-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--studio-sp-12);
+  padding-bottom: var(--studio-sp-4);
+}.studio-root .profile-edit-head h2 {
+  margin: 2px 0 0;
+  font-size: var(--studio-fs-16);
+  font-weight: var(--studio-fw-semibold);
+}.studio-root .profile-edit-kicker {
+  display: block;
+  font: var(--studio-fw-semibold) 10px var(--studio-font-mono);
+  letter-spacing: 0.12em;
+  color: var(--studio-accent);
+}.studio-root .profile-edit-body { display: flex; flex-direction: column; gap: var(--studio-sp-16); }.studio-root .profile-edit-avatar {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-14);
+}.studio-root .profile-edit-avatar-btn {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--studio-r-full);
+  background: transparent;
+  cursor: pointer;
+  flex: none;
+}.studio-root .profile-edit-avatar-img {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--studio-r-full);
+  object-fit: cover;
+  background: var(--studio-accent);
+  color: var(--studio-text-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(28px * var(--studio-text-font-scale));
+  font-weight: var(--studio-fw-semibold);
+  overflow: hidden;
+}.studio-root .profile-edit-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--studio-r-full);
+  background: color-mix(in srgb, var(--zeta-alias-neutral-1000) 45%, transparent);
+  color: var(--zeta-alias-neutral-0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--studio-dur-fast) var(--studio-ease);
+}.studio-root .profile-edit-avatar-btn:hover .profile-edit-avatar-overlay, .studio-root .profile-edit-avatar-btn:focus-visible .profile-edit-avatar-overlay { opacity: 1; }.studio-root .profile-edit-avatar-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}.studio-root .profile-edit-avatar-copy b { font-size: var(--studio-fs-13); }.studio-root .profile-edit-avatar-copy span { font-size: var(--studio-fs-12); color: var(--studio-text-3); }.studio-root .profile-edit-avatar-copy .btn { margin-top: 4px; }.studio-root .profile-edit-error {
+  margin: 0;
+  color: var(--studio-red);
+  font-size: var(--studio-fs-12);
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+}.studio-root .avatar-crop-backdrop { z-index: calc(var(--studio-z-modal) + 1); }.studio-root .avatar-crop-modal { width: 360px; }.studio-root .avatar-crop-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--studio-sp-12);
+}.studio-root .avatar-crop-stage {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  border-radius: var(--studio-r-10);
+  background: var(--zeta-alias-bg-subtle);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}.studio-root .avatar-crop-stage.is-dragging { cursor: grabbing; }.studio-root .avatar-crop-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}.studio-root .avatar-crop-circle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--avatar-crop-circle);
+  height: var(--avatar-crop-circle);
+  transform: translate(-50%, -50%);
+  border-radius: var(--studio-r-full);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--zeta-alias-neutral-0) 40%, transparent), 0 0 0 9999px color-mix(in srgb, var(--zeta-alias-neutral-1000) 20%, transparent);
+  pointer-events: none;
+}.studio-root .avatar-crop-foot { justify-content: space-between; }.studio-root .proj-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--studio-sp-12);
+  margin-bottom: var(--studio-sp-24);
+}
+/* Both of these are <a> now — they navigate, and as click-handled divs they
+   were mouse-only and could not be opened in a new tab. Their children moved
+   from <div> to <span> (a div inside an <a> that also holds inline content is
+   fine, but spans keep the whole card safely phrasing-level), so each row's
+   block layout is declared here rather than inherited. */.studio-root .proj-card {
+  display: block;
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-10);
+  padding: var(--studio-sp-14);
+  cursor: pointer;
+  color: var(--studio-text);
+  transition: border-color var(--studio-dur-fast) var(--studio-ease), box-shadow var(--studio-dur-fast) var(--studio-ease);
+}.studio-root .proj-card:hover {
+  border-color: var(--studio-accent-border);
+  box-shadow: var(--studio-shadow-menu);
+  /* Links underline on hover globally; a whole card underlining itself is not
+     the affordance we want here — the border and shadow carry it. */
+  text-decoration: none;
+}.studio-root .proj-card .pc-name { font-weight: var(--studio-fw-semibold); font-size: var(--studio-fs-14); display: flex; align-items: center; gap: var(--studio-sp-8); }.studio-root .proj-card .pc-icon { width: 20px; height: 20px; border-radius: 5px; flex: none; object-fit: contain; }.studio-root .proj-card .pc-path { display: block; font-family: var(--studio-font-mono); font-size: var(--studio-fs-11); color: var(--studio-text-3); margin: 2px 0 var(--studio-sp-10); }.studio-root .proj-card .pc-flags { display: flex; flex-wrap: wrap; gap: var(--studio-sp-6); }.studio-root .proj-card .pc-foot {
+  display: flex; align-items: center; gap: var(--studio-sp-8);
+  margin-top: var(--studio-sp-10); padding-top: var(--studio-sp-10);
+  border-top: 1px solid var(--studio-border);
+  font-size: var(--studio-fs-11); color: var(--studio-text-3);
+}.studio-root .activity-row {
+  display: flex; align-items: center; gap: var(--studio-sp-10);
+  padding: 7px var(--studio-sp-10);
+  border-radius: var(--studio-r-6);
+  font-size: var(--studio-fs-12);
+  color: var(--studio-text-2);
+}.studio-root .activity-row:hover { background: var(--studio-surface-hover); text-decoration: none; }.studio-root .a-ic {
+  width: 24px; height: 24px; border-radius: var(--studio-r-6);
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+}.studio-root .a-ic.blue { background: var(--studio-blue-soft); color: var(--studio-blue); }.studio-root .a-ic.green { background: var(--studio-green-soft); color: var(--studio-green); }.studio-root .a-ic.amber { background: var(--studio-amber-soft); color: var(--studio-amber); }.studio-root .a-ic.purple { background: var(--studio-accent-soft); color: var(--studio-accent); }
+
+/* ---------- Token 使用统计卡（项目主页） ---------- */.studio-root .tk-card {
+  position: relative;
+  padding: var(--studio-sp-12) var(--studio-sp-14) var(--studio-sp-10);
+  margin-bottom: var(--studio-sp-24);
+}.studio-root .tk-head { display: flex; align-items: center; gap: var(--studio-sp-10); }.studio-root .tk-head .btn { flex: none; }.studio-root .tk-title {
+  display: inline-flex; align-items: center; gap: var(--studio-sp-6);
+  font-size: var(--studio-fs-14); font-weight: var(--studio-fw-semibold);
+}.studio-root .tk-range { font-size: var(--studio-fs-11); color: var(--studio-text-3); }.studio-root .tk-kpis { display: flex; flex-wrap: wrap; gap: var(--studio-sp-12) var(--studio-sp-24); margin-top: var(--studio-sp-10); }.studio-root .tk-kpi { display: flex; flex-direction: column; gap: 1px; }.studio-root .tk-kpi-v { font-size: var(--studio-fs-16); font-weight: var(--studio-fw-semibold); }.studio-root .tk-kpi-l {
+  display: inline-flex; align-items: center; gap: var(--studio-sp-6);
+  font-size: var(--studio-fs-11); color: var(--studio-text-3);
+}.studio-root .tk-dot { width: 8px; height: 8px; border-radius: var(--studio-r-full); flex: none; display: inline-block; }.studio-root .tk-dot.m0 { background: var(--studio-accent); }.studio-root .tk-dot.m1 { background: var(--studio-blue); }.studio-root .tk-dot.m2 { background: var(--studio-green); }.studio-root .tk-dot.m3 { background: var(--studio-amber); }.studio-root .tk-dot.m4 { background: var(--studio-red); }.studio-root .tk-dot.other { background: var(--studio-text-faint); }.studio-root .tk-dot.total { background: var(--studio-accent); }.studio-root .tk-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--studio-sp-8) var(--studio-sp-12);
+  margin-top: var(--studio-sp-8);
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+}.studio-root .tk-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}.studio-root .tk-chart-wrap { margin-top: var(--studio-sp-12); }.studio-root .tk-chart { display: block; width: 100%; height: 210px; margin-top: var(--studio-sp-24); overflow: visible; }.studio-root .tk-chart .tk-grid { stroke: var(--studio-border); stroke-dasharray: 3 4; stroke-width: 1; }.studio-root .tk-chart .tk-grid.base { stroke-dasharray: none; }.studio-root .tk-chart .tk-yt { font-family: var(--studio-font-mono); font-size: calc(9px * var(--studio-text-font-scale)); fill: var(--studio-text-faint); pointer-events: none; }.studio-root .tk-chart .tk-xt { font-size: calc(9.5px * var(--studio-text-font-scale)); fill: var(--studio-text-faint); pointer-events: none; }.studio-root .tk-chart .tk-xt.in, .studio-root .tk-chart .tk-yt.in { animation: tk-axis-in var(--studio-dur-chart-axis) var(--studio-ease) both; }.studio-root .tk-chart .tk-xt.out, .studio-root .tk-chart .tk-yt.out { animation: tk-axis-out var(--studio-dur-chart-axis) var(--studio-ease) both; }@keyframes tk-axis-in {from { opacity: 0; }to { opacity: 1; }}@keyframes tk-axis-out {from { opacity: 1; }to { opacity: 0; }}@media (prefers-reduced-motion: reduce) {.studio-root .tk-chart .tk-xt.in, .studio-root .tk-chart .tk-yt.in, .studio-root .tk-chart .tk-xt.out, .studio-root .tk-chart .tk-yt.out { animation: none; }}
+/* 曲线：基线 1.6px，曲线段需要 round join+cap 才不会出现尖角断开感。 */.studio-root .tk-chart .tk-line { fill: none; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }.studio-root .tk-chart .tk-line.m0 { stroke: var(--studio-accent); }.studio-root .tk-chart .tk-line.m1 { stroke: var(--studio-blue); }.studio-root .tk-chart .tk-line.m2 { stroke: var(--studio-green); }.studio-root .tk-chart .tk-line.m3 { stroke: var(--studio-amber); }.studio-root .tk-chart .tk-line.m4 { stroke: var(--studio-red); }.studio-root .tk-chart .tk-line.other { stroke: var(--studio-text-faint); }.studio-root .tk-chart .tk-line.total { stroke: var(--studio-accent); }
+/* 面积：折线下方铺一缕淡色，让"smooth curve"在视觉上更明显。 */.studio-root .tk-chart .tk-area { stroke: none; opacity: 0.14; }.studio-root .tk-chart .tk-area.m0 { fill: var(--studio-accent); }.studio-root .tk-chart .tk-area.m1 { fill: var(--studio-blue); }.studio-root .tk-chart .tk-area.m2 { fill: var(--studio-green); }.studio-root .tk-chart .tk-area.m3 { fill: var(--studio-amber); }.studio-root .tk-chart .tk-area.m4 { fill: var(--studio-red); }.studio-root .tk-chart .tk-area.other { fill: var(--studio-text-faint); }.studio-root .tk-chart .tk-area.total { fill: var(--studio-accent); }.studio-root .tk-chart .tk-hit { fill: transparent; cursor: crosshair; }.studio-root .tk-chart .tk-cursor { stroke: var(--studio-accent); stroke-opacity: 0.45; stroke-width: 1; }.studio-root .tk-chart .tk-hl { stroke: var(--studio-surface); stroke-width: 1.5; fill: var(--studio-accent); }.studio-root .tk-chart .tk-hl.m0 { fill: var(--studio-accent); }.studio-root .tk-chart .tk-hl.m1 { fill: var(--studio-blue); }.studio-root .tk-chart .tk-hl.m2 { fill: var(--studio-green); }.studio-root .tk-chart .tk-hl.m3 { fill: var(--studio-amber); }.studio-root .tk-chart .tk-hl.m4 { fill: var(--studio-red); }.studio-root .tk-chart .tk-hl.other { fill: var(--studio-text-faint); }.studio-root .tk-chart .tk-pt.m0 { fill: var(--studio-accent); }.studio-root .tk-chart .tk-pt.m1 { fill: var(--studio-blue); }.studio-root .tk-chart .tk-pt.m2 { fill: var(--studio-green); }.studio-root .tk-chart .tk-pt.m3 { fill: var(--studio-amber); }.studio-root .tk-chart .tk-pt.m4 { fill: var(--studio-red); }.studio-root .tk-chart .tk-pt.other { fill: var(--studio-text-faint); }.studio-root .tk-chart .tk-pt.total { fill: var(--studio-accent); }
+
+/* 日历：7 行 × 53 列（一年 GitHub 风格）。
+   紧凑模式：单元格方形 13×13px，gap 2px → 行列步进均 15px（横向 = 纵向）。
+   容器 width: max-content + 父容器中 margin auto，整体水平居中。
+   容器宽度 = 13 × 53 + 2 × 52 = 793px。 */.studio-root .tk-cal-wrap { width: max-content; max-width: 100%; margin: var(--studio-sp-8) auto 0; }.studio-root .tk-cal { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 13px); grid-template-columns: repeat(var(--weeks, 53), 13px); gap: 5px; }
+/* 月份标签层：放在日历下方，与日历同一列公式对齐。grid-column 由 inline 决定
+   到具体的周列；min-width 0 允许月份字截断/溢出而不撑开整列。 */.studio-root .tk-cal-months {
+  display: grid;
+  grid-template-columns: repeat(var(--weeks), 13px);
+  gap: 5px;
+  margin-top: 4px;
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-faint);
+}.studio-root .tk-cal-months span {
+  white-space: nowrap;
+  overflow: visible;
+}.studio-root .tk-cell {
+  display: block; min-width: 13px; min-height: 13px; aspect-ratio: 1 / 1;
+  border-radius: 2.5px;
+  background: var(--studio-surface-2);
+  transition: transform var(--studio-dur-fast) var(--studio-ease), box-shadow var(--studio-dur-fast) var(--studio-ease);
+}.studio-root .tk-cell.tk-empty { background: transparent; }
+/* 一年前未启用日期：淡灰底，区别于"启用但 0 token"。 */.studio-root .tk-cell.tk-no-data { background: var(--studio-surface-2); }
+/* 启用但当日 0 token：最浅紫底（提示"工作日但未触发"）。 */.studio-root .tk-cell.tk-zero { background: var(--studio-accent-softer); }
+/* 未来日期：边框 + 更淡的内色，提示"未到"；不参与色阶。 */.studio-root .tk-cell.tk-future {
+  background: var(--studio-surface-2);
+  border: 1px dashed var(--studio-border);
+  box-sizing: border-box;
+}
+/* 今日：紫色实心描边，醒目。 */.studio-root .tk-cell.tk-today {
+  outline: 1.5px solid var(--studio-accent);
+  outline-offset: -1.5px;
+}.studio-root .tk-cell.tk-hi {
+  transform: scale(1.3);
+  box-shadow: 0 0 0 1px var(--studio-accent);
+  position: relative; z-index: 1;
+}.studio-root .tk-rls {
+  display: flex; justify-content: space-between;
+  margin-top: 4px; font-size: var(--studio-fs-11); color: var(--studio-text-faint);
+  /* 每行高 10px + gap 3px = 13px；最后一行不满 7 格也等高对齐。 */
+  min-height: 10px;
+}.studio-root .tk-cal-foot { display: flex; align-items: center; margin-top: var(--studio-sp-6); }.studio-root .tk-scale {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: var(--studio-fs-11); color: var(--studio-text-faint);
+}.studio-root .tk-scale i { width: 10px; height: 10px; border-radius: 2.5px; }.studio-root .tk-scale i.tk-scale-max { width: auto; height: auto; }
+
+/* 浮层：折线 / 日历 / 键盘聚焦共用。位置由 JS 在 setCursor 里实时计算；
+   top/left 留 0 即可，避免误用静态 top 让浮层出现在错位置。 */.studio-root .tk-tip {
+  position: absolute; top: 0; left: 0; z-index: 5;
+  min-width: 150px; padding: var(--studio-sp-8) var(--studio-sp-10);
+  background: var(--studio-surface); border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8); box-shadow: var(--studio-shadow-menu);
+  font-size: var(--studio-fs-11); line-height: 1.5;
+  display: none; pointer-events: none;
+}.studio-root .tk-tip.show { display: block; }.studio-root .tk-tip .tk-tip-row { display: flex; align-items: center; gap: var(--studio-sp-6); color: var(--studio-text-3); }.studio-root .tk-tip .tk-tip-row b { margin-left: auto; color: var(--studio-text-2); }
+
+/* 热力格小弹窗：该天在曲线上显示不出来时，弹在对应格上方。 */.studio-root .tk-cell-tip {
+  position: absolute; z-index: 6;
+  min-width: 96px; padding: var(--studio-sp-6) var(--studio-sp-8);
+  background: var(--studio-surface); border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-6); box-shadow: var(--studio-shadow-menu);
+  font-size: var(--studio-fs-11); line-height: 1.5; text-align: center;
+  display: none; pointer-events: none;
+}.studio-root .tk-cell-tip b { display: block; }.studio-root .tk-cell-tip .mono { color: var(--studio-text-2); }
+
+/* ---------- 环境检查 ---------- */
+/* 进程内存面板（Diagnostics）：只有 Electron 环境渲染，见 ProcessMemoryPanel。 */.studio-root .diag-card {
+  border: 1px solid var(--studio-border); border-radius: var(--studio-r-10);
+  padding: var(--studio-sp-16) var(--studio-sp-20); margin-bottom: var(--studio-sp-20);
+  background: var(--studio-surface-1);
+}.studio-root .diag-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--studio-sp-12); margin-bottom: var(--studio-sp-12); }.studio-root .diag-mem-rows { display: flex; flex-direction: column; gap: 6px; }.studio-root .diag-mem-row { display: flex; align-items: baseline; gap: var(--studio-sp-8); font-size: var(--studio-fs-12); }.studio-root .diag-mem-label { min-width: 96px; color: var(--studio-text-2); }.studio-root .diag-mem-value { font-family: var(--studio-font-mono); font-variant-numeric: tabular-nums; color: var(--studio-text); }.studio-root .diag-mem-peak { margin-left: auto; }.studio-root .env-summary {
+  display: flex; align-items: center; gap: var(--studio-sp-12);
+  padding: var(--studio-sp-16) var(--studio-sp-20);
+  border-radius: var(--studio-r-10);
+  margin-bottom: var(--studio-sp-20);
+}.studio-root .env-summary.ok { background: var(--studio-green-soft); border: 1px solid var(--studio-green); }.studio-root .env-summary.warn { background: var(--studio-amber-soft); border: 1px solid var(--studio-amber); }.studio-root .env-summary.fail { background: var(--studio-red-soft); border: 1px solid var(--studio-red); }.studio-root .env-summary .es-icon {
+  width: 36px; height: 36px; border-radius: var(--studio-r-full);
+  display: flex; align-items: center; justify-content: center; flex: none;
+}.studio-root .env-summary.ok .es-icon { background: var(--studio-green); color: var(--zeta-alias-neutral-0); }.studio-root .env-summary.warn .es-icon { background: var(--studio-amber); color: var(--zeta-alias-neutral-0); }.studio-root .env-summary.fail .es-icon { background: var(--studio-red); color: var(--zeta-alias-neutral-0); }.studio-root .env-summary .es-copy { flex: 1; min-width: 0; }.studio-root .env-summary .es-copy b { font-size: var(--studio-fs-14); display: block; }.studio-root .env-summary .es-actions { display: flex; gap: var(--studio-sp-8); flex: none; flex-wrap: wrap; }.studio-root .diag-page .action-progress {
+  margin: calc(var(--studio-sp-16) * -1) 0 var(--studio-sp-16);
+}.studio-root .check-row {
+  display: flex; align-items: center; gap: var(--studio-sp-12);
+  padding: var(--studio-sp-10) var(--studio-sp-14);
+  border-bottom: 1px solid var(--studio-border);
+  font-size: var(--studio-fs-14);
+}.studio-root .check-row:last-child { border-bottom: none; }.studio-root .check-row .ck-name { font-weight: var(--studio-fw-medium); width: 180px; flex: none; }.studio-root .check-row .ck-detail { font-family: var(--studio-font-mono); font-size: var(--studio-fs-11); color: var(--studio-text-3); flex: 1; min-width: 0; }.studio-root .check-row .ck-detail.wrap { white-space: normal; overflow: visible; word-break: break-word; }.studio-root .check-row .ck-actions { display: flex; gap: var(--studio-sp-6); flex: none; }
+
+/* ---------- 会话历史 ---------- */
+/* Two-column split, previously an inline grid on .page-wide. As an inline style
+   it could not respond to width, so the 380px rail and the session list fought
+   for space on a narrow window. */.studio-root .hist-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: var(--studio-sp-32);
+  align-items: start;
+}@media (max-width: 1000px) {.studio-root .hist-layout { grid-template-columns: 1fr; gap: var(--studio-sp-24); }}.studio-root .hist-toolbar { display: flex; gap: var(--studio-sp-8); margin-bottom: var(--studio-sp-14); }.studio-root .hist-search { flex: 1; }.studio-root .hist-tabs { display: flex; gap: var(--studio-sp-6); flex-shrink: 0; }.studio-root .tt-heading { font-size: var(--studio-fs-14); font-weight: var(--studio-fw-semibold); margin-bottom: var(--studio-sp-4); }.studio-root .tt-desc { margin-bottom: var(--studio-sp-14); }
+
+/* The row is a container now — it used to be a clickable div wrapping three
+   icon buttons (nested interactive content). The title block is the link that
+   opens the session, so hover/focus highlight moves to :focus-within. */.studio-root .hist-row {
+  display: flex; align-items: center; gap: var(--studio-sp-12);
+  padding: var(--studio-sp-12) var(--studio-sp-14);
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8);
+  margin-bottom: var(--studio-sp-8);
+}.studio-root .hist-row:hover, .studio-root .hist-row:focus-within { border-color: var(--studio-accent-border); }.studio-root .hist-row .h-main {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  color: var(--studio-text);
+}.studio-root .hist-row .h-main:hover { text-decoration: none; }.studio-root .hist-row .h-title { display: block; font-weight: var(--studio-fw-medium); font-size: var(--studio-fs-14); }.studio-root .hist-row .h-sub { font-size: var(--studio-fs-11); color: var(--studio-text-3); font-family: var(--studio-font-mono); display: flex; gap: var(--studio-sp-10); margin-top: 2px; flex-wrap: wrap; }.studio-root .hist-row .h-fork { color: var(--studio-accent); }.studio-root .hist-row > .chip { flex: none; }.studio-root .hist-row .h-acts { display: flex; gap: var(--studio-sp-4); flex: none; }
+
+/* Time Travel */.studio-root .tt-rail { position: relative; padding-left: 28px; }.studio-root .tt-rail::before {
+  content: ""; position: absolute; left: 9px; top: 6px; bottom: 6px;
+  width: 2px; background: var(--studio-border-strong); border-radius: 2px;
+}.studio-root .tt-node { position: relative; margin-bottom: var(--studio-sp-12); }.studio-root .tt-node::before {
+  content: ""; position: absolute; left: -24px; top: 14px;
+  width: 10px; height: 10px; border-radius: var(--studio-r-full);
+  background: var(--studio-surface); border: 2px solid var(--studio-text-faint);
+}.studio-root .tt-node.user::before { border-color: var(--studio-text-2); }.studio-root .tt-node.plan::before { border-color: var(--studio-blue); }.studio-root .tt-node.tool::before { border-color: var(--studio-text-faint); }.studio-root .tt-node.file::before { border-color: var(--studio-green); background: var(--studio-green-soft); }.studio-root .tt-node.test::before { border-color: var(--studio-blue); background: var(--studio-blue-soft); }.studio-root .tt-node.checkpoint::before { border-color: var(--studio-accent); background: var(--studio-accent-soft); width: 12px; height: 12px; left: -25px; }.studio-root .tt-node .tt-card {
+  background: var(--studio-surface); border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8); padding: var(--studio-sp-10) var(--studio-sp-14);
+  font-size: var(--studio-fs-12);
+}.studio-root .tt-node.checkpoint .tt-card { border-color: var(--studio-accent-border); }.studio-root .tt-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  flex-wrap: wrap;
+}.studio-root .tt-card-body { margin-top: 2px; }
+
+/* ---------- 能力中心 / 设置：左侧分类 + 滑动气泡 ----------
+   版式仍是原来的左栏右内容。激活态不再写按钮背景/字重（字重变化会让
+   行宽微移，气泡对不齐），改由绝对定位的淡紫窗口盖住当前行，窗口内
+   紫色镜像反向位移，盖住哪一行哪一行就透出 accent —— 和页头导航、
+   模型配置标签栏同一套「遮盖变色」，只是沿竖轴平移。 */.studio-root .cap-layout {
+  display: flex;
+  gap: var(--studio-sp-24);
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+}
+/* 能力中心 / 设置：.page-body 不再滚动。标题与侧栏钉在视口里，
+   每个标签面板自己滚 —— 切页时两层叠在同一视口里交叉淡入，
+   高度塌缩不会把整页弹回顶部。 */.studio-root .page-body:has(.cap-layout), .studio-root .page-body:has(.set-layout), .studio-root .page-body:has(.stats-page), .studio-root .page-body:has(.hub-page.is-chat-preview), .studio-root .page-body:has(.hub-page.is-chat-closing) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}.studio-root .page-body:has(.hub-page.is-chat-preview) > .hub-page {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}.studio-root .page-body:has(.hub-page.is-chat-closing) > .hub-page {
+  width: 100%;
+  min-height: 0;
+}.studio-root .page-body:has(.cap-layout) > .page-wide {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}.studio-root .page-body:has(.cap-layout) > .page-wide > :not(.cap-layout) {
+  flex-shrink: 0;
+}.studio-root .page-body:has(.set-layout) > .page-wide {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}.studio-root .cap-side {
+  width: 200px;
+  flex: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}.studio-root .cap-side button {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  width: 100%;
+  flex-shrink: 0;
+  text-align: left;
+  padding: 7px var(--studio-sp-10);
+  border-radius: var(--studio-r-6);
+  font-size: var(--studio-fs-12);
+  color: var(--studio-text-2);
+  transition: background var(--studio-dur-fast) var(--studio-ease);
+}.studio-root .cap-side button:hover { background: var(--studio-surface-hover); }.studio-root .cap-side button .cnt {
+  margin-left: auto;
+  font-size: calc(10px * var(--studio-text-font-scale));
+  color: var(--studio-text-faint);
+}.studio-root .cap-tab-window {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 0;
+  border-radius: var(--studio-r-6);
+  background: var(--studio-accent-soft);
+  overflow: hidden;
+  pointer-events: none;
+  transition: top var(--studio-dur-slide) var(--studio-ease-ios),
+              height var(--studio-dur-slide) var(--studio-ease-ios);
+}.studio-root .cap-tab-mirror {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  transition: top var(--studio-dur-slide) var(--studio-ease-ios);
+}.studio-root .cap-tab-mirror button {
+  color: var(--studio-accent);
+  cursor: default;
+  background: transparent;
+}.studio-root .cap-side .cap-tab-mirror button:hover { background: transparent; }.studio-root .cap-tab-mirror .cnt { color: var(--studio-text-faint); }.studio-root .cap-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}.studio-root .cap-pane-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+  /* .cap-item hover 外发光约 18px；舞台加宽、面板用同等内边距把内容推回原位，
+     阴影落在 overflow 裁切盒内侧，左右不会被切平。 */
+  margin-inline: -20px;
+}
+
+/* 叠层交叉淡入：新旧面板同时在场，透明度做溶解，短距 translateX 只提示方向。
+   进入用 --ease-nav 长尾缓降；离开更短，后半段由新面板主导。
+   时长须与 TAB_PANE_MS 对齐。 */.studio-root .tab-pane {
+  position: absolute;
+  inset: 0;
+  padding-inline: 20px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}.studio-root .tab-pane-enter-fwd, .studio-root .tab-pane-enter-back {
+  z-index: 1;
+  backface-visibility: hidden;
+}.studio-root .tab-pane-enter-fwd {
+  animation: tab-pane-enter-fwd 320ms var(--studio-ease-nav) both;
+}.studio-root .tab-pane-enter-back {
+  animation: tab-pane-enter-back 320ms var(--studio-ease-nav) both;
+}.studio-root .tab-pane-leave-fwd, .studio-root .tab-pane-leave-back {
+  z-index: 0;
+  pointer-events: none;
+  backface-visibility: hidden;
+}.studio-root .tab-pane-leave-fwd {
+  animation: tab-pane-leave-fwd 240ms var(--studio-ease-nav) both;
+}.studio-root .tab-pane-leave-back {
+  animation: tab-pane-leave-back 240ms var(--studio-ease-nav) both;
+}@keyframes tab-pane-enter-fwd {from { opacity: 0; transform: translate3d(16px, 0, 0); }to { opacity: 1; transform: translate3d(0, 0, 0); }}@keyframes tab-pane-leave-fwd {from { opacity: 1; transform: translate3d(0, 0, 0); }to { opacity: 0; transform: translate3d(-8px, 0, 0); }}@keyframes tab-pane-enter-back {from { opacity: 0; transform: translate3d(-16px, 0, 0); }to { opacity: 1; transform: translate3d(0, 0, 0); }}@keyframes tab-pane-leave-back {from { opacity: 1; transform: translate3d(0, 0, 0); }to { opacity: 0; transform: translate3d(8px, 0, 0); }}
+
+/* Tab-level summary row — sits between tabs and the card list.
+   Reads as one line of telemetry, not a dashboard. */.studio-root .cap-summary {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--studio-sp-6) var(--studio-sp-14);
+  padding: var(--studio-sp-10) var(--studio-sp-14);
+  margin-bottom: var(--studio-sp-12);
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8);
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+}.studio-root .cap-sum-stat { display: inline-flex; align-items: center; gap: var(--studio-sp-6); white-space: nowrap; }.studio-root .cap-sum-stat strong {
+  font-family: var(--studio-font-mono); font-weight: var(--studio-fw-semibold);
+  color: var(--studio-text); font-variant-numeric: tabular-nums;
+}.studio-root .cap-sum-stat .dot { width: 6px; height: 6px; }.studio-root .cap-sum-stat svg { width: 11px; height: 11px; color: var(--studio-text-3); }
+
+/* Card shell ---------------------------------------------------- */.studio-root .cap-item {
+  position: relative;
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8);
+  margin-bottom: var(--studio-sp-10);
+  overflow: hidden;
+  /* Hover lift: glow is global (not a side bar) so the row reads as one
+     object, not "a normal card with a stripe glued to the left". The
+     shadow is two-layer (tight accent ring + soft halo) so the card lifts
+     off the page without a hard edge. Background is NOT in the transition
+     list — hover keeps the surface white so the card reads as "lifted",
+     not "selected". */
+  transition: border-color var(--studio-dur-fast) var(--studio-ease),
+              box-shadow var(--studio-dur-fast) var(--studio-ease);
+}.studio-root .cap-item:hover, .studio-root .cap-item:focus-within {
+  border-color: var(--studio-accent-border);
+  /* Keep the surface white on hover — only the glow changes. A card
+     that also tints its background reads as "selected", which is a
+     different signal than "hover" and would collide with the future
+     `.cap-item.sel` state. */
+  background: var(--studio-surface);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--studio-accent) 22%, transparent),
+    0 0 18px -2px color-mix(in srgb, var(--studio-accent) 32%, transparent),
+    0 4px 14px -8px color-mix(in srgb, var(--studio-accent) 40%, transparent);
+}.studio-root .cap-item.has-error { border-color: color-mix(in srgb, var(--zeta-alias-status-error) 28%, transparent); }.studio-root .cap-item.has-error:hover, .studio-root .cap-item.has-error:focus-within {
+  border-color: color-mix(in srgb, var(--studio-red) 55%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--studio-red) 22%, transparent),
+    0 0 18px -2px color-mix(in srgb, var(--studio-red) 32%, transparent),
+    0 4px 14px -8px color-mix(in srgb, var(--studio-red) 40%, transparent);
+}.studio-root .cap-item-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--studio-sp-12);
+  padding: var(--studio-sp-12) var(--studio-sp-14);
+}.studio-root .cap-item-main { min-width: 0; display: flex; flex-direction: column; gap: var(--studio-sp-8); }.studio-root .cap-item-name-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--studio-sp-6); min-width: 0; }.studio-root .cap-item-name {
+  font-weight: var(--studio-fw-semibold); font-size: var(--studio-fs-14);
+  color: var(--studio-text);
+  font-family: var(--studio-font-mono);
+  line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}.studio-root .cap-item-actions { display: flex; align-items: center; gap: var(--studio-sp-6); flex-shrink: 0; }
+
+/* Body row (description / meta) -------------------------------- */.studio-root .cap-item-body {
+  padding: var(--studio-sp-10) var(--studio-sp-14) var(--studio-sp-12);
+  border-top: 1px solid var(--studio-border);
+  display: flex; flex-direction: column; gap: var(--studio-sp-8);
+}.studio-root .cap-item-desc { font-size: var(--studio-fs-12); color: var(--studio-text-2); line-height: 1.45; }.studio-root .cap-item-meta {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--studio-sp-4) var(--studio-sp-12);
+  font-size: var(--studio-fs-11); color: var(--studio-text-3); font-family: var(--studio-font-mono);
+}
+
+/* Scope capsule + source path used on Skill cards.
+   Two-tone mirrors ver2: "全局" purple (account-wide), "具体项目"
+   blue (per-project override). "内置" is a neutral gray so it does
+   not impersonate a user-installable scope. Source path is one
+   mono line, ellipsis when long. */.studio-root .cap-scope {
+  display: inline-flex; align-items: center; gap: var(--studio-sp-4);
+  padding: 0 var(--studio-sp-8); height: 18px;
+  font-size: calc(10.5px * var(--studio-text-font-scale)); font-weight: var(--studio-fw-medium);
+  border-radius: var(--studio-r-full);
+  white-space: nowrap;
+}.studio-root .cap-scope.global { background: var(--studio-accent-soft); color: var(--studio-accent); }.studio-root .cap-scope.project { background: var(--studio-blue-soft);    color: var(--studio-blue); }.studio-root .cap-scope.builtin { background: var(--studio-surface-2);    color: var(--studio-text-3); }.studio-root .cap-source {
+  display: block;
+  font-family: var(--studio-font-mono);
+  font-size: calc(10.5px * var(--studio-text-font-scale));
+  color: var(--studio-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Three-segment stepper (配 / 载 / 用) ---------------------------
+   Reads left-to-right as a pipeline. Connector between segments
+   lights up only when both sides are on, so a failure at "loaded"
+   reads as "configured, not loaded" — distinct from a transport
+   problem where nothing is loaded yet. */.studio-root .cap-stepper { display: inline-flex; align-items: center; gap: var(--studio-sp-6); }.studio-root .cap-step {
+  display: inline-flex; align-items: center; gap: var(--studio-sp-4);
+  padding: 0 var(--studio-sp-8); height: 18px;
+  font-size: calc(10.5px * var(--studio-text-font-scale)); font-weight: var(--studio-fw-medium);
+  border-radius: var(--studio-r-full);
+  background: var(--studio-surface-2); color: var(--studio-text-faint);
+  white-space: nowrap;
+  transition: background var(--studio-dur-fast) var(--studio-ease), color var(--studio-dur-fast) var(--studio-ease);
+}.studio-root .cap-step svg { width: 9px; height: 9px; }.studio-root .cap-step.on { background: var(--studio-green-soft); color: var(--studio-green); }
+/* Connectors are dropped: with full labels (已配置 / 已加载 / 当前会话可用)
+   the three pills read top-to-bottom as a row, and a 1px line between them
+   just adds noise. The on/off colour of the pills themselves carries the
+   "pipeline" meaning. */
+
+/* Skills 卡：图标放大（卡片内 .a-ic 从 24px 提到 36px，图标 18→20px） */.studio-root .cap-skills .a-ic { width: 36px; height: 36px; border-radius: var(--studio-r-8); }.studio-root .cap-skills .a-ic .icon { width: 20px; height: 20px; }
+
+/* Provides（工具 / 指令 / Hook / UI 能力）-----------------
+   ver2 风格：竖向堆叠，每行标题与内容同一行（可换行），
+   不做行级大胶囊；区带浅底与上边框分隔。 */.studio-root .cap-item-provides {
+  border-top: 1px solid var(--studio-border);
+  padding: var(--studio-sp-10) var(--studio-sp-14);
+  background: var(--studio-surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--studio-sp-8);
+}.studio-root .cap-provide {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--studio-sp-6) var(--studio-sp-8);
+  min-width: 0;
+}.studio-root .cap-provide-head {
+  display: inline-flex; align-items: center; gap: var(--studio-sp-6);
+  flex: none;
+  font-size: var(--studio-fs-11); font-weight: var(--studio-fw-medium); color: var(--studio-text-2);
+}.studio-root .cap-provide-head svg { width: 12px; height: 12px; color: var(--studio-text-3); flex-shrink: 0; }.studio-root .cap-provide-count {
+  margin-left: var(--studio-sp-2);
+  font-family: var(--studio-font-mono); font-size: calc(10.5px * var(--studio-text-font-scale)); color: var(--studio-text-3);
+  font-variant-numeric: tabular-nums;
+}.studio-root .cap-provide-items { display: inline-flex; flex-wrap: wrap; gap: var(--studio-sp-4); }.studio-root .cap-provide-item {
+  display: inline-flex; align-items: center;
+  padding: 0 var(--studio-sp-8); height: 18px;
+  font-size: calc(10.5px * var(--studio-text-font-scale)); font-family: var(--studio-font-mono);
+  /* 容器是 surface-2（浅灰），chips 用 surface（白/更深）突出边界 */
+  background: var(--studio-surface); color: var(--studio-text-2);
+  border: 1px solid var(--studio-border); border-radius: var(--studio-r-4);
+}
+/* Show "无" instead of an empty section so the stacked rows still read balanced. */.studio-root .cap-provide-empty {
+  font-size: var(--studio-fs-11); color: var(--studio-text-faint);
+  font-style: italic;
+}
+
+/* Error region -------------------------------------------------- */.studio-root .cap-error {
+  display: flex; align-items: flex-start; gap: var(--studio-sp-8);
+  padding: var(--studio-sp-10) var(--studio-sp-14);
+  background: var(--studio-red-soft);
+  border-top: 1px solid color-mix(in srgb, var(--zeta-alias-status-error) 28%, transparent);
+  font-size: var(--studio-fs-12); color: var(--studio-red); line-height: 1.45;
+}.studio-root .cap-error svg { flex-shrink: 0; width: 13px; height: 13px; margin-top: 1px; }
+
+/* Slash commands list (denser, no card shell) ------------------ */.studio-root .cap-slash-list {
+  display: flex; flex-direction: column;
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border); border-radius: var(--studio-r-8);
+  overflow: hidden;
+}.studio-root .cap-slash-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(0, 3fr) auto auto;
+  align-items: center;
+  gap: var(--studio-sp-14);
+  padding: var(--studio-sp-10) var(--studio-sp-14);
+  border-top: 1px solid var(--studio-border);
+  transition: background var(--studio-dur-fast) var(--studio-ease);
+}.studio-root .cap-slash-row:first-child { border-top: none; }.studio-root .cap-slash-row:hover:not([data-ok="false"]) { background: var(--studio-surface-hover); }.studio-root .cap-slash-row[data-ok="false"] { opacity: 0.6; }.studio-root .cap-slash-name {
+  display: flex; align-items: center; gap: var(--studio-sp-10);
+  font-size: var(--studio-fs-12); font-family: var(--studio-font-mono);
+  color: var(--studio-text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0;
+}.studio-root .cap-slash-name .a-ic { width: 20px; height: 20px; flex-shrink: 0; }.studio-root .cap-slash-desc { font-size: var(--studio-fs-12); color: var(--studio-text-2); line-height: 1.45; min-width: 0; }
+
+/* Responsive ---------------------------------------------------- */@media (max-width: 880px) {.studio-root .cap-layout { flex-direction: column; gap: var(--studio-sp-12); }.studio-root .cap-side { width: auto; flex: none; max-height: none; }.studio-root .cap-item-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "icon main" ".    actions";
+    row-gap: var(--studio-sp-10);
+  }.studio-root .cap-item-summary > .a-ic { grid-area: icon; }.studio-root .cap-item-summary > .cap-item-main { grid-area: main; }.studio-root .cap-item-summary > .cap-item-actions { grid-area: actions; justify-content: flex-end; }.studio-root .cap-slash-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name   actions"
+      "desc   desc"
+      "status status";
+    row-gap: var(--studio-sp-6);
+  }.studio-root .cap-slash-row > .cap-slash-name { grid-area: name; }.studio-root .cap-slash-row > .cap-slash-desc { grid-area: desc; }.studio-root .cap-slash-row > .chip { grid-area: status; justify-self: start; }.studio-root .cap-slash-row > button { grid-area: actions; }}.studio-root .cap-log-body {
+  max-height: 320px;
+  overflow: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---------- 设置 ---------- */.studio-root .set-layout { display: flex; gap: var(--studio-sp-24); align-items: stretch; }.studio-root .set-group { margin-bottom: 0; }.studio-root .set-group[hidden] { display: none; }.studio-root .set-group > h3 {
+  font-size: var(--studio-fs-14); font-weight: var(--studio-fw-semibold);
+  margin-bottom: var(--studio-sp-4);
+}.studio-root .set-group > .desc { font-size: var(--studio-fs-12); color: var(--studio-text-3); margin-bottom: var(--studio-sp-12); }.studio-root .set-row {
+  display: flex; align-items: center; gap: var(--studio-sp-16);
+  padding: var(--studio-sp-10) var(--studio-sp-14);
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-bottom: none;
+  font-size: var(--studio-fs-12);
+}.studio-root .set-row:first-of-type { border-radius: var(--studio-r-8) var(--studio-r-8) 0 0; }.studio-root .set-row:last-of-type { border-bottom: 1px solid var(--studio-border); border-radius: 0 0 var(--studio-r-8) var(--studio-r-8); }.studio-root .set-row:only-of-type { border-radius: var(--studio-r-8); border-bottom: 1px solid var(--studio-border); }.studio-root .set-row .sr-label { font-weight: var(--studio-fw-medium); }.studio-root .set-row .sr-desc { font-size: var(--studio-fs-11); color: var(--studio-text-3); margin-top: 1px; }.studio-root .set-row .sr-control { margin-left: auto; flex: none; display: flex; align-items: center; gap: var(--studio-sp-8); }.studio-root .set-row .select, .studio-root .set-row .input { width: 200px; }
+
+/* Phase 1 IA 重构：分节 / 来源徽标 / 尚未接入态 / 演示提示。 */.studio-root .set-section { margin-top: var(--studio-sp-16); }.studio-root .set-section > h4 {
+  font-size: var(--studio-fs-12); font-weight: var(--studio-fw-semibold);
+  color: var(--studio-text-2); margin-bottom: var(--studio-sp-6);
+}.studio-root .set-section > .set-section-desc { font-size: var(--studio-fs-11); color: var(--studio-text-3); margin-bottom: var(--studio-sp-8); }
+/* 分节内的行组各自成卡（首尾圆角随分组而不是整个面板）。 */.studio-root .set-section .set-row:first-of-type { border-radius: var(--studio-r-8) var(--studio-r-8) 0 0; }.studio-root .set-section .set-row:last-of-type { border-bottom: 1px solid var(--studio-border); border-radius: 0 0 var(--studio-r-8) var(--studio-r-8); }.studio-root .set-section .set-row:only-of-type { border-radius: var(--studio-r-8); border-bottom: 1px solid var(--studio-border); }.studio-root .src-badge {
+  display: inline-block; margin-left: var(--studio-sp-6);
+  padding: 0 var(--studio-sp-6); border-radius: var(--studio-r-full);
+  font-size: var(--studio-fs-11); font-weight: var(--studio-fw-regular);
+  line-height: 16px; vertical-align: 1px;
+  border: 1px solid var(--studio-border); color: var(--studio-text-3);
+  cursor: default; user-select: none;
+}.studio-root .src-badge[data-source="default"] { color: var(--studio-text-3); }.studio-root .src-badge[data-source="user"] { color: var(--studio-accent, var(--studio-text-2)); border-color: color-mix(in srgb, var(--studio-accent, var(--studio-text-2)) 35%, var(--studio-border)); }.studio-root .src-badge[data-source="project"] { color: var(--studio-purple, var(--studio-text-2)); border-color: color-mix(in srgb, var(--studio-purple, var(--studio-text-2)) 35%, var(--studio-border)); }.studio-root .src-badge[data-source="runtime"] { color: var(--studio-amber, var(--studio-text-2)); border-color: color-mix(in srgb, var(--studio-amber, var(--studio-text-2)) 35%, var(--studio-border)); }.studio-root .src-badge.is-unavailable, .studio-root .src-badge[data-source="unavailable"] {
+  border-style: dashed; color: var(--studio-text-3); background: color-mix(in srgb, var(--studio-text-3) 6%, transparent);
+}.studio-root .set-row.is-unavailable .sr-control { opacity: 0.55; }.studio-root .set-row.is-unavailable { cursor: help; }.studio-root .set-toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--studio-sp-8); }.studio-root .demo-chip { margin-left: var(--studio-sp-8); vertical-align: 1px; }.studio-root .set-flash {
+  margin-bottom: var(--studio-sp-10);
+  padding: var(--studio-sp-6) var(--studio-sp-12);
+  border: 1px dashed var(--studio-border); border-radius: var(--studio-r-8);
+  font-size: var(--studio-fs-11); color: var(--studio-text-3);
+}.studio-root .set-note { margin-top: var(--studio-sp-8); }.studio-root .config-layer-list {
+  border: 1px solid var(--studio-border); border-radius: var(--studio-r-8);
+  background: var(--studio-surface); overflow: hidden;
+}.studio-root .config-layer-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: var(--studio-sp-8) var(--studio-sp-14);
+  font-size: var(--studio-fs-12);
+  border-bottom: 1px solid var(--studio-border);
+}.studio-root .config-layer-row:last-child { border-bottom: none; }
+
+/* 设置页里的跳转卡（Models and Providers 分组下的两张）。
+   版式原本是每张卡上一串内联 style（display:flex / flex:1;min-width:0 /
+   display:block），用来覆盖 .proj-card 的 display:block —— 结构性版式写在
+   HTML 属性里，样式表就管不到，也没法随主题或断点调整。 */.studio-root .set-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-12);
+  margin-bottom: var(--studio-sp-10);
+}.studio-root .set-entry .se-main { flex: 1; min-width: 0; }
+/* .sr-desc 之前只有 .set-row 作用域下的规则，卡片里那份靠内联 display:block
+   撑着；这里给它自己的规则，两处才有一致的次要文字样式。 */.studio-root .set-entry .sr-desc {
+  display: block;
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+  margin-top: 1px;
+}.studio-root .perm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--studio-sp-10); }.studio-root .perm-card {
+  background: var(--studio-surface); border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8); padding: var(--studio-sp-12) var(--studio-sp-14);
+  font-size: var(--studio-fs-12);
+}.studio-root .perm-card .pm-head { display: flex; align-items: center; gap: var(--studio-sp-8); font-weight: var(--studio-fw-semibold); margin-bottom: var(--studio-sp-6); }
+
+/* ---------- 诊断中心 ---------- */.studio-root .diag-page h1 { font-size: calc(18px * var(--studio-text-font-scale)); }.studio-root .diag-head {
+  display: flex; align-items: flex-start; gap: var(--studio-sp-12);
+  margin-bottom: var(--studio-sp-16);
+}.studio-root .diag-head-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  flex: none;
+}.studio-root .diag-ver-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--studio-border);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8);
+  overflow: hidden;
+  margin-bottom: var(--studio-sp-20);
+}.studio-root .diag-ver { background: var(--studio-surface); padding: var(--studio-sp-12) var(--studio-sp-14); }.studio-root .diag-ver .dv-k { font-size: var(--studio-fs-11); color: var(--studio-text-3); }.studio-root .diag-ver .dv-v { font-family: var(--studio-font-mono); font-size: var(--studio-fs-14); margin-top: 4px; word-break: break-all; }.studio-root .diag-ver .dv-s { font-size: var(--studio-fs-11); color: var(--studio-text-3); margin-top: 4px; }.studio-root .diag-confirm {
+  display: flex; align-items: center; gap: var(--studio-sp-16);
+  padding: var(--studio-sp-12) var(--studio-sp-14);
+  margin-bottom: var(--studio-sp-20);
+  border: 1px solid var(--studio-amber);
+  background: var(--studio-amber-soft);
+  border-radius: var(--studio-r-8);
+}.studio-root .diag-confirm-acts { margin-left: auto; display: flex; gap: var(--studio-sp-8); flex: none; }@media (max-width: 720px) {.studio-root .diag-ver-grid { grid-template-columns: 1fr; }.studio-root .env-summary { flex-wrap: wrap; }.studio-root .env-summary .es-actions { width: 100%; }}.studio-root .diag-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1px;
+  background: var(--studio-border);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8);
+  overflow: hidden;
+  margin-bottom: var(--studio-sp-20);
+}.studio-root .diag-kv .dk { background: var(--studio-surface); padding: var(--studio-sp-10) var(--studio-sp-14); }.studio-root .diag-kv .dk .k { font-size: var(--studio-fs-11); color: var(--studio-text-3); }.studio-root .diag-kv .dk .v { font-family: var(--studio-font-mono); font-size: var(--studio-fs-12); margin-top: 2px; word-break: break-all; }
+/* Capability chip cloud. Each chip previously carried its own
+   `style="margin:0 4px 4px 0"`; a wrapping flex container replaces ~14 inline
+   declarations with one rule. */.studio-root .diag-caps { display: flex; flex-wrap: wrap; gap: var(--studio-sp-4); }.studio-root .diag-err-row { cursor: default; align-items: flex-start; }.studio-root .diag-err-row .prob-msg { flex: 1; min-width: 0; white-space: normal; word-break: break-word; }.studio-root .diag-section { margin-bottom: var(--studio-sp-20); }.studio-root .diag-section > h3 { font-size: var(--studio-fs-14); font-weight: var(--studio-fw-semibold); margin-bottom: var(--studio-sp-8); display: flex; align-items: center; gap: var(--studio-sp-8); }.studio-root .diag-table { width: 100%; border-collapse: collapse; font-size: var(--studio-fs-12); }.studio-root .diag-table th {
+  text-align: left; font-weight: var(--studio-fw-medium); color: var(--studio-text-3);
+  font-size: var(--studio-fs-11); padding: 6px var(--studio-sp-10);
+  border-bottom: 1px solid var(--studio-border);
+}.studio-root .diag-table td { padding: 7px var(--studio-sp-10); border-bottom: 1px solid var(--studio-border); font-family: var(--studio-font-mono); font-size: var(--studio-fs-11); color: var(--studio-text-2); }.studio-root .diag-table tr:last-child td { border-bottom: none; }.studio-root details.diag-advanced { border: 1px solid var(--studio-border); border-radius: var(--studio-r-8); background: var(--studio-surface); }.studio-root details.diag-advanced > summary {
+  list-style: none; cursor: pointer; padding: var(--studio-sp-10) var(--studio-sp-14);
+  font-size: var(--studio-fs-12); font-weight: var(--studio-fw-medium); color: var(--studio-text-2);
+}.studio-root details.diag-advanced > summary::-webkit-details-marker { display: none; }.studio-root details.diag-advanced .da-body { padding: 0 var(--studio-sp-14) var(--studio-sp-12); }
+
+/* ---------- 统计页：整页内嵌原生面板 ----------
+   顶部标签栏以下的整块区域就是原生 `omp stats` 网页本身，不加工具条、不加外框、
+   不留内边距，避免和面板自己已有的头部（范围切换、Sync DB）重复一套控件。 */.studio-root .page-body:has(.stats-page) {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}.studio-root .stats-page { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }.studio-root .stats-frame { position: relative; flex: 1 1 auto; min-height: 0; background: var(--studio-surface); overflow: hidden; }.studio-root .stats-frame-body { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+
+/* 连接中 / 失败态：只在这两种情况下占用整块区域 */.studio-root .stats-overlay {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--studio-sp-8);
+  background: var(--studio-surface); text-align: center; padding: var(--studio-sp-24);
+}.studio-root .stats-overlay-title { font-size: var(--studio-fs-13); font-weight: var(--studio-fw-medium); color: var(--studio-text); }.studio-root .stats-overlay-detail { font-size: var(--studio-fs-12); color: var(--studio-text-3); max-width: 42ch; line-height: 1.6; }.studio-root .stats-spinner {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid var(--studio-border); border-top-color: var(--studio-accent);
+  animation: stats-spin .8s linear infinite;
+}@keyframes stats-spin {to { transform: rotate(360deg); }}.studio-root .stats-fallback {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--studio-sp-8);
+  background: var(--studio-surface); padding: var(--studio-sp-24); text-align: center;
+}.studio-root .stats-fallback-title { font-size: var(--studio-fs-14); font-weight: var(--studio-fw-semibold); color: var(--studio-text); }.studio-root .stats-fallback-detail { font-size: var(--studio-fs-12); color: var(--studio-text-3); max-width: 46ch; line-height: 1.6; }.studio-root .stats-fallback-actions { display: flex; gap: var(--studio-sp-8); margin-top: var(--studio-sp-4); }
+
+/* 预览模式：不伪造内嵌，只给演示汇总 */.studio-root .stats-demo-note { font-size: var(--studio-fs-12); color: var(--studio-text-3); line-height: 1.6; padding: var(--studio-sp-16) var(--studio-sp-24) 0; }.studio-root .stats-demo {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px;
+  margin: var(--studio-sp-12) var(--studio-sp-24) var(--studio-sp-24);
+  background: var(--studio-border); border: 1px solid var(--studio-border); border-radius: var(--studio-r-10); overflow: hidden;
+}.studio-root .stats-demo-cell { background: var(--studio-surface); padding: var(--studio-sp-12) var(--studio-sp-14); display: flex; flex-direction: column; gap: 2px; }.studio-root .stats-demo-cell .l { font-size: var(--studio-fs-11); color: var(--studio-text-3); }.studio-root .stats-demo-cell .v { font-family: var(--studio-font-mono); font-size: var(--studio-fs-16); font-weight: var(--studio-fw-semibold); font-variant-numeric: tabular-nums; }

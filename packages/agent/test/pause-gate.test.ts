@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, agentLoop, agentPauseGate } from "@linxiraos/pi-agent-core";
 import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@linxiraos/pi-agent-core/types";
 import type { Message } from "@linxiraos/pi-ai";

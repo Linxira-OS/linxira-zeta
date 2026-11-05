@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
-import { formatLocalRefPointer, parseLocalRefPointer } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
+import { formatLocalRefPointer, parseLocalRefPointer } from "@linxiraos/zeta-schema";
 import type { Tool, ToolCall } from "@linxiraos/pi-ai/types";
 import {
 	adaptSchemaForStrict,

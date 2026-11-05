@@ -1,6 +1,10 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.15.0
+## Integrated through: v18.16.0
+
+_(`v18.15.0` was the header until 2026-11-05; the v18.16.0 round below merged to
+`main` at `1ea59944579` and shipped as `v1.4.9` (`04fe9e6e0c5`), and is an
+ancestor of the 1.4.10 tree — the header had lagged one round.)_
 
 ## Sync cadence: on demand (2026-10-21 ruling)
 
@@ -263,8 +267,8 @@ merge.
   `providers.openai-codex.daybreak` setting, `SidebarComponent` in
   `modes/types.ts`, `ImageContent` in `slash-commands/types.ts`, and the
   scope/brand map `@oh-my-pi/pi-coding-agent → @linxiraos/zeta`,
-  `@oh-my-pi/omptype → @linxiraos/pi-omptype`,
-  `@oh-my-pi/snapcompact → @linxiraos/pi-snapcompact`,
+  `@oh-my-pi/omptype → @linxiraos/zeta-schema`,
+  `@oh-my-pi/snapcompact → @linxiraos/zeta-compact`,
   `@oh-my-pi/* → @linxiraos/*`. Upstream-added tests were taken as contract,
   then replayed (`PI_CODING_AGENT_DIR → ZETA_CODING_AGENT_DIR`,
   `omp-rpc → zeta-rpc`, `` `omp session lease` → `zetacode session lease` ``,
@@ -1246,7 +1250,7 @@ upstream's change *and* a Zeta-only behaviour merged by hand; `version` = lockfi
 | 5 | `crates/pi-builtins/src/lib.rs` | combine | adds `md5sum`/`sha*sum`/`chmod` module declarations and `nl` | our `nohup` declaration (Zeta-only builtin) | **theirs + ours**: upstream's list is a strict superset (`147 ⊃ 132` modules, identical `#[cfg]` attrs for every shared one), so the file is taken wholesale — which *keeps* `nohup` because upstream has it too |
 | 6 | `packages/agent/src/agent.ts` | mech | adds `openAIResponsesReplaysNativeHistory` import | our `snapcompact` import | upstream's import; our `snapcompact` import **dropped** — upstream's `#syncTokenizer` rewrite (`countsAlike(model, options)`) removed its only use in this file |
 | 7 | `packages/agent/src/compaction/openai.ts` | mech | drops `estimateImageTokens` from the image-tokens import | our import of it | **theirs** — upstream's billing rewrite removed the usage; keeping it would be an unused import |
-| 8 | `packages/agent/src/tokenizer.ts` | mech | new replay/reader imports (`AssistantMessage`, `isColdReplayableResponsesTurn`, `resolveThinkingReplayTokens`, …) | `@oh-my-pi/snapcompact` → `@linxiraos/pi-snapcompact` | upstream's import block + scope map |
+| 8 | `packages/agent/src/tokenizer.ts` | mech | new replay/reader imports (`AssistantMessage`, `isColdReplayableResponsesTurn`, `resolveThinkingReplayTokens`, …) | `@oh-my-pi/snapcompact` → `@linxiraos/zeta-compact` | upstream's import block + scope map |
 | 9 | `packages/agent/test/branch-summarization.test.ts` | mech | adds `getBundledModel` | scope map | upstream + scope map |
 | 10 | `packages/agent/test/image-tokens.test.ts` | mech | adds `countResponsesHistoryTokens`, `Model` | scope map | upstream + scope map |
 | 11 | `packages/agent/test/output-budget.test.ts` | mech | adds `transformMessages` | scope map | upstream + scope map |
@@ -1753,7 +1757,7 @@ node stub (`http_status(web_port, "/__stop")`) — the sibling
   the rest was a rule-based sweep driven by `brand-check`'s own hit list —
   **859 → 0**. Classes worth naming: upstream scope leaks in auto-merged files and
   wholesale-taken tests (`@oh-my-pi/pi-catalog/...`), and `@oh-my-pi/omptype` →
-  `@linxiraos/pi-omptype` (the class-3 rename that is *not* a plain scope swap);
+  `@linxiraos/zeta-schema` (the class-3 rename that is *not* a plain scope swap);
   the cross-face env contract `PI_CODING_AGENT_DIR` → `ZETA_CODING_AGENT_DIR`
   (class 11 — `dirs.ts` reads only `ZETA_*`); `omp` CLI references in
   help/test/prose → `zetacode`; `.omp` fixtures → `.zeta`; relay daemon
@@ -2425,7 +2429,7 @@ gates could not see, and each is now fixed:
 - **Checks (local, pre-PR)**: `check-version-consistency` OK (1.1.14), `check:ts` OK, brand-check 0 hits, zeta-sentinels 46 OK, `cargo fmt --all --check` OK; bucket suites green: catalog 951+ (2 Windows-only `issue-8867` quarantine flakes identical on main), agent 583/583, ai = main baseline (12 Windows-env failures, zero branch-unique after manifest dedupe), coding-agent failure set = main's 134 baseline 卤3 timing-flaky (re-runs flip); web-gateway 30/30 incl. archive. Local native addon for tests copied from the main checkout (class-5 workaround; win32 MSVC link blocked by Git's GNU `link.exe` shadowing PATH 鈥?GNU toolchain works; msvc needs VS Build Tools).
 - **Merge into feature branch**: `ac09144ec9` (`sync/omp-release/v18.1.21` 鈫?`feat/web-ui-next`, non-squash; v21 + release branch both ancestors). Post-merge gates re-run green.
    - **Post-PR CI repairs (rounds 1鈥?, `4d2c42825b` + `a121243641`)**: (a) `bun.lock` carried 641 `registry.npmmirror.com` URLs from the local `~/.npmrc` leak during A5's `bun install` 鈥?normalized to npmjs.org (standing rule); (b) `logger-contract.test.ts` taken from upstream while source writes `zeta.*` prefixes 鈥?restored zeta naming + added a `filenamePrefix: "zeta"` MUST_CONTAIN brand rule (brand-check's `.zeta` rule exempts `/test/` paths, which is why A4 missed it); (c) **torn paste/ask contracts (damage class 9 family, tests-are-contract)**: v21's `beginPaste` paste-reservation (`PasteTarget.beginPaste` + `finishPaste` flow in `handleImagePaste`) and hook-editor ordered-paste were dropped while taking v21's `extension-ui-controller.test.ts` wholesale 鈥?restored v21 source for `input-controller.ts` (paste parts), `hook-editor.ts` (wholesale, imports rekeyed), `ask-dialog.ts` single-multi-question submit jump, plus v21's `ask-dialog.test.ts`; (d) `__omp_*` runtime-global sweep lost in 8 eval/core test files (`__zeta_import__`/`__zeta_helpers__`/`__zeta_session__`/`__zeta_run_id__`/`__zeta_tools__`), while upstream-internal protocol symbols (`__omp_with_call_site__`, `__omp_tool_bridge__`, `__omp_final_expr__` marker) stay upstream-named per source provider 鈥?recorded as damage class #9 in AGENTS.md.
-   - **Post-PR CI repairs (rounds 3鈥?, `49044fae3e` / `56787c2709` / `0908cb7556`; CI green run `35050684923`)**: (a) `nix/bun.nix` was the **pre-merge** stale file (still `@linxiraos/*` workspaces, no `name` attrs) 鈥?regenerated with the canonical CI invocation `bun2nix -l bun.lock -c ../ -o nix/bun.nix`; the intermediate regen WITHOUT `-c ../` emitted `./packages/*` copy paths that don't exist relative to `nix/` (Nix eval `Path does not exist in Git repository`) 鈥?the `-c ../` prefix is load-bearing, not cosmetic; (b) A3's CHANGELOG `## [18.` prune had **over-truncated Zeta's own 1.1.10-and-older sections** (class 4; HEAD was a strict subset of main) 鈥?restored from main; (c) v21 reordered `DEFAULT_COMPACTION_METHOD_ORDER` (shake before soft): merge kept main's `compaction-methods.ts` + v21's `settings-manager.test.ts`, then main's `agent-session-handoff.test.ts` pinned the old order 鈥?took v21 for both test files (handoff import mapped to `@linxiraos/pi-snapcompact`, class-3 mapping); (d) `claude-plugins.test.ts` registry literal `.zeta` 鈫?`.zeta` (source resolves via `getConfigDirName()`); (e) inline python stubs `__omp_display = lambda` in bridge/prelude tests 鈫?`__zeta_display` (prelude.py calls the zeta name); (f) real-browser `pickElectronTarget` trio self-skips under `ZETA_SKIP_REAL_BROWSER=1` (native bucket job only): GH-hosted ubuntu-22.04 resolves system Chrome but CDP never comes up 鈥?**upstream's own ubuntu-22.04 PR run fails identically** (verified run 35045230929); upstream passes only on self-hosted `omp-kata`, which Zeta must not use (class 7).
+   - **Post-PR CI repairs (rounds 3鈥?, `49044fae3e` / `56787c2709` / `0908cb7556`; CI green run `35050684923`)**: (a) `nix/bun.nix` was the **pre-merge** stale file (still `@linxiraos/*` workspaces, no `name` attrs) 鈥?regenerated with the canonical CI invocation `bun2nix -l bun.lock -c ../ -o nix/bun.nix`; the intermediate regen WITHOUT `-c ../` emitted `./packages/*` copy paths that don't exist relative to `nix/` (Nix eval `Path does not exist in Git repository`) 鈥?the `-c ../` prefix is load-bearing, not cosmetic; (b) A3's CHANGELOG `## [18.` prune had **over-truncated Zeta's own 1.1.10-and-older sections** (class 4; HEAD was a strict subset of main) 鈥?restored from main; (c) v21 reordered `DEFAULT_COMPACTION_METHOD_ORDER` (shake before soft): merge kept main's `compaction-methods.ts` + v21's `settings-manager.test.ts`, then main's `agent-session-handoff.test.ts` pinned the old order 鈥?took v21 for both test files (handoff import mapped to `@linxiraos/zeta-compact`, class-3 mapping); (d) `claude-plugins.test.ts` registry literal `.zeta` 鈫?`.zeta` (source resolves via `getConfigDirName()`); (e) inline python stubs `__omp_display = lambda` in bridge/prelude tests 鈫?`__zeta_display` (prelude.py calls the zeta name); (f) real-browser `pickElectronTarget` trio self-skips under `ZETA_SKIP_REAL_BROWSER=1` (native bucket job only): GH-hosted ubuntu-22.04 resolves system Chrome but CDP never comes up 鈥?**upstream's own ubuntu-22.04 PR run fails identically** (verified run 35045230929); upstream passes only on self-hosted `omp-kata`, which Zeta must not use (class 7).
 
 ## v18.1.10 (Zeta 鈥?merged, released as 1.1.9)
 

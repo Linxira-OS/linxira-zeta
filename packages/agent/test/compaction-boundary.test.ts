@@ -5,7 +5,7 @@ import {
 	DEFAULT_COMPACTION_SETTINGS,
 	generateSummary,
 } from "@linxiraos/pi-agent-core/compaction";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import type { Model } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 

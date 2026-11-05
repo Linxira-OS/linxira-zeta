@@ -18,7 +18,7 @@ import { resolveFactoryDroidPolicy } from "@linxiraos/pi-catalog/compat/factory-
 import { resolveInlineImageByteBudget, resolveRequestBodyByteLimit } from "@linxiraos/pi-catalog/compat/request-size";
 import { isRecord } from "@linxiraos/pi-utils";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
-import { capFrameDataBytes, frameDataBytesBudget, providerImageBudget } from "@linxiraos/pi-snapcompact";
+import { capFrameDataBytes, frameDataBytesBudget, providerImageBudget } from "@linxiraos/zeta-compact";
 import { supportsRemoteImageUrls } from "../blob-broker/context-images";
 import { imageDecodeFailureReason } from "@linxiraos/pi-tui/chat/image-loading";
 

@@ -7,7 +7,7 @@ import type {
 	AgentToolUpdateCallback,
 	ToolApprovalDecision,
 } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { VcsGitRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { getWorktreeDir, hashPath, prompt, untilAborted } from "@linxiraos/pi-utils";

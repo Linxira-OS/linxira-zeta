@@ -19,7 +19,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AutocompleteProvider } from "@linxiraos/pi-tui";
 import { logger, TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../src/config/model-registry";

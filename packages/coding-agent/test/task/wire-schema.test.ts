@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { TaskTool, taskSchema } from "@linxiraos/zeta/task";
 import * as discoveryModule from "@linxiraos/zeta/task/discovery";

@@ -11,7 +11,7 @@
  *      user), and either decision tool resets the counter.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import {
 	Agent,
 	type AgentMessage,

@@ -18,7 +18,7 @@ import type { ModelTokenizer } from "@linxiraos/pi-catalog/types";
 import * as natives from "@linxiraos/pi-natives";
 import { materializeString, stringifyJson } from "@linxiraos/pi-utils";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { isEstimateCacheable, messageEstimateVersion } from "./compaction/message-cache";
 import { base64ImageSize, estimateImageTokens, type ImageDetail, type ImageSize } from "./image-tokens";
 import type { AgentMessage } from "./types";

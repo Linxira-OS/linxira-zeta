@@ -12,7 +12,7 @@
  * Compared to AJV this is single-pass, synchronous, dependency-free, and
  * tolerates non-standard shapes (`nullable`) that LLM-emitted schemas carry.
  */
-import { parseLocalRefPointer } from "@linxiraos/pi-omptype";
+import { parseLocalRefPointer } from "@linxiraos/zeta-schema";
 import { isRecord, logger } from "@linxiraos/pi-utils";
 import { areJsonValuesEqual } from "./equality";
 import { stamp } from "./stamps";

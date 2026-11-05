@@ -70,12 +70,12 @@ const CATALOG_KEYS: ReadonlyArray<{ key: string; pkg: string }> = [
 	{ key: "@linxiraos/pi-ai", pkg: "ai" },
 	{ key: "@linxiraos/pi-tui", pkg: "tui" },
 	{ key: "@linxiraos/pi-mnemopi", pkg: "mnemopi" },
-	{ key: "@linxiraos/pi-snapcompact", pkg: "snapcompact" },
+	{ key: "@linxiraos/zeta-compact", pkg: "snapcompact" },
 	{ key: "@linxiraos/pi-stats", pkg: "stats" },
 	{ key: "@linxiraos/zeta", pkg: "coding-agent" },
 	{ key: "@linxiraos/pi-channels", pkg: "channels" },
 	{ key: "@linxiraos/pi-natives", pkg: "natives" },
-	{ key: "@linxiraos/pi-omptype", pkg: "omptype" },
+	{ key: "@linxiraos/zeta-schema", pkg: "omptype" },
 	{ key: "@linxiraos/pi-wire", pkg: "wire" },
 ];
 

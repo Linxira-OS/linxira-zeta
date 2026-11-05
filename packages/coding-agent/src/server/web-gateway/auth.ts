@@ -18,6 +18,7 @@ import type { AuthStorage, OAuthAuthInfo, OAuthPrompt } from "@linxiraos/pi-ai";
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import { getOAuthProviders } from "@linxiraos/pi-ai/registry/oauth";
 import { ModelRegistry } from "../../config/model-registry";
+import { Settings } from "../../config/settings";
 import { defaultOmpAgentDir, probeOmpCompat } from "../../config/omp-compat";
 import { discoverAuthStorage } from "../../sdk";
 
@@ -65,7 +66,13 @@ let sharedRegistry: ModelRegistry | undefined;
 
 export async function getSharedModelRegistry(): Promise<ModelRegistry> {
 	const authStorage = await getSharedAuthStorage();
-	sharedRegistry ??= new ModelRegistry(authStorage);
+	if (sharedRegistry === undefined) {
+		// Hand the process settings to the registry: settings-driven model
+		// behaviour (`compat.importLegacyOmp`, disabled providers) resolves
+		// through the registry's scope, and without one it can only see env vars.
+		const settings = await Settings.current;
+		sharedRegistry = new ModelRegistry(authStorage, undefined, settings ? { settings } : undefined);
+	}
 	return sharedRegistry;
 }
 

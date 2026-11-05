@@ -4,7 +4,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";

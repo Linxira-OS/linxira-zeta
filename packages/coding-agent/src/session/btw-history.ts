@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { type BtwHistoryRecord, type BtwHistoryTurn, getBtwLatestTurn } from "@linxiraos/pi-tui/overlays/btw-history";
 import { acquireFileLock, type FileLockHandle, isEnoent, logger, toError } from "@linxiraos/pi-utils";
 import { writeFileAtomically } from "../utils/atomic-file";

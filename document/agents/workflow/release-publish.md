@@ -19,4 +19,14 @@
 - **新包的引导顺序固定**：先由维护者**手动**发第一个版本（npm 后台 + 2FA），
   再在 npm 后台为该包配置 repository + workflow，之后才允许 CI 自动发布。
   缺任一步，CI 侧只会得到 404。
+- **workspace 发布清单**在 `scripts/ci-release-publish.ts` 的 `packages`
+  （2026-11-05 改名后：`packages/omptype` 发 `@linxiraos/zeta-schema`、
+  `packages/snapcompact` 发 `@linxiraos/zeta-compact`）；以包内 `name` 为准，
+  目录名不随包名改。
+- **冻结 / 暂停面只在 dispatch 时发**：`web-ui`（`@linxiraos/zeta-web`）自
+  2026-11-05 冻结，`release_web_ui_packages` 只在 `publish_web_ui` 输入为真时运行；
+  `@linxiraos/main`（zetawork）暂停，`release_main_packages` 只在
+  `publish_zetawork` 为真时派发 `main-publish.yml`。"链路已接线"不等于"每轮发布"。
+- **产品渲染器不单独发 npm**：`web-app`（`@linxiraos/zeta-web-app`，`private`）
+  随 `zeta serve` / 安装包分发；它的构建门禁在 CI `check` job，不在发布链。
 

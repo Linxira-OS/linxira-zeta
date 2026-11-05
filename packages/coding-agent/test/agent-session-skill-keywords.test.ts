@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";

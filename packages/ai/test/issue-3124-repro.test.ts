@@ -3,7 +3,7 @@ import { streamBedrock } from "@linxiraos/pi-ai/providers/amazon-bedrock";
 import { crc32 } from "@linxiraos/pi-ai/providers/aws-eventstream";
 import type { Context, FetchImpl, Model, Tool } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 const originalSkipAuth = process.env.AWS_BEDROCK_SKIP_AUTH;
 

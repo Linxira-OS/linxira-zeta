@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { Effort } from "@linxiraos/pi-catalog/effort";
 import { streamFactoryDroid } from "../src/providers/factory-droid";
 import type { Context, Message } from "../src/types";

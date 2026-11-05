@@ -6,7 +6,7 @@
  * behavior they have in the TUI.
  */
 import { afterAll, afterEach, beforeAll, expect, it, spyOn } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, type AgentTool, type AgentToolContext } from "@linxiraos/pi-agent-core";
 import { createMockModel, type MockModelOptions } from "@linxiraos/pi-ai/providers/mock";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";

@@ -1,5 +1,5 @@
 import * as vcs from "@linxiraos/pi-natives/vcs";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { CustomTool } from "../../../extensibility/custom-tools/types";
 
 const recentCommitsSchema = type({

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { streamBedrock } from "@linxiraos/pi-ai/providers/amazon-bedrock";
 import type { AssistantMessage, Context, Model, Tool } from "@linxiraos/pi-ai/types";
 import { Effort } from "@linxiraos/pi-catalog/effort";

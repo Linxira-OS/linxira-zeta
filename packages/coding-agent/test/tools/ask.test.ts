@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
 import { stripVTControlCharacters } from "node:util";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { agentLoop, type AgentToolContext } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { AgentLoopConfig } from "@linxiraos/pi-agent-core/types";

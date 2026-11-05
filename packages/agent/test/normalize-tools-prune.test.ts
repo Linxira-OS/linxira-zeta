@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent } from "@linxiraos/pi-agent-core";
 import { normalizeTools } from "@linxiraos/pi-agent-core/agent-loop";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";

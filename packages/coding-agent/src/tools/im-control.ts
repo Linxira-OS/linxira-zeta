@@ -9,7 +9,7 @@
  */
 
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { ImControlParams } from "../channels/im-control";
 import imControlDescription from "../prompts/tools/im-control.md" with { type: "text" };
 import type { ToolSession } from "./index";

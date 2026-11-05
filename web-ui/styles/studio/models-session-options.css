@@ -1,0 +1,135 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+.studio-root .session-options {
+  display: grid;
+  gap: var(--studio-sp-16);
+  margin: var(--studio-sp-20) 0;
+}
+.studio-root .session-options-card {
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-12);
+  background: var(--studio-surface);
+  padding: var(--studio-sp-20);
+  min-width: 0;
+}
+.studio-root .session-options-card h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  margin: 0 0 var(--studio-sp-16);
+  font-size: var(--studio-fs-14);
+}
+.studio-root .session-options-card p {
+  font-size: var(--studio-fs-12);
+  line-height: 1.7;
+  margin: var(--studio-sp-12) 0 0;
+}
+.studio-root .session-options-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--studio-sp-20);
+  align-items: end;
+}
+.studio-root .session-options-row label {
+  display: grid;
+  gap: var(--studio-sp-8);
+  font-size: var(--studio-fs-12);
+  min-width: 160px;
+  max-width: 100%;
+}
+.studio-root .session-options-row .mono {
+  overflow-wrap: anywhere;
+}
+.studio-root .session-options-row .session-options-check {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}
+.studio-root .session-options-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--studio-sp-12);
+  font-size: var(--studio-fs-12);
+  margin-top: var(--studio-sp-16);
+  overflow-wrap: anywhere;
+}
+.studio-root .session-options-error {
+  color: var(--studio-red);
+}
+.studio-root .session-options-confirm {
+  padding: var(--studio-sp-20);
+  border: 1px solid var(--studio-accent);
+  border-radius: var(--studio-r-12);
+  background: var(--studio-surface);
+}
+.studio-root .session-options-confirm .btn {
+  margin-right: var(--studio-sp-8);
+}
+.studio-root .model-presets {
+  display: grid;
+  grid-template-columns: minmax(180px, 25%) minmax(0, 1fr);
+  gap: var(--studio-sp-24);
+  margin: var(--studio-sp-20) 0;
+}
+.studio-root .model-presets-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--studio-sp-6);
+}
+.studio-root .model-presets-list > button {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  padding: var(--studio-sp-12);
+  color: var(--studio-text);
+  border: 0;
+  border-radius: var(--studio-r-8);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.studio-root .model-presets-list > button[aria-pressed="true"] {
+  background: var(--studio-accent-soft);
+  color: var(--studio-accent);
+}
+.studio-root .model-presets-list > button:hover {
+  background: var(--studio-surface-hover);
+}
+.studio-root .model-presets-detail {
+  min-width: 0;
+}
+.studio-root .model-presets-detail dl {
+  display: grid;
+  grid-template-columns: minmax(90px, 25%) minmax(0, 1fr);
+  gap: var(--studio-sp-12);
+  font-size: var(--studio-fs-12);
+}
+.studio-root .model-presets-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 850px) {
+  .studio-root .model-presets {
+    grid-template-columns: 1fr;
+  }
+  .studio-root .model-presets-list {
+    max-height: 180px;
+    overflow: auto;
+  }
+}
+.studio-root .native-preference-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--studio-sp-8);
+}
+.studio-root .native-preference-controls .input {
+  max-width: 100px;
+}
+.studio-root .native-preference-controls details {
+  flex-basis: 100%;
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+  text-align: right;
+}

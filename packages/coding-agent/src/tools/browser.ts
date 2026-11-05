@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { isRecord, logger, untilAborted } from "@linxiraos/pi-utils";
 import type { EvalPreludeContext, EvalPreludeDefinition } from "../eval/preludes";

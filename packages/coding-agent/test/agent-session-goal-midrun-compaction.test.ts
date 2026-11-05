@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";

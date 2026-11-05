@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import { completeSimple, Effort, type Model, retryTransientCompletion } from "@linxiraos/pi-ai";
 import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";

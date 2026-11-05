@@ -16,7 +16,7 @@
  */
 
 import { cfgLaunchEnabled } from "../settings";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type {
 	AgentTool,
 	AgentToolContext,

@@ -66,6 +66,8 @@ import {
 	type TerminalWsData,
 } from "./web-gateway/terminal";
 import { registerServeInstanceUrls } from "./web-gateway/identity";
+import { resolveStudioWebAppDir, serveStudioWebApp } from "./studio-web-app";
+import { isStudioRequest, isStudioWsUpgradeRequest, studioHost } from "./studio-host";
 import { startRpcSession } from "./web-gateway/agents";
 import { serveSessionClient } from "./web-gateway/desktop";
 import { getSharedModelRegistry } from "./web-gateway/auth";
@@ -120,7 +122,7 @@ export interface ZetaServerInstance {
 
 /** The classification result for an incoming request path. */
 export interface ZetaServerRoute {
-	type: "stats" | "gateway" | "webui" | "unavailable";
+	type: "stats" | "gateway" | "webui" | "webapp" | "studio" | "unavailable";
 }
 
 /**
@@ -176,14 +178,12 @@ color:color-mix(in srgb,CanvasText 65%,Canvas);margin-bottom:.6rem}
 </main></html>`;
 
 const NEXT_OWNED_API_PREFIXES = [
-	"/api/fs/",
-	"/api/files/",
-	"/api/cwd/",
-	"/api/git/",
+	// The workspace/file family moved in-process (web-gateway/files.ts,
+	// cwd.ts, file-index.ts) and so did the git read family (git-reads.ts):
+	// the renderer is served from this origin and must not depend on a Next
+	// child that may not be running.
 	"/api/home",
-	"/api/default-cwd",
 	"/api/worktrees",
-	"/api/file-index",
 	"/api/webui/",
 	// Plugin pages are Next-owned: discovery (`/api/plugin-pages`) and the
 	// package's own assets (`/api/plugin-assets/<plugin>/<path>`). Without
@@ -198,8 +198,19 @@ const NEXT_OWNED_API_PREFIXES = [
  * Extracted as a standalone function so routing logic can be tested without
  * a running Bun.serve server.
  */
-export function classifyRequest(req: Request, webUiPort: number, gatewayRunning = false): ZetaServerRoute {
+export function classifyRequest(
+	req: Request,
+	webUiPort: number,
+	gatewayRunning = false,
+	webAppAvailable = false,
+): ZetaServerRoute {
 	const path = new URL(req.url).pathname;
+
+	// The Studio host owns `/health` and the whole `/api/v1/*` surface the
+	// renderer speaks; no other route may answer them.
+	if (isStudioRequest(req)) {
+		return { type: "studio" };
+	}
 
 	if (path.startsWith("/api/stats") || path === "/api/sync" || path.startsWith("/api/request/")) {
 		return { type: "stats" };
@@ -211,6 +222,13 @@ export function classifyRequest(req: Request, webUiPort: number, gatewayRunning 
 			return webUiPort > 0 ? { type: "webui" } : { type: "unavailable" };
 		}
 		return gatewayRunning ? { type: "gateway" } : { type: "unavailable" };
+	}
+
+	// The renderer build is the product surface now: serve it from the same
+	// origin (with history fallback) and keep the legacy Next child as the
+	// fallback for installs that still ship it.
+	if (webAppAvailable) {
+		return { type: "webapp" };
 	}
 
 	if (webUiPort > 0) {
@@ -398,6 +416,8 @@ export class ZetaServer {
 	/** Upper bound a remote plan waits for an approval reply before expiring. */
 	static readonly PLAN_APPROVAL_TTL_MS = 30 * 60_000;
 	#webUiPort = 0;
+	/** `web-app/dist` when this install has a renderer build; `null` otherwise. */
+	readonly #webAppDir = resolveStudioWebAppDir();
 	#running = false;
 
 	constructor(options: ZetaServerOptions = {}) {
@@ -1256,6 +1276,7 @@ export class ZetaServer {
 	#createMainServer(): ReturnType<typeof Bun.serve> {
 		const { port, statsPort } = this.#options;
 		const webUiPort = this.#webUiPort;
+		const webAppDir = this.#webAppDir;
 		const webUiInternal = `http://127.0.0.1:${webUiPort}`;
 		const statsInternal = `http://127.0.0.1:${statsPort}`;
 		// The gateway dispatcher lives in-process; the standalone listener is
@@ -1288,19 +1309,37 @@ export class ZetaServer {
 			idleTimeout: 0,
 			// Terminal data plane (spec §15): the one WebSocket surface; auth
 			// (loopback / one-time ticket) lives in handleTerminalWsUpgrade.
-			websocket: terminalWebSocketHandler,
+			websocket: {
+				open(ws) {
+					if (ws.data.kind === "studio") return;
+					terminalWebSocketHandler.open?.(ws);
+				},
+				message(ws, message) {
+					if (ws.data.kind === "studio") return;
+					terminalWebSocketHandler.message?.(ws, message);
+				},
+				close(ws) {
+					if (ws.data.kind === "studio") return;
+					terminalWebSocketHandler.close?.(ws, 1000, "");
+				},
+			},
 			async fetch(req, srv) {
 				const remoteAddr = srv?.requestIP(req)?.address;
 
-				// Terminal WS upgrades must short-circuit before classifyRequest:
-				// they are GETs on /api/* that webGatewayFetch cannot answer.
+				// Studio event sockets, then terminal WS upgrades, short-circuit
+				// before classifyRequest: they are GETs that the REST handlers
+				// cannot answer.
+				if (isStudioWsUpgradeRequest(req)) {
+					const response = studioHost().upgrade(req, srv);
+					return response ?? new Response(null);
+				}
 				if (gatewayRunning && isTerminalWsUpgradeRequest(req)) {
 					const response = await handleTerminalWsUpgrade(req, srv, remoteAddr);
 					// Null means the socket was upgraded; the fetch result is moot.
 					return response ?? new Response(null);
 				}
 
-				const route = classifyRequest(req, webUiPort, gatewayRunning);
+				const route = classifyRequest(req, webUiPort, gatewayRunning, webAppDir !== null);
 
 				switch (route.type) {
 					case "stats": {
@@ -1314,6 +1353,11 @@ export class ZetaServer {
 					}
 					case "gateway":
 						return webGatewayFetch(req, remoteAddr);
+					case "studio":
+						return studioHost().handle(req);
+					case "webapp":
+						// `webAppDir` is non-null whenever this route was chosen.
+						return serveStudioWebApp(req, webAppDir!);
 					case "webui":
 						return proxyRequest(req, webUiInternal);
 					case "unavailable":

@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { calculateCost } from "@linxiraos/pi-catalog/models";
 import type { Api, FetchImpl, Model, Usage } from "@linxiraos/pi-catalog/types";
 import { type ApiKey, withAuth } from "../auth-retry";

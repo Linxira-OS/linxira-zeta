@@ -5,9 +5,9 @@
  * Unlike markdown commands which expand to prompts, custom commands can execute
  * arbitrary logic with full access to the hook context.
  */
-import type { type as ArkType } from "@linxiraos/pi-omptype";
-import type * as TypeBox from "@linxiraos/pi-omptype/typebox";
-import type * as zod from "@linxiraos/pi-omptype/zod";
+import type { type as ArkType } from "@linxiraos/zeta-schema";
+import type * as TypeBox from "@linxiraos/zeta-schema/typebox";
+import type * as zod from "@linxiraos/zeta-schema/zod";
 import type { ExtensionUIContext } from "../extensions/types";
 import type { ExecOptions, ExecResult, HookCommandContext } from "../../extensibility/hooks/types";
 import type { AutocompleteItem } from "@linxiraos/pi-tui";

@@ -56,9 +56,14 @@ Build time belongs in the changelog and the git tag, not the version.
   Rust/cross/native compilation; native addons from main's cache or npm), main
   pushes run the full gate, and release runs skip the test fan-out. See
   [`ci-tiers.md`](./ci-tiers.md).
+- **Two publish legs are suspended (2026-11-05)**: `release_web_ui_packages`
+  (`@linxiraos/zeta-web`) and `release_main_packages` (`@linxiraos/main` +
+  leaves) only run when a dispatch sets `publish_web_ui` / `publish_zetawork`.
+  The renderer moved to `web-app` inside the CLI and `zetawork` is paused
+  (roadmap P0, 2026-11-05); the `web_ui_build` job was retired with its gate.
+  The manual `main-publish.yml` / `ci:release:publish-web-ui` paths are intact.
 - `.github/workflows/ci.yml` is the **only** workflow GitHub executes. It
-  covers the Bun workspace, crates, desktop, install methods, and web-ui
-  checks. `web-ui/` must never add its own `.github/` workflow (subdirectory
+  covers the Bun workspace, crates, desktop, and install methods. `web-ui/` must never add its own `.github/` workflow (subdirectory
   workflows are never triggered); new web-ui checks go into the root CI. The
   same rule fixes where its publish leg can live: `release_web_ui_packages`
   runs as a job inside `ci.yml` (damage class 12), so the npm trusted publisher

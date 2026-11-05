@@ -5,7 +5,7 @@ import {
 } from "@linxiraos/pi-tui/tools/autoresearch";
 import { initExperimentToolRenderer } from "@linxiraos/pi-tui/tools/autoresearch";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 
 import type { ToolDefinition } from "../../extensibility/extensions";

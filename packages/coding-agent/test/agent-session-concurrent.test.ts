@@ -7,7 +7,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Agent, AgentBusyError, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, AssistantMessageEvent, ToolCall } from "@linxiraos/pi-ai";
 import {

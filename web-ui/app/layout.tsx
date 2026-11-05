@@ -4,6 +4,9 @@ import { ThemeSystemProvider } from "@/contexts/ThemeSystemProvider";
 import { PwaRegistrar } from "@/components/PwaRegistrar";
 import { getThemeBootstrapScript } from "@/lib/theme/bootstrap";
 import "./globals.css";
+// Studio surface (product UI layer). Scoped under `.studio-root`; imported
+// after globals so its own vocabulary wins inside the shell.
+import "../styles/studio/index.css";
 
 export const metadata: Metadata = {
   title: "Zeta Web",

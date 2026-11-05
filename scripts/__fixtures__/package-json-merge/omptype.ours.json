@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@linxiraos/pi-omptype",
+  "name": "@linxiraos/zeta-schema",
   "version": "1.2.1",
   "description": "ArkType-compatible runtime schema validation with lazy JIT compilation",
   "homepage": "https://linxira-os.github.io/zeta/",

@@ -17,6 +17,7 @@ import { randomUUID } from "node:crypto";
 import { statSync } from "node:fs";
 import { unlink } from "node:fs/promises";
 import type { ImageContent } from "@linxiraos/pi-ai";
+import { AgentBusyError } from "@linxiraos/pi-agent-core";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
@@ -46,7 +47,7 @@ import type { GoalModeState } from "../../goals/state";
 import type { LocalProtocolOptions } from "../../internal-urls";
 import type { PlanModeState } from "../../plan-mode/state";
 import { createAgentSession } from "../../sdk";
-import type { AgentSession, ModeId } from "../../session/agent-session";
+import { SessionBusyError, type AgentSession, type ModeId } from "../../session/agent-session";
 import type { AgentSessionEvent } from "../../session/agent-session-events";
 import type { SessionClient } from "../../session/session-entries";
 import { SessionManager } from "../../session/session-manager";
@@ -82,6 +83,7 @@ const DRAIN_BLOCKED_COMMANDS = new Set<AgentCommand["type"]>([
 	"prompt",
 	"steer",
 	"follow_up",
+	"continue",
 	"compact",
 	"guided_goal",
 ]);
@@ -107,6 +109,7 @@ export type AgentCommand =
 	| { type: "steer"; text: string; images?: unknown[] }
 	| { type: "follow_up"; text: string; images?: unknown[] }
 	| { type: "abort" }
+	| { type: "continue" }
 	| { type: "get_state" }
 	| { type: "set_model"; provider: string; modelId: string }
 	| { type: "fork"; entryId: string }
@@ -760,6 +763,25 @@ export class AgentSessionWrapper {
 				this.#goalController.stopForHostAbort();
 				this.#inner.abort();
 				return { ok: true };
+			case "continue": {
+				// Resume the turn that stopped without a final report (an operator
+				// abort, a provider failure, or a turn recovery still owes an answer).
+				// `resume()` is the operator's `.`/`c` shortcut: it re-runs an
+				// unanswered prompt ("restored") or injects the hidden synthetic
+				// continue ("continue"), so no user message enters the transcript.
+				try {
+					const mode = await this.#inner.resume();
+					return { started: true, mode };
+				} catch (error) {
+					if (error instanceof Error && error.message === "Nothing to resume") {
+						return { started: false, mode: "none" };
+					}
+					if (error instanceof AgentBusyError) {
+						throw new SessionBusyError("continue the interrupted turn");
+					}
+					throw error;
+				}
+			}
 			case "get_state":
 				return this.#getState();
 			case "set_model": {

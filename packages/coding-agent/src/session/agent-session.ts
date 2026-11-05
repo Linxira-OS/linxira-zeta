@@ -165,7 +165,7 @@ import {
 	withFileLock,
 } from "@linxiraos/pi-utils";
 import { writeArchive } from "@linxiraos/pi-utils/ar";
-import { frameDataBytesBudget, readerIncludesThinking } from "@linxiraos/pi-snapcompact";
+import { frameDataBytesBudget, readerIncludesThinking } from "@linxiraos/zeta-compact";
 import type { AdvisorConfig } from "@linxiraos/pi-tui/overlays/advisor-config";
 import { formatUsageResetWindow } from "@linxiraos/pi-tui/overlays/usage-display";
 import { loadAdvisorTranscriptCosts } from "../advisor";
@@ -8995,10 +8995,13 @@ export class AgentSession implements SettingsScope {
 	 * directive asks the model to pick its work back up. An empty conversation
 	 * cannot be continued.
 	 *
+	 * @returns `"restored"` when recovery had a turn to re-run, `"continue"` when
+	 * the hidden synthetic continue was sent. Callers that only drive the turn
+	 * may ignore it; the Studio host reports it as `ContinueTurnOutcome.mode`.
 	 * @throws {AgentBusyError} while a turn runs.
 	 * @throws {Error} when there is no conversation to resume.
 	 */
-	async resume(): Promise<void> {
+	async resume(): Promise<"restored" | "continue"> {
 		const prompt = this.#recovery.prepareResume();
 		if (!prompt) {
 			if (!this.agent.state.messages.some(message => message.role === "user")) {
@@ -9009,12 +9012,13 @@ export class AgentSession implements SettingsScope {
 				userInitiated: true,
 				expandPromptTemplates: false,
 			});
-			return;
+			return "continue";
 		}
 		this.#noteUserTurn();
 		this.#todo.resetCycle();
 		this.#resetPromptMaintenanceState();
 		this.#scheduleAgentContinue({ source: "manual-continue", turnRecords: [prompt] });
+		return "restored";
 	}
 
 	/**

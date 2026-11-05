@@ -5,7 +5,7 @@
  * providers with provider-specific parameters exposed conditionally.
  */
 
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { Api, AuthStorage, Model } from "@linxiraos/pi-ai";
 import { modelKind } from "@linxiraos/pi-catalog/types";

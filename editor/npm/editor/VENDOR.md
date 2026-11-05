@@ -3,7 +3,7 @@
 | 项         | 值                                                                 |
 | ---------- | ------------------------------------------------------------------ |
 | 载荷       | Zeta 内置编辑器：vendored TermIDE（`termide/`）的 `panel-editor`，编为**编辑器专用入口** `termide-editor` |
-| 上游仓库   | https://github.com/termide/termide（快照 tag `0.41.0`）             |
+| 上游仓库   | https://github.com/termide/termide（当前快照 tag `0.46.0` = `a027ca788cd4c9d24f060cdcd3195ca2e475617b`；上一快照 `0.41.0`） |
 | 协议       | MIT（上游版权行 + Linxira-OS 发行行，见本目录 `LICENSE`）           |
 | 载荷引入   | 2026-10-17（此前的 vendored TTT Editor／Go 载荷于 2026-10-16 退场） |
 | npm 包     | `@linxiraos/editor`（launcher，无 `bin`）+ 平台叶 `@linxiraos/editor-{windows,linux}-x64` |

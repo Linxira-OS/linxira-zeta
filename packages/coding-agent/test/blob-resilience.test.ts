@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import type { Context, ImageContent, Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { type BlobBackend, LocalBlobBackend } from "../src/blob-broker/broker";
 import { probeExposureHealth } from "../src/blob-broker/exposure";
 import type { BlobBrokerWorkerConfig } from "../src/blob-broker/protocol";

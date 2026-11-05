@@ -1,4 +1,4 @@
-import { type NarrowContext, type } from "@linxiraos/pi-omptype";
+import { type NarrowContext, type } from "@linxiraos/zeta-schema";
 import { MODEL_KINDS, RUNNER_API_KINDS } from "@linxiraos/pi-catalog/types";
 import { once } from "@linxiraos/pi-utils";
 

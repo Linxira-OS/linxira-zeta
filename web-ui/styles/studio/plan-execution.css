@@ -1,0 +1,26 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+.studio-root .plan-execution {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--studio-sp-8) var(--studio-sp-16);
+  padding: var(--studio-sp-12) var(--studio-sp-16);
+  border-top: 1px solid var(--studio-border);
+  background: var(--studio-surface);
+}
+.studio-root .plan-execution label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--studio-sp-12);
+  font-size: var(--studio-fs-12);
+}
+.studio-root .plan-execution .select {
+  max-width: 300px;
+}
+.studio-root .plan-execution-detail {
+  color: var(--studio-text-muted);
+  font-size: var(--studio-fs-11);
+  overflow-wrap: anywhere;
+}

@@ -406,14 +406,14 @@
   "@linxiraos/pi-metaharness" = copyPathToStore ../packages/metaharness;
   "@linxiraos/pi-mnemopi" = copyPathToStore ../packages/mnemopi;
   "@linxiraos/pi-natives" = copyPathToStore ../packages/natives;
-  "@linxiraos/pi-omptype" = copyPathToStore ../packages/omptype;
-  "@linxiraos/pi-snapcompact" = copyPathToStore ../packages/snapcompact;
   "@linxiraos/pi-stats" = copyPathToStore ../packages/stats;
   "@linxiraos/pi-tui" = copyPathToStore ../packages/tui;
   "@linxiraos/pi-utils" = copyPathToStore ../packages/utils;
   "@linxiraos/pi-wire" = copyPathToStore ../packages/wire;
   "@linxiraos/typescript-edit-benchmark" = copyPathToStore ../packages/typescript-edit-benchmark;
   "@linxiraos/zeta" = copyPathToStore ../packages/coding-agent;
+  "@linxiraos/zeta-compact" = copyPathToStore ../packages/snapcompact;
+  "@linxiraos/zeta-schema" = copyPathToStore ../packages/omptype;
   "@napi-rs/cli@3.7.2" = fetchurl {
     url = "https://registry.npmjs.org/@napi-rs/cli/-/cli-3.7.2.tgz";
     hash = "sha512-shDW0Td/XZQpP04Yy+OsMt1ILMKGGkoLcy1zVAsSAK0fLfWm0Upgkmfs/NOV2ZhMQwkgpR3ZEdyHmTwgrUDQuA==";

@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { SpinnerFramesOverride } from "./symbols";
 import type { ThemeJson } from "./schema";
 

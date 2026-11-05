@@ -7,7 +7,7 @@
  */
 
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { getSSHConfigPath, ptree } from "@linxiraos/pi-utils";
 import sshExecDescription from "../prompts/tools/ssh-exec.md" with { type: "text" };
 import { readSSHConfigFile } from "../ssh/config-writer";

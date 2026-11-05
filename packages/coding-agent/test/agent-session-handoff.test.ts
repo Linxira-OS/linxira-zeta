@@ -16,7 +16,7 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { SessionMaintenance } from "@linxiraos/zeta/session/session-maintenance";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { TempDir } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 
 import {
 	cfgCompactionEnabled,

@@ -69,7 +69,7 @@ import { resolvePromptCacheLookback } from "@linxiraos/pi-catalog/compat/prompt-
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import type { CatalogPolicyInputs } from "@linxiraos/pi-catalog/types";
 import { isRecord, logger, prompt, Snowflake, toError } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { writeArtifact } from "./artifacts";
 import type { ModelRegistry } from "../config/model-registry";
 import { CHAT_MODEL_ROLE_IDS } from "../config/model-roles";

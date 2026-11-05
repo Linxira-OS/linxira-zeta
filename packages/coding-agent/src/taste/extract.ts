@@ -15,7 +15,7 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import { completeSimple, Effort, retryTransientCompletion } from "@linxiraos/pi-ai";
 import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { getSegmenter } from "@linxiraos/pi-tui";
 import { logger, prompt } from "@linxiraos/pi-utils";
 

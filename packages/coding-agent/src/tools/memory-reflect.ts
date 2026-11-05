@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { logger, prompt, untilAborted, toError } from "@linxiraos/pi-utils";
 import { isHindsightConfigured, loadHindsightConfig } from "../hindsight/config";

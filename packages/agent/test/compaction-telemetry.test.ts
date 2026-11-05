@@ -16,7 +16,7 @@ import {
 	generateHandoff,
 	generateSummary,
 } from "@linxiraos/pi-agent-core/compaction";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import {
 	type AgentTelemetryConfig,
 	GenAIAttr,

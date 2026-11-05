@@ -29,7 +29,8 @@ import { hostIsLoopback, isAllowedOrigin } from "../web-gateway";
 /** WebSocket `data` for this plane. Structurally the terminal plane's shape:
  *  one listener serves both and `kind` routes the socket. */
 export interface RpcWsData {
-	kind?: "terminal" | "rpc";
+	/** `studio` sockets belong to the renderer event feed; never dispatched here. */
+	kind?: "terminal" | "rpc" | "studio";
 	sessionId: string;
 }
 

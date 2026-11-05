@@ -1,0 +1,25 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+.studio-root .runtime-mcp-rows > div:has(> .mcp-auth-actions) {
+  flex-wrap: wrap;
+}
+.studio-root .mcp-auth-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-basis: 100%;
+  min-width: 0;
+}
+.studio-root .mcp-auth-buttons,
+.studio-root .mcp-auth-confirm,
+.studio-root .mcp-auth-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.studio-root .mcp-auth-url code {
+  word-break: break-all;
+  user-select: text;
+}

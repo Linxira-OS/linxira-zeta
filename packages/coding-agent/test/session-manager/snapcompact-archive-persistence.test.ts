@@ -5,7 +5,7 @@ import * as path from "node:path";
 import type { Message } from "@linxiraos/pi-ai";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 
 const TRUNCATION_NOTICE = "[Session persistence truncated large content]";
 const NEWEST_SENTINEL = "NEWEST ARCHIVED TURN SENTINEL";

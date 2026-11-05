@@ -57,7 +57,6 @@ const EXCLUDED: Record<string, string> = {
 /** ci.yml job id → local-ci job id. */
 const MIRRORED: Record<string, string> = {
 	check: "check",
-	web_ui_build: "web_ui_build",
 	bazel_lock: "bazel_lock",
 	rust_validate: "rust_validate",
 	native_addons: "native_addons",

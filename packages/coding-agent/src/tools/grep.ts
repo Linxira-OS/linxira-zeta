@@ -2,7 +2,7 @@ import type { GrepToolDetails } from "@linxiraos/pi-tui/tools/grep";
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type {
 	AgentTool,
 	AgentToolContext,

@@ -15,7 +15,7 @@ import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { computeNonMessageTokens } from "@linxiraos/pi-tui/status-line/context-usage";
 import { getProjectAgentDir, TempDir } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 
 /**
  * Regression test for the snapcompact frame dead-end.

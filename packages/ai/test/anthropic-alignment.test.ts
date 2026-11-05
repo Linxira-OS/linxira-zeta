@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as tls from "node:tls";
-import { type as arkType } from "@linxiraos/pi-omptype";
+import { type as arkType } from "@linxiraos/zeta-schema";
 import { Effort } from "@linxiraos/pi-ai";
 import { NO_AUTH_SENTINEL } from "@linxiraos/pi-ai/auth-retry";
 import {

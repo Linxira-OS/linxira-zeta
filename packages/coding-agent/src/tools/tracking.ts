@@ -9,7 +9,7 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { Component } from "@linxiraos/pi-tui";
 import { Text } from "@linxiraos/pi-tui";
 import { getProjectTrackingDir, getTrackingIndexPath, logger } from "@linxiraos/pi-utils";

@@ -8,7 +8,7 @@
  * `message_start`/`message_end` — symmetric with the done/error-event path.
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
 import type {
 	AgentContext,

@@ -3,7 +3,7 @@ import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
 import type { AgentContext, AgentLoopConfig, AgentMessage, AgentTool } from "@linxiraos/pi-agent-core/types";
 import type { AssistantMessage, Context, Message, TextContent, ToolResultMessage } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { createUserMessage } from "./helpers";
 
 function identityConverter(messages: AgentMessage[]): Message[] {

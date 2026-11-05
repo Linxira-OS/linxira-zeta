@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { scope, type } from "@linxiraos/pi-omptype/ark";
+import { scope, type } from "@linxiraos/zeta-schema/ark";
 import type { Eq } from "./type-assert";
 
 it("root expression", () => {

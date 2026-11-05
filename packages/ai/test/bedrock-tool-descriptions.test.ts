@@ -5,7 +5,7 @@
 // serializing the pruned "" made AWS reject the whole request with HTTP 400.
 // The provider must omit the key instead of sending an empty string.
 import { describe, expect, it, vi } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { streamBedrock } from "@linxiraos/pi-ai/providers/amazon-bedrock";
 import type { Context, Model, Tool } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";

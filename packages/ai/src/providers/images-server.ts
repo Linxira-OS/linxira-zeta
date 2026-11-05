@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import * as AIError from "../error";
 import { isDataUrlMimeType } from "../images/shared";
 import type { ImageGenerationRequest, ImageGenerationResult } from "../images/types";

@@ -11,7 +11,7 @@ import type {
 	TextContent,
 } from "@linxiraos/pi-ai";
 import { isRecord, logger } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import type { ModelRegistry } from "../config/model-registry";
 import { formatModelString } from "../config/model-resolver";
 import type { Settings } from "../config/settings";

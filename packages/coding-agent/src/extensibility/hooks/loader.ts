@@ -2,8 +2,8 @@
  * Hook loader - loads TypeScript hook modules using native Bun import.
  */
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
-import * as zod from "@linxiraos/pi-omptype/zod";
+import { type } from "@linxiraos/zeta-schema";
+import * as zod from "@linxiraos/zeta-schema/zod";
 import { logger } from "@linxiraos/pi-utils";
 import { hookCapability } from "../../capability/hook";
 import type { Hook } from "../../discovery";

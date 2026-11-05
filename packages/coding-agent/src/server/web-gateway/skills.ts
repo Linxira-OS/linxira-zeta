@@ -12,6 +12,8 @@
  */
 
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import * as path from "node:path";
+import { openPath } from "../../utils/open";
 import { logger } from "@linxiraos/pi-utils";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { Settings } from "../../config/settings";
@@ -82,6 +84,50 @@ export async function handleSkillsGet(req: Request): Promise<Response> {
 	if (!isDirectory(cwd)) return json({ error: "Access denied" }, 403);
 	try {
 		return json(await loadSkills(cwd));
+	} catch (e) {
+		return json({ error: String(e) }, 500);
+	}
+}
+
+/**
+ * POST /api/skills/reveal — `{ cwd, name, scope? }` opens the folder of ONE
+ * skill in the OS file manager.
+ *
+ * The client never sends a path: the skill is resolved through the same scan
+ * `GET /api/skills` uses, and the resolved folder must sit inside one of the
+ * roots that scan can read (the project tree or the agent dir). Anything else —
+ * a name that is not in the scan, a folder outside those roots, a missing
+ * directory — is refused, so this route cannot be turned into "open any path".
+ */
+export async function handleSkillsReveal(req: Request): Promise<Response> {
+	try {
+		const body = (await req.json()) as { cwd?: unknown; name?: unknown; scope?: unknown; root?: unknown };
+		const cwd = typeof body.cwd === "string" ? body.cwd : "";
+		const name = typeof body.name === "string" ? body.name : "";
+		const scope = typeof body.scope === "string" ? body.scope : undefined;
+		if (!cwd) return json({ error: "cwd required" }, 400);
+		if (body.root !== true && !name) return json({ error: "name required" }, 400);
+		if (!isDirectory(cwd)) return json({ error: "Access denied" }, 403);
+		const agentDir = getAgentDir();
+		// `root: true` reveals the scanned skill roots themselves (the capability
+		// page's "open skills folder"), which is one of the same two directories.
+		if (body.root === true) {
+			const target = scope === "user" ? path.join(agentDir, "skills") : path.join(cwd, ".zeta", "skills");
+			if (!isDirectory(target)) return json({ error: "not_found" }, 404);
+			openPath(target);
+			return json({ ok: true });
+		}
+		const { skills } = await loadSkills(cwd);
+		const match = skills.find(
+			skill => skill.name === name && (scope === undefined || skill.sourceInfo.scope === scope),
+		);
+		if (!match) return json({ error: "not_found" }, 404);
+		const folder = path.dirname(match.filePath);
+		const roots = [path.resolve(cwd), path.resolve(agentDir)];
+		const inside = roots.some(root => folder === root || folder.startsWith(root + path.sep));
+		if (!inside || !isDirectory(folder)) return json({ error: "forbidden" }, 403);
+		openPath(folder);
+		return json({ ok: true });
 	} catch (e) {
 		return json({ error: String(e) }, 500);
 	}

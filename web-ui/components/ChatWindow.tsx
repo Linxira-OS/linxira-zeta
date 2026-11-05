@@ -26,7 +26,9 @@ import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import { ChatMinimap, useMessageRefs } from "./ChatMinimap";
 import { ExtensionStatusBar } from "./ExtensionStatusBar";
 import { TrajectoryView } from "./TrajectoryView";
-import { PlanApproval } from "./PlanApproval";
+import { StudioPlanReview } from "./studio/deck/StudioPlanReview";
+import { planExecutionCommands } from "./studio/deck/client-handlers";
+import type { PlanExecutionTier } from "@/lib/studio-protocol/protocol";
 import { useAgentSession, type AgentPhase, type AttachedImage, type NoticeItem } from "@/hooks/useAgentSession";
 import { DraftContextBar } from "./DraftContextBar";
 import { sendAgentCommand } from "@/lib/agent-client";
@@ -502,6 +504,41 @@ export function ChatWindow({
 			});
 		},
 		[addNotice, planState.planFilePath, sessionIdRef, setPlanProposed],
+	);
+
+	// Refine keeps plan mode open: the annotated feedback becomes the next turn.
+	const handlePlanRefine = useCallback(
+		(feedback: string) => {
+			const sid = sessionIdRef.current;
+			if (!sid) return;
+			void sendAgentCommand(sid, { type: "prompt", message: feedback }).catch(e => {
+				addNotice({
+					type: "error",
+					message: `Plan refinement failed: ${e instanceof Error ? e.message : String(e)}`,
+				});
+			});
+		},
+		[addNotice, sessionIdRef],
+	);
+
+	// Studio's execution-tier picker: the chosen tier is applied before approval
+	// so the execution turn runs on it (`set_model` + optional thinking level).
+	const handlePlanRoleChange = useCallback(
+		(role: string, tier: PlanExecutionTier) => {
+			const sid = sessionIdRef.current;
+			if (!sid) return;
+			void (async () => {
+				try {
+					for (const command of planExecutionCommands(tier)) await sendAgentCommand(sid, command);
+				} catch (e) {
+					addNotice({
+						type: "error",
+						message: `Execution tier switch failed (${role}): ${e instanceof Error ? e.message : String(e)}`,
+					});
+				}
+			})();
+		},
+		[addNotice, sessionIdRef],
 	);
 
 	// Shared mode-control: exit (or complete/drop a goal) through the generic
@@ -1119,11 +1156,16 @@ export function ChatWindow({
 												/>
 											)}
 											{planProposed && planState.enabled && planState.planFilePath && (
-												<PlanApproval
+												<StudioPlanReview
+													sessionId={session?.id ?? sessionIdRef.current ?? null}
 													planFilePath={planState.planFilePath}
-													planTitle={planTitleFromPath(planState.planFilePath)}
+													title={planTitleFromPath(planState.planFilePath)}
 													planMarkdown={planState.planContent ?? ""}
+													disabled={sessionBusy}
+													stateVersion={planState.enabled ? 1 : 0}
 													onApprove={handlePlanApprove}
+													onRefine={handlePlanRefine}
+													onRoleChange={handlePlanRoleChange}
 												/>
 											)}
 

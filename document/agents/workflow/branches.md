@@ -62,9 +62,16 @@ not pure fixes to `main`) MUST follow the offline-branch workflow:
    round. Never push a branch that is behind `main`; a CI failure triage
    starts with "is this already fixed on `main`, and is `main` fully merged
    into this branch?" before touching the branch itself.
-4. **Zeta's own work does not open PRs.** PRs exist for outside contributions
-   (see [Pull requests](#pull-requests)); for our own branches the evidence is
-   the local gate plus the branch's CI. `sync/omp-release/**` and `port/**`
+4. **Integration branches open one PR each; agent branches do not.**
+   `feat/**` and `port/**` are integration branches: each opens **one PR**, and
+   that PR is the review and CI surface. Merging stays manual — the user merges;
+   an agent never merges its own PR. Short-lived agent branches (`temp/<topic>`
+   branches feeding an integration branch) merge into the integration branch
+   locally and **never get a PR of their own**. PR title and body count as a
+   GitHub write: show both to the user before `gh pr create` (root `AGENTS.md`
+   §9). Stage commits on a worktree branch are allowed (no push); the round ends
+   when the local gate is green, and then it is pushed **once**.
+   `sync/omp-release/**` and `port/**`
    pushes trigger `ci.yml` directly (non-PR path, so natives really build).
    Other branches outside `main`/`dev/*` still need one
    `gh workflow run ci.yml --ref <branch>` after the last push. Do not dispatch

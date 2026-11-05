@@ -150,7 +150,7 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@linxiraos/pi-omptype": "catalog:",
+    "@linxiraos/zeta-schema": "catalog:",
     "@linxiraos/pi-catalog": "catalog:",
     "@linxiraos/pi-natives": "catalog:",
     "@linxiraos/pi-utils": "catalog:",

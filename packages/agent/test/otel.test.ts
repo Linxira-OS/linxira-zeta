@@ -6,7 +6,7 @@
  * lifecycle hook dispatch.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
 import {
 	type AgentTelemetryConfig,

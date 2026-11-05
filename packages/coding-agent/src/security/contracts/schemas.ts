@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { once } from "@linxiraos/pi-utils";
 
 export const getSecurityContractSchemas = once(() => {

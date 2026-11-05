@@ -1,0 +1,1342 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+/* ============================================================
+   OMP Studio — Agent Hub
+   主 Agent 横幅 · Roster（列表+详情） · Transcript · Jobs · IRC
+   ============================================================ */
+
+/* 打开对话预览时 .page-body 改为 overflow:hidden，经典滚动条会消失。
+   Hub 页是 margin:0 auto 居中的，滚动条占宽一没，整块会往右跳。
+   始终预留滚动条槽，和模型配置页同一做法；用 data-route 而不是
+   :has(.is-chat-preview)，避免子节点挂上后 Chromium 晚一帧才匹配。 */
+.studio-root .page-body[data-route="agent-hub"] {
+  scrollbar-gutter: stable;
+}
+
+/* ---------- 页面骨架：高度由内容决定，超过视口时自然滚动 ---------- */
+.studio-root .hub-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--studio-sp-14);
+}
+.studio-root .hub-page > .workspace-panel:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--studio-sp-14);
+}
+.studio-root .hub-page.is-chat-preview > .workspace-panel:not([hidden]) {
+  flex: 1;
+  min-height: 0;
+}
+.studio-root .hub-page > .workspace-tabbar {
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+/* ---------- 连接横幅（offline / reconnecting / stale / resync / limited） ---------- */
+.studio-root .hub-conn {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-10);
+  padding: 8px var(--studio-sp-14);
+  border-radius: var(--studio-r-8);
+  font-size: var(--studio-fs-12);
+}
+.studio-root .hub-conn.red {
+  background: var(--studio-red-soft);
+  color: var(--studio-red);
+}
+.studio-root .hub-conn.amber {
+  background: var(--studio-amber-soft);
+  color: var(--studio-amber);
+}
+.studio-root .hub-conn.blue {
+  background: var(--studio-blue-soft);
+  color: var(--studio-blue);
+}
+.studio-root .hub-conn .hc-detail {
+  color: var(--studio-text-2);
+  flex: 1;
+  min-width: 0;
+}
+.studio-root .hub-conn .hc-copy {
+  flex: 1;
+  min-width: 0;
+}
+.studio-root .hub-conn .hc-actions {
+  display: flex;
+  gap: var(--studio-sp-6);
+  flex: none;
+}
+.studio-root .hub-conn.is-busy {
+  flex-wrap: wrap;
+}
+.studio-root .hub-conn .action-progress {
+  flex: 1 1 100%;
+}
+
+/* ---------- 主 Agent 横幅卡 ---------- */
+.studio-root .hub-main {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-12);
+  padding: var(--studio-sp-14) var(--studio-sp-16);
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-10);
+}
+.studio-root .hub-main .hm-ic {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--studio-r-8);
+  background: var(--studio-accent-soft);
+  color: var(--studio-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.studio-root .hub-main .hm-main {
+  flex: 1;
+  min-width: 0;
+}
+.studio-root .hub-main .hm-title {
+  font-weight: var(--studio-fw-semibold);
+  font-size: var(--studio-fs-14);
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  flex-wrap: wrap;
+}
+.studio-root .hub-main .hm-sub {
+  display: flex;
+  gap: var(--studio-sp-8);
+  align-items: baseline;
+  margin-top: 2px;
+  font-size: var(--studio-fs-12);
+  color: var(--studio-text-2);
+  flex-wrap: wrap;
+}
+.studio-root .hub-main .hm-task {
+  flex: 1;
+  min-width: 0;
+}
+.studio-root .hub-main .hm-meta {
+  font-family: var(--studio-font-mono);
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+  flex: none;
+}
+.studio-root .hub-main .hm-conn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  color: var(--studio-text-faint);
+}
+.studio-root .hub-main .hm-conn .hm-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--studio-r-full);
+  background: var(--studio-glyph-faint);
+  flex: none;
+}
+.studio-root .hub-main .hm-conn .hm-dot.on {
+  background: var(--studio-green);
+}
+.studio-root .hub-main .hm-actions {
+  display: flex;
+  gap: var(--studio-sp-6);
+  flex: none;
+  align-items: center;
+}
+
+/* ---------- Roster 头：视图切换 + 状态计数 + 搜索 ---------- */
+.studio-root .hub-roster-head {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-10);
+  flex-wrap: wrap;
+}
+.studio-root .hub-status-counts {
+  display: flex;
+  gap: var(--studio-sp-12);
+  font-size: var(--studio-fs-12);
+  color: var(--studio-text-2);
+}
+.studio-root .hub-status-counts .sc-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+}
+.studio-root .hub-search {
+  width: 220px;
+}
+
+/* ---------- 汇总 Usage 行（右侧挂 New Agent） ---------- */
+.studio-root .hub-usage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--studio-sp-10);
+  font-family: var(--studio-font-mono);
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+  padding: var(--studio-sp-6) var(--studio-sp-4);
+  border-top: 1px solid var(--studio-border);
+  border-bottom: 1px solid var(--studio-border);
+}
+
+/* ---------- 列表 + 详情双列 ---------- */
+.studio-root .hub-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+  gap: var(--studio-sp-16);
+  align-items: start;
+  transition: grid-template-columns 320ms var(--studio-ease-nav);
+}
+.studio-root .hub-page.is-chat-preview {
+  /* 页面仍用 .hub-page 的 1080px，避免顶栏/搜索随预览开关跳变。 */
+  flex: 1;
+  min-height: 0;
+}
+.studio-root .hub-page.is-chat-preview .hub-cols {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+  /* 列表只略收窄；预览列吃剩余宽度。两侧都用 minmax(0, Nfr)，
+     才能和静止态插值，打开时列宽跟着滑动而不是瞬切。 */
+  grid-template-columns: minmax(0, 40fr) minmax(0, 60fr);
+}
+.studio-root .hub-page.is-chat-preview .hub-list {
+  overflow: auto;
+  min-height: 0;
+}
+.studio-root .hub-page.is-chat-closing .hub-cols {
+  align-items: stretch;
+  min-height: 0;
+  overflow: hidden;
+}
+.studio-root .hub-page.is-chat-closing .hub-list {
+  overflow: auto;
+  min-height: 0;
+}
+.studio-root .hub-detail.is-chat {
+  min-height: 0;
+  height: 100%;
+  max-width: calc(var(--studio-doc-max-w) - var(--studio-sp-32));
+  overflow: hidden;
+}
+.studio-root .hub-face-stage {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.studio-root .hub-face {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.studio-root .hub-face-enter-fwd,
+.studio-root .hub-face-enter-back,
+.studio-root .hub-face-leave-fwd,
+.studio-root .hub-face-leave-back {
+  backface-visibility: hidden;
+}
+.studio-root .hub-face-enter-fwd,
+.studio-root .hub-face-enter-back {
+  z-index: 1;
+}
+.studio-root .hub-face-leave-fwd,
+.studio-root .hub-face-leave-back {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.studio-root .hub-face-enter-fwd {
+  animation: tab-pane-enter-fwd 320ms var(--studio-ease-nav) both;
+}
+.studio-root .hub-face-enter-back {
+  animation: tab-pane-enter-back 320ms var(--studio-ease-nav) both;
+}
+.studio-root .hub-face-leave-fwd {
+  animation: tab-pane-leave-fwd 240ms var(--studio-ease-nav) both;
+}
+.studio-root .hub-face-leave-back {
+  animation: tab-pane-leave-back 240ms var(--studio-ease-nav) both;
+}
+.studio-root .hub-chat-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  padding: var(--studio-sp-8) var(--studio-sp-12) 0;
+  flex: none;
+}
+.studio-root .hub-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--studio-sp-8);
+  min-width: 0;
+}
+
+/* ============================================================
+   Agent 卡片 + 树状视图（2026-08-11 v3 重构，取代旧 .hub-row 平面文本版）
+   设计语言：实体状态点 + 条形卡片 pill + 大数字+迷你柱 + outline artifact chip；
+   树状 = 组头卡（父摘要）+ 竖向导线 + 缩进透明叶子（左缘状态色条）。
+   ============================================================ */
+
+/* ---------- 状态点：实体 dot + 状态色（旧版仅文字色圆点，存在感弱） ---------- */
+.studio-root .hub-sd {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: var(--studio-r-full);
+}
+.studio-root .hub-sd.running {
+  background: var(--studio-green);
+}
+.studio-root .hub-sd.idle {
+  background: var(--studio-blue);
+}
+.studio-root .hub-sd.parked {
+  background: var(--studio-glyph-faint);
+}
+.studio-root .hub-sd.aborted {
+  background: var(--studio-red);
+}
+.studio-root .hub-sd.pulse {
+  animation: omp-pulse 1.8s var(--studio-ease) infinite;
+}
+
+/* ---------- Activity pill：整粒状态色胶囊（软底 + 状态色文字，取消左缘色条） ---------- */
+.studio-root .hub-act {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  height: 22px;
+  padding: 0 var(--studio-sp-10);
+  border-radius: var(--studio-r-full);
+  font-size: var(--studio-fs-11);
+  font-weight: var(--studio-fw-medium);
+  white-space: nowrap;
+  flex: none;
+}
+.studio-root .hub-act.thinking {
+  background: var(--studio-accent-soft);
+  color: var(--studio-accent);
+}
+.studio-root .hub-act.tool {
+  background: var(--studio-blue-soft);
+  color: var(--studio-blue);
+}
+.studio-root .hub-act.waiting {
+  background: var(--studio-amber-soft);
+  color: var(--studio-amber);
+}
+.studio-root .hub-act.idle {
+  background: var(--studio-green-soft);
+  color: var(--studio-green);
+}
+.studio-root .hub-act.parked {
+  background: var(--studio-surface-2);
+  color: var(--studio-text-3);
+}
+.studio-root .hub-act.aborted {
+  background: var(--studio-red-soft);
+  color: var(--studio-red);
+}
+
+/* role 标签：随 pill 条形化 */
+.studio-root .hub-role {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--studio-sp-8);
+  border-radius: var(--studio-r-6);
+  font-size: calc(10.5px * var(--studio-text-font-scale));
+  font-weight: var(--studio-fw-medium);
+  background: var(--studio-surface-2);
+  color: var(--studio-text-3);
+}
+
+/* unread / read-only 标记（沿用 pill 圆角，语义不变） */
+.studio-root .hub-unread {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+  padding: 0 var(--studio-sp-6);
+  border-radius: var(--studio-r-full);
+  font-size: calc(10.5px * var(--studio-text-font-scale));
+  font-weight: var(--studio-fw-medium);
+  background: var(--studio-amber-soft);
+  color: var(--studio-amber);
+}
+.studio-root .hub-ro-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--studio-sp-6);
+  border-radius: var(--studio-r-full);
+  font-size: calc(10.5px * var(--studio-text-font-scale));
+  font-weight: var(--studio-fw-medium);
+  background: var(--studio-surface-2);
+  color: var(--studio-text-3);
+}
+.studio-root .hub-model {
+  font-family: var(--studio-font-mono);
+  font-size: calc(10.5px * var(--studio-text-font-scale));
+  color: var(--studio-text-3);
+}
+.studio-root .hub-fallback {
+  color: var(--studio-amber);
+  font-weight: var(--studio-fw-medium);
+}
+
+/* ============================================================
+   卡片（Flat 视图 + 树状孤儿共用）
+   左主右栏：左 = 身份+任务，右 = 用量栏（右上时间，下大字成本 + req/tools/tok 竖排）
+   ============================================================ */
+.studio-root .hub-card {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: var(--studio-sp-14);
+  width: 100%;
+  text-align: left;
+  color: var(--studio-text);
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8);
+  padding: var(--studio-sp-10) var(--studio-sp-12) var(--studio-sp-10)
+    var(--studio-sp-14);
+  transition:
+    border-color var(--studio-dur-fast) var(--studio-ease),
+    background var(--studio-dur-fast) var(--studio-ease);
+}
+.studio-root .hub-card:hover {
+  border-color: var(--studio-accent-border);
+  background: var(--studio-surface-hover);
+}
+.studio-root .hub-card.sel {
+  border-color: var(--studio-accent-border);
+  background: var(--studio-accent-softer);
+}
+.studio-root .hub-card.sel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: var(--studio-r-full);
+  background: var(--studio-accent);
+}
+
+/* 左栏：身份 + 任务 */
+.studio-root .hub-card .hc-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.studio-root .hub-card .hc-top {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  min-width: 0;
+}
+.studio-root .hub-card .hc-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  min-width: 0;
+  font-weight: var(--studio-fw-semibold);
+  font-size: var(--studio-fs-12);
+}
+.studio-root .hub-card .hc-name > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-root .hub-card .hc-flags {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-4);
+  flex: none;
+}
+.studio-root .hub-card .hc-task {
+  margin-top: 5px;
+  font-size: var(--studio-fs-12);
+  color: var(--studio-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 左栏尾行：角色 · 模型 · artifact chip */
+.studio-root .hub-card .hc-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  margin-top: auto;
+  padding-top: 8px; /* 顶到左栏底部，与右栏基线呼应 */
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.studio-root .hub-card .hc-art {
+  display: flex;
+  gap: var(--studio-sp-4);
+  flex: none;
+}
+.studio-root .hub-art {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--studio-sp-6);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-6);
+  font-size: calc(10px * var(--studio-text-font-scale));
+  font-family: var(--studio-font-mono);
+  color: var(--studio-text-faint);
+  background: transparent;
+}
+
+/* 右栏：用量栏（开始时刻 → tokens 主显 → req·tools 安静行 → 成本小字）
+   优先级：tokens > 运行节奏 > 成本。所有数字右对齐、tabular-nums，基线成一条直线。 */
+.studio-root .hub-card .hc-side {
+  flex: none;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+.studio-root .hub-card .hc-side > * + * {
+  margin-top: 7px;
+}
+
+/* 运行开始时刻（HH:MM）+ 时钟小图标 */
+.studio-root .hub-card .hc-start {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--studio-font-mono);
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-faint);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.studio-root .hub-card .hc-start .icon {
+  color: var(--studio-glyph-faint);
+}
+
+/* tokens：右栏主显，大号 + 迷你柱 */
+.studio-root .hub-card .hc-tokens {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.studio-root .hub-card .hc-tokens b {
+  font-family: var(--studio-font-mono);
+  font-size: var(--studio-fs-18);
+  font-weight: var(--studio-fw-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--studio-text);
+  line-height: 1;
+}
+.studio-root .hub-card .hc-tokens i {
+  font-style: normal;
+  font-size: calc(10px * var(--studio-text-font-scale));
+  color: var(--studio-text-faint);
+}
+.studio-root .hub-card .hc-tokens .hc-spark {
+  padding-bottom: 1px;
+}
+
+/* req · tools：一行安静小字（单位在左、数字在右，右对齐成一条线） */
+.studio-root .hub-card .hc-pace {
+  display: inline-flex;
+  gap: var(--studio-sp-12);
+}
+.studio-root .hub-num {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.studio-root .hub-num i {
+  font-style: normal;
+  font-size: calc(10px * var(--studio-text-font-scale));
+  color: var(--studio-text-faint);
+}
+.studio-root .hub-num b {
+  font-family: var(--studio-font-mono);
+  font-size: calc(12px * var(--studio-text-font-scale));
+  font-weight: var(--studio-fw-medium);
+  font-variant-numeric: tabular-nums;
+  color: var(--studio-text-2);
+  line-height: 1;
+}
+
+/* 成本：降级为最底小字 */
+.studio-root .hub-card .hc-cost {
+  font-family: var(--studio-font-mono);
+  font-size: calc(11px * var(--studio-text-font-scale));
+  font-variant-numeric: tabular-nums;
+  color: var(--studio-text-faint);
+  line-height: 1;
+}
+
+/* 迷你柱图（SVG 注入，currentColor 驱动） */
+.studio-root .hb-bar {
+  fill: var(--studio-surface-3);
+}
+.studio-root .hb-bar.hot {
+  fill: var(--studio-accent);
+}
+
+/* ============================================================
+   树状视图（By parent）
+   ============================================================ */
+.studio-root .hub-tgroup {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 组头：父 agent 摘要卡（可点选），比叶子更"实" */
+.studio-root .hub-tg-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  width: 100%;
+  text-align: left;
+  color: var(--studio-text);
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8);
+  padding: 8px var(--studio-sp-12) 8px var(--studio-sp-14);
+  transition:
+    border-color var(--studio-dur-fast) var(--studio-ease),
+    background var(--studio-dur-fast) var(--studio-ease);
+}
+.studio-root .hub-tg-head:hover {
+  border-color: var(--studio-accent-border);
+  background: var(--studio-surface-hover);
+}
+.studio-root .hub-tg-head.sel {
+  border-color: var(--studio-accent-border);
+  background: var(--studio-accent-softer);
+}
+.studio-root .hub-tg-head.sel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: var(--studio-r-full);
+  background: var(--studio-accent);
+}
+.studio-root .hub-tg-head .tg-ic {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--studio-r-6);
+  background: var(--studio-accent-soft);
+  color: var(--studio-accent);
+}
+.studio-root .hub-tg-head .tg-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  min-width: 0;
+  font-weight: var(--studio-fw-semibold);
+  font-size: var(--studio-fs-12);
+}
+.studio-root .hub-tg-head .tg-task {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-root .hub-tg-head .tg-right {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+}
+.studio-root .hub-tg-head .tg-cost {
+  font-family: var(--studio-font-mono);
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-2);
+  font-variant-numeric: tabular-nums;
+}
+.studio-root .hub-tg-head .tg-caret {
+  color: var(--studio-glyph-faint);
+  flex: none;
+}
+
+/* 导线列：竖线从组头底缘贯穿到最后一个叶子 */
+.studio-root .hub-tchildren {
+  display: flex;
+  align-items: stretch;
+}
+.studio-root .hub-trail {
+  width: 23px;
+  flex: none;
+  margin-left: 11px;
+  border-left: 1.5px solid var(--studio-border-strong);
+  border-bottom-left-radius: 7px;
+  margin-bottom: 9px;
+}
+.studio-root .hub-tleaves {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--studio-sp-8);
+  padding: var(--studio-sp-8) 0 0 var(--studio-sp-2);
+}
+
+/* 叶子节点：透明、左缘状态色条（与 pill 同一语义语言） */
+.studio-root .hub-node {
+  position: relative;
+  display: block;
+  width: 100%;
+  text-align: left;
+  color: var(--studio-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-left: 2.5px solid var(--studio-node-c, var(--studio-border-strong));
+  border-radius: 0 var(--studio-r-8) var(--studio-r-8) 0;
+  padding: 7px var(--studio-sp-10);
+  transition:
+    background var(--studio-dur-fast) var(--studio-ease),
+    border-color var(--studio-dur-fast) var(--studio-ease);
+}
+.studio-root .hub-node.st-running {
+  --node-c: var(--studio-green);
+}
+.studio-root .hub-node.st-idle {
+  --node-c: var(--studio-blue);
+}
+.studio-root .hub-node.st-parked {
+  --node-c: var(--studio-glyph-faint);
+}
+.studio-root .hub-node.st-aborted {
+  --node-c: var(--studio-red);
+}
+.studio-root .hub-node:hover {
+  background: var(--studio-surface-hover);
+}
+.studio-root .hub-node.sel {
+  background: var(--studio-accent-softer);
+  border-color: var(--studio-accent-border);
+}
+.studio-root .hub-node .hn-top {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  min-width: 0;
+}
+.studio-root .hub-node .hn-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-weight: var(--studio-fw-medium);
+  font-size: var(--studio-fs-12);
+}
+.studio-root .hub-node .hn-flags {
+  margin-left: auto;
+  display: flex;
+  gap: var(--studio-sp-4);
+  flex: none;
+}
+.studio-root .hub-node .hn-cost {
+  flex: none;
+  font-family: var(--studio-font-mono);
+  font-size: var(--studio-fs-12);
+  font-weight: var(--studio-fw-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--studio-text);
+}
+.studio-root .hub-node .hn-task {
+  margin-top: 2px;
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-root .hub-node .hn-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  margin-top: 4px;
+  font-size: calc(10.5px * var(--studio-text-font-scale));
+  color: var(--studio-text-faint);
+}
+.studio-root .hub-node .hn-foot .mono {
+  font-family: var(--studio-font-mono);
+  font-size: calc(10px * var(--studio-text-font-scale));
+  font-variant-numeric: tabular-nums;
+}
+.studio-root .hub-node .hn-foot .hn-art {
+  margin-left: auto;
+  display: flex;
+  gap: var(--studio-sp-4);
+}
+
+/* 树状模式下的孤儿（无父/父不可见）仍用整卡，视觉上比叶子更"独立" */
+.studio-root .hub-tgroup.orphan {
+  margin-bottom: 0;
+}
+
+/* ---------- 移动端微调 ---------- */
+@media (max-width: 560px) {
+  .studio-root .hub-card .hc-spark {
+    display: none;
+  }
+  .studio-root .hub-card .hc-tokens b {
+    font-size: var(--studio-fs-16);
+  }
+  .studio-root .hub-tg-head .tg-task {
+    display: none;
+  }
+}
+
+/* ---------- 详情列 ---------- */
+.studio-root .hub-detail {
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-10);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+.studio-root .hub-detail-head {
+  padding: var(--studio-sp-12) var(--studio-sp-14) 0;
+}
+.studio-root .hub-detail-head .hd-title {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  flex-wrap: wrap;
+}
+.studio-root .hub-detail-head .hd-title b {
+  font-size: var(--studio-fs-14);
+}
+.studio-root .hub-detail-head .hd-sub {
+  margin-top: 3px;
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+  display: flex;
+  gap: var(--studio-sp-8);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.studio-root .hub-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  padding: var(--studio-sp-10) var(--studio-sp-14);
+  flex-wrap: wrap;
+}
+.studio-root .hub-detail-tabs {
+  border-bottom: 1px solid var(--studio-border);
+  padding: 0 var(--studio-sp-8);
+}
+.studio-root .hub-detail-body {
+  padding: var(--studio-sp-12) var(--studio-sp-14);
+  min-height: 260px;
+}
+
+/* 详情内联提示（revive/kill 拒绝、错误） */
+.studio-root .hub-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--studio-sp-8);
+  padding: var(--studio-sp-8) var(--studio-sp-10);
+  border-radius: var(--studio-r-6);
+  font-size: var(--studio-fs-12);
+  background: var(--studio-red-soft);
+  color: var(--studio-red);
+  margin-bottom: var(--studio-sp-10);
+}
+.studio-root .hub-notice.ok {
+  background: var(--studio-green-soft);
+  color: var(--studio-green);
+}
+.studio-root .hub-notice.warn {
+  background: var(--studio-amber-soft);
+  color: var(--studio-amber);
+}
+.studio-root .hub-notice.err {
+  background: var(--studio-red-soft);
+  color: var(--studio-red);
+}
+
+/* kv */
+.studio-root .hub-kv {
+  display: flex;
+  flex-direction: column;
+}
+.studio-root .hub-kv .kv {
+  display: flex;
+  gap: var(--studio-sp-12);
+  padding: 7px 0;
+  border-bottom: 1px solid var(--studio-border);
+  font-size: var(--studio-fs-12);
+}
+.studio-root .hub-kv .kv:last-child {
+  border-bottom: none;
+}
+.studio-root .hub-kv .kv .k {
+  width: 108px;
+  flex: none;
+  color: var(--studio-text-3);
+  font-size: var(--studio-fs-11);
+  padding-top: 1px;
+}
+.studio-root .hub-kv .kv .v {
+  flex: 1;
+  min-width: 0;
+  color: var(--studio-text);
+  word-break: break-word;
+}
+.studio-root .hub-kv .kv .v.mono {
+  font-family: var(--studio-font-mono);
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-2);
+}
+.studio-root .hub-sec-title {
+  font-size: var(--studio-fs-12);
+  font-weight: var(--studio-fw-semibold);
+  color: var(--studio-text-2);
+  margin: var(--studio-sp-14) 0 var(--studio-sp-6);
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+}
+.studio-root .hub-sec-title:first-child {
+  margin-top: 0;
+}
+.studio-root .hub-lineage-row {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  flex-wrap: wrap;
+  font-size: var(--studio-fs-12);
+}
+.studio-root .hub-child-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-4);
+  padding: 2px var(--studio-sp-8);
+  border-radius: var(--studio-r-full);
+  border: 1px solid var(--studio-border);
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-2);
+}
+.studio-root .hub-child-link:hover {
+  border-color: var(--studio-accent-border);
+  color: var(--studio-accent);
+  text-decoration: none;
+}
+
+/* context meter */
+.studio-root .hub-ctx {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+}
+.studio-root .hub-ctx .meter {
+  flex: 1;
+}
+.studio-root .hub-ctx .mono {
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+  flex: none;
+}
+
+/* ---------- Transcript ---------- */
+.studio-root .hub-transcript {
+  height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8);
+  background: var(--studio-bg-inset);
+  padding: var(--studio-sp-10) var(--studio-sp-12);
+  font-size: var(--studio-fs-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--studio-sp-8);
+}
+.studio-root .hub-tr-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.studio-root .hub-tr-msg .tr-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--studio-sp-8);
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+}
+.studio-root .hub-tr-msg .tr-role {
+  font-weight: var(--studio-fw-semibold);
+  color: var(--studio-text-2);
+}
+.studio-root .hub-tr-msg .tr-body {
+  border-left: 2px solid var(--studio-border-strong);
+  padding-left: var(--studio-sp-10);
+  color: var(--studio-text-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.studio-root .hub-tr-msg.user .tr-role {
+  color: var(--studio-accent);
+}
+.studio-root .hub-tr-msg.tool .tr-body {
+  font-family: var(--studio-font-mono);
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+}
+.studio-root .hub-tr-msg.system .tr-body {
+  color: var(--studio-text-faint);
+}
+.studio-root .hub-send {
+  display: flex;
+  gap: var(--studio-sp-8);
+  margin-top: var(--studio-sp-10);
+  align-items: flex-end;
+}
+.studio-root .hub-send textarea {
+  flex: 1;
+}
+/* .send-hint 是 .hub-send 的兄弟（transcript 模板里紧跟其后），不是子节点 */
+.studio-root .hub-send + .send-hint {
+  display: block;
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-faint);
+  margin-top: var(--studio-sp-4);
+}
+
+/* read-only transcript 提示条 */
+.studio-root .hub-ro-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  padding: var(--studio-sp-8) var(--studio-sp-10);
+  border-radius: var(--studio-r-6);
+  font-size: var(--studio-fs-12);
+  background: var(--studio-surface-2);
+  color: var(--studio-text-3);
+  margin-top: var(--studio-sp-10);
+}
+
+/* ---------- Jobs ---------- */
+.studio-root .hub-job {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-10);
+  padding: var(--studio-sp-8) var(--studio-sp-10);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8);
+  margin-bottom: var(--studio-sp-8);
+  font-size: var(--studio-fs-12);
+  background: var(--studio-surface);
+}
+.studio-root .hub-job .jb-label {
+  flex: 1;
+  min-width: 0;
+}
+.studio-root .hub-job .jb-label .mono {
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+  display: block;
+  margin-top: 1px;
+}
+
+/* ---------- IRC Messages ---------- */
+.studio-root .hub-irc-out {
+  display: flex;
+  gap: var(--studio-sp-8);
+  margin-bottom: var(--studio-sp-12);
+  align-items: flex-end;
+}
+.studio-root .hub-irc-out .field {
+  flex: 1;
+}
+.studio-root .hub-irc-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--studio-sp-6);
+}
+.studio-root .hub-irc-msg {
+  display: flex;
+  gap: var(--studio-sp-8);
+  padding: var(--studio-sp-8) var(--studio-sp-10);
+  border: 1px solid var(--studio-border);
+  border-radius: var(--studio-r-8);
+  font-size: var(--studio-fs-12);
+  background: var(--studio-surface);
+}
+.studio-root .hub-irc-msg .im-dir {
+  flex: none;
+  font-weight: var(--studio-fw-semibold);
+}
+.studio-root .hub-irc-msg .im-dir.in {
+  color: var(--studio-blue);
+}
+.studio-root .hub-irc-msg .im-dir.out {
+  color: var(--studio-accent);
+}
+.studio-root .hub-irc-msg .im-main {
+  flex: 1;
+  min-width: 0;
+}
+.studio-root .hub-irc-msg .im-meta {
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+  display: flex;
+  gap: var(--studio-sp-6);
+  flex-wrap: wrap;
+}
+.studio-root .hub-irc-msg .im-body {
+  margin-top: 2px;
+  color: var(--studio-text-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* outcome chip */
+.studio-root .hub-outcome {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 var(--studio-sp-6);
+  border-radius: var(--studio-r-full);
+  font-size: calc(10.5px * var(--studio-text-font-scale));
+  font-weight: var(--studio-fw-medium);
+}
+.studio-root .hub-outcome.injected {
+  background: var(--studio-accent-soft);
+  color: var(--studio-accent);
+}
+.studio-root .hub-outcome.woken {
+  background: var(--studio-green-soft);
+  color: var(--studio-green);
+}
+.studio-root .hub-outcome.revived {
+  background: var(--studio-amber-soft);
+  color: var(--studio-amber);
+}
+.studio-root .hub-outcome.failed {
+  background: var(--studio-red-soft);
+  color: var(--studio-red);
+}
+
+/* ---------- 空态 / 加载 ---------- */
+.studio-root .hub-empty-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  padding: var(--studio-sp-32);
+  color: var(--studio-text-3);
+  font-size: var(--studio-fs-12);
+  text-align: center;
+  background: var(--studio-surface);
+  border: 1px dashed var(--studio-border-strong);
+  border-radius: var(--studio-r-8);
+}
+.studio-root .hub-empty-list > .icon {
+  width: 28px;
+  height: 28px;
+  stroke-width: 1.2;
+  color: var(--studio-glyph-faint);
+}
+.studio-root .hub-loading-row {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-8);
+  padding: var(--studio-sp-12);
+  color: var(--studio-text-3);
+  font-size: var(--studio-fs-12);
+}
+
+/* ---------- 能力标注 ---------- */
+.studio-root .hub-cap-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-4);
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-faint);
+}
+
+/* ---------- New Agent / 菜单通用 ---------- */
+.studio-root .hub-na-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--studio-sp-12);
+}
+.studio-root .hub-na-row {
+  display: flex;
+  gap: var(--studio-sp-10);
+}
+.studio-root .hub-na-row .field {
+  flex: 1;
+}
+
+/* ---------- 移动端：<900px 详情变抽屉 ---------- */
+.studio-root .hub-drawer-back {
+  display: none;
+}
+@media (max-width: 900px) {
+  .studio-root .hub-cols {
+    grid-template-columns: 1fr;
+  }
+  .studio-root .hub-detail {
+    position: fixed;
+    top: var(--studio-topbar-h);
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--studio-z-panel);
+    border-radius: 0;
+    border-left: 1px solid var(--studio-border);
+    transform: translateX(100%);
+    transition: transform var(--studio-dur) var(--studio-ease-out);
+    overflow-y: auto;
+  }
+  .studio-root .hub-detail.open {
+    transform: translateX(0);
+  }
+  .studio-root .hub-drawer-back {
+    display: inline-flex;
+  }
+  .studio-root .hub-search {
+    width: 100%;
+  }
+  .studio-root .hub-main {
+    flex-wrap: wrap;
+  }
+  .studio-root .hub-main .hm-actions {
+    width: 100%;
+  }
+}
+
+/* ---------- running 状态呼吸（reduced-motion 下 base.css 统一收敛） ---------- */
+.studio-root .hub-card .hub-sd.pulse,
+.studio-root .hub-node .hub-sd.pulse,
+.studio-root .hub-tg-head .hub-sd.pulse {
+  animation-duration: 1.8s;
+}
+
+/* ============================================================
+   增量（2026-08-11 全新实现补充）
+   ============================================================ */
+/* 详情头部状态行：OMP inspector 的「status · duration · active age」模式 */
+.studio-root .hub-status-line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--studio-sp-6);
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+}
+.studio-root .hub-status-line .dot {
+  width: 6px;
+  height: 6px;
+}
+/* base.css 的 .dot 无 gray 态；parked 用实心灰点（glyph 色） */
+.studio-root .dot.gray {
+  background: var(--studio-glyph-faint);
+}
+
+/* 未选中时详情列占位 */
+.studio-root .hub-detail-placeholder {
+  align-items: stretch;
+  justify-content: center;
+  background: transparent;
+  border-style: dashed;
+}
+.studio-root .hub-detail-placeholder .hub-empty-list {
+  height: 100%;
+}
+
+/* 列表底部键盘提示 */
+.studio-root .hub-kbd-hint {
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-faint);
+  text-align: center;
+  padding: var(--studio-sp-6) 0 var(--studio-sp-2);
+  font-family: var(--studio-font-mono);
+}
+
+/* 详情 tabs 激活态（沿用 components .tabs 结构，这里补 active 底色） */
+.studio-root .hub-detail-tabs .tabs {
+  display: flex;
+  gap: var(--studio-sp-2);
+}
+.studio-root .hub-detail-tabs .tabs [role="tab"] {
+  padding: 7px var(--studio-sp-12);
+  font-size: var(--studio-fs-12);
+  color: var(--studio-text-3);
+  border-radius: var(--studio-r-6) var(--studio-r-6) 0 0;
+  border-bottom: 2px solid transparent;
+}
+.studio-root .hub-detail-tabs .tabs [role="tab"]:hover {
+  color: var(--studio-text);
+  background: var(--studio-surface-hover);
+}
+.studio-root .hub-detail-tabs .tabs [role="tab"].active {
+  color: var(--studio-accent);
+  border-bottom-color: var(--studio-accent);
+  font-weight: var(--studio-fw-medium);
+}
+
+/* 骨架屏复用 components .card 即可，无需新增 */
+@media (max-width: 900px) {
+  .studio-root .hub-detail-placeholder {
+    display: none;
+  } /* 移动端未选中时只显示列表 */
+}
+.studio-root .hub-modal .modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.studio-root .hub-modal .field {
+  min-width: 0;
+}
+.studio-root .hub-modal .select {
+  width: 100%;
+  text-overflow: ellipsis;
+}
+@media (max-width: 600px) {
+  .studio-root .hub-modal .hub-na-row {
+    flex-direction: column;
+  }
+}

@@ -1,8 +1,8 @@
 import { type HookMessageRenderer } from "@linxiraos/pi-tui/chat/extension-types";
 export { type HookMessageRenderOptions, type HookMessageRenderer } from "@linxiraos/pi-tui/chat/extension-types";
-import type { type as ArkType } from "@linxiraos/pi-omptype";
-import type * as TypeBox from "@linxiraos/pi-omptype/typebox";
-import type * as zod from "@linxiraos/pi-omptype/zod";
+import type { type as ArkType } from "@linxiraos/zeta-schema";
+import type * as TypeBox from "@linxiraos/zeta-schema/typebox";
+import type * as zod from "@linxiraos/zeta-schema/zod";
 import type { ImageContent, Message, Model, TextContent } from "@linxiraos/pi-ai";
 import type { Component, TUI } from "@linxiraos/pi-tui";
 import type { logger as PiLogger } from "@linxiraos/pi-utils";

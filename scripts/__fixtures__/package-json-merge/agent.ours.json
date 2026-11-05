@@ -40,11 +40,11 @@
     "@linxiraos/pi-natives": "catalog:",
     "@linxiraos/pi-utils": "catalog:",
     "@linxiraos/pi-wire": "catalog:",
-    "@linxiraos/pi-snapcompact": "catalog:",
+    "@linxiraos/zeta-compact": "catalog:",
     "@opentelemetry/api": "catalog:"
   },
   "devDependencies": {
-    "@linxiraos/pi-omptype": "catalog:",
+    "@linxiraos/zeta-schema": "catalog:",
     "@opentelemetry/context-async-hooks": "catalog:",
     "@opentelemetry/sdk-trace-base": "catalog:",
     "@types/bun": "catalog:"

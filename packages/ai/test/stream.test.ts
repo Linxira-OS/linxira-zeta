@@ -3,7 +3,7 @@ import { type ChildProcess, execSync, spawn } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { Effort } from "@linxiraos/pi-ai";
 import { __resetVertexTokenCache } from "@linxiraos/pi-ai/providers/google-auth";
 import { getEnvApiKey } from "@linxiraos/pi-ai/env-api-key";

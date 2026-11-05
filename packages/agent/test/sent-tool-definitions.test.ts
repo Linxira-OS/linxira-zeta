@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AssistantMessage, Context, Message } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";

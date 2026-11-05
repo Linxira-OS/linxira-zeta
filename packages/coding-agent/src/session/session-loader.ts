@@ -12,7 +12,7 @@ import {
 	peekFile,
 	tryParseJson,
 } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { Semaphore } from "../task/parallel";
 import {
 	BlobStore,

@@ -25,7 +25,7 @@ import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 
 const REASONING = "PRIVATE-REASONING";
 const PLAIN_LEGEND = "`¶user:`, `¶ai:`, `¶call:`: user, assistant reply, tool call.";

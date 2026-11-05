@@ -1,0 +1,135 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+.studio-root .services-pane {
+  border-bottom: 1px solid var(--studio-border);
+  flex: 0 0 auto;
+}
+.studio-root .services-pane > summary {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.studio-root .services-pane > summary::before {
+  content: "›";
+  font-size: 16px;
+}
+.studio-root .services-pane[open] > summary::before {
+  transform: rotate(90deg);
+}
+.studio-root .services-pane > summary > .muted {
+  font-size: 11px;
+  font-weight: 400;
+}
+.studio-root .services-content {
+  max-height: 64vh;
+  overflow: auto;
+  padding: 0 16px 18px;
+}
+.studio-root .services-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.studio-root .service-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--studio-border);
+}
+.studio-root .service-name {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 4px;
+  flex: 1;
+  min-width: 100px;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+.studio-root .service-row.selected {
+  background: var(--studio-surface-hover);
+}
+.studio-root .service-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding-top: 16px;
+}
+.studio-root .service-form > label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+}
+.studio-root .service-wide {
+  grid-column: 1 / -1;
+}
+.studio-root .service-form textarea {
+  width: 100%;
+  resize: vertical;
+}
+.studio-root .service-log pre {
+  max-height: 220px;
+  overflow: auto;
+  padding: 12px;
+  background: var(--studio-surface-2);
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.studio-root .service-log form {
+  display: flex;
+  gap: 8px;
+}
+.studio-root .service-log form .input {
+  flex: 1;
+}
+.studio-root .service-confirm {
+  padding: 10px 0;
+}
+.studio-root .services-error {
+  color: var(--studio-red);
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .studio-root .service-form {
+    grid-template-columns: 1fr;
+  }
+  .studio-root .service-row {
+    flex-wrap: wrap;
+  }
+}
+.studio-root .service-row > .select {
+  flex: 0 0 150px;
+  width: 150px;
+}
+.studio-root .service-row > .btn {
+  flex-shrink: 0;
+}
+.studio-root .service-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.studio-root .services-toolbar {
+  flex-wrap: wrap;
+}
+.studio-root .service-form {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.studio-root .workspace-dialog .service-form {
+  padding-top: 0;
+}
+@media (max-width: 600px) {
+  .studio-root .service-name {
+    flex-basis: 100%;
+  }
+  .studio-root .service-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

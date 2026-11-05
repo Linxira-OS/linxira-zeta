@@ -1,5 +1,5 @@
 import { expect } from "bun:test";
-import { type as arkType, type Type } from "@linxiraos/pi-omptype";
+import { type as arkType, type Type } from "@linxiraos/zeta-schema";
 
 function formatIssues(error: unknown): string {
 	if (error instanceof Error) {

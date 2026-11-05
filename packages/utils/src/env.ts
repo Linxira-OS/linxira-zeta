@@ -326,7 +326,8 @@ const ompCompatValue =
 	agentEnv.ZETA_OMP_COMPAT ??
 	piEnv.ZETA_OMP_COMPAT ??
 	homeEnv.ZETA_OMP_COMPAT;
-const legacyOmpEnv = isOmpCompatEnabled({ ZETA_OMP_COMPAT: ompCompatValue }) ? loadLegacyOmpEnv() : {};
+const legacyOmpEnabled = isOmpCompatEnabled({ ZETA_OMP_COMPAT: ompCompatValue });
+const legacyOmpEnv = legacyOmpEnabled ? loadLegacyOmpEnv() : {};
 
 for (const key of Object.keys(Bun.env)) {
 	const value = Bun.env[key];
@@ -335,7 +336,8 @@ for (const key of Object.keys(Bun.env)) {
 	}
 }
 
-for (const file of [projectEnv, agentEnv, piEnv, homeEnv, legacyOmpEnv]) {
+/** Copy one dotenv file into the process environment; an already-set name wins. */
+function mergeDotenvIntoProcess(file: Record<string, string>): void {
 	for (const key in file) {
 		if (!isMacosMallocStackLoggingEnvName(key) && !Bun.env[key]) {
 			Bun.env[key] = file[key];
@@ -344,12 +346,31 @@ for (const file of [projectEnv, agentEnv, piEnv, homeEnv, legacyOmpEnv]) {
 	}
 }
 
+for (const file of [projectEnv, agentEnv, piEnv, homeEnv, legacyOmpEnv]) mergeDotenvIntoProcess(file);
+
 // Directory-affecting keys (XDG_*_HOME, and in default mode ZETA_CODING_AGENT_DIR)
 // may have just arrived from the profile/agent `.env` applied above. The dirs
 // resolver cached its paths at module load — before this file ran — so rebuild
 // it now from the updated env. `getAgentDir()` already located the `.env` from
 // the profile name + home, so this re-reads only the directory vars.
 refreshDirsFromEnv();
+
+let legacyOmpEnvApplied = legacyOmpEnabled;
+
+/**
+ * Apply the legacy OMP dotenv files on demand.
+ *
+ * The eager pass above only sees `ZETA_OMP_COMPAT` from the shell or a Zeta
+ * dotenv file. A host that resolves the persisted `compat.importLegacyOmp`
+ * setting calls this once its settings layer is loaded. Idempotent, and it
+ * never overwrites a name the process already has.
+ */
+export function applyLegacyOmpEnv(): void {
+	if (legacyOmpEnvApplied) return;
+	legacyOmpEnvApplied = true;
+	mergeDotenvIntoProcess(loadLegacyOmpEnv());
+	refreshDirsFromEnv();
+}
 
 /**
  * Intentional re-export of Bun.env.

@@ -10,7 +10,7 @@ import type {
 import type { AssistantMessage, Message } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { createAssistantMessage, createUserMessage } from "./helpers";
 
 function identityConverter(messages: AgentMessage[]): Message[] {

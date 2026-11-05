@@ -23,7 +23,7 @@ import {
 	truncateToWidth,
 	visibleWidth,
 } from "../index";
-import type { ShapeTarget } from "@linxiraos/pi-snapcompact";
+import type { ShapeTarget } from "@linxiraos/zeta-compact";
 import type {
 	ContextLineMode,
 	StatusLinePreset,

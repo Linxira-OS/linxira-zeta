@@ -1,0 +1,66 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+.studio-root .account-status {
+  margin-bottom: 16px;
+}
+.studio-root .account-status > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 10px 0;
+}
+.studio-root .account-status-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.studio-root .account-status-toolbar > p {
+  flex: 1;
+}
+.studio-root .account-status-row {
+  padding: 14px 0;
+  border-top: 1px solid var(--studio-border);
+}
+.studio-root .account-quotas {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.studio-root .account-quota {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(80px, 160px);
+  gap: 6px 12px;
+}
+.studio-root .account-quota > .small {
+  grid-column: 1 / -1;
+}
+.studio-root .account-quota progress {
+  width: 100%;
+  accent-color: var(--studio-accent);
+  align-self: center;
+  height: 5px;
+}
+.studio-root .account-quota > details,
+.studio-root .account-quota > p {
+  grid-column: 1 / -1;
+}
+.studio-root .account-quota dl > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.studio-root .account-quota dt {
+  min-width: 80px;
+}
+.studio-root .account-quota dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .studio-root .account-quota {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .studio-root .account-quota progress {
+    grid-column: 1 / -1;
+  }
+}

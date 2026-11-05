@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { getManagedSkillsDir } from "@linxiraos/zeta/autolearn/managed-skills";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { resetActiveSkillsForTests, type Skill, setActiveSkills } from "@linxiraos/zeta/extensibility/skills";

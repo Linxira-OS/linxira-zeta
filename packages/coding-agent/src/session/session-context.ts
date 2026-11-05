@@ -7,7 +7,7 @@ import {
 	type OpenAIResponsesHistoryPayload,
 	type ServiceTierByFamily,
 } from "@linxiraos/pi-ai";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { isRecord } from "@linxiraos/pi-utils";
 import {
 	createBranchSummaryMessage,

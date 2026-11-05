@@ -8,7 +8,7 @@
  *   - `@linxiraos/zeta` → our package is `@linxiraos/zeta`
  *     (registry: pi-coding-agent → zeta) — the one workspace member that is
  *     NOT linked under its upstream leaf name, so nothing resolved.
- *   - `@linxiraos/pi-snapcompact` → `@linxiraos/pi-snapcompact` (stale bare name).
+ *   - `@linxiraos/zeta-compact` → `@linxiraos/zeta-compact` (stale bare name).
  * Both produced specifiers that resolve nowhere at runtime and in tsc, while
  * brand-check stayed green because the scope itself was correct.
  *

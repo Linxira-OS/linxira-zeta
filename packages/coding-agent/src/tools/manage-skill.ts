@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import {
 	deleteManagedSkill,
 	getManagedSkillsDir,

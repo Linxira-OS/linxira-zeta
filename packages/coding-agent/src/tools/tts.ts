@@ -1,7 +1,7 @@
 // Ported from NousResearch/hermes-agent (MIT) — tools/tts_tool.py L167-171, L896-959.
 // Speech backends are catalog models selected through the speech role chain.
 
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { MissingApiKeyError, ProviderHttpError } from "@linxiraos/pi-ai/error";

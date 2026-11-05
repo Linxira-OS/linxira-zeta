@@ -44,7 +44,7 @@ import { cfgAskNotify, askTimeoutMs } from "../modes/settings";
 import { renderAttachmentSourceNotice } from "../session/attachment-source-notice";
 import { cfgSpeechEnabled } from "../tts/settings";
 import { describeAttachedImagesForTextModel, shouldDescribeImagesForTextModel } from "../utils/image-vision-fallback";
-import { type as arkType } from "@linxiraos/pi-omptype";
+import { type as arkType } from "@linxiraos/zeta-schema";
 
 // =============================================================================
 // Types

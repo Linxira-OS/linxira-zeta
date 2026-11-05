@@ -7,7 +7,7 @@ import {
 	stripToolDescriptions,
 	toolWireSchema,
 } from "@linxiraos/pi-ai/utils/schema";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 
 // ---------------------------------------------------------------------------
 // normalizeEmptySchemas — provider-agnostic post-pipeline normalization

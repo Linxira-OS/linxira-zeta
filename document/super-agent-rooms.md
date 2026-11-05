@@ -226,3 +226,152 @@ Resident 规则：
 - 群聊镜像循环：靠 pass/stop、轮次上限、mention-only 和宿主预算，不靠提示词。
 - 跨仓库时钟：只用宿主时钟；多机部署需要统一的 `sentAt` 语义（以宿主为准）。
 - 安卓端是否允许直接发消息到 Room，还是必须经桌面确认：第一版建议只读+待确认。
+
+## 12. 初步诊断（2026-11-05）：呈现、基建缺口、契约面与上游起点
+
+> 本节是初步诊断，不改写 §1–§11 的任何裁决。证据取自 `web-app/` 与
+> `packages/coding-agent/src/server/studio-host/` 已经存在的那条在制品分支
+> （`feat/web-ui-studio-migration`）；`main` 上还没有这两个目录，所以下文
+> 路径都以该树为准。不能从这棵树验证的判断标 `[INFERENCE]`。
+
+### 12.1 呈现决定（初步）：Room 住在哪一页、每页看到什么
+
+**位置**：新增次级路由 `rooms`，与 `agent-hub` 同级，且**同样不进顶栏**。
+
+- `Route` 联合类型、`isSecondary`、`SECONDARY_META` 三处各加一项
+  （`web-app/src/studio/App.tsx:331`、`:334`、`:338`），页面主体挂进同一个
+  `showPage` 分支（`App.tsx:8826` 的 `agent-hub` 分支旁）。
+- **不**加入 `PAGE_NAV_DEFS`（`web-app/src/studio/HomePage.tsx:44-52`）和
+  `isAppRoute`（`:54`）。这正是 `agent-hub` 今天的待遇：它不在顶栏定义里，
+  只能从 File 菜单（`App.tsx:8722`）和 `go("agent-hub")` 进入。实验性表面
+  不占主导航的位置，可用之后再升，而不是先占一个 tab。
+- 入口：File 菜单 "Agent Hub" 旁加一条 "Rooms"；侧栏运行时菜单块
+  （`App.tsx:2893-2895`）加一条；`ui === "rooms"` 的深链按 `agent-hub`
+  的同一写法处理（`App.tsx:7807` 旁）。
+- 房间列表是**页面内部**的左栏（`SecondaryPage` 的两栏内容，`HomePage.tsx:54`），
+  不是应用侧栏的会话列表（`App.tsx:2391` 一带）。侧栏继续只属于 session。
+
+**每个房间看到什么**
+
+| 区域 | 内容 | 今日来源 / 复用点 |
+|---|---|---|
+| 有序日志 | 按宿主 `seq` 排列的事件；`replyTo` 渲染成引用，`mentions` 高亮 | 虚拟化复用 `ConversationVirtualList`（`web-app/src/studio/conversation/ConversationVirtualList.tsx`，只吃 `itemKeys` + `renderItem`）；行渲染器是新写的（事件不是 `ConversationItemView` 的形状） |
+| 常驻成员条 | 成员卡片：仓库、角色、状态、当前动作、模型 | 复用 `AgentCard`（`AgentHub.tsx:1031`）、`StatusDot`（`:947`）、`FlagChips`（`:956`）；状态词汇 `running\|idle\|parked\|aborted`（`:75`） |
+| park / revive | 仅 parked 可 revive；按钮的可用性由 manifest 决定 | 复用 `capsFor`/`missingCap`（`AgentHub.tsx:806-935`）；今天按钮显示 "Revive（暂未实现）"（`:226-235`），因为宿主没注册该命令，见 §12.2 第 3 行 |
+| 每房间 telemetry | 成员会话 token/cost 之和、最近一轮耗时；不定义新的成本模型 | 形状复用 `SessionTelemetrySnapshot`（`studio-host/protocol/contracts/telemetry.ts:4-35`）；`session.telemetry.read` 今天只声明未注册 |
+| 输入框 | 发一条 user 事件，可 @ 成员、可切本轮调度模式 | 文本域复用 `ComposerInput`（`web-app/src/studio/ComposerInput.tsx:25`）；提交走 `room.post`，**不走** `core.prompt` |
+
+**Web UI 不能变成什么**
+
+| 禁止 | 原因 |
+|---|---|
+| 第二个 transcript 渲染器（工具卡、上下文检查器、计划评审卡、审批卡） | 那些是 workbench 会话视图的职责（`conversation/ConversationPane.tsx`、`InteractionDeck.tsx`）；房间只显示事件正文、发送者与 seq。"打开底层会话"是跳转（`setHubIntent`，`AgentHub.tsx:241`），不是就地重画 |
+| 与会话视图并列的第二个聊天产品 | 一个房间是一份有序事件日志；它不得写进任何 session transcript，也不得把 `conversation.changed` 当自己的存储（`contract/lifecycle.ts:228-240` 明确那是另一个命名空间） |
+| 调度器面板 | 只有 pass / stop / correct 与宿主预算；不给每个成员单独的 retry / queue / steer 控件（§5.3 的预算归宿主） |
+| 任意联系人管理器 | 联系人是仓库、主代理、resident；不是人类通讯录 |
+| 普通视图里出现 session id | §9.1 的既有裁决：只在"高级 → 打开底层会话"暴露 |
+| 侧栏里再长出一份会话/房间双列表 | 侧栏是 session 的家；房间的多栏结构留在房间页内部 |
+
+**复用 vs 新增**
+
+| 项 | 复用 / 新增 | 证据 |
+|---|---|---|
+| 页面壳、路由元数据、转场 | 复用 | `SecondaryPage`（`HomePage.tsx:54`）、`SECONDARY_META`（`App.tsx:338`）、`pageTransition.ts` |
+| 能力门（manifest 检查） | 复用惯用法 | `capabilities.some(cap => cap.id === … && cap.grade !== "unavailable")`（`AgentHub.tsx:806`、`App.tsx:8858`）——渲染器**没有**全局路由门，每处自己查 |
+| 成员卡片与状态点 | 复用 | `AgentHub.tsx:947`、`:956`、`:1031` |
+| 长列表虚拟化 | 复用 | `conversation/ConversationVirtualList.tsx` |
+| 输入框外壳、魔法词高亮 | 复用 | `ComposerInput.tsx:25` |
+| 会话 telemetry 形状 | 复用 | `protocol/contracts/telemetry.ts:4` |
+| i18n 文案 | 复用机制 | `en.ts` + `zh.ts` 两本字典，按语言动态加载（`i18n/I18nContext.tsx:21-29`，由 `i18n/lazyLocales.test.ts` 守住） |
+| `RoomsPage`（路由体）、`RoomList`（左栏）、`RoomLogRow`、`RoomResidentStrip`、`RoomComposer` | 新增 | 今日全树没有 room 相关组件（`grep -ri room web-app/src/studio` 只命中布局注释） |
+| 客户端房间 store（按 `roomId` 存事件、`seenThroughSeq`） | 新增 | 既有的 `state.clientState.entities.residents` 是 broker 会话行（`App.tsx:2047`、`contract/read-models.ts:219-238`），不是房间成员 |
+| `ops/rooms.ts` + `room.*` 操作 | 新增 | `STUDIO_FAMILIES` 今日九族无 rooms（`studio-host/ops/index.ts:18-28`） |
+
+### 12.2 基础设施缺口（逐原语映射到今日代码）
+
+| 原语（§） | 今日状态 | 归属文件 | 最小端到端切片 |
+|---|---|---|---|
+| 独立事件日志 + 宿主 `seq`/`sentAt`（§4） | **缺失**。最接近的三样都不是房间日志：`ClientEventBase.cursor` 是 per-authority-epoch 的投递游标（`contract/lifecycle.ts:188-198`），`conversation.changed.eventSeq` 是另一个命名空间（`:228-240`），`IrcBus` 只有进程序号（`irc/bus.ts:30-33`、`:131`） | 新建 `packages/coding-agent/src/rooms/log.ts`（该目录今日不存在） | 一个房间追加两条事件，重启 `zeta serve` 后 `room.log.read` 仍返回 `[1,2]` 且 `sentAt` 不变 |
+| parallel / serial / mention 调度（§5.2） | **缺失**。今日只有两类近似：`task`/`workpool` 扇出；`workspace_run` 串行中继（单回复路径、10 分钟上限，`channels/session-router.ts:12-16`、`:57`） | `rooms/scheduler.ts`；投递仍走 `IrcBus`/`deliverIrcMessage` | 同一房间两个 resident：serial 下 B 的上下文含 A 的回复 `seq`；切 mention 后只有被 @ 的一个进入 running |
+| resident park / revive（§8） | **运行时已有，宿主侧没有**。生命周期在 `registry/agent-lifecycle.ts:1-19`、`:125`，空闲 TTL 默认 420000（`task/settings.ts:465-471`）；但 `agent.send\|kill\|revive\|release\|spawn` 只在契约里声明（`contract/operations.ts:492-515`），`ops/` 下**零注册**，manifest 不广告，Agent Hub 因此显示 "暂未实现"（`AgentHub.tsx:226-235`、`:818`） | `ops/session.ts`（注册命令）+ `rooms/membership.ts` | 只注册 `agent.revive`：Hub 的 revive 解锁；把空闲 resident park 掉、投一条房间事件，观察冷启动复活且回复仍落回宿主 `seq` |
+| 房间成员资格与 home repo 隔离（§6、§8.2） | **缺失**。`residents.list` 已声明（`contract/operations.ts:113`）但未注册；`ResidentsReadModel` 描述的是 broker 里的 Runtime 会话（`contract/read-models.ts:219-238`），不是"谁在这个房间" | `ops/rooms.ts` + `rooms/membership.ts` | A 仓的 resident 加入房间 R，组装出的上下文标 home=A；把 B 仓 tracking 塞进事件正文，也只能以引用摘要出现，不能成为指令 |
+| 跨仓库 proposal / ack / 决策血缘（§6.4） | **缺失**。最接近的是 IM 多工作区中继与 `sessionMapping` 绑定（`channels/session-router.ts:12-16`）；没有 proposal、ack、stale 对象 | `rooms/ledger.ts` | 针对 B 仓的 proposal 不写 B 的 tracking；B 的 agent ack 后 `.zeta/tracking/` 才出现一条带房间 `seq` 溯源的决定；B 自己 supersede 后房间里那条标 stale |
+| 跨进程投递与房间寻址（§1 非目标：不新造协议） | **传输已有，寻址没有**。mesh 信封有 message/wake/ack（`mesh/types.ts:46`），离线邮箱按 `sentAt` 排序、至少一次投递（`mesh/mailbox.ts:1-10`）；但没有任何 room 地址 | `rooms/transport.ts`，只包装 `IrcBus`（`irc/bus.ts:51`）与 mesh | 第二个进程里的成员收到房间事件，回复以宿主 `seq` 落回同一日志 |
+| 设备配对 + 2FA（§9.2） | **部分**。已有配对码 + `studio_session` cookie + `x-studio-csrf`（`studio-host/server.ts:42-57`、`:160-216`），二维码把 token 放在 fragment（`server/pairing.ts:1-14`），远端 token 轮换/吊销与失败限速（`web-gateway/remote-access.ts:1-34`）。没有设备密钥、按设备吊销、TOTP/桌面确认（`packages/coding-agent/src` 下无 totp/2fa 实现） | `studio-host/server.ts` 的会话记录 + `utils/remote-token.ts` | 第二台设备配对得到独立 device id 并在设置里可见；吊销该 id 只让它的 cookie 失效；一条"敏感"房间命令在没有桌面确认时被拒 |
+| 每房间 telemetry | **部分**：per-session 形状在（`protocol/contracts/telemetry.ts:4-35`），`session.telemetry.read` 声明却未注册，房间聚合完全没有 | `ops/usage.ts`（per-session 落地）+ `rooms/telemetry.ts`（求和） | 一个两成员房间的 token/cost 等于两条 `session.telemetry.read` 之和，且没有新增成本模型 |
+
+### 12.3 契约面
+
+- **族**：`rooms`。在 `STUDIO_FAMILIES`（`studio-host/ops/index.ts:18-28`）里加一项，
+  一个家族一个文件：`ops/rooms.ts`，`StudioFamily.id = "rooms"`。
+- **查询（读、幂等）**：`rooms.list`、`room.get`、`room.log.read`、
+  `room.telemetry.read`、`room.ledger.read`。
+- **命令（写、必须 ack）**：`room.create`、`room.post`、`room.correct`、
+  `room.member.add`、`room.member.remove`、`room.round.stop`、
+  `room.resident.promote`、`room.resident.park`、`room.resident.revive`、
+  `room.proposal.create`、`room.proposal.respond`。
+- 命名沿用已注册的 `family.verb` 风格（`session.state`、`session.fork`、
+  `session.tree.navigate`，见 `ops/session.ts:1156-1423`）。
+- **查询/命令的分界由 `registry.ts` 决定**：查询返回
+  `{ok:true, queryName, result}` 或 `{ok:false, queryName, error}`
+  （`registry.ts:147-171`）；命令返回 `{accepted, result}`，未知名字抛
+  `StudioOpError`，HTTP 层答 400 加同一个错误信封（`registry.ts:173-204`、
+  `:73-79`）。对 `room.post` 的直接后果：**accepted 回执里没有 seq**，
+  `seq` 只能从随后的 `command.receipt` 得到，渲染器不得乐观编号。
+- **为什么 manifest 会自动把它们藏起来**：manifest 只由已注册的 handler id
+  生成，profile 固定 `"limited"`、每条 `grade:"stable"`（`registry.ts:121-146`），
+  未注册的名字答 `unsupported`。所以房间表面"注册即出现、删掉即消失"，
+  不需要 feature flag；反过来，入口必须自己查 manifest（§12.1 的复用惯用法），
+  因为渲染器没有全局路由门。
+- **订阅**：`SubscriptionScope` 今天只有 `all`/`runtime`/`thread`/`command`
+  （`contract/lifecycle.ts:256-260`）。房间流需要加 `{scope:"room", roomId}`；
+  WS 升级通道已经就绪（`zeta-server.ts:1332-1338`）。在加 scope 之前，
+  房间按 `room.log.read` 的 `seq` 做增量拉取。
+- **重复维护点**：同一批 147 个操作名今天存在三份——宿主
+  `studio-host/contract/operations.ts`、渲染器 `web-app/src/protocol/contract/operations.ts`、
+  vendored `web-app/src/vendor/client-contract/src/operations.ts`；名字集合一致
+  （42 query + 105 command，已注册 67）。新增 `room.*` 必须三处同改，没有生成器。
+  这笔债值得在房间落地前收掉，但它不属于本节的决定。
+
+### 12.4 起点门槛（对上游）
+
+**当前基线**：账本第 3 行的 `## Integrated through: v18.15.0` 与
+`## Current Baselines`（`document/upstream-sync.md:3`、`:2688-2695`）都还写
+`v18.15.0`，但同一文件的 v18.16.0 条目记录：该 tag 已并入 `main`
+（`1ea59944579`）、随 `v1.4.9` 发布（`04fe9e6e0c5`，见 `:44-160`）。本树
+`git merge-base --is-ancestor v18.16.0 HEAD` 成立，版本行已到 1.4.10。
+**结论：有效基线是 `v18.16.0`，账本可机读的那一行落后一轮。** 引用当前基线时
+不要写 `v18.15.0`；下一轮 `check-merge-lineage` 审计读的正是这一行
+（`:980`、`:1196`）。
+
+**"从哪个上游版本开始"**：账本回答了基线与节奏（按需同步，`:5-8`），但
+明确拒绝点名未来 tag——2026-11-03 的探测结论是"不要并 `main`，等下一个
+正式 tag"（`:33-40`）。所以对 Room 来说**没有**一个"必须等到的上游版本"。
+`[INFERENCE]` 房间表面在上游没有对应物：v18.15.0→v18.16.0 窗口里，
+`web-app/`、`studio-host/`、`mesh/`、`channels/`、`server/`、`tools/hub/`
+这些路径在上游 `v18.16.0` 树里根本不存在（`git ls-tree v18.16.0 <path>`
+全为空）。Room 真正踩在上游拥有代码上的只有两个面：`irc/`
+（`IrcBus` 的信封与投递，本窗口 0 文件变动）和 `registry/`、`task/`
+（resident 的 park/revive 生命周期）。能把版本钉住的条件就是：**某个未来 tag
+改动了 `irc/` 的投递/信封语义，或 `registry/`、`task/` 的 park/revive 契约**——
+那时门槛变成"先并那个 tag，再在合并后的传输上设计房间日志"，钉住的是账本
+当时记录的那个 tag，永远不是 `main`。
+
+**开跑前必须为真的四件事**：
+
+1. 账本 `Integrated through` 更新到 `v18.16.0`（或写明为何保留 `v18.15.0`），
+   否则本轮所有 tag-to-tag 审计都对着旧基线。
+2. 宿主契约稳定：`/api/v1` 的配对 cookie + CSRF 全绿、`buildBootstrap` 的
+   manifest 非空，并且 `agent.*` 控制命令已注册——resident 成员资格今天在
+   宿主侧没有任何落点（0 注册）。
+3. 渲染器已出货：`web-app/dist` 由 `zeta serve` 带 history fallback 提供
+   （`server/zeta-server.ts:208-230` 的 `webapp` 分支），`agent-hub` 路由在
+   生产可达；Rooms 复用同一个壳。
+4. 顺序权威先定死：房间 `seq` 必须是独立命名空间（像 `eventSeq`），不能
+   复用 authority `cursor`，否则一次重连/resync 就会把房间顺序与投递游标
+   搅在一起。
+
+**一条未决矛盾**：账本 v18.16 风险图要求
+`packages/coding-agent/src/collab/**` 不得复活（`document/upstream-sync.md:103-105`），
+但这棵树里该目录是被跟踪的（最后改动 `98b7b94fe78`）。若将来有人想把房间
+日志架在 collab 上，先解决这个矛盾；按 §1 的非目标，默认就不该走那条路。

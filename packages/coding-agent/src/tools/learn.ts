@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
 import { prompt } from "@linxiraos/pi-utils";
 import { sanitizeSkillName, writeManagedSkill } from "../autolearn/managed-skills";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { ImageContent, Model } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import { Agent } from "../src/agent";
 import { createCompactionSummaryMessage, defaultConvertToLlm } from "../src/compaction/messages";
 import { base64ImageSize } from "../src/image-tokens";

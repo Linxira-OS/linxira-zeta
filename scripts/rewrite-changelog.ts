@@ -34,7 +34,7 @@ import { parseArgs } from "node:util";
 import { type Api, completeSimple, Effort, type Model, type Tool, type ToolCall } from "@linxiraos/pi-ai";
 import { discoverAuthStorage } from "@linxiraos/pi-ai/auth-broker";
 import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import {
 	type ChangelogDocument,
 	changelogPaths,

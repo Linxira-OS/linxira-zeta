@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import {
 	STREAM_CLOSE_BAD_CHANNEL,
 	STREAM_CLOSE_FORBIDDEN,

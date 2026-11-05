@@ -1,4 +1,4 @@
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { getBundledModels } from "../models";
 import { toModelSpec } from "../provider-models/bundled-references";
 import type { FetchImpl, Model, ModelSpec } from "../types";

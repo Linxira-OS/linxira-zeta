@@ -13,7 +13,7 @@
 
 import { agentLoop } from "@linxiraos/pi-agent-core/agent-loop";
 import type { AgentContext, AgentMessage, AgentTool } from "@linxiraos/pi-agent-core/types";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import type { Message } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import {

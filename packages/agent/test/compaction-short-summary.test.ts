@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import { type CompactionPreparation, compact, DEFAULT_COMPACTION_SETTINGS } from "@linxiraos/pi-agent-core/compaction";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import * as snapcompact from "@linxiraos/zeta-compact";
 import type { AssistantMessage, Model, StopReason } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 

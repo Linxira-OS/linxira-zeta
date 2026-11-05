@@ -1,5 +1,5 @@
 import * as http2 from "node:http2";
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import { slugify } from "@linxiraos/pi-utils";
 import { collapseVariants, type EffortVariantFamily, reviewedVariantFamilyId } from "../compat/collapse";
 import { compareRevision, parseRevision } from "../compat/revision";

@@ -1,4 +1,4 @@
-import { type Type, type } from "@linxiraos/pi-omptype";
+import { type Type, type } from "@linxiraos/zeta-schema";
 import type { AgentToolResult, ToolApprovalDecision } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { classifyModel } from "@linxiraos/pi-catalog/identity";

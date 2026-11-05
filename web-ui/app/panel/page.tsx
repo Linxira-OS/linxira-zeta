@@ -1,22 +1,22 @@
 import { Suspense } from "react";
-import { AppShell } from "@/components/AppShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { StudioShell } from "@/components/studio/shell/StudioShell";
 
 /**
- * Conversation-only surface for hosts that mount the web UI in their own frame
- * (the zetawork GUI's WebView2, an iframe, a kiosk page). Same shell, same
- * client: the layout drops every chrome region and keeps the transcript plus
- * the composer — see `components/shell/ShellLayout.tsx`.
+ * Docked surface for hosts that mount the web UI inside their own frame (the
+ * zetawork WebView2 window, an IDE panel, a kiosk page). Same shell, same
+ * client: panel mode drops the sidebar and the page routes and keeps the tab
+ * strip, transcript and composer.
  *
- * `?mode=panel` on the root route is equivalent; this route exists so a host
- * can point at a clean URL, e.g. `http://127.0.0.1:30141/panel?session=<id>`.
+ * `?mode=panel` on the root route is equivalent; this route exists so a host can
+ * point at a clean URL, e.g. `http://127.0.0.1:30141/panel?session=<id>`.
  */
 export default function EmbedPage() {
-  return (
-    <ErrorBoundary>
-      <Suspense>
-        <AppShell mode="panel" />
-      </Suspense>
-    </ErrorBoundary>
-  );
+	return (
+		<ErrorBoundary>
+			<Suspense>
+				<StudioShell mode="panel" />
+			</Suspense>
+		</ErrorBoundary>
+	);
 }

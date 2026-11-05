@@ -10,11 +10,17 @@
  * so no proxy target may hardcode them.
  */
 
-/** Gateway listener default (`ZETA_WEB_GATEWAY_PORT`). Loopback-only. */
-export const DEFAULT_GATEWAY_PORT = 30142;
+/**
+ * Gateway listener default (`ZETA_WEB_GATEWAY_PORT`). Loopback-only.
+ *
+ * Must match `ZETA_GATEWAY_PORT` (`packages/utils/src/ports.ts`): 30142 is
+ * OMP's block, and a fallback that disagrees with `zeta serve` silently
+ * proxies every `/api/*` family to whatever else squats on that port.
+ */
+export const DEFAULT_GATEWAY_PORT = 43143;
 
-/** Stats Dashboard default (`--stats-port`). */
-export const DEFAULT_STATS_PORT = 3847;
+/** Stats Dashboard default (`--stats-port`); matches `ZETA_STATS_PORT`. */
+export const DEFAULT_STATS_PORT = 43147;
 
 /** Resolve the Web Gateway origin (no trailing slash). */
 export function resolveGatewayUrl(env: NodeJS.ProcessEnv = process.env): string {

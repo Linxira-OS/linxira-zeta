@@ -8,7 +8,7 @@
  * maps — and otherwise forwarded to the selected native judgment wire.
  * Validation failures answer `422` like TypeSafe.
  */
-import { type } from "@linxiraos/pi-omptype";
+import { type } from "@linxiraos/zeta-schema";
 import * as AIError from "../error";
 import { isEmbeddedImageContent } from "../images/shared";
 import type { JudgmentRequest, JudgmentResult } from "../judgment/types";
