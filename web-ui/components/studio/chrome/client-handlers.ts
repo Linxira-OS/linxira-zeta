@@ -38,10 +38,9 @@ export const CHROME_UNMAPPED_OPERATIONS: readonly UnmappedChromeOperation[] = [
 		surface: "titlebar boot model / command palette",
 		reason:
 			"Studio's operator-command manifest carries risk/effect/presentation/contractTestId per command. " +
-			"Zeta publishes slash commands only as name/description/source " +
-			"(POST /api/agent/:id { type: \"get_commands\" }), so a manifest built here would invent the " +
-			"classification fields. Owned by the Capabilities port; needs an endpoint that returns the " +
-			"manifest shape (or an extension of get_commands with those fields).",
+			"Zeta exposes the session's slash commands as name/description/source only, so a manifest built " +
+			"here would invent the classification fields. Needs an endpoint that publishes the manifest " +
+			"shape (or an extended command listing with those fields).",
 	},
 	{
 		kind: "query",
@@ -66,8 +65,8 @@ export const CHROME_UNMAPPED_OPERATIONS: readonly UnmappedChromeOperation[] = [
 		name: "app.update.*",
 		surface: "AppUpdateDialog",
 		reason:
-			"Zeta has GET /api/update/check ({ current, latest, available }) plus POST " +
-			"download/install; Studio's dialog also renders release notes, asset size, byte progress and " +
-			"an apply phase. The dialog is omitted until /api/update publishes that metadata.",
+			"Omitted from this cutover: Studio's updater operations belong to its Electron shell. Zeta's " +
+			"desktop bundle ships through the package archives, and /api/update/{check,download,install} " +
+			"publish no release notes, asset size or byte progress, so the dialog would render empty rows.",
 	},
 ];

@@ -65,10 +65,6 @@ const ALLOWED = [
   ["styles/themes/", "generated L1/L2/L3 first-frame tables (scripts/gen-theme-static.mjs)"],
   ["app/api/", "standalone server-rendered HTML preview document (no theme context)"],
   ["app/layout.tsx", "pre-hydration theme-color meta; rewritten by the bootstrap script"],
-  [
-    "components/studio/primitives/brands.tsx",
-    "third-party brand marks: provider logos keep their official colours and are never theme surfaces",
-  ],
 ];
 
 const NAMED = "white|black|silver|gray|grey|red|maroon|yellow|olive|lime|green|aqua|teal|blue|navy|fuchsia|purple";
