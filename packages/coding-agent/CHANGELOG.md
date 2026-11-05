@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+### Added
+
+- Added a workspace-scoped OpenDesign bridge: `/design status|enable|disable` and a single `design` tool that wraps the OpenDesign MCP project/artifact/run surface and the allowlisted `od` CLI. It is off unless `.zeta/design.yml` enables it; no global MCP server or CLI registration is written.
+
+### Changed
+
+- Legacy OMP model and dotenv imports are now opt-in with `ZETA_OMP_COMPAT=1`. By default Zeta does not read `~/.omp/agent/models.yml`, `agent.db`, or `.env`; the explicit `copy-from-omp` import endpoint remains available.
+- Explicit `copy-from-omp` remains a one-click import and no longer depends on ambient OMP compatibility being enabled.
+
 ## [1.4.9] - 2026-11-03
 
 - Synced with upstream OMP v18.16.0: browser relay ownership/close and persisted-tab fixes, `/review` and `/annotate` outside the repository, composer predictions, Hindsight global scope, eval completion metadata, and catalog/auth updates.

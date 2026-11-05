@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Released as part of Zeta 1.4.10; no package-specific user-visible changes.
+
 ## [1.4.9] - 2026-11-03
 
 - Synced with upstream OMP v18.16.0; user-visible changes ride the coding-agent package.

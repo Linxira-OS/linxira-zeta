@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Legacy OMP dotenv files are no longer loaded by default; set `ZETA_OMP_COMPAT=1` to opt into the read-only fallback. Zeta `.zeta` dotenv files keep precedence.
+
 ## [1.4.9] - 2026-11-03
 
 - Synced with upstream OMP v18.16.0; no package-specific user-visible changes.

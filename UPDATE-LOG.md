@@ -2,6 +2,12 @@
 
 ## 下一版本（Unreleased）
 
+### 1.4.10
+- **OMP 外部导入开关**：新增 `ZETA_OMP_COMPAT=1`，默认不读取旧 `~/.omp` 的 `models.yml`、`agent.db` 和 `.env`；显式 `copy-from-omp` 导入仍可用，`.zeta` 配置始终优先。
+- **GitHub CI 分层**：PR / 非 main dispatch 走快速路径，跳过 Rust、cross 与 native 编译，恢复 main 缓存或 npm native；main 全量并复用精确 native/cross 缓存；release 跳过测试 fan-out，复用 source commit 的 native 缓存。
+- **OpenDesign 设计桥**：新增工作区级 `.zeta/design.yml` 开关、`/design status|enable|disable` 与单个 `design` 工具，封装 OpenDesign MCP 与白名单 `od` CLI；默认关闭，不写全局 MCP/CLI。
+- **发布前门**：`CONTRIBUTING.md` 与 `.github/SECURITY.md` 改为 Zeta 自有流程，移除上游 Discord、个人邮箱与 vouch 规则；私有漏洞报告、secret scanning 与 push protection 已启用。
+
 ### 1.4.7
 - **上游同步 OMP v18.14.0**：完整 tag 合并（511 commits、1450 files）；带入 native Chrome WebMCP、自定义 tool-loader 签名、精确 provider-qualified model selector、手动 compaction 事件、Tern 终端代码与 Bun 1.4.4 代码路径。Zeta 保留离线 HTML exporter，不接 hosted viewer。
 - **PTC 编排指引**：main agent 的 system prompt 增加 code-first tool orchestration 指引；subagent 不接收。
