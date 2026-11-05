@@ -1119,11 +1119,16 @@ export function ChatWindow({
 												/>
 											)}
 											{planProposed && planState.enabled && planState.planFilePath && (
-												<PlanApproval
+												<StudioPlanReview
+													sessionId={session?.id ?? sessionIdRef.current ?? null}
 													planFilePath={planState.planFilePath}
 													planTitle={planTitleFromPath(planState.planFilePath)}
 													planMarkdown={planState.planContent ?? ""}
+													disabled={sessionBusy}
+													stateVersion={planState.enabled ? 1 : 0}
 													onApprove={handlePlanApprove}
+													onRefine={handlePlanRefine}
+													onRoleChange={handlePlanRoleChange}
 												/>
 											)}
 

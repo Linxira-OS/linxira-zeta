@@ -44,6 +44,7 @@
 @import "./runtime-catalog.css";
 @import "./plan-execution.css";
 @import "./secondary-interactions.css";
+@import "./deck.css";
 @import "./services.css";
 
 /* The shell frame itself (grid, sidebar, tab strip, page frame, primitives).
