@@ -126,11 +126,12 @@ const PATHS: Record<string, string> = {
   "pen-nib": '<path d="M8 14.1 3.7 9.4 10.8 2.3a2 2 0 0 1 2.8 2.8L6.5 12.2z"/><path d="M9.2 4.6 11.4 6.8"/><path d="M8 14.1 6.7 10.8h2.6z"/>',
 };
 
-/** App / project mark served from `apps/renderer/public/icon.png`. */
-export const APP_ICON_SRC = `${import.meta.env.BASE_URL}icon.png`;
+/** App mark: Zeta's PWA icon. */
+export const APP_ICON_SRC = "/icons/icon-192.png";
 
 export function AppIcon({ className, size }: { className?: string; size?: number }) {
   return (
+    // eslint-disable-next-line @next/next/no-img-element -- local 192px PWA icon, already the smallest served variant
     <img
       className={className}
       src={APP_ICON_SRC}
