@@ -386,20 +386,31 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 -------------------------------------------------------------------------------
-web-ui/components/studio + web-ui/styles/studio
+web-ui/components/studio + web-ui/styles/studio + web-ui/lib/studio-protocol
 
-Ported UI surface from OMP Studio 0.1.17 (MIT). The component and stylesheet
-tree under `web-ui/components/studio/` and `web-ui/styles/studio/` is derived
-from the OMP Studio renderer (`apps/renderer/src`); the data plumbing, transport
-and packaging are Zeta's own and are not part of that derivation.
+Ported UI surface and protocol types from OMP Studio 0.1.17 (MIT).
+
+- `web-ui/components/studio/` and `web-ui/styles/studio/` are derived from the
+  OMP Studio renderer (`apps/renderer/src`).
+- `web-ui/lib/studio-protocol/` vendors the type and validation surface of
+  `@omp-studio/client-contract` and `@omp-studio/studio-protocol` (78 files, no
+  runtime dependency), so the ported renderer keeps its own read models.
+- `web-ui/lib/studio-client/` is Zeta's own implementation of the
+  `StudioClient` interface over the Zeta gateway; it is not derived from
+  `@omp-studio/client`.
+
+The data plumbing, transport and packaging are Zeta's own and are not part of
+that derivation.
 
   Copyright (c) 2026 snowpear and OMP Studio contributors
 
-Local modifications: imports of `@omp-studio/*` were replaced by local view
-models and Zeta gateway clients; Studio's design tokens were rebound to Zeta's
-theme alias layer (`--studio-*` → `--zeta-alias-*`) and every selector scoped
-under `.studio-root`; surfaces with no Zeta backend were dropped rather than
-ported.
+Local modifications: `@omp-studio/client-contract` and
+`@omp-studio/studio-protocol` imports were rewritten to the vendored copies;
+`@omp-studio/client` is replaced by `web-ui/lib/studio-client`; Studio's design
+tokens were rebound to Zeta's theme alias layer (`--studio-*` →
+`--zeta-alias-*`) and every selector scoped under `.studio-root`; the desktop
+bridge global `ompStudioChrome` became `window.piDesktop`; surfaces with no Zeta
+backend were dropped rather than ported.
 
 MIT License
 

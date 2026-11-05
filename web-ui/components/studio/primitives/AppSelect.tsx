@@ -125,9 +125,10 @@ export function AppSelect({ value, onChange, children, placeholder, className = 
     if (!open) return;
     if (searchable) search.current?.focus();
   }, [open, searchable]);
+  const activeId = open && activeOption ? optionId(activeOption.index) : null;
   useLayoutEffect(() => {
-    if (open && activeOption) document.getElementById(optionId(activeOption.index))?.scrollIntoView?.({ block: "nearest" });
-  }, [open, activeOption?.index]);
+    if (activeId) document.getElementById(activeId)?.scrollIntoView?.({ block: "nearest" });
+  }, [activeId]);
   useEffect(() => {
     if (!open) return;
     const outside = (event: Event) => {
@@ -189,7 +190,7 @@ export function AppSelect({ value, onChange, children, placeholder, className = 
       return;
     }
     if (!inSearch && event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
-      const now = Date.now();
+      const now = event.timeStamp;
       const previous = now - typeahead.current.at < 700 ? typeahead.current.text : "";
       const text = previous + event.key.toLocaleLowerCase();
       typeahead.current = { text, at: now };
