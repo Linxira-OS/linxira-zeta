@@ -9,7 +9,7 @@ import { useExecutionTarget, useTargetMemory } from "./ExecutionTargets";
 import { SshPasswordDialog } from "./SshPasswordDialog";
 import { SshPreparationDialog } from "./SshPreparationDialog";
 import { remoteConnectionPending, remoteStatusLabel } from "./remoteStatus";
-import type { RemoteConnectionProfile, RemoteDirectoryList, RemoteNetworkMode } from "../../../desktop/src/remote/shared";
+import type { RemoteConnectionProfile, RemoteDirectoryList, RemoteNetworkMode } from "./remoteShared";
 
 export function ExecutionTargetPicker({ onOpen, otherMenuOpen = false }: { onOpen?(): void; otherMenuOpen?: boolean }) {
   const target = useExecutionTarget();

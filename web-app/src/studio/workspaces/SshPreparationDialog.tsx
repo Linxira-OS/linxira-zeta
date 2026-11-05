@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../icons";
-import type { RemoteConnectionProfile, RemoteConnectionStatus } from "../../../desktop/src/remote/shared";
+import type { RemoteConnectionProfile, RemoteConnectionStatus } from "./remoteShared";
 import "./ssh.css";
 
 const STAGES = ["probe", "confirmation", "download", "upload", "install", "verify", "configure", "connect"];

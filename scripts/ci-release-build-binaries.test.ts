@@ -29,21 +29,33 @@ describe("Windows release binary target", () => {
 		expect(output).not.toContain("bun-windows-x64-modern");
 	});
 
-	it("builds the bare zeta-work-*/zeta-ide-* release assets and skips the CLI bundle round-trip", async () => {
+	it("builds the bare zeta-ide-* release assets and skips the CLI bundle round-trip", async () => {
 		const result =
-			await $`bun scripts/ci-release-build-binaries.ts --dry-run --targets zeta-work-linux-x64,zeta-work-win-x64,zeta-ide-linux-x64`
+			await $`bun scripts/ci-release-build-binaries.ts --dry-run --targets zeta-ide-linux-x64,zeta-ide-win-x64`
 				.cwd(repoRoot)
 				.quiet()
 				.nothrow();
 		expect(result.exitCode).toBe(0);
 		const output = result.text();
 
-		expect(output).toContain("DRY RUN cargo build --release --locked -p zeta-main [cwd main]");
 		expect(output).toContain("DRY RUN cargo build --release --locked -p termide [cwd termide]");
 		// Product-only selections touch no generated state: no gen:stats /
 		// gen:native round-trip (the cargo release legs run without it).
 		expect(output).not.toContain("DRY RUN bun run gen:stats");
 		expect(output).not.toContain("DRY RUN bun run gen:native");
+	});
+
+	it("fails a paused zetawork target loudly instead of silently skipping it", async () => {
+		// zetawork is paused (2026-11-05 ruling) and its legs are gone from the
+		// target table; a stale RELEASE_TARGETS value must be a hard error.
+		const result =
+			await $`bun scripts/ci-release-build-binaries.ts --dry-run --targets zeta-work-linux-x64,zetawork-gui-win-x64`
+				.cwd(repoRoot)
+				.quiet()
+				.nothrow();
+		expect(result.exitCode).not.toBe(0);
+		expect(result.stderr.toString()).toContain("Unknown release target(s)");
+		expect(result.text()).not.toContain("DRY RUN");
 	});
 
 	it("resolves local Windows cross-build aliases for both architectures", () => {

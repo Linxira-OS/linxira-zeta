@@ -1,6 +1,6 @@
 import type { ClientTransport } from "@linxiraos/studio-contract";
 import { eventMatchesScope } from "@linxiraos/studio-client";
-import type { RemoteApi } from "../../../desktop/src/remote/shared";
+import type { RemoteApi } from "./remoteShared";
 
 export interface RemoteTransportState {
   available: boolean;

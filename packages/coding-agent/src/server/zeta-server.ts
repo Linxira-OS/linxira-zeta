@@ -141,8 +141,9 @@ export interface ZetaServerRoute {
 /**
  * What a browser sees when the backend runs without a Web UI build. Reaching
  * this page proves the backend is alive; the terminal and the gateway keep
- * working. The Web UI is deliberately not shipped in the package: a later
- * release completes it and `zetacode serve` fetches it from npm on demand.
+ * working. The npm package ships the renderer at `dist/web-app`, so this page
+ * only appears for a source checkout without a build (or a truncated install);
+ * it names the ways to get one instead of promising a download.
  */
 export const NO_WEB_UI_PAGE = `<!doctype html><html lang="zh-CN"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -164,9 +165,11 @@ color:color-mix(in srgb,CanvasText 65%,Canvas);margin-bottom:.6rem}
 </style>
 <main>
 <span class="tag">Linxira Zeta</span>
-<h1>Web UI 正在补齐 · Web UI coming soon</h1>
-<p class="sub">当前版本暂不随包发布 Web UI；完整界面会在后续版本补齐，
-     届时 <code>zetacode serve</code> 会按需从 npm 安装 Web UI。</p>
+<h1>Web UI 构建未找到 · Web UI build not found</h1>
+<p class="sub">此安装没有找到 Studio 渲染器构建。npm 包自带 <code>dist/web-app</code>，
+     可重新安装 <code>@linxiraos/zeta</code>；从源码运行时先在 <code>web-app/</code>
+     执行 <code>npm ci &amp;&amp; npm run build:ci</code>，或用 <code>ZETA_WEB_APP_DIR</code>
+     指向已有的 <code>web-app/dist</code> 构建目录。</p>
 <div class="card">
 <p>现在可以继续使用：</p>
 <ul>
@@ -416,7 +419,7 @@ export class ZetaServer {
 	/** Upper bound a remote plan waits for an approval reply before expiring. */
 	static readonly PLAN_APPROVAL_TTL_MS = 30 * 60_000;
 	#webUiPort = 0;
-	/** `web-app/dist` when this install has a renderer build; `null` otherwise. */
+	/** Renderer build directory (packaged or checkout); `null` when absent. */
 	readonly #webAppDir = resolveStudioWebAppDir();
 	#running = false;
 

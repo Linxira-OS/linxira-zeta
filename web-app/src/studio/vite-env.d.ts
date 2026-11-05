@@ -20,7 +20,7 @@ declare global {
    * in a desktop transport + `StudioClientImpl` itself.
    */
   var zetaStudio: ZetaStudioDesktopApi | undefined;
-  var zetaStudioRemote: import("../../desktop/src/remote/shared").RemoteApi | undefined;
+  var zetaStudioRemote: import("./workspaces/remoteShared").RemoteApi | undefined;
 
   /**
    * Window-chrome helpers (not the Host transport). Theme sync talks to the

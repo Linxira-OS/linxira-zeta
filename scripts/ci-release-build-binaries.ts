@@ -25,7 +25,7 @@ interface ProductBinaryTarget {
 	kind: "product";
 	/** Release asset name — hyphenated product + platform, no extra suffix. */
 	id: string;
-	product: "work" | "gui" | "ide";
+	product: "ide";
 	platform: "linux" | "win32";
 }
 
@@ -117,36 +117,14 @@ const targets: ReleaseTarget[] = [
 	// cross-build on the Linux runner: cargo via the GNU target.
 	//
 	// One target per (product, platform) the release ships: `zeta-cli-*`
-	// legs (above) are zetacode; `zeta-work-*` is the zetawork TUI and
-	// `zetawork-gui-*` the desktop app (1.3.1 restored both after the 1.3.0
-	// hold). scripts/check-workbench-bundles.ts fails when a shipped
+	// legs (above) are zetacode; `zeta-ide-*` is zetaide. zetawork is paused
+	// (2026-11-05 ruling), so its `zeta-work-*` TUI and `zetawork-gui-*`
+	// desktop legs are deliberately absent: a stale `RELEASE_TARGETS` value
+	// naming them fails as an unknown target instead of silently building
+	// nothing. scripts/check-workbench-bundles.ts fails when a shipped
 	// product/platform pair disappears from this table and when an unshipped
 	// one reappears, so this list, the matrix legs and that guard move
 	// together.
-	{
-		kind: "product",
-		id: "zeta-work-linux-x64",
-		product: "work",
-		platform: "linux",
-	},
-	{
-		kind: "product",
-		id: "zeta-work-win-x64",
-		product: "work",
-		platform: "win32",
-	},
-	{
-		kind: "product",
-		id: "zetawork-gui-linux-x64",
-		product: "gui",
-		platform: "linux",
-	},
-	{
-		kind: "product",
-		id: "zetawork-gui-win-x64",
-		product: "gui",
-		platform: "win32",
-	},
 	{
 		kind: "product",
 		id: "zeta-ide-linux-x64",
@@ -162,22 +140,11 @@ const targets: ReleaseTarget[] = [
 ];
 
 /** Cargo workspace roots per Rust product: package to build, produced bin. */
-const CARGO_PRODUCTS: Record<
-	ProductBinaryTarget["product"],
-	{ dir: string; pkg: string; bin: string; features?: string[] }
-> = {
-	work: { dir: "main", pkg: "zeta-main", bin: "zeta" },
-	// The desktop app is a separate binary in the same workspace; it is never
-	// placed on PATH by the installers (no fourth command). Notifications and
-	// the tray are optional features; the tray ships on every desktop — Windows
-	// through Shell_NotifyIcon, Linux through `tray-icon`'s KSNI backend
-	// (StatusNotifierItem over D-Bus, no GTK/libappindicator dependency).
-	gui: {
-		dir: "main",
-		pkg: "zetawork-gui",
-		bin: "zetawork-gui",
-		features: ["os-notify"],
-	},
+const CARGO_PRODUCTS: Record<ProductBinaryTarget["product"], { dir: string; pkg: string; bin: string }> = {
+	// zetawork's TUI (`zeta-main`) and desktop (`zetawork-gui`) legs left the
+	// release surface with the 2026-11-05 pause ruling; only zetaide is staged
+	// here. The paused desktop packaging path stays dispatchable from
+	// scripts/package-desktop-archives.ts, which is fed by manual builds.
 	ide: { dir: "termide", pkg: "termide", bin: "termide" },
 };
 
@@ -264,21 +231,8 @@ async function buildCargoProduct(target: ProductBinaryTarget): Promise<void> {
 		console.log(`DRY RUN cargo build --release --locked -p ${product.pkg} [cwd ${product.dir}]`);
 		return;
 	}
-	const features = [...(product.features ?? [])];
-	if (product.pkg === "zetawork-gui" && !features.includes("tray")) {
-		features.push("tray");
-	}
 	await runCommand(
-		[
-			"cargo",
-			"build",
-			"--release",
-			"--locked",
-			"-p",
-			product.pkg,
-			...(features.length ? ["--features", features.join(",")] : []),
-			...(triple ? ["--target", triple] : []),
-		],
+		["cargo", "build", "--release", "--locked", "-p", product.pkg, ...(triple ? ["--target", triple] : [])],
 		workspaceDir,
 	);
 	// Resolve the built bin the way cargo does: CARGO_TARGET_DIR redirects the

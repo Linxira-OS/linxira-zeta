@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import type { RemoteConnectionProfile } from "../../../desktop/src/remote/shared";
+import type { RemoteConnectionProfile } from "./remoteShared";
 import { Icon } from "../icons";
 import "./ssh.css";
 

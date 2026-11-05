@@ -460,8 +460,8 @@ describe("WorkerCore", () => {
 	});
 
 	it("reads artifact:// from the artifacts dir of the run's snapshot, not the first one", async () => {
-		const dirA = await fs.mkdtemp(path.join(os.tmpdir(), "omp-artifacts-a-"));
-		const dirB = await fs.mkdtemp(path.join(os.tmpdir(), "omp-artifacts-b-"));
+		const dirA = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-artifacts-a-"));
+		const dirB = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-artifacts-b-"));
 		await Bun.write(path.join(dirA, "5.eval.log"), "from A");
 		await Bun.write(path.join(dirB, "5.eval.log"), "from B");
 		const harness = createWorkerHarness();
@@ -495,8 +495,8 @@ describe("WorkerCore", () => {
 	});
 
 	it("keeps a suspended run on its own artifact root while an overlapping run uses another", async () => {
-		const dirA = await fs.mkdtemp(path.join(os.tmpdir(), "omp-artifacts-a-"));
-		const dirB = await fs.mkdtemp(path.join(os.tmpdir(), "omp-artifacts-b-"));
+		const dirA = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-artifacts-a-"));
+		const dirB = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-artifacts-b-"));
 		await Bun.write(path.join(dirA, "5.eval.log"), "from A");
 		await Bun.write(path.join(dirB, "5.eval.log"), "from B");
 		const harness = createWorkerHarness();

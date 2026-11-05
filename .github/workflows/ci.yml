@@ -117,7 +117,7 @@ on:
             type: boolean
             default: false
          build_desktop_archives:
-            description: "Run release_product_binaries + release_desktop_archives without a tag (packaging dry run)"
+            description: "Run the paused release_desktop_archives packaging path without a tag (zetawork suspended 2026-11-05; zetawork binaries must be staged manually)"
             type: boolean
             default: false
          publish_web_ui:
@@ -255,17 +255,17 @@ jobs:
       steps:
          - uses: actions/checkout@v4
          - uses: ./.github/actions/bun-install
-         # The renderer is the product UI now: `zeta serve` ships this build.
-         # web-app is its own npm project (not a root workspace member), so it
-         # installs and builds on its own. `build:ci` is `vite build` alone —
-         # the workspace type check cannot see this tree, and its own `tsc -b`
-         # is still red on the port (documented follow-up).
+         # The renderer is the product UI now: `zeta serve` ships this build and
+         # the release packs it into `dist/web-app`. web-app is its own npm
+         # project (not a root workspace member), so it installs and builds on
+         # its own; `build` is `tsc -b && vite build`, so the renderer's types are
+         # gated here (2026-11-06: the port's 97 errors were paid down).
          - name: Install web-app dependencies
            working-directory: web-app
            run: npm ci
          - name: Build web-app
            working-directory: web-app
-           run: npm run build:ci
+           run: npm run build
          - name: Verify Rust license compliance (cargo-deny 0.20.2)
            run: |
               # Prebuilt release binary checked against digests pinned here:
@@ -1332,24 +1332,28 @@ jobs:
               path: ~/.bun/install/cache
               key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
 
-   # Bare native binaries of the non-CLI products (the zetawork workbench from
-   # the main/ workspace, zetaide from the vendored termide workspace),
-   # published as release assets for distribution repackaging: the asset file
-   # name is the target id and the Linxira pacman PKGBUILDs fetch it verbatim
-   # from releases/download/v<pkgver>/. Same artifact family as release_binary
+   # Bare native binary of zetaide (the vendored termide workspace), published
+   # as a release asset for distribution repackaging: the asset file name is
+   # the target id and the Linxira pacman PKGBUILDs fetch it verbatim from
+   # releases/download/v<pkgver>/. Same artifact family as release_binary
    # (zeta-binary-* names merged into the same release staging dir) so every
-   # asset enters SHA256SUMS.txt. No native-addon dependency — these products
-   # embed no node addons — so this job runs purely in parallel with the test
-   # fan-out. The cargo legs compile under each workspace's own
+   # asset enters SHA256SUMS.txt. No native-addon dependency — this product
+   # embeds no node addons — so this job runs purely in parallel with the test
+   # fan-out. The cargo legs compile under the workspace's own
    # rust-toolchain.toml pin (currently 1.97.1, read at run time — the
    # same toolchain main_tests / termide_tests gate with). Windows assets cross-compile on the Linux
    # runner like the zeta-cli-* win32-x64 leg: cargo via the GNU target (the
    # same "Win GNU target" method the committed npm leaf binaries are
    # rebuilt with, no Windows runner needed).
+   #
+   # zetawork is paused (2026-11-05 ruling): its `zeta-work-*` TUI and
+   # `zetawork-gui-*` desktop legs are not built or shipped here any more, and
+   # scripts/ci-release-build-binaries.ts no longer declares them, so a stale
+   # `RELEASE_TARGETS` value naming one fails as an unknown target.
    release_product_binaries:
       name: "Release product binary: ${{ matrix.target_id }}"
-      # `build_desktop_archives` is the packing dry run: the archives job needs
-      # both Linux legs, and neither can be exercised without a real build.
+      # `build_desktop_archives` is the paused archives dry run: it still wants
+      # the zetaide legs the desktop packaging carries as a companion.
       if: ${{ !cancelled() &&
          (needs.release_metadata.outputs.is-release == 'true' || inputs.build_desktop_archives) }}
       needs: [release_metadata]
@@ -1357,20 +1361,6 @@ jobs:
          fail-fast: false
          matrix:
             include:
-               - { os: ubuntu-22.04, platform: linux, target_id: zeta-work-linux-x64, artifact: zeta-work-linux-x64 }
-               - { os: ubuntu-22.04, platform: win32, target_id: zeta-work-win-x64, artifact: zeta-work-win-x64.exe }
-               - {
-                    os: ubuntu-22.04,
-                    platform: linux,
-                    target_id: zetawork-gui-linux-x64,
-                    artifact: zetawork-gui-linux-x64,
-                 }
-               - {
-                    os: ubuntu-22.04,
-                    platform: win32,
-                    target_id: zetawork-gui-win-x64,
-                    artifact: zetawork-gui-win-x64.exe,
-                 }
                - { os: ubuntu-22.04, platform: linux, target_id: zeta-ide-linux-x64, artifact: zeta-ide-linux-x64 }
                - { os: ubuntu-22.04, platform: win32, target_id: zeta-ide-win-x64, artifact: zeta-ide-win-x64.exe }
       runs-on: ${{ matrix.os }}
@@ -1421,28 +1411,18 @@ jobs:
               # native Linux legs where cargo uses the default host linker.
               CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: ${{ matrix.platform == 'win32' && 'x86_64-w64-mingw32-gcc' || '' }}
            run: bun run ci:release:build-binaries
-         # Bare TUI products: --version short-circuits before any terminal
-         # setup (zeta/termide flag parse), so a bare runner probe is
-         # safe. Windows assets are cross-built — nothing on the Linux
-         # runner can exec them (same policy as the zeta-cli-* win32-x64 leg).
-         # The desktop app has no CLI surface: `--version` opens a window and
-         # dies headless (WinitEventLoop: no DISPLAY). Its smoke is the archive
-         # job, which runs the packaged build's own checks.
+         # zetaide: --version short-circuits before any terminal setup
+         # (termide flag parse), so a bare runner probe is safe. Windows
+         # assets are cross-built — nothing on the Linux runner can exec them
+         # (same policy as the zeta-cli-* win32-x64 leg).
          - name: Verify Windows icon resources
            if: matrix.platform == 'win32'
            run: bun scripts/check-windows-icons.ts --binaries "packages/coding-agent/binaries/${{ matrix.artifact }}"
          - name: Smoke release product binary
-           if: matrix.platform == 'linux' && !startsWith(matrix.target_id, 'zetawork-gui-')
+           if: matrix.platform == 'linux'
            run: |
               runtime_dir="$(mktemp -d)"
               HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" "packages/coding-agent/binaries/${{ matrix.artifact }}" --version
-         # wry links WebView2Loader.dll dynamically; the archives job has no
-         # cargo registry of its own, so the loader travels with this leg.
-         - name: Stage the WebView2 loader beside the desktop binary
-           if: matrix.target_id == 'zetawork-gui-win-x64'
-           run: |
-              dll=$(ls "$CARGO_HOME"/registry/src/*/webview2-com-sys-*/x64/WebView2Loader.dll | head -1)
-              cp "$dll" "packages/coding-agent/binaries/${{ matrix.target_id }}.dll"
          - name: Upload release product binary artifact
            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
            with:
@@ -1450,18 +1430,21 @@ jobs:
               path: packages/coding-agent/binaries/${{ matrix.target_id }}*
               if-no-files-found: error
 
-   # The desktop app and the Arch/AppImage packaging need artifacts from BOTH
-   # Linux legs (GUI + TUI binaries build in separate matrix jobs), so they are
-   # assembled here rather than inside a matrix leg. Sources are the same
-   # `zeta-binary-*` artifacts release_github downloads.
+   # PAUSED (user ruling 2026-11-05: zetawork suspended, roadmap P0). This job
+   # is dispatch-only now — a release never runs it and release_github no
+   # longer waits on it, so the installer/AppImage/Arch archives are not
+   # release assets. The definition stays for the manual revival path: it
+   # packages the GUI + TUI + companions from `zeta-binary-*` artifacts, which
+   # a dispatch has to stage itself (the release matrix no longer builds the
+   # zetawork legs). See document/release.md.
    release_desktop_archives:
-      name: Package zetawork desktop installer & archives
+      name: Package zetawork desktop installer & archives (paused)
       # Needs the CLI leg too: the installer and both Linux packages carry
       # `zetacode` (zeta-binary-linux-x64 / zeta-binary-win32-x64) beside the
       # GUI, alongside zetaide (zeta-binary-zeta-ide-{linux,win}-x64) and the
       # TUI (zeta-binary-zeta-work-{linux,win}-x64).
       if: ${{ always() && !cancelled() &&
-         (needs.release_metadata.outputs.is-release == 'true' || inputs.build_desktop_archives) &&
+         inputs.build_desktop_archives &&
          needs.release_binary.result == 'success' &&
          needs.release_product_binaries.result == 'success' }}
       needs: [release_metadata, release_binary, release_product_binaries]
@@ -1625,10 +1608,12 @@ jobs:
          needs.release_binary.result == 'success' &&
          needs.release_product_binaries.result == 'success' &&
          !inputs.skip_npm }}
-      # 1.3.0: the Electron desktop and the workbench TUI left the release
-      # surface (user ruling 2026-10-19); this job now waits only for what it
-      # actually uploads.
-      needs: [release_metadata, release_gate, release_binary, release_product_binaries, release_desktop_archives]
+      # zetawork is paused (2026-11-05 ruling): this job now uploads only what
+      # the release builds — CLI binaries, zetaide, the relay extension, the
+      # example-plugin zip and the root texts. The TUI and the desktop archives
+      # left the release surface with it, so release_desktop_archives is no
+      # longer a dependency (that job is dispatch-only).
+      needs: [release_metadata, release_gate, release_binary, release_product_binaries]
       runs-on: ubuntu-22.04
       permissions:
          contents: write
@@ -1700,27 +1685,6 @@ jobs:
                 echo "::error::Expected at least 1 plugins/dist/zeta-plugin-example-*.zip, found $plugin_zips"
                 missing=1
               fi
-              work_count=$(ls packages/coding-agent/binaries/zeta-work-* 2>/dev/null | wc -l)
-              if [ "$work_count" -lt 2 ]; then
-                # 1.3.1 restored the workbench TUI (zeta-work-* linux+win) after
-                # the 1.3.0 hold; the npm line ships with it.
-                echo "::error::Expected at least 2 zeta-work-* product binaries, found $work_count"
-                missing=1
-              fi
-              # Desktop assets carry the numeric version: the tag's leading `v`
-              # is packaging metadata, never part of an asset name.
-              version="${{ needs.release_metadata.outputs.release-tag }}"
-              version="${version#v}"
-              for archive in \
-                packages/coding-agent/binaries/linxira-zeta-"$version"-setup-x64.exe \
-                packages/coding-agent/binaries/linxira-zeta-"$version"-windows-x64.zip \
-                packages/coding-agent/binaries/linxira-zeta-"$version"-x86_64.AppImage \
-                packages/coding-agent/binaries/linxira-zeta-"$version"-1-x86_64.pkg.tar.zst; do
-                if [ ! -f "$archive" ]; then
-                  echo "::error::Missing desktop archive: $archive"
-                  missing=1
-                fi
-              done
               exit $missing
          # Generated after every other release asset is in place and before
          # the release is created, so SHA256SUMS.txt itself ships as an asset
@@ -1729,11 +1693,6 @@ jobs:
            run: |
               bun run ci:release:checksums SHA256SUMS.txt \
                 packages/coding-agent/binaries/zeta-cli-* \
-                packages/coding-agent/binaries/zeta-work-* \
-                packages/coding-agent/binaries/linxira-zeta-*-setup-x64.exe \
-                packages/coding-agent/binaries/linxira-zeta-*-windows-x64.zip \
-                packages/coding-agent/binaries/linxira-zeta-*.AppImage \
-                packages/coding-agent/binaries/linxira-zeta-*.pkg.tar.zst \
                 packages/coding-agent/binaries/zeta-ide-* \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
                 plugins/dist/zeta-plugin-example-*.zip \
@@ -1746,11 +1705,6 @@ jobs:
               prerelease: ${{ needs.release_metadata.outputs.channel == 'canary' }}
               files: |
                  packages/coding-agent/binaries/zeta-cli-*
-                 packages/coding-agent/binaries/zeta-work-*
-                 packages/coding-agent/binaries/linxira-zeta-*-setup-x64.exe
-                 packages/coding-agent/binaries/linxira-zeta-*-windows-x64.zip
-                 packages/coding-agent/binaries/linxira-zeta-*.AppImage
-                 packages/coding-agent/binaries/linxira-zeta-*.pkg.tar.zst
                  packages/coding-agent/binaries/zeta-ide-*
                  packages/browser-relay/dist/zeta-browser-relay-extension.zip
                  plugins/dist/zeta-plugin-example-*.zip

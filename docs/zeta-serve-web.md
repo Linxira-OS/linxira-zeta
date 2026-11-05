@@ -40,13 +40,33 @@ ZetaServer's unified reverse proxy.
 `zetacode serve` also serves the Studio renderer build (`web-app/`) on its own
 origin, so the browser needs no second process:
 
-- every path outside `/api/*` is served from `web-app/dist` — hashed assets
-  from `/assets/` are cached immutably, `index.html` never is, and any other
-  path falls back to `index.html` (client-side routing). A missing asset is a
-  404, never the HTML entry;
-- the build is optional. Without one (a package that ships no renderer) `/`
-  keeps answering the placeholder page and every `/api/*` route still works;
-- `ZETA_WEB_APP_DIR` points at a different build directory;
+- every path outside `/api/*` is served from the renderer directory — hashed
+  assets from `/assets/` are cached immutably, `index.html` never is, and any
+  other path falls back to `index.html` (client-side routing). A missing asset
+  is a 404, never the HTML entry;
+- the renderer directory is resolved in this order:
+  1. `ZETA_WEB_APP_DIR`, when set. It is authoritative — if that path has no
+     `index.html`, `serve` answers the placeholder rather than silently using
+     another build;
+  2. the packaged copy shipped inside the npm package:
+     `<package-root>/dist/web-app/index.html`;
+  3. the repository checkout's `web-app/dist`, for source installs;
+- the npm package always ships a build. A plain `bun install` in a checkout
+  resolves `web-app/dist` and never needs the packaged copy, so a source
+  contributor runs `cd web-app && npm ci && npm run build` (types + bundle) as before;
+- packaging is automatic: the package's `prepack` runs `gen:web-app`
+  (`bun scripts/build-web-app.ts`), which builds `web-app`, stages it at
+  `packages/coding-agent/dist/web-app/`, and is also what `npm pack` and the
+  release publish use. To reproduce it by hand:
+
+  ```bash
+  bun run --cwd packages/coding-agent gen:web-app
+  (cd packages/coding-agent && npm pack --dry-run)
+  ```
+
+- without a build (a truncated install, or a checkout before the first build)
+  `/` answers a placeholder page naming these three ways to get one, and every
+  `/api/*` route still works;
 - the renderer's Content-Security-Policy is sent as a response header and is
   the same policy the packaged `index.html` carries as a meta tag.
 
