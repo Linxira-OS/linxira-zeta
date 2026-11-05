@@ -2,7 +2,6 @@ import { createReadStream } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { createRequire } from "node:module";
-import { dirname } from "node:path";
 import type { Plugin } from "vite";
 const DISTRIBUTABLE = /\.(?:m?js|css|png|jpe?g|svg|woff2?|ttf|bin|wasm|txt|md)$/iu;
 async function files(directory: string): Promise<string[]> {
