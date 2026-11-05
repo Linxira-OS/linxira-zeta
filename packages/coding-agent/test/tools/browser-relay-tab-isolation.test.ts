@@ -310,9 +310,16 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("relay tab ownership", () => {
 
 	it("opens a default tab in the browser of the tab omp used last, not the first selected one", async () => {
 		const secondHello = Promise.withResolvers<void>();
-		let hellos = 0;
-		const fixture = await launchRelayFixture(message => {
-			if (message === "extension connected" && ++hellos === 2) secondHello.resolve();
+		const instances = new Set<string>();
+		const fixture = await launchRelayFixture((message, data) => {
+			if (message !== "extension connected") return;
+			const instanceId = data?.instanceId;
+			if (typeof instanceId !== "string" || instanceId.length === 0) return;
+			// Count distinct browser instances, not hello frames: a service-worker
+			// reconnect from the first browser must not satisfy the wait for the
+			// second browser, or the new page is created before its extension is up.
+			instances.add(instanceId);
+			if (instances.size >= 2) secondHello.resolve();
 		});
 		// The first browser shows the first selected tab, which a new tab would otherwise follow.
 		const human = await fixture.browser.newPage();
