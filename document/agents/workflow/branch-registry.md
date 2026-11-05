@@ -41,6 +41,10 @@
 | `feat/web-ui-studio-migration` | feat | Web UI Studio 迁移（`local://web-ui-studio-migration-plan.md`）：`web-ui/components/studio/**` + `web-ui/styles/studio/**` 原计划接管产品 UI 层、`zetawork` 原计划变原生外壳托管 `web-ui`（该方向已暂停）、`@linxiraos/zeta-web` 浏览器面与桌面打包共用一份构建；`/api/projects` GET/PUT 注册表、git stage/commit/push/pull/log 网关族。**2026-11-05 追加 web-app 切换**：`web-app/` 自带 Vite 7 构建取代 Next 渲染层、`server/studio-host/` 回答 `/api/v1/*` 宿主契约（pair/CSRF/query/command/events）、`@omp-studio/*` 与 `ompStudio*` 全局名全部迁到 `@linxiraos/studio-*` / `zetaStudio*`、`pi-omptype`/`pi-snapcompact` 改名 `zeta-schema`/`zeta-compact`、`compat.importLegacyOmp` 设置与 `zeta serve` 同源静态托管。基于 `c1f6c6c6a79`，worktree `temp/web-ui-studio` | agent | 2026-11-05 | 全量验证（W1–W8 + `bun check` + branch CI）并入 `main` 后删（删前记 SHA） |
 | `backup/pre-studio-ui-2026-11-05` | backup | Studio 迁移前冻结快照，`c1f6c6c6a79789ed99e37c42b14f3648e00fe624`（`v1.4.10` 线）；已推 `origin` | agent | 2026-11-05 | 迁移分支通过全量验证后再删（删前记 SHA） |
 | `dev/main-v1830-wip` | dev | v18.3.0 合并 WIP（2026-09-25，已被 v18.14.2 远超） | user | 2026-09-25 | **用户决定**；技术上是死的 |
+| `fix/browser-relay-hello-race` | fix | browser relay hello 竞态修复（`c1f6c6c6a79`；`git branch --merged main` 已含此分支） | unassigned | — | 已并入 `main`，删前记 SHA |
+| `port/studio-conversation` | port | Studio 会话面语义移植（`d2ab1add16f`，未并入 `main`；内容随 `feat/web-ui-studio-migration` 走） | agent | 2026-11-05 | 迁移分支合入 `main` 后删；删前记 SHA |
+| `port/studio-sidebar` | port | Studio 侧栏移植 + `port/studio-pages` 合并（`d5ef794bfd7`，未并入 `main`） | agent | 2026-11-05 | 迁移分支合入 `main` 后删；删前记 SHA |
+| `temp/release-dispatch` | temp | 临时 release dispatch 工作流实验（`89963b49b81`，未并入 `main`） | unassigned | — | 实验结束即删；删前记 SHA |
 
 ## 已退役（删除前登记）
 
