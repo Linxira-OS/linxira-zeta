@@ -59,11 +59,3 @@ export type HubView = "flat" | "tree";
 
 /** Right-hand face of the detail column. */
 export type HubTab = "overview" | "transcript" | "output";
-
-/** One row of a subagent transcript, as the pane renders it. */
-export interface HubTranscriptRow {
-	id: string;
-	role: "user" | "assistant" | "system";
-	text: string;
-	ts: number;
-}

@@ -14,10 +14,13 @@
  *   PLAN_ACTIONS.refine  → a normal prompt carrying the section annotations
  *
  * The execution-tier picker reads `modelRoles` (`plan-api.ts`); picking a role
- * is applied by the host through the gateway's `set_model_role` before approval.
+ * is applied by the host as `set_model` (+ optional `set_thinking_level`)
+ * before approval — see `planExecutionCommands` in `client-handlers.ts`.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { PlanExecutionTier } from "@/lib/studio-protocol/protocol";
+import { fetchPlanBody } from "./plan-api";
 import { PlanExecutionPicker, useNativePlanReview } from "./PlanExecutionPicker";
 import { PlanReviewDeck } from "./PlanCard";
 import type { PlanActionDetail, PlanActionId } from "./types";
@@ -55,17 +58,35 @@ export function StudioPlanReview({
 	planFilePath: string;
 	/** Display title; defaults to the plan file stem. */
 	title?: string;
-	planMarkdown: string;
+	/** Plan body; omitted → read `GET /api/plan?session=&path=`. */
+	planMarkdown?: string;
 	disabled?: boolean;
 	/** Bumped when the session state changes; re-reads the tier list. */
 	stateVersion?: number;
 	onApprove: (mode: PlanApproveMode) => void;
 	/** Refine keeps plan mode open: `feedback` is the annotated refinement prompt. */
 	onRefine?: (feedback: string) => void;
-	onRoleChange?: (role: string) => void;
+	onRoleChange?: (role: string, tier: PlanExecutionTier) => void;
 }) {
 	const review = useNativePlanReview(sessionId ?? undefined, true, true, stateVersion);
+	const [fetchedBody, setFetchedBody] = useState("");
+	const [bodyError, setBodyError] = useState("");
 	const [roleOverride, setRoleOverride] = useState<string | null>(null);
+	useEffect(() => {
+		if (planMarkdown !== undefined || !sessionId) return;
+		let current = true;
+		setBodyError("");
+		void fetchPlanBody(sessionId, planFilePath)
+			.then(text => {
+				if (current) setFetchedBody(text);
+			})
+			.catch((cause: unknown) => {
+				if (current) setBodyError(cause instanceof Error ? cause.message : String(cause));
+			});
+		return () => {
+			current = false;
+		};
+	}, [planMarkdown, sessionId, planFilePath]);
 	const role = roleOverride ?? review.role;
 	const title =
 		titleProp ?? planFilePath.split(/[\\/]/).pop()?.replace(/\.md$/i, "") ?? planFilePath;
@@ -81,24 +102,32 @@ export function StudioPlanReview({
 	};
 
 	return (
-		<PlanReviewDeck
-			title={title}
-			body={planMarkdown}
-			{...(disabled === true ? { disabled: true } : {})}
-			onAction={handleAction}
-			executionControl={
-				<PlanExecutionPicker
-					details={review.details}
-					role={role}
-					loading={review.loading}
-					{...(review.error ? { error: review.error } : {})}
-					{...(disabled === true ? { disabled: true } : {})}
-					onChange={next => {
-						setRoleOverride(next);
-						onRoleChange?.(next);
-					}}
-				/>
-			}
-		/>
+		<>
+			{bodyError ? (
+				<p className="ask-error" role="alert">
+					{bodyError}
+				</p>
+			) : null}
+			<PlanReviewDeck
+				title={title}
+				body={planMarkdown ?? fetchedBody}
+				{...(disabled === true ? { disabled: true } : {})}
+				onAction={handleAction}
+				executionControl={
+					<PlanExecutionPicker
+						details={review.details}
+						role={role}
+						loading={review.loading}
+						{...(review.error ? { error: review.error } : {})}
+						{...(disabled === true ? { disabled: true } : {})}
+						onChange={next => {
+							setRoleOverride(next);
+							const tier = review.details?.tiers.find(item => item.role === next);
+							if (tier) onRoleChange?.(next, tier);
+						}}
+					/>
+				}
+			/>
+		</>
 	);
 }

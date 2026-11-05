@@ -1,4 +1,3 @@
-import { PlanExecutionPicker } from "./PlanExecutionPicker";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { MarkdownText } from "./MarkdownText";
@@ -124,7 +123,6 @@ function PlanActions({
 
 type Box = { top: number; left: number; width: number; height: number };
 
-const PLAN_MORPH_MS = 340;
 const PLAN_MORPH_LEAVE_MS = 200;
 const PLAN_CLIP_FULL = "inset(0px 0px 0px 0px round var(--r-10))";
 

@@ -40,6 +40,7 @@
 | `fix/ui-audit-p0` | fix | `document/ui-bugfix-report.md` 的 P0/P1/P2 UI/功能修复：托盘驻留、分栏/页脚、会话删除、modal 交互与浮岛视觉；附带 Git 面板提交全部更改/推送闭环；worktree `temp/ui-audit-fixes` | agent | 2026-11-04 | 修复合入 `main` 后删（删前记 SHA） |
 | `feat/web-ui-studio-migration` | feat | Web UI Studio 迁移（`local://web-ui-studio-migration-plan.md`）：`web-ui/components/studio/**` + `web-ui/styles/studio/**` 接管产品 UI 层，`zetawork` 变原生外壳托管 `web-ui`，`@linxiraos/zeta-web` 浏览器面与桌面打包共用一份构建；`/api/projects` GET/PUT 注册表、git stage/commit/push/pull/log 网关族。基于 `c1f6c6c6a79`，worktree `temp/web-ui-studio` | agent | 2026-11-05 | 全量验证（W1–W8 + `bun check` + branch CI）并入 `main` 后删（删前记 SHA） |
 | `backup/pre-studio-ui-2026-11-05` | backup | Studio 迁移前冻结快照，`c1f6c6c6a79789ed99e37c42b14f3648e00fe624`（`v1.4.10` 线）；已推 `origin` | agent | 2026-11-05 | 迁移分支通过全量验证后再删（删前记 SHA） |
+| `port/studio-deck` | port | Studio 交互 Deck 与 Agent Hub 移植：`web-ui/components/studio/deck/**`（审批/提问卡、计划审核、`client-handlers.ts`）、`web-ui/components/studio/agents/**`（roster、子 Agent 对话记录、检查卡、`client-handlers.ts`）、`web-ui/styles/studio/deck.css`；`ChatWindow` 的 `PlanApproval` 换成 Studio 计划面。基于 `feat/web-ui-studio-migration`，worktree `temp/port-deck` | agent | 2026-11-05 | 合入 `feat/web-ui-studio-migration` 后删（删前记 SHA） |
 | `dev/main-v1830-wip` | dev | v18.3.0 合并 WIP（2026-09-25，已被 v18.14.2 远超） | user | 2026-09-25 | **用户决定**；技术上是死的 |
 
 ## 已退役（删除前登记）

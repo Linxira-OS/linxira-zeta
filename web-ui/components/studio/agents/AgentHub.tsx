@@ -33,9 +33,10 @@ import {
 	fmtHM,
 	fmtNum,
 	hubWord,
+	kindChip,
 	linearSeq,
 	sparkLevel,
-	STATUS_DOT,
+	statusDot,
 	treeGroups,
 } from "./presentation";
 import { SubagentInspectCard } from "./SubagentInspectCard";
@@ -192,13 +193,11 @@ function AgentCard({
 	agent,
 	selected,
 	kids,
-	now,
 	onSelect,
 }: {
 	agent: HubAgent;
 	selected: boolean;
 	kids: number;
-	now: number;
 	onSelect: (id: string) => void;
 }) {
 	const { resolvedLanguage } = useI18n();
@@ -580,7 +579,6 @@ export function AgentHubPage({ sessionId, title }: { sessionId: string | null; t
 												agent={agent}
 												selected={selected === agent.id}
 												kids={agent.children.length}
-												now={now}
 												onSelect={select}
 											/>
 										))}
@@ -594,7 +592,6 @@ export function AgentHubPage({ sessionId, title }: { sessionId: string | null; t
 									agent={agent}
 									selected={selected === agent.id}
 									kids={agent.children.length}
-									now={now}
 									onSelect={select}
 								/>
 							))
@@ -605,7 +602,7 @@ export function AgentHubPage({ sessionId, title }: { sessionId: string | null; t
 							<div className="hub-detail-head">
 								<div className="hd-title">
 									<b>{selectedAgent.name}</b>
-									<span className={`chip ${selectedAgent.kind === "advisor" ? "gray" : "purple"} xs`}>
+									<span className={`chip ${kindChip(selectedAgent.kind)} xs`}>
 										{selectedAgent.kind === "advisor" ? (zh ? "顾问" : "Advisor") : zh ? "子代理" : "Subagent"}
 									</span>
 									{selectedAgent.parentId ? (
@@ -625,7 +622,7 @@ export function AgentHubPage({ sessionId, title }: { sessionId: string | null; t
 								</div>
 								<div className="hd-sub">
 									<span className="hub-status-line">
-										<span className={`dot ${STATUS_DOT[selectedAgent.status] ?? "gray"}`} />
+										<span className={`dot ${statusDot(selectedAgent.status)}`} />
 										{hubWord(selectedAgent.status, zh)} ·{" "}
 										{(() => {
 											const duration = subagentDurationMs(

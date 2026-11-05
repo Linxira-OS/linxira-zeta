@@ -8,18 +8,6 @@
 
 import type { AskImage } from "@/lib/studio-protocol/protocol";
 
-const IMAGE_MIME: Record<string, true> = {
-	"image/png": true,
-	"image/jpeg": true,
-	"image/gif": true,
-	"image/webp": true,
-	"image/svg+xml": true,
-};
-
-export function isImageMimeType(mime: string): boolean {
-	return IMAGE_MIME[mime] === true;
-}
-
 function mimeFromFile(file: File): AskImage["mimeType"] | null {
 	if (file.type === "image/png" || file.type === "image/jpeg" || file.type === "image/gif" || file.type === "image/webp") {
 		return file.type;

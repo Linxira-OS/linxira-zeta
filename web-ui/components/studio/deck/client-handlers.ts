@@ -162,11 +162,28 @@ export function createDeckCommands(client: StudioClientImpl): Partial<Record<Com
 }
 
 /**
- * The execution-tier picker's effect. Zeta resolves a role to a model with the
- * gateway's `set_model_role` command, so a host sends this *before* approving
- * the plan: the approval turn then runs on that model. Studio's role-scoped
- * `mode.plan.review.resolve` has no Zeta route.
+ * The execution-tier picker's effect, as gateway commands.
+ *
+ * A chosen tier is a `modelRoles` entry, so applying it means `set_model` with
+ * that tier's provider/model and, when the role pins one, `set_thinking_level`.
+ * The host sends these *before* approving, so the approval turn runs on the
+ * tier. Studio's role-scoped `mode.plan.review.resolve` has no Zeta route.
  */
-export function planExecutionRoleCommand(role: string): { type: "set_model_role"; role: string } {
-	return { type: "set_model_role", role };
+export type PlanExecutionCommand =
+	| { type: "set_model"; provider: string; modelId: string }
+	| { type: "set_thinking_level"; level: string };
+
+export function planExecutionCommands(tier: {
+	provider: string;
+	model: string;
+	thinkingLevel?: string;
+}): PlanExecutionCommand[] {
+	const commands: PlanExecutionCommand[] = [];
+	if (tier.provider.length > 0 && tier.model.length > 0) {
+		commands.push({ type: "set_model", provider: tier.provider, modelId: tier.model });
+	}
+	if (tier.thinkingLevel !== undefined && tier.thinkingLevel.length > 0) {
+		commands.push({ type: "set_thinking_level", level: tier.thinkingLevel });
+	}
+	return commands;
 }

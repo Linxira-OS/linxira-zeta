@@ -157,7 +157,8 @@ export function countByStatus(rows: readonly HubAgent[]): Record<string, number>
 	return counts;
 }
 
-/** Status → the `.dot` class used by the roster head and detail line. */
+/* These are `.dot` / chip variant class *names*, never paint. */
+/* zeta-style-literal-allow-start: chip and dot variant class names, not colours */
 export const STATUS_DOT: Record<string, string> = {
 	running: "green",
 	idle: "blue",
@@ -168,3 +169,14 @@ export const STATUS_DOT: Record<string, string> = {
 	starting: "blue",
 	reviving: "amber",
 };
+
+/** Chip variant for an agent kind, matching Studio's picker. */
+export function kindChip(kind: "sub" | "advisor"): string {
+	return kind === "advisor" ? "gray" : "purple";
+}
+
+/** `.dot` variant for a status, with the neutral fallback Studio uses. */
+export function statusDot(status: string): string {
+	return STATUS_DOT[status] ?? "gray";
+}
+/* zeta-style-literal-allow-end */

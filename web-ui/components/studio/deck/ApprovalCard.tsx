@@ -5,6 +5,16 @@ import { demoMark } from "./PromptHead";
 import type { ApprovalView } from "./approvalContent";
 import { useI18n } from "../i18n";
 
+/* Chip variant names for the risk badge; paint lives in the stylesheet. */
+/* zeta-style-literal-allow-start: chip variant class names, not colours */
+const RISK_CHIP: Record<string, string> = { high: "red", medium: "amber", low: "gray" };
+
+/** Chip variant for a risk level, with the neutral fallback. */
+function riskChip(risk: string): string {
+	return RISK_CHIP[risk] ?? "gray";
+}
+/* zeta-style-literal-allow-end */
+
 export function ApprovalCard({
   view,
   demo,
@@ -38,7 +48,7 @@ export function ApprovalCard({
           <Icon name="shield" extra="sm" />
         </span>
         <span className="dk-title">{view.configuration ? zh ? "配置更改审批" : "Configuration approval" : zh ? "审批请求" : "Approval request"}</span>
-        <span className={`chip ${high ? "red" : view.risk === "medium" ? "amber" : "gray"} xs`}>
+        <span className={`chip ${riskChip(view.risk)} xs`}>
           {high ? zh ? "高风险" : "High risk" : view.risk === "medium" ? zh ? "中风险" : "Medium risk" : zh ? "低风险" : "Low risk"}
         </span>
         <span className="dk-head-end">

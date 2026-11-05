@@ -21,14 +21,6 @@ export interface SubagentMetricValues {
 	readonly cost?: string;
 }
 
-export function formatMetricTokens(count: number): string {
-	if (!Number.isFinite(count)) return "";
-	if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-	if (count >= 1000) return `${(count / 1000).toFixed(1).replace(/\.0$/, "")}k`;
-	return String(Math.round(count));
-}
-
-/** Host usage is USD; a zero cost prints as an em dash, matching Studio. */
 export function formatAgentCost(cost: number): string {
 	if (cost === 0) return "—";
 	if (!Number.isFinite(cost)) return "";
@@ -37,33 +29,10 @@ export function formatAgentCost(cost: number): string {
 	return `$${cost.toFixed(2)}`;
 }
 
-export function metricsFromUsage(usage: StudioAgentUsage): SubagentMetricValues {
-	const cost = formatAgentCost(usage.cost);
-	return {
-		...(usage.generationTps === undefined ? {} : { generationTps: usage.generationTps }),
-		tokens: formatMetricTokens(usage.tokens),
-		tools: usage.tools,
-		requests: usage.requests,
-		...(cost === "" ? {} : { cost }),
-	};
-}
-
-export function formatSubagentDuration(durationMs: number): string {
-	if (!Number.isFinite(durationMs) || durationMs < 0) return "";
-	if (durationMs < 60_000) return `${(durationMs / 1000).toFixed(1)}s`;
-	const totalSeconds = Math.round(durationMs / 1000);
-	const minutes = Math.floor(totalSeconds / 60);
-	const seconds = totalSeconds % 60;
-	if (minutes < 60) return seconds === 0 ? `${minutes}m` : `${minutes}m ${seconds}s`;
-	const hours = Math.floor(minutes / 60);
-	const restMinutes = minutes % 60;
-	return restMinutes === 0 ? `${hours}h` : `${hours}h ${restMinutes}m`;
-}
-
 /** Only these statuses are still running, so only their duration ticks. */
 const TICKING_STATUS: readonly StudioAgentSnapshot["status"][] = ["starting", "running", "reviving"];
 
-export function isTickingAgentStatus(status: StudioAgentSnapshot["status"]): boolean {
+function isTickingAgentStatus(status: StudioAgentSnapshot["status"]): boolean {
 	return TICKING_STATUS.includes(status);
 }
 
@@ -84,15 +53,6 @@ export function subagentDurationMs(
 	const ended = isTickingAgentStatus(agent.status) ? nowMs : Date.parse(agent.updatedAt);
 	if (!Number.isFinite(ended)) return undefined;
 	return Math.max(0, ended - started);
-}
-
-/** Compact one-line metric strip for a card. */
-export function metricsLine(usage: StudioAgentUsage | undefined): string {
-	if (usage === undefined) return "";
-	const parts = [`${formatMetricTokens(usage.tokens)} tok`, `${usage.tools} tools`, `${usage.requests} req`];
-	const cost = formatAgentCost(usage.cost);
-	if (cost !== "" && cost !== "—") parts.push(cost);
-	return parts.join(" · ");
 }
 
 /** Compact metric chip row for an inspect card header. */

@@ -30,8 +30,7 @@ export async function askImage(file: File): Promise<AskImage> {
 			canvas.width = Math.max(1, Math.round(bitmap.width * scale));
 			canvas.height = Math.max(1, Math.round(bitmap.height * scale));
 			const context = canvas.getContext("2d")!;
-			// zeta-style-literal-allow: canvas matte behind the JPEG re-encode, not theme paint
-			context.fillStyle = "#fff";
+			context.fillStyle = "#fff"; // zeta-style-literal-allow: canvas matte behind the JPEG re-encode, not theme paint
 			context.fillRect(0, 0, canvas.width, canvas.height);
 			context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
 			const deferred = Promise.withResolvers<Blob | null>();

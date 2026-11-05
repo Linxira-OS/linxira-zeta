@@ -100,9 +100,3 @@ export async function fetchPlanBody(
 	const body = await get<{ content?: string }>("/api/plan", { session: sessionId, path: planFilePath });
 	return body.content ?? "";
 }
-
-/** `planFilePath` as the review headline: `PLAN.md`, `feature-x.plan.md`, … */
-export function planTitleFromPath(planFilePath: string): string {
-	const name = planFilePath.split(/[\\/]/).pop() ?? planFilePath;
-	return name.replace(/\.md$/i, "");
-}

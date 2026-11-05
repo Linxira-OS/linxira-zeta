@@ -13,7 +13,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "../i18n";
 import { Icon } from "../primitives/icons";
 import { MarkdownText } from "../deck/MarkdownText";
-import { activityPill, fmtAge, fmtCost, fmtDur, hubWord, STATUS_DOT } from "./presentation";
+import { activityPill, fmtAge, fmtCost, fmtDur, hubWord, statusDot } from "./presentation";
 import { SubagentConversationPane } from "./SubagentConversationPane";
 import { SubagentMetrics } from "./SubagentMetrics";
 import { subagentDurationMs } from "./SubagentMetrics";
@@ -150,7 +150,7 @@ export function SubagentInspectCard({
 						{agent.name}
 					</h2>
 					<span className="hub-status-line">
-						<span className={`dot ${STATUS_DOT[agent.status] ?? "gray"}`} />
+						<span className={`dot ${statusDot(agent.status)}`} />
 						{hubWord(agent.status, zh)} · {durationMs === undefined ? "—" : fmtDur(durationMs)} ·{" "}
 						{zh ? "最近活动" : "last active"} {fmtAge(agent.lastActivity, now, zh)}
 					</span>
