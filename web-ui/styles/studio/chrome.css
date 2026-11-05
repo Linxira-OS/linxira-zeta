@@ -1,0 +1,81 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; colour comes from `--studio-*` tokens only.
+
+   The chrome rows themselves (titlebar, menus, palette, page frame) are already
+   in the ported sheets; this file adds only what the port needed:
+
+   1. the secondary-page bar, because shell-layout.css re-skins `.page-head` for
+      the in-app pages and Studio's 44px row must win inside that frame;
+   2. the window controls, which Studio drew with the Electron overlay
+      (`env(titlebar-area-*)`) and Zeta's frameless shell draws itself. */
+
+/* ---------------- secondary page bar ---------------- */
+.studio-root .page-head.page-head-chrome {
+	align-items: center;
+	gap: var(--studio-sp-10);
+	height: var(--studio-topbar-h);
+	padding: 0 var(--studio-sp-16) 0 var(--studio-sp-8);
+}
+
+/* pages.css pins the title to a 186px slot so Studio's route nav could not
+   shift; there is no nav in this frame, so the title takes the room it needs. */
+.studio-root .page-head.page-head-chrome .ph-title {
+	width: auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* ---------------- window controls ---------------- */
+.studio-root .app-titlebar .titlebar-window-controls {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	margin-left: var(--studio-sp-8);
+	flex: none;
+	-webkit-app-region: no-drag;
+}
+
+.studio-root .wc-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 26px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--studio-r-4);
+	background: transparent;
+	color: var(--studio-text-2);
+	cursor: default;
+}
+
+.studio-root .wc-btn:hover {
+	background: var(--studio-surface-hover);
+	color: var(--studio-text);
+}
+
+.studio-root .wc-btn:focus-visible {
+	outline: 2px solid var(--studio-accent);
+	outline-offset: -2px;
+}
+
+.studio-root .wc-btn-close:hover {
+	background: var(--studio-red-soft);
+	color: var(--studio-red);
+}
+
+/* A window the native shell already frames keeps the menu row but must not
+   claim the drag region — the OS owns it there. */
+.studio-root .app-titlebar[data-native-titlebar="true"] {
+	-webkit-app-region: no-drag;
+	padding-left: 10px;
+	padding-right: 10px;
+}
+
+.studio-root .app-titlebar .icon-btn:disabled {
+	background: transparent;
+	color: var(--studio-text-faint);
+	cursor: default;
+}

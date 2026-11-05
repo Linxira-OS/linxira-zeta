@@ -46,6 +46,10 @@
 @import "./secondary-interactions.css";
 @import "./services.css";
 
+/* The chrome rows (secondary-page bar, window controls). Loaded after the
+   feature sheets so its frame overrides win, before the shell frame. */
+@import "./chrome.css";
+
 /* The shell frame itself (grid, sidebar, tab strip, page frame, primitives).
    Loaded last so its frame rules win over the ported surface sheets. */
 @import "./shell-layout.css";

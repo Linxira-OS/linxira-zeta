@@ -41,6 +41,7 @@
 | `feat/web-ui-studio-migration` | feat | Web UI Studio 迁移（`local://web-ui-studio-migration-plan.md`）：`web-ui/components/studio/**` + `web-ui/styles/studio/**` 接管产品 UI 层，`zetawork` 变原生外壳托管 `web-ui`，`@linxiraos/zeta-web` 浏览器面与桌面打包共用一份构建；`/api/projects` GET/PUT 注册表、git stage/commit/push/pull/log 网关族。基于 `c1f6c6c6a79`，worktree `temp/web-ui-studio` | agent | 2026-11-05 | 全量验证（W1–W8 + `bun check` + branch CI）并入 `main` 后删（删前记 SHA） |
 | `backup/pre-studio-ui-2026-11-05` | backup | Studio 迁移前冻结快照，`c1f6c6c6a79789ed99e37c42b14f3648e00fe624`（`v1.4.10` 线）；已推 `origin` | agent | 2026-11-05 | 迁移分支通过全量验证后再删（删前记 SHA） |
 | `dev/main-v1830-wip` | dev | v18.3.0 合并 WIP（2026-09-25，已被 v18.14.2 远超） | user | 2026-09-25 | **用户决定**；技术上是死的 |
+| `port/studio-shell` | port | Studio 窗口外壳与页面宿主移植（`local://web-ui-studio-migration-plan.md` W1 的 chrome 切片）：`web-ui/components/studio/chrome/**` = `StudioTitlebar`（导航轨迹 + 原生窗口按钮，仅在 `capabilities.windowControls`）、`TitleMenu`/`TitleMenuScope`、`StudioTitleMenus`（文件/编辑/视图菜单）、`StudioSecondaryPage`（`pageTransition` 二级页框架）、`StudioCommandPalette` + `palette-catalog` + `shortcuts`、`StudioRuntimeBanner`、`client-handlers`（chrome 侧无 Studio 操作，逐项记在 `CHROME_UNMAPPED_OPERATIONS`）；样式 `web-ui/styles/studio/chrome.css`；`studio.chrome.*` 词条进 `lib/i18n/messages/{en,zh-CN}.ts`；`check-style-literals` 新增 brands.tsx 品牌色豁免。基于 `feat/web-ui-studio-migration` 的 `379e12ca8e5`，worktree `temp/port-shell` | agent | 2026-11-05 | 由 `feat/web-ui-studio-migration` 合入后删（删前记 SHA） |
 
 ## 已退役（删除前登记）
 
