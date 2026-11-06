@@ -702,9 +702,14 @@ protocols and auth flows.
     artifact/brief/run）和 `od` CLI（media/export/brand/design-systems/figma 等），
     **不把 22 个 MCP 工具注册给会话**；默认关闭，不写全局，其他仓库零开销。
     `/design status` 分别检测 CLI、daemon、MCP。
-  - **未落地（2026-11-05 暂挂）**:zetawork 原生设置页、Web UI 集成、OpenDesign 自身 React UI 内嵌。
-    zetawork 暂停、`web-ui/` 冻结，两个宿主都不在开发面；重启条件 = zetawork 恢复或
-    `web-app/` 决定接设计面（届时只经 gateway 调同一桥，不 import `packages/*` 源码）。
+  - **集成面已裁定（2026-11-06 用户裁决）：只做 MCP + CLI，不做 UI 集成**。已落地的形态
+    就是终态：`/design` 命令 + 单个 `design` 工具，内部走 OpenDesign MCP 与 `od` CLI。
+    **不做**：Web UI / Work Studio 面板、zetawork 原生设置页（Rust UI 已作废）、
+    OpenDesign 自身 React UI 内嵌。理由：桥接的价值在模型能调设计能力，不在于再画一遍
+    别人的界面；UI 集成会把我们的渲染器绑到第三方的面板模型上。
+  - 旧记录（已作废，保留供对照）:zetawork 原生设置页、Web UI 集成、OpenDesign 自身 React UI 内嵌。
+    该行的"重启条件 = zetawork 恢复或 `web-app/` 接设计面"随 2026-11-06 裁决一并作废：
+    UI 集成不再是待办，也不再是重启条件。
   - **许可与分发边界**:它是独立上游 Apache-2.0，但捆绑的 design system/plugin/
     资产须单独核 provenance，**不得把 copyleft 链进我们的 MIT 发布面**；首版只调用
     外部 CLI/MCP，不分发其资产。
@@ -827,6 +832,10 @@ protocols and auth flows.
   11 个文件量级、约 200+ 条字面量）+ zh 条目；抽取前必须划清「用户可见 UI 文案」
   与「模型可见提示词（工具 description、crew/skills）」的边界——后者本地化会改变模型
   行为。
+
+  **2026-11-06 状态校正**：宿主是 **`zetacode` 本体**（`plugins/official/pi-messenger/`
+  走插件 API：`registerCommand` + TUI overlay），不是 zetawork。所以「宿主退场」不适用：
+  这项是活的，与渲染器裁决无关，只是排队。别把它当僵尸条目删掉。
 
 - **上游 2.0 评估：被推迟的三项(2026-10-13 用户裁决)**:完整决策记录见
   `document/upstream-2.0-evaluation.md`。统一后端方向已定为「局部对齐 + 发现即复用」
