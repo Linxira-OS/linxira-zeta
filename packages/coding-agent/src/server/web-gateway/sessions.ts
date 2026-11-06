@@ -60,9 +60,43 @@ export function sessionPathKey(filePath: string): string {
 	return process.platform === "win32" ? normalized.toLowerCase() : normalized;
 }
 
+/**
+ * Serialized `GET /api/sessions/:id` bodies, keyed by file path and validated
+ * by (mtime, size).
+ *
+ * Every open or switch re-read the whole JSONL, rebuilt the context + tree and
+ * re-serialized the response; a 21.6 MiB session costs ~98 MiB of transient
+ * heap per read. The renderer keeps only the active conversation mounted, so
+ * switching back and forth is exactly the repeated-read case this removes.
+ * Live sessions never enter the cache (their owner appends), and write paths
+ * clear it. Bounded by count and bytes so a long session cannot pin the heap.
+ */
+type SessionResponseCacheEntry = { readonly mtimeMs: number; readonly size: number; readonly body: string };
+const SESSION_RESPONSE_CACHE_MAX_ENTRIES = 8;
+const SESSION_RESPONSE_CACHE_MAX_BYTES = 64 * 1024 * 1024;
+/** One response this large must not evict the whole window it belongs to. */
+const SESSION_RESPONSE_CACHE_MAX_ENTRY_BYTES = SESSION_RESPONSE_CACHE_MAX_BYTES / 2;
+const sessionResponseCache = new Map<string, SessionResponseCacheEntry>();
+let sessionResponseCacheBytes = 0;
+
+export function invalidateSessionResponseCache(filePath?: string): void {
+	if (filePath === undefined) {
+		sessionResponseCache.clear();
+		sessionResponseCacheBytes = 0;
+		return;
+	}
+	const key = sessionPathKey(filePath);
+	const hit = sessionResponseCache.get(key);
+	if (hit !== undefined) {
+		sessionResponseCacheBytes -= Buffer.byteLength(hit.body, "utf8");
+		sessionResponseCache.delete(key);
+	}
+}
+
 export function invalidateSessionListCache(): void {
 	sessionListGeneration += 1;
 	sessionListCache = null;
+	invalidateSessionResponseCache();
 }
 
 export function cacheSessionPath(sessionId: string, filePath: string): void {
@@ -613,6 +647,48 @@ export async function handleListSessions(): Promise<Response> {
 	}
 }
 
+function statSessionFile(filePath: string): { readonly mtimeMs: number; readonly size: number } | undefined {
+	try {
+		const stat = fs.statSync(filePath);
+		return { mtimeMs: stat.mtimeMs, size: stat.size };
+	} catch {
+		return undefined;
+	}
+}
+
+function cachedSessionResponse(filePath: string, stamp: { mtimeMs: number; size: number }): string | undefined {
+	const key = sessionPathKey(filePath);
+	const hit = sessionResponseCache.get(key);
+	if (hit === undefined || hit.mtimeMs !== stamp.mtimeMs || hit.size !== stamp.size) return undefined;
+	// LRU touch: the conversation the user keeps coming back to survives eviction.
+	sessionResponseCache.delete(key);
+	sessionResponseCache.set(key, hit);
+	return hit.body;
+}
+
+function rememberSessionResponse(filePath: string, stamp: { mtimeMs: number; size: number }, body: string): void {
+	const bytes = Buffer.byteLength(body, "utf8");
+	if (bytes > SESSION_RESPONSE_CACHE_MAX_ENTRY_BYTES) return;
+	const key = sessionPathKey(filePath);
+	invalidateSessionResponseCache(filePath);
+	while (
+		sessionResponseCache.size >= SESSION_RESPONSE_CACHE_MAX_ENTRIES ||
+		sessionResponseCacheBytes + bytes > SESSION_RESPONSE_CACHE_MAX_BYTES
+	) {
+		const oldest = sessionResponseCache.entries().next().value;
+		if (oldest === undefined) break;
+		sessionResponseCache.delete(oldest[0]);
+		sessionResponseCacheBytes -= Buffer.byteLength(oldest[1].body, "utf8");
+	}
+	sessionResponseCache.set(key, { ...stamp, body });
+	sessionResponseCacheBytes += bytes;
+}
+
+/** A pre-serialized JSON body; `Response.json` would re-serialize a cached string. */
+function cachedJson(body: string): Response {
+	return new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+}
+
 export async function handleGetSession(req: Request, sessionId: string): Promise<Response> {
 	try {
 		const filePath = await resolveSessionPath(sessionId);
@@ -620,7 +696,14 @@ export async function handleGetSession(req: Request, sessionId: string): Promise
 			return json({ error: "Session not found" }, 404);
 		}
 
-		const sm = liveSessionManager(sessionId) ?? (await openSessionManager(filePath));
+		const live = liveSessionManager(sessionId);
+		const liveStamp = live === undefined ? statSessionFile(filePath) : undefined;
+		if (liveStamp !== undefined) {
+			const cached = cachedSessionResponse(filePath, liveStamp);
+			if (cached !== undefined) return cachedJson(cached);
+		}
+
+		const sm = live ?? (await openSessionManager(filePath));
 		const entries = sm.getEntries();
 		const leafId = sm.getLeafId();
 		const tree = projectTreeForResponse(sm.getTree() as unknown as SessionTreeNode[]);
@@ -652,7 +735,7 @@ export async function handleGetSession(req: Request, sessionId: string): Promise
 				}
 			: null;
 
-		return json({
+		const body = JSON.stringify({
 			sessionId,
 			filePath,
 			info,
@@ -660,6 +743,13 @@ export async function handleGetSession(req: Request, sessionId: string): Promise
 			tree,
 			context,
 		});
+		if (live === undefined) {
+			// Stat after the read: a write that landed mid-read then fails the
+			// (mtime, size) check instead of caching a stale body under a fresh stamp.
+			const stamp = statSessionFile(filePath);
+			if (stamp !== undefined) rememberSessionResponse(filePath, stamp, body);
+		}
+		return cachedJson(body);
 	} catch (error) {
 		logger.error("web-gateway: get session failed", { sessionId, error: String(error) });
 		return json({ error: String(error) }, 500);
