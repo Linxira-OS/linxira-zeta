@@ -486,6 +486,7 @@ export const MUST_NOT_CONTAIN: Array<{
 			"web-app/src/studio/background/backgroundLibrary.ts",
 			"web-app/src/studio/conversation/userMessageThumbs.ts",
 			"README.md", // MIT attribution for the ported renderer names the upstream project
+			"packages/coding-agent/test/studio-protocol.test.ts", // the wire-contract test must name the rejected upstream protocol
 		],
 	},
 	{ needle: /PI_LOGO/, why: "upstream logo constant must never return" },
