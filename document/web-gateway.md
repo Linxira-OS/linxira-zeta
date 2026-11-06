@@ -61,6 +61,33 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 | `api/skills/reveal` | Gateway（新增，非迁移） | ✅ 在系统文件管理器里打开**一个**技能目录：`{cwd, name, scope?}` 或 `{cwd, root:true, scope?}`。目录由服务端用 `GET /api/skills` 的同一扫描解析，客户端从不传路径；扫描里找不到 404，落在项目/agent 根之外 403 |
 | `health`、`api/v1/*` | Gateway（`studio-host/`，新增） | ✅ Studio 渲染器宿主契约：`/health`、`pair`、`session/revoke`、`bootstrap`、`query`、`command`、`events`（WS）。`zeta serve` 主监听器与网关监听器都挂载它（`vite dev` 的 `/api` 代理因此可用）。配对码 + `studio_session` cookie + `X-Studio-CSRF`；能力清单由已注册操作生成，未实现的面在渲染器里不可达 |
 
+## 会话转写分页（`GET api/sessions/:id` 的窗口）
+
+渲染器只挂载**当前**对话，但每次打开/切换都会读整份转写。该路由现在接受窗口参数，
+让「一页」真的是一页：
+
+| 参数 | 值 | 说明 |
+| --- | --- | --- |
+| `window` | `tail` 或非负整数 | `tail` = 最新一窗；整数 = 以 `messages[]` 该下标为右边界（不含）向前取 |
+| `limit` | 1–100，默认 50 | 窗口最多多少条消息 |
+| `origin` | 上一页 `page.origin` | 校验用：窗口左边界那条消息的 `entryId`；对不上答 409 `cursor-stale` |
+| `deferThinking` / `deferMedia` | 既有 | 不变 |
+
+带 `window` 或 `limit` 时：
+
+- 响应不含 `tree`（分支视图走 `[id]/state`），`context.messages`/`entryIds` 只含窗口；
+- 新增 `page`：`{ origin, transcriptRevision, total, windowStart, windowEnd, hasMoreBefore, timestamps }`，
+  其中 `timestamps` 只覆盖窗口内条目（宿主不再需要整棵树补 `createdAt`）；
+- 序列化后超过 768 KiB 时从最旧一端继续裁剪，`windowStart/windowEnd` 是权威边界；
+- `origin` 用「边界条目的 id」而非文件 mtime：**追加不使游标失效**（前缀下标不变），
+  压缩/切分支会让边界指向别的消息，此时 409。
+
+不带这两个参数时响应与之前一致（整份 context + tree），旧客户端不受影响。
+实测（8.3 MB / 2,000 条消息的会话，冷缓存）：整份 202 ms / 8.3 MB → 窗口 40 ms / 214 KB。
+
+宿主侧：`session.transcript.read` / `readPage` / `conversation.open` 都走窗口，游标
+（`{v,k,s,b,e}`，`b`=边界下标、`e`=边界 entryId）由宿主签发，客户端契约不变。
+
 ## 网关内部模块（`packages/coding-agent/src/server/web-gateway/`）
 
 - 入口 `../web-gateway.ts`（`packages/coding-agent/src/server/web-gateway.ts`）：
