@@ -157,6 +157,10 @@ if (typeof lineVersion !== "string") {
 // carries the same pause marker for the bump/consistency tools).
 const repoLine = manifest("packages/coding-agent/package.json").version;
 const workbenchPaused = typeof lineVersion === "string" && typeof repoLine === "string" && lineVersion !== repoLine;
+// The ide distribution is a separate (active) line; only the workbench launcher
+// can be frozen, so leaves and pins are anchored per product.
+const ideLine = manifest("termide/npm/ide/package.json").version;
+const leafLine = (dir: string): string | undefined => (dir.startsWith("termide/") ? (ideLine as string | undefined) : (lineVersion as string | undefined));
 
 /** Companion pins are the bundle's spec, not read back from the registry. */
 const companionPins: ReadonlyArray<{ dir: string; name: string }> = [
@@ -208,8 +212,9 @@ for (const leaf of leafPins) {
 		continue;
 	}
 	const leafManifest = manifest(rel);
-	if (lineVersion && leafManifest.version !== lineVersion) {
-		problems.push(`${rel}: ${leafManifest.version ?? "<missing>"} != ${lineVersion} (workbench line)`);
+	const expectedLeafLine = leafLine(leaf.dir);
+	if (expectedLeafLine && leafManifest.version !== expectedLeafLine) {
+		problems.push(`${rel}: ${leafManifest.version ?? "<missing>"} != ${expectedLeafLine} (workbench line)`);
 	}
 	if (Object.keys(leafManifest.optionalDependencies ?? {}).length > 0) {
 		// A leaf is a payload, never a launcher: a nested pin would move the
@@ -270,9 +275,10 @@ for (const leaf of leafPins) {
 		problems.push(`${rel}: files does not include "bin" — npm would publish the leaf without its binary`);
 	}
 	const parent = manifest(`${parentDir}/package.json`);
-	if (lineVersion && parent.optionalDependencies?.[leaf.name] !== lineVersion) {
+	const expectedPinLine = leafLine(leaf.dir);
+	if (expectedPinLine && parent.optionalDependencies?.[leaf.name] !== expectedPinLine) {
 		problems.push(
-			`${parentDir}/package.json: optionalDependencies ${leaf.name} is ${parent.optionalDependencies?.[leaf.name] ?? "<missing>"}, expected ${lineVersion}`,
+			`${parentDir}/package.json: optionalDependencies ${leaf.name} is ${parent.optionalDependencies?.[leaf.name] ?? "<missing>"}, expected ${expectedPinLine}`,
 		);
 	}
 }
