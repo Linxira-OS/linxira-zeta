@@ -103,7 +103,6 @@ Top-level entry modules: `cli.ts`, `main.ts`, `sdk.ts`, `index.ts` (SDK barrel),
 - [session-switching-and-recent-listing.md](../../docs/session-switching-and-recent-listing.md)
 - [session-operations-export-share-fork-resume.md](../../docs/session-operations-export-share-fork-resume.md)
 - [compaction.md](../../docs/compaction.md) — compaction and branch summaries
-- [ttsr-injection-lifecycle.md](../../docs/ttsr-injection-lifecycle.md)
 - [non-compaction-retry-policy.md](../../docs/non-compaction-retry-policy.md)
 - [handoff-generation-pipeline.md](../../docs/handoff-generation-pipeline.md)
 
