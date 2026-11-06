@@ -117,6 +117,8 @@ Catalog 值（models、identity、descriptors、cache）从 `@linxiraos/pi-catal
 
 - `docs/` = 随产品打包的运行时文档（`zeta://docs`）。**新特性必须写进 `docs/`**——
   子命令、标志、扩展 API、工具、内部 URL 面，不能只留 CHANGELOG 或代码注释。
+  文档落点（扩已有页面 vs 新建文件/路径）按 `document/dev-conventions.md`
+  §Runtime Docs Placement 判定；新顶层页面必须登记进 `docs/zeta-features.md`。
 - `document/` = 内部开发 / 流程 / 架构文档，永不打包。只放四类：① 当前执行计划
   （新计划生效即删旧，一律不并存）；② `roadmap.md` 的未开发规划；③ 架构设计文档；
   ④ `document/agents/`（从本文件移出的操作知识，见 §10）。

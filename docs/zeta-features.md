@@ -122,6 +122,21 @@ compaction summaries and approved plans, written for people, agents, and
 collaborators; the Work Studio tracking panel reads the same documents. See
 [zeta-tracking.md](./zeta-tracking.md).
 
+## Learning layers (memory, taste, tracking)
+
+Three opt-in layers learn from a session without a hosted service:
+
+- **memory** — durable project facts; backends and the `super_memory`/`retain`
+  tools are in [memory.md](./memory.md);
+- **taste** — durable preferences learned from each user prompt (main session
+  only, short prompts skipped), judged with calibrated pseudo-counts and
+  injected into the system prompt under a token cap;
+- **tracking** — the cross-session project record described above.
+
+Compaction and window summaries feed them; none of the layers require a
+background model (the `memory`/`taste`/`judge` model roles are optional). See
+[memory.md](./memory.md#taste-layer) and [zeta-tracking.md](./zeta-tracking.md).
+
 ## Agent hub and mesh
 
 Subagents are first-class: **Agent Hub** is the TUI roster with live activity,

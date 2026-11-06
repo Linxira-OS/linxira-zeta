@@ -353,6 +353,47 @@ from one worktree and dies from another with the same command. When a
 freshly-created worktree misbehaves, re-run the install before debugging the
 code.
 
+
+## Runtime Docs Placement (`docs/`)
+
+Every user-visible capability must be documented under `docs/` in the same PR
+that ships it — the tree is embedded in the binary and served over `zeta://docs`,
+so a feature that only exists in code or CHANGELOG is undocumented for users.
+
+Decide the landing spot before writing:
+
+**Extend an existing page** when the change is a mode, flag, setting, or
+lifecycle step of a surface that page already owns. Examples: a new compaction
+method → `compaction.md`; a new tool flag → `tools/<tool>.md`; a new
+`tracking_update` op → `zeta-tracking.md`; a new channel → `channels.md`. Keep
+one page authoritative for one surface; do not fork a second explanation.
+
+**Create a new page** when the feature has its own command, entry point, data
+directory, settings table, or protocol contract, or when it is a product
+surface listed in README's "Differences from Upstream" / `docs/zeta-features.md`.
+Two or more pages needing the same missing explanation is another signal.
+
+Path conventions:
+
+- tools → `docs/tools/<tool>.md` (tool name, snake_case when the tool uses it);
+- product surfaces and commands → top-level `docs/<feature>.md`
+  (`zeta-serve-web.md`, `zeta-tracking.md`, `plan-approval.md`);
+- design drafts and internal rationale stay in `document/`; a design becomes a
+  `docs/` page only when the behavior ships;
+- retired or frozen surfaces get a status banner and a link to the successor
+  instead of new sections (`web-ui/` docs are the example).
+
+Maintenance rules:
+
+- add every new top-level page to `docs/zeta-features.md` (product-surface index)
+  and, when it changes the upstream boundary, to README's difference section;
+- when behavior moves, update the old page in the same PR (status banner,
+  remove stale steps) — contradictory duplicate instructions are a defect;
+- Chinese counterparts exist only where the tree already ships one
+  (`api.zh-CN.md`, `architecture.zh-CN.md`, the user guides); do not invent a
+  `*.zh-CN.md` for every new page;
+- check links after moving or deleting a page (`git grep` for the old path).
+
 ## Changelog
 
 Location: `packages/*/CHANGELOG.md` (per package).

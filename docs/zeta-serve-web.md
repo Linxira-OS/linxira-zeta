@@ -51,7 +51,13 @@ origin, so the browser needs no second process:
   `/` answers a placeholder page naming these three ways to get one, and every
   `/api/*` route still works;
 - the renderer's Content-Security-Policy is sent as a response header and is
-  the same policy the packaged `index.html` carries as a meta tag.
+  the same policy the packaged `index.html` carries as a meta tag;
+- static assets ship precompressed: the build writes `.br` (brotli q11) and
+  `.gz` (gzip q9) sidecars next to each asset, and the server negotiates
+  `Accept-Encoding` (honouring q-values; `br` wins ties) instead of compressing
+  per request. A response carries `Vary: Accept-Encoding` and the encoded
+  `content-length`; a coding whose sidecar is missing is skipped, and identity
+  is the fallback. Encoding of the same URL is part of the cache key.
 
 The renderer speaks the Studio host contract on the same origin:
 

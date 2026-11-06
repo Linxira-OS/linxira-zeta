@@ -295,27 +295,33 @@ Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in
 
 - **Work Studio** (`web-app/`) — the browser workbench: session history and
   workbench panels, a PTY terminal, diffs, artifact/media views, statistics and
-  the agent hub, served by `zetacode serve` from the packaged `dist/web-app`.
-- **Adaptive long-term tracking** — ongoing session observation with standing
-  system guidance that keeps provider prefix caches stable across long
-  sessions.
-- **Experiment measurement** — per-project local experiment tracking with
-  metrics, directions, and baseline commits.
-- **TypeScript custom commands** — user-defined slash commands from
-  `~/.zeta/commands/` and project command dirs, with `arktype`/`typebox`/`zod`
-  argument schemas and full access to the runtime API.
-- **Command marketplace** — install and share slash commands as Bun packages.
-- **ACP collaboration builtins** — Agent Client Protocol session support.
+  the agent hub, served by `zetacode serve` from the packaged `dist/web-app`;
+  its host (`studio-host`, `/api/v1/*`) is Zeta's own.
+- **Web gateway** — the `/api/*` REST surface behind the browser, one handler
+  module per resource, consumed by Work Studio and remote clients.
+- **Project tracking** — an opt-in cross-session record in `.zeta/tracking/`
+  (progress, decisions, actions, plans) written through `tracking_update`; see
+  [docs/zeta-tracking.md](./docs/zeta-tracking.md).
+- **Taste layer** — per-prompt preference candidates with calibrated judgment
+  and a capped system-prompt injection; see
+  [docs/memory.md](./docs/memory.md#taste-layer).
+- **Ultra plan mode** — `/plan-ultra` adds fan-out scouting and incremental
+  plan writes to plan mode; see [docs/plan-approval.md](./docs/plan-approval.md).
 - **Channel runtime** — WeChat/Feishu/Telegram bridges embedded in
   `zetacode serve`, with plan-image routing and workspace-scoped execution tools.
-- **Web gateway and Studio host** — REST API behind the browser (`/api/*`, plus
-  the `/api/v1/*` host contract Work Studio speaks), one handler module per
-  resource, consumed by Work Studio and remote clients.
+- **Usage and statistics extensions** — `/api/usage/daily` and the `usage.*`
+  host operations feed the Work Studio dashboards; the upstream stats database
+  and `zetacode stats` dashboard remain the base.
 - **Linux downstream packaging** — the desktop archives (`zeta-desktop`,
   AppImage, Arch) keep their frozen name/digest contract but are **dispatch-only**
   since the 2026-11-05 pause, so no release publishes them; see
   `document/release.md`.
-- **Local stats dashboard** — `zetacode stats` observability for the coding agent.
+- **Inherited upstream capabilities** (not Zeta-originated): the `autoresearch`
+  experiment loop, custom tools and TypeScript commands, the slash-command
+  marketplace, and ACP support ship here with brand adaptations — see
+  [docs/custom-tools.md](./docs/custom-tools.md),
+  [docs/marketplace.md](./docs/marketplace.md),
+  [docs/slash-command-internals.md](./docs/slash-command-internals.md).
 
 ## Documentation
 
@@ -702,24 +708,27 @@ Zeta 修改与新增的部分。按产品面说明：
 
 - **Work Studio**(`web-app/`)—— 浏览器工作台:会话历史与工作台面板、PTY 终端、
   diff、产物/媒体视图、统计与 Agent Hub,由 `zetacode serve` 从随包的
-  `dist/web-app` 提供。
-- **自适应长期跟踪** —— 持续的会话观察与常驻系统指引,在长会话中保持
-  提供商前缀缓存稳定。
-- **实验度量** —— 按项目的本地实验跟踪,包含指标、方向和基线提交。
-- **TypeScript 自定义命令** —— 来自 `~/.zeta/commands/` 和项目命令目录的
-  用户自定义斜杠命令,支持 `arktype`/`typebox`/`zod` 参数 schema,并可完全
-  访问运行时 API。
-- **命令市场** —— 以 Bun 包的形式安装和分享斜杠命令。
-- **ACP 协作内建** —— Agent Client Protocol 会话支持。
+  `dist/web-app` 提供;其宿主(`studio-host`,`/api/v1/*`)是 Zeta 自己的实现。
+- **Web 网关** —— 浏览器背后的 `/api/*` REST 面,每个资源一个处理模块,由
+  Work Studio 与远程客户端消费。
+- **项目 tracking** —— `.zeta/tracking/` 里可选的跨会话记录(进度、决策、动作、
+  计划),通过 `tracking_update` 写入;见 [docs/zeta-tracking.md](./docs/zeta-tracking.md)。
+- **Taste 层** —— 每个提示抽取偏好候选,带校准判断与有上限的系统提示注入;
+  见 [docs/memory.md](./docs/memory.md#taste-layer)。
+- **Ultra plan** —— `/plan-ultra` 在 plan mode 上增加 fan-out 侦察与增量写计划;
+  见 [docs/plan-approval.md](./docs/plan-approval.md)。
 - **通道运行时** —— 嵌入 `zetacode serve` 的微信/飞书/Telegram 桥接,带
   plan-image 路由和工作区作用域的执行工具。
-- **Web 网关与 Studio 宿主** —— 浏览器背后的 REST API(`/api/*`,以及 Work Studio
-  使用的 `/api/v1/*` 宿主契约),每个资源一个处理模块,由 Work Studio 与远程
-  客户端消费。
+- **用量与统计扩展** —— `/api/usage/daily` 与 `usage.*` 宿主操作供给 Work Studio
+  面板;上游的 stats 数据库与 `zetacode stats` 仪表板仍是底座。
 - **Linux 下游打包** —— 桌面归档(`zeta-desktop`、AppImage、Arch)保留冻结的
   名称/摘要契约,但自 2026-11-05 暂停起**只能手动 dispatch**,release 不再
   发布它们;见 `document/release.md`。
-- **本地统计仪表板** —— 面向编码 Agent 的 `zetacode stats` 可观测性。
+- **继承自上游**(非 Zeta 原创):`autoresearch` 实验循环、自定义工具与
+  TypeScript 命令、斜杠命令市场、ACP 支持,在本仓库带品牌适配出货——见
+  [docs/custom-tools.md](./docs/custom-tools.md)、
+  [docs/marketplace.md](./docs/marketplace.md)、
+  [docs/slash-command-internals.md](./docs/slash-command-internals.md)。
 
 ### 文档
 

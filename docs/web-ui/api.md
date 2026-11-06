@@ -30,6 +30,15 @@ List all sessions.
 Full session document (context, tree, model, name). Supports query params
 `deferThinking=1` and `deferMedia=1` to skip heavy payloads.
 
+Windowed read for large transcripts: `window=tail` (or a positive entry count)
+plus `limit=<entries>` returns only the newest window and adds
+`page: { origin, transcriptRevision, total, windowStart, windowEnd,
+hasMoreBefore }`. `origin` is the boundary entry id, so cursor pages survive
+appends; a compaction or branch switch invalidates it and the route answers
+`409 { "error": "cursor-stale" }`. `tree` is omitted in window mode (read the
+branch view from `/state`). Pages are capped by bytes (768 KiB), so a `limit`
+that overflows the cap returns fewer entries with `hasMoreBefore: true`.
+
 ### `PATCH /api/sessions/:id`
 
 Rename a session. Body: `{ "name": string }`.
@@ -344,6 +353,28 @@ The merged web-layer config (`~/.zeta/agent/web.yml`) with secrets masked.
 
 Update one dot path. Body: `{ "path": string, "value": unknown }`; unknown
 paths return 400.
+
+## Usage
+
+### `GET /api/usage/daily`
+
+Daily usage series for the Work Studio home card, read from the local stats
+database (`messages` + `message_rollup`, 400-day lookback). Reading it also
+starts the stats ingest singleton (idempotent).
+
+```json
+{
+  "generatedAt": "2026-11-06T00:00:00.000Z",
+  "days": [{ "date": "2026-11-06", "tokens": 1234 }],
+  "models": [{ "id": "provider/model" }, { "id": "other-bucket-id" }],
+  "byModel": [{ "date": "2026-11-06", "model": "provider/model", "tokens": 1234 }],
+  "hours": [{ "hour": 13, "model": "provider/model", "tokens": 120 }]
+}
+```
+
+The legend keeps the year's top five models (ties broken by model id) and
+folds the rest into the `other` bucket id. When the database has no usage, the
+route answers `200` with `unavailableReason` and empty series.
 
 ## Docs
 
