@@ -33,6 +33,18 @@ portions of the upstream tree. Those changes are Zeta's, not upstream's.
 - Zeta's own additions remain under Zeta's licence; upstream copyright
   notices and licence texts are retained.
 
+## OMP Studio (renderer)
+
+- Project: OMP Studio
+- Repository: https://github.com/the-snowpear/omp-studio
+- Source integrated by Zeta: `0.1.17`
+- Upstream licence: MIT
+- Upstream copyright: Copyright (c) 2026 snowpear and OMP Studio contributors
+- Zeta modifications: Work Studio's renderer (`web-app/`) is a maintained fork;
+  the host contract, transport and additions are Zeta's. The upstream MIT text
+  and the per-tree deviation list are in [`THIRD-PARTY-NOTICES.txt`](./THIRD-PARTY-NOTICES.txt).
+- Copyright (c) 2026 Linxira-OS and Zeta contributors (Zeta modifications and additions)
+
 ## Vendored components
 
 Vendored trees keep their own licence files and attribution. In particular:

@@ -210,7 +210,7 @@ inherits from upstream — and what Zeta owns — is stated per component:
 
 | Component                                                          | Origin                                 |
 | ------------------------------------------------------------------ | -------------------------------------- |
-| `web-app/` (Work Studio renderer)                                  | Zeta-originated (OMP Studio port)      |
+| `web-app/` (Work Studio renderer)                                  | Zeta-maintained fork of OMP Studio (MIT) |
 | `main/` (Rust workbench, paused; `@linxiraos/main`, bins `zetawork`/`zeta`) | Zeta-originated                |
 | `packages/coding-agent/` (CLI, `zetacode`)                         | OMP runtime tree, release-tag merges   |
 | `packages/ai`, `agent`, `catalog`, `tui`, `natives`, `utils`, `stats` | OMP runtime tree                     |
@@ -552,7 +552,7 @@ Work Studio(`web-app/`)、它的宿主(`packages/coding-agent/src/server/studio-
 
 | 组件                                                              | 来源                                   |
 | ----------------------------------------------------------------- | -------------------------------------- |
-| `web-app/`（Work Studio 渲染器）                                  | Zeta 原创（OMP Studio 移植）           |
+| `web-app/`（Work Studio 渲染器）                                  | Zeta 维护的 OMP Studio 分支（MIT）     |
 | `main/`（Rust 工作台，已暂停；`@linxiraos/main`，二进制 `zetawork`/`zeta`） | Zeta 原创                    |
 | `packages/coding-agent/`(CLI,`zetacode`)                          | OMP 运行时树,按发布 tag 合并           |
 | `packages/ai`、`agent`、`catalog`、`tui`、`natives`、`utils`、`stats` | OMP 运行时树                       |
