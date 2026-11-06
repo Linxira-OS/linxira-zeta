@@ -116,7 +116,94 @@ function headersFor(extension: string, immutable: boolean): Record<string, strin
 		"x-content-type-options": "nosniff",
 		"referrer-policy": "no-referrer",
 		"cache-control": immutable ? "public, max-age=31536000, immutable" : "no-cache",
+		// The same URL can answer with identity, gzip, or brotli bytes.
+		vary: "accept-encoding",
 	};
+}
+
+const COMPRESSED_CODINGS = ["br", "gzip"] as const;
+type CompressedCoding = (typeof COMPRESSED_CODINGS)[number];
+const SIDECAR_SUFFIX: Readonly<Record<CompressedCoding, string>> = { br: ".br", gzip: ".gz" };
+
+/**
+ * Quality `header` assigns to `coding`, defaulting to the `*` entry then 0.
+ * An absent header selects no compressed coding; the caller falls back to
+ * identity bytes, which is what a client that omitted the field expects to
+ * understand.
+ */
+function encodingQuality(header: string | null, coding: string): number {
+	if (header === null) return 0;
+	let explicit: number | undefined;
+	let wildcard: number | undefined;
+	for (const part of header.split(",")) {
+		const [rawName, ...params] = part.split(";");
+		const name = rawName?.trim().toLowerCase();
+		if (!name) continue;
+		let quality = 1;
+		for (const param of params) {
+			const [rawKey, rawValue] = param.split("=");
+			if (rawKey?.trim().toLowerCase() !== "q") continue;
+			const parsed = Number.parseFloat(rawValue?.trim() ?? "");
+			quality = Number.isFinite(parsed) ? Math.min(1, Math.max(0, parsed)) : 0;
+		}
+		if (name === coding) explicit = quality;
+		else if (name === "*") wildcard = quality;
+	}
+	return explicit ?? wildcard ?? 0;
+}
+
+/**
+ * Pick the coding to serve for `request` when `target` has a sidecar.
+ *
+ * `br` wins ties with `gzip` (it is smaller), but an explicit higher `q` for
+ * `gzip` is honoured. A coding whose sidecar is missing is skipped, so a build
+ * staged without precompression still answers identity bytes.
+ */
+function negotiateEncoding(
+	req: Request,
+	target: string,
+): { coding: CompressedCoding; file: string; size: number } | null {
+	if (req.headers.has("range")) return null;
+	const header = req.headers.get("accept-encoding");
+	if (header === null) return null;
+	const ranked = COMPRESSED_CODINGS.map(coding => ({ coding, quality: encodingQuality(header, coding) }))
+		.filter(candidate => candidate.quality > 0)
+		.sort(
+			(a, b) => b.quality - a.quality || COMPRESSED_CODINGS.indexOf(a.coding) - COMPRESSED_CODINGS.indexOf(b.coding),
+		);
+	for (const { coding } of ranked) {
+		const file = target + SIDECAR_SUFFIX[coding];
+		try {
+			const stat = fs.statSync(file);
+			if (stat.isFile()) return { coding, file, size: stat.size };
+		} catch {
+			// absent sidecar: try the next acceptable coding
+		}
+	}
+	return null;
+}
+
+/**
+ * Serve one file, preferring a precompressed sidecar when the client accepts
+ * it and this build has one. The body is streamed straight from disk
+ * (`Bun.file`) so the encoded chunk never enters the JS heap.
+ */
+function fileResponse(req: Request, target: string, extension: string, immutable: boolean): Response {
+	const common = headersFor(extension, immutable);
+	const encoded = negotiateEncoding(req, target);
+	if (encoded) {
+		return new Response(req.method === "HEAD" ? null : Bun.file(encoded.file), {
+			headers: {
+				...common,
+				"content-encoding": encoded.coding,
+				"content-length": String(encoded.size),
+			},
+		});
+	}
+	const size = fs.statSync(target).size;
+	return new Response(req.method === "HEAD" ? null : Bun.file(target), {
+		headers: { ...common, "content-length": String(size) },
+	});
 }
 
 /**
@@ -139,15 +226,7 @@ export async function serveStudioWebApp(req: Request, dir: string): Promise<Resp
 		const extension = path.extname(target).toLowerCase();
 		try {
 			const stat = fs.statSync(target);
-			if (stat.isFile()) {
-				const body = req.method === "HEAD" ? null : await Bun.file(target).arrayBuffer();
-				return new Response(body, {
-					headers: {
-						...headersFor(extension, pathname.startsWith("/assets/")),
-						"content-length": String(stat.size),
-					},
-				});
-			}
+			if (stat.isFile()) return fileResponse(req, target, extension, pathname.startsWith("/assets/"));
 		} catch {
 			// missing: fall through to the entry or the 404 below
 		}
@@ -155,6 +234,5 @@ export async function serveStudioWebApp(req: Request, dir: string): Promise<Resp
 	const looksLikeAsset = pathname.startsWith("/assets/") || path.extname(pathname) !== "";
 	if (looksLikeAsset) return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
 	const entry = path.join(dir, "index.html");
-	const html = req.method === "HEAD" ? null : await Bun.file(entry).arrayBuffer();
-	return new Response(html, { headers: headersFor(".html", false) });
+	return fileResponse(req, entry, ".html", false);
 }

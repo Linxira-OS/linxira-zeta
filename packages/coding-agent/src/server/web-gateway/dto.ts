@@ -101,8 +101,44 @@ export interface PluginPackageInfo {
 	status: "loaded" | "installed" | "missing" | "disabled";
 }
 
+/** How a Zeta-native plugin reached this machine. */
+export type ZetaPluginSourceKind = "npm" | "marketplace" | "link" | "git";
+
+/** One panel a plugin declares in `plugin.json` / `package.json#zeta.ui`. */
+export interface ZetaPluginPanelInfo {
+	id: string;
+	title: string;
+	kind: "list" | "form" | "chart" | "html";
+}
+
+/**
+ * One plugin from the Zeta-native registry: the marketplace
+ * `installed_plugins.json` plus the npm/git/link runtime lockfile, i.e. the
+ * same store `zetacode plugin list` reads. `id` is the addressable key
+ * (`name@marketplace` for marketplace installs, the package name otherwise).
+ * Contribution lists are declarations from the package manifest, not
+ * Runtime-registered tools.
+ */
+export interface ZetaPluginInfo {
+	id: string;
+	/** Display name from `plugin.json`, falling back to the package name. */
+	name: string;
+	version: string;
+	sourceKind: ZetaPluginSourceKind;
+	scope: "user" | "project";
+	enabled: boolean;
+	toolItems: string[];
+	commandItems: string[];
+	hookItems: string[];
+	panels: ZetaPluginPanelInfo[];
+	/** Path-free installation problem, when there is one. */
+	error?: string;
+}
+
 export interface PluginsResponse {
 	packages: PluginPackageInfo[];
+	/** The Zeta-native registry, independent of `settings.extensions`. */
+	installed: ZetaPluginInfo[];
 	totals: PluginResourceCounts;
 	diagnostics: PluginDiagnostic[];
 }

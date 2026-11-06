@@ -34,6 +34,7 @@ opts back into the main gate when a manual run really needs it.
 | `native_addons` | restore main cache or npm; no build | restore exact main cache; build and save on miss | restore exact main cache; build on miss |
 | `native_addons_cross` | skipped | restore exact cross cache; build and save on miss | restore exact cross cache; build on miss |
 | `test_coding_agent_native` | 3 shards | 1 shard | skipped |
+| `test_coding_agent_browser` | skipped | skipped | runs |
 | other TS buckets | run | run | skipped |
 | `main_tests` / `termide_tests` | diff against `origin/main`; skip untouched | diff against the pushed base | skipped unless needed |
 | release/publish jobs | skipped | skipped unless HEAD carries a `v*` tag | run |
@@ -44,6 +45,23 @@ cache entry. Every full-gate branch restores the exact main cache first; only a
 key miss builds. `native_addons_cross` uses its own prefix over the same inputs,
 so a non-native main push also skips the cross build.
 
+### The browser bucket runs off the push path
+
+`test_coding_agent_browser` holds the coding-agent suites that launch real
+Chromium (or drive a CDP endpoint): every `browser*.test.ts` plus the
+PDF-screenshot renderer. They are the slow, timing-sensitive tail of the old
+native bucket, so they never gate an ordinary push or PR. They run:
+
+- nightly, on the `schedule` trigger (03:37 UTC);
+- on a `workflow_dispatch` with `browser_tests` enabled;
+- on every release-state run (a `v*` tag at HEAD).
+
+Because the push run does not execute them, `release_gate` lists the job in
+`needs` and carries an explicit `Assert the browser bucket ran` step: a skipped
+prerequisite fails the gate rather than publishing a release whose browser
+suites never ran. Local full runs are unchanged — `bun test` / `bun run
+test:ts` route through `coding-agent-heavy`, which includes the bucket.
+
 ## What may be skipped
 
 Always allowed to skip on PR / fast path:
@@ -51,6 +69,8 @@ Always allowed to skip on PR / fast path:
 - Rust workspace validation;
 - cross-target native builds;
 - release and packaging jobs;
+- real-browser/Chromium suites (nightly + release only, plus an explicit
+  `browser_tests` dispatch);
 - GUI/termide gate when those paths are untouched.
 
 Never skipped for affected code:

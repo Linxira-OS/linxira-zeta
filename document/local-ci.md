@@ -39,8 +39,8 @@ reddens the GitHub run too.
 
 | GitHub CI job | Local mirror | Notes |
 | --- | --- | --- |
-| `check` | `check` | type check + brand/sentinel/CI-surface/scope/release-asset guards + i18n guards + collab web build + **parity guard** |
-| `web_ui_build` | — | retired 2026-11-05 with the frozen `web-ui/` tree; `web-app` builds inside the `check` job (`npm ci` + `build:ci`) |
+| `check` | `check` | type check + brand/sentinel/CI-surface/scope/release-asset guards + i18n guards + collab web build + **web-app build (`npm ci` + `npm run build`)** + **parity guard** |
+| `web_ui_build` | — | retired 2026-11-05 with the frozen `web-ui/` tree; `web-app` builds inside the `check` job (`npm ci` + `npm run build`) |
 | `bazel_lock` | `bazel_lock` | crate-coverage guard + `--check`; no failure-refresh/upload (GitHub-side convenience, registered in `ENTRY_EXCEPTIONS`) |
 | `rust_validate` | `rust_validate` | bazel `test //crates/...`, three clippy scopes, rustfmt |
 | `native_addons` | `native_addons` | linux-x64 pair only, built straight into `packages/natives/native/` (no artifact round-trip, registered in `ENTRY_EXCEPTIONS`) |
@@ -50,6 +50,7 @@ reddens the GitHub run too.
 | `test_ts_native` | same id | |
 | `test_coding_agent_ui` | same id | |
 | `test_coding_agent_runtime` | same id | |
+| `test_coding_agent_browser` | same id | real-Chromium suites; `full`/`ts` suites only (GitHub runs it nightly/release-only) |
 | `test_smoke` | same id | CLI smoke |
 | `install_methods` | same id | |
 | `termide_tests` | `termide_tests` | fmt / check / clippy / nextest (zetaide) |
@@ -69,7 +70,7 @@ store + `bun install`).
 | --- | --- |
 | `full` (default) | everything above |
 | `gates` | static gates + web-ui + desktop contracts + vendor Rust workspaces |
-| `ts` | native addon build + all six TS buckets + CLI smoke + install methods |
+| `ts` | native addon build + all seven TS buckets + CLI smoke + install methods |
 | `rust` | bazel lock + `rust_validate` + native addons + vendor Rust workspaces |
 
 ## Why it is faster than GitHub CI (and where it deliberately differs)

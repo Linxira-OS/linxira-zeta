@@ -114,6 +114,18 @@ export interface PanelReadOptions {
  */
 export function readPanelDeclaration(pluginRoot: string, options: PanelReadOptions = {}): PanelDeclaration {
 	if (!panelActivation(options.env).enabled) return { ok: true, ui: {} };
+	return readDeclaredPanels(pluginRoot);
+}
+
+/**
+ * Read a plugin's declared panels regardless of host activation.
+ *
+ * This is the inventory view: a listing must be able to say "this plugin
+ * declares a chart panel" even where no renderer exists, because the
+ * declaration is a fact about the package. Only handing the declaration to a
+ * panel host is gated ({@link readPanelDeclaration}).
+ */
+export function readDeclaredPanels(pluginRoot: string): PanelDeclaration {
 	const catalogueFile = path.join(pluginRoot, "plugin.json");
 	const catalogue = readJson(catalogueFile);
 	if (catalogue && typeof catalogue === "object" && "ui" in catalogue) {

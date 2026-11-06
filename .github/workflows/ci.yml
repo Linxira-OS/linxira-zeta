@@ -102,6 +102,13 @@ on:
          - "nix/**"
          - "flake.nix"
          - "flake.lock"
+   # Nightly run for the real-browser bucket (`test_coding_agent_browser`): it
+   # launches Chromium per file and is too slow/timing-sensitive for the
+   # per-push path, so pushes and PRs skip it while this schedule keeps it
+   # exercised. A `browser_tests` dispatch and every release-state run execute
+   # it too.
+   schedule:
+      - cron: "37 3 * * *"
    workflow_dispatch:
       inputs:
          skip_npm:
@@ -118,6 +125,10 @@ on:
             default: false
          build_desktop_archives:
             description: "Run the paused release_desktop_archives packaging path without a tag (zetawork suspended 2026-11-05; zetawork binaries must be staged manually)"
+            type: boolean
+            default: false
+         browser_tests:
+            description: "Run the coding-agent browser/Chromium bucket (otherwise nightly schedule and release-state runs only)"
             type: boolean
             default: false
          publish_web_ui:
@@ -1017,8 +1028,9 @@ jobs:
       # races the 20 ms pid-poll loop under shard load; pre-existing on main
       # (passes on reruns, with no code path in common). Rerun the shard
       # before investigating.
-      # Same class (2026-10-17): browser-relay-detach (since hardened) and
-      # launch/broker-endpoint-loss — see the concurrency note on the test step.
+      # Same class (2026-10-17): launch/broker-endpoint-loss — see the
+      # concurrency note on the test step. The browser-relay suites that used to
+      # flake here now live in `test_coding_agent_browser` (nightly/release).
       strategy:
          fail-fast: false
          matrix:
@@ -1031,10 +1043,11 @@ jobs:
               targets: linux-x64-baseline linux-x64-modern
               stash: ${{ needs.native_addons.outputs.stash }}
          - name: Test coding-agent native/unit bucket
-           # 2, not 4: this bucket carries several timing-sensitive tests
-           # (browser-relay-detach, broker-endpoint-loss, mcp stdio grandchild),
-           # and four chunks on a 4-core runner saturate it — the flakes simply
-           # trade places run to run (2026-10-17: three consecutive main reds).
+           # 2, not 4: this bucket still carries timing-sensitive tests
+           # (broker-endpoint-loss, mcp stdio grandchild), and four chunks on a
+           # 4-core runner saturate it — the flakes simply trade places run to
+           # run (2026-10-17: three consecutive main reds). The browser suites
+           # moved to `test_coding_agent_browser`.
            # The UI/TUI job already runs at 2 for the same reason.
            env:
               OMP_TEST_CONCURRENCY: "2"
@@ -1163,6 +1176,32 @@ jobs:
               OMP_TEST_CONCURRENCY: "4"
            run: bun run ci:test:coding-agent:runtime
 
+   test_coding_agent_browser:
+      name: Test coding-agent browser/Chromium (TS)
+      needs: [release_metadata, native_addons]
+      # Scheduling gate: nightly cron, an explicit `browser_tests` dispatch, or a
+      # release-state run. Ordinary push/PR skips it — these suites launch a
+      # real browser (or drive a CDP endpoint) and were the slow/timing-sensitive
+      # tail of the per-push native bucket. Local full runs still cover them
+      # (`coding-agent-heavy` includes the bucket).
+      if: ${{ !cancelled() && needs.native_addons.result == 'success' &&
+         (needs.release_metadata.outputs.is-release == 'true' || github.event_name == 'schedule' || inputs.browser_tests == true) }}
+      runs-on: ubuntu-22.04
+      timeout-minutes: 35
+      steps:
+         - uses: actions/checkout@v4
+         - uses: ./.github/actions/bun-install
+         - uses: ./.github/actions/native-artifacts
+           with:
+              targets: linux-x64-baseline linux-x64-modern
+              stash: ${{ needs.native_addons.outputs.stash }}
+         - name: Test coding-agent browser/Chromium bucket
+           # Each file starts its own browser; two chunks keep the runner from
+           # hosting several Chromium instances at once.
+           env:
+              OMP_TEST_CONCURRENCY: "2"
+           run: bun run ci:test:coding-agent:browser
+
    test_smoke:
       name: Test CLI smoke (TS)
       runs-on: ubuntu-22.04
@@ -1210,7 +1249,7 @@ jobs:
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          !contains(needs.*.result, 'failure') &&
          !contains(needs.*.result, 'cancelled') }}
-      needs: [release_metadata, check, bazel_lock, native_addons, native_addons_cross, install_methods]
+      needs: [release_metadata, check, bazel_lock, native_addons, native_addons_cross, install_methods, test_coding_agent_browser]
       runs-on: ubuntu-22.04
       steps:
          - uses: actions/checkout@v4
@@ -1220,6 +1259,17 @@ jobs:
          # publishing, never ordinary CI.
          - name: Check generated clippy config
            run: bun scripts/gen-clippy-bazelrc.ts --check
+         # `test_coding_agent_browser` is release-state-only (skipped on push/PR),
+         # so unlike the other buckets its result is not already covered by the
+         # green push run `scripts/release-v2.ts` verified before tagging. A
+         # skipped prerequisite never appears as a failure, and the gate's `if`
+         # only rejects failure/cancelled — assert `success` explicitly so a
+         # skipped browser bucket fails the gate instead of silently shipping.
+         - name: Assert the browser bucket ran
+           if: ${{ needs.test_coding_agent_browser.result != 'success' }}
+           run: |
+              echo "::error::test_coding_agent_browser result is '${{ needs.test_coding_agent_browser.result }}', not 'success' — the release gate requires the browser/Chromium bucket"
+              exit 1
          - run: echo "release validation green"
 
    # Builds (does not publish) the Linux-hosted release binaries in parallel

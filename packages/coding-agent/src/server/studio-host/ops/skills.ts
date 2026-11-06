@@ -12,13 +12,19 @@
  * up data.
  *
  * Route map:
- * - `skills.get`              → `GET /api/skills?cwd=<project>`
+ * - `skills.get`              → `GET /api/skills?cwd=<project>` plus the
+ *                               Zeta-native plugin registry carried by
+ *                               `GET /api/plugins` (`installed[]`: marketplace
+ *                               `installed_plugins.json` + the npm/git/link
+ *                               lockfile, the same store the CLI reads)
  * - `skills.setEnabled`       → `PATCH /api/skills` (the gateway's only skill
  *                               mutation: it writes `disable-model-invocation`)
  * - `skills.reveal`           → `POST /api/skills/reveal { cwd, name, scope? }`
  * - `skills.revealRoot`       → `POST /api/skills/reveal { cwd, name, root: true }`
- * - `plugins.setEnabled`      → `GET /api/plugins` (name → source) then
- *                               `POST /api/plugins { action: enable|disable }`
+ * - `plugins.setEnabled`      → `GET /api/plugins` (id → registry entry) then
+ *                               `POST /api/plugins { action, id, scope, cwd }`,
+ *                               which applies the CLI's enable/disable
+ *                               precedence (marketplace registry or lockfile)
  * - `capabilities.get`        → the manifest already carried in
  *                               `StudioHostContext`, not rebuilt here
  *
@@ -33,6 +39,7 @@ import type {
 	ConfigWriteResult,
 	EmptyInput,
 	ExtensibilityReadModel,
+	PluginPanelKind,
 	PluginRecord,
 	PluginSourceKind,
 	SkillRecord,
@@ -113,12 +120,6 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 function stringField(record: Readonly<Record<string, unknown>>, field: string): string | undefined {
 	const value = record[field];
 	return typeof value === "string" && value !== "" ? value : undefined;
-}
-
-/** A finite number field, or `undefined`. */
-function numberField(record: Readonly<Record<string, unknown>>, field: string): number | undefined {
-	const value = record[field];
-	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 /** An array field, or `undefined` when the gateway did not send one. */
@@ -268,129 +269,96 @@ function toSkillRecord(skill: RawSkill): SkillRecord {
 	};
 }
 
-/** One declared contribution of a plugin package. */
-interface RawPluginResource {
-	readonly kind: string;
+/** One panel a plugin declares in its manifest. */
+interface RawPanel {
+	readonly id: string;
+	readonly title: string;
+	readonly kind: PluginPanelKind;
+}
+
+/** One Zeta-native registry plugin, reduced to the facts the read model needs. */
+interface RawZetaPlugin {
+	/** Addressable registry key: `name@marketplace` or the package name. */
+	readonly id: string;
 	readonly name: string;
+	readonly version: string;
+	readonly sourceKind: PluginSourceKind;
+	readonly scope: "user" | "project";
+	readonly enabled: boolean;
+	readonly toolItems: readonly string[];
+	readonly commandItems: readonly string[];
+	readonly hookItems: readonly string[];
+	readonly panels: readonly RawPanel[];
+	readonly error: string | undefined;
 }
 
-/** One configured plugin, reduced to the facts the read model needs. */
-interface RawPlugin {
-	readonly source: string;
-	readonly scope: string;
-	readonly packageName: string | undefined;
-	readonly version: string | undefined;
-	readonly configuredVersion: string | undefined;
-	readonly disabled: boolean;
-	readonly status: string;
-	readonly counts: Readonly<Record<string, unknown>> | undefined;
-	readonly resources: readonly RawPluginResource[];
+/** A string array field; non-string entries are dropped rather than coerced. */
+function stringList(record: Readonly<Record<string, unknown>>, field: string): string[] {
+	return (arrayField(record, field) ?? []).filter((entry): entry is string => typeof entry === "string");
 }
 
-/** Read one `GET /api/plugins` package row; `undefined` without a source. */
-function readPlugin(raw: unknown): RawPlugin | undefined {
-	if (!isRecord(raw)) return undefined;
-	const source = stringField(raw, "source");
-	if (source === undefined) return undefined;
-	const resources: RawPluginResource[] = [];
-	for (const entry of arrayField(raw, "resources") ?? []) {
-		if (!isRecord(entry)) continue;
-		const kind = stringField(entry, "kind");
-		const name = stringField(entry, "name");
-		if (kind === undefined || name === undefined) continue;
-		resources.push({ kind, name });
-	}
-	return {
-		source,
-		scope: stringField(raw, "scope") ?? "global",
-		packageName: stringField(raw, "packageName"),
-		version: stringField(raw, "version"),
-		configuredVersion: stringField(raw, "configuredVersion"),
-		disabled: raw.disabled === true,
-		status: stringField(raw, "status") ?? "",
-		counts: isRecord(raw.counts) ? raw.counts : undefined,
-		resources,
-	};
+/** The three source kinds the gateway reports, defaulting to a local link. */
+function pluginSourceKindOf(value: string | undefined): PluginSourceKind {
+	if (value === "npm" || value === "marketplace" || value === "link" || value === "git") return value;
+	return "link";
 }
 
-/** A short package label; never an absolute path. */
-function pluginName(plugin: RawPlugin): string {
-	if (plugin.packageName !== undefined) return plugin.packageName;
-	const kind = pluginSourceKind(plugin.source);
-	let source = plugin.source.trim().replace(/[\\/]+$/, "");
-	if (kind === "npm" && source.startsWith("npm:")) source = source.slice(4);
-	if (kind === "npm" && source.startsWith("@") && source.includes("/")) {
-		const slash = source.indexOf("/");
-		const rest = source.slice(slash + 1).replace(/@[^@/]*$/, "");
-		return `${source.slice(0, slash)}/${rest}`;
-	}
-	const segments = source.split(/[\\/]/);
-	let last = segments[segments.length - 1] ?? source;
-	if (kind === "git") last = last.replace(/\.git$/i, "");
-	if (kind === "npm") last = last.replace(/@[^@]*$/, "");
-	return last || source;
-}
-
-/** Classify the package source from its syntax, not from an assumed install kind. */
-function pluginSourceKind(source: string): PluginSourceKind {
-	if (source.startsWith("npm:")) return "npm";
-	if (/^git[+@:]|^github:|^ssh:\/\/|^https?:\/\//i.test(source) || /\.git(?:#.*)?$/i.test(source)) return "git";
-	if (/^[.~][\\/]/.test(source) || /^[\\/]/.test(source) || /^[A-Za-z]:[\\/]/.test(source) || source.includes("\\")) {
-		return "link";
-	}
-	// The extension config stores filesystem paths; a bare slash-separated
-	// entry is a relative path unless it is an npm scope (`@scope/pkg`).
-	if (source.includes("/") && !source.startsWith("@")) return "link";
-	return "npm";
-}
-
-/** Contribution names declared for one resource kind. */
-function pluginItems(plugin: RawPlugin, kind: string): string[] {
-	return plugin.resources.filter(resource => resource.kind === kind).map(resource => resource.name);
-}
-
-/** A declared contribution count; `0` when the gateway reported none. */
-function pluginCount(plugin: RawPlugin, field: string): number {
-	return plugin.counts === undefined ? 0 : (numberField(plugin.counts, field) ?? 0);
-}
-
-/** The first path-free error for this package, when the gateway reported one. */
-function pluginError(plugin: RawPlugin, diagnostics: readonly RawDiagnostic[]): string | undefined {
-	for (const diagnostic of diagnostics) {
-		if (diagnostic.type !== "error" || diagnostic.source !== plugin.source) continue;
-		const message = pathFreeMessage(diagnostic.message);
-		if (message !== undefined) return message;
-	}
-	if (plugin.status === "missing") return "Configured package is not installed.";
+function panelKindOf(value: string | undefined): PluginPanelKind | undefined {
+	if (value === "list" || value === "form" || value === "chart" || value === "html") return value;
 	return undefined;
 }
 
-/** One `PluginRecord` built from the gateway's package inventory. */
-function toPluginRecord(plugin: RawPlugin, diagnostics: readonly RawDiagnostic[]): PluginRecord {
-	const name = pluginName(plugin);
-	const error = pluginError(plugin, diagnostics);
-	const sourceKind = pluginSourceKind(plugin.source);
-	const toolItems = pluginItems(plugin, "extension");
-	const commandItems = pluginItems(plugin, "prompt");
-	const uiItems = pluginItems(plugin, "theme");
+/** Read one `GET /api/plugins` `installed` row; `undefined` without an id. */
+function readZetaPlugin(raw: unknown): RawZetaPlugin | undefined {
+	if (!isRecord(raw)) return undefined;
+	const id = stringField(raw, "id");
+	if (id === undefined) return undefined;
+	const panels: RawPanel[] = [];
+	for (const entry of arrayField(raw, "panels") ?? []) {
+		if (!isRecord(entry)) continue;
+		const panelId = stringField(entry, "id");
+		const title = stringField(entry, "title");
+		const kind = panelKindOf(stringField(entry, "kind"));
+		if (panelId === undefined || title === undefined || kind === undefined) continue;
+		panels.push({ id: panelId, title, kind });
+	}
 	return {
-		name,
-		version: plugin.version ?? plugin.configuredVersion ?? "",
-		sourceKind,
-		srcLabel: PLUGIN_SOURCE_LABELS[sourceKind],
-		enabled: !plugin.disabled,
-		status: plugin.status === "missing" ? "error" : "configured",
-		tools: pluginCount(plugin, "extensions"),
-		commands: pluginCount(plugin, "prompts"),
-		// The gateway inventory has no hook resource kind, so no hook
-		// contributions are reported.
-		hooks: 0,
-		ui: uiItems.length > 0,
-		toolItems,
-		commandItems,
-		hookItems: [],
+		id,
+		name: stringField(raw, "name") ?? id,
+		version: stringField(raw, "version") ?? "",
+		sourceKind: pluginSourceKindOf(stringField(raw, "sourceKind")),
+		scope: raw.scope === "project" ? "project" : "user",
+		enabled: raw.enabled !== false,
+		toolItems: stringList(raw, "toolItems"),
+		commandItems: stringList(raw, "commandItems"),
+		hookItems: stringList(raw, "hookItems"),
+		panels,
+		error: pathFreeMessage(stringField(raw, "error") ?? ""),
+	};
+}
+
+/** One `PluginRecord` built from a registry row. */
+function toPluginRecord(plugin: RawZetaPlugin): PluginRecord {
+	const uiItems = plugin.panels.map(panel => panel.title);
+	return {
+		name: plugin.id,
+		title: plugin.name,
+		version: plugin.version,
+		sourceKind: plugin.sourceKind,
+		srcLabel: PLUGIN_SOURCE_LABELS[plugin.sourceKind],
+		scope: plugin.scope,
+		enabled: plugin.enabled,
+		status: plugin.error === undefined ? "configured" : "error",
+		tools: plugin.toolItems.length,
+		commands: plugin.commandItems.length,
+		hooks: plugin.hookItems.length,
+		ui: plugin.panels.length > 0,
+		toolItems: [...plugin.toolItems],
+		commandItems: [...plugin.commandItems],
+		hookItems: [...plugin.hookItems],
 		uiItems,
-		...(error === undefined ? {} : { err: error }),
+		panels: plugin.panels.map(panel => ({ id: panel.id, title: panel.title, kind: panel.kind })),
+		...(plugin.error === undefined ? {} : { err: plugin.error }),
 	};
 }
 
@@ -402,7 +370,7 @@ interface SkillsInventory {
 
 /** Decoded `GET /api/plugins` inventory. */
 interface PluginsInventory {
-	readonly packages: readonly RawPlugin[];
+	readonly plugins: readonly RawZetaPlugin[];
 	readonly diagnostics: readonly RawDiagnostic[];
 }
 
@@ -429,14 +397,14 @@ async function readSkillsInventory(): Promise<SkillsInventory> {
 async function readPluginsInventory(): Promise<PluginsInventory> {
 	const body = await gatewayJson<unknown>(PLUGINS_ROUTE, { query: projectQuery() });
 	if (!isRecord(body)) throw unavailable("GET /api/plugins returned a non-object body");
-	const rows = arrayField(body, "packages");
-	if (rows === undefined) throw unavailable("GET /api/plugins returned no packages array");
-	const packages: RawPlugin[] = [];
+	const rows = arrayField(body, "installed");
+	if (rows === undefined) throw unavailable("GET /api/plugins returned no installed array");
+	const plugins: RawZetaPlugin[] = [];
 	for (const row of rows) {
-		const plugin = readPlugin(row);
-		if (plugin !== undefined) packages.push(plugin);
+		const plugin = readZetaPlugin(row);
+		if (plugin !== undefined) plugins.push(plugin);
 	}
-	return { packages, diagnostics: readDiagnostics(body) };
+	return { plugins, diagnostics: readDiagnostics(body) };
 }
 
 /**
@@ -469,7 +437,7 @@ async function getSkills(_input: EmptyInput): Promise<ExtensibilityReadModel> {
 	const warnings = [...warningMessages(skills.diagnostics), ...warningMessages(plugins.diagnostics)];
 	return {
 		skills: skills.skills.map(toSkillRecord),
-		plugins: plugins.packages.map(plugin => toPluginRecord(plugin, plugins.diagnostics)),
+		plugins: plugins.plugins.map(toPluginRecord),
 		warnings: [...new Set(warnings)],
 		generatedAt: new Date().toISOString(),
 	};
@@ -559,40 +527,40 @@ async function revealSkillRoot(input: CommandInput<"skills.revealRoot">): Promis
 }
 
 /**
- * `plugins.setEnabled` → `GET /api/plugins` then `POST /api/plugins`.
+ * `plugins.setEnabled` → `GET /api/plugins` then `POST /api/plugins { id }`.
  *
- * The mutation addresses a package by its configured source, so the name in
- * the read model is resolved back to the matching package first. `user` maps to
- * the gateway's `global` inventory scope.
+ * The read model names a registry entry by its addressable key
+ * (`name@marketplace` or the package name), and the gateway's toggle applies
+ * the same precedence the CLI does: marketplace ids go through the installed
+ * registry, everything else through the runtime lockfile. `scope` picks the
+ * copy when a plugin is installed in both; the CLI requires it in that case
+ * too, so an unscoped ambiguous id is refused rather than guessed.
  */
 async function setPluginEnabled(input: CommandInput<"plugins.setEnabled">): Promise<ConfigWriteResult> {
 	const name = requiredString(input, "name");
 	const enabled = requiredBoolean(input, "enabled");
 	const scope = optionalScope(input);
 	const inventory = await readPluginsInventory();
-	const matches = inventory.packages.filter(plugin => pluginName(plugin) === name);
-	let candidates = matches;
-	if (scope !== undefined) {
-		candidates = matches.filter(plugin => plugin.scope === (scope === "project" ? "project" : "global"));
-	} else {
-		const projectScoped = matches.filter(plugin => plugin.scope === "project");
-		if (projectScoped.length > 0) candidates = projectScoped;
+	const matches = inventory.plugins.filter(plugin => plugin.id === name);
+	if (matches.length === 0) throw invalid(`unknown plugin: ${name}`);
+	const scoped = scope === undefined ? matches : matches.filter(plugin => plugin.scope === scope);
+	if (scoped.length === 0) throw invalid(`Plugin ${name} is not installed in ${scope} scope`);
+	if (scope === undefined && new Set(matches.map(plugin => plugin.scope)).size > 1) {
+		throw invalid(`Plugin ${name} is installed in both user and project scope. Pass scope: "user" or "project".`);
 	}
-	if (candidates.length === 0) throw invalid(`unknown plugin: ${name}`);
-	if (candidates.length > 1) throw invalid(`ambiguous plugin: ${name}`);
-	const [plugin] = candidates;
+	const [plugin] = scoped;
 	await gatewayOk(PLUGINS_ROUTE, {
 		body: {
 			action: enabled ? "enable" : "disable",
-			source: plugin.source,
-			scope: plugin.scope === "project" ? "project" : "user",
+			id: plugin.id,
+			scope: plugin.scope,
 			cwd: getProjectDir(),
 		},
 	});
 	return {
 		applied: true,
 		runtimeEffect: "new-session",
-		message: `Plugin ${name} ${enabled ? "enabled" : "disabled"}`,
+		message: `Plugin ${plugin.name} ${enabled ? "enabled" : "disabled"}`,
 	};
 }
 

@@ -252,6 +252,7 @@ export function CapabilitiesPage({
   const [highlight, setHighlight] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [pluginBusy, setPluginBusy] = useState<ReadonlySet<string>>(new Set());
+  const [pluginDetail, setPluginDetail] = useState<string | null>(null);
   const [skillBusy, setSkillBusy] = useState<ReadonlySet<string>>(new Set());
   const [mcpBusy, setMcpBusy] = useState<ReadonlySet<string>>(new Set());
   const [mcpTesting, setMcpTesting] = useState<ReadonlySet<string>>(new Set());
@@ -265,7 +266,6 @@ export function CapabilitiesPage({
     create: t("capabilities.createNotImplemented"),
     view: t("capabilities.viewNotImplemented"),
     remove: t("capabilities.removeNotImplemented"),
-    plugin: t("capabilities.pluginNotImplemented"),
     builtinDir: t("capabilities.builtinNoDir"),
     shadowed: t("capabilities.shadowedTip"),
     slashComposer: t("composer.paramPlaceholder"),
@@ -528,7 +528,11 @@ export function CapabilitiesPage({
     const next = !(plugin.enabled ?? plugin.status === "loaded");
     setPluginBusy((current) => new Set(current).add(plugin.name));
     try {
-      const handle = await client.command("plugins.setEnabled", { name: plugin.name, enabled: next });
+      const handle = await client.command("plugins.setEnabled", {
+        name: plugin.name,
+        enabled: next,
+        ...(plugin.scope === undefined ? {} : { scope: plugin.scope }),
+      });
       const receipt = await waitReceipt<ConfigWriteResult>(client, handle.requestId);
       toast(receipt.message ?? (next ? t("common.enabled") : t("common.disabled")));
       await refresh();
@@ -691,6 +695,13 @@ export function CapabilitiesPage({
             : enabled
               ? { text: t("capabilities.statusLoaded"), cls: "green" }
               : { text: t("capabilities.statusDisabled"), cls: "gray" };
+          const scope = plugin.scope === undefined
+            ? null
+            : plugin.scope === "project"
+              ? t("capabilities.scopeProject")
+              : t("capabilities.scopeGlobal");
+          const panels = plugin.panels ?? [];
+          const open = pluginDetail === plugin.name;
           return (
             <div
               key={key}
@@ -703,34 +714,64 @@ export function CapabilitiesPage({
                 <span className={`a-ic ${err ? "amber" : "blue"}`}><Icon name="package" extra="sm" /></span>
                 <div className="cap-item-main">
                   <div className="cap-item-name-row">
-                    <span className="cap-item-name">{plugin.name}</span>
+                    <span className="cap-item-name">{plugin.title ?? plugin.name}</span>
                     <span className={`chip ${chip.cls} xs`}>{chip.text}</span>
                     <span className="chip outline xs">{plugin.src}</span>
+                    {scope ? <span className="chip outline xs">{scope}</span> : null}
                   </div>
                 </div>
                 <div className="cap-item-actions">
                   <Switch
                     on={enabled}
-                    label={t("capabilities.togglePluginAria", { name: plugin.name })}
+                    label={t("capabilities.togglePluginAria", { name: plugin.title ?? plugin.name })}
                     disabled={pluginBusy.has(plugin.name)}
                     onToggle={() => void togglePlugin(plugin)}
                   />
-                  <Disabled className="btn small outline" tip={CONTRACT.plugin}>{err ? t("capabilities.viewError") : t("capabilities.details")}</Disabled>
-                  <Disabled className="icon-btn small" tip={CONTRACT.plugin}><Icon name="more" extra="sm" /></Disabled>
+                  <button
+                    type="button"
+                    className="btn small outline"
+                    aria-expanded={open}
+                    onClick={() => setPluginDetail(open ? null : plugin.name)}
+                  >
+                    {err ? t("capabilities.viewError") : t("capabilities.details")}
+                  </button>
                 </div>
               </div>
-              <div className="cap-item-provides">
-                <Provide icon="terminal" label={t("capabilities.toolsProvided")} count={plugin.tools} items={plugin.toolItems ?? []} />
-                <Provide icon="slash" label={t("capabilities.commandsProvided")} count={plugin.commands} items={plugin.commandItems ?? []} />
-                <Provide icon="zap" label="Hook" count={plugin.hooks} items={plugin.hookItems ?? []} />
-                <Provide
-                  icon="monitor"
-                  label={t("capabilities.uiProvided")}
-                  count={plugin.uiItems?.length ?? (plugin.ui ? 1 : 0)}
-                  items={plugin.uiItems ?? (plugin.ui ? [t("capabilities.provideUi")] : [])}
-                />
-              </div>
-              {plugin.err ? (
+              {open ? (
+                <div className="cap-item-body">
+                  <div className="cap-item-provides">
+                    <Provide icon="terminal" label={t("capabilities.toolsProvided")} count={plugin.tools} items={plugin.toolItems ?? []} />
+                    <Provide icon="slash" label={t("capabilities.commandsProvided")} count={plugin.commands} items={plugin.commandItems ?? []} />
+                    <Provide icon="zap" label="Hook" count={plugin.hooks} items={plugin.hookItems ?? []} />
+                    <div className="cap-provide">
+                      <div className="cap-provide-head">
+                        <Icon name="monitor" extra="xs" />
+                        <span>{t("capabilities.panelsDeclared")}</span>
+                        <span className="cap-provide-count">{panels.length}</span>
+                      </div>
+                      {panels.length
+                        ? (
+                          <div className="cap-provide-items">
+                            {panels.map((panel) => (
+                              <span key={panel.id} className="cap-provide-item">
+                                {`${panel.title} · ${panel.kind} · ${panel.id}`}
+                              </span>
+                            ))}
+                          </div>
+                        )
+                        : <div className="cap-provide-empty">{t("capabilities.noPanelsDeclared")}</div>}
+                    </div>
+                  </div>
+                  {plugin.err ? (
+                    <div className="cap-error">
+                      <Icon name="alert-c" extra="xs" />
+                      <span>{plugin.err}</span>
+                    </div>
+                  ) : null}
+                  {plugin.name !== plugin.title && plugin.title ? <span className="cap-source" data-tip={plugin.name}>{plugin.name}</span> : null}
+                </div>
+              ) : null}
+              {!open && plugin.err ? (
                 <div className="cap-error">
                   <Icon name="alert-c" extra="xs" />
                   <span>{plugin.err}</span>

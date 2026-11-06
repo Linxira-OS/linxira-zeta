@@ -66,6 +66,7 @@ const MIRRORED: Record<string, string> = {
 	test_ts_native: "test_ts_native",
 	test_coding_agent_ui: "test_coding_agent_ui",
 	test_coding_agent_runtime: "test_coding_agent_runtime",
+	test_coding_agent_browser: "test_coding_agent_browser",
 	test_smoke: "test_smoke",
 	install_methods: "install_methods",
 	termide_tests: "termide_tests",
