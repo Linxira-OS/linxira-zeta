@@ -123,14 +123,16 @@ describe("buildUsageDaily", () => {
 			NOW,
 		);
 		// Two models outside the top five collapse into one row per day.
+		// Same token total, so the tie-break decides: ids compare by code unit
+		// (deterministic across locales), and "alpha" sorts before the other bucket.
 		expect(usage.byModel.filter(point => point.date === "2026-06-14")).toEqual([
-			{ date: "2026-06-14", model: USAGE_OTHER_MODEL, tokens: 5 },
 			{ date: "2026-06-14", model: "alpha", tokens: 5 },
+			{ date: "2026-06-14", model: USAGE_OTHER_MODEL, tokens: 5 },
 		]);
 		expect(usage.hours).toEqual([
 			{ hour: 7, model: "alpha", tokens: 2 },
-			{ hour: 9, model: USAGE_OTHER_MODEL, tokens: 10 },
 			{ hour: 9, model: "alpha", tokens: 1 },
+			{ hour: 9, model: USAGE_OTHER_MODEL, tokens: 10 },
 		]);
 	});
 

@@ -33,6 +33,16 @@ import type {
  * exact id (`OTHER_MODEL_ID` in `web-app/src/studio/HomePage.tsx`), so it is a
  * wire value, not a display label.
  */
+/**
+ * Deterministic id ordering. `localeCompare` follows the process locale, so the
+ * same usage data produced a different legend order on a CI runner (en-US) than
+ * on a zh-CN machine; ids are opaque, so compare their code units.
+ */
+function compareIds(left: string, right: string): number {
+	return left < right ? -1 : left > right ? 1 : 0;
+}
+
+/** See the doc comment above. */
 export const USAGE_OTHER_MODEL = "其他";
 
 /** Models the per-day chart legend keeps before folding the rest into `other`. */
@@ -65,7 +75,7 @@ function ranking(rows: UsageDailySource["byModelDay"], yearStart: string): Map<s
 	return new Map(
 		[...totals].sort(([leftId, leftTokens], [rightId, rightTokens]) => {
 			if (rightTokens !== leftTokens) return rightTokens - leftTokens;
-			return leftId.localeCompare(rightId);
+			return compareIds(leftId, rightId);
 		}),
 	);
 }
@@ -102,7 +112,7 @@ export function buildUsageDaily(source: UsageDailySource, now = Date.now()): Tok
 	for (const [date, tokens] of otherByDay) {
 		if (tokens > 0) byModel.push({ date, model: USAGE_OTHER_MODEL, tokens });
 	}
-	byModel.sort((left, right) => left.date.localeCompare(right.date) || left.model.localeCompare(right.model));
+	byModel.sort((left, right) => compareIds(left.date, right.date) || compareIds(left.model, right.model));
 
 	const hours: TokenUsageHourPoint[] = [];
 	const otherByHour = new Map<number, number>();
@@ -116,7 +126,7 @@ export function buildUsageDaily(source: UsageDailySource, now = Date.now()): Tok
 	for (const [hour, tokens] of otherByHour) {
 		if (tokens > 0) hours.push({ hour, model: USAGE_OTHER_MODEL, tokens });
 	}
-	hours.sort((left, right) => left.hour - right.hour || left.model.localeCompare(right.model));
+	hours.sort((left, right) => left.hour - right.hour || compareIds(left.model, right.model));
 
 	const days: TokenUsageDayPoint[] = source.days.map(row => ({ date: row.day, totalTokens: row.totalTokens }));
 	const empty = days.length === 0 && byModel.length === 0 && hours.length === 0;
