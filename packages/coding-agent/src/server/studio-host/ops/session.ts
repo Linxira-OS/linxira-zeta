@@ -551,15 +551,21 @@ type CursorBinding =
 	| { readonly kind: "session"; readonly sessionId: string }
 	| { readonly kind: "agent"; readonly parentSessionId: string; readonly agentId: string };
 
-function encodeCursor(binding: CursorBinding, boundary: number): OpaqueCursor {
+function encodeCursor(binding: CursorBinding, boundary: number, revision?: string): OpaqueCursor {
 	const payload =
 		binding.kind === "session"
-			? { v: 1, k: "older", s: binding.sessionId, b: boundary }
+			? { v: 1, k: "older", s: binding.sessionId, b: boundary, ...(revision === undefined ? {} : { e: revision }) }
 			: { v: 1, k: "older", p: binding.parentSessionId, a: binding.agentId, b: boundary };
 	return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url") as OpaqueCursor;
 }
 
-function decodeCursor(cursor: string, binding: CursorBinding): number {
+interface DecodedCursor {
+	readonly boundary: number;
+	/** Entry id the boundary addressed (session cursors only). */
+	readonly origin?: string;
+}
+
+function decodeCursor(cursor: string, binding: CursorBinding): DecodedCursor {
 	let payload: unknown;
 	try {
 		payload = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
@@ -580,7 +586,8 @@ function decodeCursor(cursor: string, binding: CursorBinding): number {
 	} else if (stringField(payload, "p") !== binding.parentSessionId || stringField(payload, "a") !== binding.agentId) {
 		throw new StudioOpError("CURSOR_STALE", "cursor belongs to another agent transcript");
 	}
-	return boundary;
+	const origin = stringField(payload, "e");
+	return { boundary, ...(origin === undefined ? {} : { origin }) };
 }
 
 function pageLimit(limit: number | undefined): number {
@@ -613,7 +620,7 @@ function pageBackwards(
 	binding: CursorBinding,
 ): ConversationPageParts {
 	const size = pageLimit(limit);
-	const boundary = cursor === undefined ? items.length : decodeCursor(cursor, binding);
+	const boundary = cursor === undefined ? items.length : decodeCursor(cursor, binding).boundary;
 	if (boundary > items.length) throw new StudioOpError("CURSOR_STALE", "cursor is past the transcript head");
 	let start = Math.max(0, boundary - size);
 	let pageItems = items.slice(start, boundary);
@@ -785,7 +792,12 @@ function entryTimestamps(tree: unknown): Map<string, string> {
 
 interface SessionTranscriptView {
 	readonly leafId: string | null;
+	/** Informational durable revision (`mtime:size:leaf`), stable within one file version. */
 	readonly revision: string;
+	/** Origin identity of the window coordinate space (cursor validation). */
+	readonly origin: string;
+	readonly total: number;
+	readonly windowStart: number;
 	readonly items: readonly ConversationItem[];
 }
 
@@ -795,13 +807,23 @@ interface SessionTranscriptView {
  * entry timestamps a public page needs; `/context` alone cannot answer
  * `createdAt` or `branchLeafId` without inventing them.
  */
-async function loadSessionTranscript(sessionId: string): Promise<SessionTranscriptView> {
-	const reply = await callGateway(`/api/sessions/${segment(sessionId)}`);
+async function loadSessionTranscript(
+	sessionId: string,
+	window?: { readonly boundary?: number; readonly origin?: string; readonly limit: number },
+): Promise<SessionTranscriptView> {
+	const query =
+		window === undefined
+			? ""
+			: `?window=${window.boundary ?? "tail"}&limit=${window.limit}` +
+				(window.origin === undefined ? "" : `&origin=${encodeURIComponent(window.origin)}`);
+	const reply = await callGateway(`/api/sessions/${segment(sessionId)}${query}`);
+	if (reply.status === 409)
+		throw new StudioOpError("CURSOR_STALE", "cursor refers to a different transcript revision");
 	if (reply.status === 404) {
 		// A just-created session has no session file until its first append; a
 		// live session with no file is an empty transcript, not an error.
 		await readLiveState(sessionId);
-		return { leafId: null, revision: "empty", items: [] };
+		return { leafId: null, revision: "empty", origin: "empty", total: 0, windowStart: 0, items: [] };
 	}
 	if (reply.status < 200 || reply.status >= 300) {
 		throw unavailable(`GET /api/sessions/${sessionId} → ${reply.status}${errorSuffix(reply.body)}`);
@@ -818,7 +840,17 @@ async function loadSessionTranscript(sessionId: string): Promise<SessionTranscri
 	const created = info === undefined ? undefined : stringField(info, "created");
 	const modified = info === undefined ? undefined : stringField(info, "modified");
 	const leafId = stringField(body, "leafId") ?? null;
-	const timestamps = entryTimestamps(body.tree);
+	// A windowed answer carries its own per-page timestamps; the legacy answer
+	// only has the tree, so keep that path for callers without a window.
+	const page = isRecord(body.page) ? body.page : undefined;
+	const timestamps =
+		page === undefined
+			? entryTimestamps(body.tree)
+			: new Map(
+					Object.entries(isRecord(page.timestamps) ? page.timestamps : {}).flatMap(([id, value]) =>
+						typeof value === "string" ? ([[id, value]] as const) : [],
+					),
+				);
 	const records: TranscriptRecord[] = [];
 	let earliest: string | undefined;
 	for (let index = 0; index < messages.length; index += 1) {
@@ -833,9 +865,18 @@ async function loadSessionTranscript(sessionId: string): Promise<SessionTranscri
 	if (fallbackCreatedAt === undefined && records.length > 0) {
 		throw unavailable(`session ${sessionId} has no readable timestamps`);
 	}
+	const total = page === undefined ? records.length : (numberField(page, "total") ?? records.length);
+	const windowStart = page === undefined ? 0 : (numberField(page, "windowStart") ?? 0);
+	const origin = page === undefined ? "legacy" : (stringField(page, "origin") ?? "legacy");
 	return {
 		leafId,
-		revision: `${modified ?? "unknown"}#${leafId ?? "empty"}`,
+		revision:
+			page === undefined
+				? `${modified ?? "unknown"}#${leafId ?? "empty"}`
+				: (stringField(page, "transcriptRevision") ?? `${modified ?? "unknown"}#${leafId ?? "empty"}`),
+		origin,
+		total,
+		windowStart,
 		items: projectConversationItems(records, fallbackCreatedAt),
 	};
 }
@@ -882,18 +923,36 @@ async function loadAgentTranscript(parentSessionId: string, agentId: string): Pr
  * Page of the session's active branch, for `conversation.open` and
  * `session.transcript.read` alike.
  */
+/** One page of a windowed session read, in the public page shape. */
+function pageFromSessionWindow(
+	view: SessionTranscriptView,
+	binding: Extract<CursorBinding, { kind: "session" }>,
+): ConversationPageParts {
+	return {
+		items: view.items,
+		headCursor: encodeCursor(binding, view.total, view.origin),
+		...(view.windowStart > 0 ? { olderCursor: encodeCursor(binding, view.windowStart, view.origin) } : {}),
+		hasMoreBefore: view.windowStart > 0,
+	};
+}
+
 export async function readTranscriptPage(
 	sessionId: SessionId,
 	cursor?: string,
 	limit?: number,
 ): Promise<ConversationTranscriptPage> {
-	const view = await loadSessionTranscript(String(sessionId));
-	const page = pageBackwards(view.items, cursor, limit, { kind: "session", sessionId: String(sessionId) });
+	const binding = { kind: "session", sessionId: String(sessionId) } as const;
+	const decoded = cursor === undefined ? undefined : decodeCursor(cursor, binding);
+	const view = await loadSessionTranscript(String(sessionId), {
+		...(decoded?.boundary === undefined ? {} : { boundary: decoded.boundary }),
+		...(decoded?.origin === undefined ? {} : { origin: decoded.origin }),
+		limit: pageLimit(limit),
+	});
 	return {
 		runtimeEpoch: RUNTIME_EPOCH,
 		sessionId,
 		branchLeafId: view.leafId,
-		...page,
+		...pageFromSessionWindow(view, binding),
 	};
 }
 
@@ -951,7 +1010,7 @@ async function readAgentTranscriptPage(
 	const binding: CursorBinding = { kind: "agent", parentSessionId, agentId };
 	const messages = agentTranscriptMessages(view.records);
 	const size = pageLimit(limit);
-	const offset = cursor === undefined ? 0 : decodeCursor(cursor, binding);
+	const offset = cursor === undefined ? 0 : decodeCursor(cursor, binding).boundary;
 	if (offset > messages.length) throw new StudioOpError("CURSOR_STALE", "cursor is past the transcript end");
 	const page = messages.slice(offset, offset + size);
 	const end = offset + page.length;
@@ -1184,13 +1243,18 @@ export const sessionOps: StudioFamily = {
 					...page,
 				} satisfies ConversationTranscriptReadPage;
 			}
-			const view = await loadSessionTranscript(sessionId);
-			const page = pageBackwards(view.items, input.cursor, input.limit, { kind: "session", sessionId });
+			const binding = { kind: "session", sessionId } as const;
+			const decoded = input.cursor === undefined ? undefined : decodeCursor(input.cursor, binding);
+			const view = await loadSessionTranscript(sessionId, {
+				...(decoded?.boundary === undefined ? {} : { boundary: decoded.boundary }),
+				...(decoded?.origin === undefined ? {} : { origin: decoded.origin }),
+				limit: pageLimit(input.limit),
+			});
 			return {
 				sessionId: sessionId as SessionId,
 				transcriptRevision: view.revision,
 				branchLeafId: view.leafId,
-				...page,
+				...pageFromSessionWindow(view, binding),
 			} satisfies ConversationTranscriptReadPage;
 		},
 

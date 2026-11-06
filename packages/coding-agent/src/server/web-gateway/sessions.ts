@@ -468,30 +468,74 @@ function entryToUiMessage(
 	}
 }
 
-export function buildWebSessionContext(
-	entries: RuntimeSessionEntry[],
-	leafId: string | null | undefined,
-	options: { deferThinking?: boolean; deferToolResultImages?: boolean } = {},
-): SessionContext {
+interface SessionBranch {
+	readonly contextEntries: readonly SessionEntry[];
+	readonly thinkingLevel: string;
+	readonly model: { provider: string; modelId: string } | null;
+}
+
+/** Active branch of the transcript, before any windowing. */
+function sessionBranch(entries: RuntimeSessionEntry[], leafId: string | null | undefined): SessionBranch {
 	const webEntries = entries as unknown as SessionEntry[];
 	const byId = new Map<string, SessionEntry>();
 	for (const entry of webEntries) byId.set(entry.id, entry);
-
 	const pathEntries = buildSessionPath(webEntries, leafId, byId);
 	const contextEntries = buildContextEntries(pathEntries);
+	const { thinkingLevel, model } = sessionSettingsFromPath(pathEntries);
+	return { contextEntries, thinkingLevel, model };
+}
 
+function projectContextWindow(
+	branch: SessionBranch,
+	options: { deferThinking?: boolean; deferToolResultImages?: boolean },
+	start: number,
+	end: number,
+): SessionContext {
 	const messages: AgentMessage[] = [];
 	const entryIds: string[] = [];
-	for (const entry of contextEntries) {
+	for (let index = start; index < end; index += 1) {
+		const entry = branch.contextEntries[index];
+		if (entry === undefined) continue;
 		const message = entryToUiMessage(entry, options);
 		if (message) {
 			messages.push(message);
 			entryIds.push(entry.id);
 		}
 	}
+	return { messages, entryIds, thinkingLevel: branch.thinkingLevel, model: branch.model };
+}
 
-	const { thinkingLevel, model } = sessionSettingsFromPath(pathEntries);
-	return { messages, entryIds, thinkingLevel, model };
+/**
+ * `info.messageCount` / `info.firstMessage` for a windowed read: the projection
+ * itself only runs over the returned slice, so these derive from entry types —
+ * the same predicate `entryToUiMessage` uses to drop a record.
+ */
+function summarizeBranch(branch: SessionBranch): { messageCount: number; firstMessage: string } {
+	let count = 0;
+	let firstMessage = "";
+	for (const entry of branch.contextEntries) {
+		const producesMessage =
+			entry.type === "message" ||
+			entry.type === "compaction" ||
+			(entry.type === "branch_summary" && Boolean(entry.summary)) ||
+			entry.type === "custom_message";
+		if (!producesMessage) continue;
+		count += 1;
+		if (firstMessage === "" && entry.type === "message" && entry.message.role === "user") {
+			const message = entryToUiMessage(entry, {});
+			if (message) firstMessage = firstUserMessageText([message]);
+		}
+	}
+	return { messageCount: count, firstMessage };
+}
+
+export function buildWebSessionContext(
+	entries: RuntimeSessionEntry[],
+	leafId: string | null | undefined,
+	options: { deferThinking?: boolean; deferToolResultImages?: boolean } = {},
+): SessionContext {
+	const branch = sessionBranch(entries, leafId);
+	return projectContextWindow(branch, options, 0, branch.contextEntries.length);
 }
 
 // ---------------------------------------------------------------------------
@@ -637,6 +681,27 @@ function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });
 }
 
+/** Windowed reads: the bounds the host's `ConversationTranscriptPage` already enforces. */
+const SESSION_WINDOW_LIMIT_MIN = 1;
+const SESSION_WINDOW_LIMIT_MAX = 100;
+const SESSION_WINDOW_LIMIT_DEFAULT = 50;
+/** Serialized `messages` + `entryIds` cap for one page. */
+const SESSION_WINDOW_MAX_BYTES = 768 * 1024;
+
+function windowError(message: string, code: string, status = 400): Response {
+	return json({ error: message, code }, status);
+}
+
+/** Informational: `mtimeMs:size:leafId`, changes on every append. */
+function transcriptRevision(filePath: string, leafId: string | null): string {
+	const stat = statSessionFile(filePath);
+	return `${stat?.mtimeMs ?? 0}:${stat?.size ?? 0}:${leafId ?? "empty"}`;
+}
+
+function windowedMessageBytes(context: SessionContext): number {
+	return Buffer.byteLength(JSON.stringify({ messages: context.messages, entryIds: context.entryIds }), "utf8");
+}
+
 export async function handleListSessions(): Promise<Response> {
 	try {
 		const sessions = await listAllSessionsWeb();
@@ -697,7 +762,19 @@ export async function handleGetSession(req: Request, sessionId: string): Promise
 		}
 
 		const live = liveSessionManager(sessionId);
-		const liveStamp = live === undefined ? statSessionFile(filePath) : undefined;
+		const url = new URL(req.url);
+		const searchParams = url.searchParams;
+		const deferThinking = searchParams.has("deferThinking");
+		const deferToolResultImages = searchParams.has("deferMedia");
+		const projection = { deferThinking, deferToolResultImages };
+		const windowParam = searchParams.get("window");
+		const limitParam = searchParams.get("limit");
+		const originParam = searchParams.get("origin");
+		const windowed = windowParam !== null || limitParam !== null;
+
+		// The legacy whole-transcript answer is cached (#238); a window is cheap
+		// by construction and keyed by a different shape, so it is not cached.
+		const liveStamp = live === undefined && !windowed ? statSessionFile(filePath) : undefined;
 		if (liveStamp !== undefined) {
 			const cached = cachedSessionResponse(filePath, liveStamp);
 			if (cached !== undefined) return cachedJson(cached);
@@ -706,12 +783,89 @@ export async function handleGetSession(req: Request, sessionId: string): Promise
 		const sm = live ?? (await openSessionManager(filePath));
 		const entries = sm.getEntries();
 		const leafId = sm.getLeafId();
+
+		// Windowed read (`?window=tail|<int>&limit=<n>&revision=<rev>`): one page
+		// of the active branch instead of all of it. `tree` is omitted here on
+		// purpose — the branch view has its own route (`/state`).
+		if (windowed) {
+			let limit = SESSION_WINDOW_LIMIT_DEFAULT;
+			if (limitParam !== null) {
+				const parsed = Number(limitParam);
+				if (!Number.isInteger(parsed) || parsed < SESSION_WINDOW_LIMIT_MIN || parsed > SESSION_WINDOW_LIMIT_MAX) {
+					return windowError(
+						`limit must be an integer ${SESSION_WINDOW_LIMIT_MIN}..${SESSION_WINDOW_LIMIT_MAX}`,
+						"invalid-limit",
+					);
+				}
+				limit = parsed;
+			}
+			const branch = sessionBranch(entries, leafId);
+			// A cursor names the entry its window boundary addressed. Appending keeps
+			// that entry where it was; compaction and branch switches move it, which
+			// is exactly when the boundary would address different messages.
+			const boundary = windowParam !== null && windowParam !== "tail" ? Number(windowParam) : undefined;
+			if (originParam !== null && boundary !== undefined && branch.contextEntries[boundary]?.id !== originParam) {
+				return windowError("cursor refers to a different transcript position", "cursor-stale", 409);
+			}
+			const total = branch.contextEntries.length;
+			let end = total;
+			if (windowParam !== null && windowParam !== "tail") {
+				const parsed = Number(windowParam);
+				if (!Number.isInteger(parsed) || parsed < 0)
+					return windowError('window must be "tail" or a non-negative integer', "invalid-window");
+				if (parsed > total) return windowError("window is past the transcript head", "cursor-stale", 409);
+				end = parsed;
+			}
+			let start = Math.max(0, end - limit);
+			let context = projectContextWindow(branch, projection, start, end);
+			while (start < end - 1 && windowedMessageBytes(context) > SESSION_WINDOW_MAX_BYTES) {
+				start += 1;
+				context = projectContextWindow(branch, projection, start, end);
+			}
+			const summary = summarizeBranch(branch);
+			const header = sm.getHeader();
+			let modified = header?.timestamp ?? new Date().toISOString();
+			try {
+				modified = fs.statSync(filePath).mtime.toISOString();
+			} catch {
+				// use header timestamp
+			}
+			const parentSessionId = header?.parentSession ? await resolveSessionIdByPath(header.parentSession) : undefined;
+			const info = header
+				? {
+						path: filePath,
+						id: header.id,
+						cwd: header.cwd ?? "",
+						name: sm.getSessionName(),
+						created: header.timestamp,
+						modified,
+						messageCount: summary.messageCount,
+						firstMessage: summary.firstMessage || "(no messages)",
+						parentSessionId,
+					}
+				: null;
+			return json({
+				sessionId,
+				filePath,
+				info,
+				leafId,
+				context,
+				page: {
+					origin: branch.contextEntries[start]?.id ?? null,
+					transcriptRevision: transcriptRevision(filePath, leafId),
+					total,
+					windowStart: start,
+					windowEnd: end,
+					hasMoreBefore: start > 0,
+					timestamps: Object.fromEntries(
+						branch.contextEntries.slice(start, end).map(entry => [entry.id, entry.timestamp]),
+					),
+				},
+			});
+		}
+
 		const tree = projectTreeForResponse(sm.getTree() as unknown as SessionTreeNode[]);
-		const url = new URL(req.url);
-		const searchParams = url.searchParams;
-		const deferThinking = searchParams.has("deferThinking");
-		const deferToolResultImages = searchParams.has("deferMedia");
-		const context = buildWebSessionContext(entries, leafId, { deferThinking, deferToolResultImages });
+		const context = buildWebSessionContext(entries, leafId, projection);
 
 		const header = sm.getHeader();
 		let modified = header?.timestamp ?? new Date().toISOString();
