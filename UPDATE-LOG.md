@@ -2,6 +2,16 @@
 
 ## 下一版本（Unreleased）
 
+### 1.4.11
+- **Work Studio 成为产品界面**：渲染器换成 `web-app/`（Vite + React），由 `zetacode serve` 同源托管；构建产物随 `@linxiraos/zeta` 出货到 `dist/web-app`，安装后无需仓库布局即可打开。Studio 宿主在 `/api/v1/*` 回答 pair/CSRF/query/command/events，能力清单只广播已实现的操作。`zetawork`（Rust TUI/GUI）与 Electron `desktop/` 按 2026-11-05 裁决暂停；**不存在 Rust UI**，`zetaide` 仍是终端 IDE。
+- **会话转写分页与缓存**：`GET /api/sessions/:id` 支持 `window`/`limit`/`origin` 只回一页（≤768 KiB，边界用条目 id 校验，追加不会让游标失效）；整份响应按 `(mtime,size)` 缓存。8.3 MB / 2000 条会话冷读从 202 ms / 8.3 MB 降到 40 ms / 214 KB。
+- **用量页数据补全**：新增 `/api/usage/daily`，从 `packages/stats` 的 `messages` + `message_rollup` 读 400 天；主页热力图、YTD 前五模型 + “其他”、今日按小时序列不再为空；仪表板链接改 `range=all`，“在浏览器中打开”真正可用。
+- **插件注册表统一**：Studio 的插件列表改读真实 Zeta 插件注册表（marketplace + npm/git/link lockfile），展示 manifest 声明的 `ui.panels`，启停写入 CLI 使用的同一份 lockfile（不再误写 `settings.extensions`）。HTML 面板宿主仍不做。
+- **静态资源压缩**：构建期生成 `.br`/`.gz` 边车并做 `Accept-Encoding` 协商；入口 2,084,639 B → gzip 625,173 B / brotli 480,301 B，`Vary` 与压缩后长度正确，缺边车回退 identity。
+- **CI 分层**：真浏览器/Chromium 测试移入独立 `browser` 桶（76 个文件），只在夜间 schedule、显式 dispatch 与 release 运行；`release_gate` 断言它确实跑过。普通 PR 不再为这些用例反复重跑。
+- **渲染端工具链**：Vite 7 → 8（rolldown，构建 ~3 s）、plugin-react 6、three 0.187、x_ite 16.7；mermaid 保持 11（v12 把懒加载块从 3.36 MB 涨到 5.16 MB）。
+- **上游基线**：仍是 OMP `v18.16.0`（未同步 `v18.17.0`）。
+
 ### 1.4.10
 - **OMP 外部导入开关**：新增 `ZETA_OMP_COMPAT=1`，默认不读取旧 `~/.omp` 的 `models.yml`、`agent.db` 和 `.env`；显式 `copy-from-omp` 导入仍可用，`.zeta` 配置始终优先。
 - **GitHub CI 分层**：PR / 非 main dispatch 走快速路径，跳过 Rust、cross 与 native 编译，恢复 main 缓存或 npm native；main 全量并复用精确 native/cross 缓存；release 跳过测试 fan-out，复用 source commit 的 native 缓存。
