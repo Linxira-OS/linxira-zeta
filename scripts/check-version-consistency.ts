@@ -222,6 +222,8 @@ function main(): void {
 	for (const dist of NPM_DISTRIBUTIONS) {
 		const parentRel = `${dist.dir}/package.json`;
 		registeredPins[parentRel] = new Set(distributionPins(dist).map(pin => pin.name));
+		// Suspended products keep their frozen line; see npm-distributions.ts.
+		if (dist.paused) continue;
 		for (const rel of distributionManifests(dist)) {
 			const manifestVersion = readVersion(rel);
 			if (manifestVersion !== expected) problems.push(`${rel}: ${manifestVersion} != ${expected}`);
