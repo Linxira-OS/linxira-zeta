@@ -26,25 +26,25 @@
 		"@xterm/xterm": "^6.0.0",
 		"codemirror": "^6.0.2",
 		"fflate": "0.8.3",
-		"image-meta": "0.3.0",
+		"image-meta": "0.3.1",
 		"lowlight": "3.3.0",
-		"mermaid": "^11.16.1",
+		"mermaid": "11.17.2",
 		"react": "^19.1.0",
 		"react-dom": "^19.1.0",
 		"react-markdown": "^10.1.0",
 		"rehype-highlight": "^7.0.2",
 		"remark-gfm": "^4.0.1",
-		"three": "0.186.1",
-		"x_ite": "16.4.3",
+		"three": "0.187.0",
+		"x_ite": "16.7.0",
 		"yaml": "^2.9.0"
 	},
 	"devDependencies": {
 		"@types/node": "^24.0.0",
 		"@types/react": "^19.1.0",
 		"@types/react-dom": "^19.1.0",
-		"@types/three": "0.186.0",
-		"@vitejs/plugin-react": "^5.0.0",
+		"@types/three": "0.187.0",
+		"@vitejs/plugin-react": "6.2.1",
 		"typescript": "^5.9.0",
-		"vite": "^7.0.0"
+		"vite": "8.3.6"
 	}
 }
