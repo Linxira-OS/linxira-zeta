@@ -50,6 +50,7 @@
 | `feat/PluginRegistry` | feat | Studio 插件列表改为真实 Zeta 插件注册表 + 启停写对文件 + `ui.panels` 清单；worktree `temp/PluginRegistry` | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
 | `feat/UsageData` | feat | 用量数据：`packages/stats` 的日/时聚合读 API + `GET /api/usage/daily` + `usage.get` 填充 + deep link/`usage.openDashboard`；worktree `temp/UsageData` | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
 | `feat/session-window` | feat | 会话转写窗口分页（已并入 `main` 的 `952b3c0`）；worktree `temp/session-window` | agent | 2026-11-06 | 删分支/worktree 前登记退役 |
+| `docs/update-log-1.4.11` | docs | 1.4.11 的 `UPDATE-LOG.md` 条目；worktree `temp/update-log-114` | agent | 2026-11-06 | 合入后删 |
 | `feat/release-114` | feat | 1.4.11 集成分支：四个并行流合并 + 渲染端依赖升级；worktree `temp/release-114` | agent | 2026-11-06 | 发布并合并后删（删前记 SHA） |
 | `feat/ci-buckets` | feat | 把真浏览器/Chromium 测试从每次 push 的 CI 挪进独立 `browser` bucket：`ci-test-ts.ts` 第五个 bucket + `coding-agent-browser` 模式、`ci.yml` 夜间 schedule/`browser_tests` dispatch/release 专属 job 与 `release_gate` 断言、Gitea 镜像、CI surface/parity/文档同步；顺带补上本地 `check` job 缺失的 web-app 构建 | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
 
