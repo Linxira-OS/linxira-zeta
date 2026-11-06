@@ -15,6 +15,7 @@ declare module "bun:test" {
 		readonly not: Expectation;
 		toBe(expected: unknown): void;
 		toBeNull(): void;
+		toBeUndefined(): void;
 		toBeGreaterThan(expected: number): void;
 		toEqual(expected: unknown): void;
 		toThrow(): void;
