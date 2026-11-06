@@ -151,6 +151,7 @@ import {
 } from "./web-gateway/skills";
 import { handleGetTracking, handleTrackingEvents } from "./web-gateway/tracking";
 import { handleUpdateCheck, handleUpdateDownload, handleUpdateInstall } from "./web-gateway/update";
+import { handleUsageDaily } from "./web-gateway/usage-daily";
 import { handleWebConfigGet, handleWebConfigPut } from "./web-gateway/web-config";
 import {
 	handleRemotePairingGet,
@@ -497,6 +498,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (pathname === "/api/usage") {
 		if (req.method === "GET") return handleUsageStats();
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/usage/daily") {
+		if (req.method === "GET") return handleUsageDaily();
 		return json({ error: "Method not allowed" }, 405);
 	}
 

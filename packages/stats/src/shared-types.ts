@@ -151,6 +151,32 @@ export interface DailyActivityPoint {
 }
 
 /**
+ * One local calendar day of token usage for one model, for the Studio home
+ * card's per-model heatmap. Days with no usage are absent, not zeroed.
+ */
+export interface ModelDailyActivityPoint {
+	/** Local calendar date, `YYYY-MM-DD`. */
+	day: string;
+	/** Model id as recorded on the assistant turn. */
+	model: string;
+	/** Total tokens (input + output + cache) for the day. */
+	totalTokens: number;
+}
+
+/**
+ * Per-model token usage for one local hour of the day, for the Studio home
+ * card's "today" view.
+ */
+export interface ModelHourlyActivityPoint {
+	/** Local hour of day, `0`–`23`. */
+	hour: number;
+	/** Model id as recorded on the assistant turn. */
+	model: string;
+	/** Total tokens (input + output + cache) for the hour. */
+	totalTokens: number;
+}
+
+/**
  * Overall dashboard stats.
  */
 export interface DashboardStats {

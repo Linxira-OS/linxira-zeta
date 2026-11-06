@@ -8,22 +8,21 @@
  *                         family's `session.state` snapshot, `history.list`
  *                         (active, newest 10) and the workspace family's
  *                         `projects.list` (newest 5)
- * - `usage.get`         → `GET /api/usage` session rows aggregated into daily
- *                         token totals; per-model/hour series are stated as
- *                         unrecorded
+ * - `usage.get`         → `GET /api/usage/daily`, the stats-database series
+ *                         (~400 days of totals, the year's top five models plus
+ *                         `other`, and today's per-model hours)
  * - `stats.dashboard`   → `GET /api/server/identity` for the published
  *                         `statsUrl`, then a loopback `/api/status` probe of
  *                         the dashboard itself
+ * - `usage.openDashboard` → the same probed URL, handed to the system browser
+ *                         (`openPath`); `serve` uses that helper for its own
+ *                         URL too, so opening one is not a new capability
  * - `conversation.open` → session targets read `GET /api/sessions/:id/context`
  *                         through `readTranscriptPage`; agent targets read
  *                         `GET /api/agent/:parentSessionId/subagents/:agentId/transcript`
  *                         through `readAgentConversationPage`. Both builders are
  *                         exported by the session family, so the page shape and
  *                         cursor namespace match its transcript queries exactly.
- *
- * Deliberately unimplemented: `usage.openDashboard` — no gateway route opens an
- * external URL (`/api/open` only opens project-confined directories), so the
- * command would be a fake action.
  *
  * A handler takes the contract input and returns the contract result; it
  * reaches Zeta state only through `../gateway.js` (`callGateway`,
@@ -40,6 +39,7 @@ import { StudioOperations } from "../registry.js";
 import type { StudioFamily, StudioHostContext } from "../registry.js";
 import { gatewayJson, invalid, requiredString, unavailable } from "../gateway.js";
 import type {
+	ConfigWriteResult,
 	EnvironmentId,
 	HistoryEntryId,
 	HomeReadModel,
@@ -49,6 +49,10 @@ import type {
 	SessionId,
 	StatsDashboardReadModel,
 	ThreadId,
+	TokenUsageDayPoint,
+	TokenUsageHourPoint,
+	TokenUsageModelDayPoint,
+	TokenUsageModelRef,
 	TokenUsageReadModel,
 	WorkspaceId,
 	WorkspaceListReadModel,
@@ -56,6 +60,7 @@ import type {
 } from "../contract/index.js";
 import type { AgentId, ConversationOpenResult, ConversationTarget, OperatorStateSnapshot } from "../protocol/index.js";
 import { resumePathKey } from "../../../resume/paths.js";
+import { openPath } from "../../../utils/open.js";
 import { readAgentConversationPage, readTranscriptPage, sessionOps } from "./session.js";
 import { workspaceOps } from "./workspace.js";
 
@@ -70,16 +75,15 @@ const HISTORY_SUMMARY_MAX_CHARS = 280;
 const RECENT_THREADS_LIMIT = 10;
 /** Recent workspaces the home page shows. */
 const RECENT_WORKSPACES_LIMIT = 5;
-/** Daily token points the home heatmap keeps. */
-const USAGE_MAX_DAYS = 30;
-/** Stated once, on the one usage field Zeta cannot fill. */
-const USAGE_PARTIAL_REASON =
-	"Zeta stores per-session totals only; per-model and per-hour token series are not recorded";
-
 /** Probe budget for the loopback statistics dashboard. */
 const STATS_PROBE_TIMEOUT_MS = 3_000;
-/** Dashboard's own default deep link (see `parseHash` in `pi-stats`). */
-const STATS_DEEP_LINK = "/#/overview?range=24h";
+/**
+ * Deep link into the native dashboard. `all` is the dashboard's widest range
+ * (`TIME_RANGES` in `pi-stats/client/data/range.ts`), matching what the
+ * upstream home card opens: the embedded page carries its own range switcher,
+ * so a narrow default only made the first paint disagree with the card.
+ */
+const STATS_DEEP_LINK = "/#/overview?range=all";
 
 /** A live replay the host can honestly claim: it buffers no runtime events. */
 const NO_LIVE_REPLAY: ConversationOpenResult["live"] = { status: "complete", watermark: 0, events: [] };
@@ -334,54 +338,71 @@ async function homeReadModel(context: StudioHostContext): Promise<HomeReadModel>
 // `usage.get`
 // ---------------------------------------------------------------------------
 
-/** Local calendar day (`YYYY-MM-DD`) of an instant. */
-function localDateKey(milliseconds: number): string {
-	const date = new Date(milliseconds);
-	const month = String(date.getMonth() + 1).padStart(2, "0");
-	const day = String(date.getDate()).padStart(2, "0");
-	return `${date.getFullYear()}-${month}-${day}`;
+/** A `{ date, totalTokens }` row of `/api/usage/daily`'s daily series. */
+function isUsageDayPoint(value: unknown): value is TokenUsageDayPoint {
+	return isRecord(value) && typeof value.date === "string" && typeof value.totalTokens === "number";
 }
 
-/** The two `/api/usage` fields the daily series consumes. */
-function usageRow(value: unknown): { readonly lastActive: string; readonly totalTokens: number } | undefined {
-	if (!isRecord(value)) return undefined;
-	const lastActive = isoField(value, "lastActive");
-	const totalTokens = value.totalTokens;
-	if (lastActive === undefined || typeof totalTokens !== "number" || !Number.isFinite(totalTokens)) return undefined;
-	return { lastActive, totalTokens };
+/** A `{ date, model, tokens }` row of `/api/usage/daily`'s per-model series. */
+function isUsageModelDayPoint(value: unknown): value is TokenUsageModelDayPoint {
+	return (
+		isRecord(value) &&
+		typeof value.date === "string" &&
+		typeof value.model === "string" &&
+		typeof value.tokens === "number"
+	);
+}
+
+/** A `{ hour, model, tokens }` row of `/api/usage/daily`'s hourly series. */
+function isUsageHourPoint(value: unknown): value is TokenUsageHourPoint {
+	return (
+		isRecord(value) &&
+		typeof value.hour === "number" &&
+		typeof value.model === "string" &&
+		typeof value.tokens === "number"
+	);
+}
+
+/** The legend ids `/api/usage/daily` ranked for the card. */
+function isUsageModelRef(value: unknown): value is TokenUsageModelRef {
+	return isRecord(value) && typeof value.id === "string";
 }
 
 /**
- * Daily token totals from the gateway's per-session usage rows. A session's
- * whole lifetime total is attributed to its last-active day — the only date
- * `/api/usage` exposes. Per-model and per-hour series are not recorded by
- * Zeta, so those arrays stay empty *and* the model says why.
+ * Validate one `/api/usage/daily` answer into the contract read model.
+ *
+ * The route owns the aggregation; this maps its answer field for field, so a
+ * renamed array fails loudly instead of rendering an empty card. Malformed
+ * points are dropped — one bad row must not blank the whole heatmap — and the
+ * reason arrives only when the route could not read the database at all.
+ */
+export function usageDailyReadModel(value: unknown): TokenUsageReadModel {
+	if (!isRecord(value)) throw unavailable("/api/usage/daily did not return an object");
+	for (const field of ["days", "models", "byModel", "hours"] as const) {
+		if (!Array.isArray(value[field])) throw unavailable(`/api/usage/daily did not return a ${field} array`);
+	}
+	const unavailableReason = stringField(value, "unavailableReason");
+	return {
+		generatedAt: isoField(value, "generatedAt") ?? new Date().toISOString(),
+		days: (value.days as unknown[]).filter(isUsageDayPoint),
+		models: (value.models as unknown[]).filter(isUsageModelRef),
+		byModel: (value.byModel as unknown[]).filter(isUsageModelDayPoint),
+		hours: (value.hours as unknown[]).filter(isUsageHourPoint),
+		...(unavailableReason === undefined ? {} : { unavailableReason }),
+	};
+}
+
+/**
+ * Daily and per-model series from the stats-backed gateway route.
+ *
+ * `GET /api/usage/daily` reads the stats database (`messages` plus the hourly
+ * `message_rollup`, kept current by incremental `file_offsets` syncs) and
+ * shapes it for the home card: ~400 days of totals, the year's top five models
+ * plus one `other` bucket, and today's per-model hours. No session transcript
+ * is re-parsed for this read.
  */
 async function tokenUsage(): Promise<TokenUsageReadModel> {
-	const body = await gatewayJson<unknown>("/api/usage");
-	const sessions = isRecord(body) && Array.isArray(body.sessions) ? body.sessions : undefined;
-	if (sessions === undefined) throw unavailable("/api/usage did not return a sessions array");
-
-	const tokensByDay = new Map<string, number>();
-	for (const value of sessions) {
-		const row = usageRow(value);
-		if (row === undefined) continue;
-		const key = localDateKey(Date.parse(row.lastActive));
-		tokensByDay.set(key, (tokensByDay.get(key) ?? 0) + row.totalTokens);
-	}
-	const days = [...tokensByDay]
-		.sort(([left], [right]) => left.localeCompare(right))
-		.slice(-USAGE_MAX_DAYS)
-		.map(([date, totalTokens]) => ({ date, totalTokens }));
-
-	return {
-		generatedAt: new Date().toISOString(),
-		days,
-		models: [],
-		byModel: [],
-		hours: [],
-		unavailableReason: USAGE_PARTIAL_REASON,
-	};
+	return usageDailyReadModel(await gatewayJson<unknown>("/api/usage/daily"));
 }
 
 // ---------------------------------------------------------------------------
@@ -437,6 +458,34 @@ async function statsDashboard(): Promise<StatsDashboardReadModel> {
 		return { available: false, reason: `The statistics dashboard at ${origin} did not answer.` };
 	}
 	return { available: true, url: `${origin}${STATS_DEEP_LINK}` };
+}
+
+/**
+ * `usage.openDashboard` — hand the native dashboard's deep link to the user's
+ * browser.
+ *
+ * The URL comes from {@link statsDashboard}: the same published, probed
+ * endpoint the Statistics page embeds, so the external tab opens the same
+ * section and range instead of a guessed port. `openPath` is this host's
+ * existing "hand this URL to the OS" helper (`serve` uses it for its own URL
+ * and the OAuth flow uses it for the authorize page); it is best-effort, so a
+ * failed opener is logged there rather than turned into a false receipt.
+ */
+async function openDashboard(): Promise<ConfigWriteResult> {
+	const dashboard = await statsDashboard();
+	if (!dashboard.available || dashboard.url === undefined) {
+		return {
+			applied: false,
+			runtimeEffect: "immediate",
+			message: dashboard.reason ?? "The statistics dashboard is not available.",
+		};
+	}
+	openPath(dashboard.url);
+	return {
+		applied: true,
+		runtimeEffect: "immediate",
+		message: `Opening ${dashboard.url} in the system browser.`,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -505,9 +554,10 @@ async function openConversation(input: {
  *
  * `history.list` reads `/api/sessions` (+ `/archived`); `home.get` composes the
  * bootstrap authority/runtime, the session family's `session.state` snapshot,
- * active history and the workspace family's `projects.list`; `usage.get`
- * aggregates `/api/usage` session totals by last-active day; `stats.dashboard`
- * reads `/api/server/identity` then probes the published dashboard; and
+ * active history and the workspace family's `projects.list`; `usage.get` reads
+ * the stats-backed `/api/usage/daily` series; `stats.dashboard` reads
+ * `/api/server/identity` then probes the published dashboard;
+ * `usage.openDashboard` hands that URL to the system browser; and
  * `conversation.open` delegates to the session family's transcript-page
  * builders (`/api/sessions/:id/context` and the subagent transcript route).
  */
@@ -518,9 +568,13 @@ export const usageOps: StudioFamily = {
 		"history.list": input => listHistory(input),
 		/** Bootstrap facts + `session.state` + active history + workspace inventory. */
 		"home.get": (_input, context) => homeReadModel(context),
-		/** `/api/usage` session totals aggregated into the daily series. */
+		/** Stats-database daily, per-model and hourly series. */
 		"usage.get": () => tokenUsage(),
 		"stats.dashboard": () => statsDashboard(),
 		"conversation.open": input => openConversation(input),
+	},
+	commands: {
+		/** Opens the probed dashboard deep link in the system browser. */
+		"usage.openDashboard": () => openDashboard(),
 	},
 };
