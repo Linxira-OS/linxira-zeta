@@ -69,6 +69,8 @@
 
 ### Fixed
 
+
+- Work Studio carries the Zeta identity end to end: the startup notice and the update dialog link to `Linxira-OS/linxira-zeta` instead of the upstream Studio repository, the preview fixtures no longer sample an `omp-studio` project, and the Studio wire protocol name is `zeta-studio`. The brand gate now bans `OMP Studio`/`omp-studio` outside MIT attribution and the legacy IndexedDB keys that keep existing local thumbnails and backgrounds readable.
 - 修复中文系统下 CLI 汉化自动检测失效（`language` 默认值不再顶掉环境检测，中文系统自动切换中文界面）。
 - Fixed browser reuse for Chromium installed behind Linux wrapper scripts and prevented duplicate launches when a profile is locked ([#12236](https://github.com/can1357/oh-my-pi/pull/12236) by [@shivamklr](https://github.com/shivamklr)).
 

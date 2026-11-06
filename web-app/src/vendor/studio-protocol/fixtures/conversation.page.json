@@ -35,7 +35,7 @@
           "type": "toolResult",
           "toolCallId": "call-1",
           "toolName": "Read",
-          "output": "{ \"name\": \"omp-studio\" }",
+          "output": "{ \"name\": \"zeta-studio\" }",
           "isError": false
         },
         { "type": "text", "text": "This is a Studio workspace." }

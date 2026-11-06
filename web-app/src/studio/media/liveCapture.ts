@@ -29,7 +29,7 @@ export async function openLiveCapture(options: {
     await context.audioWorklet.addModule(captureModule); options.signal.throwIfAborted();
     audioId = await options.attach();
     if (closed || options.signal.aborted) { await api.detachLiveAudio({ audioId }).catch(() => {}); options.signal.throwIfAborted(); throw new Error("Microphone capture ended"); }
-    capture = new AudioWorkletNode(context, "omp-studio-live-capture", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
+    capture = new AudioWorkletNode(context, "zeta-live-capture", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
     let sequence = 0; let tail = Promise.resolve();
     capture.port.onmessage = event => {
       if (event.data?.error) { fault(String(event.data.error)); return; }

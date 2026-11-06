@@ -7,8 +7,8 @@
 
 export const STARTUP_NOTICE_ID = "incomplete-v1";
 export const STARTUP_NOTICE_STORAGE_KEY = "zeta.startupNotice.dismissed";
-export const PROJECT_GITHUB_URL = "https://github.com/the-snowpear/omp-studio";
-export const PROJECT_GITHUB_HOST = "github.com/the-snowpear/omp-studio";
+export const PROJECT_GITHUB_URL = "https://github.com/Linxira-OS/linxira-zeta";
+export const PROJECT_GITHUB_HOST = "github.com/Linxira-OS/linxira-zeta";
 
 export const STARTUP_NOTICE_COPY = {
   kicker: "开发预览",

@@ -3,6 +3,7 @@
 ## 下一版本（Unreleased）
 
 ### 1.4.11
+- **Work Studio 品牌收口**：启动提示、更新对话框、预览夹具与 Studio 线协议名不再出现上游 `OMP Studio`/`omp-studio`（仓库链接指向 `Linxira-OS/linxira-zeta`，协议名 `zeta-studio`），品牌门禁新增对应规则。
 - **Work Studio 成为产品界面**：渲染器换成 `web-app/`（Vite + React），由 `zetacode serve` 同源托管；构建产物随 `@linxiraos/zeta` 出货到 `dist/web-app`，安装后无需仓库布局即可打开。Studio 宿主在 `/api/v1/*` 回答 pair/CSRF/query/command/events，能力清单只广播已实现的操作。`zetawork`（Rust TUI/GUI）与 Electron `desktop/` 按 2026-11-05 裁决暂停；**不存在 Rust UI**，`zetaide` 仍是终端 IDE。
 - **会话转写分页与缓存**：`GET /api/sessions/:id` 支持 `window`/`limit`/`origin` 只回一页（≤768 KiB，边界用条目 id 校验，追加不会让游标失效）；整份响应按 `(mtime,size)` 缓存。8.3 MB / 2000 条会话冷读从 202 ms / 8.3 MB 降到 40 ms / 214 KB。
 - **用量页数据补全**：新增 `/api/usage/daily`，从 `packages/stats` 的 `messages` + `message_rollup` 读 400 天；主页热力图、YTD 前五模型 + “其他”、今日按小时序列不再为空；仪表板链接改 `range=all`，“在浏览器中打开”真正可用。

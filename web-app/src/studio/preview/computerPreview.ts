@@ -20,9 +20,9 @@ export const PREVIEW_COMPUTER_IMAGE = "data:image/svg+xml," + encodeURIComponent
   <rect x="82" y="82" width="1116" height="625" rx="12" fill="#222530"/>
   <path d="M94 82h1092a12 12 0 0 1 12 12v31H82V94a12 12 0 0 1 12-12" fill="#2a2d39"/>
   <g><circle cx="104" cy="104" r="5" fill="#e08a8d"/><circle cx="122" cy="104" r="5" fill="#debe7b"/><circle cx="140" cy="104" r="5" fill="#89ba9b"/></g>
-  <text x="641" y="109" fill="#b0b5c7" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="12">omp-studio — Workspace</text>
+  <text x="641" y="109" fill="#b0b5c7" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="12">zeta — Workspace</text>
   <path d="M82 125h220v554H82" fill="#252834"/>
-  <g font-family="Segoe UI, sans-serif" font-size="12"><text x="102" y="155" fill="#9da4ba" font-weight="600" font-size="10" letter-spacing="1">EXPLORER</text><text x="102" y="190" fill="#d7dae5">⌄  omp-studio</text><text x="120" y="223" fill="#a8b0c6">⌄  apps</text><text x="138" y="253" fill="#a8b0c6">⌄  renderer</text><text x="155" y="283" fill="#a8b0c6">⌄  src</text><text x="172" y="313" fill="#a8b0c6">⌄  browser</text></g>
+  <g font-family="Segoe UI, sans-serif" font-size="12"><text x="102" y="155" fill="#9da4ba" font-weight="600" font-size="10" letter-spacing="1">EXPLORER</text><text x="102" y="190" fill="#d7dae5">⌄  zeta</text><text x="120" y="223" fill="#a8b0c6">⌄  apps</text><text x="138" y="253" fill="#a8b0c6">⌄  renderer</text><text x="155" y="283" fill="#a8b0c6">⌄  src</text><text x="172" y="313" fill="#a8b0c6">⌄  browser</text></g>
   <rect x="94" y="326" width="199" height="28" rx="4" fill="#7160a0" opacity=".28"/>
   <g font-family="Segoe UI, sans-serif" font-size="12"><text x="185" y="344" fill="#c6b6f0">ComputerPane.tsx</text><text x="185" y="374" fill="#a8b0c6">computer.css</text><text x="172" y="414" fill="#a8b0c6">preview</text><text x="172" y="445" fill="#a8b0c6">styles</text><text x="120" y="486" fill="#a8b0c6">packages</text><text x="120" y="517" fill="#a8b0c6">package.json</text></g>
   <rect x="302" y="125" width="896" height="36" fill="#282b37"/>

@@ -1,5 +1,5 @@
 /**
- * OMP Studio protocol surface, vendored for the Zeta port (MIT — see
+ * Studio protocol surface, vendored from the upstream Studio contract for the Zeta port (MIT — see
  * THIRD-PARTY-NOTICES.txt).
  *
  * Everything under `contract/` and `protocol/` is **types and pure

@@ -478,6 +478,16 @@ export const MUST_NOT_CONTAIN: Array<{
 	 */
 	extraFiles?: boolean;
 }> = [
+	{
+		needle: /OMP[- ]Studio|omp-studio/i,
+		why: "Work Studio ships as Zeta: upstream Studio's name may appear only in provenance comments and the legacy IndexedDB keys kept for existing local data",
+		skipCommentLines: true,
+		exempt: [
+			"web-app/src/studio/background/backgroundLibrary.ts",
+			"web-app/src/studio/conversation/userMessageThumbs.ts",
+			"README.md", // MIT attribution for the ported renderer names the upstream project
+		],
+	},
 	{ needle: /PI_LOGO/, why: "upstream logo constant must never return" },
 	// ── The three-name hierarchy (2026-10-10) ────────────────────────────────
 	// Zeta has three distinct names and swapping them is a real defect, not a

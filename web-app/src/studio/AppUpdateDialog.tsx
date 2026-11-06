@@ -158,7 +158,7 @@ export function AppUpdateDialog({
 
   const openGithub = useCallback((event: ReactMouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    const url = update.htmlUrl ?? "https://github.com/the-snowpear/omp-studio/releases";
+    const url = update.htmlUrl ?? "https://github.com/Linxira-OS/linxira-zeta/releases";
     const openUrl = globalThis.zetaStudioChrome?.openUrl;
     if (openUrl !== undefined) {
       void openUrl({ url });

@@ -1,5 +1,5 @@
 /* ============================================================
-   OMP Studio — 复合侧栏
+   Zeta — 复合侧栏
    左上操作区 / 项目+对话 / 可拖分隔 / 文件树 / 左下 OMP 状态
    ============================================================ */
 
@@ -856,7 +856,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  /* 顶距 5px：两行 action 与 .sb-top（OMP Studio 工具栏）之间留 5px（按需求微调） */
+  /* 顶距 5px：两行 action 与 .sb-top（Zeta 工具栏）之间留 5px（按需求微调） */
   padding: 5px var(--sp-10) var(--sp-4);
   flex: none;
 }

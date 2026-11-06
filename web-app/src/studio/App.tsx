@@ -478,7 +478,7 @@ const TOASTED_NOTICE_MEMORY = 400;
 const TRAIL_MAX = 100;
 
 function setSlashUiIntent(ui: SlashNativeUi): void {
-  window.dispatchEvent(new CustomEvent("omp-studio-slash-ui", { detail: ui }));
+  window.dispatchEvent(new CustomEvent("zeta-studio-slash-ui", { detail: ui }));
   try {
     sessionStorage.setItem(SLASH_UI_INTENT_KEY, ui);
   } catch {
@@ -1158,7 +1158,7 @@ function VirtualEventTranscript({ events }: { events: readonly ShellEventLogEntr
   );
 }
 
-const CURRENT_PROJECT = { id: "omp-studio", name: "Zeta" } as const;
+const CURRENT_PROJECT = { id: "zeta", name: "Zeta" } as const;
 
 type SelectedProject = { readonly id: string; readonly name: string };
 
@@ -5372,8 +5372,8 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     const ui = takeSlashUiIntent();
     if (ui !== undefined) openSlashUi(ui);
     const receive = (event: Event) => openSlashUi((event as CustomEvent<SlashNativeUi>).detail);
-    window.addEventListener("omp-studio-slash-ui", receive);
-    return () => window.removeEventListener("omp-studio-slash-ui", receive);
+    window.addEventListener("zeta-studio-slash-ui", receive);
+    return () => window.removeEventListener("zeta-studio-slash-ui", receive);
   }, []);
   async function runSlashCommand(command: StudioSlashCommand, args: string): Promise<boolean> {
     if (command.name === "local") { setLocalFileName(args.trim()); setLocalFilesOpen(true); return true; }

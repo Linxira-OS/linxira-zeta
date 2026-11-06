@@ -106,7 +106,7 @@ declare global {
           | { readonly ok: false; readonly cancelled: true }
           | { readonly ok: false; readonly message: string }
         >;
-        /** 把处理后的头像写入 `%APPDATA%\omp-studio\profile\`，不回传路径。 */
+        /** 把处理后的头像写入 `%APPDATA%\zeta\profile\`，不回传路径。 */
         saveAvatar(input: { mime: "image/jpeg" | "image/webp" | "image/png"; bytes: Uint8Array }): Promise<
           { readonly ok: true } | { readonly ok: false; readonly message: string }
         >;
