@@ -20,6 +20,7 @@ import * as readline from "node:readline";
  *   cd C:\Users\ETPau\Documents\GITHUB\zeta
  *   bun scripts/publish-missing-packages.ts                     # 全部核心包（pi-messenger 需另行确认）
  *   bun scripts/publish-missing-packages.ts --only @linxiraos/pi-channels
+ *   bun scripts/publish-missing-packages.ts --only @linxiraos/zeta-schema,@linxiraos/zeta-compact
  *
  * 行为:
  *   - 已发布版本跳过（npm view 命中；EPUBLISHCONFLICT 视为已发）
@@ -38,7 +39,15 @@ import { $ } from "bun";
 const repo = path.resolve(import.meta.dir, "..");
 const args = process.argv.slice(2);
 const onlyIdx = args.indexOf("--only");
-const only = onlyIdx >= 0 ? args[onlyIdx + 1] : null;
+const only =
+	onlyIdx >= 0
+		? new Set(
+				(args[onlyIdx + 1] ?? "")
+					.split(",")
+					.map(value => value.trim())
+					.filter(Boolean),
+			)
+		: null;
 const doDeprecate = args.includes("--deprecate");
 const RELEASE = "1.1.9";
 const deprecateVersion = (() => {
@@ -337,7 +346,7 @@ if (doDeprecate) {
 const results: string[] = [];
 await ensureLogin();
 for (const t of TARGETS) {
-	if (only && t.name !== only) continue;
+	if (only && !only.has(t.name)) continue;
 	const pkgPath = path.join(repo, t.dir, "package.json");
 	const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as PkgShape;
 	const version = t.align || t.rename ? RELEASE : (pkg.version ?? "");
