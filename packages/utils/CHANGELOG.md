@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.11] - 2026-11-06
+
 - `applyLegacyOmpEnv()` lets a host apply the read-only legacy OMP dotenv files after its settings layer resolves the compatibility switch; the eager `ZETA_OMP_COMPAT` pass is unchanged.
 
 ## [1.4.10] - 2026-11-05

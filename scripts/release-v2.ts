@@ -202,6 +202,8 @@ async function assertConsistency(version: string): Promise<void> {
 	// Step 2f bump, so a pin whose sed pattern missed fails here instead of
 	// reaching npm.
 	for (const dist of NPM_DISTRIBUTIONS) {
+		// Suspended products keep their frozen line; see npm-distributions.ts.
+		if (dist.paused) continue;
 		for (const rel of distributionManifests(dist)) {
 			const manifest = await Bun.file(rel).json();
 			if (manifest.version !== version) problems.push(`${rel}: ${manifest.version} != ${version}`);
