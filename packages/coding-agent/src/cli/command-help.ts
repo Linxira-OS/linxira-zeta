@@ -194,11 +194,11 @@ export const usageHelp = {
 } satisfies CommandMetadata;
 
 export const serveHelp = {
-	description: "Start the Stats Dashboard and Web UI services (no browser)",
+	description: "Start the Stats Dashboard and Work Studio services (no browser)",
 } satisfies CommandMetadata;
 
 export const webHelp = {
-	description: "Start the Web UI server (no browser)",
+	description: "Start the Work Studio server (no browser)",
 } satisfies CommandMetadata;
 
 export const worktreeHelp = {

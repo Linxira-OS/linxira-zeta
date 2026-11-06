@@ -8,7 +8,7 @@ import Web from "@linxiraos/zeta/commands/web";
 
 describe("zetacode serve command", () => {
 	it("has the expected description", () => {
-		expect(Serve.description).toBe("Start the Stats Dashboard and Web UI services (no browser)");
+		expect(Serve.description).toBe("Start the Stats Dashboard and Work Studio services (no browser)");
 	});
 
 	it("defines stats-port flag with default 43147", () => {
@@ -45,7 +45,7 @@ describe("zetacode serve command", () => {
 
 describe("zetacode web command", () => {
 	it("has the expected description", () => {
-		expect(Web.description).toBe("Start the Web UI server (no browser)");
+		expect(Web.description).toBe("Start the Work Studio server (no browser)");
 	});
 
 	it("defines port flag with default 43141", () => {
