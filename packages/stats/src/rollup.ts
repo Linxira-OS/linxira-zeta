@@ -34,6 +34,8 @@ import type {
 	CostTimeSeriesPoint,
 	DailyActivityPoint,
 	FolderStats,
+	ModelDailyActivityPoint,
+	ModelHourlyActivityPoint,
 	ModelPerformancePoint,
 	ModelStats,
 	ModelTimeSeriesPoint,
@@ -823,6 +825,37 @@ export function getDailyActivityFromRollup(cutoff: number): DailyActivityPoint[]
 		 SUM(f.requests) AS requests, SUM(f.total_tokens) AS total_tokens`,
 		"GROUP BY day ORDER BY day",
 	).map(row => ({ day: row.day, cost: row.cost, requests: row.requests, totalTokens: row.total_tokens ?? 0 }));
+}
+
+/**
+ * Per-model token totals per local day since `cutoff`, oldest day first. Same
+ * exactness rules as every range read (clean rollup hours plus raw rows for the
+ * partial hour and dirty hours), so a live ingest shows up before its hour is
+ * re-rolled. Hourly buckets are attributed by their start, so a half-hour UTC
+ * offset can move up to 30 minutes of burn onto the neighbouring day — the same
+ * caveat {@link getProviderHourlyBurn} documents for local hours.
+ */
+export function getModelDailyActivity(cutoff: number | null = null): ModelDailyActivityPoint[] {
+	return queryMessages<{ day: string; model: string; total_tokens: number | null }>(
+		{ cutoff },
+		`date(f.bucket / 1000, 'unixepoch', 'localtime') AS day, f.model AS model,
+		 SUM(f.total_tokens) AS total_tokens`,
+		"GROUP BY day, f.model ORDER BY day, f.model",
+	).map(row => ({ day: row.day, model: row.model, totalTokens: row.total_tokens ?? 0 }));
+}
+
+/**
+ * Per-model token totals per local hour of day (`0`–`23`) since `cutoff`. Used
+ * with today's local midnight so the result is today's hourly series. Same
+ * attribution caveat as {@link getProviderHourlyBurn}.
+ */
+export function getModelHourlyActivity(cutoff: number | null = null): ModelHourlyActivityPoint[] {
+	return queryMessages<{ model: string; hour: number; total_tokens: number | null }>(
+		{ cutoff },
+		`f.model AS model, CAST(strftime('%H', f.bucket / 1000, 'unixepoch', 'localtime') AS INTEGER) AS hour,
+		 SUM(f.total_tokens) AS total_tokens`,
+		"GROUP BY f.model, hour ORDER BY hour, f.model",
+	).map(row => ({ hour: row.hour, model: row.model, totalTokens: row.total_tokens ?? 0 }));
 }
 
 /** Tokens/cost per bucket per provider. */

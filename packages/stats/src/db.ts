@@ -13,7 +13,12 @@ import type { ModelCost } from "@linxiraos/pi-catalog/types";
 import { getConfigRootDir, getStatsDbPath, VERSION } from "@linxiraos/pi-utils";
 import { ChunkedInsert } from "./chunked-insert";
 import { classifyAgentType, type ParseSessionResult, type SessionParserState } from "./parser";
-import { ensureRollupSchema, getDailyActivityFromRollup } from "./rollup";
+import {
+	ensureRollupSchema,
+	getDailyActivityFromRollup,
+	getModelDailyActivity,
+	getModelHourlyActivity,
+} from "./rollup";
 import type {
 	AgentType,
 	AssistantTextStats,
@@ -21,6 +26,8 @@ import type {
 	FrustrationCounts,
 	MessageStats,
 	MessageStatsInput,
+	ModelDailyActivityPoint,
+	ModelHourlyActivityPoint,
 	ModelSideCounts,
 	ModelSideTimeSeriesPoint,
 	ToolCallStats,
@@ -1172,9 +1179,9 @@ export function getMessageById(id: number): MessageStats | null {
  * {@link getProviderHourlyBurn}. Reads the hourly rollup, falling back to the
  * raw rows while its rebuild backlog is too large for exact reads.
  */
-export async function getDailyActivity(days = 371): Promise<DailyActivityPoint[]> {
+export async function getDailyActivity(days = 371, now = Date.now()): Promise<DailyActivityPoint[]> {
 	const database = await initDb();
-	const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+	const cutoff = now - days * 24 * 60 * 60 * 1000;
 	const rolled = getDailyActivityFromRollup(cutoff);
 	if (rolled) return rolled;
 	const stmt = database.query(`
@@ -1200,6 +1207,48 @@ export async function getDailyActivity(days = 371): Promise<DailyActivityPoint[]
 		requests: row.requests,
 		totalTokens: row.total_tokens ?? 0,
 	}));
+}
+
+/**
+ * Lookback for the Studio home usage card. It renders a calendar-year heatmap
+ * plus a year-to-date model legend, so the window has to reach back past
+ * January 1st even in late December (the TUI heatmap reads 371 days for the
+ * same reason; 400 keeps a month of slack).
+ */
+export const USAGE_HISTORY_DAYS = 400;
+
+/** Everything the Studio home usage card reads from the stats DB. */
+export interface UsageHistory {
+	/** Per-day totals for the last {@link USAGE_HISTORY_DAYS} days, oldest first. */
+	days: DailyActivityPoint[];
+	/** Per-day per-model totals over the same window, oldest day first. */
+	byModelDay: ModelDailyActivityPoint[];
+	/** Per-model totals for each local hour of `now`'s day. */
+	todayByHour: ModelHourlyActivityPoint[];
+}
+
+/**
+ * Read the Studio home card's usage history in one call: the daily totals the
+ * TUI heatmap already uses, the same window split per model, and today's
+ * per-model hourly series. One `initDb` per call; every read goes through the
+ * rollup union, so no session transcript is re-parsed here.
+ *
+ * "Today" starts on the stats database's own local calendar, not the JS clock:
+ * the hour buckets come from SQLite's `localtime`, and the two clocks can
+ * disagree (a process launched under a `TZ` the C library ignores — Bun's test
+ * runner is one), which would slide the strip off the day it summarizes.
+ */
+export async function getUsageHistory(now = Date.now(), days = USAGE_HISTORY_DAYS): Promise<UsageHistory> {
+	const database = await initDb();
+	const cutoff = now - days * 24 * 60 * 60 * 1000;
+	const today = database
+		.query(`SELECT unixepoch(date(? / 1000, 'unixepoch', 'localtime'), 'utc') * 1000 AS start`)
+		.get(now) as { start: number };
+	return {
+		days: await getDailyActivity(days, now),
+		byModelDay: getModelDailyActivity(cutoff),
+		todayByHour: getModelHourlyActivity(today.start),
+	};
 }
 
 /**
