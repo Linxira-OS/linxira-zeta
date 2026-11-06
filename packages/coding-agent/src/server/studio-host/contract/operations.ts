@@ -634,7 +634,7 @@ interface CoreCommandInputMap {
 	 * registry id `skills.get` reports (`name@marketplace` for marketplace
 	 * installs, the package name otherwise); the Host resolves it back to the
 	 * installed entry and the gateway writes the same store the CLI toggles
-	 * (`installed_plugins.json` / `zeta-plugins.lock.json`), so `skills.get`
+	 * (`installed_plugins.json` / the canonical plugin lockfile), so `skills.get`
 	 * reflects the change immediately.
 	 */
 	"plugins.setEnabled": {

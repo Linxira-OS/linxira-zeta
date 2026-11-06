@@ -15,7 +15,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as piUtils from "@linxiraos/pi-utils";
-import { refreshDirsFromEnv, symlinkDirectorySync, TempDir } from "@linxiraos/pi-utils";
+import { PLUGINS_LOCKFILE_CANONICAL, refreshDirsFromEnv, symlinkDirectorySync, TempDir } from "@linxiraos/pi-utils";
 import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
 // Evaluated first so the Studio family graph initializes top-down; importing
 // `skillsOps` alone re-enters ops/index.ts through the gateway's session
@@ -54,7 +54,7 @@ beforeEach(() => {
 	root = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-studio-plugins-"));
 	pluginsDir = path.join(root, "plugins");
 	projectDir = path.join(root, "project");
-	lockfile = path.join(pluginsDir, "zeta-plugins.lock.json");
+	lockfile = path.join(pluginsDir, PLUGINS_LOCKFILE_CANONICAL);
 	fs.mkdirSync(path.join(pluginsDir, "node_modules", "@linxiraos"), { recursive: true });
 	fs.mkdirSync(projectDir, { recursive: true });
 

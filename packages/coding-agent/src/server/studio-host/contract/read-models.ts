@@ -809,7 +809,7 @@ export interface PluginPanelRecord {
 
 /**
  * One configured plugin from the Zeta-native registry
- * (`installed_plugins.json` + `zeta-plugins.lock.json`), the same store the
+ * (`installed_plugins.json` + the canonical plugin lockfile), the same store the
  * CLI reads. Contribution lists are declared entry names from the package
  * manifest, not Runtime-registered tools.
  */

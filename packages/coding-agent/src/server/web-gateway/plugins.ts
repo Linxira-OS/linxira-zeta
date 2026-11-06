@@ -245,7 +245,7 @@ function collectResources(
 /**
  * The `package.json` fields the registry view reads.
  *
- * `manifest` is the `zeta`/`omp`/`pi` block, resolved through
+ * `manifest` is the Zeta / legacy-upstream / Pi block, resolved through
  * `readPluginManifest` so listing and loading accept the same manifest keys.
  */
 interface RegistryPackageJson {
