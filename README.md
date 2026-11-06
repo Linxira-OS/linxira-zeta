@@ -198,8 +198,10 @@ Zeta is built on two upstream projects:
 | [OMP (oh-my-pi)](https://github.com/can1357/oh-my-pi) | The runtime tree, integrated only at complete official releases |
 | [Pi](https://github.com/earendil-works/pi)            | Semantic-port source for feature work, never a raw merge source |
 
-Work Studio (`web-app/`), its host (`packages/coding-agent/src/server/studio-host/`)
-and the desktop-era additions are ours; the Rust workbench (`main/`) is paused. Vendored
+Work Studio (`web-app/`) is a fork of OMP Studio that Zeta now maintains; its
+host (`packages/coding-agent/src/server/studio-host/`) is Zeta's own. The Rust
+workbench (`main/`) is paused. The old `web-ui/` renderer is an abandoned
+third-party OMP Web snapshot, not a Zeta surface. Vendored
 projects keep their own licences and are listed in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt); the merge
 procedure is recorded in [document/upstream-sync.md](document/upstream-sync.md).
 
@@ -214,11 +216,69 @@ inherits from upstream — and what Zeta owns — is stated per component:
 | `main/` (Rust workbench, paused; `@linxiraos/main`, bins `zetawork`/`zeta`) | Zeta-originated                |
 | `packages/coding-agent/` (CLI, `zetacode`)                         | OMP runtime tree, release-tag merges   |
 | `packages/ai`, `agent`, `catalog`, `tui`, `natives`, `utils`, `stats` | OMP runtime tree                     |
-| `termide/` (TermIDE, `@linxiraos/ide`, binaries `zetaide`)         | [termide/termide](https://github.com/termide/termide), vendored |
-| `web-ui/`                                                          | Frozen OMP Web snapshot; no builds     |
+| `termide/` (TermIDE, `@linxiraos/ide`, binaries `zetaide`)         | [termide/termide](https://github.com/termide/termide), vendored fork (maintained here) |
+| `web-ui/`                                                          | **Abandoned** third-party OMP Web snapshot (`17380936778/omp-web`); not built |
 | `desktop/`                                                         | Zeta-originated, paused (Electron)     |
 | `packages/coding-agent/src/channels/` (WeChat/Feishu/Telegram bridge) | Zeta-originated                     |
 | `packages/coding-agent/src/server/` (web-gateway, `zetacode serve`) | Zeta-originated                       |
+
+## Differences from Upstream
+
+Attribution only means something if the boundary is explicit: upstream notices
+cover upstream code, and Zeta's copyright covers what Zeta changed or added on
+top. Per product surface:
+
+### `zetacode` — coding agent and runtime (from OMP)
+
+- **Upstream**: [OMP](https://github.com/can1357/oh-my-pi), merged whole at
+  official release tags (currently `v18.16.0`): `packages/*`, `crates/*`, `sdk/*`,
+  `python/*` and the TUI.
+- **Zeta changes**: product identity (`.zeta`, `zetacode`, `zeta://`,
+  `@linxiraos/*`, `zeta-cli-*` assets, frozen splash art); internal `__zeta*`
+  markers; read-compatibility for legacy `OMP_*` variables and `.omp-plugin`;
+  foreign project-config sources gated behind explicit consent; tool exposure
+  tiers; telemetry hard-off; Zeta service ports; `zeta serve`/Studio host plus
+  the packaged Work Studio renderer; channels; tracking and experiment
+  measurement; stats; plugin registry; transcript pagination; precompressed
+  static assets.
+- **Maintained by**: Zeta. Upstream arrives only as complete release-tag merges;
+  every Zeta delta is a separate commit (see `document/upstream-sync.md`).
+
+### `zetaide` — terminal IDE (from TermIDE)
+
+- **Upstream**: `termide/termide` tag `0.46.0`, vendored under `termide/` and
+  shipped as the `zetaide` command (`@linxiraos/ide`).
+- **Zeta changes**: the fork, the `zetaide` command and npm packaging, editor
+  payload handling, theme and brand adaptation; deviations are listed in
+  `termide/VENDOR.md`.
+- **Maintained by**: Zeta for this fork. Changes land here, not upstream.
+
+### Work Studio — browser workbench (from OMP Studio)
+
+- **Upstream**: OMP Studio `0.1.17` renderer (`apps/renderer/src`), MIT,
+  [`the-snowpear/omp-studio`](https://github.com/the-snowpear/omp-studio).
+- **Zeta changes**: the renderer is a maintained fork in `web-app/` (its own Vite
+  project); the host was reimplemented as `studio-host` (`/api/v1/*` pair, CSRF,
+  query, command, events) rather than upstream's server; the client/protocol
+  surface is vendored; identity was rebranded (Zeta links, fixtures,
+  `zeta-studio` wire protocol); Zeta adds windowed transcript pagination,
+  precompressed static serving, the real plugin registry and the usage
+  dashboard.
+- **Maintained by**: Zeta. The fork is where changes land; the upstream project
+  receives nothing from us and is not followed automatically.
+
+### `web-ui/` — abandoned third-party snapshot
+
+- **Origin**: OMP Web ([`17380936778/omp-web`](https://github.com/17380936778/omp-web)),
+  a third-party UI, not maintained by Zeta.
+- **Status**: **abandoned** (2026-11-05). Kept only as a frozen snapshot for
+  reference; not built, not shipped, receives no features or fixes, and is not a
+  Zeta support surface. Work Studio supersedes it.
+
+### `zetawork` — Rust workbench (Zeta-originated, paused)
+
+- **Origin**: Zeta's own Rust TUI/GUI line (`main/`), paused 2026-11-05; its npm
+  packages ship only by explicit dispatch. AGPL-3.0-only.
 
 ## Zeta-Originated Capabilities
 
@@ -387,6 +447,14 @@ The root [LICENSE](LICENSE) states the split and reproduces the MIT text that
 governs everything outside `main/`. Derived and vendored projects keep their own
 licences and are listed in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
 
+Zeta's copyright lines mark Zeta's modifications and additions only; the
+upstream notices and licence texts remain in force for the upstream portions.
+The per-surface boundary — what came from OMP, TermIDE and OMP Studio, what Zeta
+changed, and which trees are abandoned — is stated under
+[Differences from Upstream](#differences-from-upstream). In particular, `web-ui/`
+is an abandoned third-party snapshot: it is not a Zeta-maintained surface, and
+Zeta's additions to it are limited to the frozen snapshot as received.
+
 Commercial licensing of the Rust workbench is available by arrangement with the
 maintainers.
 
@@ -540,8 +608,10 @@ Zeta 基于两个上游项目:
 | [OMP (oh-my-pi)](https://github.com/can1357/oh-my-pi) | 运行时树,只在完整官方发布上合并           |
 | [Pi](https://github.com/earendil-works/pi)            | 功能工作的语义移植来源,绝不作为原始合并源 |
 
-Work Studio(`web-app/`)、它的宿主(`packages/coding-agent/src/server/studio-host/`)
-与桌面时代的增补由我们维护；Rust 工作台(`main/`)已暂停。vendored 项目保持各自的许可,
+Work Studio(`web-app/`)是 Zeta 接手的 OMP Studio 分支，其宿主
+(`packages/coding-agent/src/server/studio-host/`)是我们自己的实现；Rust 工作台
+(`main/`)已暂停；旧的 `web-ui/` 是**已放弃维护**的第三方 OMP Web 快照，不是 Zeta
+的产品面。vendored 项目保持各自的许可,
 列在 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt);合并流程记录在
 [document/upstream-sync.md](document/upstream-sync.md)。
 
@@ -556,11 +626,58 @@ Work Studio(`web-app/`)、它的宿主(`packages/coding-agent/src/server/studio-
 | `main/`（Rust 工作台，已暂停；`@linxiraos/main`，二进制 `zetawork`/`zeta`） | Zeta 原创                    |
 | `packages/coding-agent/`(CLI,`zetacode`)                          | OMP 运行时树,按发布 tag 合并           |
 | `packages/ai`、`agent`、`catalog`、`tui`、`natives`、`utils`、`stats` | OMP 运行时树                       |
-| `termide/`(TermIDE,`@linxiraos/ide`,二进制 `zetaide`)             | [termide/termide](https://github.com/termide/termide),vendored |
-| `web-ui/`                                                         | 冻结的 OMP Web 快照，不构建            |
+| `termide/`(TermIDE,`@linxiraos/ide`,二进制 `zetaide`)             | [termide/termide](https://github.com/termide/termide)，vendored 分支（此处维护） |
+| `web-ui/`                                                         | **已放弃维护**的第三方 OMP Web 快照（`17380936778/omp-web`）；不构建 |
 | `desktop/`                                                        | Zeta 原创，已暂停（Electron）          |
 | `packages/coding-agent/src/channels/`(微信/飞书/Telegram 桥接)    | Zeta 原创                              |
 | `packages/coding-agent/src/server/`(web-gateway,`zetacode serve`) | Zeta 原创                              |
+
+### 与上游的差异
+
+归属声明只有在边界清楚时才有意义：上游版权声明覆盖上游代码，Zeta 的版权只覆盖
+Zeta 修改与新增的部分。按产品面说明：
+
+#### `zetacode` — 编码 Agent 与运行时（源自 OMP）
+
+- **上游**：[OMP](https://github.com/can1357/oh-my-pi)，只在官方发布 tag 上整树合并（当前 `v18.16.0`）：
+  `packages/*`、`crates/*`、`sdk/*`、`python/*` 与 TUI。
+- **Zeta 的改动**：产品身份（`.zeta`、`zetacode`、`zeta://`、`@linxiraos/*`、
+  `zeta-cli-*` 资产名、冻结的启动字符画）；内部 `__zeta*` 记号；旧 `OMP_*` 变量与
+  `.omp-plugin` 的读取兼容；外来项目配置来源需显式同意；工具暴露档位；遥测硬关闭；
+  Zeta 服务端口；`zeta serve`/Studio 宿主与随包出货的 Work Studio 渲染器；频道运行时；
+  tracking 与实验度量；stats；插件注册表；转录分页；静态资源预压缩。
+- **谁维护**：Zeta。上游只以完整 release tag 合并进入，Zeta 的差异全部是独立提交
+  （见 `document/upstream-sync.md`）。
+
+#### `zetaide` — 终端 IDE（源自 TermIDE）
+
+- **上游**：`termide/termide` tag `0.46.0`，vendored 在 `termide/`，以 `zetaide`
+  命令（`@linxiraos/ide`）发布。
+- **Zeta 的改动**：本分支、`zetaide` 命令与 npm 打包、编辑器载荷处理、主题与品牌适配；
+  逐条差异见 `termide/VENDOR.md`。
+- **谁维护**：该分支由 Zeta 维护；改动落在这里，不回推上游。
+
+#### Work Studio — 浏览器工作台（源自 OMP Studio）
+
+- **上游**：OMP Studio `0.1.17` 渲染器（`apps/renderer/src`），MIT，
+  [`the-snowpear/omp-studio`](https://github.com/the-snowpear/omp-studio)。
+- **Zeta 的改动**：渲染器是 `web-app/` 中由 Zeta 维护的分支（独立 Vite 工程）；宿主
+  重写为 `studio-host`（`/api/v1/*` 的 pair、CSRF、query、command、events），不再使用
+  上游服务端；client/protocol 面 vendored；品牌收口（Zeta 链接与夹具、`zeta-studio`
+  线协议）；Zeta 新增转录分页、静态资源预压缩、真实插件注册表与用量面板。
+- **谁维护**：Zeta。改动落在这个分支；不向上游提交，也不自动跟随上游。
+
+#### `web-ui/` — 已放弃维护的第三方快照
+
+- **来源**：OMP Web（[`17380936778/omp-web`](https://github.com/17380936778/omp-web)），
+  第三方 UI，不由 Zeta 维护。
+- **状态**：**已放弃维护**（2026-11-05）。只作为冻结快照保存供参考；不构建、不出货、
+  不接收功能或修复，不属于 Zeta 支持面。产品面由 Work Studio 取代。
+
+#### `zetawork` — Rust 工作台（Zeta 原创，已暂停）
+
+- **来源**：Zeta 自己的 Rust TUI/GUI 线（`main/`），2026-11-05 暂停；其 npm 包只在
+  显式 dispatch 时发布。AGPL-3.0-only。
 
 ### Zeta 自有能力
 
@@ -677,6 +794,11 @@ Zeta 按路径承载两种许可:
 
 根目录 [LICENSE](LICENSE) 说明分层,并复述管辖 `main/` 之外全部代码的 MIT 文本。
 派生与 vendored 项目保持各自许可,列在 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)。
+
+Zeta 的版权行只标注 Zeta 的修改与新增；上游部分仍以上游版权声明与许可文本为准。
+逐产品面的边界（哪些来自 OMP、TermIDE、OMP Studio，Zeta 改了什么，哪些树已放弃维护）
+见 [与上游的差异](#与上游的差异)。其中 `web-ui/` 是**已放弃维护**的第三方快照：
+它不是 Zeta 维护的产品面，Zeta 对它的改动仅限于接收时的冻结快照。
 
 工作台的商业授权可与维护者协商。
 
