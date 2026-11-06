@@ -17,8 +17,8 @@
 - **Bun 的 pin 必须是精确版本，不能写范围**。范围 pin（`bun@>=1.4`）会让 `bun-install` action 去装 latest，把 CI 静默挪到未经测试的运行时上；`scripts/check-ci-surface.ts` 的 `bun-pin-exact` 规则会直接拦下范围 pin。升级 bun = 改这一处 `packageManager`（Dockerfile 的 `ARG BUN_VERSION` 与叶包 Dockerfile 要一起改），然后重跑 `bun install`、`bun run check:ts` 与各守卫。
 - **Nix 侧的 bun 是另一个 pin，不由 `packageManager` 推导**：`flake.nix` 把 `sourcesFile` 指向 `nix-bun` 输入的 `versions/<v>.json`，`nix/package.nix` 用那个 bun 做 `bun --compile`（所以 nix 产物内嵌的是**该**版本的运行时，不是 `packageManager`）。当前值 `1.4.2` 落后于 `packageManager` 的 `1.4.3`：`flake.lock` 钉住的 nix-bun rev（`48e887d79`）`versions/` 下只收录到 `1.4.2.json`，要跟上必须同时更新 `flake.lock`（narHash 得在 nix 侧算）。`nix/bun.nix` 与 bun 版本**无关**——它只由 `bun.lock` 经钉版 bun2nix 生成，所以升 bun 不必重生成它，但每次合并/依赖改动后都用 `bun run check:nix-bun` 复核。
 - **类型检查只有一个入口：TypeScript 7 稳定版的 `tsc`**。它自带原生（Go）编译器，所以不再需要 `@typescript/native-preview` / `tsgo` 这套预览分发：全仓统一写 `tsc -p <tsconfig> --noEmit`（发布路径是 `bun x tsc -p tsconfig.publish*.json`）。新增包照抄既有 `check:types` 形态，不要引入第二个类型检查器。
-- **npm 只在两处出现**：本机开发（`npm ci` 装 `web-ui/`、手工补发）与 CI 发布（`npm publish` + provenance）。发布路径要求 npm CLI ≥ 11.5.1，本机开发也建议同版或更新（当前 12.x）；版本不够时 trusted publishing/OIDC 不会生效。
-- **入库的 npm lockfile 必须落在公共 registry**（`desktop/package-lock.json`、`web-ui/package-lock.json`）：`resolved` 一律 `https://registry.npmjs.org/`。本机 `~/.npmrc` 若配了镜像（`registry.npmmirror.com` 之类），`npm install` 会把镜像 URL 写进 lockfile，而 npm ≥ 12 的 `allowRemote` 随后在**别人**的机器上以 `EALLOWREMOTE` 直接拒绝安装（desktop 带 323 条镜像 URL 入库，2026-10-14 才被发现；同族的 `bun.lock` 泄漏见 `document/upstream-sync.md`，发布步已钉源）。所以每次重生成都显式带 `--registry=https://registry.npmjs.org`；只想换主机名时按 `resolved` 行改写即可，**不要**为此做真重解析（重解析会顺带抬版本，改依赖是独立决策）。守卫：`bun scripts/check-shared-infra.ts`（`check` job 每次 PR 跑）。
+- **npm 只在两处出现**：本机开发（`npm ci` 装 `web-app/`、手工补发）与 CI 发布（`npm publish` + provenance）。发布路径要求 npm CLI ≥ 11.5.1，本机开发也建议同版或更新（当前 12.x）；版本不够时 trusted publishing/OIDC 不会生效。
+- **入库的 npm lockfile 必须落在公共 registry**（`desktop/package-lock.json`、`web-app/package-lock.json`）：`resolved` 一律 `https://registry.npmjs.org/`。本机 `~/.npmrc` 若配了镜像（`registry.npmmirror.com` 之类），`npm install` 会把镜像 URL 写进 lockfile，而 npm ≥ 12 的 `allowRemote` 随后在**别人**的机器上以 `EALLOWREMOTE` 直接拒绝安装（desktop 带 323 条镜像 URL 入库，2026-10-14 才被发现；同族的 `bun.lock` 泄漏见 `document/upstream-sync.md`，发布步已钉源）。所以每次重生成都显式带 `--registry=https://registry.npmjs.org`；只想换主机名时按 `resolved` 行改写即可，**不要**为此做真重解析（重解析会顺带抬版本，改依赖是独立决策）。守卫：`bun scripts/check-shared-infra.ts`（`check` job 每次 PR 跑）。
 - **改依赖 = 改 `bun.lock` = 重刷 `nix/bun.nix`。** `nix/bun.nix` 是生成文件：钉版 bun2nix（`scripts/gen-nix-bun.ts`）从 `bun.lock` 生成它，Nix 只消费这一个产物。`bun install` / `bun update` / catalog 版本改动之后一律 `bun run gen:nix`，**并把 `bun.lock` 与 `nix/bun.nix` 一起提交**；无 nix 的机器上该脚本自动回退到 `bunx bun2nix@2.1.2`（与 flake pin 同版本），所以不存在"没装 nix 就没法收口"的情况。忘了刷会让 flake 的 `bun-lock` 检查（`Zeta Nix` job）在 PR 上变红（PR #181 就是这么红的），所以另有一道前置机械检查：
   - `bun run check:nix-bun` —— 用同一条生成路径重算到临时目录后与 `nix/bun.nix` **逐字节**比对，需要 npm 拉 bun2nix、不需要 nix，随时可手动跑；
   - 接线上只在**PR/main push 且改动落在 `bun.lock` / `nix/bun.nix` / `package.json` / `scripts/gen-nix-bun.ts`** 时由 `.github/workflows/generated-freshness.yml`（`bun_lock_freshness` job）触发（秒级早期反馈）。**刻意不进 `check` / `check:ts` 热路径**：那两道门禁必须能离线跑，而这道检查依赖 npm 出口。
@@ -50,7 +50,7 @@
 Before writing a helper, check whether one already exists — `packages/coding-agent/src/utils/`, `@linxiraos/pi-utils`, `@linxiraos/pi-tui`, and the domain modules next to your callsite. This applies to **everything**: VCS wrappers, formatting/truncation/path-display helpers, image handling, clipboard, streams, temp files, caching. The central versions carry hardening a fresh copy always loses (timeouts, output caps, non-interactive env, lock avoidance, caching, TUI sanitization).
 
 - Search first: `grep` for the operation before implementing it. Two implementations of the same thing is a bug even when both work.
-- Examples of the pattern: git/jj access goes through the `pi-vcs` native addon (`import * as vcs from "@linxiraos/pi-natives/vcs"`, e.g. `vcs.gitInfo(dir)`, `vcs.git(dir)?.worktreeRemove(path, force)`) — never hand-spawn via `$`/`Bun.spawn`. The old `src/utils/git.ts` / `src/utils/jj.ts` wrappers were removed upstream in v18.0.9; rendering goes through the helpers in TUI Sanitization below (`replaceTabs`, `truncateToWidth`, `shortenPath`, `PREVIEW_LIMITS`) rather than ad-hoc string math.
+- Examples of the pattern: `src/utils/active-repo-context.ts` is a sanctioned path for repository context, and git/jj access goes through the `pi-vcs` native addon (`import * as vcs from "@linxiraos/pi-natives/vcs"`, e.g. `vcs.gitInfo(dir)`, `vcs.git(dir)?.worktreeRemove(path, force)`) — never hand-spawn via `$`/`Bun.spawn`. The old `src/utils/git.ts` / `src/utils/jj.ts` wrappers were removed upstream in v18.0.9; rendering goes through the helpers in TUI Sanitization below (`replaceTabs`, `truncateToWidth`, `shortenPath`, `PREVIEW_LIMITS`) rather than ad-hoc string math.
 - Missing capability? Extend the central helper (new option, new sub-function on the namespace) and call it — don't fork its logic locally.
 
 ## Bun Over Node
@@ -374,8 +374,8 @@ Location: `packages/*/CHANGELOG.md` (per package).
 
 **Attribution:**
 
-- Internal (from issues): `Fixed foo bar ([#123](https://github.com/can1357/oh-my-pi/issues/123))`.
-- External contributions: `Added feature X ([#456](https://github.com/can1357/oh-my-pi/pull/456) by [@username](https://github.com/username))`.
+- Internal (from issues): `Fixed foo bar ([#123](https://github.com/Linxira-OS/linxira-zeta/issues/123))`.
+- External contributions: `Added feature X ([#456](https://github.com/Linxira-OS/linxira-zeta/pull/456) by [@username](https://github.com/username))`.
 
 ### Release log completeness (pre-tag gate)
 

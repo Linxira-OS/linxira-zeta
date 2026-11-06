@@ -27,12 +27,13 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
 `temp/` = 仓库内 scratch（gitignore，永不提交）：外部参考克隆 + 自己的 worktree
 （`temp/<topic>`）。**必须在仓库路径内**，绝不用系统临时目录（重启即清空）。
 
-## 2. 产品不变量（没有脚本能拦，必须自觉）
+## 2. 产品不变量（有门禁的部分自动拦，其余靠自觉）
 
 - **YOLO 是默认。** `tools.approvalMode` 默认 `yolo`
   （`packages/coding-agent/src/tools/settings.ts`；`tools/approval.ts` 未设置时也回退
   `yolo`）。**不要再加审批层**——不为路径、不为内容类别、不为"看起来危险"。产品能
   判断的取保守标准值并说明，别把判断推给用户；只有用户才能定的产品选择才问。
+- **提权不持久化。** sudo/UAC 只走两条用户同意的路径（`pty: true` 的交互覆盖层，或弹出的提权终端），先试非提权；提权前说出确切命令，永不持久化提权或凭据。
 - **不弹黑框。** GUI 父进程 spawn 的控制台程序一律隐藏：Windows `windowsHide: true`
   （Node/Bun）或 `CREATE_NO_WINDOW`（`std::process::Command`）。产品自启的 helper
   （serve、daemon、git 探测、LSP/MCP、eval、更新器）全静默，日志进

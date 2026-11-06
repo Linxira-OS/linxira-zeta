@@ -15,7 +15,7 @@ Release all packages at specified version.
 ## Run
 
 ```bash
-bun scripts/release.ts $ARGUMENTS
+bun scripts/release-v2.ts $ARGUMENTS
 ```
 
 Script automatically:
@@ -35,7 +35,7 @@ CI failure → script exits with error. Fix, then repeat until CI passes:
 git commit -m "fix: <brief description>"
 git push origin main
 git tag -f v$ARGUMENTS && git push origin v$ARGUMENTS --force
-bun scripts/release.ts watch
+bun scripts/release-v2.ts watch
 ```
 
 `watch`: re-watches CI for current commit until all checks pass.
