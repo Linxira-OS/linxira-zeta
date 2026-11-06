@@ -1,18 +1,19 @@
 # ZetaServer — Unified HTTP Reverse Proxy
 
-ZetaServer is a unified HTTP reverse proxy that exposes the Stats Dashboard and
-gateway and (when a build is present) the Web UI through a single port. The
-Web UI's development is **deferred**: this package ships no build, and the web
-port answers a bilingual placeholder page instead. It uses `Bun.serve` as the front-end server and
-proxies requests to the appropriate internal backend.
+ZetaServer is the unified HTTP reverse proxy behind `zetacode serve`: it exposes
+the Stats Dashboard, the Web Gateway and the Work Studio renderer through a
+single port. The renderer ships inside `@linxiraos/zeta` (`dist/web-app`); a
+source checkout without a build gets a bilingual placeholder page instead. It
+uses `Bun.serve` as the front-end server and proxies requests to the
+appropriate internal backend.
 
 ## Architecture
 
 ```
 Browser → :43141 (Bun.serve) ─┬─ /api/stats/* → Stats Dashboard (:43147)
                               ├─ other /api/* → Web Gateway (:43143)
-                              └─ everything else → Web UI build, when one is
-                                 present (deferred today: placeholder page)
+                              └─ everything else → Work Studio (dist/web-app);
+                                 placeholder only when no build is present
 ```
 
 - **Front-end**: `Bun.serve` on port 43141 (configurable)

@@ -38,7 +38,7 @@ function reportInstance(identity: ServeIdentity): void {
 }
 
 export default class Serve extends Command {
-	static description = "Start the Stats Dashboard and Web UI services (no browser)";
+	static description = "Start the Stats Dashboard and Work Studio services (no browser)";
 
 	static flags = {
 		"stats-port": Flags.integer({

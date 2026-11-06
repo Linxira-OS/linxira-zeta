@@ -1051,7 +1051,7 @@ A `compact` call refused before it starts (another compaction is running, or
 { "type": "manual_compaction_end", "aborted": false, "result": { "summary": "…", "firstKeptEntryId": "…", "tokensBefore": 48210, "details": {} } }
 { "type": "manual_compaction_end", "aborted": false, "skipped": true, "errorMessage": "Already compacted" }
 { "type": "retry_fallback_applied", "from": "anthropic/claude-sonnet-4-5:high", "to": "openai/gpt-4o-mini", "role": "default", "reason": "Request failed: overloaded_error: provider returned error 503" }
-{ "type": "ttsr_triggered", "rules": [{ "name": "no-forbidden", "path": "/repo/.omp/rules/no-forbidden.md", "content": "Never write the forbidden word." }] }
+{ "type": "ttsr_triggered", "rules": [{ "name": "no-forbidden", "path": "/repo/.zeta/rules/no-forbidden.md", "content": "Never write the forbidden word." }] }
 ```
 
 ### Cache warming events

@@ -40,7 +40,7 @@ A **plugin** is a directory containing Claude/OMP plugin content such as skills,
 
 Enabled project-scoped installs shadow enabled user-scoped installs of the same plugin. A disabled project install does not shadow the user install.
 
-On Linux and macOS, `zetacode config init-xdg` initializes the XDG data, state, and cache roots; it does not move existing data. With `XDG_DATA_HOME` set and its `omp/` directory initialized, user marketplace/plugin state resolves under `$XDG_DATA_HOME/omp` (including `marketplaces.json` and `plugins/`). Named profiles use their own roots; XDG routing requires the corresponding `omp/profiles/<name>/` directory. The `~/.zeta` paths below are the default-profile, non-XDG defaults.
+On Linux and macOS, `zetacode config init-xdg` initializes the XDG data, state, and cache roots; it does not move existing data. With `XDG_DATA_HOME` set and its `zeta/` directory initialized, user marketplace/plugin state resolves under `$XDG_DATA_HOME/zeta` (including `marketplaces.json` and `plugins/`). Named profiles use their own roots; XDG routing requires the corresponding `zeta/profiles/<name>/` directory. The `~/.zeta` paths below are the default-profile, non-XDG defaults.
 
 On first XDG registry resolution, an existing config-root `marketplaces.json` is copied best-effort if the XDG target is absent; the old file remains. Plugin installation trees are not copied by this helper.
 

@@ -709,7 +709,7 @@ GitLab Duo is integrated via two distinct providers in OMP: **GitLab Duo Non-Age
 
 ## Pi Native
 
-Pi Native is a lossless internal server/client transport protocol used when a pi-ai client (such as containerized `omp` or a sidecar agent slot) delegates request execution to an `omp auth-gateway` holding real provider credentials. Activated when a `Model` sets `transport: "pi-native"`, `streamSimple` in `packages/ai/src/stream.ts` short-circuits local provider resolution and POSTs the canonical `Context` directly to `/v1/pi/stream`. Primary entry modules are `packages/ai/src/providers/pi-native-client.ts` (`streamPiNative`) on the client side, `packages/ai/src/providers/pi-native-server.ts` (`parseRequest`, `encodeStream`, `formatError`) on the wire framing side, and `packages/ai/src/auth-gateway/server.ts` (`POST /v1/pi/stream` route handler) on the server side.
+Pi Native is a lossless internal server/client transport protocol used when a pi-ai client (such as containerized `omp` or a sidecar agent slot) delegates request execution to an `zetacode auth-gateway` holding real provider credentials. Activated when a `Model` sets `transport: "pi-native"`, `streamSimple` in `packages/ai/src/stream.ts` short-circuits local provider resolution and POSTs the canonical `Context` directly to `/v1/pi/stream`. Primary entry modules are `packages/ai/src/providers/pi-native-client.ts` (`streamPiNative`) on the client side, `packages/ai/src/providers/pi-native-server.ts` (`parseRequest`, `encodeStream`, `formatError`) on the wire framing side, and `packages/ai/src/auth-gateway/server.ts` (`POST /v1/pi/stream` route handler) on the server side.
 
 ### Special casings
 
@@ -1409,7 +1409,7 @@ Provider-specific overrides in `packages/catalog/src/compat/rules/providers/mini
 
 - **Auth keys**: Uses `MINIMAX_API_KEY` (`minimax`), `MINIMAX_CODE_API_KEY` (`minimax-code`), and `MINIMAX_CODE_CN_API_KEY` (`minimax-code-cn`) declared in `packages/catalog/src/compat/rules/providers/minimax.kdl`.
 - **Token Plan login**: Declared in `packages/catalog/src/compat/rules/auth/minimax-code.kdl` and `minimax-code-cn.kdl` as `login "api-key"` rules (`packages/ai/src/registry/engine/api-key.ts`), driving prompts linking to `https://platform.minimax.io/subscribe/token-plan` (international) and `https://platform.minimaxi.com/subscribe/token-plan` (China) and validating the key with a `MiniMax-M3` Anthropic Messages request (`validate "anthropic-messages"`).
-- **Usage quota**: `minimaxCodeUsageProvider` in `packages/ai/src/usage/minimax-code.ts` polls `GET /v1/token_plan/remains` at the host root of the configured `minimax-code` base URL (default `https://api.minimax.io`; trailing `/v1`, `/anthropic`, and `/anthropic/v1` suffixes are stripped), parsing rolling interval and weekly usage windows per plan bucket into remaining percentages for `omp usage`. Only the international provider is registered; `minimax-code-cn` has no usage provider.
+- **Usage quota**: `minimaxCodeUsageProvider` in `packages/ai/src/usage/minimax-code.ts` polls `GET /v1/token_plan/remains` at the host root of the configured `minimax-code` base URL (default `https://api.minimax.io`; trailing `/v1`, `/anthropic`, and `/anthropic/v1` suffixes are stripped), parsing rolling interval and weekly usage windows per plan bucket into remaining percentages for `zetacode usage`. Only the international provider is registered; `minimax-code-cn` has no usage provider.
 
 ### Catalog model handling
 
@@ -1419,7 +1419,7 @@ Provider-specific overrides in `packages/catalog/src/compat/rules/providers/mini
 
 ## MiniMax Token Plan (`minimax-code`)
 
-The MiniMax Token Plan provider (`minimax-code`, alongside its mainland China regional variant `minimax-code-cn`) provides access to MiniMax subscription models such as `MiniMax-M3.1-Flash`, `MiniMax-M3`, and `MiniMax-M2.5` over the Anthropic Messages transport (`https://api.minimax.io/anthropic` for international, `https://api.minimaxi.com/anthropic` for China), the same transport as plain `minimax`. Unlike plain `minimax` (static pay-as-you-go API key), `minimax-code` uses an interactive subscription login flow and features token plan quota monitoring via `omp usage`.
+The MiniMax Token Plan provider (`minimax-code`, alongside its mainland China regional variant `minimax-code-cn`) provides access to MiniMax subscription models such as `MiniMax-M3.1-Flash`, `MiniMax-M3`, and `MiniMax-M2.5` over the Anthropic Messages transport (`https://api.minimax.io/anthropic` for international, `https://api.minimaxi.com/anthropic` for China), the same transport as plain `minimax`. Unlike plain `minimax` (static pay-as-you-go API key), `minimax-code` uses an interactive subscription login flow and features token plan quota monitoring via `zetacode usage`.
 
 ### Special casings
 
@@ -1439,7 +1439,7 @@ The MiniMax Token Plan provider (`minimax-code`, alongside its mainland China re
 - **Provider entry (`minimax-code`)**: `packages/catalog/src/compat/rules/providers/minimax-code.kdl` declares default model `MiniMax-M3`. Environment keys: `MINIMAX_CODE_API_KEY`.
 - **Catalog Wiring**: `anthropicMessagesDescriptor` in `packages/catalog/src/provider-models/openai-compat.ts` registers descriptors `"minimax-coding-plan"` and `"minimax-cn-coding-plan"` bound to base URLs `https://api.minimax.io/anthropic` and `https://api.minimaxi.com/anthropic`.
 - **1M Context Tier Override**: Policy generation (`packages/catalog/scripts/generated-policies.ts`) explicitly overrides `MiniMax-M3` context windows for `minimax-code` and `minimax-code-cn` to report the documented 1,000,000-token tier instead of the upstream 512,000-token pricing boundary.
-- **Pay-as-you-go equivalent pricing**: Upstream reports $0 for every Token Plan model. The `minimax-code` / `minimax-code-cn` `pricing-peer` rules in `runtime/behavior.kdl` price rows at their `minimax` / `minimax-cn` list prices at build time (Credits overflow is billed at the PAYG list price), so usage and `omp stats` show PAYG-equivalent cost. The bundled `MiniMax-M3.1-Flash-Preview` has no published price and borrows the `MiniMax-M3` rate as an estimate; `MiniMax-M3.1-Flash` takes its own `minimax` list price. `applyPricingPeerFallback` (`packages/catalog/scripts/generated-policies.ts`) fills only zero-cost rows and tries a rule's alias `peer-id` before the row's own id, across peers in declared order.
+- **Pay-as-you-go equivalent pricing**: Upstream reports $0 for every Token Plan model. The `minimax-code` / `minimax-code-cn` `pricing-peer` rules in `runtime/behavior.kdl` price rows at their `minimax` / `minimax-cn` list prices at build time (Credits overflow is billed at the PAYG list price), so usage and `zetacode stats` show PAYG-equivalent cost. The bundled `MiniMax-M3.1-Flash-Preview` has no published price and borrows the `MiniMax-M3` rate as an estimate; `MiniMax-M3.1-Flash` takes its own `minimax` list price. `applyPricingPeerFallback` (`packages/catalog/scripts/generated-policies.ts`) fills only zero-cost rows and tries a rule's alias `peer-id` before the row's own id, across peers in declared order.
 - **Host Matching**: Provider host mapping in `packages/catalog/src/hosts.ts` associates `urlMarkers` `api.minimax.io` and `api.minimaxi.com` with `minimax`, `minimax-code`, and `minimax-code-cn`.
 
 ## MiniMax Token Plan (China) (`minimax-code-cn`)
@@ -2096,7 +2096,7 @@ Provider-specific overrides in `packages/catalog/src/compat/rules/providers/vllm
 
 ### Auth & usage
 
-- **Credential Resolution & Defaults**: Declared in `packages/catalog/src/compat/rules/auth/vllm.kdl` as a `login "api-key"` rule (`packages/ai/src/registry/engine/api-key.ts`). Reads optional API keys from the `VLLM_API_KEY` environment variable or credentials stored via `omp auth-broker login vllm`.
+- **Credential Resolution & Defaults**: Declared in `packages/catalog/src/compat/rules/auth/vllm.kdl` as a `login "api-key"` rule (`packages/ai/src/registry/engine/api-key.ts`). Reads optional API keys from the `VLLM_API_KEY` environment variable or credentials stored via `zetacode auth-broker login vllm`.
 - **Unauthenticated Local Mode**: Defaults to base URL `http://127.0.0.1:8000/v1` and placeholder token `"vllm-local"` (`DEFAULT_LOCAL_TOKEN`) when no key is supplied (`emptyKeyFallback: "vllm-local"`). Descriptor settings specify `catalogDiscovery: { label: "vLLM", allowUnauthenticated: true }`.
 - **Documentation & Endpoint Setup**: The login helper points to `https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html` for configuring local vLLM OpenAI-compatible server endpoints.
 

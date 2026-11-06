@@ -8,10 +8,10 @@ omp [command] [flags] [messages...]
 
 When the first positional argument is **not** a registered subcommand, `omp`
 normally routes to the default [`launch`](#launch-the-default-command) command.
-So `omp "fix the build"` launches a session with that message, while `omp models`
+So `omp "fix the build"` launches a session with that message, while `zetacode models`
 runs the `models` subcommand. Bare plugin-management words such as `marketplace`,
-`uninstall`, or `extensions` instead produce a hint to use `omp plugin …`;
-use `omp launch <word>` when such a word is the intended prompt.
+`uninstall`, or `extensions` instead produce a hint to use `zetacode plugin …`;
+use `zetacode launch <word>` when such a word is the intended prompt.
 
 A recognized subcommand can follow leading launch flags. Those flags are
 forwarded to `launch` and `acp`, but recognized launch-only flags before other
@@ -26,13 +26,13 @@ Runtime help is also available:
 - `omp <command> --help` prints that command's public flags and examples.
 
 This page is the consolidated reference for the shared **launch surface** (the
-flags accepted by `omp` / `omp launch`) and every top-level **subcommand**.
-Per-subcommand flags (for example `omp auth-broker --json`) are documented by
+flags accepted by `omp` / `zetacode launch`) and every top-level **subcommand**.
+Per-subcommand flags (for example `zetacode auth-broker --json`) are documented by
 each command's `--help`.
 
 ## Launch (the default command)
 
-`omp` and `omp launch` start a coding session. Positional arguments become the
+`omp` and `zetacode launch` start a coding session. Positional arguments become the
 initial message(s):
 
 ```sh
@@ -258,13 +258,15 @@ print-mode disposal semantics when the advisor runtime is enabled.
 
 ## Subcommands
 
-Run `omp <command> --help` for each command's own flags and examples.
+Run `zetacode <command> --help` for each command's own flags and examples.
 
 | Command                     | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | See also                                                                                                                                             |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `launch`                    | Start a coding session (the default command).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | [Launch flags](#launch-flags)                                                                                                                        |
-| `acp`                       | Run omp as an ACP (Agent Client Protocol) server over stdio.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | [approval mode](./approval-mode.md#acp-sessions)                                                                                                     |
-| `auth-broker`               | Manage the omp auth-broker (credential vault).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | [auth broker / gateway](./auth-broker-gateway.md)                                                                                                    |
+| `serve`                     | Start the Stats Dashboard, Web Gateway and Work Studio through one port; a healthy same-version instance is reused.                            | [Work Studio serve](./zeta-serve-web.md) |
+| `web`                       | Start the Work Studio server only (`serve --web-only`); no browser.                                                                             | [Work Studio serve](./zeta-serve-web.md) |
+| `acp`                       | Run zetacode as an ACP (Agent Client Protocol) server over stdio.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | [approval mode](./approval-mode.md#acp-sessions)                                                                                                     |
+| `auth-broker`               | Manage the zetacode auth-broker (credential vault).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | [auth broker / gateway](./auth-broker-gateway.md)                                                                                                    |
 | `auth-gateway`              | Run an auth-gateway: an HTTP forward proxy backed by the configured broker (`serve`), or JSON lines on stdin/stdout for a parent process with your own credentials (`stdio`).                                                                                                                                                                                                                                                                                                                                                                                                                                          | [auth broker / gateway](./auth-broker-gateway.md)                                                                                                    |
 | `agents`                    | Manage bundled task agents.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | [task agent discovery](./task-agent-discovery.md)                                                                                                    |
 | `bench`                     | Benchmark models: TTFT/prefill vs decode throughput with p50/p95 across chat, prefill, generation, and prompt-cache workloads, rendered in a live dashboard (`--prefill-bytes` sizes the synthetic prefill input). `--detailed` runs single-user, `--par`-way parallel (aggregate tok/s and scaling), and prefill phases per model.                                                                                                                                                                                                                                                                                    |                                                                                                                                                      |
@@ -320,7 +322,7 @@ Run `omp <command> --help` for each command's own flags and examples.
 
 ### Worktree clones
 
-When `worktree.clone` is enabled, `omp worktree add` and other clone-first
+When `worktree.clone` is enabled, `zetacode worktree add` and other clone-first
 worktree callers carry relocatable ignored caches such as `node_modules`.
 Directories containing `pyvenv.cfg` or `CMakeCache.txt` are not carried, even
 when they are nested or ignore themselves. Recreate Python environments and

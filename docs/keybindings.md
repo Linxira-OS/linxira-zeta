@@ -6,7 +6,7 @@ Base editor, input, and selector actions use `tui.editor.*`, `tui.input.*`, and 
 
 ## Customize keybindings
 
-User remaps live in `~/.omp/agent/keybindings.yml`. The file is a YAML mapping whose keys are keybinding action IDs and whose values are either one chord string or an array of chord strings. It is not read from `~/.omp/agent/config.yml`, and there is no nested `keybindings` object.
+User remaps live in `~/.zeta/agent/keybindings.yml`. The file is a YAML mapping whose keys are keybinding action IDs and whose values are either one chord string or an array of chord strings. It is not read from `~/.zeta/agent/config.yml`, and there is no nested `keybindings` object.
 
 With a named profile, bindings from the default profile's agent directory are loaded first and the active profile's `keybindings.yml` overrides them action by action. The inherited file is read-only during that profile's startup.
 
@@ -76,7 +76,7 @@ With `stt.enabled` on, the native composer shows a microphone beside Send. Click
 
 Dictation started with this button stays in the draft, regardless of `stt.submitTrigger`. Review or edit the text, then press Enter or click Send. While dictation is recording or transcribing into the draft, Enter and Send do nothing.
 
-For live English transcription, select **Nemotron 0.6B (live streaming, English)** in `omp setup speech`, or set `modelRoles.dictation` to `local/nemotron-streaming-en-0.6b`. Words appear in the draft while you speak. The first recording waits for the model to load before opening the microphone; start speaking when the button says **Recording · Stop**. Later recordings reuse the loaded model. See [local speech models](local-models.md#speech-to-text) for download and language details.
+For live English transcription, select **Nemotron 0.6B (live streaming, English)** in `zetacode setup speech`, or set `modelRoles.dictation` to `local/nemotron-streaming-en-0.6b`. Words appear in the draft while you speak. The first recording waits for the model to load before opening the microphone; start speaking when the button says **Recording · Stop**. Later recordings reuse the loaded model. See [local speech models](local-models.md#speech-to-text) for download and language details.
 
 ## Recover a cleared prompt
 

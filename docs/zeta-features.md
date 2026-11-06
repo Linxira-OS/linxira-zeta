@@ -88,15 +88,62 @@ pids are cleaned up instead of blocking. Autostart is explicit (a user-level
 service on Linux, a login item on Windows) and the command prints the written
 path and how to undo it. See [daemon.md](./daemon.md).
 
-## Web UI status (deferred)
+## Work Studio (browser workbench)
 
-The Web UI's development is **deferred**. Neither the package nor the release
-artifacts ship a Web UI build; `zetacode serve` answers the web port
-(`127.0.0.1:43141`) with a bilingual placeholder page that states the
-interface is being completed. The Stats Dashboard and the terminal attach
-client are unaffected. A later release completes the Web UI and makes `serve`
-fetch `@linxiraos/zeta-web` from npm on demand — it is not bundled into the
-CLI.
+Work Studio is the shipped browser surface. `zetacode serve` serves the
+renderer (`web-app/`, a maintained fork of OMP Studio) same-origin with the
+gateway, so one port is enough:
+
+- the renderer build ships inside `@linxiraos/zeta` (`dist/web-app`); a source
+  checkout can point `ZETA_WEB_APP_DIR` at `web-app/dist`, and the placeholder
+  only appears when no build exists;
+- the host contract is `/api/v1/*` (pair, CSRF, query, command, events), and
+  the legacy Web Gateway REST surface (`/api/*`) is still served for
+  compatibility;
+- the retired `web-ui/` snapshot is abandoned and ships no build; it is not a
+  supported way to run the UI.
+
+See [zeta-serve-web.md](./zeta-serve-web.md) and
+[web-ui/api.md](./web-ui/api.md).
+
+## Ultra plan mode
+
+Plan mode has three entry points: `/plan` (parallel, the default), `/plan
+--iterative`, and `/plan-ultra` (fan-out scouting, incremental plan writes, and
+the deepest decision floor). The plan overlay supports approve, compact,
+refine, and cancel; approval hands the plan to the goal loop. Details and the
+approval matrix are in [plan-approval.md](./plan-approval.md).
+
+## Project tracking
+
+An opt-in, cross-session project record kept in `<project>/.zeta/tracking/`
+(`tracking.enabled`). It holds progress, todo-phase state, decisions, actions,
+compaction summaries and approved plans, written for people, agents, and
+collaborators; the Work Studio tracking panel reads the same documents. See
+[zeta-tracking.md](./zeta-tracking.md).
+
+## Agent hub and mesh
+
+Subagents are first-class: **Agent Hub** is the TUI roster with live activity,
+transcripts, steering, revive and kill (`Alt+A`, `Ctrl+S`); the **mesh**
+extends `agent://` messaging across `zetacode serve` processes on one machine,
+using the same hub/`agent://`/`ctx.messaging` model. See
+[agent-hub.md](./agent-hub.md) and [agent-mesh.md](./agent-mesh.md).
+
+## Plugin registry
+
+Plugins come from the marketplace plus npm, git and local-link sources; the
+installed set is the CLI's plugin lockfile, not a second store.
+`GET /api/plugins` returns installed plugins with their declared `ui.panels`,
+and the Work Studio Plugins page toggles the same store. See
+[plugins.md](./plugins.md) and [marketplace.md](./marketplace.md).
+
+## Usage dashboard
+
+`zetacode stats` (and `zetacode serve`) hosts the local usage dashboard on
+`127.0.0.1:43147`: year-long activity heatmap, per-model breakdown with legend,
+today's hourly series, and deep links (`range=all`) from Work Studio. Reading
+`GET /api/usage/daily` covers the same 400-day window.
 
 ## Companions and config
 

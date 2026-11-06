@@ -69,7 +69,7 @@ Importing the SDK installs no signal or fatal-error handlers; the host owns its 
 If omitted, it resolves:
 
 - `cwd`: `getProjectDir()`
-- `agentDir`: `~/.omp/agent` (via `getAgentDir()`)
+- `agentDir`: `~/.zeta/agent` (via `getAgentDir()`)
 - `authStorage`: `discoverAuthStorage(agentDir, { settings, cwd })`
 - `modelRegistry`: a `ModelRegistry` using that auth store, `<agentDir>/models.yml`, effective settings, and the agent-directory model cache; background `refreshInBackground()` when the registry is not provided
 - `settings`: `await Settings.init({ cwd, agentDir })`

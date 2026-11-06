@@ -160,7 +160,8 @@ const workbenchPaused = typeof lineVersion === "string" && typeof repoLine === "
 // The ide distribution is a separate (active) line; only the workbench launcher
 // can be frozen, so leaves and pins are anchored per product.
 const ideLine = manifest("termide/npm/ide/package.json").version;
-const leafLine = (dir: string): string | undefined => (dir.startsWith("termide/") ? (ideLine as string | undefined) : (lineVersion as string | undefined));
+const leafLine = (dir: string): string | undefined =>
+	dir.startsWith("termide/") ? (ideLine as string | undefined) : (lineVersion as string | undefined);
 
 /** Companion pins are the bundle's spec, not read back from the registry. */
 const companionPins: ReadonlyArray<{ dir: string; name: string }> = [

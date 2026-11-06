@@ -11,7 +11,7 @@ import { WEB_UI_INSTALL_HINT } from "./web-ui-launcher";
 import { startZetaServer } from "../server/zeta-server";
 
 export default class Web extends Command {
-	static description = "Start the Web UI server (no browser)";
+	static description = "Start the Work Studio server (no browser)";
 
 	static flags = {
 		port: Flags.integer({

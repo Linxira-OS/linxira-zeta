@@ -75,13 +75,13 @@ So hidden files/directories are not loaded, ignored paths are skipped, and file 
 
 ## `native` provider (`builtin.ts`)
 
-Search roots come from `.omp` directories:
+Search roots come from `.zeta` directories:
 
-- project: `<cwd>/.omp/commands/*.md`
-- user: active profile agent directory `commands/*.md` (`~/.omp/agent/commands/*.md` for the default profile; `~/.omp/profiles/<name>/agent/commands/*.md` for a named profile)
+- project: `<cwd>/.zeta/commands/*.md`
+- user: active profile agent directory `commands/*.md` (`~/.zeta/agent/commands/*.md` for the default profile; `~/.zeta/profiles/<name>/agent/commands/*.md` for a named profile)
 
 `getConfigDirs()` returns project first, then user, so **project native commands beat user native commands** when names collide.
-The default paths above can be relocated by `PI_CONFIG_DIR`, the default-profile `PI_CODING_AGENT_DIR`, or an SDK discovery `agentDir`; the project directory remains `.omp`.
+The default paths above can be relocated by `PI_CONFIG_DIR`, the default-profile `PI_CODING_AGENT_DIR`, or an SDK discovery `agentDir`; the project directory remains `.zeta`.
 
 ## `omp-plugins` provider (`omp-plugins.ts`)
 
@@ -535,8 +535,8 @@ The schema applies only to structured runs: `task.structured` on, or `structured
 
 **Replacing the reviewer.** `/review` looks the agent up by name, so any task agent whose frontmatter has `name: reviewer` replaces the bundled one. The first match wins in this order:
 
-1. nearest project `.omp/agents/*.md`
-2. user `~/.omp/agent/agents/*.md`
+1. nearest project `.zeta/agents/*.md`
+2. user `~/.zeta/agent/agents/*.md`
 3. `agents/` of enabled OMP extension packages
 4. Claude marketplace plugin agents
 5. the bundled `reviewer`

@@ -31,7 +31,7 @@ Legacy behavior still present:
 
 - If both YAML files are missing and `models.json` exists at the same location, it is migrated to `models.yml`.
 - Explicit `.json` / `.jsonc` config paths are still supported when passed programmatically to `ModelRegistry`.
-- Upstream OMP's `~/.omp/agent/models.yml`, `agent.db`, and `.env` are **not read by default**. Set `ZETA_OMP_COMPAT=1` to opt into the read-only legacy overlay; files copied into `~/.zeta/agent` are native and always active. See [environment variables](./environment-variables.md#legacy-omp-compatibility).
+- Upstream OMP's `~/.zeta/agent/models.yml`, `agent.db`, and `.env` are **not read by default**. Set `ZETA_OMP_COMPAT=1` to opt into the read-only legacy overlay; files copied into `~/.zeta/agent` are native and always active. See [environment variables](./environment-variables.md#legacy-omp-compatibility).
 
 ## `models.yml` / `models.yaml` shape
 
@@ -611,7 +611,7 @@ in `models.yml` belong to tier 2, not this fallback tier.
 - Value is first treated as an environment variable name.
 - If the env var is unset or empty, the literal string is used as the token.
 
-Because of the literal fallback, a provider entry such as `apiKey: OD_KEY` needs `OD_KEY` in the process environment or a Zeta dotenv file. A key that lives only in the legacy `~/.omp/agent/.env` is not loaded unless `ZETA_OMP_COMPAT=1` is set (or the key is copied to `~/.zeta/agent/.env`).
+Because of the literal fallback, a provider entry such as `apiKey: OD_KEY` needs `OD_KEY` in the process environment or a Zeta dotenv file. A key that lives only in the legacy `~/.zeta/agent/.env` is not loaded unless `ZETA_OMP_COMPAT=1` is set (or the key is copied to `~/.zeta/agent/.env`).
 
 If `authHeader: true` and provider `apiKey` is set, models get:
 

@@ -237,10 +237,18 @@ top. Per product surface:
   `@linxiraos/*`, `zeta-cli-*` assets, frozen splash art); internal `__zeta*`
   markers; read-compatibility for legacy `OMP_*` variables and `.omp-plugin`;
   foreign project-config sources gated behind explicit consent; tool exposure
-  tiers; telemetry hard-off; Zeta service ports; `zeta serve`/Studio host plus
-  the packaged Work Studio renderer; channels; tracking and experiment
-  measurement; stats; plugin registry; transcript pagination; precompressed
-  static assets.
+  tiers; telemetry hard-off; Zeta service ports.
+- **Zeta features on top of the runtime** (each documented in `docs/`):
+  `zetacode serve` and the Web Gateway REST surface backing Work Studio
+  ([serve](./docs/zeta-serve-web.md), [gateway API](./docs/web-ui/api.md));
+  ultra plan mode with fan-out scouting and incremental plan writes
+  ([plan approval](./docs/plan-approval.md)); cross-session project tracking
+  ([tracking](./docs/zeta-tracking.md));
+  the channel runtime ([channels](./docs/channels.md)); agent hub and mesh
+  ([hub](./docs/agent-hub.md), [mesh](./docs/agent-mesh.md)); the plugin
+  registry ([plugins](./docs/plugins.md)); usage/statistics dashboards; windowed
+  transcript pagination; precompressed static assets. The maintained index of
+  these surfaces is [docs/zeta-features.md](./docs/zeta-features.md).
 - **Maintained by**: Zeta. Upstream arrives only as complete release-tag merges;
   every Zeta delta is a separate commit (see `document/upstream-sync.md`).
 
@@ -644,8 +652,16 @@ Zeta 修改与新增的部分。按产品面说明：
 - **Zeta 的改动**：产品身份（`.zeta`、`zetacode`、`zeta://`、`@linxiraos/*`、
   `zeta-cli-*` 资产名、冻结的启动字符画）；内部 `__zeta*` 记号；旧 `OMP_*` 变量与
   `.omp-plugin` 的读取兼容；外来项目配置来源需显式同意；工具暴露档位；遥测硬关闭；
-  Zeta 服务端口；`zeta serve`/Studio 宿主与随包出货的 Work Studio 渲染器；频道运行时；
-  tracking 与实验度量；stats；插件注册表；转录分页；静态资源预压缩。
+  Zeta 服务端口。
+- **运行时之上的 Zeta 功能**（均在 `docs/` 有文档）：`zetacode serve` 与支撑
+  Work Studio 的 Web Gateway REST 面（[serve](./docs/zeta-serve-web.md)、
+  [gateway API](./docs/web-ui/api.md)）；ultra plan（fan-out 侦察与增量写计划，
+  [plan approval](./docs/plan-approval.md)）；跨会话项目 tracking
+  （[tracking](./docs/zeta-tracking.md)）；频道运行时
+  （[channels](./docs/channels.md)）；agent hub 与 mesh
+  （[hub](./docs/agent-hub.md)、[mesh](./docs/agent-mesh.md)）；插件注册表
+  （[plugins](./docs/plugins.md)）；用量/统计面板；转录分页；静态资源预压缩。
+  这些产品面的维护索引是 [docs/zeta-features.md](./docs/zeta-features.md)。
 - **谁维护**：Zeta。上游只以完整 release tag 合并进入，Zeta 的差异全部是独立提交
   （见 `document/upstream-sync.md`）。
 
