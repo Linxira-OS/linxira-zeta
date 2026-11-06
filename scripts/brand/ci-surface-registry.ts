@@ -94,6 +94,10 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			{ job: "test_coding_agent_ui", why: "coding-agent UI test bucket" },
 			{ job: "test_coding_agent_runtime", why: "coding-agent runtime test bucket" },
 			{ job: "test_coding_agent_native", why: "coding-agent natives test bucket" },
+			{
+				job: "test_coding_agent_browser",
+				why: "coding-agent real-browser/Chromium bucket: skipped on push/PR, run by the nightly schedule, a `browser_tests` dispatch, and every release-state run; release_gate asserts it actually ran, because a skipped browser prerequisite must fail the gate",
+			},
 			{ job: "test_smoke", why: "smoke bucket" },
 			{ job: "install_methods", why: "install-methods bucket; verifies the documented install surface" },
 			{ job: "release_gate", why: "release aggregation gate; release_github/release_npm key on its result" },
@@ -153,6 +157,11 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			},
 		],
 		needsEdges: [
+			{
+				job: "release_gate",
+				needs: ["test_coding_agent_browser"],
+				why: "the browser bucket is skipped on push/PR, so a release run is its only green signal for that commit; release_gate must list it to observe the result and fail (not silently publish) when it is skipped",
+			},
 			{
 				job: "release_github",
 				needs: ["release_metadata", "release_gate", "release_binary", "release_product_binaries"],

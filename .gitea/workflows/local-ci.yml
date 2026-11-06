@@ -421,6 +421,17 @@ jobs:
               # test buckets, desktop launcher tests).
               export PATH="$extra:$PATH"
               bun install --frozen-lockfile
+         # Mirror GitHub `check`: the renderer is the product UI, and web-app is
+         # its own npm project (not a root workspace member), so it installs and
+         # builds on its own — `build` is `tsc -b && vite build`, which is the
+         # only gate the renderer's types get. The job name advertises a web
+         # build; without these steps it quietly did not run one.
+         - name: Install web-app dependencies
+           working-directory: web-app
+           run: npm ci
+         - name: Build web-app
+           working-directory: web-app
+           run: npm run build
          - name: Verify Rust license compliance (cargo-deny)
            shell: bash
            run: |
@@ -1142,6 +1153,72 @@ jobs:
               OMP_TEST_CONCURRENCY: "4"
               OMP_TEST_CHUNK_TIMEOUT: "900"
            run: bun run ci:test:coding-agent:runtime
+
+   # Mirror of ci.yml `test_coding_agent_browser`: real-Chromium suites belong to
+   # the nightly/release-only job on GitHub, but the mirror's `ts`/`full` suites
+   # are the local box's full verification, so they keep running it (the suites
+   # self-skip when no launchable Chromium is present).
+   test_coding_agent_browser:
+      name: Test coding-agent browser/Chromium (TS)
+      needs: [preflight, toolchains, native_addons]
+      if: ${{ always() && needs.toolchains.result == 'success' && needs.native_addons.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'ts') }}
+      runs-on: self-hosted
+      timeout-minutes: 90
+      steps:
+         # The NAS runner's egress to github.com is intermittent (observed:
+         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
+         # SSL unexpected eof` fetching a release asset), and actions/checkout
+         # has no retry - one reset loses the whole run. Clone from the Gitea
+         # instance instead: it is on the LAN and needs no action download.
+         - name: Checkout (local Gitea remote)
+           shell: bash
+           run: |
+              set -euo pipefail
+              ref="${{ github.ref }}"
+              sha="${{ github.sha }}"
+              host="${{ github.server_url }}"
+              host="${host#*://}"
+              token="${{ github.token }}"
+              auth=""
+              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
+              url="http://${auth}${host}/${{ github.repository }}.git"
+              if [ ! -d .git ]; then git init -q .; fi
+              if git remote get-url origin >/dev/null 2>&1; then
+                 git remote set-url origin "$url"
+              else
+                 git remote add origin "$url"
+              fi
+              git fetch -q --depth=1 --tags origin "$ref"
+              # --depth=1 only brings the ref tip; fall back to the full branch
+              # when the run's SHA is not that tip (branch moved mid-run).
+              if ! git checkout -q -f "$sha" 2>/dev/null; then
+                 git fetch -q --tags origin "$ref"
+                 git checkout -q -f "$sha"
+              fi
+              git log -1 --format='checked out %h %s'
+         - name: Toolchain PATH
+           shell: bash
+           run: |
+              set -euo pipefail
+              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
+              extra="${PATH_EXTRA:-}"
+              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
+              if [ -z "$extra" ]; then
+                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
+                 exit 1
+              fi
+              echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
+         - name: Test coding-agent browser/Chromium bucket
+           env:
+              OMP_TEST_CONCURRENCY: "2"
+              OMP_TEST_CHUNK_TIMEOUT: "900"
+           run: bun run ci:test:coding-agent:browser
 
    test_smoke:
       name: Test CLI smoke (TS)
