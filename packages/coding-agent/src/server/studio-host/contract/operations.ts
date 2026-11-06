@@ -630,14 +630,17 @@ interface CoreCommandInputMap {
 	"workspace.directory.create": { readonly workspaceId: WorkspaceId; readonly path: string };
 	/**
 	 * Whole-package plugin enable/disable: whether the plugin enters the
-	 * Runtime session. Never uninstalls or touches node_modules. Writes the
-	 * Zeta-native files (installed_plugins.json / omp-plugins.lock.json /
-	 * plugin-overrides.json) so `skills.get` reflects the change immediately.
+	 * Runtime session. Never uninstalls or touches node_modules. `name` is the
+	 * registry id `skills.get` reports (`name@marketplace` for marketplace
+	 * installs, the package name otherwise); the Host resolves it back to the
+	 * installed entry and the gateway writes the same store the CLI toggles
+	 * (`installed_plugins.json` / `zeta-plugins.lock.json`), so `skills.get`
+	 * reflects the change immediately.
 	 */
 	"plugins.setEnabled": {
 		readonly name: string;
 		readonly enabled: boolean;
-		/** Which inventory scope to edit; resolved by the Host when omitted. */
+		/** Which installed copy to edit when the plugin exists in both scopes. */
 		readonly scope?: "user" | "project";
 	};
 	/**

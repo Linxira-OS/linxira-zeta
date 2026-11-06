@@ -26,6 +26,8 @@ export function pluginToPreview(plugin: PluginRecord): PluginPreview {
   return {
     kind: "plugin",
     name: plugin.name,
+    title: plugin.title,
+    scope: plugin.scope,
     src: plugin.srcLabel,
     status: plugin.status === "error" ? "error" : "loaded",
     tools: plugin.tools,
@@ -38,6 +40,7 @@ export function pluginToPreview(plugin: PluginRecord): PluginPreview {
     commandItems: [...plugin.commandItems],
     hookItems: [...plugin.hookItems],
     uiItems: [...plugin.uiItems],
+    panels: plugin.panels.map((panel) => ({ ...panel })),
   };
 }
 

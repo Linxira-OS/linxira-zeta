@@ -22,10 +22,23 @@
  */
 
 import { cfgDisabledExtensions, cfgExtensions } from "../../extensibility/settings";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { getAgentDir } from "@linxiraos/pi-utils/dirs";
+import { getAgentDir, getPluginsDir } from "@linxiraos/pi-utils";
 import { Settings } from "../../config/settings";
+import { resolveActiveProjectRegistryPath, resolveOrDefaultProjectRegistryPath } from "../../discovery/helpers";
+import { PluginManager } from "../../extensibility/plugins/manager";
+import {
+	getInstalledPluginsRegistryPath,
+	getMarketplacesCacheDir,
+	getMarketplacesRegistryPath,
+	getPluginsCacheDir,
+} from "../../extensibility/plugins/marketplace/registry";
+import { MarketplaceManager } from "../../extensibility/plugins/marketplace/manager";
+import { readCatalogue, readDeclaredPanels } from "../../extensibility/plugins/panels";
+import { setInstalledPluginEnabled } from "../../extensibility/plugins/toggle";
+import { readPluginManifest, type PluginManifest } from "../../extensibility/plugins/types";
+import { listInstalledPlugins } from "../../extensibility/plugins/loader";
 import {
 	DefaultPackageManager,
 	type ResolvedPaths,
@@ -39,6 +52,9 @@ import type {
 	PluginResourceKind,
 	PluginScope,
 	PluginsResponse,
+	ZetaPluginInfo,
+	ZetaPluginPanelInfo,
+	ZetaPluginSourceKind,
 } from "./dto";
 
 function json(data: unknown, status = 200): Response {
@@ -222,6 +238,197 @@ function collectResources(
 	return { countsByPackage, resourcesByPackage, totals };
 }
 
+// ---------------------------------------------------------------------------
+// Zeta-native registry view (marketplace + npm/git/link)
+// ---------------------------------------------------------------------------
+
+/**
+ * The `package.json` fields the registry view reads.
+ *
+ * `manifest` is the `zeta`/`omp`/`pi` block, resolved through
+ * `readPluginManifest` so listing and loading accept the same manifest keys.
+ */
+interface RegistryPackageJson {
+	readonly name?: string;
+	readonly version?: string;
+	readonly dependencies?: Readonly<Record<string, string>>;
+	readonly manifest?: PluginManifest;
+}
+
+function asManifest(value: unknown): PluginManifest | undefined {
+	return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as PluginManifest) : undefined;
+}
+
+function stringRecord(value: unknown): Readonly<Record<string, string>> | undefined {
+	if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+	const out: Record<string, string> = {};
+	for (const [key, entry] of Object.entries(value)) {
+		if (typeof entry === "string") out[key] = entry;
+	}
+	return out;
+}
+
+function readRegistryPackageJson(root: string): RegistryPackageJson | undefined {
+	try {
+		const parsed = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as unknown;
+		if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
+		const record = parsed as Record<string, unknown>;
+		return {
+			name: typeof record.name === "string" ? record.name : undefined,
+			version: typeof record.version === "string" ? record.version : undefined,
+			dependencies: stringRecord(record.dependencies),
+			manifest: readPluginManifest({
+				zeta: asManifest(record.zeta),
+				omp: asManifest(record.omp),
+				pi: asManifest(record.pi),
+			}),
+		};
+	} catch {
+		return undefined;
+	}
+}
+
+/** A declared manifest entry as a display name: no directory, no extension. */
+function declaredEntryName(entry: string): string {
+	const normalized = entry.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "");
+	const file = normalized.slice(normalized.lastIndexOf("/") + 1);
+	const dot = file.lastIndexOf(".");
+	const name = dot > 0 ? file.slice(0, dot) : file;
+	return name || normalized;
+}
+
+/** Classify an installed package from its `package.json#dependencies` spec. */
+function classifyRuntimeSource(spec: string | undefined): ZetaPluginSourceKind {
+	if (spec === undefined) return "link";
+	if (spec.startsWith("npm:")) return "npm";
+	if (/^(?:git\+|git:|github:|ssh:\/\/|https?:\/\/)/i.test(spec) || /\.git(?:#.*)?$/i.test(spec)) return "git";
+	if (spec.startsWith("file:") || spec.startsWith(".") || isAbsolute(spec)) return "link";
+	return "npm";
+}
+
+function realPathKey(target: string): string | undefined {
+	try {
+		const real = resolve(realpathSync(target));
+		return process.platform === "win32" ? real.toLowerCase() : real;
+	} catch {
+		return undefined;
+	}
+}
+
+interface RegistryPluginInput {
+	readonly id: string;
+	readonly version?: string;
+	readonly scope: "user" | "project";
+	readonly enabled: boolean;
+	readonly sourceKind: ZetaPluginSourceKind;
+	readonly root: string;
+}
+
+/**
+ * One registry row. Everything comes from the installed package: `plugin.json`
+ * for identity and panels, `package.json` for version and declared entries.
+ * A missing package is reported as an error row rather than dropped, so a
+ * half-installed plugin is visible and can be re-enabled/uninstalled.
+ */
+function readRegistryPlugin(input: RegistryPluginInput): ZetaPluginInfo {
+	const present = existsSync(input.root);
+	const pkg = present ? readRegistryPackageJson(input.root) : undefined;
+	const catalogue = present ? readCatalogue(input.root) : undefined;
+	const declaration = present ? readDeclaredPanels(input.root) : { ok: true as const, ui: {} };
+	const manifest = pkg?.manifest;
+	const panels: ZetaPluginPanelInfo[] = declaration.ok
+		? (declaration.ui.panels ?? []).map(panel => ({ id: panel.id, title: panel.title, kind: panel.kind }))
+		: [];
+	let error: string | undefined;
+	if (!present) error = "Installed files are missing.";
+	else if (pkg === undefined) error = "Package metadata could not be read.";
+	else if (!declaration.ok) error = declaration.error;
+	return {
+		id: input.id,
+		name: catalogue?.name ?? pkg?.name ?? input.id,
+		version: pkg?.version ?? catalogue?.version ?? input.version ?? "",
+		sourceKind: input.sourceKind,
+		scope: input.scope,
+		enabled: input.enabled,
+		toolItems: manifest?.tools === undefined || manifest.tools === "" ? [] : [declaredEntryName(manifest.tools)],
+		commandItems: (manifest?.commands ?? []).map(declaredEntryName),
+		hookItems: manifest?.hooks === undefined || manifest.hooks === "" ? [] : [declaredEntryName(manifest.hooks)],
+		panels,
+		...(error === undefined ? {} : { error }),
+	};
+}
+
+/** The CLI's marketplace manager, with the same paths but never seeding. */
+async function createMarketplaceManager(cwd: string): Promise<MarketplaceManager> {
+	return new MarketplaceManager({
+		marketplacesRegistryPath: getMarketplacesRegistryPath(),
+		installedRegistryPath: getInstalledPluginsRegistryPath(),
+		projectInstalledRegistryPath: await resolveOrDefaultProjectRegistryPath(cwd),
+		marketplacesCacheDir: getMarketplacesCacheDir(),
+		pluginsCacheDir: getPluginsCacheDir(),
+	});
+}
+
+/**
+ * The Zeta-native registry: marketplace installs (both scopes) plus the
+ * npm/git/link runtime lockfile, deduplicated by real path — a marketplace
+ * plugin is linked into `node_modules`, so the two views describe one install.
+ */
+async function readRegistryPlugins(cwd: string, diagnostics: PluginDiagnostic[]): Promise<ZetaPluginInfo[]> {
+	const plugins: ZetaPluginInfo[] = [];
+	const marketplaceRoots = new Set<string>();
+
+	try {
+		const marketplace = await createMarketplaceManager(cwd);
+		for (const summary of await marketplace.listInstalledPlugins()) {
+			const entry = summary.entries[0];
+			if (entry === undefined) continue;
+			const real = realPathKey(entry.installPath);
+			if (real !== undefined) marketplaceRoots.add(real);
+			plugins.push(
+				readRegistryPlugin({
+					id: summary.id,
+					version: entry.version,
+					scope: summary.scope,
+					enabled: entry.enabled !== false,
+					sourceKind: "marketplace",
+					root: entry.installPath,
+				}),
+			);
+		}
+	} catch {
+		diagnostics.push({ type: "error", message: "Installed marketplace registry could not be read." });
+	}
+
+	try {
+		const installed = await listInstalledPlugins(cwd);
+		const userRoot = getPluginsDir();
+		const projectRegistryPath = await resolveActiveProjectRegistryPath(cwd);
+		const projectRoot = projectRegistryPath === null ? undefined : dirname(projectRegistryPath);
+		const userDeps = readRegistryPackageJson(userRoot)?.dependencies ?? {};
+		const projectDeps = projectRoot === undefined ? {} : (readRegistryPackageJson(projectRoot)?.dependencies ?? {});
+		for (const plugin of installed) {
+			const real = realPathKey(plugin.path);
+			if (real !== undefined && marketplaceRoots.has(real)) continue;
+			const deps = plugin.scope === "project" ? projectDeps : userDeps;
+			plugins.push(
+				readRegistryPlugin({
+					id: plugin.name,
+					version: plugin.version,
+					scope: plugin.scope,
+					enabled: plugin.enabled,
+					sourceKind: classifyRuntimeSource(deps[plugin.name]),
+					root: plugin.path,
+				}),
+			);
+		}
+	} catch {
+		diagnostics.push({ type: "error", message: "Installed plugin registry could not be read." });
+	}
+
+	return plugins;
+}
+
 async function readPlugins(cwd: string): Promise<PluginsResponse> {
 	const agentDir = getAgentDir();
 	const settings = await Settings.loadIsolated({ cwd, agentDir });
@@ -305,7 +512,7 @@ async function readPlugins(cwd: string): Promise<PluginsResponse> {
 		});
 	}
 
-	return { packages, totals, diagnostics };
+	return { packages, installed: await readRegistryPlugins(cwd, diagnostics), totals, diagnostics };
 }
 
 function readScope(scope: unknown): PluginScope {
@@ -325,11 +532,17 @@ export async function handlePluginsGet(req: Request): Promise<Response> {
 	}
 }
 
-// POST /api/plugins  body: { action, source?, scope?, cwd }
+// POST /api/plugins  body: { action, id?, source?, scope?, cwd }
+//
+// `id` addresses the Zeta-native registry (marketplace `name@marketplace` or a
+// package name) and goes through the same toggle the CLI uses. The legacy
+// `source` form edits `settings.extensions`; it is kept for the extension
+// package view (`packages` in the GET answer).
 export async function handlePluginsPost(req: Request): Promise<Response> {
 	try {
 		const body = (await req.json()) as {
 			action?: unknown;
+			id?: unknown;
 			source?: unknown;
 			scope?: unknown;
 			cwd?: unknown;
@@ -339,6 +552,28 @@ export async function handlePluginsPost(req: Request): Promise<Response> {
 		if (!cwd) return json({ error: "cwd required" }, 400);
 		if (!action) return json({ error: "action required" }, 400);
 		if (!isDirectory(cwd)) return json({ error: "Access denied" }, 403);
+
+		const pluginId = typeof body.id === "string" ? body.id.trim() : "";
+		if (pluginId !== "") {
+			if (action !== "enable" && action !== "disable") {
+				return json({ error: `Unsupported action: ${action}` }, 400);
+			}
+			const scope = body.scope === "project" ? "project" : body.scope === "user" ? "user" : undefined;
+			const marketplace = await createMarketplaceManager(cwd);
+			const marketplaceIds = new Set((await marketplace.listInstalledPlugins()).map(plugin => plugin.id));
+			try {
+				await setInstalledPluginEnabled(pluginId, {
+					enabled: action === "enable",
+					scope,
+					marketplaceIds,
+					marketplace,
+					npm: new PluginManager(cwd),
+				});
+			} catch (error) {
+				return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+			}
+			return json(await readPlugins(cwd));
+		}
 
 		const agentDir = getAgentDir();
 		const settings = await Settings.loadIsolated({ cwd, agentDir });
