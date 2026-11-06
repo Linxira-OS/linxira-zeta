@@ -14,9 +14,10 @@ type Mode =
 	| "coding-agent-ui"
 	| "coding-agent-runtime"
 	| "coding-agent-native"
+	| "coding-agent-browser"
 	| "coding-agent-heavy";
 
-type CodingAgentBucket = "singleton" | "ui" | "runtime" | "native";
+type CodingAgentBucket = "singleton" | "ui" | "runtime" | "native" | "browser";
 
 interface TestCommand {
 	label: string;
@@ -58,6 +59,7 @@ const validModes: Record<Mode, true> = {
 	"coding-agent-ui": true,
 	"coding-agent-runtime": true,
 	"coding-agent-native": true,
+	"coding-agent-browser": true,
 	"coding-agent-heavy": true,
 };
 
@@ -79,7 +81,11 @@ const codingAgentBucketPlans: Record<CodingAgentBucket, { label: string; paralle
 	singleton: { label: "singleton/global-state bucket", parallel: 1 },
 	ui: { label: "UI/TUI bucket", parallel: 1, chunkSize: 5 },
 	runtime: { label: "runtime/session bucket", parallel: 1, chunkSize: 10 },
-	native: { label: "native/tooling/browser/unit bucket", parallel: 1, chunkSize: 10 },
+	native: { label: "native/tooling/unit bucket", parallel: 1, chunkSize: 10 },
+	// Real-Chromium suites: each file launches (or drives) a browser process, so a
+	// chunk stays small both for memory and because the release/nightly job is the
+	// only place these run.
+	browser: { label: "browser/Chromium bucket", parallel: 1, chunkSize: 5 },
 };
 
 // Smaller workspace packages stay separate from native/TUI/integration suites so
@@ -117,6 +123,21 @@ const projectToolTestCommand: TestCommand = {
 // Packages the CI buckets deliberately skip but a local full run should still
 // cover. robomp-web lives under python/robomp and is outside every CI TS bucket.
 const localOnlyWorkspacePackages = ["python/robomp/web"];
+
+// Real-browser suites: every `browser*.test.ts` (relay, tabs, screenshots,
+// uploads, webmcp…) plus the PDF renderer that embeds Chromium. They launch a
+// browser process (or drive a CDP endpoint), so they are slow and
+// timing-sensitive: they run in their own bucket, on the scheduled/release-only
+// job, instead of competing with the per-push unit buckets.
+const codingAgentBrowserPathPatterns = [
+	/(^|\/)browser[^/]*\.test\.ts$/i,
+	/(^|\/)read-pdf[^/]*chromium[^/]*\.test\.ts$/i,
+];
+
+// The shared probe is imported only by suites that launch or attach to a real
+// Chromium; it classifies a future chromium-driving suite whose name does not
+// start with `browser`.
+const codingAgentBrowserContentMarkers = ["chromium-probe"];
 
 const codingAgentNativePathPatterns = [
 	/(^|\/)[^/]*(bash|native|browser|cmux|mnemopi|hindsight|memory)[^/]*\.test\.ts$/i,
@@ -260,9 +281,18 @@ function matchesAnyPath(testFile: string, patterns: RegExp[]): boolean {
 function matchesAnyContentPattern(content: string, patterns: RegExp[]): boolean {
 	return patterns.some(pattern => pattern.test(content));
 }
-// Native/tooling tests are classified first because they need the lowest
-// concurrency; all coding-agent buckets run with the native addon available in CI.
-function classifyCodingAgentTest(testFile: string, content: string): CodingAgentBucket {
+// Browser/Chromium tests are classified first: their content also matches the
+// native markers (puppeteer, WebSocket, Worker, spawn), but they need a real
+// browser and belong in the scheduled/release bucket, never the per-push one.
+// Native/tooling tests come next because they need the lowest concurrency; all
+// coding-agent buckets run with the native addon available in CI.
+export function classifyCodingAgentTest(testFile: string, content: string): CodingAgentBucket {
+	if (
+		matchesAnyPath(testFile, codingAgentBrowserPathPatterns) ||
+		hasAnyMarker(content, codingAgentBrowserContentMarkers)
+	) {
+		return "browser";
+	}
 	if (
 		matchesAnyPath(testFile, codingAgentNativePathPatterns) ||
 		hasAnyMarker(content, codingAgentNativeContentMarkers)
@@ -309,6 +339,7 @@ async function getCodingAgentTestPartition(): Promise<CodingAgentTestPartition> 
 			ui: [],
 			runtime: [],
 			native: [],
+			browser: [],
 		};
 
 		for (const testFile of testFiles) {
@@ -358,12 +389,15 @@ async function commandsForMode(mode: Mode): Promise<TestCommand[]> {
 			return await codingAgentTestCommands("runtime");
 		case "coding-agent-native":
 			return await codingAgentTestCommands("native");
+		case "coding-agent-browser":
+			return await codingAgentTestCommands("browser");
 		case "coding-agent-heavy":
 			return [
 				...(await codingAgentTestCommands("singleton")),
 				...(await codingAgentTestCommands("ui")),
 				...(await codingAgentTestCommands("runtime")),
 				...(await codingAgentTestCommands("native")),
+				...(await codingAgentTestCommands("browser")),
 			];
 		case "all":
 			return [
