@@ -201,6 +201,26 @@ remark/rehype 在这些短块上不是成本。
 所以那组数字测的是布局代价，**低估真实滚轮滚动**（同一构建的滚轮实测为 82.5 fps）。
 harness 的滚动场景应改成派发真实 wheel 事件，否则不能用来判断 UI 流畅度。
 
+### 内存：会话读取（2026-11-06 追加）
+
+渲染端只挂载实际打开的对话（单个 `ConversationPane`），常驻 store 有 `maxRows`/`maxBytes`
+上限；问题在**每次打开/切换重新读整份会话**：
+
+| 事实 | 依据 |
+|---|---|
+| 会话文件没有解析缓存 | `loadSessionFile` 注释即"每次返回新解析的 entries"；`SessionManager.open` 走它 |
+| 放大倍数 | bench：0.47 MiB→11 MiB、5.08 MiB→32 MiB、**21.6 MiB→98 MiB**；解析 1/10/26 ms |
+| `GET /api/sessions/:id` | 构建完整 context + tree 后整体返回，**忽略 `limit`/`cursor`** |
+| 用量页 | `sessionUsageFromFile` 解析每个会话文件（30 s 缓存） |
+| 删除/归档 | `readSessionHeader` 为读首行解析整个文件（现成 `peekFile` 可复用） |
+
+**已修（2026-11-06）**：`GET /api/sessions/:id` 的序列化结果按 `(path, mtime, size)` 缓存
+（8 条 / 64 MiB 上限，单条 ≤32 MiB；live 会话不入缓存，写路径清空）。切回已开过的对话不再
+重读/重解析/重投影。测试：`packages/coding-agent/test/web-gateway/session-response-cache.test.ts`。
+
+**待做**：把 `limit`/`cursor` 落到这个路由（只回尾部窗口）；`readSessionHeader` 改前缀读；
+用量扫描流式化；渲染端对最近 N 个会话保留 store。
+
 ### 判据（在真实 dump 上测）
 
 | 判据 | 目标 |
