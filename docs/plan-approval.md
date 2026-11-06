@@ -10,6 +10,23 @@ UI and desktop app show the **PlanApproval** card, and IM channels present the
    the execution turn carries the goal context and the host keeps the work
    moving with hidden continuation turns.
 
+## Plan modes
+
+Plan mode has three workflows. The entry command picks one, and the `mode` tool
+can arm the same workflow (`enter plan workflow=parallel|iterative|ultra`); the
+mode only restricts, so the agent never leaves a user-armed plan mode.
+
+| Entry | Workflow | What changes |
+| --- | --- | --- |
+| `/plan <task>` | `parallel` (default) | scouting and plan writing proceed in one pass |
+| `/plan-ultra <task>` | `ultra` | fan-out `scout` subagents (one per distinct area), incremental plan-file writes as findings land, and the deepest decision floor: every plan step names the verb, exact target, and new behavior — no "update/handle <area>" steps |
+| `mode` tool / session API | `iterative` | plan is revised round by round instead of written once (no slash entry) |
+
+Ultra planning is about decision completeness, not length: a one-file fix stays
+short, a cross-cutting change gets ordered behavior steps. The plan file is an
+artifact, not a worktree file, and code stays read-only until the plan is
+approved. Approval itself is unchanged and described below.
+
 ## The approval choices
 
 | TUI option | Gateway / IM mode | Transcript | Execution brief |
