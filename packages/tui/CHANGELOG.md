@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Released as part of Zeta 1.4.11; no package-specific user-visible changes.
+
 ## [1.4.10] - 2026-11-05
 
 - Released as part of Zeta 1.4.10; no package-specific user-visible changes.

@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+
+- `getUsageHistory(days)` and the `getModelDailyActivity` / `getModelHourlyActivity` rollup reads: per-day totals, per-day per-model totals and today's per-hour per-model totals from the existing `messages` + `message_rollup` tables, with a local-calendar cutoff derived from SQLite itself.
+
 ## [1.4.10] - 2026-11-05
 
 - Released as part of Zeta 1.4.10; no package-specific user-visible changes.

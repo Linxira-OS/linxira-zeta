@@ -9,6 +9,16 @@
 - Renderer preferences moved from `omp.*` to `zeta.*` in browser storage; a one-time migration copies the old keys so layouts, theme, language and annotations survive the rename.
 - `compat.importLegacyOmp` ("Read legacy OMP configuration", Settings → Interaction → Compatibility) exposes the read-only import of the legacy OMP configuration directory as a persisted setting. `ZETA_OMP_COMPAT` still wins; the setting is the same switch without an environment variable, and toggling it reloads the model registry without a restart.
 
+### Performance
+
+- `GET /api/sessions/:id` accepts `window`/`limit`/`origin` and answers one page of the active branch (≤ 768 KiB) instead of the whole transcript + tree; the boundary is validated by entry id, so appends keep cursors valid while compaction or a branch switch answers 409. An 8.3 MB / 2,000-message session now reads cold in 40 ms / 214 KB instead of 202 ms / 8.3 MB. Whole-transcript responses stay cached by `(path, mtime, size)`.
+- Static assets are precompressed at build time (`.br` q11 / `.gz` q9) and served through `Accept-Encoding` negotiation with `Vary`; the 2,084,639 B entry chunk drops to 625,173 B gzip / 480,301 B brotli, and bodies stream instead of being copied into the JS heap per request.
+
+### Added
+
+- `/api/usage/daily` reads the stats database (`messages` + `message_rollup`, 400-day lookback) and feeds `usage.get`: the Home heatmap now covers the year, the per-model chart has a legend (YTD top five plus "other"), and today's per-hour series is populated. The dashboard link uses `range=all`, and `usage.openDashboard` is implemented.
+- `/api/plugins` exposes the real Zeta plugin registry (marketplace plus npm/git/link lockfile) with each manifest's declared `ui.panels`; the Studio Plugins list and its enable toggle now read and write that same store instead of the extension-package settings.
+
 ## [1.4.10] - 2026-11-05
 
 ### Added
