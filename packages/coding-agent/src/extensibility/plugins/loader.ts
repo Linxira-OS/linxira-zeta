@@ -278,15 +278,12 @@ async function collectPluginsAtRoot(
 
 		const runtimeState = runtimeConfig.plugins[name];
 
-		// Check if disabled globally
-		if (runtimeState && !runtimeState.enabled) {
-			continue;
-		}
-
-		// Check if disabled in project
-		if (projectOverrides.disabled?.includes(name)) {
-			continue;
-		}
+		// A disabled plugin is still installed: the Studio inventory lists it
+		// (with `enabled: false`) so the user can turn it back on, while
+		// {@link getEnabledPlugins} filters it out of the load path. The two
+		// switches are the same two the CLI applies — the lockfile bit and the
+		// project override list.
+		const enabled = runtimeState?.enabled !== false && !(projectOverrides.disabled?.includes(name) ?? false);
 
 		// Resolve enabled features (project overrides take precedence)
 		const enabledFeatures = projectOverrides.features?.[name] ?? runtimeState?.enabledFeatures ?? null;
@@ -297,7 +294,7 @@ async function collectPluginsAtRoot(
 			scope,
 			manifest,
 			enabledFeatures,
-			enabled: true,
+			enabled,
 			storage: buildPluginStorage(name, home),
 		});
 	}
@@ -339,6 +336,26 @@ export async function getEnabledPlugins(cwd: string, opts: { home?: string } = {
 }
 
 async function loadEnabledPlugins(cwd: string, home?: string): Promise<ScopedInstalledPlugin[]> {
+	const plugins = await listInstalledPlugins(cwd, { home });
+	return plugins.filter(plugin => plugin.enabled);
+}
+
+/**
+ * List every installed plugin, disabled ones included.
+ *
+ * This is the inventory behind `skills.get`'s plugin section: the same two
+ * roots, the same union of `package.json#dependencies` and the runtime
+ * lockfile, and the same two-disable-switches precedence as
+ * {@link getEnabledPlugins} — the loader just filters the disabled entries
+ * out. A project entry shadows a user entry with the same package name only
+ * when the project copy is enabled, matching `MarketplaceManager`'s
+ * `shadowedBy` rule: a disabled project install leaves the user copy active.
+ */
+export async function listInstalledPlugins(
+	cwd: string,
+	opts: { home?: string } = {},
+): Promise<ScopedInstalledPlugin[]> {
+	const { home } = opts;
 	const projectOverrides = await loadProjectOverrides(cwd);
 
 	const userRoot = getPluginsDir(home);
@@ -356,10 +373,12 @@ async function loadEnabledPlugins(cwd: string, home?: string): Promise<ScopedIns
 	if (projectPlugins.length === 0) return userPlugins;
 	if (userPlugins.length === 0) return projectPlugins;
 
-	// Project entries shadow user entries with the same package name.
 	const merged = new Map<string, ScopedInstalledPlugin>();
 	for (const plugin of userPlugins) merged.set(plugin.name, plugin);
-	for (const plugin of projectPlugins) merged.set(plugin.name, plugin);
+	for (const plugin of projectPlugins) {
+		// A disabled project entry is listed only when it is the sole copy.
+		if (!merged.has(plugin.name) || plugin.enabled) merged.set(plugin.name, plugin);
+	}
 	return Array.from(merged.values());
 }
 

@@ -804,17 +804,32 @@ export type PluginSourceKind = "npm" | "marketplace" | "link" | "git";
 
 export type PluginConfigStatus = "configured" | "error";
 
+/** Panel kinds a plugin may declare in `ui.panels`. */
+export type PluginPanelKind = "list" | "form" | "chart" | "html";
+
+/** One declared panel: what the plugin says it can render, not a live view. */
+export interface PluginPanelRecord {
+  readonly id: string;
+  readonly title: string;
+  readonly kind: PluginPanelKind;
+}
+
 /**
- * One configured plugin from ~/.zeta/plugins (and project overrides).
- * Contribution lists are declared entry names from the package manifest,
- * not Runtime-registered tools.
+ * One configured plugin from the Zeta-native registry
+ * (`installed_plugins.json` + `zeta-plugins.lock.json`), the same store the
+ * CLI reads. Contribution lists are declared entry names from the package
+ * manifest, not Runtime-registered tools.
  */
 export interface PluginRecord {
+  /** Addressable registry key: `name@marketplace` or the package name. */
   readonly name: string;
+  /** Display name from `plugin.json`; falls back to the package name. */
+  readonly title: string;
   readonly version: string;
   readonly sourceKind: PluginSourceKind;
   /** Safe display label: npm / 市场 / 链接 / git. */
   readonly srcLabel: string;
+  readonly scope: "user" | "project";
   readonly enabled: boolean;
   readonly status: PluginConfigStatus;
   readonly tools: number;
@@ -825,6 +840,8 @@ export interface PluginRecord {
   readonly commandItems: ReadonlyArray<string>;
   readonly hookItems: ReadonlyArray<string>;
   readonly uiItems: ReadonlyArray<string>;
+  /** Panels declared in `plugin.json` / `package.json#zeta.ui`, in order. */
+  readonly panels: ReadonlyArray<PluginPanelRecord>;
   readonly err?: string;
 }
 

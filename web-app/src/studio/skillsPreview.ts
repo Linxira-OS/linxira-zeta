@@ -26,6 +26,9 @@ export type SkillPreview = {
 export type PluginPreview = {
   kind: "plugin";
   name: string;
+  /** Display name; `name` remains the registry key the Hosted toggle uses. */
+  title?: string;
+  scope?: "user" | "project";
   src: string;
   status: "loaded" | "error";
   tools: number;
@@ -39,6 +42,7 @@ export type PluginPreview = {
   commandItems?: string[];
   hookItems?: string[];
   uiItems?: string[];
+  panels?: Array<{ id: string; title: string; kind: string }>;
 };
 
 export type DrawerItem = SkillPreview | PluginPreview;
