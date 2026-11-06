@@ -51,6 +51,14 @@ export type NpmCompanionPin = NpmLeafPin;
 export interface NpmDistribution {
 	/** Repo-relative dir of the launcher package that pins `leaves`. */
 	readonly dir: string;
+	/**
+	 * Set while the product is suspended: its npm manifests keep the last
+	 * published version and are exempt from the release-line bump/checks until
+	 * the product returns. The leaves and pins must still agree with that
+	 * frozen version. Paused by the 2026-11-05 zetawork ruling (roadmap P0);
+	 * the zetawork npm line is only publishable through `publish_zetawork`.
+	 */
+	readonly paused?: string;
 	/** Platform leaves pinned by the launcher's `optionalDependencies`. */
 	readonly leaves: readonly NpmLeafPin[];
 	/** Companion products pinned in the same `optionalDependencies` block. */
@@ -68,7 +76,9 @@ export const NPM_DISTRIBUTIONS: readonly NpmDistribution[] = [
 		],
 	},
 	{
+		// Suspended 2026-11-05 with the Rust workbench; see `paused` below.
 		dir: "main/npm/main",
+		paused: "zetawork suspended 2026-11-05 (roadmap P0): no Rust UI, npm line only via publish_zetawork",
 		leaves: [
 			{ dir: "main/npm/main-windows-x64", name: "@linxiraos/main-windows-x64" },
 			{ dir: "main/npm/main-linux-x64", name: "@linxiraos/main-linux-x64" },

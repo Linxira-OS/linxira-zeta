@@ -477,6 +477,16 @@ Rules:
   manifest up.) `release-v2.ts` runs the same guard **after the bump and
   before the commit/tag**, so a stale leaf aborts the release without
   consuming a tag.
+- **Suspended distributions:** `scripts/npm-distributions.ts` marks a
+  distribution `paused` when its product is suspended (today: `main/`, per the
+  2026-11-05 zetawork ruling). A paused launcher, its leaves and its companion
+  pins keep the last published version; `release-v2.ts` / `set-version.ts` skip
+  the bump, `check-version-consistency.ts` skips its line assertions, and
+  `check-workbench-bundles.ts` checks it against its own frozen version instead
+  of the repo line. Reviving the product means deleting the `paused` marker and
+  running a full bump (this is the one place the single version line is
+  deliberately broken, because nothing is published from it).
+
 - **Rebuilding leaves on the Windows workstation:** build inside WSL, not on
   the `/mnt/c` mount. `main/` is copied to a fixed native workspace
   (`/root/zeta-build`), built there, and the binaries are copied back; the

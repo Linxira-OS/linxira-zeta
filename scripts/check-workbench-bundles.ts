@@ -151,6 +151,12 @@ const lineVersion = launcher.version;
 if (typeof lineVersion !== "string") {
 	problems.push(`${LAUNCHER_REL}: no version — the guard cannot anchor the companion pins`);
 }
+// Suspended products keep their last published line: the launcher, its leaves
+// and its companion pins must still agree with each other, but not with the
+// repo's release line. 2026-11-05 zetawork ruling (scripts/npm-distributions.ts
+// carries the same pause marker for the bump/consistency tools).
+const repoLine = manifest("packages/coding-agent/package.json").version;
+const workbenchPaused = typeof lineVersion === "string" && typeof repoLine === "string" && lineVersion !== repoLine;
 
 /** Companion pins are the bundle's spec, not read back from the registry. */
 const companionPins: ReadonlyArray<{ dir: string; name: string }> = [
@@ -184,7 +190,7 @@ if (lineVersion) {
 		if (companion.name !== pin.name) {
 			problems.push(`${companionRel}: name is ${companion.name ?? "<missing>"}, expected ${pin.name}`);
 		}
-		if (companion.version !== lineVersion) {
+		if (!workbenchPaused && companion.version !== lineVersion) {
 			problems.push(`${companionRel}: ${companion.version ?? "<missing>"} != ${lineVersion} (workbench line)`);
 		}
 		if (Object.keys(companion.bin ?? {}).length === 0) {
@@ -412,7 +418,7 @@ if (problems.length > 0) {
 	process.exit(1);
 }
 console.log(
-	`Workbench bundles OK: zetawork ${lineVersion} installs ${companionPins.map(pin => pin.name).join(" + ")}; ` +
+	`Workbench bundles OK${workbenchPaused ? ` (zetawork ${lineVersion} paused; repo line ${repoLine})` : ``}: zetawork ${lineVersion} installs ${companionPins.map(pin => pin.name).join(" + ")}; ` +
 		`${leafPins.length} platform leaves pinned and stamped at ${lineVersion}, ${COMMANDS.length} commands × ${PLATFORMS.length} platforms staged in ${STAGED_DIR}/ and uploaded; ` +
 		`${RELEASE_ASSET_SURFACES.length} release assets consistent across upload/checksums/preflight; publish ordered after both companion legs`,
 );

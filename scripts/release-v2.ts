@@ -560,6 +560,10 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	// (the 1.2.0 editor launcher shipped pinning 1.1.28 and was hand-fixed in
 	// PR #119). Registry: scripts/npm-distributions.ts.
 	for (const dist of NPM_DISTRIBUTIONS) {
+		if (dist.paused) {
+			console.log(`Skipping ${dist.dir}: ${dist.paused}`);
+			continue;
+		}
 		console.log(`Updating ${dist.dir} npm distribution to ${version}...`);
 		for (const dir of [dist.dir, ...dist.leaves.map(leaf => leaf.dir)]) {
 			await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${dir}/package.json`;
