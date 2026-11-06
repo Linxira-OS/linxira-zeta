@@ -45,6 +45,11 @@
 | `port/studio-conversation` | port | Studio 会话面语义移植（`d2ab1add16f`，未并入 `main`；内容随 `feat/web-ui-studio-migration` 走） | agent | 2026-11-05 | 迁移分支合入 `main` 后删；删前记 SHA |
 | `port/studio-sidebar` | port | Studio 侧栏移植 + `port/studio-pages` 合并（`d5ef794bfd7`，未并入 `main`） | agent | 2026-11-05 | 迁移分支合入 `main` 后删；删前记 SHA |
 | `temp/release-dispatch` | temp | 临时 release dispatch 工作流实验（`89963b49b81`，未并入 `main`） | unassigned | — | 实验结束即删；删前记 SHA |
+| `feat/StaticCompression` | feat | 静态资源构建期预压缩（`.br`/`.gz` 边车）+ `Accept-Encoding` 协商；worktree `temp/StaticCompression` | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
+| `feat/PluginRegistry` | feat | Studio 插件列表改为真实 Zeta 插件注册表 + 启停写对文件 + `ui.panels` 清单；worktree `temp/PluginRegistry` | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
+| `feat/UsageData` | feat | 用量数据：`packages/stats` 的日/时聚合读 API + `GET /api/usage/daily` + `usage.get` 填充 + deep link/`usage.openDashboard`；worktree `temp/UsageData` | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
+| `feat/session-window` | feat | 会话转写窗口分页（已并入 `main` 的 `952b3c0`）；worktree `temp/session-window` | agent | 2026-11-06 | 删分支/worktree 前登记退役 |
+| `feat/release-114` | feat | 1.4.11 集成分支：四个并行流合并 + 渲染端依赖升级；worktree `temp/release-114` | agent | 2026-11-06 | 发布并合并后删（删前记 SHA） |
 | `feat/ci-buckets` | feat | 把真浏览器/Chromium 测试从每次 push 的 CI 挪进独立 `browser` bucket：`ci-test-ts.ts` 第五个 bucket + `coding-agent-browser` 模式、`ci.yml` 夜间 schedule/`browser_tests` dispatch/release 专属 job 与 `release_gate` 断言、Gitea 镜像、CI surface/parity/文档同步；顺带补上本地 `check` job 缺失的 web-app 构建 | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
 
 ## 已退役（删除前登记）
