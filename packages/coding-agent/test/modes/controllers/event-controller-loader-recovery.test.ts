@@ -320,20 +320,17 @@ describe("EventController loader recovery after overflow maintenance", () => {
 		expect(setProgress.mock.calls.map(call => call[0])).toEqual([true, false]);
 	});
 
-	it("reports OSC 9;4 activity to Tern even when the setting is off", async () => {
+	it("does not report OSC 9;4 activity unless the setting opts in", async () => {
 		const program = Bun.env.TERM_PROGRAM;
 		try {
-			Bun.env.TERM_PROGRAM = "vscode";
-			const outside = createContext();
-			await new EventController(outside.ctx).handleEvent(AGENT_START);
-			expect(outside.setProgress).not.toHaveBeenCalled();
-
-			Bun.env.TERM_PROGRAM = "tern";
-			const { ctx, setProgress } = createContext();
-			const controller = new EventController(ctx);
-			await controller.handleEvent(AGENT_START);
-			await controller.handleEvent(AGENT_END);
-			expect(setProgress.mock.calls.map(call => call[0])).toEqual([true, false]);
+			for (const term of ["vscode", "tern"]) {
+				Bun.env.TERM_PROGRAM = term;
+				const { ctx, setProgress } = createContext();
+				const controller = new EventController(ctx);
+				await controller.handleEvent(AGENT_START);
+				await controller.handleEvent(AGENT_END);
+				expect(setProgress).not.toHaveBeenCalled();
+			}
 		} finally {
 			if (program === undefined) delete Bun.env.TERM_PROGRAM;
 			else Bun.env.TERM_PROGRAM = program;
