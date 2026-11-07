@@ -82,7 +82,7 @@ import { I18nProvider, useI18n, type TranslationParams } from "./i18n";
 import { SHORTCUTS, formatShortcut, isPrimaryModifier } from "./keyboard/shortcuts";
 import { PLATFORM, nativeMenuOwnsShortcuts } from "./platform";
 import { fileManagerName } from "./platformCopy";
-import { HomePage, SecondaryPage } from "./HomePage";
+import { HomePage, ProfileEditDialog, SecondaryPage } from "./HomePage";
 import { HistoryPage } from "./HistoryPage";
 import { AgentHubPage, setHubIntent } from "./AgentHub";
 import { setTeamIntent, TeamPage } from "./team/TeamPage";
@@ -9161,6 +9161,8 @@ export function App({ client }: { readonly client: StudioClient }) {
 function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
   const { t } = useI18n();
   const client = inputClient as ClientStateSource;
+  const { profile, update: updateProfile, persistAvatar } = useOperatorProfile();
+  const [onboardingOpen, setOnboardingOpen] = useState(profile.displayName === "");
   const executionTarget = useExecutionTarget();
   const [initialModelCommitted, setInitialModelCommitted] = useState(false);
   const [projectsSettled, setProjectsSettled] = useState(false);
@@ -9308,6 +9310,18 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
         <RemoteScopeNotice />
         {body}
         {initialModelCommitted && !state.loading ? <WorkbenchHealth /> : null}
+        {onboardingOpen ? (
+          <ProfileEditDialog
+            name={profile.displayName}
+            avatar={profile.avatarSrc}
+            onClose={() => setOnboardingOpen(false)}
+            onSave={async (next) => {
+              updateProfile({ displayName: next.displayName });
+              if (next.avatar !== undefined) await persistAvatar(next.avatar);
+              setOnboardingOpen(false);
+            }}
+          />
+        ) : null}
         <StartupNotice />
         <TipHost />
       </I18nProvider>

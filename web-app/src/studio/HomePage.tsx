@@ -200,7 +200,7 @@ function ompStatusText(
   return extras.length > 0 ? `${head} · ${extras.join(" · ")}` : head;
 }
 
-function ProfileEditDialog({
+export function ProfileEditDialog({
   name,
   avatar,
   onClose,
