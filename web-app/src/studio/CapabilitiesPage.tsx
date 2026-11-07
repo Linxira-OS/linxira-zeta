@@ -329,6 +329,27 @@ export function CapabilitiesPage({
     void refresh();
   }, [refresh]);
 
+  const [officialBusy, setOfficialBusy] = useState(false);
+  const runOfficialSkills = useCallback(async (action: "install" | "uninstall") => {
+    if (preview || officialBusy) return;
+    setOfficialBusy(true);
+    try {
+      const response = await fetch("/api/skills/official", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!response.ok || payload.ok !== true) throw new Error(payload.error ?? `HTTP ${response.status}`);
+      await refresh();
+      setFlash(action === "install" ? t("capabilities.officialInstalled") : t("capabilities.officialUninstalled"));
+    } catch (error) {
+      setFlash(t("capabilities.officialFailed", { error: error instanceof Error ? error.message : String(error) }));
+    } finally {
+      setOfficialBusy(false);
+    }
+  }, [preview, officialBusy, refresh, t]);
+
   const counts: Record<CapTab, number> = {
     ida: 0,
     resources: 0,
@@ -587,7 +608,15 @@ export function CapabilitiesPage({
     const ok = preview ? skills.filter((skill) => skill.session).length : skills.length - fail - disabled;
     return (
       <>
-
+        <div className="cap-official-skills">
+          <span>{t("capabilities.officialPack")}</span>
+          <button type="button" className="btn outline" disabled={preview || officialBusy} onClick={() => void runOfficialSkills("install")}>
+            <Icon name="package" extra="sm" />{t("capabilities.officialInstall")}
+          </button>
+          <button type="button" className="btn outline" disabled={preview || officialBusy} onClick={() => void runOfficialSkills("uninstall")}>
+            <Icon name="trash" extra="sm" />{t("capabilities.officialUninstall")}
+          </button>
+        </div>
         <Summary
           total={skills.length}
           stats={[

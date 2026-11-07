@@ -172,6 +172,10 @@ interface FutureRowDef {
 
 function FutureRows({ rows, demo }: { rows: readonly FutureRowDef[]; demo?: RuntimeDemoApi | undefined }) {
   const { t } = useI18n();
+  // Live mode: these paths have no writer behind the panel yet, so hide them
+  // instead of painting disabled "not connected" controls. Preview keeps the
+  // demo interaction.
+  if (!demo) return null;
   return rows.map((row) => (
     <SettingRow key={row.key} label={row.label} desc={row.desc} source="unavailable" reason={row.reason}>
       {row.control.type === "select" ? (
@@ -761,7 +765,7 @@ export function PermissionsTab({ ctl, demo }: { ctl: SettingsCtl; demo?: Runtime
               reason: t("settings.permissions.securityOutsideReason"),
             },
             {
-              key: "security.bashRules",
+              key: "tools.bashApprovalRules",
               label: t("settings.permissions.bashRules"),
               desc: t("settings.permissions.bashRulesDesc"),
               control: {
@@ -842,13 +846,13 @@ export function ContextTab({ demo, runtime }: { demo?: RuntimeDemoApi | undefine
         <FutureRows
           demo={demo}
           rows={[
-            { key: "compact.auto", label: t("settings.context.compactAuto"), desc: t("settings.context.compactAutoDesc"), control: { type: "toggle", on: true }, reason: t("settings.reasons.compaction") },
-            { key: "compact.strategy", label: t("settings.context.compactStrategy"), desc: t("settings.context.compactStrategyDesc"), control: { type: "select", value: "Snapcompact", options: [["Context-full", "Context-full"], ["Handoff", "Handoff"], ["Shake", "Shake"], ["Snapcompact", "Snapcompact"], ["Off", "Off"]] }, reason: t("settings.reasons.compaction") },
-            { key: "compact.threshold", label: t("settings.context.compactThreshold"), desc: t("settings.context.compactThresholdDesc"), control: { type: "select", value: "80%", options: [["默认", t("settings.context.thresholdDefault")], ["70%", "70%"], ["80%", "80%"], ["90%", "90%"]] }, reason: t("settings.reasons.compaction") },
-            { key: "compact.midTurn", label: t("settings.context.compactMidTurn"), desc: t("settings.context.compactMidTurnDesc"), control: { type: "toggle", on: false }, reason: t("settings.reasons.compaction") },
-            { key: "compact.idle", label: t("settings.context.compactIdle"), desc: t("settings.context.compactIdleDesc"), control: { type: "toggle", on: true }, reason: t("settings.reasons.compaction") },
-            { key: "compact.promote", label: t("settings.context.compactPromote"), desc: t("settings.context.compactPromoteDesc"), control: { type: "toggle", on: false }, reason: t("settings.reasons.compaction") },
-            { key: "compact.pruneReads", label: t("settings.context.compactPruneReads"), desc: t("settings.context.compactPruneReadsDesc"), control: { type: "toggle", on: true }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.enabled", label: t("settings.context.compactAuto"), desc: t("settings.context.compactAutoDesc"), control: { type: "toggle", on: true }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.methodOrder", label: t("settings.context.compactStrategy"), desc: t("settings.context.compactStrategyDesc"), control: { type: "select", value: "Snapcompact", options: [["Context-full", "Context-full"], ["Handoff", "Handoff"], ["Shake", "Shake"], ["Snapcompact", "Snapcompact"], ["Off", "Off"]] }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.thresholdPercent", label: t("settings.context.compactThreshold"), desc: t("settings.context.compactThresholdDesc"), control: { type: "select", value: "80%", options: [["默认", t("settings.context.thresholdDefault")], ["70%", "70%"], ["80%", "80%"], ["90%", "90%"]] }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.midTurnEnabled", label: t("settings.context.compactMidTurn"), desc: t("settings.context.compactMidTurnDesc"), control: { type: "toggle", on: false }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.idleEnabled", label: t("settings.context.compactIdle"), desc: t("settings.context.compactIdleDesc"), control: { type: "toggle", on: true }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.autoContinue", label: t("settings.context.compactPromote"), desc: t("settings.context.compactPromoteDesc"), control: { type: "toggle", on: false }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.supersedeReads", label: t("settings.context.compactPruneReads"), desc: t("settings.context.compactPruneReadsDesc"), control: { type: "toggle", on: true }, reason: t("settings.reasons.compaction") },
           ]}
         />
       </SettingSection>

@@ -143,6 +143,7 @@ import {
 	handleSkillsCheck,
 	handleSkillsGet,
 	handleSkillsInstall,
+	handleSkillsOfficial,
 	handleSkillsPatch,
 	handleSkillsReveal,
 	handleSkillsSearch,
@@ -768,6 +769,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (pathname === "/api/skills/reveal") {
 		if (req.method === "POST") return handleSkillsReveal(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/skills/official") {
+		if (req.method === "POST") return handleSkillsOfficial(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

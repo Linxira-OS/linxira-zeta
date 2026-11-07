@@ -880,6 +880,12 @@ export const en: LocaleDictionary = {
     "demoRestoreToast": "Demo: Executed \"{desc}\""
   },
   "capabilities": {
+    "officialPack": "Zeta official skills",
+    "officialInstall": "Install official skills",
+    "officialUninstall": "Uninstall official skills",
+    "officialInstalled": "Official skills installed.",
+    "officialUninstalled": "Official skills removed (edited files kept).",
+    "officialFailed": "Official skills action failed: {error}",
     "idaTab": "IDA",
     "title": "Capabilities",
     "subtitle": "Slash commands, skills, and MCP tool servers",

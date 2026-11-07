@@ -134,6 +134,36 @@ export class StudioClientImpl implements StudioClient {
 		// The renderer's capability surfaces call `skills.get` directly; map it to
 		// the gateway's disk scan instead of reporting an unsupported operation.
 		this.registerQueries({ "skills.get": () => this.#readExtensibility() });
+		this.registerCommands({
+			"runtime.settings.get": ((input: unknown) => {
+				const { keys } = input as { keys?: ReadonlyArray<string> };
+				return this.#readRuntimeSettings(keys);
+			}) as unknown as CommandHandler,
+			"runtime.settings.set": ((input: unknown) => {
+				const value = input as { key: string; value: unknown; persist: boolean };
+				return this.#writeRuntimeSetting(value);
+			}) as unknown as CommandHandler,
+		});
+	}
+
+	/** GET /api/settings → the runtime settings snapshot the panel expects. */
+	async #readRuntimeSettings(keys?: ReadonlyArray<string>): Promise<{ values: Record<string, unknown> }> {
+		const response = await this.#request<{ settings: Array<{ path: string; value: unknown }> }>("GET", "/api/settings");
+		const wanted = keys === undefined ? undefined : new Set(keys);
+		const values: Record<string, unknown> = {};
+		for (const entry of response.settings) {
+			if (wanted === undefined || wanted.has(entry.path)) values[entry.path] = entry.value;
+		}
+		return { values };
+	}
+
+	/** PUT /api/settings — the same isolated writer + live reload the CLI uses. */
+	async #writeRuntimeSetting(input: { key: string; value: unknown; persist: boolean }): Promise<{ key: string; value: unknown; persisted: boolean; effectiveValue?: unknown }> {
+		const response = await this.#request<{ ok?: boolean; value?: unknown; error?: string }>("PUT", "/api/settings", {
+			path: input.key,
+			value: input.value,
+		});
+		return { key: input.key, value: response.value ?? input.value, persisted: true, effectiveValue: response.value };
 	}
 
 	/** GET /api/skills + GET /api/plugins → the renderer's extensibility model. */

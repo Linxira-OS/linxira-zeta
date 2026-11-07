@@ -880,6 +880,12 @@ const zhRaw = {
     "demoRestoreToast": "演示：已执行「{desc}」"
   },
   "capabilities": {
+    "officialPack": "Zeta 官方技能",
+    "officialInstall": "安装官方技能",
+    "officialUninstall": "卸载官方技能",
+    "officialInstalled": "官方技能已安装。",
+    "officialUninstalled": "官方技能已移除（保留已修改的文件）。",
+    "officialFailed": "官方技能操作失败：{error}",
     "idaTab": "IDA",
     "title": "能力中心",
     "subtitle": "Slash 命令、技能与 MCP 工具服务",
