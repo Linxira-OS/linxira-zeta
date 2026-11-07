@@ -16,6 +16,7 @@
  *
  * Ledger: `document/agents/brand/registry.md` §「合并不许复活的删除项」.
  */
+import { existsSync, readdirSync } from "node:fs";
 import * as path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "..");
@@ -27,6 +28,22 @@ interface RemovedFile {
 }
 
 const REMOVED: RemovedFile[] = [
+	// Collab live-session sharing was fully retired on 2026-11-07. Upstream
+	// still ships it; a "take theirs" resolution must not bring any of it back.
+	{ path: "packages/coding-agent/src/collab/", why: "collab live-session sharing is retired" },
+	{ path: "packages/coding-agent/src/cli/collab-cli.ts", why: "collab CLI is retired" },
+	{ path: "packages/coding-agent/src/commands/collab.ts", why: "collab CLI command is retired" },
+	{ path: "packages/coding-agent/src/commands/join.ts", why: "collab join command is retired" },
+	{
+		path: "packages/coding-agent/src/slash-commands/builtin-collaboration.ts",
+		why: "collab slash commands are retired",
+	},
+	{ path: "packages/coding-agent/test/collab/", why: "collab tests are retired" },
+	{ path: "packages/coding-agent/test/cli/collab-cli.test.ts", why: "collab CLI tests are retired" },
+	{ path: "packages/tui/src/chat/collab-prompt-message.ts", why: "collab guest rendering is retired" },
+	{ path: "packages/tui/src/chrome/collab-qrcode.ts", why: "collab join QR rendering is retired" },
+	{ path: "packages/collab-web/", why: "browser guest client for collab is retired" },
+	{ path: "docs/collab.md", why: "collab documentation is retired" },
 	{
 		path: "packages/coding-agent/src/cli/build-service.ts",
 		why: "upstream hosted build service; Zeta builds locally and in CI",
@@ -67,13 +84,63 @@ const REMOVED: RemovedFile[] = [
 	},
 ];
 
-const hits = REMOVED.filter(entry => Bun.file(path.join(ROOT, entry.path)).size > 0);
+function isRestored(entry: RemovedFile): boolean {
+	const full = path.join(ROOT, entry.path);
+	if (entry.path.endsWith("/")) return existsSync(full) && readdirSync(full).length > 0;
+	return existsSync(full) && Bun.file(full).size > 0;
+}
+
+const hits = REMOVED.filter(isRestored);
 if (hits.length > 0) {
 	for (const hit of hits) {
 		console.log(`✗ ${hit.path} is back — ${hit.why}.`);
 	}
 	console.log(
 		`\n${hits.length} deliberately removed file(s) restored. A sync merge must keep them deleted; if this is a new decision, drop the entry here in the same commit.`,
+	);
+	process.exit(1);
+}
+
+/**
+ * Symbols that live in files Zeta still ships, so the file guard above cannot
+ * see them. A merge can re-add one without restoring any deleted file.
+ */
+interface ForbiddenSymbol {
+	path: string;
+	pattern: RegExp;
+	why: string;
+}
+
+const FORBIDDEN: ForbiddenSymbol[] = [
+	{
+		path: "packages/wire/src/index.ts",
+		pattern: /\bCOLLAB_PROTO\b|\bCOLLAB_PROMPT_MESSAGE_TYPE\b|\bParsedCollabLink\b|\bCollabUiRequest\b/,
+		why: "collab wire protocol is retired",
+	},
+	{
+		path: "packages/coding-agent/src/config/settings-schema.ts",
+		pattern: /"collab\.(?:enabled|relayUrl|webUrl|autoStart)"/,
+		why: "collab settings are retired",
+	},
+	{
+		path: "packages/coding-agent/src/cli-commands.ts",
+		pattern: /name: "collab"/,
+		why: "the collab CLI command is retired",
+	},
+];
+
+const symbolHits: string[] = [];
+for (const entry of FORBIDDEN) {
+	const full = path.join(ROOT, entry.path);
+	if (!existsSync(full)) continue;
+	const text = await Bun.file(full).text();
+	if (entry.pattern.test(text))
+		symbolHits.push(`✗ ${entry.path} still contains retired collab symbols — ${entry.why}.`);
+}
+if (symbolHits.length > 0) {
+	for (const hit of symbolHits) console.log(hit);
+	console.log(
+		`\n${symbolHits.length} shared file(s) carry retired collab symbols. A sync merge must keep the feature retired; remove them in the same commit if this is a new decision.`,
 	);
 	process.exit(1);
 }

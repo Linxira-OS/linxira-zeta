@@ -4,10 +4,8 @@ import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "
 import type { Component, Container, EditorTheme, KeyId, Loader, TUI, Spacer, Text } from "@linxiraos/pi-tui";
 import type { TspText } from "@linxiraos/pi-wire";
 import type { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
-import type { CollabController } from "../collab/controller";
 import type { BackendAttachLink } from "../backend/attach-link";
-import type { CollabGuestLink } from "../collab/guest";
-import type { CollabHost } from "../collab/host";
+import type { AgentRegistry } from "../registry/agent-registry";
 import type { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import type { TrackSegment } from "@linxiraos/pi-tui/chrome/segment-track";
 import type { Composer } from "@linxiraos/pi-tui/prompt/composer";
@@ -253,13 +251,10 @@ export interface InteractiveModeContext {
 	historyStorage?: HistoryStorage;
 	mcpManager?: MCPManager;
 	lspServers?: LspStartupServerInfo[];
-	/** Owns hosting: manual `/collab`, `collab.autoStart`, and room rotation on session switch. */
-	collabController: CollabController;
-	/** Owned room; use {@link collabController}.host for current-session reuse and links. */
-	collabHost?: CollabHost;
-	collabGuest?: CollabGuestLink;
 	/** Live client link to a session owned by a running `zetacode serve` backend. */
 	backendAttach?: BackendAttachLink;
+	/** Registry shown by the Agent Hub; defaults to the process-global registry. */
+	agentRegistry?: AgentRegistry;
 	/** Queue chips owned by the backend while attached; `undefined` reads the local session. */
 	backendQueue?: { steering: string[]; followUp: string[]; liveSteered: number };
 	eventController: EventController;

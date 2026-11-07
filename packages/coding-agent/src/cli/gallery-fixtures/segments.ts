@@ -48,7 +48,6 @@ export function createGallerySegmentContext(sessionOptions?: GallerySessionOptio
 		goalStatusInFooter: true,
 		vibeMode: null,
 		vim: null,
-		collab: { role: "host", participantCount: 3 },
 		stream: null,
 		recording: false,
 		usageStats: {
@@ -241,11 +240,6 @@ function variantsFor(id: StatusLineSegmentId): readonly SegmentVariantSpec[] {
 					label: "error",
 					context: { usage: { tier: "Pro", fiveHour: { percent: 92, resetMinutes: 75 } } },
 				},
-			];
-		case "collab":
-			return [
-				{ label: "host active", context: { collab: { role: "host", participantCount: 3 } } },
-				{ label: "guest active", context: { collab: { role: "guest", participantCount: 3 } } },
 			];
 		case "vim":
 			return [

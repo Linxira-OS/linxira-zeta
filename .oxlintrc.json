@@ -50,7 +50,7 @@
 		"packages/browser-relay/extension/**",
 		"packages/natives/native/**",
 		"packages/metaharness/adapters/**",
-		"packages/collab-web/test/**",
+		"packages/export-web/test/**",
 		"packages/stats/test/**",
 		"packages/snapcompact/research/**",
 		"packages/coding-agent/src/export/html/**",

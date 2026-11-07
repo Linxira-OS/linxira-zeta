@@ -53,8 +53,9 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
 - **冻结的是"对方契约"，不是我们的记号**（2026-11-02 裁定，此前一条笼统"保留"正是
   误扫与文档打架的根源）：
   - **绝对冻结**（改了对面就认不出）：Stencil OIDC 的 `client-id "omp"` 与 issuer/scope、
-    `catalog.stencil.so`、`docs.stencil.so/tern/protocol/`、`my.omp.sh` **仅作为中继常量**
-    （`DEFAULT_RELAY_URL`，wire 语法共享）、judgment 上行 payload 的 `__omp_judgment_images`。
+    `catalog.stencil.so`、`docs.stencil.so/tern/protocol/`、judgment 上行 payload 的
+    `__omp_judgment_images`。`my.omp.sh` 的 `DEFAULT_RELAY_URL` 随协作功能于 2026-11-07
+    完全退役，不再随包发布。
     `icon.pi`、latex π 是 pi-provider 图标，非品牌。
   - **内部标识一律 `__zeta*`**：eval 沙箱全局、注入用户页面的 global、TUI/native 握手、
     legacy 垫片标记。此前只扫了一半（`__omp_with_call_site__`、`__omp_tool_bridge__`、
@@ -65,9 +66,9 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
     （`~/.omp` 的 models/credentials/dotenv）默认**不读**：只有设置
     `compat.importLegacyOmp`（env `ZETA_OMP_COMPAT`，默认 false，env 优先）打开时
     才做只读导入（`packages/coding-agent/src/config/omp-compat.ts`）。
-  - **共享端点归台账管**：`my.omp.sh` 现仅作协作中继常量（`DEFAULT_RELAY_URL`，绝对
-    冻结，改了切断 `/join`）；分享上传面已于 2026-11-02 退役（`/share` 只把脱敏后的
-    转录稿交给 agent 走 GitHub 发布，不再上传）。`check-shared-infra` 只钉落点、
+  - **共享端点归台账管**：`my.omp.sh` 的协作中继常量随 live-session 协作于 2026-11-07
+    完全退役，产品不再发布任何中继端点；分享上传面已于 2026-11-02 退役（`/share` 只把
+    脱敏后的转录稿交给 agent 走 GitHub 发布，不再上传）。`check-shared-infra` 只钉落点、
     **不设期限**——"有门禁"不等于"会删除"。
 - **原生与外来配置分界**（2026-11-02 裁定）：`.zeta/**`、`AGENTS.md`、内置 system
   prompt 是 Zeta 的原生标准；`.claude/**`、`CLAUDE.md`、`.codex/**`、`.gemini/**`、

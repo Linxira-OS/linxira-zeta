@@ -7696,7 +7696,22 @@ replace = [{ pattern = "^.+$", replacement = "PWD" }]
 			.expect("run task")
 			.expect("shell result");
 		assert!(result.cancelled);
-		assert_eq!(fs::read_to_string(root.path().join("cleaned")).expect("TERM cleanup"), "cleaned");
+		// The trap runs `sleep 0.2` before writing, so the file may not exist
+		// yet when the cancel future settles. Poll the effect instead of
+		// assuming the child's cleanup has already completed.
+		let cleaned = time::timeout(Duration::from_secs(5), async {
+			loop {
+				if let Ok(text) = std::fs::read_to_string(root.path().join("cleaned")) {
+					if !text.is_empty() {
+						break text;
+					}
+				}
+				time::sleep(Duration::from_millis(10)).await;
+			}
+		})
+		.await
+		.expect("TERM cleanup file");
+		assert_eq!(cleaned, "cleaned");
 	}
 
 	#[cfg(unix)]

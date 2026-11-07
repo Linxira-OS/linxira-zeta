@@ -132,8 +132,8 @@
         "sherpa-onnx-node": "1.13.2",
       },
     },
-    "packages/collab-web": {
-      "name": "@linxiraos/collab-web",
+    "packages/export-web": {
+      "name": "@linxiraos/export-web",
       "version": "1.0.0",
       "dependencies": {
         "@linxiraos/pi-stats": "catalog:",
@@ -593,7 +593,7 @@
 
     "@linxiraos/browser-relay": ["@linxiraos/browser-relay@workspace:packages/browser-relay"],
 
-    "@linxiraos/collab-web": ["@linxiraos/collab-web@workspace:packages/collab-web"],
+    "@linxiraos/export-web": ["@linxiraos/export-web@workspace:packages/export-web"],
 
     "@linxiraos/pi-agent-core": ["@linxiraos/pi-agent-core@workspace:packages/agent"],
 

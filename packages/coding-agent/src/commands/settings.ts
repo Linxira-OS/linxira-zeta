@@ -10,7 +10,7 @@ export const cfgShareRedactSecrets = register({
 	default: true,
 	ui: {
 		tab: "interaction",
-		group: "Collab",
+		group: "Share",
 		label: "Share Secret Redaction",
 		description:
 			"Run the secret obfuscator over /share transcripts before they are handed to the agent (uses the secrets.* config)",

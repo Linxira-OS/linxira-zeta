@@ -630,15 +630,6 @@ export class InputController {
 				}
 				return; // double-escape backtrack (/tree, /branch) stays main-only
 			}
-			if (this.ctx.collabGuest) {
-				// Guest Esc: ask the host to interrupt its agent; the local replica
-				// session is never streaming, so the native abort path below would
-				// no-op.
-				if (this.ctx.collabGuest.state?.isStreaming || this.ctx.loadingAnimation) {
-					this.ctx.collabGuest.sendAbort();
-				}
-				return;
-			}
 			if (this.ctx.backendAttach) {
 				const backendAttach = this.ctx.backendAttach;
 				// Esc suspends a backend-owned loop exactly like the local one:
@@ -1712,33 +1703,6 @@ export class InputController {
 				}
 			}
 
-			// Collab guest: prompts execute on the host; local slash/skill/bash/
-			// python execution is host-only (builtins are gated inside
-			// executeBuiltinSlashCommand, which already consumed allowed ones).
-			if (this.ctx.collabGuest) {
-				if (text.startsWith("/")) {
-					this.ctx.showStatus(`${text.split(/\s+/, 1)[0]} is host-only during a collab session`);
-					this.ctx.editor.setText("");
-					return;
-				}
-				if (text.startsWith("!") || parsePythonCommandInput(text)) {
-					this.ctx.showStatus("Local execution is host-only during a collab session");
-					this.ctx.editor.setText("");
-					return;
-				}
-				if (this.ctx.collabGuest.readOnly) {
-					// Keep the typed text: the prompt was not consumed.
-					this.ctx.showStatus("This collab link is read-only — prompting is disabled");
-					return;
-				}
-				const images = inputImages && inputImages.length > 0 ? [...inputImages] : undefined;
-				this.ctx.editor.clearDraft(text);
-				// No local render: the prompt comes back from the host as a
-				// collab-prompt event/entry and renders with the author badge.
-				this.ctx.collabGuest.sendPrompt(text, images);
-				return;
-			}
-
 			// `side: true` file commands answer as a /btw side question: off the
 			// transcript and runnable mid-turn, so they never steer the running work.
 			// The side question carries text only, so the submitted attachments drop.
@@ -2441,10 +2405,6 @@ export class InputController {
 	}
 
 	async handleRetry(): Promise<void> {
-		if (this.ctx.collabGuest) {
-			this.ctx.showStatus("/retry is host-only during a collab session");
-			return;
-		}
 		const didRetry = await this.ctx.viewSession.retry();
 		if (didRetry) {
 			this.ctx.editor.clearDraft();
@@ -2482,14 +2442,6 @@ export class InputController {
 			detachedText?: string;
 		},
 	): Promise<void> {
-		// Queue shorthand reaches this helper before the normal guest input gate.
-		// Like /queue, it must not submit to the guest's local session.
-		if (this.ctx.collabGuest) {
-			this.ctx.showStatus("/queue is host-only during a collab session");
-			this.ctx.editor.setText(options.detachedText ?? options.historyText ?? text);
-			return;
-		}
-
 		const splitMessages = splitQueuedMessages(text);
 		if (splitMessages.length === 0 && !options.images?.length) {
 			if (options.detachedText === undefined) this.ctx.editor.clearDraft();

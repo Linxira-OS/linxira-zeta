@@ -548,7 +548,7 @@
     "gen:web-app": "bun scripts/build-web-app.ts",
     "prepack": "bun run gen:export-viewer && bun run gen:bundle && bun run gen:web-app",
     "bench:guard": "bun scripts/bench-guard.ts",
-    "gen:export-viewer": "bun --cwd=../collab-web run gen:export-viewer"
+    "gen:export-viewer": "bun --cwd=../export-web run gen:export-viewer"
   },
   "dependencies": {
     "@babel/parser": "catalog:",

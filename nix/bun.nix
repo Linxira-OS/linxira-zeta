@@ -386,7 +386,7 @@
     hash = "sha512-v/bxQNCugwAmMPbZtBGJtSu8hdQLiB1/29Jr+GBIG18DyQ4LYyp7gxQ74pkhXVSuoUeH4v+/ZHAw/SW+KMrj2g==";
   };
   "@linxiraos/browser-relay" = copyPathToStore ../packages/browser-relay;
-  "@linxiraos/collab-web" = copyPathToStore ../packages/collab-web;
+  "@linxiraos/export-web" = copyPathToStore ../packages/export-web;
   "@linxiraos/pi-agent-core" = copyPathToStore ../packages/agent;
   "@linxiraos/pi-ai" = copyPathToStore ../packages/ai;
   "@linxiraos/pi-catalog" = copyPathToStore ../packages/catalog;
