@@ -103,11 +103,11 @@ target's inbound gear. A permissive sender therefore cannot bypass a `closed`
 target. Same-workspace messaging is structural — a main may always reach its
 own subagents, and a subagent may always reach its spawning main.
 
-Every repository starts `closed` in both directions. The **default workspace**
-(`~/.zeta/workspace`) runs `open` in both directions, so it may call everyone
-and everyone may call it. A repository that only accepts `repo-main-agents`
-still accepts the default workspace's main agent; a `closed` repository accepts
-nobody.
+Every repository now starts **`open`** in both directions (2026-11-07 ruling),
+and the **default workspace** (`~/.zeta/workspace`) is always `open`, so the
+home workspace and any repository can call each other out of the box. A
+repository that wants privacy tightens either gear in its own project settings;
+both directions must permit a call, and a `closed` target still accepts nobody.
 
 Gears are advertised in the workspace's mesh directory record, so a sender can
 fail fast with a clear error. The receiving process re-checks its own settings

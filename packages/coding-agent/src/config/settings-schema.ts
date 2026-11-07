@@ -5799,7 +5799,7 @@ export const SETTINGS_SCHEMA = {
 	"mesh.inboundGear": {
 		type: "enum",
 		values: MESH_GEAR_VALUES,
-		default: "closed",
+		default: "open",
 		ui: {
 			tab: "interaction",
 			group: "Agent",
@@ -5807,7 +5807,7 @@ export const SETTINGS_SCHEMA = {
 			description:
 				"Which other workspaces may call this workspace's main agent. Stored in this workspace's project settings; the default workspace is always open.",
 			options: [
-				{ value: "closed", label: "Closed", description: "No calls from other workspaces (default)" },
+				{ value: "closed", label: "Closed", description: "No calls from other workspaces" },
 				{
 					value: "repo-main-agents",
 					label: "Default Main Only",
@@ -5831,7 +5831,7 @@ export const SETTINGS_SCHEMA = {
 	"mesh.outboundGear": {
 		type: "enum",
 		values: MESH_GEAR_VALUES,
-		default: "closed",
+		default: "open",
 		ui: {
 			tab: "interaction",
 			group: "Agent",
@@ -5839,7 +5839,7 @@ export const SETTINGS_SCHEMA = {
 			description:
 				"Which other workspaces this workspace's main agent may call. Stored in this workspace's project settings; the default workspace is always open.",
 			options: [
-				{ value: "closed", label: "Closed", description: "No calls to other workspaces (default)" },
+				{ value: "closed", label: "Closed", description: "No calls to other workspaces" },
 				{
 					value: "repo-main-agents",
 					label: "Default Main Only",

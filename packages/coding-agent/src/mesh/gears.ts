@@ -37,8 +37,15 @@ export interface MeshGears {
 	outbound: MeshGear;
 }
 
-/** Default for a repository: nobody may call in or out across workspaces. */
+/** Explicitly closed gears (a repository may still tighten itself to this). */
 export const CLOSED_MESH_GEARS: MeshGears = { inbound: "closed", outbound: "closed" };
+
+/**
+ * Default for every repository since 2026-11-07: agents may message across
+ * workspaces out of the box, like the default workspace. A repository can still
+ * tighten either gear in its project settings.
+ */
+export const DEFAULT_MESH_GEARS: MeshGears = { inbound: "open", outbound: "open" };
 
 /** The default workspace's rule: it may call everyone and everyone may call it. */
 export const OPEN_MESH_GEARS: MeshGears = { inbound: "open", outbound: "open" };
@@ -85,14 +92,14 @@ export function isMeshGear(value: unknown): value is MeshGear {
 	return typeof value === "string" && (MESH_GEAR_VALUES as readonly string[]).includes(value);
 }
 
-/** Read one gear, falling back to `closed` for anything unrecognized. */
+/** Read one gear, falling back to `open` (the repository default) for anything unrecognized. */
 export function normalizeGear(value: unknown): MeshGear {
-	return isMeshGear(value) ? value : "closed";
+	return isMeshGear(value) ? value : "open";
 }
 
-/** Defaults for a workspace root: open for the default workspace, closed otherwise. */
+/** Defaults for a workspace root: open everywhere (the default workspace is always open). */
 export function defaultGearsForRoot(workspaceRoot: string | undefined): MeshGears {
-	return workspaceRoot !== undefined && isDefaultWorkspace(workspaceRoot) ? OPEN_MESH_GEARS : CLOSED_MESH_GEARS;
+	return workspaceRoot !== undefined && isDefaultWorkspace(workspaceRoot) ? OPEN_MESH_GEARS : DEFAULT_MESH_GEARS;
 }
 
 function mergeRecords(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
@@ -119,8 +126,8 @@ export function gearsFromProjectLayer(layer: Record<string, unknown>, workspaceR
 	const record =
 		mesh !== null && typeof mesh === "object" && !Array.isArray(mesh) ? (mesh as Record<string, unknown>) : {};
 	return {
-		inbound: normalizeGear(record.inboundGear),
-		outbound: normalizeGear(record.outboundGear),
+		inbound: record.inboundGear === undefined ? "open" : normalizeGear(record.inboundGear),
+		outbound: record.outboundGear === undefined ? "open" : normalizeGear(record.outboundGear),
 	};
 }
 

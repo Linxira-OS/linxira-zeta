@@ -5287,7 +5287,7 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"mesh.inboundGear::closed": {
 		label: "关闭",
-		description: "不接受其他工作区的调用（默认）",
+		description: "不接受其他工作区的调用",
 	},
 	"mesh.inboundGear::repo-main-agents": {
 		label: "仅默认主智能体",
@@ -5303,11 +5303,11 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"mesh.inboundGear::open": {
 		label: "开放",
-		description: "所有工作区都可以呼入，包括默认工作区的子智能体",
+		description: "所有工作区都可以呼入，包括默认工作区的子智能体（默认）",
 	},
 	"mesh.outboundGear::closed": {
 		label: "关闭",
-		description: "不向其他工作区发起调用（默认）",
+		description: "不向其他工作区发起调用",
 	},
 	"mesh.outboundGear::repo-main-agents": {
 		label: "仅默认主智能体",
@@ -5323,7 +5323,7 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"mesh.outboundGear::open": {
 		label: "开放",
-		description: "可以调用所有工作区，包括默认工作区的子智能体",
+		description: "可以调用所有工作区，包括默认工作区的子智能体（默认）",
 	},
 	"providers.unexpectedStopModel::online": {
 		label: "在线（TINY 角色，否则 @smol）",
