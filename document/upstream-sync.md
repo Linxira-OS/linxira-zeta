@@ -2694,14 +2694,17 @@ This is an attribution obligation, not a claim that upstream endorses Zeta.
 
 ## Current Baselines
 
-- OMP: `v18.15.0` (`3fedf8d53267e32a6d7521ce725fdcc4a36fdc67`; integrated
-  into `main` by merge `2fffbf6b95a`). Previous values were `v18.14.2`
-  (`7efd77219374ca4e8767979809835e4aa90666ba`, merge `264ea62c460`) and
-  `v18.14.1` (`c29f7c56f553`, merge `0b9cdb21e43`). One tag per release, each
-  on its own `sync/omp-release/*` branch; `v18.16.0` is in flight on
-  `sync/omp-release/v18.16.0`.
-- Zeta: `1.4.8` (version line holds across the published `@linxiraos/*`
-  packages, the Cargo workspace and the natives stamp; tag not released yet).
+- OMP: `v18.18.0` (`b5a6b2f7e5b6606b6562e678ead83f21738f34a0`; integrated on
+  `sync/omp-release/v18.18.0` by merge `ba08701454e`, with `main`
+  (`78aae45a933`) merged in afterwards as `0cc3f24f623`; awaiting push/CI).
+  Previous value was `v18.16.0` (`650f3a108229ee11bf68ba3377f4e8c3391cd424`,
+  baseline for the incremental merge, integrated into `main` by merge
+  `dc0d77f037c`), then `v18.15.0` (`3fedf8d53267`, merge `2fffbf6b95a`),
+  `v18.14.2` (`7efd77219374`, merge `264ea62c460`) and `v18.14.1`
+  (`c29f7c56f553`, merge `0b9cdb21e43`). One tag per release, each on its own
+  `sync/omp-release/*` branch.
+- Zeta: `1.4.11` (version line holds across the published `@linxiraos/*`
+  packages, the Cargo workspace and the natives stamp).
 - termide (IDE upstream): `0.46.0` (`a027ca788cd4`), merged as `15161f686fb`
   (`vendor/termide-0.46.0`). 0.47.0 / 0.47.1 / 0.48.0 exist upstream and are
   **not** integrated — `0.47.1` is a zip path-traversal security fix.
@@ -2713,8 +2716,8 @@ This is an attribution obligation, not a claim that upstream endorses Zeta.
   `0.46.0..0.48.0` diff (notably `src/main.rs`, terminal parser/render and
   `crates/app`), so replay and binary rebuilds must be budgeted; do not mix it
   into the `v18.16.0` sync branch.
-- In flight: none — `sync/omp-release/18.14.2` merged as `264ea62c460`;
-  delete the branch after the CI run.
+- In flight: `sync/omp-release/v18.18.0` (merge `ba08701454e` + main merge
+  `0cc3f24f623`), pushed for CI. Delete the branch after it merges to `main`.
 
 ### Zeta-side flake hardening（2026-10-17）
 
@@ -2979,3 +2982,61 @@ observation points moved onto the state each assertion actually depends on.
   from the main checkout (damage class 5); `out-replies.test.ts` fails its temp
   cleanup with `EBUSY` on Windows only; the four `judgment-chain` cache tests time
   out on `main` as well.
+
+## v18.18.0 integration (2026-11-08)
+
+- **Tag-to-tag scope (no branch heads)**: baseline `v18.16.0`
+  (`650f3a108229ee11bf68ba3377f4e8c3391cd424`, confirmed ancestor of the
+  pre-merge branch tip `906afcc54b4`) → source tag `v18.18.0`
+  (`b5a6b2f7e5b6606b6562e678ead83f21738f34a0`; `git ls-remote` re-checked
+  before and at merge start, unchanged). Range
+  `v18.16.0..v18.18.0`: **792 commits / 2,654 files,
+  +426,480 / −91,160** (`git log --oneline` and `git diff --stat` saved to
+  `temp/tagrange_log.txt` / `temp/tagrange_diffstat.txt` during the run).
+- **Merge commits**: source-tag merge `ba08701454e` (parents
+  `906afcc54b4` + `b5a6b2f7e5`), then local `main` (`78aae45a933`, PRs #243
+  collab retirement + #244 export-viewer metadata) merged as
+  `0cc3f24f623` (parents `ba08701454e` + `78aae45a933`). True merges, no
+  squash/rebase/cherry-pick; `git merge-base --is-ancestor v18.18.0 HEAD`
+  holds.
+- **Conflicts**: 317 files for the tag merge — 261 content conflicts, 55
+  modify/delete (upstream deleted files Zeta had only rustfmt-reflowed:
+  `crates/pi-builtins/*`, `crates/vendor/brush-core/*`; deletion accepted),
+  1 delete/modify (`README.zh-CN.md`, Zeta deletion kept). Resolution used a
+  scope/brand-normalized three-way merge plus per-hunk resolution: adopted
+  upstream's `AgentSessionHandle`/`Agent*Api`/`IrcBusApi`/`AsyncJobManagerApi`
+  cross-thread proxy split, spotlight shaping/ingest, `VersionUpdate` welcome
+  indicator and new auth/catalog rules; kept Zeta's release-asset self-update
+  (reshaped onto upstream's `UpdateOptions`/`UpdateOutcome`/`canSelfUpdate`
+  API) plus the desktop update path, mesh IRC/cross-workspace behaviour,
+  sidebar/i18n surfaces and the plugin discovery/lockfile logic (no conflicts
+  landed under `extensibility/plugins` or `discovery`; no upstream read-compat
+  was restored). 20 further conflicts for the `main` merge (10 content,
+  10 modify/delete): collab retirement wins (collab modules/tests/wire
+  envelope/links removed), upstream shell-trace/viz wire exports and presenter
+  hooks kept, main's TERM-cleanup polling fix ported into the split
+  `crates/pi-shell/src/shell/tests/session.rs`.
+- **Generated artifacts**: `bun.lock` (bun install), `viewer.generated.json`
+  (`gen:export-viewer` now from `packages/export-web`), `nix/bun.nix`
+  (bun2nix 2.1.2, isolated temp install — not added as a dependency),
+  `Cargo.lock` (upstream lock + workspace crate versions 1.4.11), compat
+  `rules.json` (upstream v18.18 artifact patched for the two Zeta-only KDL
+  deltas: `providers.baseten.defaultModel=moonshotai/Kimi-K3` and
+  `auth.openai-codex.login.authorizeParams.originator=zeta`; stencil.kdl
+  change is comment-only). `auth-ids.ts`/`provider-ids.ts` match the compiled
+  counts (102 auth ids / 91 providers).
+- **Gates**: `check-version-consistency` OK at 1.4.11; `check-zeta-sentinels`
+  119 verified; `brand-check` 0 hits; `check-scope-imports` 22,257
+  specifiers resolve; `check:types` green for `packages/ai` (3,588 files) and
+  `packages/coding-agent` (5,435 files); `check-package-json-merge --base
+  906afcc54b4` OK; `cargo fmt --all --check` green; no conflict markers in
+  `HEAD`.
+- **Environment limits (not merge damage)**: this host has no MSVC toolchain —
+  `link.exe` resolves to Git's GNU `link`, so Rust build scripts cannot link
+  and `packages/natives/native` has no `.node` addon; bazel also failed to
+  download the rules_rust nightly toolchain (`static.rust-lang.org` connect
+  timeout). Consequences: `bun test` suites that import `@linxiraos/pi-natives`
+  fail at import, `gen:compat` cannot run (rules.json handled as above), Rust
+  is checked by `cargo fmt` only, and `MODULE.bazel.lock` was not regenerated
+  (upstream's retained). Run `gen:compat`, `cargo check`, the full suite and a
+  bazel lock refresh on Linux/CI before merging to `main`.
