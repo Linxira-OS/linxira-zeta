@@ -1566,11 +1566,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"当 cmux socket 可用时，使用 cmux WKWebView 表面进行浏览器自动化。可设置 PI_BROWSER_CMUX=0 或 PI_BROWSER_CMUX=1 覆盖。",
 	},
-	"browser.tern": {
-		label: "Tern 浏览器",
-		description:
-			"在 Tern 窗格内，以画中画形式（原生 Web 视图）在窗格上方打开浏览器标签页，而不是无头 Chromium；没有可承载的 Tern 窗口时回退到 Chromium。显式 app 选项、中继与浏览器 CDP 地址优先；headed:false 或 app.tern:false 可让某个打开的标签页退出此模式。可设置 PI_BROWSER_TERN=0 或 PI_BROWSER_TERN=1 覆盖。",
-	},
 	"browser.freezeOnTurnEnd": {
 		label: "轮结束时冻结浏览器标签页",
 		description:

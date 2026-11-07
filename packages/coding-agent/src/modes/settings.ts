@@ -260,7 +260,7 @@ export const cfgStatusLineCompactThinkingLevel = register({
 		group: "Status Line",
 		label: "Compact Thinking Level",
 		description:
-			"Show the thinking level as a single icon on the model name instead of a separate ` · <level>` suffix; in Tern's composer, as the model chip's icon instead of a separate chip (click the icon to cycle it).",
+			"Show the thinking level as a single icon on the model name instead of a separate ` · <level>` suffix; in a native TSP composer, as the model chip's icon instead of a separate chip (click the icon to cycle it).",
 	},
 });
 
@@ -412,7 +412,7 @@ export const cfgTerminalShowProgress = register({
 		group: "Display",
 		label: "Native Terminal Progress",
 		description:
-			"Emit OSC 9;4 indeterminate progress while the agent or context maintenance is running (always on in Tern)",
+			"Emit OSC 9;4 indeterminate progress while the agent or context maintenance is running (always on in a native TSP host)",
 	},
 });
 
