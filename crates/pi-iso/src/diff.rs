@@ -284,10 +284,10 @@ fn walk_diff_blocking(lower: &Path, merged: &Path) -> IsoResult<Diff> {
 		}
 	}
 	for rel in lower_index.keys() {
-		if !merged_index.contains_key(rel) {
-			if let Some(change) = plain_change(lower, rel, ChangeKind::Removed, None)? {
-				files.push(change);
-			}
+		if !merged_index.contains_key(rel)
+			&& let Some(change) = plain_change(lower, rel, ChangeKind::Removed, None)?
+		{
+			files.push(change);
 		}
 	}
 
