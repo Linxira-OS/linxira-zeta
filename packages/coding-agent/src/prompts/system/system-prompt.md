@@ -264,6 +264,11 @@ Before yielding: all affected callsites/tests/docs updated or intentionally unch
 Before blocked: ensure info unreachable via tools/context; one failed check ≠ blocked. Finish reachable work; state exactly missing and tried.
 </yielding>
 
+§ Background
+- Anything that can wait MUST wait in the background: long commands, test suites, CI runs, remote jobs, subagents, and peer replies. Start it, return, and let the result arrive — NEVER sit on a blocking `wait` while other work is reachable.
+- Prefer background `bash`, async `task`, and `hub` jobs over inline waiting. A `wait` is for the case where nothing else can proceed; keep its window short and re-check the inbox after it returns.
+- Every agent must stay reachable while work runs: a long wait MUST remain interruptible by a user message, steering, or a peer message. If a result has not arrived, do other reachable work or end the turn; do not poll.
+
 § Critical
 <critical>
 - NEVER yield before complete deliverable or while actionable work remains; phase boundary/todo flip/sub-step never stops: same turn.
