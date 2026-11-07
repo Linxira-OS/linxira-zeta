@@ -28,7 +28,9 @@ export default class Gc extends Command {
 		"stale-retain-newest": Flags.integer({
 			description: "Always keep this many newest debug reports and legacy collaboration replicas",
 		}),
-		"stale-retain-days": Flags.integer({ description: "Minimum debug report/legacy collaboration replica age before pruning" }),
+		"stale-retain-days": Flags.integer({
+			description: "Minimum debug report/legacy collaboration replica age before pruning",
+		}),
 		"compress-after-days": Flags.integer({ description: "Minimum idle days before compressing a session" }),
 	};
 
