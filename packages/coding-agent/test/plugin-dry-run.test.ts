@@ -77,7 +77,7 @@ describe("plugin --dry-run beyond install, uninstall and link", () => {
 		spyOn(piUtils, "getPluginsDir").mockReturnValue(pluginsDir);
 		spyOn(piUtils, "getPluginsNodeModules").mockReturnValue(path.join(pluginsDir, "node_modules"));
 		spyOn(piUtils, "getPluginsPackageJson").mockReturnValue(path.join(pluginsDir, "package.json"));
-		spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(pluginsDir, "omp-plugins.lock.json"));
+		spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(pluginsDir, "zeta-plugins.lock.json"));
 		spyOn(piUtils, "getMarketplacesRegistryPath").mockReturnValue(path.join(root, "state", "marketplaces.json"));
 		spyOn(piUtils, "getProjectDir").mockReturnValue(projectDir);
 		spyOn(piUtils, "getProjectPluginOverridesPath").mockReturnValue(
@@ -92,7 +92,7 @@ describe("plugin --dry-run beyond install, uninstall and link", () => {
 		// An npm-installed plugin as package.json records it, for the npm/git upgrade path.
 		await Bun.write(
 			path.join(pluginsDir, "package.json"),
-			JSON.stringify({ name: "omp-plugins", private: true, dependencies: { "remote-pkg": "^1.0.0" } }),
+			JSON.stringify({ name: "zeta-plugins", private: true, dependencies: { "remote-pkg": "^1.0.0" } }),
 		);
 		// A linked local plugin with a feature and a setting, for enable/features/config.
 		const linkedDir = path.join(root, LINKED);
@@ -101,7 +101,7 @@ describe("plugin --dry-run beyond install, uninstall and link", () => {
 			JSON.stringify({
 				name: LINKED,
 				version: "1.0.0",
-				omp: {
+				zeta: {
 					features: { search: { description: "search", default: false } },
 					settings: { apiKey: { type: "string", description: "key" } },
 				},

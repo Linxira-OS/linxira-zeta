@@ -171,7 +171,7 @@ export type AsyncJobManagerProtocol = {
 	widgetForget: RpcMethod<[jobId: string], void>;
 };
 
-const SHUTDOWN_SENTINEL_KEY = "__ompAsyncJobManagerShutdown";
+const SHUTDOWN_SENTINEL_KEY = "__zetaAsyncJobManagerShutdown";
 
 /** Abort reason as it can cross: the shutdown symbol becomes a sentinel, other symbols their description. */
 export function toWireReason(reason: unknown): unknown {

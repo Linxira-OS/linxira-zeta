@@ -8,7 +8,7 @@ import { runSearchCommand } from "../../../src/cli/web-search-cli";
 import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
 
 const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
-const originalOmpProfile = process.env.OMP_PROFILE;
+const originalOmpProfile = process.env.ZETA_PROFILE;
 const originalPiProfile = process.env.PI_PROFILE;
 
 let tempAgentDir: TempDir | undefined;
@@ -63,7 +63,7 @@ afterEach(async () => {
 	resetSettingsForTest();
 	process.exitCode = originalExitCode;
 	restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
-	restoreEnv("OMP_PROFILE", originalOmpProfile);
+	restoreEnv("ZETA_PROFILE", originalOmpProfile);
 	restoreEnv("PI_PROFILE", originalPiProfile);
 	__resetDirsFromEnvForTests();
 	// runSearchCommand opens <agentDir>/models.db; Windows cannot delete an open database.

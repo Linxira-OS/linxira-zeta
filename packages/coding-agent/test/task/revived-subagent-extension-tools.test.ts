@@ -26,7 +26,7 @@ import { localSession } from "../helpers/local-session";
 
 const AGENT_ID = "ReviveTools";
 const MOCK_API_SOURCE = "test/revived-subagent-extension-tools";
-const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE"] as const;
 let savedEnv: Record<string, string | undefined> = {};
 let root: string;
 

@@ -8,8 +8,8 @@ interface QueryRoot {
 }
 
 // Each handler is serialized with `Function.prototype.toString()` — by Puppeteer's custom query
-// handler registry and by the Tern page kit — so it MUST stay self-contained: no references to
-// module scope, imports, or other handlers.
+// handler registry — so it MUST stay self-contained: no references to module scope, imports, or
+// other handlers.
 
 /**
  * `label/` handler: controls whose `<label>` text, `aria-label`, or `aria-labelledby` text contains the
@@ -145,7 +145,7 @@ export function queryByRole(node: QueryNode, selector: string): Element[] {
 		/^(?:button|cell|checkbox|columnheader|gridcell|heading|link|menuitem|menuitemcheckbox|menuitemradio|option|radio|row|rowheader|switch|tab|tooltip|treeitem)$/.test(
 			wantedRole,
 		);
-	// Text as the accessibility tree reads it (as the Tern kit's `contentText`): hidden subtrees and
+	// Text as the accessibility tree reads it: hidden subtrees and
 	// `visibility: hidden` text skipped, block children spaced apart, a child's `aria-labelledby` text,
 	// `aria-label`, an image's `alt` or an embedded control's value in place of its content. `skip` is the
 	// element being named, so a label around a field does not repeat the field's own value. `visibility`

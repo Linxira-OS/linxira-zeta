@@ -17,6 +17,7 @@ import { openPath } from "../../utils/open";
 import { logger } from "@linxiraos/pi-utils";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { Settings } from "../../config/settings";
+import { installOfficialSkills, uninstallOfficialSkills } from "../../discovery/official-skills";
 import {
 	DefaultResourceLoader,
 	type Skill as LoaderSkill,
@@ -165,6 +166,29 @@ export async function handleSkillsPatch(req: Request): Promise<Response> {
 		return json({ success: true });
 	} catch (e) {
 		return json({ error: String(e) }, 500);
+	}
+}
+
+// POST /api/skills/official  body: { action: "install" | "uninstall" }
+//
+// Explicit operator action only: no postinstall, no automatic provisioning.
+// Install copies the bundled Zeta official pack into the user skills dir;
+// uninstall removes only files this process still owns (edited files are kept).
+export async function handleSkillsOfficial(req: Request): Promise<Response> {
+	if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+	try {
+		const body = (await req.json().catch(() => ({}))) as { action?: unknown };
+		if (body.action === "install") {
+			const result = installOfficialSkills({ mode: "explicit" });
+			if (result === null) return json({ error: "No bundled official skills pack is available." }, 404);
+			return json({ ok: true, action: "install", result });
+		}
+		if (body.action === "uninstall") {
+			return json({ ok: true, action: "uninstall", result: uninstallOfficialSkills() });
+		}
+		return json({ error: "action must be install or uninstall" }, 400);
+	} catch (error) {
+		return json({ error: error instanceof Error ? error.message : String(error) }, 500);
 	}
 }
 

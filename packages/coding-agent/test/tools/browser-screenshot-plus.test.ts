@@ -20,7 +20,6 @@ function createHost() {
 			"browser.enabled": true,
 			"browser.headless": true,
 			"browser.cmux": false,
-			"browser.tern": false,
 			"tools.maxTimeout": 0,
 		}),
 	};
@@ -216,7 +215,7 @@ button { margin: 80px; width: 180px; height: 60px; }
 		async scale => {
 			// Backend overrides would send this open to a relay or cmux surface instead of headless Chromium.
 			const savedEnv = { ...process.env };
-			for (const key of ["PI_BROWSER_RELAY", "PI_BROWSER_CMUX", "PI_BROWSER_TERN"]) delete process.env[key];
+			for (const key of ["PI_BROWSER_RELAY", "PI_BROWSER_CMUX"]) delete process.env[key];
 			const invoke = createHost();
 			const name = `screenshot-click-factor-${crypto.randomUUID()}`;
 			const html = `<!doctype html><html><head><style>

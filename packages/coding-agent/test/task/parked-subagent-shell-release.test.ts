@@ -24,7 +24,7 @@ const AGENT_ID = "ParkedShell";
 const MOCK_API_SOURCE = "test/parked-subagent-shell-release";
 const CHECK_PROMPT = "check the shell";
 
-const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE"] as const;
 let savedEnv: Record<string, string | undefined> = {};
 let root: string;
 

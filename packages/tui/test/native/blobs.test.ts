@@ -51,7 +51,7 @@ describe("native image blob lifetime", () => {
 					XDG_CACHE_HOME: root.join("cache"),
 					PI_TUI_NATIVE: "1",
 				};
-				delete env.OMP_PROFILE;
+				delete env.ZETA_PROFILE;
 				delete env.PI_PROFILE;
 				await Promise.all(
 					["config", "agent", "session-owners", "xdg-config", "data/omp", "state/omp", "cache/omp"].map(dir =>

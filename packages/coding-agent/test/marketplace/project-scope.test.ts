@@ -196,7 +196,7 @@ describe("resolveActiveProjectRegistryPath", () => {
 		);
 		await Bun.write(
 			path.join(pluginDir, "package.json"),
-			JSON.stringify({ name: "omp-project-agent", version: "1.0.0", omp: { tools: "tools" } }),
+			JSON.stringify({ name: "omp-project-agent", version: "1.0.0", zeta: { tools: "tools" } }),
 		);
 		vi.spyOn(os, "homedir").mockReturnValue(home);
 		vi.spyOn(piUtils, "getAgentDir").mockReturnValue(path.join(home, ".zeta", "agent"));

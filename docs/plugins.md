@@ -40,10 +40,8 @@ Project scope (created by an explicit `--scope project` marketplace install, or 
   node_modules/<package>       # symlink into the shared plugin cache
 ```
 
-`zeta-plugins.lock.json` is the canonical name every writer targets. A plugin
-root that predates the rename still holds `omp-plugins.lock.json`: it is read as
-the fallback and migrated to the canonical name on the first read (see
-[the lockfile note](#the-lockfile-name)).
+`zeta-plugins.lock.json` is the canonical name every writer targets and every
+reader asks for. A pre-rename `omp-plugins.lock.json` is **not** read.
 
 `.zeta` here is the config-dir name, so `ZETA_CONFIG_DIR=<name>` moves the project tree to `<project>/<name>/plugins` as well. The value is a **relative** directory name under the user's home; absolute paths and `..` are rejected instead of being re-joined to home.
 
@@ -257,10 +255,10 @@ It builds a synthetic root (`<name>@__local__`, origin `plugin-dir`, name read f
 
 An enabled plugin contributes through two independent channels:
 
-1. **Directory convention.** The plugin's package directory is an extension-package root, so the sibling directories are scanned: `skills/<name>/SKILL.md` (verified end-to-end), and — per `packages/coding-agent/src/discovery/omp-plugins.ts` — `hooks/pre/`, `hooks/post/`, `commands/`, `rules/`, `prompts/`, `tools/`, `.mcp.json`. Skills only load from an immediate child directory; `pi-messenger`'s `skills/pi-messenger-crew/SKILL.md` is what shows up as the `pi-messenger-crew` skill.
+1. **Directory convention.** The plugin's package directory is an extension-package root, so the sibling directories are scanned: `skills/<name>/SKILL.md` (verified end-to-end), and — per `packages/coding-agent/src/discovery/zeta-plugins.ts` — `hooks/pre/`, `hooks/post/`, `commands/`, `rules/`, `prompts/`, `tools/`, `.mcp.json`. Skills only load from an immediate child directory; `pi-messenger`'s `skills/pi-messenger-crew/SKILL.md` is what shows up as the `pi-messenger-crew` skill.
 2. **`extensions` entry points.** Each `extensions` path is imported as an extension module and its default factory registers tools, slash commands, hooks, renderers, and shortcuts. A failure to import one module does not stop other plugins from loading, but it does mean *none* of that plugin's registered surface exists — the plugin stays listed as installed while contributing nothing, and only the extension-error list says why. `zetacode plugin doctor` checks that each declared entry exists on disk, not that it imports.
 
-The provider that serves channel 1 for installed plugins is `zeta-plugins` (priority 90, formerly `omp-plugins`); `--plugin-dir` and marketplace-registry roots are served by `claude-plugins` (70); a root `plugin.json` with the Agent Plugins `$schema` hands `skills/` and `mcp.json` to `agent-plugins` (75). See [`skills.md`](./skills.md#built-in-skill-providers-and-precedence) for the full skill precedence table.
+The provider that serves channel 1 for installed plugins is `zeta-plugins` (priority 90, formerly `zeta-plugins`); `--plugin-dir` and marketplace-registry roots are served by `claude-plugins` (70); a root `plugin.json` with the Agent Plugins `$schema` hands `skills/` and `mcp.json` to `agent-plugins` (75). See [`skills.md`](./skills.md#built-in-skill-providers-and-precedence) for the full skill precedence table.
 
 Refresh behavior after a change: `/reload-plugins` re-runs discovery for skills, task agents, and slash commands in a live TUI session; a newly installed extension module's tools/hooks need a session restart. Same rule as marketplace installs — see [`marketplace.md`](./marketplace.md).
 
@@ -297,19 +295,15 @@ Verified against this tree; each is reported rather than worked around here.
 
 2. **A lockfile entry without a `package.json` dependency and without a symlink is skipped** as stale (`loader.ts:229-231`), so an npm-installed plugin whose dependency entry was removed silently stays unloaded while `zeta-plugins.lock.json` still records it.
 
-3. **A pre-rename lockfile is healed on read, not on write.** Both lockfile spellings are read, and the loader's migrating read moves the legacy file to `zeta-plugins.lock.json`. `zetacode plugin enable/disable/config` rewrites the canonical file but leaves a stale `omp-plugins.lock.json` beside it — readers prefer the canonical file, so the stale copy is inert, and the next session drops it. See [the lockfile name](#the-lockfile-name).
+3. **The pre-rename lockfile is not read.** Only `zeta-plugins.lock.json` is read; an old `omp-plugins.lock.json` is inert and ignored.
 
 ## The lockfile name
 
 The plugin lockfile is `zeta-plugins.lock.json` in every scope. It carries
-per-plugin runtime state (enabled flag, feature selection, versions), so the
-rename has a read-old path rather than a reset:
+per-plugin runtime state (enabled flag, feature selection, versions).
 
-- `omp-plugins.lock.json` is the pre-rename spelling. It is still read
-  (`pluginsLockfileReadOrder` in `packages/utils/src/dirs.ts` returns the
-  canonical name first, the legacy name second) and is migrated to the canonical
-  name — content carried forward, legacy file removed — on the loader's first
-  read.
+- Only `zeta-plugins.lock.json` is read. The pre-rename `omp-plugins.lock.json`
+  is not consulted.
 - Every writer targets the canonical name, so `zetacode plugin link/install/
   enable/disable/config` and marketplace installs all record into
   `zeta-plugins.lock.json`.

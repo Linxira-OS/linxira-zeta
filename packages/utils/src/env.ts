@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { parseEnv } from "node:util";
-import { getActiveProfile, getAgentDir, getConfigRootDir, getProjectDir, refreshDirsFromEnv } from "./dirs";
+import { getAgentDir, getConfigRootDir, getProjectDir, refreshDirsFromEnv } from "./dirs";
 import { isBunTestRuntime } from "./test-runtime";
 
 export * from "./test-runtime";
@@ -134,7 +134,7 @@ function readLaunchEnv(): ReadonlyMap<string, string> | undefined {
 }
 
 const launchEnvValues = readLaunchEnv();
-const projectEnvNamesLoadedByOmp = new Set<string>();
+const projectEnvNamesLoadedFromDotenv = new Set<string>();
 
 function expandDotenvValues(values: Record<string, string>, env: Record<string, string>): Record<string, string> {
 	const expanded: Record<string, string> = {};
@@ -215,7 +215,7 @@ function filterChildShellEnvInternal(
 			}
 			continue;
 		}
-		if (runtimeLaunchEnvValues || projectEnvNamesLoadedByOmp.has(key)) {
+		if (runtimeLaunchEnvValues || projectEnvNamesLoadedFromDotenv.has(key)) {
 			// Strong provenance: the launch environment is known and this name is
 			// absent from it, or OMP itself injected the value — either way it came
 			// from a project dotenv file, not the parent shell.
@@ -278,56 +278,11 @@ export function parseEnvFile(filePath: string): Record<string, string> {
 	return result;
 }
 
-// Read-only compatibility with the old OMP agent directory. Off by default:
-// external OMP configuration must be explicitly imported. Set
-// ZETA_OMP_COMPAT=1 in the shell or a Zeta dotenv file to enable both the
-// legacy dotenv fallback and the models.yml/agent.db overlay.
-export function isOmpCompatEnabled(env: Record<string, string | undefined> = Bun.env): boolean {
-	const value = env.ZETA_OMP_COMPAT;
-	if (!value) return false;
-	const normalized = value.toLowerCase();
-	return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
-}
-
-function loadLegacyOmpEnv(): Record<string, string> {
-	const home = os.homedir();
-	const project = getProjectDir();
-	const profile = getActiveProfile();
-	const files = [
-		{ file: path.join(home, ".omp", ".env"), project: false },
-		{ file: path.join(home, ".omp", "agent", ".env"), project: false },
-		...(profile ? [{ file: path.join(home, ".omp", "profiles", profile, "agent", ".env"), project: false }] : []),
-		{ file: path.join(project, ".omp", ".env"), project: true },
-		{ file: path.join(project, ".omp", "agent", ".env"), project: true },
-	];
-	const merged: Record<string, string> = {};
-	const seen = new Set<string>();
-	for (const { file, project: projectFile } of files) {
-		if (seen.has(file)) continue;
-		seen.add(file);
-		for (const [key, value] of Object.entries(parseEnvFile(file))) {
-			merged[key] = value;
-			if (projectFile) projectEnvNamesLoadedByOmp.add(key);
-		}
-	}
-	return merged;
-}
-
 // Eagerly parse the user's $HOME/.env and the current project's .env (from cwd)
 const homeEnv = parseEnvFile(path.join(os.homedir(), ".env"));
 const piEnv = parseEnvFile(path.join(getConfigRootDir(), ".env"));
 const agentEnv = parseEnvFile(path.join(getAgentDir(), ".env"));
 const projectEnv = parseEnvFile(path.join(getProjectDir(), ".env"));
-// The switch itself may come from the shell or any Zeta dotenv file. Check the
-// same precedence before touching legacy OMP files; do not read them by default.
-const ompCompatValue =
-	Bun.env.ZETA_OMP_COMPAT ??
-	projectEnv.ZETA_OMP_COMPAT ??
-	agentEnv.ZETA_OMP_COMPAT ??
-	piEnv.ZETA_OMP_COMPAT ??
-	homeEnv.ZETA_OMP_COMPAT;
-const legacyOmpEnabled = isOmpCompatEnabled({ ZETA_OMP_COMPAT: ompCompatValue });
-const legacyOmpEnv = legacyOmpEnabled ? loadLegacyOmpEnv() : {};
 
 for (const key of Object.keys(Bun.env)) {
 	const value = Bun.env[key];
@@ -341,12 +296,12 @@ function mergeDotenvIntoProcess(file: Record<string, string>): void {
 	for (const key in file) {
 		if (!isMacosMallocStackLoggingEnvName(key) && !Bun.env[key]) {
 			Bun.env[key] = file[key];
-			if (file === projectEnv) projectEnvNamesLoadedByOmp.add(key);
+			if (file === projectEnv) projectEnvNamesLoadedFromDotenv.add(key);
 		}
 	}
 }
 
-for (const file of [projectEnv, agentEnv, piEnv, homeEnv, legacyOmpEnv]) mergeDotenvIntoProcess(file);
+for (const file of [projectEnv, agentEnv, piEnv, homeEnv]) mergeDotenvIntoProcess(file);
 
 // Directory-affecting keys (XDG_*_HOME, and in default mode ZETA_CODING_AGENT_DIR)
 // may have just arrived from the profile/agent `.env` applied above. The dirs
@@ -354,23 +309,6 @@ for (const file of [projectEnv, agentEnv, piEnv, homeEnv, legacyOmpEnv]) mergeDo
 // it now from the updated env. `getAgentDir()` already located the `.env` from
 // the profile name + home, so this re-reads only the directory vars.
 refreshDirsFromEnv();
-
-let legacyOmpEnvApplied = legacyOmpEnabled;
-
-/**
- * Apply the legacy OMP dotenv files on demand.
- *
- * The eager pass above only sees `ZETA_OMP_COMPAT` from the shell or a Zeta
- * dotenv file. A host that resolves the persisted `compat.importLegacyOmp`
- * setting calls this once its settings layer is loaded. Idempotent, and it
- * never overwrites a name the process already has.
- */
-export function applyLegacyOmpEnv(): void {
-	if (legacyOmpEnvApplied) return;
-	legacyOmpEnvApplied = true;
-	mergeDotenvIntoProcess(loadLegacyOmpEnv());
-	refreshDirsFromEnv();
-}
 
 /**
  * Intentional re-export of Bun.env.

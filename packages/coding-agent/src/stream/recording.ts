@@ -5,15 +5,15 @@
  * normalized, redacted screen frames {@link StreamPaintEncoder} produces for
  * live viewers, stamped with their offset from the start of the recording.
  *
- * File format (`.ompcast`, JSON Lines, asciicast-like):
+ * File format (`.zetacast`, JSON Lines, asciicast-like):
  *
  * ```text
- * {"ompcast":1,"cols":120,"rows":40,"title":"pi","createdAt":"2026-09-22T10:00:00.000Z"}
+ * {"zetacast":1,"cols":120,"rows":40,"title":"pi","createdAt":"2026-09-22T10:00:00.000Z"}
  * [0,{"t":"viewport","rows":["…","…"]}]
  * [51,{"t":"patch","ops":[[39,"…"]],"rows":40}]
- * [880,{"t":"history","rows":["…"]}]
+ * [880,{"t":"history","rows":["…","…"]}]
  * ```
- *
+
  * Line 1 is the header; every following line is `[ms, frame]` where `frame` is
  * a {@link StreamScreenFrame}. A truncated final line (recorder killed
  * mid-write) is ignored on load.
@@ -29,19 +29,6 @@ import type { StreamRedactor } from "./redactor";
 
 export const RECORDING_VERSION = 1;
 export const RECORDING_EXTENSION = ".zetacast";
-
-/**
- * Header key written by versions before the `.ompcast` -> `.zetacast` rename.
- * Kept readable so recordings captured by an older install still play after an
- * in-place upgrade; new files always carry the canonical key.
- */
-const LEGACY_RECORDING_KEY = "ompcast";
-/** Extension written before the rename; still listed so old clips stay reachable. */
-const LEGACY_RECORDING_EXTENSION = ".ompcast";
-
-function isRecordingFilename(name: string): boolean {
-	return name.endsWith(RECORDING_EXTENSION) || name.endsWith(LEGACY_RECORDING_EXTENSION);
-}
 
 /** First line of a recording file. */
 export interface RecordingHeader {
@@ -69,13 +56,11 @@ export interface Recording {
 
 /** Directory `/record` writes into (temporary storage for now). */
 export function recordingsDir(): string {
-	// `zeta-`, like the `.zetacast` extension next to it: the `.ompcast` ->
-	// `.zetacast` rename left this directory behind, and the path is printed in
-	// the user-facing "no recordings in …" message.
+	// `zeta-`, like the `.zetacast` extension next to it.
 	return path.join(os.tmpdir(), "zeta-recordings");
 }
 
-/** Fresh, sortable recording path for one session: `<recordingsDir>/<utc-stamp>-<session>.ompcast`. */
+/** Fresh, sortable recording path for one session: `<recordingsDir>/<utc-stamp>-<session>.zetacast`. */
 export function newRecordingPath(sessionId: string): string {
 	const stamp = new Date()
 		.toISOString()
@@ -96,7 +81,7 @@ export async function latestRecording(): Promise<string | null> {
 	}
 	let latest: { file: string; mtimeMs: number } | null = null;
 	for (const name of names) {
-		if (!isRecordingFilename(name)) continue;
+		if (!name.endsWith(RECORDING_EXTENSION)) continue;
 		const file = path.join(dir, name);
 		const { mtimeMs } = await fs.stat(file);
 		if (!latest || mtimeMs > latest.mtimeMs) latest = { file, mtimeMs };
@@ -137,12 +122,8 @@ export function parseRecording(text: string): Recording {
 function isRecordingHeader(value: unknown): value is RecordingHeader {
 	if (!value || typeof value !== "object") return false;
 	const header = value as Record<string, unknown>;
-	// Accept the pre-rename key so recordings from an older install stay
-	// playable; normalize it to the canonical field so the rest of the parser
-	// (and the clip upload path) never sees two shapes.
-	const version = header.zetacast ?? header[LEGACY_RECORDING_KEY];
 	if (
-		typeof version !== "number" ||
+		typeof header.zetacast !== "number" ||
 		!isDimension(header.cols) ||
 		!isDimension(header.rows) ||
 		typeof header.title !== "string" ||
@@ -150,7 +131,6 @@ function isRecordingHeader(value: unknown): value is RecordingHeader {
 	) {
 		return false;
 	}
-	if (header.zetacast === undefined) header.zetacast = version;
 	return true;
 }
 
@@ -162,7 +142,7 @@ export interface SessionRecorderOptions {
 	path: string;
 }
 
-/** Records one interactive session's painted screen to an `.ompcast` file. */
+/** Records one interactive session's painted screen to an `.zetacast` file. */
 export class SessionRecorder {
 	readonly path: string;
 	readonly #encoder: StreamPaintEncoder;

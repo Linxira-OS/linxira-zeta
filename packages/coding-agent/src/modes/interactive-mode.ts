@@ -279,9 +279,7 @@ import {
 	initTerminalTitleState,
 	popTerminalTitle,
 	pushTerminalTitle,
-	reportTernSession,
 	setSessionTerminalTitle,
-	setTerminalSessionSource,
 	setTerminalTitlePullRequest,
 	setTerminalTitleSpinnerInterval,
 	setTerminalTitleSpinnerStyle,
@@ -2758,10 +2756,6 @@ export class InteractiveMode implements InteractiveModeContext {
 				if (frame.includes("\x1b]133;A\x07")) resendProgramStatus();
 			}),
 		);
-		setTerminalSessionSource({
-			file: () => this.sessionManager.getSessionFile(),
-			cwd: () => this.sessionManager.getCwd(),
-		});
 		setSessionTerminalTitle(this.sessionManager.getSessionName(), this.sessionManager.getCwd());
 		// Seeds the border, the status-line `vim` segment, and the cursor shape in one call.
 		// Deliberately here rather than beside #applyVimMode in the constructor: that runs before
@@ -2787,11 +2781,6 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.sessionManager.onSessionNameChanged(() => {
 				setSessionTerminalTitle(this.sessionManager.getSessionName(), this.sessionManager.getCwd());
 				this.#handleSessionAccentInputsChanged();
-			}),
-			// Fork and branch adopt a new session file without retitling.
-			this.session.registerSessionChangeCallback(() => {
-				reportTernSession();
-				void this.#syncSessionPinned();
 			}),
 		);
 		this.#syncEditorMaxHeight();

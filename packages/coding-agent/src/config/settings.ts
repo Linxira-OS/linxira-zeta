@@ -32,7 +32,6 @@ import {
 } from "@linxiraos/pi-utils";
 import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import { isLightTheme } from "@linxiraos/pi-tui/theme/theme";
-import { applyLegacyOmpEnv } from "@linxiraos/pi-utils/env";
 import { JSONC, YAML } from "bun";
 import { invalidate as invalidateCapabilityFsCache } from "../capability/fs";
 import { type Settings as SettingsCapabilityItem, settingsCapability } from "../capability/settings";
@@ -43,7 +42,6 @@ import { AgentStorage, type AgentStorageApi } from "../session/agent-storage";
 import { type CompactionMethod, DEFAULT_COMPACTION_METHOD_ORDER } from "../session/compaction-methods";
 import { writeFileAtomically } from "../utils/atomic-file";
 import { isRegisteredSearchEngine } from "../web/search/provider";
-import { cfgCompatImportLegacyOmp } from "../session/settings";
 import { cfgLanguage } from "../zeta-settings";
 import { stringifyYamlConfig } from "@linxiraos/pi-utils/yaml-config";
 import {
@@ -794,9 +792,6 @@ export class Settings {
 				clearBoundSettingsMethods();
 				globalInstancePromise = Promise.resolve(instance);
 				bindEffects(instance);
-				// The legacy OMP dotenv fallback is env-gated when pi-utils loads; the
-				// persisted `compat.importLegacyOmp` setting can only be honored here.
-				if (cfgCompatImportLegacyOmp.get(instance)) applyLegacyOmpEnv();
 				return instance;
 			},
 			error => {

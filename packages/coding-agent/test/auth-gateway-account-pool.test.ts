@@ -10,9 +10,9 @@ import { getAgentDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils
 
 const BROKER_TOKEN = "gateway-account-pool-token";
 const ENV_KEYS = [
-	"OMP_AUTH_BROKER_URL",
-	"OMP_AUTH_BROKER_TOKEN",
-	"OMP_AUTH_BROKER_ACCOUNT_POOL_FILE",
+	"ZETA_AUTH_BROKER_URL",
+	"ZETA_AUTH_BROKER_TOKEN",
+	"ZETA_AUTH_BROKER_ACCOUNT_POOL_FILE",
 	"ZETA_CODING_AGENT_DIR",
 	"PI_CONFIG_FILES",
 ] as const;
@@ -54,9 +54,9 @@ describe("auth-gateway account pool", () => {
 		});
 		const poolPath = path.join(tempDir, "account-pool.json");
 		await Bun.write(poolPath, JSON.stringify({ anthropic: ["email:allowed@example.com"] }));
-		process.env.OMP_AUTH_BROKER_URL = handle.url;
-		process.env.OMP_AUTH_BROKER_TOKEN = BROKER_TOKEN;
-		process.env.OMP_AUTH_BROKER_ACCOUNT_POOL_FILE = poolPath;
+		process.env.ZETA_AUTH_BROKER_URL = handle.url;
+		process.env.ZETA_AUTH_BROKER_TOKEN = BROKER_TOKEN;
+		process.env.ZETA_AUTH_BROKER_ACCOUNT_POOL_FILE = poolPath;
 	});
 
 	afterEach(async () => {
@@ -91,7 +91,7 @@ describe("auth-gateway account pool", () => {
 		await brokerStorage!.credentials.upsert("anthropic", { type: "api_key", key: "hidden-anthropic-key" });
 		await brokerStorage!.credentials.upsert("openrouter", { type: "api_key", key: "hidden-openrouter-key" });
 		await Bun.write(
-			process.env.OMP_AUTH_BROKER_ACCOUNT_POOL_FILE!,
+			process.env.ZETA_AUTH_BROKER_ACCOUNT_POOL_FILE!,
 			JSON.stringify({ "*": false, anthropic: { accounts: ["email:allowed@example.com"], apiKeys: false } }),
 		);
 		let output = "";

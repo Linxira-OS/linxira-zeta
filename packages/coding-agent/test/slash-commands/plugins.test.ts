@@ -35,10 +35,10 @@ describe("/plugins live enable and disable", () => {
 	let lockPath: string;
 
 	beforeEach(async () => {
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-plugins-slash-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-plugins-slash-"));
 		pluginsDir = path.join(root, "plugins");
 		registryPath = path.join(pluginsDir, "installed_plugins.json");
-		lockPath = path.join(pluginsDir, "omp-plugins.lock.json");
+		lockPath = path.join(pluginsDir, "zeta-plugins.lock.json");
 		spyOn(piUtils, "getPluginsDir").mockReturnValue(pluginsDir);
 		spyOn(piUtils, "getPluginsLockfile").mockReturnValue(lockPath);
 		spyOn(piUtils, "getMarketplacesRegistryPath").mockReturnValue(path.join(root, "marketplaces.json"));
@@ -103,7 +103,7 @@ describe("/plugins live enable and disable", () => {
 		);
 		await Bun.write(
 			path.join(pluginsDir, "node_modules", name, "package.json"),
-			JSON.stringify({ name, version: "1.0.0", omp: {} }),
+			JSON.stringify({ name, version: "1.0.0", zeta: {} }),
 		);
 		await Bun.write(
 			path.join(pluginsDir, "node_modules", name, "skills", "npm-skill", "SKILL.md"),

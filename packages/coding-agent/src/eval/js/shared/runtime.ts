@@ -121,7 +121,7 @@ const PRELUDE_GLOBAL_KEYS = [
 	"WorkPool",
 	"log",
 	"phase",
-	"__omp_with_call_site__",
+	"__zeta_with_call_site__",
 	"budget",
 	"read",
 	"write",
@@ -643,7 +643,7 @@ export class JsRuntime {
 		const injected: Record<string, unknown> = {
 			__zeta_session__: this.#session,
 			__zeta_helpers__: this.helpers,
-			__omp_with_call_site__: <T>(siteId: string, action: () => T): T => {
+			__zeta_with_call_site__: <T>(siteId: string, action: () => T): T => {
 				const context = this.#als.getStore();
 				if (!context) return action();
 				const occurrence = context.callOccurrences.get(siteId) ?? 0;

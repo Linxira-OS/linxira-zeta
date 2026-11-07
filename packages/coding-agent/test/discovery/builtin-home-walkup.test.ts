@@ -22,7 +22,7 @@ import { __resetDirsFromEnvForTests, removeSyncWithRetries, setAgentDir } from "
 let tempDir: string;
 let home: string;
 // setAgentDir() rewrites these; restore them all so later test files see the original resolver.
-const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE", "PI_CONFIG_DIR"] as const;
+const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE", "PI_CONFIG_DIR"] as const;
 let savedEnv: Record<(typeof ENV_KEYS)[number], string | undefined>;
 
 function writeFile(filePath: string, content: string): void {

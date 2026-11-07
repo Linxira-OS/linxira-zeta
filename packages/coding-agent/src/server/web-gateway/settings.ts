@@ -26,7 +26,13 @@ import { cfgAutolearnEnabled } from "../../autolearn/settings";
 import { cfgDefaultThinkingLevel, cfgRetryUsageAwareFallback } from "../../session/settings";
 import { cfgMemoryBackend } from "../../memory-backend/settings";
 import { cfgPlanEnabled } from "../../plan-mode/settings";
-import { getAgentDir } from "@linxiraos/pi-utils/dirs";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { randomUUID } from "node:crypto";
+import { YAML } from "bun";
+import { getAgentDir, getProjectAgentDir } from "@linxiraos/pi-utils/dirs";
+import { resolveYamlConfigReadPath } from "@linxiraos/pi-utils/yaml-config";
+import { replaceFileAtomically } from "../../utils/atomic-file";
 import { reloadLiveSettingsInstances, Settings, type SettingProvenance } from "../../config/settings";
 import {
 	SETTING_TABS,
@@ -323,6 +329,96 @@ function groupRank(entry: SettingsEntryDto, order: readonly string[]): number {
  * the zh overlay maps; any key missing from the overlay falls back to the
  * schema English text.
  */
+/**
+ * GET/PUT /api/settings/raw — the raw YAML layer editor.
+ *
+ * This stays in the settings family: one writer (the same isolated Settings
+ * instance and live-reload path as PUT /api/settings), Bun's YAML parser (the
+ * one Settings uses), an atomic temp+rename, and a `.bak` of the previous file.
+ * Invalid YAML or a non-mapping document is rejected before anything is written.
+ */
+export type RawSettingsScope = "global" | "project";
+const RAW_SETTINGS_PRECEDENCE = ["runtime", "overlay", "project", "global", "default"] as const;
+
+function rawSettingsPath(scope: RawSettingsScope, cwd: string): string {
+	return scope === "project"
+		? path.join(getProjectAgentDir(cwd), "config.yml")
+		: resolveYamlConfigReadPath(path.join(getAgentDir(), "config.yml"));
+}
+
+function parseRawSettings(contents: string): Record<string, unknown> {
+	const parsed: unknown = YAML.parse(contents);
+	if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+		throw new Error("config must be a YAML mapping");
+	}
+	return parsed as Record<string, unknown>;
+}
+
+export async function handleSettingsRawGet(req: Request): Promise<Response> {
+	if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+	const url = new URL(req.url);
+	const scope = url.searchParams.get("scope") === "project" ? "project" : "global";
+	const cwd = req.headers.get("x-zeta-cwd") ?? process.cwd();
+	const file = rawSettingsPath(scope, cwd);
+	let contents = "";
+	let exists = false;
+	try {
+		contents = await fs.readFile(file, "utf8");
+		exists = true;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+			return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+		}
+	}
+	return json({ scope, path: file, contents, exists, precedence: RAW_SETTINGS_PRECEDENCE });
+}
+
+export async function handleSettingsRawPut(req: Request): Promise<Response> {
+	if (req.method !== "PUT") return json({ error: "Method not allowed" }, 405);
+	try {
+		const body = (await req.json()) as { scope?: unknown; contents?: unknown };
+		const scope: RawSettingsScope = body.scope === "project" ? "project" : "global";
+		if (typeof body.contents !== "string") return json({ error: "contents must be a string" }, 400);
+		// Validate with the same parser Settings uses; nothing is written on failure.
+		try {
+			parseRawSettings(body.contents);
+		} catch (error) {
+			return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+		}
+
+		const cwd = req.headers.get("x-zeta-cwd") ?? process.cwd();
+		const file = rawSettingsPath(scope, cwd);
+		await fs.mkdir(path.dirname(file), { recursive: true });
+		const temp = `${file}.${process.pid}.${randomUUID()}.tmp`;
+		await fs.writeFile(temp, body.contents, { mode: 0o600, flag: "wx" });
+		let backupPath: string | undefined;
+		try {
+			backupPath = `${file}.bak`;
+			await fs.copyFile(file, backupPath);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+			backupPath = undefined;
+		}
+		try {
+			await replaceFileAtomically(temp, file);
+		} finally {
+			await fs.rm(temp, { force: true }).catch(() => {});
+		}
+		await reloadLiveSettingsInstances();
+		await refreshSharedModelRegistry(true);
+		return json({
+			ok: true,
+			scope,
+			path: file,
+			...(backupPath ? { backupPath } : {}),
+			precedence: RAW_SETTINGS_PRECEDENCE,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return json({ error: message }, /YAML|mapping|contents/.test(message) ? 400 : 500);
+	}
+}
+
 export async function handleSettingsGet(req: Request): Promise<Response> {
 	try {
 		const url = new URL(req.url);

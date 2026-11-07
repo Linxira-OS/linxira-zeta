@@ -60,14 +60,14 @@ Supported frontmatter fields on the skill type:
 - additional keys are preserved as unknown metadata by conventional scanners
 - `enabled: false` skips a skill in conventional scanners and Skillshare discovery
 
-`globs` and `alwaysApply` are metadata here, not automatic skill-invocation controls. Agent Plugins packages use stricter Agent Skills validation instead of the permissive scanner: required name/description, directory-name agreement, valid naming, and a closed frontmatter field set. OMP-specific fields such as `hide` and `enabled` are not accepted there.
+`globs` and `alwaysApply` are metadata here, not automatic skill-invocation controls. Agent Plugins packages use stricter Agent Skills validation instead of the permissive scanner: required name/description, directory-name agreement, valid naming, and a closed frontmatter field set. Zeta-specific fields such as `hide` and `enabled` are not accepted there.
 
 Current runtime behavior:
 
 - `name` defaults to the skill directory name
 - `description` is required for:
    - native `.zeta` provider skill discovery (`requireDescription: true`)
-   - `omp-plugins` extension-package skills and the `github` provider (`.github/skills/`), which also pass `requireDescription: true`
+   - `zeta-plugins` extension-package skills and the `github` provider (`.github/skills/`), which also pass `requireDescription: true`
    - `skills.customDirectories` scans via `scanSkillsFromDir` in `src/discovery/helpers.ts` (non-recursive)
 - the claude/codex/agents/opencode/claude-plugins providers can load skills without description
 - `agent-plugins` validates required `name` and `description` against the Agent Skills specification
@@ -90,7 +90,7 @@ Current registered skill providers:
 
 1. `native` (priority 100) — `.zeta` user/project skills via `src/discovery/builtin.ts`
 2. `skillshare` (priority 95) — packages pinned in project `.zeta/skills.lock.json` or the user agent directory's `skills.lock.json`, loaded from the Skillshare store; authored skills still outrank these on name collisions
-3. `omp-plugins` (priority 90) — `skills/` bundled next to extension packages loaded through `extensions:`, `--extension`/`-e`, or installed plugins under `~/.zeta/plugins/node_modules`
+3. `zeta-plugins` (priority 90) — `skills/` bundled next to extension packages loaded through `extensions:`, `--extension`/`-e`, or installed plugins under `~/.zeta/plugins/node_modules`
 4. `claude` (priority 80)
 5. `agent-plugins` (priority 75) — portable packages with a standard root `plugin.json`; conventional plugin providers defer their skills/MCP discovery to this provider
 6. priority 70 group (in registration order):
@@ -142,7 +142,7 @@ skills:
 - `extensibility/skills.ts` then:
    - de-duplicates identical files by `realpath` (symlink-safe)
    - drops a later same-named skill silently when its body is identical and its parsed frontmatter is deeply equal to a loaded one (the same skill installed twice, e.g. a plugin copy mirrored into `~/.agents/skills`). When the incoming skill outranks the bare holder (below), the identical copies it supersedes (the bare holder and any namespaced aliases) are dropped instead, so an override never re-admits its own duplicate
-   - when same-named skills differ, the higher-precedence skill keeps the bare name and every other variant receives a `<namespace>/<name>` suffix, with collision warnings naming the paths. Precedence: an authored skill outranks a registry-installed package (the `skillshare` provider, `zetacode skill install`); a custom-directory skill outranks a provider skill (#7190); otherwise whichever was admitted first — provider-priority order for providers, array order within `skills.customDirectories` for custom directories — keeps the bare name. The namespace is the plugin identity from provider metadata when the provider tracks one (every registry-backed provider supplies one: `claude-plugins` and `agent-plugins` use the plugin name, `omp-plugins` the extension package name, `skillshare` the package name — so an installed plugin namespaces by its own name rather than its cache path's version segment, and the namespace survives plugin updates); otherwise the directory owning the skill's `skills/` tree, or the skill root's directory name, falling back to the provider id for dotted homes such as `~/.claude/skills`. A namespaced slot that is itself already taken by a differing skill gets a `~2`, `~3`, … suffix; no differing skill is dropped without a warning.
+   - when same-named skills differ, the higher-precedence skill keeps the bare name and every other variant receives a `<namespace>/<name>` suffix, with collision warnings naming the paths. Precedence: an authored skill outranks a registry-installed package (the `skillshare` provider, `zetacode skill install`); a custom-directory skill outranks a provider skill (#7190); otherwise whichever was admitted first — provider-priority order for providers, array order within `skills.customDirectories` for custom directories — keeps the bare name. The namespace is the plugin identity from provider metadata when the provider tracks one (every registry-backed provider supplies one: `claude-plugins` and `agent-plugins` use the plugin name, `zeta-plugins` the extension package name, `skillshare` the package name — so an installed plugin namespaces by its own name rather than its cache path's version segment, and the namespace survives plugin updates); otherwise the directory owning the skill's `skills/` tree, or the skill root's directory name, falling back to the provider id for dotted homes such as `~/.claude/skills`. A namespaced slot that is itself already taken by a differing skill gets a `~2`, `~3`, … suffix; no differing skill is dropped without a warning.
    - rejects a raw frontmatter `name` containing `/` or `\` (with a warning) for every provider and custom directory: the separator is reserved for the namespaced form and for `skill://<name>/<path>` resolution, so a raw name cannot claim a namespaced address
    - keeps the convenience `loadSkillsFromDir({ dir, source })` API as a thin adapter over `scanSkillsFromDir`
 - Namespaced skills resolve through `skill://<namespace>/<name>[/<path>]` and the `/skill:<namespace>/<name>` token, both leading and mid-prompt (a mid-prompt token accepts exactly one `/`; deeper paths are left as prose). Because skill names never contain `/`, an exact `<host>/<first segment>` match is unambiguous and takes precedence over reading that segment as a path relative to a bare skill of the same name as the namespace.

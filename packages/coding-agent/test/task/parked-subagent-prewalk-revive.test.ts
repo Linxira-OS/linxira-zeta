@@ -25,7 +25,7 @@ const AGENT_ID = "HandedOff";
 const MOCK_API_SOURCE = "test/parked-subagent-prewalk-revive";
 const PLANNER = "mock-model";
 const TARGET = "mock-handoff";
-const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE"] as const;
 
 /** The mock carries no effort ladder; without one every configured effort clamps away. */
 const thinking = { mode: "effort", efforts: [Effort.Medium, Effort.High] } as const;

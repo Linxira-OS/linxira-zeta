@@ -2,7 +2,7 @@
 import type { Marked as MarkedConstructor } from "@linxiraos/pi-utils/marked";
 
 declare global {
-	var ompMarkdown: { Marked: typeof MarkedConstructor };
+	var zetaMarkdown: { Marked: typeof MarkedConstructor };
 }
 
-export const Marked = globalThis.ompMarkdown.Marked;
+export const Marked = globalThis.zetaMarkdown.Marked;

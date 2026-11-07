@@ -155,7 +155,7 @@ describe("composer startup cache", () => {
 				HOME: home,
 				XDG_CACHE_HOME: undefined,
 				ZETA_CODING_AGENT_DIR: undefined,
-				OMP_PROFILE: undefined,
+				ZETA_PROFILE: undefined,
 				PI_PROFILE: undefined,
 			},
 			stdout: "pipe",

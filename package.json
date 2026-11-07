@@ -104,7 +104,7 @@
     "fix:tools:all": "oxlint --fix --fix-suggestions . && bun run fmt:tools",
     "fix:changelogs": "bun scripts/fix-changelogs.ts",
     "fix:rs": "bun scripts/run-rs-task.ts fix:rs",
-    "ci:check:full": "bun run check:ts",
+    "ci:check:full": "bun run check:no-upstream-agent-compat && bun run check:ts",
     "ci:test:full": "bun run ci:test:ts && OMP_FORCE_RUST_TASKS=1 bun run test:rs",
     "ci:test:ts": "bun scripts/ci-test-ts.ts all",
     "ci:test:ts:workspace": "bun scripts/ci-test-ts.ts workspace",
@@ -168,7 +168,8 @@
     "gen:glyphs": "bun --cwd=packages/tui run gen:glyphs",
     "gen:brand-art": "bun scripts/brand/generate-logo-art.ts",
     "check-spoofed-versions": "bun scripts/check-spoofed-versions.ts",
-    "gen:export-viewer": "bun --cwd=packages/export-web run gen:export-viewer"
+    "gen:export-viewer": "bun --cwd=packages/export-web run gen:export-viewer",
+    "check:no-upstream-agent-compat": "bun scripts/check-no-upstream-agent-compat.ts"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

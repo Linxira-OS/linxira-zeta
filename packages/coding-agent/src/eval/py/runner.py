@@ -253,7 +253,7 @@ _SHADOW_UNSUPPORTED = object()
 # bridge. A retained non-JSON-safe user `tool` binding is omitted from the
 # shadow snapshot exactly like the genuine bridge, so snapshot absence alone
 # cannot tell them apart (see `_shadow_tool_available`).
-_TOOL_BRIDGE_MARKER = "__omp_tool_bridge__"
+_TOOL_BRIDGE_MARKER = "__zeta_tool_bridge__"
 
 # Runner-owned reference to the genuine prelude tool bridge, captured on first
 # sighting: kernel init executes the prelude before user cells, so the first
@@ -617,7 +617,7 @@ def _emit_shadow_plan(req: dict) -> None:
         )
         return
     # Mirror the `_compile_source` whole-cell instrumentation skip: when the
-    # cell binds `__omp_with_call_site__` anywhere, authoritative execution
+    # cell binds `__zeta_with_call_site__` anywhere, authoritative execution
     # runs zero instrumented calls, so the planner must admit zero operations
     # (per-call scoping is undecidable across call order; fail closed).
     if _cell_binds_call_site_helper(module):
@@ -2453,7 +2453,7 @@ async def _run_compiled_async(code, ns: dict, *, want_value: bool) -> Any:
 
 
 
-_CALL_SITE_HELPER_NAME = "__omp_with_call_site__"
+_CALL_SITE_HELPER_NAME = "__zeta_with_call_site__"
 
 # Runner-owned reference to the genuine instrumentation helper. The helper is
 # defined by the eval prelude inside the user namespace, so the first callable
@@ -2465,7 +2465,7 @@ _TRUSTED_CALL_SITE_HELPERS: dict[str, Any] = {}
 def _restore_call_site_helper(ns: dict) -> None:
     """Reinstall the genuine helper after retained-cell pollution.
 
-    A previous cell can assign or delete `__omp_with_call_site__`; without
+    A previous cell can assign or delete `__zeta_with_call_site__`; without
     this, the next rewritten `tool.read(...)` would resolve to
     user-controlled state and change ordinary eval behavior even with
     speculation disabled.

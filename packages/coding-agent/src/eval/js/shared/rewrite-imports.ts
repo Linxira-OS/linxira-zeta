@@ -318,7 +318,7 @@ function containsCallSiteUnsafeSyntax(value: unknown, root = true): boolean {
 	return false;
 }
 
-const CALL_SITE_HELPER = "__omp_with_call_site__";
+const CALL_SITE_HELPER = "__zeta_with_call_site__";
 
 function patternBindsCallSiteHelper(pattern: unknown): boolean {
 	const names: string[] = [];
@@ -334,7 +334,7 @@ function isCallSiteHelperIdentifier(value: unknown): boolean {
 
 // A bare textual mention of the helper (comment, string literal) must not suppress
 // instrumentation — comments never reach the walker and string contents are not
-// Identifier nodes. Only a real `__omp_with_call_site__(...)` call (already
+// Identifier nodes. Only a real `__zeta_with_call_site__(...)` call (already
 // instrumented code, where wrapping again would double-count the site) or a real
 // binding of the name (which would shadow the worker-injected helper, so fail
 // closed) skips instrumentation.
@@ -426,7 +426,7 @@ async function instrumentRuntimeCallSites(code: string): Promise<string> {
 		if (containsCallSiteUnsafeSyntax(node)) return;
 		edits.push({
 			offset: node.start,
-			text: `__omp_with_call_site__(${JSON.stringify(`js:${node.start}`)}, () => `,
+			text: `__zeta_with_call_site__(${JSON.stringify(`js:${node.start}`)}, () => `,
 			closing: false,
 		});
 		edits.push({ offset: node.end, text: ")", closing: true });
@@ -960,8 +960,8 @@ function instrumentBindingAssignments(
 	if (edits.length === 0) return code;
 
 	const used = new Set<string>();
-	const valueName = uniqueInternalName(ast, "__omp_assignment_value__", used);
-	const globalName = uniqueInternalName(ast, "__omp_assignment_global__", used);
+	const valueName = uniqueInternalName(ast, "__zeta_assignment_value__", used);
+	const globalName = uniqueInternalName(ast, "__zeta_assignment_global__", used);
 	edits.sort((left, right) => right.start - left.start);
 	let result = code;
 	for (const assignment of edits) {

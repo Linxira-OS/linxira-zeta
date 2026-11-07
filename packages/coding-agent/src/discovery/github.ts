@@ -280,7 +280,7 @@ function copilotCustomInstructionDirs(): string[] {
  * `<skill>/SKILL.md` shape `scanSkillsFromDir` probes at every depth.
  * `requireDescription`
  * is on to match the Agent Skills spec (name + description are mandatory) and
- * the sibling `native`/`omp-plugins` providers.
+ * the sibling `native`/`zeta-plugins` providers.
  *
  * @see https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/add-skills
  */

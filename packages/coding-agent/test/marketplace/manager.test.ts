@@ -4,8 +4,8 @@ import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as piUtils from "@linxiraos/pi-utils";
-import { PLUGINS_LOCKFILE_CANONICAL, PLUGINS_LOCKFILE_LEGACY, removeSyncWithRetries } from "@linxiraos/pi-utils";
-import { listOmpExtensionRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
+import { PLUGINS_LOCKFILE_CANONICAL, removeSyncWithRetries } from "@linxiraos/pi-utils";
+import { listZetaExtensionRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { getEnabledPlugins } from "@linxiraos/zeta/extensibility/plugins/loader";
 import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import {
@@ -54,7 +54,7 @@ function buildMinimalFixture(): string {
 		JSON.stringify({
 			name: "hello-plugin",
 			version: "1.0.0",
-			omp: { extensions: ["./extensions"] },
+			zeta: { extensions: ["./extensions"] },
 		}),
 	);
 	fs.writeFileSync(path.join(pluginDir, "extensions", "index.ts"), "export default {};\n");
@@ -133,9 +133,7 @@ function mockPluginManagerPaths(root: string) {
 		spyOn(piUtils, "getPluginsDir").mockReturnValue(root),
 		spyOn(piUtils, "getPluginsNodeModules").mockReturnValue(path.join(root, "node_modules")),
 		spyOn(piUtils, "getPluginsPackageJson").mockReturnValue(path.join(root, "package.json")),
-		// The pre-rename spelling: PluginManager must still read a plugin root that
-		// predates the lockfile rename (its readers resolve both names).
-		spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(root, PLUGINS_LOCKFILE_LEGACY)),
+		spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(root, PLUGINS_LOCKFILE_CANONICAL)),
 		spyOn(piUtils, "getProjectPluginOverridesPath").mockReturnValue(path.join(root, "plugin-overrides.json")),
 	];
 }
@@ -709,7 +707,7 @@ describe("MarketplaceManager", () => {
 			`${JSON.stringify({
 				name: "hello-plugin",
 				version: "9.9.9",
-				omp: { tools: "tools" },
+				zeta: { tools: "tools" },
 			})}\n`,
 		);
 		fs.mkdirSync(path.join(localPlugin, "tools"), { recursive: true });
@@ -748,7 +746,7 @@ describe("MarketplaceManager", () => {
 			await manager.addMarketplace(FIXTURE_DIR);
 			await manager.installPlugin("hello-plugin", "test-marketplace");
 
-			const roots = await listOmpExtensionRoots({
+			const roots = await listZetaExtensionRoots({
 				cwd: tmpHome,
 				home: tmpHome,
 				repoRoot: null,

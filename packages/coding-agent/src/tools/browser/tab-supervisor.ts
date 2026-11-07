@@ -37,7 +37,6 @@ import {
 	holdBrowser,
 	type PuppeteerBrowserHandle,
 	releaseBrowser,
-	type TernBrowserHandle,
 } from "./registry";
 import {
 	type AttachPage,
@@ -54,8 +53,6 @@ import {
 } from "./tab-protocol";
 
 import { cfgBrowserScreenshotDir } from "./settings";
-import { listTernBlocks, noTernBlockError, pickTernBlock } from "./tern/blocks";
-import type * as Tern from "./tern/tern-tab";
 import { newUploadStagingDir, removeUploadStaging, sweepUploadStaging } from "./upload-files";
 
 // Coding-agent binary/bundle workers route through the CLI entrypoint with a
@@ -156,14 +153,7 @@ export interface CmuxTabSession extends TabSessionBase<CmuxBrowserHandle> {
 	cmuxAttachedSurface?: string;
 }
 
-/** A tab shown as a Tern browser picture-in-picture over zeta's pane, or the user's browser block it adopted. */
-export interface TernTabSession extends TabSessionBase<TernBrowserHandle> {
-	backend: "tern";
-	/** The PiP's driver. */
-	ternTab: Tern.TernTab;
-}
-
-export type TabSession = WorkerTabSession | CmuxTabSession | TernTabSession;
+export type TabSession = WorkerTabSession | CmuxTabSession;
 
 export interface AcquireTabOptions {
 	url?: string;
@@ -451,8 +441,8 @@ async function acquireTabImpl(
 				tempHold = true;
 				await releaseTab(name, { kill: false });
 			} else if (
-				(opts.allowedDomains !== undefined && !sameAllowedDomains(opts.allowedDomains, existing.allowedDomains)) ||
-				(existing.backend === "tern" && opts.target !== undefined && !(await adoptsSameBlock(existing, opts)))
+				opts.allowedDomains !== undefined &&
+				!sameAllowedDomains(opts.allowedDomains, existing.allowedDomains)
 			) {
 				holdBrowser(browser);
 				tempHold = true;
@@ -488,17 +478,10 @@ async function acquireTabImpl(
 					existing.persist = opts.persist;
 				}
 				const reuseSteps: string[] = [];
-				if (opts.viewport && browser.kind.kind !== "cmux" && browser.kind.kind !== "tern") {
-					// Only a hidden headless tab has an emulated scale to fall back on; other windows keep their own (0).
-					const ownScale = browser.kind.kind === "headless" && browser.kind.headless ? undefined : 0;
-					const dsf = opts.viewport.deviceScaleFactor ?? ownScale;
+				if (opts.viewport && browser.kind.kind !== "cmux") {
+					const dsf = opts.viewport.deviceScaleFactor;
 					reuseSteps.push(
 						`await page.setViewport({ width: ${opts.viewport.width}, height: ${opts.viewport.height}, deviceScaleFactor: ${dsf === undefined ? "undefined" : String(dsf)} });`,
-					);
-				}
-				if (opts.viewport && existing.backend === "tern") {
-					reuseSteps.push(
-						`await tab.emulate({ viewport: ${JSON.stringify({ width: opts.viewport.width, height: opts.viewport.height, scale: opts.viewport.deviceScaleFactor })} });`,
 					);
 				}
 				const reuse = async (): Promise<string | undefined> => {
@@ -530,7 +513,6 @@ async function acquireTabImpl(
 					if (navigationNote) note += `\n${navigationNote}`;
 				}
 				// The user may have navigated or switched tabs since: the result reports where the page is now.
-				if (existing.backend === "tern") existing.info = await existing.ternTab.readyInfo();
 				return { tab: tabs.get(name)!, created: false, note };
 			}
 		} else {
@@ -542,10 +524,9 @@ async function acquireTabImpl(
 		}
 	}
 
-	if ("client" in browser || "tern" in browser) {
+	if ("client" in browser) {
 		try {
-			const result =
-				"client" in browser ? await acquireCmuxTab(name, browser, opts) : await acquireTernTab(name, browser, opts);
+			const result = await acquireCmuxTab(name, browser, opts);
 			if (tempHold) await releaseBrowser(browser, { kill: false });
 			return result;
 		} catch (error) {
@@ -813,94 +794,6 @@ async function acquireCmuxTab(
 	}
 }
 
-/**
- * Browser blocks the live Tern tabs of this process (other than `except`)
- * drive, by block id to tab name: never adopted twice.
- */
-export function ternBlocksTaken(except?: string): Map<number, string> {
-	const taken = new Map<number, string>();
-	for (const [name, tab] of tabs) {
-		if (name !== except && tab.backend === "tern" && tab.state === "alive") taken.set(tab.ternTab.block, name);
-	}
-	return taken;
-}
-
-/** Whether reopening Tern tab `existing` with `opts.target` names the block it already adopted. */
-async function adoptsSameBlock(existing: TernTabSession, opts: AcquireTabOptions): Promise<boolean> {
-	if (!existing.ternTab.adopted || opts.target === undefined) return false;
-	const blocks = await listTernBlocks(existing.browser.tern, { timeoutMs: opts.timeoutMs, signal: opts.signal });
-	return pickTernBlock(blocks, opts.target, ternBlocksTaken(existing.name))?.block === existing.ternTab.block;
-}
-
-/**
- * Open a Tern browser PiP over zeta's pane and configure it before its first
- * real navigation (the PiP closes again when anything after `open` fails), or
- * with `opts.target` adopt the user's browser block it names (released again,
- * never closed, on failure and on close).
- */
-async function acquireTernTab(
-	name: string,
-	browser: TernBrowserHandle,
-	opts: AcquireTabOptions,
-): Promise<AcquireTabResult> {
-	// Tern's driver stays out of sessions that never open a Tern tab.
-	const { TernTab } = await import("./tern/tern-tab");
-	const settings = {
-		name,
-		url: opts.url,
-		waitUntil: opts.waitUntil,
-		timeoutMs: opts.timeoutMs,
-		signal: opts.signal,
-		dialogs: opts.dialogs,
-		allowedDomains: opts.allowedDomains,
-		initScripts: opts.initScripts,
-		downloadsPath: opts.downloadsPath,
-		userAgent: opts.userAgent,
-		ignoreHttpsErrors: opts.ignoreHttpsErrors,
-	};
-	let ternTab: Tern.TernTab;
-	if (opts.target === undefined) {
-		ternTab = await TernTab.open(browser.tern, {
-			...settings,
-			pane: browser.kind.pane,
-			viewport: opts.viewport ?? DEFAULT_VIEWPORT,
-		});
-	} else {
-		const blocks = await listTernBlocks(browser.tern, { timeoutMs: opts.timeoutMs, signal: opts.signal });
-		const taken = ternBlocksTaken(name);
-		const block = pickTernBlock(blocks, opts.target, taken);
-		if (!block) throw noTernBlockError(blocks, opts.target, taken);
-		ternTab = await TernTab.adopt(browser.tern, { ...settings, block, viewport: opts.viewport });
-	}
-	try {
-		const info = await ternTab.readyInfo();
-		if (opts.signal?.aborted) throw new ToolAbortError("Browser tab open aborted");
-		holdBrowser(browser);
-		const tab: TernTabSession = {
-			name,
-			browser,
-			targetId: String(ternTab.block),
-			backend: "tern",
-			ternTab,
-			state: "alive",
-			info,
-			pending: new Map(),
-			dialogPolicy: opts.dialogs,
-			allowedDomains: opts.allowedDomains ? [...opts.allowedDomains] : undefined,
-			kindTag: browser.kind.kind,
-			ownerSessionId: opts.ownerSessionId,
-			persist: opts.persist ?? false,
-			lastActivityAt: Date.now(),
-			frozen: false,
-		};
-		tabs.set(name, tab);
-		return { tab, created: true };
-	} catch (error) {
-		await ternTab.close({ timeoutMs: DEFAULT_TAB_CLOSE_TIMEOUT_MS }).catch(() => undefined);
-		throw error;
-	}
-}
-
 export async function runInTab(name: string, opts: RunInTabOptions): Promise<RunResultOk> {
 	const result = await runInTabWithSnapshot(
 		name,
@@ -989,7 +882,7 @@ async function runInTabWithSnapshot(
 	//      rejection would fire `unhandledRejection` and the CLI's
 	//      top-level handler would tear the whole session down, killing
 	//      every other tab and subagent sharing the process (issue #4499).
-	// The in-process (cmux, Tern) branch also composes `closeAc.signal` into
+	// The in-process cmux branch also composes `closeAc.signal` into
 	// the run's abort signal so `wait(...)`, backend socket calls, and the
 	// facade proxies unwind promptly when the tab is closed — otherwise a
 	// `wait(60_000)` with no in-flight socket request would keep
@@ -1050,7 +943,7 @@ async function runInTabWithSnapshot(
 		);
 		return await Promise.race([promise, Promise.reject(replaced)]);
 	}
-	if (tab.backend === "cmux" || tab.backend === "tern") {
+	if (tab.backend === "cmux") {
 		const runSignal = opts.signal ? AbortSignal.any([opts.signal, closeAc.signal]) : closeAc.signal;
 		try {
 			// In-process runners stay out of worker-backed tabs. A close during
@@ -1061,7 +954,7 @@ async function runInTabWithSnapshot(
 			// rejected it — `Promise.withResolvers` settles on the first
 			// call and later resolve/reject are no-ops, so the tab-close
 			// error still wins the race.
-			runInProcessTab(tab.backend === "cmux" ? tab.cmuxTab : tab.ternTab, {
+			runInProcessTab(tab.cmuxTab, {
 				code: opts.code,
 				timeoutMs: opts.timeoutMs,
 				signal: runSignal,
@@ -1074,10 +967,6 @@ async function runInTabWithSnapshot(
 			// Completion is use too: a run outlasting the idle timeout must
 			// not look stale to the sweep right after it finishes.
 			tab.lastActivityAt = Date.now();
-			// Tern pages report url/title through the tab itself (no worker `ready`).
-			if (tab.backend === "tern") {
-				tab.info = { ...tab.info, url: tab.ternTab.url(), title: tab.ternTab.lastTitle };
-			}
 		}
 	}
 	const abort = (): void => {
@@ -1357,34 +1246,6 @@ async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOp
 	}
 	tab.pending.clear();
 	const timeoutMs = opts.timeoutMs ?? DEFAULT_TAB_CLOSE_TIMEOUT_MS;
-	if (tab.backend === "tern") {
-		let closeError: unknown;
-		if (wasAlive) {
-			try {
-				await waitForTabCleanup(
-					tab,
-					timeoutMs,
-					`Tern browser block ${tab.targetId} (close)`,
-					tab.ternTab.close({ timeoutMs }),
-				);
-			} catch (err) {
-				closeError = err;
-			}
-		}
-		try {
-			await releaseBrowser(tab.browser, {
-				kill: opts.kill ?? false,
-				timeoutMs,
-				resource: `tab ${JSON.stringify(name)}`,
-			});
-		} catch (error) {
-			closeError ??= error;
-		} finally {
-			tabs.delete(name);
-		}
-		if (closeError) throw closeError;
-		return "released";
-	}
 	if (tab.backend === "cmux") {
 		let closeError: unknown;
 		if (wasAlive && tab.cmuxOwnsSurface) {
@@ -1546,15 +1407,6 @@ export async function releaseTabsForOwner(ownerId: string, opts: ReleaseTabOptio
  */
 function isSettleManaged(tab: TabSession): boolean {
 	return tab.backend === "worker" && tab.kindTag === "headless" && tab.state === "alive" && !tab.persist;
-}
-
-/**
- * Tabs idle-close may reap: every settle-managed tab plus Tern tabs (live,
- * visible pages never frozen, but closed when abandoned like headless tabs;
- * an adopted user block is released, not closed), minus `persist` opt-outs.
- */
-function isIdleManaged(tab: TabSession): boolean {
-	return isSettleManaged(tab) || (tab.backend === "tern" && tab.state === "alive" && !tab.persist);
 }
 
 /**
@@ -1724,7 +1576,7 @@ export async function freezeTabsForOwner(ownerId: string): Promise<number> {
 export function isIdleCloseCandidate(tab: TabSession, ownerId: string, nowMs: number, idleMs: number): boolean {
 	return (
 		tab.ownerSessionId === ownerId &&
-		isIdleManaged(tab) &&
+		isSettleManaged(tab) &&
 		tab.pending.size === 0 &&
 		nowMs - tab.lastActivityAt >= idleMs
 	);
@@ -1803,7 +1655,7 @@ export function earliestIdleCloseInMs(ownerId: string, idleMs: number, nowMs: nu
 	if (!ownerId || !(idleMs > 0)) return undefined;
 	let earliest: number | undefined;
 	for (const tab of tabs.values()) {
-		if (tab.ownerSessionId !== ownerId || !isIdleManaged(tab)) continue;
+		if (tab.ownerSessionId !== ownerId || !isSettleManaged(tab)) continue;
 		const remaining = idleMs - (nowMs - tab.lastActivityAt);
 		if (remaining <= 0) return 0;
 		earliest = earliest === undefined ? remaining : Math.min(earliest, remaining);
@@ -2214,10 +2066,8 @@ async function forceKillTab(name: string, reason: string): Promise<void> {
 	}
 }
 
-/** Teardown half of {@link forceKillTab} for a cmux or Tern surface, published through the release single-flight. */
-async function forceKillSurfaceTab(tab: CmuxTabSession | TernTabSession, name: string): Promise<void> {
-	if (tab.backend === "tern")
-		await tab.ternTab.close({ timeoutMs: DEFAULT_TAB_CLOSE_TIMEOUT_MS }).catch(() => undefined);
+/** Teardown half of {@link forceKillTab} for a cmux surface, published through the release single-flight. */
+async function forceKillSurfaceTab(tab: CmuxTabSession, name: string): Promise<void> {
 	await releaseBrowser(tab.browser, { kill: false });
 	tabs.delete(name);
 }

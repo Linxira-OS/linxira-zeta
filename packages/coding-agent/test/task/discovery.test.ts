@@ -5,7 +5,10 @@ import * as path from "node:path";
 import { disableProvider, enableProvider } from "@linxiraos/zeta/capability";
 import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import { clearAgentPluginRootCache } from "@linxiraos/zeta/discovery/agent-plugin-format";
-import { clearOmpExtensionCliRoots, injectOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
+import {
+	clearZetaExtensionCliRoots,
+	injectZetaExtensionCliRoots,
+} from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { clearClaudePluginRootsCache, injectPluginDirRoots } from "@linxiraos/zeta/discovery/helpers";
 import { discoverAgents } from "@linxiraos/zeta/task/discovery";
 import { removeWithRetries } from "@linxiraos/pi-utils";
@@ -15,10 +18,10 @@ const ZETA_AGENT_MD = [
 	"name: zeta-test-agent",
 	"description: Zeta-native test agent.",
 	"---",
-	"You are an OMP task agent.",
+	"You are a Zeta task agent.",
 ].join("\n");
 
-const OMP_PLUGIN_AGENT_MD = [
+const PLUGIN_AGENT_MD = [
 	"---",
 	"name: loom-verify-spec",
 	"description: Plugin-shipped verification agent.",
@@ -37,41 +40,40 @@ const CLAUDE_AGENT_MD = [
 	"You are a Claude Code custom subagent.",
 ].join("\n");
 
-async function writeOmpPluginAgent(home: string): Promise<void> {
+async function writeZetaPluginAgent(home: string): Promise<void> {
 	const userPluginsRoot = path.join(home, ".zeta", "plugins");
 	const pluginRoot = path.join(userPluginsRoot, "node_modules", "loom");
 	await fs.mkdir(path.join(pluginRoot, "agents"), { recursive: true });
 	await fs.writeFile(
 		path.join(pluginRoot, "package.json"),
-		JSON.stringify({ name: "loom", version: "1.0.0", omp: { version: "1.0.0" } }),
+		JSON.stringify({ name: "loom", version: "1.0.0", zeta: { version: "1.0.0" } }),
 	);
 	await fs.writeFile(
 		path.join(userPluginsRoot, "package.json"),
 		JSON.stringify({
-			name: "omp-plugins-root",
+			name: "zeta-plugins-root",
 			version: "0.0.0",
 			dependencies: { loom: "1.0.0" },
 		}),
 	);
-	await fs.writeFile(path.join(pluginRoot, "agents", "loom-verify-spec.md"), OMP_PLUGIN_AGENT_MD);
+	await fs.writeFile(path.join(pluginRoot, "agents", "loom-verify-spec.md"), PLUGIN_AGENT_MD);
 }
 
 function agentMd(name: string, model: string): string {
 	return ["---", `name: ${name}`, `description: ${name} probe.`, `model: ${model}`, "---", `body ${name}`].join("\n");
 }
 
-// Register an omp-installed marketplace plugin via the OMP plugin registry
+// Register a marketplace plugin via the Zeta plugin registry
 // (`~/.zeta/plugins/installed_plugins.json`), the path listClaudePluginRoots
-// reads as origin "omp" — distinct from the node_modules path above. `manifest`
-// controls the declared plugin dialect: `.omp-plugin/plugin.json` (Zeta-native),
-// `.claude-plugin/plugin.json` (Claude Code), `both` (OMP wins by precedence),
-// or `none` (bare directory).
-async function writeOmpMarketplacePlugin(
+// reads as origin "zeta" — distinct from the node_modules path above. `manifest`
+// controls the declared plugin dialect: `.claude-plugin/plugin.json` (Claude
+// Code) or `none` (bare directory).
+async function writeZetaMarketplacePlugin(
 	home: string,
 	options: {
 		agentName: string;
 		model: string;
-		manifest: "omp" | "claude" | "both" | "none";
+		manifest: "claude" | "none";
 	},
 ): Promise<void> {
 	const pluginRoot = path.join(home, "marketplace-cache", options.agentName);
@@ -81,16 +83,7 @@ async function writeOmpMarketplacePlugin(
 		agentMd(options.agentName, options.model),
 	);
 
-	const wantsOmp = options.manifest === "omp" || options.manifest === "both";
-	const wantsClaude = options.manifest === "claude" || options.manifest === "both";
-	if (wantsOmp) {
-		await fs.mkdir(path.join(pluginRoot, ".omp-plugin"), { recursive: true });
-		await fs.writeFile(
-			path.join(pluginRoot, ".omp-plugin", "plugin.json"),
-			JSON.stringify({ name: options.agentName }),
-		);
-	}
-	if (wantsClaude) {
+	if (options.manifest === "claude") {
 		await fs.mkdir(path.join(pluginRoot, ".claude-plugin"), { recursive: true });
 		await fs.writeFile(
 			path.join(pluginRoot, ".claude-plugin", "plugin.json"),
@@ -124,8 +117,8 @@ describe("discoverAgents", () => {
 	});
 
 	afterEach(async () => {
-		enableProvider("omp-plugins");
-		clearOmpExtensionCliRoots();
+		enableProvider("zeta-plugins");
+		clearZetaExtensionCliRoots();
 		await injectPluginDirRoots(tempHome, []);
 		clearClaudePluginRootsCache();
 		clearAgentPluginRootCache();
@@ -150,8 +143,8 @@ describe("discoverAgents", () => {
 		expect(projectAgentsDir).toBe(path.join(projectDir, ".zeta", "agents"));
 	});
 
-	test("loads agents from OMP npm plugins under <home>/.zeta/plugins/node_modules", async () => {
-		await writeOmpPluginAgent(tempHome);
+	test("loads agents from Zeta npm plugins under <home>/.zeta/plugins/node_modules", async () => {
+		await writeZetaPluginAgent(tempHome);
 
 		const { agents } = await discoverAgents(projectDir, tempHome);
 		const names = agents.map(agent => agent.name);
@@ -159,9 +152,9 @@ describe("discoverAgents", () => {
 		expect(names).toContain("loom-verify-spec");
 	});
 
-	test("excludes OMP npm plugin agents when omp-plugins is disabled", async () => {
-		await writeOmpPluginAgent(tempHome);
-		disableProvider("omp-plugins");
+	test("excludes Zeta npm plugin agents when zeta-plugins is disabled", async () => {
+		await writeZetaPluginAgent(tempHome);
+		disableProvider("zeta-plugins");
 
 		const { agents } = await discoverAgents(projectDir, tempHome);
 		const names = agents.map(agent => agent.name);
@@ -170,10 +163,10 @@ describe("discoverAgents", () => {
 	});
 
 	test("CLI extension agents win over project `extensions:` settings on dedup", async () => {
-		// listOmpExtensionRoots returns roots in source-precedence order
+		// listZetaExtensionRoots returns roots in source-precedence order
 		// (CLI > project settings > user settings > installed plugins). Agents
 		// must honor that order so the `task` surface dedups identically to
-		// the skills/hooks/tools surface in discovery/omp-plugins.ts.
+		// the skills/hooks/tools surface in discovery/zeta-plugins.ts.
 		const cliExt = path.join(tempHome, "cli-ext");
 		const projectExt = path.join(tempHome, "project-ext");
 		await fs.mkdir(path.join(cliExt, "agents"), { recursive: true });
@@ -189,7 +182,7 @@ describe("discoverAgents", () => {
 
 		await fs.mkdir(path.join(projectDir, ".zeta"), { recursive: true });
 		await fs.writeFile(path.join(projectDir, ".zeta", "settings.json"), JSON.stringify({ extensions: [projectExt] }));
-		injectOmpExtensionCliRoots([cliExt], tempHome, projectDir);
+		injectZetaExtensionCliRoots([cliExt], tempHome, projectDir);
 
 		const { agents } = await discoverAgents(projectDir, tempHome);
 		const collide = agents.find(agent => agent.name === "collide");
@@ -219,10 +212,10 @@ describe("discoverAgents", () => {
 			path.join(projectDir, ".zeta", "settings.json"),
 			JSON.stringify({ extensions: [settingsExt] }),
 		);
-		await writeOmpPluginAgent(tempHome);
+		await writeZetaPluginAgent(tempHome);
 
-		injectOmpExtensionCliRoots([staleExt], tempHome, projectDir);
-		injectOmpExtensionCliRoots([explicitExt], tempHome, projectDir, {
+		injectZetaExtensionCliRoots([staleExt], tempHome, projectDir);
+		injectZetaExtensionCliRoots([explicitExt], tempHome, projectDir, {
 			mode: "explicit-only",
 			replace: true,
 		});
@@ -254,29 +247,29 @@ describe("discoverAgents", () => {
 		expect(names).toContain("plugin-dir-agent");
 	});
 
-	test("honors model frontmatter of Zeta-native omp-installed marketplace plugin agents (#12028)", async () => {
-		// omp-installed marketplace plugins ride the shared plugin registry as
-		// origin "omp" roots. An Zeta-native package (no Claude manifest) uses OMP
+	test("honors model frontmatter of Zeta-native registry plugin agents (#12028)", async () => {
+		// Registry-installed marketplace plugins ride the shared plugin registry as
+		// origin "zeta" roots. A Zeta-native package (no Claude manifest) uses Zeta
 		// model selectors, so `model:` must survive discovery.
 		enableProvider("claude-plugins");
-		await writeOmpMarketplacePlugin(tempHome, {
-			agentName: "omp-probe",
+		await writeZetaMarketplacePlugin(tempHome, {
+			agentName: "zeta-probe",
 			model: '["@advisor", "@smol"]',
 			manifest: "none",
 		});
 
 		const { agents } = await discoverAgents(projectDir, tempHome);
-		const agent = agents.find(candidate => candidate.name === "omp-probe");
+		const agent = agents.find(candidate => candidate.name === "zeta-probe");
 
 		expect(agent).toBeDefined();
 		expect(agent?.model).toEqual(["@advisor", "@smol"]);
 	});
 
-	test("drops model frontmatter of a Claude-format plugin installed via the OMP registry (#12031 review)", async () => {
-		// origin "omp" but a `.claude-plugin` package: its `model: sonnet` is a
-		// Claude alias, not an OMP selector, so it must still be stripped.
+	test("drops model frontmatter of a Claude-format plugin installed via the Zeta registry (#12031 review)", async () => {
+		// origin "zeta" but a `.claude-plugin` package: its `model: sonnet` is a
+		// Claude alias, not a Zeta selector, so it must still be stripped.
 		enableProvider("claude-plugins");
-		await writeOmpMarketplacePlugin(tempHome, {
+		await writeZetaMarketplacePlugin(tempHome, {
 			agentName: "claude-probe",
 			model: "sonnet",
 			manifest: "claude",
@@ -287,22 +280,5 @@ describe("discoverAgents", () => {
 
 		expect(agent).toBeDefined();
 		expect(agent?.model).toBeUndefined();
-	});
-
-	test("honors model frontmatter when a plugin declares both OMP and Claude manifests (#12031 review)", async () => {
-		// `.omp-plugin/plugin.json` wins over a sibling `.claude-plugin/plugin.json`,
-		// mirroring the MCP-config precedence, so OMP selectors survive.
-		enableProvider("claude-plugins");
-		await writeOmpMarketplacePlugin(tempHome, {
-			agentName: "hybrid-probe",
-			model: '["@advisor", "@smol"]',
-			manifest: "both",
-		});
-
-		const { agents } = await discoverAgents(projectDir, tempHome);
-		const agent = agents.find(candidate => candidate.name === "hybrid-probe");
-
-		expect(agent).toBeDefined();
-		expect(agent?.model).toEqual(["@advisor", "@smol"]);
 	});
 });

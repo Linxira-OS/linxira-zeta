@@ -33,7 +33,7 @@ mkdir -p ~/.zeta/agent/tools
 cp -r hello ~/.zeta/agent/tools/
 ```
 
-With a named profile (`OMP_PROFILE` or `--profile`), use that profile's tools
+With a named profile (`ZETA_PROFILE` or `--profile`), use that profile's tools
 dir instead: `~/.zeta/profiles/<name>/agent/tools`.
 
 `--tools` selects registered tool names, never file paths. `hello` is the name

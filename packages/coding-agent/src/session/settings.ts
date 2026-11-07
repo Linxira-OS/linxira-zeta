@@ -1589,24 +1589,6 @@ export const cfgEditorAutoInstall = register({
 	},
 });
 
-/**
- * Read-only compatibility with an installed upstream OMP. Off by default: Zeta
- * never reads the legacy OMP root (models, credentials, dotenv files) behind the
- * user's back. `ZETA_OMP_COMPAT` keeps working and outranks every layer.
- */
-export const cfgCompatImportLegacyOmp = register({
-	id: "compat.importLegacyOmp",
-	type: "boolean",
-	default: false,
-	env: "ZETA_OMP_COMPAT",
-	ui: {
-		tab: "interaction",
-		group: "Compatibility",
-		label: "Read legacy OMP configuration",
-		description: "Read the legacy OMP configuration directory (models, credentials, dotenv; read-only).",
-	},
-});
-
 /** Rejects a cost threshold that is not a positive USD amount. */
 function validateCostThreshold(id: string): (raw: unknown) => void {
 	return raw => {

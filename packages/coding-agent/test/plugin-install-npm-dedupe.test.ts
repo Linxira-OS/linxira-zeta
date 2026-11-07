@@ -39,7 +39,7 @@ describe("PluginManager.install npm idempotency", () => {
 		vi.spyOn(piUtils, "getPluginsDir").mockReturnValue(pluginsDir);
 		vi.spyOn(piUtils, "getPluginsNodeModules").mockReturnValue(pluginsNodeModules);
 		vi.spyOn(piUtils, "getPluginsPackageJson").mockReturnValue(pluginsPkgJson);
-		vi.spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(tmpRoot, "omp-plugins.lock.json"));
+		vi.spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(tmpRoot, "zeta-plugins.lock.json"));
 		vi.spyOn(piUtils, "getProjectDir").mockReturnValue(tmpRoot);
 		vi.spyOn(piUtils, "getProjectPluginOverridesPath").mockReturnValue(path.join(tmpRoot, "plugin-overrides.json"));
 	});
@@ -66,7 +66,7 @@ describe("PluginManager.install npm idempotency", () => {
 				edges.push(`    "pi-lens": "npm:pi-lens@4.2.0"`);
 				await Bun.write(
 					pluginsPkgJson,
-					`{\n  "name": "omp-plugins",\n  "private": true,\n  "dependencies": {\n${edges.join(",\n")}\n  }\n}\n`,
+					`{\n  "name": "zeta-plugins",\n  "private": true,\n  "dependencies": {\n${edges.join(",\n")}\n  }\n}\n`,
 				);
 				const installedDir = path.join(pluginsNodeModules, "pi-lens");
 				await fs.mkdir(installedDir, { recursive: true });
@@ -91,7 +91,7 @@ describe("PluginManager.install npm idempotency", () => {
 	test("reinstalling the same npm spec leaves exactly one manifest key", async () => {
 		await Bun.write(
 			pluginsPkgJson,
-			JSON.stringify({ name: "omp-plugins", private: true, dependencies: { "pi-lens": "v4.1.6" } }, null, 2),
+			JSON.stringify({ name: "zeta-plugins", private: true, dependencies: { "pi-lens": "v4.1.6" } }, null, 2),
 		);
 		mockAppendingBunInstall();
 
@@ -107,7 +107,7 @@ describe("PluginManager.install npm idempotency", () => {
 	test("a pre-duplicated manifest collapses to one key", async () => {
 		await Bun.write(
 			pluginsPkgJson,
-			'{\n  "name": "omp-plugins",\n  "private": true,\n  "dependencies": {\n    "pi-lens": "npm:pi-lens",\n    "pi-lens": "v4.1.6"\n  }\n}\n',
+			'{\n  "name": "zeta-plugins",\n  "private": true,\n  "dependencies": {\n    "pi-lens": "npm:pi-lens",\n    "pi-lens": "v4.1.6"\n  }\n}\n',
 		);
 		mockAppendingBunInstall();
 
@@ -123,7 +123,7 @@ describe("PluginManager.install npm idempotency", () => {
 			pluginsPkgJson,
 			JSON.stringify(
 				{
-					name: "omp-plugins",
+					name: "zeta-plugins",
 					private: true,
 					dependencies: {
 						"npm:pi-lens@4.1.6": "npm:pi-lens@4.1.6",

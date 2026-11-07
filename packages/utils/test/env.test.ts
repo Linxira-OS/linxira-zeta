@@ -412,9 +412,9 @@ describe("$envExact", () => {
 	});
 });
 
-describe("legacy OMP dotenv compatibility", () => {
+describe("upstream .omp dotenv files are never read", () => {
 	function makeHome(files: Record<string, string>): string {
-		const home = fs.mkdtempSync(path.join(os.tmpdir(), "pi-utils-legacy-home-"));
+		const home = fs.mkdtempSync(path.join(os.tmpdir(), "pi-utils-omp-home-"));
 		tempDirs.push(home);
 		for (const [relativePath, content] of Object.entries(files)) {
 			const filePath = path.join(home, relativePath);
@@ -424,7 +424,7 @@ describe("legacy OMP dotenv compatibility", () => {
 		return home;
 	}
 
-	async function readKey(home: string, key: string, ompCompat = false): Promise<string | null> {
+	async function readKey(home: string, key: string): Promise<string | null> {
 		const cwd = path.join(home, "workspace");
 		fs.mkdirSync(cwd, { recursive: true });
 		const env: Record<string, string> = {};
@@ -434,10 +434,7 @@ describe("legacy OMP dotenv compatibility", () => {
 		delete env[key];
 		delete env.ZETA_CONFIG_DIR;
 		delete env.ZETA_PROFILE;
-		delete env.OMP_PROFILE;
 		delete env.ZETA_CODING_AGENT_DIR;
-		delete env.ZETA_OMP_COMPAT;
-		if (ompCompat) env.ZETA_OMP_COMPAT = "1";
 		env.HOME = home;
 		env.USERPROFILE = home;
 		const script = [
@@ -459,34 +456,13 @@ describe("legacy OMP dotenv compatibility", () => {
 		return JSON.parse(stdout) as string | null;
 	}
 
-	it("does not read the old OMP agent .env by default", async () => {
-		const home = makeHome({ ".omp/agent/.env": "OD_KEY=legacy-od-key\n" });
+	it("ignores an upstream ~/.omp agent .env", async () => {
+		const home = makeHome({ ".omp/agent/.env": "OD_KEY=upstream-od-key\n" });
 		await expect(readKey(home, "OD_KEY")).resolves.toBeNull();
 	});
 
-	it("cannot enable the switch from the legacy OMP .env itself", async () => {
-		const home = makeHome({ ".omp/agent/.env": "ZETA_OMP_COMPAT=1\nOD_KEY=legacy-od-key\n" });
-		await expect(readKey(home, "OD_KEY")).resolves.toBeNull();
-	});
-
-	it("fills an unset provider key from the old OMP agent .env when enabled", async () => {
-		const home = makeHome({ ".omp/agent/.env": "OD_KEY=legacy-od-key\n" });
-		await expect(readKey(home, "OD_KEY", true)).resolves.toBe("legacy-od-key");
-	});
-
-	it("keeps the new .zeta agent .env ahead of the legacy file when enabled", async () => {
-		const home = makeHome({
-			".zeta/agent/.env": "OD_KEY=new-od-key\n",
-			".omp/agent/.env": "OD_KEY=legacy-od-key\n",
-		});
-		await expect(readKey(home, "OD_KEY", true)).resolves.toBe("new-od-key");
-	});
-
-	it("honors the switch inside the new .zeta agent .env", async () => {
-		const home = makeHome({
-			".zeta/agent/.env": "ZETA_OMP_COMPAT=1\n",
-			".omp/agent/.env": "OD_KEY=legacy-od-key\n",
-		});
-		await expect(readKey(home, "OD_KEY")).resolves.toBe("legacy-od-key");
+	it("still reads Zeta's own agent .env", async () => {
+		const home = makeHome({ ".zeta/agent/.env": "OD_KEY=zeta-od-key\n" });
+		await expect(readKey(home, "OD_KEY")).resolves.toBe("zeta-od-key");
 	});
 });

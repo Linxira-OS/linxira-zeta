@@ -82,7 +82,7 @@ omp loads extension modules from these sources:
    - `~/.zeta/agent/extensions/`
    - legacy extension paths listed in `.zeta/settings.json#extensions` or `~/.zeta/agent/settings.json#extensions`
 2. Discovered JavaScript/TypeScript hook factories (`hooks/pre/` and `hooks/post/`), bound through the extension runner.
-3. Enabled installed plugins under `~/.zeta/plugins/node_modules` or a project plugin root — including npm, marketplace, and `zetacode plugin link` installs — via their `omp.extensions`/`pi.extensions` manifests.
+3. Enabled installed plugins under `~/.zeta/plugins/node_modules` or a project plugin root — including npm, marketplace, and `zetacode plugin link` installs — via their `zeta.extensions`/`pi.extensions` manifests.
 4. Explicit configured paths passed by the CLI (`omp --extension ./my-ext.ts`, also `-e`; `--hook` is treated as an alias) and by the `extensions:` setting in config.
 
 The runtime de-duplicates by resolved absolute path — first seen wins.
@@ -93,13 +93,13 @@ The user directory is the active profile's agent directory: the default is `~/.z
 
 When a path points to a directory, omp resolves the entry point in this order:
 
-1. `package.json` with `omp.extensions` (or legacy `pi.extensions`) field
+1. `package.json` with `zeta.extensions` (or legacy `pi.extensions`) field
 2. `index.ts`
 3. `index.js`
 
 When scanning an `extensions/` directory, omp also loads direct `*.ts`/`*.js` files and one-level subdirectories that have `index.ts`, `index.js`, or a manifest.
 
-Extension packages can also bundle sibling capability directories. When a package is loaded through `extensions:` or `--extension`/`-e`, the `omp-plugins` provider discovers its `skills/`, `hooks/pre|post/`, `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json`.
+Extension packages can also bundle sibling capability directories. When a package is loaded through `extensions:` or `--extension`/`-e`, the `zeta-plugins` provider discovers its `skills/`, `hooks/pre|post/`, `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json`.
 
 ## package.json manifest
 

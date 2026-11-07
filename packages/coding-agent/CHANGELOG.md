@@ -648,8 +648,6 @@ Older entries are archived in [packages/coding-agent/CHANGELOG.md@1e3cc3ab94d0](
 - Session titles now include a card index, icon, and short code, with appropriate Nerd Font rendering in Tern panes.
 - When Nerd Font symbols are unavailable, session titling requests only an emoji.
 - Subagent completion indicators now advance to 99% when the subagent submits its result.
-- In Tern panes, headed and headless browser opens are shown in Tern picture-in-picture by default; set `app.tern: false`, `browser.tern`, or `PI_BROWSER_TERN=0` to open Chromium instead.
-- In Tern panes, `/fork` opens the fork in a neighboring pane while preserving the original session.
 - Tern's empty composer now shows the session title, or “What are we cooking?” when no title is available.
 - Tern todo cards now display their checklist by default and can be collapsed by clicking the card header.
 - Improved performance across browser extraction, web and document fetching, file tools, search, session handling, LSP/DAP, MCP, subagents, SSH file operations, image processing, voice and dictation, collaboration, and large-output or large-file workflows.

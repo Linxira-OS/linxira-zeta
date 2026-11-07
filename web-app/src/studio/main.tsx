@@ -2,23 +2,16 @@
  * Zeta renderer entry.
  *
  * `mountRenderer` is the public mounting API: it takes a semantic
- * `StudioClient` supplied by the caller (desktop shell, local WebUI bridge,
- * or a test) and never imports or constructs a transport itself.
- *
- * When this module is loaded directly by Vite (the auto-bootstrap entry),
- * the hosting page injects that client on `globalThis.OMP_STUDIO_CLIENT`
- * before the bundle runs. If it is absent but the desktop preload bridge
- * (`globalThis.zetaStudio`) is present, the entry constructs the client
- * itself: `createDesktopTransport(zetaStudio)` → `StudioClientImpl`. If
- * neither exists we render an explicit unavailable state instead of
- * failing.
+ * `StudioClient` supplied by the caller and never imports or constructs a
+ * transport itself. The browser host entry (`host/boot.ts`) builds the
+ * same-origin Zeta client and calls it; the desktop shell supplies its own
+ * client. This module must not mount on its own: doing so created a second
+ * React root on `#root` and duplicated the startup notice.
  */
 
 import { createRoot } from "react-dom/client";
 import type { StudioClient } from "@linxiraos/studio-contract";
-import { StudioClientImpl } from "@linxiraos/studio-client";
-import { createDesktopTransport } from "@linxiraos/studio-transport-desktop";
-import { App, Unavailable } from "./App";
+import { App } from "./App";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { getAppSettings } from "./settings/appSettings";
 import { applyTypography } from "./settings/typography";
@@ -90,18 +83,9 @@ export function mountRenderer(element: Element, client: StudioClient): void {
   );
 }
 
-const host = document.getElementById("root");
-if (host !== null) {
-  let client: StudioClient | undefined = globalThis.OMP_STUDIO_CLIENT;
-  if (client === undefined) {
-    const bridge = globalThis.zetaStudio;
-    if (bridge !== undefined) {
-      client = new StudioClientImpl(createDesktopTransport(bridge));
-    }
-  }
-  createRoot(host).render(
-    <ErrorBoundary>
-      {client === undefined ? <Unavailable /> : <App client={client} />}
-    </ErrorBoundary>,
-  );
-}
+/*
+ * The host entry (`host/boot.ts`) owns mounting, and the desktop shell supplies
+ * its own client. Mounting here as well created a second React root on `#root`:
+ * the host tree plus an `Unavailable` tree, which duplicated the startup
+ * notice (two identical dialogs, so Close needed two clicks).
+ */

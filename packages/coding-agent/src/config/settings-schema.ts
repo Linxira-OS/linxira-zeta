@@ -342,7 +342,7 @@ export const SETTINGS_SCHEMA = {
 
 	// Auth broker — credentials proxied through a remote `zetacode auth-broker serve`
 	// host. Hidden from the UI; populate via env vars or hand-edited config.yml.
-	// Env (`OMP_AUTH_BROKER_URL` / `OMP_AUTH_BROKER_TOKEN`) takes precedence so
+	// Env (`ZETA_AUTH_BROKER_URL` / `ZETA_AUTH_BROKER_TOKEN`) takes precedence so
 	// per-machine overrides remain trivial.
 	"auth.broker.url": { type: "string", default: undefined },
 	"auth.broker.token": { type: "string", default: undefined, credential: true },
@@ -5171,7 +5171,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Isolation",
 			label: "Worktree Base Directory",
 			description:
-				"Base directory for agent-managed worktrees — task-isolation copies, `github` PR checkouts, and `zetacode worktree` cleanup all live here. Unset uses ~/.zeta/wt. Must be an absolute or ~-relative path; relative paths are ignored. The OMP_WORKTREE_DIR env var overrides this.",
+				"Base directory for agent-managed worktrees — task-isolation copies, `github` PR checkouts, and `zetacode worktree` cleanup all live here. Unset uses ~/.zeta/wt. Must be an absolute or ~-relative path; relative paths are ignored. The ZETA_WORKTREE_DIR env var overrides this.",
 		},
 	},
 
@@ -5799,17 +5799,6 @@ export const SETTINGS_SCHEMA = {
 			label: "Auto-install Editor",
 			description:
 				"Install the @linxiraos/editor package automatically when a switch to the editor needs it and the package is missing",
-		},
-	},
-
-	"compat.importLegacyOmp": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "interaction",
-			group: "Compatibility",
-			label: "Read legacy OMP configuration",
-			description: "Read the legacy OMP configuration directory (models, credentials, dotenv; read-only).",
 		},
 	},
 

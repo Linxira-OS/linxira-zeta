@@ -408,7 +408,7 @@ if "__zeta_prelude_loaded__" not in globals():
     def __zeta_reset_call_occurrences__():
         _OMP_CALL_OCCURRENCES.set(None)
 
-    async def __omp_with_call_site__(site_id: str, action, args):
+    async def __zeta_with_call_site__(site_id: str, action, args):
         occurrences = dict(_OMP_CALL_OCCURRENCES.get() or {})
         occurrence = occurrences.get(site_id, 0)
         occurrences[site_id] = occurrence + 1
@@ -650,7 +650,7 @@ if "__zeta_prelude_loaded__" not in globals():
         # speculative reads only when the binding carries this marker.
         # (`__slots__` is empty, so this lives on the class, not the
         # instance; accidental user collision is out of threat model.)
-        __omp_tool_bridge__ = True
+        __zeta_tool_bridge__ = True
 
         __slots__ = ()
 

@@ -74,7 +74,7 @@ Argument handling:
 | `--add-dir <dir>`     | Add a workspace directory beyond the working directory (repeatable).                         |
 | `--allow-home`        | Allow starting in `~` without auto-switching to a temp dir.                                  |
 | `--profile <name>`    | Use an isolated profile for auth, sessions, settings, and caches.                            |
-| `--alias <name>`      | Create a shell shortcut for a named profile and exit; requires `--profile` or `OMP_PROFILE`. |
+| `--alias <name>`      | Create a shell shortcut for a named profile and exit; requires `--profile` or `ZETA_PROFILE`. |
 | `--config <file>`     | Load an extra `config.yml`-style overlay for this run (repeatable).                          |
 | `--session-dir <dir>` | Directory for session storage and lookup.                                                    |
 | `--no-session`        | Don't save the session (ephemeral).                                                          |

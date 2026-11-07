@@ -56,12 +56,12 @@ Hook-capability loading already applies its own hook-specific disabled ids, so t
 
 After hook discovery, `discoverAndLoadExtensions()` appends extension entry points from enabled installed plugins via `getAllPluginExtensionPaths(cwd)`.
 
-Plugin extension entries come from package `omp.extensions` / `pi.extensions` manifests, including enabled feature entries.
+Plugin extension entries come from package `zeta.extensions` / `pi.extensions` manifests, including enabled feature entries.
 
 Installed-plugin manifest resolution accepts explicit `.ts`, `.js`, `.mjs`, and `.cjs` files. For a manifest entry that names a directory, it recognizes `index.ts`, `index.js`, `index.mjs`, or `index.cjs`; extension-directory expansion uses the same four suffixes. This is broader than native and configured-directory auto-scanning, which remains limited to `.ts` and `.js`.
 
 Installed-plugin extension directory resolution uses the directory's own
-non-empty `omp.extensions` / `pi.extensions` manifest first, then a direct index,
+non-empty `zeta.extensions` / `pi.extensions` manifest first, then a direct index,
 then a sorted one-level scan. That scan skips declaration files
 (`*.d.ts`, `*.d.mts`, `*.d.cts`); explicitly declared file entries are not
 suffix-filtered.
@@ -116,14 +116,14 @@ Behavior split:
 
 - SDK: when `disableExtensionDiscovery=true`, ambient extension factories are
   excluded, while `additionalExtensionPaths` are still resolved normally
-  (including package directories with `package.json#omp.extensions`).
+  (including package directories with `package.json#zeta.extensions`).
 - CLI: `--no-extensions` follows the same explicit-only contract. Explicit
   `-e/--extension` and `--hook` paths still load, and only sibling capability
   roots from explicitly named extension packages remain eligible. Project/user
-  `extensions:` settings and installed OMP extension packages are excluded from
+  `extensions:` settings and installed Zeta extension packages are excluded from
   that sibling surface.
 
-This flag governs extension factories and OMP extension-package sibling roots;
+This flag governs extension factories and Zeta extension-package sibling roots;
 it is not a whole-process capability-isolation switch. Skills, MCP servers,
 tools, prompts, and rules owned by other discovery subsystems retain their own
 enable/disable controls.
@@ -214,13 +214,13 @@ It is used directly as a module entry candidate. Explicit `.ts`, `.js`, `.mjs`, 
 
 Resolution order:
 
-1. `package.json` in that directory with a non-empty `omp.extensions` (or legacy `pi.extensions`) array -> use declared entries
+1. `package.json` in that directory with a non-empty `zeta.extensions` (or legacy `pi.extensions`) array -> use declared entries
 2. `index.ts`
 3. `index.js`
 4. Otherwise scan one level for extension entries:
    - direct `*.ts` / `*.js`
    - subdir `index.ts` / `index.js`
-   - subdir `package.json` with `omp.extensions` / `pi.extensions`
+   - subdir `package.json` with `zeta.extensions` / `pi.extensions`
 
 Rules and constraints:
 

@@ -7,6 +7,7 @@ import {
   PROJECT_GITHUB_HOST,
   PROJECT_GITHUB_URL,
   STARTUP_NOTICE_COPY,
+  dismissStartupNoticeForSession,
   dismissStartupNoticeForever,
   shouldShowStartupNotice,
 } from "./settings/startupNotice";
@@ -117,7 +118,10 @@ export function StartupNoticeDialog({
 
 export function StartupNotice(): ReactNode {
   const [open, setOpen] = useState(shouldShowStartupNotice);
-  const close = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => {
+    dismissStartupNoticeForSession();
+    setOpen(false);
+  }, []);
   const dontRemind = useCallback(() => {
     dismissStartupNoticeForever();
     setOpen(false);

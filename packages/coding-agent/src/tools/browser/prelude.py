@@ -650,7 +650,7 @@ def _make_browser():
             return value if isinstance(value, list) else []
 
         async def targets(self, *, app=None, timeout=None):
-            """List the user's own pages app.target can adopt (Tern browser blocks or relay Chrome tabs)."""
+            """List the user's own pages app.target can adopt (relay Chrome tabs)."""
             details = await _invoke("targets", {"app": app, "timeout": timeout})
             value = details.get("value")
             return value if isinstance(value, list) else []

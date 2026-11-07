@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
+import { clearZetaExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { TempDir } from "@linxiraos/pi-utils";
@@ -23,7 +23,7 @@ class ProcessExitSignal extends Error {
 
 // `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
 afterEach(() => {
-	clearOmpExtensionCliRoots();
+	clearZetaExtensionCliRoots();
 });
 
 describe("runRootCommand — --no-session --resume", () => {

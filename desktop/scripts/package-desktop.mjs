@@ -44,6 +44,11 @@ fs.cpSync(path.join(tempDesktopDir, "build"), path.join(tempRoot, "build"), { re
 // buildResources dir carries both.
 fs.cpSync(path.join(desktopDir, "build"), path.join(tempRoot, "build"), { recursive: true });
 fs.cpSync(path.join(tempDesktopDir, "staging"), path.join(tempRoot, "staging"), { recursive: true });
+// electron-builder.yml references `../LICENSE` etc. relative to the isolated
+// project dir, so stage the repo's canonical legal files one level up.
+for (const name of ["LICENSE", "NOTICE", "THIRD-PARTY-NOTICES.txt"]) {
+	fs.copyFileSync(path.join(repoRoot, name), path.join(tempDesktopDir, name));
+}
 
 // The darwin build matrix runs one job per arch (macos-15-intel / macos-14).
 // electron-builder ignores CLI --x64/--arm64 when the config lists explicit

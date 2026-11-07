@@ -13,7 +13,6 @@ import type {
 	Realm,
 } from "puppeteer-core";
 import { ToolAbortError, throwIfAborted } from "../tool-errors";
-import { splitKeyCombo, ternKey } from "./tern/keys";
 import { devtoolsFrameId } from "./frames";
 import { untilAbortedOrReleased } from "./op-timeouts";
 import {
@@ -1731,7 +1730,7 @@ export function releaseButtonOffPage(page: Page, options: MouseButtonOptions): v
 /**
  * macOS runs editing shortcuts as app-menu commands a CDP key event never reaches, so the key-down
  * names Chrome's editor command instead; elsewhere the plain key event already edits.
- * Keyed by the sorted Tern modifiers and the lower-cased letter.
+ * Keyed by the sorted modifiers and the lower-cased letter.
  */
 const EDITING_COMMANDS: Readonly<Record<string, string>> =
 	process.platform === "darwin"
@@ -1745,18 +1744,37 @@ const EDITING_COMMANDS: Readonly<Record<string, string>> =
 			}
 		: {};
 
+/** Modifier names as {@link EDITING_COMMANDS} spells them. */
+const EDITING_MODIFIERS: Readonly<Record<string, string>> = {
+	Shift: "shift",
+	Control: "control",
+	Alt: "alt",
+	Meta: "meta",
+};
+
 /** The editor command a combo names on macOS, whatever its spelling (`Meta+c`, `MetaLeft+KeyC`, `Shift+Meta+Z`). */
 function editingCommand(keys: readonly string[]): string | undefined {
 	const key = keys[keys.length - 1]!;
-	if (keys.length < 2 || !/^(?:Key[A-Z]|[A-Za-z])$/.test(key)) return undefined;
+	const letter = /^(?:Key([A-Z])|([A-Za-z]))$/.exec(key);
+	if (keys.length < 2 || !letter) return undefined;
 	const modifiers = new Set<string>();
 	for (const name of keys.slice(0, -1)) {
-		// ternKey throws on names Tern cannot type; only modifiers can select a command.
-		const modifier = /^(?:Shift|Control|Alt|Meta)(?:Left|Right)?$/.test(name) ? ternKey(name).modifier : undefined;
+		const modifier = EDITING_MODIFIERS[/^(Shift|Control|Alt|Meta)(?:Left|Right)?$/.exec(name)?.[1] ?? ""];
 		if (!modifier) return undefined;
 		modifiers.add(modifier);
 	}
-	return EDITING_COMMANDS[`${[...modifiers].sort().join("+")}+${ternKey(key).key.toLowerCase()}`];
+	return EDITING_COMMANDS[`${[...modifiers].sort().join("+")}+${(letter[1] ?? letter[2]!).toLowerCase()}`];
+}
+
+/** Split `Control+Shift+a` into its keys; a lone `+` (or a name without `+`) is one key. */
+function splitKeyCombo(combo: string): string[] {
+	if (combo.length <= 1 || !combo.includes("+")) return [combo];
+	const parts = combo.split("+");
+	if (parts.at(-1) === "") {
+		parts.pop();
+		parts[parts.length - 1] = "+";
+	}
+	return parts.filter(part => part.length > 0);
 }
 
 /**

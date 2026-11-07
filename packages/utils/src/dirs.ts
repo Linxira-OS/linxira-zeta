@@ -644,7 +644,7 @@ export function setProfile(profile: string | undefined): void {
 	if (activeProfile) {
 		dirs = new DirResolver({ profile: activeProfile });
 		process.env.ZETA_PROFILE = activeProfile;
-		process.env.OMP_PROFILE = activeProfile;
+		process.env.ZETA_PROFILE = activeProfile;
 		process.env.PI_PROFILE = activeProfile;
 		process.env.ZETA_CODING_AGENT_DIR = dirs.agentDir;
 	} else {
@@ -756,44 +756,21 @@ export function getPluginsPackageJson(home?: string): string {
 }
 
 /**
- * Zeta-named lockfile, written going forward; `PLUGINS_LOCKFILE_LEGACY` stays
- * readable so a pre-rename install keeps its state (see
- * `document/brand-surface-rules.md`, DUAL: read both spellings, write the Zeta
- * one). Every lockfile name in the tree comes from the two constants below —
- * a writer on one spelling and a reader on the other is what emptied
- * `zetacode plugin list` after the loader migrated the file.
+ * Zeta plugin lockfile name. Every lockfile name in the tree comes from this
+ * constant — a writer on one spelling and a reader on the other is what once
+ * emptied `zetacode plugin list`.
  */
 export const PLUGINS_LOCKFILE_CANONICAL = "zeta-plugins.lock.json";
 
-/** Pre-rename lockfile name still produced by earlier installs. */
-export const PLUGINS_LOCKFILE_LEGACY = "omp-plugins.lock.json";
-
 /**
  * Plugin lock file (~/.zeta/plugins/zeta-plugins.lock.json) — the path every
- * writer targets and every reader asks for first.
+ * writer targets and every reader asks for.
  *
  * It carries per-plugin runtime state (enabled flag, enabled features,
- * version), so the rename is a migration rather than a reset: a lockfile left
- * under the pre-rename name is still read (see
- * {@link pluginsLockfileReadOrder}) and moved to this path on first load.
+ * version).
  */
 export function getPluginsLockfile(home?: string): string {
 	return path.join(getPluginsDir(home), PLUGINS_LOCKFILE_CANONICAL);
-}
-
-/**
- * Read order for a lockfile path whose directory is a plugins root: the
- * canonical name first, then the pre-rename one. Returned as absolute paths so
- * a caller can hand each to `Bun.file` without re-deriving the directory.
- *
- * A path that is not one of the two names (a caller- or test-supplied path) is
- * returned as-is and reads nothing else.
- */
-export function pluginsLockfileReadOrder(lockfilePath: string): string[] {
-	const dir = path.dirname(lockfilePath);
-	const base = path.basename(lockfilePath);
-	if (base !== PLUGINS_LOCKFILE_CANONICAL && base !== PLUGINS_LOCKFILE_LEGACY) return [lockfilePath];
-	return [path.join(dir, PLUGINS_LOCKFILE_CANONICAL), path.join(dir, PLUGINS_LOCKFILE_LEGACY)];
 }
 
 /**
@@ -907,7 +884,7 @@ let worktreesDirOverride: string | undefined;
  * Relocate the base directory for agent-managed worktrees (PR checkouts, task
  * isolation, and `zetacode worktree` cleanup all read the same base). Driven by the
  * `worktree.base` setting in coding-agent; pass `undefined`/empty to clear and
- * fall back to `OMP_WORKTREE_DIR` or the `~/.zeta/wt` default.
+ * fall back to `ZETA_WORKTREE_DIR` or the `~/.zeta/wt` default.
  *
  * `~` is expanded and a relative path is rejected (see {@link resolveAbsoluteDir}).
  * Returns the absolute path that took effect, or `undefined` if the input was
@@ -921,13 +898,13 @@ export function setWorktreesDir(dir: string | undefined): string | undefined {
 
 /**
  * Get the agent-managed worktrees directory. Resolution order: the
- * `OMP_WORKTREE_DIR` env var, then the {@link setWorktreesDir} override (the
+ * `ZETA_WORKTREE_DIR` env var, then the {@link setWorktreesDir} override (the
  * `worktree.base` setting), then the `~/.zeta/wt` default. The env var and the
  * override are both `~`-expanded and must be absolute; a relative value is
  * ignored and resolution falls through.
  */
 export function getWorktreesDir(): string {
-	return resolveAbsoluteDir(process.env.OMP_WORKTREE_DIR) ?? worktreesDirOverride ?? dirs.rootSubdir("wt", "data");
+	return resolveAbsoluteDir(process.env.ZETA_WORKTREE_DIR) ?? worktreesDirOverride ?? dirs.rootSubdir("wt", "data");
 }
 
 /** Get the SSH control socket directory (~/.zeta/ssh-control). */
@@ -1029,11 +1006,11 @@ export function getLegacyPiExtensionCacheDbPath(): string {
 
 /**
  * Get the encrypted auth-broker snapshot cache path (~/.zeta/cache/auth-broker-snapshot.enc).
- * Honors the `OMP_AUTH_BROKER_SNAPSHOT_CACHE` env var when set so tests and
+ * Honors the `ZETA_AUTH_BROKER_SNAPSHOT_CACHE` env var when set so tests and
  * operators can isolate or relocate the cache file.
  */
 export function getAuthBrokerSnapshotCachePath(): string {
-	const override = process.env.OMP_AUTH_BROKER_SNAPSHOT_CACHE;
+	const override = process.env.ZETA_AUTH_BROKER_SNAPSHOT_CACHE;
 	if (override) return override;
 	return dirs.rootSubdir(path.join("cache", "auth-broker-snapshot.enc"), "cache");
 }

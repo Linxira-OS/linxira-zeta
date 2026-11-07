@@ -158,13 +158,13 @@ Because bundled parsing uses `level: "fatal"`, unrecoverable YAML errors or inva
 
 ## Filesystem and plugin discovery
 
-`discoverAgents(cwd, home, extensionRoots?)` (`src/task/discovery.ts`) merges agents from OMP-native roots, OMP extension packages, and Claude marketplace plugin roots before appending bundled definitions. Direct cross-harness roots such as `.claude/agents`, `.codex/agents`, and `.gemini/agents` are intentionally skipped — their frontmatter schema is not the OMP task-agent contract (`TASK_AGENT_CONFIG_SOURCE = ".omp"` filters the native config-dir lists).
+`discoverAgents(cwd, home, extensionRoots?)` (`src/task/discovery.ts`) merges agents from Zeta-native roots, Zeta extension packages, and Claude marketplace plugin roots before appending bundled definitions. Direct cross-harness roots such as `.claude/agents`, `.codex/agents`, and `.gemini/agents` are intentionally skipped — their frontmatter schema is not the OMP task-agent contract (`TASK_AGENT_CONFIG_SOURCE = ".omp"` filters the native config-dir lists).
 
 ### Discovery inputs and precedence
 
 1. Nearest project `.zeta/agents` dir from `findAllNearestProjectConfigDirs("agents", cwd)` (first `.zeta` hit only)
 2. User `.zeta/agents` dir from `getConfigDirs("agents", { project: false })` (first `.zeta` hit only)
-3. `<extension-root>/agents` for every enabled OMP extension package returned by `listOmpExtensionRoots(...)`, in this order:
+3. `<extension-root>/agents` for every enabled Zeta extension package returned by `listZetaExtensionRoots(...)`, in this order:
    - explicit CLI `--extension` / SDK `additionalExtensionPaths` directory roots
    - the session's effective `extensions:` array, in its configured order
    - installed npm/link plugins
@@ -172,9 +172,9 @@ Because bundled parsing uses `level: "fatal"`, unrecoverable YAML errors or inva
 4. Claude marketplace plugin roots (`listClaudePluginRoots(home, cwd)`) with `agents/` subdirs — only when `isProviderEnabled("claude-plugins")`; project-scope plugins sort before user-scope. User-scope roots additionally require the `claude-plugins` or `claude` user source to be enabled (`isUserSourceEnabled`: normally via `enabledProviders`, e.g. `["claude-plugins"]`; `claude` is also enabled implicitly when `CLAUDE_CONFIG_DIR` is set), except roots whose origin is not the foreign `~/.claude/plugins` tree (omp's own installs with `origin: "omp"` and `--plugin-dir` roots) — mirroring the skills path's exemption.
 5. Bundled agents (`loadBundledAgents()`)
 
-The OMP extension-package surface is disabled when the `omp-plugins` capability provider is disabled. Marketplace roots are excluded from `listOmpExtensionRoots` and enter only through the separately gated Claude-plugin path.
+The Zeta extension-package surface is disabled when the `zeta-plugins` capability provider is disabled. Marketplace roots are excluded from `listZetaExtensionRoots` and enter only through the separately gated Claude-plugin path.
 
-Claude-dialect plugin agents discard their frontmatter `model` so Claude aliases are not misread as OMP selectors. This applies to foreign Claude roots and packages whose manifest declares the Claude format, including OMP installs or `--plugin-dir` roots. OMP-native and Agent-Plugins-standard packages retain their model selectors.
+Claude-dialect plugin agents discard their frontmatter `model` so Claude aliases are not misread as OMP selectors. This applies to foreign Claude roots and packages whose manifest declares the Claude format, including OMP installs or `--plugin-dir` roots. Zeta-native and Agent-Plugins-standard packages retain their model selectors.
 
 ## Merge and collision rules
 

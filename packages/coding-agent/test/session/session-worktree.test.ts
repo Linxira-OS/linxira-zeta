@@ -87,9 +87,9 @@ describe("session worktree helpers (real git)", () => {
 		root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "omp-session-wt-")));
 		repo = path.join(root, "repo");
 		await fs.mkdir(repo);
-		savedEnv = process.env.OMP_WORKTREE_DIR;
+		savedEnv = process.env.ZETA_WORKTREE_DIR;
 		savedCwd = process.cwd();
-		delete process.env.OMP_WORKTREE_DIR;
+		delete process.env.ZETA_WORKTREE_DIR;
 		setWorktreesDir(path.join(root, "wt"));
 		git(repo, "init", "-q", "-b", "main");
 		git(repo, "config", "core.autocrlf", "false");
@@ -101,8 +101,8 @@ describe("session worktree helpers (real git)", () => {
 	afterEach(async () => {
 		process.chdir(savedCwd);
 		setWorktreesDir(undefined);
-		if (savedEnv === undefined) delete process.env.OMP_WORKTREE_DIR;
-		else process.env.OMP_WORKTREE_DIR = savedEnv;
+		if (savedEnv === undefined) delete process.env.ZETA_WORKTREE_DIR;
+		else process.env.ZETA_WORKTREE_DIR = savedEnv;
 		await fs.rm(root, { recursive: true, force: true });
 	});
 

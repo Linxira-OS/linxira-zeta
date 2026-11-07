@@ -107,7 +107,7 @@ describe("message catalogue has no orphan keys", () => {
 			const text = fs.readFileSync(file, "utf8");
 			// Identifiers cover the `M.foo` / `tuiText("foo")` forms; quoted
 			// strings cover catalogue keys that contain a dot
-			// (`models.originOmp`) and bracket lookups `M["foo"]`.
+			// (`models.saved`) and bracket lookups `M["foo"]`.
 			for (const token of text.match(IDENTIFIER) ?? []) {
 				if (known.has(token)) referenced.add(token);
 			}

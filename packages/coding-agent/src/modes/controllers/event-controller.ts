@@ -317,8 +317,8 @@ export class EventController {
 	/**
 	 * Whether the running auto-compaction turned terminal progress on itself.
 	 * Only then does its end turn progress off: a compaction inside a live turn
-	 * leaves the turn's progress for that turn's `agent_end`, so Tern (which
-	 * reads progress as busy state) never sees the agent stop mid-run.
+	 * leaves the turn's progress for that turn's `agent_end`, so a terminal
+	 * reading progress as busy state never sees the agent stop mid-run.
 	 */
 	#compactionOwnsProgress = false;
 	/** Bumped at every `agent_start`; a settle watch stands down once a new run begins. */
@@ -1128,12 +1128,7 @@ export class EventController {
 
 	#setTerminalProgress(active: boolean): void {
 		if (active) {
-			// Tern reads the progress as the pane's busy state (its tab's live
-			// dot), so it gets it whatever the setting says. Tern's panes carry
-			// `KITTY_WINDOW_ID`, so `TERMINAL.id` says kitty there.
-			const wanted =
-				Bun.env.TERM_PROGRAM?.toLowerCase() === "tern" ||
-				(this.ctx.settings ? cfgTerminalShowProgress.get(this.ctx.settings) : undefined) === true;
+			const wanted = this.ctx.settings ? cfgTerminalShowProgress.get(this.ctx.settings) : undefined;
 			if (this.#terminalProgressActive || !wanted) return;
 			this.ctx.ui.terminal.setProgress(true);
 			this.#terminalProgressActive = true;

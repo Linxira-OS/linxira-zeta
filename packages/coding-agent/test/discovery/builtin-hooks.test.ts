@@ -53,7 +53,7 @@ describe("native hook discovery", () => {
 		clearFsCache();
 		originalHome = process.env.HOME;
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.OMP_PROFILE;
+		originalOmpProfileEnv = process.env.ZETA_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
 		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-builtin-hooks-"));
 		const home = path.join(root, "home");
@@ -77,7 +77,7 @@ describe("native hook discovery", () => {
 		clearFsCache();
 		vi.restoreAllMocks();
 		restoreEnvValue("HOME", originalHome);
-		restoreEnvValue("OMP_PROFILE", originalOmpProfileEnv);
+		restoreEnvValue("ZETA_PROFILE", originalOmpProfileEnv);
 		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
 		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
 		__resetDirsFromEnvForTests();
