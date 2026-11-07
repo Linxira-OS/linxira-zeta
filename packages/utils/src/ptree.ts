@@ -677,7 +677,13 @@ export class ChildProcess<In extends InMask = InMask> {
 		};
 		const sync = () => {
 			const rootRunning = this.proc.exitCode === null && this.proc.signalCode === null;
-			const active = rootRunning || this.#openPipeReaders > 0;
+			// A detached group leader can exit before its surviving descendants do
+			// (a SIGTERM-ignoring child keeps the session's pipes open). Keep the
+			// registration while the root is gone but the group is still ours, so
+			// an abort that arrives after the graceful stop still records AbortError
+			// and cancels the lingering tree — not just while our own readers are live.
+			const groupMaySurvive = this.#terminateGroup && this.proc.exitCode !== null;
+			const active = rootRunning || this.#openPipeReaders > 0 || groupMaySurvive;
 			if (signal.aborted) {
 				if (active) onAbort();
 				return;
