@@ -33,7 +33,7 @@ import type {
 	StudioClient,
 	Unsubscribe,
 } from "@/lib/studio-protocol/contract";
-import { CLIENT_CONTRACT_VERSION } from "@/lib/studio-protocol/contract";
+import { CLIENT_CONTRACT_VERSION, type ExtensibilityReadModel } from "@/lib/studio-protocol/contract";
 
 /** Thrown when a surface asks for an operation this build does not map yet. */
 export class UnsupportedStudioOperationError extends Error {
@@ -86,6 +86,33 @@ interface ServeIdentity {
 	gatewayUrl?: string | null;
 }
 
+/** `/api/skills` DTO subset the renderer needs (see web-gateway/dto.ts). */
+interface SkillsResponse {
+	skills: Array<{
+		name: string;
+		description: string;
+		disableModelInvocation: boolean;
+		sourceInfo?: { source?: string; scope?: string };
+	}>;
+}
+
+/** `/api/plugins` DTO subset the renderer needs. */
+interface PluginsResponse {
+	installed: Array<{
+		id: string;
+		name: string;
+		version: string;
+		sourceKind: string;
+		scope: string;
+		enabled: boolean;
+		toolItems: string[];
+		commandItems: string[];
+		hookItems: string[];
+		panels: Array<{ id: string; title: string; kind: "list" | "form" | "chart" | "html" }>;
+		error?: string;
+	}>;
+}
+
 export class StudioClientImpl implements StudioClient {
 	readonly #gatewayUrl: string;
 	readonly #fetch: typeof fetch;
@@ -104,6 +131,64 @@ export class StudioClientImpl implements StudioClient {
 		this.#fetch = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
 		this.#sessionId = options.sessionId ?? null;
 		this.#cwd = options.cwd ?? null;
+		// The renderer's capability surfaces call `skills.get` directly; map it to
+		// the gateway's disk scan instead of reporting an unsupported operation.
+		this.registerQueries({ "skills.get": () => this.#readExtensibility() });
+	}
+
+	/** GET /api/skills + GET /api/plugins → the renderer's extensibility model. */
+	async #readExtensibility(): Promise<ExtensibilityReadModel> {
+		const cwd = this.#cwd ?? (await this.#request<{ cwd: string }>("POST", "/api/default-cwd")).cwd;
+		const [skills, plugins] = await Promise.all([
+			this.#request<SkillsResponse>("GET", `/api/skills?cwd=${encodeURIComponent(cwd)}`),
+			this.#request<PluginsResponse>("GET", `/api/plugins?cwd=${encodeURIComponent(cwd)}`),
+		]);
+		const pluginKinds = ["npm", "marketplace", "link", "git"] as const;
+		return {
+			skills: skills.skills.map((skill) => {
+				const source = skill.sourceInfo?.source ?? "Zeta";
+				return {
+					name: skill.name,
+					desc: skill.description,
+					scope: skill.sourceInfo?.scope === "project"
+						? ("workspace" as const)
+						: skill.sourceInfo?.scope === "builtin"
+							? ("builtin" as const)
+							: ("global" as const),
+					sourceKind: source.toLowerCase().includes("plugin") ? ("plugin" as const) : ("native" as const),
+					sourceLabel: source,
+					enabled: true,
+					hide: false,
+				};
+			}),
+			plugins: plugins.installed.map((plugin) => {
+				const kind = (pluginKinds as readonly string[]).includes(plugin.sourceKind)
+					? (plugin.sourceKind as (typeof pluginKinds)[number])
+					: "npm";
+				return {
+					name: plugin.id,
+					title: plugin.name,
+					version: plugin.version,
+					sourceKind: kind,
+					srcLabel: kind === "marketplace" ? "Marketplace" : kind,
+					scope: plugin.scope === "project" ? ("project" as const) : ("user" as const),
+					enabled: plugin.enabled,
+					status: plugin.error ? ("error" as const) : ("configured" as const),
+					tools: plugin.toolItems.length,
+					commands: plugin.commandItems.length,
+					hooks: plugin.hookItems.length,
+					ui: plugin.panels.length > 0,
+					toolItems: plugin.toolItems,
+					commandItems: plugin.commandItems,
+					hookItems: plugin.hookItems,
+					uiItems: plugin.panels.map((panel) => panel.title),
+					panels: plugin.panels,
+					...(plugin.error ? { err: plugin.error } : {}),
+				};
+			}),
+			warnings: [],
+			generatedAt: new Date().toISOString(),
+		};
 	}
 
 	/** Register one module's query handlers. Later registrations win. */
