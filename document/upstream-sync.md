@@ -104,9 +104,12 @@ merge.
     12 missing additions plus 88 modified files whose upstream hunk is absent
     (3 are identical to the pre-merge ref). Those are the contract debt the
     merge must import, not allowlist; post-merge the audit must report zero.
-  - **Share/collab**: Zeta's retirement wins. The two modify/delete paths and
-    `packages/coding-agent/src/collab/**` must not be resurrected by a
-    "take theirs" resolution; run `check-removed-upstream-files`.
+  - **Share/collab**: Zeta's retirement wins. The hosted `/share` upload paths
+    and the whole live-collaboration feature (`collab/**`, `/collab`, `/join`,
+    `/leave`, the browser guest, and the relay) were retired on 2026-11-07.
+    A "take theirs" resolution must not resurrect any of it; the file and
+    symbol guards live in `scripts/check-removed-upstream-files.ts` and run in
+    `merge-gate` (`removed-upstream-files`).
   - **Brand/front door**: `README.md`, docs host references, package names and
     workflow names follow the brand overlay, not upstream text.
   - **Memory/taste**: adopt upstream Hindsight globalScope only as an

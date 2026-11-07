@@ -75,7 +75,7 @@ Where each directory belongs:
 
 | Path | Contents |
 | --- | --- |
-| `packages/` | The published runtime packages (`@linxiraos/*`): coding-agent, ai, agent, tui, catalog, stats, channels, wire, mnemopi, natives, utils, omptype, browser-relay, collab-web. |
+| `packages/` | The published runtime packages (`@linxiraos/*`): coding-agent, ai, agent, tui, catalog, stats, channels, wire, mnemopi, natives, utils, omptype, browser-relay. |
 | `main/` | Paused Rust line (2026-11-05), its own Cargo workspace: the TUI (`crates/zeta-main`), the egui GUI (`crates/zetawork-gui`), `crates/sysmon`. Not a product surface; releases do not build it. |
 | `termide/` | Vendored TermIDE panel library — the panels both workbenches embed — plus the `zetaide` entry (`@linxiraos/ide`). Deviations from the vendored snapshot are logged in `termide/VENDOR.md`. |
 | `editor/` | The built-in editor pane's npm face. The payload is a `termide-editor` binary; the package declares no command. |

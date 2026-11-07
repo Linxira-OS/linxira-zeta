@@ -540,8 +540,6 @@ jobs:
            working-directory: plugins/official/pi-messenger
            continue-on-error: true
            run: npm install --no-audit --no-fund && npx vitest run
-         - name: Build collab web
-           run: bun run collab:web:build
          - name: Local-CI parity guard
            # 镜像漂移检测：GitHub 侧新增/改名 job 或仓库脚本时，本地镜像
            # 必须同步更新（或显式登记为"有意排除"），否则这里红。

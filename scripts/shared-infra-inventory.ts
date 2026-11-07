@@ -116,13 +116,12 @@ export const INVENTORY: Placement[] = [
 	},
 	{
 		domain: "https://my.omp.sh",
-		status: "keep",
+		status: "disabled",
 		kind: "runtime-data",
-		files: ["packages/collab-web/scripts/local-relay.ts", "packages/wire/src/index.ts"],
+		files: [],
 		why:
-			"the frozen collaboration relay constant (`DEFAULT_RELAY_URL`) plus the local relay stand-in; " +
-			"the share upload face was retired on 2026-11-02 (`share.serverUrl` / `share.store` are gone), " +
-			"so this is wire-syntax compatibility only — changing the URL would break `/join <link>`",
+			"the live-session collaboration relay was retired on 2026-11-07 with the whole `/collab` feature; " +
+			"no relay constant or client link ships, so the domain must not reappear in runtime code",
 	},
 	{
 		domain: "https://omp.sh/install",

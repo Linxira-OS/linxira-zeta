@@ -54,7 +54,6 @@ import { convertMessageToLlm } from "@linxiraos/pi-agent-core/compaction/message
 import type { AssistantMessage, ImageContent, Message, TextContent, UserMessage } from "@linxiraos/pi-ai";
 import { copyPerCallContextMessage } from "@linxiraos/pi-ai/utils/block-symbols";
 import { isRecord, logger, prompt } from "@linxiraos/pi-utils";
-import { COLLAB_PROMPT_MESSAGE_TYPE } from "@linxiraos/pi-wire";
 import userInterjectionTemplate from "../prompts/steering/user-interjection.md" with { type: "text" };
 import { cleanTinyMessage, formatTitleConversationContext, type TitleConversationTurn } from "../tiny/message-preproc";
 import { stripXdUrlPrefix } from "@linxiraos/pi-tui/tools/xd-url";
@@ -710,18 +709,10 @@ export function stripInternalDetailsFields<T>(details: T | undefined): T | undef
 	return cleaned as T;
 }
 
-type SteeringUserMessage =
-	| (UserMessage & { steering: true })
-	| (CustomMessage & {
-			customType: typeof COLLAB_PROMPT_MESSAGE_TYPE;
-			attribution: "user";
-	  });
+type SteeringUserMessage = UserMessage & { steering: true };
 
 function isSteeringUserMessage(message: AgentMessage | undefined): message is SteeringUserMessage {
-	if (message?.role === "user") return message.steering === true;
-	return (
-		message?.role === "custom" && message.customType === COLLAB_PROMPT_MESSAGE_TYPE && message.attribution === "user"
-	);
+	return message?.role === "user" && message.steering === true;
 }
 
 function userMessageWithoutSteering(message: UserMessage): UserMessage {

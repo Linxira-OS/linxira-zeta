@@ -45,11 +45,6 @@ export const cleanseHelp = {
 	description: "Detect and fix project diagnostics with weighted parallel subagents",
 } satisfies CommandMetadata;
 
-export const collabHelp = {
-	description:
-		"List active local Collab host metadata without URLs; use collab link <instanceId|pid> to retrieve a control link (--view for view-only)",
-} satisfies CommandMetadata;
-
 export const clipHelp = {
 	description:
 		"Unavailable in Zeta: `/record --upload` and `zetacode clip` cannot send recordings anywhere because no upload server ships; recordings stay local for `zetacode play`",
@@ -116,8 +111,6 @@ export const imagesHelp = {
 export const installHelp = {
 	description: "Install or link an extension package (alias of `plugin install`/`plugin link`)",
 } satisfies CommandMetadata;
-
-export const joinHelp = { description: "Join a shared collab session (same as /join)" } satisfies CommandMetadata;
 
 export const modelsHelp = { description: "List, search, and refresh available models" } satisfies CommandMetadata;
 

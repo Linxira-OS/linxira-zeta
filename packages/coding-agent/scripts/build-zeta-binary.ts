@@ -2,7 +2,7 @@
  * 构建 Zeta 二进制文件。
  *
  * 流程:
- *   1. 构建 stats/collab-web/natives 等依赖
+ *   1. 构建 stats/export-web/natives 等依赖
  *   2. 编译 coding-agent 为单文件可执行二进制
  *
  * Web UI 不嵌入到二进制中，而是作为独立目录分发（与二进制放在同一目录下）。
@@ -90,8 +90,8 @@ async function main(): Promise<void> {
 		// Build stats client archive
 		await runCommand(["bun", "--cwd=../stats", "run", "gen:stats"], packageDir);
 
-		// Build collab-web tool views
-		await runCommand(["bun", "--cwd=../collab-web", "run", "gen:export-viewer"], packageDir);
+		// Build export-web tool views
+		await runCommand(["bun", "--cwd=../export-web", "run", "gen:export-viewer"], packageDir);
 
 		// Build natives
 		await runCommand(["bun", "--cwd=../natives", "run", "gen:native"], packageDir);

@@ -107,7 +107,7 @@ const fastWorkspacePackages = [
 const nativeAndIntegrationPackages = [
 	"packages/natives",
 	"packages/tui",
-	"packages/collab-web",
+	"packages/export-web",
 	"packages/typescript-edit-benchmark",
 ];
 

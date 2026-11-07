@@ -1942,13 +1942,7 @@ export interface Messages {
 	cmdExportHtml: string;
 	cmdDumpTranscript: string;
 	cmdShare: string;
-	cmdCollab: string;
 	cmdCollabList: string;
-	cmdCollabView: string;
-	cmdCollabStatus: string;
-	cmdCollabStop: string;
-	cmdCollabJoin: string;
-	cmdCollabLeave: string;
 	cmdBrowserHeadless: string;
 	cmdBrowserVisible: string;
 	cmdCopyPick: string;
@@ -2243,9 +2237,6 @@ export interface Messages {
 	acToolsFmt: string; // "Tools: %s active / %s available"
 	acContextUnavailable: string; // "Context: unavailable"
 	acContextFmt: string; // "Context: %s%% (%s/%s)"
-	acLeaveCollabHosting: string; // "Leave collab: hosting"
-	acLeaveCollabGuest: string; // "Leave collab: guest"
-	acLeaveCollabNone: string; // "Leave collab: not in collab"
 	acAdvisorConfiguredNoModel: string;
 	acAdvisorOff: string;
 	acTodosNone: string;
@@ -2254,8 +2245,6 @@ export interface Messages {
 	acExtendedContextFmt: string; // "Extended context: %s", %s = stateOn/stateOff
 	acSkillfulFmt: string; // "Skill listing: %s", %s = stateOn/stateOff
 	acAdvisorOnFmt: string; // "Advisor: on (%s)", %s = count fmt or provider/model
-	acCollabFmt: string; // "Collab: %s", %s = stateHosting/stateGuest/stateReadOnlyGuest/stateOff
-	acCollabGuestsFmt: string; // " (%s guests)" suffix for acCollabFmt hosting state
 	acBrowserFmt: string; // "Browser: %s", %s = stateDisabled/stateHeadless/stateVisible
 	acPlanUltraDisabledInSettings: string;
 	acPlanUltraOnFmt: string; // "Plan-ultra: on%s", %s = plan-file suffix
@@ -2266,9 +2255,6 @@ export interface Messages {
 	// ── state tokens for dynamic status-line templates ──────────────────────
 	stateOn: string; // "on"
 	stateOff: string; // "off"
-	stateHosting: string; // collab host active
-	stateGuest: string; // collab guest (can prompt)
-	stateReadOnlyGuest: string; // collab guest (watch only)
 	stateHeadless: string; // browser headless
 	stateVisible: string; // browser visible
 	stateEnabled: string; // feature enabled

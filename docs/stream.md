@@ -2,7 +2,7 @@
 
 `zetacode stream` broadcasts your omp sessions to `live.omp.sh/<username>` — a Twitch-style page with the live terminal and a chat column. Viewers see exactly what your terminal shows (minus secrets); they cannot type into the session.
 
-Stream is independent from [Collab](collab.md). Collab replicates the session itself (entries, events, prompts) to guests who can drive the agent; Stream sends only rendered screen rows, one way, to an audience.
+Stream sends rendered screen rows, one way, to an audience; it does not replicate the session or let viewers drive the agent.
 
 ## Quick start
 

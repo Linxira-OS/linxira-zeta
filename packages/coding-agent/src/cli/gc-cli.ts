@@ -149,7 +149,7 @@ export interface StaleGcResult {
 	staleBreadcrumbs: number;
 	/** Debug report bundles beyond the retention window. */
 	expiredReports: number;
-	/** Collab guest replicas beyond the retention window. */
+	/** Legacy collaboration replicas beyond the retention window. */
 	expiredReplicas: number;
 	wouldDelete: number;
 	deleted: number;
@@ -1741,7 +1741,7 @@ async function cleanupStatsRowsForArchivedSessions(
 /**
  * Staging temps ({@link SESSION_STAGING_RE}) of `.jsonl` transcripts under
  * `sessionsRoot`, plus those beside exact session files recorded elsewhere
- * (`--session` paths, collab replicas).
+ * (`--session` paths, legacy collaboration replicas).
  */
 async function collectSessionStagingFiles(sessionsRoot: string, exactSessionFiles: string[]): Promise<string[]> {
 	const files = new Map<string, string>();
@@ -2273,7 +2273,7 @@ function renderText(result: GcResult): string {
 	if (result.stale) {
 		const stale = result.stale;
 		lines.push(
-			`stale: ${stale.deleted}/${stale.wouldDelete} entries, ${formatBytes(stale.bytes)} (${stale.danglingMarkers} session markers, ${stale.staleBreadcrumbs} breadcrumbs, ${stale.expiredReports} reports, ${stale.expiredReplicas} collab replicas)`,
+			`stale: ${stale.deleted}/${stale.wouldDelete} entries, ${formatBytes(stale.bytes)} (${stale.danglingMarkers} session markers, ${stale.staleBreadcrumbs} breadcrumbs, ${stale.expiredReports} reports, ${stale.expiredReplicas} legacy collaboration replicas)`,
 		);
 		if (stale.errors.length > 0) lines.push(`stale errors: ${stale.errors.length}`);
 	}
@@ -2332,7 +2332,7 @@ export async function runGcCommand(args: GcCommandArgs): Promise<GcResult> {
 		const registeredSessionPaths = options.runArchive
 			? await collectRegisteredSessionPaths(getCustomSessionFilesDir(options.agentDir))
 			: [];
-		// Pruned collab replicas release their blobs to this run's sweep.
+		// Pruned legacy collaboration replicas release their blobs to this run's sweep.
 		if (options.runStale) next.stale = await runStaleGc(options);
 		if (options.runBlobs) next.blobs = await runBlobGc(options, archiveRoot);
 		if (options.runArchive) next.archive = await runArchiveGc(options, archiveRoot, registeredSessionPaths);

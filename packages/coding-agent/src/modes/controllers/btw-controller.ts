@@ -283,7 +283,7 @@ export class BtwController {
 	 * highlighted block, and the inject key there.
 	 */
 	#injectEnabled(): boolean {
-		return cfgBtwInject.get(this.ctx.settings) && !this.ctx.focusedAgentId && !this.ctx.collabGuest;
+		return cfgBtwInject.get(this.ctx.settings) && !this.ctx.focusedAgentId;
 	}
 
 	/** The topic's latest answer is ready to send, and no branch or session move would race the new main-session turn. */

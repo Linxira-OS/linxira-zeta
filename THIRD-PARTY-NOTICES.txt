@@ -44,10 +44,9 @@ Brand and assets:
 Frozen counterpart constants (interoperability, not branding):
 
 * Stencil OIDC `client-id "omp"`, its issuer and scopes; `catalog.stencil.so`;
-  `docs.stencil.so/tern/protocol/`; `my.omp.sh` as the collaboration relay
-  constant; the `__omp_judgment_images` upload key. These are wire-compatible
-  identifiers Zeta must keep, listed here so that a brand sweep does not break
-  them.
+  `docs.stencil.so/tern/protocol/`; the `__omp_judgment_images` upload key.
+  These are wire-compatible identifiers Zeta must keep, listed here so that a
+  brand sweep does not break them.
 
 PYTHON DEPENDENCY DISTRIBUTION ROLE
 ===================================

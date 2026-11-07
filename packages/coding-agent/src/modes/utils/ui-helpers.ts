@@ -9,7 +9,6 @@ import { QueuedMessagesBand } from "@linxiraos/pi-tui/prompt/queued-messages";
 import { CLI_BIN_NAME, logger } from "@linxiraos/pi-utils";
 import type { AdvisorMessageDetails } from "../../advisor";
 import { InternalUrlRouter } from "../../internal-urls";
-import { COLLAB_PROMPT_MESSAGE_TYPE, type CollabPromptDetails } from "../../collab/protocol";
 import { settings } from "../../config/settings";
 import { continuesConversation } from "./conversation-position";
 import { createAdvisorMessageCard } from "@linxiraos/pi-tui/chat/advisor-message";
@@ -19,7 +18,6 @@ import { createBackgroundTanDispatchBlock } from "@linxiraos/pi-tui/chat/backgro
 import { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
 import { detectCacheInvalidation } from "@linxiraos/pi-tui/chat/cache-invalidation-marker";
 import { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-marker";
-import { CollabPromptMessageComponent } from "@linxiraos/pi-tui/chat/collab-prompt-message";
 import {
 	BranchSummaryMessageComponent,
 	CompactionSummaryMessageComponent,
@@ -337,11 +335,6 @@ export class UiHelpers {
 					}
 					if (message.customType === LAUNCH_COMPLETION_MESSAGE_TYPE) {
 						this.ctx.chatContainer.addChild(buildLaunchCompletionBlock(message));
-						break;
-					}
-					if (message.customType === COLLAB_PROMPT_MESSAGE_TYPE) {
-						const component = new CollabPromptMessageComponent(message as CustomMessage<CollabPromptDetails>);
-						this.ctx.chatContainer.addChild(component);
 						break;
 					}
 					if (message.customType === SKILL_PROMPT_MESSAGE_TYPE) {

@@ -115,7 +115,7 @@ describe("backend-attach command routing", () => {
 	});
 
 	it("refuses commands the attached client cannot execute against the backend session", () => {
-		for (const verb of ["collab", "join", "leave", "live"]) {
+		for (const verb of ["live"]) {
 			expect(isBackendAttachRefusedCommand(verb), verb).toBe(true);
 			expect(isBackendAttachLocalCommand(verb), verb).toBe(false);
 		}
@@ -204,7 +204,7 @@ describe("backend-attach command routing", () => {
 	});
 
 	it("tells the operator which local command performs the refused action", () => {
-		expect(backendAttachRefusalHint("collab")).toContain("sharing");
+		expect(backendAttachRefusalHint("live")).toContain("owns the backend session");
 		expect(backendAttachRefusalHint("clear")).toContain("owns the backend session");
 	});
 });

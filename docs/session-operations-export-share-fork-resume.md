@@ -4,7 +4,7 @@ This document describes operator-visible behavior for session export, sharing, c
 
 ## Implementation files
 
-- [`src/slash-commands/builtin-collaboration.ts`](../packages/coding-agent/src/slash-commands/builtin-collaboration.ts) — export/dump/share command specs
+- [`src/slash-commands/builtin-output.ts`](../packages/coding-agent/src/slash-commands/builtin-output.ts) — export/dump/share command specs
 - [`src/slash-commands/builtin-lifecycle.ts`](../packages/coding-agent/src/slash-commands/builtin-lifecycle.ts) — lifecycle command specs
 - [`src/slash-commands/seance.ts`](../packages/coding-agent/src/slash-commands/seance.ts) — `/seance` command and session-picker adapter
 - [`src/modes/controllers/command-controller.ts`](../packages/coding-agent/src/modes/controllers/command-controller.ts) — TUI execution
@@ -45,7 +45,7 @@ This document describes operator-visible behavior for session export, sharing, c
 
 Flow:
 
-1. The collaboration command spec (`src/slash-commands/builtin-collaboration.ts`) parses headless arguments with `parseExportArgs`; the TUI delegates to `CommandController.handleExportCommand`, which uses the same parser.
+1. The output command spec (`src/slash-commands/builtin-output.ts`) parses headless arguments with `parseExportArgs`; the TUI delegates to `CommandController.handleExportCommand`, which uses the same parser.
 2. `--themes` selects the configured dark/light TUI themes instead of the standalone web palette. After removing that flag, at most one whitespace-delimited path is accepted; extra tokens produce `Usage: /export [--themes] [path]`.
 3. `AgentSession.exportToHtml()` calls `exportSessionToHtml(sessionManager, state, { outputPath, palette, themeNames })`.
 4. The TUI shows the path and opens the file in a browser. Headless command execution prints the path without opening it.
@@ -61,7 +61,7 @@ Behavior details:
 - The viewer uses the `/stats` design, with Auto/Light/Dark themes; Light uses soft-gray surfaces and high-contrast secondary text. The sidebar lists the main session, nested subagents, and advisors; selecting a session or a task-card agent opens its transcript and conversation tree. Session and message links preserve the selected transcript.
 - Child transcripts stored next to the session file (`<session>/<AgentId>.jsonl`, recursively for nested spawns) are embedded as `subSessions`, including advisor and gzip-compressed transcripts. Discovery descends only into real child directories and flags tombstoned agents as `aborted`. `includeSubSessions: false` in `ExportOptions` excludes child transcripts and their trace tracks.
 - The bottom **Timeline** drawer and **Trace** view reuse `/trace`'s span assembly and viewer: duration/turn/call axes, idle compression, search, zoom, nested tracks, entry details, and tool aggregates. **Jump to transcript** opens the corresponding session and message. All transcript and trace data remain embedded; no stats server is needed. The exported file is self-contained and opens offline.
-- Tool calls use `<omp-tool-view>` (shared with collab-web); traces use `<omp-session-trace>` (shared with stats). `bun gen:export-viewer` bundles these with the shell, styles and default themes. Every export inlines that viewer together with the Markdown and highlighting libraries, so the HTML needs no network access. Only viewer code is ever published, never session data.
+- Tool calls use `<omp-tool-view>` (shared with export-web); traces use `<omp-session-trace>` (shared with stats). `bun gen:export-viewer` bundles these with the shell, styles and default themes. Every export inlines that viewer together with the Markdown and highlighting libraries, so the HTML needs no network access. Only viewer code is ever published, never session data.
 - Packaged exports add roughly 2 KiB of fixed HTML overhead; source exports also contain the generated viewer. `--themes` embeds the selected TUI theme overrides in addition to the session data.
 - No session entries are appended during export.
 - The default filename is `omp-session-<session-file-stem>.html` in the current directory. HTML export is not secret-redacted or encrypted; it can contain raw context, image data, and extension payloads.

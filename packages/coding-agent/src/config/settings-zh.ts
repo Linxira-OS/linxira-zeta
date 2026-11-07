@@ -50,7 +50,7 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	Approvals: "审批",
 	Notifications: "通知",
 	Speech: "语音",
-	Collab: "协作",
+	Share: "分享",
 	Stream: "直播流",
 	"Magic Keywords": "魔法关键词",
 	"Startup & Updates": "启动与更新",
@@ -896,27 +896,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"recap.idleSeconds": {
 		label: "空闲回顾延迟",
 		description: "空闲后显示回顾前等待的秒数",
-	},
-	"collab.enabled": {
-		label: "启用",
-		description: "启用实时会话共享（/collab、/join）。需把 collab.relayUrl 指向你自己掌控的中继；本产品不自营中继",
-	},
-	"collab.relayUrl": {
-		label: "中继 URL",
-		description: "/collab 使用的中继（wss://host[:port]）；留空则即便 collab.enabled 开启也不共享",
-	},
-	"collab.webUrl": {
-		label: "Web UI 地址",
-		description: "/collab 链接使用的浏览器界面；留空则从 collab.relayUrl 推导；显式 http:// 仅限 localhost",
-	},
-	"collab.displayName": {
-		label: "显示名称",
-		description: "向其他协作参与者显示的名称（默认：操作系统用户名）",
-	},
-	"collab.autoStart": {
-		label: "自动开启",
-		description:
-			"会话启动时即通过 collab.relayUrl 发布每个交互式会话并登记到本地注册表（zetacode collab list）；切换会话时房间随之切换",
 	},
 	"share.redactSecrets": {
 		label: "分享密钥脱敏",
@@ -3418,18 +3397,6 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"recap.idleSeconds::600": {
 		label: "10 分钟",
-	},
-	"collab.autoStart::off": {
-		label: "关闭",
-		description: "仅在运行 /collab 时分享",
-	},
-	"collab.autoStart::view": {
-		label: "查看",
-		description: "自动托管；注册表分发只读链接（zetacode collab link --view）",
-	},
-	"collab.autoStart::control": {
-		label: "控制",
-		description: "自动托管；注册表分发可向会话发送提示的控制链接",
 	},
 	"stt.modelName::fast": {
 		label: "快速（Whisper base）",

@@ -29,7 +29,7 @@ bun scripts/brand/brand-check.ts
 
 | 处置 | 域名 / 面 | 一句话依据 |
 |---|---|---|
-| **保留（协作常量）** | `my.omp.sh`（仅中继）、`catalog.stencil.so`（模型发现数据源） | 共享基础设施：协议两端由上游运营，改 URL 等于切断 `/collab`、`/join <link>` 或模型发现。**分享上传面已于 2026-11-02 退役**（CLI `share` 删除，`share.serverUrl` / `share.store` 移除），`my.omp.sh` 只剩中继常量（见 §3d） |
+| **保留（模型发现）** | `catalog.stencil.so`（模型发现数据源） | 共享基础设施：改 URL 等于切断模型发现。`my.omp.sh` 协作中继与分享上传面均已于 2026-11-07 / 2026-11-02 退役，不再随包发布 |
 | **保留代码，凭证自填** | `api.stencil.so` / `auth.stencil.so`（Stencil 账号体系）、`client-id "omp"`、Tern 客户端适配 | 代码留着（将来可能有同类商业产品），凭证改成用户自填 `STENCIL_API_KEY`；OIDC public client id 与 issuer/scope 名是协议契约，**改名即登录失败** |
 | **待替代** | `skills.omp.sh`（P2）、`live.omp.sh`（P3）；`qa.omp.sh` 已替换 ✓（见 §3c） | 用户可主动触达的外部依赖，上游关停即失效 |
 | **已移除** | `scl.so`（Tern 推广文案链接，2026-10-14 用户裁决）；`qa.omp.sh`、`build.stencil.so` 已替换/退役、`omp.sh/install` 已换成自家安装器（见 §3c） | 上游产品推广面 / 指错产品；守卫标为 `replaced`，复活即红 |
@@ -38,7 +38,7 @@ bun scripts/brand/brand-check.ts
 
 | 服务 | 非测试落点 | 依据 |
 |---|---|---|
-| `my.omp.sh` — 中继/分享 URL | `packages/collab-web/{index.html,public/robots.txt,public/sitemap.xml,scripts/local-relay.ts}`、`packages/wire/src/index.ts`（另有测试 12 处） | 端到端加密中继，协议两端由上游运营；注册表「不品牌化」。**2026-10-15 起不再是任何默认端点**：`collab.enabled` 默认关、`collab.relayUrl` 默认空，产品不提供中继（见 §1b） |
+| `my.omp.sh` — 已退役 | 无（`packages/collab-web/` 与 `packages/wire/src/index.ts` 的协作类型已删除） | live-session 协作于 2026-11-07 完全退役；产品不发布中继常量、客户端或默认端点 |
 | `catalog.stencil.so/models.json.zstd` | `packages/catalog/scripts/generate-models.ts`、`packages/catalog/src/provider-models/openai-compat.ts` | 模型发现数据源；替换需自建模型目录服务，未列入计划。注意 `packages/catalog/src/compat/rules.json` 是生成物 |
 | `docs.stencil.so/tern/protocol/` | `packages/tui/src/native/node.ts`、`packages/wire/src/tsp.ts` | 协议文档出处（注释），不是 API 调用 |
 

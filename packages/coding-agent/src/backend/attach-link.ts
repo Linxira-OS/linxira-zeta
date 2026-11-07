@@ -8,7 +8,8 @@
  * and forwards prompts/aborts/dialog answers over the gateway RPC surface.
  *
  * The backend remains the owner: detaching closes the stream only, never the
- * backend or its session. Mirrors the collab guest's replica strategy.
+ * backend or its session. The client keeps a local replica of the backend
+ * session while forwarding prompts and control actions over the gateway.
  */
 
 import * as fs from "node:fs/promises";
@@ -175,7 +176,6 @@ export class BackendAttachLink {
 	/** Resolve/create the backend session, mirror it, and start the event stream. */
 	async join(): Promise<void> {
 		if (this.#joined) return;
-		if (this.#ctx.collabGuest) throw new Error("Already in a collab session; /leave first");
 
 		const cwd = this.#ctx.sessionManager.getCwd();
 		const branch = workspaceBranch(cwd);

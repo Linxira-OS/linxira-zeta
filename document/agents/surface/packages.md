@@ -22,7 +22,7 @@
 | `packages/mnemopi`      | Memory/recall subsystem consumed by the agent runtime                                   |
 | `packages/metaharness`  | Eval harness plumbing (internal; rides the version line, rarely user-visible)          |
 | `packages/browser-relay`| Browser relay companion package for the web extension                                   |
-| `packages/collab-web`   | Collaboration web surface assets                                                        |
+| `packages/export-web`   | Standalone HTML export viewer assets (tool cards + traces)                              |
 | `packages/typescript-edit-benchmark` | Internal TS edit-path benchmark (dev only)                                   |
 
 ---
