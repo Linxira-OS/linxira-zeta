@@ -3,6 +3,7 @@ import { useState } from "react";
 import { getSpotlightDashboardStats } from "../api";
 import { useQuery } from "../data/query";
 import { rangeMeta } from "../data/range";
+import { t } from "../i18n";
 import { Compounding } from "../spotlight/Compounding";
 import { Coverage } from "../spotlight/Coverage";
 import { Economics } from "../spotlight/Economics";
@@ -58,7 +59,7 @@ export function SpotlightRoute({ active, range }: SpotlightRouteProps) {
 		<div className="page spot-page">
 			<PageHeader
 				title="Spotlight"
-				description={`What shaping tool output saved in ${meta.windowLabel} against what pi would have shown unshaped, after taking back what the agent fetched again because of a cut.`}
+				description={`What shaping tool output saved in ${t(meta.windowKey)} against what pi would have shown unshaped, after taking back what the agent fetched again because of a cut.`}
 				actions={<Segmented aria-label="Sessions" options={AGENT_OPTIONS} value={agent} onChange={setAgent} />}
 			/>
 
@@ -75,7 +76,7 @@ export function SpotlightRoute({ active, range }: SpotlightRouteProps) {
 							<h2 className="spot-empty-title">
 								{experimentStart === null
 									? "The Spotlight experiment hasn't run yet"
-									: `No ${AGENT_SCOPE_PROSE[agent]}experiment sessions in ${meta.windowLabel}`}
+									: `No ${AGENT_SCOPE_PROSE[agent]}experiment sessions in ${t(meta.windowKey)}`}
 							</h2>
 							<p className="spot-empty-hint">
 								{experimentStart === null ? (
@@ -97,7 +98,7 @@ export function SpotlightRoute({ active, range }: SpotlightRouteProps) {
 			>
 				{data => (
 					<>
-						<SpotlightHero stats={data} windowLabel={meta.windowLabel} stale={stats.stale} />
+						<SpotlightHero stats={data} windowLabel={t(meta.windowKey)} stale={stats.stale} />
 
 						<SectionHeading id="spot-saved" title="What it saved">
 							Where the saving came from, what fetch-backs took back, and what later requests no longer carry.
