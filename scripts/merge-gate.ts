@@ -255,7 +255,7 @@ export function planSteps(options: MergeGateOptions): GateStep[] {
 			id: "export-viewer",
 			name: "export viewer metadata",
 			phase: "guard",
-			commands: [["bun", "--cwd=packages/collab-web", "run", "gen:export-viewer", "--check"]],
+			commands: [["bun", "--cwd=packages/export-web", "run", "gen:export-viewer", "--check"]],
 		},
 		guard("i18n-catalogue", "i18n catalogue consistency", "scripts/check-i18n-consistency.ts"),
 		guard("i18n-commands", "i18n command descriptions", "scripts/check-i18n-commands.ts"),

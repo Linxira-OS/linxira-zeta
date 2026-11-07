@@ -149,7 +149,7 @@
     "lint:py": "ruff check python sdk/python && ruff format --check python sdk/python",
     "fix:py": "ruff check --fix python sdk/python && ruff format python sdk/python",
     "prepublishOnly": "bun run check",
-    "prepare": "bun run gen:export-viewer",
+    "prepare": "bun run gen:export-viewer --write",
     "publish": "bun run prepublishOnly && npm publish -ws --access public",
     "publish:dry": "bun run prepublishOnly && npm publish -ws --access public --dry-run",
     "release": "bun scripts/release.ts",
