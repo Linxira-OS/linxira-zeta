@@ -16,6 +16,9 @@ export function DesktopUpdateRecovery({ preview }: { preview: boolean }) {
   const applying = !preview && (updates.state.applying || (pending && ready));
   const busy = pending || (!preview && (updates.state.downloading || updates.state.checking || updates.state.applying));
   const available = version !== undefined && (preview || Boolean(globalThis.zetaStudioChrome?.rollbackUpdate));
+  // No rollback backend in this Runtime: remove the row rather than show a
+  // disabled control. It appears as soon as a rollback version exists.
+  if (!available && !preview) return null;
   const act = async () => {
     if (inFlight.current || busy || !available) return;
     if (preview) {

@@ -1089,18 +1089,11 @@ export function AdvancedTab({ demo, runtime }: { demo?: RuntimeDemoApi | undefin
     }
   }, [disabled, mirrorInput, preview, updates, t]);
 
-  const configLayers: ReadonlyArray<readonly [string, string]> = [
-    ["user", t("settings.advanced.layerUser")],
-    ["project", t("settings.advanced.layerProject")],
-    ["cli", t("settings.advanced.layerCli")],
-    ["override", t("settings.advanced.layerOverride")],
-    ["effective", t("settings.advanced.layerEffective")],
-  ];
-
   return (
     <>
       <TabHeader title={t("settings.advanced.title")} desc={t("settings.advanced.desc")} {...(runtime === undefined ? {} : { runtime })} />
       <Runtime1844Rows runtime={runtime} />
+      {available || preview ? <>
       <SettingSection title={t("updates.section")}>
         <SettingRow
           label={t("updates.mirrorLabel")}
@@ -1175,52 +1168,8 @@ export function AdvancedTab({ demo, runtime }: { demo?: RuntimeDemoApi | undefin
       <SettingSection title={t("updates.rollbackApp")}>
         <DesktopUpdateRecovery preview={preview} />
       </SettingSection>
+      </> : null}
 
-      <SettingSection title={t("settings.advanced.sectionConfigLayers")} desc={t("settings.advanced.sectionConfigLayersDesc")}>
-        <div className="config-layer-list">
-          {configLayers.map(([key, label]) => (
-            <div key={key} className="config-layer-row">
-              <span>{label}</span>
-              <span className="small muted">{demo ? t("settings.advanced.demoValue") : t("settings.advanced.notConnected")}</span>
-            </div>
-          ))}
-        </div>
-        <p className="small muted set-note">
-          {demo ? t("settings.advanced.layerNoteDemo") : t("settings.advanced.layerNoteReal")}
-        </p>
-      </SettingSection>
-      <SettingSection title={t("settings.advanced.sectionConfigFiles")}>
-        <SettingRow
-          label={t("settings.advanced.openConfig")}
-          desc={t("settings.advanced.openConfigDesc")}
-          source="unavailable"
-          reason={t("settings.advanced.openConfigReason")}
-        >
-          <button type="button" className="btn small outline" disabled data-tip={`${t("settings.advanced.openBtn")}（${t("common.notImplemented")}）`}>
-            {t("settings.advanced.openBtn")}
-          </button>
-        </SettingRow>
-        <SettingRow
-          label={t("settings.advanced.viewSanitized")}
-          desc={t("settings.advanced.viewSanitizedDesc")}
-          source="unavailable"
-          reason={t("settings.advanced.viewSanitizedReason")}
-        >
-          <button type="button" className="btn small outline" disabled data-tip={`${t("settings.advanced.exportBtn")}（${t("common.notImplemented")}）`}>
-            {t("settings.advanced.exportBtn")}
-          </button>
-        </SettingRow>
-        <SettingRow
-          label={t("settings.advanced.resetDefaults")}
-          desc={t("settings.advanced.resetDefaultsDesc")}
-          source="unavailable"
-          reason={t("settings.advanced.resetDefaultsReason")}
-        >
-          <button type="button" className="btn small danger" disabled data-tip={`${t("settings.advanced.resetDefaultsBtn")}（${t("common.notImplemented")}）`}>
-            {t("settings.advanced.resetDefaultsBtn")}
-          </button>
-        </SettingRow>
-      </SettingSection>
       <SettingSection title={t("settings.advanced.sectionAdvancedBehavior")}>
         <FutureRows
           demo={demo}
