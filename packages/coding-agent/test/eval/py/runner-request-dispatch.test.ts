@@ -601,7 +601,7 @@ describe("Python runner request dispatch", () => {
 					"from types import SimpleNamespace",
 					"seed = 41",
 					"gate = threading.Event()",
-					"__omp_tools__ = {'release': SimpleNamespace(fn=lambda: gate.set())}",
+					"__zeta_tools__ = {'release': SimpleNamespace(fn=lambda: gate.set())}",
 				].join("\n"),
 			});
 			const [setup] = await collectDoneOrder(runner, new Set(["setup"]));

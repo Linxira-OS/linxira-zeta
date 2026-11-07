@@ -48,7 +48,7 @@ import {
 	verifyInstalledVersion,
 } from "@linxiraos/zeta/cli/update-cli";
 import Update from "@linxiraos/zeta/commands/update";
-import { $which, __resetExtraCaCache, releaseCliAssetName, removeWithRetries } from "@linxiraos/pi-utils";
+import { $which, CLI_BIN_NAME, __resetExtraCaCache, releaseCliAssetName, removeWithRetries } from "@linxiraos/pi-utils";
 import type { CliConfig } from "@linxiraos/pi-utils/cli";
 import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 
@@ -2342,19 +2342,20 @@ describe("verifyInstalledVersion", () => {
 	// for one later on PATH (`zetacode.exe`); the check must follow it, not a cached path.
 	it.skipIf(process.platform === "win32")("re-resolves PATH after an install moves the launcher", async () => {
 		const [first, second] = [await makeTempDir(), await makeTempDir()];
-		await Bun.write(path.join(first, "omp"), "#!/bin/sh\necho omp/1.0.0\n");
-		await Bun.write(path.join(second, "omp"), "#!/bin/sh\necho omp/2.0.0\n");
-		await fs.chmod(path.join(first, "omp"), 0o755);
-		await fs.chmod(path.join(second, "omp"), 0o755);
+		const launcher = CLI_BIN_NAME;
+		await Bun.write(path.join(first, launcher), `#!/bin/sh\necho ${launcher}/1.0.0\n`);
+		await Bun.write(path.join(second, launcher), `#!/bin/sh\necho ${launcher}/2.0.0\n`);
+		await fs.chmod(path.join(first, launcher), 0o755);
+		await fs.chmod(path.join(second, launcher), 0o755);
 		const originalPath = process.env.PATH;
 		process.env.PATH = [first, second, originalPath].join(path.delimiter);
 		try {
 			expect((await verifyInstalledVersion("2.0.0")).actual).toBe("1.0.0");
-			await fs.rm(path.join(first, "omp"));
+			await fs.rm(path.join(first, launcher));
 			expect(await verifyInstalledVersion("2.0.0")).toEqual({
 				ok: true,
 				actual: "2.0.0",
-				path: path.join(second, "omp"),
+				path: path.join(second, launcher),
 			});
 		} finally {
 			process.env.PATH = originalPath;

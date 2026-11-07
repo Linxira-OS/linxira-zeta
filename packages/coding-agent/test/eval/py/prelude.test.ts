@@ -88,7 +88,7 @@ describe("python prelude", () => {
 				"@tool",
 				"def lookup(name: str, limit: Optional[int] = None) -> dict:",
 				"    return {}",
-				"print(json.dumps(__omp_tools__['lookup'].describe()['parameters'], sort_keys=True))",
+				"print(json.dumps(__zeta_tools__['lookup'].describe()['parameters'], sort_keys=True))",
 			].join("\n"),
 			{},
 		);

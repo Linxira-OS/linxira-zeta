@@ -181,7 +181,7 @@ describe("telemetry thread service", () => {
 
 		const chat = finished("chat mock-model");
 		expect(chat.parentSpanContext?.spanId).toBe(report.invokeSpanId);
-		expect(chat.attributes["omp.gen_ai.cost.estimated_usd"]).toBe(0.42);
+		expect(chat.attributes["zeta.gen_ai.cost.estimated_usd"]).toBe(0.42);
 		expect(estimates).toHaveLength(1);
 		expect(estimates[0]?.usage.inputTokens).toBe(10);
 
@@ -224,7 +224,7 @@ describe("telemetry thread service", () => {
 		// costEstimator: the provider's class-based cost, getters included.
 		expect(estimates).toHaveLength(1);
 		expect(estimates[0]?.usageCost).toMatchObject({ input: 0.1, output: 0.15, total: 0.25, billable: true });
-		expect(chat.attributes["omp.gen_ai.cost.estimated_usd"]).toBe(0.42);
+		expect(chat.attributes["zeta.gen_ai.cost.estimated_usd"]).toBe(0.42);
 
 		// onChatUsage: class-based headers as data, and main's real chat span.
 		expect(chatUsages).toHaveLength(1);

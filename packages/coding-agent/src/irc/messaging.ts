@@ -4,7 +4,7 @@ import type { CoordinationDetails } from "@linxiraos/pi-tui/tools/wait";
 import type { Settings } from "../config/settings";
 import { isWorkspaceAddress } from "../mesh/envelope";
 import { IrcBus } from "./bus";
-import type { AgentRegistryApi } from "../registry/agent-registry";
+import { MAIN_AGENT_ID, type AgentRegistryApi } from "../registry/agent-registry";
 import { ensurePersistedRoster } from "../registry/persisted-agents";
 import { canSpawnAtDepth } from "../task/types";
 
@@ -81,16 +81,23 @@ export async function executeSend(
 	}
 
 	const targets = isBroadcast ? registry.listVisibleTo(senderId).map(ref => ref.id) : [to];
+	// A broadcast that also reaches the main agent delivers the body to it
+	// directly (its own incoming card); relaying the sibling legs to the main UI
+	// would then show the same body once per other recipient.
+	const suppressRelay = isBroadcast && targets.includes(MAIN_AGENT_ID);
 	const bus = IrcBus.global();
 	const receipts = await Promise.all(
 		targets.map(target =>
-			bus.send({
-				from: senderId,
-				to: target,
-				body: message,
-				...(isBroadcast ? { broadcast: true } : {}),
-				...(params.progress ? { progress: true } : {}),
-			}),
+			bus.send(
+				{
+					from: senderId,
+					to: target,
+					body: message,
+					...(isBroadcast ? { broadcast: true } : {}),
+					...(params.progress ? { progress: true } : {}),
+				},
+				{ suppressRelay: suppressRelay || undefined },
+			),
 		),
 	);
 	const delivered = receipts.filter(receipt => receipt.outcome !== "failed");

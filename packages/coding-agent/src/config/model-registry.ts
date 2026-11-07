@@ -1527,6 +1527,10 @@ export class ModelRegistry {
 	 * settings scope (SDK embedding, early boot) only the env var can enable it.
 	 */
 	#ompCompatEnabled(): boolean {
+		// The env var outranks every configured layer (the registration comment promises
+		// it), including a runtime override that would otherwise win under the registry's
+		// runtime-first precedence.
+		if (Bun.env.ZETA_OMP_COMPAT) return isOmpCompatEnabled();
 		return this.#settings ? cfgCompatImportLegacyOmp.get(this.#settings) : isOmpCompatEnabled();
 	}
 

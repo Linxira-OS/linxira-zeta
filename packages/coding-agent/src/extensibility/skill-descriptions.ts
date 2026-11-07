@@ -22,6 +22,7 @@ import {
 } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
 import { CostCapError, type CostGateApi } from "../session/cost-gate";
+import { resolveWebsocketPreference } from "../session/settings-stream-fn";
 import compressDescriptionPrompt from "../prompts/skills/compress-description.md" with { type: "text" };
 import { Semaphore } from "../task/parallel";
 import type { Skill } from "./skills";
@@ -126,6 +127,10 @@ export function createSkillDescriptionCompressor(
 						maxTokens: 1024,
 						disableReasoning: true,
 						temperature: 0,
+						// This request bypasses the session's settings-aware stream wrapper, so
+						// resolve the transport gate here too: a background compression must never
+						// open a WebSocket the user's setting (or the model veto) disabled.
+						preferWebsockets: resolveWebsocketPreference(settings, model),
 						signal: AbortSignal.any([AbortSignal.timeout(30_000), refused.signal]),
 						beforeDispatch: gate ? refuseAttempt : undefined,
 						fetch: gate ? transportFetch(model, undefined, refuseAttempt) : undefined,

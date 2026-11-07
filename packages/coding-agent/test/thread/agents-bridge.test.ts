@@ -154,11 +154,16 @@ describe("agent bridging across subagent workers", () => {
 		await probe.open("W1", {});
 		const before = await probe.grab("W1");
 		const registry = AgentRegistry.global();
+		// Ids are unique: a main-side replacement unregisters the old ref first (the
+		// registry refuses to silently swap one id between two sessions). Keep the
+		// live session handle before the ref leaves the roster.
+		const session = liveRef("W1").session;
+		registry.unregister("W1");
 		const replaced = registry.register({
 			id: "W1",
 			displayName: "W1",
 			kind: "sub",
-			session: liveRef("W1").session,
+			session,
 			status: "idle",
 		});
 		expect(replaced.generation).not.toBe(before);

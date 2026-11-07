@@ -99,7 +99,10 @@ async function withCli(
 		provider: "openai",
 		model: "gpt-5-mini",
 		sessionDir: tempDir.join("sessions"),
-		args: ["--no-title", "--no-lsp", "--no-extensions", "--no-context-files", "--tools", "bash"],
+		// `--no-skills` keeps background skill-description compression out of the fixture:
+		// those requests are unrelated to the transport under test and would pollute the
+		// upgrade/HTTP counts.
+		args: ["--no-title", "--no-lsp", "--no-extensions", "--no-context-files", "--no-skills", "--tools", "bash"],
 		spawn: args => ptree.spawn([process.execPath, cliEntry, ...args], { cwd: project, env, stdin: "pipe" }),
 	});
 	const events: AgentEvent[] = [];
