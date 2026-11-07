@@ -664,11 +664,8 @@ function showServiceFailure(message: string): void {
 function iconPath(): string | undefined {
 	const candidate = app.isPackaged
 		? path.join(process.resourcesPath, "icon.ico")
-		: (() => {
-				const repoRoot = findRepoRoot();
-				return repoRoot ? path.join(repoRoot, "temp", "desktop", "build", "icon.ico") : undefined;
-			})();
-	return candidate && fs.existsSync(candidate) ? candidate : undefined;
+		: path.join(__dirname, "..", "build", "icon.ico");
+	return fs.existsSync(candidate) ? candidate : undefined;
 }
 
 function loadFailurePage(win: BrowserWindow, detail: string): void {
