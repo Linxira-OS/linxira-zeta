@@ -769,7 +769,7 @@ export class RemoteAgentSession implements AgentViewSession {
 		return grants;
 	}
 
-	resume(): Promise<void> {
+	resume(): Promise<"restored" | "continue"> {
 		return this.#command("resume");
 	}
 

@@ -555,8 +555,8 @@ const WORDMARK_WIDTH = Math.max(...ZETA_WORDMARK.map(row => visibleWidth(row)));
 /** Columns between the logo and the wordmark. */
 const LOCKUP_GAP = 4;
 
-/** Lockup row holding the version: below the wordmark, which starts on the logo's second row. */
-const VERSION_ROW = ZETA_WORDMARK.length + 1;
+/** Lockup row holding the version: directly below the wordmark rows. */
+const VERSION_ROW = ZETA_WORDMARK.length;
 
 /** Cells of the download bar in a {@link VersionUpdate} indicator. */
 const UPDATE_BAR_WIDTH = 10;

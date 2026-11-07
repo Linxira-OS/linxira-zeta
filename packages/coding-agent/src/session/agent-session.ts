@@ -9270,7 +9270,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * @throws {AgentBusyError} while a turn runs.
 	 * @throws {Error} when there is no conversation to resume.
 	 */
-	async resume(): Promise<void> {
+	async resume(): Promise<"restored" | "continue"> {
 		const prompt = this.#recovery.prepareResume();
 		if (!prompt) {
 			// A handoff or full compaction can leave only the summary: it carries the
@@ -9289,13 +9289,13 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				userInitiated: true,
 				expandPromptTemplates: false,
 			});
-			return;
+			return "continue";
 		}
 		this.#noteUserTurn();
 		this.#todo.resetCycle();
 		this.#resetPromptMaintenanceState();
 		this.#scheduleAgentContinue({ source: "manual-continue", turnRecords: [prompt] });
-		return;
+		return "restored";
 	}
 
 	/**

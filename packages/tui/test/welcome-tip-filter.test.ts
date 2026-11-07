@@ -48,7 +48,7 @@ describe("splash tip filter", () => {
 	});
 
 	it("never surfaces a tip the filter rejects, for any roll", () => {
-		setTuiTipFilter(key => key !== "tip25");
+		setTuiTipFilter((_key, raw) => !raw.includes("/collab"));
 		const seen = tipsAcrossRolls();
 		expect(seen.length).toBeGreaterThan(0);
 		expect(seen.some(tip => tip.includes("/collab"))).toBe(false);

@@ -771,7 +771,7 @@ export function missingNativeExportMessage(symbolName, addon = loadedAddon) {
  * @returns {string}
  */
 export function staleWorkspaceAddonNotice(addon) {
-	const loaded = addon.version ? `@oh-my-pi/pi-natives@${addon.version}` : "an addon without a release stamp";
+	const loaded = addon.version ? `@linxiraos/pi-natives@${addon.version}` : "an addon without a release stamp";
 	return (
 		`[pi-natives] ${addon.path} is ${loaded}, but this checkout is @${addon.packageVersion}. ` +
 		"Symbols this checkout expects may be missing and shared ones may behave differently; " +

@@ -381,8 +381,8 @@ export interface AgentViewSession extends AgentSessionHandle {
 	getQueuedMessages(): { steering: readonly string[]; followUp: readonly string[]; liveSteered: number };
 	/** Remove and return the newest queued message. */
 	popLastQueuedMessage(): RestoredQueuedMessage | undefined;
-	/** Resume an interrupted turn. */
-	resume(): Promise<void>;
+	/** Resume an interrupted turn: `"restored"` re-runs it, `"continue"` injects the synthetic directive. */
+	resume(): Promise<"restored" | "continue">;
 	/** Retry the last failed turn. */
 	retry(): Promise<boolean>;
 	/** Cancel a pending retry. */
