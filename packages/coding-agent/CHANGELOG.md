@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+
+- Work Studio ships as a desktop application again, in two editions built from one staged runtime (compiled kernel + native addons + `web-app`): an Electron edition (bundled Chromium; Windows NSIS/zip, Linux AppImage/deb/tar.gz) and a browser edition with no bundled engine whose launcher starts `serve` and opens the default browser. Both carry the same `zeta` kernel, so the desktop shell no longer depends on the frozen `web-ui`; it points `serve` at the bundled `web-app` through `ZETA_WEB_APP_DIR`. `serve`/`web` help text and the desktop menu now say Work Studio.
+
 ## [1.4.11] - 2026-11-06
 
 ### Added

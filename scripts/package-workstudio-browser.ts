@@ -55,7 +55,9 @@ function run(file: string, args: string[], cwd: string): void {
 const args = parseArgs(process.argv.slice(2));
 const service = args.platform === "win32" ? "zeta.exe" : "zeta";
 if (!fs.existsSync(path.join(args.runtime, service))) {
-	throw new Error(`${path.join(args.runtime, service)} is missing; stage the runtime first (desktop/scripts/prepare-runtime.mjs)`);
+	throw new Error(
+		`${path.join(args.runtime, service)} is missing; stage the runtime first (desktop/scripts/prepare-runtime.mjs)`,
+	);
 }
 if (!fs.existsSync(path.join(args.runtime, "web-app", "index.html"))) {
 	throw new Error("the staged runtime has no web-app/index.html (Work Studio renderer)");
@@ -90,4 +92,6 @@ exec ./zeta/zeta serve
 }
 
 fs.rmSync(staging, { recursive: true, force: true });
-console.log(`workstudio-browser: ${path.join(args.out, args.platform === "win32" ? `${archiveBase}.zip` : `${archiveBase}.tar.gz`)}`);
+console.log(
+	`workstudio-browser: ${path.join(args.out, args.platform === "win32" ? `${archiveBase}.zip` : `${archiveBase}.tar.gz`)}`,
+);

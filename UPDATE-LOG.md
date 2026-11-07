@@ -2,6 +2,9 @@
 
 ## 下一版本（Unreleased）
 
+### 1.4.12
+- **桌面应用回归，两种发行版**：Work Studio 桌面壳恢复发布，同一 staged runtime（编译后的 `zeta` 内核 + 原生 addon + `web-app` 渲染器）产出 Electron 版（内置 Chromium；Windows NSIS/zip、Linux AppImage/deb/tar.gz）与无浏览器引擎版（`linxira-zeta-<v>-workstudio-browser-*`，启动 `serve` 后用系统默认浏览器打开）。桌面壳不再依赖冻结的 `web-ui`，统一通过 `ZETA_WEB_APP_DIR` 指向随包的渲染器；`serve`/`web` 帮助文案与桌面菜单名统一为 Work Studio。
+
 ### 1.4.11
 - **Work Studio 品牌收口**：启动提示、更新对话框、预览夹具与 Studio 线协议名不再出现上游 `OMP Studio`/`omp-studio`（仓库链接指向 `Linxira-OS/linxira-zeta`，协议名 `zeta-studio`），品牌门禁新增对应规则；`LICENSE` / `NOTICE` / `THIRD-PARTY-NOTICES.txt` 补上 Zeta 维护方的版权行，Studio 不再标注"unmodified"。 README 新增「与上游的差异」：逐面说明 `zetacode`、`zetaide`、Work Studio、`zetawork` 的改动与维护方，并标注 `web-ui/` 为已放弃维护的第三方快照。
 - **Work Studio 成为产品界面**：渲染器换成 `web-app/`（Vite + React），由 `zetacode serve` 同源托管；构建产物随 `@linxiraos/zeta` 出货到 `dist/web-app`，安装后无需仓库布局即可打开。Studio 宿主在 `/api/v1/*` 回答 pair/CSRF/query/command/events，能力清单只广播已实现的操作。`zetawork`（Rust TUI/GUI）与 Electron `desktop/` 按 2026-11-05 裁决暂停；**不存在 Rust UI**，`zetaide` 仍是终端 IDE。
