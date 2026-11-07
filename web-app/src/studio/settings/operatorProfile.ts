@@ -32,7 +32,7 @@ export interface OperatorProfile {
 }
 
 export const DEFAULT_OPERATOR_PROFILE: OperatorProfile = {
-  displayName: "Studio",
+  displayName: "Z Work Studio",
   avatarSrc: "",
 };
 

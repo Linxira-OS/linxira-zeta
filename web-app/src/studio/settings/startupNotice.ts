@@ -35,16 +35,27 @@ function writeStorage(key: string, value: string): void {
   }
 }
 
+/** 本次会话内是否已经点过「关闭」。组件重挂载也不能让提示重新出现。 */
+let closedForSession = false;
+
 export function shouldShowStartupNotice(): boolean {
+  if (closedForSession) return false;
   return readStorage(STARTUP_NOTICE_STORAGE_KEY) !== STARTUP_NOTICE_ID;
 }
 
+/** 「关闭」只收起本次会话；即使 Shell 重新挂载提示也不再出现。 */
+export function dismissStartupNoticeForSession(): void {
+  closedForSession = true;
+}
+
 export function dismissStartupNoticeForever(): void {
+  closedForSession = true;
   writeStorage(STARTUP_NOTICE_STORAGE_KEY, STARTUP_NOTICE_ID);
 }
 
-/** 测试辅助：清掉持久化的「不再提醒」。 */
+/** 测试辅助：清掉持久化的「不再提醒」和会话内关闭标记。 */
 export function __resetStartupNoticeForTests(): void {
+  closedForSession = false;
   try {
     globalThis.localStorage?.removeItem(STARTUP_NOTICE_STORAGE_KEY);
   } catch {

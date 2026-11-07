@@ -2731,7 +2731,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
           ref={ompBtnRef}
           type="button"
           className={`sb-user${hasUpdate ? " has-update" : ""}`}
-          aria-label={`${profile.displayName} · ${hasUpdate ? `${t("appUpdate.foundNewVersion")} v${effectiveUpdate?.version} · ` : ""}Zeta 状态与环境菜单`}
+          aria-label={`${profile.displayName} · ${hasUpdate ? `${t("appUpdate.foundNewVersion")} v${effectiveUpdate?.version} · ` : ""}Z Work Studio 状态与环境菜单`}
           aria-haspopup="menu"
           aria-expanded={chrome.ompMenuOpen}
           onClick={chrome.onToggleOmpMenu}
@@ -9086,7 +9086,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
                 </div>
                 <div className="modal-body">
                   <dl className="about-list">
-                    <div className="about-row"><dt>{t("common.product")}</dt><dd>Zeta</dd></div>
+                    <div className="about-row"><dt>{t("common.product")}</dt><dd>Z Work Studio</dd></div>
                     <div className="about-row"><dt>{t("appUpdate.currentVersion")}</dt><dd>{(previewMode.preview ? PREVIEW_APP_UPDATE.currentVersion : localAppVersion ?? appUpdate.state.updateInfo?.currentVersion) || "—"}</dd></div>
                     <div className="about-row"><dt>Client contract</dt><dd>v{CLIENT_CONTRACT_VERSION}</dd></div>
                     <div className="about-row"><dt>Runtime</dt><dd>{runtime?.status ?? t("common.unavailable")}{runtime?.classification ? ` · ${runtime.classification}` : ""}</dd></div>

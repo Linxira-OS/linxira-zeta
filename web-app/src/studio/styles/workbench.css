@@ -6471,7 +6471,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   max-width: 360px;
 }
 
-.ce-heat { width: 100%; margin: 0 0 var(--sp-24); overflow-x: auto; }
+.ce-heat { width: 100%; margin: 0 0 var(--sp-24); overflow-x: hidden; }
 .ce-heat-head {
   display: flex;
   align-items: baseline;
@@ -6546,6 +6546,10 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   grid-auto-flow: column;
   grid-auto-columns: var(--ce-cell);
   gap: var(--ce-gap);
+  /* The entrance sheen is translated past the grid; without clipping it
+     extends the scrollable overflow (giant scrollbar) and parks as a gray
+     blurred band on the right. */
+  overflow: hidden;
 }
 /* 入场扫光：一条渐变带 + `transform: translateX`（合成属性），扫一遍就停在
    容器外。原来是 `background-position` 的无限动画——非合成属性，每帧重绘整块
@@ -6606,6 +6610,10 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   color: var(--text-faint);
 }
 .ce-heat-legend i { width: 9px; height: 9px; border-radius: 2px; background: var(--ce-l0); }
+
+@media (max-width: 1320px) {
+  .ce-heat-board { --ce-cell: 10px; --ce-gap: 3px; }
+}
 
 /* 最近对话是欢迎区最后一段：不再给下边距，否则垂直居中的可视重心会偏上 10px。 */
 .ce-recent { width: 100%; margin: 0; }
