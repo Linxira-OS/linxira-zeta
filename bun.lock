@@ -122,7 +122,7 @@
         "@types/bun": "catalog:",
       },
     },
-    "packages/collab-web": {
+    "packages/export-web": {
       "name": "@linxiraos/collab-web",
       "version": "1.0.0",
       "dependencies": {
@@ -502,7 +502,7 @@
 
     "@linxiraos/browser-relay": ["@linxiraos/browser-relay@workspace:packages/browser-relay"],
 
-    "@linxiraos/collab-web": ["@linxiraos/collab-web@workspace:packages/collab-web"],
+    "@linxiraos/collab-web": ["@linxiraos/collab-web@workspace:packages/export-web"],
 
     "@linxiraos/pi-agent-core": ["@linxiraos/pi-agent-core@workspace:packages/agent"],
 

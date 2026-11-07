@@ -377,7 +377,7 @@ than a byte-for-byte native provider transcript.
   paired with the first close after it, is the block. Only answers from the current run
   that were asked with `btw.inject` on can be sent, once each: in history, the latest
   turn's block shows pending, sent turns keep their marks, and blocks from earlier turns or
-  runs read as plain text. Side answers about a focused subagent, and collab guests, get
+  runs read as plain text. Side answers about a focused subagent get
   neither the instruction nor the block.
 - After an inline BTW answer completes, `f` opens that topic's follow-up input
   directly, without requiring `/btw` first. The main editor must be empty and focused.

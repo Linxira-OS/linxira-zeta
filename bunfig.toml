@@ -32,7 +32,7 @@ minimumReleaseAgeExcludes = [
   "@linxiraos/pi-stats",
   "@linxiraos/pi-mnemopi",
   "@linxiraos/channels",
-  "@linxiraos/collab-web",
+  "@linxiraos/export-web",
 ]
 linker = "hoisted"
 exact = true

@@ -51,8 +51,8 @@ backend.
   backend's providers. `/restart` targets the backend by default
   (`/restart client` re-execs the TUI); `/omfg`, `/cleanse`, `/tan` and
   `/seance` run through backend headless handlers. `/setup` and `/providers`
-  are retired in favor of `/login`; `/collab`, `/join` and `/leave` are opt-in
-  legacy collaboration, hidden on fresh installs. `/live` is disabled
+  are retired in favor of `/login`; live-session collaboration (`/collab`,
+  `/join`, `/leave`) is fully retired. `/live` is disabled
   product-wide until its Codex-only realtime transport is replaced. `/loop` is
   backend-executed: repetitions, its
   `--while`/`--until` shell condition, and `loop.mode` compact/reset actions

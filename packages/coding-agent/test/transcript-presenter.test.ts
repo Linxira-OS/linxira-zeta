@@ -11,10 +11,6 @@ import type {
 	TranscriptBlock,
 	TranscriptPresentation,
 } from "@linxiraos/zeta/extensibility/extensions";
-import { generateRoomKey, importRoomKey } from "@linxiraos/zeta/collab/crypto";
-import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
-import { COLLAB_PROTO, type CollabFrame, formatCollabLink } from "@linxiraos/zeta/collab/protocol";
-import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
 import * as bashExecutor from "@linxiraos/zeta/exec/bash-executor";
 import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
@@ -32,7 +28,6 @@ import { initTheme } from "@linxiraos/pi-tui/theme";
 import { TempDir } from "@linxiraos/pi-utils";
 import * as piUtils from "@linxiraos/pi-utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
-import { installInMemoryRelay, uninstallInMemoryRelay } from "./collab/helpers/in-memory-relay";
 
 function plainRows(rows: readonly string[]): string[] {
 	return rows.map(row => Bun.stripANSI(row).trimEnd());
@@ -65,7 +60,6 @@ describe("extension transcript presenters", () => {
 		tempDir = TempDir.createSync("@pi-transcript-presenter-");
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
 		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
-		// Leaving a collab guest restores the local session's model, which needs auth for its provider.
 		authStorage.keys.setRuntime("anthropic", "test-key");
 		modelRegistry = new ModelRegistry(authStorage);
 		const model = modelRegistry.find("anthropic", "claude-sonnet-4-5");
@@ -302,76 +296,6 @@ describe("extension transcript presenters", () => {
 		expect(chat()).not.toContain("ROW-call1");
 		expect(chat()).not.toContain("OUTPUT-call1");
 		expect(chat()).toContain("ROW-call2");
-	});
-
-	it("draws a collab guest's transcript with stock cards, and the local presenters again after leaving", async () => {
-		// Regression guard: the local session's presenters drawing the host's transcript, whose runs
-		// they never see, or the restored local transcript staying stock after leaving.
-		const asked: string[] = [];
-		await installExtensions(
-			presenter(block => {
-				if (block.type !== "toolCall") return undefined;
-				asked.push(block.id);
-				return { compact: { label: `ROW-${block.id}` } };
-			}),
-		);
-		appendToolCall("local1", 10);
-		await start();
-		await mode.renderInitialMessages();
-		expect(chat()).toContain("ROW-local1");
-		// The joined replica's file goes under the config root.
-		vi.spyOn(piUtils, "getConfigRootDir").mockReturnValue(tempDir.path());
-		installInMemoryRelay();
-		const roomId = "transcript-presenter-guest";
-		const roomKey = generateRoomKey();
-		const hostSocket = new CollabSocket({
-			wsUrl: `ws://localhost:8788/r/${roomId}`,
-			role: "host",
-			key: await importRoomKey(roomKey),
-		});
-		const hostOpen = Promise.withResolvers<void>();
-		hostSocket.onOpen = () => hostOpen.resolve();
-		hostSocket.onFrame = frame => {
-			if (frame.t !== "hello") return;
-			hostSocket.send({
-				t: "welcome",
-				proto: COLLAB_PROTO,
-				header: { type: "session", id: "host-session", timestamp: "2026-11-03T00:00:00Z", cwd: "/tmp" },
-				state: {
-					isStreaming: false,
-					queuedMessageCount: 0,
-					sessionName: "host session",
-					cwd: "/tmp",
-					participants: [{ name: "Host", role: "host" }],
-				},
-				agents: [],
-				entryCount: 0,
-			} as CollabFrame);
-		};
-		hostSocket.connect();
-		await hostOpen.promise;
-		const guest = new CollabGuestLink(mode);
-		try {
-			const joined = guest.join(formatCollabLink("ws://localhost:8788", roomId, roomKey));
-			// The guest claims the process before connecting; the local transcript keeps its drawing meanwhile.
-			expect(chat()).toContain("ROW-local1");
-			await joined;
-			const ui = { requestRender: () => {}, requestComponentRender: () => {}, resetDisplay: () => {} };
-			const card = new ToolExecutionComponent("bash", { command: "echo host1" }, {}, undefined, ui, "/tmp", "host1");
-			card.setArgsComplete("host1");
-			card.setExecutionStarted("host1");
-			card.updateResult({ content: [{ type: "text", text: "OUTPUT-host1" }], isError: false });
-			mode.chatContainer.addChild(card);
-			expect(chat()).toContain("OUTPUT-host1");
-			expect(asked).not.toContain("host1");
-
-			await guest.leave("test");
-			expect(chat()).toContain("ROW-local1");
-		} finally {
-			await guest.leave("test cleanup").catch(() => {});
-			hostSocket.close();
-			uninstallInMemoryRelay();
-		}
 	});
 
 	it("draws a focused subagent's transcript with stock cards, and the main presenters again on return", async () => {

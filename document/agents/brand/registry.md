@@ -97,3 +97,4 @@ commit** 里删掉对应条目并写明理由。
 | `README.zh-CN.md` | 产品前门是 Zeta 自己的 README |
 | `sdk/go/omp-rpc/go.mod` | 上游命名 Go SDK；Zeta 发 `sdk/go/zeta-rpc` |
 | `packages/coding-agent/src/commands/share.ts`、`src/export/share.ts`、`test/share.test.ts` | 分享上传面 2026-11-02 退役：`/share` 只把脱敏后的转录稿交给 agent，不再上传；上游仍发这三个文件，合并会把上传路径带回来 |
+| `packages/coding-agent/src/collab/**`、`cli/collab-cli.ts`、`commands/collab.ts`、`commands/join.ts`、`slash-commands/builtin-collaboration.ts`、`test/collab/**`、`packages/tui/src/chat/collab-prompt-message.ts`、`packages/tui/src/chrome/collab-qrcode.ts`、`packages/collab-web/**`、`docs/collab.md` | 协作 live-session（`/collab`、`/join`、浏览器 guest、中继）于 2026-11-07 完全退役；上游仍发整套功能。共享文件里的 `COLLAB_PROTO`、`COLLAB_PROMPT_MESSAGE_TYPE`、`collab.*` 设置也由同一守卫的符号检查拦住 |

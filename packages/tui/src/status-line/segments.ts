@@ -1081,22 +1081,6 @@ const sessionNameSegment: StatusLineSegment = {
 	},
 };
 
-const collabSegment: StatusLineSegment = {
-	id: "collab",
-	render(ctx) {
-		if (!ctx.collab) return { content: "", visible: false };
-		const participants = `${ctx.collab.participantCount}`;
-		const label = ctx.collab.role === "host" ? `⇄ collab:${participants}` : `⇄ collab guest:${participants}`;
-		return { content: accentFg(ctx, "accent", label), visible: true };
-	},
-	describe(ctx) {
-		if (!ctx.collab) return null;
-		const participants = `${ctx.collab.participantCount}`;
-		const label = ctx.collab.role === "host" ? `collab:${participants}` : `collab guest:${participants}`;
-		return segView([span(label, accentToken(ctx, "accent"))], "collab");
-	},
-};
-
 const streamSegment: StatusLineSegment = {
 	id: "stream",
 	render(ctx) {
@@ -1372,7 +1356,6 @@ export const SEGMENTS: Record<StatusLineSegmentId, StatusLineSegment> = {
 	session_name: sessionNameSegment,
 	usage: usageSegment,
 	turn_stats: turnStatsSegment,
-	collab: collabSegment,
 	stream: streamSegment,
 	vim: vimSegment,
 };

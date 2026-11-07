@@ -621,7 +621,7 @@ describe("Agent hub Enter activation", () => {
 			},
 			editor,
 			editorContainer,
-			collabGuest: { agentRegistry: agents, hubRemote: undefined },
+			agentRegistry: agents,
 			focusAgentSession: async (id: string) => {
 				focusedIds.push(id);
 				focusResolved.resolve();
@@ -681,7 +681,7 @@ describe("Agent hub double-← gating", () => {
 				clear: () => {},
 				addChild: () => {},
 			},
-			collabGuest: { agentRegistry: agents, hubRemote: undefined },
+			agentRegistry: agents,
 			focusAgentSession: async () => {},
 			session: { getToolByName: () => undefined, extensionRunner: undefined },
 			sessionManager: { getCwd: () => TEST_CWD, getSessionFile: () => sessionFile },

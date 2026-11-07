@@ -78,9 +78,6 @@ import { M } from "../i18n";
 import { pickTableChart } from "../auto-graph/planner";
 import { restartArgv } from "../cli/flag-tables";
 import type { BackendAttachLink } from "../backend/attach-link";
-import type { CollabGuestLink } from "../collab/guest";
-import { CollabController } from "../collab/controller";
-import type { CollabHost } from "../collab/host";
 import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import { appKey, editorKey, rawKeyHint } from "@linxiraos/pi-tui/chrome/keybinding-hints";
@@ -477,7 +474,6 @@ import {
 } from "./settings";
 import { SIDEBAR_WIDTH, SidebarComponent } from "./components/sidebar";
 import { SidebarGitSource } from "./components/sidebar-git";
-import { cfgCollabEnabled } from "../collab/settings";
 import { cfgTasksTodoClearDelay } from "../tools/settings";
 import { cfgWorktreeOnExit, cfgWorktreeOnStart } from "../task/settings";
 import { cfgExpandThinkingBlocks, cfgProseOnlyThinking } from "../session/settings";
@@ -1803,24 +1799,6 @@ export class InteractiveMode implements InteractiveModeContext {
 	fileSlashCommands: Set<string> = new Set();
 	skillCommands: Map<string, Skill> = new Map();
 	oauthManualInput: OAuthManualInputManager = new OAuthManualInputManager();
-	/** Owns hosting: manual `/collab`, `collab.autoStart`, and room rotation on session switch. */
-	readonly collabController: CollabController;
-	/** Owned room; use {@link collabController}.host for current-session reuse and links. */
-	collabHost?: CollabHost;
-	#collabGuest: CollabGuestLink | undefined;
-	/** Set with {@link setCollabGuest}. */
-	get collabGuest(): CollabGuestLink | undefined {
-		return this.#collabGuest;
-	}
-	/**
-	 * A guest's transcript is the host's and draws stock cards. Joining replays the host's next, so
-	 * the local blocks are left as drawn; leaving restored the local transcript while the guest still
-	 * held it, so its blocks are asked again.
-	 */
-	setCollabGuest(guest: CollabGuestLink | undefined): void {
-		this.#collabGuest = guest;
-		if (this.#applyTranscriptPresenters() && !guest) this.refreshTranscriptPresentation();
-	}
 	/** Live client link to a session owned by a running `zetacode serve` backend. */
 	backendAttach?: BackendAttachLink;
 	#streamPublisher: StreamPublisher | undefined;
@@ -2417,7 +2395,6 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#selectorController = new SelectorController(this);
 		this.#focusController = new SessionFocusController(this);
 		this.#inputController = new InputController(this);
-		this.collabController = new CollabController(this);
 		this.session.setPromptDropped?.(prompt => this.#restoreDroppedPrompt(prompt));
 		this.#observerRegistry = new SessionObserverRegistry();
 	}
@@ -2873,13 +2850,6 @@ export class InteractiveMode implements InteractiveModeContext {
 			}
 		});
 
-		// Host the session before extension hooks run: a dialog raised from a
-		// `session_start` hook is then retained for the first writer that joins.
-		// The relay connection proceeds in the background and never blocks init.
-		// The owning caller keeps guest mutations gated through its full outer
-		// startup; early dialog answers do not require that readiness signal.
-		if (options.autoStartCollab === true) this.collabController.autoStart();
-
 		// Initialize hooks with TUI-based UI context
 		await logger.time("InteractiveMode.init:hooks", () => this.initHooksAndCustomTools());
 		// A live `disabledExtensions` edit suspends or resumes extensions: drop (or restore) their link
@@ -2999,14 +2969,6 @@ export class InteractiveMode implements InteractiveModeContext {
 				// Skills/commands rediscovery (live `skills.*`/`commands.*`/extension edits,
 				// `/move`, manage_skill, MCP prompts) lands here; rebuild the picker
 				// from session state even though the snapshot key is unchanged.
-				this.#rebuildSlashCommandAutocomplete(this.sessionManager.getCwd(), { force: true });
-				this.ui.requestRender();
-			}),
-		);
-		// The collab commands are gated by `collab.enabled`, so a /settings toggle
-		// adds or drops them from the picker (and their refusal path) live.
-		this.#eventBusUnsubscribers.push(
-			cfgCollabEnabled.listen(this.settings, () => {
 				this.#rebuildSlashCommandAutocomplete(this.sessionManager.getCwd(), { force: true });
 				this.ui.requestRender();
 			}),
@@ -4781,10 +4743,10 @@ export class InteractiveMode implements InteractiveModeContext {
 
 	/**
 	 * Install the main session's transcript presenters (what its runner leaves active); true when
-	 * they changed. A focused subagent's transcript and a collab guest's draw stock cards instead.
+	 * they changed. A focused subagent's transcript draws stock cards instead.
 	 */
 	#applyTranscriptPresenters(): boolean {
-		const runner = this.viewSession === this.session && !this.collabGuest ? this.session.extensionRunner : undefined;
+		const runner = this.viewSession === this.session ? this.session.extensionRunner : undefined;
 		return setTranscriptPresenters(runner?.getTranscriptPresenters() ?? []);
 	}
 
@@ -4927,12 +4889,11 @@ export class InteractiveMode implements InteractiveModeContext {
 	}
 
 	/**
-	 * Refresh the running-subagents status badge from the active local or collab
-	 * registry, and the cost segment's subagent-tree spend (local sessions only:
-	 * a collab guest's registry mirrors host transcripts outside this root).
+	 * Refresh the running-subagents status badge from the local registry, and the
+	 * cost segment's subagent-tree spend.
 	 */
 	syncRunningSubagentBadge(options: { requestRender?: boolean } = {}): boolean {
-		const registry = getRunningSubagentBadgeRegistry(this.collabGuest, AgentRegistry.global());
+		const registry = getRunningSubagentBadgeRegistry(AgentRegistry.global());
 		if (this.#agentRegistrySubscriptionTarget !== registry) {
 			this.#agentRegistryUnsubscribe?.();
 			this.#agentRegistrySubscriptionTarget = registry;
@@ -4948,17 +4909,14 @@ export class InteractiveMode implements InteractiveModeContext {
 		const inspectableChanged = inspectable !== this.#inspectableSubagentCount;
 		this.#inspectableSubagentCount = inspectable;
 		const agentsChanged = this.statusLine.setRunningSubagents(agentIds);
-		let treeCost = 0;
-		if (!this.collabGuest) {
-			const rootSessionFile = this.sessionManager.getSessionFile() ?? undefined;
-			this.#hydratePersistedSubagentCosts(rootSessionFile);
-			treeCost = sumSubagentTreeCost({
-				refs: AgentRegistry.global().list(),
-				observers: this.#observerRegistry,
-				rootSessionFile,
-				sessionCosts: this.#subagentSessionCosts,
-			});
-		}
+		const rootSessionFile = this.sessionManager.getSessionFile() ?? undefined;
+		this.#hydratePersistedSubagentCosts(rootSessionFile);
+		const treeCost = sumSubagentTreeCost({
+			refs: AgentRegistry.global().list(),
+			observers: this.#observerRegistry,
+			rootSessionFile,
+			sessionCosts: this.#subagentSessionCosts,
+		});
 		const costChanged = this.statusLine.setSubagentTreeCost(treeCost);
 		const changed = agentsChanged || costChanged || inspectableChanged;
 		if (changed && options.requestRender !== false) this.ui.requestRender();
@@ -8324,7 +8282,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	async #promptAutoQaConsent(): Promise<boolean | null> {
 		const pool = InteractiveMode.#AUTOQA_CONSENT_PROMPTS;
 		const [headline, body] = pool[Math.floor(Math.random() * pool.length)];
-		const choice = await this.#extensionUiController.showCollabAwareSelector(`${headline}\n${body}`, ["Yes", "No"]);
+		const choice = await this.#extensionUiController.showSelector(`${headline}\n${body}`, ["Yes", "No"]);
 		return choice === "Yes";
 	}
 
@@ -8350,7 +8308,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			callerSignal === undefined
 				? this.#dialogLifetime.signal
 				: AbortSignal.any([callerSignal, this.#dialogLifetime.signal]);
-		const choice = await this.#extensionUiController.showCollabAwareSelector(
+		const choice = await this.#extensionUiController.showSelector(
 			`${headline}\n${request.previous} → ${request.value}${warning}`,
 			[CFG_APPROVE_SESSION, CFG_APPROVE_ONCE, CFG_DENY],
 			{
@@ -8645,9 +8603,6 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.#streamPublisher = undefined;
 			await this.#recorder?.stop();
 			this.#recorder = undefined;
-			// Guests get goodbye and the registry entry disappears before the
-			// session is disposed, under the same still-closing progress notice.
-			await this.collabController.shutdown("host exited");
 			await this.#liveCommandController.stop();
 			await this.#btwController.dispose();
 			this.#omfgController.dispose();
@@ -9362,7 +9317,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	 * dispatched by the editor to `InputController.handleRetry`.
 	 */
 	syncRetryHintRow(): void {
-		const show = !this.collabGuest && !this.viewSession.isStreaming && this.viewSession.hasAbortedToolCallTail;
+		const show = !this.viewSession.isStreaming && this.viewSession.hasAbortedToolCallTail;
 		if (this.#retryHintRow) {
 			const mounted = this.statusContainer.children.includes(this.#retryHintRow);
 			if (mounted && show) return;

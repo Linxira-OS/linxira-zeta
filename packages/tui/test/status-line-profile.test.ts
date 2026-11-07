@@ -24,7 +24,6 @@ function createContext(overrides: Partial<SegmentContext> = {}): SegmentContext 
 		goalMode: null,
 		vibeMode: null,
 		vim: null,
-		collab: null,
 		stream: null,
 		recording: false,
 		usageStats: {

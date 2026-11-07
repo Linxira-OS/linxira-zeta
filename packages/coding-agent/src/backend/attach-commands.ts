@@ -86,7 +86,6 @@ export const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
 /**
  * Commands an attach client cannot apply to a backend-owned session:
  *
- * - sharing (`collab`, `join`, `leave`) belongs to the backend's process;
  * - live voice (`live`) binds the backend host's microphone/speaker and has no
  *   client-side audio bridge yet.
  *
@@ -99,9 +98,6 @@ export const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
  * the replica.
  */
 export const BACKEND_ATTACH_REFUSED_COMMANDS: Record<string, true> = {
-	collab: true,
-	join: true,
-	leave: true,
 	live: true,
 };
 
@@ -133,8 +129,5 @@ export function isBackendAttachRefusedCommand(verb: string | undefined): boolean
 
 /** The actionable half of a refusal: which local command does the same thing. */
 export function backendAttachRefusalHint(verb: string): string {
-	if (verb === "collab" || verb === "join" || verb === "leave") {
-		return "live sharing is disabled pending review; use /share for a static GitHub transcript";
-	}
 	return "run it from the terminal that owns the backend session";
 }

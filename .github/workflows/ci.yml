@@ -490,9 +490,6 @@ jobs:
            working-directory: plugins/official/pi-messenger
            continue-on-error: true
            run: npm install --no-audit --no-fund && npx vitest run
-         - name: Build collab web
-           run: bun run collab:web:build
-
    # Standalone web-ui build matrix: npm-only project — no bun-install, no
    # native addons, no Rust. Catches platform-specific breakage in the Next
    # build that the single-Linux `check` job cannot see.

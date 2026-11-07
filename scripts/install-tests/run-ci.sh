@@ -134,9 +134,9 @@ cp "$natives_pkg_backup" "$ROOT_DIR/packages/natives/package.json"
 [ "$core_rc" -eq 0 ] || exit "$core_rc"
 
 # 3. Pack the remaining workspace packages (natives core and coding-agent
-#    handled separately). `collab-web` is private but still packed here so its
+#    handled separately). `export-web` is private but still packed here so its
 #    prepack build and tarball file list stay release-safe.
-for pkg in utils wire omptype catalog channels ai mnemopi snapcompact agent tui stats collab-web; do
+for pkg in utils wire omptype catalog channels ai mnemopi snapcompact agent tui stats; do
    (
       cd "$ROOT_DIR/packages/$pkg"
       bun pm pack --destination "$TARBALL_DIR" --quiet >/dev/null
@@ -173,7 +173,6 @@ tui_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-tui-*.tgz)"
 stats_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-stats-*.tgz)"
 channels_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-channels-*.tgz)"
 coding_agent_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-zeta-*.tgz)"
-collab_web_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-collab-web-*.tgz)"
 
 TARBALL_APP_DIR="$WORK_DIR/tarball-install"
 mkdir -p "$TARBALL_APP_DIR"
@@ -199,24 +198,18 @@ mkdir -p "$TARBALL_APP_DIR"
 			'@linxiraos/pi-tui': '$tui_tgz',
 			'@linxiraos/pi-stats': '$stats_tgz',
 			'@linxiraos/pi-channels': '$channels_tgz',
-			'@linxiraos/zeta': '$coding_agent_tgz',
-			'@linxiraos/collab-web': '$collab_web_tgz'
+			'@linxiraos/zeta': '$coding_agent_tgz'
 		};
 		require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));
 	"
 
-   bun add "$utils_tgz" "$wire_tgz" "$omptype_tgz" "$natives_tgz" "$catalog_tgz" "$ai_tgz" "$mnemopi_tgz" "$snapcompact_tgz" "$agent_tgz" "$tui_tgz" "$stats_tgz" "$channels_tgz" "$coding_agent_tgz" "$collab_web_tgz"
+   bun add "$utils_tgz" "$wire_tgz" "$omptype_tgz" "$natives_tgz" "$catalog_tgz" "$ai_tgz" "$mnemopi_tgz" "$snapcompact_tgz" "$agent_tgz" "$tui_tgz" "$stats_tgz" "$channels_tgz" "$coding_agent_tgz"
    # The platform leaf must arrive through the core's optionalDependencies +
    # override, not as a direct dependency — assert it landed before smoking so a
    # resolution regression is distinguishable from a runtime loader bug.
    leaf_dir="node_modules/@linxiraos/pi-natives-$host_tag"
    [ -d "$leaf_dir" ] || {
       echo "Platform leaf package not installed: $leaf_dir"
-      exit 1
-   }
-   wire_proto="$(bun -e 'import { COLLAB_PROTO } from "@linxiraos/pi-wire"; process.stdout.write(String(COLLAB_PROTO));')"
-   [ "$wire_proto" = "3" ] || {
-      echo "Unexpected @linxiraos/pi-wire COLLAB_PROTO: $wire_proto"
       exit 1
    }
    omptype_probe="$(bun -e '
@@ -230,10 +223,6 @@ mkdir -p "$TARBALL_APP_DIR"
    ')"
    [ "$omptype_probe" = "omp:false:tb:z" ] || {
       echo "Unexpected @linxiraos/zeta-schema probe result: $omptype_probe"
-      exit 1
-   }
-   [ -f "node_modules/@linxiraos/collab-web/dist/index.html" ] || {
-      echo "Collab web tarball did not install built dist/index.html"
       exit 1
    }
    smoke_cli ./node_modules/.bin/zetacode

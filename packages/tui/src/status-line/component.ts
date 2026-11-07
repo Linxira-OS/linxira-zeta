@@ -52,7 +52,6 @@ import { isNativeRendering, onNativeRenderingChange } from "../native/state";
 import { getSeparator } from "./separators";
 import { formatJobWidgetGlance, type JobWidgetEntry, latestJobWidget } from "../tools/job-widget";
 import type {
-	CollabStatus,
 	ComposerFacts,
 	ComposerFactsSource,
 	EffectiveStatusLineSettings,
@@ -801,7 +800,6 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 	 * dependency graph; interactive-mode wires it to VibeSessionRegistry.
 	 */
 	#vibeWorkerTokenRate: (() => number | null) | null = null;
-	#collabStatus: CollabStatus | null = null;
 	#streamStatus: { viewers: number } | null = null;
 	#recording = false;
 	#focusedAgentId: string | undefined;
@@ -1252,19 +1250,6 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 	 */
 	setVibeWorkerTokenRateProvider(provider: (() => number | null) | undefined): void {
 		this.#vibeWorkerTokenRate = provider ?? null;
-		this.#invalidateStatusLineRenderCache();
-	}
-
-	setCollabStatus(status: CollabStatus | null): void {
-		if (
-			!this.#collabStatus?.stateOverride &&
-			!status?.stateOverride &&
-			this.#collabStatus?.role === status?.role &&
-			this.#collabStatus?.participantCount === status?.participantCount
-		) {
-			return;
-		}
-		this.#collabStatus = status;
 		this.#invalidateStatusLineRenderCache();
 	}
 
@@ -2681,21 +2666,12 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 
 		let contextWindow = state.model?.contextWindow ?? this.session.model?.contextWindow ?? 0;
 		const breakdown = this.getCachedContextBreakdown();
-		let contextTokens = breakdown.usedTokens;
+		const contextTokens = breakdown.usedTokens;
 		contextWindow = breakdown.contextWindow || contextWindow;
-		let contextPercent: number | null =
+		const contextPercent: number | null =
 			contextWindow > 0 && !this.#contextUsageCache?.percentUnknown
 				? (breakdown.usedTokens / contextWindow) * 100
 				: null;
-		// Collab guest: context comes from the host's state frames — the local
-		// replica does no accounting of its own.
-		const collabState = this.#collabStatus?.stateOverride;
-		if (collabState?.contextUsage) {
-			contextWindow = collabState.contextUsage.contextWindow || contextWindow;
-			contextTokens = collabState.contextUsage.tokens ?? contextTokens;
-			contextPercent = collabState.contextUsage.percent ?? contextPercent;
-		}
-
 		const shouldResolveActiveRepo = this.#gitEnabled() && (includePath || includeGit || includePr);
 		const projectDir = getProjectDir();
 		const activeRepoCache = shouldResolveActiveRepo
@@ -2745,7 +2721,6 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 			goalStatusInFooter: this.#goalModeStatus ? this.host.goalStatusInFooter(this.session) : false,
 			vibeMode: this.#vibeModeStatus,
 			vim: this.#vimStatus,
-			collab: this.#collabStatus,
 			stream: this.#streamStatus,
 			recording: this.#recording,
 			usageStats,

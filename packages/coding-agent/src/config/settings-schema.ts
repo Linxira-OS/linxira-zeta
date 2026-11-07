@@ -2411,85 +2411,12 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	// Collab
-	"collab.enabled": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "interaction",
-			group: "Collab",
-			label: "Enabled",
-			description:
-				"Enable live session sharing (/collab, /join). Requires collab.relayUrl to point at a relay you control; zeta operates none.",
-		},
-	},
-	"collab.relayUrl": {
-		type: "string",
-		default: "",
-		ui: {
-			tab: "interaction",
-			group: "Collab",
-			label: "Relay URL",
-			description:
-				"Relay used by /collab (wss://host[:port]); empty disables sharing even when collab.enabled is on",
-		},
-	},
-
-	"collab.webUrl": {
-		type: "string",
-		default: "",
-		ui: {
-			tab: "interaction",
-			group: "Collab",
-			label: "Web UI URL",
-			description:
-				"Browser UI used by /collab links; empty derives from collab.relayUrl; explicit http:// is localhost-only",
-		},
-	},
-
-	"collab.displayName": {
-		type: "string",
-		default: "",
-		ui: {
-			tab: "interaction",
-			group: "Collab",
-			label: "Display Name",
-			description: "Name shown to other collab participants (default: OS username)",
-		},
-	},
-
-	"collab.autoStart": {
-		type: "enum",
-		values: ["off", "view", "control"] as const,
-		default: "off",
-		ui: {
-			tab: "interaction",
-			group: "Collab",
-			label: "Auto Start",
-			description:
-				"Host every interactive session via collab.relayUrl as it starts and publish it to the local registry (zetacode collab list); rooms rotate on session switch",
-			options: [
-				{ value: "off", label: "Off", description: "Share only when /collab is run" },
-				{
-					value: "view",
-					label: "View",
-					description: "Auto-host; the registry hands out view-only links (zetacode collab link --view)",
-				},
-				{
-					value: "control",
-					label: "Control",
-					description: "Auto-host; the registry hands out control links that can prompt the session",
-				},
-			],
-		},
-	},
-
 	"share.redactSecrets": {
 		type: "boolean",
 		default: true,
 		ui: {
 			tab: "interaction",
-			group: "Collab",
+			group: "Share",
 			label: "Share Secret Redaction",
 			description:
 				"Run the secret obfuscator over /share transcripts before they are handed to the agent (uses the secrets.* config)",

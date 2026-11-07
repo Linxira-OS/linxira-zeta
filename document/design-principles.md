@@ -114,7 +114,7 @@ vendored 载荷于 2026-10-16 退场，包载荷入口 `termide-editor` 只是�
   branding-overlay commit 恢复。
   为什么：v18.0.3 合并曾静默回翻 ζ 品牌——散文规则不可执行，机械守卫才
   挡得住合并。
-- **刻意不品牌化**：中继/分享 URL `my.omp.sh`（共享 OMP 基础设施；2026-10-15 起协作面默认关且无默认端点，该主机只作为 wire 语法常量与 collab-web 部署引用保留）、native
+- **刻意不品牌化**：中继/分享 URL `my.omp.sh` 已随协作功能于 2026-11-07 完全退役，不再随包发布；native
   Tokio 安装导出 `__ompInstallTokioRuntime`
   （crate/index.js/loader 三方一致协议，sweep 会让 Tokio 静默不装）、上游
   进程间协议符号（`__omp_with_call_site__` 等负断言 marker）。
@@ -306,7 +306,7 @@ Deferred Queue，不另立计划文）；③架构设计文档（本文即此类
 | `stats` | 本地用量可观测仪表盘（bin `zeta-stats`） |
 | `omptype` | ArkType 兼容 schema 校验（懒 JIT） |
 | `channels` | IM 渠道适配：WeChat / Feishu / Telegram（`ChatChannel`/`ChannelHost`） |
-| `collab-web` | 协作 live session 的浏览器 guest 客户端与本地中继工具 |
+| `export-web` | HTML 导出查看器（工具卡 + trace），无独立入口 |
 | `browser-relay` | Chrome 扩展：让 agent 浏览器工具驱动用户既有标签页 |
 | `wire` | 包间共享 wire 协议类型 |
 | `snapcompact` | 位图帧上下文压缩（vision LLM） |

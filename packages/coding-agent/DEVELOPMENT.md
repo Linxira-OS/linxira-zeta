@@ -24,10 +24,10 @@ Run from `packages/coding-agent/` (or add `--cwd=packages/coding-agent`):
 
 Never invoke `tsc`/`npx tsc` directly — `bun run check` is the typecheck gate. After
 changing export HTML/CSS/JS or the shared tool renderers, run
-`bun run gen:tool-views` and include `src/export/html/tool-views.generated.js`
+`bun run gen:export-viewer --write` and include `src/export/html/viewer.generated.ts`
 with the change. Every export inlines the generated renderers together with the
-vendored Markdown and Highlight.js builds, so `bun gen:tool-views` followed by
-`/export` exercises local changes without publishing or a local server.
+vendored Markdown and Highlight.js builds, so a local `/export` exercises the
+changes without publishing or a local server.
 
 Scope fake timers to the deadline a test exercises, then restore real timers
 before real socket listeners are started. Bun's mocked clock can defer

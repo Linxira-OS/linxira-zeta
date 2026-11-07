@@ -26,7 +26,6 @@ export const STATUS_LINE_SEGMENT_IDS = [
 	"session_name",
 	"usage",
 	"turn_stats",
-	"collab",
 	"stream",
 	"vim",
 ] as const;

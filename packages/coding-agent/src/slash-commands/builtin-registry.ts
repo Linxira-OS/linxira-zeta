@@ -1,7 +1,6 @@
 import { BUILTIN_ZETA_SLASH_COMMANDS } from "./builtin-zeta";
+import { BUILTIN_OUTPUT_SLASH_COMMANDS } from "./builtin-output";
 import { clearSubmittedText, restoreDetachedDraft } from "./helpers/draft";
-import { COLLAB_GUEST_ALLOWED_COMMANDS } from "../collab/guest";
-import { BUILTIN_COLLABORATION_SLASH_COMMANDS } from "./builtin-collaboration";
 import {
 	buildArgumentCompletions,
 	buildDirectoryArgumentCompletions,
@@ -48,7 +47,7 @@ export interface TuiBuiltinSlashCommand extends Omit<BuiltinSlashCommand, "descr
 
 const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	...BUILTIN_MODE_SLASH_COMMANDS,
-	...BUILTIN_COLLABORATION_SLASH_COMMANDS,
+	...BUILTIN_OUTPUT_SLASH_COMMANDS,
 	...BUILTIN_SESSION_SLASH_COMMANDS,
 	...BUILTIN_LIFECYCLE_SLASH_COMMANDS,
 	...BUILTIN_MARKETPLACE_SLASH_COMMANDS,
@@ -190,18 +189,6 @@ export async function executeBuiltinSlashCommand(
 	}
 	if (parsed.args.length > 0 && !command.allowArgs) {
 		return false;
-	}
-	// Collab guests run a read-mostly replica: session-mutating builtins are
-	// host-only; the allowlist covers purely local/read-only commands.
-	if (runtime.ctx.collabGuest && !COLLAB_GUEST_ALLOWED_COMMANDS[command.name]) {
-		runtime.ctx.showStatus(`/${command.name} is host-only during a collab session`);
-		// A detached draft already left the editor: give it back, images included.
-		if (runtime.draftDetached) {
-			restoreDetachedDraft(runtime.ctx.editor, parsed.text, runtime.input?.images, runtime.input?.imageLinks);
-		} else {
-			clearSubmittedText(runtime);
-		}
-		return true;
 	}
 	if (command.handleTui) {
 		const result = await command.handleTui(parsed, runtime);

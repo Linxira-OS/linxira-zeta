@@ -34,7 +34,7 @@ Ask and remember prompts like `always-ask`, and also before a tool reads a file 
 - **Approve File** (or **Approve** for a directory or URL target) grants the exact targets.
 - **Approve Once** approves this call only.
 
-The **Remember across sessions** toggle above these answers decides where a grant lives. When it is off, the grant stays in memory for this conversation only: `/new`, a session switch, and other sessions in the same process start without it. When it is on, the grant is written to `approval-cache.db` in the agent directory and covers every later session. Hosts without the dialog (RPC, ACP, collab guests) get both lifetimes as separate choices: `Approve File`, `Always Approve File`, and so on.
+The **Remember across sessions** toggle above these answers decides where a grant lives. When it is off, the grant stays in memory for this conversation only: `/new`, a session switch, and other sessions in the same process start without it. When it is on, the grant is written to `approval-cache.db` in the agent directory and covers every later session. Hosts without the dialog (RPC, ACP) get both lifetimes as separate choices: `Approve File`, `Always Approve File`, and so on.
 
 - Grants record the capability tier they authorized. A write grant also covers reads of the same target; a read grant never covers a write or exec call.
 - The tools that read files report the files and folders they touch: `read`, `grep`, `glob`, `ast_grep`, `find`, and the legacy `read`/`grep`/`find`/`ls` shims. A recursive search reaches below subfolders, so it needs a tree grant of its own; approving one also records the folder grant it includes. A root list such as `src;other` is keyed one root at a time.
