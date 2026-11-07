@@ -1355,7 +1355,10 @@ export function listClaudePluginRoots(
 
 /** {@link listClaudePluginRoots}; with `revalidate`, a cached result whose registry files changed is read again. */
 async function readPluginRoots(home: string, cwd: string | undefined, revalidate: boolean): Promise<PluginRootsResult> {
-	const { claudeConfigDir, zetaRegistryPath, resolvedProjectPath, files } = await resolvePluginRegistryFiles(home, cwd);
+	const { claudeConfigDir, zetaRegistryPath, resolvedProjectPath, files } = await resolvePluginRegistryFiles(
+		home,
+		cwd,
+	);
 	const projectRoot = resolvedProjectPath ? path.dirname(path.dirname(path.dirname(resolvedProjectPath))) : cwd;
 	const activeClaudeProjectPath = projectRoot ? await canonicalClaudeProjectPath(projectRoot) : null;
 	const canonicalCwd = cwd ? await canonicalClaudeProjectPath(cwd) : null;

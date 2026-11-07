@@ -366,5 +366,4 @@ describe("YAML sibling read fallback", () => {
 		const roots = await listZetaExtensionRoots(ctx);
 		expect(roots.map(rootEntry => rootEntry.name)).toContain("ext");
 	});
-
 });

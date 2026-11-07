@@ -41,8 +41,7 @@ import { listZetaExtensionRoots, type ZetaExtensionRoot } from "./zeta-extension
 import { resolvePluginStdioPaths } from "./substitute-plugin-root";
 
 /**
- * Canonical provider id. This is the only accepted spelling; the pre-rename
- * `omp-plugins` alias is gone.
+ * Canonical provider id. This is the only accepted spelling.
  */
 const PROVIDER_ID = "zeta-plugins";
 const DISPLAY_NAME = "Zeta Extension Packages";

@@ -103,10 +103,9 @@ function isStringRecord(value: unknown): value is Record<string, string> {
 
 async function readMarketplaceRootManifest(root: ClaudePluginRoot): Promise<ClaudePluginManifest | null> {
 	const catalogs = await Promise.all(
-		[
-			path.join(root.path, "marketplace.json"),
-			path.join(root.path, ".claude-plugin", "marketplace.json"),
-		].map(catalogPath => readFile(catalogPath)),
+		[path.join(root.path, "marketplace.json"), path.join(root.path, ".claude-plugin", "marketplace.json")].map(
+			catalogPath => readFile(catalogPath),
+		),
 	);
 
 	for (const raw of catalogs) {
@@ -518,9 +517,7 @@ async function resolvePluginMCPConfig(root: ClaudePluginRoot): Promise<ResolvedM
 				sourcePath: manifestPath,
 				baseDir: root.path,
 				declared: true,
-				warnings: [
-					`[claude-plugins] Ignoring mcpServers path outside plugin root for ${root.id}: ${configured}`,
-				],
+				warnings: [`[claude-plugins] Ignoring mcpServers path outside plugin root for ${root.id}: ${configured}`],
 			};
 		}
 		return {

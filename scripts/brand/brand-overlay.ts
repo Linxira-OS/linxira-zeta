@@ -45,8 +45,7 @@ const REWRITES: Array<{ name: string; from: RegExp; to: string; exclude?: RegExp
 		to: "$1.zeta",
 		// config/model-registry resolves its own models config; no upstream OMP
 		// root is probed any more.
-		exclude:
-			/discovery\/(helpers|zeta-plugins|claude-plugins)|omp-extension-roots|legacy-pi|config\/model-registry/,
+		exclude: /discovery\/(helpers|zeta-plugins|claude-plugins)|omp-extension-roots|legacy-pi|config\/model-registry/,
 	},
 	{
 		name: "mcp-schema-url",
@@ -72,7 +71,7 @@ const REWRITES: Array<{ name: string; from: RegExp; to: string; exclude?: RegExp
 		// CHANGELOG.md prose documents history (upstream paths as they were), and
 		// config/model-registry names its own config root.
 		exclude:
-			/discovery\/(helpers|zeta-plugins|claude-plugins)|omp-extension-roots|legacy-pi|title-generator|export\/share|browser-relay|plugins\/|loader\.ts|CHANGELOG\.md|config/model-registry|utils\/(src\/env\.ts|test\/env\.test\.ts)/,
+			/discovery\/(helpers|zeta-plugins|claude-plugins)|omp-extension-roots|legacy-pi|title-generator|export\/share|browser-relay|plugins\/|loader\.ts|CHANGELOG\.md|config\/model-registry|utils\/(src\/env\.ts|test\/env\.test\.ts)/,
 	},
 	{
 		name: "omp-xdg-doc",

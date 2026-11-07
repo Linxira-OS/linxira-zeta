@@ -37,8 +37,11 @@ const FORBIDDEN: ReadonlyArray<{ pattern: RegExp; why: string }> = [
 	{ pattern: /\bomp-plugins\b/, why: "legacy OMP provider/lockfile naming is removed" },
 	{ pattern: /\bcompat\.importLegacyOmp\b/, why: "automatic OMP storage import is removed" },
 	{ pattern: /\bZETA_OMP_COMPAT\b/, why: "automatic OMP compatibility switch is removed" },
-	{ pattern: /\bOMP_(?:AUTH_BROKER_|AUTORESEARCH_DB_DIR|CONVERSATION_PARSER_REUSE|HARMONY_DEBUG|NO_WEBP|PROFILE)/, why: "OMP env aliases are removed" },
-	{ pattern: /__omp/, why: "OMP internal marker is removed", allow: /__omp_judgment_images/ },
+	{
+		pattern: /\bOMP_(?:AUTH_BROKER_|AUTORESEARCH_DB_DIR|CONVERSATION_PARSER_REUSE|HARMONY_DEBUG|NO_WEBP|PROFILE)/,
+		why: "OMP env aliases are removed",
+	},
+	{ pattern: /__omp/, why: "OMP internal marker is removed", allow: /__omp_judgment_images|mcp__omp__/ },
 	{ pattern: /\.ompcast\b/, why: "legacy OMP recording extension is removed" },
 	{ pattern: /\.ompshare\b/, why: "legacy OMP share extension is removed" },
 	{ pattern: /\bompMarkdown\b/, why: "legacy OMP viewer global is removed" },

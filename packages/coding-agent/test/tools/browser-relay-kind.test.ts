@@ -46,14 +46,7 @@ describe("resolveRelayKind", () => {
 });
 
 describe("browser prelude relay guidance", () => {
-	const ENV_KEYS = [
-		"PI_BROWSER_RELAY",
-		"PI_BROWSER_TERN",
-		"PI_BROWSER_CMUX",
-		"TERN_PANE_SOCKET",
-		"TERN_PANE",
-		"CMUX_SOCKET_PATH",
-	] as const;
+	const ENV_KEYS = ["PI_BROWSER_RELAY", "PI_BROWSER_CMUX", "CMUX_SOCKET_PATH"] as const;
 	const savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
 	beforeEach(() => {
 		for (const key of ENV_KEYS) delete process.env[key];
@@ -104,12 +97,6 @@ describe("browser prelude relay guidance", () => {
 				env: {},
 				kind: "connected",
 				says: "open in the browser at `browser.cdpUrl` (http://127.0.0.1:9333/?token=%5Bredacted%5D) instead",
-			},
-			{
-				settings: {},
-				env: { TERN_PANE_SOCKET: "/tmp/tern.sock", TERN_PANE: "1" },
-				kind: "tern",
-				says: "omp's own Tern picture-in-picture instead",
 			},
 			{
 				settings: {},

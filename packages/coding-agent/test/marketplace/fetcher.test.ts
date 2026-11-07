@@ -205,9 +205,7 @@ describe("fetchMarketplace", () => {
 	it("error message names the catalog path when it does not exist", async () => {
 		const empty = path.join(tmpDir, "empty-dir");
 		fs.mkdirSync(empty, { recursive: true });
-		await expect(fetchMarketplace(empty, tmpDir)).rejects.toThrow(
-			/\.claude-plugin[\\/]marketplace\.json/,
-		);
+		await expect(fetchMarketplace(empty, tmpDir)).rejects.toThrow(/\.claude-plugin[\\/]marketplace\.json/);
 	});
 
 	it("hides temp clone paths in cloned catalog validation errors", async () => {
