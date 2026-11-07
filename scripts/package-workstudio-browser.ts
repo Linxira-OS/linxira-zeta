@@ -64,6 +64,12 @@ if (!fs.existsSync(path.join(args.runtime, "web-app", "index.html"))) {
 }
 
 const suffix = args.platform === "win32" ? "windows-x64" : "linux-x64";
+// Windows ships bsdtar in System32; a Git-for-Windows `tar` on PATH is GNU tar,
+// which reads `D:\...` as a remote `host:path` ("Cannot connect to D:").
+const tarBin =
+	args.platform === "win32" && process.env.SystemRoot
+		? path.join(process.env.SystemRoot, "System32", "tar.exe")
+		: "tar";
 const archiveBase = `linxira-zeta-${args.version}-workstudio-browser-${suffix}`;
 const staging = path.join(args.out, `.${archiveBase}`);
 fs.rmSync(staging, { recursive: true, force: true });
@@ -78,7 +84,7 @@ echo Starting Work Studio (your default browser will open)...\r
 `;
 	fs.writeFileSync(path.join(staging, "Work Studio.cmd"), launcher);
 	// bsdtar ships with Windows runners and GNU tar with Git for Windows.
-	run("tar", ["-a", "-c", "-f", path.join(args.out, `${archiveBase}.zip`), "-C", staging, "."], args.out);
+	run(tarBin, ["-a", "-c", "-f", path.join(args.out, `${archiveBase}.zip`), "-C", staging, "."], args.out);
 } else {
 	const launcher = `#!/bin/sh
 set -eu
@@ -88,7 +94,7 @@ exec ./zeta/zeta serve
 	const launcherPath = path.join(staging, "work-studio");
 	fs.writeFileSync(launcherPath, launcher);
 	fs.chmodSync(launcherPath, 0o755);
-	run("tar", ["-czf", path.join(args.out, `${archiveBase}.tar.gz`), "-C", staging, "."], args.out);
+	run(tarBin, ["-czf", path.join(args.out, `${archiveBase}.tar.gz`), "-C", staging, "."], args.out);
 }
 
 fs.rmSync(staging, { recursive: true, force: true });
