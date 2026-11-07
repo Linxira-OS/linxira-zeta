@@ -136,6 +136,8 @@ import {
 import {
 	handleSettingsGet,
 	handleSettingsPut,
+	handleSettingsRawGet,
+	handleSettingsRawPut,
 	handleSettingsReload,
 	handleSettingsValuesGet,
 } from "./web-gateway/settings";
@@ -872,6 +874,12 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (PLAN_RE.test(pathname)) {
 		if (req.method === "GET") return handleGetPlan(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/settings/raw") {
+		if (req.method === "GET") return handleSettingsRawGet(req);
+		if (req.method === "PUT") return handleSettingsRawPut(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

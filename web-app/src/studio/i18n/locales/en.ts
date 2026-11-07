@@ -1401,6 +1401,29 @@ export const en: LocaleDictionary = {
     "statusDemoNoHost": "Demo · Not written to Host"
   },
   "settings": {
+    "raw": {
+      "title": "Raw configuration",
+      "desc": "Edit the YAML layer directly. The gateway validates, writes atomically, keeps a .bak, and reloads live settings; invalid YAML is rejected without writing.",
+      "scopeGlobal": "Global",
+      "scopeProject": "Project",
+      "unknownPath": "No config file yet",
+      "precedence": "Precedence",
+      "empty": "No config file yet — start typing YAML.",
+      "save": "Save config",
+      "reset": "Reset",
+      "dirty": "Unsaved changes",
+      "saved": "Saved. Live settings reloaded.",
+      "invalid": "Rejected: {error}",
+      "loadFailed": "Could not read config: {error}",
+      "unsaved": "Discard unsaved changes?",
+      "layer": {
+        "runtime": "runtime override",
+        "overlay": "config overlay",
+        "project": "project",
+        "global": "global",
+        "default": "default"
+      }
+    },
     "title": "Settings",
     "subtitle": "Global appearance, interaction preferences, startup behavior, and permissions",
     "tabs": {

@@ -1401,6 +1401,29 @@ const zhRaw = {
     "statusDemoNoHost": "演示 · 未写入 Host"
   },
   "settings": {
+    "raw": {
+      "title": "原始配置",
+      "desc": "直接编辑 YAML 层。网关会校验、原子写入、保留 .bak 并重载实时设置；非法 YAML 会被拒绝且不会写入。",
+      "scopeGlobal": "全局",
+      "scopeProject": "项目",
+      "unknownPath": "尚无配置文件",
+      "precedence": "优先级",
+      "empty": "尚无配置文件 — 直接输入 YAML。",
+      "save": "保存配置",
+      "reset": "重置",
+      "dirty": "有未保存的修改",
+      "saved": "已保存，实时设置已重载。",
+      "invalid": "已拒绝：{error}",
+      "loadFailed": "读取配置失败：{error}",
+      "unsaved": "放弃未保存的修改？",
+      "layer": {
+        "runtime": "运行时覆盖",
+        "overlay": "配置叠加",
+        "project": "项目",
+        "global": "全局",
+        "default": "默认"
+      }
+    },
     "title": "设置",
     "subtitle": "全局外观、交互偏好、启动行为与权限控制",
     "tabs": {
