@@ -484,7 +484,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "unpin",
 		icon: "pin",
-		description: "Unpin a session from the top of the resume list",
+		description: () => M.cmdUnpinaSessionfromtheTopoftheResumeList,
 		inlineHint: "[session id]",
 		allowArgs: true,
 		handle: async (command, runtime) => {

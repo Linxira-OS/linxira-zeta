@@ -2153,6 +2153,7 @@ export const zh = {
 	cmdMoveThisSessionIntoaNewWorktreeChangesIncluded: "将本会话移入新 worktree（连同更改）",
 	cmdOpenThisSessionsTraceInTheStatsDashboard: "在统计面板打开本会话追踪",
 	cmdPinorUnpinaSessionattheTopoftheResumeList: "在恢复列表顶部固定/取消固定会话",
+	cmdUnpinaSessionfromtheTopoftheResumeList: "从恢复列表顶部取消固定会话",
 	cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession: "以相同启动参数重启并恢复本会话",
 	cmdRunMemoryConsolidationNow: "立即运行记忆整合",
 	cmdShowExtendedContextStatus: "显示扩展上下文状态",

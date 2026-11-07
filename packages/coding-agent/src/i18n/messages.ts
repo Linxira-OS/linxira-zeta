@@ -2185,6 +2185,7 @@ export interface Messages {
 	cmdEnableLargerContextWindows: string;
 	cmdMoveThisSessionIntoaNewWorktreeChangesIncluded: string;
 	cmdPinorUnpinaSessionattheTopoftheResumeList: string;
+	cmdUnpinaSessionfromtheTopoftheResumeList: string;
 	cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession: string;
 	cmdRunMemoryConsolidationNow: string;
 	cmdShowExtendedContextStatus: string;

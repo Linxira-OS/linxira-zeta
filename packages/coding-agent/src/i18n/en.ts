@@ -2184,6 +2184,7 @@ export const en = {
 	cmdEnableLargerContextWindows: "Enable larger context windows",
 	cmdMoveThisSessionIntoaNewWorktreeChangesIncluded: "Move this session into a new worktree, changes included",
 	cmdPinorUnpinaSessionattheTopoftheResumeList: "Pin or unpin a session at the top of the resume list",
+	cmdUnpinaSessionfromtheTopoftheResumeList: "Unpin a session from the top of the resume list",
 	cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession:
 		"Restart zetacode with the same launch flags, resuming this session",
 	cmdRunMemoryConsolidationNow: "Run memory consolidation now",
