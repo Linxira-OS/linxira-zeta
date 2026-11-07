@@ -2360,7 +2360,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description: "启动时在后台安装 omp 更新；下次启动运行新版本",
 	},
 	"providers.openaiResponsesWebsockets": {
-		label: "OpenAI Responses WebSockets",
+		label: "OpenAI Responses WebSocket 传输",
 		description: "为目录支持的标准 Responses 模型启用；模型或请求设为 false 可禁用",
 	},
 	"ovnfs.path": {

@@ -187,7 +187,7 @@ export class IrcBus implements IrcBusApi {
 		// Taken before delivery: a reply sent while this message is still being
 		// delivered must still order after it.
 		const mark: SendMark = { ts: message.ts, seq: ++this.#sendSeq };
-		const receipt = await this.#deliver(message);
+		const receipt = await this.#deliver(message, opts);
 		if (receipt.outcome !== "failed") {
 			if (message.progress) {
 				this.#record(this.#lastProgress, message.from, message.to, mark);

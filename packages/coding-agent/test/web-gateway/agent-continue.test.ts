@@ -145,7 +145,7 @@ describe("web-gateway continue command", () => {
 		await running;
 		await created.waitForIdle();
 
-		await expect(created.resume()).resolves.toBeUndefined();
+		await expect(created.resume()).resolves.toBe("restored");
 		await created.waitForIdle();
 
 		expect(mock.calls).toHaveLength(2);
