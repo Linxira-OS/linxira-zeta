@@ -263,6 +263,8 @@ const zhRaw = {
     "capabilities": "能力中心",
     "statistics": "统计",
     "agentHub": "Agent Hub",
+    "team": "团队",
+    "channels": "频道",
     "modelConfig": "模型配置",
     "settings": "设置",
     "diagnostics": "诊断中心",

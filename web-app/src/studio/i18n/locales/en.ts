@@ -263,6 +263,8 @@ export const en: LocaleDictionary = {
     "capabilities": "Capabilities",
     "statistics": "Statistics",
     "agentHub": "Agent Hub",
+    "team": "Team",
+    "channels": "Channels",
     "modelConfig": "Models",
     "settings": "Settings",
     "diagnostics": "Diagnostics",

@@ -1,0 +1,55 @@
+.docs-view {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  min-height: 55vh;
+  max-height: 68vh;
+  overflow: hidden;
+}
+
+.docs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 8px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.docs-item {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-12);
+  text-align: left;
+  cursor: pointer;
+}
+
+.docs-item:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.docs-item.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.docs-body {
+  min-width: 0;
+  padding: 10px 24px 22px;
+  overflow-y: auto;
+}
+
+.docs-state {
+  margin: 12px 0;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.docs-error {
+  color: var(--red);
+}
