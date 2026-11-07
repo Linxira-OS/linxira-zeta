@@ -83,16 +83,7 @@ registerPluginCacheInvalidator(clearEnabledPluginsCache);
 // =============================================================================
 
 /**
- * Load plugin runtime config from lock file, migrating the legacy filename.
- *
- * Read-old / write-new: the lockfile carries per-plugin runtime state (enabled
- * flag, version), so an upgrade must not orphan it. The Zeta-named file is
- * canonical; when only the pre-rename file exists we read it, write the new
- * one, and remove the old — a one-time, idempotent migration. Every other
- * reader of this file reads both spellings through
- * {@link readPluginRuntimeConfig}, so a listing taken before the migration runs
- * sees the same plugins as this loader does — that split is what once emptied
- * `zetacode plugin list` right after the migration.
+ * Load plugin runtime config from the canonical lock file.
  *
  * `home` controls which `<plugins>/` directory is used — pass it through
  * whenever the caller is loading plugins for a tempdir-rooted scenario (tests,
@@ -101,20 +92,6 @@ registerPluginCacheInvalidator(clearEnabledPluginsCache);
 async function loadRuntimeConfig(home?: string): Promise<PluginRuntimeConfig> {
 	const read = await readPluginRuntimeConfig(getPluginsLockfile(home));
 	if (read.status === "empty") return normalizePluginRuntimeConfig({});
-
-	// A canonical file, or nothing readable at all: done. Only the pre-rename
-	// spelling still has to be carried forward.
-	if (!read.legacy) return read.config;
-
-	// First run after the rename: carry the state forward, then drop the old
-	// file so the migration cannot run twice or drift.
-	try {
-		await Bun.write(getPluginsLockfile(home), `${JSON.stringify(read.config, null, "\t")}\n`);
-		await fs.promises.unlink(read.path);
-	} catch {
-		// A read-only or concurrently-locked plugins dir must not break loading;
-		// the legacy file simply stays authoritative until the write succeeds.
-	}
 	return read.config;
 }
 
@@ -153,7 +130,7 @@ function isUnreadableRoot(err: unknown): boolean {
 
 /**
  * Per-root enumeration of plugins from `<root>/node_modules`,
- * `<root>/package.json#dependencies`, and `<root>/omp-plugins.lock.json#plugins`.
+ * `<root>/package.json#dependencies`, and `<root>/zeta-plugins.lock.json#plugins`.
  * Honors `projectOverrides.disabled` and `projectOverrides.features`. Returns an
  * empty array when the root has no `node_modules` yet.
  */
@@ -309,7 +286,7 @@ async function collectPluginsAtRoot(
  * (`getPluginsDir(home)`) and, when a project anchor (`.zeta/` or `.git/`)
  * exists at or above `cwd`, the project root
  * (`<projectAnchor>/.zeta/plugins`). Each root contributes the union of its
- * `package.json#dependencies` and `omp-plugins.lock.json#plugins`. Project
+ * `package.json#dependencies` and `zeta-plugins.lock.json#plugins`. Project
  * entries shadow user entries with the same package name, matching the
  * shadow semantics of `MarketplaceManager.listInstalledPlugins`.
  *

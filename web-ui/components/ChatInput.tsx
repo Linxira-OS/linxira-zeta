@@ -34,8 +34,6 @@ interface ModelOption {
 	provider: string;
 	modelId: string;
 	name: string;
-	/** Catalog entry surfaced through the read-only OMP compat overlay. */
-	origin?: "omp";
 }
 
 interface Props {
@@ -49,7 +47,7 @@ interface Props {
 	isAutoModelSelection?: boolean;
 	onModelChange?: (model: { provider: string; modelId: string }) => void;
 	modelNames?: Record<string, string>;
-	modelList?: { id: string; name: string; provider: string; origin?: "omp" }[];
+	modelList?: { id: string; name: string; provider: string }[];
 	modelError?: string | null;
 	/** Diagnostics from resolving `enabledModels`, e.g. a pattern that matched nothing. */
 	modelScopeWarnings?: string[];
@@ -1440,7 +1438,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 	const modelOptions: ModelOption[] = (() => {
 		if (modelList && modelList.length > 0) {
 			return modelList
-				.map(m => ({ provider: m.provider, modelId: m.id, name: m.name, origin: m.origin }))
+				.map(m => ({ provider: m.provider, modelId: m.id, name: m.name }))
 				.sort(compareModelOptions);
 		}
 		return Object.entries(modelNames ?? {})
@@ -2823,22 +2821,6 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
 																				<span style={{ width: 10, flexShrink: 0 }} />
 																			)}
 																			{opt.name}
-																			{opt.origin === "omp" && (
-																				<span
-																					style={{
-																						padding: "0 5px",
-																						border: "1px solid var(--zeta-alias-border)",
-																						borderRadius: 4,
-																						color: "var(--zeta-alias-text-dim)",
-																						fontSize: 10,
-																						lineHeight: "16px",
-																						whiteSpace: "nowrap",
-																						flexShrink: 0,
-																					}}
-																				>
-																					{t("models.originOmp")}
-																				</span>
-																			)}
 																		</button>
 																	);
 																})}

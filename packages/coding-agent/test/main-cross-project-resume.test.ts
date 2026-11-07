@@ -15,7 +15,7 @@ import { type Args, parseArgs } from "@linxiraos/zeta/cli/args";
 import * as modelResolverModule from "@linxiraos/zeta/config/model-resolver";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import * as pluginHelpers from "@linxiraos/zeta/discovery/helpers";
-import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
+import { clearZetaExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { createSessionManager, runRootCommand } from "@linxiraos/zeta/main";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import type { SessionHeader } from "@linxiraos/zeta/session/session-entries";
@@ -33,7 +33,7 @@ import {
 
 const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const originalPiProfile = process.env.PI_PROFILE;
-const originalOmpProfile = process.env.OMP_PROFILE;
+const originalOmpProfile = process.env.ZETA_PROFILE;
 let agentDirRoot: string | undefined;
 
 function restoreEnv(key: string, value: string | undefined): void {
@@ -51,10 +51,10 @@ beforeEach(async () => {
 
 afterEach(async () => {
 	// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
-	clearOmpExtensionCliRoots();
+	clearZetaExtensionCliRoots();
 	restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
 	restoreEnv("PI_PROFILE", originalPiProfile);
-	restoreEnv("OMP_PROFILE", originalOmpProfile);
+	restoreEnv("ZETA_PROFILE", originalOmpProfile);
 	__resetDirsFromEnvForTests();
 	if (agentDirRoot) {
 		await fsp.rm(agentDirRoot, { recursive: true, force: true });

@@ -113,8 +113,6 @@ interface ApiKeyProvider {
   modelCount: number;
   /** Provider also supports OAuth, so it appears in both picker sections. */
   supportsOAuth?: boolean;
-  /** Upstream OMP agent.db holds an API key that can be copied locally. */
-  ompKeyAvailable?: boolean;
 }
 
 type OAuthLoginState =
@@ -188,7 +186,7 @@ interface ThinkingEntry {
 }
 
 interface ProviderEntry {
-  origin?: "omp" | "user" | "web";
+  origin?: "user" | "web";
   baseUrl?: string;
   api?: string;
   apiKey?: string;
@@ -531,9 +529,8 @@ function ProviderDetail({
   const discoveryRequestIdRef = useRef(0);
   const selectShownRef = useRef<HTMLInputElement>(null);
   useEffect(() => setEditingName(name), [name]);
-  const isOmpOrigin = provider.origin === "omp";
   const isUserOrigin = provider.origin === "user";
-  const isReadOnly = isOmpOrigin || isUserOrigin;
+  const isReadOnly = isUserOrigin;
 
   const set = <K extends keyof ProviderEntry>(k: K, v: ProviderEntry[K]) => {
     if (isReadOnly) return;
@@ -691,7 +688,7 @@ function ProviderDetail({
                 whiteSpace: "nowrap",
               }}
             >
-              {isUserOrigin ? "From models.yml" : t("models.originOmp")}
+              From models.yml
             </span>
           )}
         </div>
@@ -2819,7 +2816,6 @@ function ApiKeyDetail({
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const [copying, setCopying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedOk, setSavedOk] = useState(false);
 
@@ -2877,25 +2873,6 @@ function ApiKeyDetail({
       setRemoving(false);
     }
   }, [provider.id, onRefresh]);
-
-  const handleCopyFromOmp = useCallback(async () => {
-    if (copying) return;
-    setCopying(true);
-    setError(null);
-    try {
-      const res = await fetch(
-        `/api/auth/copy-from-omp/${encodeURIComponent(provider.id)}`,
-        { method: "POST" },
-      );
-      const d = (await res.json()) as { success?: boolean; error?: string };
-      if (!res.ok || d.error) setError(d.error ?? `HTTP ${res.status}`);
-      else onRefresh();
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setCopying(false);
-    }
-  }, [copying, provider.id, onRefresh]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -3004,25 +2981,6 @@ function ApiKeyDetail({
           </button>
         </div>
       </Field>
-
-      {provider.ompKeyAvailable && !provider.configured && (
-        <button
-          onClick={handleCopyFromOmp}
-          disabled={copying}
-          style={{
-            alignSelf: "flex-start",
-            padding: "5px 12px",
-            background: "none",
-            border: "1px solid var(--zeta-alias-border)",
-            borderRadius: 5,
-            color: "var(--zeta-alias-text-muted)",
-            cursor: copying ? "not-allowed" : "pointer",
-            fontSize: 12,
-          }}
-        >
-          {t("models.copyFromOmp")}
-        </button>
-      )}
 
       {error && (
         <p style={{ margin: 0, fontSize: 12, color: "var(--zeta-alias-status-error)" }}>{error}</p>
@@ -3600,7 +3558,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
   const deleteProvider = useCallback(
     (name: string) => {
       const origin = config.providers?.[name]?.origin;
-      if (origin === "user" || origin === "omp") return;
+      if (origin === "user") return;
       setConfig((prev) => {
         const providers = { ...prev.providers };
         delete providers[name];
@@ -3707,7 +3665,7 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
       // upstream OMP entries are read-only and must never reach the PUT body.
       const providers = Object.fromEntries(
         Object.entries(config.providers ?? {})
-          .filter(([, p]) => p.origin !== "user" && p.origin !== "omp")
+          .filter(([, p]) => p.origin !== "user")
           .map(([name, p]) => {
             const clean = { ...p };
             delete clean.origin;

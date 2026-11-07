@@ -57,7 +57,7 @@ async function runScenario(
 				// this the default-file scenario logs into the real profile.
 				USERPROFILE: primaryDir,
 				ZETA_CONFIG_DIR: ".zeta",
-				OMP_PROFILE: "",
+				ZETA_PROFILE: "",
 				PI_PROFILE: "",
 				XDG_DATA_HOME: "",
 				XDG_STATE_HOME: "",

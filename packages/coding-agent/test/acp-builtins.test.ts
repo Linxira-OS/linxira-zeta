@@ -1162,8 +1162,8 @@ describe("wave 3 commands", () => {
 		const repoDir = path.join(root, "repo");
 		const worktreeBase = path.join(root, "wt");
 		const originalProjectDir = process.cwd();
-		const originalWorktreeDir = process.env.OMP_WORKTREE_DIR;
-		process.env.OMP_WORKTREE_DIR = worktreeBase;
+		const originalWorktreeDir = process.env.ZETA_WORKTREE_DIR;
+		process.env.ZETA_WORKTREE_DIR = worktreeBase;
 		const git = async (...args: string[]) => {
 			const proc = Bun.spawn(["git", ...args], { cwd: repoDir, stdout: "pipe", stderr: "pipe" });
 			const [stdout, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
@@ -1202,8 +1202,8 @@ describe("wave 3 commands", () => {
 			expect(await git("symbolic-ref", "HEAD")).toBe("refs/heads/main");
 		} finally {
 			setProjectDir(originalProjectDir);
-			if (originalWorktreeDir === undefined) delete process.env.OMP_WORKTREE_DIR;
-			else process.env.OMP_WORKTREE_DIR = originalWorktreeDir;
+			if (originalWorktreeDir === undefined) delete process.env.ZETA_WORKTREE_DIR;
+			else process.env.ZETA_WORKTREE_DIR = originalWorktreeDir;
 			await fs.rm(root, { recursive: true, force: true });
 		}
 	});
@@ -1215,8 +1215,8 @@ describe("wave 3 commands", () => {
 		const repoDir = path.join(root, "repo");
 		const worktreeBase = path.join(root, "wt");
 		const originalProjectDir = process.cwd();
-		const originalWorktreeDir = process.env.OMP_WORKTREE_DIR;
-		process.env.OMP_WORKTREE_DIR = worktreeBase;
+		const originalWorktreeDir = process.env.ZETA_WORKTREE_DIR;
+		process.env.ZETA_WORKTREE_DIR = worktreeBase;
 		const git = async (...args: string[]) => {
 			const proc = Bun.spawn(["git", ...args], { cwd: repoDir, stdout: "pipe", stderr: "pipe" });
 			const [stdout, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
@@ -1260,8 +1260,8 @@ describe("wave 3 commands", () => {
 			expect(await git("status", "--porcelain")).toBe("");
 		} finally {
 			setProjectDir(originalProjectDir);
-			if (originalWorktreeDir === undefined) delete process.env.OMP_WORKTREE_DIR;
-			else process.env.OMP_WORKTREE_DIR = originalWorktreeDir;
+			if (originalWorktreeDir === undefined) delete process.env.ZETA_WORKTREE_DIR;
+			else process.env.ZETA_WORKTREE_DIR = originalWorktreeDir;
 			await fs.rm(root, { recursive: true, force: true });
 		}
 	});
@@ -1273,8 +1273,8 @@ describe("wave 3 commands", () => {
 		const repoDir = path.join(root, "repo");
 		const worktreeBase = path.join(root, "wt");
 		const originalProjectDir = process.cwd();
-		const originalWorktreeDir = process.env.OMP_WORKTREE_DIR;
-		process.env.OMP_WORKTREE_DIR = worktreeBase;
+		const originalWorktreeDir = process.env.ZETA_WORKTREE_DIR;
+		process.env.ZETA_WORKTREE_DIR = worktreeBase;
 		const git = async (...args: string[]) => {
 			const proc = Bun.spawn(["git", ...args], { cwd: repoDir, stdout: "pipe", stderr: "pipe" });
 			const [stdout, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
@@ -1307,8 +1307,8 @@ describe("wave 3 commands", () => {
 			expect(wtDirs).toEqual([]);
 		} finally {
 			setProjectDir(originalProjectDir);
-			if (originalWorktreeDir === undefined) delete process.env.OMP_WORKTREE_DIR;
-			else process.env.OMP_WORKTREE_DIR = originalWorktreeDir;
+			if (originalWorktreeDir === undefined) delete process.env.ZETA_WORKTREE_DIR;
+			else process.env.ZETA_WORKTREE_DIR = originalWorktreeDir;
 			await fs.rm(root, { recursive: true, force: true });
 		}
 	});

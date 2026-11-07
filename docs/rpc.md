@@ -1143,7 +1143,7 @@ Lifecycle stays OMP: `agent_end` carries `isTerminal`, `yielded`, and optional
 `awaitingAsyncWork`; `prompt_result` correlates prompt completion and
 `session_settled` reports quiescence. There is no Pi `agent_settled` frame.
 These, `agentInvoked`, `open_session`, `set_event_filter`, `messageId`, `ready`,
-negotiation, chunking, host tools, and subagents are OMP extensions a
+negotiation, chunking, host tools, and subagents are Zeta extensions a
 Pi-family adapter must dialect around.
 
 ### Subagent subscriptions

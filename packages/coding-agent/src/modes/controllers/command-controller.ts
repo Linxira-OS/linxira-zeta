@@ -1473,7 +1473,7 @@ export class CommandController {
 				...forkScopeEnvCommand({
 					ZETA_CODING_AGENT_DIR: this.ctx.settings.getAgentDir(),
 					PI_CONFIG_DIR: getConfigDirName(),
-					OMP_PROFILE: activeProfile,
+					ZETA_PROFILE: activeProfile,
 					PI_PROFILE: activeProfile,
 					PI_CONFIG_FILES: this.ctx.settings.getConfigFiles().join(path.delimiter),
 					PI_CODING_AGENT_SESSION_DIR: environment.PI_CODING_AGENT_SESSION_DIR,

@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
-import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
+import { clearZetaExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runCli } from "../src/cli";
 
 // `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
 afterEach(() => {
-	clearOmpExtensionCliRoots();
+	clearZetaExtensionCliRoots();
 });
 
 describe("parseArgs — --max-time flag", () => {

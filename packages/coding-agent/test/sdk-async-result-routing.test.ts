@@ -16,7 +16,7 @@ describe("SDK subagent IRC follow-up delivery", () => {
 			const home = fs.mkdtempSync(path.join(os.tmpdir(), "omp-async-routing-"));
 			try {
 				const result = Bun.spawnSync([process.execPath, probe, mode], {
-					env: { ...process.env, HOME: home, OMP_PROFILE: "omp-desktop-test" },
+					env: { ...process.env, HOME: home, ZETA_PROFILE: "omp-desktop-test" },
 					stdout: "pipe",
 					stderr: "pipe",
 					timeout: 45_000,

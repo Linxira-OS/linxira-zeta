@@ -26,7 +26,7 @@ import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const AGENT_ID = "Restored";
 const MOCK_API_SOURCE = "test/restore-revive";
-const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE"] as const;
 
 let savedEnv: Record<string, string | undefined> = {};
 let root: string;

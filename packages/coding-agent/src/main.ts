@@ -77,7 +77,7 @@ import {
 	preloadPluginRoots,
 	resolveActiveProjectRegistryPath,
 } from "./discovery/helpers";
-import { injectOmpExtensionCliRoots } from "./discovery/zeta-extension-roots";
+import { injectZetaExtensionCliRoots } from "./discovery/zeta-extension-roots";
 import { formatExtensionLoadNotifications } from "./extensibility/extensions/load-errors";
 import { loadExtensions } from "./extensibility/extensions/loader";
 import { ExtensionRunner } from "./extensibility/extensions/runner";
@@ -1970,7 +1970,7 @@ export async function runRootCommand(
 			// Explicit roots remain authorized under `--no-extensions`; only ambient
 			// extension discovery is disabled.
 			const cliExtensions = [...(parsedArgs.extensions ?? []), ...(parsedArgs.hooks ?? [])];
-			injectOmpExtensionCliRoots(cliExtensions, home, getProjectDir(), {
+			injectZetaExtensionCliRoots(cliExtensions, home, getProjectDir(), {
 				mode: parsedArgs.noExtensions ? "explicit-only" : "merge",
 				replace: true,
 			});

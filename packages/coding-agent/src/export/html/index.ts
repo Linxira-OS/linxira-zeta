@@ -30,10 +30,10 @@ function inlineScript(source: string): string {
 /** Create an offline export document with every library and the viewer inlined. */
 export function getTemplate(): string {
 	if (cachedTemplate) return cachedTemplate;
-	// The hosted viewer used `ompMarkdown.Marked`; the vendored browser build
+	// The hosted viewer used `zetaMarkdown.Marked`; the vendored browser build
 	// exposes the same constructor on `marked.Marked`. Bridge it so the same
 	// viewer bundle works from a local file without a CDN.
-	const markdownBootstrap = `${markedJs}\n;globalThis.ompMarkdown={Marked:(globalThis.marked&&(globalThis.marked.Marked||globalThis.marked))};`;
+	const markdownBootstrap = `${markedJs}\n;globalThis.zetaMarkdown={Marked:(globalThis.marked&&(globalThis.marked.Marked||globalThis.marked))};`;
 	cachedTemplate = templateHtml
 		.replace("<template-marked/>", () => inlineScript(markdownBootstrap))
 		.replace("<template-highlight/>", () => inlineScript(highlightJs))

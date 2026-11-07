@@ -5,10 +5,10 @@
  *   - ~/.zeta/agent/agents/*.md (user-level)
  *   - .zeta/agents/*.md (project-level)
  *   - <ext>/agents/*.md for every OMP extension package wired through
- *     `listOmpExtensionRoots` (CLI `--extension` roots, `extensions:` in
+ *     `listZetaExtensionRoots` (CLI `--extension` roots, `extensions:` in
  *     settings, and enabled npm/link plugins under `<plugins>/node_modules/`).
  *     Mirrors the same sub-discovery convention applied to `skills/`,
- *     `hooks/`, `tools/`, etc. by `discovery/omp-plugins.ts`.
+ *     `hooks/`, `tools/`, etc. by `discovery/zeta-plugins.ts`.
  *
  * Claude Code marketplace plugin agents are discovered separately via the
  * claude-plugins provider. Direct cross-harness roots such as .claude/agents
@@ -26,7 +26,7 @@ import type { EffectiveExtensionRoots } from "../capability/types";
 import { findAllNearestProjectConfigDirs, getConfigDirs } from "../config";
 import { pluginUsesClaudeModelDialect } from "../discovery/agent-plugin-format";
 import { listClaudePluginRoots } from "../discovery/helpers";
-import { listOmpExtensionRoots } from "../discovery/zeta-extension-roots";
+import { listZetaExtensionRoots } from "../discovery/zeta-extension-roots";
 import { loadBundledAgents, parseAgent } from "./agents";
 import type { AgentSource } from "@linxiraos/pi-tui/tools/task";
 import type { AgentDefinition } from "./types";
@@ -112,8 +112,8 @@ export async function discoverAgents(
 
 	// Extension-package agents use the same effective root set as sibling
 	// skills/hooks/tools, threaded whole so explicit roots and mode survive.
-	const packageRoots = isProviderEnabled("omp-plugins")
-		? await listOmpExtensionRoots({ cwd: resolvedCwd, home, repoRoot: null, extensionRoots })
+	const packageRoots = isProviderEnabled("zeta-plugins")
+		? await listZetaExtensionRoots({ cwd: resolvedCwd, home, repoRoot: null, extensionRoots })
 		: [];
 	for (const root of packageRoots) {
 		orderedDirs.push({ dir: path.join(root.path, "agents"), source: root.level });

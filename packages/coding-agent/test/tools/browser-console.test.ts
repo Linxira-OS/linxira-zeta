@@ -160,7 +160,7 @@ await wait(5_000);`,
 					const { proxy, revoke } = Proxy.revocable({}, {});
 					revoke();
 					console.log("revoked", proxy);
-					return globalThis.__ompConsoleCapture.entries;
+					return globalThis.__zetaConsoleCapture.entries;
 				})()`,
 			]);
 			expect(result).toEqual([

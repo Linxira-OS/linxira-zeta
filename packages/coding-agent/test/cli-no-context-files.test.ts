@@ -28,7 +28,7 @@ const MARKERS = [
 	EXTRA_CLAUDE_MARKER,
 	NESTED_LISTING,
 ];
-const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE"] as const;
 
 describe("--no-context-files", () => {
 	let tempDir: TempDir;

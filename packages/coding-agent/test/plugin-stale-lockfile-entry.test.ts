@@ -72,7 +72,7 @@ test("stale lockfile-only directory plugin is skipped while declared and linked 
 	await writeJson(path.join(pluginsDir, "package.json"), {
 		dependencies: { "declared-plugin": "1.0.0" },
 	});
-	await writeJson(path.join(pluginsDir, "omp-plugins.lock.json"), {
+	await writeJson(path.join(pluginsDir, "zeta-plugins.lock.json"), {
 		plugins: {
 			"declared-plugin": { version: "1.0.0", enabled: true, enabledFeatures: null },
 			"stale-plugin": { version: "0.1.0", enabled: true, enabledFeatures: null },
@@ -100,7 +100,7 @@ test("manifest-less project roots retain lockfile-only directory plugins", async
 		version: "1.0.0",
 		omp: { extensions: ["ext.ts"] },
 	});
-	await writeJson(path.join(pluginsDir, "omp-plugins.lock.json"), {
+	await writeJson(path.join(pluginsDir, "zeta-plugins.lock.json"), {
 		plugins: {
 			"project-plugin": { version: "1.0.0", enabled: true, enabledFeatures: null },
 		},

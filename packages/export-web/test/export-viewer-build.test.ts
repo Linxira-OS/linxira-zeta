@@ -7,7 +7,7 @@ import { Marked, type MarkedExtension } from "@linxiraos/pi-utils/marked";
 import { TempDir } from "@linxiraos/pi-utils/temp";
 import { buildExportViewer, type ExportViewerMetadata, isExportViewerCheck } from "../scripts/build-export-viewer";
 
-const temp = TempDir.createSync("@omp-export-viewer-build-");
+const temp = TempDir.createSync("@zeta-export-viewer-build-");
 const outDir = temp.path();
 const staleName = `export-viewer-${"0".repeat(64)}.js`;
 const unrelatedName = "another-build.js";
@@ -79,7 +79,7 @@ describe("hosted export viewer build", () => {
 			};
 			let mutations = 0;
 			runInNewContext(bytes.toString("utf8"), {
-				ompMarkdown: dependency === "Markdown" ? undefined : { Marked },
+				zetaMarkdown: dependency === "Markdown" ? undefined : { Marked },
 				document: {
 					createElement() {
 						mutations++;
@@ -98,7 +98,7 @@ describe("hosted export viewer build", () => {
 	it("catches synchronous initialization failures and renders them as status text", () => {
 		const status = { textContent: "Loading viewer…" };
 		runInNewContext(bytes.toString("utf8"), {
-			ompMarkdown: { Marked },
+			zetaMarkdown: { Marked },
 			hljs: { getLanguage() {}, highlight() {}, highlightAuto() {} },
 			document: {
 				createElement() {
@@ -184,7 +184,7 @@ describe("hosted export viewer build", () => {
 				get: (name: string) => elements.get(name),
 				define: (name: string, element: typeof HTMLElement) => elements.set(name, element),
 			},
-			ompMarkdown: { Marked: SharedMarked },
+			zetaMarkdown: { Marked: SharedMarked },
 			hljs,
 			URL,
 			URLSearchParams,
@@ -210,7 +210,7 @@ describe("hosted export viewer build", () => {
 		).toBeNull();
 		expect(parsers).toHaveLength(2);
 		expect(parsers[0]).not.toBe(parsers[1]);
-		expect(document.head.firstElementChild?.getAttribute("data-omp-export-viewer")).toBe("");
+		expect(document.head.firstElementChild?.getAttribute("data-zeta-export-viewer")).toBe("");
 		expect(document.getElementById("custom-theme")?.previousElementSibling).toBe(document.head.firstElementChild);
 		const assistant = document.querySelector(".assistant-message");
 		expect(assistant?.textContent).toContain("$x^2$");

@@ -151,7 +151,7 @@ export interface LoadImageInputOptions {
 	maxBytes?: number;
 	resolvedPath?: string;
 	detectedMimeType?: string;
-	/** Force non-WebP output (e.g. for Ollama). Leave unset to honor `OMP_NO_WEBP`. */
+	/** Force non-WebP output (e.g. for Ollama). Leave unset to honor `ZETA_NO_WEBP`. */
 	excludeWebP?: boolean;
 }
 
@@ -162,7 +162,7 @@ export interface LoadImageAttachmentInputOptions {
 	uri: string;
 	autoResize: boolean;
 	maxBytes?: number;
-	/** Force non-WebP output (e.g. for Ollama). Leave unset to honor `OMP_NO_WEBP`. */
+	/** Force non-WebP output (e.g. for Ollama). Leave unset to honor `ZETA_NO_WEBP`. */
 	excludeWebP?: boolean;
 }
 

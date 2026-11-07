@@ -239,6 +239,7 @@ export function planSteps(options: MergeGateOptions): GateStep[] {
 			commands: [["bun", "run", "ci:check:full"]],
 		},
 		guard("brand", "brand residue", "scripts/brand/brand-check.ts"),
+		guard("no-upstream-agent-compat", "Tern/OMP agent compatibility", "scripts/check-no-upstream-agent-compat.ts"),
 		guard("sentinels", "zeta-only sentinels", "scripts/check-zeta-sentinels.ts"),
 		guard("shared-infra", "shared-infra ledger", "scripts/check-shared-infra.ts"),
 		guard("upstream-defaults", "upstream host defaults", "scripts/check-no-upstream-defaults.ts"),

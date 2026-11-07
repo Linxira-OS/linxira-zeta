@@ -38,10 +38,10 @@ import {
 	getAgentDir,
 	getProjectDir,
 	isCompiledBinary,
-	parseFrontmatter as parseOmpFrontmatter,
+	parseFrontmatter as parseFrontmatterCore,
 	prompt,
 } from "@linxiraos/pi-utils";
-import { getPackageDir as getOmpPackageDir } from "../config";
+import { getPackageDir as getPackageDirCore } from "../config";
 import { formatKeyHints } from "@linxiraos/pi-tui/app-keybindings";
 import type { PromptTemplate } from "../config/prompt-templates";
 import { findScopedSettings, Settings } from "../config/settings";
@@ -95,7 +95,7 @@ import { cfgDisabledExtensions, cfgExtensions, cfgSkills } from "./settings";
 import legacyAvailableSkillsTemplate from "./legacy-pi-available-skills.md" with { type: "text" };
 
 const TOOL_DEFINITION_MARKER = "__isToolDefinition";
-const LEGACY_BUILTIN_TOOL_MARKER = "__ompLegacyBuiltinTool";
+const LEGACY_BUILTIN_TOOL_MARKER = "__zetaLegacyBuiltinTool";
 const LEGACY_CODING_TOOL_NAMES = ["read", "bash", "edit", "write"] as const;
 const LEGACY_READ_ONLY_TOOL_NAMES = ["read", "grep", "find", "ls"] as const;
 
@@ -449,7 +449,7 @@ export interface ParsedFrontmatter<T extends Record<string, unknown> = Record<st
 export function parseFrontmatter<T extends Record<string, unknown> = Record<string, unknown>>(
 	content: string,
 ): ParsedFrontmatter<T> {
-	const { frontmatter, body } = parseOmpFrontmatter(content, { level: "fatal" });
+	const { frontmatter, body } = parseFrontmatterCore(content, { level: "fatal" });
 	return { frontmatter: frontmatter as T, body };
 }
 
@@ -1029,7 +1029,7 @@ export interface ResourceLoader {
 	getAppendSystemPrompt(): string[];
 	reload(): Promise<void>;
 	/** @internal — used by the shim's createAgentSession to detect its own loaders. */
-	readonly __ompLegacyPiLoader?: true;
+	readonly __zetaLegacyPiLoader?: true;
 }
 
 /** Create a pre-initialization runtime for legacy extension resource loaders. */
@@ -1067,7 +1067,7 @@ interface AdditionalPromptLoadResult {
 }
 
 export class DefaultResourceLoader implements ResourceLoader {
-	readonly __ompLegacyPiLoader = true as const;
+	readonly __zetaLegacyPiLoader = true as const;
 	#state: ResolvedLoaderState;
 	#options: DefaultResourceLoaderOptions;
 	#extensionsResult: LoadExtensionsResult = { extensions: [], errors: [], runtime: createExtensionRuntime() };
@@ -1543,7 +1543,7 @@ export { getProjectDir } from "@linxiraos/pi-utils";
  * canonical helper.
  */
 export function getPackageDir(): string {
-	return getOmpPackageDir() ?? (isCompiledBinary() ? path.dirname(process.execPath) : process.cwd());
+	return getPackageDirCore() ?? (isCompiledBinary() ? path.dirname(process.execPath) : process.cwd());
 }
 
 // Legacy pi's `@earendil-works/pi-coding-agent` re-exported `estimateTokens`,

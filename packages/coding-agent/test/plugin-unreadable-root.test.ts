@@ -43,7 +43,7 @@ async function plantRoot(prefix: string): Promise<{ home: string; cwd: string; m
 
 	const manifest = path.join(pluginsDir, "package.json");
 	await writeJson(manifest, { dependencies: { "declared-plugin": "1.0.0" } });
-	await writeJson(path.join(pluginsDir, "omp-plugins.lock.json"), {
+	await writeJson(path.join(pluginsDir, "zeta-plugins.lock.json"), {
 		plugins: { "declared-plugin": { version: "1.0.0", enabled: true, enabledFeatures: null } },
 		settings: {},
 	});

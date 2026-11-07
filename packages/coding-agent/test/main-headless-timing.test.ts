@@ -7,7 +7,7 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import { parseArgs, type Args } from "@linxiraos/zeta/cli/args";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
+import { clearZetaExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
@@ -19,7 +19,7 @@ const tempDirs: TempDir[] = [];
 
 afterEach(async () => {
 	// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
-	clearOmpExtensionCliRoots();
+	clearZetaExtensionCliRoots();
 
 	await Promise.all(tempDirs.splice(0).map(dir => dir.remove()));
 });

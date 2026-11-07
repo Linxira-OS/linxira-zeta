@@ -149,7 +149,7 @@ Loaded via symbolic link.
 		fs.mkdirSync(path.join(tempHomeDir, ".zeta", "plugins"), { recursive: true });
 		fs.writeFileSync(
 			path.join(tempHomeDir, ".zeta", "plugins", "package.json"),
-			JSON.stringify({ name: "omp-plugins", dependencies: { "sdk-installed-extension": "1.0.0" } }),
+			JSON.stringify({ name: "zeta-plugins", dependencies: { "sdk-installed-extension": "1.0.0" } }),
 		);
 
 		const previousAgentDir = getAgentDir();

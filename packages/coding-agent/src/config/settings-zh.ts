@@ -402,10 +402,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "自动安装编辑器",
 		description: "切换到编辑器时若未安装 @linxiraos/editor 包则自动安装",
 	},
-	"compat.importLegacyOmp": {
-		label: "读取旧版 OMP 配置",
-		description: "读取旧版 OMP 配置目录的模型、凭据与 dotenv 文件（只读）",
-	},
 	"images.autoResize": {
 		label: "自动调整图片大小",
 		description: "将大图片调整为最大 2000x2000 以获得更好的模型兼容性",
@@ -1693,7 +1689,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"worktree.base": {
 		label: "Worktree 基础目录",
 		description:
-			"智能体管理工作树的基础目录——任务隔离副本、`github` PR 检出和 `zetacode worktree` 清理都在这里。未设置时使用 ~/.zeta/wt。必须是绝对路径或以 ~ 开头的路径；相对路径被忽略。OMP_WORKTREE_DIR 环境变量可覆盖此设置。",
+			"智能体管理工作树的基础目录——任务隔离副本、`github` PR 检出和 `zetacode worktree` 清理都在这里。未设置时使用 ~/.zeta/wt。必须是绝对路径或以 ~ 开头的路径；相对路径被忽略。ZETA_WORKTREE_DIR 环境变量可覆盖此设置。",
 	},
 	"worktree.cleanSource": {
 		label: "/wt 时清理源检出",
