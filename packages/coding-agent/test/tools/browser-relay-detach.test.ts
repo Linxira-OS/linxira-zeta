@@ -316,7 +316,6 @@ describe("relay tabs Chrome detaches omp from", () => {
 				"browser.relay": true,
 				"browser.relayUrl": `http://127.0.0.1:${port}`,
 				"browser.cmux": false,
-				"browser.tern": false,
 				"tools.maxTimeout": 0,
 			}),
 		};

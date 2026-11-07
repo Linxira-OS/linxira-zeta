@@ -26,7 +26,6 @@ export function createBrowserPreludeDefinition(
 			? prompt.render(relayGuidance, {
 					// The block reaches the model provider: never echo userinfo or token params.
 					cdpUrl: fallback.kind === "connected" ? redactUrlForLog(fallback.cdpUrl) : undefined,
-					tern: fallback.kind === "tern",
 					cmux: fallback.kind === "cmux",
 				})
 			: undefined,

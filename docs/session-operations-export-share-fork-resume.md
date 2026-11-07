@@ -427,10 +427,7 @@ replaced under a session that went on in a sibling (see above).
 
 `--restore [value]` selects and opens its session exactly as `--resume [value]`
 does, then, once the interactive TUI is up, goes on with what the session's last
-process left unfinished when it died (`task/restore.ts`, `restoreSession`). Tern's
-session daemon relaunches omp panes with it after a crash: omp reports
-`omp_restore=1` (OSC 1337 user variable) beside its session file to say it
-understands the flag.
+process left unfinished when it died (`task/restore.ts`, `restoreSession`).
 
 1. **Subagents first.** Every persisted subagent transcript under the session
    (`<session>/<AgentId>.jsonl`, nested ones included) that its process left
