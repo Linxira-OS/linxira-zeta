@@ -190,7 +190,7 @@ function normalizeForUpstreamComparison(text: string): string {
 		.replaceAll(`ZETA_${codingAgentDir}`, `PI_${codingAgentDir}`)
 		.replaceAll("zetacode", "omp")
 		.replaceAll("zeta/", "omp/")
-		.replaceAll(zetaDir, ".omp")
+		.replaceAll(zetaDir, ".zeta")
 		.replaceAll("zeta.", "omp.")
 		.replaceAll("zeta", "omp");
 }

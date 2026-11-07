@@ -3,14 +3,14 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
 import { AgentProtocolHandler } from "@linxiraos/zeta/internal-urls/agent-protocol";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentRegistry, type AgentRegistryApi } from "@linxiraos/zeta/registry/agent-registry";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { WriteTool } from "@linxiraos/zeta/tools/write";
 import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 
 const received = new Map<string, IrcMessage[]>();
-let registry: AgentRegistry;
+let registry: AgentRegistryApi;
 
 function registerPeer(id: string, status: "running" | "idle" = "running", kind: "sub" | "main" = "sub"): void {
 	const messages: IrcMessage[] = [];

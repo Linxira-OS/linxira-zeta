@@ -206,7 +206,7 @@ fn read_bounded(path: &Path) -> Result<Vec<u8>> {
 
 fn terminate_child_tree(child: &mut std::process::Child) {
 	if let Ok(pid) = i32::try_from(child.id())
-		&& let Some(process) = pi_shell::process::Process::from_pid(pid)
+		&& let Some(process) = pi_shell::proctree::Process::from_pid(pid)
 	{
 		let _ = process.kill_tree(None);
 	}

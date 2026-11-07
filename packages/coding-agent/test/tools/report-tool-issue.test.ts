@@ -5,6 +5,7 @@ import * as piUtils from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { DEFAULT_ISSUE_REPO, GITHUB_API_BASE } from "@linxiraos/zeta/grievances/client";
 import type { ToolSession } from "@linxiraos/zeta/tools";
+import { cfgDevAutoqa } from "@linxiraos/zeta/tools/settings";
 import * as reportIssue from "@linxiraos/zeta/tools/report-tool-issue";
 import {
 	__awaitAutoQaRecordPipelineForTests,
@@ -137,13 +138,17 @@ describe("flushGrievances", () => {
 	it("lets PI_AUTO_QA=false disable auto QA when the setting is enabled", () => {
 		Bun.env.PI_AUTO_QA = "0";
 
-		expect(isAutoQaEnabled(Settings.isolated({ "dev.autoqa": true }))).toBe(false);
+		const settings = Settings.isolated();
+		cfgDevAutoqa.set(settings, true);
+		expect(isAutoQaEnabled(settings)).toBe(false);
 	});
 
 	it("lets PI_AUTO_QA=true enable auto QA when the setting is disabled", () => {
 		Bun.env.PI_AUTO_QA = "1";
 
-		expect(isAutoQaEnabled(Settings.isolated({ "dev.autoqa": false }))).toBe(true);
+		const settings = Settings.isolated();
+		cfgDevAutoqa.set(settings, false);
+		expect(isAutoQaEnabled(settings)).toBe(true);
 	});
 
 	it("enables auto QA by default with consent still unset", () => {

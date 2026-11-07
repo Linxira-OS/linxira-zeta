@@ -1314,6 +1314,8 @@ export function createGatewayUiContext(
 		// `undefined` the ACP, headless and session contexts answer with.
 		getEditorComponent: () => undefined,
 		rerenderMessage: () => {},
+		// The gateway streams transcript updates itself; extension-driven refreshes are a no-op.
+		refreshTranscript: () => {},
 		getLinkClicksAvailable: () => false,
 		select(title, options, dialogOptions) {
 			return sendDialog(

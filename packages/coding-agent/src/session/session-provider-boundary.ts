@@ -26,7 +26,7 @@ import { blobExtensionForImageMimeType } from "@linxiraos/pi-tui/prompt/image-fo
 import { type CustomMessage, convertToLlm } from "./messages";
 import { IMAGE_ATTACHMENT_DESCRIPTION_TYPE } from "./queued-messages";
 import type { SessionContext, TranscriptSessionContextOptions } from "./session-context";
-import type { CostGate } from "./cost-gate";
+import type { CostGateApi } from "./cost-gate";
 import type { SessionManager } from "./session-manager";
 
 import {
@@ -49,7 +49,7 @@ export interface SessionProviderBoundaryHost {
 	model(): Model | undefined;
 	sessionId(): string;
 	/** The session tree's current cost gate. */
-	costGate?(): CostGate | undefined;
+	costGate?(): CostGateApi | undefined;
 	localProtocolOptions(): LocalProtocolOptions;
 	transformContext(messages: AgentMessage[], signal?: AbortSignal): AgentMessage[] | Promise<AgentMessage[]>;
 	convertToLlm(messages: AgentMessage[]): Message[] | Promise<Message[]>;

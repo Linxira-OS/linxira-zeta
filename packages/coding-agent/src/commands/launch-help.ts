@@ -117,6 +117,18 @@ export const launchHelp = {
 		channels: Flags.boolean({
 			description: "Host IM channels (WeChat/Feishu/Telegram) in this session; also enabled per channel in web.yml",
 		}),
+		"spinner-interval": Flags.string({
+			description:
+				"Milliseconds between spinner frames (default 80; 0 = static). Overrides tui.spinnerInterval and PI_SPINNER_INTERVAL for this run",
+		}),
+		"max-fps": Flags.string({
+			description:
+				"Repaint ceiling in frames per second (default 30; 1-120); keystroke echo keeps 30 fps. Overrides tui.maxFps and PI_MAX_FPS for this run",
+		}),
+		motion: Flags.string({
+			description:
+				"Animation preset: full (default), reduced (250 ms spinners, no shimmer or blink), or none (static). Overrides tui.motion and PI_MOTION for this run",
+		}),
 		"no-ui": Flags.boolean({
 			description: "With --mode rpc or rpc-ui: run extensions headless (rpc-ui tool UI remains enabled)",
 		}),

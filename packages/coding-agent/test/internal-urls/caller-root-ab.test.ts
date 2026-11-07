@@ -23,7 +23,7 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
 import { resetRegisteredArtifactDirsForTests } from "@linxiraos/zeta/internal-urls/registry-helpers";
 import { InternalUrlFilesystem } from "@linxiraos/zeta/internal-urls/url-filesystem";
-import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentRegistry, type AgentRegistryApi, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
 import { ensurePersistedRoster } from "@linxiraos/zeta/registry/persisted-agents";
 import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -124,7 +124,7 @@ async function setupAbRoots(
 }
 
 /** Install the A/B trap: B's roster scan ran first AND the global Main ref is B. */
-async function installGlobalMainB(registry: AgentRegistry, rootB: string): Promise<void> {
+async function installGlobalMainB(registry: AgentRegistryApi, rootB: string): Promise<void> {
 	await ensurePersistedRoster(registry, rootB);
 	registry.register({
 		id: MAIN_AGENT_ID,

@@ -6,7 +6,8 @@
 
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 
-import type { AsyncJob, AsyncJobDetails, AsyncJobManager, AsyncJobType } from "../../async";
+import type { AsyncJob, AsyncJobDetails, AsyncJobType } from "../../async";
+import type { AsyncJobManagerApi } from "../../async/job-manager";
 
 import { renderStructuredJson, structuredStatusLabel } from "../../session/async-job-delivery";
 import { USER_INTERRUPT_LABEL } from "../../session/messages";
@@ -31,7 +32,7 @@ import { formatArtifactErrorNotice } from "@linxiraos/pi-tui/tools/output-meta";
  * Drops missing ids and ids owned by other agents, so cross-agent inspection
  * via the hub is impossible.
  */
-export function visibleJobs(manager: AsyncJobManager, ids: string[], ownerId: string | undefined): AsyncJob[] {
+export function visibleJobs(manager: AsyncJobManagerApi, ids: string[], ownerId: string | undefined): AsyncJob[] {
 	const out: AsyncJob[] = [];
 	for (const id of ids) {
 		const job = manager.getJob(id);
@@ -205,7 +206,7 @@ export function snapshotJobs(
 
 export function buildJobResult(
 	session: ToolSession,
-	manager: AsyncJobManager,
+	manager: AsyncJobManagerApi,
 	op: "wait" | "cancel" | "jobs",
 	jobs: TrackedJobLike[],
 	cancelOutcomes: CancelOutcome[],
@@ -375,7 +376,7 @@ export function nothingToWaitForResult(session: ToolSession): AgentToolResult<Co
 /** `cancel`: kill the named jobs; returns immediately with outcomes + snapshots. */
 export async function executeCancel(
 	session: ToolSession,
-	manager: AsyncJobManager,
+	manager: AsyncJobManagerApi,
 	ownerId: string | undefined,
 	ids: string[],
 ): Promise<AgentToolResult<CoordinationDetails>> {
@@ -466,7 +467,7 @@ async function cancelAgentRegistration(
 /** `jobs`: read-only snapshot of every job plus the jobless running-agent roster. */
 export function executeJobsSnapshot(
 	session: ToolSession,
-	manager: AsyncJobManager,
+	manager: AsyncJobManagerApi,
 	ownerId: string | undefined,
 ): AgentToolResult<CoordinationDetails> {
 	const jobs = manager.getAllJobs(ownerId ? { ownerId } : undefined);

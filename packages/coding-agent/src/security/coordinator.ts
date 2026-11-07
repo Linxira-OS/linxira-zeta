@@ -4,7 +4,7 @@ import type { Model } from "@linxiraos/pi-ai";
 import type { VcsGitRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { logger, prompt, untilAborted } from "@linxiraos/pi-utils";
-import type { AsyncJobManager } from "../async/job-manager";
+import type { AsyncJobManagerApi } from "../async/job-manager";
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
 import type { ToolDefinition } from "../extensibility/extensions";
@@ -84,7 +84,7 @@ export interface SecurityCoordinatorHost {
 	activeModel?: Model;
 	sessionId?: string;
 	agentId?: string;
-	asyncJobManager?: AsyncJobManager;
+	asyncJobManager?: AsyncJobManagerApi;
 }
 
 export interface SecurityPreflightInput {

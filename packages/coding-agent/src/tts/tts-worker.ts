@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
-import type { ProgressInfo, RawAudio } from "@huggingface/transformers";
 import { ensureRuntimeInstalled, getTinyModelsCacheDir, resolveRuntimeModule } from "@linxiraos/pi-utils";
+import type { ProgressInfo, RawAudio } from "../subprocess/transformers-types";
 import {
 	errorMessage,
 	errorText,

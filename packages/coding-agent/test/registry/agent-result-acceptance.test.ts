@@ -5,7 +5,7 @@
  * follow-up or wake turn never reports a previous run's acceptance.
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentRegistry, type AgentRegistryApi } from "@linxiraos/zeta/registry/agent-registry";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
 /** Minimal session: the registry only reads `isStreaming` for liveness corroboration. */
@@ -14,7 +14,7 @@ function sessionStub(isStreaming: boolean): AgentSession {
 }
 
 describe("AgentRegistry final-result acceptance", () => {
-	let registry: AgentRegistry;
+	let registry: AgentRegistryApi;
 
 	beforeEach(() => {
 		AgentRegistry.resetGlobalForTests();

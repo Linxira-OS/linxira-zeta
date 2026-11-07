@@ -6,7 +6,7 @@ import { $ } from "bun";
 /**
  * Side-installed Python runtime for the MLX tiny-model backend: a private venv
  * under the agent cache holding a pinned `mlx-lm`. Installed on first use the
- * same way the compiled binary side-installs `@huggingface/transformers`
+ * same way the ONNX workers side-install `@huggingface/transformers`
  * (`ensureRuntimeInstalled`), just with `uv`/`python3 -m venv` instead of bun.
  */
 

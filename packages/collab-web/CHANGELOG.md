@@ -2,17 +2,7 @@
 
 ## [Unreleased]
 
-## [18.15.0] - 2026-11-01
-
-### Changed
-
-- `job` tool results name each background job by the purpose the model gave for it, falling back to its command ([#17649](https://github.com/can1357/oh-my-pi/pull/17649) by [@wolfiesch](https://github.com/wolfiesch))
-
-## [18.13.3] - 2026-10-28
-
-### Changed
-
-- Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@linxiraos` version lineage.
+- Synced with upstream OMP v18.18.0.
 
 ## [1.4.8] - 2026-11-02
 

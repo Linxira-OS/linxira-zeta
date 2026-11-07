@@ -107,9 +107,12 @@ export async function loadAllExtensions(cwd?: string, disabledIds?: string[]): P
 		}
 	}
 
-	const loadOpts = cwd
-		? { cwd, includeDisabled: true, disabledExtensions: effectiveDisabledIds }
-		: { includeDisabled: true, disabledExtensions: effectiveDisabledIds };
+	const loadOpts = {
+		cwd,
+		includeDisabled: true,
+		disabledExtensions: effectiveDisabledIds,
+		isSourceDisabled: (source: SourceMeta) => resolveState(source, false, undefined).state === "disabled",
+	};
 
 	// Load skills
 	try {

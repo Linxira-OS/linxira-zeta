@@ -9,6 +9,7 @@ import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { AsyncJobManager } from "@linxiraos/zeta/async";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { EditTool } from "@linxiraos/zeta/edit";
+import * as bashExecutor from "@linxiraos/zeta/exec/bash-executor";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { BashTool } from "@linxiraos/zeta/tools/bash";
@@ -2904,6 +2905,26 @@ function b() {
 			expect(output).toContain("first-line");
 			expect(output).toContain("second");
 			expect(output).toContain("third");
+		});
+
+		it("hoists a leading `cd <dir>;` into cwd only when the directory exists", async () => {
+			fs.mkdirSync(path.join(testDir, "sub-dir"));
+			const executeBash = vi.spyOn(bashExecutor, "executeBash");
+
+			const hoistedResult = await bashTool.execute("cd-semicolon-hoist", { command: "cd sub-dir; pwd" });
+			const [hoisted, options] = executeBash.mock.calls[0]!;
+			expect(hoisted).toBe("pwd");
+			expect(options?.cwd).toBe(path.join(testDir, "sub-dir"));
+			// Renderers draw the executed `pwd` under the directory it ran in.
+			expect(hoistedResult.details?.cwd).toBe(path.join(testDir, "sub-dir"));
+			expect(hoistedResult.details?.cdSeparator).toBe(";");
+
+			// A missing directory stays with the shell, which runs the rest anyway.
+			const missing = "cd does-not-exist; echo still-executed";
+			const result = await bashTool.execute("cd-semicolon-missing", { command: missing });
+			expect(executeBash.mock.calls[1]![0]).toBe(missing);
+			expect(getTextOutput(result)).toContain("still-executed");
+			expect(result.details?.cwd).toBeUndefined();
 		});
 	});
 

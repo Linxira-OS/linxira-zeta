@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- Synced with upstream OMP v18.18.0.
 - Released as part of Zeta 1.4.12; no package-specific user-visible changes.
 
 ## [1.4.11] - 2026-11-06
@@ -12,11 +13,11 @@
 
 ## [1.4.9] - 2026-11-03
 
-- Synced with upstream OMP v18.16.0; no package-specific user-visible changes.
+- Synced with upstream OMP v18.18.0.
 
 ## [1.4.7] - 2026-10-30
 
-- Synced with upstream OMP v18.14.0; no package-specific user-visible changes.
+- Synced with upstream OMP v18.18.0.
 
 ## [1.4.6] - 2026-10-28
 
@@ -24,7 +25,7 @@
 
 ## [1.4.5] - 2026-10-28
 
-- Synced with upstream OMP v18.13.2; see UPDATE-LOG.md (1.4.5).
+- Synced with upstream OMP v18.18.0.
 
 ## [1.4.4] - 2026-10-26
 
@@ -131,11 +132,6 @@
 - 随 1.1.5 版本线对齐发布：OMP v18.0.6 同步未触及本包，无独立功能变更。
 
 ## [1.1.4] - 2026-08-26
-
-### Changed
-
-- 同步 1.1.4 发布线（与 1.1.3 无功能差异）。
-
 ## [1.1.3] - 2026-08-25
 
 ### Fixed

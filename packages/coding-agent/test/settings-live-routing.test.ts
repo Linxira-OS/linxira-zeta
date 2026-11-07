@@ -6,6 +6,7 @@ import * as path from "node:path";
 import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
 import { resolveAgentModelSelection } from "@linxiraos/zeta/config/model-resolver";
 import { cfgModelRoles } from "@linxiraos/zeta/config/model-settings";
+import { cfgEditMode } from "@linxiraos/zeta/edit/settings";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { createAuthStorageSettingsSync } from "@linxiraos/zeta/session/auth-broker-config";
@@ -226,6 +227,24 @@ describe("live routing config files", () => {
 		await replacement.promise;
 		await recovered.promise;
 		expect(selection(settings).patterns).toEqual(["anthropic/third"]);
+	});
+
+	it("keeps a value this build cannot read at its last good value while the rest of the edit applies", async () => {
+		// A newer omp wrote an `edit.mode` this build lacks. Reading it would fall back to the
+		// default and switch every running session's edit tool, rewriting its cached tool prefix.
+		delete process.env.PI_EDIT_VARIANT;
+		const file = tempDir.join("routing.yml");
+		await Bun.write(file, YAML.stringify({ ...routing("first"), edit: { mode: "replace" } }));
+		await start(file);
+		expect(cfgEditMode.get(settings)).toBe("replace");
+
+		await Bun.write(file, YAML.stringify({ ...routing("second"), edit: { mode: "from-a-newer-omp" } }));
+		await waitFor(() => settings.getModelRole("smol") === "anthropic/second");
+		expect(cfgEditMode.get(settings)).toBe("replace");
+
+		await Bun.write(file, YAML.stringify({ ...routing("third"), edit: { mode: "patch" } }));
+		await waitFor(() => settings.getModelRole("smol") === "anthropic/third");
+		expect(cfgEditMode.get(settings)).toBe("patch");
 	});
 
 	it("keeps last good routing on malformed target replacement and preserves runtime overrides on recovery", async () => {

@@ -549,6 +549,8 @@ export interface VerifiedBinaryDownloadOptions {
 	expectedSize: number;
 	expectedDigest: string;
 	fetchImpl?: Fetch;
+	/** Bytes received so far, after each chunk is hashed. */
+	onProgress?: (received: number) => void;
 }
 
 /**
@@ -580,6 +582,7 @@ export async function downloadVerifiedBinary(options: VerifiedBinaryDownloadOpti
 	const verifier = new Transform({
 		transform(chunk, _encoding, callback) {
 			size += chunk.byteLength;
+			options.onProgress?.(size);
 			if (size > options.expectedSize) {
 				callback(
 					new Error(
@@ -1590,7 +1593,7 @@ async function validateExistingUpdateTarget(targetPath: string): Promise<void> {
 /**
  * Run the PATH-resolved omp binary and check if it reports the expected version.
  */
-async function verifyInstalledVersion(expectedVersion: string): Promise<InstalledVersionVerification> {
+export async function verifyInstalledVersion(expectedVersion: string): Promise<InstalledVersionVerification> {
 	const ompPath = resolveOmpPath();
 	if (!ompPath) return { ok: false };
 	const binaryPath = tryRealpath(ompPath) ?? ompPath;
@@ -2258,6 +2261,7 @@ export async function updateViaBinaryAt(
 		/** Refuse replacement unless the existing path is a non-script OMP executable. */
 		validateExistingTarget?: boolean;
 		verifyInstalledVersion?: typeof verifyInstalledVersion;
+		onProgress?: UpdateProgressListener;
 	} = {},
 ): Promise<void> {
 	if (options.validateExistingTarget) await validateExistingUpdateTarget(targetPath);
@@ -2290,6 +2294,7 @@ export async function updateViaBinaryAt(
 		options.allowPrerelease,
 	);
 	console.log(chalk.dim(`Downloading ${binaryName}…`));
+	options.onProgress?.({ phase: "downloading", version: asset.version, received: 0, total: asset.size });
 	await downloadVerifiedBinary({
 		url: asset.url,
 		targetPath: tempPath,
@@ -2298,6 +2303,7 @@ export async function updateViaBinaryAt(
 		fetchImpl: options.fetchImpl,
 	});
 	console.log(chalk.dim(`Verified ${asset.digest}`));
+	options.onProgress?.({ phase: "downloading", version: asset.version, received: asset.size, total: asset.size });
 
 	// Serialize the target swap and stale-artifact sweep per target so two
 	// overlapping `zetacode update` runs never replace the same binary concurrently
@@ -2305,6 +2311,7 @@ export async function updateViaBinaryAt(
 	// to a unique temp path and is safe to overlap; only the swap is shared.
 	const verification = await withFileLock(targetPath, async () => {
 		console.log(chalk.dim("Installing update..."));
+		options.onProgress?.({ phase: "installing", version: asset.version });
 		const result = await replaceBinaryForUpdate({
 			targetPath,
 			tempPath,
@@ -2517,56 +2524,96 @@ function persistChannel(channel: UpdateChannel): void {
  * and a plain run downloads the installer, verifies its digest, starts it
  * silently, and exits.
  */
-async function runDesktopUpdate(opts: { check: boolean; channel?: UpdateChannel }): Promise<void> {
+/**
+ * Live progress of an install, for callers that display it (the auto-update
+ * banner). `installing` covers the binary swap and package-manager runs, which
+ * report no byte count.
+ */
+export type UpdateProgress =
+	| { phase: "downloading"; version: string; received: number; total: number }
+	| { phase: "installing"; version: string };
+
+/** Receives {@link UpdateProgress} while an update installs. */
+export type UpdateProgressListener = (progress: UpdateProgress) => void;
+
+/** What `update` was asked to do, after resolving the channel. */
+export interface UpdateOptions {
+	force: boolean;
+	check: boolean;
+	/** Switch to and persist this channel; unset keeps `update.channel`. */
+	channel?: UpdateChannel;
+	/** Update the desktop app instead of this CLI (`--desktop`). */
+	desktop?: boolean;
+	onProgress?: UpdateProgressListener;
+}
+
+/** How {@link runUpdateCommand} ended without an error. */
+export type UpdateOutcome =
+	/** Nothing newer to install. */
+	| { kind: "current" }
+	/** `--check` found `version`; nothing was installed. */
+	| { kind: "available"; version: string }
+	/** This install cannot update itself (a managing app, Nix, a channel its installer lacks). */
+	| { kind: "unsupported"; reason: string }
+	/** The installer ran for `version`; whether the launcher now reports it was printed, not checked. */
+	| { kind: "installed"; version: string };
+
+/** `<what>: <reason>`, keeping `err` as the cause. */
+export function updateError(what: string, err: unknown): Error {
+	return new Error(`${what}: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+}
+
+/**
+ * Whether this launch may update itself: not a source checkout (git updates
+ * it), not kept by a managing app (that app updates it), and not in the Nix
+ * store. Judged from the running build alone, without the package-manager
+ * probes `update` runs.
+ */
+export async function canSelfUpdate(): Promise<boolean> {
+	if (isSourceCheckout()) return false;
+	if (isPathInDirectory(isCompiledBinary() ? process.execPath : import.meta.dir, NIX_STORE_DIR)) return false;
+	return (await managedInstallName(process.execPath)) === undefined;
+}
+
+async function runDesktopUpdate(opts: UpdateOptions): Promise<UpdateOutcome> {
 	if (process.platform !== "win32") {
-		console.error(chalk.red("--desktop updates are only supported on Windows"));
-		process.exit(1);
+		return { kind: "unsupported", reason: "--desktop updates are only supported on Windows" };
 	}
 	let result: DesktopUpdateCheck;
 	try {
 		result = await checkDesktopUpdate({ allowPrerelease: opts.channel === "canary" });
 	} catch (err) {
-		console.error(chalk.red(`Failed to check for desktop updates: ${err}`));
-		process.exit(1);
+		throw updateError("Failed to check for desktop updates", err);
 	}
 	if (opts.check) {
 		console.log(JSON.stringify(result));
-		return;
+		return result.available ? { kind: "available", version: result.latest } : { kind: "current" };
 	}
 	if (!result.available) {
 		const icon = theme?.status?.success ?? "✔";
 		console.log(chalk.green(`${icon} Already up to date`));
-		return;
+		return { kind: "current" };
 	}
 	try {
 		const { installer } = await installDesktopUpdate(result);
 		console.log(chalk.cyan(`Downloaded zetawork ${result.latest} to ${installer}; starting the installer.`));
 	} catch (err) {
-		console.error(chalk.red(`Desktop update failed: ${err}`));
-		process.exit(1);
+		throw updateError("Desktop update failed", err);
 	}
+	return { kind: "installed", version: result.latest };
 }
 
 /**
  * Run the update command.
  */
-export async function runUpdateCommand(opts: {
-	force: boolean;
-	check: boolean;
-	desktop?: boolean;
-	channel?: UpdateChannel;
-}): Promise<void> {
-	if (opts.desktop) {
-		await runDesktopUpdate(opts);
-		return;
-	}
+export async function runUpdateCommand(opts: UpdateOptions): Promise<UpdateOutcome> {
+	if (opts.desktop) return runDesktopUpdate(opts);
 	const ompPath = resolveOmpPath();
 	const manager = ompPath ? await managedInstallName(ompPath) : undefined;
 	if (manager) {
-		console.log(
-			chalk.yellow(`${ompPath} is installed and kept up to date by ${manager}; update it from ${manager}.`),
-		);
-		return;
+		const reason = `${ompPath} is installed and kept up to date by ${manager}; update it from ${manager}.`;
+		console.log(chalk.yellow(reason));
+		return { kind: "unsupported", reason };
 	}
 	// `update.channel` picks the channel; --canary/--stable switch and persist it.
 	await Settings.init({ cwd: getProjectDir() });
@@ -2581,8 +2628,7 @@ export async function runUpdateCommand(opts: {
 	try {
 		release = await getLatestRelease({ channel });
 	} catch (err) {
-		console.error(chalk.red(`Failed to check for updates: ${err}`));
-		process.exit(1);
+		throw updateError("Failed to check for updates", err);
 	}
 
 	const comparison = compareVersions(release.version, VERSION);
@@ -2590,7 +2636,7 @@ export async function runUpdateCommand(opts: {
 	if (comparison <= 0 && !opts.force && !isChannelSwitch) {
 		const icon = theme?.status?.success ?? "✔";
 		console.log(chalk.green(`${icon} Already up to date`));
-		return;
+		return { kind: "current" };
 	}
 
 	if (isChannelSwitch) {
@@ -2610,10 +2656,10 @@ export async function runUpdateCommand(opts: {
 
 	if (opts.check) {
 		// Just check, don't install
-		return;
+		return { kind: "available", version: release.version };
 	}
 
-	// Choose update method based on the prioritized omp binary in PATH. For
+	// Choose update method based on the prioritized zetacode binary in PATH. For
 	// binary-only releases the package managers are never consulted: a bun/npm
 	// symlink resolves to method "binary" and is replaced in place, keeping the
 	// same PATH entry live.
@@ -2622,13 +2668,15 @@ export async function runUpdateCommand(opts: {
 		const allowPrerelease = channel === "canary";
 		const target = await resolveUpdateTarget({ allowPackageManagers: !forceBinary });
 		if (channel === "canary" && (target.method === "nix" || target.method === "brew" || target.method === "mise")) {
-			console.log(chalk.yellow("Canary updates are only supported for bun, npm, or binary installs."));
-			return;
+			const reason = "Canary updates are only supported for bun, npm, or binary installs.";
+			console.log(chalk.yellow(reason));
+			return { kind: "unsupported", reason };
 		}
 		if (target.method === "nix") {
-			console.log(chalk.yellow("This installation is managed by Nix and cannot update itself."));
+			const reason = "This installation is managed by Nix and cannot update itself.";
+			console.log(chalk.yellow(reason));
 			console.log(chalk.dim("Update the flake input or profile that provides zetacode, then rebuild."));
-			return;
+			return { kind: "unsupported", reason };
 		} else if (target.method === "brew") {
 			await updateViaHomebrew(release.version, opts.force);
 		} else if (target.method === "mise") {
@@ -2636,17 +2684,14 @@ export async function runUpdateCommand(opts: {
 		} else if ((forceBinary || target.method === "binary") && defaultBinaryName() === undefined) {
 			// No release asset for this host: the download would 404. Say so
 			// instead of computing an asset name no release carries.
-			console.log(
-				chalk.yellow(
-					`No standalone ${CLI_BIN_NAME} binary is published for ${process.platform}-${process.arch} in ${release.version}.`,
-				),
-			);
+			const reason = `No standalone ${CLI_BIN_NAME} binary is published for ${process.platform}-${process.arch} in ${release.version}.`;
+			console.log(chalk.yellow(reason));
 			console.log(
 				chalk.dim(
 					`Update through the package manager that installed this copy, or reinstall with: ${installerHint()}`,
 				),
 			);
-			return;
+			return { kind: "unsupported", reason };
 		} else if (target.method === "bun" || target.method === "npm") {
 			if (forceBinary) {
 				// Reachable in forced mode only through a Windows script
@@ -2674,6 +2719,7 @@ export async function runUpdateCommand(opts: {
 			await updateViaBinaryAt(target.path, release.version, {
 				allowPrerelease,
 				validateExistingTarget: target.validateExistingTarget,
+				onProgress: opts.onProgress,
 			});
 			if (forceBinary && target.replacesSymlink) {
 				console.log(
@@ -2685,9 +2731,10 @@ export async function runUpdateCommand(opts: {
 		}
 		if (opts.channel) persistChannel(channel);
 	} catch (err) {
-		console.error(chalk.red(`Update failed: ${err}`));
-		process.exit(1);
+		if (err instanceof Error && err.message.startsWith("Update failed:")) throw err;
+		throw updateError("Update failed", err);
 	}
+	return { kind: "installed", version: release.version };
 }
 
 /**

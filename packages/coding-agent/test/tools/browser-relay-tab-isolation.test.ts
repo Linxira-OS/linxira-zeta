@@ -4,7 +4,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { findFreeCdpPort } from "@linxiraos/zeta/tools/browser/attach";
-import { ensureChromiumExecutable } from "@linxiraos/zeta/tools/browser/launch";
+import {
+	closeLaunchedBrowser,
+	ensureChromiumExecutable,
+	RENDERER_PRIORITY_ARGS,
+} from "@linxiraos/zeta/tools/browser/launch";
 import { acquireBrowser, releaseBrowser } from "@linxiraos/zeta/tools/browser/registry";
 import { unpackedExtensionId } from "@linxiraos/zeta/tools/browser/relay/extension-files";
 import { waitForRelayExtension } from "@linxiraos/zeta/tools/browser/relay/probe";
@@ -115,7 +119,7 @@ async function launchRelayFixture(
 	const browsers: Browser[] = [];
 	async function close() {
 		try {
-			await Promise.all(browsers.map(browser => browser.close()));
+			await Promise.all(browsers.map(browser => closeLaunchedBrowser(browser)));
 		} finally {
 			server.stop();
 			pages.stop(true);
@@ -128,7 +132,7 @@ async function launchRelayFixture(
 			headless: true,
 			pipe: true,
 			enableExtensions: [extensionDir],
-			args: ["--no-first-run", "--no-default-browser-check", "--use-mock-keychain"],
+			args: ["--no-first-run", "--no-default-browser-check", "--use-mock-keychain", ...RENDERER_PRIORITY_ARGS],
 		});
 		browsers.push(browser);
 		const extensionId = await unpackedExtensionId(extensionDir);
@@ -509,7 +513,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("owned tab recovery", () => {
 		if (!("_targetId" in target) || typeof target._targetId !== "string") throw new Error("Missing target ID");
 		const payload: WorkerInitPayload = {
 			mode: "attach",
-			browserWSEndpoint: launched.browser.wsEndpoint(),
+			browserWSEndpoint: launched.wsEndpoint,
 			safeDir: getPuppeteerDir(),
 			uploadDir: "/tmp/omp-uploads-test",
 			page: { kind: "owned", targetId: target._targetId },

@@ -5,6 +5,7 @@ import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { Shell } from "@linxiraos/pi-natives";
 import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
 import {
+	DEFAULT_MAX_BYTES,
 	DEFAULT_MAX_LINES,
 	truncateHead,
 	truncateMiddle,
@@ -497,7 +498,7 @@ export async function readJson(
 	if (resource) resultBuilder.sourceInternal(resource.url);
 	else if (file) resultBuilder.sourcePath(file.absolutePath);
 	if (truncation.truncated) {
-		resultBuilder.truncation(truncation, { direction: "head" });
+		resultBuilder.truncation(truncation, { direction: "head", maxBytes: DEFAULT_MAX_BYTES });
 	}
 
 	return resultBuilder.done();

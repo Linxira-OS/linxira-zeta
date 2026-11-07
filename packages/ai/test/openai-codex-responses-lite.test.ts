@@ -6,8 +6,8 @@ import {
 	streamOpenAICodexResponses,
 } from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import { resetOpenAICodexHistoryAfterCompaction } from "@linxiraos/pi-ai/providers/openai-codex-state";
-import { isOpenAIResponsesProgressEvent } from "@linxiraos/pi-ai/providers/openai-shared";
 import { configureCredentialRedaction } from "@linxiraos/pi-ai/providers/transform-messages";
+import { isOpenAIResponsesProgressEvent } from "@linxiraos/pi-ai/utils/websocket";
 import type {
 	CodexCompactionRequestContext,
 	Context,

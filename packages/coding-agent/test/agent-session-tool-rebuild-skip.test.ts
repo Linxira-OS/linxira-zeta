@@ -4,6 +4,7 @@ import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-co
 import type { Message, Model } from "@linxiraos/pi-ai";
 import { createMockModel, type MockResponseSource } from "@linxiraos/pi-ai/providers/mock";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { CustomTool } from "@linxiraos/zeta/extensibility/custom-tools/types";
 import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions";
@@ -14,6 +15,8 @@ import { SessionMaintenance } from "@linxiraos/zeta/session/session-maintenance"
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { collectMountedMCPToolRoutes, projectMountedMCPXdevGuidance } from "@linxiraos/zeta/session/session-tools";
 import { listXdevTools, XDEV_EXTERNAL_DESCRIPTION_CAP, type XdevState } from "@linxiraos/zeta/tools/xdev";
+import { EvalTool } from "@linxiraos/zeta/tools/eval";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { logger } from "@linxiraos/pi-utils";
 
 import { cfgSkillful } from "@linxiraos/zeta/session/settings";
@@ -119,6 +122,8 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 		beforeAgentStartSystemPrompt?: string[];
 		/** Pre-loaded skills handed to the session's hint snapshot. */
 		skills?: Skill[];
+		/** Model binds signed thinking to its prompt prefix, so implicit rebuilds freeze once a reply exists. */
+		prefixBound?: boolean;
 	}
 
 	function newSession(
@@ -151,7 +156,12 @@ describe("AgentSession refreshMCPTools rebuild skipping", () => {
 		const agent = new Agent({
 			getApiKey: () => "test-key",
 			initialState: {
-				model: createModel(),
+				model: options.prefixBound
+					? {
+							...createModel(),
+							thinking: { mode: "anthropic-adaptive", efforts: [Effort.High], prefixBinding: true },
+						}
+					: createModel(),
 				systemPrompt: ["initial"],
 				tools: options.xdev
 					? options.lazyWrite
@@ -1331,6 +1341,37 @@ These tools became available:
 		expect(
 			session.agent.state.messages.filter(m => m.role === "custom" && m.customType === "xdev-mount-notice"),
 		).toHaveLength(0);
+	});
+
+	it("keeps the eval description's tool names fixed when a prefix-bound session mounts an MCP tool", async () => {
+		const { session, contexts } = newSession(async toolNames => `tools:${toolNames.join(",")}`, {
+			xdev: createTestXdevState(),
+			responses: [{ content: ["ok"] }, { content: ["ok"] }],
+			prefixBound: true,
+		});
+		const evalTool = new EvalTool({
+			cwd: process.cwd(),
+			hasUI: false,
+			settings: session.settings,
+			getSessionFile: () => null,
+			getAdvertisedEvalToolNames: () => session.getAdvertisedEvalToolNames(),
+		} as ToolSession);
+		const search = createMcpCustomTool("mcp__nucleus_search", "nucleus", "search", "Search nucleus");
+		const fetch = createMcpCustomTool("mcp__nucleus_fetch", "nucleus", "fetch", "Fetch nucleus");
+		await session.refreshMCPTools([search]);
+		await session.prompt("hi");
+		const boundDescription = evalTool.description;
+		const boundPrompt = session.systemPrompt;
+		expect(boundDescription).toContain("`mcp__nucleus_search`");
+
+		await session.refreshMCPTools([search, fetch]);
+		await session.prompt("again");
+
+		// The cached prefix keeps its bytes; the new tool is callable from cells and announced.
+		expect(evalTool.description).toBe(boundDescription);
+		expect(session.systemPrompt).toEqual(boundPrompt);
+		expect(session.getToolForEvalBridge("mcp__nucleus_fetch")).toBeDefined();
+		expect(mountNoticesIn(contexts[1]).join("\n")).toContain("xd://mcp__nucleus_fetch");
 	});
 
 	it("announces an unmount after a maintenance rebuild delivered the pending addition", async () => {

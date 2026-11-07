@@ -11,6 +11,7 @@ import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 
+import { cfgEditMode } from "@linxiraos/zeta/edit/settings";
 import { cfgBashEnabled } from "@linxiraos/zeta/exec/settings";
 import { cfgGithubEnabled, cfgGrepEnabled } from "@linxiraos/zeta/tools/settings";
 
@@ -86,6 +87,24 @@ describe("settings-gated tools in a live session", () => {
 		await settle(session);
 		expect(session.getActiveToolNames()).toContain("grep");
 		expect(session.systemPrompt.join("\n")).toContain(GREP_POLICY);
+	});
+
+	it("edit.mode none swaps edit out and keeps bash despite bash.enabled", async () => {
+		const settings = Settings.isolated({ "bash.enabled": false });
+		const session = await startSession(settings);
+		expect(session.getActiveToolNames()).toContain("edit");
+		expect(session.getActiveToolNames()).not.toContain("bash");
+
+		cfgEditMode.set(settings, "none");
+		await settle(session);
+		expect(session.getToolByName("edit")).toBeUndefined();
+		expect(session.getActiveToolNames()).not.toContain("edit");
+		expect(session.getActiveToolNames()).toContain("bash");
+
+		cfgEditMode.set(settings, "replace");
+		await settle(session);
+		expect(session.getActiveToolNames()).toContain("edit");
+		expect(session.getToolByName("bash")).toBeUndefined();
 	});
 
 	it("never widens an explicit tool list", async () => {

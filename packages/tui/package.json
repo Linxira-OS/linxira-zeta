@@ -30,7 +30,7 @@
   "types": "./src/index.ts",
   "scripts": {
     "check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts' && bun run check:types",
-    "check:types": "tsc -p tsconfig.json --noEmit",
+    "check:types": "bun check --no-script -p tsconfig.json",
     "lint": "oxlint .",
     "test": "bun test --parallel test/*.test.ts",
     "fix": "oxlint --fix --fix-suggestions . && bun run fmt",
@@ -99,6 +99,10 @@
       "types": "./src/native/*.ts",
       "import": "./src/native/*.ts"
     },
-    "./*.js": "./src/*.ts"
+    "./*.js": "./src/*.ts",
+    "./tools/shell-viz": {
+      "types": "./src/tools/shell-viz.ts",
+      "import": "./src/tools/shell-viz.ts"
+    }
   }
 }

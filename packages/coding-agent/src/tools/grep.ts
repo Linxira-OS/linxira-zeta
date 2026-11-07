@@ -10,7 +10,7 @@ import type {
 	AgentToolUpdateCallback,
 	ToolTier,
 } from "@linxiraos/pi-agent-core";
-import { type EditStore, type GrepMatch, GrepOutputMode, type GrepResult, grep } from "@linxiraos/pi-natives";
+import { type EditStore, type GrepMatch, GrepOutputMode, type GrepResult } from "@linxiraos/pi-natives";
 import { prompt, untilAborted } from "@linxiraos/pi-utils";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
 import {
@@ -23,6 +23,7 @@ import { getEditStore, recordFullySeenRows } from "../edit/store";
 import { sessionResolveContext } from "../internal-urls/context";
 import { InternalUrlRouter } from "../internal-urls/router";
 import { InternalUrlFilesystem } from "../internal-urls/url-filesystem";
+import { grep } from "../ovnfs/search";
 import grepDescription from "../prompts/tools/grep.md" with { type: "text" };
 import {
 	DEFAULT_MAX_BYTES,
@@ -73,7 +74,7 @@ import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import { cfgGrepContextAfter, cfgGrepContextBefore } from "./settings";
-import { cfgTaskDisabledAgents } from "../task/settings";
+import { cfgTaskDisabledAgents, ovnfsCommand } from "../task/settings";
 
 const searchSchema = type({
 	pattern: type("string"),
@@ -733,6 +734,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 				const normalizedContextAfter = this.#contextAfterOverride ?? cfgGrepContextAfter.get(this.session.settings);
 				const ignoreCase = !(caseSensitive ?? true);
 				const useGitignore = gitignore ?? true;
+				const ovnfs = ovnfsCommand(this.session.settings);
 				const patternHasNewline = normalizedPattern.includes("\n") || normalizedPattern.includes("\\n");
 				const effectiveMultiline = patternHasNewline;
 
@@ -864,6 +866,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 									filesystem,
 								},
 								undefined,
+								ovnfs,
 							);
 							skippedOversizedCount += targetResult.skippedOversized ?? 0;
 							limitReached = limitReached || Boolean(targetResult.limitReached);
@@ -914,6 +917,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 								filesystem,
 							},
 							undefined,
+							ovnfs,
 						);
 						skippedOversizedCount = result.skippedOversized ?? 0;
 						totalCapReached = result.matches.length >= nativeMaxCount;

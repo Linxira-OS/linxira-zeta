@@ -70,7 +70,7 @@ import type { AgentProgress } from "@linxiraos/pi-tui/tools/task";
 import { getDefault } from "../../config/settings-schema";
 import { readRpcSubagentTranscript, RpcSubagentRegistry } from "../../modes/rpc/rpc-subagents";
 import type { RpcSubagentFrame, RpcSubagentSnapshot } from "../../modes/rpc/rpc-types";
-import { type AgentRef, AgentRegistry } from "../../registry/agent-registry";
+import { type AgentRef, AgentRegistry, type AgentRegistryApi } from "../../registry/agent-registry";
 import {
 	ensurePersistedRoster,
 	registerPersistedSubagents,
@@ -509,7 +509,7 @@ const hydratedPersistedIds = new Map<string, Set<string>>();
  * request.
  */
 async function hydratePersistedHistory(
-	registry: AgentRegistry,
+	registry: AgentRegistryApi,
 	rootSessionFile: string,
 	sink: SubagentSink | null | undefined,
 ): Promise<void> {

@@ -171,12 +171,17 @@ import {
 	selToOffsetLimit,
 } from "./read-selector";
 import { splitAddressableFileLines } from "@linxiraos/pi-tui/tools/hashline-format";
+import { formatSingleLine } from "@linxiraos/pi-tui/tools/read";
+import { nativeShapingOff, shapesOutput, shapeToolResult, shapingExperiment } from "../spotlight";
+import type { ShapeInput } from "../spotlight/types";
 import { readBinary, resolveBinaryViewPath } from "./read-binary";
 import { readSqlite, resolveSqliteReadPath } from "./read-sqlite";
 import { parseJsonSelector, readJson, resolveJsonReadPath, splitJsonQueryTarget } from "./read-json";
 import {
 	getReadTextFileBridge,
 	isProseSummaryPath,
+	MAX_SUMMARY_BYTES,
+	MAX_SUMMARY_LINES,
 	renderSummary,
 	routeReadThroughBridge,
 	trySummarize,
@@ -842,6 +847,8 @@ interface FilesystemReadOptions {
 	lexicalAbsolutePath?: string;
 	/** The read's tool context: `rawImages` keeps image routing under `:raw`, and split reads pass it on. */
 	toolContext?: AgentToolContext;
+	/** Page a whole-file read as the plain result does, though the session shapes output (a held-out result). */
+	plainWindow?: boolean;
 }
 
 /**
@@ -893,6 +900,24 @@ const readSchema = type({
 export type ReadToolInput = typeof readSchema.infer;
 
 type ReadParams = ReadToolInput;
+
+/**
+ * The source window a text read showed, on the result's details (never serialized), for the Spotlight
+ * experiment's shaping. Recorded only while the session shapes tool output.
+ */
+const kSpotlightWindow = Symbol("read.spotlightWindow");
+
+/**
+ * Marks a result whose file was gathered past the plain window for shaping (a whole-file read): its plain
+ * equivalent, which the trace sizes and a held-out result shows, takes a read of its own. A whole file that fits
+ * the plain read's smallest page is not marked: the plain read is the same.
+ */
+const kSpotlightWide = Symbol("read.spotlightWide");
+
+interface ReadDetailsWithWindow extends ReadToolDetails {
+	[kSpotlightWindow]?: ShapeInput["read"];
+	[kSpotlightWide]?: true;
+}
 
 /**
  * Resolve the filesystem path a read result should hyperlink to: the explicit
@@ -1863,7 +1888,31 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		onUpdate?: AgentToolUpdateCallback<ReadToolDetails>,
 		toolContext?: AgentToolContext,
 	): Promise<AgentToolResult<ReadToolDetails>> {
-		const result = await this.#executeInner(toolCallId, params, signal, onUpdate, toolContext);
+		const inner = await this.#executeInner(toolCallId, params, signal, onUpdate, toolContext);
+		const innerDetails: ReadDetailsWithWindow | undefined = inner.details;
+		const result = await shapeToolResult(
+			this.session,
+			toolCallId,
+			{ tool: "read", source: `read ${params.path}`, path: params.path, read: innerDetails?.[kSpotlightWindow] },
+			inner,
+			signal,
+			{
+				plain: innerDetails?.[kSpotlightWide]
+					? () =>
+							this.#executeInner(
+								toolCallId,
+								params,
+								signal,
+								undefined,
+								toolContext,
+								undefined,
+								undefined,
+								undefined,
+								true,
+							)
+					: undefined,
+			},
+		);
 		const displayTarget = InternalUrlRouter.instance().locateSync(params.path);
 		if (displayTarget && result.details) result.details.displayTarget = displayTarget;
 		appendRepeatReadHint(this.session, params.path, result);
@@ -1879,6 +1928,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		onBufferedFile?: (bytes: Buffer) => void,
 		onConflictMarkers?: () => void,
 		lexicalAbsolutePath?: string,
+		plainWindow?: boolean,
 	): Promise<AgentToolResult<ReadToolDetails>> {
 		let { path: readPath } = params;
 		if (readPath.startsWith("file://")) {
@@ -1993,6 +2043,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 				onConflictMarkers,
 				lexicalAbsolutePath,
 				toolContext,
+				plainWindow,
 			});
 		}
 		// A located URL reads its backing file through the filesystem pipeline (images, `:img`,
@@ -2004,6 +2055,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			signal,
 			planTargetedRead: this.#isPlanRead(readPath),
 			toolContext,
+			plainWindow,
 		});
 		const details: ReadToolDetails = result.details ?? {};
 		details.resolvedPath ??= located.path;
@@ -2044,8 +2096,16 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		options: FilesystemReadOptions,
 		media: { path?: string },
 	): Promise<AgentToolResult<ReadToolDetails>> {
-		const { located, questionPath, signal, onBufferedFile, onConflictMarkers, lexicalAbsolutePath, toolContext } =
-			options;
+		const {
+			located,
+			questionPath,
+			signal,
+			onBufferedFile,
+			onConflictMarkers,
+			lexicalAbsolutePath,
+			toolContext,
+			plainWindow,
+		} = options;
 		// `question` is reassigned below when a JSON/image query target supplies it.
 		let { question } = options;
 		const planTargetedRead = options.planTargetedRead === true;
@@ -2492,6 +2552,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			if (
 				parsed.kind === "none" &&
 				cfgReadSummarizeEnabled.get(this.session.settings) &&
+				!nativeShapingOff(this.session) &&
 				(cfgReadSummarizeProse.get(this.session.settings) || !isProseSummaryPath(renderAbsolutePath))
 			) {
 				const summary = await trySummarize(
@@ -2609,13 +2670,25 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					let startLine = requestedStart - leadingContext;
 					let startLineDisplay = startLine + 1;
 
-					const DEFAULT_LIMIT = this.#defaultLimit;
-					const effectiveLimit = limit ?? (planTargetedRead ? DEFAULT_MAX_LINES : DEFAULT_LIMIT);
-					let maxLinesToCollect = Math.min(effectiveLimit + leadingContext + trailingContext, DEFAULT_MAX_LINES);
+					// Spotlight shaping outlines a whole-file read in place of the summarizer, so it collects
+					// the file up to the summarizer's own caps instead of one page; the shaped text then goes
+					// through the inline cap and spill like any result.
+					const wholeFileShaping =
+						offset === undefined &&
+						limit === undefined &&
+						!rawSelector &&
+						fileSize <= MAX_SUMMARY_BYTES &&
+						!plainWindow &&
+						shapesOutput(this.session, "read");
+					const lineCap = wholeFileShaping ? MAX_SUMMARY_LINES : DEFAULT_MAX_LINES;
+					const DEFAULT_LIMIT = wholeFileShaping ? MAX_SUMMARY_LINES : this.#defaultLimit;
+					const effectiveLimit = limit ?? (planTargetedRead ? lineCap : DEFAULT_LIMIT);
+					let maxLinesToCollect = Math.min(effectiveLimit + leadingContext + trailingContext, lineCap);
 					let selectedLineLimit = effectiveLimit + leadingContext + trailingContext;
 					// Scale byte budget with line limit so the configured line count actually fits.
 					// Assume ~512 bytes/line average; never go below the shared default.
 					const budgetFor = (firstLine: number, lineCount: number): number => {
+						if (wholeFileShaping) return MAX_SUMMARY_BYTES;
 						const scaled = Math.max(DEFAULT_MAX_BYTES, lineCount * 512);
 						if (located?.spec.artifactStore) return scaled;
 						const threshold = resolveArtifactSpillThreshold(this.session.settings);
@@ -2990,6 +3063,15 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					}
 					if (reachedEof) details.totalLines = totalFileLines;
 					details.rowPrefixes = shouldAddHashLines || shouldAddLineNumbers;
+					if (
+						wholeFileShaping &&
+						(collectedLines.length < totalFileLines ||
+							collectedLines.length > this.#defaultLimit ||
+							collectedBytes >
+								Math.min(DEFAULT_MAX_BYTES, resolveArtifactSpillThreshold(this.session.settings) / 2))
+					) {
+						(details as ReadDetailsWithWindow)[kSpotlightWide] = true;
+					}
 
 					if (hashContext?.tag) {
 						recordFullySeenRows(getEditStore(this.session), absolutePath, hashContext.tag, outputText, cutLines);
@@ -3054,6 +3136,27 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 					}
 
 					content = [{ type: "text", text: outputText }];
+					if (
+						!rawSelector &&
+						!firstLineExceedsLimit &&
+						collectedLines.length > 0 &&
+						shapingExperiment(this.session)
+					) {
+						const shown = displayLines.map((line, i) =>
+							formatSingleLine(startLineDisplay + i, line, shouldAddHashLines, shouldAddLineNumbers),
+						);
+						// Shaping replaces the window where it appears verbatim in the text; a window the text
+						// renders otherwise is shaped as plain text.
+						if (outputText.includes(shown.join("\n"))) {
+							(details as ReadDetailsWithWindow)[kSpotlightWindow] = {
+								path: resolvedDisplayPath,
+								lines: collectedLines,
+								shown,
+								firstLine: startLineDisplay,
+								selected: offset !== undefined || limit !== undefined,
+							};
+						}
+					}
 					// `maxBytesForRead` bounds only the selected source lines; row prefixes and
 					// off-window block context ride on top. Skip the spill only while the final page
 					// still fits the inline cap, so block context can never bypass the bound.

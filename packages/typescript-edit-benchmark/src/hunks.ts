@@ -9,7 +9,7 @@
  * answer. Prompt prose itself lives in the Handlebars templates under
  * `src/prompts/`; this module only supplies the block data.
  */
-import { diffLines } from "diff";
+import { diffLines } from "@linxiraos/pi-natives";
 
 /** Replace `oldLen` lines at `start` (0-based index into the input) with `newLines`. */
 export interface Placement {

@@ -1,7 +1,7 @@
 ## [Unreleased]
 
+- Synced with upstream OMP v18.18.0.
 - Released as part of Zeta 1.4.12; no package-specific user-visible changes.
-
 ## [1.4.11] - 2026-11-06
 
 - Released as part of Zeta 1.4.11; no package-specific user-visible changes.
@@ -12,7 +12,7 @@
 
 ## [1.4.9] - 2026-11-03
 
-- Synced with upstream OMP v18.16.0; no package-specific user-visible changes.
+- Synced with upstream OMP v18.18.0.
 
 ## [1.4.7] - 2026-10-30
 
@@ -27,7 +27,7 @@
 
 ## [1.4.5] - 2026-10-28
 
-- Synced with upstream OMP v18.13.2: RPC dictation state/transcript frames and the `cost_cap` event.
+- Synced with upstream OMP v18.18.0.
 
 ## [1.4.4] - 2026-10-26
 

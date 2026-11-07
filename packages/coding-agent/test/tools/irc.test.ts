@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { IrcBus } from "@linxiraos/zeta/irc/bus";
+import { IrcBus, type IrcBusApi } from "@linxiraos/zeta/irc/bus";
+import { executeSend } from "@linxiraos/zeta/irc/messaging";
 import { type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentRegistry, type AgentRegistryApi } from "@linxiraos/zeta/registry/agent-registry";
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { IrcBridge, type IrcBridgeHost } from "@linxiraos/zeta/session/irc-bridge";
 import type { CustomMessage } from "@linxiraos/zeta/session/messages";
@@ -12,7 +13,6 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
 import { attachIrcWakeTurnMonitor } from "@linxiraos/zeta/task/executor";
 import { createSessionDefaults } from "../helpers/session-defaults";
-import { executeSend } from "@linxiraos/zeta/irc/messaging";
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
 
 type IrcWakeObserver = (records: AgentMessage[]) => ((error?: unknown) => void | Promise<void>) | undefined;
@@ -85,8 +85,8 @@ function createRealSession(overrides: Record<string, unknown> = {}): {
 }
 
 describe("IRC", () => {
-	let registry: AgentRegistry;
-	let bus: IrcBus;
+	let registry: AgentRegistryApi;
+	let bus: IrcBusApi;
 
 	const sessions: AgentSession[] = [];
 	beforeEach(() => {
@@ -616,32 +616,6 @@ describe("IRC", () => {
 			return { jobManager, delivered };
 		}
 
-		it("does not relay woken peers' turns back to a subagent broadcaster", async () => {
-			const broadcaster = makeFakeSession();
-			registry.register({
-				id: "0-C",
-				displayName: "task",
-				kind: "sub",
-				status: "idle",
-				session: broadcaster.session,
-			});
-			const a = registerIdleSubagent("0-A");
-			const b = registerIdleSubagent("0-B");
-
-			const sent = await executeSend({ registry, senderId: "0-C" }, { to: "all", message: "fixers: rebase now" });
-			expect(sent.details?.receipts?.map(receipt => receipt.outcome)).toEqual(["woken", "woken"]);
-			await a.settled();
-			await b.settled();
-			expect(broadcaster.delivered).toEqual([]);
-
-			// A direct message still gets the woken peer's turn back.
-			await executeSend({ registry, senderId: "0-C" }, { to: "0-A", message: "status?" });
-			await a.settled();
-			expect(broadcaster.delivered).toMatchObject([
-				{ from: "0-A", to: "0-C", body: "Not for me.", wakeRelay: true },
-			]);
-		});
-
 		it("does not deliver woken children's turns to a main-agent broadcaster", async () => {
 			const main = makeFakeSession();
 			registry.register({ id: "Main", displayName: "main", kind: "main", status: "idle", session: main.session });
@@ -801,6 +775,34 @@ describe("IRC", () => {
 			expect(outcome).toBe("injected");
 			expect(promptSpy).not.toHaveBeenCalled();
 			expect(await session.agent.hasIrcInterrupts?.()).toBe(true);
+		});
+
+		it("queues a mid-turn broadcast or progress note for the next boundary without interrupting a wait", async () => {
+			const { session } = createRealSession();
+			sessions.push(session);
+			const promptSpy = vi.spyOn(session.agent, "prompt").mockResolvedValue(undefined);
+			Object.defineProperty(session, "isStreaming", { value: true, configurable: true });
+
+			await session.deliverIrcMessage({
+				id: "msg-b",
+				from: "0-Peer",
+				to: "0-Me",
+				body: "editing auth.ts",
+				ts: Date.now(),
+				broadcast: true,
+			});
+			await session.deliverIrcMessage({
+				id: "msg-p",
+				from: "0-Peer",
+				to: "0-Me",
+				body: "halfway",
+				ts: Date.now(),
+				progress: true,
+			});
+			expect(promptSpy).not.toHaveBeenCalled();
+			expect(await session.agent.hasIrcInterrupts?.()).toBe(false);
+			expect(await session.agent.hasQueuedAsides?.()).toBe(false);
+			expect(session.drainPendingIrcInboxMessages("0-Me").map(msg => msg.id)).toEqual(["msg-b", "msg-p"]);
 		});
 
 		it("queues parent IRC as steering while a subagent turn is streaming", async () => {

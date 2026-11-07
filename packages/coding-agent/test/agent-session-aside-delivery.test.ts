@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { setImmediate } from "node:timers/promises";
 import { type } from "@linxiraos/zeta-schema";
 import { Agent, type AgentMessage, type AgentTool } from "@linxiraos/pi-agent-core";
-import { AsyncJobManager } from "@linxiraos/zeta/async";
+import { AsyncJobManager, type AsyncJobManagerApi } from "@linxiraos/zeta/async";
 import type { AssistantMessage, Context, ImageContent } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
@@ -159,7 +159,7 @@ describe("AgentSession aside delivery", () => {
 			const nextCall = Promise.withResolvers<void>();
 			const waitStarted = Promise.withResolvers<void>();
 			const job = Promise.withResolvers<string>();
-			const manager = new AsyncJobManager({});
+			const manager: AsyncJobManagerApi = new AsyncJobManager({});
 			const settings = Settings.isolated({
 				"compaction.enabled": false,
 				"todo.enabled": false,

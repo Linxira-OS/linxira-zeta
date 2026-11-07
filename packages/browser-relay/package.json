@@ -16,7 +16,7 @@
     "build": "bun scripts/build-extension.ts",
     "gen:assets": "bun scripts/build-extension.ts --assets-only",
     "check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts' && bun run check:types",
-    "check:types": "tsc -p tsconfig.json --noEmit",
+    "check:types": "bun check --no-script -p tsconfig.json",
     "lint": "oxlint .",
     "fix": "oxlint --fix --fix-suggestions . && bun run fmt",
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"

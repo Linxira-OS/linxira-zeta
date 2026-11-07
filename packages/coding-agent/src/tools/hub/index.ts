@@ -32,7 +32,7 @@ import { POLL_WAIT_LADDER_MS } from "../../async/job-manager";
 import { IrcBus } from "../../irc/bus";
 
 import hubDescription from "../../prompts/tools/hub.md" with { type: "text" };
-import type { AgentRegistry } from "../../registry/agent-registry";
+import type { AgentRegistryApi } from "../../registry/agent-registry";
 import type { ToolSession } from "..";
 
 import {
@@ -114,7 +114,7 @@ const hubSchema = type({
 type HubParams = typeof hubSchema.infer;
 
 interface MessagingDeps {
-	registry: AgentRegistry;
+	registry: AgentRegistryApi;
 	senderId: string;
 	settings: ToolSession["settings"];
 	/** Caller session file: direct sends refresh this root's persisted roster before resolving the target. */

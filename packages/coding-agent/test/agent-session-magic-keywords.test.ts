@@ -5,12 +5,14 @@ import * as path from "node:path";
 import { type } from "@linxiraos/zeta-schema";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { Effort } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import * as autoThinkingClassifier from "@linxiraos/zeta/auto-thinking/classifier";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
 import { removeWithRetries } from "@linxiraos/pi-utils";
@@ -37,11 +39,12 @@ const mockEvalTool: AgentTool = {
 async function createMagicKeywordSession(
 	modelRegistry: ModelRegistry,
 	tools: AgentTool[] = [mockTaskTool, mockEvalTool],
+	modelId = "claude-sonnet-4-5",
 ): Promise<{
 	session: AgentSession;
 	settings: Settings;
 }> {
-	const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+	const model = getBundledModel("anthropic", modelId);
 	if (!model) throw new Error("Expected bundled Claude Sonnet model");
 	const agent = new Agent({
 		initialState: {
@@ -206,6 +209,55 @@ describe("AgentSession magic keyword settings", () => {
 		expect(classifierSpy).toHaveBeenCalledTimes(1);
 		expect(session.thinkingLevel).toBe(Effort.Low);
 		expect(session.autoResolvedThinkingLevel()).toBe(Effort.Low);
+	});
+
+	it.each([
+		["takes per-message effort", "claude-sonnet-5-5", Effort.Low],
+		["needs a stable effort", "claude-sonnet-4-5", Effort.High],
+	] as const)(
+		"a chillax steer mid-turn on a model that %s sets the next request's effort",
+		async (_label, id, next) => {
+			const mock = createMockModel({ responses: [{ content: ["working"] }, { content: ["relaxed"] }] });
+			const agent = new Agent({
+				getApiKey: () => "test-key",
+				initialState: { model: getBundledModel("anthropic", id), systemPrompt: ["Test"], tools: [] },
+				convertToLlm,
+				streamFn: mock.stream,
+			});
+			session = new AgentSession({
+				agent,
+				sessionManager: SessionManager.inMemory(),
+				settings: Settings.isolated({ "compaction.enabled": false }),
+				modelRegistry,
+			});
+			session.setThinkingLevel(Effort.High);
+			let steered = false;
+			const active = session;
+			active.agent.setOnBeforeYield(async () => {
+				if (steered) return;
+				steered = true;
+				await active.prompt("chillax, just wrap it up", { streamingBehavior: "steer" });
+			});
+
+			await active.prompt("refactor the parser");
+
+			expect(mock.calls.map(call => call.options?.reasoning)).toEqual([Effort.High, next]);
+			expect(active.thinkingLevel).toBe(next);
+		},
+	);
+
+	it("resolves an auto chillax turn to the model floor without classifying", async () => {
+		const created = await createMagicKeywordSession(modelRegistry, [], "claude-sonnet-5-5");
+		session = created.session;
+		vi.spyOn(session.agent, "prompt").mockResolvedValue(undefined);
+		const classifierSpy = vi.spyOn(autoThinkingClassifier, "classifyDifficulty").mockResolvedValue(Effort.High);
+		session.setThinkingLevel(AUTO_THINKING);
+
+		await session.prompt("chillax and rename the flag");
+
+		expect(classifierSpy).not.toHaveBeenCalled();
+		expect(session.thinkingLevel).toBe(Effort.Low);
+		expect(session.configuredThinkingLevel()).toBe(AUTO_THINKING);
 	});
 
 	it("queues the magic-keyword notice before the user message", async () => {
