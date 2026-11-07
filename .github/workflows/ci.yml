@@ -1601,6 +1601,7 @@ jobs:
               node-version: "24"
          - id: version
            name: Read the product version
+           shell: bash
            run: |
               version=$(node -p "require('./desktop/package.json').version")
               echo "value=$version" >> "$GITHUB_OUTPUT"
@@ -1626,6 +1627,7 @@ jobs:
               ZETA_SERVICE_BINARY: ${{ github.workspace }}/temp/desktop/binary/zeta-cli-${{ matrix.platform == 'win32' && 'windows-x64.exe' || 'linux-x64' }}
            run: npm run dist
          - name: Package the browser edition (no bundled engine)
+           shell: bash
            run: |
               bun scripts/package-workstudio-browser.ts                 --version "${{ steps.version.outputs.value }}"                 --platform ${{ matrix.platform }}                 --runtime temp/desktop/staging/zeta                 --out temp/desktop/release
          - name: Upload desktop artifacts
