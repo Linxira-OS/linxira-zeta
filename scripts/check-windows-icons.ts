@@ -38,12 +38,19 @@ function checkSources(): Problems {
 	if (!fs.existsSync(desktopIcon)) problems.push("missing desktop/build/icon.png (run desktop npm run build)");
 	else if (!fs.existsSync(webIcon)) problems.push("missing web-app/public/icon.png");
 	else if (hash(desktopIcon) !== hash(webIcon)) {
-		problems.push("web-app/public/icon.png differs from the canonical assets/icon.svg render (run desktop npm run build)");
+		problems.push(
+			"web-app/public/icon.png differs from the canonical assets/icon.svg render (run desktop npm run build)",
+		);
 	}
 	if (!fs.existsSync(webFavicon)) problems.push("missing web-app/public/favicon.ico");
 	else {
 		const favicon = fs.readFileSync(webFavicon);
-		if (favicon.length < 6 || favicon.readUInt16LE(0) !== 0 || favicon.readUInt16LE(2) !== 1 || favicon.readUInt16LE(4) === 0) {
+		if (
+			favicon.length < 6 ||
+			favicon.readUInt16LE(0) !== 0 ||
+			favicon.readUInt16LE(2) !== 1 ||
+			favicon.readUInt16LE(4) === 0
+		) {
 			problems.push("web-app/public/favicon.ico is not a non-empty ICO");
 		}
 	}
