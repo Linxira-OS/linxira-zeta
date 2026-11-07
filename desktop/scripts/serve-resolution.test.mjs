@@ -50,7 +50,7 @@ function cleanup({ root }) {
 /** A complete packaged bundle (exe + runtime + web standalone server). */
 function installBundle({ root, deps }) {
 	const serviceDir = path.join(deps.resourcesPath, "zeta");
-	for (const rel of ["zeta", "node", path.join("web-ui", ".next", "standalone", "server.js")]) {
+	for (const rel of ["zeta", path.join("web-app", "index.html")]) {
 		fs.mkdirSync(path.dirname(path.join(serviceDir, rel)), { recursive: true });
 		fs.writeFileSync(path.join(serviceDir, rel), "");
 	}
@@ -95,7 +95,7 @@ test("tier 1: a ZETA_BIN_DIR dir outranks a PATH hit", () => {
 test("packaged shell: the vendored bundle wins over a PATH hit; bare zeta never probed", () => {
 	// v1.2.1 evidence: the shell spawned the PATH npm shim (`zetacode.cmd`), which
 	// ships no Web UI, so every launch served a dead UI. The bundle is the only
-	// launcher that carries the staged Web UI + Node runtime and is version-locked
+	// launcher that carries the staged Work Studio renderer and is version-locked
 	// to the shell, so a packaged shell uses it and never probes PATH at all.
 	const tree = makeDeps({ isPackaged: true });
 	try {
@@ -112,7 +112,7 @@ test("packaged shell: the vendored bundle wins over a PATH hit; bare zeta never 
 		assert.ok(!probed.includes("zeta"), "workbench bin must never be a serve candidate");
 		assert.equal(cmd.file, path.join(serviceDir, "zeta"));
 		assert.equal(cmd.needsShell, false);
-		assert.equal(cmd.env.ZETA_WEB_RUNTIME, path.join(serviceDir, "node"));
+		assert.equal(cmd.env.ZETA_WEB_APP_DIR, path.join(serviceDir, "web-app"));
 	} finally {
 		cleanup(tree);
 	}
@@ -121,7 +121,7 @@ test("packaged shell: the vendored bundle wins over a PATH hit; bare zeta never 
 test("packaged shell: an incomplete bundle does not shadow a PATH hit", () => {
 	const tree = makeDeps({ isPackaged: true });
 	try {
-		// Binary only: no Node runtime, no staged Web UI → not a usable bundle.
+		// Binary only: no staged Work Studio renderer → not a usable bundle.
 		const serviceDir = path.join(tree.deps.resourcesPath, "zeta");
 		fs.mkdirSync(serviceDir, { recursive: true });
 		fs.writeFileSync(path.join(serviceDir, "zeta"), "");
@@ -214,7 +214,7 @@ test("tier 2: packaged desktop uses its vendored bundle", () => {
 		const serviceDir = installBundle(tree);
 		const cmd = resolveServeCommandIn(tree.deps);
 		assert.equal(cmd.file, path.join(serviceDir, "zeta"));
-		assert.equal(cmd.env.ZETA_WEB_RUNTIME, path.join(serviceDir, "node"));
+		assert.equal(cmd.env.ZETA_WEB_APP_DIR, path.join(serviceDir, "web-app"));
 		assert.equal(bundledServeCommandIn(tree.deps)?.cwd, serviceDir);
 	} finally {
 		cleanup(tree);
@@ -237,11 +237,10 @@ test("packaged bundle: every missing piece is named, not silently dropped", () =
 		fs.mkdirSync(serviceDir, { recursive: true });
 		fs.writeFileSync(path.join(serviceDir, "zeta"), ""); // binary only
 		const missing = missingBundledServeFiles(tree.deps);
-		assert.equal(missing.length, 2);
-		assert.ok(missing.some(m => m.includes(path.join(serviceDir, "node"))), "Node runtime must be reported");
+		assert.equal(missing.length, 1);
 		assert.ok(
-			missing.some(m => m.includes(path.join("web-ui", ".next", "standalone", "server.js"))),
-			"Web UI standalone server must be reported",
+			missing.some(m => m.includes(path.join("web-app", "index.html"))),
+			"Work Studio renderer must be reported",
 		);
 	} finally {
 		cleanup(tree);

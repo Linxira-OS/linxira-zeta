@@ -64,8 +64,9 @@ Build time belongs in the changelog and the git tag, not the version.
   The manual `main-publish.yml` / `ci:release:publish-web-ui` paths are intact.
   The same ruling took zetawork's **release assets** off the surface: the
   `zeta-work-*` and `zetawork-gui-*` legs are gone from the
-  `release_product_binaries` matrix, `release_desktop_archives` is
-  dispatch-only (`build_desktop_archives`), and `release_github` uploads
+  `release_product_binaries` matrix; the paused zetawork path
+  `release_desktop_archives` remains dispatch-only (`build_desktop_archives`),
+  and `release_github` also uploads the Work Studio desktop assets (see below).
   neither family. The npm line stays publishable through the manual
   `publish_zetawork` gate.
 - `.github/workflows/ci.yml` is the **only** workflow GitHub executes. It
@@ -144,7 +145,10 @@ plugins/official/pi-messenger`，把插件目录原样打包）发布——两�
    leg 与 leaf tag 全部移除。`desktop_linux` / `desktop_windows` 也已删除：
    桌面产物的唯一打包点是 Zeta-only 的 `release_desktop_archives`
    （Windows NSIS 安装器 + GUI-only zip、Linux AppImage + Arch 包）。自
-   2026-11-05 zetawork 暂停起，该 job 只保留手动 `build_desktop_archives`
+   2026-11-05 zetawork 暂停起，该 job 只保留手动 `build_desktop_archives`。
+   Work Studio 的桌面产物走 `release_desktop`：Electron 版（Windows NSIS/zip、
+   Linux AppImage/deb/tar.gz）与无浏览器引擎版（`linxira-zeta-<v>-workstudio-browser-*`），
+   两者都由同一 staged runtime（编译后的内核 + 原生 addon + `web-app`）打包。
    派发路径，普通 release 不再运行它，`release_github` 也不再依赖它的产物
    （见下方损伤类别 5）。
 
@@ -580,6 +584,21 @@ holds the shipped families (zeta-cli/zeta-ide plus the relay, example-plugin
 and root texts) to the upload/checksum/preflight surfaces, and names
 `zetawork` / `zetawork-desktop` as unshipped so a staged leg for one fails.
 Every asset name carries the numeric version (`v` stripped).
+**Work Studio desktop (2026-11-07 ruling).** `release_desktop` builds the
+desktop application in two editions from one staged runtime — the compiled
+`zeta` kernel, target native addons and `web-app/dist`:
+
+- **Electron edition** (bundled Chromium): `zeta-desktop-<v>-win32-x64.exe`
+  (NSIS), `zeta-desktop-<v>-win32-x64.zip`, `zeta-desktop-<v>-linux-x64.AppImage`,
+  `.deb`, `.tar.gz`; built on windows-latest and ubuntu-22.04.
+- **Browser edition** (no bundled engine): `linxira-zeta-<v>-workstudio-browser-windows-x64.zip`
+  and `...-linux-x64.tar.gz`, with a launcher that starts `zetacode serve` and
+  opens the default browser.
+
+`release_github` waits on `release_desktop`, downloads both artifact sets into
+`packages/coding-agent/binaries`, and hashes/uploads them with the other release
+assets. The old zetawork archives stay retired.
+
 
 **Windows icon surface** — all shipped `.exe` files (GUI, TUI, `zetacode`,
 `zetaide`, `termide-editor`) embed the same committed logo from

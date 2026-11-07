@@ -672,7 +672,7 @@ function iconPath(): string | undefined {
 }
 
 function loadFailurePage(win: BrowserWindow, detail: string): void {
-	const html = `<!doctype html><html><head><meta charset="utf-8"><title>Zeta</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#102c31;color:#eafff9;font:16px system-ui,sans-serif}main{max-width:36rem;padding:2rem}h1{margin:0 0:.75rem;color:#48ddc2;font-size:1.4rem}p{line-height:1.6;color:#b9d8d4}</style></head><body><main><h1>Zeta Web UI could not load</h1><p>${detail}</p></main></body></html>`;
+	const html = `<!doctype html><html><head><meta charset="utf-8"><title>Zeta</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#102c31;color:#eafff9;font:16px system-ui,sans-serif}main{max-width:36rem;padding:2rem}h1{margin:0 0:.75rem;color:#48ddc2;font-size:1.4rem}p{line-height:1.6;color:#b9d8d4}</style></head><body><main><h1>Work Studio could not load</h1><p>${detail}</p></main></body></html>`;
 	void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`).catch(() => {});
 }
 
@@ -805,7 +805,7 @@ const DEFAULT_DESKTOP_LABELS: DesktopLabels = {
 	statsDashboard: "Stats Dashboard",
 	openSettings: "Open Settings",
 	quit: "Quit",
-	webUi: "Web UI",
+	webUi: "Work Studio",
 	reload: "Reload",
 	notifications: "Notifications",
 };

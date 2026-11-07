@@ -127,6 +127,10 @@ on:
             description: "Run the paused release_desktop_archives packaging path without a tag (zetawork suspended 2026-11-05; zetawork binaries must be staged manually)"
             type: boolean
             default: false
+         desktop_app:
+            description: "Package the Work Studio desktop editions without a release tag (upload-only smoke of the desktop pipeline)"
+            type: boolean
+            default: false
          browser_tests:
             description: "Run the coding-agent browser/Chromium bucket (otherwise nightly schedule and release-state runs only)"
             type: boolean
@@ -1279,7 +1283,7 @@ jobs:
    release_binary:
       name: "Release binary: ${{ matrix.target_id }}"
       if: ${{ !cancelled() &&
-         (needs.release_metadata.outputs.is-release == 'true' || inputs.build_desktop_archives) &&
+         (needs.release_metadata.outputs.is-release == 'true' || inputs.build_desktop_archives || inputs.desktop_app) &&
          needs.native_addons.result == 'success' &&
          needs.native_addons_cross.result == 'success' }}
       needs: [release_metadata, native_addons, native_addons_cross]
@@ -1569,6 +1573,74 @@ jobs:
                  packages/coding-agent/binaries/linxira-zeta-*.pkg.tar.zst
               if-no-files-found: error
 
+   release_desktop:
+      name: Package Work Studio desktop (Electron + browser editions)
+      if: ${{ (needs.release_metadata.outputs.is-release == 'true' || inputs.desktop_app) && !cancelled() &&
+         needs.release_binary.result == 'success' }}
+      needs: [release_metadata, release_binary]
+      strategy:
+         fail-fast: false
+         matrix:
+            include:
+               - os: ubuntu-22.04
+                 platform: linux
+                 suffix: linux-x64
+                 native_target: linux-x64-baseline
+               - os: windows-latest
+                 platform: win32
+                 suffix: win32-x64
+                 native_target: win32-x64-baseline
+      runs-on: ${{ matrix.os }}
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+           with:
+              bun-version: 1.4.4
+         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+           with:
+              node-version: "24"
+         - id: version
+           name: Read the product version
+           run: |
+              version=$(node -p "require('./desktop/package.json').version")
+              echo "value=$version" >> "$GITHUB_OUTPUT"
+         - run: bun install --frozen-lockfile
+         - name: Install prebuilt native addons
+           uses: ./.github/actions/native-artifacts
+           with:
+              targets: ${{ matrix.native_target }}
+         - name: Download the release CLI binary
+           uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+           with:
+              name: zeta-binary-${{ matrix.suffix }}
+              path: temp/desktop/binary
+         - name: Install desktop dependencies
+           working-directory: desktop
+           run: npm ci
+         # The Electron edition embeds Chromium + the compiled kernel + the
+         # Work Studio renderer. The shell reuses the release CLI artifact, so
+         # this job never recompiles the Rust/Bun binary.
+         - name: Package the Electron edition
+           working-directory: desktop
+           env:
+              ZETA_SERVICE_BINARY: ${{ github.workspace }}/temp/desktop/binary/zeta-cli-${{ matrix.platform == 'win32' && 'windows-x64.exe' || 'linux-x64' }}
+           run: npm run dist
+         - name: Package the browser edition (no bundled engine)
+           run: |
+              bun scripts/package-workstudio-browser.ts                 --version "${{ steps.version.outputs.value }}"                 --platform ${{ matrix.platform }}                 --runtime temp/desktop/staging/zeta                 --out temp/desktop/release
+         - name: Upload desktop artifacts
+           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+           with:
+              name: zeta-desktop-${{ matrix.suffix }}
+              path: |
+                 temp/desktop/release/zeta-desktop-*.exe
+                 temp/desktop/release/zeta-desktop-*.zip
+                 temp/desktop/release/zeta-desktop-*.AppImage
+                 temp/desktop/release/zeta-desktop-*.deb
+                 temp/desktop/release/zeta-desktop-*.tar.gz
+                 temp/desktop/release/linxira-zeta-*-workstudio-browser-*
+              if-no-files-found: error
+
    # Desktop shells (Electron embedding the standalone web-ui + a compiled
    # zeta runtime). They run on every CI event like the test fan-out: PR-side
    # they prove the pipeline compiles and smokes; at release the artifacts
@@ -1663,7 +1735,7 @@ jobs:
       # example-plugin zip and the root texts. The TUI and the desktop archives
       # left the release surface with it, so release_desktop_archives is no
       # longer a dependency (that job is dispatch-only).
-      needs: [release_metadata, release_gate, release_binary, release_product_binaries]
+      needs: [release_metadata, release_gate, release_binary, release_product_binaries, release_desktop]
       runs-on: ubuntu-22.04
       permissions:
          contents: write
@@ -1685,6 +1757,12 @@ jobs:
            uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
            with:
               pattern: zeta-binary-*
+              path: packages/coding-agent/binaries
+              merge-multiple: true
+         - name: Download desktop artifacts
+           uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+           with:
+              pattern: zeta-desktop-*
               path: packages/coding-agent/binaries
               merge-multiple: true
          # Dependency-free build (bun APIs + zip only), so no `bun install`
@@ -1726,6 +1804,16 @@ jobs:
                 echo "::error::Expected at least 2 zeta-ide-* product binaries, found $product_count"
                 missing=1
               fi
+              desktop_count=$(ls packages/coding-agent/binaries/zeta-desktop-* 2>/dev/null | wc -l)
+              if [ "$desktop_count" -lt 4 ]; then
+                echo "::error::Expected the Electron desktop installers/archives, found $desktop_count"
+                missing=1
+              fi
+              lite_count=$(ls packages/coding-agent/binaries/linxira-zeta-*-workstudio-browser-* 2>/dev/null | wc -l)
+              if [ "$lite_count" -lt 2 ]; then
+                echo "::error::Expected the browser-edition archives (win + linux), found $lite_count"
+                missing=1
+              fi
               plugin_zips=$(ls plugins/dist/zeta-plugin-example-*.zip 2>/dev/null | wc -l)
               if [ "$plugin_zips" -lt 1 ]; then
                 # The example-plugin environment (zeta-plugin-example-<version>.zip)
@@ -1744,6 +1832,8 @@ jobs:
               bun run ci:release:checksums SHA256SUMS.txt \
                 packages/coding-agent/binaries/zeta-cli-* \
                 packages/coding-agent/binaries/zeta-ide-* \
+                packages/coding-agent/binaries/zeta-desktop-* \
+                packages/coding-agent/binaries/linxira-zeta-*-workstudio-browser-* \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
                 plugins/dist/zeta-plugin-example-*.zip \
                 LICENSE \
@@ -1756,6 +1846,8 @@ jobs:
               files: |
                  packages/coding-agent/binaries/zeta-cli-*
                  packages/coding-agent/binaries/zeta-ide-*
+                 packages/coding-agent/binaries/zeta-desktop-*
+                 packages/coding-agent/binaries/linxira-zeta-*-workstudio-browser-*
                  packages/browser-relay/dist/zeta-browser-relay-extension.zip
                  plugins/dist/zeta-plugin-example-*.zip
                  LICENSE

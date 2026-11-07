@@ -6,10 +6,10 @@
  *   ① explicit env — `ZETA_SERVE_COMMAND` (full command override) and
  *     `ZETA_BIN_DIR` (delimiter-separated dirs probed before PATH)
  *   ② vendored form — a *packaged* shell prefers its own bundle (complete
- *     bundle only: service binary + Node runtime + staged Web UI standalone)
- *     because that is the only launcher version-locked to the shell and able to
- *     serve the embedded UI offline; then the dev repo checkout (built dist
- *     binary, then Bun-run source)
+ *     bundle only: service binary + staged Work Studio renderer) because that
+ *     is the only launcher version-locked to the shell and able to serve the
+ *     embedded UI offline; then the dev repo checkout (built dist binary, then
+ *     Bun-run source)
  *   ③ PATH — native `zetacode` as installed (a distro or npm install puts it
  *     here); reached when no bundle is present, with no cross-component
  *     version validation
@@ -124,8 +124,7 @@ function bundledServeRequirements(deps: ServeResolutionDeps): { label: string; f
 	const serviceDir = path.join(deps.resourcesPath, "zeta");
 	return [
 		{ label: "service binary", file: path.join(serviceDir, deps.serviceBinaryName) },
-		{ label: "Node runtime", file: path.join(serviceDir, deps.webRuntimeName) },
-		{ label: "Web UI standalone server", file: path.join(serviceDir, "web-ui", ".next", "standalone", "server.js") },
+		{ label: "Work Studio renderer", file: path.join(serviceDir, "web-app", "index.html") },
 	];
 }
 
@@ -142,7 +141,6 @@ export function bundledServeCommandIn(deps: ServeResolutionDeps): ServeCommand |
 	if (missingBundledServeFiles(deps).length > 0) return null;
 
 	const serviceDir = path.join(deps.resourcesPath, "zeta");
-	const runtime = path.join(serviceDir, deps.webRuntimeName);
 
 	return {
 		file: path.join(serviceDir, deps.serviceBinaryName),
@@ -151,7 +149,7 @@ export function bundledServeCommandIn(deps: ServeResolutionDeps): ServeCommand |
 		env: {
 			...deps.env,
 			ZETA_DESKTOP: "1",
-			ZETA_WEB_RUNTIME: runtime,
+			ZETA_WEB_APP_DIR: path.join(serviceDir, "web-app"),
 		},
 		needsShell: false,
 	};

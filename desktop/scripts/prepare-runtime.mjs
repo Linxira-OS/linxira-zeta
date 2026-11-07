@@ -1,9 +1,9 @@
 /**
  * Assemble the runtime copied into the current platform's Electron package.
  *
- * The desktop app starts `zeta serve` from this directory. Its compiled
- * launcher discovers the adjacent standalone Web UI and uses the bundled Node
- * executable, so a target machine needs neither Bun nor Node installed.
+ * The desktop app starts `zeta serve` from this directory. The renderer is the
+ * packaged Work Studio build (`web-app/dist`), served by the same binary, so a
+ * target machine needs neither Bun, Node, nor a browser runtime.
  */
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -14,7 +14,7 @@ import { desktopPlatformInfo } from "./platform.mjs";
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(desktopDir, "..");
 const agentDir = path.join(repoRoot, "packages", "coding-agent");
-const webUiDir = path.join(repoRoot, "web-ui");
+
 const stagingDir = path.join(repoRoot, "temp", "desktop", "staging", "zeta");
 const platformInfo = desktopPlatformInfo(process.platform, process.arch);
 const desktopVersion = JSON.parse(fs.readFileSync(path.join(desktopDir, "package.json"), "utf8")).version;
@@ -25,36 +25,31 @@ function run(file, args, cwd, env = process.env) {
 	if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-run("bun", ["run", "build"], agentDir);
-const npmCli = process.env.npm_execpath;
-if (!npmCli) {
-	throw new Error("npm CLI path is unavailable; run this script through npm.");
-}
-run(process.execPath, [npmCli, "run", "build"], webUiDir, {
-	...process.env,
-	NEXT_OUTPUT_STANDALONE: "1",
-	ZETA_APP_VERSION: desktopVersion,
-});
-
+// CI reuses the release-built CLI artifact instead of compiling the Rust/Bun
+// binary again; local builds compile it here.
 const zetaBinary = path.join(agentDir, "dist", platformInfo.zetaBinaryName);
-const standalone = path.join(webUiDir, ".next", "standalone");
-const staticFiles = path.join(webUiDir, ".next", "static");
-const publicFiles = path.join(webUiDir, "public");
-const standaloneRoot = fs.existsSync(path.join(standalone, "server.js")) ? standalone : path.join(standalone, "web-ui");
-if (!fs.existsSync(zetaBinary) || !fs.existsSync(path.join(standaloneRoot, "server.js"))) {
-	throw new Error("Expected Zeta executable or standalone Web UI output was not produced.");
+const providedBinary = process.env.ZETA_SERVICE_BINARY;
+if (providedBinary) {
+	fs.mkdirSync(path.dirname(zetaBinary), { recursive: true });
+	fs.copyFileSync(providedBinary, zetaBinary);
+} else {
+	run("bun", ["run", "build"], agentDir);
+}
+// Stages `dist/web-app` (npm ci + vite build + precompressed sidecars) inside
+// the package; the same script `npm pack` runs, so the shell and npm ship one
+// renderer.
+run("bun", ["run", "gen:web-app"], agentDir);
+
+const webAppDist = path.join(agentDir, "dist", "web-app");
+if (!fs.existsSync(zetaBinary) || !fs.existsSync(path.join(webAppDist, "index.html"))) {
+	throw new Error("Expected the Zeta executable and the staged Work Studio renderer were not produced.");
 }
 
 fs.rmSync(stagingDir, { recursive: true, force: true });
 fs.mkdirSync(stagingDir, { recursive: true });
 const stagedZeta = path.join(stagingDir, platformInfo.zetaBinaryName);
-const stagedNode = path.join(stagingDir, platformInfo.nodeBinaryName);
 fs.copyFileSync(zetaBinary, stagedZeta);
-fs.copyFileSync(process.execPath, stagedNode);
-if (process.platform !== "win32") {
-	fs.chmodSync(stagedZeta, 0o755);
-	fs.chmodSync(stagedNode, 0o755);
-}
+if (process.platform !== "win32") fs.chmodSync(stagedZeta, 0o755);
 
 const nativeDir = path.join(repoRoot, "packages", "natives", "native");
 const nativePrefix = `pi_natives.${platformInfo.nativeTag}`;
@@ -68,14 +63,7 @@ for (const addon of nativeAddons) {
 	fs.copyFileSync(path.join(nativeDir, addon), path.join(stagingDir, addon));
 }
 
-const stagedWebUi = path.join(stagingDir, "web-ui");
-const stagedStandalone = path.join(stagedWebUi, ".next", "standalone");
-fs.cpSync(standaloneRoot, stagedStandalone, { recursive: true });
-fs.cpSync(staticFiles, path.join(stagedStandalone, ".next", "static"), { recursive: true });
-
-if (fs.existsSync(publicFiles)) {
-	fs.cpSync(publicFiles, path.join(stagedStandalone, "public"), { recursive: true });
-}
+fs.cpSync(webAppDist, path.join(stagingDir, "web-app"), { recursive: true });
 
 
 console.log(`desktop runtime staged at ${stagingDir}`);

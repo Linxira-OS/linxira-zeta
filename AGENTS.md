@@ -98,7 +98,7 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
 | zetawork（TUI / GUI，**暂停**） | `main/crates/zeta-main/`、`main/crates/zetawork-gui/`（`@linxiraos/main` 只在 `publish_zetawork` 输入时发布） |
 | zetaide / vendored TermIDE | `termide/`（**不要**在 `main/` 里重写 vendored 面板库） |
 | `@linxiraos/editor` npm 面 | `editor/` |
-| Electron 壳（**暂停**） | `desktop/src/main.ts`（不新增代码） |
+| Work Studio 桌面壳（Electron / 无浏览器引擎两版） | `desktop/`；渲染器与内核复用 `web-app/` + `packages/coding-agent`，不新增第二套 UI 代码 |
 
 依赖方向不可倒：`web-app/` 只经 HTTP 打 `/api/v1/*`（Studio 宿主，由它转 gateway）；
 `desktop/`、`web-ui/` 属冻结/暂停面，同样只走 HTTP，

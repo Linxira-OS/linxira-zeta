@@ -106,6 +106,15 @@ gateway, so one port is enough:
 See [zeta-serve-web.md](./zeta-serve-web.md) and
 [web-ui/api.md](./web-ui/api.md).
 
+## Desktop editions
+
+Work Studio ships as a desktop application in two editions from one runtime:
+the Electron edition (bundled Chromium, NSIS/zip/AppImage/deb) and the browser
+edition (no bundled engine, launcher starts `zetacode serve` and opens the
+default browser). Both carry the compiled `zeta` kernel, native addons and the
+`web-app` renderer, so a target machine needs neither Bun nor Node. See
+[desktop-app.md](./desktop-app.md).
+
 ## Ultra plan mode
 
 Plan mode has three entry points: `/plan` (parallel, the default), `/plan
