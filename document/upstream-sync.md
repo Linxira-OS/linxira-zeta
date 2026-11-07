@@ -1,10 +1,11 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.16.0
+## Integrated through: v18.18.0
 
-_(`v18.15.0` was the header until 2026-11-05; the v18.16.0 round below merged to
-`main` at `1ea59944579` and shipped as `v1.4.9` (`04fe9e6e0c5`), and is an
-ancestor of the 1.4.10 tree — the header had lagged one round.)_
+_(`v18.16.0` was the header until 2026-11-08; the v18.18.0 round below is
+merged onto `sync/omp-release/v18.18.0`, and post-PR-#245 `main` is merged in
+on top. Previous headers: `v18.15.0` until 2026-11-05, `v18.16.0` until this
+round.)_
 
 ## Sync cadence: on demand (2026-10-21 ruling)
 
@@ -2696,7 +2697,8 @@ This is an attribution obligation, not a claim that upstream endorses Zeta.
 
 - OMP: `v18.18.0` (`b5a6b2f7e5b6606b6562e678ead83f21738f34a0`; integrated on
   `sync/omp-release/v18.18.0` by merge `ba08701454e`, with `main`
-  (`78aae45a933`) merged in afterwards as `0cc3f24f623`; awaiting push/CI).
+  (`78aae45a933`) merged in afterwards as `0cc3f24f623`, then post-PR-#245
+  `main` (`cc0d9d203ce`) as `7ca4384a291`; CI green on the branch).
   Previous value was `v18.16.0` (`650f3a108229ee11bf68ba3377f4e8c3391cd424`,
   baseline for the incremental merge, integrated into `main` by merge
   `dc0d77f037c`), then `v18.15.0` (`3fedf8d53267`, merge `2fffbf6b95a`),
@@ -2717,7 +2719,8 @@ This is an attribution obligation, not a claim that upstream endorses Zeta.
   `crates/app`), so replay and binary rebuilds must be budgeted; do not mix it
   into the `v18.16.0` sync branch.
 - In flight: `sync/omp-release/v18.18.0` (merge `ba08701454e` + main merge
-  `0cc3f24f623`), pushed for CI. Delete the branch after it merges to `main`.
+  `0cc3f24f623` + post-#245 main merge `7ca4384a291`), pushed for CI. Delete
+  the branch after it merges to `main`.
 
 ### Zeta-side flake hardening（2026-10-17）
 
@@ -3040,3 +3043,44 @@ observation points moved onto the state each assertion actually depends on.
   is checked by `cargo fmt` only, and `MODULE.bazel.lock` was not regenerated
   (upstream's retained). Run `gen:compat`, `cargo check`, the full suite and a
   bazel lock refresh on Linux/CI before merging to `main`.
+
+### Post-PR-#245 main merge (2026-11-08)
+
+- **Main**: `cc0d9d203ce49a4e05d29445076f8f8c2ddb42c2` (PR #245: remove
+  upstream Tern/OMP runtime compatibility) merged as a **true merge**
+  `7ca4384a291a147d522e4da64a407a15c45799ea` (parents `0af0ba489d0` +
+  `cc0d9d203ce`). No squash/rebase/cherry-pick.
+- **Tag-to-tag scope unchanged**: baseline `v18.16.0` → source `v18.18.0`;
+  `git merge-base --is-ancestor v18.18.0 HEAD` still holds after this merge.
+- **Conflicts**: 6 files. `docs/settings.md` keeps the runtime-first precedence
+  documented by the v18.18 registry semantics; `docs/environment-variables.md`
+  drops the legacy-OMP section; `model-registry.ts` keeps the v18.18
+  mirror/owner fields and drops every OMP overlay field/method;
+  `interactive-mode.ts` takes main's Tern-free session-change handler;
+  `tab-supervisor.ts` takes main's Tern-free viewport/reuse body but keeps
+  v18.18's `reuse()` note return; `terminal-title-state.test.ts` keeps the
+  v18.18 spinner-interval import.
+- **Compat cleanup carried over**: 24 main-side deletions applied (Tern browser
+  tree, `config/omp-compat.ts` + tests, skillshare preview, legacy plugin
+  lockfile test), 11 additions (studio team/docs/raw-config,
+  `zeta-plugins.ts` rename, `scripts/check-no-upstream-agent-compat.ts`).
+- **Residue fixes**: regenerated
+  `packages/coding-agent/src/export/html/viewer.generated.{json,ts}` with
+  `bun run gen:export-viewer --write` (the stale artifact still carried
+  `ompMarkdown`/`ompExportViewer`/`.ompshare`); renamed the v18.18 wire
+  sentinel `__ompAsyncJobManagerShutdown` to
+  `__zetaAsyncJobManagerShutdown` so `check-no-upstream-agent-compat` is clean.
+- **Gates after the merge**: `check-version-consistency` 1.4.11;
+  `check-zeta-sentinels` 118 (one Tern sentinel retired); `brand-check` 0;
+  `check-scope-imports` 22,217; `check-shared-infra` 16 endpoints / 5,119
+  files; `check-doc-host-parity` 162 pages; `check-local-ci-parity` 16
+  mirrored jobs; `check-no-upstream-agent-compat` clean; i18n 3,085 keys /
+  322 command descriptions; `check:tools` clean; `check-merge-lineage`
+  intact; `check-package-json-merge` OK (3 merge commits, no branch-side leaf
+  dropped); `cargo fmt --all --check` clean; `packages/coding-agent`
+  `check:types` green (5,363 files); targeted tests green
+  (`terminal-title-state`, `settings-zh`, `i18n-tips-coverage`,
+  `model-registry`, `export-html-template`, browser open options).
+- **Environment note**: the local Windows host cannot create symlinks without
+  Developer Mode, so `browser-open-options`' UUID-symlink test fails locally
+  with `EPERM`; it is not a merge regression and runs on Linux CI.
