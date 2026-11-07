@@ -3,7 +3,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { getPluginsDir, getPluginsLockfile, PLUGINS_LOCKFILE_CANONICAL } from "@linxiraos/pi-utils";
 import { getPluginSettings } from "@linxiraos/zeta/extensibility/plugins/loader";
-import { readPluginRuntimeConfig, writePluginRuntimeConfig } from "@linxiraos/zeta/extensibility/plugins/runtime-config";
+import {
+	readPluginRuntimeConfig,
+	writePluginRuntimeConfig,
+} from "@linxiraos/zeta/extensibility/plugins/runtime-config";
 
 /**
  * Plugin runtime state lives in one file, and only its canonical Zeta name is

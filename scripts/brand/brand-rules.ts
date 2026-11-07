@@ -532,7 +532,12 @@ export const MUST_NOT_CONTAIN: Array<{
 	{
 		needle: /(?<![A-Za-z0-9])ompcast/,
 		why: "session-recording extension/format key is zetacast; the two read-old sites are the deliberate upgrade path for recordings captured by an earlier install, not brand residue",
-		exempt: ["CHANGELOG.md", "src/stream/recording.ts", "test/stream/recording-compat.test.ts", "scripts/check-no-upstream-agent-compat.ts"],
+		exempt: [
+			"CHANGELOG.md",
+			"src/stream/recording.ts",
+			"test/stream/recording-compat.test.ts",
+			"scripts/check-no-upstream-agent-compat.ts",
+		],
 	},
 	{
 		needle: /(?<![A-Za-z0-9`])omp --/,
