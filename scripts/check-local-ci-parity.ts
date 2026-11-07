@@ -42,6 +42,7 @@ const EXCLUDED: Record<string, string> = {
 	release_binary: "release chain",
 	release_product_binaries: "release chain",
 	release_desktop_archives: "release chain",
+	release_desktop: "release chain (Electron/browser desktop packaging is GitHub-runner only)",
 	release_native_leaves: "release chain",
 	release_github: "release chain",
 	release_npm: "release chain",
