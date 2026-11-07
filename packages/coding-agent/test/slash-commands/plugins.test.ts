@@ -103,7 +103,7 @@ describe("/plugins live enable and disable", () => {
 		);
 		await Bun.write(
 			path.join(pluginsDir, "node_modules", name, "package.json"),
-			JSON.stringify({ name, version: "1.0.0", omp: {} }),
+			JSON.stringify({ name, version: "1.0.0", zeta: {} }),
 		);
 		await Bun.write(
 			path.join(pluginsDir, "node_modules", name, "skills", "npm-skill", "SKILL.md"),

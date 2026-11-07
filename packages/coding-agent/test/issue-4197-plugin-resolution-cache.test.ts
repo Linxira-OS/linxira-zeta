@@ -42,14 +42,14 @@ test("getEnabledPlugins caches repeated discovery for the same cwd and home unti
 	await writeJson(pluginPackageJson, {
 		name: "omp-cache-repro",
 		version: "1.0.0",
-		omp: { tools: "tools" },
+		zeta: { tools: "tools" },
 	});
 
 	const [firstPlugin] = await getEnabledPlugins(cwd, { home });
 	await writeJson(pluginPackageJson, {
 		name: "omp-cache-repro",
 		version: "2.0.0",
-		omp: { tools: "tools" },
+		zeta: { tools: "tools" },
 	});
 	const [cachedPlugin] = await getEnabledPlugins(cwd, { home });
 

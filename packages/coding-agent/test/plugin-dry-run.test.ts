@@ -101,7 +101,7 @@ describe("plugin --dry-run beyond install, uninstall and link", () => {
 			JSON.stringify({
 				name: LINKED,
 				version: "1.0.0",
-				omp: {
+				zeta: {
 					features: { search: { description: "search", default: false } },
 					settings: { apiKey: { type: "string", description: "key" } },
 				},

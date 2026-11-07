@@ -148,7 +148,7 @@ describe("extensions discovery", () => {
 			path.join(packageDir, "package.json"),
 			JSON.stringify({
 				name: "explicit-package",
-				omp: {
+				zeta: {
 					extensions: ["./src/main.ts"],
 				},
 			}),
@@ -237,7 +237,7 @@ describe("extensions discovery", () => {
 			path.join(packageDir, "package.json"),
 			JSON.stringify({
 				name: "explicit-package",
-				omp: {
+				zeta: {
 					extensions: ["./src/main.ts"],
 				},
 			}),
@@ -440,7 +440,7 @@ describe("extensions discovery", () => {
 		fs.writeFileSync(path.join(realDir, "index.ts"), extensionCodeWithTool("ctk-tool"));
 		fs.writeFileSync(
 			path.join(realDir, "package.json"),
-			JSON.stringify({ name: "ctk", omp: { extensions: ["./index.ts"] } }),
+			JSON.stringify({ name: "ctk", zeta: { extensions: ["./index.ts"] } }),
 		);
 		fs.symlinkSync(realDir, path.join(extensionsDir, "ctk"), "dir");
 
@@ -540,7 +540,7 @@ describe("extensions discovery", () => {
 		fs.writeFileSync(path.join(configuredDir, "index.ts"), extensionCodeWithTool("decoy-index"));
 		fs.writeFileSync(
 			path.join(configuredDir, "package.json"),
-			JSON.stringify({ omp: { extensions: ["./missing.ts"] } }),
+			JSON.stringify({ zeta: { extensions: ["./missing.ts"] } }),
 		);
 
 		const paths = await discoverExtensionPaths([configuredDir], tempDir.path(), undefined, { ambient: false });
@@ -582,7 +582,7 @@ describe("extensions discovery", () => {
 				name: "pi-extension-with-deps",
 				version: "1.0.0",
 				type: "module",
-				omp: { extensions: ["./index.ts"] },
+				zeta: { extensions: ["./index.ts"] },
 			}),
 		);
 

@@ -975,7 +975,7 @@ describe("PluginManager.install with git sources", () => {
 							.then(() =>
 								Bun.write(
 									path.join(linkPath, "package.json"),
-									JSON.stringify({ name: "ida-mcp", version: "2.0.0", omp: { extensions: ["./missing.ts"] } }),
+									JSON.stringify({ name: "ida-mcp", version: "2.0.0", zeta: { extensions: ["./missing.ts"] } }),
 								),
 							)
 					: Promise.resolve(0);

@@ -51,7 +51,7 @@ async function writePluginPackage(pluginsNodeModules: string, name: string, fixt
 				name,
 				version: fixture.version,
 				...(fixture.peerDependencies ? { peerDependencies: fixture.peerDependencies } : {}),
-				omp: { extensions: ["./dist/extension.ts"] },
+				zeta: { extensions: ["./dist/extension.ts"] },
 			},
 			null,
 			2,
@@ -446,7 +446,7 @@ describe("PluginManager.install load validation", () => {
 						{
 							name: "partial-plugin",
 							version: "1.0.0",
-							omp: { extensions: ["./dist/valid.ts", "./dist/missing.ts"] },
+							zeta: { extensions: ["./dist/valid.ts", "./dist/missing.ts"] },
 						},
 						null,
 						2,
@@ -625,7 +625,7 @@ describe("PluginManager.install load validation", () => {
 				{
 					name: "git-plugin",
 					version: "1.0.0",
-					omp: {
+					zeta: {
 						extensions: ["./dist/extension.ts"],
 						features: { keep: { description: "keep me" } },
 					},

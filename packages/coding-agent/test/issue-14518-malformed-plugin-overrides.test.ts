@@ -41,7 +41,7 @@ async function plantRoot(prefix: string): Promise<{ home: string; cwd: string; p
 	await writeJson(path.join(declaredDir, "package.json"), {
 		name: "declared-plugin",
 		version: "1.0.0",
-		omp: { extensions: ["ext.ts"] },
+		zeta: { extensions: ["ext.ts"] },
 	});
 	await writeJson(path.join(pluginsDir, "package.json"), { dependencies: { "declared-plugin": "1.0.0" } });
 	await writeJson(path.join(pluginsDir, "zeta-plugins.lock.json"), {

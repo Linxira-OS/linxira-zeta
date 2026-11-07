@@ -54,7 +54,7 @@ function buildMinimalFixture(): string {
 		JSON.stringify({
 			name: "hello-plugin",
 			version: "1.0.0",
-			omp: { extensions: ["./extensions"] },
+			zeta: { extensions: ["./extensions"] },
 		}),
 	);
 	fs.writeFileSync(path.join(pluginDir, "extensions", "index.ts"), "export default {};\n");
@@ -707,7 +707,7 @@ describe("MarketplaceManager", () => {
 			`${JSON.stringify({
 				name: "hello-plugin",
 				version: "9.9.9",
-				omp: { tools: "tools" },
+				zeta: { tools: "tools" },
 			})}\n`,
 		);
 		fs.mkdirSync(path.join(localPlugin, "tools"), { recursive: true });

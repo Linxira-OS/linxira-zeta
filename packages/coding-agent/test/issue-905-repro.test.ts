@@ -81,7 +81,7 @@ export default function () {}
 	);
 	await fs.writeFile(
 		tmp.join("explicit-package", "package.json"),
-		JSON.stringify({ name: "explicit-package", omp: { extensions: ["./src/main.ts"] } }),
+		JSON.stringify({ name: "explicit-package", zeta: { extensions: ["./src/main.ts"] } }),
 	);
 	await fs.writeFile(
 		tmp.join("explicit-package", "hooks", "pre", "models-poison.ts"),

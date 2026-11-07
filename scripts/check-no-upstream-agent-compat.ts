@@ -35,6 +35,10 @@ const FORBIDDEN: ReadonlyArray<{ pattern: RegExp; why: string }> = [
 	{ pattern: /\bomp\.(?:hud|composer|review|plan|queue|working)\./, why: "Tern OMP role projection is removed" },
 	{ pattern: /\.omp-plugin\b/, why: "legacy OMP plugin discovery is removed" },
 	{ pattern: /\bomp-plugins\b/, why: "legacy OMP provider/lockfile naming is removed" },
+	{
+		pattern: /PLUGIN_MANIFEST_KEYS\s*=\s*\[[^\]]*["']omp["']/,
+		why: "the upstream manifest key omp is not read; Zeta reads only its own keys",
+	},
 	{ pattern: /\bcompat\.importLegacyOmp\b/, why: "automatic OMP storage import is removed" },
 	{ pattern: /\bZETA_OMP_COMPAT\b/, why: "automatic OMP compatibility switch is removed" },
 	{

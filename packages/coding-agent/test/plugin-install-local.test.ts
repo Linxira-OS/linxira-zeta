@@ -45,7 +45,7 @@ async function createLocalPlugin(root: string, name = "kimi-datasource"): Promis
 		JSON.stringify({
 			name,
 			version: "1.0.0",
-			omp: { extensions: ["./src/extension.ts"] },
+			zeta: { extensions: ["./src/extension.ts"] },
 		}),
 	);
 	return localPlugin;

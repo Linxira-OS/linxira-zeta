@@ -38,7 +38,7 @@ async function plantRoot(prefix: string): Promise<{ home: string; cwd: string; m
 	await writeJson(path.join(declaredDir, "package.json"), {
 		name: "declared-plugin",
 		version: "1.0.0",
-		omp: { extensions: ["ext.ts"] },
+		zeta: { extensions: ["ext.ts"] },
 	});
 
 	const manifest = path.join(pluginsDir, "package.json");
@@ -89,7 +89,7 @@ test.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
 		await writeJson(otherManifest, {
 			name: "other-plugin",
 			version: "2.0.0",
-			omp: { extensions: ["ext.ts"] },
+			zeta: { extensions: ["ext.ts"] },
 		});
 		await writeJson(path.join(pluginsDir, "package.json"), {
 			dependencies: { "declared-plugin": "1.0.0", "other-plugin": "2.0.0" },
