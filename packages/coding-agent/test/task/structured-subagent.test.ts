@@ -19,10 +19,7 @@ import { getBundledAgent } from "@linxiraos/zeta/task/agents";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { AgentCompactionThresholdOverride } from "@linxiraos/zeta/config/compaction-threshold";
-import type {
-	BeforeSubagentSpawnEvent,
-	LoadExtensionsResult,
-} from "@linxiraos/zeta/extensibility/extensions/types";
+import type { BeforeSubagentSpawnEvent, LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
 import {
 	artifactsDirsFromRegistry,
 	resetRegisteredArtifactDirsForTests,

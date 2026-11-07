@@ -1,10 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-	countTokens,
-	MIN_SAVED_TOKENS,
-	newShapeState,
-	shapeResult,
-} from "@linxiraos/zeta/spotlight/shape/index";
+import { countTokens, MIN_SAVED_TOKENS, newShapeState, shapeResult } from "@linxiraos/zeta/spotlight/shape/index";
 import type {
 	CallContext,
 	Scorer,

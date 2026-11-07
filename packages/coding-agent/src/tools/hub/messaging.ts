@@ -124,8 +124,8 @@ export function drainPendingInbox(registry: AgentRegistryApi, senderId: string, 
 	const session = registry.get(senderId)?.session;
 	return typeof session?.drainPendingIrcInboxMessages === "function"
 		? session.drainPendingIrcInboxMessages(senderId, {
-			ifAny: msg => from === undefined || msg.from === from,
-		})[0]
+				ifAny: msg => from === undefined || msg.from === from,
+			})[0]
 		: undefined;
 }
 

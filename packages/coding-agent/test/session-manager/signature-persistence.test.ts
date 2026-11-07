@@ -1,7 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AssistantMessage, CursorHistoryPayload, GeminiNativeContentPayload, ImageContent } from "@linxiraos/pi-ai";
+import type {
+	AssistantMessage,
+	CursorHistoryPayload,
+	GeminiNativeContentPayload,
+	ImageContent,
+} from "@linxiraos/pi-ai";
 import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { getBlobsDir, TempDir } from "@linxiraos/pi-utils";

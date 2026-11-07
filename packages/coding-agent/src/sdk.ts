@@ -440,7 +440,13 @@ import {
 } from "./mcp/settings";
 import { cfgPlanEnabled } from "./plan-mode/settings";
 import { cfgSecretsEnabled } from "./secrets/settings";
-import { cfgTaskBatch, cfgTaskDisabledAgents, cfgTaskEager, cfgTaskMaxConcurrency, ovnfsCommand } from "./task/settings";
+import {
+	cfgTaskBatch,
+	cfgTaskDisabledAgents,
+	cfgTaskEager,
+	cfgTaskMaxConcurrency,
+	ovnfsCommand,
+} from "./task/settings";
 
 /** Agent-level tool-call switches, snapshotted by the agent loop per prompt run. */
 const cfgToolCallSwitches = combine({

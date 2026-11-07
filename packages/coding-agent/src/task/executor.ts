@@ -3808,10 +3808,7 @@ export interface FollowUpTurnOptions {
  * {@link AgentSession}.
  */
 async function ensureLocalLive(id: string, model?: string): Promise<AgentSession> {
-	const session = await AgentLifecycleManager.global().ensureLive(
-		id,
-		model !== undefined ? { model } : undefined,
-	);
+	const session = await AgentLifecycleManager.global().ensureLive(id, model !== undefined ? { model } : undefined);
 	if (!isLocalAgentSession(session)) {
 		throw new Error(`Subagent ${id} is homed on another thread; its follow-up turn must run there.`);
 	}

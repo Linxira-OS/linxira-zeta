@@ -1,9 +1,5 @@
 import { expect, test } from "bun:test";
-import {
-	closeLaunchedBrowser,
-	launchHeadlessBrowser,
-	removeUserDataDir,
-} from "@linxiraos/zeta/tools/browser/launch";
+import { closeLaunchedBrowser, launchHeadlessBrowser, removeUserDataDir } from "@linxiraos/zeta/tools/browser/launch";
 import { chromiumAvailable } from "./chromium-probe";
 declare const location: { hostname: string };
 

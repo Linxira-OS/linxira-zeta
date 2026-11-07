@@ -127,7 +127,11 @@ describe("bash native run box", () => {
 				).body,
 			)[0];
 		const live = describe();
-		expect(sections(live)).toEqual(["shell:zeta.tool.bash.command", "ansi:zeta.tool.bash.output", "row:zeta.run.foot"]);
+		expect(sections(live)).toEqual([
+			"shell:zeta.tool.bash.command",
+			"ansi:zeta.tool.bash.output",
+			"row:zeta.run.foot",
+		]);
 		const [pane, output] = nodes(live?.c);
 		expect(props(pane).inspector).toBeUndefined();
 		// The same folded command preview as the plain command's code.

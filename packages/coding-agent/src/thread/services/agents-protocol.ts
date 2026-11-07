@@ -80,7 +80,10 @@ export interface UnansweredSend {
 
 /** `IrcBusApi` over the link. */
 export type IrcBusProtocol = {
-	send: RpcMethod<[msg: Omit<IrcMessage, "id" | "ts">, opts?: { expectsReply?: boolean; suppressRelay?: boolean }], IrcDeliveryReceipt>;
+	send: RpcMethod<
+		[msg: Omit<IrcMessage, "id" | "ts">, opts?: { expectsReply?: boolean; suppressRelay?: boolean }],
+		IrcDeliveryReceipt
+	>;
 	sentSince: RpcMethod<[from: string, to: string, sinceTs: number], boolean>;
 	unansweredSends: RpcMethod<[from: string, sinceTs: number], UnansweredSend[]>;
 	wait: RpcMethod<

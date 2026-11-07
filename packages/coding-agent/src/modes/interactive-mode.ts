@@ -81,7 +81,12 @@ import type { BackendAttachLink } from "../backend/attach-link";
 import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import { appKey, editorKey, rawKeyHint } from "@linxiraos/pi-tui/chrome/keybinding-hints";
-import { formatModelString, formatModelStringWithRouting, resolveModelRoleValue, type ResolvedModelRoleValue } from "../config/model-resolver";
+import {
+	formatModelString,
+	formatModelStringWithRouting,
+	resolveModelRoleValue,
+	type ResolvedModelRoleValue,
+} from "../config/model-resolver";
 import { isSettingsInitialized, Settings, settings } from "../config/settings";
 import { clearClaudePluginRootsCache } from "../discovery/helpers";
 import type {

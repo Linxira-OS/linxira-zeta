@@ -7,7 +7,12 @@ import { HistoryProtocolHandler } from "@linxiraos/zeta/internal-urls/history-pr
 import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry, type AgentRegistryApi, getAgentTombstonePath, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
+import {
+	AgentRegistry,
+	type AgentRegistryApi,
+	getAgentTombstonePath,
+	MAIN_AGENT_ID,
+} from "@linxiraos/zeta/registry/agent-registry";
 import { ensurePersistedRoster, registerPersistedSubagents } from "@linxiraos/zeta/registry/persisted-agents";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";

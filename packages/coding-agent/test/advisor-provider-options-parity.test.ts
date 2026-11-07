@@ -27,10 +27,7 @@ import { TempDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { endpoint as responsesEndpoint } from "../../ai/test/fixtures/openai-responses-server";
 
-import {
-	cfgProvidersOpenaiResponsesWebsockets,
-	cfgProvidersOpenaiWebsockets,
-} from "@linxiraos/zeta/session/settings";
+import { cfgProvidersOpenaiResponsesWebsockets, cfgProvidersOpenaiWebsockets } from "@linxiraos/zeta/session/settings";
 
 /** Provider-facing advisor session ids must be UUIDv7 (issue #5040): Codex writes
  *  them verbatim onto `conversation_id`/`session_id` headers, so `-advisor`

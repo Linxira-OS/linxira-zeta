@@ -20,7 +20,14 @@
  * references to the originals.
  */
 import type { AgentMessage, ThinkingLevel } from "@linxiraos/pi-agent-core";
-import type { Effort, ImageContent, Model, ServiceTierByFamily, ToolResultMessage, UsageReport } from "@linxiraos/pi-ai";
+import type {
+	Effort,
+	ImageContent,
+	Model,
+	ServiceTierByFamily,
+	ToolResultMessage,
+	UsageReport,
+} from "@linxiraos/pi-ai";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";

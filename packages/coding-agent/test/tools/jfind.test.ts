@@ -10,11 +10,7 @@ import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls/router";
 import { InternalUrlFilesystem } from "@linxiraos/zeta/internal-urls/url-filesystem";
 import { ChainJudge } from "@linxiraos/zeta/judgment";
 import { FIND_TIMEOUT_MS, FindTool } from "@linxiraos/zeta/tools/jfind";
-import {
-	type SpotlightClient,
-	SpotlightError,
-	type SpotlightRequest,
-} from "@linxiraos/zeta/spotlight/client";
+import { type SpotlightClient, SpotlightError, type SpotlightRequest } from "@linxiraos/zeta/spotlight/client";
 import { type CascadeSpotlight, runCascade } from "@linxiraos/zeta/tools/jfind/cascade";
 import { keywordsFromQuery } from "@linxiraos/zeta/tools/jfind/keywords";
 import { grepIndex } from "@linxiraos/zeta/tools/jfind/lexical";

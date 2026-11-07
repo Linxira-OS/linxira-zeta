@@ -350,7 +350,10 @@ export class WelcomeComponent implements Component {
 							[
 								art([span("Zeta", "strong")], "zeta.welcome.wordmark"),
 								art(
-									[span(`v${this.version}`, "dim mono"), ...(this.#versionUpdate ? versionUpdateSpans(this.#versionUpdate) : [])],
+									[
+										span(`v${this.version}`, "dim mono"),
+										...(this.#versionUpdate ? versionUpdateSpans(this.#versionUpdate) : []),
+									],
 									"zeta.welcome.version",
 								),
 								art([span("Linxira-Zeta", "dim")], "zeta.welcome.subline"),

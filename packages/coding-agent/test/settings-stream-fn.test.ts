@@ -17,10 +17,7 @@ import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream
 import { bindEffects } from "@linxiraos/zeta/config/registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { cfgProvidersMuseCodeStoreResponses } from "@linxiraos/zeta/session/settings";
-import {
-	createSettingsAwareStreamFn,
-	resolveWebsocketPreference,
-} from "@linxiraos/zeta/session/settings-stream-fn";
+import { createSettingsAwareStreamFn, resolveWebsocketPreference } from "@linxiraos/zeta/session/settings-stream-fn";
 
 /** Settings whose global (persisted) layer holds `storeResponses`; a runtime override would outrank the env var. */
 function persistedStore(value: boolean | undefined): Settings {

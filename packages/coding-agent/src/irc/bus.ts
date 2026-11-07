@@ -13,7 +13,13 @@ import { type IrcDeliveryReceipt, type IrcMessage } from "@linxiraos/pi-tui/tool
 import { logger, Snowflake } from "@linxiraos/pi-utils";
 import * as path from "node:path";
 import { type AgentLifecycleApi, AgentLifecycleManager } from "../registry/agent-lifecycle";
-import { AgentRegistry, type AgentRegistryApi, isMainAgentAlias, MAIN_AGENT_ID, type AgentRef } from "../registry/agent-registry";
+import {
+	AgentRegistry,
+	type AgentRegistryApi,
+	isMainAgentAlias,
+	MAIN_AGENT_ID,
+	type AgentRef,
+} from "../registry/agent-registry";
 import { getMeshNode } from "../mesh/global";
 import { formatMeshAddress, tryParseMeshAddress } from "../mesh/envelope";
 import { evaluateGearCall, gearsFromSettings, type GearParty } from "../mesh/gears";
@@ -74,7 +80,10 @@ export class IrcAwaitTargetStopped extends Error {
 /** Public surface of the process-global IRC bus, implemented locally on main and by a proxy in workers. */
 export interface IrcBusApi {
 	/** Fire-and-forget delivery; the receipt reports how the message reached the recipient. */
-	send(msg: Omit<IrcMessage, "id" | "ts">, opts?: { expectsReply?: boolean; suppressRelay?: boolean }): Promise<IrcDeliveryReceipt>;
+	send(
+		msg: Omit<IrcMessage, "id" | "ts">,
+		opts?: { expectsReply?: boolean; suppressRelay?: boolean },
+	): Promise<IrcDeliveryReceipt>;
 	/** Whether `from` successfully sent `to` anything, progress included, at or after `sinceTs`. */
 	sentSince(from: string, to: string, sinceTs: number): boolean;
 	/** Agents `from` messaged directly at or after `sinceTs` that have not answered since. */

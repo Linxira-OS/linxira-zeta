@@ -686,7 +686,7 @@ async function runInteractiveMode(
 	subagentEventBus?: EventBus,
 	initialMessage?: string,
 	initialImages?: ImageContent[],
-		startDeferredStartupWork?: (mode: InteractiveMode) => void,
+	startDeferredStartupWork?: (mode: InteractiveMode) => void,
 	startupLease?: ComposerLease,
 	startupGoal?: string,
 	startupRestore?: () => Promise<RestoreOutcome>,

@@ -25,11 +25,7 @@ import {
 	waitForCdp,
 	waitForMainFrame,
 } from "@linxiraos/zeta/tools/browser/attach";
-import {
-	ensureChromiumExecutable,
-	loadPuppeteer,
-	RENDERER_PRIORITY_ARGS,
-} from "@linxiraos/zeta/tools/browser/launch";
+import { ensureChromiumExecutable, loadPuppeteer, RENDERER_PRIORITY_ARGS } from "@linxiraos/zeta/tools/browser/launch";
 import {
 	acquireBrowser,
 	type BrowserHandle,
