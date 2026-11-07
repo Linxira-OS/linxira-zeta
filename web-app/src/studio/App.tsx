@@ -82,9 +82,10 @@ import { I18nProvider, useI18n, type TranslationParams } from "./i18n";
 import { SHORTCUTS, formatShortcut, isPrimaryModifier } from "./keyboard/shortcuts";
 import { PLATFORM, nativeMenuOwnsShortcuts } from "./platform";
 import { fileManagerName } from "./platformCopy";
-import { HomePage, SecondaryPage } from "./HomePage";
+import { HomePage, ProfileEditDialog, SecondaryPage } from "./HomePage";
 import { HistoryPage } from "./HistoryPage";
 import { AgentHubPage, setHubIntent } from "./AgentHub";
+import { setTeamIntent, TeamPage } from "./team/TeamPage";
 import { CapabilitiesPage, setCapIntent, type CapTab } from "./CapabilitiesPage";
 import { ModelConfigPage, modelConfigHasUnsavedChanges, setModelConfigIntent } from "./ModelConfigPage";
 import { approvalPickerDisabled, ComposerApprovalPicker } from "./ComposerApprovalPicker";
@@ -204,6 +205,7 @@ import {
 import { desktopNotice, notifyAskConfirmation, clearAskConfirmationNotice } from "./settings/desktopNotice";
 import { StartupNotice } from "./StartupNotice";
 import { AppUpdateDialog } from "./AppUpdateDialog";
+import { DocsView } from "./docs/DocsView";
 import { useAppUpdate } from "./settings/appUpdate";
 import { avatarInitial, useOperatorProfile } from "./settings/operatorProfile";
 import {
@@ -279,7 +281,7 @@ import { buildGitStatusLookup, GIT_STATUS_META, type TreeGitStatus } from "./git
 
 const PREVIEW_PLAN_TITLE = PREVIEW_DECK_ITEMS.find((item) => item.kind === "plan")?.title ?? "Plan";
 
-const KNOWN_ROUTES: ReadonlyArray<Route> = ["home", "workbench", "history", "agent-hub", "capabilities", "model-config", "settings", "diagnostics", "media", "evaluation", "statistics"];
+const KNOWN_ROUTES: ReadonlyArray<Route> = ["home", "workbench", "history", "agent-hub", "capabilities", "model-config", "settings", "diagnostics", "media", "evaluation", "statistics", "team"];
 
 function parseStoredRoute(value: string | undefined): Route | undefined {
   return value !== undefined && (KNOWN_ROUTES as readonly string[]).includes(value) ? (value as Route) : undefined;
@@ -328,17 +330,18 @@ type ClientStateSource = StudioClient & {
   onState?: (listener: (state: ClientState) => void) => Unsubscribe;
 };
 
-type Route = "home" | "workbench" | "history" | "agent-hub" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics";
+type Route = "home" | "workbench" | "history" | "agent-hub" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics" | "team";
 type SecondaryRoute = Exclude<Route, "workbench">;
 
 function isSecondary(route: Route): route is SecondaryRoute {
-  return route === "home" || route === "history" || route === "agent-hub" || route === "capabilities" || route === "model-config" || route === "settings" || route === "diagnostics" || route === "media" || route === "evaluation" || route === "statistics";
+  return route === "home" || route === "history" || route === "agent-hub" || route === "team" || route === "capabilities" || route === "model-config" || route === "settings" || route === "diagnostics" || route === "media" || route === "evaluation" || route === "statistics";
 }
 
 const SECONDARY_META: Record<SecondaryRoute, { titleKey: string; icon: string }> = {
   statistics: {titleKey:"nav.statistics",icon:"pulse"},
   home: { titleKey: "nav.home", icon: "home" },
   history: { titleKey: "nav.history", icon: "history" },
+  team: { titleKey: "nav.team", icon: "network" },
   "agent-hub": { titleKey: "nav.agentHub", icon: "bot" },
   capabilities: { titleKey: "nav.capabilities", icon: "package" },
   "model-config": { titleKey: "nav.modelConfig", icon: "server" },
@@ -575,7 +578,7 @@ function runtimeStatusLabel(runtime?: ClientBootstrap["runtime"], t?: (k: string
 }
 
 type EditCommand = "undo" | "redo" | "cut" | "copy" | "paste" | "selectAll";
-type ShellDialog = "about" | "shortcuts";
+type ShellDialog = "about" | "shortcuts" | "docs";
 type WorkspaceCreationKind = "file" | "directory";
 type ArchivePending =
   | { kind: "preview"; threadId: string; title: string; streaming: boolean }
@@ -2728,7 +2731,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
           ref={ompBtnRef}
           type="button"
           className={`sb-user${hasUpdate ? " has-update" : ""}`}
-          aria-label={`${profile.displayName} · ${hasUpdate ? `${t("appUpdate.foundNewVersion")} v${effectiveUpdate?.version} · ` : ""}Zeta 状态与环境菜单`}
+          aria-label={`${profile.displayName} · ${hasUpdate ? `${t("appUpdate.foundNewVersion")} v${effectiveUpdate?.version} · ` : ""}Z Work Studio 状态与环境菜单`}
           aria-haspopup="menu"
           aria-expanded={chrome.ompMenuOpen}
           onClick={chrome.onToggleOmpMenu}
@@ -2868,6 +2871,8 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                 </div>
               ) : null}
               <div className="menu-sep" />
+              <MenuItem icon="network" onClick={() => { setTeamIntent("team"); chrome.onToggleOmpMenu(); onRoute("team"); }}>{t("nav.team")}</MenuItem>
+              <MenuItem icon="plug" onClick={() => { setTeamIntent("channels"); chrome.onToggleOmpMenu(); onRoute("team"); }}>{t("nav.channels")}</MenuItem>
               {runtimeCanReconnect(runtime) ? (
                 <MenuItem icon="refresh" onClick={() => { setDiagnosticsIntent("reconnect"); chrome.onToggleOmpMenu(); onRoute("diagnostics"); }}>{t("shell.reconnectRuntime")}</MenuItem>
               ) : null}
@@ -2921,7 +2926,7 @@ const TELEMETRY_CONTEXT_PARTS: ReadonlyArray<{ key: keyof NonNullable<SessionTel
   { key: "systemPromptTokens", label: "系统提示词", color: "#8a919c" },
   { key: "systemContextTokens", label: "系统上下文", color: "#64748b" },
   { key: "systemToolsTokens", label: "工具定义", color: "#d9930d" },
-  { key: "skillsTokens", label: "Skills", color: "#6e56cf" },
+  { key: "skillsTokens", label: "Skills", color: "#2563eb" },
   { key: "messagesTokens", label: "对话消息", color: "#3b9bd4" },
 ];
 
@@ -3011,7 +3016,7 @@ function RealContextPanel({ telemetry, view }: { telemetry: SessionTelemetrySnap
     { key: "systemPromptTokens", label: tr("shell.systemPrompt"), color: "#8a919c" },
     { key: "systemContextTokens", label: tr("shell.systemContext"), color: "#64748b" },
     { key: "systemToolsTokens", label: tr("shell.toolDefinitions"), color: "#d9930d" },
-    { key: "skillsTokens", label: "Skills", color: "#6e56cf" },
+    { key: "skillsTokens", label: "Skills", color: "#2563eb" },
     { key: "messagesTokens", label: tr("shell.chatMessages"), color: "#3b9bd4" },
   ];
   const context = telemetry?.context;
@@ -8750,7 +8755,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
             <TitleMenu id="help" label={t("menu.help")} openId={openMenu} onToggle={setOpenMenu}>
               <button className="menu-item" role="menuitem" onClick={() => openDialog("shortcuts")}>{t("menu.shortcuts")}</button>
               <button className="menu-item" role="menuitem" onClick={() => openDialog("about")}>{t("menu.about")}</button>
-              <button className="menu-item" role="menuitem" disabled data-tip={t("menu.documentation")}>{t("menu.documentation")}</button>
+              <button className="menu-item" role="menuitem" onClick={() => openDialog("docs")}>{t("menu.documentation")}</button>
             </TitleMenu>
           </>
         }
@@ -8822,6 +8827,8 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
                 />
               );
             })()
+          ) : pageRoute === "team" ? (
+            <TeamPage onOpenAgentHub={() => go("agent-hub")} />
           ) : pageRoute === "agent-hub" ? (
             <AgentHubPage
               {...(snapshot ? { snapshot } : {})}
@@ -9062,7 +9069,14 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
       {dialog ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setDialog(null)}>
           <div className="modal" role="dialog" aria-modal="true" aria-labelledby="shellDialogTitle" onMouseDown={(event) => event.stopPropagation()}>
-            {dialog === "about" ? (
+            {dialog === "docs" ? (
+              <>
+                <div className="modal-head" id="shellDialogTitle">{t("menu.documentation")}</div>
+                <div className="modal-body" style={{ padding: 0 }}>
+                  <DocsView />
+                </div>
+              </>
+            ) : dialog === "about" ? (
               <>
                 <div className="modal-head" id="shellDialogTitle">
                   <span className="about-head">
@@ -9072,7 +9086,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
                 </div>
                 <div className="modal-body">
                   <dl className="about-list">
-                    <div className="about-row"><dt>{t("common.product")}</dt><dd>Zeta</dd></div>
+                    <div className="about-row"><dt>{t("common.product")}</dt><dd>Z Work Studio</dd></div>
                     <div className="about-row"><dt>{t("appUpdate.currentVersion")}</dt><dd>{(previewMode.preview ? PREVIEW_APP_UPDATE.currentVersion : localAppVersion ?? appUpdate.state.updateInfo?.currentVersion) || "—"}</dd></div>
                     <div className="about-row"><dt>Client contract</dt><dd>v{CLIENT_CONTRACT_VERSION}</dd></div>
                     <div className="about-row"><dt>Runtime</dt><dd>{runtime?.status ?? t("common.unavailable")}{runtime?.classification ? ` · ${runtime.classification}` : ""}</dd></div>
@@ -9147,6 +9161,8 @@ export function App({ client }: { readonly client: StudioClient }) {
 function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
   const { t } = useI18n();
   const client = inputClient as ClientStateSource;
+  const { profile, update: updateProfile, persistAvatar } = useOperatorProfile();
+  const [onboardingOpen, setOnboardingOpen] = useState(profile.displayName === "");
   const executionTarget = useExecutionTarget();
   const [initialModelCommitted, setInitialModelCommitted] = useState(false);
   const [projectsSettled, setProjectsSettled] = useState(false);
@@ -9294,6 +9310,18 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
         <RemoteScopeNotice />
         {body}
         {initialModelCommitted && !state.loading ? <WorkbenchHealth /> : null}
+        {onboardingOpen ? (
+          <ProfileEditDialog
+            name={profile.displayName}
+            avatar={profile.avatarSrc}
+            onClose={() => setOnboardingOpen(false)}
+            onSave={async (next) => {
+              updateProfile({ displayName: next.displayName });
+              if (next.avatar !== undefined) await persistAvatar(next.avatar);
+              setOnboardingOpen(false);
+            }}
+          />
+        ) : null}
         <StartupNotice />
         <TipHost />
       </I18nProvider>

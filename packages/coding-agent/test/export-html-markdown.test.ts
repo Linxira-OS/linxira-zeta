@@ -63,7 +63,7 @@ function renderSession(session: MinimalSession) {
 	const context = vm.createContext({
 		window,
 		document,
-		ompMarkdown: { Marked },
+		zetaMarkdown: { Marked },
 		hljs: {
 			getLanguage: () => false,
 			highlight: () => ({ value: "" }),

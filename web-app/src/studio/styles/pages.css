@@ -682,6 +682,22 @@ img.profile-edit-avatar-img { display: block; }
    行宽微移，气泡对不齐），改由绝对定位的淡紫窗口盖住当前行，窗口内
    紫色镜像反向位移，盖住哪一行哪一行就透出 accent —— 和页头导航、
    模型配置标签栏同一套「遮盖变色」，只是沿竖轴平移。 */
+.cap-official-skills {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  flex-wrap: wrap;
+  margin: 0 0 var(--sp-12);
+  padding: var(--sp-8) var(--sp-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface);
+}
+.cap-official-skills > span {
+  font-size: var(--fs-12, 12px);
+  color: var(--text-2, var(--text));
+  margin-right: auto;
+}
 .cap-layout {
   display: flex;
   gap: var(--sp-24);

@@ -72,7 +72,7 @@ async function runConfigSet(tempDir: TempDir, settingsInit: SettingsInitMode): P
 	const env: Record<string, string | undefined> = { ...process.env, HOME: home, USERPROFILE: home, NO_COLOR: "1" };
 	delete env.ZETA_CODING_AGENT_DIR;
 	delete env.ZETA_CONFIG_DIR;
-	delete env.OMP_PROFILE;
+	delete env.ZETA_PROFILE;
 	delete env.PI_PROFILE;
 	delete env.XDG_CACHE_HOME;
 	delete env.XDG_CONFIG_HOME;

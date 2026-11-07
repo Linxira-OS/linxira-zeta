@@ -279,7 +279,6 @@ function readRegistryPackageJson(root: string): RegistryPackageJson | undefined 
 			dependencies: stringRecord(record.dependencies),
 			manifest: readPluginManifest({
 				zeta: asManifest(record.zeta),
-				omp: asManifest(record.omp),
 				pi: asManifest(record.pi),
 			}),
 		};

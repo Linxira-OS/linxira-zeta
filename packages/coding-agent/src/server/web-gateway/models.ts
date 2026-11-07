@@ -42,12 +42,10 @@ function json(data: unknown, status = 200): Response {
 
 export interface ModelsData {
 	models: Record<string, string>;
-	modelList: { id: string; name: string; provider: string; contextWindow?: number; origin?: "omp" }[];
+	modelList: { id: string; name: string; provider: string; contextWindow?: number }[];
 	defaultModel: { provider: string; modelId: string } | null;
 	thinkingLevels: Record<string, string[]>;
 	thinkingLevelMaps: Record<string, Record<string, string | null>>;
-	/** Provider ids whose catalog entries come from the upstream OMP config. */
-	ompProviders?: string[];
 	modelError?: string;
 }
 
@@ -106,7 +104,6 @@ async function loadModels(cwd: string): Promise<ModelsData> {
 	const settings = await Settings.init({ cwd });
 
 	const available = registry.getAvailable();
-	const ompProviders = registry.getOmpOriginProviders();
 	const enabledModels = cfgEnabledModels.get(settings);
 	const roles = cfgModelRoles.get(settings);
 
@@ -146,7 +143,7 @@ async function loadModels(cwd: string): Promise<ModelsData> {
 	const visible = filterByExactEnabledModels(available, enabledModels);
 
 	// 3. Merge role entries first (deduplicated), then the available models.
-	const combinedList: { id: string; name: string; provider: string; contextWindow?: number; origin?: "omp" }[] = [];
+	const combinedList: { id: string; name: string; provider: string; contextWindow?: number }[] = [];
 	for (const entry of roleModelEntries) {
 		if (!combinedList.some(x => x.provider === entry.provider && x.id === entry.id)) {
 			combinedList.push({ ...entry });
@@ -159,7 +156,6 @@ async function loadModels(cwd: string): Promise<ModelsData> {
 				name: model.name || model.id,
 				provider: model.provider,
 				contextWindow: model.contextWindow ?? undefined,
-				...(ompProviders.has(model.provider) ? { origin: "omp" as const } : {}),
 			});
 		}
 	}
@@ -189,7 +185,6 @@ async function loadModels(cwd: string): Promise<ModelsData> {
 		defaultModel,
 		thinkingLevels,
 		thinkingLevelMaps,
-		...(ompProviders.size > 0 ? { ompProviders: [...ompProviders].sort() } : {}),
 		...(modelError ? { modelError } : {}),
 	};
 }
@@ -218,40 +213,6 @@ export async function handleModels(req: Request): Promise<Response> {
 // GET/PUT /api/models-config — read/write the runtime models config file
 // ---------------------------------------------------------------------------
 
-/**
- * Add upstream OMP providers to a GET response as read-only mirrors: each
- * carries `origin: "omp"` and never its plaintext apiKey. Local providers are
- * never shadowed (they win by construction — the overlay skipped them).
- */
-export function mergeOmpProviderMirrors(
-	base: { providers?: Record<string, unknown> },
-	ompConfig: { providers?: Record<string, unknown> } | undefined,
-): Record<string, unknown> {
-	const providers = { ...(base.providers ?? {}) };
-	for (const [name, providerConfig] of Object.entries(ompConfig?.providers ?? {})) {
-		if (providers[name]) continue;
-		if (providerConfig && typeof providerConfig === "object" && !Array.isArray(providerConfig)) {
-			providers[name] = { ...providerConfig, apiKey: undefined, origin: "omp" };
-		}
-	}
-	return providers;
-}
-
-/** Remove `origin: "omp"` mirror entries so a panel save never persists upstream state. */
-export function stripOmpOriginProviders(providers: Record<string, unknown>): void {
-	for (const name of Object.keys(providers)) {
-		const provider = providers[name];
-		if (
-			provider &&
-			typeof provider === "object" &&
-			!Array.isArray(provider) &&
-			(provider as Record<string, unknown>).origin === "omp"
-		) {
-			delete providers[name];
-		}
-	}
-}
-
 export async function handleModelsConfigGet(modelsPath: string = ModelsConfigFile.path()): Promise<Response> {
 	const layers = loadModelsLayers(modelsPath);
 	const merged = mergeModelsConfigs(layers.user, layers.web) ?? { providers: {} };
@@ -260,13 +221,7 @@ export async function handleModelsConfigGet(modelsPath: string = ModelsConfigFil
 	for (const [name, provider] of Object.entries(merged.providers ?? {})) {
 		providers[name] = isRecord(provider) ? { ...provider, origin: origins[name] } : provider;
 	}
-	const base = { ...merged, providers };
-	try {
-		const registry = await getSharedModelRegistry();
-		return json({ ...base, providers: mergeOmpProviderMirrors(base, registry.getOmpCompatConfig()) });
-	} catch {
-		return json(base);
-	}
+	return json({ ...merged, providers });
 }
 
 export async function handleModelsConfigPut(
@@ -293,7 +248,6 @@ export async function handleModelsConfigPut(
 				ignored.push(name);
 				continue;
 			}
-			if (provider.origin === "omp") continue;
 			const { origin: _origin, ...config } = provider;
 			webProviders[name] = config;
 		}

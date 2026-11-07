@@ -163,12 +163,12 @@ describe("structured subagent primitive", () => {
 
 	it("rescans agents when a plugin provider is disabled while an earlier discovery is in flight", async () => {
 		const previouslyDisabled = getDisabledProviders();
-		enableProvider("omp-plugins");
+		enableProvider("zeta-plugins");
 		const firstEntered = Promise.withResolvers<void>();
 		const releaseFirst = Promise.withResolvers<void>();
 		let scans = 0;
 		vi.spyOn(discoveryModule, "discoverAgents").mockImplementation(async () => {
-			const pluginsEnabled = isProviderEnabled("omp-plugins");
+			const pluginsEnabled = isProviderEnabled("zeta-plugins");
 			if (++scans === 1) {
 				firstEntered.resolve();
 				await releaseFirst.promise;
@@ -179,7 +179,7 @@ describe("structured subagent primitive", () => {
 		try {
 			const first = resolveEffectiveSubagentPolicy(request({ agent: "plugin-worker" }));
 			await firstEntered.promise;
-			disableProvider("omp-plugins");
+			disableProvider("zeta-plugins");
 			const second = resolveEffectiveSubagentPolicy(request({ agent: "plugin-worker" }));
 			releaseFirst.resolve();
 
@@ -1278,7 +1278,7 @@ describe("structured subagent primitive", () => {
 
 describe("agent frontmatter structured opt-in", () => {
 	const MOCK_API_SOURCE = "test/structured-subagent-opt-in";
-	const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+	const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE"] as const;
 	let savedEnv: Record<string, string | undefined> = {};
 	let root: string;
 

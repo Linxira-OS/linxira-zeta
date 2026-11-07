@@ -47,7 +47,7 @@ describe("plugin extension discovery", () => {
 		fs.writeFileSync(
 			path.join(pluginsDir, "package.json"),
 			JSON.stringify({
-				name: "omp-plugins",
+				name: "zeta-plugins",
 				private: true,
 				dependencies: {
 					"@demo/plugin": "1.0.0",
@@ -59,7 +59,7 @@ describe("plugin extension discovery", () => {
 			JSON.stringify({
 				name: "@demo/plugin",
 				version: "1.0.0",
-				omp: {
+				zeta: {
 					extensions: ["./dist/extension.ts"],
 				},
 			}),
@@ -142,7 +142,7 @@ describe("plugin extension discovery", () => {
 		fs.writeFileSync(
 			path.join(pluginsDir, "package.json"),
 			JSON.stringify({
-				name: "omp-plugins",
+				name: "zeta-plugins",
 				private: true,
 				dependencies: {
 					"legacy-pi-plugin": "1.0.0",
@@ -205,7 +205,7 @@ describe("plugin extension discovery", () => {
 		fs.writeFileSync(
 			path.join(pluginsDir, "package.json"),
 			JSON.stringify({
-				name: "omp-plugins",
+				name: "zeta-plugins",
 				private: true,
 				dependencies: {
 					"package-import-plugin": "1.0.0",
@@ -264,7 +264,7 @@ describe("plugin extension discovery", () => {
 		fs.writeFileSync(
 			path.join(pluginsDir, "package.json"),
 			JSON.stringify({
-				name: "omp-plugins",
+				name: "zeta-plugins",
 				private: true,
 				dependencies: {
 					"conditional-import-plugin": "1.0.0",
@@ -325,7 +325,7 @@ describe("plugin extension discovery", () => {
 		fs.writeFileSync(
 			path.join(pluginsDir, "package.json"),
 			JSON.stringify({
-				name: "omp-plugins",
+				name: "zeta-plugins",
 				private: true,
 				dependencies: {
 					"json-import-plugin": "1.0.0",
@@ -374,7 +374,7 @@ describe("plugin extension discovery", () => {
 		fs.writeFileSync(
 			path.join(pluginsDir, "package.json"),
 			JSON.stringify({
-				name: "omp-plugins",
+				name: "zeta-plugins",
 				private: true,
 				dependencies: {
 					"null-exact-import-plugin": "1.0.0",
@@ -424,7 +424,7 @@ describe("plugin extension discovery", () => {
 		fs.writeFileSync(
 			path.join(pluginsDir, "package.json"),
 			JSON.stringify({
-				name: "omp-plugins",
+				name: "zeta-plugins",
 				private: true,
 				dependencies: {
 					"null-conditional-import-plugin": "1.0.0",
@@ -476,7 +476,7 @@ describe("plugin extension discovery", () => {
 		fs.writeFileSync(
 			path.join(pluginsDir, "package.json"),
 			JSON.stringify({
-				name: "omp-plugins",
+				name: "zeta-plugins",
 				private: true,
 				dependencies: {
 					"side-effect-plugin": "1.0.0",
@@ -556,7 +556,7 @@ describe("plugin extension discovery", () => {
 		fs.writeFileSync(
 			path.join(pluginsDir, "package.json"),
 			JSON.stringify({
-				name: "omp-plugins",
+				name: "zeta-plugins",
 				private: true,
 				dependencies: {
 					"dir-entry-plugin": "1.0.0",
@@ -602,7 +602,7 @@ describe("plugin extension discovery", () => {
 		fs.writeFileSync(
 			path.join(pluginsDir, "package.json"),
 			JSON.stringify({
-				name: "omp-plugins",
+				name: "zeta-plugins",
 				private: true,
 				dependencies: {
 					"subdir-entry-plugin": "1.0.0",
@@ -649,7 +649,7 @@ describe("plugin extension discovery", () => {
 		fs.writeFileSync(
 			path.join(pluginsDir, "package.json"),
 			JSON.stringify({
-				name: "omp-plugins",
+				name: "zeta-plugins",
 				private: true,
 				dependencies: {
 					"nested-manifest-plugin": "1.0.0",
@@ -668,7 +668,7 @@ describe("plugin extension discovery", () => {
 		// is a decoy that must NOT win (manifest takes precedence, like the -e scanner).
 		fs.writeFileSync(
 			path.join(featureDir, "package.json"),
-			JSON.stringify({ name: "feature-ext", version: "1.0.0", omp: { extensions: ["./dist/real-ext.ts"] } }),
+			JSON.stringify({ name: "feature-ext", version: "1.0.0", zeta: { extensions: ["./dist/real-ext.ts"] } }),
 		);
 		fs.writeFileSync(
 			realEntry,
@@ -707,7 +707,7 @@ describe("plugin extension discovery", () => {
 		fs.writeFileSync(
 			path.join(pluginsDir, "package.json"),
 			JSON.stringify({
-				name: "omp-plugins",
+				name: "zeta-plugins",
 				private: true,
 				dependencies: {
 					"missing-decl-plugin": "1.0.0",
@@ -726,7 +726,7 @@ describe("plugin extension discovery", () => {
 		// not exist (e.g. unbuilt). The leftover index.ts must NOT be loaded as a fallback.
 		fs.writeFileSync(
 			path.join(featureDir, "package.json"),
-			JSON.stringify({ name: "feature-ext", version: "1.0.0", omp: { extensions: ["./dist/real-ext.ts"] } }),
+			JSON.stringify({ name: "feature-ext", version: "1.0.0", zeta: { extensions: ["./dist/real-ext.ts"] } }),
 		);
 		fs.writeFileSync(
 			path.join(featureDir, "index.ts"),
@@ -753,7 +753,7 @@ describe("plugin extension discovery", () => {
 		fs.writeFileSync(
 			path.join(pluginsDir, "package.json"),
 			JSON.stringify({
-				name: "omp-plugins",
+				name: "zeta-plugins",
 				private: true,
 				dependencies: {
 					"dts-plugin": "1.0.0",
@@ -765,7 +765,7 @@ describe("plugin extension discovery", () => {
 			JSON.stringify({
 				name: "dts-plugin",
 				version: "1.0.0",
-				omp: { extensions: ["./extensions"] },
+				zeta: { extensions: ["./extensions"] },
 			}),
 		);
 		fs.writeFileSync(

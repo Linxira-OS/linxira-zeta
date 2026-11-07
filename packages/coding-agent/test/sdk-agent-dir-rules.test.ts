@@ -12,7 +12,7 @@ import { __resetDirsFromEnvForTests, setAgentDir, TempDir } from "@linxiraos/pi-
 
 const originalEnv = {
 	ZETA_CODING_AGENT_DIR: process.env.ZETA_CODING_AGENT_DIR,
-	OMP_PROFILE: process.env.OMP_PROFILE,
+	ZETA_PROFILE: process.env.ZETA_PROFILE,
 	PI_PROFILE: process.env.PI_PROFILE,
 };
 

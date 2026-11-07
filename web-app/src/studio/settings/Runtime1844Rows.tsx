@@ -41,6 +41,9 @@ function RuntimeSetting({ name, runtime, persist }: { name: GuiSettingKey; runti
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   };
   const hint = "note" in definition ? (zh ? definition.note : definition.noteEn) : "";
+  // No writer behind this row in a live Runtime: remove it rather than show a
+  // disabled "Unavailable" control. Preview keeps the demo interaction.
+  if (!preview && !enabled) return null;
   return <SettingRow label={label} desc={hint} source={!enabled ? "unavailable" : source === "global" ? "user" : source === "project" ? "project" : source === "default" ? "default" : "runtime"}
     reason={zh ? "当前 Runtime 未提供此设置" : "Unavailable in this Runtime"}>
     <div style={{ display: "grid", gap: 6, minWidth: 200, maxWidth: 420 }}>

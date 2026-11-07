@@ -37,8 +37,8 @@ describe("auth-broker migrate", () => {
 	const savedEnv: Record<string, string | undefined> = {};
 
 	beforeEach(async () => {
-		savedEnv.OMP_AUTH_BROKER_URL = process.env.OMP_AUTH_BROKER_URL;
-		savedEnv.OMP_AUTH_BROKER_TOKEN = process.env.OMP_AUTH_BROKER_TOKEN;
+		savedEnv.ZETA_AUTH_BROKER_URL = process.env.ZETA_AUTH_BROKER_URL;
+		savedEnv.ZETA_AUTH_BROKER_TOKEN = process.env.ZETA_AUTH_BROKER_TOKEN;
 		agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-migrate-client-"));
 		brokerAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-migrate-broker-"));
 		setAgentDir(agentDir);
@@ -52,8 +52,8 @@ describe("auth-broker migrate", () => {
 			bearerTokens: [token],
 			disableRefresher: true,
 		});
-		process.env.OMP_AUTH_BROKER_URL = handle.url;
-		process.env.OMP_AUTH_BROKER_TOKEN = token;
+		process.env.ZETA_AUTH_BROKER_URL = handle.url;
+		process.env.ZETA_AUTH_BROKER_TOKEN = token;
 	});
 
 	afterEach(async () => {
@@ -62,7 +62,7 @@ describe("auth-broker migrate", () => {
 		brokerStore?.close();
 		await removeWithRetries(agentDir);
 		await removeWithRetries(brokerAgentDir);
-		for (const key of ["OMP_AUTH_BROKER_URL", "OMP_AUTH_BROKER_TOKEN"] as const) {
+		for (const key of ["ZETA_AUTH_BROKER_URL", "ZETA_AUTH_BROKER_TOKEN"] as const) {
 			if (savedEnv[key] === undefined) delete process.env[key];
 			else process.env[key] = savedEnv[key];
 		}

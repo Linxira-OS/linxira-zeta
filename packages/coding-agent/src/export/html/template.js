@@ -1,7 +1,7 @@
     (function() {
       'use strict';
 
-      const markdownSource = (typeof ompMarkdown !== 'undefined' ? ompMarkdown?.Marked : undefined) ?? globalThis.ompMarkdown?.Marked ?? globalThis.marked;
+      const markdownSource = (typeof zetaMarkdown !== 'undefined' ? zetaMarkdown?.Marked : undefined) ?? globalThis.zetaMarkdown?.Marked ?? globalThis.marked;
       const marked = typeof markdownSource === 'function' ? new markdownSource() : markdownSource;
       const THEME_STORAGE_KEY = 'omp-export-theme';
       const themeSelect = document.getElementById('theme-select');
@@ -30,7 +30,7 @@
       //
       // Two boot paths share this template:
       //  - Static export: session JSON rides base64-embedded in #session-data.
-      //  - Share viewer: share-loader.js sets `window.__OMP_SESSION_DATA__` to
+      //  - Share viewer: share-loader.js sets `window.__ZETA_SESSION_DATA__` to
       //    a promise resolving to the session JSON (fetched + decrypted).
       // The entire app lives in bootSession(); its body keeps the original
       // one-level indentation to avoid a whole-file reindent.
@@ -1794,7 +1794,7 @@
         messages.appendChild(div);
       }
 
-      const pending = window.__OMP_SESSION_DATA__;
+      const pending = window.__ZETA_SESSION_DATA__;
       if (pending && typeof pending.then === 'function') {
         pending.then(bootSession, showLoadError);
       } else {

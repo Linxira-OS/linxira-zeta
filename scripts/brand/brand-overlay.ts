@@ -43,11 +43,9 @@ const REWRITES: Array<{ name: string; from: RegExp; to: string; exclude?: RegExp
 		name: "omp-path-fixture",
 		from: /(path\.join\([^)]*?)\.omp(?=\s*,\s*"(?:skills|agent|agents|plugins|cache)")/g,
 		to: "$1.zeta",
-		// config/omp-compat + config/model-registry probe the *upstream* OMP root
-		// (`~/.omp/agent`) on purpose (92f06c8b240); rewriting it made the probe
-		// re-read Zeta's own models.yml as a phantom "upstream overlay".
-		exclude:
-			/discovery\/(helpers|omp-plugins|claude-plugins)|omp-extension-roots|legacy-pi|config\/(omp-compat|model-registry)/,
+		// config/model-registry resolves its own models config; no upstream OMP
+		// root is probed any more.
+		exclude: /discovery\/(helpers|zeta-plugins|claude-plugins)|omp-extension-roots|legacy-pi|config\/model-registry/,
 	},
 	{
 		name: "mcp-schema-url",
@@ -71,23 +69,23 @@ const REWRITES: Array<{ name: string; from: RegExp; to: string; exclude?: RegExp
 		from: /(\W|^)\.omp(?![\w.-])/g,
 		to: "$1.zeta",
 		// CHANGELOG.md prose documents history (upstream paths as they were), and
-		// config/omp-compat|model-registry name the upstream root on purpose.
+		// config/model-registry names its own config root.
 		exclude:
-			/discovery\/(helpers|omp-plugins|claude-plugins)|omp-extension-roots|legacy-pi|title-generator|export\/share|browser-relay|plugins\/|loader\.ts|CHANGELOG\.md|config\/(omp-compat|model-registry)|utils\/(src\/env\.ts|test\/env\.test\.ts)/,
+			/discovery\/(helpers|zeta-plugins|claude-plugins)|omp-extension-roots|legacy-pi|title-generator|export\/share|browser-relay|plugins\/|loader\.ts|CHANGELOG\.md|config\/model-registry|utils\/(src\/env\.ts|test\/env\.test\.ts)/,
 	},
 	{
 		name: "omp-xdg-doc",
 		from: /(\$XDG_[A-Z_]+_HOME)\/omp\//g,
 		to: "$1/zeta/",
 		exclude:
-			/discovery\/(helpers|omp-plugins|claude-plugins)|omp-extension-roots|legacy-pi|title-generator|export\/share|browser-relay|plugins\/|loader\.ts/,
+			/discovery\/(helpers|zeta-plugins|claude-plugins)|omp-extension-roots|legacy-pi|title-generator|export\/share|browser-relay|plugins\/|loader\.ts/,
 	},
 	{
 		name: "omp-win-path",
 		from: /(\W|^)\.omp\\/g,
 		to: "$1.zeta\\",
 		exclude:
-			/discovery\/(helpers|omp-plugins|claude-plugins)|omp-extension-roots|legacy-pi|title-generator|export\/share|browser-relay|plugins\/|loader\.ts/,
+			/discovery\/(helpers|zeta-plugins|claude-plugins)|omp-extension-roots|legacy-pi|title-generator|export\/share|browser-relay|plugins\/|loader\.ts/,
 	},
 ];
 

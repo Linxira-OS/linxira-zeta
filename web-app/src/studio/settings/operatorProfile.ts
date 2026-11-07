@@ -32,7 +32,7 @@ export interface OperatorProfile {
 }
 
 export const DEFAULT_OPERATOR_PROFILE: OperatorProfile = {
-  displayName: "Studio",
+  displayName: "",
   avatarSrc: "",
 };
 
@@ -46,13 +46,13 @@ const AVATAR_DATA_URL_RE = /^data:(image\/(?:jpeg|jpg|png|webp));base64,([A-Za-z
 
 export function normalizeDisplayName(value: string): string {
   const trimmed = value.replace(/\s+/gu, " ").trim();
-  if (!trimmed) return DEFAULT_OPERATOR_PROFILE.displayName;
+  if (!trimmed) return "";
   return trimmed.slice(0, DISPLAY_NAME_MAX);
 }
 
 export function avatarInitial(name: string): string {
   const trimmed = name.trim();
-  if (!trimmed) return "S";
+  if (!trimmed) return "?";
   return Array.from(trimmed)[0]!.toLocaleUpperCase();
 }
 

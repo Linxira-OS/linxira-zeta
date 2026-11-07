@@ -146,7 +146,7 @@ describe("PluginManager.install with git sources", () => {
 		vi.spyOn(piUtils, "getPluginsDir").mockReturnValue(pluginsDir);
 		vi.spyOn(piUtils, "getPluginsNodeModules").mockReturnValue(pluginsNodeModules);
 		vi.spyOn(piUtils, "getPluginsPackageJson").mockReturnValue(pluginsPkgJson);
-		vi.spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(tmpRoot, "omp-plugins.lock.json"));
+		vi.spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(tmpRoot, "zeta-plugins.lock.json"));
 		vi.spyOn(piUtils, "getProjectDir").mockReturnValue(tmpRoot);
 		vi.spyOn(piUtils, "getProjectPluginOverridesPath").mockReturnValue(path.join(tmpRoot, "plugin-overrides.json"));
 	});
@@ -263,7 +263,7 @@ describe("PluginManager.install with git sources", () => {
 	test("prefixes raw non-GitHub https URLs with git+ before invoking bun install", async () => {
 		await Bun.write(
 			pluginsPkgJson,
-			JSON.stringify({ name: "omp-plugins", private: true, dependencies: {} }, null, 2),
+			JSON.stringify({ name: "zeta-plugins", private: true, dependencies: {} }, null, 2),
 		);
 
 		vi.spyOn(Bun, "spawn").mockImplementation(((cmd: string[]) => {
@@ -282,7 +282,7 @@ describe("PluginManager.install with git sources", () => {
 					pluginsPkgJson,
 					JSON.stringify(
 						{
-							name: "omp-plugins",
+							name: "zeta-plugins",
 							private: true,
 							dependencies: {
 								"example-plugin": "git+https://git.example.com/group/repo.git",
@@ -318,7 +318,7 @@ describe("PluginManager.install with git sources", () => {
 	test("strips inline userinfo credentials before invoking bun install", async () => {
 		await Bun.write(
 			pluginsPkgJson,
-			JSON.stringify({ name: "omp-plugins", private: true, dependencies: {} }, null, 2),
+			JSON.stringify({ name: "zeta-plugins", private: true, dependencies: {} }, null, 2),
 		);
 
 		vi.spyOn(Bun, "spawn").mockImplementation(((cmd: string[]) => {
@@ -335,7 +335,7 @@ describe("PluginManager.install with git sources", () => {
 					pluginsPkgJson,
 					JSON.stringify(
 						{
-							name: "omp-plugins",
+							name: "zeta-plugins",
 							private: true,
 							dependencies: {
 								"cred-plugin": "git+https://git.example.com/group/repo.git#v1.0.0",
@@ -371,7 +371,7 @@ describe("PluginManager.install with git sources", () => {
 	test("does not double the git+ prefix when the spec already carries one", async () => {
 		await Bun.write(
 			pluginsPkgJson,
-			JSON.stringify({ name: "omp-plugins", private: true, dependencies: {} }, null, 2),
+			JSON.stringify({ name: "zeta-plugins", private: true, dependencies: {} }, null, 2),
 		);
 
 		vi.spyOn(Bun, "spawn").mockImplementation(((cmd: string[]) => {
@@ -387,7 +387,7 @@ describe("PluginManager.install with git sources", () => {
 					pluginsPkgJson,
 					JSON.stringify(
 						{
-							name: "omp-plugins",
+							name: "zeta-plugins",
 							private: true,
 							dependencies: {
 								"prefix-cred-plugin": "git+https://git.example.com/group/repo.git#v1.0.0",
@@ -423,7 +423,7 @@ describe("PluginManager.install with git sources", () => {
 	test("normalizes an @ref path suffix to #ref exactly once", async () => {
 		await Bun.write(
 			pluginsPkgJson,
-			JSON.stringify({ name: "omp-plugins", private: true, dependencies: {} }, null, 2),
+			JSON.stringify({ name: "zeta-plugins", private: true, dependencies: {} }, null, 2),
 		);
 
 		vi.spyOn(Bun, "spawn").mockImplementation(((cmd: string[]) => {
@@ -438,7 +438,7 @@ describe("PluginManager.install with git sources", () => {
 					pluginsPkgJson,
 					JSON.stringify(
 						{
-							name: "omp-plugins",
+							name: "zeta-plugins",
 							private: true,
 							dependencies: {
 								"atref-plugin": "git+https://git.example.com/group/repo.git#v1",
@@ -476,7 +476,7 @@ describe("PluginManager.install with git sources", () => {
 		["git:git@github.com:foo/bar@v1", "git@github.com:foo/bar#v1"],
 	]) {
 		test(`installs pi-style GitHub source ${input}`, async () => {
-			await Bun.write(pluginsPkgJson, JSON.stringify({ name: "omp-plugins", private: true, dependencies: {} }));
+			await Bun.write(pluginsPkgJson, JSON.stringify({ name: "zeta-plugins", private: true, dependencies: {} }));
 
 			vi.spyOn(Bun, "spawn").mockImplementation(((cmd: string[]) => {
 				expect(cmd[0]).toBe(process.execPath);
@@ -486,7 +486,7 @@ describe("PluginManager.install with git sources", () => {
 				const prepare = (async () => {
 					await Bun.write(
 						pluginsPkgJson,
-						JSON.stringify({ name: "omp-plugins", private: true, dependencies: { "gh-plugin": expected } }),
+						JSON.stringify({ name: "zeta-plugins", private: true, dependencies: { "gh-plugin": expected } }),
 					);
 					const installedDir = path.join(pluginsNodeModules, "gh-plugin");
 					await fs.mkdir(installedDir, { recursive: true });
@@ -513,7 +513,7 @@ describe("PluginManager.install with git sources", () => {
 	test("forwards GitHub URLs verbatim, including inline credentials", async () => {
 		await Bun.write(
 			pluginsPkgJson,
-			JSON.stringify({ name: "omp-plugins", private: true, dependencies: {} }, null, 2),
+			JSON.stringify({ name: "zeta-plugins", private: true, dependencies: {} }, null, 2),
 		);
 
 		const spec = "https://token@github.com/foo/private-plugin#v1.0.0";
@@ -528,7 +528,7 @@ describe("PluginManager.install with git sources", () => {
 			const prepare = (async () => {
 				await Bun.write(
 					pluginsPkgJson,
-					JSON.stringify({ name: "omp-plugins", private: true, dependencies: { "gh-plugin": spec } }, null, 2),
+					JSON.stringify({ name: "zeta-plugins", private: true, dependencies: { "gh-plugin": spec } }, null, 2),
 				);
 				const installedDir = path.join(pluginsNodeModules, "gh-plugin");
 				await fs.mkdir(installedDir, { recursive: true });
@@ -914,7 +914,7 @@ describe("PluginManager.install with git sources", () => {
 		await fs.mkdir(seedDir, { recursive: true });
 		await Bun.write(path.join(seedDir, "package.json"), JSON.stringify({ name: "ida-mcp", version: "1.0.0" }));
 		await Bun.write(
-			path.join(tmpRoot, "omp-plugins.lock.json"),
+			path.join(tmpRoot, "zeta-plugins.lock.json"),
 			JSON.stringify({
 				plugins: { "ida-mcp": { version: "1.0.0", enabledFeatures: null, enabled: false } },
 				settings: {},
@@ -944,13 +944,13 @@ describe("PluginManager.install with git sources", () => {
 			[process.execPath, "pm", "cache"],
 			[process.execPath, "update", "ida-mcp"],
 		]);
-		const lock = await Bun.file(path.join(tmpRoot, "omp-plugins.lock.json")).json();
+		const lock = await Bun.file(path.join(tmpRoot, "zeta-plugins.lock.json")).json();
 		expect(lock.plugins["ida-mcp"]).toEqual({ version: "2.0.0", enabledFeatures: null, enabled: false });
 	});
 
 	test("rolls a failed upgrade of a linked plugin back to the link, leaving its directory intact (#16844)", async () => {
 		const manifestBefore = JSON.stringify(
-			{ name: "omp-plugins", private: true, dependencies: { "ida-mcp": "github:HexRaysSA/ida-mcp#latest" } },
+			{ name: "zeta-plugins", private: true, dependencies: { "ida-mcp": "github:HexRaysSA/ida-mcp#latest" } },
 			null,
 			2,
 		);
@@ -970,14 +970,16 @@ describe("PluginManager.install with git sources", () => {
 			const stdout = cmd[1] === "pm" ? textStream(`${cacheDir}\n`) : emptyStream();
 			const prepare =
 				cmd[1] === "install"
-					? fs
-							.rm(linkPath, { recursive: true, force: true })
-							.then(() =>
-								Bun.write(
-									path.join(linkPath, "package.json"),
-									JSON.stringify({ name: "ida-mcp", version: "2.0.0", omp: { extensions: ["./missing.ts"] } }),
-								),
-							)
+					? fs.rm(linkPath, { recursive: true, force: true }).then(() =>
+							Bun.write(
+								path.join(linkPath, "package.json"),
+								JSON.stringify({
+									name: "ida-mcp",
+									version: "2.0.0",
+									zeta: { extensions: ["./missing.ts"] },
+								}),
+							),
+						)
 					: Promise.resolve(0);
 			return { pid: 1, stdout, stderr: emptyStream(), exited: prepare.then(() => 0) } as Subprocess;
 		}) as typeof Bun.spawn);

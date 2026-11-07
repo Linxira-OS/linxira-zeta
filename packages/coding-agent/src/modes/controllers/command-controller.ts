@@ -84,8 +84,6 @@ import {
 } from "../../slash-commands/helpers/active-oauth-account";
 import { formatProviderName } from "@linxiraos/pi-tui/chrome/format";
 import { formatCompactQuota } from "@linxiraos/pi-tui/overlays/advisor-config";
-import { resolveTernPane } from "../../tools/browser/tern/kind";
-import { TernError, type TernErrorKind, TernSocketClient } from "../../tools/browser/tern/wire";
 import { outputMeta } from "../../tools/output-meta";
 import { resolveToCwd, stripOuterDoubleQuotes } from "../../tools/path-utils";
 import { replaceTabs, shortenEmbeddedPaths, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
@@ -121,12 +119,6 @@ import {
 	type TerminalLaunchResult,
 } from "../../subprocess/terminal-launch";
 import { resolveCliEntryCmd } from "../../subprocess/worker-client";
-
-/** How long `/fork` waits for Tern to open the fork's pane. */
-const TERN_FORK_TIMEOUT_MS = 10_000;
-
-/** Fork failures after which Tern may still open the pane, so `/fork` must not also fork in place. */
-const TERN_FORK_UNCONFIRMED: Partial<Record<TernErrorKind, true>> = { closed: true, timeout: true, protocol: true };
 
 /** Rows `/session` spends on the builds that wrote the session, including the elision row. */
 const MAX_LISTED_BUILDS = 5;
@@ -1342,9 +1334,6 @@ export class CommandController {
 			return;
 		}
 
-		// A Tern pane fork leaves this session untouched, so it may run mid-turn.
-		if (await this.#forkIntoTernPane()) return;
-
 		// An in-place fork moves this process onto the new file; a running turn
 		// would finish there and leave the original transcript cut mid-turn.
 		if (this.ctx.session.isStreaming) {
@@ -1473,7 +1462,7 @@ export class CommandController {
 				...forkScopeEnvCommand({
 					ZETA_CODING_AGENT_DIR: this.ctx.settings.getAgentDir(),
 					PI_CONFIG_DIR: getConfigDirName(),
-					OMP_PROFILE: activeProfile,
+					ZETA_PROFILE: activeProfile,
 					PI_PROFILE: activeProfile,
 					PI_CONFIG_FILES: this.ctx.settings.getConfigFiles().join(path.delimiter),
 					PI_CODING_AGENT_SESSION_DIR: environment.PI_CODING_AGENT_SESSION_DIR,
@@ -1514,53 +1503,6 @@ export class CommandController {
 					: `Could not open a fork in ${placementInfo.displayName}. See logs for details.`,
 			);
 		}
-	}
-
-	/**
-	 * `/fork` inside a Tern pane: ask Tern to run `zetacode --fork` of this session in a new pane beside
-	 * this one, which keeps the original session. False means fork in place instead: outside Tern,
-	 * an unsaved session, a Tern without `fork`, or Tern refusing it. Once the request is out, an
-	 * unconfirmed one is reported rather than retried in place, since Tern may still open the pane.
-	 */
-	async #forkIntoTernPane(): Promise<boolean> {
-		const tern = resolveTernPane();
-		if (!tern || !this.ctx.sessionManager.isSessionOnDisk()) return false;
-		const client = new TernSocketClient({ socketPath: tern.socketPath });
-		try {
-			try {
-				await client.connect();
-			} catch (error) {
-				logger.debug("Tern unreachable for /fork; forking in place", {
-					error: error instanceof Error ? error.message : String(error),
-				});
-				return false;
-			}
-			if (!client.supports("fork")) return false;
-			// The new pane's zetacode reads the session file as it starts.
-			await this.ctx.session.flushToDisk();
-			try {
-				await client.fork({ block: tern.pane }, { timeoutMs: TERN_FORK_TIMEOUT_MS });
-			} catch (error) {
-				if (error instanceof TernError && !TERN_FORK_UNCONFIRMED[error.kind]) {
-					const details = { kind: error.kind, error: error.message };
-					if (error.kind === "failed") logger.warn("Tern could not open the fork pane; forking in place", details);
-					else logger.debug("Tern refused the fork; forking in place", details);
-					return false;
-				}
-				this.ctx.showError(
-					`Tern did not confirm the fork: ${error instanceof Error ? error.message : String(error)}`,
-				);
-				return true;
-			}
-		} finally {
-			client.close();
-		}
-		const note = this.ctx.session.isStreaming ? " · the running response continues here, not in the fork" : "";
-		this.ctx.present([
-			new Spacer(1),
-			new Text(theme.fg("accent", `${theme.status.success} Session forked into a new pane${note}`), 1, 1),
-		]);
-		return true;
 	}
 
 	/**

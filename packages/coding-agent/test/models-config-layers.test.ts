@@ -24,10 +24,9 @@ import {
 } from "@linxiraos/zeta/config/models-config-layers";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import type { ModelsConfig } from "@linxiraos/zeta/config/models-config-schema";
-import { probeOmpCompat } from "@linxiraos/zeta/config/omp-compat";
 import { WebConfig } from "@linxiraos/zeta/config/web-config";
 import "@linxiraos/zeta/discovery";
-import { listOmpExtensionRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
+import { listZetaExtensionRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { resetSharedAuthStateForTests } from "@linxiraos/zeta/server/web-gateway/auth";
 import {
 	handleModelsConfigGet,
@@ -364,24 +363,7 @@ describe("YAML sibling read fallback", () => {
 		mkdirSync(agentDir, { recursive: true });
 		writeFileSync(path.join(project, ".zeta", "config.yaml"), "extensions:\n  - ./ext\n");
 		const ctx: LoadContext = { cwd: project, home: path.join(root, "home"), repoRoot: null, agentDir };
-		const roots = await listOmpExtensionRoots(ctx);
+		const roots = await listZetaExtensionRoots(ctx);
 		expect(roots.map(rootEntry => rootEntry.name)).toContain("ext");
-	});
-
-	it("probes the upstream OMP models.yaml sibling", () => {
-		const dir = tempDir("zeta-omp-yaml-");
-		writeFileSync(
-			path.join(dir, "models.yaml"),
-			"providers:\n  upstream:\n    baseUrl: https://upstream.example/v1\n    apiKey: k\n",
-		);
-		const previous = Bun.env.ZETA_OMP_COMPAT;
-		Bun.env.ZETA_OMP_COMPAT = "1";
-		try {
-			const snapshot = probeOmpCompat(dir);
-			expect(Object.keys(snapshot?.config.providers ?? {})).toEqual(["upstream"]);
-		} finally {
-			if (previous === undefined) delete Bun.env.ZETA_OMP_COMPAT;
-			else Bun.env.ZETA_OMP_COMPAT = previous;
-		}
 	});
 });

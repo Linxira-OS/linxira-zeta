@@ -200,8 +200,8 @@ function providerNode(document: ProviderDocument, id: string): Readonly<Record<s
 
 /**
  * Read the merged document. `providers` carries `origin` markers: `user` for the
- * hand-written `models.yml`, `web` for the panel layer, and the legacy
- * upstream-mirror origin for read-only entries. The document also carries every plaintext `apiKey`; it is
+ * hand-written `models.yml` and `web` for the panel layer. The document also
+ * carries every plaintext `apiKey`; it is
  * only ever round-tripped back to the gateway, never returned to a client.
  */
 async function readProviderDocument(): Promise<ProviderDocument> {
@@ -431,8 +431,7 @@ async function upsertProvider(input: CommandInput<"models.provider.upsert">): Pr
  * `models.provider.delete` handler → `GET /api/models-config` + `PUT /api/models-config`.
  *
  * Only the panel layer is writable: a provider owned by the hand-written
- * `models.yml` or mirrored from upstream OMP is reported as a no-op instead of
- * pretending it was removed.
+ * `models.yml` is reported as a no-op instead of pretending it was removed.
  */
 async function deleteProvider(input: CommandInput<"models.provider.delete">): Promise<ConfigWriteResult> {
 	const id = requiredString(input, "id").trim();
@@ -448,14 +447,6 @@ async function deleteProvider(input: CommandInput<"models.provider.delete">): Pr
 			applied: false,
 			runtimeEffect: "new-session",
 			message: `Provider ${id} is defined in the hand-written models.yml; edit that file instead.`,
-			contentHash: hashProviders(document.providers),
-		};
-	}
-	if (origin === "omp") {
-		return {
-			applied: false,
-			runtimeEffect: "new-session",
-			message: `Provider ${id} is a read-only OMP mirror of an upstream provider.`,
 			contentHash: hashProviders(document.providers),
 		};
 	}

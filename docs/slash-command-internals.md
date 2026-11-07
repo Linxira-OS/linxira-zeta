@@ -7,7 +7,7 @@ This document describes how slash commands are discovered, deduplicated, surface
 - [`src/extensibility/slash-commands.ts`](../packages/coding-agent/src/extensibility/slash-commands.ts)
 - [`src/capability/slash-command.ts`](../packages/coding-agent/src/capability/slash-command.ts)
 - [`src/discovery/builtin.ts`](../packages/coding-agent/src/discovery/builtin.ts)
-- [`src/discovery/omp-plugins.ts`](../packages/coding-agent/src/discovery/omp-plugins.ts)
+- [`src/discovery/zeta-plugins.ts`](../packages/coding-agent/src/discovery/zeta-plugins.ts)
 - [`src/discovery/claude.ts`](../packages/coding-agent/src/discovery/claude.ts)
 - [`src/discovery/codex.ts`](../packages/coding-agent/src/discovery/codex.ts)
 - [`src/discovery/claude-plugins.ts`](../packages/coding-agent/src/discovery/claude-plugins.ts)
@@ -37,7 +37,7 @@ The capability registry loads enabled providers in parallel, consumes their resu
 Current slash-command providers and priorities:
 
 1. `native` (OMP) — priority `100`
-2. `omp-plugins` (extension packages) — priority `90`
+2. `zeta-plugins` (extension packages) — priority `90`
 3. `claude` — priority `80`
 4. `claude-plugins` — priority `70`
 5. `agents` (`.agent`/`.agents` standard dirs) — priority `70`
@@ -83,7 +83,7 @@ Search roots come from `.zeta` directories:
 `getConfigDirs()` returns project first, then user, so **project native commands beat user native commands** when names collide.
 The default paths above can be relocated by `PI_CONFIG_DIR`, the default-profile `PI_CODING_AGENT_DIR`, or an SDK discovery `agentDir`; the project directory remains `.zeta`.
 
-## `omp-plugins` provider (`omp-plugins.ts`)
+## `zeta-plugins` provider (`zeta-plugins.ts`)
 
 Scans `commands/*.md` in explicit extension-package directories, the effective `extensions` setting, and enabled npm/link plugins, in that order. The configured array follows settings replacement precedence; project and user arrays are not concatenated. Session-supplied effective roots are reused on reload. Explicit-only discovery omits configured and installed roots, and file entrypoints contribute no subdirectory resources. Marketplace roots are excluded here to avoid duplicate discovery and are handled by `claude-plugins`.
 
@@ -120,11 +120,11 @@ Both sides are loaded then flattened in user-first order, so **user OpenCode com
 
 ## `claude-plugins` provider (`claude-plugins.ts`)
 
-Loads roots via `listClaudePluginRoots(...)`, which reads the active Claude config directory's `plugins/installed_plugins.json`, the active OMP plugins directory's `installed_plugins.json` (profile/XDG-aware), and the nearest project `.omp/plugins/installed_plugins.json`. Claude-origin user roots require `claude` or `claude-plugins` user opt-in; OMP and explicit local roots do not. Disabled registry entries and Claude `enabledPlugins: false` entries are excluded.
+Loads roots via `listClaudePluginRoots(...)`, which reads the active Claude config directory's `plugins/installed_plugins.json`, the active Zeta extension packages directory's `installed_plugins.json` (profile/XDG-aware), and the nearest project `.zeta/plugins/installed_plugins.json`. Claude-origin user roots require `claude` or `claude-plugins` user opt-in; Zeta and explicit local roots do not. Disabled registry entries and Claude `enabledPlugins: false` entries are excluded.
 
 For each root it normally scans `<pluginRoot>/commands/*.md`. Manifest `commands`/`slash-commands` entries can instead select directories or individual Markdown files; the first populated key wins. Command names are prefixed with the plugin name when one is present: `<plugin>:<command>`.
 
-Across the three registries, roots are merged by precedence rather than sorted: `--plugin-dir` injected roots come first, then project-scoped entries (which shadow user entries for the same plugin id), then user entries, with the OMP registry authoritative over Claude's for the same plugin id. Within each registry, per-plugin entry order from the JSON data is preserved; there is no additional sort step.
+Across the three registries, roots are merged by precedence rather than sorted: `--plugin-dir` injected roots come first, then project-scoped entries (which shadow user entries for the same plugin id), then user entries, with the Zeta registry authoritative over Claude's for the same plugin id. Within each registry, per-plugin entry order from the JSON data is preserved; there is no additional sort step.
 
 ## `agents` provider (`agents.ts`)
 
@@ -537,11 +537,11 @@ The schema applies only to structured runs: `task.structured` on, or `structured
 
 1. nearest project `.zeta/agents/*.md`
 2. user `~/.zeta/agent/agents/*.md`
-3. `agents/` of enabled OMP extension packages
+3. `agents/` of enabled Zeta extension packages
 4. Claude marketplace plugin agents
 5. the bundled `reviewer`
 
-Item 4 applies only with the `claude-plugins` provider enabled. User-scope roots from the foreign `~/.claude/plugins` tree also need the `claude` or `claude-plugins` user source. Claude-dialect plugin agents (foreign Claude roots and packages whose manifest declares the Claude format) drop their frontmatter `model`. OMP-native and Agent-Plugins-standard packages keep it. For a Claude-dialect `reviewer`, set `task.agentModelOverrides.reviewer` instead.
+Item 4 applies only with the `claude-plugins` provider enabled. User-scope roots from the foreign `~/.claude/plugins` tree also need the `claude` or `claude-plugins` user source. Claude-dialect plugin agents (foreign Claude roots and packages whose manifest declares the Claude format) drop their frontmatter `model`. Zeta-native and Agent-Plugins-standard packages keep it. For a Claude-dialect `reviewer`, set `task.agentModelOverrides.reviewer` instead.
 
 The name comes from the frontmatter, not the file name. The replacement is the whole definition. Nothing merges with the bundled file, so restate `tools`, `spawns`, `model`, and `output` if the replacement needs them. To change only the model, set `task.agentModelOverrides.reviewer` instead. See [filesystem and plugin discovery](./task-agent-discovery.md#filesystem-and-plugin-discovery) and [merge and collision rules](./task-agent-discovery.md#merge-and-collision-rules).
 

@@ -22,7 +22,7 @@ export interface PluginFeature {
 }
 
 /**
- * Plugin manifest from the package.json `zeta/omp/pi` field.
+ * Plugin manifest from the package.json `zeta/pi` field.
  */
 export interface PluginManifest {
 	/** Plugin display name (defaults to package name) */
@@ -157,13 +157,13 @@ export const PLUGIN_PANEL_KINDS = [...PLUGIN_DECLARATIVE_PANEL_KINDS, "html"] as
 
 /**
  * The `package.json` keys a plugin may declare its manifest under, most
- * specific first: Zeta's own `zeta` key, then the upstream spellings we keep
- * reading so an upstream package still loads. Every manifest reader — session
+ * specific first: Zeta's own `zeta` key, then the legacy `pi` spelling kept so
+ * an older extension package still loads. Every manifest reader — session
  * loading, listing, installation, extension-directory resolution, discovery —
  * goes through {@link readPluginManifest} so the accepted set cannot drift
  * between the surface that lists a plugin and the surface that loads it.
  */
-export const PLUGIN_MANIFEST_KEYS = ["zeta", "omp", "pi"] as const;
+export const PLUGIN_MANIFEST_KEYS = ["zeta", "pi"] as const;
 
 /** One of {@link PLUGIN_MANIFEST_KEYS}. */
 export type PluginManifestKey = (typeof PLUGIN_MANIFEST_KEYS)[number];
@@ -279,7 +279,7 @@ export interface InstalledPlugin {
 }
 
 // =============================================================================
-// Runtime Config Types (stored in omp-plugins.lock.json)
+// Runtime Config Types (stored in zeta-plugins.lock.json)
 // =============================================================================
 
 /**
@@ -295,7 +295,7 @@ export interface PluginRuntimeState {
 }
 
 /**
- * Runtime configuration persisted to omp-plugins.lock.json.
+ * Runtime configuration persisted to zeta-plugins.lock.json.
  * Tracks plugin states and settings across sessions.
  */
 export interface PluginRuntimeConfig {

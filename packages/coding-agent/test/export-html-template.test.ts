@@ -82,7 +82,7 @@ describe("HTML export template", () => {
 		expect(document.querySelectorAll("script[src]")).toHaveLength(0);
 		expect(html).not.toContain("stencil.so");
 		expect(html).not.toContain("build.stencil");
-		expect(html).toContain("globalThis.ompMarkdown");
+		expect(html).toContain("globalThis.zetaMarkdown");
 		expect(html).toContain("hljs");
 		expect(html).toBe(await runProbe([process.execPath, probePath]));
 	});

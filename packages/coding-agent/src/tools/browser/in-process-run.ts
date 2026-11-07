@@ -1,6 +1,6 @@
 /**
- * Runs `tab.run` code in-process for backends without a tab worker (cmux,
- * Tern): their tabs are thin RPC facades, so user code executes in a
+ * Runs `tab.run` code in-process for backends without a tab worker (cmux):
+ * their tabs are thin RPC facades, so user code executes in a
  * `JsRuntime` of this process with the backend's `tab`/`page`/`browser`
  * facades in scope. Guest promise rejections are attributed to the run whose
  * guest file appears in their stack.

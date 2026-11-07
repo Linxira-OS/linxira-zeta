@@ -41,10 +41,10 @@ async function plantRoot(prefix: string): Promise<{ home: string; cwd: string; p
 	await writeJson(path.join(declaredDir, "package.json"), {
 		name: "declared-plugin",
 		version: "1.0.0",
-		omp: { extensions: ["ext.ts"] },
+		zeta: { extensions: ["ext.ts"] },
 	});
 	await writeJson(path.join(pluginsDir, "package.json"), { dependencies: { "declared-plugin": "1.0.0" } });
-	await writeJson(path.join(pluginsDir, "omp-plugins.lock.json"), {
+	await writeJson(path.join(pluginsDir, "zeta-plugins.lock.json"), {
 		plugins: { "declared-plugin": { version: "1.0.0", enabled: true, enabledFeatures: null } },
 		settings: {},
 	});
@@ -95,7 +95,7 @@ test("getPluginSettings surfaces the same diagnostic for malformed project overr
 	const overridesPath = await writeOverrides(cwd, "{ not valid json");
 
 	const getPluginsLockfile = spyOn(piUtils, "getPluginsLockfile").mockReturnValue(
-		path.join(pluginsDir, "omp-plugins.lock.json"),
+		path.join(pluginsDir, "zeta-plugins.lock.json"),
 	);
 	const warn = spyOn(logger, "warn").mockImplementation(() => {});
 	try {

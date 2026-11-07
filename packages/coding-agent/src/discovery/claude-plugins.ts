@@ -103,11 +103,9 @@ function isStringRecord(value: unknown): value is Record<string, string> {
 
 async function readMarketplaceRootManifest(root: ClaudePluginRoot): Promise<ClaudePluginManifest | null> {
 	const catalogs = await Promise.all(
-		[
-			path.join(root.path, "marketplace.json"),
-			path.join(root.path, ".omp-plugin", "marketplace.json"),
-			path.join(root.path, ".claude-plugin", "marketplace.json"),
-		].map(catalogPath => readFile(catalogPath)),
+		[path.join(root.path, "marketplace.json"), path.join(root.path, ".claude-plugin", "marketplace.json")].map(
+			catalogPath => readFile(catalogPath),
+		),
 	);
 
 	for (const raw of catalogs) {
@@ -462,69 +460,14 @@ function extractServerMap(obj: Record<string, unknown>): Record<string, unknown>
  * Resolve where a plugin's MCP servers come from, honoring the manifest's
  * `mcpServers` field before the conventional root `.mcp.json`.
  *
- * `.omp-plugin/plugin.json` takes precedence over `.claude-plugin/plugin.json`.
+ * `.claude-plugin/plugin.json` declares where an MCP config lives.
  * The field may be an inline object (the server map itself) or a string path to
  * a config file within the plugin root; a path escaping the root is rejected
  * with a warning. When no manifest declares the field, `<root>/.mcp.json` is the
  * fallback source.
  */
-async function resolvePluginMCPConfig(root: ClaudePluginRoot): Promise<ResolvedMCPConfig> {
+function fallbackMCPConfig(root: ClaudePluginRoot): ResolvedMCPConfig {
 	const fallback = path.join(root.path, ".mcp.json");
-	for (const manifestDir of [".omp-plugin", ".claude-plugin"]) {
-		const manifestPath = path.join(root.path, manifestDir, "plugin.json");
-		const raw = await readFile(manifestPath);
-		if (raw === null) continue;
-
-		let parsed: unknown;
-		try {
-			parsed = JSON.parse(raw);
-		} catch {
-			continue;
-		}
-		if (!isRecord(parsed)) continue;
-		const pointer = parsed.mcpServers;
-
-		// Inline object form: the manifest value is the server map itself, rooted
-		// at the plugin directory (Claude's ${CLAUDE_PLUGIN_ROOT} base).
-		if (isRecord(pointer)) {
-			return {
-				path: null,
-				inlineServers: pointer,
-				sourcePath: manifestPath,
-				baseDir: root.path,
-				declared: true,
-				warnings: [],
-			};
-		}
-
-		// File-pointer form: resolve the named config file within the plugin root.
-		if (typeof pointer === "string") {
-			const configured = pointer.trim();
-			if (configured.length === 0) continue;
-			const resolved = path.resolve(root.path, configured);
-			if (!isWithinPluginRoot(root.path, resolved)) {
-				return {
-					path: null,
-					inlineServers: null,
-					sourcePath: manifestPath,
-					baseDir: root.path,
-					declared: true,
-					warnings: [
-						`[claude-plugins] Ignoring mcpServers path outside plugin root for ${root.id}: ${configured}`,
-					],
-				};
-			}
-			return {
-				path: resolved,
-				inlineServers: null,
-				sourcePath: resolved,
-				baseDir: path.dirname(resolved),
-				declared: true,
-				warnings: [],
-			};
-		}
-	}
-
 	return {
 		path: fallback,
 		inlineServers: null,
@@ -533,6 +476,61 @@ async function resolvePluginMCPConfig(root: ClaudePluginRoot): Promise<ResolvedM
 		declared: false,
 		warnings: [],
 	};
+}
+
+async function resolvePluginMCPConfig(root: ClaudePluginRoot): Promise<ResolvedMCPConfig> {
+	const manifestPath = path.join(root.path, ".claude-plugin", "plugin.json");
+	const raw = await readFile(manifestPath);
+	if (raw === null) return fallbackMCPConfig(root);
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return fallbackMCPConfig(root);
+	}
+	if (!isRecord(parsed)) return fallbackMCPConfig(root);
+	const pointer = parsed.mcpServers;
+
+	// Inline object form: the manifest value is the server map itself, rooted
+	// at the plugin directory (Claude's ${CLAUDE_PLUGIN_ROOT} base).
+	if (isRecord(pointer)) {
+		return {
+			path: null,
+			inlineServers: pointer,
+			sourcePath: manifestPath,
+			baseDir: root.path,
+			declared: true,
+			warnings: [],
+		};
+	}
+
+	// File-pointer form: resolve the named config file within the plugin root.
+	if (typeof pointer === "string") {
+		const configured = pointer.trim();
+		if (configured.length === 0) return fallbackMCPConfig(root);
+		const resolved = path.resolve(root.path, configured);
+		if (!isWithinPluginRoot(root.path, resolved)) {
+			return {
+				path: null,
+				inlineServers: null,
+				sourcePath: manifestPath,
+				baseDir: root.path,
+				declared: true,
+				warnings: [`[claude-plugins] Ignoring mcpServers path outside plugin root for ${root.id}: ${configured}`],
+			};
+		}
+		return {
+			path: resolved,
+			inlineServers: null,
+			sourcePath: resolved,
+			baseDir: path.dirname(resolved),
+			declared: true,
+			warnings: [],
+		};
+	}
+
+	return fallbackMCPConfig(root);
 }
 
 /**

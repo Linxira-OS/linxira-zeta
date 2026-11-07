@@ -45,7 +45,7 @@ async function createLocalPlugin(root: string, name = "kimi-datasource"): Promis
 		JSON.stringify({
 			name,
 			version: "1.0.0",
-			omp: { extensions: ["./src/extension.ts"] },
+			zeta: { extensions: ["./src/extension.ts"] },
 		}),
 	);
 	return localPlugin;
@@ -62,7 +62,7 @@ describe("runPluginCommand({ action: 'install', args: [<local>] })", () => {
 		spyOn(piUtils, "getPluginsDir").mockReturnValue(pluginsDir);
 		spyOn(piUtils, "getPluginsNodeModules").mockReturnValue(path.join(pluginsDir, "node_modules"));
 		spyOn(piUtils, "getPluginsPackageJson").mockReturnValue(path.join(pluginsDir, "package.json"));
-		spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(tmpRoot, "omp-plugins.lock.json"));
+		spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(tmpRoot, "zeta-plugins.lock.json"));
 		spyOn(piUtils, "getProjectDir").mockReturnValue(tmpRoot);
 		spyOn(piUtils, "getProjectPluginOverridesPath").mockReturnValue(path.join(tmpRoot, "plugin-overrides.json"));
 		// runPluginCommand always builds a MarketplaceManager to enumerate
@@ -129,7 +129,7 @@ describe("runPluginCommand({ action: 'install', args: [<local>] })", () => {
 	test("link dry-run leaves filesystem state untouched", async () => {
 		const localPlugin = await createLocalPlugin(tmpRoot);
 		const linkTarget = path.join(tmpRoot, "plugins", "node_modules", "kimi-datasource");
-		const lockfile = path.join(tmpRoot, "omp-plugins.lock.json");
+		const lockfile = path.join(tmpRoot, "zeta-plugins.lock.json");
 
 		await runPluginCommand({ action: "link", args: [localPlugin], flags: { dryRun: true, json: true } });
 
@@ -151,7 +151,7 @@ describe("runPluginCommand({ action: 'install', args: [<local>] })", () => {
 		expect(stat.isSymbolicLink()).toBe(true);
 		expect(await fs.readlink(linkTarget)).toBe(localPlugin);
 
-		const lock = await Bun.file(path.join(tmpRoot, "omp-plugins.lock.json")).json();
+		const lock = await Bun.file(path.join(tmpRoot, "zeta-plugins.lock.json")).json();
 		expect(lock.plugins["kimi-datasource"]).toEqual({
 			version: "1.0.0",
 			enabledFeatures: null,
@@ -219,7 +219,7 @@ describe("runPluginCommand({ action: 'install', args: [<local>] })", () => {
 	test("doctor --fix preserves linked local plugin state without package dependencies", async () => {
 		await Bun.write(
 			path.join(tmpRoot, "plugins", "package.json"),
-			JSON.stringify({ name: "omp-plugins", private: true, dependencies: {} }),
+			JSON.stringify({ name: "zeta-plugins", private: true, dependencies: {} }),
 		);
 		const localPlugin = await createLocalPlugin(tmpRoot);
 		const manager = new PluginManager(tmpRoot);
@@ -228,7 +228,7 @@ describe("runPluginCommand({ action: 'install', args: [<local>] })", () => {
 		const checks = await manager.doctor({ fix: true });
 
 		expect(checks.find(check => check.name === "orphan:kimi-datasource")).toBeUndefined();
-		const lock = await Bun.file(path.join(tmpRoot, "omp-plugins.lock.json")).json();
+		const lock = await Bun.file(path.join(tmpRoot, "zeta-plugins.lock.json")).json();
 		expect(lock.plugins["kimi-datasource"]).toEqual({
 			version: "1.0.0",
 			enabledFeatures: null,

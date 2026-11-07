@@ -499,7 +499,7 @@ export function isParsedConversationRuntimeEvent(value: unknown): boolean {
 	return typeof value === "object" && value !== null && parsedEvents.has(value as ConversationRuntimeEvent);
 }
 
-const PARSER_REUSE_ENABLED = typeof process === "undefined" || process.env.OMP_CONVERSATION_PARSER_REUSE !== "0";
+const PARSER_REUSE_ENABLED = typeof process === "undefined" || process.env.ZETA_CONVERSATION_PARSER_REUSE !== "0";
 
 export function parseConversationRuntimeEvent(
 	value: unknown,

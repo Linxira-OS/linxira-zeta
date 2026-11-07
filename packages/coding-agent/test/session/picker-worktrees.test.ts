@@ -18,7 +18,7 @@ const TEST_ENV_KEYS = [
 	"GIT_AUTHOR_EMAIL",
 	"GIT_COMMITTER_NAME",
 	"GIT_COMMITTER_EMAIL",
-	"OMP_WORKTREE_DIR",
+	"ZETA_WORKTREE_DIR",
 ] as const;
 
 /**
@@ -42,7 +42,7 @@ describe.skipIf(process.platform === "win32")("resume picker across git worktree
 			GIT_AUTHOR_EMAIL: "test@example.com",
 			GIT_COMMITTER_NAME: "Test",
 			GIT_COMMITTER_EMAIL: "test@example.com",
-			OMP_WORKTREE_DIR: path.join(root, "wt-base"),
+			ZETA_WORKTREE_DIR: path.join(root, "wt-base"),
 		});
 		setAgentDir(path.join(root, "agent"));
 		repo = path.join(root, "repo");

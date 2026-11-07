@@ -250,7 +250,7 @@ class tool {}
 		expect(plan.barrier?.reason).toBe("unsupported JavaScript statement");
 	});
 	it("rejects helper syntax that disables runtime instrumentation", async () => {
-		const plan = await projectJavaScriptShadowPlan('await tool.read({ path: "a.txt" });\n__omp_with_call_site__();');
+		const plan = await projectJavaScriptShadowPlan('await tool.read({ path: "a.txt" });\n__zeta_with_call_site__();');
 		expect(plan.operations).toEqual([]);
 		expect(plan.barrier?.reason).toBe("JavaScript call-site helper present");
 

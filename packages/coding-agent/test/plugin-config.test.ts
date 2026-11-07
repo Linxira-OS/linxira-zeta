@@ -20,7 +20,7 @@ describe("plugin config", () => {
 	beforeEach(async () => {
 		tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-plugin-config-"));
 		pluginsDir = path.join(tmpRoot, "plugins");
-		lockfile = path.join(pluginsDir, "omp-plugins.lock.json");
+		lockfile = path.join(pluginsDir, "zeta-plugins.lock.json");
 
 		spyOn(piUtils, "getPluginsDir").mockReturnValue(pluginsDir);
 		spyOn(piUtils, "getPluginsLockfile").mockReturnValue(lockfile);
@@ -71,7 +71,7 @@ describe("plugin config", () => {
 			JSON.stringify({
 				name: pluginName,
 				version: "1.0.0",
-				omp: {
+				zeta: {
 					version: "1.0.0",
 					settings: {
 						mainBranchProtection: {
@@ -128,7 +128,7 @@ describe("plugin config", () => {
 			JSON.stringify({
 				name: pluginName,
 				version: "1.0.0",
-				omp: { version: "1.0.0", features: { review: { description: "Review changes" } } },
+				zeta: { version: "1.0.0", features: { review: { description: "Review changes" } } },
 			}),
 		);
 		await fs.mkdir(path.dirname(pluginPath), { recursive: true });
@@ -165,13 +165,13 @@ describe("plugin config", () => {
 			JSON.stringify({
 				name: pluginName,
 				version: "2.0.0",
-				omp: { version: "2.0.0", features: { projectOnly: { description: "Project-only feature" } } },
+				zeta: { version: "2.0.0", features: { projectOnly: { description: "Project-only feature" } } },
 			}),
 		);
 		await fs.mkdir(path.dirname(projectPluginPath), { recursive: true });
 		symlinkDirectorySync(projectInstallPath, projectPluginPath);
 		await Bun.write(
-			path.join(projectPluginsDir, "omp-plugins.lock.json"),
+			path.join(projectPluginsDir, "zeta-plugins.lock.json"),
 			JSON.stringify({
 				plugins: { [pluginName]: { version: "2.0.0", enabledFeatures: null, enabled: true } },
 				settings: {},
@@ -204,7 +204,7 @@ describe("plugin config", () => {
 	async function installProjectMarketplacePlugin(schemaDefault: string, enabled = true): Promise<string> {
 		const installPath = path.join(tmpRoot, "cache", `omp-commit-project-${schemaDefault}`);
 		await writeManifest(installPath, {
-			omp: {
+			zeta: {
 				version: "2.0.0",
 				settings: { splitMode: { type: "enum", values: ["auto", "manual"], default: schemaDefault } },
 			},
@@ -217,7 +217,7 @@ describe("plugin config", () => {
 			process.platform === "win32" ? "junction" : "dir",
 		);
 		await Bun.write(
-			path.join(projectRoot, "omp-plugins.lock.json"),
+			path.join(projectRoot, "zeta-plugins.lock.json"),
 			JSON.stringify({
 				plugins: { "omp-commit": { version: "2.0.0", enabledFeatures: null, enabled } },
 				settings: {},
@@ -238,7 +238,7 @@ describe("plugin config", () => {
 		// User install: same package name, different schema default.
 		const userPkg = path.join(pluginsDir, "node_modules", "omp-commit");
 		await writeManifest(userPkg, {
-			omp: {
+			zeta: {
 				version: "1.0.0",
 				settings: { splitMode: { type: "enum", values: ["auto", "manual"], default: "manual" } },
 			},
@@ -260,7 +260,7 @@ describe("plugin config", () => {
 	test("falls back to an enabled user plugin when the project copy is disabled", async () => {
 		const userPkg = path.join(pluginsDir, "node_modules", "omp-commit");
 		await writeManifest(userPkg, {
-			omp: {
+			zeta: {
 				version: "1.0.0",
 				settings: { splitMode: { type: "enum", values: ["auto", "manual"], default: "manual" } },
 			},

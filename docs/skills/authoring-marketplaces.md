@@ -5,7 +5,7 @@ description: Use when creating a new omp marketplace. Covers marketplace.json sc
 
 # Authoring Marketplaces
 
-A marketplace is a Git repository (or local directory) that contains a catalog file at either `.omp-plugin/marketplace.json` (preferred for omp-specific catalogs) or `.claude-plugin/marketplace.json` (Claude Code-compatible; used as the fallback). Anyone can author one. Users add it with `/marketplace add owner/repo` and then install individual plugins from it.
+A marketplace is a Git repository (or local directory) that contains a catalog file at `.claude-plugin/marketplace.json` (or `marketplace.json` in the repository root). Anyone can author one. Users add it with `/marketplace add owner/repo` and then install individual plugins from it.
 
 ## Minimum viable marketplace
 
@@ -43,7 +43,7 @@ Push to GitHub. Users install with:
 
 ## marketplace.json schema
 
-The catalog file lives at either `.omp-plugin/marketplace.json` or `.claude-plugin/marketplace.json` in the repository root. omp prefers the `.omp-plugin/` path and falls back to the Claude path; a repository may publish both to expose tool-specific catalogs from a single source tree.
+The catalog file lives at `.claude-plugin/marketplace.json` in the repository root (Claude Code-compatible), or at `marketplace.json` in the root for a catalog read directly from a plugin root.
 
 ### Top-level fields
 
@@ -206,13 +206,13 @@ my-plugin/
   tools/                         ← custom tools
   .mcp.json                      ← MCP server definitions (default location)
   .claude-plugin/plugin.json     ← optional paths for skills/commands and other manifest metadata
-  package.json                   ← optional version and `omp.extensions`
+  package.json                   ← optional version and `zeta.extensions`
   README.md                      ← recommended: description + usage
 ```
 
-> Note: MCP servers may instead be declared by the manifest's `mcpServers` field — either an inline server map or a path to a config file inside the plugin root (`{ "mcpServers": "./mcp-omp.json" }`). omp reads `.omp-plugin/plugin.json` first, then `.claude-plugin/plugin.json`; a manifest declaration replaces the default `.mcp.json` rather than merging with it, so one published tree can carry a per-harness MCP config.
+> Note: MCP servers may instead be declared by the manifest's `mcpServers` field — either an inline server map or a path to a config file inside the plugin root (`{ "mcpServers": "./mcp-zeta.json" }`). Zeta reads `.claude-plugin/plugin.json`; a manifest declaration replaces the default `.mcp.json` rather than merging with it.
 
-> Note: extension modules declared via `package.json` `omp.extensions` **are** loaded from marketplace installs — installation symlinks the cached plugin into the scope's `node_modules` and records it in `omp-plugins.lock.json`, the same runtime surfaces used by npm-installed and `zetacode plugin link`ed plugins.
+> Note: extension modules declared via `package.json` `zeta.extensions` **are** loaded from marketplace installs — installation symlinks the cached plugin into the scope's `node_modules` and records it in `zeta-plugins.lock.json`, the same runtime surfaces used by npm-installed and `zetacode plugin link`ed plugins.
 
 ## Install command
 
@@ -241,7 +241,7 @@ Install and discovery details:
 - Invalid plugin entries are logged and skipped; invalid JSON or required top-level fields reject the catalog.
 - `skills/` and `commands/` may be remapped with `.claude-plugin/plugin.json`. Declared skill paths normally add to the default; for a plugin whose catalog source is exactly `"./"`, they replace it. Declared `commands` (preferred) or `slash-commands` replace the default unless `./commands` is included explicitly. Paths outside the plugin root are ignored with a warning.
 - Catalog `lspServers` and `dapAdapters` values are materialized during install. Catalog `commands`, `agents`, `hooks`, and `mcpServers` are otherwise metadata; they do not remap runtime discovery.
-- Portable Agent Plugins packages with a standard root `plugin.json` use fixed `skills/<name>/SKILL.md` and `mcp.json` locations instead of legacy skill/MCP manifests. Their skill frontmatter is strictly validated, and every skill/MCP resource must resolve inside the package root. Other OMP-specific components remain available for valid portable packages; a fatally invalid standard manifest rejects the package.
+- Portable Agent Plugins packages with a standard root `plugin.json` use fixed `skills/<name>/SKILL.md` and `mcp.json` locations instead of legacy skill/MCP manifests. Their skill frontmatter is strictly validated, and every skill/MCP resource must resolve inside the package root. Other Zeta-specific components remain available for valid portable packages; a fatally invalid standard manifest rejects the package.
 
 ## Naming rules
 
@@ -260,7 +260,7 @@ Names retain their spelling, but collision checks are case-insensitive: `My-Plug
 
 ## Publishing workflow
 
-1. Create `marketplace.json` at `.omp-plugin/marketplace.json` (omp-only) or `.claude-plugin/marketplace.json` (shared with Claude Code) in a new Git repo.
+1. Create `marketplace.json` at `.claude-plugin/marketplace.json` in a new Git repo.
 2. Add plugin entries pointing to subdirectories (or external sources).
 3. Push to GitHub.
 4. Share the `owner/repo` string. Users add it with `/marketplace add owner/repo`.

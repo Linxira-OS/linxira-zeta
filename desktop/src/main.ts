@@ -664,11 +664,8 @@ function showServiceFailure(message: string): void {
 function iconPath(): string | undefined {
 	const candidate = app.isPackaged
 		? path.join(process.resourcesPath, "icon.ico")
-		: (() => {
-				const repoRoot = findRepoRoot();
-				return repoRoot ? path.join(repoRoot, "temp", "desktop", "build", "icon.ico") : undefined;
-			})();
-	return candidate && fs.existsSync(candidate) ? candidate : undefined;
+		: path.join(__dirname, "..", "build", "icon.ico");
+	return fs.existsSync(candidate) ? candidate : undefined;
 }
 
 function loadFailurePage(win: BrowserWindow, detail: string): void {
@@ -798,6 +795,10 @@ interface DesktopLabels {
 	webUi: string;
 	reload: string;
 	notifications: string;
+	help: string;
+	license: string;
+	thirdPartyNotices: string;
+	about: string;
 }
 
 const DEFAULT_DESKTOP_LABELS: DesktopLabels = {
@@ -808,6 +809,10 @@ const DEFAULT_DESKTOP_LABELS: DesktopLabels = {
 	webUi: "Work Studio",
 	reload: "Reload",
 	notifications: "Notifications",
+	help: "Help",
+	license: "License",
+	thirdPartyNotices: "Third-Party Notices",
+	about: "About Zeta",
 };
 /**
  * Read tray/autostart preferences from the gateway's /api/web-config over HTTP.
@@ -900,6 +905,9 @@ function trayContextMenu(): Electron.MenuItemConstructorOptions[] {
 			click: () => toggleNotifications(),
 		},
 		{ type: "separator" },
+		{ label: trayLabels.thirdPartyNotices, click: () => showLegalDocument("thirdParty") },
+		{ label: trayLabels.license, click: () => showLegalDocument("license") },
+		{ type: "separator" },
 		{
 			label: trayLabels.quit,
 			click: () => {
@@ -956,6 +964,72 @@ function applyAutostart(enabled: boolean): void {
 	}
 }
 
+const legalWindows = new Set<BrowserWindow>();
+
+function legalDocumentCandidates(fileName: string): string[] {
+	if (app.isPackaged) {
+		return [
+			path.join(process.resourcesPath, "legal", fileName),
+			path.join(process.resourcesPath, fileName),
+		];
+	}
+	return [
+		path.join(__dirname, "..", "..", fileName),
+		path.join(app.getAppPath(), "..", fileName),
+	];
+}
+
+function escapeHtml(value: string): string {
+	return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+
+function showLegalDocument(kind: "license" | "thirdParty"): void {
+	const file = kind === "license" ? "LICENSE" : "THIRD-PARTY-NOTICES.txt";
+	let text: string | null = null;
+	for (const candidate of legalDocumentCandidates(file)) {
+		try {
+			text = fs.readFileSync(candidate, "utf8");
+			break;
+		} catch {
+			// Try the next packaged/source location.
+		}
+	}
+	if (text === null) {
+		dialog.showErrorBox("Zeta", `Could not locate ${file}.`);
+		return;
+	}
+	const title = kind === "license" ? "Zeta License" : "Third-Party Notices";
+	const win = new BrowserWindow({
+		width: 980,
+		height: 760,
+		minWidth: 640,
+		minHeight: 480,
+		title,
+		autoHideMenuBar: true,
+		backgroundColor: "#0f1115",
+		webPreferences: { sandbox: true },
+	});
+	legalWindows.add(win);
+	win.on("closed", () => legalWindows.delete(win));
+	const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>
+body{margin:0;background:#0f1115;color:#d8dee9;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+main{max-width:1040px;margin:0 auto;padding:24px 28px 48px}
+h1{font:600 20px/1.3 system-ui,sans-serif;margin:0 0 18px;color:#f3f4f6}
+pre{white-space:pre-wrap;word-break:break-word;margin:0}
+</style></head><body><main><h1>${title}</h1><pre>${escapeHtml(text)}</pre></main></body></html>`;
+	void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+}
+
+function showAboutDialog(): void {
+	void dialog.showMessageBox({
+		type: "info",
+		title: "About Zeta",
+		message: `Zeta ${app.getVersion()}`,
+		detail: "Zeta coding agent desktop\n\nThird-party license texts are available from Help → Third-Party Notices.",
+		buttons: ["OK"],
+	});
+}
+
 function buildMenu(labels: DesktopLabels): void {
 	const template: Electron.MenuItemConstructorOptions[] = [
 		{
@@ -967,6 +1041,15 @@ function buildMenu(labels: DesktopLabels): void {
 				{ label: labels.reload, accelerator: "CmdOrCtrl+R", click: () => mainWindow?.webContents.reload() },
 				{ type: "separator" },
 				{ label: labels.quit, accelerator: "CmdOrCtrl+Q", click: () => app.quit() },
+			],
+		},
+		{
+			label: labels.help,
+			submenu: [
+				{ label: labels.thirdPartyNotices, click: () => showLegalDocument("thirdParty") },
+				{ label: labels.license, click: () => showLegalDocument("license") },
+				{ type: "separator" },
+				{ label: labels.about, click: () => showAboutDialog() },
 			],
 		},
 	];

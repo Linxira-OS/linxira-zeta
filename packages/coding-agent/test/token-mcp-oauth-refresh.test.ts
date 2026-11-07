@@ -97,8 +97,8 @@ test("token refreshes and persists a rotating local MCP OAuth grant", async () =
 			env: {
 				...process.env,
 				NO_COLOR: "1",
-				OMP_AUTH_BROKER_TOKEN: undefined,
-				OMP_AUTH_BROKER_URL: undefined,
+				ZETA_AUTH_BROKER_TOKEN: undefined,
+				ZETA_AUTH_BROKER_URL: undefined,
 				ZETA_CODING_AGENT_DIR: tempDir.path(),
 			},
 			stdout: "pipe",
@@ -155,8 +155,8 @@ test("token refuses a managed MCP id scoped to another profile", async () => {
 		env: {
 			...process.env,
 			NO_COLOR: "1",
-			OMP_AUTH_BROKER_TOKEN: undefined,
-			OMP_AUTH_BROKER_URL: undefined,
+			ZETA_AUTH_BROKER_TOKEN: undefined,
+			ZETA_AUTH_BROKER_URL: undefined,
 			ZETA_PROFILE: undefined,
 			ZETA_CODING_AGENT_DIR: tempDir.path(),
 		},

@@ -5,7 +5,6 @@ import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
 import { releaseAllTabs } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { chromiumAvailable } from "./chromium-probe";
-import { TERN_KIT_SOURCE } from "@linxiraos/zeta/tools/browser/tern/page-kit";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();
 const session: ToolSession = {
@@ -17,7 +16,6 @@ const session: ToolSession = {
 		"browser.enabled": true,
 		"browser.headless": true,
 		"browser.cmux": false,
-		"browser.tern": false,
 		"tools.maxTimeout": 0,
 	}),
 };
@@ -140,36 +138,6 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser semantic selectors and queries", (
 			return observed && await tab.count(\`role/${role}[name="\${observed.name}" exact]\`);`,
 		})) as { details?: { value?: number } };
 		expect(result.details?.value).toBe(1);
-	});
-
-	it("matches role/ exact names to every name the Tern page kit's observe() shows", async () => {
-		const result = (await invoke({
-			action: "run",
-			name: namesTab,
-			// The Tern kit is plain page script embedding the same role/ handler, so it runs on this page too.
-			code: `await tab.evaluate(${JSON.stringify(`(function () {\n${TERN_KIT_SOURCE}\n})()`)});
-			return await tab.evaluate(() => {
-				const kit = globalThis.__ompTernKit;
-				return kit.observe({}).elements
-					.filter(entry => entry.name && ["button", "textbox", "treeitem"].includes(entry.role))
-					.map(entry => [entry.name, kit.count({ engine: "role", query: entry.role + '[name="' + entry.name + '" exact]' })]);
-			});`,
-		})) as { details?: { value?: [string, number][] } };
-		const named = result.details?.value ?? [];
-		expect(named.map(([observed]) => observed)).toEqual(
-			expect.arrayContaining([
-				"Cart",
-				"Settings",
-				"Keep",
-				"Shown",
-				"Pick Blue",
-				"Size 10",
-				"Search records",
-				"Save draft",
-				"Node",
-			]),
-		);
-		expect(named.filter(([, matched]) => matched !== 1)).toEqual([]);
 	});
 
 	it("collapses whitespace in the queried role/ name and skips a title that is not the button's name", async () => {

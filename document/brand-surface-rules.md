@@ -92,16 +92,14 @@ party's registry carries the string.
 |---|---|---|
 | Reading upstream npm release manifests (`omp.rename`, `omp.dist`) | Consuming the upstream ecosystem | `cli/update-cli.ts` |
 | Reading upstream plugin packages (`pkg.zeta \|\| pkg.omp \|\| pkg.pi`) | Consuming the upstream ecosystem | `plugins/manager.ts` |
-| `.omp-plugin` manifest dir | OMP/Claude compatibility | AGENTS registry |
 | `my.omp.sh`（中继/分享） | **已随协作功能于 2026-11-07 完全退役**：不再有 wire 常量、客户端或默认端点 | AGENTS registry + `document/upstream-commercial-assets.md` |
 | `live.omp.sh`, `skills.omp.sh`, `catalog.stencil.so`, `omp.sh/docs/...` … | Ledger-tracked upstream services (keep / replace per entry) | 台账 + `scripts/check-shared-infra.ts`（`replace-*`）。**品牌 sweep 不再豁免主机名**（2026-10-14 收窄）；`qa.omp.sh`、`scl.so`、`build.stencil.so`、`omp.sh/install` 已替换/移除，复活即红 |
 | `__omp_*` cross-process symbols | Inter-process protocol between our own components | AGENTS damage class 9/11 |
 | `omp/muxConnect`-style handshakes | Single in-repo constant (`MUX_CONNECT_METHOD`) — renaming both ends together is safe; a hand-rolled string on one side is not | `lsp/mux/protocol.ts` |
 | `OMP_NUM_THREADS`, `OMP_THREAD_LIMIT`, `OMP_PCRE2_JIT`, `OMP_MINIMIZER_LEGACY_FILTERS` | GNU toolchain contract — external tools read them | `pi-builtins/nproc.rs`, `grep.rs` |
 | `omp` as the Stencil OAuth client id | Registered client id at a third-party issuer; changing it breaks auth | `catalog/.../stencil.kdl` |
-| `OMP_*` (174 vars) | Documented user configuration in `docs/environment-variables.md` | AGENTS registry |
+| `OMP_*` (remaining product envs) | Documented user configuration in `docs/environment-variables.md`; the compat/upstream families are Zeta-named now (see AGENTS.md) | AGENTS registry |
 | `python/robomp` | OMP-native upstream bot | `SKIP_PREFIXES` |
-| `~/.omp/agent` read-only probe | Migration from OMP installs: `models.yml` + plaintext keys in `agent.db`. Never written. | `config/omp-compat.ts` |
 | `omp_install_tokio_runtime` | Tokio install export; renaming made Tokio silently not install (v18.0.10) | AGENTS registry |
 
 ### DUAL — read both, write Zeta only
@@ -112,8 +110,7 @@ change": they accept the upstream spelling forever and write only ours.
 
 | Surface | Read | Write | Bridge |
 |---|---|---|---|
-| discovery provider id | `omp-plugins` and `zeta-plugins` | `zeta-plugins` | `canonicalProviderId()` in `capability/index.ts` normalizes at every read of a provider id (`isProviderEnabled`, `enableProvider`, `getDisabledProviders`) |
-| plugin lockfile | `omp-plugins.lock.json`, `zeta-plugins.lock.json` | `zeta-plugins.lock.json` | read-old/write-new with first-run migration |
+| plugin manifest key | `zeta`, legacy `pi` | `zeta` | `readPluginManifest()` in `extensibility/plugins/types.ts` reads the key list in order |
 
 Reading upstream plugins is COMPAT and stays. **Publishing** ours under our own
 name is SUBSTITUTE and happens immediately. The two are not in tension: one is

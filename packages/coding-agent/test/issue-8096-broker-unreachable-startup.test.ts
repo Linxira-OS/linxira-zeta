@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import { AuthBrokerError } from "@linxiraos/pi-ai/auth-broker";
 import { MissingApiKeyError } from "@linxiraos/pi-ai/error";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
-import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
+import { clearZetaExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import { describeAuthBrokerStartupError } from "@linxiraos/zeta/session/auth-broker-config";
 import { setInteractiveHost } from "@linxiraos/pi-utils";
@@ -27,7 +27,7 @@ class ProcessExitSignal extends Error {
 
 // `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
 afterEach(() => {
-	clearOmpExtensionCliRoots();
+	clearZetaExtensionCliRoots();
 });
 
 describe("describeAuthBrokerStartupError", () => {
@@ -40,27 +40,27 @@ describe("describeAuthBrokerStartupError", () => {
 		// Both recovery routes the reporter asked for: start it, or disable it.
 		expect(message).toContain("zetacode auth-broker serve");
 		expect(message).toContain("zetacode config reset auth.broker.url");
-		expect(message).toContain("OMP_AUTH_BROKER_URL");
+		expect(message).toContain("ZETA_AUTH_BROKER_URL");
 	});
 
 	it("names the configured broker URL when it can be resolved", async () => {
-		const prevUrl = process.env.OMP_AUTH_BROKER_URL;
-		const prevToken = process.env.OMP_AUTH_BROKER_TOKEN;
-		process.env.OMP_AUTH_BROKER_URL = "http://127.0.0.1:8765";
-		process.env.OMP_AUTH_BROKER_TOKEN = "test-token";
+		const prevUrl = process.env.ZETA_AUTH_BROKER_URL;
+		const prevToken = process.env.ZETA_AUTH_BROKER_TOKEN;
+		process.env.ZETA_AUTH_BROKER_URL = "http://127.0.0.1:8765";
+		process.env.ZETA_AUTH_BROKER_TOKEN = "test-token";
 		try {
 			const message = await describeAuthBrokerStartupError(new AuthBrokerError("connection refused"));
 			expect(message).toContain("http://127.0.0.1:8765");
 		} finally {
-			if (prevUrl === undefined) delete process.env.OMP_AUTH_BROKER_URL;
-			else process.env.OMP_AUTH_BROKER_URL = prevUrl;
-			if (prevToken === undefined) delete process.env.OMP_AUTH_BROKER_TOKEN;
-			else process.env.OMP_AUTH_BROKER_TOKEN = prevToken;
+			if (prevUrl === undefined) delete process.env.ZETA_AUTH_BROKER_URL;
+			else process.env.ZETA_AUTH_BROKER_URL = prevUrl;
+			if (prevToken === undefined) delete process.env.ZETA_AUTH_BROKER_TOKEN;
+			else process.env.ZETA_AUTH_BROKER_TOKEN = prevToken;
 		}
 	});
 
 	it("passes through a missing-token message unchanged", async () => {
-		const err = new MissingApiKeyError(undefined, "OMP_AUTH_BROKER_URL is set but no bearer token is available.");
+		const err = new MissingApiKeyError(undefined, "ZETA_AUTH_BROKER_URL is set but no bearer token is available.");
 		expect(await describeAuthBrokerStartupError(err)).toBe(err.message);
 	});
 

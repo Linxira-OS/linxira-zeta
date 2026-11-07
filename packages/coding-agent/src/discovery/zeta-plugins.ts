@@ -1,10 +1,10 @@
 /**
- * OMP extension-package sub-discovery provider.
+ * Zeta extension-package sub-discovery provider.
  *
  * When a user configures an extension via `extensions:` (in settings) or
  * `--extension`/`-e` (on the CLI), the docs promise that the package's
  * sibling directories — `skills/`, `hooks/pre|post/`, `tools/`, `commands/`,
- * `rules/`, `prompts/`, and `.mcp.json` — are picked up by omp's standard
+ * `rules/`, `prompts/`, and `.mcp.json` — are picked up by Zeta's standard
  * discovery surfaces. The native `zetacode` provider in `builtin.ts` only walks
  * `.zeta/` and `~/.zeta/agent/`, so without this provider those sub-trees are
  * silently ignored.
@@ -37,13 +37,11 @@ import {
 	parseRequestIdFormat,
 	scanSkillsFromDir,
 } from "./helpers";
-import { listOmpExtensionRoots, type OmpExtensionRoot } from "./zeta-extension-roots";
+import { listZetaExtensionRoots, type ZetaExtensionRoot } from "./zeta-extension-roots";
 import { resolvePluginStdioPaths } from "./substitute-plugin-root";
 
 /**
- * Canonical provider id. The pre-rename `omp-plugins` spelling is still accepted
- * wherever provider ids are read (see `canonicalProviderId` in `../capability`),
- * so a `disabledProviders` list written before the rename keeps applying.
+ * Canonical provider id. This is the only accepted spelling.
  */
 const PROVIDER_ID = "zeta-plugins";
 const DISPLAY_NAME = "Zeta Extension Packages";
@@ -57,8 +55,8 @@ const PRIORITY = 90;
  * portable components (skills, MCP) exclusive to the `agent-plugins` provider;
  * fatally invalid Agent Plugins packages are skipped entirely.
  */
-async function allowedRoots(ctx: LoadContext, surface: "skills" | "mcp" | "other"): Promise<OmpExtensionRoot[]> {
-	const roots = await listOmpExtensionRoots(ctx);
+async function allowedRoots(ctx: LoadContext, surface: "skills" | "mcp" | "other"): Promise<ZetaExtensionRoot[]> {
+	const roots = await listZetaExtensionRoots(ctx);
 	const flags = await Promise.all(roots.map(root => legacyProviderAllowed(root.path, surface)));
 	return roots.filter((_, i) => flags[i]);
 }
@@ -166,7 +164,7 @@ const HOOK_TYPES: ReadonlyArray<"pre" | "post"> = ["pre", "post"];
 
 async function loadHooks(ctx: LoadContext): Promise<LoadResult<Hook>> {
 	const roots = await allowedRoots(ctx, "other");
-	const tasks: Array<{ root: OmpExtensionRoot; hookType: "pre" | "post" }> = [];
+	const tasks: Array<{ root: ZetaExtensionRoot; hookType: "pre" | "post" }> = [];
 	for (const root of roots) {
 		for (const hookType of HOOK_TYPES) {
 			tasks.push({ root, hookType });
@@ -301,7 +299,7 @@ async function loadMCPServers(ctx: LoadContext): Promise<LoadResult<MCPServer>> 
 	const items: MCPServer[] = [];
 	const warnings: string[] = [];
 
-	const tasks: Array<{ root: OmpExtensionRoot; mcpPath: string }> = [];
+	const tasks: Array<{ root: ZetaExtensionRoot; mcpPath: string }> = [];
 	for (const root of roots) {
 		for (const filename of MCP_FILENAMES) {
 			tasks.push({ root, mcpPath: path.join(root.path, filename) });
@@ -316,8 +314,8 @@ async function loadMCPServers(ctx: LoadContext): Promise<LoadResult<MCPServer>> 
 
 		const parsed = tryParseJson<{ mcpServers?: Record<string, unknown> }>(raw);
 		if (!parsed) {
-			warnings.push(`[omp-plugins] Invalid JSON in ${mcpPath}`);
-			logger.warn(`[omp-plugins] Invalid JSON in ${mcpPath}`);
+			warnings.push(`[zeta-plugins] Invalid JSON in ${mcpPath}`);
+			logger.warn(`[zeta-plugins] Invalid JSON in ${mcpPath}`);
 			continue;
 		}
 		const servers = expandEnvVarsDeep(parsed.mcpServers, {
@@ -330,7 +328,7 @@ async function loadMCPServers(ctx: LoadContext): Promise<LoadResult<MCPServer>> 
 			if (!serverCfg || typeof serverCfg !== "object" || Array.isArray(serverCfg)) continue;
 			const cfg = serverCfg as RawMcpServer;
 			if (typeof cfg.command !== "string" && typeof cfg.url !== "string") {
-				warnings.push(`[omp-plugins] Skipping MCP server "${serverName}" in ${mcpPath}: missing command or url`);
+				warnings.push(`[zeta-plugins] Skipping MCP server "${serverName}" in ${mcpPath}: missing command or url`);
 				continue;
 			}
 			// Root relative command/cwd at the plugin's config directory, not the
@@ -342,13 +340,13 @@ async function loadMCPServers(ctx: LoadContext): Promise<LoadResult<MCPServer>> 
 			const requestIdFormat = parseRequestIdFormat(cfg.requestIdFormat);
 			if (requestIdFormat === undefined && cfg.requestIdFormat != null) {
 				logger.warn(
-					`[omp-plugins] MCP server "${serverName}" in ${mcpPath}: invalid requestIdFormat ${JSON.stringify(cfg.requestIdFormat)}, ignoring`,
+					`[zeta-plugins] MCP server "${serverName}" in ${mcpPath}: invalid requestIdFormat ${JSON.stringify(cfg.requestIdFormat)}, ignoring`,
 				);
 			}
 			const instructions = typeof cfg.instructions === "boolean" ? cfg.instructions : undefined;
 			if (instructions === undefined && cfg.instructions != null) {
 				logger.warn(
-					`[omp-plugins] MCP server "${serverName}" in ${mcpPath}: invalid instructions ${JSON.stringify(cfg.instructions)}, ignoring`,
+					`[zeta-plugins] MCP server "${serverName}" in ${mcpPath}: invalid instructions ${JSON.stringify(cfg.instructions)}, ignoring`,
 				);
 			}
 			items.push({

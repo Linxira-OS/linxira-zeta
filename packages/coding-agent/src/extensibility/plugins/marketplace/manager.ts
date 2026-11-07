@@ -1199,8 +1199,7 @@ export class MarketplaceManager {
 	}
 
 	#runtimeLockPath(scope: "user" | "project"): string {
-		// Canonical Zeta name, shared with the runtime loader and the plugin
-		// manager; `pluginsLockfileReadOrder` still reads an unmigrated install.
+		// Canonical Zeta name, shared with the runtime loader and the plugin manager.
 		return path.join(this.#runtimeRoot(scope), PLUGINS_LOCKFILE_CANONICAL);
 	}
 

@@ -24,6 +24,12 @@ extraResources:
     to: bin
   - from: build/icon.ico
     to: icon.ico
+  - from: ../LICENSE
+    to: legal/LICENSE
+  - from: ../NOTICE
+    to: legal/NOTICE
+  - from: ../THIRD-PARTY-NOTICES.txt
+    to: legal/THIRD-PARTY-NOTICES.txt
 
 win:
   icon: build/icon.ico
@@ -39,6 +45,9 @@ win:
         - x64
 
 nsis:
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true

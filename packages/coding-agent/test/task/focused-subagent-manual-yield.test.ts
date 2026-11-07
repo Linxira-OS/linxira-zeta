@@ -23,7 +23,7 @@ import { IrcBus } from "@linxiraos/zeta/irc/bus";
 const AGENT_ID = "FocusedYield";
 const PARENT_ID = "Main";
 const MOCK_API_SOURCE = "test/focused-subagent-manual-yield";
-const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "PI_PROFILE"] as const;
 
 let savedEnv: Record<string, string | undefined> = {};
 let root: string;

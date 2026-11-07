@@ -31,6 +31,31 @@ function expectIncludes(problems: string[], relative: string, needle: string): v
 function checkSources(): Problems {
 	const problems: string[] = [];
 	if (!fs.existsSync(icon)) problems.push(`missing canonical icon: ${icon}`);
+	const desktopIcon = path.join(repoRoot, "desktop", "build", "icon.png");
+	const webIcon = path.join(repoRoot, "web-app", "public", "icon.png");
+	const webFavicon = path.join(repoRoot, "web-app", "public", "favicon.ico");
+	const hash = (file: string): string => createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+	if (!fs.existsSync(desktopIcon)) problems.push("missing desktop/build/icon.png (run desktop npm run build)");
+	else if (!fs.existsSync(webIcon)) problems.push("missing web-app/public/icon.png");
+	else if (hash(desktopIcon) !== hash(webIcon)) {
+		problems.push(
+			"web-app/public/icon.png differs from the canonical assets/icon.svg render (run desktop npm run build)",
+		);
+	}
+	if (!fs.existsSync(webFavicon)) problems.push("missing web-app/public/favicon.ico");
+	else {
+		const favicon = fs.readFileSync(webFavicon);
+		if (
+			favicon.length < 6 ||
+			favicon.readUInt16LE(0) !== 0 ||
+			favicon.readUInt16LE(2) !== 1 ||
+			favicon.readUInt16LE(4) === 0
+		) {
+			problems.push("web-app/public/favicon.ico is not a non-empty ICO");
+		}
+	}
+	expectIncludes(problems, "web-app/index.html", 'href="./icon.png"');
+	expectIncludes(problems, "web-app/index.html", 'href="./favicon.ico"');
 	expectIncludes(problems, "main/crates/zetawork-gui/assets/zetawork-gui.rc", '1 ICON "icon.ico"');
 	expectIncludes(problems, "main/crates/zeta-main/assets/zeta-main.rc", "../zetawork-gui/assets/icon.ico");
 	expectIncludes(problems, "termide/assets/termide.rc", "../../../main/crates/zetawork-gui/assets/icon.ico");

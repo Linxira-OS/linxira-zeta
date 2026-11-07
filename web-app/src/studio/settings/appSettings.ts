@@ -60,7 +60,7 @@ export type ConversationWidthPreferences = Pick<AppSettings, typeof CONVERSATION
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   language: "system",
-  theme: "light",
+  theme: "dark",
   density: "standard",
   conversationWidthMode: "standard",
   conversationCustomWidth: 1024,

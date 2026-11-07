@@ -31,7 +31,7 @@ import {
 } from "./agent-plugin-format";
 import { resolveContainedPath } from "./contained-path";
 import { compareSkillOrder, createSourceMeta, listClaudePluginRoots } from "./helpers";
-import { listOmpExtensionRoots } from "./zeta-extension-roots";
+import { listZetaExtensionRoots } from "./zeta-extension-roots";
 
 const PROVIDER_ID = "agent-plugins";
 const DISPLAY_NAME = "Agent Plugins";
@@ -60,7 +60,7 @@ interface CandidateRoot {
 async function listCandidateRoots(ctx: LoadContext): Promise<CandidateRoot[]> {
 	const [marketplace, extensionRoots] = await Promise.all([
 		listClaudePluginRoots(ctx.home, ctx.cwd),
-		listOmpExtensionRoots(ctx),
+		listZetaExtensionRoots(ctx),
 	]);
 	const seen = new Set<string>();
 	const candidates: CandidateRoot[] = [];

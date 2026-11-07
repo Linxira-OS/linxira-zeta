@@ -292,43 +292,43 @@ for (var ompLoopKey in { a: 1 }) {}`);
 });
 
 // Runtime call-site identity: wrapCode wraps bare `tool.read(...)` calls in
-// `__omp_with_call_site__("js:<offset>", () => ...)` so authoritative bridge calls can
+// `__zeta_with_call_site__("js:<offset>", () => ...)` so authoritative bridge calls can
 // claim speculative results. A bare textual mention of the helper (comment, string)
 // must not suppress that wrapping; only genuinely pre-instrumented code or a real
 // user binding of the name skips it.
 describe("wrapCode runtime call-site instrumentation", () => {
 	it("still instruments tool.read when the helper name appears only in a comment", async () => {
 		const wrapped = await wrapCode(
-			'// mentions __omp_with_call_site__ but is not instrumented\nawait tool.read({ path: "a.txt" });',
+			'// mentions __zeta_with_call_site__ but is not instrumented\nawait tool.read({ path: "a.txt" });',
 		);
-		expect(wrapped.source).toContain('__omp_with_call_site__("js:');
+		expect(wrapped.source).toContain('__zeta_with_call_site__("js:');
 	});
 
 	it("still instruments tool.read when the helper name appears only in a string literal", async () => {
-		const wrapped = await wrapCode('const label = "__omp_with_call_site__";\nawait tool.read({ path: "a.txt" });');
-		expect(wrapped.source).toContain('__omp_with_call_site__("js:');
+		const wrapped = await wrapCode('const label = "__zeta_with_call_site__";\nawait tool.read({ path: "a.txt" });');
+		expect(wrapped.source).toContain('__zeta_with_call_site__("js:');
 	});
 
 	it("does not double-wrap an already-instrumented call", async () => {
-		const code = 'await __omp_with_call_site__("js:0", () => tool.read({ path: "a.txt" }));';
+		const code = 'await __zeta_with_call_site__("js:0", () => tool.read({ path: "a.txt" }));';
 		const wrapped = await wrapCode(code);
-		expect(wrapped.source.match(/__omp_with_call_site__\("js:/g) ?? []).toHaveLength(1);
+		expect(wrapped.source.match(/__zeta_with_call_site__\("js:/g) ?? []).toHaveLength(1);
 	});
 
 	it("skips instrumentation when user code declares the helper name", async () => {
-		const wrapped = await wrapCode('const __omp_with_call_site__ = () => {};\nawait tool.read({ path: "a.txt" });');
-		expect(wrapped.source).not.toContain('__omp_with_call_site__("js:');
+		const wrapped = await wrapCode('const __zeta_with_call_site__ = () => {};\nawait tool.read({ path: "a.txt" });');
+		expect(wrapped.source).not.toContain('__zeta_with_call_site__("js:');
 	});
 
 	it("skips instrumentation when user code assigns the helper name", async () => {
-		const wrapped = await wrapCode('__omp_with_call_site__ = null;\nawait tool.read({ path: "a.txt" });');
-		expect(wrapped.source).not.toContain('__omp_with_call_site__("js:');
+		const wrapped = await wrapCode('__zeta_with_call_site__ = null;\nawait tool.read({ path: "a.txt" });');
+		expect(wrapped.source).not.toContain('__zeta_with_call_site__("js:');
 	});
 
 	it("skips instrumentation when user code takes the helper name as a parameter", async () => {
 		const wrapped = await wrapCode(
-			'function f(__omp_with_call_site__) { return __omp_with_call_site__; }\nawait tool.read({ path: "a.txt" });',
+			'function f(__zeta_with_call_site__) { return __zeta_with_call_site__; }\nawait tool.read({ path: "a.txt" });',
 		);
-		expect(wrapped.source).not.toContain('__omp_with_call_site__("js:');
+		expect(wrapped.source).not.toContain('__zeta_with_call_site__("js:');
 	});
 });

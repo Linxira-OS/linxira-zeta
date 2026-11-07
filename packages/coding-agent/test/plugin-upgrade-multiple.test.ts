@@ -29,7 +29,7 @@ async function writeMarketplace(marketplace: string, version: string): Promise<v
 		await Bun.write(path.join(pluginDir, "package.json"), JSON.stringify({ name, version, private: true }));
 	}
 	await Bun.write(
-		path.join(marketplace, ".omp-plugin", "marketplace.json"),
+		path.join(marketplace, ".claude-plugin", "marketplace.json"),
 		JSON.stringify({
 			name: "m",
 			owner: { name: "repro" },
@@ -57,7 +57,7 @@ beforeEach(async () => {
 	vi.spyOn(piUtils, "getPluginsDir").mockReturnValue(path.join(root, "plugins"));
 	vi.spyOn(piUtils, "getPluginsNodeModules").mockReturnValue(path.join(root, "plugins", "node_modules"));
 	vi.spyOn(piUtils, "getPluginsPackageJson").mockReturnValue(path.join(root, "plugins", "package.json"));
-	vi.spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(root, "plugins", "omp-plugins.lock.json"));
+	vi.spyOn(piUtils, "getPluginsLockfile").mockReturnValue(path.join(root, "plugins", "zeta-plugins.lock.json"));
 	vi.spyOn(piUtils, "getMarketplacesRegistryPath").mockReturnValue(path.join(root, "marketplaces.json"));
 	vi.spyOn(piUtils, "getProjectDir").mockReturnValue(path.join(root, "project"));
 	vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => void stdout.push(args.map(String).join(" ")));

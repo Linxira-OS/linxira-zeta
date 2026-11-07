@@ -6384,7 +6384,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   display: flex;
   flex-direction: column;
   padding-right: var(--sp-16);
-  background: radial-gradient(620px 340px at 50% 16%, rgba(124, 92, 240, 0.06), transparent 72%);
+  background: radial-gradient(620px 340px at 50% 16%, rgba(59, 130, 246, 0.06), transparent 72%);
 }
 /* 欢迎区在整块工作区里垂直居中（与 ui_reference/ver1 一致）。写 auto 而不是
    justify-content: center：内容比可视区高时 auto 边距归零，从顶部开始滚动，
@@ -6400,22 +6400,21 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 .convo-wrap.is-empty .minimap { display: none; }
 .convo-wrap[data-reading-column].is-empty > .convo-scroll { padding-right: 0; }
 .convo-wrap[data-reading-column].is-empty > .convo-scroll > .convo-doc {
-  /* 欢迎插画保持独立的 960px 上限；仅 Composer 跟随阅读宽度预设。 */
+  /* 欢迎页保持独立的 960px 上限；仅 Composer 跟随阅读宽度预设。 */
   max-width: 960px;
   flex: none;
   padding-inline: var(--reading-gutter);
 }
-.convo-wrap[data-reading-column].is-empty .ce-pi { max-width: 100%; }
 
 .convo-empty {
-  --pi-line: rgba(124, 92, 240, 0.35);
-  --pi-line-soft: rgba(124, 92, 240, 0.2);
-  --pi-sat: #8b5cf6;
-  --ce-l0: #efecf7;
-  --ce-l1: #ddd2f4;
-  --ce-l2: #b8a2ea;
-  --ce-l3: #8f6bda;
-  --ce-l4: #6a3fc4;
+  --pi-line: rgba(37, 99, 235, 0.35);
+  --pi-line-soft: rgba(37, 99, 235, 0.2);
+  --pi-sat: #2563eb;
+  --ce-l0: #e8eefb;
+  --ce-l1: #d3e2fb;
+  --ce-l2: #a9c8f8;
+  --ce-l3: #6b9ef2;
+  --ce-l4: #2563eb;
 
   display: flex;
   flex-direction: column;
@@ -6445,26 +6444,6 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   flex-direction: column;
   align-items: center;
 }
-.ce-pi {
-  width: min(360px, 70vw);
-  height: auto;
-  display: block;
-  overflow: visible;
-  margin-bottom: -168px;
-  -webkit-mask-image: linear-gradient(to bottom, #000 42%, rgb(0 0 0 / 10%) 66%);
-  mask-image: linear-gradient(to bottom, #000 42%, rgb(0 0 0 / 10%) 66%);
-}
-.ce-pi-glyph {
-  fill: none;
-  stroke: url(#piStroke);
-  stroke-width: 12;
-  stroke-linejoin: miter;
-  stroke-miterlimit: 2;
-  stroke-linecap: square;
-  /* 静态 0.94 ≈ 原 8s 呼吸的平均亮度。无限 opacity 动画会常驻一个合成层、
-     让合成器每帧唤醒；图案本身还有 .ce-anim 的入场，识别度不依赖持续呼吸。 */
-  opacity: 0.94;
-}
 .ce-greet, .ce-sub { position: relative; }
 
 .ce-greet {
@@ -6492,7 +6471,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   max-width: 360px;
 }
 
-.ce-heat { width: 100%; margin: 0 0 var(--sp-24); overflow-x: auto; }
+.ce-heat { width: 100%; margin: 0 0 var(--sp-24); overflow-x: hidden; }
 .ce-heat-head {
   display: flex;
   align-items: baseline;
@@ -6567,6 +6546,10 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   grid-auto-flow: column;
   grid-auto-columns: var(--ce-cell);
   gap: var(--ce-gap);
+  /* The entrance sheen is translated past the grid; without clipping it
+     extends the scrollable overflow (giant scrollbar) and parks as a gray
+     blurred band on the right. */
+  overflow: hidden;
 }
 /* 入场扫光：一条渐变带 + `transform: translateX`（合成属性），扫一遍就停在
    容器外。原来是 `background-position` 的无限动画——非合成属性，每帧重绘整块
@@ -6614,7 +6597,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 .ce-hc:hover {
   transform: scale(1.4);
   z-index: 5;
-  box-shadow: 0 0 0 1px rgba(124, 92, 240, 0.55), 0 2px 10px rgba(124, 92, 240, 0.4);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.55), 0 2px 10px rgba(59, 130, 246, 0.4);
 }
 .ce-heat-legend {
   grid-column: 2;
@@ -6627,6 +6610,10 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   color: var(--text-faint);
 }
 .ce-heat-legend i { width: 9px; height: 9px; border-radius: 2px; background: var(--ce-l0); }
+
+@media (max-width: 1320px) {
+  .ce-heat-board { --ce-cell: 10px; --ce-gap: 3px; }
+}
 
 /* 最近对话是欢迎区最后一段：不再给下边距，否则垂直居中的可视重心会偏上 10px。 */
 .ce-recent { width: 100%; margin: 0; }
@@ -6704,23 +6691,23 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 .ce-meta-sep { width: 1px; height: 10px; background: var(--border-strong); }
 
 :root[data-theme="dark"] .convo-empty {
-  --pi-line: rgba(139, 108, 246, 0.5);
-  --pi-line-soft: rgba(139, 108, 246, 0.3);
-  --ce-l0: rgba(139, 108, 246, 0.1);
-  --ce-l1: #3a2a6b;
-  --ce-l2: #58409e;
-  --ce-l3: #7e5ccf;
-  --ce-l4: #a78bf0;
+  --pi-line: rgba(96, 165, 250, 0.5);
+  --pi-line-soft: rgba(96, 165, 250, 0.3);
+  --ce-l0: rgba(96, 165, 250, 0.1);
+  --ce-l1: #1e3a5f;
+  --ce-l2: #2f5f9e;
+  --ce-l3: #4f8fd8;
+  --ce-l4: #93c5fd;
 }
 :root[data-theme="dark"] .convo-wrap.is-empty .convo-scroll {
-  background: radial-gradient(620px 340px at 50% 16%, rgba(124, 92, 240, 0.1), transparent 72%);
+  background: radial-gradient(620px 340px at 50% 16%, rgba(59, 130, 246, 0.1), transparent 72%);
 }
-:root[data-theme="dark"] .ce-hc[data-l="3"] { box-shadow: 0 0 5px rgba(126, 92, 207, 0.35); }
-:root[data-theme="dark"] .ce-hc[data-l="4"] { box-shadow: 0 0 7px rgba(167, 139, 240, 0.55); }
+:root[data-theme="dark"] .ce-hc[data-l="3"] { box-shadow: 0 0 5px rgba(79, 143, 216, 0.35); }
+:root[data-theme="dark"] .ce-hc[data-l="4"] { box-shadow: 0 0 7px rgba(96, 165, 250, 0.55); }
 :root[data-theme="dark"] .ce-hc:hover {
-  box-shadow: 0 0 0 1px rgba(167, 139, 240, 0.7), 0 2px 12px rgba(167, 139, 240, 0.5);
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.7), 0 2px 12px rgba(96, 165, 250, 0.5);
 }
-:root[data-theme="dark"] .ce-heat-pi { color: #a78bf0; }
+:root[data-theme="dark"] .ce-heat-pi { color: #93c5fd; }
 
 @media (max-width: 640px) {
   .ce-heat-board { grid-template-columns: max-content; }
@@ -6730,7 +6717,6 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 }
 @media (prefers-reduced-motion: reduce) {
   .convo-empty .ce-anim { animation: none; opacity: 1; transform: none; }
-  .ce-pi-glyph { opacity: 0.94; }
   .ce-hc, .ce-heat-months, .ce-heat-days, .ce-heat-cells { animation: none; }
   .ce-heat-cells::after { display: none; }
   .composer-bar .pill-btn.danger > span { animation: none; }
