@@ -98,7 +98,10 @@ export class StudioClientImpl implements StudioClient {
 
 	constructor(options: StudioClientOptions = {}) {
 		this.#gatewayUrl = (options.gatewayUrl ?? "").replace(/\/+$/, "");
-		this.#fetch = options.fetchImpl ?? fetch;
+		// `fetch` is a Window method: stored unbound and called as `this.#fetch(...)`
+		// Chrome rejects it with "Illegal invocation". Bind the default so every
+		// same-origin request (identity, queries, commands, SSE) reaches the server.
+		this.#fetch = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
 		this.#sessionId = options.sessionId ?? null;
 		this.#cwd = options.cwd ?? null;
 	}
