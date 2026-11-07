@@ -301,7 +301,7 @@ export const PREVIEW_CTX_PARTS: PreviewCtxPart[] = [
   { name: "系统提示词", v: "13k", pct: 5.9, color: "#8a919c" },
   { name: "系统上下文", v: "42k", pct: 19.1, color: "#64748b" },
   { name: "工具定义", v: "18k", pct: 8.2, color: "#64748b" },
-  { name: "Skills", v: "24k", pct: 10.9, color: "#6e56cf" },
+  { name: "Skills", v: "24k", pct: 10.9, color: "#2563eb" },
   { name: "对话消息", v: "123.4k", pct: 56.0, color: "#3b9bd4" },
 ];
 

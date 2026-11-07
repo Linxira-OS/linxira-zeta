@@ -172,6 +172,10 @@ interface FutureRowDef {
 
 function FutureRows({ rows, demo }: { rows: readonly FutureRowDef[]; demo?: RuntimeDemoApi | undefined }) {
   const { t } = useI18n();
+  // Live mode: these paths have no writer behind the panel yet, so hide them
+  // instead of painting disabled "not connected" controls. Preview keeps the
+  // demo interaction.
+  if (!demo) return null;
   return rows.map((row) => (
     <SettingRow key={row.key} label={row.label} desc={row.desc} source="unavailable" reason={row.reason}>
       {row.control.type === "select" ? (
@@ -761,7 +765,7 @@ export function PermissionsTab({ ctl, demo }: { ctl: SettingsCtl; demo?: Runtime
               reason: t("settings.permissions.securityOutsideReason"),
             },
             {
-              key: "security.bashRules",
+              key: "tools.bashApprovalRules",
               label: t("settings.permissions.bashRules"),
               desc: t("settings.permissions.bashRulesDesc"),
               control: {
@@ -842,13 +846,13 @@ export function ContextTab({ demo, runtime }: { demo?: RuntimeDemoApi | undefine
         <FutureRows
           demo={demo}
           rows={[
-            { key: "compact.auto", label: t("settings.context.compactAuto"), desc: t("settings.context.compactAutoDesc"), control: { type: "toggle", on: true }, reason: t("settings.reasons.compaction") },
-            { key: "compact.strategy", label: t("settings.context.compactStrategy"), desc: t("settings.context.compactStrategyDesc"), control: { type: "select", value: "Snapcompact", options: [["Context-full", "Context-full"], ["Handoff", "Handoff"], ["Shake", "Shake"], ["Snapcompact", "Snapcompact"], ["Off", "Off"]] }, reason: t("settings.reasons.compaction") },
-            { key: "compact.threshold", label: t("settings.context.compactThreshold"), desc: t("settings.context.compactThresholdDesc"), control: { type: "select", value: "80%", options: [["默认", t("settings.context.thresholdDefault")], ["70%", "70%"], ["80%", "80%"], ["90%", "90%"]] }, reason: t("settings.reasons.compaction") },
-            { key: "compact.midTurn", label: t("settings.context.compactMidTurn"), desc: t("settings.context.compactMidTurnDesc"), control: { type: "toggle", on: false }, reason: t("settings.reasons.compaction") },
-            { key: "compact.idle", label: t("settings.context.compactIdle"), desc: t("settings.context.compactIdleDesc"), control: { type: "toggle", on: true }, reason: t("settings.reasons.compaction") },
-            { key: "compact.promote", label: t("settings.context.compactPromote"), desc: t("settings.context.compactPromoteDesc"), control: { type: "toggle", on: false }, reason: t("settings.reasons.compaction") },
-            { key: "compact.pruneReads", label: t("settings.context.compactPruneReads"), desc: t("settings.context.compactPruneReadsDesc"), control: { type: "toggle", on: true }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.enabled", label: t("settings.context.compactAuto"), desc: t("settings.context.compactAutoDesc"), control: { type: "toggle", on: true }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.methodOrder", label: t("settings.context.compactStrategy"), desc: t("settings.context.compactStrategyDesc"), control: { type: "select", value: "Snapcompact", options: [["Context-full", "Context-full"], ["Handoff", "Handoff"], ["Shake", "Shake"], ["Snapcompact", "Snapcompact"], ["Off", "Off"]] }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.thresholdPercent", label: t("settings.context.compactThreshold"), desc: t("settings.context.compactThresholdDesc"), control: { type: "select", value: "80%", options: [["默认", t("settings.context.thresholdDefault")], ["70%", "70%"], ["80%", "80%"], ["90%", "90%"]] }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.midTurnEnabled", label: t("settings.context.compactMidTurn"), desc: t("settings.context.compactMidTurnDesc"), control: { type: "toggle", on: false }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.idleEnabled", label: t("settings.context.compactIdle"), desc: t("settings.context.compactIdleDesc"), control: { type: "toggle", on: true }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.autoContinue", label: t("settings.context.compactPromote"), desc: t("settings.context.compactPromoteDesc"), control: { type: "toggle", on: false }, reason: t("settings.reasons.compaction") },
+            { key: "compaction.supersedeReads", label: t("settings.context.compactPruneReads"), desc: t("settings.context.compactPruneReadsDesc"), control: { type: "toggle", on: true }, reason: t("settings.reasons.compaction") },
           ]}
         />
       </SettingSection>
@@ -1085,18 +1089,11 @@ export function AdvancedTab({ demo, runtime }: { demo?: RuntimeDemoApi | undefin
     }
   }, [disabled, mirrorInput, preview, updates, t]);
 
-  const configLayers: ReadonlyArray<readonly [string, string]> = [
-    ["user", t("settings.advanced.layerUser")],
-    ["project", t("settings.advanced.layerProject")],
-    ["cli", t("settings.advanced.layerCli")],
-    ["override", t("settings.advanced.layerOverride")],
-    ["effective", t("settings.advanced.layerEffective")],
-  ];
-
   return (
     <>
       <TabHeader title={t("settings.advanced.title")} desc={t("settings.advanced.desc")} {...(runtime === undefined ? {} : { runtime })} />
       <Runtime1844Rows runtime={runtime} />
+      {available || preview ? <>
       <SettingSection title={t("updates.section")}>
         <SettingRow
           label={t("updates.mirrorLabel")}
@@ -1171,52 +1168,8 @@ export function AdvancedTab({ demo, runtime }: { demo?: RuntimeDemoApi | undefin
       <SettingSection title={t("updates.rollbackApp")}>
         <DesktopUpdateRecovery preview={preview} />
       </SettingSection>
+      </> : null}
 
-      <SettingSection title={t("settings.advanced.sectionConfigLayers")} desc={t("settings.advanced.sectionConfigLayersDesc")}>
-        <div className="config-layer-list">
-          {configLayers.map(([key, label]) => (
-            <div key={key} className="config-layer-row">
-              <span>{label}</span>
-              <span className="small muted">{demo ? t("settings.advanced.demoValue") : t("settings.advanced.notConnected")}</span>
-            </div>
-          ))}
-        </div>
-        <p className="small muted set-note">
-          {demo ? t("settings.advanced.layerNoteDemo") : t("settings.advanced.layerNoteReal")}
-        </p>
-      </SettingSection>
-      <SettingSection title={t("settings.advanced.sectionConfigFiles")}>
-        <SettingRow
-          label={t("settings.advanced.openConfig")}
-          desc={t("settings.advanced.openConfigDesc")}
-          source="unavailable"
-          reason={t("settings.advanced.openConfigReason")}
-        >
-          <button type="button" className="btn small outline" disabled data-tip={`${t("settings.advanced.openBtn")}（${t("common.notImplemented")}）`}>
-            {t("settings.advanced.openBtn")}
-          </button>
-        </SettingRow>
-        <SettingRow
-          label={t("settings.advanced.viewSanitized")}
-          desc={t("settings.advanced.viewSanitizedDesc")}
-          source="unavailable"
-          reason={t("settings.advanced.viewSanitizedReason")}
-        >
-          <button type="button" className="btn small outline" disabled data-tip={`${t("settings.advanced.exportBtn")}（${t("common.notImplemented")}）`}>
-            {t("settings.advanced.exportBtn")}
-          </button>
-        </SettingRow>
-        <SettingRow
-          label={t("settings.advanced.resetDefaults")}
-          desc={t("settings.advanced.resetDefaultsDesc")}
-          source="unavailable"
-          reason={t("settings.advanced.resetDefaultsReason")}
-        >
-          <button type="button" className="btn small danger" disabled data-tip={`${t("settings.advanced.resetDefaultsBtn")}（${t("common.notImplemented")}）`}>
-            {t("settings.advanced.resetDefaultsBtn")}
-          </button>
-        </SettingRow>
-      </SettingSection>
       <SettingSection title={t("settings.advanced.sectionAdvancedBehavior")}>
         <FutureRows
           demo={demo}

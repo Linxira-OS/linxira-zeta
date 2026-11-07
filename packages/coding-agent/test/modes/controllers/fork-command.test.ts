@@ -1,10 +1,9 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { classifyTerminalMultiplexer, type TerminalMultiplexer } from "@linxiraos/pi-tui/terminal-multiplexer";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
-import { initTheme } from "@linxiraos/pi-tui/theme";
 import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { Settings } from "../../../src/config/settings";
@@ -16,7 +15,6 @@ import {
 	type TerminalLaunchRequest,
 	type TerminalLaunchResult,
 } from "../../../src/subprocess/terminal-launch";
-import { type FakeAnswer, type FakeDaemon, startFakeDaemon } from "../../tools/tern-fake-daemon";
 
 let tempDirectory: string;
 let sourceSessionFile: string;
@@ -175,7 +173,7 @@ describe("/fork terminal placement", () => {
 		const command = request?.command ?? [];
 		expect(command[0]).toBe("env");
 		expect(command).toContain("ZETA_CODING_AGENT_DIR=/user/agent");
-		expect(command).toContain("OMP_PROFILE=active-profile");
+		expect(command).toContain("ZETA_PROFILE=active-profile");
 		expect(command).toContain("PI_PROFILE=active-profile");
 		expect(command.slice(command.indexOf("omp-entry") + 1)).toEqual([
 			"--profile",
@@ -225,7 +223,7 @@ describe("/fork terminal placement", () => {
 		await controller.handleForkCommand("pane");
 		const command = launchTerminal.mock.calls[0]?.[0].command ?? [];
 		const envArgs = command.slice(0, command.indexOf("omp-entry"));
-		for (const name of ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "OMP_PROFILE", "PI_PROFILE"]) {
+		for (const name of ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "ZETA_PROFILE", "PI_PROFILE"]) {
 			expect(envArgs[envArgs.indexOf(name) - 1]).toBe("-u");
 			expect(envArgs.some(arg => arg.startsWith(`${name}=`))).toBe(false);
 		}
@@ -271,7 +269,7 @@ describe("/fork terminal placement", () => {
 				({
 					TMUX: "server,1,0",
 					TMUX_PANE: "%1",
-					OMP_PROFILE: "stale-server-profile",
+					ZETA_PROFILE: "stale-server-profile",
 					PI_PROFILE: "stale-server-profile",
 					ZETA_CODING_AGENT_DIR: "/stale/server/agent",
 					PI_CONFIG_FILES: configFiles,
@@ -415,55 +413,5 @@ describe("/fork terminal placement", () => {
 		});
 		await controller.handleForkCommand("pane");
 		expect(ctx.showError).toHaveBeenCalledWith(expect.stringContaining("TMUX_PANE"));
-	});
-});
-
-describe("/fork inside Tern", () => {
-	const TERN_ENV_KEYS = ["TERN_PANE_SOCKET", "TERN_PANE"] as const;
-	let savedEnv: Map<string, string | undefined>;
-	let daemon: FakeDaemon | undefined;
-
-	beforeAll(async () => {
-		await initTheme(false);
-	});
-
-	beforeEach(() => {
-		savedEnv = new Map(TERN_ENV_KEYS.map(key => [key, process.env[key]]));
-	});
-
-	afterEach(async () => {
-		await daemon?.close();
-		daemon = undefined;
-		for (const [key, value] of savedEnv) {
-			if (value === undefined) delete process.env[key];
-			else process.env[key] = value;
-		}
-	});
-
-	async function startTern(fork: () => FakeAnswer): Promise<FakeDaemon> {
-		daemon = await startFakeDaemon(() => ({ ok: {} }), { welcome: { ops: ["browser", "fork"] }, fork });
-		process.env.TERN_PANE_SOCKET = daemon.socketPath;
-		process.env.TERN_PANE = "5";
-		return daemon;
-	}
-
-	it("forks into a new pane while a turn is running, leaving the running session in place", async () => {
-		const tern = await startTern(() => ({ ok: { block: 9 } }));
-		const { controller, ctx, session } = createContext({ streaming: true });
-		await controller.handleForkCommand();
-		expect(tern.forks).toEqual([{ id: 1, op: { block: 5 } }]);
-		expect(session.flushToDisk).toHaveBeenCalledTimes(1);
-		expect(session.fork).not.toHaveBeenCalled();
-		expect(ctx.showWarning).not.toHaveBeenCalled();
-		expect(ctx.present).toHaveBeenCalledTimes(1);
-	});
-
-	it("refuses the in-place fallback mid-turn when Tern declines the fork", async () => {
-		const tern = await startTern(() => ({ error: { kind: "not_agent", message: "no session file" } }));
-		const { controller, ctx, session } = createContext({ streaming: true });
-		await controller.handleForkCommand();
-		expect(tern.forks).toHaveLength(1);
-		expect(session.fork).not.toHaveBeenCalled();
-		expect(ctx.showWarning).toHaveBeenCalledTimes(1);
 	});
 });

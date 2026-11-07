@@ -60,7 +60,7 @@ const isolatedEnvKeys = [
 	"USERPROFILE",
 	"CLAUDE_CONFIG_DIR",
 	"ZETA_CODING_AGENT_DIR",
-	"OMP_PROFILE",
+	"ZETA_PROFILE",
 	"PI_PROFILE",
 ] as const;
 const originalEnv: Record<string, string | undefined> = Object.fromEntries(

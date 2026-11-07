@@ -17,7 +17,7 @@ import { runCli } from "@linxiraos/zeta/cli";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
+import { clearZetaExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import { PRINT_MODE_COST_CAP_EXIT_CODE, runPrintMode } from "@linxiraos/zeta/modes/print-mode";
 import { type CreateAgentSessionOptions, createAgentSession } from "@linxiraos/zeta/sdk";
@@ -73,7 +73,7 @@ function streamOf(message: AssistantMessage): AssistantMessageEventStream {
 
 // `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
 afterEach(() => {
-	clearOmpExtensionCliRoots();
+	clearZetaExtensionCliRoots();
 });
 
 describe("CostGate", () => {

@@ -40,7 +40,7 @@ Current behavior is implemented in
   also fail the helper's eligibility check and use abort/retry when bounded
   detection is supplied.
 
-Raw removed content is included in audit events only when `OMP_HARMONY_DEBUG=1`;
+Raw removed content is included in audit events only when `ZETA_HARMONY_DEBUG=1`;
 normal audit events keep the hash and a redacted preview.
 
 The corpus tables below describe the historical input formats present in that

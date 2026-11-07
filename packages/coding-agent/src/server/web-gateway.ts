@@ -46,7 +46,6 @@ import {
 	handleApiKeyDelete,
 	handleApiKeyGet,
 	handleApiKeyPost,
-	handleCopyFromOmp,
 	handleLoginGet,
 	handleLoginPost,
 	handleLogout,
@@ -137,6 +136,8 @@ import {
 import {
 	handleSettingsGet,
 	handleSettingsPut,
+	handleSettingsRawGet,
+	handleSettingsRawPut,
 	handleSettingsReload,
 	handleSettingsValuesGet,
 } from "./web-gateway/settings";
@@ -144,6 +145,7 @@ import {
 	handleSkillsCheck,
 	handleSkillsGet,
 	handleSkillsInstall,
+	handleSkillsOfficial,
 	handleSkillsPatch,
 	handleSkillsReveal,
 	handleSkillsSearch,
@@ -224,7 +226,6 @@ const AUTH_PROVIDERS_RE = /^\/api\/auth\/providers$/;
 const AUTH_API_KEY_RE = new RegExp(`^/api/auth/api-key/(${PROVIDER_PART})$`);
 const AUTH_LOGIN_RE = new RegExp(`^/api/auth/login/(${PROVIDER_PART})$`);
 const AUTH_LOGOUT_RE = new RegExp(`^/api/auth/logout/(${PROVIDER_PART})$`);
-const AUTH_COPY_FROM_OMP_RE = new RegExp(`^/api/auth/copy-from-omp/(${PROVIDER_PART})$`);
 const MODELS_RE = /^\/api\/models$/;
 const MODELS_IMPORT_RE = /^\/api\/models\/import$/;
 const MODELS_DEFAULT_RE = /^\/api\/models\/default$/;
@@ -722,12 +723,6 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return json({ error: "Method not allowed" }, 405);
 	}
 
-	const copyFromOmp = capture(pathname, AUTH_COPY_FROM_OMP_RE);
-	if (copyFromOmp) {
-		if (req.method === "POST") return handleCopyFromOmp(copyFromOmp[0]);
-		return json({ error: "Method not allowed" }, 405);
-	}
-
 	if (MODELS_RE.test(pathname)) {
 		if (req.method === "GET") return handleModels(req);
 		return json({ error: "Method not allowed" }, 405);
@@ -776,6 +771,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (pathname === "/api/skills/reveal") {
 		if (req.method === "POST") return handleSkillsReveal(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/skills/official") {
+		if (req.method === "POST") return handleSkillsOfficial(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 
@@ -874,6 +874,12 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (PLAN_RE.test(pathname)) {
 		if (req.method === "GET") return handleGetPlan(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/settings/raw") {
+		if (req.method === "GET") return handleSettingsRawGet(req);
+		if (req.method === "PUT") return handleSettingsRawPut(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

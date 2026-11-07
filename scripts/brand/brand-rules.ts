@@ -89,15 +89,13 @@ export const OH_MY_PI_ALLOW_PATTERNS = [/github\.com\/can1357\/oh-my-pi/, /oh-my
  * real divergence — the skillful-toggle lesson).
  */
 export const OMP_PATH_ALLOW = [
-	/\/discovery\/(helpers|omp-plugins|claude-plugins)\.ts$/, // OMP plugin interop
+	/\/discovery\/(helpers|zeta-plugins|claude-plugins)\.ts$/, // plugin interop
 	/omp-extension-roots\.ts$/,
-	/\/plugins\/[^/]+\.ts$/, // pkg.omp manifest loaders
+	/\/plugins\/[^/]+\.ts$/, // legacy manifest loaders
 	/extensibility\/extensions\/loader\.ts$/,
-	/config\/discovery\/builtin\.ts$/, // Builtin provider probing OMP installs
-	/export\/share\.ts$/, // .ompshare gist export
+	/config\/discovery\/builtin\.ts$/, // Builtin provider probing
+	/export\/share\.ts$/, // share export sentinel
 	/utils\/title-generator\.ts$/, // \uE000omp-title-visible\uE000 wire sentinel
-	/utils\/src\/env\.ts$/, // legacy OMP dotenv reader: the switch reads the old root on purpose
-	/utils\/test\/env\.test\.ts$/, // its fixtures must keep the legacy path distinct from the new one
 	/legacy-pi-compat\.ts$|legacy-pi-coding-agent-shim\.ts$/,
 	// `packages/browser-relay/**` used to be exempted wholesale (twice: the
 	// chrome.storage key family + the README's OMP-compatible CLI surface).
@@ -105,7 +103,7 @@ export const OMP_PATH_ALLOW = [
 	// carry no `.omp`-shaped token any more (keys and the keepalive alarm are
 	// zeta*), so the blanket entry exempted nothing while hiding residue from
 	// every per-file rule.
-	/\.omp-plugin|\.ompshare|__omp|ZETA_PROFILE|ompprurl|@omp-|omp-\$\{/,
+	/__omp|ompprurl|@omp-|omp-\$\{/,
 	// `omp.sh` is deliberately NOT in this list: an upstream-host literal is not
 	// interop residue, so a line carrying one must not slip past the `.omp` path
 	// rule on its way out. Upstream-host placements are owned by the ledger
@@ -118,13 +116,6 @@ export const OMP_PATH_ALLOW = [
 	// keeps absent; that is the reason it exists, not residue.
 	/scripts\/audit-merge-tests\.ts$/, // comparison-only brand normalization; the audit compares a Zeta tree to the upstream tag
 	/scripts\/check-removed-upstream-files\.ts$/,
-	// Read-only upstream OMP compatibility (opt-in via ZETA_OMP_COMPAT): the
-	// probe and the legacy dotenv fallback must name the upstream `~/.omp`
-	// roots to find them.
-	/"\.omp", "agent"/,
-	/packages\/utils\/src\/env\.ts ⟶ .*"\.omp", "\.env"/,
-	/packages\/utils\/src\/env\.ts ⟶ .*"\.omp", "profiles"/,
-	/~\/\.omp\/agent/,
 ];
 
 /**
@@ -309,11 +300,6 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		needle: 'export const RECORDING_EXTENSION = ".zetacast";',
 		why: "session-recording file extension; upstream is .ompcast",
 	},
-	{
-		file: "packages/utils/src/dirs.ts",
-		needle: '"omp-plugins.lock.json"',
-		why: "the pre-rename plugin lockfile name must stay readable: existing installs carry runtime state (enabled features, versions) in it, and `pluginsLockfileReadOrder`/the loader's migration resolve it before writing the canonical Zeta name. Removing the literal turns the rename into a state reset, not a migration",
-	},
 	// ── v18.8.7/v18.8.8 merge-residue pins (2026-10-11 sweep) ──────────────
 	// These are file-local strings the whole-tree token bans cannot express
 	// (an `omp` in the same file may be a deliberate interop token); pin the
@@ -341,7 +327,7 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	{
 		file: "packages/coding-agent/src/main.ts",
 		needle: "the `zeta-plugins` discovery provider",
-		why: "main.ts's trusted-extension comment names our discovery provider id (zeta-plugins is the canonical write form; `omp-plugins` is read-only interop, kept elsewhere)",
+		why: "main.ts's trusted-extension comment names our discovery provider id; `zeta-plugins` is the only provider id and the pre-rename alias is gone, so this line must not drift",
 	},
 	{
 		file: "packages/tui/src/prompt/attachment-chips.ts",
@@ -544,23 +530,14 @@ export const MUST_NOT_CONTAIN: Array<{
 		why: "advisory lock path prefix is zeta-file-lock-",
 	},
 	{
-		needle: /zeta-plugins\.lock\.json/,
-		why: "the lockfile we WRITE is Zeta-named (DUAL verdict: read the legacy name, write ours) — but the legacy name must stay, it holds every existing install's plugin state",
-		exempt: [
-			"CHANGELOG.md",
-			"packages/utils/src/dirs.ts",
-			"document/brand-surface-rules.md",
-			// The migration test must name both spellings to assert the contract.
-			"test/plugins/lockfile-migration.test.ts",
-			// Tool fixtures create the canonical lockfile the manager reads/writes;
-			// the migration test above is what asserts the legacy spelling stays.
-			"packages/coding-agent/test/tools/plugin-tools.test.ts",
-		],
-	},
-	{
 		needle: /(?<![A-Za-z0-9])ompcast/,
 		why: "session-recording extension/format key is zetacast; the two read-old sites are the deliberate upgrade path for recordings captured by an earlier install, not brand residue",
-		exempt: ["CHANGELOG.md", "src/stream/recording.ts", "test/stream/recording-compat.test.ts"],
+		exempt: [
+			"CHANGELOG.md",
+			"src/stream/recording.ts",
+			"test/stream/recording-compat.test.ts",
+			"scripts/check-no-upstream-agent-compat.ts",
+		],
 	},
 	{
 		needle: /(?<![A-Za-z0-9`])omp --/,

@@ -86,7 +86,7 @@ function renderSession(entries: unknown[], leafId: string, subSessions?: Record<
 	const context = vm.createContext({
 		window,
 		document,
-		ompMarkdown: { Marked },
+		zetaMarkdown: { Marked },
 		hljs: {
 			getLanguage: () => false,
 			highlight: () => ({ value: "" }),

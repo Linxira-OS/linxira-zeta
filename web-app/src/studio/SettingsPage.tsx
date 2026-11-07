@@ -23,6 +23,7 @@ import { usePreviewMode } from "./preview/PreviewContext";
 import { PREVIEW_APP_SETTINGS, PREVIEW_APPROVAL_MODE, usePreviewAppSettings, useRuntimeDemo } from "./preview/settingsPreview";
 import { type AppSettings, useAppSettings } from "./settings/appSettings";
 import { ConversationWidthProvider, useConversationWidth } from "./settings/ConversationWidthContext";
+import { RawConfigEditor } from "./settings/RawConfigEditor";
 import { SlidingTabs } from "./SlidingTabs";
 import {
   AdvancedTab,
@@ -299,6 +300,7 @@ function SettingsPageContent({
           </div>
           <div {...pane("advanced")} id="set-advanced" role="tabpanel" aria-labelledby="setTab-advanced" tabIndex={0}>
             <AdvancedTab demo={demoRuntime} runtime={runtime} />
+            <RawConfigEditor cwd={(client as { cwd?: string | null }).cwd} />
             <PredictionSettings client={client} sessionId={predictionSessionId} available={predictionAvailable} />
           </div>
         </div>

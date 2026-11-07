@@ -33,12 +33,13 @@ import { useAxisCrossfade, useTokenChartMorph, type TokenChartModelPts } from ".
 
 import { useI18n } from "./i18n";
 
-export type PageRoute = "home" | "workbench" | "history" | "agent-hub" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics";
+export type PageRoute = "home" | "workbench" | "history" | "agent-hub" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics" | "team";
 
 const PAGE_NAV_DEFS: ReadonlyArray<{ id: PageRoute; icon: string; key: string }> = [
   { id: "workbench", icon: "layout", key: "nav.workbench" },
   { id: "home", icon: "home", key: "nav.home" },
   { id: "history", icon: "history", key: "nav.history" },
+  { id: "team", icon: "network", key: "nav.team" },
   { id: "capabilities", icon: "package", key: "nav.capabilities" },
   { id: "model-config", icon: "server", key: "nav.modelConfig" },
   { id: "evaluation", icon: "pulse", key: "nav.evaluation" },
@@ -48,7 +49,7 @@ const PAGE_NAV_DEFS: ReadonlyArray<{ id: PageRoute; icon: string; key: string }>
 ];
 
 function isAppRoute(id: string): id is Exclude<PageRoute, "agent-hub"> {
-  return id === "home" || id === "workbench" || id === "history" || id === "capabilities" || id === "model-config" || id === "settings" || id === "diagnostics" || id === "media" || id === "evaluation" || id === "statistics";
+  return id === "home" || id === "workbench" || id === "history" || id === "team" || id === "capabilities" || id === "model-config" || id === "settings" || id === "diagnostics" || id === "media" || id === "evaluation" || id === "statistics";
 }
 
 export function SecondaryPage({
@@ -199,7 +200,7 @@ function ompStatusText(
   return extras.length > 0 ? `${head} · ${extras.join(" · ")}` : head;
 }
 
-function ProfileEditDialog({
+export function ProfileEditDialog({
   name,
   avatar,
   onClose,
@@ -333,7 +334,7 @@ function ProfileEditDialog({
               autoFocus
               value={draftName}
               maxLength={DISPLAY_NAME_MAX}
-              placeholder="Studio"
+              placeholder="Z Work Studio"
               onChange={(event) => setDraftName(event.target.value)}
             />
           </div>

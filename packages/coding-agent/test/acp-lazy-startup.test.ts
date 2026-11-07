@@ -4,7 +4,7 @@ import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { lookup } from "@linxiraos/zeta/config/registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
+import { clearZetaExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { createAcpConnection } from "@linxiraos/zeta/modes/acp/acp-mode";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
@@ -179,7 +179,7 @@ async function closeTransport(writable: WritableStream<unknown>): Promise<void> 
 
 // `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
 afterEach(() => {
-	clearOmpExtensionCliRoots();
+	clearZetaExtensionCliRoots();
 });
 
 describe("ACP lazy startup", () => {

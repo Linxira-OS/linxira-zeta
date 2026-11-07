@@ -5,7 +5,7 @@
  * Extension packages registered via `extensions:` in settings or
  * `--extension` on the CLI ship their own `skills/`, `hooks/`, `tools/`,
  * `commands/`, `rules/`, `prompts/`, and `.mcp.json`. The `zeta-plugins`
- * provider (`src/discovery/omp-plugins.ts`) is what wires those sub-trees
+ * provider (`src/discovery/zeta-plugins.ts`) is what wires those sub-trees
  * into the standard capability surfaces.
  *
  * The provider is invoked directly so the `LoadContext` uses a tempdir as
@@ -30,11 +30,11 @@ import type { LoadContext, Provider } from "@linxiraos/zeta/capability/types";
 import "@linxiraos/zeta/discovery";
 import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import {
-	clearOmpExtensionCliRoots,
-	injectOmpExtensionCliRoots,
-	listOmpExtensionRoots,
+	clearZetaExtensionCliRoots,
+	injectZetaExtensionCliRoots,
+	listZetaExtensionRoots,
 	setInvocationConfiguredExtensions,
-	withOmpExtensionRootScope,
+	withZetaExtensionRootScope,
 } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { discoverExtensionPaths } from "@linxiraos/zeta/extensibility/extensions/loader";
 
@@ -69,7 +69,7 @@ async function loadFromPlugin<T>(capabilityId: string, ctx: LoadContext): Promis
 function buildExtensionPackage(packageDir: string, skillName = "my-skill"): void {
 	writeFile(
 		path.join(packageDir, "package.json"),
-		JSON.stringify({ name: path.basename(packageDir), omp: { extensions: ["./src/main.ts"] } }),
+		JSON.stringify({ name: path.basename(packageDir), zeta: { extensions: ["./src/main.ts"] } }),
 	);
 	writeFile(path.join(packageDir, "src", "main.ts"), "export default function (_pi) {}\n");
 	writeFile(
@@ -92,7 +92,7 @@ function buildExtensionPackage(packageDir: string, skillName = "my-skill"): void
 
 beforeEach(() => {
 	clearCache();
-	clearOmpExtensionCliRoots();
+	clearZetaExtensionCliRoots();
 	tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-plugins-"));
 	home = path.join(tempDir, "home");
 	project = path.join(tempDir, "project");
@@ -106,7 +106,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	clearCache();
-	clearOmpExtensionCliRoots();
+	clearZetaExtensionCliRoots();
 	if (originalAgentDirEnv) {
 		setAgentDir(originalAgentDirEnv);
 	} else {
@@ -230,7 +230,7 @@ test("user YAML config suppresses its legacy settings.json migration source", as
 
 test("`--extension` CLI injection is wired through the same provider", async () => {
 	// Empty settings on disk; rely purely on CLI injection.
-	injectOmpExtensionCliRoots([ext], home, project);
+	injectZetaExtensionCliRoots([ext], home, project);
 
 	const skills = await loadFromPlugin<{ name: string }>(skillCapability.id, ctx());
 	const tools = await loadFromPlugin<{ name: string }>(toolCapability.id, ctx());
@@ -246,10 +246,10 @@ test("relative CLI roots rebind when resume switches projects", async () => {
 	buildExtensionPackage(launchRoot, "launch-skill");
 	buildExtensionPackage(destinationRoot, "destination-skill");
 
-	injectOmpExtensionCliRoots([`./${relativeRoot}`], home, project);
+	injectZetaExtensionCliRoots([`./${relativeRoot}`], home, project);
 
 	const destinationContext = { cwd: destination, home, repoRoot: destination };
-	const roots = await listOmpExtensionRoots(destinationContext);
+	const roots = await listZetaExtensionRoots(destinationContext);
 	const skills = await loadFromPlugin<{ name: string }>(skillCapability.id, destinationContext);
 	expect(roots.map(root => root.path)).toEqual([destinationRoot]);
 	expect(skills.map(skill => skill.name)).toContain("destination-skill");
@@ -269,13 +269,13 @@ test("explicit-only CLI roots replace stale state and exclude every ambient pack
 	writeFile(path.join(home, ".zeta", "agent", "settings.json"), JSON.stringify({ extensions: [userExt] }));
 	writeFile(
 		path.join(home, ".zeta", "plugins", "package.json"),
-		JSON.stringify({ name: "omp-plugins", dependencies: { "installed-extension": "1.0.0" } }),
+		JSON.stringify({ name: "zeta-plugins", dependencies: { "installed-extension": "1.0.0" } }),
 	);
 
-	injectOmpExtensionCliRoots([stale], home, project);
-	injectOmpExtensionCliRoots([ext], home, project, { mode: "explicit-only", replace: true });
+	injectZetaExtensionCliRoots([stale], home, project);
+	injectZetaExtensionCliRoots([ext], home, project, { mode: "explicit-only", replace: true });
 
-	const roots = await listOmpExtensionRoots(ctx());
+	const roots = await listZetaExtensionRoots(ctx());
 	const skills = await loadFromPlugin<{ name: string }>(skillCapability.id, ctx());
 	const extensionPaths = await discoverExtensionPaths([ext], project, undefined, { ambient: false });
 
@@ -305,29 +305,29 @@ test("invocation scopes isolate concurrent SDK roots and merge ambient roots onl
 	writeFile(path.join(project, ".zeta", "settings.json"), JSON.stringify({ extensions: [projectExt] }));
 	writeFile(
 		path.join(home, ".zeta", "plugins", "package.json"),
-		JSON.stringify({ name: "omp-plugins", dependencies: { "installed-extension": "1.0.0" } }),
+		JSON.stringify({ name: "zeta-plugins", dependencies: { "installed-extension": "1.0.0" } }),
 	);
-	injectOmpExtensionCliRoots([staleCli], home, project);
+	injectZetaExtensionCliRoots([staleCli], home, project);
 
 	const firstEntered = Promise.withResolvers<void>();
 	const secondEntered = Promise.withResolvers<void>();
 	const [firstRoots, secondRoots] = await Promise.all([
-		withOmpExtensionRootScope([ext], "explicit-only", async () => {
+		withZetaExtensionRootScope([ext], "explicit-only", async () => {
 			firstEntered.resolve();
 			await secondEntered.promise;
-			return listOmpExtensionRoots(ctx());
+			return listZetaExtensionRoots(ctx());
 		}),
-		withOmpExtensionRootScope([otherExplicit], "explicit-only", async () => {
+		withZetaExtensionRootScope([otherExplicit], "explicit-only", async () => {
 			secondEntered.resolve();
 			await firstEntered.promise;
-			return listOmpExtensionRoots(ctx());
+			return listZetaExtensionRoots(ctx());
 		}),
 	]);
 
 	expect(firstRoots.map(root => root.path)).toEqual([ext]);
 	expect(secondRoots.map(root => root.path)).toEqual([otherExplicit]);
 
-	const mergedRoots = await withOmpExtensionRootScope([ext], "merge", () => listOmpExtensionRoots(ctx()));
+	const mergedRoots = await withZetaExtensionRootScope([ext], "merge", () => listZetaExtensionRoots(ctx()));
 	expect(mergedRoots.map(root => root.path)).toEqual(expect.arrayContaining([ext, projectExt, installed]));
 	expect(mergedRoots.map(root => root.path)).not.toContain(staleCli);
 });
@@ -344,17 +344,17 @@ test("concurrent scopes snapshot their own effective extensions (no cross-sessio
 	const firstEntered = Promise.withResolvers<void>();
 	const secondEntered = Promise.withResolvers<void>();
 	const [firstRoots, secondRoots] = await Promise.all([
-		withOmpExtensionRootScope([], "merge", async () => {
+		withZetaExtensionRootScope([], "merge", async () => {
 			setInvocationConfiguredExtensions([firstExt]);
 			firstEntered.resolve();
 			await secondEntered.promise;
-			return listOmpExtensionRoots(ctx());
+			return listZetaExtensionRoots(ctx());
 		}),
-		withOmpExtensionRootScope([], "merge", async () => {
+		withZetaExtensionRootScope([], "merge", async () => {
 			setInvocationConfiguredExtensions([secondExt]);
 			secondEntered.resolve();
 			await firstEntered.promise;
-			return listOmpExtensionRoots(ctx());
+			return listZetaExtensionRoots(ctx());
 		}),
 	]);
 
@@ -375,10 +375,10 @@ test("explicit-only mode drops the configured lane and installed roots (#9769)",
 	buildExtensionPackage(installed, "installed-skill");
 	writeFile(
 		path.join(home, ".zeta", "plugins", "package.json"),
-		JSON.stringify({ name: "omp-plugins", dependencies: { "installed-extension": "1.0.0" } }),
+		JSON.stringify({ name: "zeta-plugins", dependencies: { "installed-extension": "1.0.0" } }),
 	);
 
-	const mergeRoots = await listOmpExtensionRoots({
+	const mergeRoots = await listZetaExtensionRoots({
 		...ctx(),
 		extensionRoots: {
 			explicit: [explicitExt],
@@ -391,7 +391,7 @@ test("explicit-only mode drops the configured lane and installed roots (#9769)",
 		expect.arrayContaining(["explicit-extension", "configured-extension", "installed-extension"]),
 	);
 
-	const explicitOnlyRoots = await listOmpExtensionRoots({
+	const explicitOnlyRoots = await listZetaExtensionRoots({
 		...ctx(),
 		extensionRoots: {
 			explicit: [explicitExt],
@@ -411,13 +411,13 @@ test("configured lane takes its level from the authority's configuredLevel, not 
 	buildExtensionPackage(configuredExt, "provenance-skill");
 	// Nothing on `.zeta` disk configures it — the old deepEquals scan would label it `user`.
 
-	const asProject = await listOmpExtensionRoots({
+	const asProject = await listZetaExtensionRoots({
 		...ctx(),
 		extensionRoots: { explicit: [], mode: "merge", configured: [configuredExt], configuredLevel: "project" },
 	});
 	expect(asProject.find(root => root.path === configuredExt)?.level).toBe("project");
 
-	const asUser = await listOmpExtensionRoots({
+	const asUser = await listZetaExtensionRoots({
 		...ctx(),
 		extensionRoots: { explicit: [], mode: "merge", configured: [configuredExt], configuredLevel: "user" },
 	});
@@ -426,7 +426,7 @@ test("configured lane takes its level from the authority's configuredLevel, not 
 
 test("scopeless reload with session roots equals the construction-time scoped load (#9769 invariant)", async () => {
 	// The single invariant that retires the per-surface regressions: for any
-	// session, listOmpExtensionRoots outside the construction scope with
+	// session, listZetaExtensionRoots outside the construction scope with
 	// session.effectiveExtensionRoots returns byte-identical roots (paths,
 	// levels, order) to the construction-time scoped call — across the whole
 	// 2×2 grid of explicit-only × has-configured.
@@ -440,18 +440,18 @@ test("scopeless reload with session roots equals the construction-time scoped lo
 	writeFile(path.join(project, ".zeta", "config.yml"), `extensions:\n  - "${configuredExt}"\n`);
 	writeFile(
 		path.join(home, ".zeta", "plugins", "package.json"),
-		JSON.stringify({ name: "omp-plugins", dependencies: { "invariant-installed": "1.0.0" } }),
+		JSON.stringify({ name: "zeta-plugins", dependencies: { "invariant-installed": "1.0.0" } }),
 	);
 
 	for (const mode of ["merge", "explicit-only"] as const) {
 		for (const configured of [[configuredExt], []]) {
 			for (const configuredLevel of ["user", "project"] as const) {
 				const roots = { explicit: [explicitExt], mode, configured, configuredLevel };
-				const scoped = await withOmpExtensionRootScope(roots.explicit, roots.mode, () => {
+				const scoped = await withZetaExtensionRootScope(roots.explicit, roots.mode, () => {
 					setInvocationConfiguredExtensions(roots.configured, roots.configuredLevel);
-					return listOmpExtensionRoots(ctx());
+					return listZetaExtensionRoots(ctx());
 				});
-				const reloaded = await listOmpExtensionRoots({ ...ctx(), extensionRoots: roots });
+				const reloaded = await listZetaExtensionRoots({ ...ctx(), extensionRoots: roots });
 				expect(reloaded).toEqual(scoped);
 			}
 		}
@@ -624,7 +624,7 @@ test("installed plugins under `<plugins>/node_modules/` are surfaced (e.g. via `
 	fs.cpSync(ext, installed, { recursive: true });
 	writeFile(
 		path.join(pluginsDir, "package.json"),
-		JSON.stringify({ name: "omp-plugins", dependencies: { "my-installed-ext": "1.0.0" } }),
+		JSON.stringify({ name: "zeta-plugins", dependencies: { "my-installed-ext": "1.0.0" } }),
 	);
 	// Plugin's own package.json must carry an `zetacode`/`pi` manifest for the
 	// loader to recognise it; the buildExtensionPackage fixture already wrote
@@ -641,7 +641,7 @@ test("project-scoped installed plugins surface project-level sub-discovery", asy
 	fs.mkdirSync(installed, { recursive: true });
 	fs.cpSync(ext, installed, { recursive: true });
 	writeFile(
-		path.join(pluginsDir, "omp-plugins.lock.json"),
+		path.join(pluginsDir, "zeta-plugins.lock.json"),
 		JSON.stringify({
 			plugins: { "my-project-ext": { version: "1.0.0", enabled: true, enabledFeatures: null } },
 			settings: {},
@@ -663,10 +663,10 @@ test("disabled installed plugins do not contribute sub-discovery", async () => {
 	fs.cpSync(ext, installed, { recursive: true });
 	writeFile(
 		path.join(pluginsDir, "package.json"),
-		JSON.stringify({ name: "omp-plugins", dependencies: { "my-disabled-ext": "1.0.0" } }),
+		JSON.stringify({ name: "zeta-plugins", dependencies: { "my-disabled-ext": "1.0.0" } }),
 	);
 	writeFile(
-		path.join(pluginsDir, "omp-plugins.lock.json"),
+		path.join(pluginsDir, "zeta-plugins.lock.json"),
 		JSON.stringify({ plugins: { "my-disabled-ext": { enabled: false } }, settings: {} }),
 	);
 
@@ -689,7 +689,7 @@ test("linked plugins (only in lockfile, not in package.json#dependencies) are su
 	// Intentionally NO `<plugins>/package.json` — matches a fresh `plugin link`
 	// against a setup that has never run `plugin install`.
 	writeFile(
-		path.join(pluginsDir, "omp-plugins.lock.json"),
+		path.join(pluginsDir, "zeta-plugins.lock.json"),
 		JSON.stringify({
 			plugins: { "my-linked-ext": { version: "1.0.0", enabled: true, enabledFeatures: null } },
 			settings: {},

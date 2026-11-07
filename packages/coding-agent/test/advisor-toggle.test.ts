@@ -39,7 +39,7 @@ describe("AgentSession advisor toggle", () => {
 
 	const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 	const originalPiProfile = process.env.PI_PROFILE;
-	const originalOmpProfile = process.env.OMP_PROFILE;
+	const originalOmpProfile = process.env.ZETA_PROFILE;
 
 	beforeAll(() => {
 		authStorage = createInMemoryAuthStorage();
@@ -59,7 +59,7 @@ describe("AgentSession advisor toggle", () => {
 		authStorage.close();
 		restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
 		restoreEnv("PI_PROFILE", originalPiProfile);
-		restoreEnv("OMP_PROFILE", originalOmpProfile);
+		restoreEnv("ZETA_PROFILE", originalOmpProfile);
 		__resetDirsFromEnvForTests();
 	});
 
@@ -97,7 +97,7 @@ describe("AgentSession advisor toggle", () => {
 		} finally {
 			restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
 			restoreEnv("PI_PROFILE", originalPiProfile);
-			restoreEnv("OMP_PROFILE", originalOmpProfile);
+			restoreEnv("ZETA_PROFILE", originalOmpProfile);
 			__resetDirsFromEnvForTests();
 			try {
 				await tempDir?.remove();

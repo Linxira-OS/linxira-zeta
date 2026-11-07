@@ -14,7 +14,7 @@ Source of truth in code:
 
 ## Preferred config locations
 
-OMP can discover MCP servers from multiple tools (`.claude/`, `.cursor/`, `.vscode/`, `opencode.json`, and more), but for OMP-native configuration you should usually use one of these primary files:
+OMP can discover MCP servers from multiple tools (`.claude/`, `.cursor/`, `.vscode/`, `opencode.json`, and more), but for Zeta-native configuration you should usually use one of these primary files:
 
 - Project: `.zeta/mcp.json`
 - User: `~/.zeta/agent/mcp.json` (or `~/.zeta/profiles/<name>/agent/mcp.json` when a named profile is active — see [Profiles](#profiles))
@@ -43,13 +43,13 @@ OMP also translates these current tool-native sources:
 - Cursor: `~/.cursor/mcp.json` and `.cursor/mcp.json`
 - Windsurf: `~/.codeium/windsurf/mcp_config.json` and `.windsurf/mcp_config.json`
 - VS Code: project-only `.vscode/mcp.json` using `mcp.servers`
-- installed Claude marketplace plugins, OMP extension packages, and portable Agent Plugins (`plugin.json` plus root `mcp.json`) that declare MCP servers
+- installed Claude marketplace plugins, Zeta extension packages, and portable Agent Plugins (`plugin.json` plus root `mcp.json`) that declare MCP servers
 
-For Claude Code, Codex, Gemini CLI, Cursor, and Windsurf, the project entry is encountered before its same-named user entry — matching OMP-native config, whose project entry precedes its active-profile user entry — so a project `enabled: false` suppresses a same-named user server. OpenCode deep-merges each server across layers: project overrides user, `.opencode/` overrides the project root, and `.jsonc` overrides `.json` within a directory. Partial overrides inherit fields from lower layers. Cross-provider priority is listed in [Discovery and precedence](#discovery-and-precedence).
+For Claude Code, Codex, Gemini CLI, Cursor, and Windsurf, the project entry is encountered before its same-named user entry — matching Zeta-native config, whose project entry precedes its active-profile user entry — so a project `enabled: false` suppresses a same-named user server. OpenCode deep-merges each server across layers: project overrides user, `.opencode/` overrides the project root, and `.jsonc` overrides `.json` within a directory. Partial overrides inherit fields from lower layers. Cross-provider priority is listed in [Discovery and precedence](#discovery-and-precedence).
 
 ### Profiles
 
-Named profiles (`zetacode --profile <name>` or `OMP_PROFILE`/`PI_PROFILE`) isolate user-level MCP config. `zetacode --profile <name> --alias <command>` creates a shell shortcut that selects that profile. When a profile is active, the **user** scope resolves to the profile's agent directory instead of the default one:
+Named profiles (`zetacode --profile <name>` or `ZETA_PROFILE`/`PI_PROFILE`) isolate user-level MCP config. `zetacode --profile <name> --alias <command>` creates a shell shortcut that selects that profile. When a profile is active, the **user** scope resolves to the profile's agent directory instead of the default one:
 
 - Default profile: `~/.zeta/agent/mcp.json`
 - Profile `<name>`: `~/.zeta/profiles/<name>/agent/mcp.json`
@@ -58,7 +58,7 @@ Discovery, the `/mcp` commands, and the config writer all follow the active prof
 
 Project-scoped MCP config (`.zeta/mcp.json`) is keyed to the working directory, not the profile, so it applies under every profile. External-tool configs (`.claude/`, `.cursor/`, etc.) are also profile-independent because they belong to those tools rather than to an OMP profile.
 
-MCP follows the same profile rules as the rest of OMP-native config; see [Configuration Discovery → Profiles](./config-usage.md#profiles).
+MCP follows the same profile rules as the rest of Zeta-native config; see [Configuration Discovery → Profiles](./config-usage.md#profiles).
 
 ## Add a schema reference
 
@@ -106,8 +106,8 @@ Shared fields for every transport:
 
 - `enabled?: boolean` — skip this server when `false`, unless the active-profile user `enabledServers` allowlist names it
 - `timeout?: number` — MCP request timeout in milliseconds; `0` disables client-side MCP timeouts
-- `requestIdFormat?: "number" | "string"` — outgoing JSON-RPC request-id encoding; defaults to per-transport integers. `"string"` uses collision-resistant snowflake IDs. This OMP-specific field is read only from OMP-native files, root `mcp.json` / `.mcp.json`, and OMP extension packages; configs translated from other tools ignore it.
-- `instructions?: boolean` — include server-provided instructions in the system prompt (default: `true`). Set `false` to omit that server's instructions without disabling its tools. Like `requestIdFormat`, this is OMP-specific and is ignored in configs translated from other tools.
+- `requestIdFormat?: "number" | "string"` — outgoing JSON-RPC request-id encoding; defaults to per-transport integers. `"string"` uses collision-resistant snowflake IDs. This Zeta-specific field is read only from Zeta-native files, root `mcp.json` / `.mcp.json`, and Zeta extension packages; configs translated from other tools ignore it.
+- `instructions?: boolean` — include server-provided instructions in the system prompt (default: `true`). Set `false` to omit that server's instructions without disabling its tools. Like `requestIdFormat`, this is Zeta-specific and is ignored in configs translated from other tools.
 - `auth?: { ... }` — stored-credential metadata; managed credential injection is implemented for OAuth
 - `oauth?: { ... }` — explicit OAuth client and callback settings used during auth/reauth
 
@@ -115,7 +115,7 @@ Disable instructions when a server's guidance conflicts with your tool policy or
 
 `OMP_MCP_TIMEOUT_MS` has process-wide precedence over every per-server `timeout`. Set it to `0` to disable client-side timeouts, or to a positive millisecond value such as `120000`. If it is unset or invalid, OMP uses the server value and then the 30-second default; invalid values are logged and ignored.
 
-Claude marketplace plugins follow [Claude Code's per-server timeout rule](https://code.claude.com/docs/en/mcp): their `.mcp.json` values are milliseconds, and values below `1000` are ignored with a discovery warning so OMP's normal timeout fallback applies. This restriction does not change OMP-native configurations, where `0` still disables timeouts.
+Claude marketplace plugins follow [Claude Code's per-server timeout rule](https://code.claude.com/docs/en/mcp): their `.mcp.json` values are milliseconds, and values below `1000` are ignored with a discovery warning so OMP's normal timeout fallback applies. This restriction does not change Zeta-native configurations, where `0` still disables timeouts.
 
 These request deadlines also govern subagent MCP calls over borrowed parent connections. The proxy adds no independent timeout; caller cancellation still stops the subagent's wait.
 
@@ -384,7 +384,7 @@ This is the part that usually trips people up.
 
 ### Discovery-time `${...}` expansion
 
-OMP expands `${VAR}` and `${VAR:-default}` placeholders while discovering MCP configs from OMP-native files and standalone fallback files. Expansion applies recursively to string values in `command`, `args`, `env`, `cwd`, `url`, `headers`, `auth`, and `oauth`; unresolved placeholders remain literal strings.
+OMP expands `${VAR}` and `${VAR:-default}` placeholders while discovering MCP configs from Zeta-native files and standalone fallback files. Expansion applies recursively to string values in `command`, `args`, `env`, `cwd`, `url`, `headers`, `auth`, and `oauth`; unresolved placeholders remain literal strings.
 
 Example:
 
@@ -483,10 +483,10 @@ These rules apply to direct configs passed to the validator/writer. Discovery fi
 
 ## Discovery and precedence
 
-OMP loads providers in descending priority. The MCP-capable order is:
+Zeta loads providers in descending priority. The MCP-capable order is:
 
 1. OMP native config
-2. OMP extension packages
+2. Zeta extension packages
 3. Claude Code
 4. Agent Plugins
 5. Claude marketplace plugins and Codex
@@ -500,7 +500,7 @@ Across providers, the first definition wins. Duplicate names are not merged; Ope
 
 Within OMP native config, project `.zeta/mcp.json` precedes `.zeta/.mcp.json`, then the active profile's user `mcp.json` and `.mcp.json`. Root fallback `mcp.json` precedes root `.mcp.json`. In practice:
 
-- prefer `.zeta/mcp.json` or the active profile's user `mcp.json` for an OMP-specific override
+- prefer `.zeta/mcp.json` or the active profile's user `mcp.json` for an Zeta-specific override
 - keep names and endpoint definitions unique across tools when possible
 - use the user `disabledServers` list when a third-party config keeps reintroducing an unwanted server
 - set `mcp.enableProjectConfig: false` to exclude every project-level source before deduplication, allowing a same-named user entry to survive
@@ -530,9 +530,9 @@ Run `/mcp list`. OMP discovers many third-party MCP files, but project-level loa
 
 ### A browser MCP server is configured but never loads
 
-OMP drops recognized browser-automation servers at config load, before any connection attempt, whenever the built-in browser prelude is callable: `browser.enabled` is true (the default), Eval is registered and active, and the session is not restricted to explicitly named tools. The filter matches servers named `playwright`, `puppeteer`, `browserbase`, `browser-tools`, `browser-use` or `browser`, stdio servers whose command or args match one of a fixed set of recognized browser-MCP package patterns (`@playwright/mcp`, `@modelcontextprotocol/server-puppeteer`, `@browserbasehq/mcp-server-browserbase`, `@agentdeskai/browser-tools-mcp`, `@agent-infra/mcp-server-browser`, `puppeteer-mcp`, `playwright-mcp`, `pptr-mcp`, `browser-use-mcp`, `mcp-browser-use`), or HTTP/SSE servers whose URL points at browserbase.com or browser-use.com. Any other package (for example `chrome-devtools-mcp` under a server name outside the list above) is not matched. This filter is separate from `disabledServers`.
+Zeta drops recognized browser-automation servers at config load, before any connection attempt, whenever the built-in browser prelude is callable: `browser.enabled` is true (the default), Eval is registered and active, and the session is not restricted to explicitly named tools. The filter matches servers named `playwright`, `puppeteer`, `browserbase`, `browser-tools`, `browser-use` or `browser`, stdio servers whose command or args match one of a fixed set of recognized browser-MCP package patterns (`@playwright/mcp`, `@modelcontextprotocol/server-puppeteer`, `@browserbasehq/mcp-server-browserbase`, `@agentdeskai/browser-tools-mcp`, `@agent-infra/mcp-server-browser`, `puppeteer-mcp`, `playwright-mcp`, `pptr-mcp`, `browser-use-mcp`, `mcp-browser-use`), or HTTP/SSE servers whose URL points at browserbase.com or browser-use.com. Any other package (for example `chrome-devtools-mcp` under a server name outside the list above) is not matched. This filter is separate from `disabledServers`.
 
-The drop is quiet, but not equally visible everywhere: servers from any source other than the two primary files (`~/.zeta/agent/mcp.json` and `.zeta/mcp.json`) never reach `/mcp list`. Third-party configs, root `mcp.json` / `.mcp.json` fallbacks, and servers from OMP extension packages all vanish once filtered. An entry in one of the two primary files still shows up there as `not connected`, so a missing server with a primary-file entry may have been filtered. No error or warning is recorded either way.
+The drop is quiet, but not equally visible everywhere: servers from any source other than the two primary files (`~/.zeta/agent/mcp.json` and `.zeta/mcp.json`) never reach `/mcp list`. Third-party configs, root `mcp.json` / `.mcp.json` fallbacks, and servers from Zeta extension packages all vanish once filtered. An entry in one of the two primary files still shows up there as `not connected`, so a missing server with a primary-file entry may have been filtered. No error or warning is recorded either way.
 
 To run a browser MCP server instead of the native browser tool, set `browser.enabled: false` in your settings. `zetacode read` does not apply this filter.
 

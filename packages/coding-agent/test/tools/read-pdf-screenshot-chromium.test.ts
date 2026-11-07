@@ -130,7 +130,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("PDF page screenshots in Chromium", () => {
 				hasUI: false,
 				getSessionFile: () => null,
 				getSessionSpawns: () => "*",
-				settings: Settings.isolated({ "browser.headless": true, "browser.cmux": false, "browser.tern": false }),
+				settings: Settings.isolated({ "browser.headless": true, "browser.cmux": false }),
 			} as ToolSession;
 			// Production renders on the long-lived project-shared Chromium; under `bun test` the
 			// registry launches a process-local one instead and closes it once its last tab goes.

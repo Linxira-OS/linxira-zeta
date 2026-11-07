@@ -173,11 +173,11 @@
      the chrome heavier than the content. */
   --glyph-faint: #8b929d;
 
-  --accent: #6e56cf;
-  --accent-hover: #5f48c0;
-  --accent-soft: rgba(110, 86, 207, 0.1);
-  --accent-softer: rgba(110, 86, 207, 0.06);
-  --accent-border: rgba(110, 86, 207, 0.35);
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.1);
+  --accent-softer: rgba(37, 99, 235, 0.06);
+  --accent-border: rgba(37, 99, 235, 0.35);
 
   /* Status colors darkened to clear 4.5:1 on white — the originals sat at
      3.2-3.9:1, which fails for the small mono text they carry. */
@@ -290,15 +290,15 @@
   --text-3: #8b909a;
   --text-faint: #7c828c;
   --glyph-faint: #676b74;
-  /* Dark accent is a light lilac — white on it is only 2.76:1. The
-     foreground has to invert to the app background instead (6.73:1). */
+  /* Dark accent is a light blue — white on it is only 2.76:1. The
+     foreground has to invert to the app background instead (7:1). */
   --text-on-accent: #121316;
 
-  --accent: #9e8cfc;
-  --accent-hover: #b0a2ff;
-  --accent-soft: rgba(158, 140, 252, 0.14);
-  --accent-softer: rgba(158, 140, 252, 0.08);
-  --accent-border: rgba(158, 140, 252, 0.4);
+  --accent: #60a5fa;
+  --accent-hover: #93c5fd;
+  --accent-soft: rgba(96, 165, 250, 0.14);
+  --accent-softer: rgba(96, 165, 250, 0.08);
+  --accent-border: rgba(96, 165, 250, 0.4);
 
   --green: #46b983;
   --green-soft: rgba(70, 185, 131, 0.15);

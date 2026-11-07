@@ -1,0 +1,60 @@
+.raw-config {
+	display: flex;
+	flex-direction: column;
+	gap: var(--sp-8, 8px);
+	margin: var(--sp-24, 24px) 0;
+	padding: var(--sp-16, 16px);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md, 10px);
+	background: var(--surface);
+}
+.raw-config > header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--sp-12, 12px);
+}
+.raw-config h2 { margin: 0 0 4px; font-size: var(--fs-14, 14px); }
+.raw-config p { margin: 0; color: var(--text-2, var(--text)); font-size: var(--fs-12, 12px); line-height: 1.5; }
+.raw-config-scopes { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
+.raw-config-scopes button {
+	border: 0;
+	background: transparent;
+	color: var(--text-3, var(--muted));
+	font-size: 12px;
+	padding: 5px 10px;
+	border-radius: 7px;
+	cursor: pointer;
+}
+.raw-config-scopes button.active { background: var(--surface); color: var(--text); }
+.raw-config-path {
+	display: block;
+	overflow-x: auto;
+	white-space: nowrap;
+	padding: 6px 8px;
+	border: 1px solid var(--border);
+	border-radius: 7px;
+	background: var(--surface-2);
+	color: var(--text-3, var(--muted));
+	font-size: 11px;
+}
+.raw-config-precedence { font-size: 11px !important; color: var(--text-3, var(--muted)) !important; }
+.raw-config-text {
+	width: 100%;
+	min-height: 260px;
+	resize: vertical;
+	padding: 10px 12px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--surface-2);
+	color: var(--text);
+	font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+	font-size: 12px;
+	line-height: 1.55;
+	tab-size: 2;
+}
+.raw-config-text:focus { outline: none; border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.raw-config-error { color: var(--red, #e5484d) !important; }
+.raw-config-saved { color: var(--green, #22c55e) !important; }
+.raw-config-actions { display: flex; align-items: center; gap: var(--sp-8, 8px); flex-wrap: wrap; }
+.raw-config-dirty { margin-left: auto; color: var(--text-3, var(--muted)); font-size: 11px; }

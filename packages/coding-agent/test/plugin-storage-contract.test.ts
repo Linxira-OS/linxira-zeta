@@ -75,7 +75,7 @@ describe("InstalledPlugin.storage fill (collectPluginsAtRoot)", () => {
 		await writeJson(path.join(pluginDir, "package.json"), {
 			name: "storage-plugin",
 			version: "1.0.0",
-			omp: { version: "1.0.0" },
+			zeta: { version: "1.0.0" },
 		});
 		await writeJson(path.join(pluginsDir, "package.json"), {
 			dependencies: { "storage-plugin": "1.0.0" },
@@ -108,7 +108,7 @@ describe("resolvePluginStorage (extension exposure)", () => {
 		await writeJson(path.join(pluginDir, "package.json"), {
 			name: "ext-plugin",
 			version: "1.0.0",
-			omp: { version: "1.0.0", extensions: ["ext.ts"] },
+			zeta: { version: "1.0.0", extensions: ["ext.ts"] },
 		});
 		await writeJson(path.join(pluginsDir, "package.json"), {
 			dependencies: { "ext-plugin": "1.0.0" },

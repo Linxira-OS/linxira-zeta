@@ -127,7 +127,7 @@ same lockfile), and activates the same way. This is also the route the built-in
 — with a scratch catalog it looks like:
 
 ```bash
-# a scratch catalog at <dir>/.omp-plugin/marketplace.json listing `pi-messenger`
+# a scratch catalog at <dir>/.claude-plugin/marketplace.json listing `pi-messenger`
 zetacode plugin marketplace add <dir>
 zetacode plugin install pi-messenger@local-test
 zetacode plugin list
@@ -218,7 +218,7 @@ instead of a user's session.
 
 ### The lockfile name
 
-The lockfile is `zeta-plugins.lock.json`; `omp-plugins.lock.json` is the
+The lockfile is `zeta-plugins.lock.json`; `zeta-plugins.lock.json` is the
 pre-rename spelling that is still *read* and migrated. A plugin root holding
 either file lists and loads its plugins, so the earlier "rename the file back by
 hand" recovery step no longer applies. `zetacode plugin disable`/`enable` on a

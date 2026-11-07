@@ -32,7 +32,7 @@ describe("PERSONALITY.md override", () => {
 
 	beforeEach(() => {
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
-		originalOmpProfileEnv = process.env.OMP_PROFILE;
+		originalOmpProfileEnv = process.env.ZETA_PROFILE;
 		originalZetaProfileEnv = process.env.ZETA_PROFILE;
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-personality-"));
 		tempAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-personality-agent-"));
@@ -41,7 +41,7 @@ describe("PERSONALITY.md override", () => {
 
 	afterEach(() => {
 		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
-		restoreEnvValue("OMP_PROFILE", originalOmpProfileEnv);
+		restoreEnvValue("ZETA_PROFILE", originalOmpProfileEnv);
 		restoreEnvValue("ZETA_PROFILE", originalZetaProfileEnv);
 		__resetDirsFromEnvForTests();
 		removeSyncWithRetries(tempDir);

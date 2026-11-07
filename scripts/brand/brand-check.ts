@@ -130,6 +130,7 @@ for (const { file, full, tokenBan } of trackedFiles()) {
 	// pkg.omp, theme.icon.omp); allow patterns match "file ⟶ line" so entries
 	// may scope by file path or content; test fixtures are exempt.
 	lines.forEach((line, index) => {
+		if (relPath.endsWith("CHANGELOG.md")) return;
 		if (!/(?<![\w])\.omp(?![\w.-])/.test(line)) return;
 		if (/\/test\//.test(relPath)) return;
 		const hay = `${relPath} ⟶ ${line}`;

@@ -440,7 +440,7 @@ export interface ScanSkillsFromDirOptions {
 	includeSelf?: boolean;
 	/**
 	 * Registry/CLI origin of the plugin root supplying these skills, forwarded
-	 * to {@link SourceMeta.origin} so user-scope gating can tell omp's own
+	 * to {@link SourceMeta.origin} so user-scope gating can tell Zeta's own
 	 * installs (`zetacode`, `plugin-dir`) from the foreign Claude tree (`claude`).
 	 */
 	origin?: string;
@@ -871,7 +871,7 @@ async function readExtensionModuleManifest(
  * 1. Direct files: `extensions/*.ts` or `*.js` → load
  * 2. Subdirectory with index: `extensions/<ext>/index.ts` or `index.js` → load
  * 3. Subdirectory with package.json: `extensions/<ext>/package.json` with a
- *    `zeta/omp/pi` field → load declared paths
+ *    `zeta/pi` field → load declared paths
  *
  * No recursion beyond one level. Complex packages must use package.json manifest.
  * Uses native glob for fast filesystem scanning with gitignore support.
@@ -1048,7 +1048,7 @@ export interface ClaudePluginRoot {
 	/** Whether this is a user or project scope plugin */
 	scope: "user" | "project";
 	/** Registry or explicit CLI source that supplied this root. */
-	origin: "claude" | "omp" | "plugin-dir";
+	origin: "claude" | "zeta" | "plugin-dir";
 }
 
 /**
@@ -1264,15 +1264,15 @@ export function registerPluginCacheInvalidator(invalidator: () => void): void {
 /** The registry files {@link listClaudePluginRoots} reads for `home` and `cwd`. */
 async function resolvePluginRegistryFiles(home: string, cwd: string | undefined) {
 	const claudeConfigDir = resolveClaudePaths(home).configDir;
-	const ompRegistryPath = path.join(getPluginsDir(home), "installed_plugins.json");
+	const zetaRegistryPath = path.join(getPluginsDir(home), "installed_plugins.json");
 	const projectPath = cwd ? await resolveActiveProjectRegistryPath(cwd) : null;
 	const resolvedProjectPath =
-		projectPath && normalizePathForComparison(projectPath) !== normalizePathForComparison(ompRegistryPath)
+		projectPath && normalizePathForComparison(projectPath) !== normalizePathForComparison(zetaRegistryPath)
 			? projectPath
 			: null;
-	const files = [path.join(claudeConfigDir, "plugins", "installed_plugins.json"), ompRegistryPath];
+	const files = [path.join(claudeConfigDir, "plugins", "installed_plugins.json"), zetaRegistryPath];
 	if (resolvedProjectPath) files.push(resolvedProjectPath);
-	return { claudeConfigDir, ompRegistryPath, resolvedProjectPath, files };
+	return { claudeConfigDir, zetaRegistryPath, resolvedProjectPath, files };
 }
 
 /**
@@ -1355,13 +1355,16 @@ export function listClaudePluginRoots(
 
 /** {@link listClaudePluginRoots}; with `revalidate`, a cached result whose registry files changed is read again. */
 async function readPluginRoots(home: string, cwd: string | undefined, revalidate: boolean): Promise<PluginRootsResult> {
-	const { claudeConfigDir, ompRegistryPath, resolvedProjectPath, files } = await resolvePluginRegistryFiles(home, cwd);
+	const { claudeConfigDir, zetaRegistryPath, resolvedProjectPath, files } = await resolvePluginRegistryFiles(
+		home,
+		cwd,
+	);
 	const projectRoot = resolvedProjectPath ? path.dirname(path.dirname(path.dirname(resolvedProjectPath))) : cwd;
 	const activeClaudeProjectPath = projectRoot ? await canonicalClaudeProjectPath(projectRoot) : null;
 	const canonicalCwd = cwd ? await canonicalClaudeProjectPath(cwd) : null;
 	const settingsDirs = [...new Set([activeClaudeProjectPath, canonicalCwd].filter((d): d is string => !!d))];
 	const enabledOverrides = await readClaudeEnabledPlugins(claudeConfigDir, settingsDirs);
-	const cacheKey = `${claudeConfigDir}:${ompRegistryPath}:${resolvedProjectPath ?? ""}:${activeClaudeProjectPath ?? ""}:${canonicalCwd ?? ""}:${enabledOverrides.sources.join("|")}`;
+	const cacheKey = `${claudeConfigDir}:${zetaRegistryPath}:${resolvedProjectPath ?? ""}:${activeClaudeProjectPath ?? ""}:${canonicalCwd ?? ""}:${enabledOverrides.sources.join("|")}`;
 	const cached = pluginRootsCache.get(cacheKey);
 	if (cached) {
 		if (!revalidate || !(await isStaleRootsEntry(cached))) return cached.result;
@@ -1379,7 +1382,7 @@ async function readPluginRoots(home: string, cwd: string | undefined, revalidate
 		await signatures;
 		const loaded = await loadClaudePluginRoots({
 			claudeConfigDir,
-			ompRegistryPath,
+			zetaRegistryPath,
 			resolvedProjectPath,
 			activeClaudeProjectPath,
 			enabledOverrides,
@@ -1399,13 +1402,13 @@ async function readPluginRoots(home: string, cwd: string | undefined, revalidate
 
 async function loadClaudePluginRoots({
 	claudeConfigDir,
-	ompRegistryPath,
+	zetaRegistryPath,
 	resolvedProjectPath,
 	activeClaudeProjectPath,
 	enabledOverrides,
 }: {
 	claudeConfigDir: string;
-	ompRegistryPath: string;
+	zetaRegistryPath: string;
 	resolvedProjectPath: string | null;
 	activeClaudeProjectPath: string | null;
 	enabledOverrides: { enabled: Map<string, boolean>; sources: string[] };
@@ -1481,7 +1484,7 @@ async function loadClaudePluginRoots({
 	// same XDG-aware path the marketplace writer uses (reads and writes always agree).
 	// Tests pass a temp dir, which short-circuits the resolver for deterministic isolation.
 	// Computed before the cache lookup because isolated SDK homes select distinct OMP registries.
-	const ompContent = await readFile(ompRegistryPath);
+	const ompContent = await readFile(zetaRegistryPath);
 	if (ompContent) {
 		const ompRegistry = parseClaudePluginsRegistry(ompContent);
 		if (ompRegistry) {
@@ -1517,16 +1520,16 @@ async function loadClaudePluginRoots({
 						version: entry.version || "unknown",
 						path: entry.installPath,
 						scope: entry.scope === "local" ? "project" : entry.scope || "user",
-						origin: "omp",
+						origin: "zeta",
 					});
 				}
 			}
 		} else {
-			warnings.push(`Failed to parse OMP plugin registry: ${ompRegistryPath}`);
+			warnings.push(`Failed to parse Zeta plugin registry: ${zetaRegistryPath}`);
 		}
 	}
 
-	// ── Project-scoped OMP registry ────────────────────────────────────────
+	// ── Project-scoped Zeta registry ────────────────────────────────────────
 	// Loaded from the nearest .zeta/plugins/installed_plugins.json relative to cwd.
 	// Project entries take precedence over user entries for the same plugin ID.
 	if (resolvedProjectPath) {
@@ -1556,7 +1559,7 @@ async function loadClaudePluginRoots({
 							version: entry.version || "unknown",
 							path: entry.installPath,
 							scope: "project",
-							origin: "omp",
+							origin: "zeta",
 						});
 					}
 				}

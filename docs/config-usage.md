@@ -75,7 +75,7 @@ Project-level bases:
 
 ## Profiles
 
-A named profile (`zetacode --profile <name>`, `OMP_PROFILE`, or the legacy fallback `PI_PROFILE`) relocates the OMP user base. `OMP_PROFILE` wins when it is defined, including when it is explicitly empty; `default`, empty, or whitespace selects the default profile. When a profile is active, every Zeta-native user-level path written here as `~/.zeta/agent/...` normally resolves to `~/.zeta/profiles/<name>/agent/...`. `--alias <command>` does not select a profile by itself: paired with `--profile`, it creates a shell shortcut for that profile.
+A named profile (`zetacode --profile <name>`, `ZETA_PROFILE`, or the legacy fallback `PI_PROFILE`) relocates the OMP user base. `ZETA_PROFILE` wins when it is defined, including when it is explicitly empty; `default`, empty, or whitespace selects the default profile. When a profile is active, every Zeta-native user-level path written here as `~/.zeta/agent/...` normally resolves to `~/.zeta/profiles/<name>/agent/...`. `--alias <command>` does not select a profile by itself: paired with `--profile`, it creates a shell shortcut for that profile.
 
 While a named profile is active, the status line's `pi` segment tags the brand with the profile name (`π-work`, or `⠋-work 12s` while a turn runs) so sessions from different profiles are distinguishable at a glance. The default profile shows the bare glyph. Set `statusLine.segmentOptions.pi.showProfile: false` to keep the bare glyph under every profile, for example when each profile already has its own theme.
 
@@ -218,8 +218,8 @@ Most non-core config loading flows through the capability registry (`src/capabil
 
 Providers are sorted by numeric priority (higher first). Full set:
 
-- Native OMP (`builtin.ts`): `100`
-- OMP plugins (`omp-plugins`): `90`
+- Native Zeta (`builtin.ts`): `100`
+- Zeta extension packages (`zeta-plugins`): `90`
 - Claude: `80`
 - Agent Plugins standard (`agent-plugins`): `75`
 - Codex / agents / Claude plugins marketplace: `70`
@@ -237,7 +237,7 @@ Providers are sorted by numeric priority (higher first). Full set:
 Provider precedence (higher wins)
 
 native (.zeta)           priority 100
-omp-plugins             priority  90
+zeta-plugins             priority  90
 claude                  priority  80
 agent-plugins           priority  75
 codex / agents /

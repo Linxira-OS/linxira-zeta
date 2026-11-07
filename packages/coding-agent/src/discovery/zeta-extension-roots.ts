@@ -1,18 +1,18 @@
 /**
- * OMP extension package roots.
+ * Zeta extension package roots.
  *
  * An "extension package root" is a directory configured via either
  * `extensions:` in user/project settings or the `--extension`/`-e` CLI flag
  * that points to a packaged extension on disk. The package's standard
  * sub-directories (`skills/`, `hooks/`, `tools/`, `commands/`, `rules/`,
- * `prompts/`, `.mcp.json`) are wired into discovery by `omp-plugins.ts`.
+ * `prompts/`, `.mcp.json`) are wired into discovery by `zeta-plugins.ts`.
  *
- * CLI-provided paths are injected via {@link injectOmpExtensionCliRoots}
+ * CLI-provided paths are injected via {@link injectZetaExtensionCliRoots}
  * before discovery runs. Capability loads supply the effective `extensions`
  * setting; direct callers reconstruct its array-replacement precedence from
  * canonical YAML config and legacy `settings.json`.
  *
- * @see ./omp-plugins.ts
+ * @see ./zeta-plugins.ts
  * @see ./builtin.ts `loadExtensionModules`
  */
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -35,7 +35,7 @@ import { expandTilde } from "../tools/path-utils";
 import { listClaudePluginRoots } from "./helpers";
 
 /** A resolved extension package directory wired into the discovery surfaces. */
-export interface OmpExtensionRoot {
+export interface ZetaExtensionRoot {
 	/** Absolute path to the package directory. */
 	path: string;
 	/** Stable display name (basename of the package directory). */
@@ -52,12 +52,12 @@ interface InjectedRoot {
 }
 
 /** Extension sub-discovery mode; re-exported alias of {@link ExtensionRootMode}. */
-export type OmpExtensionRootMode = ExtensionRootMode;
+export type ZetaExtensionRootMode = ExtensionRootMode;
 
 interface InvocationRootScope {
 	/** Raw SDK spellings, resolved against the LoadContext that performs discovery. */
 	paths: readonly string[];
-	mode: OmpExtensionRootMode;
+	mode: ZetaExtensionRootMode;
 	/**
 	 * Effective `extensions` setting for the owning session, captured once its
 	 * `Settings` instance is loaded. Session-local so concurrent SDK sessions
@@ -73,15 +73,15 @@ interface InvocationRootScope {
 const invocationRootScope = new AsyncLocalStorage<InvocationRootScope>();
 
 let injectedCliRoots: InjectedRoot[] = [];
-let injectedCliRootMode: OmpExtensionRootMode = "merge";
+let injectedCliRootMode: ZetaExtensionRootMode = "merge";
 
-export interface InjectOmpExtensionCliRootOptions {
+export interface InjectZetaExtensionCliRootOptions {
 	/**
 	 * `explicit-only` exposes only roots named by this CLI invocation. Use it
 	 * with `--no-extensions` so configured and installed packages cannot
-	 * contribute sibling capabilities through the `omp-plugins` provider.
+	 * contribute sibling capabilities through the `zeta-plugins` provider.
 	 */
-	mode?: OmpExtensionRootMode;
+	mode?: ZetaExtensionRootMode;
 	/** Replace roots from an earlier invocation instead of extending them. */
 	replace?: boolean;
 }
@@ -90,11 +90,11 @@ export interface InjectOmpExtensionCliRootOptions {
  * Run one SDK invocation with its own extension-package roots. Async resources
  * started inside `callback` retain this scope, including discovery deliberately
  * deferred until the end of session startup. Raw relative paths are resolved by
- * {@link listOmpExtensionRoots} against that invocation's active cwd.
+ * {@link listZetaExtensionRoots} against that invocation's active cwd.
  */
-export function withOmpExtensionRootScope<T>(
+export function withZetaExtensionRootScope<T>(
 	paths: readonly string[],
-	mode: OmpExtensionRootMode,
+	mode: ZetaExtensionRootMode,
 	callback: () => T,
 ): T {
 	return invocationRootScope.run({ paths: [...paths], mode }, callback);
@@ -105,7 +105,7 @@ export function withOmpExtensionRootScope<T>(
  * `Settings`-resolved provenance) on the active invocation scope so
  * sub-discovery honors overlays/runtime overrides and foreign project
  * providers without reading the process-global settings singleton. No-op
- * outside a {@link withOmpExtensionRootScope} callback.
+ * outside a {@link withZetaExtensionRootScope} callback.
  */
 export function setInvocationConfiguredExtensions(paths: readonly string[], level: "user" | "project" = "user"): void {
 	const scope = invocationRootScope.getStore();
@@ -122,13 +122,13 @@ export function setInvocationConfiguredExtensions(paths: readonly string[], leve
  * entrypoints have no package sub-tree to scan.
  *
  * Call once during startup before any capability load. Repeated calls extend
- * the registered set; {@link clearOmpExtensionCliRoots} resets for tests.
+ * the registered set; {@link clearZetaExtensionCliRoots} resets for tests.
  */
-export function injectOmpExtensionCliRoots(
+export function injectZetaExtensionCliRoots(
 	paths: readonly string[],
 	home: string,
 	cwd: string,
-	options: InjectOmpExtensionCliRootOptions = {},
+	options: InjectZetaExtensionCliRootOptions = {},
 ): void {
 	if (options.mode) injectedCliRootMode = options.mode;
 	if (options.replace) injectedCliRoots = [];
@@ -150,13 +150,13 @@ export function injectOmpExtensionCliRoots(
 }
 
 /** Drop every CLI-injected root. Tests use this between cases. */
-export function clearOmpExtensionCliRoots(): void {
+export function clearZetaExtensionCliRoots(): void {
 	injectedCliRoots = [];
 	injectedCliRootMode = "merge";
 }
 
 /** Inspect currently-injected CLI roots (read-only). Exposed for diagnostics + tests. */
-export function getInjectedOmpExtensionCliRoots(): readonly OmpExtensionRoot[] {
+export function getInjectedZetaExtensionCliRoots(): readonly ZetaExtensionRoot[] {
 	return injectedCliRoots.map(({ path: p, level }) => ({ path: p, level, name: path.basename(p) }));
 }
 
@@ -292,7 +292,7 @@ async function isDirectory(p: string): Promise<boolean> {
  * entrypoints contribute zero sub-discovery surface and are filtered out.
  * Installed-plugin enumeration failures degrade gracefully at `debug`.
  */
-export async function listOmpExtensionRoots(ctx: LoadContext): Promise<OmpExtensionRoot[]> {
+export async function listZetaExtensionRoots(ctx: LoadContext): Promise<ZetaExtensionRoot[]> {
 	const scopedRoots = invocationRootScope.getStore();
 	// Explicit lane, in precedence order: caller-provided reload value, then the
 	// construction-time invocation scope, then process-level CLI injection.
@@ -303,7 +303,7 @@ export async function listOmpExtensionRoots(ctx: LoadContext): Promise<OmpExtens
 			: injectedCliRoots.map(root =>
 					root.relativePath ? { ...root, path: path.resolve(ctx.cwd, root.relativePath) } : root,
 				);
-	const rootMode: OmpExtensionRootMode = ctx.extensionRoots?.mode ?? scopedRoots?.mode ?? injectedCliRootMode;
+	const rootMode: ZetaExtensionRootMode = ctx.extensionRoots?.mode ?? scopedRoots?.mode ?? injectedCliRootMode;
 	let candidates: InjectedRoot[] = explicitSeed;
 	if (rootMode === "merge") {
 		const installedPlugins = await listInstalledPluginRoots(ctx);
@@ -342,7 +342,7 @@ export async function listOmpExtensionRoots(ctx: LoadContext): Promise<OmpExtens
 	}
 
 	const directoryFlags = await Promise.all(unique.map(c => isDirectory(c.path)));
-	const roots: OmpExtensionRoot[] = [];
+	const roots: ZetaExtensionRoot[] = [];
 	for (let i = 0; i < unique.length; i++) {
 		if (!directoryFlags[i]) continue;
 		const { path: p, level } = unique[i];
@@ -360,7 +360,7 @@ export async function listOmpExtensionRoots(ctx: LoadContext): Promise<OmpExtens
  * Marketplace installs also create runtime symlinks for enable-state persistence,
  * but their resources are discovered through the `claude-plugins` provider.
  * Filtering them here prevents `/status` from showing the same plugin under both
- * "Claude Code Marketplace" and "OMP Extension Packages".
+ * "Claude Code Marketplace" and "Zeta Extension Packages".
  */
 async function realpathOrResolved(p: string): Promise<string> {
 	try {

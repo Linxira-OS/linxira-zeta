@@ -728,7 +728,7 @@ describe("Claude saved-reset trigger integration", () => {
 	it("adopts a reset `zetacode usage reset` just spent instead of spending again", async () => {
 		const originalEnv = {
 			ZETA_CODING_AGENT_DIR: process.env.ZETA_CODING_AGENT_DIR,
-			OMP_PROFILE: process.env.OMP_PROFILE,
+			ZETA_PROFILE: process.env.ZETA_PROFILE,
 			PI_PROFILE: process.env.PI_PROFILE,
 		};
 		setAgentDir(tempDir.path());

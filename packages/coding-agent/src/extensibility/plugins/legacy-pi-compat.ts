@@ -2081,7 +2081,7 @@ const commonJsFallbackModulePaths = new Map<string, string>();
 const extensionSynchronousSpecifierTargets = new Map<string, Map<string, string>>();
 const synchronousModuleSources = new Map<string, string>();
 const commonJsGraphModulePaths = new Set<string>();
-const COMMONJS_REQUIRE_GLOBAL = "__ompLegacyPiRequireGraphModule";
+const COMMONJS_REQUIRE_GLOBAL = "__zetaLegacyPiRequireGraphModule";
 const commonJsModuleDefinitions = new Map<string, { source: string; filename: string; dirname: string }>();
 const commonJsModuleCache = new Map<
 	string,

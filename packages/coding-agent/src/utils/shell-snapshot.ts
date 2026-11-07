@@ -137,17 +137,17 @@ function generateSnapshotScript(shell: string, snapshotPath: string, rcFile: str
 	const printFunction = isZsh ? "typeset -f" : "declare -f";
 	const functionExtractor = `# Force autoload all functions first
 ${printFunction} > /dev/null 2>&1
-__omp_all=$(${listFunctionNames} 2>/dev/null | command sort -u)
-__omp_next=$(printf '%s\\n' "$__omp_all" | grep -vE '^(_|__)' | grep -vE '${commonFunctionRegex}')
-__omp_kept=$(mktemp)
-while [ -n "$__omp_next" ]; do
-   printf '%s\\n' "$__omp_next" >> "$__omp_kept"
-   __omp_next=$(printf '%s\\n' "$__omp_next" | while IFS= read -r __omp_f; do ${printFunction} "$__omp_f" 2>/dev/null; done \\
-      | grep -oE '[A-Za-z_][A-Za-z0-9_.-]*' | command sort -u | grep -xF -f <(printf '%s\\n' "$__omp_all") \\
-      | grep -vE '${commonFunctionRegex}' | grep -vxF -f "$__omp_kept")
+__zeta_all=$(${listFunctionNames} 2>/dev/null | command sort -u)
+__zeta_next=$(printf '%s\\n' "$__zeta_all" | grep -vE '^(_|__)' | grep -vE '${commonFunctionRegex}')
+__zeta_kept=$(mktemp)
+while [ -n "$__zeta_next" ]; do
+   printf '%s\\n' "$__zeta_next" >> "$__zeta_kept"
+   __zeta_next=$(printf '%s\\n' "$__zeta_next" | while IFS= read -r __zeta_f; do ${printFunction} "$__zeta_f" 2>/dev/null; done \\
+      | grep -oE '[A-Za-z_][A-Za-z0-9_.-]*' | command sort -u | grep -xF -f <(printf '%s\\n' "$__zeta_all") \\
+      | grep -vE '${commonFunctionRegex}' | grep -vxF -f "$__zeta_kept")
 done
-while IFS= read -r __omp_f; do ${printFunction} "$__omp_f" 2>/dev/null; done < "$__omp_kept"
-rm -f "$__omp_kept"`;
+while IFS= read -r __zeta_f; do ${printFunction} "$__zeta_f" 2>/dev/null; done < "$__zeta_kept"
+rm -f "$__zeta_kept"`;
 
 	// Shell options extraction
 	const optionsScript = isZsh

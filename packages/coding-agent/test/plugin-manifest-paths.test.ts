@@ -36,7 +36,11 @@ describe("plugin manifest path resolution", () => {
 			// directory resolver returned the extension module for every key).
 			fs.writeFileSync(
 				path.join(dir, "package.json"),
-				JSON.stringify({ name: "fixture-plugin", version: "1.0.0", omp: { extensions: ["./ext.ts"], tools: "." } }),
+				JSON.stringify({
+					name: "fixture-plugin",
+					version: "1.0.0",
+					zeta: { extensions: ["./ext.ts"], tools: "." },
+				}),
 			);
 			fs.writeFileSync(path.join(dir, "index.ts"), "export default {};");
 			fs.writeFileSync(path.join(dir, "ext.ts"), "export default function () {};");
@@ -61,7 +65,7 @@ describe("plugin manifest path resolution", () => {
 			fs.mkdirSync(extensionsDir);
 			fs.writeFileSync(
 				path.join(extensionsDir, "package.json"),
-				JSON.stringify({ omp: { extensions: ["./missing.ts"] } }),
+				JSON.stringify({ zeta: { extensions: ["./missing.ts"] } }),
 			);
 			fs.writeFileSync(path.join(extensionsDir, "index.ts"), "export default function () {};");
 			const plugin = makePlugin(dir, {

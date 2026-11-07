@@ -224,7 +224,7 @@ export function NativeArchivePane({
           </h2>
           <p>
             {zh
-              ? "查询 OMP 保存的会话、空闲回顾和提示词历史。结果保留原始会话身份。"
+              ? "查询 Zeta 保存的会话、空闲回顾和提示词历史。结果保留原始会话身份。"
               : "Browse native sessions, idle recaps and prompt history with their original session identities."}
           </p>
         </div>
@@ -397,8 +397,8 @@ export function NativeArchivePane({
                   {!preview && !canOpen(detail.session.id) ? (
                     <p className="tiny muted">
                       {zh
-                        ? "当前 Studio 会话目录尚未收录此记录；刷新历史目录后再打开。"
-                        : "This entry is not in the current Studio catalog. Refresh the catalog before opening."}
+                        ? "当前 Z Work Studio 会话目录尚未收录此记录；刷新历史目录后再打开。"
+                        : "This entry is not in the current Z Work Studio catalog. Refresh the catalog before opening."}
                     </p>
                   ) : null}
                   <h4>{zh ? "空闲回顾" : "Idle recaps"}</h4>

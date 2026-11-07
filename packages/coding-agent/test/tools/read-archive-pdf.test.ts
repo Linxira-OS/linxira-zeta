@@ -72,7 +72,7 @@ describe("PDF archive members", () => {
 		temp = await TempDir.create("@read-archive-pdf-");
 		pdf = textPdf();
 		originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
-		originalOmpProfile = process.env.OMP_PROFILE;
+		originalOmpProfile = process.env.ZETA_PROFILE;
 		originalPiProfile = process.env.PI_PROFILE;
 		setAgentDir(temp.join("agent"));
 	});
@@ -80,7 +80,7 @@ describe("PDF archive members", () => {
 	afterEach(async () => {
 		vi.restoreAllMocks();
 		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDir);
-		restoreEnvValue("OMP_PROFILE", originalOmpProfile);
+		restoreEnvValue("ZETA_PROFILE", originalOmpProfile);
 		restoreEnvValue("PI_PROFILE", originalPiProfile);
 		__resetDirsFromEnvForTests();
 		await temp.remove();

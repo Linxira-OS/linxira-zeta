@@ -110,7 +110,7 @@ export async function hasLiveIsolationOwner(baseDir: string): Promise<boolean> {
 }
 
 /** Sidecar recording the native-teardown backend of a retained workspace. */
-export const RETAINED_BACKEND_FILE = ".omp-retained-backend.json";
+export const RETAINED_BACKEND_FILE = ".zeta-retained-backend.json";
 
 /**
  * Backends whose workspaces `zetacode worktree clear` must not remove with plain

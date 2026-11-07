@@ -10,7 +10,6 @@ import { postmortem } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { currentLanguage } from "../i18n";
 import { openStandaloneJudge } from "../judgment/standalone";
-import { openTernPage } from "../tools/browser/tern/user-page";
 import { openPath } from "../utils/open";
 
 /**
@@ -79,7 +78,6 @@ export async function runStatsCommand(cmd: StatsCommandArgs): Promise<void> {
 		getTotalMessageCount,
 		printStatsSummary,
 		refreshRollups,
-		setStatsCloseHandler,
 		startServer,
 		syncAllSessions,
 	} = await import("@linxiraos/pi-stats");
@@ -104,9 +102,6 @@ export async function runStatsCommand(cmd: StatsCommandArgs): Promise<void> {
 	// The dashboard starts immediately and ingests sessions in the background,
 	// streaming progress to the page. The judge (settings, auth, registry)
 	// resolves on the first Frustration estimate/run and lives until exit.
-	// In a Tern pane the page takes this block's place until the user closes
-	// it (its Close, Esc, Ctrl+C, or Tern's Close block), which stops the
-	// dashboard; elsewhere the system browser shows it.
 	const cwd = process.cwd();
 	const { hostname, port } = await startServer(cmd.port, cmd.host, {
 		judge: async () => (await openStandaloneJudge(cwd, "stats_frustration")).judge,
@@ -114,29 +109,14 @@ export async function runStatsCommand(cmd: StatsCommandArgs): Promise<void> {
 	});
 	const url = formatStatsDashboardUrl(hostname, port);
 	console.log(chalk.green(`Dashboard available at: ${url}`));
+	openPath(url);
+	console.log(`Press ${formatKeyHint("ctrl+c")} to stop\n`);
 
-	// Close is on before the page first loads, and off again for the system
-	// browser, where closing would leave a dead tab.
-	setStatsCloseHandler(() => void postmortem.quit(0));
-	const page = await openTernPage(url, "over");
-	if (page) {
-		console.log("Showing it in place of this block: close it to stop\n");
-	} else {
-		setStatsCloseHandler(undefined);
-		openPath(url);
-		console.log(`Press ${formatKeyHint("ctrl+c")} to stop\n`);
-	}
-
-	// Ctrl+C and the other signals exit through omp's cleanup, which takes the
-	// page away with the dashboard.
+	// Ctrl+C and the other signals exit through omp's cleanup, which closes the
+	// dashboard's database with the process.
 	postmortem.register("stats-dashboard", async () => {
-		await page?.close();
 		closeDb();
 	});
-	if (page) {
-		await page.closed();
-		await postmortem.quit(0);
-	}
 	// Keep the process alive
 	await new Promise(() => {});
 }
