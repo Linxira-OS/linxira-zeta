@@ -47,7 +47,7 @@ const ME: Member = {
 	id: "me",
 	name: "You",
 	role: "operator",
-	color: "#8b7cf6",
+	color: "#2563eb",
 	status: "idle",
 	digest: "Watching the room",
 };
@@ -672,7 +672,7 @@ export function TeamPage({ onOpenAgentHub }: { onOpenAgentHub?: () => void }) {
 					</button>
 				</div>
 				<div className="tp-tabs" role="tablist" aria-label="Team views">
-					{(["chat", "board", "calendar", "channels", "settings"] as const).map((id) => (
+					{(["chat", "board", "calendar", "settings"] as const).map((id) => (
 						<button
 							type="button"
 							key={id}
@@ -680,11 +680,11 @@ export function TeamPage({ onOpenAgentHub }: { onOpenAgentHub?: () => void }) {
 							aria-selected={tab === id}
 							className={tab === id ? "active" : ""}
 							onClick={() => {
-								setView(id === "channels" ? "channels" : "team");
+								setView("team");
 								setTab(id);
 							}}
 						>
-							{id === "chat" ? <Icon name="message" extra="sm" /> : id === "board" ? <Icon name="columns" extra="sm" /> : id === "calendar" ? <Icon name="clock" extra="sm" /> : id === "channels" ? <Icon name="plug" extra="sm" /> : <Icon name="settings" extra="sm" />}
+							{id === "chat" ? <Icon name="message" extra="sm" /> : id === "board" ? <Icon name="columns" extra="sm" /> : id === "calendar" ? <Icon name="clock" extra="sm" /> : <Icon name="settings" extra="sm" />}
 							{id[0]!.toUpperCase() + id.slice(1)}
 						</button>
 					))}
@@ -718,7 +718,7 @@ export function TeamPage({ onOpenAgentHub }: { onOpenAgentHub?: () => void }) {
 						<span className="tp-side-card-icon"><Icon name="sparkles" /></span>
 						<b>Team digest</b>
 						<p>Latest recaps, current tickets, and blockers in one glance.</p>
-						<button type="button" className="tp-link">Open details <Icon name="arrow-r" extra="sm" /></button>
+						<button type="button" className="tp-link" onClick={() => setTab("board")}>Open details <Icon name="arrow-r" extra="sm" /></button>
 					</div>
 				</aside>
 				<main className="tp-main">

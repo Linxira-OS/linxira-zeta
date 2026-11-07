@@ -31,7 +31,7 @@
 	display: grid;
 	place-items: center;
 	color: white;
-	background: linear-gradient(145deg, #4f8cff, #8b7cf6 56%, #14b8a6);
+	background: linear-gradient(145deg, #4f8cff, #2563eb 56%, #14b8a6);
 	box-shadow: 0 8px 22px color-mix(in srgb, #4f8cff 24%, transparent);
 }
 .tp-team b { display: block; font-size: var(--fs-13, 13px); letter-spacing: -0.01em; }
