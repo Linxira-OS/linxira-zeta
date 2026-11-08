@@ -38,10 +38,8 @@ packageForBuild.packageManager = "npm@12.0.1";
 packageForBuild.workspaces = [];
 fs.writeFileSync(packageForBuildPath, `${JSON.stringify(packageForBuild, null, 2)}\n`);
 fs.cpSync(path.join(desktopDir, "dist"), path.join(tempRoot, "dist"), { recursive: true });
-fs.cpSync(path.join(tempDesktopDir, "build"), path.join(tempRoot, "build"), { recursive: true });
-// Static build resources (NSIS include, zeta-d shims, PATH helper) live in the
-// project's own build/ dir; merge them over the generated icons so the staged
-// buildResources dir carries both.
+// desktop/build is the single source for build resources: generated icons plus
+// the static NSIS include, zeta-d shims, and PATH helper.
 fs.cpSync(path.join(desktopDir, "build"), path.join(tempRoot, "build"), { recursive: true });
 fs.cpSync(path.join(tempDesktopDir, "staging"), path.join(tempRoot, "staging"), { recursive: true });
 // electron-builder.yml references `../LICENSE` etc. relative to the isolated
