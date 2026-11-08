@@ -8850,7 +8850,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               onOpenMain={() => go("workbench")}
             />
           ) : pageRoute === "media" ? (
-            <MediaPage client={client} workspaceId={hubWorkspaceId} sessionId={snapshot?.sessionId} runtimeAvailable={hubRuntimeConnected} onInsert={insertPreparedPrompt} />
+            <MediaPage client={client} workspaceId={hubWorkspaceId} sessionId={snapshot?.sessionId} runtimeAvailable={hubRuntimeConnected} {...(capabilities ? { capabilities } : {})} onInsert={insertPreparedPrompt} />
           ) : pageRoute === "evaluation" ? (
             <EvaluationPage client={client} sessionId={snapshot?.sessionId} workspaceId={hubWorkspaceId} available={hubRuntimeConnected} capabilities={capabilities} />
           ) : pageRoute === "model-config" ? (
