@@ -64,6 +64,10 @@ function readRawCodexCredentialBlocks(
 	}
 }
 
+test("capability header carries the Zeta name on both sides", () => {
+	expect(AUTH_BROKER_CAPABILITIES_HEADER).toBe("Zeta-Auth-Broker-Capabilities");
+});
+
 describe("auth-broker wire surface", () => {
 	let tempDir = "";
 	let store: SqliteAuthCredentialStore | undefined;

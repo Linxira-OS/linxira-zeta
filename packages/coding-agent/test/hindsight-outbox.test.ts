@@ -115,7 +115,7 @@ async function eventFiles(): Promise<string[]> {
 	try {
 		const names = await fs.readdir(outboxDir(), { recursive: true });
 		return names
-			.filter(name => /omp-retain-[a-f0-9]{32}\.json$/.test(name) && !name.startsWith("quarantine"))
+			.filter(name => /(?:zeta|omp)-retain-[a-f0-9]{32}\.json$/.test(name) && !name.startsWith("quarantine"))
 			.map(name => path.join(outboxDir(), name));
 	} catch {
 		return [];

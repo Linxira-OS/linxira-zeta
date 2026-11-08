@@ -3072,7 +3072,7 @@ function AppTopbar({ state, client, chrome, onRoute, threadTitle, sideOpen, onTo
   );
   const realGit = useGitRepository(client, preview ? undefined : realActiveWorkspace?.workspaceId);
   const crumbProject = preview
-    ? (previewProject?.name ?? "omp-web")
+    ? (previewProject?.name ?? "zeta-web")
     : (realActiveWorkspace?.name ?? t("conversation.noProjectSelected"));
   const crumbBranch = preview ? (previewProject?.branch ?? "main") : (realGit.repository?.branch ?? (realGit.repository?.detached ? "detached HEAD" : "—"));
   const crumbThread = preview ? (previewHit?.thread.title ?? threadTitle) : threadTitle;

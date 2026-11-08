@@ -8,7 +8,7 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { presentNarrationAsAnswer } from "@linxiraos/pi-ai/utils/narration";
-import { $flag, logger, postmortem, sanitizeText } from "@linxiraos/pi-utils";
+import { $pickenv, logger, parseFlag, postmortem, sanitizeText } from "@linxiraos/pi-utils";
 import { HINDSIGHT_NOTICE_SOURCE } from "../hindsight/state";
 import type { MCPManager } from "../mcp/manager";
 import { resolveMCPTimeoutMs } from "../mcp/timeout";
@@ -317,7 +317,7 @@ async function runPrintModeCore(
 		// (`session.retry()` posts the continuation as a post-prompt task),
 		// so run `promptTurn`'s pre-turn prep BEFORE the command executes:
 		// the readiness binding (`waitForStartup` + `refreshMCPTools`), the
-		// strict `OMP_MCP_REQUIRE_READY` gate, the working indicator, and
+		// strict `ZETA_MCP_REQUIRE_READY` gate, the working indicator, and
 		// the uncommitted text output. Without it the retried turn would
 		// stream without the MCP tools turn one gets, strict automation
 		// would pass on a run it should fail, and turn recovery would treat
@@ -379,7 +379,7 @@ async function runPrintModeCore(
 	});
 
 	const timeoutMs = resolveMCPTimeoutMs();
-	const strict = $flag("OMP_MCP_REQUIRE_READY");
+	const strict = parseFlag($pickenv("ZETA_MCP_REQUIRE_READY", "OMP_MCP_REQUIRE_READY"));
 	let strictMCPFailure = false;
 	// Warn once per unavailable server across evaluations: readiness is
 	// re-evaluated after a dispatched recovery command, and a still-broken
@@ -478,7 +478,7 @@ async function runPrintModeCore(
 		await promptTurn(message);
 	}
 	// A run with no model turn (every input consumed locally, or none) still
-	// reports strict unreadiness: `OMP_MCP_REQUIRE_READY=1 omp -p '/mcp reauth
+	// reports strict unreadiness: `ZETA_MCP_REQUIRE_READY=1 zetacode -p '/mcp reauth
 	// foo'` that failed to repair its server exits with the strict error, not
 	// only the builtin's own failure.
 	if (strict && !admittedAgentTurn && !strictMCPFailure) {

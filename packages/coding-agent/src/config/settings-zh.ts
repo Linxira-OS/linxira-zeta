@@ -2348,7 +2348,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"update.auto": {
 		label: "自动更新",
-		description: "启动时在后台安装 omp 更新；下次启动运行新版本",
+		description: "启动时在后台安装 zetacode 更新；下次启动运行新版本",
 	},
 	"providers.openaiResponsesWebsockets": {
 		label: "OpenAI Responses WebSocket 传输",

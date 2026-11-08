@@ -42,7 +42,7 @@ describe("GitHub session publication", () => {
 		const prompt = buildGithubSharePrompt(prepared);
 		expect(prompt).toContain(prepared.markdownPath);
 		expect(prompt).toContain("gh auth status");
-		expect(prompt).toContain("Do not upload the transcript to `my.omp.sh`");
+		expect(prompt).toContain("Do not upload the transcript to a Zeta share server or any other third party.");
 		expect(prompt).toContain("gh auth login");
 		expect(prompt).toContain("Do not paste the transcript into chat");
 		expect(prompt).toContain("never read, print, copy, or ask for a token");

@@ -25,19 +25,13 @@ const TECHNICAL = [
   /^omp-studio-(ui|backgrounds)$/,
   /^omp-(menu|tip|mermaid|conversation-|copy)/,
   /^OMP_STUDIO_CLIENT$/,
-  /^VITE_OMP_/,
+  /^VITE_ZETA_/,
   /^__omp_/,
   /^@?omp[-/]/,
   /^omp$/,
   /^ompprurl$/,
   /^\.omp/,
 ];
-
-/** Raw host labels/statuses that are matched, never rendered as copy. */
-const FROZEN_VALUES: Record<string, readonly RegExp[]> = {
-  "src/studio/CapabilitiesPage.tsx": [/^OMP$/],
-  "src/studio/ModelConfigPage.tsx": [/^OMP 已解析到可用模型$/],
-};
 
 /** Third-party product names that legitimately contain "Studio". */
 const STUDIO_ALLOW = /LM Studio|Z Work Studio|Work Studio/;
@@ -64,10 +58,9 @@ function walk(dir: string): string[] {
   return out;
 }
 
-function checkText(text: string, file?: string): string | undefined {
+function checkText(text: string): string | undefined {
   const value = text.trim();
   if (!value || TECHNICAL.some(pattern => pattern.test(value))) return undefined;
-  if (file && FROZEN_VALUES[file.replaceAll("\\", "/")]?.some(pattern => pattern.test(value))) return undefined;
   if (/\bOMP\b/.test(value)) return "user-visible OMP";
   if (/\bomp\b/.test(value)) return "user-visible omp";
   if (/(?<!Work )(?<!LM )\bStudio\b/.test(value) && !STUDIO_ALLOW.test(value)) {
@@ -85,7 +78,7 @@ function scanLocale(path: string): Hit[] {
     if (valueStart < 0) return;
     const valuePart = line.slice(valueStart + 1);
     for (const match of valuePart.matchAll(QUOTED)) {
-      const reason = checkText(match[2] ?? "", relative(ROOT, path));
+      const reason = checkText(match[2] ?? "");
       if (reason) hits.push({ file: relative(ROOT, path), line: index + 1, text: match[2]!, reason });
     }
   });
@@ -101,7 +94,7 @@ function scanSource(path: string): Hit[] {
     // Class names and selectors are plumbing; visible attributes/text still scan.
     if (/className=|closest\(|querySelector|classList|localStorage|sessionStorage|indexedDB/.test(line)) return;
     for (const match of line.matchAll(QUOTED)) {
-      const reason = checkText(match[2] ?? "", relative(ROOT, path));
+      const reason = checkText(match[2] ?? "");
       if (reason) hits.push({ file: relative(ROOT, path), line: index + 1, text: match[2]!, reason });
     }
     for (const match of line.matchAll(JSX_TEXT)) {

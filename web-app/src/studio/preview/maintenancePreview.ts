@@ -43,7 +43,7 @@ export const PREVIEW_SESSION_EXPORT: SessionExportResult = {
   asset: {
     artifactId: "aaaa1111-2222-4333-8444-555566667777",
     kind: "export",
-    name: "omp-session-example.html",
+    name: "zeta-session-example.html",
     mimeType: "text/html",
     bytes: 426000,
     sha256: "0".repeat(64),
@@ -60,4 +60,4 @@ export function previewConnectionCheck(): NativeConnectionCheck {
   };
 }
 
-export function previewSessionExport(format:"archive"|"html"):SessionExportResult{return {...PREVIEW_SESSION_EXPORT,format,members:format==="archive"?4:1,asset:{...PREVIEW_SESSION_EXPORT.asset,name:format==="archive"?"omp-session-example.zip":"omp-session-example.html",mimeType:format==="archive"?"application/zip":"text/html"}};}
+export function previewSessionExport(format:"archive"|"html"):SessionExportResult{return {...PREVIEW_SESSION_EXPORT,format,members:format==="archive"?4:1,asset:{...PREVIEW_SESSION_EXPORT.asset,name:format==="archive"?"zeta-session-example.zip":"zeta-session-example.html",mimeType:format==="archive"?"application/zip":"text/html"}};}
