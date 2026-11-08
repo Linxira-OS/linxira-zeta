@@ -139,12 +139,19 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 	let lastQr = "";
 	try {
 		const start = options.startChannels ?? startChannels;
-		runtime = await start(options.session, effectiveWebConfig, undefined, payload => {
-			if (payload.status === "confirmed" || payload.qrcodeUrl === lastQr) return;
-			lastQr = payload.qrcodeUrl;
-			options.onQrCode?.(payload);
-			defaultQrHint(payload);
-		});
+		runtime = await start(
+			options.session,
+			effectiveWebConfig,
+			undefined,
+			payload => {
+				if (payload.status === "confirmed" || payload.qrcodeUrl === lastQr) return;
+				lastQr = payload.qrcodeUrl;
+				options.onQrCode?.(payload);
+				defaultQrHint(payload);
+			},
+			// Durable per-channel dedupe, shared with serve (`<agent dir>/run`).
+			{ stateDir: path.dirname(options.webConfig.path) },
+		);
 		const channels = [...runtime.channels.keys()];
 		await lock.update({ channels });
 		const host: SessionChannelHost = {

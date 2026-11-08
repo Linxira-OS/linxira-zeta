@@ -23,7 +23,7 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { ChannelId } from "@linxiraos/pi-channels";
+import { type ChannelId, ReplyCorrelator } from "@linxiraos/pi-channels";
 import { isEnoent, logger, Snowflake } from "@linxiraos/pi-utils";
 import type { BotSessionEntry, WebConfig } from "../config/web-config";
 import { Settings, type SettingProvenance } from "../config/settings";
@@ -50,22 +50,13 @@ export const COORDINATOR_ALIAS = "main";
 interface ActiveRun {
 	resolve: (text: string) => void;
 	timer: ReturnType<typeof setTimeout>;
-	/** Absolute directory of the workspace this delegation targets — only that
-	 *  workspace's `turn_end` may resolve the run (a direct-mode reply from a
-	 *  different workspace must not be mistaken for the subtask result). */
-	dir: string;
 }
 
-/** A chat waiting for a direct-mode reply from a workspace or bot session. */
-interface DirectReply {
+/** The chat a bot session most recently answered (channel_send/im_control target). */
+interface BotChatTarget {
 	channelId: ChannelId;
 	peer: string;
-	/** Expiry timestamp — a stale pending reply is dropped after DIRECT_REPLY_TTL_MS. */
-	expiresAt: number;
 }
-
-/** Upper bound for a pending direct reply; guards against a lost turn_end. */
-const DIRECT_REPLY_TTL_MS = 10 * 60_000;
 
 interface SessionHandle {
 	session: AgentSession;
@@ -155,15 +146,15 @@ export class SessionRouter {
 	readonly #sessions = new Map<string, SessionHandle>();
 	/** Default-space bot sessions, keyed by registry id. */
 	readonly #botSessions = new Map<string, BotSessionHandle>();
-	/** Bot-session reply bindings: bot session id → FIFO of waiting chats. A
-	 *  shared bot session (multiple chats bound to one entry) must reply to
-	 *  each pending chat in order, so this is a queue, not a single slot. */
-	readonly #botDirectReplies = new Map<string, DirectReply[]>();
+	/** Reply correlation per live target session (workspace dir or bot id). */
+	readonly #bridges = new Map<string, ReplyCorrelator>();
+	/** Bridge keys whose session exposes the IRC wake-turn observer we installed. */
+	readonly #observedBridges = new Set<string>();
+	/** Latest chat each bot session answers (channel_send/im_control resolution). */
+	readonly #botLastChat = new Map<string, BotChatTarget>();
 	/** Workspace alias → absolute directory (mirror of web.yml entries). */
 	readonly #aliases = new Map<string, string>();
 	#activeRun: ActiveRun | null = null;
-	/** Direct-mode reply bindings: workspace dir → waiting chat. */
-	readonly #directReplies = new Map<string, DirectReply>();
 	/** `channels.reportPolicy: summary` buffers progress reports per chat until the stage ends. */
 	readonly #pendingReports = new Map<string, string[]>();
 	/** Runtime (non-persisted) per-chat route override: "channel:peer" → alias. */
@@ -277,6 +268,45 @@ export class SessionRouter {
 		return undefined;
 	}
 
+	/**
+	 * Reply correlator for one live target session. It installs the session's
+	 * IRC wake-turn observer so a turn is attributed to the messages it actually
+	 * answers; without the observer it falls back to ordered consumption.
+	 */
+	#bridgeFor(key: string, session: AgentSession): ReplyCorrelator {
+		const existing = this.#bridges.get(key);
+		if (existing) return existing;
+		const correlator = new ReplyCorrelator({
+			sendText: (target, text) => this.#sendText(target.channelId, target.peer, text),
+		});
+		this.#bridges.set(key, correlator);
+		const observer = session.setIrcWakeTurnObserver;
+		if (typeof observer === "function") {
+			try {
+				observer.call(session, records => correlator.observe(records));
+				this.#observedBridges.add(key);
+			} catch (error) {
+				logger.warn("Reply correlation observer unavailable", {
+					key,
+					error: error instanceof Error ? error.message : String(error),
+				});
+				correlator.enableFallback();
+			}
+		} else {
+			correlator.enableFallback();
+		}
+		return correlator;
+	}
+
+	/** Drop one bridge (and the observer it installed) when its session goes away. */
+	#detachBridge(key: string, session?: AgentSession): void {
+		const correlator = this.#bridges.get(key);
+		if (!correlator) return;
+		correlator.clear();
+		this.#bridges.delete(key);
+		if (this.#observedBridges.delete(key)) session?.setIrcWakeTurnObserver?.(undefined);
+	}
+
 	/** Open (or re-open) a directory as a workspace session; persists alias + path. */
 	async open(dir: string, alias?: string): Promise<{ ok: true; alias: string } | { ok: false; error: string }> {
 		const resolved = path.resolve(dir);
@@ -296,6 +326,7 @@ export class SessionRouter {
 				});
 				const unsubscribe = session.subscribe(event => this.#onTargetEvent(resolved, event));
 				this.#sessions.set(resolved, { session, unsubscribe });
+				this.#bridgeFor(resolved, session);
 			} catch (error) {
 				logger.error("Failed to open workspace session", {
 					dir: resolved,
@@ -778,7 +809,8 @@ export class SessionRouter {
 		if (handle) {
 			handle.unsubscribe();
 			this.#botSessions.delete(id);
-			this.#botDirectReplies.delete(id);
+			this.#detachBridge(id, handle.session);
+			this.#botLastChat.delete(id);
 			try {
 				await handle.session.dispose();
 			} catch (error) {
@@ -816,6 +848,7 @@ export class SessionRouter {
 				: await this.#defaultBotSessionRuntime(entry);
 			const unsubscribe = session.subscribe(event => this.#onBotSessionEvent(entry.id, event));
 			this.#botSessions.set(entry.id, { entry, session, unsubscribe });
+			this.#bridgeFor(entry.id, session);
 			if (entry.lang) this.#applyLanguageToSession(session, entry.lang);
 			return { ok: true, session };
 		} catch (error) {
@@ -897,7 +930,7 @@ export class SessionRouter {
 	 */
 	resolveImControlChat(sessionKey: string): { channelId: ChannelId; peer: string } | null {
 		if (sessionKey === "coordinator") return this.#getLastInbound();
-		const reply = this.#peekBotReply(sessionKey);
+		const reply = this.#botLastChat.get(sessionKey);
 		if (reply) return { channelId: reply.channelId, peer: reply.peer };
 		const entry = this.#webConfig.getBotSession(sessionKey);
 		if (entry?.platform && entry.chatId) return { channelId: entry.platform as ChannelId, peer: entry.chatId };
@@ -926,38 +959,11 @@ export class SessionRouter {
 		this.#applyLanguageToSession(handle.session, lang);
 	}
 
-	/** Pop the next live reply target for a bot session, dropping expired slots. */
-	#dequeueBotReply(id: string): DirectReply | null {
-		const queue = this.#botDirectReplies.get(id);
-		if (!queue) return null;
-		const now = Date.now();
-		while (queue.length > 0 && queue[0].expiresAt <= now) queue.shift();
-		if (queue.length === 0) {
-			this.#botDirectReplies.delete(id);
-			return null;
-		}
-		const next = queue.shift();
-		if (queue.length === 0) this.#botDirectReplies.delete(id);
-		return next ?? null;
-	}
-
-	/** Peek the next live reply target without consuming it (for im_control). */
-	#peekBotReply(id: string): DirectReply | null {
-		const queue = this.#botDirectReplies.get(id);
-		if (!queue) return null;
-		const now = Date.now();
-		while (queue.length > 0 && queue[0].expiresAt <= now) queue.shift();
-		if (queue.length === 0) {
-			this.#botDirectReplies.delete(id);
-			return null;
-		}
-		return queue[0];
-	}
-
 	/**
 	 * Deliver an inbound message into a bot session and bind the chat so the
-	 * session's final reply returns to that chat. Replies queue FIFO per bot
-	 * session, so multiple chats sharing one session each get their turn.
+	 * session's final reply returns to that chat. The reply is correlated by
+	 * the delivered message (see {@link ReplyCorrelator}), so two chats sharing
+	 * one bot session never receive each other's answer.
 	 */
 	async deliverToBotSession(
 		id: string,
@@ -969,10 +975,8 @@ export class SessionRouter {
 		if (!handle) return { ok: false, error: `Bot session "${id}" has no runtime session` };
 		const lang = (await this.languageFor(channelId, peer)) ?? handle.entry.lang;
 		if (lang) this.#applyLanguageToSession(handle.session, lang);
-		const pending: DirectReply = { channelId, peer, expiresAt: Date.now() + DIRECT_REPLY_TTL_MS };
-		const queue = this.#botDirectReplies.get(id) ?? [];
-		queue.push(pending);
-		this.#botDirectReplies.set(id, queue);
+		this.#botLastChat.set(id, { channelId, peer });
+		const bridge = this.#bridgeFor(id, handle.session);
 		const msg: IrcMessage = {
 			id: Snowflake.next(),
 			from: this.#coordinator.getAgentId() ?? "coordinator",
@@ -980,15 +984,13 @@ export class SessionRouter {
 			body,
 			ts: Date.now(),
 		};
+		bridge.expect(msg.id, { kind: "chat", channelId, peer });
 		try {
 			await handle.session.deliverIrcMessage(msg);
 		} catch (error) {
-			// Remove exactly the slot we pushed; the session may still hold
-			// older pending replies from other chats.
-			const q = this.#botDirectReplies.get(id);
-			const idx = q?.indexOf(pending) ?? -1;
-			if (q && idx >= 0) q.splice(idx, 1);
-			if (q && q.length === 0) this.#botDirectReplies.delete(id);
+			// Forget exactly this delivery; older pending replies from other
+			// chats keep their own correlation.
+			bridge.forget(msg.id);
 			const detail = error instanceof Error ? error.message : String(error);
 			return { ok: false, error: `Bot session "${id}" delivery failed: ${detail}` };
 		}
@@ -1013,16 +1015,9 @@ export class SessionRouter {
 
 	#onBotSessionEvent(id: string, event: AgentSessionEvent): void {
 		if (event.type !== "turn_end") return;
-		const reply = this.#dequeueBotReply(id);
-		if (!reply) return;
-		const text = assistantText(event.message);
-		if (!text) return;
-		void this.#sendText(reply.channelId, reply.peer, text).catch(error => {
-			logger.warn("Bot session reply send failed", {
-				id,
-				error: error instanceof Error ? error.message : String(error),
-			});
-		});
+		// Correlated: only a turn that answers a delivered message replies to a
+		// chat; a Studio/attach turn on the same session consumes nothing.
+		this.#bridges.get(id)?.onTurnText(assistantText(event.message));
 	}
 
 	/**
@@ -1047,7 +1042,7 @@ export class SessionRouter {
 			handle = this.#sessions.get(dir);
 			if (!handle) return { ok: false, error: `Workspace "${workspaceAlias}" has no session` };
 		}
-		this.#directReplies.set(dir, { channelId, peer, expiresAt: Date.now() + DIRECT_REPLY_TTL_MS });
+		const bridge = this.#bridgeFor(dir, handle.session);
 		const msg: IrcMessage = {
 			id: Snowflake.next(),
 			from: this.#coordinator.getAgentId() ?? "coordinator",
@@ -1055,10 +1050,11 @@ export class SessionRouter {
 			body,
 			ts: Date.now(),
 		};
+		bridge.expect(msg.id, { kind: "chat", channelId, peer });
 		try {
 			await handle.session.deliverIrcMessage(msg);
 		} catch (error) {
-			this.#directReplies.delete(dir);
+			bridge.forget(msg.id);
 			const detail = error instanceof Error ? error.message : String(error);
 			return { ok: false, error: `Direct delivery to "${workspaceAlias}" failed: ${detail}` };
 		}
@@ -1107,20 +1103,38 @@ export class SessionRouter {
 
 		let timedOut = false;
 		const { promise, resolve } = Promise.withResolvers<string>();
-		const timer = setTimeout(() => {
-			if (this.#activeRun?.resolve === resolve) {
+		const bridge = this.#bridgeFor(dir, handle.session);
+		const run: ActiveRun = {
+			resolve,
+			timer: setTimeout(() => {
+				if (this.#activeRun !== run) return;
 				this.#activeRun = null;
 				timedOut = true;
+				bridge.forget(msg.id);
 				resolve(`[${path.basename(dir)}] (no reply within ${RUN_TIMEOUT_MS / 60_000} minutes)`);
-			}
-		}, RUN_TIMEOUT_MS);
-		this.#activeRun = { resolve, timer, dir };
+			}, RUN_TIMEOUT_MS),
+		};
+		this.#activeRun = run;
+		// The delegation's own wake turn answers this message; only that turn may
+		// resolve the run (a chat message delivered to the same workspace has its
+		// own correlation and must not be mistaken for the subtask result).
+		bridge.expect(msg.id, {
+			kind: "sink",
+			allowEmpty: true,
+			deliver: text => {
+				if (this.#activeRun !== run) return;
+				this.#activeRun = null;
+				clearTimeout(run.timer);
+				resolve(text || "(no text reply)");
+			},
+		});
 
 		try {
 			await handle.session.deliverIrcMessage(msg);
 		} catch (error) {
-			clearTimeout(timer);
-			this.#activeRun = null;
+			clearTimeout(run.timer);
+			if (this.#activeRun === run) this.#activeRun = null;
+			bridge.forget(msg.id);
 			const detail = error instanceof Error ? error.message : String(error);
 			const reply = `workspace_run: delegation to "${workspace}" failed: ${detail}`;
 			await this.#forwardReport(chat, "failure", reply);
@@ -1162,11 +1176,10 @@ export class SessionRouter {
 		}
 		this.#sessions.clear();
 		this.#aliases.clear();
-		this.#directReplies.clear();
 		this.#pendingReports.clear();
 		for (const [id, handle] of [...this.#botSessions.entries()]) {
 			handle.unsubscribe();
-			this.#botDirectReplies.delete(id);
+			this.#detachBridge(id, handle.session);
 			try {
 				await handle.session.dispose();
 			} catch (error) {
@@ -1177,7 +1190,9 @@ export class SessionRouter {
 			}
 		}
 		this.#botSessions.clear();
-		this.#botDirectReplies.clear();
+		this.#botLastChat.clear();
+		this.#bridges.clear();
+		this.#observedBridges.clear();
 	}
 
 	async #closeDir(dir: string): Promise<void> {
@@ -1185,7 +1200,7 @@ export class SessionRouter {
 		if (!handle) return;
 		handle.unsubscribe();
 		this.#sessions.delete(dir);
-		this.#directReplies.delete(dir);
+		this.#detachBridge(dir, handle.session);
 		try {
 			await handle.session.dispose();
 		} catch (error) {
@@ -1198,26 +1213,10 @@ export class SessionRouter {
 
 	#onTargetEvent(dir: string, event: AgentSessionEvent): void {
 		if (event.type !== "turn_end") return;
-		const run = this.#activeRun;
-		if (run && run.dir === dir) {
-			this.#activeRun = null;
-			clearTimeout(run.timer);
-			run.resolve(assistantText(event.message) || "(no text reply)");
-			return;
-		}
-		// Direct-mode reply: the bound chat is waiting for this session's reply.
-		const reply = this.#directReplies.get(dir);
-		if (reply) {
-			this.#directReplies.delete(dir);
-			const text = assistantText(event.message);
-			if (text) {
-				void this.#sendText(reply.channelId, reply.peer, text).catch(error => {
-					logger.warn("Direct-mode reply send failed", {
-						dir,
-						error: error instanceof Error ? error.message : String(error),
-					});
-				});
-			}
-		}
+		// Correlated per delivered message: the delegation sink and the chat
+		// reply are both keyed by the record the wake turn answers, so two chats
+		// on one workspace never swap answers and a Studio/attach turn on the
+		// same session consumes no IM reply slot.
+		this.#bridges.get(dir)?.onTurnText(assistantText(event.message));
 	}
 }
