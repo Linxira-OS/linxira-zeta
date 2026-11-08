@@ -520,7 +520,7 @@ async function getDesktopInstaller(
 
 /**
  * Check the desktop app's release. `current` is the running GUI's version
- * (`zetawork --version`), which the shipped CLI's own VERSION mirrors.
+ * (the Electron app version, kept in lockstep with this CLI's VERSION).
  */
 export async function checkDesktopUpdate(
 	options: {
@@ -652,7 +652,7 @@ export async function installDesktopUpdate(
 	} = {},
 ): Promise<DesktopInstallResult> {
 	if (!check.available) {
-		throw new Error(`zetawork ${check.latest} is not newer than ${check.current}; refusing to install`);
+		throw new Error(`Work Studio ${check.latest} is not newer than ${check.current}; refusing to install`);
 	}
 	const installer = options.targetPath ?? path.join(os.tmpdir(), desktopInstallerName(check.latest));
 	await downloadVerifiedBinary({
@@ -2516,8 +2516,8 @@ function persistChannel(channel: UpdateChannel): void {
 }
 
 /**
- * `zetacode update --desktop`: update the zetawork desktop app from its NSIS
- * installer.
+ * `zetacode update --desktop`: update the Work Studio desktop app from its
+ * NSIS installer.
  *
  * The GUI owns no TLS client, so this branch is the only path its update
  * control uses: `--check` prints one JSON object on stdout (nothing else),
@@ -2596,7 +2596,7 @@ async function runDesktopUpdate(opts: UpdateOptions): Promise<UpdateOutcome> {
 	}
 	try {
 		const { installer } = await installDesktopUpdate(result);
-		console.log(chalk.cyan(`Downloaded zetawork ${result.latest} to ${installer}; starting the installer.`));
+		console.log(chalk.cyan(`Downloaded Work Studio ${result.latest} to ${installer}; starting the installer.`));
 	} catch (err) {
 		throw updateError("Desktop update failed", err);
 	}
@@ -2752,7 +2752,7 @@ ${chalk.bold("Options:")}
   -l, --plugins   Update installed plugins
   --canary        Switch to the canary channel and update
   --stable        Switch back to the stable channel
-  --desktop       Update the zetawork desktop app from its Windows installer
+  --desktop       Update the Work Studio desktop app from its Windows installer
 
 ${chalk.bold("Examples:")}
   ${CLI_BIN_NAME} update              Update to latest version
