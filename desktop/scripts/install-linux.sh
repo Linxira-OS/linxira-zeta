@@ -82,7 +82,8 @@ fi
 
 # ---- 应用菜单注册 ----
 APP_DIR="$REAL_HOME/.local/share/applications"
-ICON_SRC="$DEST/resources/icon.ico"
+# GTK reads PNG; the packaged ICO is not a valid Linux icon.
+ICON_SRC="$DEST/resources/icon.png"
 mkdir -p "$APP_DIR"
 cat > "$APP_DIR/zeta-desktop.desktop" <<EOF
 [Desktop Entry]

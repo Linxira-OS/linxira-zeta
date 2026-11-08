@@ -32,6 +32,15 @@ export interface ChannelSession {
 	deliverIrcMessage(msg: IrcMessage, opts?: { expectsReply?: boolean }): Promise<unknown>;
 	subscribe(handler: (event: ChannelSessionEvent) => void): () => void;
 	setIrcAutoReplyListener(listener: ((msg: IrcMessage, replyText: string) => void) | null): void;
+	/**
+	 * Optional: the IRC wake-turn observer zeta's `AgentSession` exposes. It is
+	 * called with exactly the records a wake turn answers and returns a finish
+	 * callback, which is how replies are correlated per delivered message
+	 * instead of by turn order (see `ReplyCorrelator`).
+	 */
+	setIrcWakeTurnObserver?(
+		observer: ((records: readonly unknown[]) => ((error?: unknown) => void | Promise<void>) | undefined) | undefined,
+	): void;
 }
 
 /**

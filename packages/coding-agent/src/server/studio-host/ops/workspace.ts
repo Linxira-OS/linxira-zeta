@@ -1,8 +1,8 @@
 /**
  * Studio operations — workspace inventory and the Explorer tree.
  *
- * Owned operations: `projects.list`, `workspace.fileTree` (both A-class in the
- * host spec).
+ * Owned operations: `projects.list`, `workspace.fileTree` (queries) plus
+ * `workspace.open` and `workspace.file.create` (commands).
  *
  * Operation → gateway route:
  * - `projects.list` → `GET /api/projects` (`server/web-gateway/projects.ts`),
@@ -16,18 +16,22 @@
  *   `GET /api/files/<workspace-relative path>?type=list`
  *   (`server/web-gateway/files.ts`); one level per call, as the operation's
  *   contract states.
+ * - `workspace.open` → `PUT /api/projects { path }`: register the project root
+ *   and stamp its `lastOpened` preference, then read the inventory back from
+ *   the same answer. Zeta has no switchable "active workspace" — the gateway
+ *   runs one runtime on the process default and only `defaultWorkspaceKey` is
+ *   `active` — so this records the operator's open preference and reports the
+ *   registry truthfully instead of claiming the runtime moved.
+ * - `workspace.file.create` → the multipart upload primitive on `/api/files`
+ *   (`POST ?type=upload&conflict=error`) carrying one empty file, because no
+ *   JSON route creates a file. The root is registered first, and `conflict=error`
+ *   refuses to overwrite an existing file.
  *
- * Deliberately omitted — no Zeta route can answer them without inventing state:
- * - `workspace.open` — Zeta has no switchable "active workspace": the gateway
- *   runs one runtime on the process default, `PUT /api/projects` only registers
- *   a project root and stamps its `lastOpened` preference, and `session.create`
- *   carries no `cwd`, so this host cannot make the Runtime follow a selection.
- *   Reporting a chosen workspace as `active` would claim sessions run where
- *   they do not.
+ * Deliberately omitted — no Zeta route can answer it without inventing state:
  * - `workspace.pick` — the picker *data* routes exist (`/api/cwd/browse`,
  *   `/api/fs/directories`), but the operation carries no folder and no route
- *   chooses one on the operator's behalf, so the host cannot name the picked
- *   directory.
+ *   opens a native dialog or chooses a directory on the operator's behalf, so
+ *   the host cannot name the picked directory.
  *
  * Workspace ids are opaque: Zeta identifies a workspace by its canonical
  * directory key, which is a path, so `WorkspaceId` is a truncated SHA-256 of
@@ -38,6 +42,7 @@
  */
 import { createHash } from "node:crypto";
 import type {
+	WorkspaceFileMutationResult,
 	WorkspaceFileNode,
 	WorkspaceFileTreeReadModel,
 	WorkspaceId,
@@ -119,9 +124,8 @@ function readWorkspaceEntry(raw: unknown): WorkspaceEntry | undefined {
 	return { key, path, name, lastOpenedAt: timestampField(raw, "lastActivity") ?? epochField(raw, "lastOpened") };
 }
 
-/** `GET /api/projects` → the workspace inventory, narrowed from untrusted JSON. */
-async function loadProjectDirectory(): Promise<ProjectDirectory> {
-	const payload = await gatewayJson<unknown>(PROJECTS_ROUTE);
+/** Narrow a `GET`/`PUT /api/projects` payload into the workspace inventory. */
+function parseProjectDirectory(payload: unknown): ProjectDirectory {
 	if (!isRecord(payload) || !Array.isArray(payload.projects)) {
 		throw unavailable(`${PROJECTS_ROUTE} returned an unexpected payload`);
 	}
@@ -136,6 +140,18 @@ async function loadProjectDirectory(): Promise<ProjectDirectory> {
 		}
 	}
 	return { entries, defaultKey: stringField(payload, "defaultWorkspaceKey") };
+}
+
+/** `GET /api/projects` → the workspace inventory, narrowed from untrusted JSON. */
+async function loadProjectDirectory(): Promise<ProjectDirectory> {
+	return parseProjectDirectory(await gatewayJson<unknown>(PROJECTS_ROUTE));
+}
+
+/** The inventory entry one opaque workspace id names, or a client error. */
+function requireWorkspace(directory: ProjectDirectory, workspaceId: string): WorkspaceEntry {
+	const entry = directory.entries.find(candidate => workspaceIdOf(candidate.key) === workspaceId);
+	if (entry === undefined) throw invalid(`unknown workspace: ${workspaceId}`);
+	return entry;
 }
 
 /**
@@ -268,11 +284,88 @@ async function listFileTree(input: unknown): Promise<WorkspaceFileTreeReadModel>
 	return { workspaceId, nodes: toFileNodes(readFileEntries(reply.body), base) };
 }
 
-/** Workspace family: the inventory read and the lazy Explorer tree. */
+// ---------------------------------------------------------------------------
+// Commands
+// ---------------------------------------------------------------------------
+
+/**
+ * `workspace.open` → `PUT /api/projects {path}`.
+ *
+ * Zeta has no switchable active workspace: the gateway runs one runtime on the
+ * process default, and `defaultWorkspaceKey` alone is reported as `active`.
+ * `PUT /api/projects` registers the project root and stamps its `lastOpened`
+ * preference — the registry's own record of opening a folder. The receipt is
+ * the inventory re-read from that answer, so the row moves to the top and
+ * `active` keeps naming the gateway's real default instead of echoing the
+ * caller's choice.
+ */
+async function openWorkspace(input: unknown): Promise<WorkspaceListReadModel> {
+	const workspaceId = requiredString(input, "workspaceId");
+	const entry = requireWorkspace(await loadProjectDirectory(), workspaceId);
+	const reply = await callGateway(PROJECTS_ROUTE, { method: "PUT", body: { path: entry.path } });
+	if (reply.status === 400 || reply.status === 404) {
+		throw invalid(`cannot open workspace ${workspaceId}: the gateway rejected its directory`);
+	}
+	if (reply.status < 200 || reply.status >= 300) {
+		throw unavailable(`PUT ${PROJECTS_ROUTE} → ${reply.status}`);
+	}
+	return toWorkspaceList(parseProjectDirectory(reply.body));
+}
+
+/**
+ * `workspace.file.create` → `POST /api/files/<parent>?type=upload&conflict=error`.
+ *
+ * The gateway's only create primitive is the multipart upload, so an empty file
+ * is uploaded under the requested name; `conflict=error` is the route's default
+ * and keeps an existing file untouched. The root is registered first through
+ * `POST /api/cwd/validate` — the same call the Explorer's first expand makes —
+ * because `/api/files` only writes under allowed roots.
+ */
+async function createFile(input: unknown): Promise<WorkspaceFileMutationResult> {
+	const workspaceId = requiredString(input, "workspaceId");
+	const segments = workspaceRelativeSegments(requiredString(input, "path"));
+	if (segments.length === 0) throw invalid("path must name a file inside the workspace");
+	const name = segments[segments.length - 1] as string;
+	const parentSegments = segments.slice(0, -1);
+	const relative = segments.join("/");
+	const entry = requireWorkspace(await loadProjectDirectory(), workspaceId);
+
+	const registered = await callGateway(VALIDATE_CWD_ROUTE, { method: "POST", body: { cwd: entry.path } });
+	if (registered.status < 200 || registered.status >= 300) {
+		throw unavailable(`workspace is not readable: ${VALIDATE_CWD_ROUTE} → ${registered.status}`);
+	}
+
+	const form = new FormData();
+	form.append("files", new File([], name, { type: "application/octet-stream" }));
+	const parent = [slashPath(entry.path), ...parentSegments].join("/");
+	const reply = await callGateway(filesRoute(parent), {
+		method: "POST",
+		query: "type=upload&conflict=error",
+		formData: form,
+	});
+	const parentRelative = parentSegments.length === 0 ? "." : parentSegments.join("/");
+	if (reply.status === 404) throw invalid(`directory not found: ${parentRelative}`);
+	if (reply.status === 409) throw invalid(`a file already exists at ${relative}`);
+	if (reply.status === 403) throw unavailable(`workspace is not writable: ${workspaceId}`);
+	if (reply.status < 200 || reply.status >= 300) {
+		throw unavailable(`POST /api/files → ${reply.status}`);
+	}
+	const uploaded = isRecord(reply.body) && Array.isArray(reply.body.uploaded) ? reply.body.uploaded : [];
+	if (!uploaded.includes(name)) {
+		throw unavailable(`POST /api/files did not report creating ${relative}`);
+	}
+	return { applied: true, kind: "file", path: relative };
+}
+
+/** Workspace family: the inventory read, the Explorer tree, and the two writes. */
 export const workspaceOps: StudioFamily = {
 	id: "workspace",
 	queries: {
 		"projects.list": listProjects,
 		"workspace.fileTree": listFileTree,
+	},
+	commands: {
+		"workspace.open": openWorkspace,
+		"workspace.file.create": createFile,
 	},
 };

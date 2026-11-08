@@ -5,6 +5,10 @@
 
 appId: com.zeta.desktop
 productName: Zeta
+protocols:
+  - name: Zeta
+    schemes:
+      - zeta
 artifactName: zeta-desktop-${version}-${os}-${arch}.${ext}
 copyright: Copyright (c) 2026 Linxira-OS
 electronVersion: 37.10.3
@@ -22,8 +26,12 @@ extraResources:
     to: zeta
   - from: build/bin
     to: bin
+  # Both formats: Windows reads the ICO, Linux/macOS the PNG (an ICO is not a
+  # valid GTK/AppKit icon). `iconPath()` picks by platform.
   - from: build/icon.ico
     to: icon.ico
+  - from: build/icon.png
+    to: icon.png
   - from: ../LICENSE
     to: legal/LICENSE
   - from: ../NOTICE

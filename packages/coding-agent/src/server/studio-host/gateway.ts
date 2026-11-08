@@ -8,6 +8,7 @@
  * path (no second listener, no second auth scheme).
  */
 import { webGatewayFetch } from "../web-gateway";
+import { getRpcSession } from "../web-gateway/agents";
 import type { ClientErrorCode } from "./contract/index.js";
 
 /** The gateway's answer, with a parsed JSON body when it sent one. */
@@ -44,6 +45,17 @@ const GATEWAY_ORIGIN = "http://127.0.0.1";
 export interface GatewayCallOptions {
 	readonly method?: string;
 	readonly body?: unknown;
+	/**
+	 * Body sent verbatim as `text/plain; charset=utf-8` instead of the
+	 * JSON-encoded `body`. Routes that store request bytes (`PUT
+	 * /api/sessions/:id/artifacts/:name`) must receive the text unchanged.
+	 */
+	readonly rawBody?: string;
+	/**
+	 * Multipart body. The bridge never sets a content-type for it: the
+	 * `Request` constructor writes the boundary the gateway's parser expects.
+	 */
+	readonly formData?: FormData;
 	/** Workspace the call reads for; forwarded as `x-zeta-cwd`. */
 	readonly cwd?: string;
 	readonly headers?: Readonly<Record<string, string>>;
@@ -61,8 +73,13 @@ export async function callGateway(path: string, options: GatewayCallOptions = {}
 	const headers = new Headers({ origin: GATEWAY_ORIGIN });
 	for (const [name, value] of Object.entries(options.headers ?? {})) headers.set(name, value);
 	if (options.cwd) headers.set("x-zeta-cwd", options.cwd);
-	let body: string | undefined;
-	if (options.body !== undefined) {
+	let body: string | FormData | undefined;
+	if (options.formData !== undefined) {
+		body = options.formData;
+	} else if (options.rawBody !== undefined) {
+		headers.set("content-type", "text/plain; charset=utf-8");
+		body = options.rawBody;
+	} else if (options.body !== undefined) {
 		headers.set("content-type", "application/json");
 		body = JSON.stringify(options.body);
 	}
@@ -124,4 +141,51 @@ export function optionalString(input: unknown, field: string): string | undefine
 	if (value === undefined) return undefined;
 	if (typeof value !== "string") throw invalid(`${field} must be a string`);
 	return value;
+}
+
+/**
+ * One event a live Runtime session emitted, exactly as the gateway's RPC
+ * wrapper fans it out. Only `type` is contract; the payload is per event type.
+ */
+export type LiveSessionEvent = Readonly<Record<string, unknown>> & { readonly type: string };
+
+/**
+ * Make one session resident and return its live state.
+ *
+ * `POST /api/agent/:id {type:"get_state"}` is the gateway's own attach path: it
+ * reuses a live session and starts a dormant one from its transcript file. A
+ * session with no file behind it answers 404, which becomes `UNAVAILABLE`.
+ */
+export async function ensureLiveSession(sessionId: string): Promise<unknown> {
+	const body = await gatewayJson<unknown>(`/api/agent/${segment(sessionId)}`, {
+		method: "POST",
+		body: { type: "get_state" },
+	});
+	if (body !== null && typeof body === "object" && (body as Record<string, unknown>).success !== true) {
+		throw unavailable(`session ${sessionId} did not attach`);
+	}
+	return body !== null && typeof body === "object" ? (body as Record<string, unknown>).data : undefined;
+}
+
+/**
+ * Observe one live Runtime session's event stream.
+ *
+ * Returns `undefined` when the session is not resident: a caller can then skip
+ * waiting for events that would never arrive instead of guessing. The returned
+ * function detaches the listener.
+ */
+export async function subscribeLiveSession(
+	sessionId: string,
+	listener: (event: LiveSessionEvent) => void,
+): Promise<(() => void) | undefined> {
+	const wrapper = getRpcSession(sessionId);
+	if (wrapper === undefined || !wrapper.isAlive()) return undefined;
+	return wrapper.onEvent(event => listener(event as unknown as LiveSessionEvent));
+}
+
+/** Whether one live Runtime session is busy (streaming, compacting or running bash). */
+export function liveSessionIsBusy(sessionId: string): boolean | undefined {
+	const wrapper = getRpcSession(sessionId);
+	if (wrapper === undefined || !wrapper.isAlive()) return undefined;
+	return wrapper.isRunning();
 }
