@@ -23,17 +23,21 @@ test("workspaceIdFor matches the Studio host id formula", () => {
 });
 
 test("findWorkspace reads the gateway project inventory", () => {
+	// The gateway reports platform-absolute workspace paths; keep the fixture
+	// absolute on POSIX and Windows so this runs in both CI matrices.
+	const workspacePath = path.join(os.tmpdir(), "zeta-ws-fixture");
+	const workspaceId = workspaceIdFor(workspacePath);
 	const payload = {
 		projects: [
 			{ workspaces: "junk" },
-			{ workspaces: [{ key: KEY, path: "C:/repo", name: "repo" }] },
+			{ workspaces: [{ key: workspacePath, path: workspacePath, name: "fixture" }] },
 			{ workspaces: [{ key: "relative", path: "relative/dir" }] },
 		],
 	};
-	assert.deepEqual(findWorkspace(payload, WORKSPACE_ID), { workspaceId: WORKSPACE_ID, path: "C:/repo", name: "repo" });
+	assert.deepEqual(findWorkspace(payload, workspaceId), { workspaceId, path: workspacePath, name: "fixture" });
 	assert.equal(findWorkspace(payload, "ws-unknown"), null);
-	assert.equal(findWorkspace(null, WORKSPACE_ID), null);
-	assert.equal(findWorkspace({ projects: "junk" }, WORKSPACE_ID), null);
+	assert.equal(findWorkspace(null, workspaceId), null);
+	assert.equal(findWorkspace({ projects: "junk" }, workspaceId), null);
 });
 
 test("resolveWorkspaceFile keeps reads inside the workspace", () => {
