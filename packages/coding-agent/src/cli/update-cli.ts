@@ -342,16 +342,16 @@ export function selectFallbackBinaryAsset(
 }
 
 /**
- * Release asset name of the zetawork desktop NSIS installer.
+ * Release asset name of the Work Studio desktop installer.
  *
- * Mirrors `desktopAssetNames(...).installer` in
- * `scripts/package-desktop-archives.ts` (mode `windows-installer`): the
- * numeric version, no `v`, and the per-user setup shape. The desktop app has
- * no TLS client of its own, so this asset is what it asks the shipped
+ * Mirrors `artifactName: zeta-desktop-${version}-${os}-${arch}.${ext}` in
+ * `desktop/electron-builder.yml` (the NSIS target on win/x64): the numeric
+ * version, no `v`, and electron-builder's `win`/`x64` tokens. The desktop app
+ * has no TLS client of its own, so this asset is what it asks the shipped
  * `zetacode` to fetch.
  */
 export function desktopInstallerName(version: string): string {
-	return `linxira-zeta-${version.trim().replace(/^v/, "")}-setup-x64.exe`;
+	return `zeta-desktop-${version.trim().replace(/^v/, "")}-win-x64.exe`;
 }
 
 /**
@@ -512,7 +512,7 @@ async function getDesktopInstaller(
 	const asset = selectDesktopInstaller(await listing.json(), { allowPrerelease });
 	if (!asset) {
 		throw new Error(
-			"No published GitHub release ships a desktop installer (linxira-zeta-<version>-setup-x64.exe); retry once the release finishes publishing",
+			"No published GitHub release ships a desktop installer (zeta-desktop-<version>-win-x64.exe); retry once the release finishes publishing",
 		);
 	}
 	return asset;

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { dispatchDesktopEntry } from "@linxiraos/zeta/cli/desktop-entry";
+import { dispatchDesktopEntry, guiCandidatesFor } from "@linxiraos/zeta/cli/desktop-entry";
 
 const ORIGINAL_ENV = process.env.ZETA_DESKTOP_ENTRY;
 
@@ -43,6 +43,16 @@ describe("zeta-d desktop entry dispatch", () => {
 		expect(handled).toBe(true);
 		expect(spawned).toEqual([]);
 		expect(process.exitCode).toBe(1);
+	});
+
+	it("resolves the macOS bundle GUI inside Contents/MacOS, not the bundle root", () => {
+		const exeDir = path.join("Zeta.app", "Contents", "Resources", "zeta");
+		const [mac] = guiCandidatesFor("darwin", exeDir);
+		expect(mac?.endsWith(path.join("Contents", "MacOS", "Zeta"))).toBe(true);
+		expect(mac).not.toContain(path.join("Zeta.app", "MacOS"));
+		expect(
+			guiCandidatesFor("win32", path.join("Zeta", "resources", "zeta"))[0]?.endsWith(path.join("Zeta", "Zeta.exe")),
+		).toBe(true);
 	});
 
 	it("honors an explicit cwd after --desktop", async () => {
