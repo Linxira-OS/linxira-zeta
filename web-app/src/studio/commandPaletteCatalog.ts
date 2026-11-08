@@ -58,6 +58,10 @@ export type PaletteCatalogInput = {
   activeProjectName?: string;
   inventory: ReadonlyArray<DrawerItem>;
   query: string;
+  /** Host capability lookup; undefined before bootstrap, where nothing is filtered out. */
+  supports?: (id: string) => boolean;
+  /** Whether this host can open a directory picker (local picker or remote target). */
+  canPickProject?: boolean;
 };
 
 function findPreviewThreadByTitle(title: string): { projectId: string; threadId: string; projectName: string } | undefined {
@@ -108,7 +112,7 @@ function recents(input: PaletteCatalogInput): PaletteItem[] {
   });
 }
 
-function staticGroups(preview: boolean): PaletteGroup[] {
+function staticGroups(input: PaletteCatalogInput): PaletteGroup[] {
   return [
     {
       id: "recommended",
@@ -225,13 +229,37 @@ function inventoryItems(input: PaletteCatalogInput): PaletteItem[] {
   }));
 }
 
+/**
+ * Entries that need a Host operation the Runtime may not advertise.
+ *
+ * The shipped capability manifest of the Zeta gateway lists exactly the
+ * queries/commands it implements, so an absent id means the entry would only
+ * open a surface that errors. `undefined` means bootstrap has not answered yet
+ * and nothing is hidden.
+ */
+function offeredByHost(item: PaletteItem, input: PaletteCatalogInput): boolean {
+  switch (item.id) {
+    case "runtime-reconnect":
+    case "runtime-restart":
+      return input.supports?.("runtime.ensure") ?? true;
+    case "pick-folder":
+      return input.canPickProject ?? true;
+    case "cap-mcp":
+      return input.supports?.("mcp.get") ?? true;
+    case "cap-slash":
+      return input.supports?.("commands.getManifest") ?? true;
+    default:
+      return true;
+  }
+}
+
 export function buildPaletteGroups(input: PaletteCatalogInput): PaletteGroup[] {
   const query = input.query.trim().toLowerCase();
   const groups: PaletteGroup[] = [];
   const chat = recents(input).filter((item) => matches(item, query));
   if (chat.length) groups.push({ id: "chat", label: "palette.groupChat", items: chat });
-  for (const group of staticGroups(input.preview)) {
-    const items = group.items.filter((item) => matches(item, query));
+  for (const group of staticGroups(input)) {
+    const items = group.items.filter((item) => matches(item, query) && offeredByHost(item, input));
     if (items.length) groups.push({ ...group, items });
   }
   const projects = projectItems(input).filter((item) => matches(item, query));

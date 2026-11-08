@@ -17,7 +17,8 @@
  */
 
 import { WebConfig } from "../../config/web-config";
-import { isRemoteTokenAccepted } from "../../utils/remote-token";
+import { isRemoteTokenAccepted, MASKED_TOKEN } from "../../utils/remote-token";
+import { hostIsLoopback } from "./origin";
 
 export interface AuthLimiterOptions {
 	/** Failed attempts allowed inside one window before the peer is blocked. */
@@ -113,6 +114,84 @@ export function rateLimitedRemoteResponse(retryAfterSeconds: number): Response {
 		{ error: "Too many failed authentication attempts; retry later", retryAfterSeconds },
 		{ status: 429, headers: { "Retry-After": String(retryAfterSeconds) } },
 	);
+}
+
+/**
+ * Headers a reverse proxy, tunnel (ngrok, cloudflared, Tailscale Funnel) or
+ * load balancer adds to the request it forwards. A direct browser socket never
+ * carries one, so their presence proves the socket address is the proxy's —
+ * a loopback peer behind such a proxy is the whole internet, not the desktop.
+ */
+const PROXY_FORWARDING_HEADERS = [
+	"forwarded",
+	"x-forwarded-for",
+	"x-forwarded-host",
+	"x-forwarded-proto",
+	"x-forwarded-port",
+	"x-forwarded-server",
+	"x-real-ip",
+	"x-client-ip",
+	"x-original-forwarded-for",
+	"x-cluster-client-ip",
+	"cf-connecting-ip",
+	"cf-connecting-ipv6",
+	"true-client-ip",
+	"fastly-client-ip",
+] as const;
+
+/** Whether `req` was forwarded by a proxy/tunnel (see {@link PROXY_FORWARDING_HEADERS}). */
+export function hasProxyForwardingHeaders(req: Request): boolean {
+	for (const name of PROXY_FORWARDING_HEADERS) {
+		if (req.headers.get(name) !== null) return true;
+	}
+	return false;
+}
+
+/**
+ * A peer that may be trusted as the local desktop: the socket address is
+ * loopback AND no forwarding header says a proxy relayed the request.
+ *
+ * Loopback alone is not enough behind a reverse proxy or tunnel: every remote
+ * client then shares `127.0.0.1` with the local renderer, and treating that as
+ * "local" would open the whole control plane to the internet.
+ */
+export function isGenuinelyLocalRequest(req: Request, remoteAddr?: string): boolean {
+	return hostIsLoopback(req, remoteAddr) && !hasProxyForwardingHeaders(req);
+}
+
+/**
+ * Whether the operator turned remote access on: a live `remote.token` or a
+ * `remote.publicUrl` (proxy/tunnel origin). While it is on, a loopback peer
+ * still passes the socket gate but must prove itself — no implicit pairing.
+ */
+export function isRemoteModeActive(remote: { token?: string; publicUrl?: string } | undefined): boolean {
+	const token = remote?.token?.trim() ?? "";
+	const hasToken = token !== "" && token !== MASKED_TOKEN;
+	const hasPublicUrl = (remote?.publicUrl?.trim() ?? "") !== "";
+	return hasToken || hasPublicUrl;
+}
+
+export interface BrowserAccessDecision {
+	/** Response to send, or `null` when the request may proceed. */
+	denial: Response | null;
+	/** Whether the peer is a genuine local socket (trusted, may auto-pair). */
+	genuinelyLocal: boolean;
+}
+
+/**
+ * Gate for browser-facing session surfaces (Studio `/api/v1`): a genuine local
+ * socket passes, everything else — including loopback sockets that carry proxy
+ * forwarding headers — goes through {@link checkRemoteAccess}, so it needs the
+ * configured `remote.token` and shares the same failure limiter.
+ */
+export async function checkBrowserAccess(
+	req: Request,
+	remoteAddr: string | undefined,
+	limiter: AuthFailureLimiter = getRemoteAuthLimiter(),
+): Promise<BrowserAccessDecision> {
+	if (isGenuinelyLocalRequest(req, remoteAddr)) return { denial: null, genuinelyLocal: true };
+	const denial = await checkRemoteAccess(req, remoteAddr ?? "unknown", limiter);
+	return { denial, genuinelyLocal: false };
 }
 
 /**

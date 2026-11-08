@@ -15,10 +15,10 @@ export { TEXT_PREDICT_WORKER_ARG } from "../cli/worker-selectors";
 export const TEXT_PREDICT_BROKER_SCOPE = "text-predict";
 
 /** Environment key carrying the endpoint the daemon listens on. */
-export const TEXT_PREDICT_SOCKET_ENV = "OMP_TEXT_PREDICT_SOCKET";
+export const TEXT_PREDICT_SOCKET_ENV = "ZETA_TEXT_PREDICT_SOCKET";
 
 /** Environment key carrying the agent directory whose history and state the daemon serves. */
-export const TEXT_PREDICT_AGENT_DIR_ENV = "OMP_TEXT_PREDICT_AGENT_DIR";
+export const TEXT_PREDICT_AGENT_DIR_ENV = "ZETA_TEXT_PREDICT_AGENT_DIR";
 
 /** Broker readiness regex matched against {@link textPredictReadyBanner}. */
 export const TEXT_PREDICT_READY_PATTERN = String.raw`zetacode text-predict listening on \S+`;

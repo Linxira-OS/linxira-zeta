@@ -52,7 +52,7 @@ export default class AuthGateway extends Command {
 		"# Print the gateway bearer token (creates one on first run)\n  zetacode auth-gateway token",
 		"# Rotate the gateway bearer token\n  zetacode auth-gateway token --regenerate",
 		"# Run on loopback without any bearer (anyone on this host can call)\n  zetacode auth-gateway serve --no-auth",
-		"# Also admit scoped client tokens listed in a file\n  zetacode auth-gateway serve --clients=/etc/omp/gateway-clients.json",
+		"# Also admit scoped client tokens listed in a file\n  zetacode auth-gateway serve --clients=/etc/zeta/gateway-clients.json",
 		"# Show local gateway + broker config status\n  zetacode auth-gateway status",
 		"# Probe each broker credential to see which one is producing 401s\n  zetacode auth-gateway check",
 		"# Same, machine-readable for scripts\n  zetacode auth-gateway check --json",

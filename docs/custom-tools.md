@@ -47,10 +47,10 @@ CustomTool.execute(toolCallId, params, onUpdate, ctx, signal)
 `discoverAndLoadCustomTools(configuredPaths, cwd, builtInToolNames, pushPendingAction?, agentDir?)` merges:
 
 1. Capability providers (`toolCapability`), including:
-   - Native OMP config (`<agentDir>/tools`, default `~/.zeta/agent/tools`; `.zeta/tools`)
+   - Native Zeta config (`<agentDir>/tools`, default `~/.zeta/agent/tools`; `.zeta/tools`)
    - Claude config (`<Claude config dir>/tools`, default `~/.claude/tools`; `.claude/tools`)
    - Codex config (`~/.codex/tools`, `.codex/tools`)
-   - OMP package roots and Claude marketplace plugins
+   - Zeta package roots and Claude marketplace plugins
 2. Enabled installed plugin manifests (user `~/.zeta/plugins` and the active project `.zeta/plugins` registry via the plugin loader; project packages shadow same-named user packages)
 3. Explicit configured paths passed to the loader
 
@@ -61,7 +61,7 @@ CustomTool.execute(toolCallId, params, onUpdate, ctx, signal)
 - Duplicate resolved paths are deduplicated by discovery; `loadCustomTools` itself loads the supplied path list.
 - Filesystem tool name conflicts are rejected against the supplied built-in names and already-loaded custom tools. Configured paths are appended, not name overrides.
 - Invalid factory results are reported per array entry; valid entries from the same factory can still load. Import/factory failures are collected in `errors` without stopping later modules.
-- Automatic tool-directory scans discover `.ts` and `.js` modules; native OMP discovery also checks immediate subdirectories for `index.ts`. Executable discovery excludes `.d.ts` and filters out metadata and scripts before tool-name deduplication. Declarative metadata such as `.md` and `.json` remains available to capability consumers but is not loaded as executable tools.
+- Automatic tool-directory scans discover `.ts` and `.js` modules; native Zeta discovery also checks immediate subdirectories for `index.ts`. Executable discovery excludes `.d.ts` and filters out metadata and scripts before tool-name deduplication. Declarative metadata such as `.md` and `.json` remains available to capability consumers but is not loaded as executable tools.
 - `.mjs` and `.cjs` modules can be loaded through explicitly configured paths or declared plugin tool entries, but the tool-directory scans above do not discover them automatically. Explicitly configured `.md` or `.json` paths still produce a load error.
 - Relative configured paths are resolved from `cwd`; `~` is expanded.
 

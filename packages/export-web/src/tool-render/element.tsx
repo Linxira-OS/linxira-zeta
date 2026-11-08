@@ -4,9 +4,10 @@
  *
  * Payload sources, in priority order:
  * 1. `el.data = {...}` property assignment.
- * 2. `data-key` attribute → lookup in `globalThis.__OMP_TOOL_VIEW_DATA`
+ * 2. `data-key` attribute → lookup in `globalThis.__zeta_tool_view_data`
  *    (a Map populated by the host before inserting markup via innerHTML;
- *    survives `cloneNode` since only the key attribute is copied).
+ *    survives `cloneNode` since only the key attribute is copied). The legacy
+ *    `globalThis.__OMP_TOOL_VIEW_DATA` name is still read for older hosts.
  * 3. `payload` attribute → inline JSON.
  *
  * The boolean `open` attribute expands the card by default.
@@ -41,7 +42,11 @@ export class OmpToolViewElement extends HTMLElement {
 		if (this.#data) return this.#data;
 		const key = this.getAttribute("data-key");
 		if (key) {
-			const store = (globalThis as { __OMP_TOOL_VIEW_DATA?: PayloadStore }).__OMP_TOOL_VIEW_DATA;
+			const host = globalThis as {
+				__zeta_tool_view_data?: PayloadStore;
+				__OMP_TOOL_VIEW_DATA?: PayloadStore;
+			};
+			const store = host.__zeta_tool_view_data ?? host.__OMP_TOOL_VIEW_DATA;
 			const props = store?.get(key);
 			if (props) return props;
 		}

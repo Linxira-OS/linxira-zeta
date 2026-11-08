@@ -1,55 +1,55 @@
 # CLI reference
 
-`omp` is invoked as:
+`zetacode` is invoked as:
 
 ```sh
-omp [command] [flags] [messages...]
+zetacode [command] [flags] [messages...]
 ```
 
-When the first positional argument is **not** a registered subcommand, `omp`
+When the first positional argument is **not** a registered subcommand, `zetacode`
 normally routes to the default [`launch`](#launch-the-default-command) command.
-So `omp "fix the build"` launches a session with that message, while `zetacode models`
+So `zetacode "fix the build"` launches a session with that message, while `zetacode models`
 runs the `models` subcommand. Bare plugin-management words such as `marketplace`,
 `uninstall`, or `extensions` instead produce a hint to use `zetacode plugin …`;
 use `zetacode launch <word>` when such a word is the intended prompt.
 
 A recognized subcommand can follow leading launch flags. Those flags are
 forwarded to `launch` and `acp`, but recognized launch-only flags before other
-subcommands are stripped, not applied (for example, `omp --cwd dir update`).
+subcommands are stripped, not applied (for example, `zetacode --cwd dir update`).
 
 `--profile` is applied before subcommand routing, so it also scopes commands
 such as `config`, `models`, and `update`.
 
 Runtime help is also available:
 
-- `omp --help` lists user-facing subcommands and common launch flags.
-- `omp <command> --help` prints that command's public flags and examples.
+- `zetacode --help` lists user-facing subcommands and common launch flags.
+- `zetacode <command> --help` prints that command's public flags and examples.
 
 This page is the consolidated reference for the shared **launch surface** (the
-flags accepted by `omp` / `zetacode launch`) and every top-level **subcommand**.
+flags accepted by `zetacode` / `zetacode launch`) and every top-level **subcommand**.
 Per-subcommand flags (for example `zetacode auth-broker --json`) are documented by
 each command's `--help`.
 
 ## Launch (the default command)
 
-`omp` and `zetacode launch` start a coding session. Positional arguments become the
+`zetacode` and `zetacode launch` start a coding session. Positional arguments become the
 initial message(s):
 
 ```sh
 # Interactive session
-omp
+zetacode
 
 # Interactive session with an initial prompt
-omp "List all .ts files in src/"
+zetacode "List all .ts files in src/"
 
 # Attach files/images to the initial message (prefix with @)
-omp @prompt.md @image.png "What color is the sky?"
+zetacode @prompt.md @image.png "What color is the sky?"
 
 # Non-interactive: process the prompt and exit (headless / print mode)
-omp -p "List all .ts files in src/"
+zetacode -p "List all .ts files in src/"
 
 # Continue the previous session
-omp --continue "What did we discuss?"
+zetacode --continue "What did we discuss?"
 ```
 
 Argument handling:
@@ -87,8 +87,8 @@ Argument handling:
 | `--resume [id]`, `-r`, `--session [id]` | Resume a session by ID prefix or path, or open the picker when no value is given.                                                                                                                                                                                                                             |
 | `--restore [id]`                        | Resume a session as `--resume` does, then go on with what its last process left unfinished when it crashed or was killed: the interrupted turn and the subagents it was running. Interactive only; takes no prompt. See [session operations](./session-operations-export-share-fork-resume.md#cli---restore). |
 | `--fork <session>`                      | Fork a saved session (by ID prefix or path) into a new session. See [session operations](./session-operations-export-share-fork-resume.md).                                                                                                                                                                   |
-| `--from-claude`                         | Import a Claude Code session into OMP.                                                                                                                                                                                                                                                                        |
-| `--from-codex`                          | Import a Codex session into OMP.                                                                                                                                                                                                                                                                              |
+| `--from-claude`                         | Import a Claude Code session into Zeta.                                                                                                                                                                                                                                                                        |
+| `--from-codex`                          | Import a Codex session into Zeta.                                                                                                                                                                                                                                                                              |
 | `--export <session>`                    | Export a session file to HTML and exit.                                                                                                                                                                                                                                                                       |
 | `--no-title`                            | Disable title auto-generation (equivalent to the `PI_NO_TITLE` [environment variable](./environment-variables.md)).                                                                                                                                                                                           |
 
@@ -187,28 +187,28 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 
 | Flag              | Description                                   |
 | ----------------- | --------------------------------------------- |
-| `--help`, `-h`    | Show help for `omp` or a subcommand and exit. |
+| `--help`, `-h`    | Show help for `zetacode` or a subcommand and exit. |
 | `--version`, `-v` | Print the installed version and exit.         |
 
 ### Headless / print mode
 
-`--print` / `-p` runs `omp` non-interactively: it processes the prompts, writes
+`--print` / `-p` runs `zetacode` non-interactively: it processes the prompts, writes
 the last assistant response to stdout, and exits without entering the TUI. Text
 output is emitted after the turn completes, not token-by-token; a `Working...`
 indicator goes to stderr. This is the entry point for scripting and automation.
 
 ```sh
 # Print the answer and exit
-omp -p "Summarize the changes in the last commit"
+zetacode -p "Summarize the changes in the last commit"
 
 # Include the model's thinking blocks in the printed text
-omp -p --print-thoughts "Explain your reasoning for this refactor"
+zetacode -p --print-thoughts "Explain your reasoning for this refactor"
 
 # Machine-readable output for pipelines
-omp -p --mode json "List every TODO in src/" > todos.json
+zetacode -p --mode json "List every TODO in src/" > todos.json
 
 # Pipe a prompt via stdin
-echo "review this diff" | omp -p
+echo "review this diff" | zetacode -p
 ```
 
 Related flags for headless runs:
@@ -231,7 +231,7 @@ unattended runs with `--max-time`.
 
 ```sh
 # Start a long build in the background, then react to its result in the same session
-omp -p --wait-async --max-time 2h "Run the integration suite in the background and fix what fails"
+zetacode -p --wait-async --max-time 2h "Run the integration suite in the background and fix what fails"
 ```
 
 `--mode json` emits a session header followed by events as JSON lines.
@@ -275,7 +275,7 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `bench`                     | Benchmark models: TTFT/prefill vs decode throughput with p50/p95 across chat, prefill, generation, and prompt-cache workloads, rendered in a live dashboard (`--prefill-bytes` sizes the synthetic prefill input). `--detailed` runs single-user, `--par`-way parallel (aggregate tok/s and scaling), and prefill phases per model.                                                                                                                                                                                                                                                                                    |                                                                                                                                                      |
 | `browser-relay`             | Run the local CDP relay used by Eval's browser API to drive your own Chrome tabs.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | [computer use](./computer-use.md)                                                                                                                    |
 | `cleanse`                   | Detect and fix project diagnostics with weighted parallel subagents.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |                                                                                                                                                      |
-| `clip`                      | Upload a `/record` recording to live.omp.sh as a public clip and print its URL.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |                                                                                                                                                      |
+| `clip`                      | Unavailable in Zeta: no upload server ships, so `zetacode clip` and `/record --upload` refuse to send recordings anywhere; they stay local for `zetacode play`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |                                                                                                                                                      |
 | `commit`                    | Generate a commit message and update changelogs.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                      |
 | `completions`               | Print a shell completion script (bash, zsh, or fish).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |                                                                                                                                                      |
 | `compress`                  | Rewrite a text file into the dense prompt register, reporting what it drops.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |                                                                                                                                                      |
@@ -301,10 +301,10 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `shell`                     | Interactive shell console.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |                                                                                                                                                      |
 | `read`                      | Show what the read tool will return for a path, URL, or internal URI. (The [`read` tool](./tools/read.md) is a separate agent tool.)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |                                                                                                                                                      |
 | `render`                    | Draw a session's entire thread through the production transcript pipeline (with repaint timing).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                      |
-| `skill`, `skills`           | Install, search, publish, and manage skills on skills.omp.sh.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | [skills](./skills.md)                                                                                                                                |
+| `skill`, `skills`           | Install, search, publish, and manage skills; extra skills come from the npm package `@linxiraos/linxira-skills`, or configure your own registry URL.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | [skills](./skills.md)                                                                                                                                |
 | `ssh`                       | Manage SSH host configurations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |                                                                                                                                                      |
 | `stats`                     | View usage statistics.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |                                                                                                                                                      |
-| `stream`                    | Broadcast local OMP session screens and chat to a public live channel.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |                                                                                                                                                      |
+| `stream`                    | Broadcast local zetacode session screens and chat to a live channel (requires your own compatible server in `stream.serverUrl`; none ships with Zeta).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |                                                                                                                                                      |
 | `update`                    | Check for and install updates; `--canary`/`--stable` switch release channels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |                                                                                                                                                      |
 | `usage`                     | Show provider usage limits for every authenticated account, flagging saved resets close to expiry; `usage clients` breaks token burn down per client (with `--days`), `usage invalidate` drops cached reports, `usage accounts` lists each OAuth account's provider and identity key (the key `task.agentAccountPools` and broker account pools take; no tokens, `--json` supported), and `usage reset` lists each Codex and Claude account's saved rate-limit resets by `<provider>/<credential id>` (`--json`, `--redact`) and `usage reset <provider>/<credential id>` spends one, also from an auth-broker client. | [Task agent discovery](./task-agent-discovery.md#model-and-structured-output-precedence), [saved resets](./settings.md#saved-reset-auto-consumption) |
 | `tiny-models`               | Download tiny local models for session titles, memory, and word completion.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | [local models](./local-models.md)                                                                                                                    |

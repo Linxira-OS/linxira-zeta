@@ -18,13 +18,13 @@ import type { TinyLocalModelKey } from "./models";
  */
 export const TINY_WORKER_ARG = "__zeta_worker_tiny_inference";
 /** Env var carrying the endpoint the ONNX worker must own. */
-export const TINY_WORKER_SOCKET_ENV = "OMP_TINY_WORKER_SOCKET";
+export const TINY_WORKER_SOCKET_ENV = "ZETA_TINY_WORKER_SOCKET";
 /** Env var naming the single local model the ONNX worker serves. */
-export const TINY_WORKER_MODEL_ENV = "OMP_TINY_WORKER_MODEL";
+export const TINY_WORKER_MODEL_ENV = "ZETA_TINY_WORKER_MODEL";
 /** Env var carrying the launch tag the worker echoes in `pong` so stale workers get replaced. */
-export const TINY_WORKER_TAG_ENV = "OMP_TINY_WORKER_TAG";
+export const TINY_WORKER_TAG_ENV = "ZETA_TINY_WORKER_TAG";
 /** Env var overriding the idle exit window (milliseconds); for tests. */
-export const TINY_WORKER_IDLE_MS_ENV = "OMP_TINY_WORKER_IDLE_MS";
+export const TINY_WORKER_IDLE_MS_ENV = "ZETA_TINY_WORKER_IDLE_MS";
 /** Idle window (nothing in flight, no request received) after which a worker exits to free model memory. */
 export const TINY_WORKER_IDLE_MS = 15 * 60 * 1_000;
 

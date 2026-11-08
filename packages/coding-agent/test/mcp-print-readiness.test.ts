@@ -16,6 +16,7 @@ const managers: MCPManager[] = [];
 const originalTimeout = Bun.env.OMP_MCP_TIMEOUT_MS;
 const originalStartup = Bun.env.OMP_MCP_STARTUP_TIMEOUT_MS;
 const originalStrict = Bun.env.OMP_MCP_REQUIRE_READY;
+const originalZetaStrict = Bun.env.ZETA_MCP_REQUIRE_READY;
 
 afterEach(async () => {
 	await Promise.all(managers.splice(0).map(manager => manager.disconnectAll()));
@@ -25,6 +26,8 @@ afterEach(async () => {
 	else Bun.env.OMP_MCP_STARTUP_TIMEOUT_MS = originalStartup;
 	if (originalStrict === undefined) delete Bun.env.OMP_MCP_REQUIRE_READY;
 	else Bun.env.OMP_MCP_REQUIRE_READY = originalStrict;
+	if (originalZetaStrict === undefined) delete Bun.env.ZETA_MCP_REQUIRE_READY;
+	else Bun.env.ZETA_MCP_REQUIRE_READY = originalZetaStrict;
 });
 
 function server(name: string, startupMs = 0, callMs = 0): MCPStdioServerConfig {
@@ -180,7 +183,8 @@ describe("headless MCP readiness", () => {
 		managers.push(manager);
 		await manager.connectServers({ broken: { type: "stdio", command: "" } }, {});
 		const capture = printSession(manager);
-		Bun.env.OMP_MCP_REQUIRE_READY = "1";
+		delete Bun.env.OMP_MCP_REQUIRE_READY;
+		Bun.env.ZETA_MCP_REQUIRE_READY = "1";
 		const output: string[] = [];
 		const stderrSpy = spyOn(process.stderr, "write").mockImplementation((chunk: string | Uint8Array) => {
 			output.push(String(chunk));

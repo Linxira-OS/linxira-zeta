@@ -126,7 +126,7 @@ _OUTPUT_FILENAME = "omp.txt"
 # `ready`) once its last client has been gone for ZETA_DAEMON_IDLE_GRACE_MS
 # (default 3 s). The verifier runs after omp exits, in the same container, and
 # grades those services, so keep them alive until the container is torn down.
-_SERVICE_GRACE_ENV = {"OMP_DAEMON_IDLE_GRACE_MS": str(24 * 60 * 60 * 1000)}
+_SERVICE_GRACE_ENV = {"ZETA_DAEMON_IDLE_GRACE_MS": str(24 * 60 * 60 * 1000)}
 
 # Provider → host env vars used in --no-gateway (direct-auth) mode only.
 _PROVIDER_KEYS: dict[str, list[str]] = {

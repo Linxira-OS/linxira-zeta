@@ -69,8 +69,66 @@
   margin-left: auto;
   display: flex;
   align-items: center;
+  align-self: stretch;
   flex: none;
   -webkit-app-region: no-drag;
+}
+
+/* Frameless desktop shell (Electron `frame: false`): the renderer owns the
+   caption buttons because the OS draws none. `WindowControls` renders nothing
+   in a browser tab, so browser builds keep their native window chrome. */
+.window-controls {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  flex: none;
+  margin-left: 6px;
+  /* No Window Controls Overlay exists on a frameless window, so the trailing
+     padding is only spacing: pull the buttons flush to the window edge the way
+     native caption buttons sit. */
+  margin-right: -10px;
+  -webkit-app-region: no-drag;
+}
+
+.window-control {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-2);
+  cursor: default;
+  -webkit-app-region: no-drag;
+}
+
+.window-control:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.window-control:active {
+  background: color-mix(in srgb, var(--surface-hover) 70%, var(--text) 10%);
+}
+
+.window-control:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.window-control.close:hover,
+.window-control.close:active {
+  background: #c42b1c;
+  color: #fff;
+}
+
+.window-control-icon {
+  width: 12px;
+  height: 12px;
+  stroke-width: 1;
 }
 
 .preview-switch {

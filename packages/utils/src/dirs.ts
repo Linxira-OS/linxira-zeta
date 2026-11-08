@@ -24,6 +24,13 @@ import { isBunTestRuntime } from "./test-runtime";
  * names, provider attribution headers, splash wordmark. NOT the CLI command. */
 export const APP_NAME: string = "zeta";
 
+/** Read `primary`, falling back to the pre-rename `legacy` spelling. */
+function readAliasedEnv(primary: string, legacy: string): string | undefined {
+	const value = process.env[primary]?.trim();
+	if (value) return value;
+	return process.env[legacy]?.trim() || undefined;
+}
+
 /** CLI binary name (`npm i -g @linxiraos/zeta` installs exactly one bin,
  * `zetacode` — the retired `zeta-c`/`zeta-cli` aliases are gone). Every
  * user-facing "run this command" string and process title uses this; the
@@ -971,30 +978,33 @@ export function getWorktreeDir(segment: string): string {
 
 /**
  * Get the GitHub view cache database path (~/.zeta/cache/github-cache.db).
- * Honors the `OMP_GITHUB_CACHE_DB` env var when set so tests can isolate the
- * cache file without touching the rest of the config root.
+ * Honors the `ZETA_GITHUB_CACHE_DB` env var (`OMP_GITHUB_CACHE_DB` kept as a
+ * read alias) when set so tests can isolate the cache file without touching
+ * the rest of the config root.
  */
 export function getGithubCacheDbPath(): string {
-	const override = process.env.OMP_GITHUB_CACHE_DB;
+	const override = readAliasedEnv("ZETA_GITHUB_CACHE_DB", "OMP_GITHUB_CACHE_DB");
 	if (override) return override;
 	return dirs.rootSubdir(path.join("cache", "github-cache.db"), "cache");
 }
 /**
  * Get the conventional commit inference cache database path (~/.zeta/cache/commit-inference.db).
- * Honors `OMP_COMMIT_CACHE_DB` so tests and operators can isolate the cache.
+ * Honors `ZETA_COMMIT_CACHE_DB` (`OMP_COMMIT_CACHE_DB` kept as a read alias)
+ * so tests and operators can isolate the cache.
  */
 export function getCommitCacheDbPath(): string {
-	const override = process.env.OMP_COMMIT_CACHE_DB;
+	const override = readAliasedEnv("ZETA_COMMIT_CACHE_DB", "OMP_COMMIT_CACHE_DB");
 	if (override) return override;
 	return dirs.rootSubdir(path.join("cache", "commit-inference.db"), "cache");
 }
 
 /**
  * Get the judgment answer cache database path (~/.zeta/cache/judgment-cache.db).
- * Honors `OMP_JUDGMENT_CACHE_DB` so tests and operators can isolate the cache.
+ * Honors `ZETA_JUDGMENT_CACHE_DB` (`OMP_JUDGMENT_CACHE_DB` kept as a read
+ * alias) so tests and operators can isolate the cache.
  */
 export function getJudgmentCacheDbPath(): string {
-	const override = process.env.OMP_JUDGMENT_CACHE_DB;
+	const override = readAliasedEnv("ZETA_JUDGMENT_CACHE_DB", "OMP_JUDGMENT_CACHE_DB");
 	if (override) return override;
 	return dirs.rootSubdir(path.join("cache", "judgment-cache.db"), "cache");
 }
@@ -1355,13 +1365,14 @@ let cachedInstallId: string | null = null;
 
 const INSTALL_ID_FILE = "install-id";
 /**
- * Application label for usage attribution (`OMP_APP_NAME`), defaulting to
- * `zeta`. Embedders that drive zeta programmatically (robomp, CI bots, …) set
- * the env var so broker-side per-client burn tracking can answer "what did
- * app X use" instead of folding everything into one install-wide bucket.
+ * Application label for usage attribution (`ZETA_APP_NAME`, with
+ * `OMP_APP_NAME` kept as a read alias), defaulting to `zeta`. Embedders that
+ * drive zeta programmatically (robomp, CI bots, …) set the env var so
+ * broker-side per-client burn tracking can answer "what did app X use" instead
+ * of folding everything into one install-wide bucket.
  */
 export function getAppName(): string {
-	const value = process.env.OMP_APP_NAME?.trim();
+	const value = readAliasedEnv("ZETA_APP_NAME", "OMP_APP_NAME");
 	return value ? value : "zeta";
 }
 

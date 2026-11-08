@@ -352,7 +352,7 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 		}
 		// `=== true`: inherited keys such as `constructor` are not reserved.
 		if (STANDARD_LINK_SCHEMES[normalized] === true || InternalUrlRouter.instance().isBuiltin(normalized)) {
-			throw new Error(`registerLinkScheme: "${scheme}" is reserved for standard or omp-internal links`);
+			throw new Error(`registerLinkScheme: "${scheme}" is reserved for standard or Zeta-internal links`);
 		}
 		if (!this.extension.linkSchemes.includes(normalized)) this.extension.linkSchemes.push(normalized);
 	}
