@@ -77,8 +77,8 @@ const PLUGIN_SKILL_PROVIDERS: Readonly<Record<string, true>> = {
 
 /** Safe source labels for the configured skill inventory. */
 const SKILL_SOURCE_LABELS: Readonly<Record<string, string>> = {
-	native: "OMP",
-	"zeta-official": "OMP",
+	native: "Zeta",
+	"zeta-official": "Zeta",
 	"zeta-managed": "托管",
 	agents: "Agents",
 	claude: "Claude",
@@ -243,11 +243,11 @@ function skillSourceKind(skill: RawSkill): SkillSourceKind {
 }
 
 /** Safe display label for a skill's winning source. */
-function skillSourceLabel(skill: RawSkill, kind: SkillSourceKind): string {
+export function skillSourceLabel(skill: RawSkill, kind: SkillSourceKind): string {
 	if (skill.provider !== undefined) {
 		return Object.hasOwn(SKILL_SOURCE_LABELS, skill.provider) ? SKILL_SOURCE_LABELS[skill.provider] : skill.provider;
 	}
-	return kind === "managed" ? "托管" : "OMP";
+	return kind === "managed" ? "托管" : "Zeta";
 }
 
 /**

@@ -25,7 +25,7 @@ Config sources (.zeta/.claude/.cursor/.vscode/mcp.json, mcp.json, etc.)
 - shared fields: `enabled`, `timeout`, `requestIdFormat` (`"number"` or `"string"`), `instructions` (`boolean`, default `true`), `auth`, `oauth`
 
 `timeout` is in milliseconds, defaults to 30,000, and accepts `0` to disable
-client-side timeouts. A valid `OMP_MCP_TIMEOUT_MS` environment value overrides
+client-side timeouts. A valid `ZETA_MCP_TIMEOUT_MS` environment value overrides
 the per-server timeout. `requestIdFormat` and `instructions` are ZETA-specific;
 native configs, standalone MCP JSON, and ZETA plugins parse them, while foreign
 tool-format providers generally do not.

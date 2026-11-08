@@ -107,7 +107,7 @@ export function parseAuthExport(text: string, source = "credential file"): AuthE
 	if (!isRecord(value)) throw new AuthTransferError(`${source} is not an \`zetacode auth export\` document.`);
 	if (value.version !== AUTH_EXPORT_VERSION) {
 		throw new AuthTransferError(
-			`${source} has export version ${JSON.stringify(value.version)}; this omp reads version ${AUTH_EXPORT_VERSION}.`,
+			`${source} has export version ${JSON.stringify(value.version)}; this build reads version ${AUTH_EXPORT_VERSION}.`,
 		);
 	}
 	if (!Array.isArray(value.credentials)) throw new AuthTransferError(`${source} has no credentials array.`);

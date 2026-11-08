@@ -3,12 +3,16 @@
 
       const markdownSource = (typeof zetaMarkdown !== 'undefined' ? zetaMarkdown?.Marked : undefined) ?? globalThis.zetaMarkdown?.Marked ?? globalThis.marked;
       const marked = typeof markdownSource === 'function' ? new markdownSource() : markdownSource;
-      const THEME_STORAGE_KEY = 'omp-export-theme';
+      const THEME_STORAGE_KEY = 'zeta-export-theme';
+      const LEGACY_THEME_STORAGE_KEY = 'omp-export-theme';
       const themeSelect = document.getElementById('theme-select');
       let themePreference = 'auto';
       try {
-        const stored = localStorage.getItem(THEME_STORAGE_KEY);
+        const stored = localStorage.getItem(THEME_STORAGE_KEY) ?? localStorage.getItem(LEGACY_THEME_STORAGE_KEY);
         if (stored === 'light' || stored === 'dark' || stored === 'auto') themePreference = stored;
+        if (stored !== null && localStorage.getItem(THEME_STORAGE_KEY) === null) {
+          localStorage.setItem(THEME_STORAGE_KEY, stored);
+        }
       } catch {}
 
       function applyThemePreference(next) {
@@ -919,7 +923,7 @@
       // survives innerHTML serialization and cloneNode round trips.
 
       const TOOL_VIEW_DATA = new Map();
-      globalThis.__OMP_TOOL_VIEW_DATA = TOOL_VIEW_DATA;
+      globalThis.__zeta_tool_view_data = TOOL_VIEW_DATA;
       let toolViewSeq = 0;
 
       function renderToolCall(call, sctx, blockId) {
@@ -1548,7 +1552,8 @@
       const overlay = document.getElementById('sidebar-overlay');
       const hamburger = document.getElementById('hamburger');
       const sidebarResizer = document.getElementById('sidebar-resizer');
-      const SIDEBAR_WIDTH_STORAGE_KEY = 'omp-export:sidebar-width';
+      const SIDEBAR_WIDTH_STORAGE_KEY = 'zeta-export:sidebar-width';
+      const LEGACY_SIDEBAR_WIDTH_STORAGE_KEY = 'omp-export:sidebar-width';
       const MIN_CONTENT_WIDTH = 320;
 
       function isMobileLayout() {
@@ -1577,10 +1582,14 @@
 
       function loadSidebarWidth() {
         try {
-          const raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+          const raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY) ?? localStorage.getItem(LEGACY_SIDEBAR_WIDTH_STORAGE_KEY);
           if (raw === null) return null;
           const width = Number(raw);
-          return Number.isFinite(width) ? width : null;
+          if (!Number.isFinite(width)) return null;
+          if (localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY) === null) {
+            localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, raw);
+          }
+          return width;
         } catch {
           return null;
         }

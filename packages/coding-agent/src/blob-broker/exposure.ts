@@ -58,7 +58,7 @@ export interface ActiveExposure {
 }
 
 const READY_TIMEOUT_MS = 30_000;
-const HEALTH_PATH = "/.well-known/omp-blob-health";
+const HEALTH_PATH = "/.well-known/zeta-blob-health";
 const DEFAULT_HEALTH_ATTEMPTS = 5;
 const MAX_HEALTH_ATTEMPTS = 10;
 const DEFAULT_HEALTH_BACKOFF_MS = 250;

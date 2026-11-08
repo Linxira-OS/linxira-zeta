@@ -768,9 +768,9 @@ function formatExpiringResets(warning: ResetExpiryWarning, nowMs: number): strin
 function formatResetSpendVerdict(verdict: ResetSpendVerdict): string {
 	const outcome =
 		verdict.kind === "auto"
-			? "an open interactive omp session spends it by its last 5 min if eligible then"
+			? "an open interactive Zeta session spends it by its last 5 min if eligible then"
 			: verdict.kind === "ask"
-				? "an open interactive omp session asks before spending it"
+				? "an open interactive Zeta session asks before spending it"
 				: "not spent automatically";
 	return `→ ${outcome}  (${verdict.setting}: ${verdict.mode})${verdict.eligibleNow ? "" : " · not eligible now"}`;
 }
@@ -813,7 +813,7 @@ function formatResetExpiryBanner(
 		const command =
 			stored.length === 1 ? `/usage reset ${warning.provider}/${stored[0]!.credentialId}` : "/usage reset";
 		lines.push(
-			`    ${verdicts[index]!.kind === "off" ? "spend it" : "or now"}:  ${chalk.cyan(command)} ${chalk.dim("in omp")}`,
+			`    ${verdicts[index]!.kind === "off" ? "spend it" : "or now"}:  ${chalk.cyan(command)} ${chalk.dim("in zetacode")}`,
 		);
 	});
 	return lines;
@@ -1498,8 +1498,8 @@ async function runUsageResetCommand(
 		const ago = formatDuration(Date.now() - result.atMs);
 		failUsageReset(
 			result.state === "reset"
-				? `${who}: another omp process spent a saved reset on this account ${ago} ago, so this one was not spent. Check \`zetacode usage\` before spending another.`
-				: `${who}: another omp process started spending a saved reset on this account ${ago} ago, so nothing was spent. Try again in a minute.`,
+				? `${who}: another Zeta process spent a saved reset on this account ${ago} ago, so this one was not spent. Check \`zetacode usage\` before spending another.`
+				: `${who}: another Zeta process started spending a saved reset on this account ${ago} ago, so nothing was spent. Try again in a minute.`,
 		);
 		return;
 	}

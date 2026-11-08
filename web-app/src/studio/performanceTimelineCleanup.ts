@@ -3,7 +3,7 @@
  *
  * 开发会话里 React 与手工打点会持续累积 performance 的 marks/measures，这里每 10 秒
  * 清理一次，限制开发会话长期保留的诊断记录。仅 `import.meta.env.DEV` 启用；
- * `VITE_OMP_PRESERVE_PERFORMANCE_TIMELINE=1` 或性能 harness（`window.ompPerf`）在场时
+ * `VITE_ZETA_PRESERVE_PERFORMANCE_TIMELINE=1` 或性能 harness（`window.ompPerf`）在场时
  * 固定不启动，避免清掉测量现场。生产构建不得启动清理器。
  */
 
@@ -13,7 +13,7 @@ export const PERFORMANCE_TIMELINE_CLEANUP_INTERVAL_MS = 10_000;
 export interface PerformanceTimelineCleanupEnv {
   /** 仅开发构建为 true（`import.meta.env.DEV`）。 */
   readonly dev: boolean;
-  /** `VITE_OMP_PRESERVE_PERFORMANCE_TIMELINE=1`：录制期间保留 marks/measures。 */
+  /** `VITE_ZETA_PRESERVE_PERFORMANCE_TIMELINE=1`：录制期间保留 marks/measures。 */
   readonly preserveTimeline: boolean;
 }
 
@@ -36,7 +36,7 @@ export interface PerformanceTimelineCleanupOptions {
 function readEnv(): PerformanceTimelineCleanupEnv {
   return {
     dev: import.meta.env.DEV,
-    preserveTimeline: import.meta.env.VITE_OMP_PRESERVE_PERFORMANCE_TIMELINE === "1",
+    preserveTimeline: import.meta.env.VITE_ZETA_PRESERVE_PERFORMANCE_TIMELINE === "1",
   };
 }
 

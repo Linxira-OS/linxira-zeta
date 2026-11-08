@@ -15,12 +15,15 @@ export function RuntimeLossBanner({
   preview = false,
   client,
   variant = "workbench",
+  reconnectAvailable = true,
   onOpenDiagnostics,
 }: {
   runtime?: RuntimeConnection;
   preview?: boolean;
   client?: StudioClient;
   variant?: "workbench" | "hub";
+  /** Host advertises `runtime.ensure`; false hides a reconnect button that would fail. */
+  reconnectAvailable?: boolean;
   onOpenDiagnostics?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -54,7 +57,7 @@ export function RuntimeLossBanner({
     ? formatRuntimeDisconnectCopy(runtime?.disconnectCode, runtime?.disconnectReason)
     : formatRuntimeUnavailableCopy(runtime?.unavailableCode, runtime?.unavailableReason);
   const auto = runtime?.autoRespawn === undefined ? undefined : formatRuntimeAutoRespawnCopy(runtime.autoRespawn);
-  const canReconnect = runtimeCanReconnect(runtime);
+  const canReconnect = reconnectAvailable && runtimeCanReconnect(runtime);
   const className = `${variant === "hub" ? "hub-conn red" : "banner red"}${busy ? " is-busy" : ""}`;
   const detailClass = variant === "hub" ? "hc-detail" : "banner-detail";
   const actionsClass = variant === "hub" ? "hc-actions" : "banner-actions";

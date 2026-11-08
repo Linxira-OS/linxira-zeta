@@ -3,13 +3,18 @@ import { substitutePluginRoot } from "@linxiraos/zeta/discovery/substitute-plugi
 
 // Use concatenation to avoid noTemplateCurlyInString lint rule on literal placeholder names
 const CLAUDE_VAR = "$" + "{CLAUDE_PLUGIN_ROOT}";
+const ZETA_VAR = "$" + "{ZETA_PLUGIN_ROOT}";
 const OMP_VAR = "$" + "{OMP_PLUGIN_ROOT}";
 
 describe("substitutePluginRoot", () => {
 	const ROOT = "/plugins/my-plugin";
 
-	it("replaces both variables in same string", () => {
-		expect(substitutePluginRoot(`${CLAUDE_VAR}:${OMP_VAR}`, ROOT)).toBe("/plugins/my-plugin:/plugins/my-plugin");
+	it("replaces the Zeta and Claude variables in the same string", () => {
+		expect(substitutePluginRoot(`${CLAUDE_VAR}:${ZETA_VAR}`, ROOT)).toBe("/plugins/my-plugin:/plugins/my-plugin");
+	});
+
+	it("still expands the legacy OMP_PLUGIN_ROOT alias for installed plugins", () => {
+		expect(substitutePluginRoot(OMP_VAR, ROOT)).toBe("/plugins/my-plugin");
 	});
 
 	it("handles arrays recursively", () => {

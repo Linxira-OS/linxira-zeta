@@ -87,6 +87,34 @@ describe("HTML export template", () => {
 		expect(html).toBe(await runProbe([process.execPath, probePath]));
 	});
 
+	test("export theme preference reads and migrates the legacy localStorage key", () => {
+		const html = getTemplate();
+		const { document } = parseHTML(html);
+		const script = [...document.querySelectorAll("script")].find(node =>
+			node.textContent?.includes("zeta-export-theme"),
+		);
+		expect(script).toBeDefined();
+
+		const run = (stored: Record<string, string>) => {
+			const store = new Map(Object.entries(stored));
+			const localStorage = {
+				getItem: (key: string) => (store.has(key) ? store.get(key)! : null),
+				setItem: (key: string, value: string) => store.set(key, String(value)),
+			};
+			const doc = { documentElement: { dataset: {} as Record<string, string> } };
+			new Function("localStorage", "document", script!.textContent!)(localStorage, doc);
+			return { store, theme: doc.documentElement.dataset.theme };
+		};
+
+		const legacy = run({ "omp-export-theme": "dark" });
+		expect(legacy.theme).toBe("dark");
+		expect(legacy.store.get("zeta-export-theme")).toBe("dark");
+
+		const canonical = run({ "zeta-export-theme": "light", "omp-export-theme": "dark" });
+		expect(canonical.theme).toBe("light");
+		expect(html).toContain("'omp-export:sidebar-width'");
+	});
+
 	test("packaged exports inline the same offline viewer as source exports", async () => {
 		const html = await runProbe([process.execPath, bundlePath]);
 		const { document } = parseHTML(html);

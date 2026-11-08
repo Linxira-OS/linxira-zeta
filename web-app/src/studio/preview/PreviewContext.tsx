@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { PREVIEW_MODE_SWITCH_ENABLED, readStoredPreviewMode, writeStoredPreviewMode } from "./mode";
+import { PREVIEW_MODE_SWITCH_ENABLED, isDevBuild, previewForcedByQuery, readStoredPreviewMode, writeStoredPreviewMode } from "./mode";
 
 export type PreviewModeValue = {
   readonly enabled: boolean;
@@ -13,9 +13,9 @@ const PreviewModeContext = createContext<PreviewModeValue>({
   setPreview: () => undefined,
 });
 
-function previewForcedByQuery(): boolean {
+function previewForced(): boolean {
   try {
-    return new URLSearchParams(window.location.search).get("preview") === "1";
+    return previewForcedByQuery(window.location.search, isDevBuild());
   } catch {
     return false;
   }
@@ -29,7 +29,7 @@ export function PreviewModeProvider({
   /** Tests keep the switch so fixture surfaces stay exercisable after ship. */
   switchEnabled?: boolean;
 }) {
-  const forced = previewForcedByQuery();
+  const forced = previewForced();
   const [stored, setStored] = useState(() => (forced ? true : (switchEnabled ? readStoredPreviewMode() : false)));
   const preview = forced || (switchEnabled ? stored : false);
 

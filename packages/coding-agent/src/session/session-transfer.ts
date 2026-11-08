@@ -204,7 +204,7 @@ async function requireDirectory(dir: string): Promise<void> {
 async function requireSessionId(file: string): Promise<string> {
 	await requireFile(file, "Session file");
 	const id = await readSessionHeaderId(file);
-	if (id === undefined) throw new SessionTransferError(`Not an omp session file (no session header): ${file}`);
+	if (id === undefined) throw new SessionTransferError(`Not a Zeta session file (no session header): ${file}`);
 	return id;
 }
 
@@ -287,7 +287,7 @@ export async function packSession(sessionFile: string, outPath: string): Promise
 		const journalText = journal.toString("utf8");
 		const header = parseSessionContent(journalText).entries[0];
 		if (header?.type !== "session") {
-			throw new SessionTransferError(`Not an omp session file (no session header): ${source}`);
+			throw new SessionTransferError(`Not a Zeta session file (no session header): ${source}`);
 		}
 		const manifest: SessionArchiveManifest = {
 			version: SESSION_ARCHIVE_VERSION,
