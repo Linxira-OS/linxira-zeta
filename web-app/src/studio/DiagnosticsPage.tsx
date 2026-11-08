@@ -29,12 +29,14 @@ import {
   runtimeCanRestart,
   type DiagnosticsCheck,
   type DiagnosticsHero,
+  type DiagnosticsViewModel,
 } from "./diagnosticsModel";
 import { ActionProgressBar } from "./ActionProgressBar";
 import { useI18n } from "./i18n";
 import { fileManagerName } from "./platformCopy";
 import { PLATFORM } from "./platform";
 import { ensureRuntimeConnection } from "./runtimeEnsure";
+import { supportsCapability } from "./deck/capabilitySupport";
 import { isUpdateCheckTimeout, queryWithTimeout } from "./updateCheck";
 import { checkForUpdates, downloadUpdateToReady, fetchUpdatePrefs, useUpdates } from "./settings/updates";
 
@@ -328,12 +330,14 @@ export function DiagnosticsPage({
   const viewEnv = preview ? previewEnvironment(scenario, previewInstallerState) : env;
   const viewDiag = preview ? previewDiagnostics(scenario) : diag;
   const viewCaps = preview ? previewCapabilities() : caps;
+  /** 重连/重启都走 `runtime.ensure`；Host 未提供时只保留「重新检查」，不发必败命令。 */
+  const runtimeEnsureSupported = preview || supportsCapability(caps, "runtime.ensure");
   const runtimeUpdate = preview ? undefined : updates.state.check?.runtime;
   const runtimeUpdateBlocker = preview
     ? scenario === "blocked" ? t("diagnostics.runtimeUpdateBlockerDemo", { version: mock.requiredAppVersion }) : undefined
     : runtimeUpdate?.plan === "blocked" ? runtimeUpdate.reason ?? t("diagnostics.runtimeUpdateBlocker") : undefined;
   const blocksLocalUpdate = Boolean(runtimeUpdateBlocker && (preview || !viewEnv?.installer.availableVersion || viewEnv.installer.availableVersion === runtimeUpdate?.runtimeVersion));
-  const view = useMemo(() => {
+  const view = useMemo<DiagnosticsViewModel>(() => {
     const derived = deriveDiagnosticsView({
       ...(viewRuntime === undefined ? {} : { runtime: viewRuntime }),
       ...(viewEnv === undefined ? {} : { environment: viewEnv }),
@@ -343,8 +347,13 @@ export function DiagnosticsPage({
     if (blocksLocalUpdate && derived.hero.kind === "update") {
       return { ...derived, hero: { ...derived.hero, title: t("diagnostics.runtimeUpdateBlocked"), detail: runtimeUpdateBlocker! } };
     }
+    // A reconnect hero would promise `runtime.ensure`; without the capability the
+    // same slot only refreshes diagnostics instead of failing on click.
+    if (!runtimeEnsureSupported && derived.hero.primary === "reconnect") {
+      return { ...derived, hero: { ...derived.hero, primary: "recheck" } };
+    }
     return derived;
-  }, [viewRuntime, viewEnv, viewDiag, viewCaps, t, blocksLocalUpdate, runtimeUpdateBlocker]);
+  }, [viewRuntime, viewEnv, viewDiag, viewCaps, t, blocksLocalUpdate, runtimeUpdateBlocker, runtimeEnsureSupported]);
 
   const refreshQueries = useCallback(async (): Promise<boolean> => {
     const [d, c, e] = await Promise.allSettled([
@@ -363,6 +372,10 @@ export function DiagnosticsPage({
   }, []);
 
   const refresh = useCallback(async (mode: "recheck" | "reconnect" = "recheck") => {
+    if (mode === "reconnect" && !runtimeEnsureSupported) {
+      show(t("common.unsupportedByRuntime"), "alert-c");
+      return;
+    }
     if (preview) {
       show(mode === "reconnect" ? t("diagnostics.reconnectedRuntimeDemo") : t("diagnostics.recheckedOmpDemo"), "check");
       return;
@@ -374,7 +387,7 @@ export function DiagnosticsPage({
     );
     try {
       let reconnected = false;
-      if (mode === "reconnect" || runtimeCanReconnect(runtime ?? env?.runtime)) {
+      if (runtimeEnsureSupported && (mode === "reconnect" || runtimeCanReconnect(runtime ?? env?.runtime))) {
         const result = await ensureRuntimeConnection(client, {}, (progress) => {
           beginAction({ kind: "reconnect", ...progress });
         });
@@ -400,7 +413,7 @@ export function DiagnosticsPage({
     } finally {
       setBusy(null);
     }
-  }, [beginAction, client, preview, show, runtime, env, refreshQueries, t]);
+  }, [beginAction, client, preview, show, runtime, env, refreshQueries, t, runtimeEnsureSupported]);
 
   const checkUpdate = useCallback(async (notify: boolean) => {
     if (preview) {
@@ -635,6 +648,10 @@ export function DiagnosticsPage({
 
   const restartRuntime = useCallback(async () => {
     setConfirmRestart(false);
+    if (!runtimeEnsureSupported) {
+      show(t("common.unsupportedByRuntime"), "alert-c");
+      return;
+    }
     if (preview) {
       show(t("diagnostics.restartedDemo"), "check");
       return;
@@ -653,7 +670,7 @@ export function DiagnosticsPage({
     } finally {
       setBusy(null);
     }
-  }, [beginAction, client, preview, show, refreshQueries]);
+  }, [beginAction, client, preview, show, refreshQueries, runtimeEnsureSupported]);
 
   const maintainRuntime = useCallback(async (kind: "rollback" | "prune") => {
     if (busy !== null) return;
@@ -720,9 +737,9 @@ export function DiagnosticsPage({
   const runPrimary = useCallback(() => {
     if (view.hero.primary === "install") void installRuntime("install");
     else if (view.hero.primary === "update") void installRuntime("update");
-    else if (view.hero.primary === "reconnect") void refresh("reconnect");
+    else if (view.hero.primary === "reconnect" && runtimeEnsureSupported) void refresh("reconnect");
     else void refresh("recheck");
-  }, [view.hero.primary, installRuntime, refresh]);
+  }, [view.hero.primary, installRuntime, refresh, runtimeEnsureSupported]);
 
   const runCheckAction = useCallback((action: NonNullable<DiagnosticsCheck["action"]>) => {
     if (action === "problems") {
@@ -972,7 +989,7 @@ export function DiagnosticsPage({
               <div className="sr-desc">{t("diagnostics.restartRuntimeDesc")}</div>
             </div>
             <div className="sr-control">
-              <button type="button" className="btn outline" disabled={busy !== null || !canRestart} onClick={() => setConfirmRestart(true)}>
+              <button type="button" className="btn outline" disabled={busy !== null || !canRestart || !runtimeEnsureSupported} data-tip={runtimeEnsureSupported ? undefined : t("common.unsupportedByRuntime")} onClick={() => setConfirmRestart(true)}>
                 <Icon name="refresh" extra="sm" />{t("common.restart")}
               </button>
             </div>
@@ -1021,7 +1038,7 @@ export function DiagnosticsPage({
             </div>
             <div className="create-project-foot">
               <button type="button" className="btn outline" disabled={busy !== null} onClick={() => setConfirmRestart(false)}>{t("common.cancel")}</button>
-              <button type="button" className="btn primary" autoFocus disabled={busy !== null} onClick={() => void restartRuntime()}>{t("diagnostics.confirmRestart")}</button>
+              <button type="button" className="btn primary" autoFocus disabled={busy !== null || !runtimeEnsureSupported} onClick={() => void restartRuntime()}>{t("diagnostics.confirmRestart")}</button>
             </div>
           </section>
         </div>

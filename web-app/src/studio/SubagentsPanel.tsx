@@ -231,7 +231,7 @@ export function SubagentsPanel({
   preview: boolean;
   models: ModelConfigReadModel | null;
   initialAgent?: string;
-  onCount?: (count: number) => void;
+  onCount?: (count: number | undefined) => void;
 }) {
   const { t, resolvedLanguage } = useI18n();
   const zh = resolvedLanguage === "zh";
@@ -279,7 +279,7 @@ export function SubagentsPanel({
   }, [refresh]);
 
   useEffect(() => {
-    if (data) onCount?.(data.agents.length);
+    onCount?.(data ? data.agents.length : undefined);
   }, [data, onCount]);
 
   useEffect(() => {
