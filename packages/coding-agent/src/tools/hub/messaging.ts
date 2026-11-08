@@ -23,7 +23,7 @@ import { isWorkspaceAddress } from "../../mesh/envelope";
 import { raceMutualWait, type MutualWaitStatus } from "../../mesh/mutual-wait";
 import { type IrcMessage } from "@linxiraos/pi-tui/tools/hub";
 
-import { type AgentRegistry, MAIN_AGENT_ID } from "../../registry/agent-registry";
+import { type AgentRegistryApi, MAIN_AGENT_ID } from "../../registry/agent-registry";
 import { ensurePersistedRoster, isCurrentSessionRosterRef } from "../../registry/persisted-agents";
 import { canSpawnAtDepth } from "../../task/types";
 
@@ -53,7 +53,7 @@ function resolveHubListLimit(limit: number | undefined): number {
 }
 
 function selectListRefs(
-	registry: AgentRegistry,
+	registry: AgentRegistryApi,
 	senderId: string,
 	status: HubListStatus | undefined,
 	rootSessionFile: string | undefined,
@@ -120,10 +120,12 @@ export function normalizeIrcTimeoutMs(value: number): number {
 }
 
 /** Session-buffered inbox drain used before parking a bus waiter. */
-export function drainPendingInbox(registry: AgentRegistry, senderId: string, from?: string): IrcMessage | undefined {
+export function drainPendingInbox(registry: AgentRegistryApi, senderId: string, from?: string): IrcMessage | undefined {
 	const session = registry.get(senderId)?.session;
 	return typeof session?.drainPendingIrcInboxMessages === "function"
-		? session.drainPendingIrcInboxMessages(senderId, { from, limit: 1 })[0]
+		? session.drainPendingIrcInboxMessages(senderId, {
+				ifAny: msg => from === undefined || msg.from === from,
+			})[0]
 		: undefined;
 }
 
@@ -141,7 +143,7 @@ export function messageResult(senderId: string, waited: IrcMessage): AgentToolRe
  * when live siblings are already in memory.
  */
 export async function executeList(
-	registry: AgentRegistry,
+	registry: AgentRegistryApi,
 	senderId: string,
 	params: HubListParams = {},
 	sessionFileHint?: string | null,
@@ -211,7 +213,7 @@ export interface HubSendParams {
 }
 
 export async function executeSend(
-	deps: { registry: AgentRegistry; senderId: string; settings: Settings; sessionFileHint?: string | null },
+	deps: { registry: AgentRegistryApi; senderId: string; settings: Settings; sessionFileHint?: string | null },
 	params: HubSendParams,
 	signal?: AbortSignal,
 ): Promise<AgentToolResult<CoordinationDetails>> {
@@ -393,7 +395,7 @@ export async function executeSend(
  * the wait returns `peer-waiting-on-you` instead of freezing both sessions.
  */
 export async function executeMessageWait(
-	deps: { registry: AgentRegistry; senderId: string },
+	deps: { registry: AgentRegistryApi; senderId: string },
 	params: { from?: string; timeoutMs: number },
 	signal?: AbortSignal,
 ): Promise<AgentToolResult<CoordinationDetails>> {
@@ -468,7 +470,7 @@ export async function executeMessageWait(
 }
 
 export function executeInbox(
-	registry: AgentRegistry,
+	registry: AgentRegistryApi,
 	senderId: string,
 	peek?: boolean,
 ): AgentToolResult<CoordinationDetails> {

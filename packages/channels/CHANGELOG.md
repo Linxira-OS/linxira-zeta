@@ -12,7 +12,7 @@
 
 ## [1.4.9] - 2026-11-03
 
-- Synced with upstream OMP v18.16.0; no package-specific user-visible changes.
+- Synced with upstream OMP v18.18.0.
 
 ## [1.4.7] - 2026-10-30
 
@@ -24,7 +24,7 @@
 
 ## [1.4.5] - 2026-10-28
 
-- Synced with upstream OMP v18.13.2; see UPDATE-LOG.md (1.4.5).
+- Synced with upstream OMP v18.18.0.
 
 ## [1.4.4] - 2026-10-26
 

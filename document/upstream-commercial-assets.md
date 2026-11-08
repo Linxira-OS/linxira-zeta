@@ -64,6 +64,11 @@ bun scripts/brand/brand-check.ts
 - **Tern 适配**：保留全部客户端适配文件。上游仓库**没有** Tern 服务端代码，
   只有客户端；「多端同步 + web 页面」是开源的 `collab/`（150 文件）+
   `collab-web/`，我们已经拥有。
+- **Spotlight shaping**（`cloud.stencil.so/v1/spotlight`）：v18.18.0 新入的
+  上游 Spotlight 云端 shaping 服务，落点
+  `packages/coding-agent/src/spotlight/types.ts`；实验默认关闭
+  （`spotlight.experiment.enabled` 默认 `false`），调用时用用户自己的
+  Stencil 凭证（`STENCIL_API_KEY`，否则 stencil.so 登录）。
 
 ## 3. 待替代（按优先级）
 

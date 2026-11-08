@@ -4,7 +4,7 @@ import type { CoordinationDetails } from "@linxiraos/pi-tui/tools/wait";
 import type { Settings } from "../config/settings";
 import { isWorkspaceAddress } from "../mesh/envelope";
 import { IrcBus } from "./bus";
-import { type AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
+import { MAIN_AGENT_ID, type AgentRegistryApi } from "../registry/agent-registry";
 import { ensurePersistedRoster } from "../registry/persisted-agents";
 import { canSpawnAtDepth } from "../task/types";
 
@@ -27,25 +27,29 @@ export function formatIncoming(msg: IrcMessage): string {
 	return `[${msg.id}] ${msg.from}${replyTag}${progressTag}: ${msg.body}`;
 }
 
-/** Session-buffered inbox drain used before parking a bus waiter. */
-export function drainPendingInbox(registry: AgentRegistry, senderId: string, from?: string): IrcMessage | undefined {
+/** Takes every message buffered in `senderId`'s session inbox before automatic injection; with `ifAny`, none unless one satisfies it. */
+export function drainPendingInbox(
+	registry: AgentRegistryApi,
+	senderId: string,
+	ifAny?: (msg: IrcMessage) => boolean,
+): IrcMessage[] {
 	const session = registry.get(senderId)?.session;
 	return typeof session?.drainPendingIrcInboxMessages === "function"
-		? session.drainPendingIrcInboxMessages(senderId, { from, limit: 1 })[0]
-		: undefined;
+		? session.drainPendingIrcInboxMessages(senderId, ifAny ? { ifAny } : undefined)
+		: [];
 }
 
-/** `wait` result carrying a consumed message. */
-export function messageResult(senderId: string, waited: IrcMessage): AgentToolResult<CoordinationDetails> {
+/** `wait` result carrying the consumed messages, oldest first. */
+export function messageResult(senderId: string, waited: IrcMessage[]): AgentToolResult<CoordinationDetails> {
 	return {
-		content: [{ type: "text", text: formatIncoming(waited) }],
+		content: [{ type: "text", text: waited.map(formatIncoming).join("\n\n") }],
 		details: { op: "wait", from: senderId, waited },
 	};
 }
 
-/** Send a direct message or broadcast; delivery never waits for a reply. */
+/** Send a direct message or, from a top-level agent only, a broadcast; delivery never waits for a reply. */
 export async function executeSend(
-	deps: { registry: AgentRegistry; senderId: string; sessionFileHint?: string | null },
+	deps: { registry: AgentRegistryApi; senderId: string; sessionFileHint?: string | null },
 	params: { to: string; message: string; progress?: boolean },
 ): Promise<AgentToolResult<CoordinationDetails>> {
 	const { registry, senderId, sessionFileHint } = deps;
@@ -77,6 +81,9 @@ export async function executeSend(
 	}
 
 	const targets = isBroadcast ? registry.listVisibleTo(senderId).map(ref => ref.id) : [to];
+	// A broadcast that also reaches the main agent delivers the body to it
+	// directly (its own incoming card); relaying the sibling legs to the main UI
+	// would then show the same body once per other recipient.
 	const suppressRelay = isBroadcast && targets.includes(MAIN_AGENT_ID);
 	const bus = IrcBus.global();
 	const receipts = await Promise.all(
@@ -89,7 +96,7 @@ export async function executeSend(
 					...(isBroadcast ? { broadcast: true } : {}),
 					...(params.progress ? { progress: true } : {}),
 				},
-				{ suppressRelay },
+				{ suppressRelay: suppressRelay || undefined },
 			),
 		),
 	);

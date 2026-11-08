@@ -1,7 +1,7 @@
 ## [Unreleased]
 
+- Synced with upstream OMP v18.18.0.
 - Released as part of Zeta 1.4.12; no package-specific user-visible changes.
-
 ## [1.4.11] - 2026-11-06
 
 - Released as part of Zeta 1.4.11; no package-specific user-visible changes.
@@ -138,7 +138,7 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 
 ## [1.4.9] - 2026-11-03
 
-- Synced with upstream OMP v18.16.0; user-visible changes ride the coding-agent package.
+- Synced with upstream OMP v18.18.0.
 
 ### Changed
 
@@ -157,7 +157,7 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 
 ## [1.4.5] - 2026-10-28
 
-- Synced with upstream OMP v18.13.2: a subagent's final report is no longer consumed as its reply to a peer message that arrived as the run finished; same-workspace peers can message each other.
+- Synced with upstream OMP v18.18.0.
 
 ## [1.4.4] - 2026-10-26
 

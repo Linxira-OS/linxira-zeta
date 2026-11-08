@@ -21,7 +21,7 @@
   },
   "scripts": {
     "check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts' && bun run check:types",
-    "check:types": "tsc -p tsconfig.json --noEmit",
+    "check:types": "bun check --no-script -p tsconfig.json",
     "lint": "oxlint .",
     "test": "bun test --parallel",
     "fix": "oxlint --fix --fix-suggestions . && bun run fmt",
@@ -37,7 +37,6 @@
     "@linxiraos/pi-agent-core": "catalog:",
     "@linxiraos/zeta": "catalog:",
     "@linxiraos/pi-utils": "catalog:",
-    "diff": "catalog:",
     "@linxiraos/pi-natives": "catalog:",
     "prettier": "catalog:",
     "regexp-tree": "catalog:",

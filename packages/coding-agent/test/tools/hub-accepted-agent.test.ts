@@ -4,14 +4,14 @@
  * `hub`'s running-agents snapshot, not silently left in the running roster.
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentRegistry, type AgentRegistryApi } from "@linxiraos/zeta/registry/agent-registry";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { noMatchingJobsResult } from "@linxiraos/zeta/tools/hub/jobs";
 
 const SELF_ID = "Main";
 
 describe("hub accepted-agent watchdog", () => {
-	let registry: AgentRegistry;
+	let registry: AgentRegistryApi;
 
 	beforeEach(() => {
 		AgentRegistry.resetGlobalForTests();

@@ -4,7 +4,7 @@
  * `moduleResolution: "node16" | "nodenext"`.
  *
  * The workspace type-checks under `moduleResolution: "Bundler"`
- * (`tsconfig.base.json`), which permits extensionless relative imports. `tsc`
+ * (`tsconfig.base.json`), which permits extensionless relative imports. TypeScript
  * therefore emits `export * from "./sdk"` / `import … from "./modes/components"`
  * into `dist/types` (declarations) and `dist/js` (transpiled runtime). A
  * downstream consumer on `nodenext` then can't resolve the barrel — every

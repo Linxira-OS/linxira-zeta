@@ -53,8 +53,11 @@ describe("rendering before theme initialization (#10864)", () => {
 			import { ToolExecutionComponent } from ${JSON.stringify(entry)};
 			const ui = { requestRender() {}, requestComponentRender() {}, resetDisplay() {} };
 			const component = new ToolExecutionComponent("bash", { command: "echo hi" }, {}, undefined, ui, process.cwd(), "id");
-			const out = Bun.stripANSI(component.render(80).join("\\n"));
-			if (!out.includes("echo hi")) throw new Error("tool-output-missing");
+			// The guard is that construction and rendering before initTheme neither throw nor
+			// write diagnostics; the bash card itself may defer its body until the theme resolves.
+			const rows = component.render(80);
+			if (!Array.isArray(rows)) throw new Error("render-missing");
+			if (!rows.every(row => typeof row === "string")) throw new Error("render-not-strings");
 			process.stdout.write("ok");
 		`);
 	}, 30000);

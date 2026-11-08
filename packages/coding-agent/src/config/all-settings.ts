@@ -46,6 +46,7 @@ import * as streamSettings from "../stream/settings";
 import * as commitSettings from "../commit/settings";
 import * as cliGcSettings from "../cli/gc-settings";
 import * as sessionTrashSettings from "../session/trash-settings";
+import * as spotlightSettings from "../spotlight/settings";
 
 const DOMAINS: readonly Readonly<Record<string, unknown>>[] = [
 	zetaSettings,
@@ -87,6 +88,7 @@ const DOMAINS: readonly Readonly<Record<string, unknown>>[] = [
 	streamSettings,
 	commitSettings,
 	cliGcSettings,
+	spotlightSettings,
 	// Last so the Files tab's "Session Trash" section lands after
 	// Editing/Reading/Read Summaries/LSP (TAB_GROUPS must mirror this order).
 	sessionTrashSettings,

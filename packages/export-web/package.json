@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@linxiraos/export-web",
+  "name": "@linxiraos/collab-web",
   "version": "1.0.0",
   "private": true,
   "description": "Standalone HTML export viewer assets shared by session export and trace views",
@@ -10,22 +10,22 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
-    "directory": "packages/export-web"
+    "directory": "packages/collab-web"
   },
   "bugs": {
     "url": "https://github.com/Linxira-OS/linxira-zeta/issues"
   },
   "keywords": [
-    "export",
-    "viewer",
+    "collab",
+    "relay",
+    "websocket",
     "react",
-    "traces",
-    "html"
+    "agent"
   ],
   "scripts": {
     "test": "bun test --parallel",
     "check": "oxlint . && oxfmt --check --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,scripts}/**/*.ts' '*.ts' && bun run check:types",
-    "check:types": "tsc -p tsconfig.json --noEmit",
+    "check:types": "bun check --no-script -p tsconfig.json",
     "lint": "oxlint .",
     "fix": "oxlint --fix --fix-suggestions . && bun run fmt",
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,scripts}/**/*.ts' '*.ts'",

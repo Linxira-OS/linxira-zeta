@@ -176,6 +176,13 @@ export const INVENTORY: Placement[] = [
 		why: 'OIDC issuer; client-id "omp" and the issuer/scope names are protocol contract — renaming breaks login',
 	},
 	{
+		domain: "https://cloud.stencil.so/v1/spotlight",
+		status: "keep-code-user-credential",
+		kind: "runtime-data",
+		files: ["packages/coding-agent/src/spotlight/types.ts"],
+		why: "upstream Spotlight shaping service added by v18.18.0; opt-in and authenticated with the user's own Stencil credential",
+	},
+	{
 		domain: "https://qa.omp.sh",
 		status: "replaced",
 		kind: "runtime-data",

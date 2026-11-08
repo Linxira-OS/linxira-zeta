@@ -185,7 +185,6 @@ describe("attached TUI over the wire protocol", () => {
 		mode = new InteractiveMode(
 			localSession,
 			"test",
-			undefined,
 			() => {},
 			undefined,
 			undefined,
@@ -320,7 +319,6 @@ describe("attached TUI over the wire protocol", () => {
 		mode = new InteractiveMode(
 			localSession,
 			"test",
-			undefined,
 			() => {},
 			undefined,
 			undefined,
@@ -388,7 +386,6 @@ describe("attached TUI over the wire protocol", () => {
 		mode = new InteractiveMode(
 			localSession,
 			"test",
-			undefined,
 			() => {},
 			undefined,
 			undefined,
@@ -543,7 +540,6 @@ describe("attached TUI over the wire protocol", () => {
 		mode = new InteractiveMode(
 			localSession,
 			"test",
-			undefined,
 			() => {},
 			undefined,
 			undefined,
@@ -633,7 +629,6 @@ describe("attached TUI over the wire protocol", () => {
 		mode = new InteractiveMode(
 			localSession,
 			"test",
-			undefined,
 			() => {},
 			undefined,
 			undefined,

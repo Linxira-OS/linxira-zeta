@@ -4,6 +4,7 @@
 import * as path from "node:path";
 import { $env, CLI_BIN_NAME } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
+import type { MotionMode } from "../config/motion-presets";
 import type { ServiceTierOpenAISettingValue } from "../config/service-tier";
 import { CLI_THINKING_LEVELS, type ConfiguredThinkingLevel, parseCliThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import { BUILTIN_TOOL_NAMES, normalizeToolNames } from "../tools/builtin-names";
@@ -106,6 +107,12 @@ export interface Args {
 	noTitle?: boolean;
 	/** Host the IM channel runtime in this session (also enabled per-channel in web.yml). */
 	channels?: boolean;
+	/** `--spinner-interval <ms>`: ephemeral `tui.spinnerInterval` override for every spinner (0 = static). */
+	spinnerInterval?: number;
+	/** `--max-fps <n>`: ephemeral `tui.maxFps` override — the ceiling on how often the TUI repaints. */
+	maxFps?: number;
+	/** `--motion <full|reduced|none>`: ephemeral `tui.motion` override — one switch over every animation. */
+	motion?: MotionMode;
 	/** RPC modes only: run extensions without a UI; `rpc-ui` tool UI remains enabled. */
 	noUi?: boolean;
 	autoApprove?: boolean;

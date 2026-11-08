@@ -2185,6 +2185,7 @@ export interface Messages {
 	cmdEnableLargerContextWindows: string;
 	cmdMoveThisSessionIntoaNewWorktreeChangesIncluded: string;
 	cmdPinorUnpinaSessionattheTopoftheResumeList: string;
+	cmdUnpinaSessionfromtheTopoftheResumeList: string;
 	cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession: string;
 	cmdRunMemoryConsolidationNow: string;
 	cmdShowExtendedContextStatus: string;
@@ -2414,6 +2415,7 @@ export interface Messages {
 	tip30: string;
 	tip31: string;
 	tip32: string;
+	tip33: string;
 	// ── Chat transcript render layer (pi-tui chat/*, status-line/*, tools/*, apps/*) ──
 	statusInterrupted: string; // render mapping for USER_INTERRUPT_LABEL — "Interrupted by user"
 	statusOperationAborted: string; // "Operation aborted"

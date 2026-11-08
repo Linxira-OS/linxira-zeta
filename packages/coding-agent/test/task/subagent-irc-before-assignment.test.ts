@@ -19,6 +19,7 @@ import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { runSubprocess } from "@linxiraos/zeta/task/executor";
 import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
+import { localSession } from "../helpers/local-session";
 
 const AGENT_ID = "EarlyIrc";
 const IRC_BODY = "which files do you own?";
@@ -140,8 +141,9 @@ it.each([
 				enableIrc: false,
 			});
 			await startupEntered.promise;
-			const session = AgentRegistry.global().get(AGENT_ID)?.session;
-			if (!session) throw new Error(`${AGENT_ID} is not routable during startup`);
+			const handle = AgentRegistry.global().get(AGENT_ID)?.session;
+			if (!handle) throw new Error(`${AGENT_ID} is not routable during startup`);
+			const session = localSession(handle);
 			await session.deliverIrcMessage({ id: "early", from, to: AGENT_ID, body: IRC_BODY, ts: 1 });
 			startup.resolve();
 

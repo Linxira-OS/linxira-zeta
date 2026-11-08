@@ -6,7 +6,7 @@ import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle"
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import * as executorModule from "@linxiraos/zeta/task/executor";
-import { runIsolatedSubprocess } from "@linxiraos/zeta/task/isolation-runner";
+import { nativeWorkspace, runIsolatedSubprocess } from "@linxiraos/zeta/task/isolation-runner";
 import * as worktreeModule from "@linxiraos/zeta/task/worktree";
 import * as natives from "@linxiraos/pi-natives";
 import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
@@ -102,7 +102,7 @@ async function commitsAcrossRelease(id: string, runEndPatch: string, releasePatc
 			id,
 		},
 		context: { repoRoot: "/repo" },
-		preferredBackend: undefined,
+		openWorkspace: nativeWorkspace(undefined),
 		agentId: id,
 		mergeMode: "branch",
 		artifactsDir,
