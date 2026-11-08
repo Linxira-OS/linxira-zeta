@@ -32,6 +32,7 @@ import type {
 	StudioRuntimeSettingsSetResult,
 } from "../contract/index.js";
 import { gatewayJson, invalid, requiredString, unavailable } from "../gateway.js";
+import { clearApprovalGrants } from "../../../tools/approval-cache.js";
 import type { ApprovalMode } from "../protocol/index.js";
 import type { StudioFamily } from "../registry.js";
 
@@ -48,6 +49,12 @@ async function readRuntimeSettings(input: { readonly keys?: readonly string[] })
 		if (wanted === undefined || wanted.has(key)) values[key] = entry["value"];
 	}
 	return { values: values as StudioRuntimeSettingsGetResult["values"] };
+}
+
+/** `approvals.forget` → the existing per-agent approval cache. */
+async function forgetApprovals(): Promise<{ cleared: true }> {
+	clearApprovalGrants();
+	return { cleared: true };
 }
 
 /** `runtime.settings.set` → the same isolated settings writer the CLI uses. */
@@ -245,5 +252,6 @@ export const settingsOps: StudioFamily = {
 	commands: {
 		"permissions.mode.set": setApprovalMode,
 		"runtime.settings.set": writeRuntimeSetting,
+		"approvals.forget": forgetApprovals,
 	},
 };
