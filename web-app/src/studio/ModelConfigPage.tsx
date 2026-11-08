@@ -1845,7 +1845,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const [assignModCounts, setAssignModCounts] = useState<Record<string, number>>({});
   const [roleAssignDraft, setRoleAssignDraft] = useState<Record<string, string[]>>({});
   const [agentIntent, setAgentIntent] = useState<string | undefined>(undefined);
-  const [agentCount, setAgentCount] = useState(preview ? createPreviewAgentDefinitions().agents.length : 0);
+  const [agentCount, setAgentCount] = useState<number | undefined>(preview ? createPreviewAgentDefinitions().agents.length : undefined);
   const [testResult, setTestResult] = useState<TestResultView | null>(null);
   const [testing, setTesting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -1897,7 +1897,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       ]);
       setData(next);
       setLoadError(next.unavailableReason ?? null);
-      setAgentCount(defs?.agents.length ?? 0);
+      setAgentCount(defs === null ? undefined : defs.agents.length);
     } catch (error) {
       setLoadError(hostErrorMessage(error, "models.get failed"));
       setData(null);
@@ -3231,7 +3231,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
           </button>
           <button role="tab" id="mcTabSubagents" aria-controls="mcPanelSubagents" aria-selected={tab === "subagents"} tabIndex={tab === "subagents" ? 0 : -1} className={tab === "subagents" ? "active" : undefined} onClick={() => activate("subagents")}>
             <Icon name="bot" extra="sm" /><span>{t("modelConfig.subagentsTab")}</span>
-            <span className="chip gray xs">{agentCount}<span className="sr-only"> {t("modelConfig.subagentsCountAria", { count: agentCount })}</span></span>
+            {agentCount === undefined ? null : <span className="chip gray xs">{agentCount}<span className="sr-only"> {t("modelConfig.subagentsCountAria", { count: agentCount })}</span></span>}
           </button>
           <button role="tab" id="mcTabWebSearch" aria-controls="mcPanelWebSearch" aria-selected={tab === "websearch"} tabIndex={tab === "websearch" ? 0 : -1} className={tab === "websearch" ? "active" : undefined} onClick={() => activate("websearch")}>
             <Icon name="globe" extra="sm" /><span>{t("modelConfig.webSearchTab")}</span>
@@ -3244,7 +3244,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
             <span className="mc-tab-mirror" ref={tabMirrorRef}>
               <button type="button" tabIndex={-1}><Icon name="server" extra="sm" /><span>{t("modelConfig.providersTab")}</span><span className={`chip ${availCount === 0 && providers.length > 0 ? "amber" : "gray"} xs`}>{providers.length}<span className="sr-only"> {t("modelConfig.providersCountAria", { count: providers.length })}</span></span></button>
               <button type="button" tabIndex={-1}><Icon name="steering" extra="sm" /><span>{t("modelConfig.rolesTab")}</span><span className={`chip ${roleIssues ? "red" : "gray"} xs`}>{roles.length}<span className="sr-only"> {t("modelConfig.rolesCountAria", { count: roles.length })}</span></span></button>
-              <button type="button" tabIndex={-1}><Icon name="bot" extra="sm" /><span>{t("modelConfig.subagentsTab")}</span><span className="chip gray xs">{agentCount}<span className="sr-only"> {t("modelConfig.subagentsCountAria", { count: agentCount })}</span></span></button>
+              <button type="button" tabIndex={-1}><Icon name="bot" extra="sm" /><span>{t("modelConfig.subagentsTab")}</span>{agentCount === undefined ? null : <span className="chip gray xs">{agentCount}<span className="sr-only"> {t("modelConfig.subagentsCountAria", { count: agentCount })}</span></span>}</button>
               <button type="button" tabIndex={-1}><Icon name="globe" extra="sm" /><span>{t("modelConfig.webSearchTab")}</span><span className="chip gray xs">{webSearchReadyCount}<span className="sr-only"> {t("modelConfig.webSearchCountAria", { count: webSearchReadyCount })}</span></span></button>
               <button type="button" tabIndex={-1}><Icon name="layers" extra="sm" /><span>{resolvedLanguage === "zh" ? "预设" : "Presets"}</span></button>
               <button type="button" tabIndex={-1}><Icon name="user" extra="sm" /><span>{resolvedLanguage === "zh" ? "账户" : "Accounts"}</span></button>
@@ -3376,10 +3376,12 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                           <span className={`chip ${authed ? "green" : "gray"} xs`}>{authed ? t("modelConfig.credentialValid") : t("modelConfig.notLoggedIn")}</span>
                         </div>
                         <div className="auth-actions">
-                          <button type="button" className={`btn small ${authed ? "outline" : "primary"}`} disabled={busy} onClick={() => void startLogin(editor.id)}>
-                            <Icon name="key" extra="sm" />
-                            {authed ? t("modelConfig.relogin") : t("modelConfig.login")}
-                          </button>
+                          {data?.loginAvailable ? (
+                            <button type="button" className={`btn small ${authed ? "outline" : "primary"}`} disabled={busy} onClick={() => void startLogin(editor.id)}>
+                              <Icon name="key" extra="sm" />
+                              {authed ? t("modelConfig.relogin") : t("modelConfig.login")}
+                            </button>
+                          ) : null}
                           {authed ? (
                             <button type="button" className="btn small outline" disabled={busy} onClick={() => void logoutProvider(editor.id)}>{t("modelConfig.logout")}</button>
                           ) : null}

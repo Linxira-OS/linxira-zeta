@@ -44,6 +44,7 @@ import { JobInspector } from "./conversation/JobInspector";
 import { agentJobTree, buildJobTree, type JobTreeRow } from "./conversation/jobTree";
 import type { MentionCandidate } from "./composer/types";
 import { RuntimeLossBanner } from "./RuntimeLossBanner";
+import { supportsCapability } from "./deck/capabilitySupport";
 import { Icon } from "./icons";
 import { buildPreviewHub, previewJobInspections } from "./hubPreview";
 import type { PreviewAgent, PreviewJob, PreviewMetrics } from "./hubPreview";
@@ -2618,6 +2619,7 @@ export function AgentHubPage({
             {...(client === undefined ? {} : { client })}
             preview={preview}
             variant="hub"
+            {...(!preview && !supportsCapability(capabilities, "runtime.ensure") ? { reconnectAvailable: false } : {})}
             {...(onOpenDiagnostics === undefined ? {} : { onOpenDiagnostics })}
           />
         ) : null}

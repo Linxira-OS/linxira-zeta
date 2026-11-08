@@ -85,7 +85,6 @@ import { fileManagerName } from "./platformCopy";
 import { HomePage, ProfileEditDialog, SecondaryPage } from "./HomePage";
 import { HistoryPage } from "./HistoryPage";
 import { AgentHubPage, setHubIntent } from "./AgentHub";
-import { setTeamIntent, TeamPage } from "./team/TeamPage";
 import { CapabilitiesPage, setCapIntent, type CapTab } from "./CapabilitiesPage";
 import { ModelConfigPage, modelConfigHasUnsavedChanges, setModelConfigIntent } from "./ModelConfigPage";
 import { approvalPickerDisabled, ComposerApprovalPicker } from "./ComposerApprovalPicker";
@@ -246,6 +245,7 @@ import { useBtwWindow, type BtwWindowApi } from "./btw/useBtwWindow";
 import { InteractionDeck } from "./InteractionDeck";
 import { ASK_GENIE_HOLD_MS, isAskDeckInteraction, prefersReducedMotion } from "./deck/askGenie";
 import { interactionDeckDisabled, planReviewDeckDisabled, usableCapabilityManifest } from "./deck/interactionGate";
+import { sessionActionSupport, supportsCapability, type SessionActionSupport } from "./deck/capabilitySupport";
 import { PlanReviewDeck, PlanViewDialog } from "./deck/PlanCard";
 import { type PlanActionDetail, type PlanActionId } from "./deck/types";
 import { ThreadSpin } from "./sidebar/ThreadSpin";
@@ -281,7 +281,7 @@ import { buildGitStatusLookup, GIT_STATUS_META, type TreeGitStatus } from "./git
 
 const PREVIEW_PLAN_TITLE = PREVIEW_DECK_ITEMS.find((item) => item.kind === "plan")?.title ?? "Plan";
 
-const KNOWN_ROUTES: ReadonlyArray<Route> = ["home", "workbench", "history", "agent-hub", "capabilities", "model-config", "settings", "diagnostics", "media", "evaluation", "statistics", "team"];
+const KNOWN_ROUTES: ReadonlyArray<Route> = ["home", "workbench", "history", "agent-hub", "capabilities", "model-config", "settings", "diagnostics", "media", "evaluation", "statistics"];
 
 function parseStoredRoute(value: string | undefined): Route | undefined {
   return value !== undefined && (KNOWN_ROUTES as readonly string[]).includes(value) ? (value as Route) : undefined;
@@ -330,18 +330,17 @@ type ClientStateSource = StudioClient & {
   onState?: (listener: (state: ClientState) => void) => Unsubscribe;
 };
 
-type Route = "home" | "workbench" | "history" | "agent-hub" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics" | "team";
+type Route = "home" | "workbench" | "history" | "agent-hub" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics";
 type SecondaryRoute = Exclude<Route, "workbench">;
 
 function isSecondary(route: Route): route is SecondaryRoute {
-  return route === "home" || route === "history" || route === "agent-hub" || route === "team" || route === "capabilities" || route === "model-config" || route === "settings" || route === "diagnostics" || route === "media" || route === "evaluation" || route === "statistics";
+  return route === "home" || route === "history" || route === "agent-hub" || route === "capabilities" || route === "model-config" || route === "settings" || route === "diagnostics" || route === "media" || route === "evaluation" || route === "statistics";
 }
 
 const SECONDARY_META: Record<SecondaryRoute, { titleKey: string; icon: string }> = {
   statistics: {titleKey:"nav.statistics",icon:"pulse"},
   home: { titleKey: "nav.home", icon: "home" },
   history: { titleKey: "nav.history", icon: "history" },
-  team: { titleKey: "nav.team", icon: "network" },
   "agent-hub": { titleKey: "nav.agentHub", icon: "bot" },
   capabilities: { titleKey: "nav.capabilities", icon: "package" },
   "model-config": { titleKey: "nav.modelConfig", icon: "server" },
@@ -838,15 +837,21 @@ function CrumbMenu({ id, openId, onToggle, tip, current, children, menu }: {
   );
 }
 
+/** 预览行没有真实会话：所有会话动作都不可用，且原因由调用方给出。 */
+const NO_SESSION_ACTIONS: SessionActionSupport = { rename: false, fork: false, handoff: false, compact: false, export: false };
+
 /** 顶栏「对话选项」与侧栏会话行 ⋯ 菜单共用的会话动作项（归档项作用目标不同，由调用方各自追加）。
-    live/busy/compacting 语义与顶栏一致，只是取值来源不同：顶栏看当前会话，行菜单看所在行。 */
-function ThreadActionMenuItems({ live, busy, compacting, compactPending, reason, onRename, onFork, onHandoff, onCompact, onExport, onHistory }: {
+    live/busy/compacting 语义与顶栏一致，只是取值来源不同：顶栏看当前会话，行菜单看所在行。
+    `supported` 来自 Host 能力清单：清单没有的操作禁用并写明原因，不做成一点就报错的按钮。 */
+function ThreadActionMenuItems({ live, busy, compacting, compactPending, reason, supported, onRename, onFork, onHandoff, onCompact, onExport, onHistory }: {
   live: boolean;
   busy: boolean;
   compacting: boolean;
   compactPending: boolean;
   /** 禁用时的悬停原因（无 Runtime / 加载中 / 预览不可用）。 */
   reason: string;
+  /** Host 能力清单是否提供该操作（operator.invoke / session.fork / session.handoff）。 */
+  supported: SessionActionSupport;
   onRename: () => void;
   onFork: () => void;
   onHandoff: () => void;
@@ -855,37 +860,38 @@ function ThreadActionMenuItems({ live, busy, compacting, compactPending, reason,
   onHistory: () => void;
 }) {
   const { t } = useI18n();
+  const unsupported = t("common.unsupportedByRuntime");
+  /** 会话存在、动作未被本轮阻塞、且 Host 真的提供该操作。 */
+  const availability = (canRun: boolean, supportedByHost: boolean) =>
+    !canRun ? { disabled: true, title: reason } : supportedByHost ? {} : { disabled: true, title: unsupported };
   return (
     <>
       <MenuItem
         icon="pencil"
-        disabled={!live}
-        {...(live ? {} : { title: reason })}
+        {...availability(live, supported.rename)}
         onClick={onRename}
       >{t("conversation.renameThread")}</MenuItem>
       <MenuItem
         icon="fork"
-        disabled={!live || busy}
-        {...(live && !busy ? {} : { title: reason })}
+        {...availability(live && !busy, supported.fork)}
         onClick={onFork}
       >{t("shell.forkThread")}</MenuItem>
       <MenuItem
         icon="handoff"
-        disabled={!live || busy}
-        {...(live && !busy ? {} : { title: reason })}
+        {...availability(live && !busy, supported.handoff)}
         onClick={onHandoff}
       >{t("shell.handoffThread")}</MenuItem>
       <div className="menu-sep" />
       <MenuItem
         icon="minimize"
-        disabled={!live || compacting || compactPending}
-        {...(live && !compacting && !compactPending ? {} : { title: live ? t("common.loading") : reason })}
+        {...(live && !compacting && !compactPending && supported.compact
+          ? {}
+          : { disabled: true, title: live && !compacting && !compactPending ? unsupported : live ? t("common.loading") : reason })}
         onClick={onCompact}
       >{t("shell.compactThread")}</MenuItem>
       <MenuItem
         icon="export"
-        disabled={!live || busy}
-        {...(live && !busy ? {} : { title: reason })}
+        {...availability(live && !busy, supported.export)}
         onClick={onExport}
       >{t("shell.exportThread")}</MenuItem>
       <div className="menu-sep" />
@@ -1921,6 +1927,16 @@ export function RealFileTree({ client, workspaceId, label, refreshToken, search,
 export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDialog }: { state: ViewState; chrome: ShellChrome; client: StudioClient; onRoute: (route: Route) => void; onOpenAppUpdateDialog: () => void }) {
   const { t } = useI18n();
   const { preview } = usePreviewMode();
+  const capabilities = usableCapabilityManifest(
+    state.model.capabilities,
+    state.clientState?.connection.capabilityManifest,
+    state.bootstrap?.capabilityManifest,
+  );
+  const sessionActions = sessionActionSupport(capabilities);
+  /** `workspace.file.create` 只有 Host 提供时才给「新建文件」入口；目录创建是独立能力。 */
+  const fileCreateSupported = supportsCapability(capabilities, "workspace.file.create");
+  /** `runtime.ensure` 是重连/重启的唯一实现；Host 没提供时不给会报错的菜单项。 */
+  const runtimeEnsureSupported = supportsCapability(capabilities, "runtime.ensure");
   const appUpdate = useAppUpdate();
   const effectiveUpdate = preview ? PREVIEW_APP_UPDATE : (appUpdate.state.updateInfo?.available ? appUpdate.state.updateInfo : null);
   const hasUpdate = effectiveUpdate?.available === true;
@@ -1978,6 +1994,10 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
       return;
     }
     const kind = newEntryKind;
+    if (kind === "file" && !fileCreateSupported) {
+      setNewEntryError(t("common.unsupportedByRuntime"));
+      return;
+    }
     const commandName = kind === "file" ? "workspace.file.create" : "workspace.directory.create";
     const path = newEntryParentPath ? `${newEntryParentPath}/${name}` : name;
     setNewEntryBusy(true);
@@ -2386,6 +2406,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                                   compacting={false}
                                   compactPending={false}
                                   reason={t("common.unavailableInPreview")}
+                                  supported={NO_SESSION_ACTIONS}
                                   onRename={() => {}}
                                   onFork={() => {}}
                                   onHandoff={() => {}}
@@ -2499,6 +2520,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                                       compacting={liveSnapshot?.isCompacting === true}
                                       compactPending={chrome.compactPending}
                                       reason={t("common.unavailable")}
+                                      supported={sessionActions}
                                       onRename={() => runRowAction(chrome.onRenameThread)}
                                       onFork={() => runRowAction(chrome.onForkThread)}
                                       onHandoff={() => runRowAction(chrome.onHandoffThread)}
@@ -2574,6 +2596,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                                     compacting={liveSnapshot?.sessionId === entry.sessionId && liveSnapshot?.isCompacting === true}
                                     compactPending={chrome.compactPending}
                                     reason={rowActionReason}
+                                    supported={sessionActions}
                                     onRename={() => runRowAction(() => chrome.onThreadRowAction(entry, workspace.workspaceId as WorkspaceId, "rename"))}
                                     onFork={() => runRowAction(() => chrome.onThreadRowAction(entry, workspace.workspaceId as WorkspaceId, "fork"))}
                                     onHandoff={() => runRowAction(() => chrome.onThreadRowAction(entry, workspace.workspaceId as WorkspaceId, "handoff"))}
@@ -2655,7 +2678,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
         <div className="sb-section-head">
           <h2 id="sbFilesTitle">{t("shell.workspace")}</h2>
           <div className="sb-head-actions">
-            <button className={`icon-btn${newEntryKind === "file" ? " active" : ""}`} data-tip={t("shell.newFile")} aria-label={t("shell.newFile")} aria-pressed={newEntryKind === "file"} disabled={!chrome.selectedProject || newEntryBusy} onClick={() => beginWorkspaceEntry("file")}><Icon name="plus" extra="sm" /></button>
+            <button className={`icon-btn${newEntryKind === "file" ? " active" : ""}`} data-tip={fileCreateSupported ? t("shell.newFile") : t("common.unsupportedByRuntime")} aria-label={t("shell.newFile")} aria-pressed={newEntryKind === "file"} disabled={!chrome.selectedProject || newEntryBusy || !fileCreateSupported} onClick={() => beginWorkspaceEntry("file")}><Icon name="plus" extra="sm" /></button>
             <button className={`icon-btn${newEntryKind === "directory" ? " active" : ""}`} data-tip={t("shell.newFolder")} aria-label={t("shell.newFolder")} aria-pressed={newEntryKind === "directory"} disabled={!chrome.selectedProject || newEntryBusy} onClick={() => beginWorkspaceEntry("directory")}><Icon name="folder" extra="sm" /></button>
             <button className={`icon-btn${fileSearch ? " active" : ""}`} data-tip={t("common.filter")} aria-label={t("shell.filterLoadedFiles")} onClick={() => setFileSearch((value) => value ? "" : " ")}><Icon name="search" extra="sm" /></button>
             <button className="icon-btn" data-tip={t("common.refresh")} aria-label={t("shell.refreshFileTree")} disabled={!chrome.selectedProject} onClick={() => preview ? setPreviewFileMessage(`${t("common.demo")}: ${t("shell.refreshFileTree")}`) : setFileRefreshToken((value) => value + 1)}><Icon name="refresh" extra="sm" /></button>
@@ -2871,12 +2894,10 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                 </div>
               ) : null}
               <div className="menu-sep" />
-              <MenuItem icon="network" onClick={() => { setTeamIntent("team"); chrome.onToggleOmpMenu(); onRoute("team"); }}>{t("nav.team")}</MenuItem>
-              <MenuItem icon="plug" onClick={() => { setTeamIntent("channels"); chrome.onToggleOmpMenu(); onRoute("team"); }}>{t("nav.channels")}</MenuItem>
-              {runtimeCanReconnect(runtime) ? (
+              {runtimeCanReconnect(runtime) && runtimeEnsureSupported ? (
                 <MenuItem icon="refresh" onClick={() => { setDiagnosticsIntent("reconnect"); chrome.onToggleOmpMenu(); onRoute("diagnostics"); }}>{t("shell.reconnectRuntime")}</MenuItem>
               ) : null}
-              {runtimeCanRestart(runtime) ? (
+              {runtimeCanRestart(runtime) && runtimeEnsureSupported ? (
                 <MenuItem icon="refresh" onClick={() => { setDiagnosticsIntent("restart"); chrome.onToggleOmpMenu(); onRoute("diagnostics"); }}>{t("shell.restartRuntime")}</MenuItem>
               ) : null}
               <MenuItem icon="pulse" onClick={() => { chrome.onToggleOmpMenu(); onRoute("diagnostics"); }}>{t("shell.openDiagnostics")}</MenuItem>
@@ -3062,6 +3083,18 @@ function AppTopbar({ state, client, chrome, onRoute, threadTitle, sideOpen, onTo
   const sessionLive = liveSnapshot !== undefined;
   const sessionBusy = liveSnapshot?.isStreaming === true || liveSnapshot?.isCompacting === true;
   const sessionActionReason = !sessionLive ? t("common.unavailable") : t("common.loading");
+  const capabilities = usableCapabilityManifest(
+    state.model.capabilities,
+    state.clientState?.connection.capabilityManifest,
+    state.bootstrap?.capabilityManifest,
+  );
+  const sessionActions = sessionActionSupport(capabilities);
+  const compactUnavailableReason = sessionActions.compact ? sessionActionReason : t("common.unsupportedByRuntime");
+  const compactTip = !sessionActions.compact
+    ? compactUnavailableReason
+    : sessionLive
+      ? t("shell.tipCompactThread")
+      : compactUnavailableReason;
   const previewProject = findPreviewProject(chrome.previewProjectId);
   const previewHit = findPreviewThread(chrome.previewThreadId);
   const realActiveWorkspace = state.model.workspaces?.workspaces.find((workspace) => workspace.active);
@@ -3221,6 +3254,7 @@ function AppTopbar({ state, client, chrome, onRoute, threadTitle, sideOpen, onTo
                   compacting={liveSnapshot?.isCompacting === true}
                   compactPending={chrome.compactPending}
                   reason={sessionActionReason}
+                  supported={sessionActions}
                   onRename={() => run(chrome.onRenameThread)}
                   onFork={() => run(chrome.onForkThread)}
                   onHandoff={() => run(chrome.onHandoffThread)}
@@ -3287,7 +3321,7 @@ function AppTopbar({ state, client, chrome, onRoute, threadTitle, sideOpen, onTo
                 <div className="menu-sep" />
                 <MenuItem onClick={() => setOpenMenu("overflow-tokens")}>{t("shell.tokenUsageDetails")}</MenuItem>
                 <MenuItem onClick={() => setOpenMenu("overflow-context")}>{t("shell.contextCompositionDetails")}</MenuItem>
-                <MenuItem icon="minimize" disabled={!sessionLive || sessionBusy} onClick={() => run(chrome.onCompactThread)}>{t("shell.compactThread")}</MenuItem>
+                <MenuItem icon="minimize" disabled={!sessionLive || sessionBusy || !sessionActions.compact} {...(!sessionLive || sessionBusy || !sessionActions.compact ? { title: compactUnavailableReason } : {})} onClick={() => run(chrome.onCompactThread)}>{t("shell.compactThread")}</MenuItem>
                 <MenuItem icon="light" onClick={() => run(chrome.onToggleTheme)}>{t("shell.theme")}</MenuItem>
                 <MenuItem icon="home" onClick={() => run(() => onRoute("home"))}>{t("nav.home")}</MenuItem>
               </>}
@@ -3337,8 +3371,8 @@ function AppTopbar({ state, client, chrome, onRoute, threadTitle, sideOpen, onTo
           ) : (
             <button
               className="tb-compact"
-              disabled={!sessionLive}
-              data-tip={!sessionLive ? sessionActionReason : t("shell.tipCompactThread")}
+              disabled={!sessionLive || !sessionActions.compact}
+              data-tip={compactTip}
               aria-label={t("shell.compactThread")}
               onClick={() => run(chrome.onCompactThread)}
             >
@@ -6723,6 +6757,10 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     state.bootstrap?.capabilityManifest,
   );
   const environment = state.model.environment;
+  /** 工作区切换/选择是 Host 操作（`workspace.open` / `workspace.pick`）：没有就说明白，不发必败请求。 */
+  const workspaceSwitchSupported = supportsCapability(capabilities, "workspace.open");
+  const workspacePickSupported = supportsCapability(capabilities, "workspace.pick");
+  const runtimeEnsureSupported = supportsCapability(capabilities, "runtime.ensure");
   const hubWorkspaceId = previewMode.preview ? undefined : selectedProject?.id;
   const hubFileIndex = useMemo(
     () => (previewMode.preview || hubWorkspaceId === undefined
@@ -7134,6 +7172,10 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
   }, [openMenu]);
 
   const selectProject = (project: SelectedProject) => {
+    if (!previewMode.preview && !workspaceSwitchSupported) {
+      setShellNotice({ text: t("common.unsupportedByRuntime"), icon: "info" });
+      return;
+    }
     const generation = navigationGate.next();
     setSelectedProject(project);
     setExplorerOpen(true);
@@ -7158,6 +7200,10 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
   const pickProject = async () => {
     if (previewMode.preview) return;
     if (executionTarget.id) { go("workbench"); executionTarget.openDirectory(); return; }
+    if (!workspacePickSupported) {
+      setShellNotice({ text: t("common.unsupportedByRuntime"), icon: "info" });
+      return;
+    }
     const generation = navigationGate.next();
     try {
       const result = await workspaceActionQueue.enqueue(async () => {
@@ -8224,7 +8270,11 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     ...(selectedProject ? { activeProjectName: selectedProject.name } : {}),
     inventory: paletteInventory,
     query: paletteQuery,
-  }), [previewMode.preview, state.model.history, state.model.workspaces, selectedProject, paletteInventory, paletteQuery, t]);
+    ...(previewMode.preview ? {} : {
+      supports: (id: string) => supportsCapability(capabilities, id),
+      canPickProject: workspacePickSupported || executionTarget.id !== undefined,
+    }),
+  }), [previewMode.preview, state.model.history, state.model.workspaces, selectedProject, paletteInventory, paletteQuery, t, capabilities, workspacePickSupported, executionTarget.id]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -8792,6 +8842,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               {...(runtime === undefined ? {} : { runtime })}
               client={client}
               preview={previewMode.preview}
+              {...(runtimeEnsureSupported ? {} : { reconnectAvailable: false })}
               onOpenDiagnostics={() => go("diagnostics")}
             />
           ) : null}
@@ -8804,10 +8855,9 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               {...(state.model.workspaces ? { workspaces: state.model.workspaces } : {})}
               {...(capabilities ? { capabilities } : {})}
               client={client}
-              onPickFolder={() => {
-                if (previewMode.preview) return;
-                void pickProject();
-              }}
+              {...(previewMode.preview || workspacePickSupported || executionTarget.id
+                ? { onPickFolder: () => { if (previewMode.preview) return; void pickProject(); } }
+                : {})}
               onOpenWorkspace={(workspaceId) => openWorkspace(workspaceId)}
               onRoute={go}
             />
@@ -8828,8 +8878,6 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
                 />
               );
             })()
-          ) : pageRoute === "team" ? (
-            <TeamPage onOpenAgentHub={() => go("agent-hub")} />
           ) : pageRoute === "agent-hub" ? (
             <AgentHubPage
               {...(snapshot ? { snapshot } : {})}
@@ -8920,6 +8968,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
             {...(runtime === undefined ? {} : { runtime })}
             client={client}
             preview={previewMode.preview}
+            {...(runtimeEnsureSupported ? {} : { reconnectAvailable: false })}
             onOpenDiagnostics={() => go("diagnostics")}
           />
           <WorkbenchCanvas
