@@ -1,7 +1,10 @@
 ## [Unreleased]
 
+## [1.4.12] - 2026-11-08
+
 - Synced with upstream OMP v18.18.0.
 - Released as part of Zeta 1.4.12; no package-specific user-visible changes.
+
 ## [1.4.11] - 2026-11-06
 
 - Released as part of Zeta 1.4.11; no package-specific user-visible changes.

@@ -1,11 +1,23 @@
 ## [Unreleased]
 
+## [1.4.12] - 2026-11-08
+
 - Synced with upstream OMP v18.18.0.
 - Released as part of Zeta 1.4.12; no package-specific user-visible changes.
 
-## [1.4.11] - 2026-11-06
+### Added
 
-- Released as part of Zeta 1.4.11; no package-specific user-visible changes.
+- Added configurable editor padding via `editorPaddingX` theme option
+- Added `inputCursor` symbol for customizing the text input cursor character
+
+### Changed
+
+- Settings list descriptions now wrap to the available width instead of truncating
+- Changed Editor component to use proper box borders with vertical side borders instead of horizontal-only borders
+
+### Fixed
+
+- TUI now filters out key release events by default, preventing double-processing of keys in editors and other components
 
 ## [9.4.0] - 2026-01-31
 
@@ -51,10 +63,6 @@
 
 ## [5.6.7] - 2026-01-18
 
-### Added
-
-- Added configurable editor padding via `editorPaddingX` theme option
-
 ### Changed
 
 - Updated tab bar rendering to wrap text across multiple lines when content exceeds available width
@@ -99,25 +107,9 @@
 
 ## [3.20.0] - 2026-01-06
 
-### Changed
-
-- Settings list descriptions now wrap to the available width instead of truncating
-
 ### Fixed
 
 - Fixed Shift+Enter detection in legacy terminals that send ESC+CR sequence
-
-## [3.15.0] - 2026-01-05
-
-### Added
-
-- Added `inputCursor` symbol for customizing the text input cursor character
-
-## [3.9.1337] - 2026-01-04
-
-### Changed
-
-- Changed Editor component to use proper box borders with vertical side borders instead of horizontal-only borders
 
 ## [1.500.0] - 2026-01-03
 
@@ -129,6 +121,10 @@
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
+## [1.4.11] - 2026-11-06
+
+- Released as part of Zeta 1.4.11; no package-specific user-visible changes.
+
 ## [1.4.10] - 2026-11-05
 
 - Released as part of Zeta 1.4.10; no package-specific user-visible changes.
@@ -136,6 +132,7 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ## [1.4.9] - 2026-11-03
 
 - Synced with upstream OMP v18.18.0.
+
 ## [1.4.7] - 2026-10-30
 
 - Synced with upstream OMP v18.18.0.
@@ -363,12 +360,6 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Fixed
 
 - Overlay compositing crash when rendered lines exceed terminal width due to complex ANSI/OSC sequences (e.g., hyperlinks in subagent output) ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
-
-## [0.37.8] - 2026-01-07
-
-### Fixed
-
-- TUI now filters out key release events by default, preventing double-processing of keys in editors and other components
 
 ## [0.31.1] - 2026-01-02
 
