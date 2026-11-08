@@ -32,7 +32,6 @@ import type {
 	StudioRuntimeSettingsSetResult,
 } from "../contract/index.js";
 import { gatewayJson, invalid, requiredString, unavailable } from "../gateway.js";
-import { clearApprovalGrants } from "../../../tools/approval-cache.js";
 import type { ApprovalMode } from "../protocol/index.js";
 import type { StudioFamily } from "../registry.js";
 
@@ -53,6 +52,9 @@ async function readRuntimeSettings(input: { readonly keys?: readonly string[] })
 
 /** `approvals.forget` → the existing per-agent approval cache. */
 async function forgetApprovals(): Promise<{ cleared: true }> {
+	// Lazy: approval-cache pulls the session/tool graph, which must not run while
+	// the host family registry is still being assembled.
+	const { clearApprovalGrants } = await import("../../../tools/approval-cache.js");
 	clearApprovalGrants();
 	return { cleared: true };
 }
