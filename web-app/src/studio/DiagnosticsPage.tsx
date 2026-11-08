@@ -817,7 +817,7 @@ export function DiagnosticsPage({
           <b id="diagHeroTitle">{view.hero.title}</b>
           <div className="small">{view.hero.detail}</div>
         </div>
-        <div className="es-actions">
+        {runtimeManageable ? <div className="es-actions">
           <button type="button" className="btn primary" disabled={busy !== null || (view.hero.primary === "update" && blocksLocalUpdate)} data-tip={view.hero.primary === "update" && blocksLocalUpdate ? runtimeUpdateBlocker : undefined} onClick={runPrimary}>
             <Icon name={primaryIcon(view.hero.primary)} extra="sm" />
             {primaryLabel(view.hero.primary, busy, t)}
@@ -827,7 +827,7 @@ export function DiagnosticsPage({
               <Icon name="refresh" extra="sm" />{t("diagnostics.reinstallRuntime")}
             </button>
           ) : null}
-        </div>
+        </div> : null}
       </section>
 
       <ProcessMemoryPanel enabled={!preview} />
@@ -836,7 +836,7 @@ export function DiagnosticsPage({
       ) : null}
 
       <div className="diag-ver-grid">
-        <div className="diag-ver">
+        {runtimeManageable ? <div className="diag-ver">
           <div className="dv-k">{t("diagnostics.managedRuntimeTitle")}</div>
           <div className="dv-v">{installer?.version ?? t("common.notInstalled")}</div>
           <div className="dv-s">
@@ -850,7 +850,7 @@ export function DiagnosticsPage({
                     ? t("diagnostics.isCurrentInstall")
                     : t("diagnostics.noManagedInstall")}
           </div>
-        </div>
+        </div> : null}
         <div className="diag-ver">
           <div className="dv-k">{t("diagnostics.runningRuntimeTitle")}</div>
           <div className="dv-v">{viewRuntime?.runtimeVersion ?? "—"}</div>
@@ -891,7 +891,7 @@ export function DiagnosticsPage({
               <span className="ck-name">{check.label}</span>
               <span className="ck-detail wrap">{check.action === "update" && blocksLocalUpdate ? runtimeUpdateBlocker : check.detail}</span>
               <span className="ck-actions">
-                {check.action ? (
+                {check.action && (runtimeManageable || check.action === "problems") ? (
                   <button type="button" className="btn small outline" disabled={(busy !== null && check.action !== "problems") || (check.action === "update" && blocksLocalUpdate)} onClick={() => runCheckAction(check.action!)}>
                     {check.action === "install" ? t("common.install") : check.action === "update" ? t("common.update") : t("common.view")}
                   </button>
@@ -902,7 +902,7 @@ export function DiagnosticsPage({
         </div>
       </div>
 
-      <div className="diag-section">
+      {runtimeManageable ? <div className="diag-section">
         <h3>{t("diagnostics.maintenanceTitle")}</h3>
         <div className="set-section">
           <div className="set-row">
@@ -1000,7 +1000,7 @@ export function DiagnosticsPage({
             </div>
           </div>
         </div>
-      </div>
+      </div> : null}
 
       {confirmRestart ? (
         <div className="modal-backdrop create-project-backdrop" role="presentation" onMouseDown={() => { if (busy === null) setConfirmRestart(false); }}>
