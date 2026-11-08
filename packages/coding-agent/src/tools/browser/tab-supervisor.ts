@@ -479,9 +479,15 @@ async function acquireTabImpl(
 				}
 				const reuseSteps: string[] = [];
 				if (opts.viewport && browser.kind.kind !== "cmux") {
-					const dsf = opts.viewport.deviceScaleFactor;
+					// A resize without an explicit scale keeps the tab's current
+					// device scale. Puppeteer defaults an omitted scale to 1, which
+					// would reset a connected browser's own 2x scale on reuse.
+					const dsf =
+						opts.viewport.deviceScaleFactor === undefined
+							? "await page.evaluate(() => devicePixelRatio)"
+							: String(opts.viewport.deviceScaleFactor);
 					reuseSteps.push(
-						`await page.setViewport({ width: ${opts.viewport.width}, height: ${opts.viewport.height}, deviceScaleFactor: ${dsf === undefined ? "undefined" : String(dsf)} });`,
+						`await page.setViewport({ width: ${opts.viewport.width}, height: ${opts.viewport.height}, deviceScaleFactor: ${dsf} });`,
 					);
 				}
 				const reuse = async (): Promise<string | undefined> => {

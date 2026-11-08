@@ -217,7 +217,7 @@ await wait(5_000);`,
 					${CMUX_CONSOLE_CAPTURE_SCRIPT};
 					Promise.reject({ name: "ProbeObject", message: "OMP_OBJECT_DETAILS", code: "SAFE_TEST" });
 					Promise.reject(new Error("native rejection"));
-					const capture = globalThis.__ompConsoleCapture;
+					const capture = globalThis.__zetaConsoleCapture;
 					for (let attempt = 0; attempt < 100 && capture.entries.length < 2; attempt++) {
 						await new Promise(resolve => setTimeout(resolve, 10));
 					}
