@@ -181,8 +181,10 @@ env:
    # Fast path: PRs and non-main workflow_dispatch runs validate the code
    # without compiling natives or the Rust workspace. They restore the native
    # pair main built (or the latest npm leaf) instead. Main push and release
-   # dispatch keep the full gate.
-   FAST_PATH: ${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') && inputs.full != true)) && 'true' || 'false' }}
+   # dispatch keep the full gate. Sync-branch PRs are the exception: they carry
+   # upstream native changes, so they must build their own addon instead of
+   # testing against main's prebuilt pair (which lacks those exports).
+   FAST_PATH: ${{ ((github.event_name == 'pull_request' && !startsWith(github.head_ref, 'sync/omp-release/')) || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') && inputs.full != true)) && 'true' || 'false' }}
    # Per-test wall-clock ceiling (seconds) for scripts/ci-test-ts.ts. The
    # SQLite/subprocess-heavy coding-agent suites run slowly enough on CI
    # runners that several cases (model-registry refresh, session fork,
