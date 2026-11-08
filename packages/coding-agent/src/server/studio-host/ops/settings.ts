@@ -40,7 +40,9 @@ const APPROVAL_MODE_PATH = "tools.approvalMode";
 const SETTINGS_ROUTE = "/api/settings";
 
 /** `runtime.settings.get` → the gateway settings panel, projected to key/value. */
-async function readRuntimeSettings(input: { readonly keys?: readonly string[] }): Promise<StudioRuntimeSettingsGetResult> {
+async function readRuntimeSettings(input: {
+	readonly keys?: readonly string[];
+}): Promise<StudioRuntimeSettingsGetResult> {
 	const panel = indexSettingsPanel(await gatewayJson<unknown>(SETTINGS_ROUTE));
 	const wanted = input.keys === undefined ? undefined : new Set(input.keys);
 	const values: Record<string, unknown> = {};
@@ -73,7 +75,9 @@ async function writeRuntimeSetting(
 		key: key as StudioRuntimeSettingsSetResult["key"],
 		value: input.value,
 		persisted: true,
-		...(effective === undefined ? {} : { effectiveValue: effective as StudioRuntimeSettingsSetResult["effectiveValue"] }),
+		...(effective === undefined
+			? {}
+			: { effectiveValue: effective as StudioRuntimeSettingsSetResult["effectiveValue"] }),
 	};
 }
 
