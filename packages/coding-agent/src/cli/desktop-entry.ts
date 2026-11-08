@@ -32,19 +32,22 @@ function isFile(p: string): boolean {
  * `<install>/resources/zeta/<zetaBinary>` (electron-builder extraResources),
  * so the install root is two directories up.
  */
-function bundledGuiCandidates(): string[] {
-	const exeDir = path.dirname(process.execPath);
+export function guiCandidatesFor(platform: NodeJS.Platform, exeDir: string): string[] {
 	const installRoot = path.resolve(exeDir, "..", "..");
-	switch (process.platform) {
+	switch (platform) {
 		case "win32":
 			return [path.join(installRoot, "Zeta.exe")];
 		case "darwin":
-			// Packaged: <install>/Zeta.app/Contents/{Resources,zeta}/... — the app
-			// bundle root is three levels up from resources/zeta.
-			return [path.resolve(exeDir, "..", "..", "..", "MacOS", "Zeta")];
+			// Packaged: <install>/Zeta.app/Contents/Resources/zeta/... — the
+			// executable sits in Contents/MacOS, two levels above resources/zeta.
+			return [path.resolve(exeDir, "..", "..", "MacOS", "Zeta")];
 		default:
 			return [path.join(installRoot, "zeta-desktop")];
 	}
+}
+
+function bundledGuiCandidates(): string[] {
+	return guiCandidatesFor(process.platform, path.dirname(process.execPath));
 }
 
 /** Well-known desktop install locations probed when the bundle-relative path misses. */

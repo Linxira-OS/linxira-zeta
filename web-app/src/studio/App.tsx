@@ -4083,9 +4083,19 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     if (!preview && executionTarget.id) { setCreateProjectOpen(false); executionTarget.openDirectory(); return; }
     setCreateProjectBusy(true);
     try {
-      const handle = await client.command("workspace.pick", name ? { name } : {});
-      const model = await waitReceipt<WorkspaceListReadModel>(client, handle.requestId, null);
-      const active = model.workspaces.find((workspace) => workspace.active);
+      // Desktop: native folder dialog + gateway registration. Browser keeps the
+      // host picker command, which is the only directory surface there.
+      const pickNative = globalThis.zetaStudioChrome?.pickWorkspace;
+      const model = pickNative !== undefined
+        ? await pickNative(name ? { alias: name } : {}).then(async (picked) => {
+            if (picked.cancelled) return null;
+            return await client.query("projects.list", {});
+          })
+        : await client.command("workspace.pick", name ? { name } : {}).then(
+            async (handle) => await waitReceipt<WorkspaceListReadModel>(client, handle.requestId, null),
+          );
+      if (model === null) return;
+      const active = model.workspaces.find((workspace) => workspace.active) ?? model.workspaces[0];
       if (!active) throw new Error("选择的文件夹未注册为项目");
       onSelectProject({ id: active.workspaceId, name: active.name });
       setCreateProjectOpen(false);
@@ -7209,11 +7219,21 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     }
     const generation = navigationGate.next();
     try {
-      const result = await workspaceActionQueue.enqueue(async () => {
-        const handle = await client.command("workspace.pick", {});
-        return await waitReceipt<WorkspaceListReadModel>(client, handle.requestId, null);
-      });
-      if (!navigationGate.isCurrent(generation)) return;
+      // The desktop preload owns the native folder picker and registers the
+      // chosen directory with the gateway; a browser keeps the host command.
+      const pickNative = globalThis.zetaStudioChrome?.pickWorkspace;
+      const result = pickNative !== undefined
+        ? await pickNative().then(async (picked) => {
+            if (picked.cancelled) return null;
+            const model = await client.query("projects.list", {});
+            const first = model.workspaces[0];
+            return first === undefined ? null : { workspaces: model.workspaces, activeWorkspaceId: first.workspaceId };
+          })
+        : await workspaceActionQueue.enqueue(async () => {
+            const handle = await client.command("workspace.pick", {});
+            return await waitReceipt<WorkspaceListReadModel>(client, handle.requestId, null);
+          });
+      if (result === null || !navigationGate.isCurrent(generation)) return;
       onWorkspacesChange(result);
       const active = result.workspaces.find((workspace) => workspace.active);
       if (active) {
