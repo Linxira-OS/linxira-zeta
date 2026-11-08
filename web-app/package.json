@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
+    "check:naming": "bun scripts/check-studio-naming.ts",
     "preview": "vite preview"
   },
   "dependencies": {

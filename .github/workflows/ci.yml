@@ -281,6 +281,9 @@ jobs:
          - name: Build web-app
            working-directory: web-app
            run: npm run build
+         - name: Studio naming guard
+           working-directory: web-app
+           run: bun run check:naming
          - name: Verify Rust license compliance (cargo-deny 0.20.2)
            run: |
               # Prebuilt release binary checked against digests pinned here:

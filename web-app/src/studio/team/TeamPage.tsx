@@ -125,8 +125,8 @@ const INITIAL_BOARD: Card[] = [
 	{ id: "t2", title: "Queue coalescing at step boundary", owner: "nova", repo: "zeta/core", progress: 58, state: "Review", tags: ["queue", "cache"], note: "Original text, sender, and timestamp must survive." },
 	{ id: "t3", title: "Checkpoint report gate", owner: "rin", repo: "zeta/core", progress: 35, state: "Backlog", tags: ["goal", "review"], note: "Engineer report pauses continuation until PM verdict." },
 	{ id: "t4", title: "Remote device pairing", owner: "sable", repo: "zeta/web", progress: 91, state: "Review", tags: ["remote", "auth"], note: "QR + two six-digit confirmations; no recovery code." },
-	{ id: "t5", title: "Studio Team prototype", owner: "you", repo: "zeta/web-app", progress: 64, state: "In progress", tags: ["ui", "prototype"], note: "Modern, responsive, non-destructive page in Studio." },
-	{ id: "t6", title: "OMP v18.18.0 gate", owner: "mira", repo: "zeta/upstream", progress: 18, state: "Backlog", tags: ["merge", "gate"], note: "Partial-clone fetch must complete before true merge." },
+	{ id: "t5", title: "Z Work Studio Team prototype", owner: "you", repo: "zeta/web-app", progress: 64, state: "In progress", tags: ["ui", "prototype"], note: "Modern, responsive, non-destructive page in Z Work Studio." },
+	{ id: "t6", title: "Upstream v18.18.0 gate", owner: "mira", repo: "zeta/upstream", progress: 18, state: "Backlog", tags: ["merge", "gate"], note: "Partial-clone fetch must complete before true merge." },
 ];
 
 type CalendarEvent = {
@@ -563,7 +563,7 @@ function ChannelsPanel() {
 				<span className="tp-channel-mark">TIM</span>
 				<div className="tp-channel-copy">
 					<b>TIM adapter</b>
-					<p>Team Instant Messaging networks reach Studio through a channel adapter.</p>
+					<p>Team Instant Messaging networks reach Z Work Studio through a channel adapter.</p>
 				</div>
 				<span className="tp-channel-state">Unavailable</span>
 			</article>

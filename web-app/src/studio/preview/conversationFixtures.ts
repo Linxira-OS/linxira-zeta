@@ -73,7 +73,7 @@ export function previewGalleryItems(): readonly ConversationItem[] {
       parentId: "preview-reset-1",
       createdAt: at(2),
       role: "user",
-      content: [{ type: "text", text: "打开 OMP 原生工具卡图鉴" }],
+      content: [{ type: "text", text: "打开 Zeta 原生工具卡图鉴" }],
     },
     {
       kind: "message",
@@ -86,15 +86,15 @@ export function previewGalleryItems(): readonly ConversationItem[] {
   ];
 }
 
-/** omp-web 上游同步：工作台预览对话用，看起来像真实项目回合。 */
+/** zeta-web 上游同步：工作台预览对话用，看起来像真实项目回合。 */
 const STORY_CARDS: readonly { readonly [key: string]: JsonValue }[] = [
   {
     kind: "think",
     name: "Think",
     status: "done",
     dur: "6s",
-    preview: "先核对 package.json 钉住的上游版本，再扫 docs 里现有同步说明。本地 Studio Bridge 和会话目录不要写回 pi-web。",
-    full: "目标：把 pi-web v0.8.1 合进 omp-web。\n保留 packages/studio-bridge 与 ~/.zeta/agent/sessions。\n文档落到 docs/UPSTREAM-SYNC.md，README 加入口。",
+    preview: "先核对 package.json 钉住的上游版本，再扫 docs 里现有同步说明。本地 Z Work Studio Bridge 和会话目录不要写回 pi-web。",
+    full: "目标：把 pi-web v0.8.1 合进 zeta-web。\n保留 packages/studio-bridge 与 ~/.zeta/agent/sessions。\n文档落到 docs/UPSTREAM-SYNC.md，README 加入口。",
   },
   {
     kind: "read",
@@ -108,7 +108,7 @@ const STORY_CARDS: readonly { readonly [key: string]: JsonValue }[] = [
     offset: 1,
     preview: [
       "{",
-      "  \"name\": \"omp-web\",",
+      "  \"name\": \"zeta-web\",",
       "  \"version\": \"0.8.0\",",
       "  \"dependencies\": {",
       "    \"@earendil-works/pi-web\": \"0.8.0\"",
@@ -122,12 +122,12 @@ const STORY_CARDS: readonly { readonly [key: string]: JsonValue }[] = [
     target: "UPSTREAM in docs/",
     status: "done",
     dur: "0.3s",
-    pattern: "UPSTREAM|Studio Bridge",
+    pattern: "UPSTREAM|Z Work Studio Bridge",
     paths: "docs/",
     count: "3 matches · 2 files",
     matches: [
       { file: "docs/README.md", line: "12", text: "- 上游同步尚未成文" },
-      { file: "docs/ARCH.md", line: "40", text: "Studio Bridge 不随 pi-web 路径迁移" },
+      { file: "docs/ARCH.md", line: "40", text: "Z Work Studio Bridge 不随 pi-web 路径迁移" },
     ],
   },
   {
@@ -139,7 +139,7 @@ const STORY_CARDS: readonly { readonly [key: string]: JsonValue }[] = [
     created: true,
     lines: 86,
     encoding: "UTF-8",
-    preview: ["# 上游同步记录", "", "## v0.8.1", "", "- 保留 Studio Bridge", "- 会话目录仍走 ~/.zeta"],
+    preview: ["# 上游同步记录", "", "## v0.8.1", "", "- 保留 Z Work Studio Bridge", "- 会话目录仍走 ~/.zeta"],
   },
   {
     kind: "edit",
@@ -172,7 +172,7 @@ const STORY_CARDS: readonly { readonly [key: string]: JsonValue }[] = [
         name: "验证",
         tasks: [
           { content: "typecheck / lint", status: "in_progress" },
-          { content: "核对 Studio Bridge 路径未回写", status: "pending" },
+          { content: "核对 Z Work Studio Bridge 路径未回写", status: "pending" },
         ],
       },
     ],
@@ -240,7 +240,7 @@ export const PREVIEW_CONVO_ITEMS: readonly ConversationItem[] = [
     role: "user",
     content: [{
       type: "text",
-      text: "用 /skill:upstream-sync 把上游 pi-web v0.8.1 同步进 omp-web。保留本地 Studio Bridge 和会话目录，不要写回 pi-web 路径。先读 @docs/ 和 @package.json，再出文档。",
+      text: "用 /skill:upstream-sync 把上游 pi-web v0.8.1 同步进 zeta-web。保留本地 Z Work Studio Bridge 和会话目录，不要写回 pi-web 路径。先读 @docs/ 和 @package.json，再出文档。",
     }],
   },
   {
@@ -253,7 +253,7 @@ export const PREVIEW_CONVO_ITEMS: readonly ConversationItem[] = [
       ...blocksFromCards(STORY_CARDS, "preview-story"),
       {
         type: "text",
-        text: "文档已经写到 `docs/UPSTREAM-SYNC.md`，README 加了入口。Studio Bridge 和会话目录都没动。接下来跑 typecheck。",
+        text: "文档已经写到 `docs/UPSTREAM-SYNC.md`，README 加了入口。Z Work Studio Bridge 和会话目录都没动。接下来跑 typecheck。",
       },
     ],
   },
@@ -339,7 +339,7 @@ export const PREVIEW_CONVO_LIVE: readonly ConversationRuntimeEvent[] = [
     messageId: "preview-live-assistant",
     toolCallId: "preview-bash-live",
     toolName: "Bash",
-    arguments: { command: "npm run typecheck", cwd: "D:/Project/omp-web" },
+    arguments: { command: "npm run typecheck", cwd: "D:/Project/zeta-web" },
     startedAt: at(21),
   },
   {

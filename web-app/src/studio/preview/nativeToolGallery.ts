@@ -10,7 +10,7 @@ export const NATIVE_TOOL_GALLERY: readonly { readonly [key: string]: JsonValue }
   {
     kind: "think", name: "Think", status: "done", dur: "8s",
     preview: "先按 TUI 分型画每张展开卡，Plan 不再单独占一行。",
-    full: "对话只保留文本块和工具批次。\nThinking 进链，限高往上滚。\n每张工具卡对齐 OMP 原生 renderer，没有 renderer 的走 Args + Output 默认卡。",
+    full: "对话只保留文本块和工具批次。\nThinking 进链，限高往上滚。\n每张工具卡对齐 Zeta 原生 renderer，没有 renderer 的走 Args + Output 默认卡。",
   },
   {
     kind: "read", name: "Read", target: "src/tools/builtin-names.ts", status: "done", dur: "0.2s",
@@ -32,7 +32,7 @@ export const NATIVE_TOOL_GALLERY: readonly { readonly [key: string]: JsonValue }
   },
   {
     kind: "bash", name: "Bash", target: "npm run typecheck", status: "done", dur: "11.2s",
-    cmd: "npm run typecheck", cwd: demoPath("omp-web"),
+    cmd: "npm run typecheck", cwd: demoPath("zeta-web"),
     output: [["> tsc --noEmit", "dim"], ["", ""], ["0 errors, 0 warnings", "ok"]], exit: 0,
   },
   {
@@ -75,8 +75,8 @@ export const NATIVE_TOOL_GALLERY: readonly { readonly [key: string]: JsonValue }
     answer: "修复它",
   },
   {
-    kind: "debug", name: "Debug", target: "launch · omp-web", status: "done", dur: "3.4s",
-    action: "launch", program: "bin/omp-web.js",
+    kind: "debug", name: "Debug", target: "launch · zeta-web", status: "done", dur: "3.4s",
+    action: "launch", program: "bin/zeta-web.js",
     snapshot: "paused at MermaidBlock.tsx:147",
     output: ["Debugger attached", "Breakpoint hit: TS2322 site"],
   },
@@ -105,7 +105,7 @@ export const NATIVE_TOOL_GALLERY: readonly { readonly [key: string]: JsonValue }
   },
   {
     kind: "browser", name: "Browser", target: "run · waitForSelector", status: "done", dur: "1.9s",
-    action: "run", tab: "omp-web", url: "http://127.0.0.1:30141",
+    action: "run", tab: "zeta-web", url: "http://127.0.0.1:30141",
     code: "await page.waitForSelector(\".mermaid\")",
     output: "ok · 1 node",
   },
@@ -170,8 +170,8 @@ export const NATIVE_TOOL_GALLERY: readonly { readonly [key: string]: JsonValue }
     ],
   },
   {
-    kind: "hub", name: "Hub", target: "IRC ➤ #omp", status: "done", dur: "0.4s",
-    hubKind: "irc", to: "#omp", text: "typecheck 已通过", receipt: "delivered",
+    kind: "hub", name: "Hub", target: "IRC ➤ #zeta", status: "done", dur: "0.4s",
+    hubKind: "irc", to: "#zeta", text: "typecheck 已通过", receipt: "delivered",
   },
   {
     kind: "todo", name: "Todo", target: "update phase 验证", status: "done", dur: "0.1s",
@@ -204,11 +204,11 @@ export const NATIVE_TOOL_GALLERY: readonly { readonly [key: string]: JsonValue }
   },
   {
     kind: "retain", name: "Retain", status: "done", dur: "0.3s",
-    stored: 2, items: ["omp-web 会话目录是 ~/.zeta/agent/sessions/", "代码主题走 useCodeTheme"],
+    stored: 2, items: ["zeta-web 会话目录是 ~/.zeta/agent/sessions/", "代码主题走 useCodeTheme"],
   },
   {
-    kind: "recall", name: "Recall", target: "omp-web 路径适配", status: "done", dur: "0.4s",
-    query: "omp-web 路径适配", count: 1,
+    kind: "recall", name: "Recall", target: "zeta-web 路径适配", status: "done", dur: "0.4s",
+    query: "zeta-web 路径适配", count: 1,
     excerpts: ["会话、models.json、config.yml 都在 ~/.zeta/agent/ 下，不要写回 pi-web 路径。"],
   },
   {
@@ -243,7 +243,7 @@ export const NATIVE_TOOL_GALLERY: readonly { readonly [key: string]: JsonValue }
   },
   {
     kind: "generate_image", name: "GenerateImage", target: "graft 演进链示意", status: "done", dur: "5.1s",
-    subject: "git replace --graft 把 omp-web 接到 pi-web v0.8.0",
+    subject: "git replace --graft 把 zeta-web 接到 pi-web v0.8.0",
     images: 1, output: "image attached · 1024×576",
   },
   {

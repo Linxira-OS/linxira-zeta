@@ -86,8 +86,8 @@ export function StatisticsPage({ client }: { client: StudioClient }) {
       <div className="stats-page">
         <p className="stats-demo-note">
           {zh
-            ? "统计面板由本机 OMP Runtime 提供，需关闭预览后查看；下面是演示汇总。"
-            : "The statistics panel is served by the local OMP Runtime. Turn preview off to view it; demo aggregates follow."}
+            ? "统计面板由本机 Zeta Runtime 提供，需关闭预览后查看；下面是演示汇总。"
+            : "The statistics panel is served by the local Zeta Runtime. Turn preview off to view it; demo aggregates follow."}
         </p>
         <div className="stats-demo">
           <div className="stats-demo-cell"><span className="l">Tokens</span><span className="v">{demo.tokens.toLocaleString()}</span></div>

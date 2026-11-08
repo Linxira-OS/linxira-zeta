@@ -39,15 +39,15 @@ const TOOL_LABELS: Record<string, string> = {
 };
 
 const TOOL_TITLES: Record<string, string> = {
-  bash: "OMP 想要执行 Bash 命令",
-  write: "OMP 想要写入文件",
-  edit: "OMP 想要编辑文件",
-  ast_edit: "OMP 想要做 AST 编辑",
-  eval: "OMP 想要执行代码",
-  computer: "OMP 想要操作桌面",
-  browser: "OMP 想要操作浏览器",
-  debug: "OMP 想要使用调试器",
-  github: "OMP 想要调用 GitHub",
+  bash: "Zeta 想要执行 Bash 命令",
+  write: "Zeta 想要写入文件",
+  edit: "Zeta 想要编辑文件",
+  ast_edit: "Zeta 想要做 AST 编辑",
+  eval: "Zeta 想要执行代码",
+  computer: "Zeta 想要操作桌面",
+  browser: "Zeta 想要操作浏览器",
+  debug: "Zeta 想要使用调试器",
+  github: "Zeta 想要调用 GitHub",
 };
 
 function toolKey(value: string | undefined): string {

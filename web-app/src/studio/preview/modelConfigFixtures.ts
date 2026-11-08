@@ -248,7 +248,7 @@ export function createPreviewModelConfig(): ModelConfigReadModel {
     ],
     generatedModelsYml: "providers:\n  anthropic:\n    api: anthropic-messages\n",
     generatedConfigYml: "modelRoles:\n  default: anthropic/claude-sonnet-4.5\n",
-    runtimeEffectHint: "演示数据不会写入本机 OMP 配置。",
+    runtimeEffectHint: "演示数据不会写入本机 Zeta 配置。",
     loginAvailable: true,
     ompAvailable: true,
     modelRoleStorage: "project",

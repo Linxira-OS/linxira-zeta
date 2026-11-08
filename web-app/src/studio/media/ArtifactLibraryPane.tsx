@@ -32,7 +32,7 @@ export function ArtifactStorageSettings({ client }: { client?: StudioClient | un
 		let active = true;
 		if (preview) {
 			setState({
-				locationName: "Studio Media",
+				locationName: "Z Work Studio Media",
 				writable: true,
 				total: PREVIEW_ARTIFACTS.length,
 				totalBytes: PREVIEW_ARTIFACTS.reduce((sum, item) => sum + item.bytes, 0),

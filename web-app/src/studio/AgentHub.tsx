@@ -868,7 +868,7 @@ function capsFor(
             : !viewingLive
               ? CONTRACT.historicalWrite
               : !hasClient
-                ? "无 Studio client"
+                ? "无 Z Work Studio client"
                 : !connOnline
                   ? "未连接"
                   : chatMissing
@@ -892,7 +892,7 @@ function capsFor(
             : agent.status !== "parked"
               ? "仅 parked"
               : !hasClient
-                ? "无 Studio client"
+                ? "无 Z Work Studio client"
                 : !connOnline
                   ? "未连接"
                   : reviveMissing
@@ -908,7 +908,7 @@ function capsFor(
           : dead
             ? "已结束"
             : !hasClient
-              ? "无 Studio client"
+              ? "无 Z Work Studio client"
               : !connOnline
                 ? "未连接"
                 : killMissing
@@ -924,7 +924,7 @@ function capsFor(
           : !dead
             ? "仅终态"
             : !hasClient
-              ? "无 Studio client"
+              ? "无 Z Work Studio client"
               : !connOnline
                 ? "未连接"
                 : releaseMissing
@@ -1577,7 +1577,7 @@ export function AgentHubPage({
         return false;
       }
       if (!client) {
-        setNotice({ kind: "warn", text: "无 Studio client（桌面桥未注入）" });
+        setNotice({ kind: "warn", text: "无 Z Work Studio client（桌面桥未注入）" });
         return false;
       }
       setCommandBusy(true);
@@ -1956,7 +1956,7 @@ export function AgentHubPage({
 
   const runtimeLabel =
     mapped.runtimeLabel ??
-    (limited ? "Limited Runtime" : (runtime?.classification ?? "OMP Runtime"));
+    (limited ? "Limited Runtime" : (runtime?.classification ?? "Zeta Runtime"));
   const mainName =
     mapped.mainName === "主对话" && !zh ? "Main conversation" : mapped.mainName;
   const mainTask = mapped.mainTask;

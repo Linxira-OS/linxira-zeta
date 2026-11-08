@@ -33,7 +33,7 @@ const GROUPS: Array<{ key: GroupKey; labelKey: string }> = [
 ];
 
 const SCOPE_SHORT: Record<string, string> = {
-  runtime: "OMP",
+  runtime: "ZETA",
   workspace: "PRJ",
   global: "GLB",
   builtin: "SYS",
