@@ -14,7 +14,7 @@ if (!outPath) {
 
 const html = getTemplate()
 	.replace("<theme-vars/>", "")
-	.replace("<title>Session Export</title>", "<title>omp session</title>")
+	.replace("<title>Session Export</title>", "<title>Zeta session</title>")
 	.replace(
 		'<script id="session-data" type="application/json">{{SESSION_DATA}}</script>',
 		'<script id="session-data" type="application/json" data-source="share"></script>',

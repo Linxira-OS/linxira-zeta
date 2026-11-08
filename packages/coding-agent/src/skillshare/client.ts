@@ -91,7 +91,7 @@ function normalizeRegistryUrl(raw: string): string {
 	return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
 }
 
-/** HTTP client for a Skillshare registry (`skills.omp.sh`). */
+/** HTTP client for a Skillshare-compatible registry (configured via `skills.registryUrl`). */
 export class SkillshareClient {
 	/** Normalized registry base URL (no trailing slash). */
 	readonly registryUrl: string;
