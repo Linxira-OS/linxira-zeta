@@ -271,7 +271,11 @@ describe("UiHelpers.renderSessionContext turn elapsed", () => {
 			session: {
 				retryAttempt: 0,
 				getToolByName: () => undefined,
-				sessionManager: { getCwd: () => process.cwd(), putBlobSync: () => undefined },
+				sessionManager: {
+					getCwd: () => process.cwd(),
+					getConversationTip: () => undefined,
+					putBlobSync: () => undefined,
+				},
 			},
 			get viewSession() {
 				return (this as typeof ctx).session;

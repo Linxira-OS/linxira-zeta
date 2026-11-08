@@ -4,9 +4,11 @@ import { StdioTransport } from "@linxiraos/zeta/mcp/transports/stdio";
 import type { MCPToolCallResult } from "@linxiraos/zeta/mcp/types";
 import type { MCPProgress } from "@linxiraos/pi-tui/tools/mcp";
 import { withTimeout } from "@linxiraos/pi-utils";
+import { deadlinesOnlyUnderDeadline } from "./helpers/mcp-deadline";
 import { rejectionOf } from "./helpers/rejection";
 
 const transports: StdioTransport[] = [];
+const underDeadline = deadlinesOnlyUnderDeadline();
 afterEach(async () => {
 	await Promise.all(transports.splice(0).map(transport => transport.close()));
 });
@@ -187,9 +189,11 @@ describe("MCP stdio request progress", () => {
 		// pipe reads until the promise settles, which would hide every progress notification.
 		const error = await rejectionOf(
 			withTimeout(
-				transport.request("tools/call", params({ steps: 100, delayMs: 5 }), {
-					onProgress: () => count++,
-				}),
+				underDeadline(() =>
+					transport.request("tools/call", params({ steps: 100, delayMs: 5 }), {
+						onProgress: () => count++,
+					}),
+				),
 				400,
 				"progress extended the deadline",
 			),

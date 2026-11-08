@@ -2319,6 +2319,59 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"bash 中由 `github pr_checkout` 和 `git worktree add` 创建的新工作树，起初是当前检出的写时复制克隆，因此被忽略的构建产物（node_modules、target）会一并保留；文件系统无法克隆时回退为普通检出",
 	},
+	"magicKeywords.chillax": {
+		label: "Chillax 关键词",
+		description:
+			"让独立的 chillax 将思考降至模型的最低强度（支持逐消息强度的模型，甚至在一轮中途），并追加其隐藏提示",
+	},
+	"tui.colorfulMarkdown": {
+		label: "彩色 Markdown",
+		description:
+			"按层级为标题着色，并为粗体、斜体、行内代码和表头应用主题 ANSI 调色板。关闭后使用单一标题颜色和普通粗体/斜体。",
+	},
+	"tui.spinnerInterval": {
+		label: "加载动画间隔（毫秒）",
+		description: "所有加载动画（含终端标题）每帧之间的毫秒数；0 显示静态字形。未设置时跟随「动态效果」",
+	},
+	"tui.maxFps": {
+		label: "最大帧率",
+		description: "TUI 重绘频率上限（含流式文本）。按键回显保持 30 fps，因此输入区域仍然流畅",
+	},
+	"tui.motion": {
+		label: "动态效果",
+		description:
+			"统一控制加载动画、闪烁与装饰性闪动/淡出。流式文本不受影响（见最大帧率）。手动设置的加载动画间隔仍然优先",
+	},
+	"display.shellVisualization": {
+		label: "Shell 可视化",
+		description: "将 bash 命令显示为可交互的执行可视化，而不是纯文本命令",
+	},
+	"update.auto": {
+		label: "自动更新",
+		description: "启动时在后台安装 omp 更新；下次启动运行新版本",
+	},
+	"providers.openaiResponsesWebsockets": {
+		label: "OpenAI Responses WebSocket 传输",
+		description: "为目录支持的标准 Responses 模型启用；模型或请求设为 false 可禁用",
+	},
+	"ovnfs.path": {
+		label: "ovnfs 可执行文件",
+		description:
+			"ovnfs 可执行文件；未设置时在 PATH 中查找。找到后，ovnfs 检出（文件夹的写时复制视图，任意大小约一秒就绪）将服务于每次独立副本：系统提示会要求智能体打开检出而不是 git worktree 或副本，隔离的子智能体（在允许且 isolation.backend 为 auto 时）在检出中运行而不是原生克隆",
+	},
+	"task.workerThreads": {
+		label: "子智能体工作线程",
+		description:
+			"子智能体的最大工作线程数。最多 8 个并发子智能体在主线程运行；达到 9 个时加入一个工作线程，之后每翻倍再加一个（18、36、72）。没有活跃子智能体一分钟后工作线程停止；0 表示所有子智能体都在主线程",
+	},
+	"extensionRenderers.transcriptPresenters": {
+		label: "扩展会话记录呈现器",
+		description: "允许扩展以完整、压缩为一行或隐藏的方式绘制会话记录块（如工具调用）；会话、导出与模型上下文不变",
+	},
+	"spotlight.experiment.enabled": {
+		label: "Spotlight 实验",
+		description: "用 Stencil Spotlight 塑造工具输出并排序查找结果，并将每个塑造结果记录到会话",
+	},
 };
 export type ZetaSettingsZhOverlay = typeof ZH_SETTING_TEXTS;
 
@@ -5553,6 +5606,71 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"providers.webSearchExclude::ollama": {
 		label: "Ollama",
+	},
+	"providers.webSearchOrder::keenable": {
+		label: "Keenable",
+	},
+	"providers.webSearchExclude::keenable": {
+		label: "Keenable",
+	},
+	"tui.spinnerInterval::0": {
+		label: "静态",
+		description: "无动画",
+	},
+	"tui.spinnerInterval::80": {
+		label: "80 毫秒",
+		description: "12.5 帧/秒",
+	},
+	"tui.spinnerInterval::250": {
+		label: "250 毫秒",
+		description: "4 帧/秒",
+	},
+	"tui.spinnerInterval::1000": {
+		label: "1 秒",
+		description: "1 帧/秒",
+	},
+	"tui.maxFps::30": {
+		label: "30 fps",
+		description: "默认",
+	},
+	"tui.maxFps::15": {
+		label: "15 fps",
+	},
+	"tui.maxFps::4": {
+		label: "4 fps",
+		description: "安静，适合多窗格",
+	},
+	"tui.maxFps::1": {
+		label: "1 fps",
+		description: "最低",
+	},
+	"tui.motion::full": {
+		label: "完整",
+		description: "所有动画按各自设置（默认）",
+	},
+	"tui.motion::reduced": {
+		label: "减少",
+		description: "加载动画 250 毫秒，无闪烁，无闪动/淡出",
+	},
+	"tui.motion::none": {
+		label: "无",
+		description: "静态加载动画与标题，无闪烁，无闪动/淡出",
+	},
+	"task.workerThreads::0": {
+		label: "仅主线程",
+	},
+	"task.workerThreads::1": {
+		label: "最多 1 个工作线程",
+	},
+	"task.workerThreads::2": {
+		label: "最多 2 个工作线程",
+	},
+	"task.workerThreads::4": {
+		label: "最多 4 个工作线程",
+		description: "默认",
+	},
+	"task.workerThreads::8": {
+		label: "最多 8 个工作线程",
 	},
 };
 

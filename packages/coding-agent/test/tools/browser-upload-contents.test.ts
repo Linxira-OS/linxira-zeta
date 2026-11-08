@@ -5,9 +5,9 @@ import * as path from "node:path";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { disposeAllVmContexts } from "@linxiraos/zeta/eval/js/context-manager";
 import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
-import { findFreeCdpPort, waitForCdp } from "@linxiraos/zeta/tools/browser/attach";
+import { findFreeCdpPort, gracefulKillTreeOnce, waitForCdp } from "@linxiraos/zeta/tools/browser/attach";
 import { prepareElementUpload } from "@linxiraos/zeta/tools/browser/interactions";
-import { ensureChromiumExecutable } from "@linxiraos/zeta/tools/browser/launch";
+import { ensureChromiumExecutable, RENDERER_PRIORITY_ARGS } from "@linxiraos/zeta/tools/browser/launch";
 import { releaseAllTabs } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import {
 	openUploadSource,
@@ -191,6 +191,7 @@ async function openConnectedTab(toolCallId: string, options: { page?: string; pr
 			"--no-sandbox",
 			"--no-first-run",
 			"--use-mock-keychain",
+			...RENDERER_PRIORITY_ARGS,
 			`--user-data-dir=${root}`,
 			`--remote-debugging-port=${port}`,
 		],
@@ -204,7 +205,7 @@ async function openConnectedTab(toolCallId: string, options: { page?: string; pr
 	const close = async () => {
 		await prelude.invoke({ action: "close", name }, context).catch(() => undefined);
 		proxy.stop();
-		child.kill();
+		await gracefulKillTreeOnce(child.pid);
 		await child.exited;
 		await fs.rm(root, { recursive: true, force: true });
 	};

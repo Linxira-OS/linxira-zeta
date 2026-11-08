@@ -16,7 +16,7 @@ import type { Usage } from "@linxiraos/pi-ai";
 import { type Component, type TUI } from "../tui";
 import type { AdvisorMessageDetails } from "./messages";
 import { chatTranscriptDisplayPreferences as displayPreferences } from "./display-preferences";
-import type { MessageRenderer } from "./extension-types";
+import type { AssistantTextRenderer, MessageRenderer } from "./extension-types";
 import { LAUNCH_COMPLETION_MESSAGE_TYPE } from "./messages";
 import {
 	BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE,
@@ -84,6 +84,8 @@ export interface ChatTranscriptBuilderDeps {
 	linkTargets?: ReadonlyMap<string, string>;
 	/** Draw charts under numeric tables; false for transcripts that are not the main session's. Default: true. */
 	tableCharts?: boolean;
+	/** Extension assistant text renderers the replayed replies draw with, as the live transcript does. */
+	textRenderers?: readonly AssistantTextRenderer[];
 	requestRender: () => void;
 }
 
@@ -244,6 +246,8 @@ export class ChatTranscriptBuilder {
 		if (!this.#readGroup) {
 			this.#readGroup = new ReadToolGroupComponent({
 				showContentPreview: displayPreferences.readToolResultPreview,
+				// Extension presenters draw only the live main transcript; every replay draws stock cards.
+				transcriptPresenters: false,
 			});
 			this.#trackExpandable(this.#readGroup);
 			this.container.addChild(this.#readGroup);
@@ -425,6 +429,7 @@ export class ChatTranscriptBuilder {
 			proseOnlyThinking,
 			this.#deps.linkTargets,
 			expandThinkingBlocks,
+			{ renderers: this.#deps.textRenderers ?? [], contentOffset: 0 },
 		);
 		assistantComponent.pickReactionTarget(this.container.children);
 		this.#mountProse(assistantComponent);
@@ -449,7 +454,10 @@ export class ChatTranscriptBuilder {
 		const errorPresentation = resolveAssistantErrorPresentation(message);
 		const hasErrorStop = errorPresentation.kind === "full";
 		const errorMessage = hasErrorStop ? errorPresentation.text : null;
-		const appendAssistantSegment = (segment: Extract<AgentMessage, { role: "assistant" }> | undefined) => {
+		const appendAssistantSegment = (
+			toolCallId: string,
+			segment: Extract<AgentMessage, { role: "assistant" }> | undefined,
+		) => {
 			if (!segment || !assistantHasVisibleContent(segment)) return;
 			const component = new AssistantMessageComponent(
 				segment,
@@ -460,6 +468,7 @@ export class ChatTranscriptBuilder {
 				proseOnlyThinking,
 				this.#deps.linkTargets,
 				expandThinkingBlocks,
+				{ renderers: this.#deps.textRenderers ?? [], contentOffset: timeline.contentOffsets.get(toolCallId) ?? 0 },
 			);
 			this.#mountProse(component);
 			lastAssistantComponent = component;
@@ -487,7 +496,7 @@ export class ChatTranscriptBuilder {
 					const normalizedArgs = normalizeToolArgs(content.arguments);
 					this.#readArgs.set(content.id, normalizedArgs);
 				}
-				appendAssistantSegment(afterToolSegment);
+				appendAssistantSegment(content.id, afterToolSegment);
 				continue;
 			}
 
@@ -514,6 +523,7 @@ export class ChatTranscriptBuilder {
 						// Stable ids and Kitty placeholder cells keep images anchored
 						// while the transcript viewport scrolls and reflows.
 						showImages: displayPreferences.showImages,
+						transcriptPresenters: false,
 					},
 					this.#deps.getTool?.(content.name),
 					this.#deps.ui,
@@ -534,7 +544,7 @@ export class ChatTranscriptBuilder {
 			} else {
 				this.#pendingTools.set(content.id, component);
 			}
-			appendAssistantSegment(afterToolSegment);
+			appendAssistantSegment(content.id, afterToolSegment);
 		}
 		const turnUsage = this.#turnUsage.add(message, this.#turnStartedAt);
 		if (turnUsage) lastAssistantComponent.setTurnUsage(turnUsage);

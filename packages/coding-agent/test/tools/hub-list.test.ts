@@ -7,7 +7,12 @@ import { HistoryProtocolHandler } from "@linxiraos/zeta/internal-urls/history-pr
 import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry, getAgentTombstonePath, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
+import {
+	AgentRegistry,
+	type AgentRegistryApi,
+	getAgentTombstonePath,
+	MAIN_AGENT_ID,
+} from "@linxiraos/zeta/registry/agent-registry";
 import { ensurePersistedRoster, registerPersistedSubagents } from "@linxiraos/zeta/registry/persisted-agents";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { CURRENT_SESSION_VERSION } from "@linxiraos/zeta/session/session-entries";
@@ -54,7 +59,7 @@ function listText(result: { content: Array<{ type: string; text?: string }> }): 
 	return text;
 }
 
-function makeToolSession(registry: AgentRegistry, agentId: string, sessionFile: string | null = null): ToolSession {
+function makeToolSession(registry: AgentRegistryApi, agentId: string, sessionFile: string | null = null): ToolSession {
 	return {
 		cwd: "/tmp",
 		hasUI: false,
@@ -78,7 +83,7 @@ const subagentSystemPromptTemplatePath = path.resolve(
  */
 async function renderIrcPeerRoster(
 	selfId: string,
-	registry: AgentRegistry = AgentRegistry.global(),
+	registry: AgentRegistryApi = AgentRegistry.global(),
 	sessionFileHint?: string | null,
 ): Promise<string> {
 	const hint = sessionFileHint ?? registry.get(selfId)?.sessionFile ?? registry.get(MAIN_AGENT_ID)?.sessionFile;

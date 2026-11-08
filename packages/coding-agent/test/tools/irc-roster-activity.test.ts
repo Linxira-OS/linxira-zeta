@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
-import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentRegistry, type AgentRegistryApi } from "@linxiraos/zeta/registry/agent-registry";
 
 describe("IRC roster activity", () => {
-	let registry: AgentRegistry;
+	let registry: AgentRegistryApi;
 	beforeEach(() => {
 		AgentRegistry.resetGlobalForTests();
 		AgentLifecycleManager.resetGlobalForTests();

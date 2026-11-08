@@ -59,7 +59,7 @@ export interface PublishPackage {
 	preBuild?: readonly (readonly string[])[];
 	/** Extra entries to splice into `files`. */
 	extraFiles?: readonly string[];
-	/** Extra tsc invocations beyond `tsconfig.publish.json`. */
+	/** Extra compiler invocations beyond `tsconfig.publish.json`. */
 	extraTypeConfigs?: readonly string[];
 	/**
 	 * Also emit transpiled JS to `dist/js` (via `tsconfig.publish.js.json`)

@@ -8,6 +8,7 @@ import {
 	LayoutGrid,
 	type LucideIcon,
 	PlugZap,
+	ScanSearch,
 	Sparkles,
 	SquareChartGantt,
 	Wrench,
@@ -25,7 +26,8 @@ export type DashboardSection =
 	| "tools"
 	| "frustration"
 	| "projects"
-	| "gain";
+	| "gain"
+	| "spotlight";
 
 export interface NavItem {
 	id: DashboardSection;
@@ -68,6 +70,7 @@ export const NAV: readonly NavGroup[] = [
 			{ id: "frustration", labelKey: "nav.frustration", icon: Frown, hotkey: "f" },
 			{ id: "projects", labelKey: "nav.projects", icon: FolderGit2, hotkey: "j" },
 			{ id: "gain", labelKey: "nav.gain", icon: Sparkles, hotkey: "g" },
+			{ id: "spotlight", labelKey: "nav.spotlight", icon: ScanSearch, hotkey: "s" },
 		],
 	},
 ];

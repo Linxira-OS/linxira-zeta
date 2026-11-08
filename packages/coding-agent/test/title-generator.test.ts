@@ -6,6 +6,7 @@ import { type GeneratedProvider, getBundledModel } from "@linxiraos/pi-catalog/m
 import { formatModelStringWithRouting, resolveModelOverride } from "@linxiraos/zeta/config/model-resolver";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { tinyTitleClient } from "@linxiraos/zeta/tiny/title-client";
+import { DEFAULT_SPINNER_INTERVAL_MS } from "@linxiraos/pi-tui/spinner-clock";
 import {
 	disposeTerminalTitleState,
 	generateSessionTitle,
@@ -1006,7 +1007,7 @@ describe("terminal title runtime", () => {
 			expect(emittedTitles()).toEqual(["ζ ⠋ windows-project"]);
 
 			resetEmitted();
-			vi.advanceTimersByTime(160);
+			vi.advanceTimersByTime(DEFAULT_SPINNER_INTERVAL_MS * 2);
 			const titles = emittedTitles();
 			expect(titles.length).toBeGreaterThan(0);
 			expect(titles.every(title => SPINNER_FRAMES.some(frame => title.includes(frame)))).toBe(true);

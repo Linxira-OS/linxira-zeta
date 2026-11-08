@@ -3,8 +3,8 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { findFreeCdpPort, waitForCdp } from "@linxiraos/zeta/tools/browser/attach";
-import { ensureChromiumExecutable } from "@linxiraos/zeta/tools/browser/launch";
+import { findFreeCdpPort, gracefulKillTreeOnce, waitForCdp } from "@linxiraos/zeta/tools/browser/attach";
+import { ensureChromiumExecutable, RENDERER_PRIORITY_ARGS } from "@linxiraos/zeta/tools/browser/launch";
 import { acquireBrowser, type PuppeteerBrowserHandle, releaseBrowser } from "@linxiraos/zeta/tools/browser/registry";
 import { decodePng } from "@linxiraos/zeta/tools/browser/screenshot";
 import { acquireTab, releaseTab, runInTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
@@ -64,13 +64,14 @@ async function connectedBrowser(): Promise<PuppeteerBrowserHandle> {
 			"--no-default-browser-check",
 			"--use-mock-keychain",
 			"--password-store=basic",
+			...RENDERER_PRIORITY_ARGS,
 			`--user-data-dir=${root}`,
 			`--remote-debugging-port=${port}`,
 		],
 		{ stdin: "ignore", stdout: "ignore", stderr: "ignore" },
 	);
 	cleanups.push(async () => {
-		child.kill();
+		await gracefulKillTreeOnce(child.pid);
 		await child.exited;
 		await fs.rm(root, { recursive: true, force: true });
 	});

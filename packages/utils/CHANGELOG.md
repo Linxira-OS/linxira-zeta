@@ -1,7 +1,7 @@
 ## [Unreleased]
 
+- Synced with upstream OMP v18.18.0.
 - Released as part of Zeta 1.4.12; no package-specific user-visible changes.
-
 ## [1.4.11] - 2026-11-06
 
 - `applyLegacyOmpEnv()` lets a host apply the read-only legacy OMP dotenv files after its settings layer resolves the compatibility switch; the eager `ZETA_OMP_COMPAT` pass is unchanged.
@@ -12,15 +12,15 @@
 
 ## [1.4.9] - 2026-11-03
 
-- Synced with upstream OMP v18.16.0; no package-specific user-visible changes.
+- Synced with upstream OMP v18.18.0.
 
 ## [1.4.7] - 2026-10-30
 
-- Synced with upstream OMP v18.14.0; no package-specific user-visible changes.
+- Synced with upstream OMP v18.18.0.
 
 ## [1.4.5] - 2026-10-28
 
-- Synced with upstream OMP v18.13.2 (shared utilities and runtime fixes); user-visible changes are in UPDATE-LOG.md under 1.4.5.
+- Synced with upstream OMP v18.18.0.
 
 ## [1.4.4] - 2026-10-26
 

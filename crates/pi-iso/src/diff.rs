@@ -8,7 +8,7 @@
 //!   file. Binary entries surface as `diff: None`.
 //! - **Plain mode.** No `.git`; we walk both trees in parallel, short-circuit
 //!   on `(size, mtime-truncated-to-seconds)` equality, and emit a unified diff
-//!   for each surviving pair via `similar`. NUL within the first 8 KiB
+//!   for each surviving pair via `pi-diff`. NUL within the first 8 KiB
 //!   classifies the file as binary → `diff: None`.
 //!
 //! Per the PAL contract: for binary files we don't materialize the bytes
@@ -268,18 +268,26 @@ fn walk_diff_blocking(lower: &Path, merged: &Path) -> IsoResult<Diff> {
 
 	for (rel, m_meta) in &merged_index {
 		match lower_index.get(rel) {
-			None => files.push(plain_change(merged, rel, ChangeKind::Added, None)?),
+			None => {
+				if let Some(change) = plain_change(merged, rel, ChangeKind::Added, None)? {
+					files.push(change);
+				}
+			},
 			Some(l_meta) => {
 				if metas_equal(l_meta, m_meta) {
 					continue;
 				}
-				files.push(plain_change(merged, rel, ChangeKind::Modified, Some(lower))?);
+				if let Some(change) = plain_change(merged, rel, ChangeKind::Modified, Some(lower))? {
+					files.push(change);
+				}
 			},
 		}
 	}
 	for rel in lower_index.keys() {
-		if !merged_index.contains_key(rel) {
-			files.push(plain_change(lower, rel, ChangeKind::Removed, None)?);
+		if !merged_index.contains_key(rel)
+			&& let Some(change) = plain_change(lower, rel, ChangeKind::Removed, None)?
+		{
+			files.push(change);
 		}
 	}
 
@@ -347,12 +355,18 @@ fn walk(root: &Path, dir: &Path, out: &mut BTreeMap<PathBuf, Metadata>) -> IsoRe
 ///
 /// `op == Modified` requires `peer_root = Some(lower)` so we can read the
 /// counterpart; `Added`/`Removed` only need the side we already know about.
+///
+/// `Modified` is a metadata heuristic (size plus second-granularity mtime), so
+/// an entry can look changed while its bytes are identical — a copy that
+/// crossed a second boundary. Such a no-op yields `None` instead of a header
+/// with no hunks, which `git apply` rejects when concatenated with the real
+/// changes around it.
 fn plain_change(
 	side: &Path,
 	rel: &Path,
 	op: ChangeKind,
 	peer_root: Option<&Path>,
-) -> IsoResult<FileChange> {
+) -> IsoResult<Option<FileChange>> {
 	let full = side.join(rel);
 	let (primary_link, primary) = read_entry(&full)?;
 	let (old_link, new_link, old_bytes, new_bytes) = match op {
@@ -365,20 +379,23 @@ fn plain_change(
 			(pl, primary_link, peer_bytes, primary)
 		},
 	};
+	if op == ChangeKind::Modified && old_link == new_link && old_bytes == new_bytes {
+		return Ok(None);
+	}
 	let is_link = old_link || new_link;
 	if !is_link && (looks_binary(&old_bytes) || looks_binary(&new_bytes)) {
-		return Ok(FileChange { path: rel.to_path_buf(), op, diff: None });
+		return Ok(Some(FileChange { path: rel.to_path_buf(), op, diff: None }));
 	}
 	let (Ok(old_text), Ok(new_text)) =
 		(std::str::from_utf8(&old_bytes), std::str::from_utf8(&new_bytes))
 	else {
-		return Ok(FileChange { path: rel.to_path_buf(), op, diff: None });
+		return Ok(Some(FileChange { path: rel.to_path_buf(), op, diff: None }));
 	};
-	Ok(FileChange {
+	Ok(Some(FileChange {
 		path: rel.to_path_buf(),
 		op,
 		diff: Some(render_unified(rel, op, old_text, new_text, old_link, new_link)),
-	})
+	}))
 }
 
 /// Read one tree entry without following symlinks: regular files yield their
@@ -422,12 +439,12 @@ fn render_unified(
 		ChangeKind::Added => {
 			let _ = writeln!(out, "diff --git a/{rel_str} b/{rel_str}");
 			let _ = writeln!(out, "new file mode {}", mode(new_is_link));
-			push_unified_body(&mut out, old, new, &from_label, &to_label);
+			let _ = push_unified_body(&mut out, old, new, &from_label, &to_label);
 		},
 		ChangeKind::Removed => {
 			let _ = writeln!(out, "diff --git a/{rel_str} b/{rel_str}");
 			let _ = writeln!(out, "deleted file mode {}", mode(old_is_link));
-			push_unified_body(&mut out, old, new, &from_label, &to_label);
+			let _ = push_unified_body(&mut out, old, new, &from_label, &to_label);
 		},
 		ChangeKind::Modified if old_is_link != new_is_link => {
 			// `git apply` rejects a single-block old mode/new mode
@@ -436,14 +453,21 @@ fn render_unified(
 			// use git's canonical delete + create representation.
 			let _ = writeln!(out, "diff --git a/{rel_str} b/{rel_str}");
 			let _ = writeln!(out, "deleted file mode {}", mode(old_is_link));
-			push_unified_body(&mut out, old, "", &from_label, "/dev/null");
+			let _ = push_unified_body(&mut out, old, "", &from_label, "/dev/null");
 			let _ = writeln!(out, "diff --git a/{rel_str} b/{rel_str}");
 			let _ = writeln!(out, "new file mode {}", mode(new_is_link));
-			push_unified_body(&mut out, "", new, "/dev/null", &to_label);
+			let _ = push_unified_body(&mut out, "", new, "/dev/null", &to_label);
 		},
 		ChangeKind::Modified => {
+			// A metadata-only Modified can render no hunks; emitting the
+			// `diff --git` header alone would attach the following file's
+			// body to this path and make `git apply` reject the patch.
+			let mut body = String::new();
+			if !push_unified_body(&mut body, old, new, &from_label, &to_label) {
+				return String::new();
+			}
 			let _ = writeln!(out, "diff --git a/{rel_str} b/{rel_str}");
-			push_unified_body(&mut out, old, new, &from_label, &to_label);
+			out.push_str(&body);
 		},
 	}
 	if !out.ends_with('\n') {
@@ -452,13 +476,64 @@ fn render_unified(
 	out
 }
 
-fn push_unified_body(out: &mut String, old: &str, new: &str, from_label: &str, to_label: &str) {
-	let body = similar::TextDiff::from_lines(old, new)
-		.unified_diff()
-		.context_radius(3)
-		.header(from_label, to_label)
-		.to_string();
-	out.push_str(&body);
+fn push_unified_body(
+	out: &mut String,
+	old: &str,
+	new: &str,
+	from_label: &str,
+	to_label: &str,
+) -> bool {
+	use std::fmt::Write;
+
+	use pi_diff::{HunkLine, diff_line_tokens, line_tokens_str, structured_patch_hunk_rows};
+
+	let old_tokens = line_tokens_str(old);
+	let new_tokens = line_tokens_str(new);
+	let runs = diff_line_tokens(&old_tokens, &new_tokens);
+	let hunks = structured_patch_hunk_rows(Some(3), &old_tokens, &new_tokens, &runs);
+	if hunks.is_empty() {
+		return false;
+	}
+	let _ = writeln!(out, "--- {from_label}\n+++ {to_label}");
+	for hunk in hunks {
+		let _ = write!(out, "@@ -");
+		push_hunk_range(out, hunk.old_start, hunk.old_lines);
+		out.push_str(" +");
+		push_hunk_range(out, hunk.new_start, hunk.new_lines);
+		out.push_str(" @@\n");
+		for row in hunk.lines {
+			let (sign, text) = match row {
+				HunkLine::Context(text) => (' ', text),
+				HunkLine::Removed(text) => ('-', text),
+				HunkLine::Added(text) => ('+', text),
+				HunkLine::NoNewlineAtEof => {
+					out.push_str("\\ No newline at end of file\n");
+					continue;
+				},
+			};
+			out.push(sign);
+			out.push_str(text);
+			out.push('\n');
+		}
+	}
+	true
+}
+
+/// Unified ranges omit a count of one; empty sides name the preceding line.
+fn push_hunk_range(out: &mut String, start: u32, count: u32) {
+	use std::fmt::Write;
+
+	match count {
+		0 => {
+			let _ = write!(out, "{},0", start - 1);
+		},
+		1 => {
+			let _ = write!(out, "{start}");
+		},
+		_ => {
+			let _ = write!(out, "{start},{count}");
+		},
+	}
 }
 
 fn looks_binary(bytes: &[u8]) -> bool {
@@ -617,6 +692,30 @@ mod tests {
 		assert!(
 			fs::symlink_metadata(root.join(name)).is_err(),
 			"{name} should have been removed by the patch"
+		);
+	}
+
+	#[test]
+	fn unicode_eof_and_separated_hunks_apply() {
+		let before = "古\n1\n2\n3\n4\n5\n6\n7\nfin\n";
+		let after = "新\n1\n2\n3\n4\n5\n6\n7\n終";
+		let (target, patch) =
+			apply_plain_diff(&[("text", Entry::File(before))], &[("text", Entry::File(after))]);
+		assert_entry_matches(target.path(), "text", &Entry::File(after));
+		assert_eq!(patch.matches("@@ -").count(), 2);
+		assert!(patch.ends_with("+終\n\\ No newline at end of file\n"), "{patch}");
+	}
+
+	#[test]
+	fn empty_sides_use_zero_length_unified_ranges() {
+		let mut out = String::new();
+		let _ = super::push_unified_body(&mut out, "", "é\n", "/dev/null", "b/text");
+		assert_eq!(out, "--- /dev/null\n+++ b/text\n@@ -0,0 +1 @@\n+é\n");
+		out.clear();
+		let _ = super::push_unified_body(&mut out, "é", "", "a/text", "/dev/null");
+		assert_eq!(
+			out,
+			"--- a/text\n+++ /dev/null\n@@ -1 +0,0 @@\n-é\n\\ No newline at end of file\n"
 		);
 	}
 

@@ -3,6 +3,7 @@ import { cfgTuiSidebar } from "../modes/settings";
 import { type PauseWorkStatus, runPauseScreen } from "@linxiraos/pi-tui/overlays/pause-screen";
 import { AgentRegistry } from "../registry/agent-registry";
 import type { AgentSession } from "../session/agent-session";
+import type { AgentSessionHandle } from "../session/agent-session-handle";
 import { clearApprovalGrants } from "../tools/approval-cache";
 import { clearSubmittedText } from "./helpers/draft";
 import { shutdownHandlerTui } from "./helpers/shutdown";
@@ -11,7 +12,7 @@ import type { SlashCommandSpec } from "./types";
 import { LIVE_DISABLED_MESSAGE, LIVE_FEATURE_ENABLED } from "../live/feature-gate";
 
 /** Advisors with review work they can still run (not parked, yielded, or quota-paused). */
-function advisorUnsettledCount(session: AgentSession): number {
+function advisorUnsettledCount(session: AgentSessionHandle): number {
 	return session
 		.getAdvisorStatusOverview()
 		.advisors.filter(advisor => advisor.backlog > 0 && !advisor.isPaused && !advisor.yielded).length;

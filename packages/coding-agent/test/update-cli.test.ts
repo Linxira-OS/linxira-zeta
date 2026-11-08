@@ -45,9 +45,10 @@ import {
 	updateViaBinaryAt,
 	updateViaManager,
 	updateViaShimTakeover,
+	verifyInstalledVersion,
 } from "@linxiraos/zeta/cli/update-cli";
 import Update from "@linxiraos/zeta/commands/update";
-import { $which, __resetExtraCaCache, releaseCliAssetName, removeWithRetries } from "@linxiraos/pi-utils";
+import { $which, CLI_BIN_NAME, __resetExtraCaCache, releaseCliAssetName, removeWithRetries } from "@linxiraos/pi-utils";
 import type { CliConfig } from "@linxiraos/pi-utils/cli";
 import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
 
@@ -128,7 +129,7 @@ const TEST_CONFIG: CliConfig = {
 describe("update command plugin dispatch", () => {
 	it("routes -l to plugin upgrade instead of the app updater", async () => {
 		const pluginSpy = spyOn(pluginCli, "runPluginCommand").mockResolvedValue(undefined);
-		const updateSpy = spyOn(updateCli, "runUpdateCommand").mockResolvedValue(undefined);
+		const updateSpy = spyOn(updateCli, "runUpdateCommand").mockResolvedValue({ kind: "current" });
 
 		const command = new Update(["-l"], TEST_CONFIG);
 		await command.run();
@@ -139,7 +140,7 @@ describe("update command plugin dispatch", () => {
 
 	it("keeps normal update flags on the app updater path", async () => {
 		const pluginSpy = spyOn(pluginCli, "runPluginCommand").mockResolvedValue(undefined);
-		const updateSpy = spyOn(updateCli, "runUpdateCommand").mockResolvedValue(undefined);
+		const updateSpy = spyOn(updateCli, "runUpdateCommand").mockResolvedValue({ kind: "current" });
 
 		const command = new Update(["--check", "--force"], TEST_CONFIG);
 		await command.run();
@@ -1389,6 +1390,32 @@ describe("update-cli release binary integrity", () => {
 		if (process.platform !== "win32") expect((await fs.stat(targetPath)).mode & 0o777).toBe(0o755);
 	});
 
+	it("reports cumulative bytes per chunk, ending at the full size", async () => {
+		const dir = await makeTempDir();
+		const chunks = ["verified ", "binary"];
+		const received: number[] = [];
+
+		await downloadVerifiedBinary({
+			url,
+			targetPath: path.join(dir, binaryName),
+			expectedSize: Buffer.byteLength(content),
+			expectedDigest: digest,
+			fetchImpl: async () =>
+				new Response(
+					new ReadableStream<Uint8Array>({
+						pull(controller) {
+							const chunk = chunks.shift();
+							if (chunk === undefined) controller.close();
+							else controller.enqueue(new TextEncoder().encode(chunk));
+						},
+					}),
+				),
+			onProgress: bytes => received.push(bytes),
+		});
+
+		expect(received).toEqual([9, 15]);
+	});
+
 	it("aborts the response stream as soon as it exceeds the expected size", async () => {
 		const dir = await makeTempDir();
 		const targetPath = path.join(dir, binaryName);
@@ -2307,6 +2334,32 @@ describe("update-cli concurrent binary updates", () => {
 		expect(await Bun.file(targetPath).bytes()).toEqual(new Uint8Array(payload));
 		const residue = (await fs.readdir(dir)).filter(name => name.endsWith(".bak") || name.endsWith(".new"));
 		expect(residue).toEqual([]);
+	});
+});
+
+describe("verifyInstalledVersion", () => {
+	// A Windows shim takeover retires the launcher PATH first resolved (`zetacode.cmd`)
+	// for one later on PATH (`zetacode.exe`); the check must follow it, not a cached path.
+	it.skipIf(process.platform === "win32")("re-resolves PATH after an install moves the launcher", async () => {
+		const [first, second] = [await makeTempDir(), await makeTempDir()];
+		const launcher = CLI_BIN_NAME;
+		await Bun.write(path.join(first, launcher), `#!/bin/sh\necho ${launcher}/1.0.0\n`);
+		await Bun.write(path.join(second, launcher), `#!/bin/sh\necho ${launcher}/2.0.0\n`);
+		await fs.chmod(path.join(first, launcher), 0o755);
+		await fs.chmod(path.join(second, launcher), 0o755);
+		const originalPath = process.env.PATH;
+		process.env.PATH = [first, second, originalPath].join(path.delimiter);
+		try {
+			expect((await verifyInstalledVersion("2.0.0")).actual).toBe("1.0.0");
+			await fs.rm(path.join(first, launcher));
+			expect(await verifyInstalledVersion("2.0.0")).toEqual({
+				ok: true,
+				actual: "2.0.0",
+				path: path.join(second, launcher),
+			});
+		} finally {
+			process.env.PATH = originalPath;
+		}
 	});
 });
 

@@ -2,7 +2,7 @@ import type { Model } from "@linxiraos/pi-ai";
 import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
 import type { NativeNode, NativeUiEvent } from "../native/node";
 import type { ContextLineMode, StatusLinePreset, StatusLineSegmentId, StatusLineSeparatorStyle } from "./schema";
-import type { ActiveRepoContext, StatusLineSession } from "./host";
+import type { ActiveRepoContext, PromptCacheStatus, StatusLineSession } from "./host";
 import type { LoopConditionConfig, LoopLimitRuntime } from "./loop";
 
 export type { ContextLineMode, StatusLinePreset, StatusLineSegmentId, StatusLineSeparatorStyle };
@@ -67,6 +67,8 @@ export interface SegmentContext {
 	sessionAccent?: boolean;
 	/** Stand-in session title for previews; `session_name` renders it when the session is unnamed. */
 	previewTitle?: string;
+	/** The viewed session is pinned; `session_name` prefixes the pin icon. */
+	isPinned?: boolean;
 	activeRepo: ActiveRepoContext | null;
 	width: number;
 	options: StatusLineSegmentOptions;
@@ -188,6 +190,8 @@ export interface SegmentContext {
 			expiring?: StatusResetExpiry;
 		};
 	} | null;
+	/** What the next request finds in the prompt cache; read only when the `cache` segment is configured. */
+	promptCache?: PromptCacheStatus;
 }
 
 /** How close an account's saved resets are to expiring, when it is worth a warning. */
@@ -235,6 +239,8 @@ export interface ComposerFacts {
 	/**
 	 * `status` (role `zeta.composer.extras`, `grow: 1`) of the other configured
 	 * segments as `seg`s; the bar's flexible space, so present even when empty.
+	 * The prompt cache's (role `zeta.composer.cache`) sits on its right side, beside
+	 * the usage, with a hover card and a click opening `/session`.
 	 */
 	readonly extras: NativeNode;
 	/** `text` (role `zeta.composer.usage`): the session cost (empty when there is none). */

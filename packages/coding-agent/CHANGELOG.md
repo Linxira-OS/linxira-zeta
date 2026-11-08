@@ -1,27 +1,12 @@
 ## [Unreleased]
 
+- Synced with upstream OMP v18.18.0.
+
 ### Added
 
 - Work Studio ships as a desktop application again, in two editions built from one staged runtime (compiled kernel + native addons + `web-app`): an Electron edition (bundled Chromium; Windows NSIS/zip, Linux AppImage/deb/tar.gz) and a browser edition with no bundled engine whose launcher starts `serve` and opens the default browser. Both carry the same `zeta` kernel, so the desktop shell no longer depends on the frozen `web-ui`; it points `serve` at the bundled `web-app` through `ZETA_WEB_APP_DIR`. `serve`/`web` help text and the desktop menu now say Work Studio.
 
 ## [1.4.11] - 2026-11-06
-
-### Added
-
-- `zeta serve` now ships the Studio renderer inside `@linxiraos/zeta`. The package's `prepack` (`gen:web-app`) builds `web-app` and stages it at `dist/web-app`, so `npm pack` and the release publish produce a self-contained package; an npm install serves the UI with no build step. Resolution is `ZETA_WEB_APP_DIR` (authoritative when set) → the packaged `<package-root>/dist/web-app` → the checkout's `web-app/dist`; when none exists the placeholder now names those paths instead of promising a future download.
-- The web gateway now serves the Studio Git page's read surface in-process over the pi-vcs addon: `GET /api/git/{status,diff,remotes,show,worktrees}` (no `git` subprocess). `branches` gains `headOid`/`upstream`/`ahead`/`behind`, `log` gains `parents`/`authorName`/`authorDate`/`refs`/`relation`, `status` gains `unborn`/`stashCount` and both porcelain sides per change, and `worktrees` gains `bare`/`locked`/`lockReason`/`prunable` — all read from `.git` files and `mergeBase`, still with no `git` subprocess. `log` pages up to 500 rows.
-- The Studio host answers `core.continue`: the same hidden synthetic continue the TUI's `.`/`c` shortcut sends, exposed as `POST /api/agent/:id {"type":"continue"}` and reported as `{started, mode: "restored" | "continue" | "none"}`. It runs on the session's active model and never adds a user message to the transcript.
-- The Studio renderer now ships each locale as its own chunk: English stays in the entry bundle and the Chinese dictionary loads on demand, cutting the entry script by 111 kB (2,196 → 2,085 kB) for every page that never shows Chinese. First paint waits for that one request, so strings never flash in the wrong language.
-- Renderer preferences moved from `omp.*` to `zeta.*` in browser storage; a one-time migration copies the old keys so layouts, theme, language and annotations survive the rename.
-- `compat.importLegacyOmp` ("Read legacy OMP configuration", Settings → Interaction → Compatibility) exposes the read-only import of the legacy OMP configuration directory as a persisted setting. `ZETA_OMP_COMPAT` still wins; the setting is the same switch without an environment variable, and toggling it reloads the model registry without a restart.
-- `/api/usage/daily` reads the stats database (`messages` + `message_rollup`, 400-day lookback) and feeds `usage.get`: the Home heatmap now covers the year, the per-model chart has a legend (YTD top five plus "other"), and today's per-hour series is populated. The dashboard link uses `range=all`, and `usage.openDashboard` is implemented.
-- `/api/plugins` exposes the real Zeta plugin registry (marketplace plus npm/git/link lockfile) with each manifest's declared `ui.panels`; the Studio Plugins list and its enable toggle now read and write that same store instead of the extension-package settings.
-
-### Performance
-
-- `GET /api/sessions/:id` accepts `window`/`limit`/`origin` and answers one page of the active branch (≤ 768 KiB) instead of the whole transcript + tree; the boundary is validated by entry id, so appends keep cursors valid while compaction or a branch switch answers 409. An 8.3 MB / 2,000-message session now reads cold in 40 ms / 214 KB instead of 202 ms / 8.3 MB. Whole-transcript responses stay cached by `(path, mtime, size)`.
-- Static assets are precompressed at build time (`.br` q11 / `.gz` q9) and served through `Accept-Encoding` negotiation with `Vary`; the 2,084,639 B entry chunk drops to 625,173 B gzip / 480,301 B brotli, and bodies stream instead of being copied into the JS heap per request.
-
 ## [1.4.10] - 2026-11-05
 
 ### Added
@@ -35,7 +20,7 @@
 
 ## [1.4.9] - 2026-11-03
 
-- Synced with upstream OMP v18.16.0: browser relay ownership/close and persisted-tab fixes, `/review` and `/annotate` outside the repository, composer predictions, Hindsight global scope, eval completion metadata, and catalog/auth updates.
+- Synced with upstream OMP v18.18.0.
 
 ### Added
 
@@ -141,7 +126,7 @@ Older entries are archived in [packages/coding-agent/CHANGELOG.md@1e3cc3ab94d0](
 
 ### Changed
 
-- Synced with upstream OMP v18.14.0, including native Chrome WebMCP, custom tool-loader signatures, exact provider-qualified model selectors, manual compaction events, Tern terminal code, and Bun 1.4.4 code paths. Zeta keeps its offline HTML exporter.
+- Synced with upstream OMP v18.18.0.
 - OTLP telemetry export is now **hard-disabled**: the `telemetry.otlpExportEnabled` setting (previously on by default) is removed and startup is gated by a literal `TELEMETRY_EXPORT_ENABLED = false`. We have no telemetry backend, so no `OTEL_EXPORTER_OTLP*` endpoint ever receives anything, and there is no way to turn it on (no setting, no env var, no CLI flag). We will add it back deliberately once we run our own collector. The gate is pinned by `brand-check` MUST_CONTAIN/MUST_NOT_CONTAIN guards so an upstream merge cannot revert it. The OTLP `service.name` fallback also changes from `oh-my-pi` to `zeta`.
 
 ### Fixed
@@ -729,3 +714,5 @@ Older entries are archived in [packages/coding-agent/CHANGELOG.md@1e3cc3ab94d0](
 ## [1.0.10] - 2026-08-19
 
 Older entries are archived in [packages/coding-agent/CHANGELOG.md@6693ddbfd58c](https://github.com/can1357/oh-my-pi/blob/6693ddbfd58ce9edcdc0dc3fe98a8882c9bae834/packages/coding-agent/CHANGELOG.md).
+
+Older entries are archived in [packages/coding-agent/CHANGELOG.md@72d5cf31d861](https://github.com/can1357/oh-my-pi/blob/72d5cf31d86101eb0e17beaeda98582938c2eb78/packages/coding-agent/CHANGELOG.md).

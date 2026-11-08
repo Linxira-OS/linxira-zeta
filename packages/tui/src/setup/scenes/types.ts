@@ -32,6 +32,8 @@ export interface SetupHost extends SetupUiHost {
 	readonly disabledProviders: readonly string[];
 	/** Effective UI/settings language; the onboarding language scene starts here. */
 	readonly language: SetupLanguage;
+	/** Whether background self-update (`update.auto`) is on. */
+	readonly autoUpdate: boolean;
 	readonly authStorage: AuthStorage;
 	readonly modelSource: ModelBrowserSource;
 	/** Available and catalog models of every kind; role chips resolve over all of them, rows list chat models. */
@@ -44,6 +46,12 @@ export interface SetupHost extends SetupUiHost {
 	saveLanguage(language: SetupLanguage): Promise<void> | void;
 	saveColorBlindMode(enabled: boolean): void;
 	saveTheme(mode: "dark" | "light", name: string): void;
+	/**
+	 * Whether this omp can install its own updates; false where something else
+	 * owns them: Tern (which updates its omp itself), Nix, a source checkout.
+	 */
+	canAutoUpdate(): Promise<boolean>;
+	saveAutoUpdate(enabled: boolean): Promise<void>;
 	captureBrowserSession(request: OAuthBrowserSessionRequest, signal?: AbortSignal): Promise<string>;
 	openInBrowser(url: string): void;
 	markComplete(version: number): Promise<void>;

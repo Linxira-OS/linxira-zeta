@@ -441,8 +441,10 @@ function listMnemopi(
 		if (seenBanks.has(target.bank)) continue;
 		seenBanks.add(target.bank);
 		let rows: unknown[];
+		const memory = (target as { memory?: { getContext(limit: number): unknown[] } }).memory;
+		if (!memory) continue;
 		try {
-			rows = target.memory.getContext(limit);
+			rows = memory.getContext(limit);
 		} catch {
 			continue;
 		}
