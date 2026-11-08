@@ -69,7 +69,7 @@ Later cells reuse its definitions. Calling `%load` again executes the current fi
 
 Python dependencies install with `%pip install pillow`: the runner's pip magic runs `python -m pip` for the kernel's own interpreter (in an interpreter without pip, such as a `uv venv` env, it first installs pip with `ensurepip`, or with `uv` when that fails and `uv` is on `PATH`), pauses the cell watchdog while it runs, and keeps kernel variables. A missing-module error reminds that distribution names can differ from import names (`PIL` belongs to `pillow`).
 
-JavaScript dependencies install with `%bun add csv-parse` into an OMP-managed package environment shared by sessions in the same project; each worker keeps its own variables. Installation does not restart the worker; already imported modules stay cached until an explicit reset. Lifecycle scripts are disabled; packages needing native builds/postinstall must be prepared explicitly. `%environment project` selects the repository itself for package/lockfile changes; `%environment managed` returns to OMP-managed dependencies. The selection persists for later calls through that eval tool.
+JavaScript dependencies install with `%bun add csv-parse` into a Zeta-managed package environment shared by sessions in the same project; each worker keeps its own variables. Installation does not restart the worker; already imported modules stay cached until an explicit reset. Lifecycle scripts are disabled; packages needing native builds/postinstall must be prepared explicitly. `%environment project` selects the repository itself for package/lockfile changes; `%environment managed` returns to Zeta-managed dependencies. The selection persists for later calls through that eval tool.
 
 Percent commands are standalone cells, not extra tool arguments; quote requirements containing spaces.
 
@@ -152,7 +152,7 @@ With `eval.autoBackground.enabled` (default `false`), a cell that outlives `eval
 
 - Retained kernels are keyed by `python:${sessionId}`, normalized cwd, and interpreter. `python.kernelMode="per-call"` instead creates and shuts down a fresh kernel for each invocation.
 - The runner uses one persistent asyncio event loop, so top-level `await` works; `asyncio.run(...)` is invalid there.
-- The runner replaces `builtins.print` for stdout: printed images (omp image dicts, matplotlib figures, PIL images, `_repr_png_`/`_repr_jpeg_` objects) attach as images, and DataFrames/Series, Markdown objects, and large dicts/lists/tuples add views. A non-`None` trailing expression prints its `repr` the same way.
+- The runner replaces `builtins.print` for stdout: printed images (Zeta image dicts, matplotlib figures, PIL images, `_repr_png_`/`_repr_jpeg_` objects) attach as images, and DataFrames/Series, Markdown objects, and large dicts/lists/tuples add views. A non-`None` trailing expression prints its `repr` the same way.
 - Interactive stdin is rejected with `Kernel requested stdin; interactive input is not supported.`
 - Synchronous blocks use the default executor with copied ContextVars; Python bytecode still contends on the GIL.
 
@@ -201,7 +201,7 @@ console.log(page.next_cursor);
 ```
 
 Python callers use `result["details"].get("structuredContent")`. The property is
-absent when the server supplies no structured result; OMP does not infer it from
+absent when the server supplies no structured result; Zeta does not infer it from
 JSON-looking text. Error results can also carry structured data, so check
 `hasError` before treating a payload as a successful result.
 

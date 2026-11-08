@@ -115,7 +115,7 @@ Git and local sources must contain a catalog at `.zeta-plugin/marketplace.json` 
 
 ## Catalog format (marketplace.json)
 
-A marketplace catalog lives at `.zeta-plugin/marketplace.json` in the repository root. When omp is the only intended consumer, prefer this path. To remain Claude Code-compatible (omp loads the same shape from either path), publish at `.claude-plugin/marketplace.json` instead — omp uses it as a fallback when `.zeta-plugin/marketplace.json` is absent. A repository may ship both: omp reads the `.zeta-plugin/` copy, Claude Code reads the `.claude-plugin/` copy. Same catalog format either way:
+A marketplace catalog lives at `.zeta-plugin/marketplace.json` in the repository root. When Zeta is the only intended consumer, prefer this path. To remain Claude Code-compatible (Zeta loads the same shape from either path), publish at `.claude-plugin/marketplace.json` instead — Zeta uses it as a fallback when `.zeta-plugin/marketplace.json` is absent. A repository may ship both: Zeta reads the `.zeta-plugin/` copy, Claude Code reads the `.claude-plugin/` copy. Same catalog format either way:
 
 ```json
 {

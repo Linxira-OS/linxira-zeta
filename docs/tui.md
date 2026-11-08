@@ -22,7 +22,7 @@ If your extension/tool can run headless, guard with `ctx.hasUI` / `pi.hasUI`. RP
 ## Project-local TUI debug tool
 
 `.zeta/tools/tui.ts` provides the repository's `tui` debug tool. `start` accepts
-either a TypeScript/JavaScript `file` (run with Bun; under the compiled `omp`
+either a TypeScript/JavaScript `file` (run with Bun; under the compiled `zetacode`
 binary, the `bun` on `PATH`) or an executable `bin` with separate `args`.
 Windows uses native ConPTY without requiring a POSIX shell; macOS/Linux use
 Bun's PTY.
@@ -33,7 +33,7 @@ The PTY, emulated screen, and reported size use the same effective dimensions.
 
 `screen`, `send`, `resize`, and `stop` also work for programs without an
 `OMP_TUI_DEBUG` server. Renderer queries (`info`, `tree`, `values`, and `frame`)
-require an omp/pi-tui host.
+require an zeta/pi-tui host.
 
 `send` accepts literal text and `\e`, `\r`, `\n`, `\t`, and `\xNN` escapes.
 On Windows, each payload must contain complete, valid UTF-8; invalid or truncated
@@ -230,7 +230,7 @@ return loader;
 
 ## Pause status
 
-The `/pause` screen shows the same local turn-and-job state in ANSI and TSP: draining turns and running jobs count, while parked or finished turns do not. When both counts reach zero, it hides the rows and signals readiness. These counts cover OMP-tracked work only, not device-wide idleness.
+The `/pause` screen shows the same local turn-and-job state in ANSI and TSP: draining turns and running jobs count, while parked or finished turns do not. When both counts reach zero, it hides the rows and signals readiness. These counts cover Zeta-tracked work only, not device-wide idleness.
 
 ## Realistic custom component example (extension command)
 

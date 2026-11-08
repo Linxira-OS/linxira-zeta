@@ -4,7 +4,7 @@ This page indexes README-only user-facing package CLIs and features that need ro
 
 ## Root-docs policy
 
-- **Include** root docs coverage for package-local CLIs, extension features, dashboards, and benchmark runners that users can run directly or through `omp`.
+- **Include** root docs coverage for package-local CLIs, extension features, dashboards, and benchmark runners that users can run directly or through `zetacode`.
 - **Exclude explicitly** when a package/crate is internal implementation only; point to the architecture doc that owns it.
 - Package READMEs and manifests remain the source of truth for package-local setup and flags; root docs make the feature discoverable and link to exact source paths.
 - Internal Rust crates remain covered by native architecture docs unless promoted as standalone user-facing commands or APIs. The contributor-facing map lives at [`native-crates.md`](./native-crates.md); today every `crates/*` entry is internal to `@linxiraos/pi-natives` and the embedded shell, so [`natives-architecture.md`](./natives-architecture.md) and the surrounding native docs own them.
@@ -16,7 +16,7 @@ This page indexes README-only user-facing package CLIs and features that need ro
 Sources: [`python/robomp/README.md`](../python/robomp/README.md), [`python/robomp/pyproject.toml`](../python/robomp/pyproject.toml), [`python/robomp/.env.example`](../python/robomp/.env.example), [`python/robomp/docker-compose.yml`](../python/robomp/docker-compose.yml).
 
 - Python package: `robomp` (Python 3.11 or newer); bin: `robomp`, with `serve`, `triage`, `replay`, `status`, and `cleanup` commands.
-- Feature: self-hosted service that receives GitHub webhooks for allowlisted repositories, classifies issues, resumes an `omp --mode rpc` session per issue, comments or opens a fix PR, and handles follow-up issue and PR conversations. Incoming PR review is enabled by default; the opt-in release sentinel handles failed release CI (`ROBOMP_RELEASE_SENTINEL_ENABLED`, default false).
+- Feature: self-hosted service that receives GitHub webhooks for allowlisted repositories, classifies issues, resumes an `zetacode --mode rpc` session per issue, comments or opens a fix PR, and handles follow-up issue and PR conversations. Incoming PR review is enabled by default; the opt-in release sentinel handles failed release CI (`ROBOMP_RELEASE_SENTINEL_ENABLED`, default false).
 - Dashboard/API: FastAPI serves the operator dashboard at `/` alongside health, event, issue, and replay endpoints. The bundled Compose deployment publishes it at `http://localhost:6543/`; `bun run robomp:web:dev` runs the dashboard frontend in development, and `bun run robomp:web:build` rebuilds its static bundle.
 - Inputs/storage: Compose interpolates `python/robomp/.env` through explicit per-service environment allowlists and mounts `~/.zeta/agent/models.container.yml` as agent `models.yml`. Host CLI configuration uses process environment and `.env` relative to cwd. GitHub webhook events feed a SQLite-backed queue; Compose persists the database, workspaces, session transcripts, and logs in the `robomp_data` volume under `/data`.
 - Root commands: `bun run robomp:install` installs the Python package for host development; `bun run robomp:serve` runs it on the host; `bun run robomp:build`/`bun run robomp:rebuild`, `bun run robomp:up`, `bun run robomp:down`, `bun run robomp:restart`, `bun run robomp:logs`, `bun run robomp:dev`, and `bun run robomp:reset` manage the container deployment.
@@ -28,7 +28,7 @@ Sources: [`packages/stats/README.md`](../packages/stats/README.md), [`packages/s
 
 - Package: `@linxiraos/pi-stats`; bin: `zeta-stats`; main user path: `zetacode stats`.
 - Feature: local observability dashboard for AI usage statistics from session JSONL logs.
-- CLI modes: `zetacode stats` starts or reuses the dashboard at `http://127.0.0.1:43147` (a free port when another program holds that one), opens it in the browser, and keeps running. In a Tern pane it shows the dashboard in a browser block in place of that pane instead, with a Close button (Esc, or Ctrl+C with nothing selected) in its top bar, and exits when the block is closed; `/stats` inside zetacode opens it in a browser block beside omp's pane. `--port <port>` changes the port; `--host <host>` changes the bind address (loopback by default). `--summary` prints a console summary; `--json` prints JSON and exits. The standalone `zeta-stats` uses `--sync` for its summary mode and does not automatically open a browser.
+- CLI modes: `zetacode stats` starts or reuses the dashboard at `http://127.0.0.1:43147` (a free port when another program holds that one), opens it in the browser, and keeps running. In a Tern pane it shows the dashboard in a browser block in place of that pane instead, with a Close button (Esc, or Ctrl+C with nothing selected) in its top bar, and exits when the block is closed; `/stats` inside zetacode opens it in a browser block beside Zeta's pane. `--port <port>` changes the port; `--host <host>` changes the bind address (loopback by default). `--summary` prints a console summary; `--json` prints JSON and exits. The standalone `zeta-stats` uses `--sync` for its summary mode and does not automatically open a browser.
 - Programmatic API: exports helpers such as `syncAllSessions()` and `getDashboardStats()` for embedding.
 - Inputs/storage: scans the active profile's session directory recursively, including nested subagent transcripts; stores aggregates in that profile's stats database. Default paths are `~/.zeta/agent/sessions/` and `~/.zeta/stats.db`; initialized XDG data roots and named profiles change them through the shared directory resolver.
 - Outputs: request/token/cost, provider, model, folder, tool, gain, and frustration dashboards. API endpoints include `/api/stats`, `/api/stats/models`, `/api/stats/folders`, `/api/stats/timeseries`, `/api/stats/tools`, `/api/stats/gain`, `/api/status`, `/api/events` (SSE), and `/api/sync` (POST).
@@ -63,7 +63,7 @@ Sources: [`packages/metaharness/README.md`](../packages/metaharness/README.md), 
 - Feature: one dashboard, SQLite store, REST/SSE API, and normalized experiment → run → trace model for Harbor datasets (default `terminal-bench@2.0`), TypeScript edit, and SnapCompact benchmarks.
 - Dashboard/API: `bun run --cwd packages/metaharness serve -- --port 4700`; the launch form and `POST /api/runs` support all three benchmark adapters.
 - Direct runners: `bun packages/metaharness/src/runner.ts --model <provider/model> [Harbor options]` and `bun run --cwd packages/metaharness bench:edit -- --model <provider/model> [edit options]`.
-- Separate Terminal-Bench 2.1 runner: `bun run --cwd packages/metaharness bench:tb -- --model <provider/model> [options]` runs local OMP binaries in remote Vibemon microVMs, with a reachable host auth gateway. It supports task filters, repeated attempts/epochs, concurrency, spend budgets, tool/environment controls, and task listing. Its artifacts and `tb.sqlite` default to `runs/tb/`; it is not one of the dashboard's three adapters.
+- Separate Terminal-Bench 2.1 runner: `bun run --cwd packages/metaharness bench:tb -- --model <provider/model> [options]` runs local Zeta binaries in remote Vibemon microVMs, with a reachable host auth gateway. It supports task filters, repeated attempts/epochs, concurrency, spend budgets, tool/environment controls, and task listing. Its artifacts and `tb.sqlite` default to `runs/tb/`; it is not one of the dashboard's three adapters.
 - Harbor source mode bind-mounts the repository and a cached Linux dependency tree, while provider credentials stay on the host behind the auth gateway. Local-tarball, published-package, and prebuilt-binary install modes are also available.
 - Storage: normalized state lives under `<jobs-dir>/_manager/metaharness.sqlite`; benchmark-native artifacts remain the filesystem source of truth and historical runs are auto-discovered.
 - Outputs include Harbor trial directories, `_bench/<jobName>/report.md`, per-run logs, edit reports, normalized traces, dashboard metrics, and REST/SSE updates.
@@ -80,7 +80,7 @@ Sources: [`packages/browser-relay/README.md`](../packages/browser-relay/README.m
   details in the package README).
 - Behavior: the relay auto-starts through the profile-independent global daemon broker; consumers
   across projects hold leases, and the relay stops after the last lease is released. `app.target`
-  borrows a tab by exact CDP target id or URL/title substring; otherwise omp opens its own background tab, which a URL
+  borrows a tab by exact CDP target id or URL/title substring; otherwise Zeta opens its own background tab, which a URL
   navigates and close removes. `zetacode browser-relay --no-group` disables automatic tab grouping.
 - Security/limits: it binds loopback; use `--token` when local processes are untrusted. Chrome
   internal pages, DevTools, Web Store, extension pages, and tabs with DevTools open cannot attach.
@@ -104,6 +104,6 @@ Sources: [`packages/mnemopi/README.md`](../packages/mnemopi/README.md), [`packag
 - Package: public `@linxiraos/pi-mnemopi`; bin: `mnemopi`; requires Bun 1.4.4 or newer. Install globally with `bun add --global @linxiraos/pi-mnemopi`, then run `mnemopi <command>`. From a source checkout, `bun packages/mnemopi/src/cli.ts <command>` runs the same entrypoint.
 - Store and search: `store`/`remember`, `recall`/`search`, `update`/`edit`, and `delete`/`forget`.
 - Inspect and maintain: `stats`, `sleep`/`consolidate`, `diagnose`/`doctor`, JSON `export` and `import`, `scratchpad`/`sp` with `read`, `write`, or `clear`, and `bank` with `list`, `create`, or `delete`.
-- Storage: standalone commands use `~/.hermes/mnemopi/data/mnemopi.db` by default; `MNEMOPI_DATA_DIR` selects a different data directory. This default is separate from OMP's session-managed memory location.
-- Integration: `mcp` starts the package's MCP server. The standalone CLI operates directly on Mnemopi storage; select `memory.backend: mnemopi` instead when integrating memory into OMP sessions, as described in the backend guide.
+- Storage: standalone commands use `~/.hermes/mnemopi/data/mnemopi.db` by default; `MNEMOPI_DATA_DIR` selects a different data directory. This default is separate from Zeta's session-managed memory location.
+- Integration: `mcp` starts the package's MCP server. The standalone CLI operates directly on Mnemopi storage; select `memory.backend: mnemopi` instead when integrating memory into Zeta sessions, as described in the backend guide.
 - Discovery and errors: `mnemopi --help` lists primary command forms. Unknown commands and invalid arguments print a concise error and return a nonzero exit code.

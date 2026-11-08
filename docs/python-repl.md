@@ -151,7 +151,7 @@ Runtime selection order (skipped entirely when the `python.interpreter` setting 
 
 Candidates are probed in order until one runs; a broken venv does not automatically shadow a working later candidate. The selected working runtime is cached for that cwd/interpreter key. An explicit interpreter is a path (with `~` expansion and relative paths resolved against session cwd), not a PATH-search command name.
 
-When a venv is selected, its bin/Scripts path is prepended to `PATH`. The managed venv path follows the configured OMP data root; `~/.zeta/python-env` is the default.
+When a venv is selected, its bin/Scripts path is prepended to `PATH`. The managed venv path follows the configured Zeta data root; `~/.zeta/python-env` is the default.
 
 The runner additionally receives `PYTHONUNBUFFERED=1` and `PYTHONIOENCODING=utf-8` so streamed output reaches the host promptly.
 

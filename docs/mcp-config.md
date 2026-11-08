@@ -1,6 +1,6 @@
-# MCP configuration in OMP
+# MCP configuration in Zeta
 
-This guide explains how to add, edit, and validate MCP servers for the OMP coding agent.
+This guide explains how to add, edit, and validate MCP servers for the Zeta coding agent.
 
 Source of truth in code:
 
@@ -14,27 +14,27 @@ Source of truth in code:
 
 ## Preferred config locations
 
-OMP can discover MCP servers from multiple tools (`.claude/`, `.cursor/`, `.vscode/`, `opencode.json`, and more), but for Zeta-native configuration you should usually use one of these primary files:
+Zeta can discover MCP servers from multiple tools (`.claude/`, `.cursor/`, `.vscode/`, `opencode.json`, and more), but for Zeta-native configuration you should usually use one of these primary files:
 
 - Project: `.zeta/mcp.json`
 - User: `~/.zeta/agent/mcp.json` (or `~/.zeta/profiles/<name>/agent/mcp.json` when a named profile is active — see [Profiles](#profiles))
 
-The native provider also reads `.zeta/.mcp.json` and `~/.zeta/agent/.mcp.json` for compatibility, but OMP writes to the primary `mcp.json` paths above.
+The native provider also reads `.zeta/.mcp.json` and `~/.zeta/agent/.mcp.json` for compatibility, but Zeta writes to the primary `mcp.json` paths above.
 
-These user paths are defaults: `PI_CONFIG_DIR` changes the home config root, and `PI_CODING_AGENT_DIR` can override the default-profile agent directory. Named profiles derive their own agent directory rather than inheriting that override. Project config remains in `.zeta/`.
+These user paths are defaults: `PI_CONFIG_DIR` changes the home config root, and `ZETA_CODING_AGENT_DIR` can override the default-profile agent directory. Named profiles derive their own agent directory rather than inheriting that override. Project config remains in `.zeta/`.
 
-OMP also accepts fallback standalone files in the project root:
+Zeta also accepts fallback standalone files in the project root:
 
 - `mcp.json`
 - `.mcp.json`
 
-Use `.zeta/mcp.json` or `~/.zeta/agent/mcp.json` when you want OMP to own the configuration. Use root `mcp.json` / `.mcp.json` only when you want a portable fallback file that other MCP clients may also read.
+Use `.zeta/mcp.json` or `~/.zeta/agent/mcp.json` when you want Zeta to own the configuration. Use root `mcp.json` / `.mcp.json` only when you want a portable fallback file that other MCP clients may also read.
 
 The workspace-scoped OpenDesign bridge is separate: it does not write `.zeta/mcp.json` and does not register its 22 MCP tools individually. See [design](./design.md).
 
 ### Imported tool configs
 
-OMP also translates these current tool-native sources:
+Zeta also translates these current tool-native sources:
 
 - Claude Code: `~/.claude.json`, `~/.claude/mcp.json`, and project `.claude/.mcp.json` / `.claude/mcp.json`
 - Codex: `~/.codex/config.toml` and `.codex/config.toml` (`[mcp_servers.*]`)
@@ -56,7 +56,7 @@ Named profiles (`zetacode --profile <name>` or `ZETA_PROFILE`/`PI_PROFILE`) isol
 
 Discovery, the `/mcp` commands, and the config writer all follow the active profile, so a profile sees **only** its own user-level servers — never the default profile's `~/.zeta/agent/mcp.json`. Add a server to a profile by launching under it (`zetacode --profile <name>`) and running `/mcp add` → User level, or by editing `~/.zeta/profiles/<name>/agent/mcp.json` directly.
 
-Project-scoped MCP config (`.zeta/mcp.json`) is keyed to the working directory, not the profile, so it applies under every profile. External-tool configs (`.claude/`, `.cursor/`, etc.) are also profile-independent because they belong to those tools rather than to an OMP profile.
+Project-scoped MCP config (`.zeta/mcp.json`) is keyed to the working directory, not the profile, so it applies under every profile. External-tool configs (`.claude/`, `.cursor/`, etc.) are also profile-independent because they belong to those tools rather than to a Zeta profile.
 
 MCP follows the same profile rules as the rest of Zeta-native config; see [Configuration Discovery → Profiles](./config-usage.md#profiles).
 
@@ -71,11 +71,11 @@ Add this line at the top of the file for editor autocomplete and validation:
 }
 ```
 
-OMP now writes this automatically when `/mcp add`, `/mcp enable`, `/mcp disable`, `/mcp reauth`, or other config-writing flows create or update an OMP-managed MCP file.
+Zeta now writes this automatically when `/mcp add`, `/mcp enable`, `/mcp disable`, `/mcp reauth`, or other config-writing flows create or update a Zeta-managed MCP file.
 
 ## File shape
 
-OMP supports this top-level structure:
+Zeta supports this top-level structure:
 
 ```json
 {
@@ -113,13 +113,13 @@ Shared fields for every transport:
 
 Disable instructions when a server's guidance conflicts with your tool policy or adds unwanted context to every request, including subagent requests. If no connected server contributes instructions, the MCP Server Instructions section is omitted entirely. `instructions` does not distinguish connections: when two entries under different names describe the same endpoint, only the higher-priority entry is kept, together with its own `instructions` value, so set the option on the entry that wins (see `/mcp list`). A changed value applies to an already-connected server after `/mcp reload`.
 
-`ZETA_MCP_TIMEOUT_MS` has process-wide precedence over every per-server `timeout`. Set it to `0` to disable client-side timeouts, or to a positive millisecond value such as `120000`. If it is unset or invalid, OMP uses the server value and then the 30-second default; invalid values are logged and ignored.
+`ZETA_MCP_TIMEOUT_MS` has process-wide precedence over every per-server `timeout`. Set it to `0` to disable client-side timeouts, or to a positive millisecond value such as `120000`. If it is unset or invalid, Zeta uses the server value and then the 30-second default; invalid values are logged and ignored.
 
-Claude marketplace plugins follow [Claude Code's per-server timeout rule](https://code.claude.com/docs/en/mcp): their `.mcp.json` values are milliseconds, and values below `1000` are ignored with a discovery warning so OMP's normal timeout fallback applies. This restriction does not change Zeta-native configurations, where `0` still disables timeouts.
+Claude marketplace plugins follow [Claude Code's per-server timeout rule](https://code.claude.com/docs/en/mcp): their `.mcp.json` values are milliseconds, and values below `1000` are ignored with a discovery warning so Zeta's normal timeout fallback applies. This restriction does not change Zeta-native configurations, where `0` still disables timeouts.
 
 These request deadlines also govern subagent MCP calls over borrowed parent connections. The proxy adds no independent timeout; caller cancellation still stops the subagent's wait.
 
-Initial MCP discovery returns after a 250 ms window while slower connections continue in the background. Set `mcp.startupTimeoutMs` or override it with `ZETA_MCP_STARTUP_TIMEOUT_MS` to change the window; `0` waits for the initial connection attempts to settle. In print mode (`-p`, `--mode text|json`), OMP additionally waits for all configured servers to load tools or fail before the first turn, up to `ZETA_MCP_TIMEOUT_MS` (default 30 seconds). `ZETA_MCP_TIMEOUT_MS=0` disables this barrier deadline too, so an unresponsive server can block print mode indefinitely. Servers still unavailable at the deadline are named on stderr; `ZETA_MCP_REQUIRE_READY=1` instead exits with code 1 before the turn. These print-mode waits do not affect interactive, RPC, or ACP startup. In interactive and `--mode rpc-ui` sessions, which connect MCP servers in the background, the first turn waits up to 1.5 s for MCP startup, so its system prompt includes servers connected by then; slower servers register later and change the next turn's prompt.
+Initial MCP discovery returns after a 250 ms window while slower connections continue in the background. Set `mcp.startupTimeoutMs` or override it with `ZETA_MCP_STARTUP_TIMEOUT_MS` to change the window; `0` waits for the initial connection attempts to settle. In print mode (`-p`, `--mode text|json`), Zeta additionally waits for all configured servers to load tools or fail before the first turn, up to `ZETA_MCP_TIMEOUT_MS` (default 30 seconds). `ZETA_MCP_TIMEOUT_MS=0` disables this barrier deadline too, so an unresponsive server can block print mode indefinitely. Servers still unavailable at the deadline are named on stderr; `ZETA_MCP_REQUIRE_READY=1` instead exits with code 1 before the turn. These print-mode waits do not affect interactive, RPC, or ACP startup. In interactive and `--mode rpc-ui` sessions, which connect MCP servers in the background, the first turn waits up to 1.5 s for MCP startup, so its system prompt includes servers connected by then; slower servers register later and change the next turn's prompt.
 
 Client-generated remote protocol headers take precedence over configured headers case-insensitively. Streamable HTTP owns `MCP-Protocol-Version`: it ignores configured copies and sends the negotiated version after initialization. Portable Agent Plugins' configured headers are origin-locked and are not forwarded to another origin on redirects.
 
@@ -212,7 +212,7 @@ Example:
 
 ## Auth fields
 
-OMP understands two auth-related objects.
+Zeta understands two auth-related objects.
 
 ### `auth`
 
@@ -227,16 +227,16 @@ OMP understands two auth-related objects.
 }
 ```
 
-For managed OAuth, `auth` tells OMP how to find and refresh a stored credential. Although `"apikey"` is an accepted `type`, it does not load or inject an API key from auth storage. Put API keys directly in stdio `env` or remote `headers` (prefer an environment-variable or `!command` indirection described below).
+For managed OAuth, `auth` tells Zeta how to find and refresh a stored credential. Although `"apikey"` is an accepted `type`, it does not load or inject an API key from auth storage. Put API keys directly in stdio `env` or remote `headers` (prefer an environment-variable or `!command` indirection described below).
 
-You normally do not need to write this block: when OMP completes an OAuth flow for an `http`/`sse` server, it stores the credential under a deterministic id derived from the active profile and server URL (`mcp_oauth:profile:<profile>:<url>`), with the refresh material embedded. Any
+You normally do not need to write this block: when Zeta completes an OAuth flow for an `http`/`sse` server, it stores the credential under a deterministic id derived from the active profile and server URL (`mcp_oauth:profile:<profile>:<url>`), with the refresh material embedded. Any
 config that points at the same URL — including a _definition-only_ entry in a
 shared project `mcp.json` with no `auth` block at all — resolves the active
 profile's own credential automatically, including when auth storage is backed by
 a shared auth broker. This is what makes project-scoped servers safe across
 profiles: commit the definition, and each profile authorizes (and stays signed
 in as) its own account via `/mcp reauth <name>`. An explicit `credentialId` is
-still honored when it resolves; if it points at another profile's row, OMP falls
+still honored when it resolves; if it points at another profile's row, Zeta falls
 back to the profile-scoped url-keyed binding.
 
 `/mcp reauth` on a definition-only entry leaves the file untouched — the
@@ -269,11 +269,11 @@ profile for untrusted checkouts.
 
 Use `oauth` when the MCP server requires explicit OAuth client, scope, or callback settings. The callback listener defaults to port `3000` and path `/callback`; an HTTP loopback `redirectUri` supplies its own port/path unless explicitly overridden. An HTTPS loopback redirect requires a distinct `callbackPort` for the local HTTP listener behind your TLS terminator.
 
-During `/mcp reauth`, scopes advertised by the protected resource or its authentication challenge take precedence; `oauth.scope` supplies the fallback. Authorization-server `scopes_supported` is a catalogue of available scopes, not a request to grant all of them. OMP does not copy that catalogue into the login request. If the resource advertises no scopes, set `oauth.scope` to the scopes allowed for your registered client (for example, `"openid"` for an OpenID Connect login), or leave it unset to use the authorization server's defaults.
+During `/mcp reauth`, scopes advertised by the protected resource or its authentication challenge take precedence; `oauth.scope` supplies the fallback. Authorization-server `scopes_supported` is a catalogue of available scopes, not a request to grant all of them. Zeta does not copy that catalogue into the login request. If the resource advertises no scopes, set `oauth.scope` to the scopes allowed for your registered client (for example, `"openid"` for an OpenID Connect login), or leave it unset to use the authorization server's defaults.
 
 Scopes from resource-server-hosted `/oauth/metadata` and `/.mcp/auth` documents are also preserved, including nested `oauth`, `authorization`, and `auth` blocks. Their `scopes_supported` arrays are not treated as resource requirements when those paths are probed on an explicitly identified authorization server.
 
-`prompt` controls the OAuth `prompt` authorization parameter. By default OMP omits it, except that a requested `offline_access` scope defaults to `"consent"` so the provider can issue refresh access. Set it explicitly to a provider-supported value such as `"consent"` or `"select_account"`, or to `""` to force omission.
+`prompt` controls the OAuth `prompt` authorization parameter. By default Zeta omits it, except that a requested `offline_access` scope defaults to `"consent"` so the provider can issue refresh access. Set it explicitly to a provider-supported value such as `"consent"` or `"select_account"`, or to `""` to force omission.
 
 Example:
 
@@ -384,7 +384,7 @@ This is the part that usually trips people up.
 
 ### Discovery-time `${...}` expansion
 
-OMP expands `${VAR}` and `${VAR:-default}` placeholders while discovering MCP configs from Zeta-native files and standalone fallback files. Expansion applies recursively to string values in `command`, `args`, `env`, `cwd`, `url`, `headers`, `auth`, and `oauth`; unresolved placeholders remain literal strings.
+Zeta expands `${VAR}` and `${VAR:-default}` placeholders while discovering MCP configs from Zeta-native files and standalone fallback files. Expansion applies recursively to string values in `command`, `args`, `env`, `cwd`, `url`, `headers`, `auth`, and `oauth`; unresolved placeholders remain literal strings.
 
 Example:
 
@@ -406,12 +406,12 @@ Example:
 
 Portable Agent Plugins use different secret semantics: only `${PLUGIN_ROOT}` and `${PLUGIN_DATA}` are expanded. Their environment/header values remain literal, including empty strings; `!command` and bare environment-variable names are not evaluated. Provider-expanded marketplace environment keys also stay literal.
 
-Before OMP launches a stdio server or makes an HTTP/SSE request, it resolves stdio `env` values and HTTP/SSE `headers` values like this:
+Before Zeta launches a stdio server or makes an HTTP/SSE request, it resolves stdio `env` values and HTTP/SSE `headers` values like this:
 
-1. If a value starts with `!`, OMP runs the rest as a shell command in the project directory with a 10s timeout and uses trimmed stdout. Successful results are process-cached until invalidated; concurrent resolutions share the same command execution.
+1. If a value starts with `!`, Zeta runs the rest as a shell command in the project directory with a 10s timeout and uses trimmed stdout. Successful results are process-cached until invalidated; concurrent resolutions share the same command execution.
 2. If the command fails, times out, or prints only whitespace, that `env`/`headers` entry is omitted. Failed commands are retried on a later resolution after a 30s backoff.
-3. Otherwise OMP checks whether the whole value names an environment variable.
-4. If that environment variable is set to a non-empty value, OMP uses the environment value; otherwise it uses the string literally.
+3. Otherwise Zeta checks whether the whole value names an environment variable.
+4. If that environment variable is set to a non-empty value, Zeta uses the environment value; otherwise it uses the string literally.
 
 Examples:
 
@@ -447,7 +447,7 @@ The active profile's user file supplies two cross-source overrides:
 }
 ```
 
-`/mcp enable` and `/mcp disable` update `enabled` directly when the definition is in an OMP-owned writable file. OMP does not mutate another tool's config: for such sources, those commands maintain the user-level allowlist or denylist instead and remove a conflicting stale override.
+`/mcp enable` and `/mcp disable` update `enabled` directly when the definition is in a Zeta-owned writable file. Zeta does not mutate another tool's config: for such sources, those commands maintain the user-level allowlist or denylist instead and remove a conflicting stale override.
 
 ## `/mcp add` vs editing JSON directly
 
@@ -468,7 +468,7 @@ After editing, use:
 - `/mcp reauth <name>` to replace managed OAuth credentials, or `/mcp unauth <name>` to remove them
 - `/mcp resources`, `/mcp prompts`, and `/mcp notifications` to inspect non-tool MCP capabilities
 
-## Validation rules OMP enforces
+## Validation rules Zeta enforces
 
 From `validateServerConfig()` in `packages/coding-agent/src/mcp/config.ts`:
 
@@ -485,7 +485,7 @@ These rules apply to direct configs passed to the validator/writer. Discovery fi
 
 Zeta loads providers in descending priority. The MCP-capable order is:
 
-1. OMP native config
+1. Zeta native config
 2. Zeta extension packages
 3. Claude Code
 4. Agent Plugins
@@ -498,9 +498,9 @@ Zeta loads providers in descending priority. The MCP-capable order is:
 
 Across providers, the first definition wins. Duplicate names are not merged; OpenCode's internal config layers are the exception described above. A differently named definition is also shadowed when its transport, endpoint/command inputs, auth, and request-id mode are equivalent to a higher-priority definition.
 
-Within OMP native config, project `.zeta/mcp.json` precedes `.zeta/.mcp.json`, then the active profile's user `mcp.json` and `.mcp.json`. Root fallback `mcp.json` precedes root `.mcp.json`. In practice:
+Within Zeta native config, project `.zeta/mcp.json` precedes `.zeta/.mcp.json`, then the active profile's user `mcp.json` and `.mcp.json`. Root fallback `mcp.json` precedes root `.mcp.json`. In practice:
 
-- prefer `.zeta/mcp.json` or the active profile's user `mcp.json` for an Zeta-specific override
+- prefer `.zeta/mcp.json` or the active profile's user `mcp.json` for a Zeta-specific override
 - keep names and endpoint definitions unique across tools when possible
 - use the user `disabledServers` list when a third-party config keeps reintroducing an unwanted server
 - set `mcp.enableProjectConfig: false` to exclude every project-level source before deduplication, allowing a same-named user entry to survive
@@ -513,7 +513,7 @@ For a remote config passed directly to the writer/client, set `type: "http"`. Di
 
 ### `Server "name": both "command" and "url" are set`
 
-Pick one transport. OMP treats `command` as stdio and `url` as http/sse.
+Pick one transport. Zeta treats `command` as stdio and `url` as http/sse.
 
 ### `/mcp add` worked but the server still does not connect
 
@@ -524,9 +524,9 @@ The JSON is valid, but the server may still be unreachable. Use `/mcp test <name
 - the remote URL is reachable
 - the OAuth or API token is valid
 
-### The server exists in another tool's config but not in OMP
+### The server exists in another tool's config but not in Zeta
 
-Run `/mcp list`. OMP discovers many third-party MCP files, but project-level loading can also be disabled via the `mcp.enableProjectConfig` setting, and a user-level `disabledServers` entry can suppress a server by name.
+Run `/mcp list`. Zeta discovers many third-party MCP files, but project-level loading can also be disabled via the `mcp.enableProjectConfig` setting, and a user-level `disabledServers` entry can suppress a server by name.
 
 ### A browser MCP server is configured but never loads
 
@@ -542,7 +542,7 @@ The runtime/config writer accepts `:` and single internal spaces in names. The b
 
 ### A config file is silently absent from the list
 
-Malformed JSON or a missing/invalid server map makes that provider contribute no entries from the file; depending on the provider, OMP records a discovery warning or logs the parse failure rather than failing the session. Correct the JSON shape, then run `/mcp reload` and `/mcp list`.
+Malformed JSON or a missing/invalid server map makes that provider contribute no entries from the file; depending on the provider, Zeta records a discovery warning or logs the parse failure rather than failing the session. Correct the JSON shape, then run `/mcp reload` and `/mcp list`.
 
 ## References
 

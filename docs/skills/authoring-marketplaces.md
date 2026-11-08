@@ -1,6 +1,6 @@
 ---
 name: authoring-marketplaces
-description: Use when creating a new omp marketplace. Covers marketplace.json schema, source types, install commands, and publishing.
+description: Use when creating a new Zeta marketplace. Covers marketplace.json schema, source types, install commands, and publishing.
 ---
 
 # Authoring Marketplaces
@@ -90,7 +90,7 @@ The catalog file lives at `.claude-plugin/marketplace.json` in the repository ro
 		"email": "plugins@acme.example"
 	},
 	"metadata": {
-		"description": "Official Acme plugins for omp"
+		"description": "Official Acme plugins for Zeta"
 	},
 	"plugins": [
 		{

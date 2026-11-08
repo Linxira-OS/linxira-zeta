@@ -87,7 +87,7 @@ If omitted, export code derives defaults from resolved theme colors.
 
 ### `terminal` section (optional)
 
-Describes the terminal the theme was made for, for hosts that paint the terminal themselves (Tern); omp never sets the terminal's colors. `terminal.ansi` (exactly 16 entries, ANSI 0–15) is also the palette colorful Markdown paints from; a theme without it falls back to the terminal's own ANSI colors.
+Describes the terminal the theme was made for, for hosts that paint the terminal themselves (Tern); Zeta never sets the terminal's colors. `terminal.ansi` (exactly 16 entries, ANSI 0–15) is also the palette colorful Markdown paints from; a theme without it falls back to the terminal's own ANSI colors.
 
 ### `symbols` section (optional)
 

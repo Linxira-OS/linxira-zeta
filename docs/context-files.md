@@ -31,7 +31,7 @@ Two details matter:
 - **The nearest non-empty `.zeta/` directory owns native project discovery.** Discovery starts in the current working directory and climbs toward the repository root. Once it finds a non-empty `.zeta/`, it stops; native `AGENTS.md` and `RULES.md` are each read from that directory only. A missing file does not make discovery continue upward.
 - **Empty directories and files contribute nothing.** An empty `.zeta/` directory is skipped during the walk. In the selected non-empty directory, an empty `AGENTS.md` or `RULES.md` contributes nothing.
 
-`~/.zeta/agent` is shorthand for the active native agent directory. `PI_CODING_AGENT_DIR` relocates it. A named profile (`zetacode --profile <name>`, `ZETA_PROFILE`, or `PI_PROFILE`) uses `~/.zeta/profiles/<name>/agent` by default; external-tool user bases such as `~/.claude` are not profile-scoped.
+`~/.zeta/agent` is shorthand for the active native agent directory. `ZETA_CODING_AGENT_DIR` relocates it. A named profile (`zetacode --profile <name>`, `ZETA_PROFILE`, or `PI_PROFILE`) uses `~/.zeta/profiles/<name>/agent` by default; external-tool user bases such as `~/.claude` are not profile-scoped.
 
 ### Monorepo example
 
@@ -103,7 +103,7 @@ Each name is found the same way as a standalone `AGENTS.md` (the `agents-md` wal
 
 Two more locations are checked for each name:
 
-- The active user agent directory (`~/.zeta/agent/<name>`, or the profile / `PI_CODING_AGENT_DIR` directory), as a user-level file. Skipped when the effective list comes from a project config (`.zeta/config.yml`), so a repository cannot pull files such as `config.yml` from your agent directory into the prompt.
+- The active user agent directory (`~/.zeta/agent/<name>`, or the profile / `ZETA_CODING_AGENT_DIR` directory), as a user-level file. Skipped when the effective list comes from a project config (`.zeta/config.yml`), so a repository cannot pull files such as `config.yml` from your agent directory into the prompt.
 - When the session is in a linked git worktree, `<primary-checkout>/<name>`. The normal walk stops at the worktree's `.git`, so this is what picks up a gitignored `AGENTS.local.md` that lives only in the main checkout. Only the primary checkout's root is checked, not the directory matching your cwd inside it.
 
 Extra files do not take the one-per-depth scope slot and are not shadowed by the file that does. `AGENTS.local.md` loads beside `AGENTS.md`. At the same depth the extra file is injected after the scope winner, so it is the more prominent of the two. `@` imports inside an extra file resolve from that file's own directory.

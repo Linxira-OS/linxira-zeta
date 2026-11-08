@@ -38,9 +38,11 @@ zetacode serve
   RPC WebSocket。
 - Stats Dashboard：`127.0.0.1:43147` —— 用量、费用、请求与工具面板，右上角
   有 EN ⇄ 中文 切换。
-- Web UI：`127.0.0.1:43141` —— **开发降级（deferred）**。安装包不附带 Web UI
-  构建；该端口返回双语占位页，说明界面正在补齐。后续版本补齐后会由
-  `zetacode serve` 按需从 npm 获取。
+- Web UI（Work Studio）：`127.0.0.1:43141` —— 随包发布的浏览器工作台。npm
+  包在 `dist/web-app` 自带渲染器；源码检出则使用 `web-app/dist`。两者都不存在时
+  （安装被截断，或尚未构建的检出），该端口返回双语占位页并说明如何构建或重装，
+  同时所有 `/api/*` 路由仍可用。`zetacode web` 只启动该服务器；`zetacode serve`
+  会将它和 gateway、stats 一起提供。
 
 终端是主要入口。裸启动是完全本地 TUI；后端模式必须显式选择，并挂接到它所属
 的工作区与分支：

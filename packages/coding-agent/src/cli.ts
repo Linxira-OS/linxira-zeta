@@ -20,6 +20,7 @@ import type { CliConfig, CommandMetadata } from "@linxiraos/pi-utils/cli";
 import type * as Postmortem from "@linxiraos/pi-utils/postmortem";
 import {
 	APP_NAME,
+	CLI_BIN_NAME,
 	getActiveProfile,
 	MIN_BUN_VERSION,
 	resolveProfileEnv,
@@ -600,7 +601,7 @@ export async function runCli(argv: string[]): Promise<void> {
 			return;
 		}
 		runningCommand = resolved.argv[0];
-		await run({ bin: APP_NAME, version: VERSION, argv: resolved.argv, commands, metadataHelp: showHelp });
+		await run({ bin: CLI_BIN_NAME, version: VERSION, argv: resolved.argv, commands, metadataHelp: showHelp });
 	} finally {
 		stopStartupComposer?.();
 	}

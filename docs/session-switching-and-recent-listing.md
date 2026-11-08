@@ -146,7 +146,7 @@ Flow:
    - cancel -> hide overlay, restore editor focus, rerender
    - exit -> hide overlay, then `ctx.shutdown()`
 
-`/resume <id-prefix>` resolves local then global matches with `resolveResumeTarget`, the same resolver the CLI's `--resume <id>` uses, and switches to the copy it picks. `/resume @claude` and `/resume @codex` instead open read-only-source import pickers: the selected foreign transcript is persisted as an OMP session, then switched to; deletion, history augmentation, and all-project scope are not offered in those pickers.
+`/resume <id-prefix>` resolves local then global matches with `resolveResumeTarget`, the same resolver the CLI's `--resume <id>` uses, and switches to the copy it picks. `/resume @claude` and `/resume @codex` instead open read-only-source import pickers: the selected foreign transcript is persisted as a Zeta session, then switched to; deletion, history augmentation, and all-project scope are not offered in those pickers.
 
 ## Resume tree (three-level picker)
 

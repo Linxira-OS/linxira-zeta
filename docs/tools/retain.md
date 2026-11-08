@@ -106,7 +106,7 @@ Mnemopi:
    - Hindsight async flush failures emit `session.emitNotice("warning", ...)`; the model is not told.
    - Mnemopi explicit write failures are returned as tool errors with partial-batch information; earlier successful writes are not rolled back.
 - Background work / cancellation
-   - Hindsight flush runs on the debounce timer, the queue-size threshold, primary-state installation, agent end, and session disposal; backend `enqueue(...)` and `clear(...)` explicitly drain it. Undelivered events survive the session and process; nothing delivers while no omp process runs.
+   - Hindsight flush runs on the debounce timer, the queue-size threshold, primary-state installation, agent end, and session disposal; backend `enqueue(...)` and `clear(...)` explicitly drain it. Undelivered events survive the session and process; nothing delivers while no Zeta process runs.
    - Mnemopi fact/entity extraction and embedding may continue after the synchronous row write. Backend `enqueue(...)` requests full consolidation; backend clear disposes scoped instances before deleting their database files.
    - `retain.execute()` itself has no abort-signal handling.
 

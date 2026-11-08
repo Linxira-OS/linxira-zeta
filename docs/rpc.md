@@ -300,7 +300,7 @@ correlate it via `id`. Ordering across concurrent commands is not guaranteed
 ### Session
 
 - `{ id?, type: "get_session_stats" }`
-- `{ id?, type: "get_session_lease", sessionIds: string[] }` → `data: { held: string[], unknown: string[] }`: which sessions a running omp (this process included) owns, probed without taking their ownership leases. Ids in neither list are free; `unknown` ids could not be probed. `omp session lease --json -- <id>...` answers the same without an RPC child (`--` keeps ids starting with `-` from parsing as options).
+- `{ id?, type: "get_session_lease", sessionIds: string[] }` → `data: { held: string[], unknown: string[] }`: which sessions a running Zeta (this process included) owns, probed without taking their ownership leases. Ids in neither list are free; `unknown` ids could not be probed. `zetacode session lease --json -- <id>...` answers the same without an RPC child (`--` keeps ids starting with `-` from parsing as options).
 - `{ id?, type: "export_html", outputPath?: string }`
 - `{ id?, type: "switch_session", sessionPath: string, provider?: string, modelId?: string }`
 - `{ id?, type: "branch", entryId: string }`
@@ -421,7 +421,7 @@ Data payloads are command-specific and defined in `rpc-types.ts`.
 - `agentInvoked: false`: the prompt finished locally (an extension or custom command that started no turn) or failed before reaching the agent.
 - `agentInvoked: true`: the prompt was dispatched or queued for agent work; normal completion reports when the agent **yielded** — see [Yield vs settled](#yield-vs-settled). An abort that wins before dispatch can still report `true` with `status: "aborted"`. A prompt dispatched as a fresh turn reports the first run that started after it was accepted, so a late `agent_end` from an earlier run never completes it. A prompt queued into a live run (`streamingBehavior`) reports at the first yield after its message left the queue. An `agent_end` with `yielded: false` (the agent is retrying, compacting, or answering a stop-time reminder) never completes a prompt.
 - `status`: `"completed"`, `"aborted"` (interrupted by `abort`, `abort_and_prompt`, or a session transition, or dropped by an abort before dispatch), or `"error"`.
-- `error` (only with `status: "error"`): `{ message, provider?, model?, httpStatus?, retryable, code? }`. `message` is the provider's error text with OMP-local diagnostics (such as saved request-dump paths) removed. `retryable` marks a transient failure; OMP's own automatic retries have already been exhausted. `code: "cost_cap"` means the session reached `session.maxCost` and OMP did not send the next request; the server keeps running, and later prompts end the same way until the cap is raised. A prompt that fails before reaching the agent also gets the legacy error response with the same `id` before its `prompt_result`.
+- `error` (only with `status: "error"`): `{ message, provider?, model?, httpStatus?, retryable, code? }`. `message` is the provider's error text with Zeta-local diagnostics (such as saved request-dump paths) removed. `retryable` marks a transient failure; Zeta's own automatic retries have already been exhausted. `code: "cost_cap"` means the session reached `session.maxCost` and Zeta did not send the next request; the server keeps running, and later prompts end the same way until the cap is raised. A prompt that fails before reaching the agent also gets the legacy error response with the same `id` before its `prompt_result`.
 - `sessionSettled`: whether the session is already done when the result is written — see [Yield vs settled](#yield-vs-settled). `false` means background work can still wake the agent; a `session_settled` frame follows once it has.
 
 A failed provider turn is not a failed command: the prompt response is still `success: true`, and the turn ends with a normal terminal `agent_end` whose last assistant message has `stopReason: "error"`. Use `prompt_result.status` rather than parsing that message.
@@ -432,7 +432,7 @@ Local-only slash commands may emit `command_output` frames before completing. Th
 
 For agent-invoking work, a prompt's `prompt_result` reports the **agent yield**: it finished its turn (`agent_end` with `yielded: true`), or the prompt was aborted before dispatch or by a session transition. Local-only results and pre-dispatch errors do not require an `agent_end`. The **session is done** only when nothing can wake it again — no run is live or admitted, no steer/follow-up is queued, and no background job (auto-backgrounded `bash`, async `task`, `eval`) or pending delivery will inject its result and start a follow-up turn.
 
-- `session_settled` is written once per stretch of agent activity, when the session becomes done. If background work was pending at the yield, OMP waits it out; any follow-up runs it triggers stream normally (`agent_start` … `agent_end`) before `session_settled`. It always follows the `prompt_result` frames of the final yield, and is not emitted for prompts that never reached the agent.
+- `session_settled` is written once per stretch of agent activity, when the session becomes done. If background work was pending at the yield, Zeta waits it out; any follow-up runs it triggers stream normally (`agent_start` … `agent_end`) before `session_settled`. It always follows the `prompt_result` frames of the final yield, and is not emitted for prompts that never reached the agent.
 - `prompt_result.sessionSettled` answers the same question at the yield, so a host can tear down immediately when it is `true`.
 - `get_state` reports `isSettled` (same predicate) and `hasPendingAsyncWork`, for hosts that attach mid-stream.
 
@@ -939,7 +939,7 @@ unregistered; an empty list clears all host schemes.
 
 Every built-in scheme (`local://`, `skill://`, `artifact://`, `security://`,
 `mcp://`, …) is reserved: RPC hosts cannot register or shadow one, and the
-request fails with `Host URI scheme is reserved by OMP: <scheme>://`.
+request fails with `Host URI scheme is reserved by Zeta: <scheme>://`.
 
 ## Event Stream Schema
 
@@ -996,7 +996,7 @@ Extension runner errors are emitted separately as:
 
 `message_start`, `message_update`, and `message_end` carry a `messageId` string assigned by RPC mode. One message keeps the same id from its start through every update to its end; ids are unique within the process. Records injected mid-stream (advisor cards, IRC messages) get their own id and do not disturb the id of the reply streaming around them.
 
-`set_event_filter` restricts which session event frames are written: pass the event `type` strings to forward, or `null` to forward everything (the default). The response echoes the active selection as `{ events, messageUpdates }`. The filter applies to all events emitted through the session subscription, not just the common types listed above; every other outbound category (responses, `prompt_result`, `session_settled`, extension UI and host tool/URI requests, `extension_error`, `available_commands_update`, subagent frames, side-question frames, builtin slash-command side channels, and session-persistence and `btw-history` `notice` frames) is unaffected by this filter. Hosts that fail closed on unknown event kinds can pin the set they understand here instead of breaking when OMP adds an event.
+`set_event_filter` restricts which session event frames are written: pass the event `type` strings to forward, or `null` to forward everything (the default). The response echoes the active selection as `{ events, messageUpdates }`. The filter applies to all events emitted through the session subscription, not just the common types listed above; every other outbound category (responses, `prompt_result`, `session_settled`, extension UI and host tool/URI requests, `extension_error`, `available_commands_update`, subagent frames, side-question frames, builtin slash-command side channels, and session-persistence and `btw-history` `notice` frames) is unaffected by this filter. Hosts that fail closed on unknown event kinds can pin the set they understand here instead of breaking when Zeta adds an event.
 
 The optional `messageUpdates: "delta"` projects only `message_update` frames to `{ type: "message_update", messageId, message: { role }, assistantMessageEvent }`: `assistantMessageEvent.partial` is omitted, while all other event fields (including subtype, `delta`, and `contentIndex`) are preserved, and enough is added to rebuild the message client-side. `text_start`, `thinking_start`, and `toolcall_start` carry `block`: the shell of the content block at `contentIndex`, with its streamed content emptied (`text` and `thinking` are `""`, a tool call's `arguments` are `{}`; its `id`, `name`, and other metadata are kept), so the deltas that follow always apply from empty. The server snapshots a block when it handles the event, not when the model emitted it, so a start's snapshot can already hold text that a later delta delivers; hence the emptying. `text_end` and `thinking_end` keep `content` and add `block`: the same block without its text, so its signature and other metadata (`textSignature`, `thinkingSignature`, ...) are available; rebuild the block as `{ ...block, text: content }` or `{ ...block, thinking: content }`. `image_end` carries the whole image as `content` and `toolcall_end` the whole tool call as `toolCall`; each is the block at `contentIndex`. A `start` (a restart of the streaming message within a turn) carries `message`: the whole message to restart from; that snapshot can likewise be ahead of the deltas that follow, so treat each block's `*_end` as authoritative for its final content. `text_delta` and `thinking_delta` carry the text to append to the block at `contentIndex`; `toolcall_delta` carries a fragment of the tool call's arguments JSON, and the arguments are complete only in `toolcall_end`'s `toolCall`. Rebuilding covers the message's `content`: `usage`, `responseId`, `stopReason`, and the other message fields arrive only in `message_end`. `message_start`, `message_end`, and all other frames are unchanged; `message_end` still carries the full message and is authoritative: it can differ from the rebuilt content, for example when inline-edit recovery lifts edit payload text out of a text block and synthesizes an `edit` tool call just before it. Block kinds with no start event also arrive only in full there. Hosts must still accept chunked protocol-v2 frames for large blocks and full messages. Switching modes mid-message does not change its `messageId`. The projection applies to the session's own frames only: `subagent_event` payloads forwarded under `set_subagent_subscription` level `"events"` keep their full `message_update` snapshots.
 
@@ -1109,18 +1109,18 @@ in `available_commands_update` frames at startup and after command metadata
 changes. Each command has `name`, `source`, and optional `aliases`,
 `description`, `input.hint`, and `subcommands`.
 
-Command discovery is intentionally an OMP dialect: Pi's `get_commands` (a
+Command discovery is intentionally a Zeta dialect: Pi's `get_commands` (a
 `RpcSlashCommand[]` projection over extensions → prompt templates → skills) is
-not served because OMP's richer catalog (builtins/custom/MCP/file commands,
+not served because Zeta's richer catalog (builtins/custom/MCP/file commands,
 broader `source` enum, no Pi `sourceInfo`) is not wire-compatible with it.
 
 ### Pi-compatible history/tree commands with Zeta-native entry payloads
 
 The commands and reconciliation semantics below are Pi-compatible, but the
 returned `SessionEntry` payload union is Zeta-native, not wire-identical to
-Pi. Concretely: Pi `model_change` carries `provider` + `modelId` while OMP
+Pi. Concretely: Pi `model_change` carries `provider` + `modelId` while Zeta
 carries a combined `model` plus role/fallback metadata; Pi uses a `usage`
-entry where OMP uses `model_usage`; and OMP has additional entry types (for
+entry where Zeta uses `model_usage`; and Zeta has additional entry types (for
 example service-tier, title, mode, credential, and reset records). A
 permissive client that consumes the common structural subset
 (`id`/`parentId` plus message entries) can share one durable-history
@@ -1136,10 +1136,10 @@ durable entry id. An unknown `since` fails explicitly with
 
 `get_available_thinking_levels` returns `{ levels }`: the selectable levels
 for the live model with `"off"` first (it is accepted by
-`set_thinking_level` but excluded from the effort-only model helper). OMP-only
+`set_thinking_level` but excluded from the effort-only model helper). Zeta-only
 `auto`/`inherit` selectors are intentionally omitted from discovery.
 
-Lifecycle stays OMP: `agent_end` carries `isTerminal`, `yielded`, and optional
+Lifecycle stays Zeta: `agent_end` carries `isTerminal`, `yielded`, and optional
 `awaitingAsyncWork`; `prompt_result` correlates prompt completion and
 `session_settled` reports quiescence. There is no Pi `agent_settled` frame.
 These, `agentInvoked`, `open_session`, `set_event_filter`, `messageId`, `ready`,
@@ -1434,7 +1434,7 @@ Presentation methods and `open_url` are fire-and-forget and require no response.
 
 If a dialog has a timeout, RPC mode resolves to a default value when timeout/abort fires, and emits
 `{ method: "cancel", targetId }` so the host closes the dialog; a later answer to it is ignored. For `ask`, a timeout
-(omp's timer or a host `cancelled: true, timedOut: true` reply) answers every question with its recommended
+(Zeta's timer or a host `cancelled: true, timedOut: true` reply) answers every question with its recommended
 option, else its first.
 
 `answers` must list one entry per question in request order, with each `id` equal to that question's `id`.

@@ -1,6 +1,6 @@
-# LSP configuration in OMP
+# LSP configuration in Zeta
 
-This guide explains how to configure language servers for the OMP coding agent.
+This guide explains how to configure language servers for the Zeta coding agent.
 
 Source of truth in code:
 
@@ -10,7 +10,7 @@ Source of truth in code:
 
 ## Auto-detection
 
-OMP starts from the built-in server definitions, applies config overrides, then keeps enabled servers that meet both conditions:
+Zeta starts from the built-in server definitions, applies config overrides, then keeps enabled servers that meet both conditions:
 
 1. The current working directory contains at least one of the server's `rootMarkers`.
 2. The server binary is available — checked in supported project-local bin directories first (for example `node_modules/.bin/`, Python virtual environments, Ruby binstubs, and project `bin/` for Go), then `$PATH`.
@@ -19,7 +19,7 @@ Root-marker detection at startup is cwd-only; it does not search parent director
 
 ## Config file locations
 
-OMP merges LSP config from multiple sources, lowest to highest precedence:
+Zeta merges LSP config from multiple sources, lowest to highest precedence:
 
 | Precedence | Location                                                                                                     |
 | ---------: | ------------------------------------------------------------------------------------------------------------ |
@@ -33,7 +33,7 @@ Within each config-directory row, directories are listed highest to lowest prior
 
 Merging is shallow per server: a higher-precedence server object overrides only its top-level fields, but object-valued fields such as `settings`, `initOptions`, `capabilities`, and `workspaceReadyTimings` replace the lower value as a whole rather than deep-merging it. Servers absent from override files remain at built-in defaults.
 
-The native user config directory follows `PI_CONFIG_DIR` and active profiles; `~/.zeta/agent/lsp.json` is the default-profile spelling. This shared config lookup does not use `PI_CODING_AGENT_DIR` as an arbitrary replacement base. Claude's user directory honors `CLAUDE_CONFIG_DIR`. Foreign user sources (Claude, Codex, Gemini) are opt-in through the enabled-provider configuration; setting `CLAUDE_CONFIG_DIR` also opts Claude in unless explicitly disabled. Project and cwd sources do not walk ancestors and are not subject to that user-source opt-in.
+The native user config directory follows `PI_CONFIG_DIR` and active profiles; `~/.zeta/agent/lsp.json` is the default-profile spelling. This shared config lookup does not use `ZETA_CODING_AGENT_DIR` as an arbitrary replacement base. Claude's user directory honors `CLAUDE_CONFIG_DIR`. Foreign user sources (Claude, Codex, Gemini) are opt-in through the enabled-provider configuration; setting `CLAUDE_CONFIG_DIR` also opts Claude in unless explicitly disabled. Project and cwd sources do not walk ancestors and are not subject to that user-source opt-in.
 
 **Recommended locations:**
 
@@ -96,7 +96,7 @@ For plugin-compatible definitions, `initializationOptions` is accepted when `ini
 
 ### Capabilities
 
-The `capabilities` object enables optional server-specific features that OMP supports on a per-server basis:
+The `capabilities` object enables optional server-specific features that Zeta supports on a per-server basis:
 
 ```json
 {

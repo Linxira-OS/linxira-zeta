@@ -13,6 +13,8 @@ import type { Component } from "./tui";
 /** Effective keybinding operations used to render the hotkey reference. */
 export interface HotkeysMarkdownBindings {
 	keybindings: Pick<KeybindingsManager, "getDisplayString" | "getKeys" | "matchesCanonical">;
+	/** Whether `/live` (and its `Ctrl+L` toggle) is available; disabled rows are omitted. */
+	liveEnabled?: boolean;
 }
 
 /**
@@ -156,7 +158,9 @@ function hotkeyGroups(bindings: HotkeysMarkdownBindings): HotkeyGroup[] {
 							? "Speech-to-text (push-to-talk): hold to record, release to transcribe"
 							: "Speech-to-text (push-to-talk) (disabled)",
 				},
-				{ keys: [act("app.live.toggle")], action: "Start/stop live voice mode (/live)" },
+				...(bindings.liveEnabled
+					? [{ keys: [act("app.live.toggle")], action: "Start/stop live voice mode (/live)" }]
+					: []),
 				{
 					keys: [
 						act("app.agents.hub"),
