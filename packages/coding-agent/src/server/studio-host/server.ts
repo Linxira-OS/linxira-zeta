@@ -10,11 +10,18 @@
  * Auth model, in order:
  * - `GET /health` is unprotected: it is the "am I talking to a Studio host"
  *   probe, and it carries no state.
- * - every other route requires an allowed `Origin` (loopback pages only, the
- *   same allowlist the gateway uses) — a hostile page cannot drive this host;
+ * - every other route goes through the same remote-access gate as the rest of
+ *   `zeta serve`: only a *genuine* local peer (loopback socket with no proxy
+ *   forwarding header) may skip `remote.token`; anything behind a reverse
+ *   proxy/tunnel needs the token and shares the failure limiter, because such
+ *   a proxy makes every remote peer look like `127.0.0.1`;
+ * - an allowed `Origin` is still required (loopback pages only, the same
+ *   allowlist the gateway uses) — a hostile page cannot drive this host;
  * - pairing mints a `studio_session` cookie plus the CSRF token the page must
  *   echo on mutations; the pairing code is printed by `zeta serve` and is
- *   single-use and time-boxed;
+ *   single-use and time-boxed. Failed pair attempts are rate-limited;
+ * - implicit (loopback) pairing is only for a plain local install: once
+ *   remote access is configured, even a local peer pairs with the code;
  * - request bodies are capped at 1 MiB and one session may hold only a few
  *   commands in flight.
  */
@@ -30,6 +37,13 @@ import type {
 	SubscriptionScope,
 } from "./contract/index.js";
 import { isAllowedOrigin } from "../web-gateway/origin";
+import {
+	checkBrowserAccess,
+	getRemoteAuthLimiter,
+	isRemoteModeActive,
+	rateLimitedRemoteResponse,
+} from "../web-gateway/remote-access";
+import { WebConfig } from "../../config/web-config";
 import { logger } from "@linxiraos/pi-utils";
 import { buildBootstrap } from "./bootstrap.js";
 import { StudioOperations, StudioOpError, toClientError } from "./registry.js";
@@ -94,12 +108,12 @@ function cookies(header: string | null): Record<string, string> {
 	return out;
 }
 
-/** Loopback peers may pair implicitly: the same-origin renderer is served there. */
-function isLoopbackAddress(address: string | undefined): boolean {
-	if (address === undefined) return false;
-	const value = address.toLowerCase();
-	return value === "::1" || value === "::ffff:127.0.0.1" || value.startsWith("127.");
-}
+/**
+ * Namespace for pairing attempts in the shared failure limiter: a wrong code
+ * is an auth failure like a wrong token, but it must not consume the token
+ * gate's budget for the same peer (and vice versa).
+ */
+const PAIR_LIMITER_PREFIX = "studio-pair:";
 
 /** Whether `req` belongs to the Studio surface (`/health` or `/api/v1/*`). */
 export function isStudioRequest(req: Request): boolean {
@@ -196,15 +210,22 @@ export class StudioHost {
 			if (req.method !== "GET") return json({ error: "method_not_allowed" }, 405);
 			return json({ ok: true, protocolVersion: 1 });
 		}
+		// Same remote-access gate as every other remote surface: only a genuine
+		// local socket skips `remote.token`. A reverse proxy/tunnel makes every
+		// peer look like loopback, so forwarding headers force the token path —
+		// `isAllowedOrigin` + implicit pairing alone must never authorize `/api/v1`.
+		const access = await checkBrowserAccess(req, remoteAddr);
+		if (access.denial) return access.denial;
 		if (!isAllowedOrigin(req.headers.get("origin"))) return json({ error: "forbidden" }, 403);
 		const context: StudioHostContext = {
 			origin: req.headers.get("origin") ?? undefined,
 			capabilities: this.#operations.capabilities().manifest,
 		};
 		try {
-			if (url.pathname === "/api/v1/pair" && req.method === "POST") return await this.#pair(req);
+			if (url.pathname === "/api/v1/pair" && req.method === "POST") return await this.#pair(req, remoteAddr);
 			if (url.pathname === "/api/v1/session/revoke" && req.method === "POST") return this.#revoke(req);
-			if (url.pathname === "/api/v1/bootstrap" && req.method === "GET") return this.#bootstrap(req, remoteAddr);
+			if (url.pathname === "/api/v1/bootstrap" && req.method === "GET")
+				return await this.#bootstrap(req, access.genuinelyLocal);
 			if (url.pathname === "/api/v1/query" && req.method === "POST") return await this.#query(req, context);
 			if (url.pathname === "/api/v1/command" && req.method === "POST") return await this.#command(req, context);
 			return json({ error: "not_found" }, 404);
@@ -214,16 +235,29 @@ export class StudioHost {
 		}
 	}
 
-	async #pair(req: Request): Promise<Response> {
+	async #pair(req: Request, remoteAddr?: string): Promise<Response> {
+		// The pairing code is a login secret: wrong guesses are rate-limited on
+		// the same limiter (and cooldown) as token failures, so brute force over
+		// `/api/v1/pair` is bounded.
+		const limiter = getRemoteAuthLimiter();
+		const limiterKey = `${PAIR_LIMITER_PREFIX}${remoteAddr ?? "unknown"}`;
+		const blocked = limiter.status(limiterKey);
+		if (blocked.blocked) return rateLimitedRemoteResponse(blocked.retryAfterSeconds);
 		const body = await this.#body(req);
-		const code = body !== null && typeof body === "object" ? String((body as { code?: unknown }).code ?? "") : "";
+		const rawCode = body !== null && typeof body === "object" && "code" in body ? body.code : undefined;
+		const code = typeof rawCode === "string" ? rawCode : "";
 		const expected = this.#pairing.code;
 		const matches =
 			!this.#pairing.used &&
 			this.#pairing.expiresAt > this.#now() &&
 			code.length === expected.length &&
 			timingSafeEqual(Buffer.from(code), Buffer.from(expected));
-		if (!matches) return json({ error: "unauthenticated" }, 401);
+		if (!matches) {
+			const afterFailure = limiter.recordFailure(limiterKey);
+			if (afterFailure.blocked) return rateLimitedRemoteResponse(afterFailure.retryAfterSeconds);
+			return json({ error: "unauthenticated" }, 401);
+		}
+		limiter.clear(limiterKey);
 		if (!this.#pairingReusable) this.#pairing.used = true;
 		const [sessionId, session] = this.#createSession();
 		return json({ csrf: session.csrf, expiresAt: session.expiresAt }, 200, {
@@ -254,18 +288,23 @@ export class StudioHost {
 		return json({ ok: true });
 	}
 
-	#bootstrap(req: Request, remoteAddr?: string): Response {
+	async #bootstrap(req: Request, genuinelyLocal: boolean): Promise<Response> {
 		const bootstrap: ClientBootstrap = buildBootstrap(this.#operations);
 		if (this.#authorize(req)) return json(bootstrap);
-		// The same-origin renderer is served on loopback by `zeta serve` and the
-		// desktop shell. Let a loopback peer establish its own session on the
-		// bootstrap read; requests from any other peer still need the pairing code.
-		if (isLoopbackAddress(remoteAddr)) {
-			const [sessionId, session] = this.#createSession();
-			return json(bootstrap, 200, {
-				"set-cookie": this.#sessionCookie(sessionId),
-				[STUDIO_CSRF_HEADER]: session.csrf,
-			});
+		// The same-origin renderer is served on a direct loopback socket by
+		// `zeta serve` and the desktop shell, so it may establish its own session
+		// on the bootstrap read. A proxied peer was already rejected by the
+		// remote-access gate; a local peer of an install with remote access turned
+		// on must pair with the code instead of pairing implicitly.
+		if (genuinelyLocal) {
+			const config = await WebConfig.load();
+			if (!isRemoteModeActive(config.getData().remote)) {
+				const [sessionId, session] = this.#createSession();
+				return json(bootstrap, 200, {
+					"set-cookie": this.#sessionCookie(sessionId),
+					[STUDIO_CSRF_HEADER]: session.csrf,
+				});
+			}
 		}
 		return json({ error: "unauthenticated" }, 401);
 	}
@@ -347,7 +386,12 @@ export class StudioHost {
 	 * Returns the Response to send when the upgrade must be refused, or `null`
 	 * once the socket is upgraded.
 	 */
-	upgrade(req: Request, server: StudioWsServer): Response | null {
+	async upgrade(req: Request, server: StudioWsServer, remoteAddr?: string): Promise<Response | null> {
+		// The event stream belongs to `/api/v1`, so it sits behind the same gate
+		// as the REST routes: a proxied socket needs `remote.token`, not just a
+		// session cookie.
+		const access = await checkBrowserAccess(req, remoteAddr);
+		if (access.denial) return access.denial;
 		const authorized = this.#authorize(req);
 		if (!authorized) return json({ error: "unauthenticated" }, 401);
 		const upgraded = server.upgrade(req, { data: { kind: "studio", sessionId: authorized[0] } });

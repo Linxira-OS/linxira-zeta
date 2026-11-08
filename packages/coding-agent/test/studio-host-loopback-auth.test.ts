@@ -1,7 +1,40 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
+import { WebConfig } from "../src/config/web-config";
 import { StudioHost, StudioOperations } from "../src/server/studio-host/index.js";
+import { resetRemoteAccessForTests } from "../src/server/web-gateway/remote-access";
 
 const ORIGIN = "http://127.0.0.1:43150";
+const ENV_KEYS = ["ZETA_CODING_AGENT_DIR"];
+const savedEnv = new Map<string, string | undefined>();
+const cleanups: Array<() => Promise<void>> = [];
+
+/** A plain local install: no web.yml, so remote access stays off. */
+beforeEach(async () => {
+	const agentDir = await mkdtemp(join(tmpdir(), "zeta-studio-loopback-"));
+	cleanups.push(() => rm(agentDir, { recursive: true, force: true }));
+	for (const key of ENV_KEYS) savedEnv.set(key, process.env[key]);
+	process.env.ZETA_CODING_AGENT_DIR = agentDir;
+	refreshDirsFromEnv();
+	WebConfig.resetShared();
+	resetRemoteAccessForTests();
+});
+
+afterEach(async () => {
+	for (const key of ENV_KEYS) {
+		const saved = savedEnv.get(key);
+		if (saved === undefined) delete process.env[key];
+		else process.env[key] = saved;
+	}
+	savedEnv.clear();
+	refreshDirsFromEnv();
+	WebConfig.resetShared();
+	await Promise.all(cleanups.splice(0).map(fn => fn()));
+});
+
 const ops = new StudioOperations([
 	{
 		id: "test",

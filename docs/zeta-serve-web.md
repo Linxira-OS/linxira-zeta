@@ -64,17 +64,28 @@ The renderer speaks the Studio host contract on the same origin:
 | Route | Auth | Purpose |
 |---|---|---|
 | `GET /health` | none | `{ok:true, protocolVersion:1}` — "is this a Studio host" |
-| `POST /api/v1/pair` | pairing code | Sets the `studio_session` cookie, returns `{csrf, expiresAt}` |
-| `POST /api/v1/session/revoke` | cookie + `X-Studio-CSRF` | Drops the session |
-| `GET /api/v1/bootstrap` | cookie | Identity, runtime status, surfaces, capability manifest |
-| `POST /api/v1/query` | cookie | `ClientQueryRequest` → `ClientQueryResponse` |
-| `POST /api/v1/command` | cookie + `X-Studio-CSRF` | `ClientCommandRequest` → 202 `ClientCommandAccepted` |
-| `WS /api/v1/events` | cookie | Event subscription (`ClientEvent`) |
+| `POST /api/v1/pair` | remote-access gate + pairing code | Sets the `studio_session` cookie, returns `{csrf, expiresAt}` |
+| `POST /api/v1/session/revoke` | remote-access gate + cookie + `X-Studio-CSRF` | Drops the session |
+| `GET /api/v1/bootstrap` | remote-access gate + cookie | Identity, runtime status, surfaces, capability manifest |
+| `POST /api/v1/query` | remote-access gate + cookie | `ClientQueryRequest` → `ClientQueryResponse` |
+| `POST /api/v1/command` | remote-access gate + cookie + `X-Studio-CSRF` | `ClientCommandRequest` → 202 `ClientCommandAccepted` |
+| `WS /api/v1/events` | remote-access gate + cookie | Event subscription (`ClientEvent`) |
 
 `zetacode serve` prints the single-use pairing code (60 s TTL); set
 `ZETA_STUDIO_PAIRING_CODE` to pin it for scripted runs. Bodies are capped at
 1 MiB, one session may hold eight commands in flight, and every route except
 `/health` requires a loopback `Origin`.
+
+Every `/api/v1` route sits behind the same remote-access gate as `/api/*`:
+a request passes without a token only when the socket peer is loopback **and**
+no proxy forwarding header (`forwarded`, `x-forwarded-*`, `x-real-ip`,
+`cf-connecting-ip`, …) is present. A reverse proxy or tunnel makes every remote
+client look like `127.0.0.1`, so forwarded requests need `remote.token` (and
+share the failed-attempt limiter). Implicit (loopback) pairing on
+`/api/v1/bootstrap` is only for a plain local install; once `remote.token` or
+`remote.publicUrl` is configured, even a local peer pairs with the code.
+Failed pairing codes are rate-limited like token failures (`429` with
+`Retry-After`).
 
 The capability manifest is built from the operations this host implements, so
 a surface Zeta cannot serve is not advertised and the renderer hides it. An
