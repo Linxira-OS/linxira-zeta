@@ -18,9 +18,15 @@ import {
 	editorCommand,
 	editorIdFromTarget,
 	listHostOpenTargets,
+	openTargetLabel,
 	validateGatewayOpenTarget,
 	type DesktopOpenTarget,
+	type EditorId,
+	type OpenTargetId,
 } from "./open-bridge";
+import { classifyDroppedPath, findWorkspace, firstEditorTarget, isPathWithin, resolveWorkspaceFile, type WorkspaceLocation } from "./workspace-actions";
+import { fieldOf } from "./json";
+import { mapUpdateCheck } from "./update-check";
 import { resolveToolIn, type ToolResolutionDeps } from "./tool-resolution";
 import {
 	DEFAULT_WORKSPACE_STATE,
@@ -79,6 +85,9 @@ const SERVICE_BINARY_NAME = process.platform === "win32" ? "zeta.exe" : "zeta";
 const WEB_RUNTIME_NAME = process.platform === "win32" ? "node.exe" : "node";
 const RENDERER_CRASH_WINDOW_MS = 120_000;
 const RENDERER_CRASH_RELOAD_LIMIT = 3;
+const GATEWAY_REQUEST_TIMEOUT_MS = 8_000;
+/** Launch-at-login starts the shell in the tray instead of flashing a window. */
+const START_HIDDEN = process.argv.includes("--hidden");
 
 let serveChild: ChildProcess | null = null;
 let serviceLogFd: number | null = null;
@@ -133,8 +142,8 @@ function parseRequestedCwd(): string | null {
 	return null;
 }
 
-// Native directory picker for the embedded web-ui (`window.piDesktop`).
-ipcMain.handle("pi:select-directory", async (_event, startPath?: unknown): Promise<string | null> => {
+/** Native directory picker shared by the picker IPC handlers. */
+async function showDirectoryDialog(startPath: unknown): Promise<string | null> {
 	try {
 		// Only seed the dialog at an existing directory; a stale or invalid
 		// defaultPath can make the native dialog misbehave on some platforms.
@@ -160,8 +169,34 @@ ipcMain.handle("pi:select-directory", async (_event, startPath?: unknown): Promi
 		writeDesktopLog(`Native directory dialog failed: ${err instanceof Error ? err.message : String(err)}`);
 		return null;
 	}
+}
+
+// Native directory picker for the embedded shell (`window.piDesktop`).
+ipcMain.handle("pi:select-directory", async (_event, startPath?: unknown): Promise<string | null> => showDirectoryDialog(startPath));
+
+/**
+ * The Studio "open folder" flow: pick a directory and register it as a
+ * project with the gateway (`PUT /api/projects`), which is the same registry
+ * the CLI resume picker reads. The renderer then re-reads `projects.list`.
+ */
+ipcMain.handle("pi:pick-workspace", async (_event, input: unknown): Promise<{ cancelled: boolean; name?: string }> => {
+	const picked = await showDirectoryDialog(fieldOf(input, "startPath"));
+	if (picked === null) return { cancelled: true };
+	const alias = fieldOf(input, "alias");
+	const body: { path: string; alias?: string } = { path: picked };
+	if (typeof alias === "string" && alias.trim() !== "") body.alias = alias.trim();
+	await gatewayJson("/api/projects", {
+		method: "PUT",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	return { cancelled: false, name: path.basename(picked) };
 });
 let mainWindow: BrowserWindow | null = null;
+/** Launch preferences kept for recreating the window after a real close. */
+let activePrefs: TrayPrefs | null = null;
+/** Boot has finished; window recreation is safe and tray menus are live. */
+let bootComplete = false;
 let statsWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let workspaceState: WorkspaceState = { ...DEFAULT_WORKSPACE_STATE, launches: [] };
@@ -364,6 +399,246 @@ ipcMain.handle("pi:window-state", (): { maximized: boolean } => {
 });
 
 // ---------------------------------------------------------------------------
+// Desktop capability bridge (`window.zetaStudioChrome`, same object as
+// `window.piDesktop`). Paths stay in Main: the renderer only holds opaque
+// `ws-*` ids and workspace-relative paths, and every resolve goes through the
+// gateway's project inventory plus a realpath containment check.
+// ---------------------------------------------------------------------------
+
+type WorkspaceFileKind = "file" | "dir";
+type WorkspaceShellEditorResult = { status: "opened"; editorName?: string } | { status: "cancelled" };
+type WorkspaceFileActionResult = { status: "opened" } | { status: "cancelled" } | { status: "failed"; message: string };
+type PlanSaveResult =
+	| { status: "picked"; relativePath: string }
+	| { status: "cancelled" }
+	| { status: "outside-workspace"; fileName: string };
+
+/** Editors the Studio "Open With" menu offers, in probe order. */
+const FILE_OPENER_EDITORS: readonly EditorId[] = ["vscode", "cursor", "windsurf"];
+
+async function gatewayJson(pathname: string, init?: RequestInit): Promise<unknown> {
+	const response = await fetch(`${webUiUrl}${pathname}`, {
+		...init,
+		signal: AbortSignal.timeout(GATEWAY_REQUEST_TIMEOUT_MS),
+	});
+	if (!response.ok) throw new Error(`${pathname} → HTTP ${response.status}`);
+	return await response.json();
+}
+
+async function workspaceLocation(workspaceId: unknown): Promise<WorkspaceLocation> {
+	if (typeof workspaceId !== "string" || !workspaceId.startsWith("ws-")) throw new Error("Invalid workspace id");
+	const location = findWorkspace(await gatewayJson("/api/projects"), workspaceId);
+	if (location === null) throw new Error(`Unknown workspace: ${workspaceId}`);
+	return location;
+}
+
+type FileTargetInput = { workspaceId: string; path: string; kind: WorkspaceFileKind };
+
+function fileTargetInput(value: unknown): FileTargetInput {
+	const workspaceId = fieldOf(value, "workspaceId");
+	const relativePath = fieldOf(value, "path");
+	const kind = fieldOf(value, "kind");
+	if (typeof workspaceId !== "string") throw new Error("Invalid workspace id");
+	if (typeof relativePath !== "string" || relativePath.length === 0) throw new Error("Invalid path");
+	if (kind !== "file" && kind !== "dir") throw new Error("Invalid kind");
+	return { workspaceId, path: relativePath, kind };
+}
+
+async function resolveFileTarget(value: unknown): Promise<{ location: WorkspaceLocation; absolute: string }> {
+	const input = fileTargetInput(value);
+	const location = await workspaceLocation(input.workspaceId);
+	const absolute = resolveWorkspaceFile(location.path, input.path, target => fs.realpathSync.native(target));
+	if (absolute === null) throw new Error("Path is outside the workspace");
+	return { location, absolute };
+}
+
+/** Spawn an editor CLI resolved through PATH (Windows `.cmd` shims need a shell). */
+function launchEditor(editorId: EditorId, target: string): string {
+	const command = editorCommand(editorId);
+	const resolved = probeLauncher(command) ?? command;
+	const child = spawn(resolved, [target], {
+		detached: true,
+		stdio: "ignore",
+		windowsHide: true,
+		shell: /\.(cmd|bat)$/i.test(resolved),
+	});
+	child.on("error", err => writeDesktopLog(`Could not launch ${editorId}: ${err.message}`));
+	child.unref();
+	return openTargetLabel(editorId);
+}
+
+async function openWithDefaultApp(target: string): Promise<WorkspaceFileActionResult> {
+	const error = await shell.openPath(target);
+	return error === "" ? { status: "opened" } : { status: "failed", message: error };
+}
+
+ipcMain.handle("pi:workspace-open-editor", async (_event, workspaceId: unknown): Promise<WorkspaceShellEditorResult> => {
+	const location = await workspaceLocation(workspaceId);
+	const targetId = firstEditorTarget(listHostOpenTargets());
+	const editorId = targetId === null ? null : editorIdFromTarget(targetId as OpenTargetId);
+	if (editorId === null) {
+		const error = await shell.openPath(location.path);
+		if (error !== "") throw new Error(error);
+		return { status: "opened" };
+	}
+	return { status: "opened", editorName: launchEditor(editorId, location.path) };
+});
+
+ipcMain.handle("pi:workspace-open-directory", async (_event, workspaceId: unknown): Promise<void> => {
+	const location = await workspaceLocation(workspaceId);
+	const error = await shell.openPath(location.path);
+	if (error !== "") throw new Error(error);
+});
+
+ipcMain.handle("pi:file-resolve", async (_event, input: unknown): Promise<string> => {
+	return (await resolveFileTarget(input)).absolute;
+});
+
+ipcMain.handle("pi:file-open", async (_event, input: unknown): Promise<WorkspaceFileActionResult> => {
+	return openWithDefaultApp((await resolveFileTarget(input)).absolute);
+});
+
+ipcMain.handle("pi:file-open-with", async (_event, input: unknown): Promise<WorkspaceFileActionResult> => {
+	const target = fileTargetInput(input);
+	const openerId = fieldOf(input, "openerId");
+	if (openerId === "choose") return openWithDefaultApp((await resolveFileTarget(target)).absolute);
+	if (typeof openerId !== "string" || !FILE_OPENER_EDITORS.includes(openerId as EditorId)) {
+		throw new Error(`Unknown opener: ${String(openerId)}`);
+	}
+	launchEditor(openerId as EditorId, (await resolveFileTarget(target)).absolute);
+	return { status: "opened" };
+});
+
+ipcMain.handle("pi:file-reveal", async (_event, input: unknown): Promise<WorkspaceFileActionResult> => {
+	const { absolute } = await resolveFileTarget(input);
+	shell.showItemInFolder(absolute);
+	return { status: "opened" };
+});
+
+ipcMain.handle("pi:file-openers", (): ReadonlyArray<{ id: string; name: string }> => {
+	const installed = listHostOpenTargets().flatMap(target => {
+		if (!target.id.startsWith("editor:")) return [];
+		const editorId = editorIdFromTarget(target.id as OpenTargetId);
+		if (editorId === null || !FILE_OPENER_EDITORS.includes(editorId)) return [];
+		return [{ id: editorId, name: target.label }];
+	});
+	return [...installed, { id: "choose", name: "Choose another app" }];
+});
+
+ipcMain.handle("pi:pick-plan-save", async (_event, input: unknown): Promise<PlanSaveResult> => {
+	const workspaceId = fieldOf(input, "workspaceId");
+	const location = await workspaceLocation(workspaceId);
+	const options: Electron.SaveDialogOptions = {
+		title: "Save plan",
+		defaultPath: path.join(location.path, "PLAN.md"),
+		filters: [{ name: "Markdown", extensions: ["md"] }],
+	};
+	const result =
+		mainWindow && !mainWindow.isDestroyed()
+			? await dialog.showSaveDialog(mainWindow, options)
+			: await dialog.showSaveDialog(options);
+	if (result.canceled || !result.filePath) return { status: "cancelled" };
+	const fileName = path.basename(result.filePath);
+	let root: string;
+	let parent: string;
+	try {
+		root = fs.realpathSync.native(location.path);
+		parent = fs.realpathSync.native(path.dirname(result.filePath));
+	} catch {
+		return { status: "outside-workspace", fileName };
+	}
+	const absolute = path.join(parent, fileName);
+	if (!isPathWithin(root, absolute)) return { status: "outside-workspace", fileName };
+	return { status: "picked", relativePath: path.relative(root, absolute).split(path.sep).join("/") };
+});
+
+ipcMain.handle("pi:resolve-dropped-paths", async (_event, workspaceId: unknown, paths: unknown) => {
+	const location = await workspaceLocation(workspaceId);
+	if (!Array.isArray(paths)) throw new Error("Invalid path list");
+	return paths.slice(0, 64).flatMap(dropped => {
+		if (typeof dropped !== "string" || dropped.length === 0 || dropped.length > 32_768) {
+			return [{ ok: false, reason: "invalid" }] as const;
+		}
+		return [classifyDroppedPath(location.path, dropped, target => fs.statSync(target), target => fs.realpathSync.native(target))];
+	});
+});
+
+ipcMain.handle("pi:app-version", (): { version: string; bundledVersion: string } => ({
+	// The shell and the bundled CLI are kept in lockstep by
+	// scripts/check-version-consistency.ts.
+	version: app.getVersion(),
+	bundledVersion: app.getVersion(),
+}));
+
+ipcMain.handle("pi:update-check", async () => {
+	try {
+		return mapUpdateCheck(await gatewayJson("/api/update/check"), app.getVersion());
+	} catch (err) {
+		return mapUpdateCheck({ error: err instanceof Error ? err.message : String(err) }, app.getVersion());
+	}
+});
+
+ipcMain.handle("pi:open-url", async (_event, payload: unknown): Promise<void> => {
+	const url = fieldOf(payload, "url");
+	if (typeof url !== "string") throw new Error("Invalid URL");
+	const parsed = new URL(url);
+	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("Only http(s) URLs can be opened externally");
+	await shell.openExternal(parsed.toString());
+});
+
+ipcMain.handle("pi:notify", (_event, payload: unknown): void => {
+	const title = fieldOf(payload, "title");
+	const body = fieldOf(payload, "body");
+	if (typeof title !== "string" || title === "" || !Notification.isSupported()) return;
+	new Notification({ title, ...(typeof body === "string" ? { body } : {}) }).show();
+});
+
+ipcMain.handle("pi:open-log-dir", async (): Promise<{ ok: true } | { ok: false; message: string }> => {
+	const logDir = app.getPath("logs");
+	fs.mkdirSync(logDir, { recursive: true });
+	const error = await shell.openPath(logDir);
+	return error === "" ? { ok: true } : { ok: false, message: error };
+});
+
+ipcMain.handle(
+	"pi:export-logs",
+	async (): Promise<{ ok: true } | { ok: false; cancelled: true } | { ok: false; message: string }> => {
+		const options: Electron.SaveDialogOptions = {
+			title: "Export desktop logs",
+			defaultPath: path.join(app.getPath("downloads"), "zeta-desktop.log"),
+			filters: [{ name: "Log", extensions: ["log"] }],
+		};
+		const result =
+			mainWindow && !mainWindow.isDestroyed()
+				? await dialog.showSaveDialog(mainWindow, options)
+				: await dialog.showSaveDialog(options);
+		if (result.canceled || !result.filePath) return { ok: false, cancelled: true };
+		try {
+			fs.copyFileSync(desktopLogPath(), result.filePath);
+			return { ok: true };
+		} catch (err) {
+			return { ok: false, message: err instanceof Error ? err.message : String(err) };
+		}
+	},
+);
+
+ipcMain.handle("pi:sample-memory", () => {
+	const metrics = app.getAppMetrics();
+	if (metrics.length === 0) return null;
+	const rows = metrics.map((metric, index) => ({
+		kind: metric.type,
+		ordinal: index,
+		workingSetKb: Math.round(metric.memory.workingSetSize),
+		...(metric.memory.peakWorkingSetSize > 0 ? { peakWorkingSetKb: Math.round(metric.memory.peakWorkingSetSize) } : {}),
+	}));
+	return {
+		capturedAt: new Date().toISOString(),
+		totalWorkingSetKb: rows.reduce((total, row) => total + row.workingSetKb, 0),
+		rows,
+	};
+});
+
+// ---------------------------------------------------------------------------
 // Session completion monitor.
 //
 // Polls the gateway's lightweight /api/agent/running snapshot every few
@@ -421,7 +696,11 @@ async function notifySessionCompleted(sessionId: string): Promise<void> {
 		title: await sessionDisplayName(sessionId),
 		body: "Agent run finished. Click to open the session.",
 	});
-	notification.on("click", () => showMainWindow());
+	notification.on("click", () => {
+		showMainWindow();
+		// Windows keeps the window behind the foreground app otherwise.
+		if (process.platform === "win32") mainWindow?.moveTop();
+	});
 	notification.show();
 }
 
@@ -661,11 +940,16 @@ function showServiceFailure(message: string): void {
 // Window + menu
 // ---------------------------------------------------------------------------
 
+/**
+ * Window/tray icon. Windows needs an ICO for the taskbar and tray; Linux and
+ * macOS read PNG (an ICO is not a valid GTK/AppKit icon).
+ */
 function iconPath(): string | undefined {
-	const candidate = app.isPackaged
-		? path.join(process.resourcesPath, "icon.ico")
-		: path.join(__dirname, "..", "build", "icon.ico");
-	return fs.existsSync(candidate) ? candidate : undefined;
+	const preferred = process.platform === "win32" ? "icon.ico" : "icon.png";
+	const candidates = app.isPackaged
+		? [path.join(process.resourcesPath, preferred), path.join(process.resourcesPath, "icon.ico")]
+		: [path.join(__dirname, "..", "build", preferred), path.join(__dirname, "..", "build", "icon.ico")];
+	return candidates.find(candidate => fs.existsSync(candidate));
 }
 
 function loadFailurePage(win: BrowserWindow, detail: string): void {
@@ -674,8 +958,15 @@ function loadFailurePage(win: BrowserWindow, detail: string): void {
 }
 
 function createWindow(prefs: TrayPrefs): BrowserWindow {
+	return spawnMainWindow(prefs, START_HIDDEN);
+}
+
+/** Internal form so {@link ensureMainWindow} can recreate a hidden window. */
+function spawnMainWindow(prefs: TrayPrefs, hidden: boolean): BrowserWindow {
+	activePrefs = prefs;
 	const restored = restoredWindowBounds();
 	const win = new BrowserWindow({
+		show: !hidden,
 		width: restored?.bounds.width ?? 1440,
 		height: restored?.bounds.height ?? 900,
 		x: restored?.bounds.x,
@@ -875,11 +1166,41 @@ function trayIcon(): Electron.NativeImage {
 	return nativeImage.createEmpty();
 }
 
+function windowPrefs(): TrayPrefs {
+	return activePrefs ?? { minimizeToTray: true, autostart: false, desktopLabels: DEFAULT_DESKTOP_LABELS };
+}
+
+/**
+ * The single window may have been really closed (tray disabled, OS window
+ * close) while the app kept running; recreate it instead of losing the UI.
+ */
+function ensureMainWindow(): BrowserWindow {
+	if (mainWindow !== null && !mainWindow.isDestroyed()) return mainWindow;
+	if (!app.isReady() || !bootComplete) throw new Error("The desktop shell is not ready yet");
+	return spawnMainWindow(windowPrefs(), true);
+}
+
 function showMainWindow(): void {
-	if (!mainWindow) return;
-	if (mainWindow.isMinimized()) mainWindow.restore();
-	mainWindow.show();
-	mainWindow.focus();
+	// Boot surfaces the window itself; a pre-boot activate/second-instance would
+	// otherwise create a second window that boot then overwrites.
+	if (!bootComplete) return;
+	const win = ensureMainWindow();
+	if (win.isMinimized()) win.restore();
+	win.show();
+	win.focus();
+}
+
+/** Forward a menu/tray command to the renderer (Studio listens on it). */
+function sendMenuCommand(command: string): void {
+	const win = mainWindow;
+	if (win === null || win.isDestroyed()) return;
+	if (win.webContents.isLoadingMainFrame()) {
+		win.webContents.once("did-finish-load", () => {
+			if (!win.isDestroyed()) win.webContents.send("pi:menu-command", command);
+		});
+		return;
+	}
+	win.webContents.send("pi:menu-command", command);
 }
 
 let trayLabels: DesktopLabels = DEFAULT_DESKTOP_LABELS;
@@ -892,9 +1213,9 @@ function trayContextMenu(): Electron.MenuItemConstructorOptions[] {
 			label: trayLabels.openSettings,
 			click: () => {
 				// The tray can own the only window (hidden to tray), so surface it
-				// before deep-linking into the settings panel modal.
+				// and let the renderer route to its own settings page.
 				showMainWindow();
-				mainWindow?.loadURL(`${webUiUrl}/?panel=settings`);
+				sendMenuCommand("app.settings");
 			},
 		},
 		{ type: "separator" },
@@ -907,6 +1228,7 @@ function trayContextMenu(): Electron.MenuItemConstructorOptions[] {
 		{ type: "separator" },
 		{ label: trayLabels.thirdPartyNotices, click: () => showLegalDocument("thirdParty") },
 		{ label: trayLabels.license, click: () => showLegalDocument("license") },
+		{ label: trayLabels.about, click: () => showAboutDialog() },
 		{ type: "separator" },
 		{
 			label: trayLabels.quit,
@@ -950,14 +1272,20 @@ function createTray(labels: DesktopLabels): void {
  * web.yml toggle driven from the settings panel.
  */
 function applyAutostart(enabled: boolean): void {
-	app.setLoginItemSettings({ openAtLogin: enabled });
+	app.setLoginItemSettings({
+		openAtLogin: enabled,
+		// Login launches stay in the tray. Windows login items accept args and
+		// macOS still honors `openAsHidden`; Linux uses the autostart entry below.
+		...(enabled && process.platform === "win32" ? { args: ["--hidden"] } : {}),
+		...(enabled && process.platform === "darwin" ? { openAsHidden: true } : {}),
+	});
 	if (process.platform === "linux") {
 		const autostartDir = path.join(app.getPath("home"), ".config", "autostart");
 		const entryPath = path.join(autostartDir, "zeta.desktop");
 		if (enabled) {
 			const execPath = app.isPackaged ? app.getPath("exe") : process.execPath;
 			fs.mkdirSync(autostartDir, { recursive: true });
-			fs.writeFileSync(entryPath, `[Desktop Entry]\nType=Application\nName=Zeta\nExec="${execPath}"\n`, "utf8");
+			fs.writeFileSync(entryPath, `[Desktop Entry]\nType=Application\nName=Zeta\nExec="${execPath}" --hidden\n`, "utf8");
 		} else if (fs.existsSync(entryPath)) {
 			fs.unlinkSync(entryPath);
 		}
@@ -1025,7 +1353,7 @@ function showAboutDialog(): void {
 		type: "info",
 		title: "About Zeta",
 		message: `Zeta ${app.getVersion()}`,
-		detail: "Zeta coding agent desktop\n\nThird-party license texts are available from Help → Third-Party Notices.",
+		detail: `Zeta coding agent desktop\n\nElectron ${process.versions.electron} · Chromium ${process.versions.chrome} · Node ${process.versions.node}\n\nThird-party license texts are available from Help → Third-Party Notices.`,
 		buttons: ["OK"],
 	});
 }
@@ -1172,6 +1500,61 @@ async function boot(): Promise<void> {
 	createTray(prefs.desktopLabels);
 	createWindow(prefs);
 	startSessionMonitor();
+	bootComplete = true;
+}
+
+/**
+ * Register a `zeta-d -d <cwd>` / `zeta --desktop <cwd>` directory with the
+ * already-running service. A running service keeps its own cwd, but the gateway
+ * registry is shared, so the folder still shows up in Work Studio's projects.
+ */
+async function registerWorkspaceFromLaunch(cwd: string): Promise<void> {
+	try {
+		if (!path.isAbsolute(cwd) || !fs.statSync(cwd).isDirectory()) {
+			writeDesktopLog(`Ignoring launch workspace that is not a directory: ${cwd}`);
+			return;
+		}
+		await gatewayJson("/api/projects", {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ path: cwd }),
+		});
+		writeDesktopLog(`Registered launch workspace: ${cwd}`);
+	} catch (err) {
+		writeDesktopLog(`Could not register launch workspace ${cwd}: ${err instanceof Error ? err.message : String(err)}`);
+	}
+}
+
+/**
+ * Second-instance argv (and macOS open events): surface the window, register a
+ * requested workspace, and hand local files to their default application.
+ * `zeta://` links have no renderer router yet, so they only focus the app.
+ */
+function handleLaunchArguments(argv: readonly string[]): void {
+	let surfaced = false;
+	const surface = (): void => {
+		if (surfaced) return;
+		surfaced = true;
+		showMainWindow();
+	};
+	for (const arg of argv) {
+		if (arg.startsWith("--cwd=")) {
+			surface();
+			void registerWorkspaceFromLaunch(arg.slice("--cwd=".length));
+			continue;
+		}
+		if (arg.startsWith("zeta://")) {
+			surface();
+			writeDesktopLog(`Received a zeta:// link (deep-link routing is not wired yet): ${arg}`);
+			continue;
+		}
+		if (path.isAbsolute(arg) && fs.existsSync(arg)) {
+			surface();
+			void shell.openPath(arg).then(error => {
+				if (error !== "") writeDesktopLog(`Could not open ${arg}: ${error}`);
+			});
+		}
+	}
 }
 
 app.setName("Zeta");
@@ -1181,16 +1564,31 @@ app.requestSingleInstanceLock();
 if (!app.hasSingleInstanceLock()) {
 	app.quit();
 } else {
-	app.on("second-instance", () => {
-		if (mainWindow) {
-			if (mainWindow.isMinimized()) mainWindow.restore();
-			mainWindow.show();
-			mainWindow.focus();
-		}
+	app.on("second-instance", (_event, argv) => handleLaunchArguments(argv));
+	app.on("activate", () => {
+		if (!quitting) showMainWindow();
+	});
+	// macOS delivers these instead of argv; both are harmless elsewhere.
+	app.on("open-url", (event, url) => {
+		event.preventDefault();
+		handleLaunchArguments([url]);
+	});
+	app.on("open-file", (event, filePath) => {
+		event.preventDefault();
+		showMainWindow();
+		void shell.openPath(filePath).then(error => {
+			if (error !== "") writeDesktopLog(`Could not open ${filePath}: ${error}`);
+		});
 	});
 
 	app.whenReady()
-		.then(boot)
+		.then(() => {
+			// `zeta://` links open this shell. Packaged builds own the protocol
+			// registration (electron-builder `protocols`); dev registers Electron.
+			if (app.isPackaged) app.setAsDefaultProtocolClient("zeta");
+			else app.setAsDefaultProtocolClient("zeta", process.execPath, [path.resolve(process.argv[1] ?? "")]);
+			return boot();
+		})
 		.catch((err: unknown) => {
 			showServiceFailure(`The desktop shell could not start: ${err instanceof Error ? err.message : String(err)}`);
 		});

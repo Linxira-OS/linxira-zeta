@@ -178,7 +178,7 @@ Artifacts and side channels:
    - Creates/removes worktrees or overlay mount directories; branch mode creates temporary worktrees and task branches.
 - Network
    - Child sessions may use whichever networked tools/models their active tool set permits.
-   - MCP proxy tools reuse parent connections and their configured transport deadlines, including `OMP_MCP_TIMEOUT_MS` overrides and `timeout: 0`; no separate subagent deadline caps a tool call.
+   - MCP proxy tools reuse parent connections and their configured transport deadlines, including `ZETA_MCP_TIMEOUT_MS` overrides and `timeout: 0`; no separate subagent deadline caps a tool call.
 - Subprocesses / native bindings
    - Isolation backends run through the `pi-natives` PAL (`crates/pi-iso`): kernel `overlay` with `fuse-overlayfs`/`fusermount[3]` fallback on Linux, APFS/Btrfs/ZFS/reflink clones, ProjFS on Windows, recursive copy as last resort.
    - Git operations for baseline capture, patch apply, worktrees, branches, stash, cherry-pick, commits.

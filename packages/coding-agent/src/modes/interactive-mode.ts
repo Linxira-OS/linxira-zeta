@@ -577,7 +577,7 @@ const CONFIG_WARNING_HEADER_LIMIT = 5;
 /** Startup emits several status-bar changes within a second; persist only the settled one. */
 const COMPOSER_STATUS_PERSIST_DELAY_MS = 1_000;
 /** Status-line slot of the link-hint mode prompt; the `zeta:` prefix keeps it apart from extension keys. */
-const LINK_HINT_STATUS_KEY = "omp:link-hints";
+const LINK_HINT_STATUS_KEY = "zeta:link-hints";
 const DEFAULT_WORKING_MESSAGE = "Working…";
 /** Native working-message shimmer under a session accent: the hue itself is the terminal's `accent`. */
 const NATIVE_ACCENT_SHIMMER: ShimmerPalette = { low: "dim", mid: "accent", high: "accent", bold: true };
@@ -4639,7 +4639,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		if (streaming) {
 			entries.push({
 				type: "message",
-				id: "omp:link-browser-streaming-reply",
+				id: "zeta:link-browser-streaming-reply",
 				parentId: null,
 				timestamp: new Date(streaming.timestamp).toISOString(),
 				message: streaming,

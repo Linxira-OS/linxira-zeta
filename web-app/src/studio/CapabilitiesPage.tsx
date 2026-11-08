@@ -212,7 +212,7 @@ function formatMcpSourceLabel(label: string | undefined, t: (k: string) => strin
   if (!label) return "";
   if (label === "用户" || label === "User") return t("subagents.scopeUser");
   if (label === "项目" || label === "Project") return t("subagents.scopeProject");
-  if (label === "OMP" || label === "内置") return t("skills.scopeBuiltin");
+  if (label === "内置") return t("skills.scopeBuiltin");
   return label;
 }
 
@@ -300,8 +300,8 @@ export function CapabilitiesPage({
     }
     const [skillsResult, mcpResult, manifestResult] = await Promise.allSettled([
       client.query("skills.get", {}),
-      client.query("mcp.get", {}),
-      client.query("commands.getManifest", {}),
+      supports("mcp.get") ? client.query("mcp.get", {}) : Promise.resolve(null),
+      supports("commands.getManifest") ? client.query("commands.getManifest", {}) : Promise.resolve(null),
     ]);
     let identityError: string | null = null;
     if (skillsResult.status === "fulfilled") {
@@ -319,14 +319,14 @@ export function CapabilitiesPage({
       setSkills([]);
       setPlugins([]);
     }
-    if (mcpResult.status === "fulfilled") {
+    if (mcpResult.status === "fulfilled" && mcpResult.value !== null) {
       setMcp([]);
       setMcpServers([...mcpResult.value.servers]);
     } else {
       setMcp([]);
       setMcpServers([]);
     }
-    setCommandManifest(manifestResult.status === "fulfilled" ? manifestResult.value : undefined);
+    setCommandManifest(manifestResult.status === "fulfilled" ? manifestResult.value ?? undefined : undefined);
     const loadError = skillsResult.status === "rejected"
       ? (skillsResult.reason instanceof Error ? skillsResult.reason.message : "skills.get failed")
       : skillsResult.value.unavailableReason ?? null;

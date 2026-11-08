@@ -51,7 +51,7 @@ import {
 import { AUTO_UPDATE_WORKER_ARG } from "./worker-selectors";
 
 /** Env var carrying the version the spawning launch's check offered. */
-const TARGET_ENV = "OMP_AUTO_UPDATE_TARGET";
+const TARGET_ENV = "ZETA_AUTO_UPDATE_TARGET";
 
 /** How often a launch re-reads the status file while a worker runs. */
 const POLL_MS = 250;

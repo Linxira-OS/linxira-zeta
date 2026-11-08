@@ -1442,10 +1442,10 @@ describe("formatUsageBreakdown", () => {
 	it.each([
 		{
 			mode: "yes",
-			verdict: "→ an open interactive omp session spends it by its last 5 min if eligible then",
+			verdict: "→ an open interactive Zeta session spends it by its last 5 min if eligible then",
 			lost: false,
 		},
-		{ mode: "unset", verdict: "→ an open interactive omp session asks before spending it", lost: false },
+		{ mode: "unset", verdict: "→ an open interactive Zeta session asks before spending it", lost: false },
 		{ mode: "no", verdict: "→ not spent automatically", lost: true },
 	])("says what codexResets.autoRedeem=$mode does with an expiring reset", ({ mode, verdict, lost }) => {
 		const now = Date.parse("2026-01-01T00:00:00.000Z");
@@ -1516,7 +1516,7 @@ describe("formatUsageBreakdown", () => {
 		expect(text).toContain(header);
 		expect(text).toContain(title);
 		expect(text).toContain(
-			`→ an open interactive omp session spends it by its last 5 min if eligible then  (claudeResets.autoRedeem: yes)${eligibleNow ? "" : " · not eligible now"}\n`,
+			`→ an open interactive Zeta session spends it by its last 5 min if eligible then  (claudeResets.autoRedeem: yes)${eligibleNow ? "" : " · not eligible now"}\n`,
 		);
 		// Only a reset the provider lets omp spend now gets a command that spends it.
 		expect(text.includes("/usage reset")).toBe(eligibleNow);
@@ -1562,7 +1562,7 @@ describe("formatUsageBreakdown", () => {
 		});
 		const text = stripVTControlCharacters(formatUsageBreakdown([report], [], now, undefined, [], undefined, options));
 		const verdict =
-			"→ an open interactive omp session spends it by its last 5 min if eligible then  (claudeResets.autoRedeem: yes)";
+			"→ an open interactive Zeta session spends it by its last 5 min if eligible then  (claudeResets.autoRedeem: yes)";
 		expect(text).toContain(eligibleNow ? `${verdict}\n` : `${verdict} · not eligible now\n`);
 		expect(text).not.toContain("will be lost");
 		expect(text).toContain("or now:  /usage reset");
@@ -2261,7 +2261,7 @@ describe("zetacode usage reset", () => {
 		await run;
 
 		expect(consumes()).toEqual([]);
-		expect(stripVTControlCharacters(stderr)).toContain("another omp process spent a saved reset on this account");
+		expect(stripVTControlCharacters(stderr)).toContain("another Zeta process spent a saved reset on this account");
 		expect(process.exitCode).toBe(1);
 	});
 

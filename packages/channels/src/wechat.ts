@@ -84,12 +84,29 @@ async function aesEcbEncrypt(data: Uint8Array, key: Uint8Array): Promise<Uint8Ar
 }
 
 interface WeChatMessage {
+	/** Redelivery ids when the iLink payload carries one; absent on older servers. */
+	msg_id?: string | number;
+	client_msg_id?: string | number;
+	seq?: string | number;
 	from_user_id?: string;
 	to_user_id?: string;
 	message_type?: number;
 	message_state?: number;
 	context_token?: string;
 	item_list?: Array<{ type?: number; text_item?: { text?: string } }>;
+}
+
+/**
+ * Stable id for dedupe across restarts, when the server supplies one.
+ * `to_user_id` is the bot itself (constant per bot) and must never be used as
+ * a message id: every later message would look like a duplicate.
+ */
+function wechatMessageId(msg: WeChatMessage): string | undefined {
+	for (const candidate of [msg.msg_id, msg.client_msg_id, msg.seq]) {
+		if (typeof candidate === "string" && candidate !== "") return candidate;
+		if (typeof candidate === "number" && Number.isFinite(candidate)) return String(candidate);
+	}
+	return undefined;
 }
 
 export class WeChatChannel implements ChatChannel {
@@ -424,7 +441,7 @@ export class WeChatChannel implements ChatChannel {
 						from,
 						length: textItem.length,
 					});
-					this.#onMessage(from, textItem, String(msg.to_user_id ?? ""));
+					this.#onMessage(from, textItem, wechatMessageId(msg));
 				}
 			} catch (error) {
 				if (this.#abort?.signal.aborted) break;

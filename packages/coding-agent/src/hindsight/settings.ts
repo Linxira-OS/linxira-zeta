@@ -183,7 +183,7 @@ export const cfgHindsightRetainOverlapTurns = register({
 	default: 2,
 });
 
-export const cfgHindsightRetainContext = register({ id: "hindsight.retainContext", type: "string", default: "omp" });
+export const cfgHindsightRetainContext = register({ id: "hindsight.retainContext", type: "string", default: "zeta" });
 
 export const cfgHindsightRecallBudget = register({
 	id: "hindsight.recallBudget",

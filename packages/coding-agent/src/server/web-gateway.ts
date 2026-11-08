@@ -1092,7 +1092,7 @@ export async function startWebGateway(port?: number): Promise<WebGatewayInstance
 			// Data-plane upgrades bypass webGatewayFetch (it can only return
 			// Responses); auth lives in each upgrade handler.
 			if (isStudioWsUpgradeRequest(req)) {
-				const response = studioHost().upgrade(req, srv);
+				const response = await studioHost().upgrade(req, srv, srv?.requestIP(req)?.address);
 				return response ?? new Response(null);
 			}
 			// The Studio host owns `/health` and `/api/v1/*` on this listener too:

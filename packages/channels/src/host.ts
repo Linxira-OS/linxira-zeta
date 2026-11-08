@@ -4,15 +4,20 @@
  * Inbound: each channel message becomes an `IrcMessage` delivered through
  * `AgentSession.deliverIrcMessage` (the same IRC injection path agents use),
  * so interrupts, asides, plan-mode handling, and ephemeral auto-replies all
- * behave identically to IRC traffic.
+ * behave identically to IRC traffic. `channels.allowedPeers` is enforced
+ * before that injection, so an unauthorized sender never reaches a turn.
  *
- * Outbound: the agent's final reply to a channel message is forwarded back
- * to the sender. Two paths exist:
+ * Outbound: the agent's final reply to a channel message is forwarded back to
+ * the sender. Two paths exist:
  * - a real woken turn → the turn's final assistant text is captured from the
  *   `turn_end` session event;
  * - the IRC ephemeral auto-reply path (busy session with async disabled, or
  *   plan-mode idle) → `IrcBridge` reports the reply text through the
  *   `onAutoReply` hook.
+ *
+ * Replies are correlated per delivered message (`ReplyCorrelator`), not by a
+ * global turn queue: two chats never swap answers, and a Studio/attach prompt
+ * on the same session never consumes an IM reply slot.
  *
  * The agent can also push progress proactively with the `channel_send` tool
  * (Phase 3); working-tool output is never forwarded automatically.
@@ -20,16 +25,22 @@
 
 import type { AssistantMessage, TextContent } from "@linxiraos/pi-ai";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
+import { CHANNEL_PEER_REFUSED_TEXT, isPeerAllowed } from "./auth";
 import type { ChannelId } from "./channel";
+import { ReplyCorrelator } from "./reply-correlator";
 import type { ChannelSession, ChannelSessionEvent, IrcMessage } from "./types";
 
 /** Outbound sink: resolves a channel + peer to a `sendText` call. */
 export type ChannelSendFn = (channelId: ChannelId, to: string, text: string) => Promise<void>;
 
-interface PendingReply {
-	channelId: ChannelId;
-	peer: string;
-}
+/** Outcome of one inbound injection. */
+export type ChannelDeliveryResult = { ok: true } | { ok: false; reason: "peer-not-allowed" | "duplicate" };
+
+/** One refusal per unauthorized peer per minute — enough to be explicit, not a spam vector. */
+const REFUSAL_COOLDOWN_MS = 60_000;
+/** Second-line in-memory dedupe (routeInbound owns the durable per-channel state). */
+const DELIVERED_ID_TTL_MS = 24 * 60 * 60_000;
+const MAX_DELIVERED_IDS = 512;
 
 function assistantText(message: AssistantMessage | undefined): string {
 	if (message?.role !== "assistant" || !Array.isArray(message.content)) return "";
@@ -44,14 +55,20 @@ export class ChannelHost {
 	readonly #session: ChannelSession;
 	readonly #send: ChannelSendFn;
 	readonly #allowedPeers: readonly string[];
-	#pending: PendingReply[] = [];
+	readonly #replies: ReplyCorrelator;
+	readonly #deliveredIds = new Map<string, number>();
+	readonly #refusedAt = new Map<string, number>();
 	#unsubscribe: (() => void) | null = null;
+	#observerInstalled = false;
 	#lastInbound: { channelId: ChannelId; peer: string } | null = null;
 
 	constructor(session: ChannelSession, send: ChannelSendFn, allowedPeers?: readonly string[]) {
 		this.#session = session;
 		this.#send = send;
 		this.#allowedPeers = allowedPeers ?? [];
+		this.#replies = new ReplyCorrelator({
+			sendText: (target, text) => this.#send(target.channelId, target.peer, text),
+		});
 	}
 
 	get session(): ChannelSession {
@@ -64,76 +81,135 @@ export class ChannelHost {
 		return this.#lastInbound;
 	}
 
-	/** Attach the session event listener + IRC auto-reply hook. */
+	/** Attach the session event listener + IRC auto-reply hook, and correlate
+	 *  wake-turn replies through the session's observer when it exposes one. */
 	start(): void {
 		if (this.#unsubscribe) return;
 		this.#unsubscribe = this.#session.subscribe(event => this.#onSessionEvent(event));
 		this.#session.setIrcAutoReplyListener((msg, replyText) => this.#onAutoReply(msg, replyText));
+		const observer = this.#session.setIrcWakeTurnObserver;
+		if (typeof observer === "function") {
+			try {
+				observer.call(this.#session, records => this.#replies.observe(records));
+				this.#observerInstalled = true;
+			} catch (error) {
+				logger.warn("Channel wake-turn observer unavailable", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
+		if (!this.#observerInstalled) this.#replies.enableFallback();
 	}
 
-	/** Detach listeners and drop pending reply bindings. */
+	/** Detach listeners, release the observer, and drop pending reply bindings. */
 	stop(): void {
 		this.#unsubscribe?.();
 		this.#unsubscribe = null;
 		this.#session.setIrcAutoReplyListener(null);
-		this.#pending = [];
+		if (this.#observerInstalled) {
+			this.#session.setIrcWakeTurnObserver?.(undefined);
+			this.#observerInstalled = false;
+		}
+		this.#replies.clear();
+		this.#deliveredIds.clear();
+		this.#refusedAt.clear();
 	}
 
 	/**
 	 * Inject one inbound channel message into the coordinator session and
 	 * bind the sender so the turn's final reply returns to them.
 	 */
-	async deliver(channelId: ChannelId, peer: string, body: string): Promise<void> {
-		// Optional allowlist: when configured, only listed peers may reach the
-		// agent (empty allowlist = everyone, unchanged behavior).
-		if (this.#allowedPeers.length > 0 && !this.#allowedPeers.includes(peer)) {
-			logger.debug("Channel message from non-allowed peer dropped", {
-				channel: channelId,
-				peer,
-			});
-			return;
+	async deliver(channelId: ChannelId, peer: string, body: string, messageId?: string): Promise<ChannelDeliveryResult> {
+		// Authorization is the FIRST inbound check, mirroring `routeInbound`:
+		// an unauthorized sender must never reach dispatch or start a turn.
+		if (!isPeerAllowed(peer, this.#allowedPeers)) {
+			logger.warn("Channel message refused: peer not in allowedPeers", { channel: channelId, peer });
+			this.#refuse(channelId, peer);
+			return { ok: false, reason: "peer-not-allowed" };
+		}
+		const dedupeKey = messageId ? `${channelId}\u0000${messageId}` : undefined;
+		if (dedupeKey && this.#hasDelivered(dedupeKey)) {
+			logger.debug("Duplicate channel message ignored", { channel: channelId, messageId });
+			return { ok: false, reason: "duplicate" };
 		}
 		const agentId = this.#session.getAgentId();
 		if (!agentId) throw new Error("Session has no agent id");
+		const recordId = Snowflake.next();
 		const msg: IrcMessage = {
-			id: Snowflake.next(),
+			id: recordId,
 			from: peer,
 			to: agentId,
 			body,
 			ts: Date.now(),
 		};
-		this.#pending.push({ channelId, peer });
+		// Registered before delivery: a wake turn can start synchronously inside
+		// `deliverIrcMessage`, and the observer must find the expectation.
+		this.#replies.expect(recordId, {
+			kind: "chat",
+			channelId,
+			peer,
+			...(messageId !== undefined && messageId !== "" ? { messageId } : {}),
+		});
+		if (dedupeKey) this.#rememberDelivered(dedupeKey);
 		try {
 			await this.#session.deliverIrcMessage(msg, { expectsReply: true });
 			this.#lastInbound = { channelId, peer };
+			return { ok: true };
 		} catch (error) {
-			this.#pending = this.#pending.filter(p => !(p.channelId === channelId && p.peer === peer));
+			this.#replies.forget(recordId);
+			if (dedupeKey) this.#deliveredIds.delete(dedupeKey);
 			throw error;
 		}
 	}
 
-	#onSessionEvent(event: ChannelSessionEvent): void {
-		if (event.type !== "turn_end") return;
-		const pending = this.#pending.shift();
-		if (!pending) return;
-		const text = assistantText(event.message as AssistantMessage);
-		if (!text) return;
-		void this.#send(pending.channelId, pending.peer, text).catch(error => {
-			logger.warn("Channel reply delivery failed", {
-				channel: pending.channelId,
+	/** Explicit refusal for an unauthorized sender, rate limited per peer. */
+	#refuse(channelId: ChannelId, peer: string): void {
+		const key = `${channelId}\u0000${peer}`;
+		const now = Date.now();
+		const last = this.#refusedAt.get(key) ?? 0;
+		if (now - last < REFUSAL_COOLDOWN_MS) return;
+		this.#refusedAt.set(key, now);
+		void this.#send(channelId, peer, CHANNEL_PEER_REFUSED_TEXT).catch(error => {
+			logger.warn("Channel refusal delivery failed", {
+				channel: channelId,
 				error: error instanceof Error ? error.message : String(error),
 			});
 		});
 	}
 
-	#onAutoReply(_msg: IrcMessage, replyText: string): void {
-		const pending = this.#pending.shift();
-		if (!pending) return;
+	#hasDelivered(key: string): boolean {
+		const at = this.#deliveredIds.get(key);
+		if (at === undefined) return false;
+		if (Date.now() - at > DELIVERED_ID_TTL_MS) {
+			this.#deliveredIds.delete(key);
+			return false;
+		}
+		return true;
+	}
+
+	#rememberDelivered(key: string): void {
+		this.#deliveredIds.set(key, Date.now());
+		while (this.#deliveredIds.size > MAX_DELIVERED_IDS) {
+			const oldest = this.#deliveredIds.keys().next();
+			if (oldest.done) break;
+			this.#deliveredIds.delete(oldest.value);
+		}
+	}
+
+	#onSessionEvent(event: ChannelSessionEvent): void {
+		if (event.type !== "turn_end") return;
+		this.#replies.onTurnText(assistantText(event.message as AssistantMessage));
+	}
+
+	#onAutoReply(msg: IrcMessage, replyText: string): void {
+		// Exact correlation: the hook hands back the message being answered.
+		const target = this.#replies.take(msg.id);
+		if (!target || target.kind !== "chat") return;
 		const body = replyText.trim();
 		if (!body) return;
-		void this.#send(pending.channelId, pending.peer, body).catch(error => {
+		void this.#send(target.channelId, target.peer, body).catch(error => {
 			logger.warn("Channel auto-reply delivery failed", {
-				channel: pending.channelId,
+				channel: target.channelId,
 				error: error instanceof Error ? error.message : String(error),
 			});
 		});

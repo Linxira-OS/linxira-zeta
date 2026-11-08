@@ -1,19 +1,32 @@
 import { logger } from "@linxiraos/pi-utils";
 
 const DEFAULT_MCP_TIMEOUT_MS = 30_000;
-const MCP_TIMEOUT_ENV = "OMP_MCP_TIMEOUT_MS";
+const MCP_TIMEOUT_ENV = "ZETA_MCP_TIMEOUT_MS";
+/** Pre-rename spelling kept as a read alias so existing configs keep working. */
+const LEGACY_MCP_TIMEOUT_ENV = "OMP_MCP_TIMEOUT_MS";
 const DEFAULT_MCP_STARTUP_TIMEOUT_MS = 250;
-const MCP_STARTUP_TIMEOUT_ENV = "OMP_MCP_STARTUP_TIMEOUT_MS";
+const MCP_STARTUP_TIMEOUT_ENV = "ZETA_MCP_STARTUP_TIMEOUT_MS";
+/** Pre-rename spelling kept as a read alias so existing configs keep working. */
+const LEGACY_MCP_STARTUP_TIMEOUT_ENV = "OMP_MCP_STARTUP_TIMEOUT_MS";
 
 let neverAbortController: AbortController | undefined;
 
+/** Read `primary`, falling back to the pre-rename `legacy` spelling. */
+function readAliasedEnv(primary: string, legacy: string): { name: string; value: string } | undefined {
+	const value = Bun.env[primary]?.trim();
+	if (value) return { name: primary, value };
+	const legacyValue = Bun.env[legacy]?.trim();
+	if (legacyValue) return { name: legacy, value: legacyValue };
+	return undefined;
+}
+
 export function resolveMCPTimeoutMs(configTimeout?: number): number {
-	const raw = Bun.env[MCP_TIMEOUT_ENV]?.trim();
+	const raw = readAliasedEnv(MCP_TIMEOUT_ENV, LEGACY_MCP_TIMEOUT_ENV);
 	if (raw) {
-		const value = Number(raw);
+		const value = Number(raw.value);
 		if (Number.isFinite(value) && value >= 0) return value;
-		logger.warn("Ignoring invalid OMP_MCP_TIMEOUT_MS env value; expected a non-negative number", {
-			value: raw,
+		logger.warn(`Ignoring invalid ${raw.name} env value; expected a non-negative number`, {
+			value: raw.value,
 		});
 	}
 	return configTimeout ?? DEFAULT_MCP_TIMEOUT_MS;
@@ -21,12 +34,12 @@ export function resolveMCPTimeoutMs(configTimeout?: number): number {
 
 /** Resolve the non-blocking discovery window; zero waits for initial connections to settle. */
 export function resolveMCPStartupTimeoutMs(configTimeout?: number): number {
-	const raw = Bun.env[MCP_STARTUP_TIMEOUT_ENV]?.trim();
+	const raw = readAliasedEnv(MCP_STARTUP_TIMEOUT_ENV, LEGACY_MCP_STARTUP_TIMEOUT_ENV);
 	if (raw) {
-		const value = Number(raw);
+		const value = Number(raw.value);
 		if (Number.isFinite(value) && value >= 0) return value;
-		logger.warn("Ignoring invalid OMP_MCP_STARTUP_TIMEOUT_MS env value; expected a non-negative number", {
-			value: raw,
+		logger.warn(`Ignoring invalid ${raw.name} env value; expected a non-negative number`, {
+			value: raw.value,
 		});
 	}
 	return configTimeout ?? DEFAULT_MCP_STARTUP_TIMEOUT_MS;

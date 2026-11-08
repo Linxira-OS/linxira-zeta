@@ -130,7 +130,7 @@ export const NATIVE_TOOL_GALLERY: readonly { readonly [key: string]: JsonValue }
     kind: "security_scan", name: "Security Scan", target: "workspace", status: "done", dur: "6.8s",
     action: "scan",
     args: { action: "scan", target: "workspace" },
-    output: { findings: 0, scanners: ["omp", "codex"] },
+    output: { findings: 0, scanners: ["zeta", "codex"] },
   },
   {
     kind: "task", name: "Task", status: "done", dur: "42s",

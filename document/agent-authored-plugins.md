@@ -233,7 +233,7 @@ npm 包组成，默认关闭，通过 profile bundle 一起启用：
 | 维度 | 普通 subagent / `task` | DSH Agent Teams |
 |---|---|---|
 | 生命周期 | 一次任务；可 background/revive，但父级按 child 管理 | 具名 teammate，持久 roster；inactive 可冷恢复 |
-| 寻址 | 父 ↔ child；Zeta 当前 subagent 只能给 spawning main 发消息 | 任意成员 ↔ 任意成员；inbox + steer |
+| 寻址 | 父 ↔ child；Zeta subagent 同 workspace 可经 IRC 互发，跨 workspace 经 spawner | 任意成员 ↔ 任意成员；inbox + steer |
 | 协调 | 父级收集结果 | 共享 task DAG：`blockedBy`、owner、`writeScopes`、revision CAS |
 | 控制 | 父级 kill/steer；Zeta Agent Hub 可看 transcript | Lead-only spawn/interrupt；`wait_agent` 等下一条团队变化 |
 | UI | 父会话里看 child | header slot：roster、任务板、点进成员会话 |
@@ -252,7 +252,7 @@ Zeta 其实已经有半边：
 
 缺的是团队域：
 
-- subagent 之间不能互相发消息（安全规则：只能给 spawning main）；
+- subagent 的 IRC/inbox 已可用：同一 workspace 的兄弟可互相发消息，跨 workspace 只能经 spawner 或主 Agent（§9.2 旧表述已更正）；
 - 没有共享 task board（依赖、owner、revision CAS、write scope 警告）；
 - 没有 team-scoped roster 与“团队”UI；
 - 没有 Lead-only 的 spawn/interrupt 语义。
