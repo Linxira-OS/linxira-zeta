@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.13] - 2026-11-08
+
 - `channels.allowedPeers` is now the first inbound check, ahead of command routing and the workspace/direct/bot/relay dispatch: an unauthorized sender gets an explicit refusal and can never open an arbitrary workspace path or start a turn
 - Inbound messages are deduped by platform message id with durable per-channel state (`<agent dir>/run/channels-seen.json`), so a restart or reconnect replay is never answered twice; the WeChat adapter no longer reports the bot id as a message id
 - Replies are correlated with the delivered message/thread through the session's IRC wake-turn observer instead of a global turn FIFO: two chats sharing one session never swap answers, a Studio/attach turn consumes no IM reply slot, and a `workspace_run` delegation is resolved only by its own turn

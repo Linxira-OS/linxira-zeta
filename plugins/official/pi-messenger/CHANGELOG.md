@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.13] - 2026-11-08
+
 - Released as part of Zeta 1.4.13.
 
 ## [1.4.12] - 2026-11-08

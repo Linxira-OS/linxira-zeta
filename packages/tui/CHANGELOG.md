@@ -1,25 +1,8 @@
 ## [Unreleased]
 
+## [1.4.13] - 2026-11-08
+
 - Released as part of Zeta 1.4.13.
-
-## [1.4.12] - 2026-11-08
-
-- Synced with upstream OMP v18.18.0.
-- Released as part of Zeta 1.4.12; no package-specific user-visible changes.
-
-### Added
-
-- Added configurable editor padding via `editorPaddingX` theme option
-- Added `inputCursor` symbol for customizing the text input cursor character
-
-### Changed
-
-- Settings list descriptions now wrap to the available width instead of truncating
-- Changed Editor component to use proper box borders with vertical side borders instead of horizontal-only borders
-
-### Fixed
-
-- TUI now filters out key release events by default, preventing double-processing of keys in editors and other components
 
 ## [9.4.0] - 2026-01-31
 
@@ -122,6 +105,25 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.4.12] - 2026-11-08
+
+- Synced with upstream OMP v18.18.0.
+- Released as part of Zeta 1.4.12; no package-specific user-visible changes.
+
+### Added
+
+- Added configurable editor padding via `editorPaddingX` theme option
+- Added `inputCursor` symbol for customizing the text input cursor character
+
+### Changed
+
+- Settings list descriptions now wrap to the available width instead of truncating
+- Changed Editor component to use proper box borders with vertical side borders instead of horizontal-only borders
+
+### Fixed
+
+- TUI now filters out key release events by default, preventing double-processing of keys in editors and other components
 
 ## [1.4.11] - 2026-11-06
 

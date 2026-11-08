@@ -16,7 +16,7 @@
     },
     "packages/agent": {
       "name": "@linxiraos/pi-agent-core",
-      "version": "1.4.12",
+      "version": "1.4.13",
       "dependencies": {
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
@@ -35,7 +35,7 @@
     },
     "packages/ai": {
       "name": "@linxiraos/pi-ai",
-      "version": "1.4.12",
+      "version": "1.4.13",
       "dependencies": {
         "@linxiraos/pi-catalog": "catalog:",
         "@linxiraos/pi-natives": "catalog:",
@@ -57,7 +57,7 @@
     },
     "packages/catalog": {
       "name": "@linxiraos/pi-catalog",
-      "version": "1.4.12",
+      "version": "1.4.13",
       "dependencies": {
         "@linxiraos/pi-utils": "catalog:",
         "@linxiraos/zeta-schema": "catalog:",
@@ -70,7 +70,7 @@
     },
     "packages/channels": {
       "name": "@linxiraos/pi-channels",
-      "version": "1.4.12",
+      "version": "1.4.13",
       "dependencies": {
         "@larksuiteoapi/node-sdk": "^1.71.1",
         "@linxiraos/pi-utils": "catalog:",
@@ -85,7 +85,7 @@
     },
     "packages/coding-agent": {
       "name": "@linxiraos/zeta",
-      "version": "1.4.12",
+      "version": "1.4.13",
       "bin": {
         "zetacode": "src/cli.ts",
       },
@@ -166,7 +166,7 @@
     },
     "packages/mnemopi": {
       "name": "@linxiraos/pi-mnemopi",
-      "version": "1.4.12",
+      "version": "1.4.13",
       "bin": {
         "mnemopi": "src/cli.ts",
       },
@@ -192,7 +192,7 @@
     },
     "packages/natives": {
       "name": "@linxiraos/pi-natives",
-      "version": "1.4.12",
+      "version": "1.4.13",
       "devDependencies": {
         "@napi-rs/cli": "catalog:",
         "@types/bun": "catalog:",
@@ -206,7 +206,7 @@
     },
     "packages/omptype": {
       "name": "@linxiraos/zeta-schema",
-      "version": "1.4.12",
+      "version": "1.4.13",
       "devDependencies": {
         "@sinclair/typebox": "^0.34.0",
         "@types/bun": "catalog:",
@@ -216,7 +216,7 @@
     },
     "packages/snapcompact": {
       "name": "@linxiraos/zeta-compact",
-      "version": "1.4.12",
+      "version": "1.4.13",
       "dependencies": {
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
@@ -231,7 +231,7 @@
     },
     "packages/stats": {
       "name": "@linxiraos/pi-stats",
-      "version": "1.4.12",
+      "version": "1.4.13",
       "bin": {
         "zeta-stats": "./src/index.ts",
       },
@@ -251,7 +251,7 @@
     },
     "packages/tui": {
       "name": "@linxiraos/pi-tui",
-      "version": "1.4.12",
+      "version": "1.4.13",
       "dependencies": {
         "@linxiraos/pi-agent-core": "catalog:",
         "@linxiraos/pi-ai": "catalog:",
@@ -291,7 +291,7 @@
     },
     "packages/utils": {
       "name": "@linxiraos/pi-utils",
-      "version": "1.4.12",
+      "version": "1.4.13",
       "dependencies": {
         "@linxiraos/pi-natives": "catalog:",
         "@linxiraos/zeta-schema": "catalog:",
@@ -302,7 +302,7 @@
     },
     "packages/wire": {
       "name": "@linxiraos/pi-wire",
-      "version": "1.4.12",
+      "version": "1.4.13",
       "devDependencies": {
         "@types/bun": "catalog:",
       },
@@ -334,19 +334,19 @@
     "@babel/parser": "^7.29.7",
     "@babel/traverse": "^7.29.7",
     "@babel/types": "^7.29.7",
-    "@linxiraos/pi-agent-core": "1.4.12",
-    "@linxiraos/pi-ai": "1.4.12",
-    "@linxiraos/pi-catalog": "1.4.12",
-    "@linxiraos/pi-channels": "1.4.12",
-    "@linxiraos/pi-mnemopi": "1.4.12",
-    "@linxiraos/pi-natives": "1.4.12",
-    "@linxiraos/pi-stats": "1.4.12",
-    "@linxiraos/pi-tui": "1.4.12",
-    "@linxiraos/pi-utils": "1.4.12",
-    "@linxiraos/pi-wire": "1.4.12",
-    "@linxiraos/zeta": "1.4.12",
-    "@linxiraos/zeta-compact": "1.4.12",
-    "@linxiraos/zeta-schema": "1.4.12",
+    "@linxiraos/pi-agent-core": "1.4.13",
+    "@linxiraos/pi-ai": "1.4.13",
+    "@linxiraos/pi-catalog": "1.4.13",
+    "@linxiraos/pi-channels": "1.4.13",
+    "@linxiraos/pi-mnemopi": "1.4.13",
+    "@linxiraos/pi-natives": "1.4.13",
+    "@linxiraos/pi-stats": "1.4.13",
+    "@linxiraos/pi-tui": "1.4.13",
+    "@linxiraos/pi-utils": "1.4.13",
+    "@linxiraos/pi-wire": "1.4.13",
+    "@linxiraos/zeta": "1.4.13",
+    "@linxiraos/zeta-compact": "1.4.13",
+    "@linxiraos/zeta-schema": "1.4.13",
     "@napi-rs/cli": "3.7.2",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/api-logs": "^0.220.0",
@@ -436,7 +436,7 @@
 
     "@bgotink/kdl": ["@bgotink/kdl@0.4.0", "", {}, "sha512-F0uJCjo5FQvFdcGF5QbYVNfcGiRWlocuzyIdQxottZF2+gu6L2xjMGEu9PIpse2hifAca/19vIospgaETCKxIg=="],
 
-    "@bufbuild/protobuf": ["@bufbuild/protobuf@2.16.0", "", {}, "sha512-FWa0sPlqYGJgpTs6OxBRcL/AW4JT0OIO+W1ajerluoTVh8CV0B7XM1qsNCRgnkSCkRCgOICKHRQlY17jrsm0+Q=="],
+    "@bufbuild/protobuf": ["@bufbuild/protobuf@2.17.0", "", {}, "sha512-hcPkSz6D7MiTU/5VBBhK+kxaYDoOdQ6yJRFJ3kS8Nydp+VZXfg1vrpABKPNod8bXMufsVCmiUJVIKFzCzta4uw=="],
 
     "@connectrpc/connect": ["@connectrpc/connect@2.3.0", "", { "peerDependencies": { "@bufbuild/protobuf": "^2.7.0" } }, "sha512-rjAn8L9KbAZrkwiB8m1qzDsLs74hkYmwwM2iSWuxTPVOTRm/EZw31smKbQqPU50AXqJC5eKKpEnA6Uf/swQOgQ=="],
 
@@ -960,7 +960,7 @@
 
     "call-bound": ["call-bound@1.0.4", "", { "dependencies": { "call-bind-apply-helpers": "^1.0.2", "get-intrinsic": "^1.3.0" } }, "sha512-+ys997U96po4Kx/ABpBCqhA9EuxJaQWDQg7295H4hBphv3IZg0boBKuwYpt4YXp6MZ5AmZQnU/tyMTlRpaSejg=="],
 
-    "caniuse-lite": ["caniuse-lite@1.0.30001820", "", {}, "sha512-gfWD6MxqVCqAOwmODfZf7DchWvlrA+SRdNX7ceLfg3xRqe5ssjjpF7EgslC/0tiLiNTajdaNN/q8c/5u/7Gz8w=="],
+    "caniuse-lite": ["caniuse-lite@1.0.30001822", "", {}, "sha512-Y3fvWQWzc69dlCyr07tuNrEhotv+db5FpMSPD3slZnkPKwRNOKwFBz2dP966XUmWMXLTOt+YShkFoQoom3U7hg=="],
 
     "chalk": ["chalk@4.1.2", "", { "dependencies": { "ansi-styles": "^4.1.0", "supports-color": "^7.1.0" } }, "sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=="],
 
