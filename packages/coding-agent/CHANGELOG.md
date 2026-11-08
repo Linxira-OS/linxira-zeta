@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+
+- Work Studio's in-process host now answers the operations its surfaces call but the host left unadvertised: `operator.invoke` (builtin slash commands through the gateway's own dispatch, with the command's real output lines), `tokens.count` (every embedded offline tokenizer), `session.resume`, `workspace.open`, `workspace.file.create`, `artifacts.saveText` (raw request bytes, so the stored text is the text), `runtime.ensure` and the diagnostics page's `diagnostics.get`, plus the task-agent inventory `agents.definitions.get`. The bridge gained multipart and raw-body modes, which is what the two write operations needed.
+
 ## [1.4.12] - 2026-11-08
 
 - Synced with upstream OMP v18.18.0.

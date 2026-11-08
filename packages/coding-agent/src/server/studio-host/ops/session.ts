@@ -6,6 +6,7 @@
  * | operation | gateway |
  * |---|---|
  * | `session.create` | `POST /api/agent/new` (`ensure_session`, cwd of the active/default workspace) |
+ * | `session.resume` | `POST /api/agent/:id` `{type:"get_state"}` (attach a dormant thread) then `session.state` |
  * | `session.delete` | `DELETE /api/sessions/:id` |
  * | `session.archive` / `session.unarchive` | `POST /api/sessions/:id/archive` / `POST /api/sessions/:id/unarchive` |
  * | `session.fork` | `POST /api/agent/:id` `{type:"fork"}` at the last user entry |
@@ -25,10 +26,10 @@
  * Deliberate omissions (Zeta cannot answer them, so the capability manifest
  * does not advertise them and Studio hides the surface):
  * `session.fast.set`, `session.taskModel.set`, `session.telemetry.read`,
- * `session.handoff`, `session.prewalk.*`, `session.resume`,
- * `session.clearContext`, `session.drop`,
- * `agent.send|kill|revive|release|spawn`, `agents.definition.*`
- * (all C in `studio-host-spec.md`).
+ * `session.handoff`, `session.prewalk.*`, `session.clearContext`,
+ * `session.drop`, `agent.send|kill|revive|release|spawn`,
+ * `agents.definition.*` (writes need a task-agent file route Zeta lacks;
+ * `agents.definitions.get` is the disk read and lives in `ops/agents.ts`).
  *
  * The contract's session commands carry no session id: they act on the live
  * Runtime session the client is driving. This file tracks that session (the
@@ -172,7 +173,15 @@ let activeSessionId: string | undefined;
  */
 let sessionCwd: string | undefined;
 
-async function currentSessionId(): Promise<string> {
+/**
+ * The session the sessionless `session.*` / `core.*` commands act on. Zeta has
+ * one live Runtime session per conversation the client opened; the coordinator
+ * session (`/api/agent/current`) is the fallback until one is created.
+ *
+ * Exported so sibling families (`operator.invoke`) address the same session
+ * instead of keeping a second copy of this rule.
+ */
+export async function currentSessionId(): Promise<string> {
 	if (activeSessionId !== undefined) return activeSessionId;
 	const reply = await callGateway("/api/agent/current");
 	if (reply.status === 404) throw unavailable("no live session; start one with session.create");
@@ -1305,6 +1314,30 @@ export const sessionOps: StudioFamily = {
 			sessionCwd = cwd;
 			activeSessionId = sessionId;
 			return await snapshotFor(sessionId);
+		},
+
+		/**
+		 * `session.resume` → attach the named thread and make it the session
+		 * `session.*` acts on.
+		 *
+		 * `POST /api/agent/:id {type:"get_state"}` is the gateway's attach path: it
+		 * reuses a resident session and starts a dormant one from its transcript
+		 * file, so a 404 here means the thread does not exist. `model` switches the
+		 * resumed session through the same `set_model` route `session.model.set`
+		 * uses. The receipt carries the runtime's own id for that thread, which is
+		 * what the renderer compares against the view it opened.
+		 */
+		"session.resume": async input => {
+			const threadId = requiredString(input, "threadId");
+			await runAgentCommand(threadId, { type: "get_state" });
+			const model = optionalString(input, "model");
+			if (model !== undefined && model !== "") {
+				const { provider, modelId } = parseModelSelector(model);
+				await runAgentCommand(threadId, { type: "set_model", provider, modelId });
+			}
+			const snapshot = await snapshotFor(threadId);
+			activeSessionId = snapshot.sessionId;
+			return snapshot;
 		},
 
 		/** `DELETE /api/sessions/:id`. Zeta always moves managed artifacts with the transcript. */
