@@ -1357,7 +1357,7 @@ export class ZetaServer {
 					case "gateway":
 						return webGatewayFetch(req, remoteAddr);
 					case "studio":
-						return studioHost().handle(req);
+						return studioHost().handle(req, remoteAddr);
 					case "webapp":
 						// `webAppDir` is non-null whenever this route was chosen.
 						return serveStudioWebApp(req, webAppDir!);

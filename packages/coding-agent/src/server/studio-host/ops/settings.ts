@@ -28,6 +28,8 @@ import type {
 	EnvironmentReadModel,
 	PlatformId,
 	RuntimeInstallState,
+	StudioRuntimeSettingsGetResult,
+	StudioRuntimeSettingsSetResult,
 } from "../contract/index.js";
 import { gatewayJson, invalid, requiredString, unavailable } from "../gateway.js";
 import type { ApprovalMode } from "../protocol/index.js";
@@ -35,6 +37,36 @@ import type { StudioFamily } from "../registry.js";
 
 /** The setting behind the Renderer's approval-mode picker (Zeta's own YOLO default). */
 const APPROVAL_MODE_PATH = "tools.approvalMode";
+const SETTINGS_ROUTE = "/api/settings";
+
+/** `runtime.settings.get` → the gateway settings panel, projected to key/value. */
+async function readRuntimeSettings(input: { readonly keys?: readonly string[] }): Promise<StudioRuntimeSettingsGetResult> {
+	const panel = indexSettingsPanel(await gatewayJson<unknown>(SETTINGS_ROUTE));
+	const wanted = input.keys === undefined ? undefined : new Set(input.keys);
+	const values: Record<string, unknown> = {};
+	for (const [key, entry] of panel) {
+		if (wanted === undefined || wanted.has(key)) values[key] = entry["value"];
+	}
+	return { values: values as StudioRuntimeSettingsGetResult["values"] };
+}
+
+/** `runtime.settings.set` → the same isolated settings writer the CLI uses. */
+async function writeRuntimeSetting(
+	input: CommandInput<"runtime.settings.set">,
+): Promise<StudioRuntimeSettingsSetResult> {
+	const key = requiredString(input, "key");
+	const written = await gatewayJson<unknown>(SETTINGS_ROUTE, {
+		method: "PUT",
+		body: { path: key, value: input.value },
+	});
+	const effective = isRecord(written) ? written["value"] : undefined;
+	return {
+		key: key as StudioRuntimeSettingsSetResult["key"],
+		value: input.value,
+		persisted: true,
+		...(effective === undefined ? {} : { effectiveValue: effective as StudioRuntimeSettingsSetResult["effectiveValue"] }),
+	};
+}
 
 /** Contract approval modes → membership lookup for untrusted gateway strings. */
 const APPROVAL_MODES: Record<string, ApprovalMode> = {
@@ -208,8 +240,10 @@ export const settingsOps: StudioFamily = {
 	id: "settings",
 	queries: {
 		"environment.get": readEnvironment,
+		"runtime.settings.get": readRuntimeSettings,
 	},
 	commands: {
 		"permissions.mode.set": setApprovalMode,
+		"runtime.settings.set": writeRuntimeSetting,
 	},
 };

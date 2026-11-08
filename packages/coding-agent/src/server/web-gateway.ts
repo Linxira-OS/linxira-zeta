@@ -1097,7 +1097,7 @@ export async function startWebGateway(port?: number): Promise<WebGatewayInstance
 			}
 			// The Studio host owns `/health` and `/api/v1/*` on this listener too:
 			// `vite dev` proxies `/api` and `/health` here.
-			if (isStudioRequest(req)) return studioHost().handle(req);
+			if (isStudioRequest(req)) return studioHost().handle(req, srv?.requestIP(req)?.address);
 			if (isTerminalWsUpgradeRequest(req)) {
 				const remoteAddr = srv?.requestIP(req)?.address;
 				const response = await handleTerminalWsUpgrade(req, srv, remoteAddr);

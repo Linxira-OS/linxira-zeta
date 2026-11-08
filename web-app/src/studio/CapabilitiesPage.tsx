@@ -240,7 +240,17 @@ export function CapabilitiesPage({
   const [mcpView,setMcpView] = useState<"config"|"runtime">("config");
   const [commandsView,setCommandsView] = useState<"commands"|"templates">("commands");
   const supports = (id:string) => capabilities?.capabilities.some(row=>row.id===id&&row.grade!=="unavailable") === true;
+  const visibleTabs = TABS.filter(([id]) => preview
+    || id === "skills"
+    || id === "plugins"
+    || (id === "mcp" && supports("mcp.get"))
+    || (id === "slash" && supports("commands.getManifest"))
+    || (id === "ida" && supports("ida.status"))
+    || (id === "resources" && supports("resource.read")));
   const [tab, setTab] = useState<CapTab>("skills");
+  useEffect(() => {
+    if (!visibleTabs.some(([id]) => id === tab)) setTab("skills");
+  }, [visibleTabs, tab]);
   const [skills, setSkills] = useState<SkillPreview[]>(() => preview ? previewSkills() : []);
   const [plugins, setPlugins] = useState<PluginPreview[]>(() => preview ? previewPlugins() : []);
   const [mcp, setMcp] = useState<PreviewMcp[]>(() => preview ? createPreviewMcp() : []);
@@ -256,7 +266,7 @@ export function CapabilitiesPage({
   const [mcpTesting, setMcpTesting] = useState<ReadonlySet<string>>(new Set());
   const [mcpLogs, setMcpLogs] = useState<McpLogView | null>(null);
   const itemRefs = useRef(new Map<string, HTMLElement>());
-  const tabIndex = TABS.findIndex(([id]) => id === tab);
+  const tabIndex = visibleTabs.findIndex(([id]) => id === tab);
   const { incoming, outgoing, dir, live, stageRef } = useOverlappingTabs(tab, tabIndex);
 
   /** Tooltips / hints for placeholder controls; resolved at render time. */
@@ -319,9 +329,7 @@ export function CapabilitiesPage({
     setCommandManifest(manifestResult.status === "fulfilled" ? manifestResult.value : undefined);
     const loadError = skillsResult.status === "rejected"
       ? (skillsResult.reason instanceof Error ? skillsResult.reason.message : "skills.get failed")
-      : mcpResult.status === "rejected"
-        ? (mcpResult.reason instanceof Error ? mcpResult.reason.message : "mcp.get failed")
-        : skillsResult.value.unavailableReason ?? mcpResult.value.unavailableReason ?? null;
+      : skillsResult.value.unavailableReason ?? null;
     setLoadError(identityError ?? loadError);
   }, [client, preview, sessionId]);
 
@@ -1067,7 +1075,6 @@ export function CapabilitiesPage({
         <button type="button" className="btn outline" onClick={() => void revealSkillRoot()}>
           <Icon name="folder" extra="sm" />{t("capabilities.openSourceDir")}
         </button>
-        <Disabled className="btn primary" tip={CONTRACT.create}><Icon name="plus" extra="sm" />{t("capabilities.createSkill")}</Disabled>
       </div>
       <ToastHost
         message={mcpTesting.size === 0 ? flash : t("capabilities.mcpTesting", { name: [...mcpTesting].join(", ") })}
@@ -1080,8 +1087,8 @@ export function CapabilitiesPage({
           ariaLabel={t("capabilities.catAria")}
           value={tab}
           onChange={setTab}
-          syncKey={TABS.map(([id]) => String(counts[id])).join(",")}
-          items={TABS.map(([id, icon]) => ({
+          syncKey={visibleTabs.map(([id]) => String(counts[id])).join(",")}
+          items={visibleTabs.map(([id, icon]) => ({
             id,
             icon,
             label: t(TAB_LABELS[id]),
@@ -1092,7 +1099,7 @@ export function CapabilitiesPage({
         />
         <div className="cap-main" id="capMain">
           <div className="cap-pane-stage" ref={stageRef}>
-            {TABS.map(([id]) => {
+            {visibleTabs.map(([id]) => {
               const active = id === incoming; const leaving = id === outgoing && outgoing !== incoming;
               return <div key={id} className={tabPaneClass(tabPaneRole(id, incoming, outgoing, live), dir)}
                 data-tab-pane={id} role="tabpanel" id={"cap-" + id} tabIndex={active ? 0 : -1}

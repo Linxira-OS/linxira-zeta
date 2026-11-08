@@ -8,7 +8,13 @@ export class BrowserWebClientTransport implements ClientTransport {
   readonly #base: string; readonly #fetch: typeof fetch; readonly #wsFactory?: (url: string) => WebSocketLike; #csrf?: string; #closed=false; readonly #sockets = new Set<WebSocketLike>();
   constructor(options: BrowserWebClientOptions) { this.#base = options.baseUrl.replace(/\/$/, ''); this.#fetch = options.fetcher ?? fetch; if (options.webSocketFactory) this.#wsFactory = options.webSocketFactory; }
   async pair(code: string): Promise<void> { const r = await this.#fetch(this.#base+'/api/v1/pair',{method:'POST',credentials:'include',headers:{'content-type':'application/json','Origin': this.#base},body:JSON.stringify({code})}); if(!r.ok) throw new Error('pair_failed'); const b=await r.json() as {csrf?:string}; if(typeof b.csrf!=='string') throw new Error('pair_failed'); this.#csrf=b.csrf; }
-  async bootstrap(): Promise<ClientBootstrap> { return this.req('/api/v1/bootstrap','GET') as Promise<ClientBootstrap>; }
+  async bootstrap(): Promise<ClientBootstrap> {
+    const r = await this.#fetch(this.#base+'/api/v1/bootstrap',{method:'GET',credentials:'include'});
+    if(!r.ok) throw new Error(`http_${r.status}`);
+    const csrf = r.headers.get('x-studio-csrf');
+    if(csrf) this.#csrf = csrf;
+    return r.json() as Promise<ClientBootstrap>;
+  }
   async query<T extends QueryName>(request: ClientQueryRequest<T>): Promise<ClientQueryResponse<T>> { return this.req('/api/v1/query','POST',request) as Promise<ClientQueryResponse<T>>; }
   async command<T extends CommandName>(request: ClientCommandRequest<T>): Promise<ClientCommandAccepted<T>> { return this.req('/api/v1/command','POST',request) as Promise<ClientCommandAccepted<T>>; }
   subscribe(scope: SubscriptionScope, listener: (event: ClientEvent)=>void): Unsubscribe { if(this.#closed) throw new Error('transport_closed'); if(!this.#wsFactory) throw new Error('websocket_unavailable'); const ws=this.#wsFactory(this.#base.replace(/^http/,'ws')+'/api/v1/events'); this.#sockets.add(ws); ws.onopen=()=>ws.send(JSON.stringify({scope})); ws.onmessage=(e)=>{ try { listener(JSON.parse(e.data)); } catch {} }; ws.onclose=()=>this.#sockets.delete(ws); return ()=>{ this.#sockets.delete(ws); ws.close(); }; }

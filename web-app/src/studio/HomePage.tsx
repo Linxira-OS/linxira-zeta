@@ -982,6 +982,7 @@ export function HomePage({
   home,
   history,
   workspaces,
+  capabilities,
   client,
   onPickFolder,
   onOpenWorkspace,
@@ -992,6 +993,7 @@ export function HomePage({
   home?: HomeReadModel;
   history?: SessionHistoryReadModel;
   workspaces?: WorkspaceListReadModel;
+  capabilities?: ClientBootstrap["capabilityManifest"];
   client?: StudioClient;
   onPickFolder?: () => void;
   onOpenWorkspace?: (workspaceId: string) => void;
@@ -1011,6 +1013,7 @@ export function HomePage({
   const [installStep, setInstallStep] = useState(1);
   const [installMessage, setInstallMessage] = useState<string | undefined>(undefined);
   const runtimeMissing = !preview && runtime?.status !== "connected";
+  const canInstallRuntime = capabilities?.capabilities.some(cap => cap.id === "runtime.install" && cap.grade !== "unavailable") === true;
   const statusText = ompStatusText(runtime, preview, extraBits, t);
 
   return (
@@ -1052,7 +1055,7 @@ export function HomePage({
           >
             <Icon name="folder-open" extra="sm" />{t("home.openLocalFolder")}
           </button>
-          {runtimeMissing && client ? (
+          {runtimeMissing && client && canInstallRuntime ? (
             <button
               className="btn outline"
               disabled={installing}

@@ -776,13 +776,14 @@ export function DiagnosticsPage({
 
   const problems = (viewDiag?.entries ?? []).filter((entry) => entry.level === "error" || entry.level === "warning");
   const capList = viewCaps?.capabilities ?? [];
+  const maintenanceAvailable = capList.some(cap => cap.id === "maintenance.gc.status" && cap.grade !== "unavailable");
   const installer = viewEnv?.installer;
   const canReinstall = view.hero.showReinstall;
   const canRestart = runtimeCanRestart(viewRuntime);
 
   return (
     <div className="page-wide diag-page">
-<WorkspaceTabs<"runtime"|"maintenance"> id="diagnostics-workspace" label="Diagnostics" value={workspaceTab} onChange={setWorkspaceTab} items={[{id:"runtime",icon:"activity",label:resolvedLanguage==="zh"?"运行环境":"Runtime"},{id:"maintenance",icon:"settings",label:resolvedLanguage==="zh"?"会话与维护":"Sessions and maintenance"}]}/>
+<WorkspaceTabs<"runtime"|"maintenance"> id="diagnostics-workspace" label="Diagnostics" value={workspaceTab} onChange={setWorkspaceTab} items={[{id:"runtime",icon:"activity",label:resolvedLanguage==="zh"?"运行环境":"Runtime"}, ...(maintenanceAvailable ? [{id:"maintenance" as const,icon:"settings",label:resolvedLanguage==="zh"?"会话与维护":"Sessions and maintenance"}] : [])]}/>
 <WorkspacePanel id="diagnostics-workspace" name="runtime" active={workspaceTab==="runtime"}>
       <div className="diag-head">
         <div>
@@ -1086,7 +1087,7 @@ export function DiagnosticsPage({
       <p className="tiny muted" style={{ marginTop: 16 }}>{t("diagnostics.lastChecked", { time: formatCheckedAt(viewDiag?.generatedAt) })}</p>
       <ToastHost message={notice?.text ?? null} icon={notice?.icon ?? "info"} onDismiss={dismissNotice} />
 </WorkspacePanel>
-<WorkspacePanel id="diagnostics-workspace" name="maintenance" active={workspaceTab==="maintenance"}><NativeMaintenancePane client={client} sessionId={nativeContext?.sessionId} available={nativeContext?.available??false} capabilities={nativeContext?.capabilities} active={workspaceTab==="maintenance"}/><SessionCompressionPane client={client} context={nativeContext} visible={workspaceTab==="maintenance"} /></WorkspacePanel>
+{maintenanceAvailable ? <WorkspacePanel id="diagnostics-workspace" name="maintenance" active={workspaceTab==="maintenance"}><NativeMaintenancePane client={client} sessionId={nativeContext?.sessionId} available={nativeContext?.available??false} capabilities={nativeContext?.capabilities} active={workspaceTab==="maintenance"}/><SessionCompressionPane client={client} context={nativeContext} visible={workspaceTab==="maintenance"} /></WorkspacePanel> : null}
     </div>
   );
 }

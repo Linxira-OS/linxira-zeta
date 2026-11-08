@@ -8802,6 +8802,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               {...(state.model.home ? { home: state.model.home } : {})}
               {...(state.model.history ? { history: state.model.history } : {})}
               {...(state.model.workspaces ? { workspaces: state.model.workspaces } : {})}
+              {...(capabilities ? { capabilities } : {})}
               client={client}
               onPickFolder={() => {
                 if (previewMode.preview) return;

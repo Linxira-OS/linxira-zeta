@@ -53,6 +53,7 @@ export function ArtifactStorageSettings({ client }: { client?: StudioClient | un
 			active = false;
 		};
 	}, [client, preview, t]);
+	if (!preview && state === undefined) return null;
 	return (
 		<SettingSection title={t("media.storage")}>
 			<SettingRow label={t("media.location")} desc={t("media.locationDesc")} source={state ? "user" : "unavailable"}>

@@ -114,7 +114,10 @@ function SettingsPageContent({
   predictionAvailable?: boolean;
 }) {
   const { t, resolvedLanguage } = useI18n();
-  const groups: ReadonlyArray<readonly [GroupId, string, string]> = [
+  const { preview } = usePreviewMode();
+  const supports = (id: string) => preview || nativeContext?.capabilities?.capabilities.some(cap => cap.id === id && cap.grade !== "unavailable") === true;
+  const nativeAvailable = supports("preferences.native.get") || supports("preferences.features.get") || supports("advisors.config.get");
+  const groups: ReadonlyArray<readonly [GroupId, string, string]> = ([
     ["general", "settings", t("settings.tabs.general")],
     ["background", "image", t("settings.tabs.background")],
     ["interaction", "message", t("settings.tabs.interaction")],
@@ -124,12 +127,11 @@ function SettingsPageContent({
     ["tasks", "play", t("settings.tabs.tasks")],
     ["advanced", "wrench", t("settings.tabs.advanced")],
     ["native", "settings", resolvedLanguage === "zh" ? "运行偏好" : "Runtime preferences"],
-  ];
+  ] as const).filter(([id]) => id !== "native" || nativeAvailable);
 
   const [group, setGroup] = useState<GroupId>(() => takeSettingsIntent() ?? "general");
   const groupIndex = groups.findIndex(([id]) => id === group);
   const { incoming, outgoing, dir, live, stageRef } = useOverlappingTabs(group, groupIndex >= 0 ? groupIndex : 0);
-  const { preview } = usePreviewMode();
 
   const real = useAppSettings();
   const conversationWidth = useConversationWidth();
@@ -269,7 +271,11 @@ function SettingsPageContent({
       <div className="cap-main" id="setMain">
         {flash ? <div className="set-flash" role="status">{flash}</div> : null}
         <div className="cap-pane-stage" ref={stageRef}>
-          <div {...pane("native")} id="set-native" role="tabpanel" aria-labelledby="setTab-native" tabIndex={0}><NativePreferencesPane client={client} context={nativeContext} visible={group === "native"} /><FeatureSettingsPane group="voice" client={client} context={nativeContext} visible={group === "native"} /><AdvisorConfigPane client={client} context={nativeContext} visible={group === "native"} /></div>
+          {nativeAvailable ? <div {...pane("native")} id="set-native" role="tabpanel" aria-labelledby="setTab-native" tabIndex={0}>
+            {supports("preferences.native.get") ? <NativePreferencesPane client={client} context={nativeContext} visible={group === "native"} /> : null}
+            {supports("preferences.features.get") ? <FeatureSettingsPane group="voice" client={client} context={nativeContext} visible={group === "native"} /> : null}
+            {supports("advisors.config.get") ? <AdvisorConfigPane client={client} context={nativeContext} visible={group === "native"} /> : null}
+          </div> : null}
           <div {...pane("general")} id="set-general" role="tabpanel" aria-labelledby="setTab-general" tabIndex={0}>
             <GeneralTab ctl={ctl} />
           </div>
@@ -277,7 +283,7 @@ function SettingsPageContent({
             <BackgroundSettingsPane ctl={ctl} visible={group === "background"} onDemoAction={flashDemo} />
           </div>
           <div {...pane("interaction")} id="set-interaction" role="tabpanel" aria-labelledby="setTab-interaction" tabIndex={0}>
-            <InteractionTab ctl={ctl} demo={demoRuntime} prediction={<PredictionSettingsPane client={client} context={nativeContext} visible={group === "interaction"} />} />
+            <InteractionTab ctl={ctl} demo={demoRuntime} {...(supports("prediction.control") ? { prediction: <PredictionSettingsPane client={client} context={nativeContext} visible={group === "interaction"} /> } : {})} />
             <FeatureSettingsPane group="interaction" client={client} context={nativeContext} visible={group === "interaction"} />
           </div>
           <div {...pane("permissions")} id="set-permissions" role="tabpanel" aria-labelledby="setTab-permissions" tabIndex={0}>
