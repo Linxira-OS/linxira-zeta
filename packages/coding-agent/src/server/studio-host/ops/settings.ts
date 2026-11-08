@@ -26,14 +26,13 @@ import type {
 	CommandInput,
 	CommandResult,
 	EnvironmentReadModel,
-	OperatorStateSnapshot,
 	PlatformId,
 	RuntimeInstallState,
 	StudioRuntimeSettingsGetResult,
 	StudioRuntimeSettingsSetResult,
 } from "../contract/index.js";
 import { gatewayJson, invalid, requiredString, unavailable } from "../gateway.js";
-import type { ApprovalMode } from "../protocol/index.js";
+import type { ApprovalMode, OperatorStateSnapshot } from "../protocol/index.js";
 import type { StudioFamily } from "../registry.js";
 
 /** The setting behind the Renderer's approval-mode picker (Zeta's own YOLO default). */
