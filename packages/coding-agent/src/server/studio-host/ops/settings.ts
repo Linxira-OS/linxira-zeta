@@ -26,6 +26,7 @@ import type {
 	CommandInput,
 	CommandResult,
 	EnvironmentReadModel,
+	OperatorStateSnapshot,
 	PlatformId,
 	RuntimeInstallState,
 	StudioRuntimeSettingsGetResult,
@@ -53,12 +54,17 @@ async function readRuntimeSettings(input: {
 }
 
 /** `approvals.forget` → the existing per-agent approval cache. */
-async function forgetApprovals(): Promise<{ cleared: true }> {
-	// Lazy: approval-cache pulls the session/tool graph, which must not run while
-	// the host family registry is still being assembled.
+async function forgetApprovals(): Promise<{ snapshot: OperatorStateSnapshot; result: { cleared: true } }> {
+	// Lazy: approval-cache and the session family pull the tool/session graph,
+	// which must not run while the host family registry is still assembling.
 	const { clearApprovalGrants } = await import("../../../tools/approval-cache.js");
 	clearApprovalGrants();
-	return { cleared: true };
+	const { sessionOps } = await import("./session.js");
+	const readSnapshot = sessionOps.queries?.["session.state"] as
+		| ((input: unknown, context: unknown) => Promise<OperatorStateSnapshot>)
+		| undefined;
+	if (readSnapshot === undefined) throw unavailable("session.state is not available");
+	return { snapshot: await readSnapshot({}, {}), result: { cleared: true } };
 }
 
 /** `runtime.settings.set` → the same isolated settings writer the CLI uses. */
@@ -253,10 +259,10 @@ export const settingsOps: StudioFamily = {
 	id: "settings",
 	queries: {
 		"environment.get": readEnvironment,
-		"runtime.settings.get": readRuntimeSettings,
 	},
 	commands: {
 		"permissions.mode.set": setApprovalMode,
+		"runtime.settings.get": readRuntimeSettings,
 		"runtime.settings.set": writeRuntimeSetting,
 		"approvals.forget": forgetApprovals,
 	},
