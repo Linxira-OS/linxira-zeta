@@ -305,7 +305,7 @@ export function CapabilitiesPage({
     ]);
     let identityError: string | null = null;
     if (skillsResult.status === "fulfilled") {
-      if (sessionId) {
+      if (sessionId && supports("session.skills.list")) {
         try {
           const identities = await loadRuntimeSkills(client, sessionId);
           setSkills(identities.map(skill => ({kind: "skill", name: skill.name,

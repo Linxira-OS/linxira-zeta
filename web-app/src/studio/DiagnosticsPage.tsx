@@ -777,6 +777,7 @@ export function DiagnosticsPage({
   const problems = (viewDiag?.entries ?? []).filter((entry) => entry.level === "error" || entry.level === "warning");
   const capList = viewCaps?.capabilities ?? [];
   const maintenanceAvailable = capList.some(cap => cap.id === "maintenance.gc.status" && cap.grade !== "unavailable");
+  const runtimeManageable = capList.some(cap => (cap.id === "runtime.install" || cap.id === "runtime.ensure") && cap.grade !== "unavailable");
   const installer = viewEnv?.installer;
   const canReinstall = view.hero.showReinstall;
   const canRestart = runtimeCanRestart(viewRuntime);
@@ -804,9 +805,9 @@ export function DiagnosticsPage({
               {currentPreviewScenario ? t(currentPreviewScenario.labelKey) : ""}
             </button>
           ) : null}
-          <button type="button" className="btn outline" disabled={busy !== null} onClick={() => void checkUpdate(true)}>
+          {runtimeManageable ? <button type="button" className="btn outline" disabled={busy !== null} onClick={() => void checkUpdate(true)}>
             <Icon name="update" extra="sm" />{t("diagnostics.checkUpdate")}
-          </button>
+          </button> : null}
         </div>
       </div>
 

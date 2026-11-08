@@ -284,7 +284,7 @@ function SettingsPageContent({
           </div>
           <div {...pane("interaction")} id="set-interaction" role="tabpanel" aria-labelledby="setTab-interaction" tabIndex={0}>
             <InteractionTab ctl={ctl} demo={demoRuntime} {...(supports("prediction.control") ? { prediction: <PredictionSettingsPane client={client} context={nativeContext} visible={group === "interaction"} /> } : {})} />
-            <FeatureSettingsPane group="interaction" client={client} context={nativeContext} visible={group === "interaction"} />
+            {supports("preferences.features.get") ? <FeatureSettingsPane group="interaction" client={client} context={nativeContext} visible={group === "interaction"} /> : null}
           </div>
           <div {...pane("permissions")} id="set-permissions" role="tabpanel" aria-labelledby="setTab-permissions" tabIndex={0}>
             <PermissionsTab ctl={ctl} demo={demoRuntime} />

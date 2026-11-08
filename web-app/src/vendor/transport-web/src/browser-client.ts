@@ -6,7 +6,7 @@ export interface BrowserWebClientOptions { baseUrl: string; fetcher?: typeof fet
 /** Browser-side ClientTransport over the loopback HTTP/WebSocket adapter. */
 export class BrowserWebClientTransport implements ClientTransport {
   readonly #base: string; readonly #fetch: typeof fetch; readonly #wsFactory?: (url: string) => WebSocketLike; #csrf?: string; #closed=false; readonly #sockets = new Set<WebSocketLike>();
-  constructor(options: BrowserWebClientOptions) { this.#base = options.baseUrl.replace(/\/$/, ''); this.#fetch = options.fetcher ?? fetch; if (options.webSocketFactory) this.#wsFactory = options.webSocketFactory; }
+  constructor(options: BrowserWebClientOptions) { this.#base = options.baseUrl.replace(/\/$/, ''); this.#fetch = options.fetcher ?? globalThis.fetch.bind(globalThis); if (options.webSocketFactory) this.#wsFactory = options.webSocketFactory; }
   async pair(code: string): Promise<void> { const r = await this.#fetch(this.#base+'/api/v1/pair',{method:'POST',credentials:'include',headers:{'content-type':'application/json','Origin': this.#base},body:JSON.stringify({code})}); if(!r.ok) throw new Error('pair_failed'); const b=await r.json() as {csrf?:string}; if(typeof b.csrf!=='string') throw new Error('pair_failed'); this.#csrf=b.csrf; }
   async bootstrap(): Promise<ClientBootstrap> {
     const r = await this.#fetch(this.#base+'/api/v1/bootstrap',{method:'GET',credentials:'include'});
