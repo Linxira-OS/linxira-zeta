@@ -4,6 +4,7 @@
 
 ### 1.4.12
 - **桌面应用回归，两种发行版**：Work Studio 桌面壳恢复发布，同一 staged runtime（编译后的 `zeta` 内核 + 原生 addon + `web-app` 渲染器）产出 Electron 版（内置 Chromium；Windows NSIS/zip、Linux AppImage/deb/tar.gz）与无浏览器引擎版（`linxira-zeta-<v>-workstudio-browser-*`，启动 `serve` 后用系统默认浏览器打开）。桌面壳不再依赖冻结的 `web-ui`，统一通过 `ZETA_WEB_APP_DIR` 指向随包的渲染器；`serve`/`web` 帮助文案与桌面菜单名统一为 Work Studio。
+- **上游基线**：OMP `v18.18.0`。
 
 ### 1.4.11
 - **Work Studio 品牌收口**：启动提示、更新对话框、预览夹具与 Studio 线协议名不再出现上游 `OMP Studio`/`omp-studio`（仓库链接指向 `Linxira-OS/linxira-zeta`，协议名 `zeta-studio`），品牌门禁新增对应规则；`LICENSE` / `NOTICE` / `THIRD-PARTY-NOTICES.txt` 补上 Zeta 维护方的版权行，Studio 不再标注"unmodified"。 README 新增「与上游的差异」：逐面说明 `zetacode`、`zetaide`、Work Studio、`zetawork` 的改动与维护方，并标注 `web-ui/` 为已放弃维护的第三方快照。
