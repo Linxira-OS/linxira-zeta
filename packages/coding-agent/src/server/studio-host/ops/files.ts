@@ -22,6 +22,9 @@
  *   `kind`, `mimeType`, `bytes`, `createdAt` and `sha256`.
  * - `artifacts.text.read` → `GET /api/sessions/:id/artifacts/:name`, then the
  *   same list route to refresh the record.
+ * - `artifacts.saveText` → `PUT /api/sessions/:id/artifacts/:name` with the
+ *   text as the raw request body (`RawBody` on the bridge); the route stores
+ *   request bytes verbatim, so the file holds the text and not a JSON string.
  * - `artifacts.delete` → `DELETE /api/sessions/:id/artifacts/:name`.
  *
  * Artifact ids are opaque: the gateway's own `artifactId` is the file name,
@@ -32,17 +35,12 @@
  * Page cursors are likewise opaque (a base64 offset) and are only interpreted
  * by this file.
  *
- * Deliberately omitted — the gateway route and this host's JSON-only bridge do
- * not meet:
- * - `workspace.file.create` — the only create primitive on `/api/files` is a
- *   multipart upload (`POST ?type=upload`); `gateway.ts` always sends
- *   `application/json` with `JSON.stringify(body)`, so this file cannot upload
- *   an empty file through it, and no JSON route creates a file.
- * - `artifacts.saveText` — `PUT /api/sessions/:id/artifacts/:name` writes the
- *   raw request bytes, but the bridge JSON-encodes every body, so the stored
- *   artifact would gain quotes and escapes instead of holding the text.
+ * Deliberately omitted — no Zeta route can answer it:
  * - `artifacts.storage.get` — C-class in the host spec: Zeta exposes no
  *   artifact storage location, quota or writability surface.
+ *   (`workspace.file.create` and `artifacts.saveText` are owned by
+ *   `ops/workspace.ts` and by this file respectively; both need the bridge's
+ *   multipart and raw-body modes.)
  *
  * `artifacts.text.read` goes through `callGateway`, which parses a JSON body
  * instead of preserving its bytes; a `.json` artifact is therefore returned in
@@ -463,13 +461,66 @@ async function createDirectory(
 }
 
 // ---------------------------------------------------------------------------
+// artifacts.saveText
+// ---------------------------------------------------------------------------
+
+/** The session a text artifact is written into: the caller's, else the live one. */
+async function artifactSessionId(input: unknown): Promise<string> {
+	const explicit = optionalString(input, "sessionId");
+	if (explicit !== undefined && explicit !== "") return explicit;
+	// Imported lazily: `registry.ts` merges the family list that includes this
+	// file, so a static import of `session.js` would close the module cycle.
+	const { currentSessionId } = await import("./session.js");
+	return await currentSessionId();
+}
+
+/**
+ * `artifacts.saveText` → `PUT /api/sessions/:id/artifacts/:name` with the text
+ * as the raw request body.
+ *
+ * The route stores the request bytes verbatim, so the bridge's `rawBody` sends
+ * the text unchanged (a JSON-encoded body would add quotes and escapes to the
+ * stored file). The receipt is the record the gateway's own listing reports
+ * afterwards: `kind` is derived there from the name, because `local://`
+ * artifacts carry no sidecar metadata, and `workspaceId`/`runId` are omitted
+ * rather than echoed from the input — the file belongs to a session.
+ */
+async function saveTextArtifact(input: CommandInput<"artifacts.saveText">): Promise<ArtifactRecord> {
+	const name = requiredString(input, "name");
+	if (!isSafeArtifactName(name)) throw invalid("name must be one artifact file name");
+	if (!TEXT_ARTIFACT_NAME_RE.test(name)) throw invalid("name must end in .json, .jsonl, .txt, .md or .csv");
+	const text = input.text;
+	if (typeof text !== "string") throw invalid("text must be a string");
+	if (text.includes("\u0000")) throw invalid("text must not contain NUL");
+	if (Buffer.byteLength(text, "utf8") > ARTIFACT_TEXT_MAX_BYTES) {
+		throw invalid("text is too large to save as a text artifact");
+	}
+	if (!["annotation", "judgment", "benchmark", "transcript", "export"].includes(input.kind)) {
+		throw invalid(`unknown text artifact kind: ${String(input.kind)}`);
+	}
+
+	const sessionId = await artifactSessionId(input);
+	const route = artifactPath({ sessionId, name });
+	const reply = await callGateway(route, { method: "PUT", rawBody: text });
+	if (reply.status === 404) throw invalid("the artifact's session was not found");
+	if (reply.status === 403) throw invalid("name must stay inside the session's artifact root");
+	if (reply.status === 413) throw invalid("artifact is too large to save");
+	if (reply.status < 200 || reply.status >= 300) throw unavailable(`PUT ${route} → ${reply.status}`);
+
+	const entries = await fetchSessionArtifacts(sessionId);
+	const entry = entries?.find(candidate => candidate.name === name);
+	if (entry === undefined) throw unavailable(`the gateway did not list the saved artifact ${name}`);
+	return toArtifactRecord(sessionId, entry);
+}
+
+// ---------------------------------------------------------------------------
 // Family
 // ---------------------------------------------------------------------------
 
 /**
- * Files family: directory creation plus the artifact reads/deletes the gateway
- * can answer. File creation and text-artifact writes stay unadvertised until
- * the bridge can send multipart and raw bodies.
+ * Files family: directory/file creation, the artifact reads/deletes the
+ * gateway can answer, and the raw-body text write. `artifacts.storage.get`
+ * stays unadvertised: Zeta exposes no storage location or quota surface.
  */
 export const filesOps: StudioFamily = {
 	id: "files",
@@ -479,6 +530,7 @@ export const filesOps: StudioFamily = {
 	},
 	commands: {
 		"workspace.directory.create": createDirectory,
+		"artifacts.saveText": saveTextArtifact,
 		"artifacts.delete": deleteArtifact,
 	},
 };
