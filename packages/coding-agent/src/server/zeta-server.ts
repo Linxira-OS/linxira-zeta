@@ -1333,7 +1333,7 @@ export class ZetaServer {
 				// before classifyRequest: they are GETs that the REST handlers
 				// cannot answer.
 				if (isStudioWsUpgradeRequest(req)) {
-					const response = studioHost().upgrade(req, srv);
+					const response = await studioHost().upgrade(req, srv, remoteAddr);
 					return response ?? new Response(null);
 				}
 				if (gatewayRunning && isTerminalWsUpgradeRequest(req)) {

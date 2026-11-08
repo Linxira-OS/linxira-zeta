@@ -59,7 +59,7 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 | `api/settings/values?path=…` | Gateway（新增，非迁移；`web-gateway/settings.ts`） | ✅ 读任意**已注册**设置的当前值（`ui` 元数据可有可无），未知路径答 `null`。`GET /api/settings` 仍是「面板文档」（只列可渲染的行），组合状态的调用方用这条 |
 | `api/settings`（PUT） | Gateway | ✅ 写入放宽为「已注册即可」：`ui` 只决定面板是否列出，不再决定能否写（模型供应商顺序 / 启用集合本来就没有 `ui`）。未知路径仍 400 |
 | `api/skills/reveal` | Gateway（新增，非迁移） | ✅ 在系统文件管理器里打开**一个**技能目录：`{cwd, name, scope?}` 或 `{cwd, root:true, scope?}`。目录由服务端用 `GET /api/skills` 的同一扫描解析，客户端从不传路径；扫描里找不到 404，落在项目/agent 根之外 403 |
-| `health`、`api/v1/*` | Gateway（`studio-host/`，新增） | ✅ Studio 渲染器宿主契约：`/health`、`pair`、`session/revoke`、`bootstrap`、`query`、`command`、`events`（WS）。`zeta serve` 主监听器与网关监听器都挂载它（`vite dev` 的 `/api` 代理因此可用）。配对码 + `studio_session` cookie + `X-Studio-CSRF`；能力清单由已注册操作生成，未实现的面在渲染器里不可达 |
+| `health`、`api/v1/*` | Gateway（`studio-host/`，新增） | ✅ Studio 渲染器宿主契约：`/health`、`pair`、`session/revoke`、`bootstrap`、`query`、`command`、`events`（WS）。`zeta serve` 主监听器与网关监听器都挂载它（`vite dev` 的 `/api` 代理因此可用）。与 `/api/*` 同一道远程访问门：只有 **socket 为 loopback 且无代理转发头**（`forwarded`、`x-forwarded-*`、`x-real-ip` 等）的对等方才免 `remote.token`；反向代理/隧道下 `remote.token` 必需，失败尝试共用限流器。配对码 + `studio_session` cookie + `X-Studio-CSRF`；配错码与错 token 一样计入限流（超限 429）。隐式 loopback 配对只在未配置 `remote.token`/`remote.publicUrl` 的纯本地安装生效。能力清单由已注册操作生成，未实现的面在渲染器里不可达 |
 
 ## 会话转写分页（`GET api/sessions/:id` 的窗口）
 
