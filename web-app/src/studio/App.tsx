@@ -82,6 +82,7 @@ import { I18nProvider, useI18n, type TranslationParams } from "./i18n";
 import { SHORTCUTS, formatShortcut, isPrimaryModifier } from "./keyboard/shortcuts";
 import { PLATFORM, nativeMenuOwnsShortcuts } from "./platform";
 import { fileManagerName } from "./platformCopy";
+import { WindowControls } from "./windowControls";
 import { HomePage, ProfileEditDialog, SecondaryPage } from "./HomePage";
 import { HistoryPage } from "./HistoryPage";
 import { AgentHubPage, setHubIntent } from "./AgentHub";
@@ -1090,6 +1091,8 @@ function Titlebar({
             previewMode.setPreview(!previewMode.preview);
           }}
         />
+        {/* Frameless desktop shell only: no-op in a browser tab. */}
+        <WindowControls />
       </div>
     </header>
   );

@@ -16,8 +16,10 @@ declare module "bun:test" {
 		toBe(expected: unknown): void;
 		toBeNull(): void;
 		toBeUndefined(): void;
+		toBeDefined(): void;
 		toBeGreaterThan(expected: number): void;
 		toEqual(expected: unknown): void;
+		toContain(expected: unknown): void;
 		toThrow(): void;
 		toHaveBeenCalled(): void;
 		toHaveBeenCalledTimes(count: number): void;
