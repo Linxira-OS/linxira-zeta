@@ -143,7 +143,7 @@ export const searchHelp = { description: "Test web search providers" } satisfies
 
 export const sessionHelp = {
 	description:
-		"Hand a session to another machine (pack, unpack, moved) or check which sessions a running omp owns (lease)",
+		"Hand a session to another machine (pack, unpack, moved) or check which sessions a running Zeta process owns (lease)",
 } satisfies CommandMetadata;
 
 export const setupHelp = {

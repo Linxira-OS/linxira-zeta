@@ -122,7 +122,7 @@ From a bound chat (Feishu/WeChat/Telegram):
 |---|---|
 | `@agent list` | Agents visible here — this workspace and every live peer — with role and status |
 | `@agent use <id>` | Route this chat's later messages to that agent (wins over the workspace binding); no id clears the override |
-| `@team <name>` | Route this chat to a team's host agent; an unknown team replies with the available teams |
+| `@team <name>` | Route this chat to a team's host agent **only when a team plugin is installed**; Zeta ships no team provider, so without one every team name is unknown |
 
 The override follows the same precedence as `@workspace use`: runtime override
 first, then the persisted chat binding, then the channel's default workspace.

@@ -7,7 +7,6 @@
 import { CLI_BIN_NAME, logger, ZETA_WEB_PORT } from "@linxiraos/pi-utils";
 import { Command, Flags } from "@linxiraos/pi-utils/cli";
 import chalk from "chalk";
-import { WEB_UI_INSTALL_HINT } from "./web-ui-launcher";
 import { startZetaServer } from "../server/zeta-server";
 
 export default class Web extends Command {
@@ -31,7 +30,7 @@ export default class Web extends Command {
 		const port = flags.port;
 		const noBrowser = flags["no-browser"];
 
-		console.log(chalk.bold(`\n  ${CLI_BIN_NAME} Web UI\n`));
+		console.log(chalk.bold(`\n  ${CLI_BIN_NAME} Work Studio\n`));
 
 		let instance: Awaited<ReturnType<typeof startZetaServer>> | null = null;
 		try {
@@ -41,7 +40,7 @@ export default class Web extends Command {
 				webOnly: true,
 			});
 
-			console.log(chalk.green(`  Web UI:  ${instance.url}`));
+			console.log(chalk.green(`  Work Studio:  ${instance.url}`));
 
 			console.log(chalk.dim(`\n  Press Ctrl+C to stop\n`));
 
@@ -58,11 +57,15 @@ export default class Web extends Command {
 
 			await new Promise(() => {});
 		} catch (err) {
-			logger.error("Failed to start Web UI", {
+			logger.error("Failed to start Work Studio", {
 				error: err instanceof Error ? err.message : String(err),
 			});
-			console.log(chalk.red(`  Failed to start Web UI: ${err instanceof Error ? err.message : err}`));
-			console.log(chalk.dim(`  Install with: ${WEB_UI_INSTALL_HINT}`));
+			console.log(chalk.red(`  Failed to start Work Studio: ${err instanceof Error ? err.message : err}`));
+			console.log(
+				chalk.dim(
+					"  Reinstall @linxiraos/zeta (it ships dist/web-app), or build web-app (npm ci && npm run build:ci) and set ZETA_WEB_APP_DIR.",
+				),
+			);
 			if (instance) {
 				await instance.shutdown().catch(() => {});
 			}

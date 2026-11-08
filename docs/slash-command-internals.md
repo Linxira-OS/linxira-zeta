@@ -36,7 +36,7 @@ The capability registry loads enabled providers in parallel, consumes their resu
 
 Current slash-command providers and priorities:
 
-1. `native` (OMP) — priority `100`
+1. `native` (Zeta) — priority `100`
 2. `zeta-plugins` (extension packages) — priority `90`
 3. `claude` — priority `80`
 4. `claude-plugins` — priority `70`
@@ -81,7 +81,7 @@ Search roots come from `.zeta` directories:
 - user: active profile agent directory `commands/*.md` (`~/.zeta/agent/commands/*.md` for the default profile; `~/.zeta/profiles/<name>/agent/commands/*.md` for a named profile)
 
 `getConfigDirs()` returns project first, then user, so **project native commands beat user native commands** when names collide.
-The default paths above can be relocated by `PI_CONFIG_DIR`, the default-profile `PI_CODING_AGENT_DIR`, or an SDK discovery `agentDir`; the project directory remains `.zeta`.
+The default paths above can be relocated by `PI_CONFIG_DIR`, the default-profile `ZETA_CODING_AGENT_DIR`, or an SDK discovery `agentDir`; the project directory remains `.zeta`.
 
 ## `zeta-plugins` provider (`zeta-plugins.ts`)
 
@@ -304,7 +304,7 @@ TUI and ACP/RPC dispatch the shared built-in registry before `session.prompt(...
 - Invalid slash command items (missing name/path/content or invalid level) are dropped by capability validation.
 - Frontmatter parse failures:
    - items explicitly marked `level: "native"` and bundled templates: fatal parse error bubbles
-   - discovered user/project commands (including the native OMP provider): warning + fallback key/value parse
+   - discovered user/project commands (including the native Zeta provider): warning + fallback key/value parse
 - Extension/custom command handler exceptions are caught and reported via extension error channel (or logger fallback for custom commands without extension runner), and treated as handled (no unintended fallback execution).
 
 ## 10) Built-in command note: `/pause`

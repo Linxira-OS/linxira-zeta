@@ -76,15 +76,14 @@ export function getExtraHelpText(): string {
   For complete environment variable reference, see:
   ${chalk.dim("docs/environment-variables.md")}
 ${chalk.bold("Available Tools (default-enabled unless noted):")}
-  read          - Read file contents
+  read          - Read file contents (including Jupyter notebooks)
   bash          - Execute bash commands
   edit          - Edit files with find/replace
   write         - Write files (creates/overwrites)
   grep          - Search file contents
   glob          - Find files by glob pattern
   lsp           - Language server protocol (code intelligence)
-  python        - Execute Python code (requires: ${CLI_BIN_NAME} setup python)
-  notebook      - Edit Jupyter notebooks
+  eval          - Execute Python or JavaScript code (Python needs a kernel; JS runs in-process)
   browser       - Browser automation (Puppeteer)
   computer      - Native host desktop capture and input (disabled by default)
   task          - Launch sub-agents for parallel tasks

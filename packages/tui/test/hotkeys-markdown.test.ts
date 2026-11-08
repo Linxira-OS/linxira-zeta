@@ -41,6 +41,7 @@ describe("buildHotkeysMarkdown", () => {
 					return displayStrings[action] ?? "Disabled";
 				},
 			},
+			liveEnabled: true,
 		});
 
 		const lines = markdown.split("\n");
@@ -131,5 +132,17 @@ describe("buildHotkeysMarkdown", () => {
 		const pushToTalkRow = markdown.split("\n").find(line => line.includes("Speech-to-text (push-to-talk)")) ?? "";
 		expect(pushToTalkRow).toContain("Disabled");
 		expect(pushToTalkRow).not.toContain("Hold");
+	});
+
+	it("omits the live toggle row when the feature gate is off", () => {
+		const markdown = buildHotkeysMarkdown({
+			keybindings: {
+				...noForwardDelete,
+				getDisplayString: () => "Ctrl+K",
+			},
+		});
+
+		expect(markdown).not.toContain("live voice mode");
+		expect(markdown).not.toContain("/live");
 	});
 });

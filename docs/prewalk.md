@@ -2,7 +2,7 @@
 
 Prewalk is a one-shot handoff from the active model to a faster or cheaper model after planning reaches implementation. It lets the starting model inspect the repository, create a todo list, and begin the change before the target model continues the session.
 
-Prewalk is off by default. Its target is `prewalk.into`, which defaults to the model assigned to the `@smol` role. To have OMP decide per task whether a prompt is worth it, see [Auto-prewalk](#auto-prewalk).
+Prewalk is off by default. Its target is `prewalk.into`, which defaults to the model assigned to the `@smol` role. To have Zeta decide per task whether a prompt is worth it, see [Auto-prewalk](#auto-prewalk).
 
 ## Enable prewalk
 
@@ -43,7 +43,7 @@ zetacode --prewalk-into @smol
 zetacode --prewalk-into openai/gpt-5-mini
 ```
 
-At startup, OMP resolves the target with the normal model-role and model-matching rules, trying configured role candidates in order for an authenticated, enabled provider. Extension-provided targets may resolve after extension registration. If no usable target remains, OMP prints a warning and starts with prewalk unarmed.
+At startup, Zeta resolves the target with the normal model-role and model-matching rules, trying configured role candidates in order for an authenticated, enabled provider. Extension-provided targets may resolve after extension registration. If no usable target remains, Zeta prints a warning and starts with prewalk unarmed.
 
 `--no-prewalk` cannot be combined with `--prewalk` or `--prewalk-into`. An explicit `--prewalk-into @default` resolves against the default role from before `--model` overrides it.
 
@@ -55,7 +55,7 @@ Any model or thinking-level change made after the handoff counts as a replacemen
 
 An armed prewalk injects a planning nudge. When the `todo` tool is active, any successful `todo` call—including the read-only `view` operation—opens the handoff gate. Without an active `todo` tool, the gate is already open.
 
-OMP switches at the completed assistant-turn boundary containing the first eligible `edit` or `write` result, after persisting that turn's assistant message and tool results. Unlike the todo gate, the edit/write trigger does not require a successful result.
+Zeta switches at the completed assistant-turn boundary containing the first eligible `edit` or `write` result, after persisting that turn's assistant message and tool results. Unlike the todo gate, the edit/write trigger does not require a successful result.
 
 Calls to other tools do not trigger the handoff. A read-only `xd://` device request routed through `write`, such as LSP navigation, also does not count; only device operations classified as workspace writes or execution count.
 
@@ -69,7 +69,7 @@ In a top-level session, changing `prewalk.enabled` live also takes effect:
 turning it on arms the `prewalk.into` target when none is armed; turning it off
 disarms a pending handoff. This does not control subagent prewalk.
 
-Run these slash commands without restarting OMP:
+Run these slash commands without restarting Zeta:
 
 ```text
 /prewalk [into]
@@ -87,7 +87,7 @@ If prewalk is already armed, `/prewalk` leaves the existing target in place. `/p
 
 ## Auto-prewalk
 
-`prewalk.enabled` and `/prewalk` unconditionally arm a one-shot handoff. Auto-prewalk asks OMP's native judge, per task, whether prewalk is worthwhile, and arms the same handoff from the active model when it is. It is a prewalk-suitability check, not a difficulty rating or a general model router: it never picks a different planning model.
+`prewalk.enabled` and `/prewalk` unconditionally arm a one-shot handoff. Auto-prewalk asks Zeta's native judge, per task, whether prewalk is worthwhile, and arms the same handoff from the active model when it is. It is a prewalk-suitability check, not a difficulty rating or a general model router: it never picks a different planning model.
 
 ```yaml
 prewalk:
@@ -122,7 +122,7 @@ The judge sorts each task by where its expensive reasoning belongs, not by how h
 | `primary` | Strong reasoning stays necessary while implementing, debugging, or validating, so the first edit is too early to hand off. | Unresolved races or invariants; subtle lifecycle changes; a bug whose cause will still be unclear after a first look; high-risk or algorithmically hard changes.                                                                                               |
 | `direct`  | There is no up-front phase worth handing off from.                                                                         | Explanations and read-only questions; trivial, mechanical, or fully specified edits; tiny localized fixes.                                                                                                                                                     |
 
-Volume of work alone and difficulty alone never make a task a prewalk candidate, and a wrong handoff costs more than a missed one: between `prewalk` and `primary` the judge is told to choose `primary`, and for a small task to choose `direct`. OMP arms only when `prewalk` wins **and** its probability is at least 0.70. That threshold is fixed, and a `prewalk` winner below it counts as a "no".
+Volume of work alone and difficulty alone never make a task a prewalk candidate, and a wrong handoff costs more than a missed one: between `prewalk` and `primary` the judge is told to choose `primary`, and for a small task to choose `direct`. Zeta arms only when `prewalk` wins **and** its probability is at least 0.70. That threshold is fixed, and a `prewalk` winner below it counts as a "no".
 
 `suggest` reports one line per judged task:
 
@@ -137,7 +137,7 @@ Under `on`, a confident decision shows the usual `Prewalk: armed for …` notice
 
 ### One task at a time
 
-An automatic handoff belongs to the task that armed it. When the next task starts, OMP returns to the model and thinking level that task planned on, then judges the new task, so a `primary` task is never left on the handoff target. `/new` does the same. An auto arm that its task never used is dropped at the next task, which is judged on its own.
+An automatic handoff belongs to the task that armed it. When the next task starts, Zeta returns to the model and thinking level that task planned on, then judges the new task, so a `primary` task is never left on the handoff target. `/new` does the same. An auto arm that its task never used is dropped at the next task, which is judged on its own.
 
 An explicit model or thinking-level selection after the handoff takes ownership: the session stays where you put it. Handoffs made by `/prewalk`, `--prewalk`, or `prewalk.enabled` are never restored by auto-prewalk.
 

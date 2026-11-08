@@ -27,7 +27,6 @@ describe("backend-attach command routing", () => {
 		for (const verb of [
 			"language",
 			"tool",
-			"theme",
 			"settings",
 			"stats",
 			"git",
@@ -115,7 +114,10 @@ describe("backend-attach command routing", () => {
 	});
 
 	it("refuses commands the attached client cannot execute against the backend session", () => {
-		for (const verb of ["live"]) {
+		// `/theme` and `/help` have no top-level builtin: forwarding them would
+		// send the literal slash text to the model, so they are refused with a
+		// pointer to `/settings` and `/hotkeys`.
+		for (const verb of ["live", "theme", "help"]) {
 			expect(isBackendAttachRefusedCommand(verb), verb).toBe(true);
 			expect(isBackendAttachLocalCommand(verb), verb).toBe(false);
 		}
@@ -206,5 +208,7 @@ describe("backend-attach command routing", () => {
 	it("tells the operator which local command performs the refused action", () => {
 		expect(backendAttachRefusalHint("live")).toContain("owns the backend session");
 		expect(backendAttachRefusalHint("clear")).toContain("owns the backend session");
+		expect(backendAttachRefusalHint("theme")).toContain("/settings");
+		expect(backendAttachRefusalHint("help")).toContain("/hotkeys");
 	});
 });

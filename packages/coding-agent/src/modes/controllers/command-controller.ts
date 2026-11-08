@@ -39,6 +39,7 @@ import {
 	summarizeMentalModel,
 } from "../../hindsight";
 import { currentLanguage } from "../../i18n";
+import { LIVE_FEATURE_ENABLED } from "../../live/feature-gate";
 import { memoryStatsUnavailableMessage, resolveMemoryBackend } from "../../memory-backend";
 import { BashExecutionComponent, bashPtyViewport } from "@linxiraos/pi-tui/chat/bash-execution";
 import { appKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
@@ -873,7 +874,7 @@ export class CommandController {
 	}
 
 	handleHotkeysCommand(): void {
-		const bindings = { keybindings: this.ctx.keybindings };
+		const bindings = { keybindings: this.ctx.keybindings, liveEnabled: LIVE_FEATURE_ENABLED };
 		if (isNativeRendering()) {
 			// A native terminal gets a dismissable sheet with keycaps instead of a markdown table.
 			const sheet = new HotkeysSheetComponent(bindings, () => {

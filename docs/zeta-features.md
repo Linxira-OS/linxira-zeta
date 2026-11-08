@@ -28,9 +28,9 @@ backend.
   `bot` or `draft` belong to IM channels and the shared web chat; addressing
   one explicitly still works.
 - **Command surface.** The attached TUI runs client-side commands locally
-  (`/language`, `/theme`, `/settings`, `/hotkeys`, `/tool`, `/time`,
+  (`/language`, `/settings`, `/hotkeys`, `/tool`, `/time`,
   `/tracking`, `/changelog`, `/stats`, `/git`, `/copy`, `/export`, `/dump`,
-  `/help`, `/agents`, `/extensions`, `/hub`, `/pause`, `/record`,
+  `/agents`, `/extensions`, `/hub`, `/pause`, `/record`,
   `/open`, `/debug`, `/quit`, `/exit`) and mirrors replica switches to the
   backend (`/model`, `/modelpreset`, `/switch`, `/effort`, `/plan`,
   `/plan-ultra`, `/plan-review`, `/goal`, `/vibe`). `/fast` and `/slow` are
@@ -43,7 +43,10 @@ backend.
   `/share` are prompt-only entry points: explicit invocation injects the
   built-in guide, and `/skills` install/update forwards to the backend so the
   agent installs in the workspace it is actually running in. `/status` no
-  longer exists: the extension panel is `/extensions` only. `/queue` and the
+  longer exists: the extension panel is `/extensions` only. There is no
+  top-level `/theme` or `/help` builtin in the full TUI: change themes in
+  `/settings` and open the shortcut sheet with `/hotkeys` (the lightweight
+  `zetacode attach` client does answer `/help` with its own command list). `/queue` and the
   `->`/`=>` shorthands fill the backend's follow-up queue; `/btw` uses the
   backend side context. Session lifecycle is backend-owned
   and re-attaches the client: `/new`, `/resume <id>`, `/fork`, `/branch`,
@@ -117,11 +120,12 @@ default browser). Both carry the compiled `zeta` kernel, native addons and the
 
 ## Ultra plan mode
 
-Plan mode has three entry points: `/plan` (parallel, the default), `/plan
---iterative`, and `/plan-ultra` (fan-out scouting, incremental plan writes, and
-the deepest decision floor). The plan overlay supports approve, compact,
-refine, and cancel; approval hands the plan to the goal loop. Details and the
-approval matrix are in [plan-approval.md](./plan-approval.md).
+Plan mode has three workflows: `/plan` (parallel, the default), `/plan-ultra`
+(fan-out scouting, incremental plan writes, and the deepest decision floor), and
+the `mode` tool / session API (`workflow: "iterative"`, which has no slash
+entry — `/plan --iterative` is not parsed as a flag). The plan overlay supports
+approve, compact, refine, and cancel; approval hands the plan to the goal loop.
+Details and the approval matrix are in [plan-approval.md](./plan-approval.md).
 
 ## Project tracking
 

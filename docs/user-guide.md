@@ -40,10 +40,13 @@ side by side on one machine. Override any of them with `--web-port`,
   WebSocket that terminal clients attach to.
 - Stats Dashboard: `127.0.0.1:43147` — usage, cost, request and tool panels,
   with an EN ⇄ 中文 switch in the top-right corner.
-- Web UI: `127.0.0.1:43141` — **development is deferred**. The package does not
-  ship a Web UI build; the port answers with a bilingual placeholder page that
-  says the interface is being completed. A later release ships the full Web UI
-  and makes `serve` fetch it from npm on demand.
+- Web UI (Work Studio): `127.0.0.1:43141` — the shipped browser workbench. The
+  npm package ships the renderer at `dist/web-app`; a source checkout serves
+  `web-app/dist`. When neither build is present (a truncated install, or a
+  checkout before the first build), the port answers a bilingual placeholder
+  page naming how to build or reinstall it, and every `/api/*` route still
+  works. `zetacode web` starts only this server; `zetacode serve` serves it
+  alongside the gateway and stats.
 
 The terminal is the primary surface. A bare launch is a complete local TUI;
 backend mode is selected explicitly and attaches to the exact workspace and

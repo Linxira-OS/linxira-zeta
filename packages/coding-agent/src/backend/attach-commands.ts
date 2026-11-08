@@ -21,9 +21,7 @@ import { lookupBuiltinSlashCommand } from "../slash-commands/builtin-registry";
 export const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
 	exit: true,
 	quit: true,
-	help: true,
 	hotkeys: true,
-	theme: true,
 	settings: true,
 	copy: true,
 	export: true,
@@ -99,6 +97,12 @@ export const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
  */
 export const BACKEND_ATTACH_REFUSED_COMMANDS: Record<string, true> = {
 	live: true,
+	// There is no top-level `/theme` or `/help` builtin: previously these were
+	// listed as attach-local, which sent them through the unknown-slash path
+	// (and, once removed, would forward the literal text to the model). Refuse
+	// them with a pointer to the commands that do exist.
+	theme: true,
+	help: true,
 };
 
 /**
@@ -129,5 +133,8 @@ export function isBackendAttachRefusedCommand(verb: string | undefined): boolean
 
 /** The actionable half of a refusal: which local command does the same thing. */
 export function backendAttachRefusalHint(verb: string): string {
+	if (verb === "theme") return "there is no `/theme` command; change themes in `/settings`";
+	if (verb === "help")
+		return "open the shortcut sheet with `/hotkeys` (the plain `zetacode attach` client answers `/help` itself)";
 	return "run it from the terminal that owns the backend session";
 }

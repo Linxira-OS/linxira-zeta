@@ -250,7 +250,7 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 
 - keys must match `[A-Za-z_][A-Za-z0-9_]*` — other names are dropped;
 - values containing a NUL byte are dropped;
-- an `OMP_`-prefixed key is mirrored to the matching `PI_` name, overriding a same-file `PI_` entry.
+- `OMP_*` and `PI_*` keys are independent; there is no automatic `OMP_` → `PI_` mirroring.
 
 ## Built-in local engines
 

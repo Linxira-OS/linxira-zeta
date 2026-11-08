@@ -88,7 +88,7 @@ The requirement is cleared automatically when context drops below the threshold.
 
 - **Non-invasive**: Both state machines are disabled by default; enabling them
   adds monitoring without modifying existing compaction or memory logic
-- **Default-off**: New mechanisms are additive; the original OMP behavior is
+- **Default-off**: New mechanisms are additive; the original Zeta behavior is
   preserved when disabled
 - **Debounced**: State Machine B uses a `#endTurnCompactionPending` flag to
   prevent duplicate compaction triggers

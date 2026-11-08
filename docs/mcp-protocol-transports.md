@@ -127,7 +127,7 @@ When a tool update sink exists, `MCPTool` and `DeferredMCPTool` expose the lates
 
 Progress never resets or extends the absolute request deadline. An awaited MCP tool call also continues counting against an Eval cell's watchdog while it reports progress.
 
-An MCP request id correlates a JSON-RPC response, its progress token correlates progress notifications, and an OMP background job id identifies a locally managed job. These are different handles even though OMP uses the request id's value as the progress token. OMP adds no MCP background jobs and provides no confirmed remote cancellation: local timeout or abort does not prove that server-side work stopped.
+An MCP request id correlates a JSON-RPC response, its progress token correlates progress notifications, and a Zeta background job id identifies a locally managed job. These are different handles even though Zeta uses the request id's value as the progress token. Zeta adds no MCP background jobs and provides no confirmed remote cancellation: local timeout or abort does not prove that server-side work stopped.
 
 ## Stdio transport internals
 
@@ -306,7 +306,7 @@ For previously connected HTTP/SSE servers that remain unavailable after that lad
 
 `MCPTool` and `DeferredMCPTool` also attempt one reconnect + retry for retriable connection errors during a tool call. This is tool availability recovery, not transport-level retry.
 
-Connection loss is non-retryable once the request may have reached the server: after writing a stdio frame to stdin, after a Streamable HTTP or legacy SSE POST connection is reset or closed once established (before or after its response starts), after receiving a Streamable HTTP 2xx response (JSON or SSE), or after a legacy SSE POST is accepted. These calls are never replayed automatically; check the operation's effect before retrying manually. Failures that prove the request never left OMP, such as `Transport not connected` or a refused connection, retain reconnect + retry.
+Connection loss is non-retryable once the request may have reached the server: after writing a stdio frame to stdin, after a Streamable HTTP or legacy SSE POST connection is reset or closed once established (before or after its response starts), after receiving a Streamable HTTP 2xx response (JSON or SSE), or after a legacy SSE POST is accepted. These calls are never replayed automatically; check the operation's effect before retrying manually. Failures that prove the request never left Zeta, such as `Transport not connected` or a refused connection, retain reconnect + retry.
 
 ## Failure scenarios summary
 

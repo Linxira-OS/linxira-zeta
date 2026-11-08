@@ -1,11 +1,11 @@
 ---
 name: authoring-extensions
-description: Use when creating a new omp extension. Covers ExtensionAPI, factory signature, tool/command/event registration, and local-dev testing.
+description: Use when creating a new Zeta extension. Covers ExtensionAPI, factory signature, tool/command/event registration, and local-dev testing.
 ---
 
 # Authoring Extensions
 
-Extensions are the primary way to add capabilities to `omp`. A single extension module can register tools the LLM can call, slash commands users can invoke, and event handlers that run throughout the session lifecycle — all from one TypeScript file. Its default factory may initialize synchronously or return a promise.
+Extensions are the primary way to add capabilities to `zetacode`. A single extension module can register tools the LLM can call, slash commands users can invoke, and event handlers that run throughout the session lifecycle — all from one TypeScript file. Its default factory may initialize synchronously or return a promise.
 
 ## Minimum viable extension
 
@@ -19,7 +19,7 @@ export default function (pi: ExtensionAPI) {
 }
 ```
 
-That is a working extension. Drop it into `~/.zeta/agent/extensions/hello.ts` and restart omp to see the notification.
+That is a working extension. Drop it into `~/.zeta/agent/extensions/hello.ts` and restart Zeta to see the notification.
 
 ## Full example
 
@@ -75,7 +75,7 @@ export default function myExtension(pi: ExtensionAPI) {
 
 ## Discovery paths
 
-omp loads extension modules from these sources:
+Zeta loads extension modules from these sources:
 
 1. Native `.zeta` locations discovered through the capability system:
    - project/ancestor `.zeta/extensions/` directories within the discovery boundary
@@ -83,21 +83,21 @@ omp loads extension modules from these sources:
    - legacy extension paths listed in `.zeta/settings.json#extensions` or `~/.zeta/agent/settings.json#extensions`
 2. Discovered JavaScript/TypeScript hook factories (`hooks/pre/` and `hooks/post/`), bound through the extension runner.
 3. Enabled installed plugins under `~/.zeta/plugins/node_modules` or a project plugin root — including npm, marketplace, and `zetacode plugin link` installs — via their `zeta.extensions`/`pi.extensions` manifests.
-4. Explicit configured paths passed by the CLI (`omp --extension ./my-ext.ts`, also `-e`; `--hook` is treated as an alias) and by the `extensions:` setting in config.
+4. Explicit configured paths passed by the CLI (`zetacode --extension ./my-ext.ts`, also `-e`; `--hook` is treated as an alias) and by the `extensions:` setting in config.
 
 The runtime de-duplicates by resolved absolute path — first seen wins.
 
 `--no-extensions` disables ambient discovery but still permits explicit `--extension`/`--hook` paths and their bundled capabilities. For an exact module-file allowlist, repeat `--trusted-extension /absolute/path/to/module.ts`: paths must exist and be files, ambient extension discovery is disabled, and those files are not treated as package roots for sibling capability discovery. It cannot be combined with `--extension`, `-e`, or `--hook`; a trusted-module load error aborts startup. This is discovery control, not a sandbox for extension code.
 
-The user directory is the active profile's agent directory: the default is `~/.zeta/agent`, while `zetacode --profile <name>` uses `~/.zeta/profiles/<name>/agent` under the default layout. `PI_CODING_AGENT_DIR` overrides the default profile's agent directory; named profiles derive their own directory instead. Initialized XDG roots can change these locations.
+The user directory is the active profile's agent directory: the default is `~/.zeta/agent`, while `zetacode --profile <name>` uses `~/.zeta/profiles/<name>/agent` under the default layout. `ZETA_CODING_AGENT_DIR` overrides the default profile's agent directory; named profiles derive their own directory instead. Initialized XDG roots can change these locations.
 
-When a path points to a directory, omp resolves the entry point in this order:
+When a path points to a directory, Zeta resolves the entry point in this order:
 
 1. `package.json` with `zeta.extensions` (or legacy `pi.extensions`) field
 2. `index.ts`
 3. `index.js`
 
-When scanning an `extensions/` directory, omp also loads direct `*.ts`/`*.js` files and one-level subdirectories that have `index.ts`, `index.js`, or a manifest.
+When scanning an `extensions/` directory, Zeta also loads direct `*.ts`/`*.js` files and one-level subdirectories that have `index.ts`, `index.js`, or a manifest.
 
 Extension packages can also bundle sibling capability directories. When a package is loaded through `extensions:` or `--extension`/`-e`, the `zeta-plugins` provider discovers its `skills/`, `hooks/pre|post/`, `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json`.
 
@@ -107,7 +107,7 @@ To package an extension as an installable plugin, add an `omp` field to `package
 
 ```json
 {
-	"name": "my-omp-extension",
+	"name": "my-zeta-extension",
 	"omp": {
 		"extensions": ["./src/main.ts"]
 	}
@@ -236,7 +236,7 @@ pi.on("agent_end", (event, ctx) => {
 		for (const part of message.content) if (part.type === "toolCall") ids.push(part.id);
 	}
 	for (const id of ids) finished.add(id);
-	ctx.ui.refreshTranscript(ids); // omp asks on its own only when a block's data changes
+	ctx.ui.refreshTranscript(ids); // Zeta asks on its own only when a block's data changes
 });
 pi.registerTranscriptPresenter(block => {
 	if (block.type !== "toolCall") return undefined;
@@ -244,9 +244,9 @@ pi.registerTranscriptPresenter(block => {
 });
 ```
 
-- omp asks again when a block's data changes and whenever it rebuilds the transcript; call `ctx.ui.refreshTranscript(ids)` after your own state changes. Answer from the block and state keyed by its `id`, never per-run state. Presenters run while the transcript draws: keep them cheap.
+- Zeta asks again when a block's data changes and whenever it rebuilds the transcript; call `ctx.ui.refreshTranscript(ids)` after your own state changes. Answer from the block and state keyed by its `id`, never per-run state. Presenters run while the transcript draws: keep them cheap.
 - Focused subagents, collab guests and transcript overlays (link browser, rewind, `/copy`) draw stock cards.
-- Expanded blocks (`Ctrl+O`, Tern's toggle) always draw in full; display only, the session and model context are untouched. `block.args` and `block.result` are omp's live objects: read them, never mutate them.
+- Expanded blocks (`Ctrl+O`, Tern's toggle) always draw in full; display only, the session and model context are untouched. `block.args` and `block.result` are Zeta's live objects: read them, never mutate them.
 - Changing a block that already scrolled into terminal scrollback replays the whole scrollback once; avoid changing old blocks often.
 
 Details: [transcript presenter](../extensions.md#transcript-presenter).
@@ -265,10 +265,10 @@ New authoring should use `ExtensionAPI`. Discovered JS/TS hook factories are loa
 
 ## Debugging
 
-omp writes structured logs under the active state root's `logs/` directory (by default `~/.zeta/logs/`; debug level is always on, and nothing is written to the console because that would corrupt the TUI). Records are written in batches, so a debug line can take up to a second to appear while `warn` and `error` lines are written immediately. Each filename includes the process ID, and a process creates its file only when it first logs. Tail today's default-profile logs to see extension load diagnostics:
+Zeta writes structured logs under the active state root's `logs/` directory (by default `~/.zeta/logs/`; debug level is always on, and nothing is written to the console because that would corrupt the TUI). Records are written in batches, so a debug line can take up to a second to appear while `warn` and `error` lines are written immediately. Each filename includes the process ID, and a process creates its file only when it first logs. Tail today's default-profile logs to see extension load diagnostics:
 
 ```
-tail -f ~/.zeta/logs/omp.$(date +%F).*.log
+tail -f ~/.zeta/logs/zeta.$(date +%F).*.log
 ```
 
 Failed extension loads are logged with their path and error. Loaded extensions may also emit their own debug logs via `pi.logger`.
