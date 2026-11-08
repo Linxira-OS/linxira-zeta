@@ -282,8 +282,8 @@ export function NativeMaintenancePane({
           </h2>
           <p>
             {zh
-              ? "执行 OMP 原生导出与清理，保留实际结果和失败原因。"
-              : "Run native OMP exports and cleanup with their actual results and errors."}
+              ? "执行 Zeta 原生导出与清理，保留实际结果和失败原因。"
+              : "Run native Zeta exports and cleanup with their actual results and errors."}
           </p>
         </div>
         <button
@@ -382,8 +382,8 @@ export function NativeMaintenancePane({
             <h3>{zh ? "清理预览" : "Cleanup preview"}</h3>
             <p>
               {zh
-                ? "范围为本机 OMP 数据目录，与独立 CLI 共用。先查看原生扫描结果，再确认执行。"
-                : "Applies to the local OMP data directory shared with the CLI. Review the native scan before applying."}
+                ? "范围为本机 Zeta 数据目录，与独立 CLI 共用。先查看原生扫描结果，再确认执行。"
+                : "Applies to the local Zeta data directory shared with the CLI. Review the native scan before applying."}
             </p>
           </div>
           <button
@@ -514,11 +514,11 @@ export function NativeMaintenancePane({
       <section className="maintenance-section">
         <header>
           <div>
-            <h3>{zh ? "Studio 连接诊断" : "Studio connection check"}</h3>
+            <h3>{zh ? "Z Work Studio 连接诊断" : "Z Work Studio connection check"}</h3>
             <p>
               {zh
-                ? "检查 Bridge、会话归属和当前模型可用性，不发送模型请求。"
-                : "Check the Bridge, session identity and model availability without making model requests."}
+                ? "检查 Z Work Studio Bridge、会话归属和当前模型可用性，不发送模型请求。"
+                : "Check the Z Work Studio Bridge, session identity and model availability without making model requests."}
             </p>
           </div>
           <button
@@ -539,7 +539,7 @@ export function NativeMaintenancePane({
                 <li key={check.id}>
                   <span>
                     {check.id === "bridge"
-                      ? "Studio Bridge"
+                      ? "Z Work Studio Bridge"
                       : check.id === "session"
                         ? zh
                           ? "会话"
@@ -588,8 +588,8 @@ export function NativeMaintenancePane({
             <div className="modal-body">
               <p>
                 {zh
-                  ? "原生清理器会重新检查文件与存活会话。删除无引用附件或过期文件后无法通过 Studio 撤销。"
-                  : "The native collector rechecks files and live sessions. Deletion of unreferenced attachments or expired files cannot be undone in Studio."}
+                  ? "原生清理器会重新检查文件与存活会话。删除无引用附件或过期文件后无法通过 Z Work Studio 撤销。"
+                  : "The native collector rechecks files and live sessions. Deletion of unreferenced attachments or expired files cannot be undone in Z Work Studio."}
               </p>
               <p>{categories.map(label).join(" · ")}</p>
               {preview ? (

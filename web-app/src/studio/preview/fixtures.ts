@@ -172,12 +172,12 @@ export type PreviewSideAgent = {
 
 export const PREVIEW_PROJECTS: PreviewProject[] = [
   {
-    id: "p1", name: "omp-web", path: demoPath("omp-web"),
+    id: "p1", name: "zeta-web", path: demoPath("zeta-web"),
     branch: "main", worktree: null, dirty: 3, insertions: 214, deletions: 58, running: true,
     attention: true, preview: "running", pinned: true,
     threads: [
       { id: "t0", title: "新建对话（空白）", time: "now", msgs: 0, status: "idle" },
-      { id: "t1", title: "跟踪上游 pi-web 更新到 omp-web", time: "32m ago", msgs: 45, status: "running", pinned: true, hasSub: true, unread: 3 },
+      { id: "t1", title: "跟踪上游 pi-web 更新到 zeta-web", time: "32m ago", msgs: 45, status: "running", pinned: true, hasSub: true, unread: 3 },
       { id: "t2", title: "Audit and fix OSS repository issues", time: "2h ago", msgs: 12, status: "idle", wait: "ask", unread: 0 },
       { id: "t3", title: "选择 gemini3.6flash 随意发送消息后报错…", time: "4d ago", msgs: 1337, status: "idle", wait: "plan", hasSub: true, unread: 1 },
       { id: "t4", title: "修复 Git Bash 路径未找到问题", time: "4d ago", msgs: 8, status: "idle", wait: "approval" },
@@ -197,7 +197,7 @@ export const PREVIEW_PROJECTS: PreviewProject[] = [
     ],
   },
   {
-    id: "p3", name: "omp-web (feat/mermaid)", path: demoPath("omp-web", ".worktrees", "mermaid"),
+    id: "p3", name: "zeta-web (feat/mermaid)", path: demoPath("zeta-web", ".worktrees", "mermaid"),
     branch: "feat/mermaid-zoom", worktree: "mermaid", dirty: 7, insertions: 1263, deletions: 341, running: true,
     attention: false, preview: "building",
     threads: [
@@ -208,7 +208,7 @@ export const PREVIEW_PROJECTS: PreviewProject[] = [
 ];
 
 /**
- * 排队栏演示（p1 · t1「跟踪上游 pi-web 更新到 omp-web」流式期间）：
+ * 排队栏演示（p1 · t1「跟踪上游 pi-web 更新到 zeta-web」流式期间）：
  * 流式时按 Enter 入队的两条本地消息，预览模式下覆盖真实排队状态展示。
  */
 export const PREVIEW_QUEUED_MESSAGES: readonly { id: number; text: string }[] = [
@@ -239,7 +239,7 @@ export const PREVIEW_FILE_TREE: PreviewFileNode[] = [
       { type: "file", name: "home.tsx" },
     ] },
   ] },
-  { type: "dir", name: "bin", children: [{ type: "file", name: "omp-web.js" }] },
+  { type: "dir", name: "bin", children: [{ type: "file", name: "zeta-web.js" }] },
   { type: "dir", name: "components", open: true, children: [
     { type: "file", name: "DirectoryPicker.tsx", status: "added", writing: true },
     { type: "file", name: "MermaidBlock.tsx", status: "modified", turn: true, diagnostic: "error" },
@@ -343,7 +343,7 @@ export const PREVIEW_TODO_FILES = [
   { path: "components/MermaidBlock.tsx", name: "MermaidBlock.tsx", dir: "components/", add: 6, del: 3 },
 ] as const;
 
-/** Git 管理页演示：沿用 ver1 D.projects 里 omp-web / main 的故事（dirty 3）。 */
+/** Git 管理页演示：沿用 ver1 D.projects 里 zeta-web / main 的故事（dirty 3）。 */
 export const PREVIEW_GIT_LOG = {
   branch: "main",
   ahead: 2,
@@ -386,7 +386,7 @@ export const PREVIEW_GIT_LOG = {
       relation: "common" as const,
       refs: [{ name: "origin/main", kind: "remote" as const, current: false }],
       files: [{ path: "README.md", status: "modified" as const }],
-      patch: "@@ -1,2 +1,3 @@\n # omp-web\n+Host bridge\n",
+      patch: "@@ -1,2 +1,3 @@\n # zeta-web\n+Host bridge\n",
     },
     {
       oid: "dddddddddddddddddddddddddddddddddddddddd",
@@ -397,7 +397,7 @@ export const PREVIEW_GIT_LOG = {
       relation: "common" as const,
       refs: [],
       files: [{ path: "README.md", status: "added" as const }],
-      patch: "@@ -0,0 +1,2 @@\n+# omp-web\n",
+      patch: "@@ -0,0 +1,2 @@\n+# zeta-web\n",
     },
   ],
 } as const;
@@ -449,7 +449,7 @@ export const PREVIEW_PREVIEW = {
     "[vite] connected.",
     "[vite] hmr update /components/MermaidBlock.tsx",
     "[vite] page reload src/App.tsx",
-    "[omp] preview attached, session=019fac94",
+    "[zeta] preview attached, session=019fac94",
   ],
 };
 
@@ -458,7 +458,7 @@ export const PREVIEW_PROBLEMS: PreviewProblem[] = [
   { sev: "error", src: "Preview", msg: "Failed to resolve import \"@earendil-works/pi-mermaid\"", file: "components/MermaidBlock.tsx", line: 12 },
   { sev: "warn", src: "ESLint", msg: "'onDrag' is defined but never used", file: "components/MermaidBlock.tsx", line: 204 },
   { sev: "warn", src: "ESLint", msg: "React Hook useCallback has a missing dependency", file: "hooks/useCodeTheme.ts", line: 31 },
-  { sev: "info", src: "OMP 诊断", msg: "RPC capability \"preview.dom\" 协商成功 (v2)", file: null, line: null },
+  { sev: "info", src: "Zeta 诊断", msg: "RPC capability \"preview.dom\" 协商成功 (v2)", file: null, line: null },
   { sev: "warn", src: "Git", msg: "config.yml 未被跟踪，可能被意外提交", file: "config.yml", line: null },
 ];
 
@@ -474,23 +474,23 @@ export const PREVIEW_PV_LOGS = [
   { tone: "", text: "[vite] hmr update /docs/UPSTREAM-SYNC.md" },
   { tone: "warn", text: "[preview] console.warn · React Hook useCallback has a missing dependency (useCodeTheme.ts:31)" },
   { tone: "err", text: "[preview] console.error · Failed to resolve import \"@earendil-works/pi-mermaid\" (MermaidBlock.tsx:12)" },
-  { tone: "", text: "[omp] preview attached, session=019fac94 · dom snapshot ok" },
+  { tone: "", text: "[zeta] preview attached, session=019fac94 · dom snapshot ok" },
   { tone: "muted", text: "[network] GET /api/session → 200 (18ms)" },
   { tone: "muted", text: "[network] GET /api/threads → 200 (9ms)" },
 ];
 
 export const PREVIEW_HISTORY: PreviewHistoryRow[] = [
-  { id: "ph1", title: "跟踪上游 pi-web 更新到 omp-web", project: "omp-web", branch: "main", time: "32m ago", model: "gemini-3.6-flash", status: "running", files: 4, cost: "¥ 4.62", forkedFrom: null, checkpoints: 12, pinned: true },
-  { id: "ph2", title: "Mermaid 渲染优化与全屏缩放拖拽", project: "omp-web (feat/mermaid)", branch: "feat/mermaid-zoom", time: "18m ago", model: "gemini-3.6-flash", status: "running", files: 7, cost: "¥ 2.31", forkedFrom: "跟踪上游 pi-web 更新…", checkpoints: 5, pinned: false },
-  { id: "ph3", title: "Audit and fix OSS repository issues", project: "omp-web", branch: "main", time: "2h ago", model: "claude-sonnet-4.5", status: "completed", files: 9, cost: "¥ 8.14", forkedFrom: null, checkpoints: 3, pinned: false },
-  { id: "ph4", title: "选择 gemini3.6flash 随意发送消息后报错…", project: "omp-web", branch: "main", time: "4d ago", model: "gemini-3.6-flash", status: "failed", files: 0, cost: "¥ 0.42", forkedFrom: null, checkpoints: 0, pinned: false },
-  { id: "ph5", title: "修复 Git Bash 路径未找到问题", project: "omp-web", branch: "main", time: "4d ago", model: "gpt-5.2-codex", status: "completed", files: 2, cost: "¥ 1.08", forkedFrom: null, checkpoints: 2, pinned: false },
-  { id: "ph6", title: "重构 session 存储层 (session)", project: "omp-web", branch: "refactor/session-db", time: "6d ago", model: "claude-sonnet-4.5", status: "archived", files: 21, cost: "¥ 22.90", forkedFrom: null, checkpoints: 9, pinned: false },
+  { id: "ph1", title: "跟踪上游 pi-web 更新到 zeta-web", project: "zeta-web", branch: "main", time: "32m ago", model: "gemini-3.6-flash", status: "running", files: 4, cost: "¥ 4.62", forkedFrom: null, checkpoints: 12, pinned: true },
+  { id: "ph2", title: "Mermaid 渲染优化与全屏缩放拖拽", project: "zeta-web (feat/mermaid)", branch: "feat/mermaid-zoom", time: "18m ago", model: "gemini-3.6-flash", status: "running", files: 7, cost: "¥ 2.31", forkedFrom: "跟踪上游 pi-web 更新…", checkpoints: 5, pinned: false },
+  { id: "ph3", title: "Audit and fix OSS repository issues", project: "zeta-web", branch: "main", time: "2h ago", model: "claude-sonnet-4.5", status: "completed", files: 9, cost: "¥ 8.14", forkedFrom: null, checkpoints: 3, pinned: false },
+  { id: "ph4", title: "选择 gemini3.6flash 随意发送消息后报错…", project: "zeta-web", branch: "main", time: "4d ago", model: "gemini-3.6-flash", status: "failed", files: 0, cost: "¥ 0.42", forkedFrom: null, checkpoints: 0, pinned: false },
+  { id: "ph5", title: "修复 Git Bash 路径未找到问题", project: "zeta-web", branch: "main", time: "4d ago", model: "gpt-5.2-codex", status: "completed", files: 2, cost: "¥ 1.08", forkedFrom: null, checkpoints: 2, pinned: false },
+  { id: "ph6", title: "重构 session 存储层 (session)", project: "zeta-web", branch: "refactor/session-db", time: "6d ago", model: "claude-sonnet-4.5", status: "archived", files: 21, cost: "¥ 22.90", forkedFrom: null, checkpoints: 9, pinned: false },
 ];
 
 export const PREVIEW_TIME_TRAVEL: PreviewTtNode[] = [
   { kind: "user", title: "用户请求", detail: "整理上游同步过程为文档，并验证类型检查", time: "14:02" },
-  { kind: "plan", title: "OMP 计划", detail: "4 步：阅读 docs → 整理三阶段 → 新建文档 → 运行验证", time: "14:03" },
+  { kind: "plan", title: "Zeta 计划", detail: "4 步：阅读 docs → 整理三阶段 → 新建文档 → 运行验证", time: "14:03" },
   { kind: "tool", title: "工具执行", detail: "Read ×3 · Grep ×1 · Write UPSTREAM-SYNC.md · Edit README.md", time: "14:04" },
   { kind: "file", title: "文件变化", detail: "+2 文件（docs/UPSTREAM-SYNC.md +214 · README.md +3/-1）", time: "14:04" },
   { kind: "test", title: "测试 / 检查", detail: "npm run typecheck → 1 个错误（TS2322）", time: "14:05" },
@@ -501,10 +501,10 @@ export const PREVIEW_TIME_TRAVEL: PreviewTtNode[] = [
 ];
 
 export const PREVIEW_ACTIVITY: PreviewActivity[] = [
-  { icon: "bot", color: "blue", text: "omp-web · 主 Agent 正在执行 npm run typecheck", time: "刚刚" },
-  { icon: "diff", color: "purple", text: "omp-web · docs/UPSTREAM-SYNC.md 已写入（+214）", time: "4m ago" },
-  { icon: "globe", color: "green", text: "omp-web · Preview 热更新完成（127.0.0.1:30141）", time: "6m ago" },
-  { icon: "alert", color: "amber", text: "omp-web (feat/mermaid) · preview 子 Agent 等待用户确认", time: "12m ago" },
+  { icon: "bot", color: "blue", text: "zeta-web · 主 Agent 正在执行 npm run typecheck", time: "刚刚" },
+  { icon: "diff", color: "purple", text: "zeta-web · docs/UPSTREAM-SYNC.md 已写入（+214）", time: "4m ago" },
+  { icon: "globe", color: "green", text: "zeta-web · Preview 热更新完成（127.0.0.1:30141）", time: "6m ago" },
+  { icon: "alert", color: "amber", text: "zeta-web (feat/mermaid) · preview 子 Agent 等待用户确认", time: "12m ago" },
   { icon: "check", color: "green", text: "pi-web · 「对比 v0.8.0 → v0.8.1 变更清单」已完成", time: "1d ago" },
 ];
 
@@ -563,14 +563,14 @@ export const PREVIEW_DIAGNOSTICS: PreviewDiagnostics = {
   errors: [
     { time: "13:58:12", src: "MCP · playwright", msg: "transport closed unexpectedly (code 1006)" },
     { time: "13:41:03", src: "RPC", msg: 'capability "browser.controlled" 未在握手时声明' },
-    { time: "12:02:47", src: "Plugin · browser-lab", msg: '加载失败：manifest.json 缺少 "omp" 字段' },
+    { time: "12:02:47", src: "Plugin · browser-lab", msg: '加载失败：manifest.json 缺少必填字段' },
   ],
   logs: [
     { tone: "muted", text: '13:58:12.481 [rpc →] {"jsonrpc":"2.0","id":481,"method":"capability.call","params":{"cap":"preview.dom","session":"t1"}}' },
     { tone: "muted", text: '13:58:12.512 [rpc ←] {"jsonrpc":"2.0","id":481,"result":{"ok":true,"nodes":142}} · 31ms' },
     { tone: "err", text: "13:58:15.901 [mcp playwright] transport closed unexpectedly (code 1006) · attempt 3/5" },
     { tone: "err", text: '13:41:03.220 [rpc] handshake: capability "browser.controlled" not declared by cli v0.82.1' },
-    { tone: "err", text: '12:02:47.884 [plugin browser-lab] manifest validation failed: missing required field "omp"' },
+    { tone: "err", text: '12:02:47.884 [plugin browser-lab] manifest validation failed: missing required manifest field' },
     { tone: "muted", text: "12:02:47.885 [plugin browser-lab] plugin skipped · 0 tools registered" },
   ],
 };

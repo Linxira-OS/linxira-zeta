@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import type { StudioClient } from "@linxiraos/studio-contract";
+import { useCallback, useEffect, useState } from "react";
+import type { ClientBootstrap, StudioClient } from "@linxiraos/studio-contract";
 import type { MediaKind } from "@linxiraos/studio-protocol";
 import { LiveAudioPane } from "./media/LiveAudioPane";
 import { ArtifactLibraryPane } from "./media/ArtifactLibraryPane";
@@ -19,20 +19,26 @@ export function MediaPage({
   workspaceId,
   sessionId,
   runtimeAvailable = false,
+  capabilities,
   onInsert,
 }: {
   client: StudioClient;
   workspaceId?: string | undefined;
   sessionId?: string | undefined;
   runtimeAvailable?: boolean;
+  capabilities?: ClientBootstrap["capabilityManifest"];
   onInsert?: (text: string) => void;
 }) {
   const { resolvedLanguage } = useI18n();
   const zh = resolvedLanguage === "zh";
+  const mediaAvailable = capabilities?.capabilities.some(cap => cap.id === "media.models" && cap.grade !== "unavailable") === true;
   const [intent] = useState(takeMediaIntent);
   const [view, setView] = useState<MediaView>(() =>
-    VOICE_KINDS.includes(intent) ? "voice" : "generate",
+    !mediaAvailable ? "library" : VOICE_KINDS.includes(intent) ? "voice" : "generate",
   );
+  useEffect(() => {
+    if (!mediaAvailable && view !== "library") setView("library");
+  }, [mediaAvailable, view]);
   const [voiceView, setVoiceView] = useState<
     "transcription" | "speech" | "live"
   >(intent === "speech" ? "speech" : "transcription");
@@ -54,8 +60,10 @@ export function MediaPage({
         value={view}
         onChange={setView}
         items={[
-          { id: "generate", icon: "image", label: zh ? "生成" : "Generate" },
-          { id: "voice", icon: "message", label: zh ? "语音" : "Voice" },
+          ...(mediaAvailable ? [
+            { id: "generate" as const, icon: "image", label: zh ? "生成" : "Generate" },
+            { id: "voice" as const, icon: "message", label: zh ? "语音" : "Voice" },
+          ] : []),
           { id: "library", icon: "folder", label: zh ? "产物库" : "Library" },
         ]}
       />

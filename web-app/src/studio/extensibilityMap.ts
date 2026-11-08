@@ -7,12 +7,17 @@ import type { ExtensibilityReadModel, PluginRecord, SkillRecord } from "@linxira
 
 import type { DrawerItem, PluginPreview, SkillPreview } from "./skillsPreview";
 
+/** Runtime source labels may still carry the upstream product name. */
+function productLabel(value: string): string {
+  return value.replace(/\bOMP\b/g, "Zeta").replace(/\bomp\b/g, "Zeta");
+}
+
 export function skillToPreview(skill: SkillRecord): SkillPreview {
   return {
     kind: "skill",
     name: skill.name,
     desc: skill.desc,
-    src: skill.sourceLabel,
+    src: productLabel(skill.sourceLabel),
     scope: skill.scope,
     path: "",
     enabled: skill.enabled,
@@ -28,7 +33,7 @@ export function pluginToPreview(plugin: PluginRecord): PluginPreview {
     name: plugin.name,
     title: plugin.title,
     scope: plugin.scope,
-    src: plugin.srcLabel,
+    src: productLabel(plugin.srcLabel),
     status: plugin.status === "error" ? "error" : "loaded",
     tools: plugin.tools,
     commands: plugin.commands,

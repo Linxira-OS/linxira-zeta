@@ -94,6 +94,13 @@ function cookies(header: string | null): Record<string, string> {
 	return out;
 }
 
+/** Loopback peers may pair implicitly: the same-origin renderer is served there. */
+function isLoopbackAddress(address: string | undefined): boolean {
+	if (address === undefined) return false;
+	const value = address.toLowerCase();
+	return value === "::1" || value === "::ffff:127.0.0.1" || value.startsWith("127.");
+}
+
 /** Whether `req` belongs to the Studio surface (`/health` or `/api/v1/*`). */
 export function isStudioRequest(req: Request): boolean {
 	const path = new URL(req.url).pathname;
@@ -183,7 +190,7 @@ export class StudioHost {
 	}
 
 	/** Handle one Studio request; throws nothing, always answers a Response. */
-	async handle(req: Request): Promise<Response> {
+	async handle(req: Request, remoteAddr?: string): Promise<Response> {
 		const url = new URL(req.url);
 		if (url.pathname === "/health") {
 			if (req.method !== "GET") return json({ error: "method_not_allowed" }, 405);
@@ -197,7 +204,7 @@ export class StudioHost {
 		try {
 			if (url.pathname === "/api/v1/pair" && req.method === "POST") return await this.#pair(req);
 			if (url.pathname === "/api/v1/session/revoke" && req.method === "POST") return this.#revoke(req);
-			if (url.pathname === "/api/v1/bootstrap" && req.method === "GET") return this.#bootstrap(req);
+			if (url.pathname === "/api/v1/bootstrap" && req.method === "GET") return this.#bootstrap(req, remoteAddr);
 			if (url.pathname === "/api/v1/query" && req.method === "POST") return await this.#query(req, context);
 			if (url.pathname === "/api/v1/command" && req.method === "POST") return await this.#command(req, context);
 			return json({ error: "not_found" }, 404);
@@ -218,6 +225,13 @@ export class StudioHost {
 			timingSafeEqual(Buffer.from(code), Buffer.from(expected));
 		if (!matches) return json({ error: "unauthenticated" }, 401);
 		if (!this.#pairingReusable) this.#pairing.used = true;
+		const [sessionId, session] = this.#createSession();
+		return json({ csrf: session.csrf, expiresAt: session.expiresAt }, 200, {
+			"set-cookie": this.#sessionCookie(sessionId),
+		});
+	}
+
+	#createSession(): [string, StudioSession] {
 		const sessionId = token(32);
 		const session: StudioSession = {
 			csrf: token(24),
@@ -226,9 +240,11 @@ export class StudioHost {
 			outstanding: 0,
 		};
 		this.#sessions.set(sessionId, session);
-		return json({ csrf: session.csrf, expiresAt: session.expiresAt }, 200, {
-			"set-cookie": `${STUDIO_SESSION_COOKIE}=${encodeURIComponent(sessionId)}; HttpOnly; SameSite=Strict; Path=/`,
-		});
+		return [sessionId, session];
+	}
+
+	#sessionCookie(sessionId: string): string {
+		return `${STUDIO_SESSION_COOKIE}=${encodeURIComponent(sessionId)}; HttpOnly; SameSite=Strict; Path=/`;
 	}
 
 	#revoke(req: Request): Response {
@@ -238,10 +254,20 @@ export class StudioHost {
 		return json({ ok: true });
 	}
 
-	#bootstrap(req: Request): Response {
-		if (!this.#authorize(req)) return json({ error: "unauthenticated" }, 401);
+	#bootstrap(req: Request, remoteAddr?: string): Response {
 		const bootstrap: ClientBootstrap = buildBootstrap(this.#operations);
-		return json(bootstrap);
+		if (this.#authorize(req)) return json(bootstrap);
+		// The same-origin renderer is served on loopback by `zeta serve` and the
+		// desktop shell. Let a loopback peer establish its own session on the
+		// bootstrap read; requests from any other peer still need the pairing code.
+		if (isLoopbackAddress(remoteAddr)) {
+			const [sessionId, session] = this.#createSession();
+			return json(bootstrap, 200, {
+				"set-cookie": this.#sessionCookie(sessionId),
+				[STUDIO_CSRF_HEADER]: session.csrf,
+			});
+		}
+		return json({ error: "unauthenticated" }, 401);
 	}
 
 	async #query(req: Request, context: StudioHostContext): Promise<Response> {

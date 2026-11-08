@@ -28,13 +28,63 @@ import type {
 	EnvironmentReadModel,
 	PlatformId,
 	RuntimeInstallState,
+	StudioRuntimeSettingsGetResult,
+	StudioRuntimeSettingsSetResult,
 } from "../contract/index.js";
 import { gatewayJson, invalid, requiredString, unavailable } from "../gateway.js";
-import type { ApprovalMode } from "../protocol/index.js";
+import type { ApprovalMode, OperatorStateSnapshot } from "../protocol/index.js";
 import type { StudioFamily } from "../registry.js";
 
 /** The setting behind the Renderer's approval-mode picker (Zeta's own YOLO default). */
 const APPROVAL_MODE_PATH = "tools.approvalMode";
+const SETTINGS_ROUTE = "/api/settings";
+
+/** `runtime.settings.get` → the gateway settings panel, projected to key/value. */
+async function readRuntimeSettings(input: {
+	readonly keys?: readonly string[];
+}): Promise<StudioRuntimeSettingsGetResult> {
+	const panel = indexSettingsPanel(await gatewayJson<unknown>(SETTINGS_ROUTE));
+	const wanted = input.keys === undefined ? undefined : new Set(input.keys);
+	const values: Record<string, unknown> = {};
+	for (const [key, entry] of panel) {
+		if (wanted === undefined || wanted.has(key)) values[key] = entry["value"];
+	}
+	return { values: values as StudioRuntimeSettingsGetResult["values"] };
+}
+
+/** `approvals.forget` → the existing per-agent approval cache. */
+async function forgetApprovals(): Promise<{ snapshot: OperatorStateSnapshot; result: { cleared: true } }> {
+	// Lazy: approval-cache and the session family pull the tool/session graph,
+	// which must not run while the host family registry is still assembling.
+	const { clearApprovalGrants } = await import("../../../tools/approval-cache.js");
+	clearApprovalGrants();
+	const { sessionOps } = await import("./session.js");
+	const readSnapshot = sessionOps.queries?.["session.state"] as
+		| ((input: unknown, context: unknown) => Promise<OperatorStateSnapshot>)
+		| undefined;
+	if (readSnapshot === undefined) throw unavailable("session.state is not available");
+	return { snapshot: await readSnapshot({}, {}), result: { cleared: true } };
+}
+
+/** `runtime.settings.set` → the same isolated settings writer the CLI uses. */
+async function writeRuntimeSetting(
+	input: CommandInput<"runtime.settings.set">,
+): Promise<StudioRuntimeSettingsSetResult> {
+	const key = requiredString(input, "key");
+	const written = await gatewayJson<unknown>(SETTINGS_ROUTE, {
+		method: "PUT",
+		body: { path: key, value: input.value },
+	});
+	const effective = isRecord(written) ? written["value"] : undefined;
+	return {
+		key: key as StudioRuntimeSettingsSetResult["key"],
+		value: input.value,
+		persisted: true,
+		...(effective === undefined
+			? {}
+			: { effectiveValue: effective as StudioRuntimeSettingsSetResult["effectiveValue"] }),
+	};
+}
 
 /** Contract approval modes → membership lookup for untrusted gateway strings. */
 const APPROVAL_MODES: Record<string, ApprovalMode> = {
@@ -211,5 +261,8 @@ export const settingsOps: StudioFamily = {
 	},
 	commands: {
 		"permissions.mode.set": setApprovalMode,
+		"runtime.settings.get": readRuntimeSettings,
+		"runtime.settings.set": writeRuntimeSetting,
+		"approvals.forget": forgetApprovals,
 	},
 };

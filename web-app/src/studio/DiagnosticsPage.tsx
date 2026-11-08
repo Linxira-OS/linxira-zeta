@@ -146,7 +146,7 @@ function previewRuntime(scenario: PreviewDiagScenario): RuntimeConnection {
       classification: "unavailable",
       runtimeVersion: mock.version,
       unavailableCode: "launch-failed",
-      unavailableReason: "Studio Bridge handshake timed out",
+      unavailableReason: "Z Work Studio Bridge handshake timed out",
     };
   }
   return {
@@ -189,8 +189,8 @@ function previewDiagnostics(scenario: PreviewDiagScenario): DiagnosticReadModel 
     entryId: "prev-runtime-down" as DiagnosticReadModel["entries"][number]["entryId"],
     scope: "host",
     level: "warning",
-    message: "Runtime failed to start: Studio Bridge handshake timed out",
-    detail: { code: "launch-failed", reason: "Studio Bridge handshake timed out" },
+    message: "Runtime failed to start: Z Work Studio Bridge handshake timed out",
+    detail: { code: "launch-failed", reason: "Z Work Studio Bridge handshake timed out" },
     occurredAt: now,
   };
   const extras = mock.errors.map((error, index) => ({
@@ -776,13 +776,15 @@ export function DiagnosticsPage({
 
   const problems = (viewDiag?.entries ?? []).filter((entry) => entry.level === "error" || entry.level === "warning");
   const capList = viewCaps?.capabilities ?? [];
+  const maintenanceAvailable = capList.some(cap => cap.id === "maintenance.gc.status" && cap.grade !== "unavailable");
+  const runtimeManageable = capList.some(cap => (cap.id === "runtime.install" || cap.id === "runtime.ensure") && cap.grade !== "unavailable");
   const installer = viewEnv?.installer;
   const canReinstall = view.hero.showReinstall;
   const canRestart = runtimeCanRestart(viewRuntime);
 
   return (
     <div className="page-wide diag-page">
-<WorkspaceTabs<"runtime"|"maintenance"> id="diagnostics-workspace" label="Diagnostics" value={workspaceTab} onChange={setWorkspaceTab} items={[{id:"runtime",icon:"activity",label:resolvedLanguage==="zh"?"运行环境":"Runtime"},{id:"maintenance",icon:"settings",label:resolvedLanguage==="zh"?"会话与维护":"Sessions and maintenance"}]}/>
+<WorkspaceTabs<"runtime"|"maintenance"> id="diagnostics-workspace" label="Diagnostics" value={workspaceTab} onChange={setWorkspaceTab} items={[{id:"runtime",icon:"activity",label:resolvedLanguage==="zh"?"运行环境":"Runtime"}, ...(maintenanceAvailable ? [{id:"maintenance" as const,icon:"settings",label:resolvedLanguage==="zh"?"会话与维护":"Sessions and maintenance"}] : [])]}/>
 <WorkspacePanel id="diagnostics-workspace" name="runtime" active={workspaceTab==="runtime"}>
       <div className="diag-head">
         <div>
@@ -803,9 +805,9 @@ export function DiagnosticsPage({
               {currentPreviewScenario ? t(currentPreviewScenario.labelKey) : ""}
             </button>
           ) : null}
-          <button type="button" className="btn outline" disabled={busy !== null} onClick={() => void checkUpdate(true)}>
+          {runtimeManageable ? <button type="button" className="btn outline" disabled={busy !== null} onClick={() => void checkUpdate(true)}>
             <Icon name="update" extra="sm" />{t("diagnostics.checkUpdate")}
-          </button>
+          </button> : null}
         </div>
       </div>
 
@@ -815,7 +817,7 @@ export function DiagnosticsPage({
           <b id="diagHeroTitle">{view.hero.title}</b>
           <div className="small">{view.hero.detail}</div>
         </div>
-        <div className="es-actions">
+        {runtimeManageable ? <div className="es-actions">
           <button type="button" className="btn primary" disabled={busy !== null || (view.hero.primary === "update" && blocksLocalUpdate)} data-tip={view.hero.primary === "update" && blocksLocalUpdate ? runtimeUpdateBlocker : undefined} onClick={runPrimary}>
             <Icon name={primaryIcon(view.hero.primary)} extra="sm" />
             {primaryLabel(view.hero.primary, busy, t)}
@@ -825,7 +827,7 @@ export function DiagnosticsPage({
               <Icon name="refresh" extra="sm" />{t("diagnostics.reinstallRuntime")}
             </button>
           ) : null}
-        </div>
+        </div> : null}
       </section>
 
       <ProcessMemoryPanel enabled={!preview} />
@@ -834,7 +836,7 @@ export function DiagnosticsPage({
       ) : null}
 
       <div className="diag-ver-grid">
-        <div className="diag-ver">
+        {runtimeManageable ? <div className="diag-ver">
           <div className="dv-k">{t("diagnostics.managedRuntimeTitle")}</div>
           <div className="dv-v">{installer?.version ?? t("common.notInstalled")}</div>
           <div className="dv-s">
@@ -848,7 +850,7 @@ export function DiagnosticsPage({
                     ? t("diagnostics.isCurrentInstall")
                     : t("diagnostics.noManagedInstall")}
           </div>
-        </div>
+        </div> : null}
         <div className="diag-ver">
           <div className="dv-k">{t("diagnostics.runningRuntimeTitle")}</div>
           <div className="dv-v">{viewRuntime?.runtimeVersion ?? "—"}</div>
@@ -889,7 +891,7 @@ export function DiagnosticsPage({
               <span className="ck-name">{check.label}</span>
               <span className="ck-detail wrap">{check.action === "update" && blocksLocalUpdate ? runtimeUpdateBlocker : check.detail}</span>
               <span className="ck-actions">
-                {check.action ? (
+                {check.action && (runtimeManageable || check.action === "problems") ? (
                   <button type="button" className="btn small outline" disabled={(busy !== null && check.action !== "problems") || (check.action === "update" && blocksLocalUpdate)} onClick={() => runCheckAction(check.action!)}>
                     {check.action === "install" ? t("common.install") : check.action === "update" ? t("common.update") : t("common.view")}
                   </button>
@@ -900,7 +902,7 @@ export function DiagnosticsPage({
         </div>
       </div>
 
-      <div className="diag-section">
+      {runtimeManageable ? <div className="diag-section">
         <h3>{t("diagnostics.maintenanceTitle")}</h3>
         <div className="set-section">
           <div className="set-row">
@@ -998,7 +1000,7 @@ export function DiagnosticsPage({
             </div>
           </div>
         </div>
-      </div>
+      </div> : null}
 
       {confirmRestart ? (
         <div className="modal-backdrop create-project-backdrop" role="presentation" onMouseDown={() => { if (busy === null) setConfirmRestart(false); }}>
@@ -1086,7 +1088,7 @@ export function DiagnosticsPage({
       <p className="tiny muted" style={{ marginTop: 16 }}>{t("diagnostics.lastChecked", { time: formatCheckedAt(viewDiag?.generatedAt) })}</p>
       <ToastHost message={notice?.text ?? null} icon={notice?.icon ?? "info"} onDismiss={dismissNotice} />
 </WorkspacePanel>
-<WorkspacePanel id="diagnostics-workspace" name="maintenance" active={workspaceTab==="maintenance"}><NativeMaintenancePane client={client} sessionId={nativeContext?.sessionId} available={nativeContext?.available??false} capabilities={nativeContext?.capabilities} active={workspaceTab==="maintenance"}/><SessionCompressionPane client={client} context={nativeContext} visible={workspaceTab==="maintenance"} /></WorkspacePanel>
+{maintenanceAvailable ? <WorkspacePanel id="diagnostics-workspace" name="maintenance" active={workspaceTab==="maintenance"}><NativeMaintenancePane client={client} sessionId={nativeContext?.sessionId} available={nativeContext?.available??false} capabilities={nativeContext?.capabilities} active={workspaceTab==="maintenance"}/><SessionCompressionPane client={client} context={nativeContext} visible={workspaceTab==="maintenance"} /></WorkspacePanel> : null}
     </div>
   );
 }

@@ -28,6 +28,7 @@ export const SKIP_PREFIXES = [
 	".oxlintrc.json", // lint-glob config; tooling cleanup tracked separately
 	"scripts/__fixtures__/", // recorded fixtures (2026-10-15 merge manifests + the driver-loss ledger): they must carry the upstream tokens, bin aliases and SDK paths verbatim or the tests reading them stop proving anything. Scoped to a __fixtures__ tree on purpose — MUST NOT be widened (scripts/**, a whole top-level tree, or the repo root), or the token bans retire silently
 	"scripts/brand/", // the guard's own rule table names the tokens it bans
+	"web-app/scripts/check-studio-naming.ts", // renderer guard names the tokens it bans
 	"scripts/scan-brand-regressions.ts", // the merge-diff scanner names the same tokens as match patterns
 	".zcode/",
 ];

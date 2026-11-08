@@ -71,7 +71,7 @@ export function ApprovalCard({
       </div>
       {view.configuration ? null : (
         <p className="small muted dk-steer-hint">
-          {zh ? "此时在输入框发送消息，会拒绝这次调用并把消息转交给 OMP。" : "Sending a message now denies this call and steers the turn."}
+          {zh ? "此时在输入框发送消息，会拒绝这次调用并把消息转交给 Zeta。" : "Sending a message now denies this call and steers the turn."}
         </p>
       )}
       {submitError ? (

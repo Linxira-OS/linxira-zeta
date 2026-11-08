@@ -24,7 +24,7 @@ const samples: Record<string, string> = {
     ],
   }),
   "graphic.svg":
-    '<svg viewBox="0 0 320 180"><rect x="25" y="20" width="270" height="140" rx="16" fill="var(--accent)"/><text x="160" y="100" text-anchor="middle" fill="var(--surface)" font-size="24">Studio SVG</text></svg>',
+    '<svg viewBox="0 0 320 180"><rect x="25" y="20" width="270" height="140" rx="16" fill="var(--accent)"/><text x="160" y="100" text-anchor="middle" fill="var(--surface)" font-size="24">Z Work Studio SVG</text></svg>',
   "flow.mmd": "flowchart LR\n A[Input]-->B[Review]-->C[Result]",
 };
 const fixtureUrls = Object.fromEntries(

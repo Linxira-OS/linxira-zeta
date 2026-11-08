@@ -6,9 +6,17 @@
  * over. Nothing in `src/studio` is edited for this.
  */
 import { mountRenderer } from "../studio/main";
-import { StudioClientImpl } from "../zeta";
+import { StudioClientImpl } from "@linxiraos/studio-client";
+import { BrowserWebClientTransport, type WebSocketLike } from "@linxiraos/studio-transport-web";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("#root is missing from index.html");
 
-mountRenderer(root, new StudioClientImpl());
+// The vendored client forwards every contract operation to the Studio host's
+// /api/v1 surface. Loopback bootstrap auto-pairs; non-loopback still needs the
+// pairing code. Keep same-origin fetch and the same-origin event socket.
+const transport = new BrowserWebClientTransport({
+	baseUrl: window.location.origin,
+	webSocketFactory: (url: string) => new WebSocket(url) as unknown as WebSocketLike,
+});
+mountRenderer(root, new StudioClientImpl(transport));

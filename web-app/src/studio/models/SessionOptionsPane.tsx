@@ -339,8 +339,8 @@ export function SessionOptionsPane({
         </div>
         <p className="muted">
           {zh
-            ? "保温会发送少量额外请求并产生用量。未配置时 Studio 默认关闭；已有显式配置会保留。"
-            : "Warming sends additional small requests and consumes usage. Studio defaults to off when unconfigured and preserves explicit settings."}
+            ? "保温会发送少量额外请求并产生用量。未配置时 Z Work Studio 默认关闭；已有显式配置会保留。"
+            : "Warming sends additional small requests and consumes usage. Z Work Studio defaults to off when unconfigured and preserves explicit settings."}
         </p>
         {warming ? (
           <div className="session-options-note">

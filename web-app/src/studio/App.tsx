@@ -1103,7 +1103,7 @@ export function Unavailable() {
         <div className="main-col">
           <div className="empty" style={{ flex: 1, justifyContent: "center" }}>
             <Icon name="alert" extra="lg" />
-            <h1>Studio client unavailable</h1>
+            <h1>Z Work Studio client unavailable</h1>
             <p className="muted">Inject a StudioClient through the desktop shell or WebUI bridge.</p>
           </div>
         </div>
@@ -3728,7 +3728,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     setRememberedPlan(undefined);
     setPlanDialogOpen(false);
   }, [selectedSessionId]);
-  // 预览模式的排队栏演示：t1「跟踪上游 pi-web 更新到 omp-web」流式中显示 fixture
+  // 预览模式的排队栏演示：t1「跟踪上游 pi-web 更新到 zeta-web」流式中显示 fixture
   // 两条消息；操作只改本地列表，不触 Host（AGENTS.md 预览规则）。
   const previewQueueActive = preview === true && previewThreadId === "t1";
   const [previewQueue, setPreviewQueue] = useState<QueuedMessage[]>([]);
@@ -6891,7 +6891,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     ? t("conversation.newChat")
     : t("conversation.untitledSession");
   const threadTitle = previewMode.preview
-    ? (previewThread?.thread.title ?? "跟踪上游 pi-web 更新到 omp-web")
+    ? (previewThread?.thread.title ?? "跟踪上游 pi-web 更新到 zeta-web")
     : currentThreadTitle ?? (state.route === "history" ? t("menu.history") : state.route === "home" ? t("menu.home") : state.route === "agent-hub" ? "Agent Hub" : state.route === "capabilities" ? t("menu.capabilities") : state.route === "model-config" ? t("menu.modelConfig") : untitledThreadTitle);
   const onProvisionalSessionChange = useCallback((change: {
     readonly sessionId?: SessionId;
@@ -8802,6 +8802,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               {...(state.model.home ? { home: state.model.home } : {})}
               {...(state.model.history ? { history: state.model.history } : {})}
               {...(state.model.workspaces ? { workspaces: state.model.workspaces } : {})}
+              {...(capabilities ? { capabilities } : {})}
               client={client}
               onPickFolder={() => {
                 if (previewMode.preview) return;
@@ -8849,7 +8850,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               onOpenMain={() => go("workbench")}
             />
           ) : pageRoute === "media" ? (
-            <MediaPage client={client} workspaceId={hubWorkspaceId} sessionId={snapshot?.sessionId} runtimeAvailable={hubRuntimeConnected} onInsert={insertPreparedPrompt} />
+            <MediaPage client={client} workspaceId={hubWorkspaceId} sessionId={snapshot?.sessionId} runtimeAvailable={hubRuntimeConnected} {...(capabilities ? { capabilities } : {})} onInsert={insertPreparedPrompt} />
           ) : pageRoute === "evaluation" ? (
             <EvaluationPage client={client} sessionId={snapshot?.sessionId} workspaceId={hubWorkspaceId} available={hubRuntimeConnected} capabilities={capabilities} />
           ) : pageRoute === "model-config" ? (

@@ -32,5 +32,5 @@ export const PREVIEW_FEATURE_SETTINGS: FeatureSettingRow[] = [
 export const PREVIEW_POOL_ACCOUNTS: PoolAccountOption[] = [
   { provider: "anthropic", identityKey: "email:review@example.test", label: "Review · Team" },
   { provider: "anthropic", identityKey: "email:personal@example.test", label: "Personal" },
-  { provider: "openai-codex", identityKey: "account:studio-demo", label: "Studio · Pro" },
+  { provider: "openai-codex", identityKey: "account:studio-demo", label: "Z Work Studio · Pro" },
 ];

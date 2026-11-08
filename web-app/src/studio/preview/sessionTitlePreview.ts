@@ -1,6 +1,6 @@
 import type { SessionTitleRow } from "@linxiraos/studio-protocol";
 const titles: Record<string, { code: string; emoji: string; nf?: string }> = {
-  "跟踪上游 pi-web 更新到 omp-web": {
+  "跟踪上游 pi-web 更新到 zeta-web": {
     code: "SYNC",
     emoji: "🧩",
     nf: "nf-md-source_merge",

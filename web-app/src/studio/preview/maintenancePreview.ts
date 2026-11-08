@@ -53,7 +53,7 @@ export function previewConnectionCheck(): NativeConnectionCheck {
   return {
     checkedAt: Date.now(),
     checks: [
-      { id: "bridge", status: "ok", detail: "Studio Bridge" },
+      { id: "bridge", status: "ok", detail: "Z Work Studio Bridge" },
       { id: "session", status: "ok", detail: "demo-session" },
       { id: "model", status: "warning", detail: "example/retired-model" },
     ],

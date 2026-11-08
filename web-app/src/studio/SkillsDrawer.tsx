@@ -21,7 +21,6 @@ import {
 } from "./skillsPreview";
 import { usePreviewMode } from "./preview/PreviewContext";
 import { useI18n } from "./i18n";
-import { loadRuntimeSkills } from "./skills/runtimeSkills";
 
 type GroupKey = "workspace" | "global" | "builtin-plugin" | "runtime";
 
@@ -33,7 +32,7 @@ const GROUPS: Array<{ key: GroupKey; labelKey: string }> = [
 ];
 
 const SCOPE_SHORT: Record<string, string> = {
-  runtime: "OMP",
+  runtime: "ZETA",
   workspace: "PRJ",
   global: "GLB",
   builtin: "SYS",
@@ -236,11 +235,8 @@ export function SkillsDrawer({
     }
     try {
       const next = await client.query("skills.get", {});
-      if(runtimeSessionId !== undefined) {
-        const skills=runtimeSessionId?await loadRuntimeSkills(client,runtimeSessionId):[];
-        setItems([...skills.map(skill=>({kind:"skill" as const,name:skill.name,desc:skill.description+(skill.conflict?" · 名称冲突 / Name conflict":""),src:[skill.namespace,skill.source].filter(Boolean).join(" · "),scope:skill.scope??"runtime",path:"",enabled:true,loaded:true,session:true})),...toDrawerItems(next).filter(item=>item.kind!=="skill")]);
-        setLoadError(runtimeSessionId?null:"Runtime 技能身份不可用 / Runtime skill identities unavailable");
-      } else { setItems(toDrawerItems(next)); setLoadError(next.unavailableReason ?? null); }
+      setItems(toDrawerItems(next));
+      setLoadError(next.unavailableReason ?? null);
     } catch (error) {
       const message = error instanceof Error ? error.message : "skills.get failed";
       setItems([]);
