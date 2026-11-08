@@ -13,19 +13,38 @@
  */
 
 import { logger } from "@linxiraos/pi-utils";
+import { CHANNEL_PEER_REFUSED_TEXT, isPeerAllowed } from "./auth";
 import type { ChannelId, ChatChannel, ChatImage } from "./channel";
 import { FeishuChannel } from "./feishu";
 import { ChannelHost } from "./host";
+import { ChannelSeenStore, channelSeenStatePath } from "./seen-store";
 import { TelegramChannel } from "./telegram";
 import type { ChannelSession, ChannelsWebConfig } from "./types";
 import { WeChatChannel, type WeChatQrStatus } from "./wechat";
 
+export { CHANNEL_PEER_REFUSED_TEXT, isPeerAllowed } from "./auth";
 export type { ChannelId, ChatChannel, ChatImage } from "./channel";
 export { FeishuChannel, type FeishuChannelOptions, type FeishuInboundHandler } from "./feishu";
-export { ChannelHost } from "./host";
+export { ChannelHost, type ChannelDeliveryResult, type ChannelSendFn } from "./host";
+export {
+	ReplyCorrelator,
+	type ChatReplyTarget,
+	type ReplyCorrelatorOptions,
+	type ReplyTarget,
+	type SinkReplyTarget,
+} from "./reply-correlator";
+export {
+	CHANNEL_SEEN_FILENAME,
+	ChannelSeenStore,
+	channelSeenStatePath,
+	type ChannelSeenStoreOptions,
+} from "./seen-store";
 export { TelegramChannel, type TelegramChannelOptions, type TelegramInboundHandler } from "./telegram";
 export type { ChannelSession, ChannelSessionEvent, ChannelsWebConfig, IrcMessage } from "./types";
 export { WeChatChannel, type WeChatChannelOptions, type WeChatInboundHandler, type WeChatQrStatus } from "./wechat";
+
+/** Minimum spacing between two refusals to the same unauthorized peer. */
+const PEER_REFUSAL_COOLDOWN_MS = 60_000;
 
 /**
  * Module-level QR-login state bridge between the running channel and the web
@@ -115,46 +134,101 @@ export interface ChannelRuntime {
 	readonly channels: ReadonlyMap<ChannelId, ChatChannel>;
 	/** Host binding the coordinator session to the channels. */
 	readonly host: ChannelHost;
+	/** Durable per-channel message-id dedupe (flushed by `stop`). */
+	readonly seen: ChannelSeenStore;
 	/** Send a text message through one channel. */
 	sendText(channelId: ChannelId, to: string, text: string): Promise<void>;
 	/** Send an image through one channel (falls back to caller on error). */
 	sendImage(channelId: ChannelId, to: string, image: ChatImage, caption?: string): Promise<void>;
-	/** Stop every channel and detach the host. */
+	/** Stop every channel, detach the host, and flush the seen state. */
 	stop(): Promise<void>;
 }
 
 /** Handle one inbound channel message (the Phase-3 routing seam lives here). */
 export type ChannelInboundHandler = (channelId: ChannelId, peer: string, body: string, messageId?: string) => void;
 
+export interface StartChannelsOptions {
+	/** Agent/config dir; the durable seen state lands in `run/channels-seen.json`. */
+	stateDir?: string;
+	/** Test seam: a pre-built store (defaults to one loaded from `stateDir`). */
+	seenStore?: ChannelSeenStore;
+}
+
 /**
  * Start all enabled channels for the given coordinator session.
- * `onInbound` receives every inbound message after channel-level filtering;
- * default wiring injects into the session via the host.
+ * `onInbound` receives every inbound message after the authorization gate and
+ * duplicate filter; default wiring injects into the session via the host.
  */
 export async function startChannels(
 	session: ChannelSession,
 	webConfig: ChannelsWebConfig,
 	onInbound?: ChannelInboundHandler,
 	wechatQrHandler?: (payload: WeChatQrStatus) => void,
+	options?: StartChannelsOptions,
 ): Promise<ChannelRuntime> {
 	const data = webConfig.getData();
-	const host = new ChannelHost(
-		session,
-		(channelId, to, text) => sendText(channelId, to, text),
-		data.channels.allowedPeers,
-	);
+	const allowedPeers = data.channels.allowedPeers ?? [];
+	// Loaded before any adapter starts, so a retried update from before the
+	// restart is recognized by the very first poll.
+	const seen =
+		options?.seenStore ??
+		(await ChannelSeenStore.open(options?.stateDir ? { filePath: channelSeenStatePath(options.stateDir) } : {}));
 	const channels = new Map<ChannelId, ChatChannel>();
 
-	const routeInbound: ChannelInboundHandler =
-		onInbound ??
-		((channelId, peer, body) => {
-			void host.deliver(channelId, peer, body).catch(error => {
-				logger.warn("Channel message injection failed", {
-					channel: channelId,
-					error: error instanceof Error ? error.message : String(error),
-				});
+	const sendText = async (channelId: ChannelId, to: string, text: string): Promise<void> => {
+		const channel = channels.get(channelId);
+		if (!channel) throw new Error(`Channel not enabled: ${channelId}`);
+		await channel.sendText(to, text);
+	};
+
+	const host = new ChannelHost(session, (channelId, to, text) => sendText(channelId, to, text), allowedPeers);
+	const refusedAt = new Map<string, number>();
+
+	/** Explicit, rate-limited refusal for a sender outside the allowlist. */
+	const refusePeer = (channelId: ChannelId, peer: string): void => {
+		const key = `${channelId}\u0000${peer}`;
+		const now = Date.now();
+		if (now - (refusedAt.get(key) ?? 0) < PEER_REFUSAL_COOLDOWN_MS) return;
+		refusedAt.set(key, now);
+		void sendText(channelId, peer, CHANNEL_PEER_REFUSED_TEXT).catch(error => {
+			logger.warn("Channel refusal delivery failed", {
+				channel: channelId,
+				error: error instanceof Error ? error.message : String(error),
 			});
 		});
+	};
+
+	/**
+	 * Inbound gate. MUST stay first: `onInbound` (zeta-server) dispatches to the
+	 * command router, workspace/direct sessions, bot sessions and the relay, and
+	 * every one of those can open an arbitrary workspace or start a turn.
+	 */
+	const routeInbound: ChannelInboundHandler = (channelId, peer, body, messageId) => {
+		if (!isPeerAllowed(peer, allowedPeers)) {
+			logger.warn("Channel message refused: peer not in allowedPeers", { channel: channelId, peer });
+			refusePeer(channelId, peer);
+			return;
+		}
+		if (messageId) {
+			if (seen.has(channelId, messageId)) {
+				logger.debug("Duplicate channel message ignored", { channel: channelId, messageId });
+				return;
+			}
+			// Recorded before dispatch: a platform retry that lands while the
+			// first copy is still being routed must not start a second turn.
+			seen.record(channelId, messageId);
+		}
+		if (onInbound) {
+			onInbound(channelId, peer, body, messageId);
+			return;
+		}
+		void host.deliver(channelId, peer, body, messageId).catch(error => {
+			logger.warn("Channel message injection failed", {
+				channel: channelId,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		});
+	};
 
 	// Telegram
 	if (data.channels.telegram.enabled) {
@@ -213,12 +287,6 @@ export async function startChannels(
 
 	host.start();
 
-	const sendText = async (channelId: ChannelId, to: string, text: string): Promise<void> => {
-		const channel = channels.get(channelId);
-		if (!channel) throw new Error(`Channel not enabled: ${channelId}`);
-		await channel.sendText(to, text);
-	};
-
 	for (const channel of channels.values()) {
 		try {
 			await channel.start();
@@ -232,6 +300,7 @@ export async function startChannels(
 	return {
 		channels,
 		host,
+		seen,
 		sendText,
 		sendImage: async (channelId, to, image, caption) => {
 			const channel = channels.get(channelId);
@@ -242,6 +311,12 @@ export async function startChannels(
 			host.stop();
 			await Promise.allSettled([...channels.values()].map(channel => channel.stop()));
 			channels.clear();
+			// Persist the ids accepted before shutdown so a restart dedupes them.
+			await seen.close().catch(error => {
+				logger.warn("Channel seen-state flush failed", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+			});
 		},
 	};
 }

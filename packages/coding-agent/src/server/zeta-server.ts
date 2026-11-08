@@ -980,6 +980,9 @@ export class ZetaServer {
 					})();
 				},
 				payload => setPendingWechatQr(payload),
+				// Per-channel dedupe survives a serve restart/reconnect: retried
+				// platform updates are dropped instead of answered twice.
+				{ stateDir: path.dirname(webConfig.path) },
 			);
 		} catch (error) {
 			await this.#channelLock?.release().catch(() => {});
