@@ -5,6 +5,10 @@ When IM channels are enabled (`zetacode serve`, desktop app, or `--channels`), t
 message. From an ordinary IM chat (WeChat / Feishu / Telegram — plain text
 only) you drive Zeta with the `!` command grammar below.
 
+The mode and routing vocabulary used here — Personal Harness, workspace, main
+agent, external binding, session origin, relay — is defined in
+[agent-modes.md](./agent-modes.md).
+
 ## Status
 
 | Behavior | Status | Detail |
@@ -206,9 +210,9 @@ uses the same `plan_approve` path.
 per-chat bindings (`remote.sessionMappings: [{platform, chatId,
 workspaceAlias, mode}]`), the bot-session registry
 (`remote.botSessions: [{id, name, tag, sessionFile, cwd, workspaceAlias, …}]`),
-and the sidebar toggle (`remote.showBotSessions`), so all of it survives
-restarts. `@workspace use` is a runtime-only override; `@workspace bind` and
-`!session` operations persist.
+and the legacy web-ui sidebar toggle (`remote.showBotSessions`), so all of it
+survives restarts. `@workspace use` is a runtime-only override;
+`@workspace bind` and `!session` operations persist.
 
 ## Remote access
 

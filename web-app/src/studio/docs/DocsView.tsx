@@ -14,6 +14,7 @@ const DOC_ENTRIES: readonly DocEntry[] = [
 	{ path: "cli-reference.md", en: "CLI reference", zh: "CLI 参考" },
 	{ path: "environment-variables.md", en: "Environment", zh: "环境变量" },
 	{ path: "agent-mesh.md", en: "Agent mesh", zh: "Agent 网格" },
+	{ path: "agent-modes.md", en: "Agent modes", zh: "Agent 模式" },
 	{ path: "channels.md", en: "Channels", zh: "频道" },
 	{ path: "remote-workspaces.md", en: "Remote workspaces", zh: "远程工作区" },
 	{ path: "plugins.md", en: "Plugins", zh: "插件" },

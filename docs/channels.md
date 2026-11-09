@@ -6,6 +6,10 @@ browser and without a running web server. It reads and writes the same
 and the GUI settings page. There is one config source and one runtime — these
 are all front-ends onto it.
 
+This page is the CLI/hosting surface. Binding and routing vocabulary is
+defined in [agent-modes.md](./agent-modes.md); the chat command grammar is in
+[remote-workspaces.md](./remote-workspaces.md).
+
 ## Status
 
 | Area | Status | Where it stands |

@@ -6,6 +6,9 @@ conversation that has no repository selected and for IM bot conversations
 `zeta serve`, a real Git repository. `ZETA_DEFAULT_WORKSPACE` overrides the
 location for non-standard installs and smoke runs against a temp config root.
 
+This workspace is the landing surface of the **Personal Harness**; the modes
+and their status are defined in [agent-modes.md](./agent-modes.md).
+
 ## Landing rules
 
 | Source | Landing point | Route |
