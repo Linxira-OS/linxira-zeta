@@ -66,7 +66,7 @@ describe("runImControl", () => {
 
 	test("list_sessions numbers sessions and marks the active one", async () => {
 		const result = await runImControl(makeRouter(), "coordinator", { operation: "list_sessions" }, makeDeps());
-		expect(result.text).toContain("{1} [relay] — Zeta Bot (Relay) [relay] [当前]");
+		expect(result.text).toContain("{1} [relay] — Zeta Bot (Relay) [relay] → [main] [当前]");
 		expect(result.text).toContain("{2} [abc123] — Test [draft]");
 	});
 

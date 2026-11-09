@@ -23,7 +23,7 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type ChannelId, ReplyCorrelator } from "@linxiraos/pi-channels";
+import { type ChannelId, ReplyCorrelator, isPeerAllowed } from "@linxiraos/pi-channels";
 import { isEnoent, logger, Snowflake } from "@linxiraos/pi-utils";
 import type { BotSessionEntry, WebConfig } from "../config/web-config";
 import { Settings, type SettingProvenance } from "../config/settings";
@@ -46,6 +46,31 @@ const RUN_TIMEOUT_MS = 10 * 60_000;
 
 /** Reserved alias of the relay coordinator (default workspace). */
 export const COORDINATOR_ALIAS = "main";
+
+/** Project a bot session (PM/secretary) is bound to. */
+export interface BotSessionProject {
+	/** Registered workspace alias; `main` is the default workspace. */
+	alias?: string;
+	/** Absolute project directory; must be a registered workspace. */
+	dir?: string;
+}
+
+/**
+ * The live session invoking a channel tool. A bot session is bound to one
+ * project, so `workspace_run` and `channel_send` must not let it reach another
+ * project or an unauthorized peer; the relay coordinator keeps its documented
+ * cross-repo delegation role.
+ */
+export interface ChannelToolContext {
+	/** "coordinator" for the relay coordinator, otherwise the bot-session id. */
+	sessionKey: string;
+	/** Absolute project directory of the invoking session. */
+	projectDir?: string;
+	/** Workspace alias of the invoking session, when known. */
+	workspaceAlias?: string;
+	/** The relay coordinator may delegate to any registered workspace. */
+	relay?: boolean;
+}
 
 interface ActiveRun {
 	resolve: (text: string) => void;
@@ -101,6 +126,10 @@ export interface AgentTargetInfo {
 export type ChatRouteTarget =
 	| { kind: "agent"; target: string; local: boolean }
 	| { kind: "workspace"; alias: string }
+	/** A project-bound (or default-space) bot session selected by this chat. */
+	| { kind: "bot"; id: string }
+	/** A binding exists but its workspace cannot be opened; never fall back to the default workspace. */
+	| { kind: "unavailable"; alias: string; error: string }
 	| { kind: "relay" };
 
 /** Map a reply language to the system-prompt / message directive line. */
@@ -122,14 +151,30 @@ function assistantText(message: unknown): string {
 		.trim();
 }
 
+/** Whether two paths name the same directory (case-insensitive on Windows). */
+function samePath(a: string | undefined, b: string | undefined): boolean {
+	if (!a || !b) return false;
+	const normalize = (value: string) => {
+		const absolute = path.resolve(value);
+		return process.platform === "win32" ? absolute.toLowerCase() : absolute;
+	};
+	return normalize(a) === normalize(b);
+}
+
 export class SessionRouter {
 	readonly #coordinator: AgentSession;
 	readonly #webConfig: WebConfig;
 	readonly #getLastInbound: () => { channelId: ChannelId; peer: string } | null;
 	readonly #sendText: (channelId: ChannelId, to: string, text: string) => Promise<void>;
 	/** IM channel tool sinks forwarded to bot sessions (undefined in CLI mode). */
-	readonly #channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
-	readonly #workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
+	readonly #channelSend?: (
+		opts: { text: string; to?: string; channel?: string },
+		caller?: ChannelToolContext,
+	) => Promise<void>;
+	readonly #workspaceRun?: (
+		opts: { workspace: string; task: string },
+		caller?: ChannelToolContext,
+	) => Promise<{ reply: string }>;
 	/** Cwd for freshly created default-space bot sessions. */
 	readonly #defaultCwd: string;
 	/**
@@ -177,9 +222,15 @@ export class SessionRouter {
 		/** Default cwd for newly created bot sessions (defaults to process.cwd()). */
 		defaultCwd?: string;
 		/** channel_send sink for bot sessions (defaults to the coordinator's pattern). */
-		channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
+		channelSend?: (
+			opts: { text: string; to?: string; channel?: string },
+			caller?: ChannelToolContext,
+		) => Promise<void>;
 		/** workspace_run sink for bot sessions. */
-		workspaceRun?: (opts: { workspace: string; task: string }) => Promise<{ reply: string }>;
+		workspaceRun?: (
+			opts: { workspace: string; task: string },
+			caller?: ChannelToolContext,
+		) => Promise<{ reply: string }>;
 		/** Factory for a bot session's live runtime (see {@link #createBotSessionRuntime}). */
 		createBotSessionRuntime?: (entry: BotSessionEntry) => Promise<AgentSession>;
 		/** Natural-language IM control sink forwarded to bot sessions. */
@@ -503,10 +554,38 @@ export class SessionRouter {
 	async resolveChatTarget(channelId: ChannelId, peer: string): Promise<ChatRouteTarget> {
 		const agent = this.agentTargetFor(channelId, peer);
 		if (agent) return { kind: "agent", target: agent, local: !agent.includes("/") };
+		// A manual `@workspace use` wins: the operator explicitly switched this
+		// chat off its session/project for now.
+		const runtime = this.#runtimeBindings.get(`${channelId}:${peer}`);
+		if (runtime === COORDINATOR_ALIAS) return { kind: "relay" };
+		if (runtime) return this.#workspaceTarget(runtime);
+		// The chat's selected bot session owns its project: route by that
+		// project, never by the global default workspace.
+		const botId = await this.activeBotSessionIdFor(channelId, peer);
+		if (botId && botId !== "relay") {
+			const entry = this.#webConfig.getBotSession(botId);
+			if (entry) return { kind: "bot", id: botId };
+		}
+		// Persisted chat binding, then the channel-default workspace.
 		const binding = await this.bindingFor(channelId, peer);
 		if (!binding || binding === COORDINATOR_ALIAS) return { kind: "relay" };
-		if ((await this.resolveRoute(channelId, peer)) === "relay") return { kind: "relay" };
-		return { kind: "workspace", alias: binding };
+		return this.#workspaceTarget(binding);
+	}
+
+	/**
+	 * Resolve one alias to a workspace route, materializing its session. A
+	 * workspace that cannot be opened is reported as `unavailable`, never as a
+	 * silent relay fallback (the default workspace must not answer for another
+	 * repository).
+	 */
+	async #workspaceTarget(alias: string): Promise<ChatRouteTarget> {
+		const dir = this.resolveDir(alias);
+		if (!dir) return { kind: "unavailable", alias, error: `Unknown workspace "${alias}"` };
+		if (!this.#sessions.has(dir)) {
+			const opened = await this.open(dir, alias);
+			if (!opened.ok) return { kind: "unavailable", alias, error: opened.error };
+		}
+		return { kind: "workspace", alias };
 	}
 
 	/**
@@ -641,8 +720,14 @@ export class SessionRouter {
 	 * the relay report policy.
 	 */
 	async statusSnapshot(channelId: ChannelId, peer: string): Promise<ChatStatusSnapshot> {
+		// A selected bot session owns the chat's project; otherwise the persisted
+		// binding (then the channel default) decides the landing workspace.
+		const botId = await this.activeBotSessionIdFor(channelId, peer);
+		const botEntry = botId ? this.#webConfig.getBotSession(botId) : undefined;
 		const binding = await this.bindingFor(channelId, peer);
-		const directDir = binding && binding !== COORDINATOR_ALIAS ? this.resolveDir(binding) : undefined;
+		const boundDir = binding && binding !== COORDINATOR_ALIAS ? this.resolveDir(binding) : undefined;
+		const directDir = botEntry?.cwd ?? boundDir;
+		const workspaceAlias = botEntry?.workspaceAlias ?? (boundDir ? binding : null);
 		const workspaceDir = directDir ?? this.#defaultCwd;
 		// Resolve through the settings layers, exactly like a session would: the
 		// process singleton (global + --config + runtime) re-scoped to this
@@ -666,7 +751,7 @@ export class SessionRouter {
 		}
 		return {
 			route: directDir ? "direct" : "relay",
-			workspaceAlias: directDir ? binding : null,
+			workspaceAlias,
 			workspaceDir,
 			personaActive: await hasWorkspacePersona(workspaceDir),
 			memoryBackend,
@@ -704,14 +789,14 @@ export class SessionRouter {
 			const opened = await this.open(dir);
 			if (!opened.ok) return opened;
 		}
-		await this.#webConfig.setSessionMapping({
-			platform: channelId,
-			chatId: peer,
+		// One merge keeps a chat's language and drops any bot-session pointer: a
+		// workspace binding supersedes both. `mode: direct` is the explicit
+		// project selection that outranks the channel default.
+		await this.#webConfig.updateChatMapping(channelId, peer, {
 			workspaceAlias: alias,
 			mode: "direct",
+			sessionId: null,
 		});
-		// A workspace binding supersedes any default-space bot session pointer.
-		await this.#webConfig.updateChatMapping(channelId, peer, { sessionId: null });
 		return { ok: true, alias };
 	}
 
@@ -763,23 +848,59 @@ export class SessionRouter {
 	async createBotSession(
 		name: string,
 		tag: "bot" | "draft" = "draft",
+		project?: BotSessionProject,
 	): Promise<{ ok: true; entry: BotSessionEntry } | { ok: false; error: string }> {
 		const cleanName = name.trim();
 		if (!cleanName) return { ok: false, error: "Session name must not be empty" };
+		const resolved = await this.#resolveProject(project);
+		if (!resolved.ok) return resolved;
 		const id = randomUUID().slice(0, 8);
 		const safeName = cleanName.replace(/[^\w\u4e00-\u9fff-]+/g, "-").slice(0, 40) || "bot";
-		const sessionFile = path.join(SessionManager.getDefaultSessionDir(this.#defaultCwd), `${safeName}-${id}.jsonl`);
+		// The transcript lives under the project's session dir, so reopening it
+		// resumes with that project's cwd (never the process/default cwd).
+		const sessionFile = path.join(SessionManager.getDefaultSessionDir(resolved.cwd), `${safeName}-${id}.jsonl`);
 		const entry: BotSessionEntry = {
 			id,
 			name: cleanName,
 			tag,
 			sessionFile,
+			cwd: resolved.cwd,
+			...(resolved.alias !== undefined && { workspaceAlias: resolved.alias }),
 			createdAt: new Date().toISOString(),
 		};
 		await this.#webConfig.upsertBotSession(entry);
 		const ensured = await this.ensureBotSession(entry);
 		if (!ensured.ok) return ensured;
 		return { ok: true, entry };
+	}
+
+	/**
+	 * Resolve an explicit project binding. Only registered workspaces (or the
+	 * default workspace) are accepted: a PM may not silently point a bot at an
+	 * arbitrary directory.
+	 */
+	async #resolveProject(
+		project?: BotSessionProject,
+	): Promise<{ ok: true; cwd: string; alias?: string } | { ok: false; error: string }> {
+		if (!project) return { ok: true, cwd: this.#defaultCwd };
+		if (project.alias) {
+			if (project.alias === COORDINATOR_ALIAS) return { ok: true, cwd: this.#defaultCwd };
+			const dir = this.resolveDir(project.alias);
+			if (!dir) return { ok: false, error: `Unknown workspace "${project.alias}"` };
+			const stat = await fs.stat(dir).catch(() => null);
+			if (!stat?.isDirectory()) return { ok: false, error: `Project directory does not exist: ${dir}` };
+			return { ok: true, cwd: dir, alias: project.alias };
+		}
+		if (!project.dir) return { ok: false, error: "A project needs a workspace alias or directory" };
+		const dir = path.resolve(project.dir);
+		if (dir === path.resolve(this.#defaultCwd)) return { ok: true, cwd: dir };
+		const alias = this.#aliasForDir(dir);
+		if (alias === undefined) {
+			return { ok: false, error: `Project "${dir}" is not a registered workspace; run @workspace open first` };
+		}
+		const stat = await fs.stat(dir).catch(() => null);
+		if (!stat?.isDirectory()) return { ok: false, error: `Project directory does not exist: ${dir}` };
+		return { ok: true, cwd: dir, alias };
 	}
 
 	/** Rename a registered bot session (relay keeps its canonical name). */
@@ -796,6 +917,61 @@ export class SessionRouter {
 		const handle = this.#botSessions.get(id);
 		if (handle) handle.entry = updated;
 		return { ok: true, name: cleanName };
+	}
+
+	/**
+	 * Bind (or re-bind) an existing bot session to a project. The live runtime
+	 * keeps its original cwd, so it is disposed and lazily recreated on the new
+	 * project; `main` points the session back at the default workspace.
+	 */
+	async bindBotSessionProject(
+		id: string,
+		alias: string,
+	): Promise<{ ok: true; alias?: string; cwd: string } | { ok: false; error: string }> {
+		const entry = this.#webConfig.getBotSession(id);
+		if (!entry) return { ok: false, error: `Unknown bot session "${id}"` };
+		if (entry.tag === "relay") return { ok: false, error: "relay 会话固定在默认工作区，不能改绑项目" };
+		const resolved = await this.#resolveProject({ alias });
+		if (!resolved.ok) return resolved;
+		const handle = this.#botSessions.get(id);
+		if (handle) {
+			handle.unsubscribe();
+			this.#botSessions.delete(id);
+			this.#detachBridge(id, handle.session);
+			try {
+				await handle.session.dispose();
+			} catch (error) {
+				logger.warn("Bot session dispose failed", {
+					id,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
+		// Move the transcript with its session: `moveTo` rewrites the header cwd
+		// and relocates the file, so a resume cannot reopen in the old repo. The
+		// runtime is disposed above, so this process holds the only writer claim.
+		let sessionFile = entry.sessionFile;
+		try {
+			const manager = await SessionManager.open(entry.sessionFile, undefined, undefined, {
+				initialCwd: entry.cwd ?? this.#defaultCwd,
+			});
+			try {
+				await manager.moveTo(resolved.cwd);
+				sessionFile = manager.getSessionFile() ?? entry.sessionFile;
+			} finally {
+				await manager.close();
+			}
+		} catch (error) {
+			const detail = error instanceof Error ? error.message : String(error);
+			logger.warn("Bot session project relocation failed", { id, error: detail });
+			return { ok: false, error: `无法将会话迁移到项目 ${resolved.cwd}：${detail}` };
+		}
+		const updated: BotSessionEntry = { ...entry, cwd: resolved.cwd, sessionFile };
+		if (resolved.alias === undefined) delete updated.workspaceAlias;
+		else updated.workspaceAlias = resolved.alias;
+		await this.#webConfig.upsertBotSession(updated);
+		logger.info("Bot session project bound", { id, alias: resolved.alias, cwd: resolved.cwd });
+		return { ok: true, ...(resolved.alias !== undefined && { alias: resolved.alias }), cwd: resolved.cwd };
 	}
 
 	/** Delete a bot session (relay is protected) — disposes the runtime, removes
@@ -862,15 +1038,29 @@ export class SessionRouter {
 
 	/** Default bot-session runtime: raw `createAgentSession` on the entry's transcript. */
 	async #defaultBotSessionRuntime(entry: BotSessionEntry): Promise<AgentSession> {
-		const manager = await SessionManager.open(entry.sessionFile);
+		const cwd = entry.cwd ?? this.#defaultCwd;
+		// `initialCwd` is what a headerless/fresh transcript records as its
+		// project; without it the manager falls back to the process cwd and the
+		// bot silently answers for the wrong repository.
+		const manager = await SessionManager.open(entry.sessionFile, undefined, undefined, { initialCwd: cwd });
+		const caller = this.#contextForBot(entry);
 		const { session } = await createAgentSession({
 			cwd: manager.getCwd(),
 			sessionManager: manager,
-			channelSend: this.#channelSend,
-			workspaceRun: this.#workspaceRun,
+			channelSend: this.#channelSend ? opts => this.#channelSend!(opts, caller) : undefined,
+			workspaceRun: this.#workspaceRun ? opts => this.#workspaceRun!(opts, caller) : undefined,
 			imControl: this.#imControl ? params => this.#imControl!(entry.id, params) : undefined,
 		});
 		return session;
+	}
+
+	/** Tool-call context for one bot session (its project and chat). */
+	#contextForBot(entry: BotSessionEntry): ChannelToolContext {
+		return {
+			sessionKey: entry.id,
+			projectDir: entry.cwd ?? this.#defaultCwd,
+			...(entry.workspaceAlias !== undefined && { workspaceAlias: entry.workspaceAlias }),
+		};
 	}
 
 	/** The bot session id this chat currently uses ("" / null → relay). */
@@ -887,7 +1077,13 @@ export class SessionRouter {
 		id: string,
 	): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
 		if (id === "relay") {
-			await this.#webConfig.updateChatMapping(channelId, peer, { sessionId: null });
+			// Relay means the coordinator: drop the session pointer and any
+			// persisted project/direct binding that would keep answering for a repo.
+			await this.#webConfig.updateChatMapping(channelId, peer, {
+				sessionId: null,
+				workspaceAlias: null,
+				mode: null,
+			});
 			this.#runtimeBindings.delete(`${channelId}:${peer}`);
 			return { ok: true, id: "relay" };
 		}
@@ -898,7 +1094,13 @@ export class SessionRouter {
 		}
 		const ensured = await this.ensureBotSession(entry);
 		if (!ensured.ok) return ensured;
-		await this.#webConfig.updateChatMapping(channelId, peer, { sessionId: id });
+		// The selected session owns its project: a stale workspace binding must
+		// not keep routing this chat to a different repository.
+		await this.#webConfig.updateChatMapping(channelId, peer, {
+			sessionId: id,
+			workspaceAlias: null,
+			mode: null,
+		});
 		this.#runtimeBindings.delete(`${channelId}:${peer}`);
 		const lang = (await this.languageFor(channelId, peer)) ?? entry.lang;
 		if (lang) this.#applyLanguageToSession(ensured.session, lang);
@@ -910,15 +1112,23 @@ export class SessionRouter {
 		channelId: ChannelId,
 		peer: string,
 	): Promise<{ ok: true; session: AgentSession; id: string } | { ok: false; error: string }> {
-		const activeId = await this.activeBotSessionIdFor(channelId, peer);
-		if (activeId && activeId !== "relay") {
-			const entry = this.#webConfig.getBotSession(activeId);
+		// Same precedence as inbound routing: the chat's bot session or bound
+		// workspace, never a silent jump to the default workspace.
+		const target = await this.resolveChatTarget(channelId, peer);
+		if (target.kind === "bot") {
+			const entry = this.#webConfig.getBotSession(target.id);
 			if (entry) {
 				const ensured = await this.ensureBotSession(entry);
-				if (ensured.ok) return { ok: true, session: ensured.session, id: activeId };
+				if (ensured.ok) return { ok: true, session: ensured.session, id: target.id };
 				return { ok: false, error: ensured.error };
 			}
 		}
+		if (target.kind === "workspace") {
+			const dir = this.resolveDir(target.alias);
+			const handle = dir ? this.#sessions.get(dir) : undefined;
+			if (handle) return { ok: true, session: handle.session, id: target.alias };
+		}
+		if (target.kind === "unavailable") return { ok: false, error: target.error };
 		return { ok: true, session: this.#coordinator, id: "relay" };
 	}
 
@@ -1069,14 +1279,36 @@ export class SessionRouter {
 	 * according to `channels.reportPolicy` (see {@link reportDelegation}); the
 	 * reply is still returned to the coordinator as the tool result.
 	 */
-	async run(workspace: string, task: string): Promise<{ reply: string }> {
+	async run(workspace: string, task: string, caller?: ChannelToolContext): Promise<{ reply: string }> {
 		// Coordinating alias: delegate to the coordinator itself.
 		if (workspace === COORDINATOR_ALIAS) {
 			return { reply: `workspace_run: "${COORDINATOR_ALIAS}" is the coordinator; it already has this message.` };
 		}
-		const dir = this.resolveDir(workspace);
-		const handle = dir ? this.#sessions.get(dir) : undefined;
-		if (!handle || !dir) {
+		// Only registered workspaces are valid targets: an arbitrary absolute
+		// path must never open a directory nobody explicitly bound.
+		const resolved = this.resolveWorkspace(workspace);
+		if (!resolved) return { reply: `workspace_run: unknown workspace "${workspace}"` };
+		const dir = resolved.dir;
+		const alias = this.#aliasForDir(dir) ?? resolved.alias;
+		if (alias === undefined && !samePath(dir, caller?.projectDir)) {
+			return { reply: `workspace_run: workspace "${workspace}" is not registered; run @workspace open first` };
+		}
+		// A session explicitly bound to a project may only reach that project.
+		// The relay coordinator — and a project-less default-space session —
+		// keeps the documented cross-repo delegation role.
+		const callerProjectBound = caller !== undefined && !caller.relay && caller.workspaceAlias !== undefined;
+		if (caller && callerProjectBound && caller.projectDir && !samePath(caller.projectDir, dir)) {
+			return {
+				reply: `workspace_run: cross-project access denied: this session is bound to ${caller.projectDir}`,
+			};
+		}
+		let handle = this.#sessions.get(dir);
+		if (!handle && alias !== undefined) {
+			const opened = await this.open(dir, alias);
+			if (!opened.ok) return { reply: `workspace_run: ${opened.error}` };
+			handle = this.#sessions.get(dir);
+		}
+		if (!handle) {
 			return { reply: `workspace_run: unknown workspace "${workspace}"` };
 		}
 		const agentId = handle.session.getAgentId();
@@ -1088,9 +1320,9 @@ export class SessionRouter {
 			return { reply: "workspace_run: another delegation is already in flight; wait for it to finish" };
 		}
 
-		// The delegation reports to the chat that triggered it; a CLI/web-ui
-		// delegation has none and is never pushed anywhere.
-		const chat = this.#getLastInbound();
+		// The delegation reports to the chat that invoked the tool through this
+		// session; a CLI/web-ui delegation has none and is never pushed anywhere.
+		const chat = this.#chatForContext(caller) ?? this.#getLastInbound();
 		await this.#forwardReport(chat, "progress", `[${path.basename(dir)}] delegated: ${task}`);
 
 		const msg: IrcMessage = {
@@ -1147,20 +1379,52 @@ export class SessionRouter {
 		return { reply };
 	}
 
-	/** Resolve `channel_send` opts to a concrete channel + peer; null when unavailable. */
-	resolvePush(opts: { to?: string; channel?: string }): { channelId: ChannelId; to: string } | null {
+	/**
+	 * Resolve `channel_send` opts to a concrete channel + peer. A bot session
+	 * defaults to the chat it is answering; the relay uses the most recent
+	 * inbound. Callers that name a target must stay inside the peer allowlist
+	 * (checked by {@link push}).
+	 */
+	resolvePush(
+		opts: { to?: string; channel?: string },
+		caller?: ChannelToolContext,
+	): { channelId: ChannelId; to: string } | null {
 		const inbound = this.#getLastInbound();
-		const channelId = (opts.channel as ChannelId | undefined) ?? inbound?.channelId ?? null;
-		const to = opts.to ?? inbound?.peer ?? null;
+		const scoped = this.#chatForContext(caller);
+		const channelId = (opts.channel as ChannelId | undefined) ?? scoped?.channelId ?? inbound?.channelId ?? null;
+		const to =
+			opts.to ??
+			(channelId !== null && scoped?.channelId === channelId ? scoped.peer : undefined) ??
+			(channelId !== null && inbound?.channelId === channelId ? inbound.peer : undefined) ??
+			null;
 		if (!channelId || !to) return null;
 		return { channelId, to };
 	}
 
-	/** Push text through the channel runtime (channel_send tool sink). */
-	async push(opts: { text: string; to?: string; channel?: string }): Promise<void> {
-		const target = this.resolvePush(opts);
+	/**
+	 * Push text through the channel runtime (channel_send tool sink). Outbound
+	 * targets are checked against `channels.allowedPeers`: an agent cannot use
+	 * the tool to message a peer the operator never authorized.
+	 */
+	async push(opts: { text: string; to?: string; channel?: string }, caller?: ChannelToolContext): Promise<void> {
+		const target = this.resolvePush(opts, caller);
 		if (!target) throw new Error("No channel or peer bound to this session");
+		const allowedPeers = this.#webConfig.getData().channels.allowedPeers;
+		if (!isPeerAllowed(target.to, allowedPeers)) {
+			throw new Error(`channel_send: peer "${target.to}" is not in channels.allowedPeers`);
+		}
 		await this.#sendText(target.channelId, target.to, opts.text);
+	}
+
+	/** The chat that invoked a channel tool through `caller`'s session. */
+	#chatForContext(caller?: ChannelToolContext): { channelId: ChannelId; peer: string } | null {
+		if (!caller) return null;
+		if (caller.sessionKey === "coordinator") return this.#getLastInbound();
+		const last = this.#botLastChat.get(caller.sessionKey);
+		if (last) return { channelId: last.channelId, peer: last.peer };
+		const entry = this.#webConfig.getBotSession(caller.sessionKey);
+		if (entry?.platform && entry.chatId) return { channelId: entry.platform as ChannelId, peer: entry.chatId };
+		return null;
 	}
 
 	/** Dispose every target session and drop listeners. */

@@ -608,8 +608,9 @@ const HELP_TEXT = [
 	"  !status                   channel / routing / workspace / language / model overview",
 	"  !lang <zh|en>             set this chat's reply language",
 	"  !session list             list default-space sessions ({n} [id])",
-	"  !session new <name>       create a new default-space session",
+	"  !session new <name> [project:<alias>]  create a session bound to a repo",
 	"  !session use {n}|[id]     switch this chat to a session",
+	"  !session project <alias|main>  bind the active session to a project",
 	"  !session rename {n}|[id] <name>",
 	"  !session delete {n}|[id]  delete a session (relay is protected)",
 	"  !model                    list available models by number ({p-m})",
@@ -644,7 +645,11 @@ async function sendStatus(deps: WorkspaceRouterDeps): Promise<void> {
 		} else {
 			const activeId = await router.activeBotSessionIdFor(deps.channelId as never, deps.peer);
 			const active = activeId ? router.botSession(activeId) : undefined;
-			lines.push(active ? `当前路由: bot 会话 [${active.name}]` : "当前路由: relay 协调者 (main)");
+			lines.push(
+				active
+					? `当前路由: bot 会话 [${active.name}] → [${active.workspaceAlias ?? COORDINATOR_ALIAS}]`
+					: "当前路由: relay 协调者 (main)",
+			);
 		}
 		const snapshot = await router.statusSnapshot?.(deps.channelId as never, deps.peer);
 		if (snapshot) {
@@ -692,23 +697,52 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 			}
 			const lines = entries.map((entry, index) => {
 				const mark = entry.id === activeId ? " [当前]" : "";
+				const project = ` → [${entry.workspaceAlias ?? COORDINATOR_ALIAS}]`;
 				const chat = entry.chatId ? ` (${entry.platform ?? "?"}:${entry.chatId})` : "";
-				return `{${index + 1}} [${entry.id}] — ${entry.name} [${entry.tag}]${chat}${mark}`;
+				return `{${index + 1}} [${entry.id}] — ${entry.name} [${entry.tag}]${project}${chat}${mark}`;
 			});
 			await deps.sendText(["Bot 会话:", ...lines, "回复 !session use {n} 或 [id] 切换"].join("\n"));
 			return;
 		}
 		case "new": {
-			const name = parts.slice(2).join(" ");
+			const rest = parts.slice(2);
+			const projectIndex = rest.findIndex(part => /^project:/i.test(part));
+			const project = projectIndex >= 0 ? rest[projectIndex]!.slice("project:".length).trim() : undefined;
+			const name = rest
+				.filter((_, index) => index !== projectIndex)
+				.join(" ")
+				.trim();
 			if (!name) {
-				await deps.sendText("Usage: !session new <name>");
+				await deps.sendText("Usage: !session new <name> [project:<alias>]");
 				return;
 			}
-			const result = await router.createBotSession(name, "draft");
+			// A PM/secretary session binds one project at creation time; its
+			// runtime then runs in that repo, not the default workspace.
+			const result = await router.createBotSession(name, "draft", project ? { alias: project } : undefined);
 			if (result.ok) {
+				const where = result.entry.workspaceAlias ?? COORDINATOR_ALIAS;
 				await deps.sendText(
-					`会话 [${result.entry.name}] 已创建 (id [${result.entry.id}])。回复 !session use [${result.entry.id}] 切换。`,
+					`会话 [${result.entry.name}] 已创建 (id [${result.entry.id}], 项目 [${where}])。回复 !session use [${result.entry.id}] 切换。`,
 				);
+			} else {
+				await deps.sendText(result.error);
+			}
+			return;
+		}
+		case "project": {
+			const alias = parts[2];
+			if (!alias) {
+				await deps.sendText("Usage: !session project <alias|main>");
+				return;
+			}
+			const activeId = await router.activeBotSessionIdFor(deps.channelId as never, deps.peer);
+			if (!activeId || activeId === "relay") {
+				await deps.sendText("No active bot session for this chat. Use !session use <id> first.");
+				return;
+			}
+			const result = await router.bindBotSessionProject(activeId, alias);
+			if (result.ok) {
+				await deps.sendText(`Session bound to project [${result.alias ?? COORDINATOR_ALIAS}] → ${result.cwd}.`);
 			} else {
 				await deps.sendText(result.error);
 			}
@@ -774,7 +808,7 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 		}
 		default:
 			await deps.sendText(
-				"Usage: !session list | new <name> | use {n}|[id] | rename {n}|[id] <name> | delete {n}|[id]",
+				"Usage: !session list | new <name> [project:<alias>] | use {n}|[id] | project <alias|main> | rename {n}|[id] <name> | delete {n}|[id]",
 			);
 			return;
 	}

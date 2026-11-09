@@ -90,6 +90,17 @@ export interface BotSessionEntry {
 	tag: "relay" | "bot" | "draft";
 	/** Absolute path of the session transcript (`~/.zeta/agent/sessions/<cwd>/<name>-<id>.jsonl`). */
 	sessionFile: string;
+	/**
+	 * Absolute project directory this session is bound to. Present on every
+	 * session created after project routing; absent only on legacy entries
+	 * (and the relay entry, which lives in the default workspace).
+	 */
+	cwd?: string;
+	/**
+	 * Workspace alias of the bound project (`main` is the default workspace).
+	 * The bot/PM routes by this project, never by the global default.
+	 */
+	workspaceAlias?: string;
 	/** Bound channel chat id (bot sessions only). */
 	chatId?: string;
 	/** Bound platform (bot sessions only). */
@@ -725,7 +736,12 @@ export class WebConfig {
 	async updateChatMapping(
 		platform: SessionMapping["platform"],
 		chatId: string,
-		patch: { sessionId?: string | null; lang?: "zh" | "en" | null; workspaceAlias?: string | null },
+		patch: {
+			sessionId?: string | null;
+			lang?: "zh" | "en" | null;
+			workspaceAlias?: string | null;
+			mode?: "direct" | "relay" | null;
+		},
 	): Promise<void> {
 		await this.#mutate(data => {
 			const entries = data.remote.sessionMappings ?? [];

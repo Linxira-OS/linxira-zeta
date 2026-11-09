@@ -393,7 +393,7 @@ describe("routeWorkspaceCommand", () => {
 		});
 
 		expect(await routeWorkspaceCommand("!session list", "peer-1", deps)).toBe(true);
-		expect(calls.sent[0]).toContain("{1} [relay] — Zeta Bot (Relay) [relay] [当前]");
+		expect(calls.sent[0]).toContain("{1} [relay] — Zeta Bot (Relay) [relay] → [main] [当前]");
 		expect(calls.sent[0]).toContain("{2} [abc123] — Test [draft]");
 
 		expect(await routeWorkspaceCommand("!session new scratch", "peer-1", deps)).toBe(true);

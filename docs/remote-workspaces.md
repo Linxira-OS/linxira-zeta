@@ -14,10 +14,14 @@ only) you drive Zeta with the `!` command grammar below.
   **persistent session** (`~/.zeta/agent/sessions/<cwd>/zeta-bot.jsonl`) that
   shows up in the web session list and survives restarts. It is registered in
   `web.yml` as the `relay` bot session and can never be deleted.
-- **Bot sessions** — additional default-space sessions (tags `bot` / `draft`)
-  created with `!session new`. Each has its own transcript and context. The
-  relay session is shared by every unbound chat; a bot session is what one
-  chat uses while it is pointed at it (`!session use`).
+- **Bot sessions** — additional sessions (tags `bot` / `draft`) created with
+  `!session new`. Each has its own transcript and context. A session created
+  with `project:<alias>` is **bound to that repository**: it runs with that
+  repo's cwd, its transcript lives under that repo's session directory, and the
+  chat pointed at it (`!session use`) routes by that project — a PM/secretary
+  for one repo, not the global default workspace. The relay session is shared
+  by every unbound chat; a bot session is what one chat uses while it is
+  pointed at it.
 - **Workspaces** — other repositories registered with an alias. Each runs its
   own agent session in its own directory. They never message you directly;
   their replies return to the coordinator (unless the chat is bound direct).
@@ -26,16 +30,20 @@ only) you drive Zeta with the `!` command grammar below.
 
 Every inbound message resolves to a target:
 
-1. A runtime override from `@workspace use <alias>` / `*<alias>` (this chat),
-2. A persisted per-chat binding from `@workspace bind <alias>`,
-3. A channel default workspace (`channels.<id>.workspaceRoot` in `web.yml`),
-4. the chat's active bot session (`!session use <id>`),
-5. otherwise the relay coordinator (`main`).
+1. `@agent use` / `@team` (a runtime agent override for this chat),
+2. A runtime override from `@workspace use <alias>` / `*<alias>`,
+3. The chat's active bot session (`!session use <id>`) — its bound project,
+4. A persisted per-chat binding from `@workspace bind <alias>`,
+5. A channel default workspace (`channels.<id>.workspaceRoot` in `web.yml`),
+6. otherwise the relay coordinator (`main`, the default workspace).
 
 A bound chat is **direct mode**: messages go straight to the bound workspace
-and its reply returns to you. A chat pointed at a bot session talks to that
-session's own context. Everything else is **relay mode**: the coordinator
-decides (reply directly or delegate via `workspace_run`).
+and its reply returns to you. A chat pointed at a project-bound bot session
+talks to that session in its repo. Everything else is **relay mode**: the
+coordinator decides (reply directly or delegate via `workspace_run`). A
+binding that cannot be opened answers with an explicit error — it never falls
+back to the default workspace, which would answer for a repository it does not
+own.
 
 ## Command reference
 
@@ -51,9 +59,10 @@ is IME-independent.
 !help                       — full categorized reference
 !status                     — channels, current routing, workspaces, language, model
 !lang <zh|en>               — set this chat's reply language
-!session list               — list default-space sessions ({n} [id])
-!session new <name>         — create a new default-space session (draft)
-!session use {n}|[id]       — switch this chat to a session (relay goes back to relay)
+!session list               — sessions ({n} [id]), project, and the active one
+!session new <name> [project:<alias>] — create a session; project defaults to main
+!session use {n}|[id]       — switch this chat to a session (its project wins)
+!session project <alias|main> — rebind the active session to a repo / back to main
 !session rename {n}|[id] <name>
 !session delete {n}|[id]    — delete a session (the relay session is protected)
 !model                      — list available models by number ({p-m})
@@ -111,13 +120,16 @@ refreshes — always check the latest `!model` output.
 
 ## Default-space sessions
 
-`!session` manages extra default-space conversations beyond the shared relay.
-Each session has its own `.jsonl` transcript under
-`~/.zeta/agent/sessions/<cwd>/<name>-<id>.jsonl`; switching (`!session use {n}`)
-changes where that chat's messages go — history stays on the machine, per
-session. Deleting a session removes its transcript and any chat referencing it
-falls back to the relay. The `relay` session is the coordinator's transcript
-and **cannot be deleted**.
+`!session` manages conversations beyond the shared relay. Each session has
+its own `.jsonl` transcript under
+`~/.zeta/agent/sessions/<cwd>/<name>-<id>.jsonl`; `cwd` is the session's
+project. `!session new PM project:web` binds the new session to the `web`
+repository (the alias must already be registered with `@workspace open`);
+`!session project web` rebinds an existing session. `!session use {n}` points
+this chat at it — and clears any stale direct workspace binding, so the
+session's project is authoritative. `!session list` shows each session's
+project (`→ [alias]`). The `relay` session is the coordinator's transcript in
+the default workspace and **cannot be deleted or rebound**.
 
 Session files are tagged (`relay` / `bot` / `draft`) in the web session list.
 The web sidebar hides relay/bot sessions by default; toggle **Show hidden bot
@@ -145,10 +157,15 @@ output.
   inbound IM message), waits for that session's final reply, and returns it
   prefixed with `[<alias>]`. Delegation is **sequential**: one `workspace_run`
   at a time, so the coordinator can delegate to A, then B, then C and
-  summarize — it never fans out concurrently.
+  summarize — it never fans out concurrently. Targets must be **registered**
+  workspaces (an arbitrary absolute path is rejected); a project-bound bot
+  session may only delegate within its own project — cross-project access is
+  refused, while the relay coordinator keeps its documented cross-repo role.
 - `channel_send { text, to?, channel? }` — the coordinator pushes a message
   to you; `channel`/`to` default to the chat the current turn came from, and
-  can target another platform explicitly.
+  can target another platform explicitly. Outbound targets are checked against
+  `channels.allowedPeers`: an agent cannot message a peer the operator never
+  authorized.
 
 ## Plan approval (`!plan`)
 
@@ -164,11 +181,11 @@ uses the same `plan_approve` path.
 
 `web.yml` stores registered workspaces (`remote.workspaces: [{alias, path}]`),
 per-chat bindings (`remote.sessionMappings: [{platform, chatId,
-workspaceAlias, mode}]`), the default-space bot-session registry
-(`remote.botSessions: [{id, name, tag, sessionFile, …}]`), and the sidebar
-toggle (`remote.showBotSessions`), so all of it survives restarts.
-`@workspace use` is a runtime-only override; `@workspace bind` and `!session`
-operations persist.
+workspaceAlias, mode}]`), the bot-session registry
+(`remote.botSessions: [{id, name, tag, sessionFile, cwd, workspaceAlias, …}]`),
+and the sidebar toggle (`remote.showBotSessions`), so all of it survives
+restarts. `@workspace use` is a runtime-only override; `@workspace bind` and
+`!session` operations persist.
 
 ## Remote access
 
@@ -241,13 +258,13 @@ token, so a config file that still shows an old value cannot re-enable it.
 The gate keys on the **socket peer address**, never the client-supplied `Host`
 header:
 
-| Caller | Result |
-| --- | --- |
-| loopback (`127.0.0.1`, `::1`, `localhost`) | passes, local UI/desktop |
-| non-loopback + valid, non-revoked token | passes |
-| non-loopback + missing/wrong/revoked token | **401** + `WWW-Authenticate: Bearer` |
-| cross-site `Origin` from an unauthenticated loopback browser | **403** (CSRF guard) |
-| peer with ≥10 failed attempts in 60 s | **429** + `Retry-After: 60` |
+| Caller                                                       | Result                               |
+| ------------------------------------------------------------ | ------------------------------------ |
+| loopback (`127.0.0.1`, `::1`, `localhost`)                   | passes, local UI/desktop             |
+| non-loopback + valid, non-revoked token                      | passes                               |
+| non-loopback + missing/wrong/revoked token                   | **401** + `WWW-Authenticate: Bearer` |
+| cross-site `Origin` from an unauthenticated loopback browser | **403** (CSRF guard)                 |
+| peer with ≥10 failed attempts in 60 s                        | **429** + `Retry-After: 60`          |
 
 The limiter is per-peer, in-memory (a serve restart clears it), and blocks
 even a correct token while active — brute-forcing cannot use the rate limit
@@ -301,4 +318,3 @@ authentication.
   is never cached. Registration only happens in a production build over HTTPS
   (or localhost).
 - Voice input uses the phone's own IME; no extra permission is requested.
-

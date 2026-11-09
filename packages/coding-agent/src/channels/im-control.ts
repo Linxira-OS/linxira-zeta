@@ -19,6 +19,7 @@ export type ImControlOperation =
 	| "list_sessions"
 	| "use_session"
 	| "new_session"
+	| "bind_project"
 	| "rename_session"
 	| "delete_session"
 	| "set_language"
@@ -32,6 +33,8 @@ export interface ImControlParams {
 	session?: string;
 	/** Display name for new_session / rename_session. */
 	name?: string;
+	/** Project (workspace alias, or `main`) for new_session / bind_project. */
+	project?: string;
 	/** Reply language for set_language. */
 	language?: "zh" | "en";
 	/** Provider id from list_models, for set_model. */
@@ -109,8 +112,9 @@ export async function runImControl(
 			if (entries.length === 0) return { text: "没有默认空间会话。可以用 new_session 创建。" };
 			const lines = entries.map((entry, index) => {
 				const mark = entry.id === activeId ? " [当前]" : "";
+				const project = ` → [${entry.workspaceAlias ?? COORDINATOR_ALIAS}]`;
 				const chatLabel = entry.chatId ? ` (${entry.platform ?? "?"}:${entry.chatId})` : "";
-				return `{${index + 1}} [${entry.id}] — ${entry.name} [${entry.tag}]${chatLabel}${mark}`;
+				return `{${index + 1}} [${entry.id}] — ${entry.name} [${entry.tag}]${project}${chatLabel}${mark}`;
 			});
 			return { text: ["Bot 会话:", ...lines, "回复 use_session {n} 或 [id] 切换"].join("\n") };
 		}
@@ -129,11 +133,24 @@ export async function runImControl(
 		case "new_session": {
 			const name = params.name?.trim();
 			if (!name) return { text: "需要提供会话名称（name），例如 new_session name=test。", isError: true };
-			const result = await router.createBotSession(name, "draft");
+			const project = params.project?.trim() || undefined;
+			const result = await router.createBotSession(name, "draft", project ? { alias: project } : undefined);
 			if (!result.ok) return { text: result.error, isError: true };
+			const where = result.entry.workspaceAlias ?? COORDINATOR_ALIAS;
 			return {
-				text: `会话 [${result.entry.name}] 已创建 (id [${result.entry.id}])。回复 use_session [${result.entry.id}] 切换。`,
+				text: `会话 [${result.entry.name}] 已创建 (id [${result.entry.id}]，项目 [${where}])。回复 use_session [${result.entry.id}] 切换。`,
 			};
+		}
+		case "bind_project": {
+			const project = params.project?.trim();
+			if (!project) return { text: "需要提供项目别名（project），例如 bind_project project=web。", isError: true };
+			const activeId = await router.activeBotSessionIdFor(channelId, peer);
+			if (!activeId || activeId === "relay") {
+				return { text: "当前聊天没有选中的 bot 会话；先 use_session 选择一个会话。", isError: true };
+			}
+			const result = await router.bindBotSessionProject(activeId, project);
+			if (!result.ok) return { text: result.error, isError: true };
+			return { text: `会话已绑定项目 [${result.alias ?? COORDINATOR_ALIAS}] → ${result.cwd}。` };
 		}
 		case "rename_session": {
 			const name = params.name?.trim();
@@ -192,7 +209,11 @@ export async function runImControl(
 			} else {
 				const activeId = await router.activeBotSessionIdFor(channelId, peer);
 				const active = activeId ? router.botSession(activeId) : undefined;
-				lines.push(active ? `当前路由: bot 会话 [${active.name}]` : "当前路由: relay 协调者 (main)");
+				lines.push(
+					active
+						? `当前路由: bot 会话 [${active.name}] → [${active.workspaceAlias ?? COORDINATOR_ALIAS}]`
+						: "当前路由: relay 协调者 (main)",
+				);
 			}
 			const workspaces = router.list();
 			lines.push(
