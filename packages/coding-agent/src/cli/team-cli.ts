@@ -193,7 +193,7 @@ function printRoomList(teamRoot: string | undefined, rooms: Awaited<ReturnType<t
 		return;
 	}
 	for (const room of rooms) {
-		const pm = room.pmId ? ` pm=${room.pmId}` : "";
+		const pm = room.pmId ? `(${room.pmId})` : "";
 		const last = room.lastSeq === null ? "no events" : `last=#${room.lastSeq}`;
 		process.stdout.write(`${room.name}  ${room.kind}${pm}  members=${room.memberCount}  ${last}\n`);
 	}
@@ -202,7 +202,7 @@ function printRoomList(teamRoot: string | undefined, rooms: Awaited<ReturnType<t
 
 function printRoomView(view: RoomView): void {
 	const { room, members, events } = view;
-	const pm = room.pmId ? ` pm=${room.pmId}` : "";
+	const pm = room.pmId ? ` ${room.pmId}` : "";
 	process.stdout.write(`Room ${room.name} (${room.kind}${pm}) ${members.length} member(s)\n`);
 	for (const member of members) process.stdout.write(`  - ${member.agentId} (${member.role})\n`);
 	if (events.length === 0) {
@@ -236,7 +236,7 @@ async function runRoom(options: TeamCliOptions, rest: string[]): Promise<void> {
 		if (options.json) {
 			writeJson(result);
 		} else {
-			const pm = result.room.pmId ? ` pm=${result.room.pmId}` : "";
+			const pm = result.room.pmId ? ` ${result.room.pmId}` : "";
 			process.stdout.write(
 				`Created room "${result.room.name}" (${result.room.kind}${pm}) with ${result.members.length} member(s)\n`,
 			);
