@@ -36,7 +36,7 @@ export default class Team extends Command {
 			description: "Clone URL (repo add)",
 		}),
 		pm: Flags.string({
-			description: "PM id (repo bind, engineer add, worktree add)",
+			description: "PM id (repo bind, engineer add, worktree add, room create)",
 		}),
 		repo: Flags.string({
 			description: "Base repository name (engineer add, worktree add)",
