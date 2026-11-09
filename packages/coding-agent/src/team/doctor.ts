@@ -173,6 +173,12 @@ async function checkBaseRepo(
 		doctor.fail(`repo.git:${repo.name}`, `Base repository is not a Git repository: ${repo.basePath}`);
 		return null;
 	}
+	const linked = handle.linkedWorktree();
+	doctor.add(
+		`repo.primary:${repo.name}`,
+		linked === null,
+		linked === null ? "primary checkout" : "Base repository is a linked worktree, not a primary checkout",
+	);
 	const info = handle.info();
 	doctor.add(
 		`repo.root:${repo.name}`,

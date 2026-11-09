@@ -267,6 +267,11 @@ async function inspectBaseRepo(basePath: string): Promise<BaseRepoFacts> {
 	if (!samePath(info.repoRoot, basePath)) {
 		throw new TeamError(`${basePath} is not a repository root (repository root is ${info.repoRoot})`);
 	}
+	if (handle.linkedWorktree()) {
+		throw new TeamError(
+			`${basePath} is a linked worktree; register its primary base repository instead (linked worktrees belong under the team's worktrees/)`,
+		);
+	}
 	const defaultBranch = (await handle.defaultBranch()) ?? (await handle.currentBranch());
 	if (!defaultBranch) throw new TeamError(`Cannot determine the default branch of ${basePath}`);
 	const branch = await handle.currentBranch();
