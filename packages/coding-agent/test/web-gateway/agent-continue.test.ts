@@ -4,8 +4,9 @@
  * The command drives `AgentSession.resume()` (the operator's `.`/`c` shortcut):
  * recovery re-runs an unanswered prompt ("restored"), otherwise the hidden
  * synthetic continue is sent ("continue"), an empty conversation is "none", and
- * a running turn is refused. Asserting the synthetic flag is the contract
- * guarantee that the operator's continue never becomes a user message.
+ * a running turn is interrupted and resumed ("restored"). Asserting the
+ * synthetic flag is the contract guarantee that the operator's continue never
+ * becomes a user message.
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as path from "node:path";
@@ -15,7 +16,7 @@ import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentSession, SessionBusyError, type PromptOptions } from "@linxiraos/zeta/session/agent-session";
+import { AgentSession, type PromptOptions } from "@linxiraos/zeta/session/agent-session";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { AgentSessionWrapper } from "../../src/server/web-gateway/agents";
@@ -114,26 +115,19 @@ describe("web-gateway continue command", () => {
 		expect(roles).toEqual(["user", "assistant", "developer", "assistant"]);
 	});
 
-	test("refuses while a turn is running", async () => {
-		const { wrapper, session: created, mock } = createHarness([{ content: ["host answer"] }]);
-		const observed = Promise.withResolvers<unknown>();
-		let checked = false;
-		created.agent.setOnBeforeYield(async () => {
-			if (checked) return;
-			checked = true;
-			try {
-				await wrapper.send({ type: "continue" });
-				observed.resolve(undefined);
-			} catch (error) {
-				observed.resolve(error);
-			}
-		});
+	test("interrupts a running turn and resumes it", async () => {
+		const stall = stalledResponse();
+		const { wrapper, session: created, mock } = createHarness([stall.handler, { content: ["host answer"] }]);
+		const running = created.prompt("long turn");
+		await stall.started;
 
-		await created.prompt("long turn");
+		// The operator's continue on a live turn is an interrupt-and-resume, not a refusal.
+		await expect(wrapper.send({ type: "continue" })).resolves.toEqual({ started: true, mode: "restored" });
+		await running;
+		await created.waitForIdle();
 
-		expect(await observed.promise).toBeInstanceOf(SessionBusyError);
-		// The refusal never reached the model: only the running turn's call.
-		expect(mock.calls).toHaveLength(1);
+		// The interrupted call plus its answered rerun.
+		expect(mock.calls).toHaveLength(2);
 	});
 
 	test("resume reports the recovery branch as restored", async () => {
