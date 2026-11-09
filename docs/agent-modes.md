@@ -26,9 +26,9 @@ defines them so they are not used interchangeably.
 | Personal Harness | **PARTIAL** | Kept default workspace, `PERSONA.md`, project-scoped memory, relay + bot sessions, IM hosting; first-class multiple personal main agents and persisted chat → agent bindings are incomplete |
 | PM / Super Agent | **PLANNED** | Board and calendar tools ship; a project-bound bot session is the nearest existing shape; no PM prompt, PM Team, engineer roster, or secretary |
 | Workspace, main agent, relay | **IMPLEMENTED** | Workspace container, top-level sessions, `agent://` messaging, relay fallback |
-| External binding | **PARTIAL** | Chat → workspace and chat → bot session persist; `@agent use` is a runtime override; a first-class binding identity is planned |
-| Session origin | **PARTIAL** | `relay` / `bot` / `draft` tags exist; a structured origin stamp is being added and readers fall back to those tags when it is absent |
-| IM visibility in local lists | **PARTIAL** | The legacy web sidebar can hide relay/bot sessions by tag; one IM / Bot group, History filter, TUI picker filter, and alias labels across Work Studio and the TUI are not all shipped |
+| External binding | **PARTIAL** | Runtime chat → agent (`@agent use`) and persisted chat → workspace/bot-session bindings ship; persisted chat → `agentId` is planned |
+| Session origin | **IMPLEMENTED** | Optional `origin` header (`im` + channel/chat/bot session/agent/binding/workspace alias); absent means `local`; legacy `relay` / `bot` / `draft` tags remain the fallback |
+| IM visibility in local lists | **IMPLEMENTED** (local surfaces) / **PLANNED** (binding-scoped mobile) | Work Studio, History, the resume picker, and `history.list` hide IM conversations by default behind an explicit IM / Bot filter; alias labels replace absolute cwds. A mobile client scoped to one binding is planned |
 | Context rotation | **PARTIAL** | JSONL is not size-capped; compaction and `/handoff` summarize in place; `/rotate` plus archive-and-link is planned |
 | Board and calendar tools | **IMPLEMENTED** | Both are built-in and project-scoped; subagents receive them only by explicit profile opt-in. No Work Studio calendar page |
 
@@ -158,10 +158,10 @@ target. It is not a workspace registration and it grants no permissions.
   overrides do not persist.
 - A channel can also have a default workspace (`channels.<id>.workspaceRoot`),
   which is consulted after the per-chat bindings.
-- The first-class shape is `{ channel, chatId, agentId, bindingId,
-  workspaceAlias }`, recorded as a session origin. That is the **PLANNED**
-  part; today the route targets a workspace alias or a bot session, and
-  `@agent use` is only a runtime override.
+- The session origin records `{ channel, chatId, agentId, bindingId,
+  workspaceAlias }` when known. Persisting a chat binding to one `agentId`
+  is **PLANNED**; today the persisted route targets a workspace alias or a bot
+  session, and `@agent use` is a runtime-only override.
 
 ### Session origin — local vs `im`
 
@@ -174,18 +174,18 @@ conversation is still a normal transcript with the normal agent.
 - `im` — a conversation that arrived through an external channel.
 - The stamp is optional and additive. Older transcripts carry none; readers
   fall back to the `relay` / `bot` / `draft` tag in `web.yml`.
-
-The structured `im` stamp is **PLANNED** and follows these rules:
-
 - Its shape is
   `{ kind: "im", channel?, chatId?, agentId?, bindingId?, botSessionId?,
-  workspaceAlias? }`.
+  workspaceAlias? }`. `agentId` and `bindingId` are reserved for a default
+  workspace that hosts several main agents; a mobile client scoped to one
+  binding filters by them.
 - A malformed origin reads as absent, so it can never hide a personal session.
 - For an IM row, display the workspace alias, else `IM · <channel>`, else a
   generic IM/default-workspace label. Do not print the absolute host path.
 
-Status: **PARTIAL**. The tags and the fallback ship; the structured `origin`
-header and the surfaces that consume it are the remaining work.
+Status: **IMPLEMENTED** for the header, the fallback tag path, and the local
+list filters. Persisting a chat binding to one `agentId` and serving a
+binding-scoped mobile view are **PLANNED**.
 
 ### Relay — the fallback, only when unbound
 
@@ -206,8 +206,8 @@ no binding.
 
 The rule:
 
-- Local personal surfaces (Work Studio sidebar, History, command palette, and
-  the TUI resume picker) show personal (`local`) conversations by default.
+- Local personal surfaces — the Work Studio sidebar, Work Studio History, and
+  the TUI resume picker — show personal (`local`) conversations by default.
   IM/relay/bot conversations appear only through an explicit **IM / Bot**
   group or filter.
 - A mobile/external client scoped to one binding shows only that binding's
@@ -215,12 +215,11 @@ The rule:
 - An IM row is labelled by workspace alias or `IM · <channel>`, never by an
   absolute filesystem path. The path may still be available in details/copy.
 
-Status: **PARTIAL**. Sessions are tagged `relay` / `bot` / `draft` and the
-gateway exposes the tag; the legacy web sidebar hides them unless
-`remote.showBotSessions` is on. Work Studio, History, the command palette, and
-the TUI resume picker do not yet share one IM / Bot group, filter, and alias
-label. Treat the group/filter behavior as the target until those surfaces
-consume the origin stamp.
+Status: **IMPLEMENTED** for the local surfaces. The origin stamp drives the
+default filter, with the `relay` / `bot` / `draft` tag as the fallback for
+transcripts written before it existed; `history.list` and the resume
+directory take the same `includeIm` opt-in. **PLANNED:** a mobile client
+scoped to one binding, which filters on the origin's `agentId` / `bindingId`.
 
 ## 4. Board and calendar
 

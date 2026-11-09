@@ -2,6 +2,19 @@
 
 > Real, file-backed calendar events for the current project — list, inspect, create, update, and delete.
 
+## Status
+
+**IMPLEMENTED on `main` (PR #261); not yet in a tagged release.** The built-in
+tool writes `.zeta/calendar/events/<id>.json` in the session's project and has
+no path/cwd input, so projects stay isolated. Top-level sessions receive it by
+default; a subagent receives it only with an explicit `calendar` grant.
+
+There is **no Work Studio calendar UI**: the Studio Team prototype
+(`web-app/src/studio/team/TeamPage.tsx`) has a fixture-only Calendar view, and
+the gateway exposes no calendar route. The tool is the supported surface; see
+the sibling [`board`](./board.md) tool for the other project-scoped built-in
+with a gateway/panel surface.
+
 ## Source
 
 - Entry: `packages/coding-agent/src/tools/calendar.ts`

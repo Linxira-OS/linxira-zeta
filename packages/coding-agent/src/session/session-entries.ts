@@ -14,6 +14,7 @@ import type { CompactionMethod } from "./compaction-methods";
 import type { WorkPoolYieldItem } from "../task/workpool-yield";
 import type { RetryFallbackRole } from "./retry-fallback-chains";
 import type { RuntimeIdentity } from "./runtime-identity";
+import type { SessionOrigin } from "./session-origin";
 
 export const CURRENT_SESSION_VERSION = 3;
 
@@ -69,6 +70,13 @@ export interface SessionHeader {
 	 */
 	client?: SessionClient;
 	/**
+	 * Present when the conversation belongs to an IM/bot/relay channel rather
+	 * than a personal coding session. Personal sessions leave it absent; a
+	 * session written before the stamp existed reads as personal here and is
+	 * still recognised through the web.yml bot-session tag.
+	 */
+	origin?: SessionOrigin;
+	/**
 	 * Additional workspace directories beyond `cwd` (multi-root workspace).
 	 * Absolute, normalized, deduplicated. Absent on legacy single-cwd sessions.
 	 * See {@link SessionWorkspace} in `./session-workspace`.
@@ -102,6 +110,12 @@ export interface NewSessionOptions {
 	 * session being replaced", which is what `/new`, branch and fork want.
 	 */
 	client?: SessionClient;
+	/**
+	 * Origin stamp for a conversation that belongs to an IM/bot channel. Omitted
+	 * for personal sessions; `/new` inside an IM conversation keeps the current
+	 * stamp unless a caller passes another.
+	 */
+	origin?: SessionOrigin;
 	/** Provider prompt-cache identity to seed on the new session header. */
 	providerPromptCacheKey?: string;
 	taskPromptCacheKey?: string;

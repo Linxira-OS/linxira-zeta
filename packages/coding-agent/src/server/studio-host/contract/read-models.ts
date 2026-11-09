@@ -192,6 +192,23 @@ export interface DiagnosticReadModel {
 
 export type SessionHistoryStatus = "active" | "archived" | "closed";
 
+/**
+ * IM/bot/relay provenance of a session. A personal coding session has none;
+ * the UI keeps IM conversations out of the personal lists by default and
+ * offers them in a separate group.
+ */
+export interface SessionOriginSummary {
+	readonly kind: "im";
+	readonly channel?: string;
+	readonly chatId?: string;
+	readonly botSessionId?: string;
+	readonly workspaceAlias?: string;
+	/** Main agent owning the conversation when the default workspace hosts several. */
+	readonly agentId?: string;
+	/** Channel/chat binding identity (mobile clients scope to one binding). */
+	readonly bindingId?: string;
+}
+
 /** One session-history row: opaque ids plus a safe, path-free summary. */
 export interface SessionHistoryEntry {
 	readonly historyId: HistoryEntryId;
@@ -208,6 +225,8 @@ export interface SessionHistoryEntry {
 	readonly status: SessionHistoryStatus;
 	/** OMP v18 global session pin state; optional for older Hosts. */
 	readonly pinned?: boolean;
+	/** IM/bot/relay provenance; absent on personal sessions. */
+	readonly origin?: SessionOriginSummary;
 }
 
 export interface SessionHistoryReadModel {

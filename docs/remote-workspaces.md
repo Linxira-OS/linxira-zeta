@@ -9,6 +9,23 @@ The mode and routing vocabulary used here — Personal Harness, workspace, main
 agent, external binding, session origin, relay — is defined in
 [agent-modes.md](./agent-modes.md).
 
+## Status
+
+| Behavior | Status | Detail |
+| -------- | ------ | ------ |
+| Project-bound bot sessions | **IMPLEMENTED** (PR #259) | A bot session created/flipped with `project:<alias>` runs in that repo's `cwd`, keeps its transcript under that repo's session directory, and routes the chat by that project. |
+| No default-workspace fallback | **IMPLEMENTED** (PR #259) | A binding that cannot be opened replies with an explicit error; the relay/default workspace never answers for another repository. |
+| `!session new <name> project:<alias>` / `!session project` | **IMPLEMENTED** | The alias must already be a registered workspace; `project` defaults to `main` (the default workspace). |
+| Cross-project denial | **IMPLEMENTED** | A project-bound bot session's `workspace_run` may only reach its own project; arbitrary paths and other projects are refused. The relay coordinator keeps its documented cross-repo role. |
+| `channel_send` allowlist | **IMPLEMENTED** | Outbound targets are checked against `channels.allowedPeers`; an agent cannot message a peer the operator never authorized. |
+| Channel+chat → one agent | **IMPLEMENTED** (runtime) | `@agent use` binds a chat to one agent target for the life of the process; the override is in-memory and clears on restart. |
+| Persisted channel+chat → `agentId` | **PLANNED** | Persisting the agent binding and hosting several main agents in the default workspace is design-only; today bindings persist as workspace/bot-session rows. |
+| Local IM session hiding | **IMPLEMENTED** | Work Studio sidebar/History, the TUI resume picker, and `history.list` hide relay/bot/IM sessions by default behind an explicit **IM / Bot** filter. IM rows use a workspace alias or `IM · <channel>`, not an absolute path. A binding-scoped mobile view is planned. |
+
+Tool contracts: [`workspace_run`](./tools/workspace_run.md),
+[`channel_send`](./tools/channel_send.md), [`im_control`](./tools/im-control.md).
+Channel hosting and credentials: [IM channels](./channels.md).
+
 ## Roles
 
 - **Coordinator / Relay** (alias `main`, session name "Zeta Bot (Relay)") — the

@@ -210,6 +210,17 @@ export interface DiagnosticReadModel {
 export type SessionHistoryStatus = "active" | "archived" | "closed";
 
 /** One session-history row: opaque ids plus a safe, path-free summary. */
+/** IM/bot/relay provenance of a session; absent on personal coding sessions. */
+export interface SessionOriginSummary {
+  readonly kind: "im";
+  readonly channel?: string;
+  readonly chatId?: string;
+  readonly botSessionId?: string;
+  readonly workspaceAlias?: string;
+  readonly agentId?: string;
+  readonly bindingId?: string;
+}
+
 export interface SessionHistoryEntry {
   readonly historyId: HistoryEntryId;
   readonly threadId: ThreadId;
@@ -225,6 +236,8 @@ export interface SessionHistoryEntry {
   readonly status: SessionHistoryStatus;
   /** OMP v18 global session pin state; optional for older Hosts. */
   readonly pinned?: boolean;
+  /** IM/bot/relay provenance; absent on personal sessions. */
+  readonly origin?: SessionOriginSummary;
 }
 
 export interface SessionHistoryReadModel {
