@@ -1,8 +1,9 @@
 # Team foundation (paths, database, rooms, and the Team Hub)
 
-`zetacode team` implements the Team path model and its first collaboration
-primitive: the ownerless team root, PM workspaces, canonical base repositories,
-PM bindings, engineers, linked worktrees, and database-only rooms. The TUI adds
+`zetacode team` implements the **Zeta Team** product surface (Team mode) and
+its first collaboration primitive: the ownerless team root, PM workspaces,
+canonical base repositories, PM bindings, engineers, linked worktrees, and
+database-only rooms. The TUI adds
 **path entry** and the **Team Hub**: launching at a Team root or PM workspace
 opens a read/write view of the Team database, while engineer worktrees and base
 repositories open the ordinary coding TUI. Explicit session launches

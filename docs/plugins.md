@@ -8,7 +8,7 @@ Everything on this page was verified by running the commands against a source ch
 
 | Shape | Identified by | Installed by | Managed by |
 | --- | --- | --- | --- |
-| **Zeta plugin** (npm, git, local link, or marketplace install) | `package.json` with a `zeta`/`omp`/`pi` manifest block, and an entry in the plugin lockfile | `zetacode plugin install …`, `zetacode plugin link …`, `/marketplace install name@marketplace` | `zetacode plugin …`, `/plugins …` |
+| **Zeta plugin** (npm, git, local link, or marketplace install) | `package.json` with a `zeta`/`pi` manifest block, and an entry in the plugin lockfile | `zetacode plugin install …`, `zetacode plugin link …`, `/marketplace install name@marketplace` | `zetacode plugin …`, `/plugins …` |
 | **Agent Plugins package** | a root `plugin.json` whose `$schema` is `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json` | dropped into any plugin root by a marketplace or by hand | discovered only; contributes `skills/` and `mcp.json` |
 | **Extension package** | a directory named in the `extensions` setting (or `-e`/`--extension`, or the desktop "packages" UI) | `zetacode config set extensions …`, the desktop UI, `-e` | `settings.extensions` / `settings.disabledExtensions` |
 
@@ -47,18 +47,17 @@ reader asks for. A pre-rename `zeta-plugins.lock.json` is **not** read.
 
 Read [`marketplace.md`](./marketplace.md#on-disk-layout) for the cache layout and the version-keying rules.
 
-### Three manifest spellings, one loader
+### Two manifest spellings, one loader
 
-A plugin declares its manifest in `package.json` under one of three keys, in
-this precedence order: `zeta` (ours), then the upstream `omp` and `pi` keys that
-stay readable so an upstream package still loads. Every surface — the CLI's
+A plugin declares its manifest in `package.json` under one of two keys, in
+this precedence order: `zeta` (ours), then the upstream `pi` key that stays
+readable so an upstream package still loads. Every surface — the CLI's
 listing and health checks, the session loader, extension-directory resolution,
 and the sub-discovery provider — reads the same list
 (`PLUGIN_MANIFEST_KEYS` in `packages/coding-agent/src/extensibility/plugins/types.ts`,
 through `readPluginManifest`), so a package that `zetacode plugin list` accepts
-is exactly the set a session can load. A `zeta`-only manifest loads; so does an
-`omp`-only or `pi`-only one; a package declaring several is read as the most
-specific one.
+is exactly the set a session can load. A `zeta`-only manifest loads; so does a
+`pi`-only one; a package declaring both is read as `zeta`.
 
 The keys the loader consumes are `extensions` (module entry points) and `features`; the runtime also reads `settings` (schema for `zetacode plugin config`) and `locales` (message catalogues for `ctx.t()`, see below). `tools`, `hooks`, and `commands` manifest keys are resolved by `resolvePluginToolPaths`/`resolvePluginHookPaths`/`resolvePluginCommandPaths`, but nothing in the product calls them — a plugin contributes its tools/commands/hooks by registering them from an `extensions` module. `skills` is likewise **not** an implemented manifest key: a plugin's skills are found by directory convention (`<plugin>/skills/<name>/SKILL.md`), which is why the official plugin's `"skills": ["./skills"]` entry is inert but its skill still loads.
 

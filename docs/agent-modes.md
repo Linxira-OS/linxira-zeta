@@ -7,7 +7,7 @@ not in how a turn executes:
 | --- | --- | --- |
 | **Coding Agent** | A project directory (the session cwd) | That project's code, tools, and project state |
 | **Personal Harness** | The kept default workspace | The person's conversations; a project only when explicitly bound |
-| **PM / Super Agent** | A manually bound project | That project's task/board/calendar and the team around it |
+| **Lead mode** (PM) | A manually bound Team PM workspace | That project's task/board/calendar and the Team around it |
 
 A mode is a product role, not a separate engine. A session, a workspace, a
 chat binding, and a relay are distinct concepts inside all three; this page
@@ -18,13 +18,23 @@ defines them so they are not used interchangeably.
 > missing ones are named. **PLANNED** means no shipped behavior yet — the text
 > describes the target only, never current behavior.
 
+## Naming glossary
+
+- **Zeta Team** — the product surface: Team paths, the Team database, rooms, and the Team Hub.
+- **Team mode** — coordination inside a Zeta Team (PM/engineer roles and rooms), distinct from Vibe mode.
+- **Team Hub** — the database-backed UI opened by `/team hub` or a Team-root launch; never an agent.
+- **Lead mode** — the PM main agent's mode in a Team PM workspace (`/lead`, alias `/pm`).
+- **Vibe mode** — director mode over persistent worker sessions (`/vibe`).
+- **Super Agent** — Vibe mode's director metaphor only; never a Team role or product.
+- **TIM** — the Tencent IM channel adapter; never a Team product. "Super Team" is not a product name.
+
 ## Status at a glance
 
 | Area | Status | What exists now |
 | --- | --- | --- |
 | Coding Agent | **IMPLEMENTED** | Project cwd, normal coding prompt, existing tools and session behavior |
 | Personal Harness | **PARTIAL** | Kept default workspace, `PERSONA.md`, project-scoped memory, relay + bot sessions, IM hosting; first-class multiple personal main agents and persisted chat → agent bindings are incomplete |
-| PM / Super Agent | **PARTIAL** | `/lead` (alias `/pm`) runs the PM main agent in a registered Team PM workspace with rooms, board, calendar, and one PM-owned persistent Secretary; channel bindings and the full Team graph do not ship |
+| Lead mode (PM) | **PARTIAL** | `/lead` (alias `/pm`) runs the PM main agent in a registered Team PM workspace with rooms, board, calendar, the Team Hub, and one PM-owned persistent Secretary; channel bindings and the full Team graph do not ship |
 | Workspace, main agent, relay | **IMPLEMENTED** | Workspace container, top-level sessions, `agent://` messaging, relay fallback |
 | External binding | **PARTIAL** | Runtime chat → agent (`@agent use`) and persisted chat → workspace/bot-session bindings ship; persisted chat → `agentId` is planned |
 | Session origin | **IMPLEMENTED** | Optional `origin` header (`im` + channel/chat/bot session/agent/binding/workspace alias); absent means `local`; legacy `relay` / `bot` / `draft` tags remain the fallback |
@@ -75,11 +85,11 @@ and one uniform personal-surface presentation for several personal agents.
 Those are the remaining PARTIAL pieces; do not describe a Personal Harness as
 owning a repository unless it was explicitly bound.
 
-### PM / Super Agent — PARTIAL
+### Lead (PM) mode — PARTIAL
 
-The PM / Super Agent is the project manager for a Team PM workspace. Lead mode
-ships the PM main agent's coordination surface and its PM-owned persistent
-Secretary; Team Hub is a separate UI.
+Lead mode runs the PM main agent for a Team PM workspace. It ships the PM's
+coordination surface and its PM-owned persistent Secretary; the Team Hub is a
+separate shipped UI over the Team database.
 
 What exists now:
 
@@ -102,7 +112,7 @@ What exists now:
 - The operator binds the project manually; the prompt forbids hidden project
   selection and invented agents.
 - A bot session bound to a project at creation is still a project-bound
-  conversation, not a PM team.
+  conversation, not Team mode.
 
 Missing: persisted chat → `agentId` bindings, a board/task row model, and the
 full Team graph. Cross-process Secretary revival relies on the normal CLI's
@@ -256,7 +266,7 @@ project may use.
   see [tools/calendar.md](./tools/calendar.md).
 - The Work Studio **calendar UI is not implemented**. Calendar access is the
   tool/API only. Having the board and calendar tools does not make either one
-  a PM Team.
+  Team mode.
 
 ## 5. IM routing rules
 
