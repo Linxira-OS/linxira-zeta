@@ -484,10 +484,9 @@ function getSessionListWorkerCount(fileCount: number): number {
 }
 
 /**
- * Scan a single session file into a {@link SessionInfo}. Always reads the 4 KB
- * header/first-message prefix; only reads the 32 KB tail window (and derives
- * {@link SessionStatus}) when `withStatus` is set — the recent/most-recent
- * lookups skip it.
+ * Scan a single session file into a {@link SessionInfo}. Reads the 4 KB
+ * prefix, plus the 32 KB tail when `withStatus` is set; a record the windows
+ * miss is recovered by one {@link SessionStorage.scanLines} pass.
  */
 async function scanSessionFile(
 	file: string,
@@ -841,12 +840,12 @@ export async function listAllSessions(
  * lifecycle shows no assistant activity (pending user-only or unscannable)
  * and neither a title nor a first prompt worth showing. Covers header-only
  * records (`newSession()` boundaries, `ensureOnDisk()` stubs, drafts) and
- * user-only sessions whose prompt text never made the prefix scan. A title or
- * first prompt is user intent worth resuming, so named 0-turn sessions stay
- * discoverable. The tail — not the 4 KB prefix — decides answered-ness, so a
- * transcript whose first assistant record starts past the prefix is never
- * elided. The picker and `--continue` skip these; every other consumer (GC,
- * ACP, `resolveResumableSession`) keeps the unfiltered scan.
+ * user-only sessions with no prompt text. A title or first prompt is user
+ * intent worth resuming, so named 0-turn sessions stay discoverable. The
+ * bounded windows plus the gap scan — not the 4 KB prefix alone — decide
+ * answered-ness, so a transcript whose first assistant record starts past the
+ * prefix is never elided. The picker and `--continue` skip these; every other
+ * consumer (GC, ACP, `resolveResumableSession`) keeps the unfiltered scan.
  */
 export function isEmptySession(session: SessionInfo): boolean {
 	if (session.status !== undefined && session.status !== "pending" && session.status !== "unknown") return false;

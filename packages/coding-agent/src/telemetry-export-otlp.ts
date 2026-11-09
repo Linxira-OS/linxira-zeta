@@ -21,8 +21,16 @@ import type {
 	CostEstimatorContext,
 	ToolStatus,
 } from "@linxiraos/pi-agent-core";
-import { logger, postmortem, untilAborted } from "@linxiraos/pi-utils";
-import { type Attributes, type Counter, context, type Histogram, type Meter, metrics } from "@opentelemetry/api";
+import { $otelEnv, logger, postmortem, untilAborted, withOmpOtelEnv } from "@linxiraos/pi-utils";
+import {
+	type Attributes,
+	type AttributeValue,
+	type Counter,
+	context,
+	type Histogram,
+	type Meter,
+	metrics,
+} from "@opentelemetry/api";
 import { type LogAttributes, logs, type Logger as OtelLogger, SeverityNumber } from "@opentelemetry/api-logs";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-proto";
@@ -140,47 +148,65 @@ export function createTelemetryExportConfig(
 	};
 }
 
-/** Register global trace/log/meter providers for the enabled signals. */
+/**
+ * Register global trace/log/meter providers for the enabled signals.
+ *
+ * The OpenTelemetry SDK reads its `OTEL_*` configuration (exporter endpoint,
+ * headers, timeouts, resource attributes, sampler, batch limits) from
+ * `process.env` at construction. OMP keeps the values from its own `.env` files
+ * out of the process environment, so everything that constructs SDK objects runs
+ * in one synchronous {@link withOmpOtelEnv} window. Nothing here awaits, and the
+ * SDK reads no `OTEL_*` setting at export time; `test/otel-env-window.test.ts`
+ * guards the latter.
+ */
 export async function registerProviders(signalConfig: TelemetrySignalConfig): Promise<void> {
-	// `envDetector` parses OTEL_RESOURCE_ATTRIBUTES (percent-decoded, per spec) and
-	// OTEL_SERVICE_NAME; merged last so both take precedence over the fallback
-	// service.name — with OTEL_SERVICE_NAME still winning service.name inside the
-	// detector itself.
-	const resource = resourceFromAttributes({ "service.name": SERVICE_NAME }).merge(
-		detectResources({ detectors: [envDetector] }),
-	);
+	withOmpOtelEnv(() => {
+		// `envDetector` parses OTEL_RESOURCE_ATTRIBUTES (percent-decoded, per spec) and
+		// OTEL_SERVICE_NAME; merged last so both take precedence over the fallback
+		// service.name — with OTEL_SERVICE_NAME still winning service.name inside the
+		// detector itself.
+		const resource = resourceFromAttributes({ "service.name": SERVICE_NAME }).merge(
+			detectResources({ detectors: [envDetector] }),
+		);
 
-	if (signalConfig.trace) {
-		const exporter = new OTLPTraceExporter();
-		traceProvider = new NodeTracerProvider({
-			resource,
-			spanProcessors: [new BatchSpanProcessor(exporter)],
-		});
-		traceProvider.register({ contextManager: new AsyncLocalStorageContextManager().enable() });
-	}
+		if (signalConfig.trace) {
+			const exporter = new OTLPTraceExporter();
+			traceProvider = new NodeTracerProvider({
+				resource,
+				spanProcessors: [new BatchSpanProcessor(exporter)],
+			});
+			traceProvider.register({ contextManager: new AsyncLocalStorageContextManager().enable() });
+		}
 
-	if (signalConfig.metric) {
-		const exporter = new OTLPMetricExporter();
-		meterProvider = new MeterProvider({
-			resource,
-			readers: [new PeriodicExportingMetricReader({ exporter })],
-		});
-		metrics.setGlobalMeterProvider(meterProvider);
-		metricRecorder = new AgentMetricRecorder(metrics.getMeter("@linxiraos/zeta"));
-	}
+		if (signalConfig.metric) {
+			const exporter = new OTLPMetricExporter();
+			meterProvider = new MeterProvider({
+				resource,
+				readers: [new PeriodicExportingMetricReader({ exporter })],
+			});
+			metrics.setGlobalMeterProvider(meterProvider);
+			metricRecorder = new AgentMetricRecorder(metrics.getMeter("@linxiraos/zeta"));
+		}
 
-	if (signalConfig.log) {
-		const exporter = new OTLPLogExporter();
-		logProvider = new LoggerProvider({
-			resource,
-			processors: [new BatchLogRecordProcessor({ exporter })],
-		});
-		logs.setGlobalLoggerProvider(logProvider);
-		otelLogger = logProvider.getLogger("@linxiraos/zeta");
-		unregisterLogSink = logger.registerLogSink(event => {
-			emitOtelLog(event.level, event.message, logAttributesFromContext(event.context), "zeta.log", event.timestamp);
-		});
-	}
+		if (signalConfig.log) {
+			const exporter = new OTLPLogExporter();
+			logProvider = new LoggerProvider({
+				resource,
+				processors: [new BatchLogRecordProcessor({ exporter })],
+			});
+			logs.setGlobalLoggerProvider(logProvider);
+			otelLogger = logProvider.getLogger("@linxiraos/zeta");
+			unregisterLogSink = logger.registerLogSink(event => {
+				emitOtelLog(
+					event.level,
+					event.message,
+					logAttributesFromContext(event.context),
+					"omp.log",
+					event.timestamp,
+				);
+			});
+		}
+	});
 
 	const flushTimer = setInterval(() => {
 		flushTelemetryExport().catch(() => {});
@@ -382,7 +408,7 @@ function emitOtelLog(
 	timestamp = new Date(),
 ): void {
 	if (!otelLogger) return;
-	const minLevel = parseOtelLogLevel(process.env.OTEL_LOG_LEVEL);
+	const minLevel = parseOtelLogLevel($otelEnv("OTEL_LOG_LEVEL"));
 	if (minLevel === "none") return;
 	if (LOG_LEVEL_WEIGHT[level] > LOG_LEVEL_WEIGHT[minLevel]) return;
 	otelLogger.emit({

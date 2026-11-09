@@ -94,8 +94,8 @@ vendored 载荷于 2026-10-16 退场，包载荷入口 `termide-editor` 只是�
   出现 `omp://` 即全树 sweep（代码/提示词/docs 语料/测试 fixture），
   v18.2.5 起不再保留 alias handler，`brand-check` MUST_NOT_CONTAIN 强制。
   为什么：scheme 出现在提示词与语料里，残留等于把上游身份喂给模型。
-- **npm scope `@linxiraos/*`**：上游 `@oh-my-pi/*` 全量改写；唯一例外是
-  driver 的 `OMP_SCOPE` 必须保留 `@oh-my-pi/` 字面量（MUST_CONTAIN 守护）。
+- **npm scope `@linxiraos/*`**：上游 `@linxiraos/*` 全量改写；唯一例外是
+  driver 的 `OMP_SCOPE` 必须保留 `@linxiraos/` 字面量（MUST_CONTAIN 守护）。
   为什么：那是改写机制自身的输入，扫掉它机制就自毁。
 - **上游兼容面立场（D12 用户裁决：兼容删除，除产品面板）**：纯品牌残留
   全删（`lib/omp-models.ts`、`lib/omp-auth.ts`、`models-cache`、死 icon 目录
@@ -144,7 +144,7 @@ vendored 载荷于 2026-10-16 退场，包载荷入口 `termide-editor` 只是�
   同时失守。
 - **跨面 token 只扫一面 = 事故**：同一 token 存在于 producer/consumer 两侧
   ——worker argv 协议（源 `__omp_worker_*` ↔ cli.ts 派发侧）、env 契约
-  （测试设 `PI_CODING_AGENT_DIR` ↔ 源只读 `ZETA_*`）、UA 正则、CLI 提示串、
+  （测试设 `ZETA_CODING_AGENT_DIR` ↔ 源只读 `ZETA_*`）、UA 正则、CLI 提示串、
   XDG 目录名、测试夹具写死的版本坐标。只扫一面的症状是 `check:ts` 全绿但
   运行时/CI 才炸（v18.4.3 首轮六红同根）。规则：清扫必须 producer+consumer
   成对；`brand-rules.ts` 的 MUST_NOT_CONTAIN「跨面 token 对」组常驻守卫；

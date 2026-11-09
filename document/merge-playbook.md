@@ -149,7 +149,7 @@ scope、越界 `.zeta` 路径、π 进入 ζ 品牌面文件、MUST_CONTAIN 断�
 | 级别 | 含义 | 落在哪个表 | 动作 |
 |---|---|---|---|
 | **must-replace** | Zeta 规范形无歧义的机械上游 token | overlay 的 `REWRITES`；`MUST_NOT_CONTAIN` 全树禁令（`PI_LOGO`、`` USER_AGENT = `omp/` ``、`@linxiraos/` scope 等）+ `MUST_CONTAIN` 正向断言（`USER_AGENT = zeta/${VERSION}`、`CONFIG_DIR_NAME = ".zeta"`、`APP_NAME = "zeta"`、`ZETA_LOGO`、`icon.omp: "ζ"`、终端标题 `ζ`） | overlay 机械改写；check 兜底禁回归 |
-| **allow-interop** | 必须继续读写 OMP 原生位置的互操作面（`.omp-plugin` 清单、discovery/omp-plugins、`.ompshare`、browser-relay chrome key 等） | `OMP_PATH_ALLOW` | 保留；不得 sweep（`.omp-plugin` 是刻意保留面，见 AGENTS.md 注册表）。**主机名不在豁免面**：`omp.sh` 等上游 URL 由台账 + `scripts/check-shared-infra.ts` 管（2026-10-14 收窄，详见下文「共享基础设施台账」） |
+| **allow-interop** | 必须继续读写 OMP 原生位置的互操作面（`.omp-plugin` 清单、discovery/zeta-plugins、`.ompshare`、browser-relay chrome key 等） | `OMP_PATH_ALLOW` | 保留；不得 sweep（`.omp-plugin` 是刻意保留面，见 AGENTS.md 注册表）。**主机名不在豁免面**：`omp.sh` 等上游 URL 由台账 + `scripts/check-shared-infra.ts` 管（2026-10-14 收窄，详见下文「共享基础设施台账」） |
 | **allow-provenance** | 指向上游的出处引用（issue/URL） | `OH_MY_PI_ALLOW_PATTERNS`（`github.com/can1357/oh-my-pi`、`oh-my-pi#\d+`）+ `OH_MY_PI_ALLOW_FILES` 里的 provenance 条目 | 保留 |
 | **internal-key** | 内部标识符/共享基础设施，改了会静默断功能 | `OMP_PATH_ALLOW` 的 `__omp`/`OMP_PROFILE`/`ompprurl` 等模式；注册表"Native Tokio 安装导出"行 | 保留；勿 sweep 成 `__zeta*`（v18.0.10 Tokio 静默不装教训） |
 | **test-contract** | 测试 fixture/断言编码的上游兼容契约 | `OMP_PATH_ALLOW` 注释：test fixture 豁免（自洽临时路径）；CI 证明真分歧时逐 bucket resolve（skillful-toggle 教训） | 阶段 4 人工逐文件 resolve |
@@ -356,7 +356,7 @@ role 字面量专项 grep（`"omp\.[a-z]` 且属于我们拥有的命名空间�
    rules.json 留旧版导致 compat/conformance/tokenizer 套件全红）。
 7. **收口扫描（无扩展名白名单）**：
    - 冲突标记：`git grep -nE "^(<<<<<<<|>>>>>>>) " -- .`
-   - 上游符号/品牌：`git grep -nE "@linxiraos/|__omp_|PI_CODING_AGENT_DIR|PI_LOGO" -- .`
+   - 上游符号/品牌：`git grep -nE "@linxiraos/|__omp_|ZETA_CODING_AGENT_DIR|PI_LOGO" -- .`
      （逐命中判定，豁免清单见 brand-rules.ts 与本 playbook 各教训节）
    - 覆盖全部文本类型（.txt/.py/.rs/.nix/.kdl/.toml/.lock 与无扩展文件都在
      扫描范围内——prelude.txt、tests.rs、bun.nix 三次踩坑）。
@@ -680,13 +680,13 @@ merge commit `5390f63e490`（tag `7853b4e4999`，merge-base 验证通过）。�
 注册表加行「内部文档 URL scheme = zeta://」。
 
 **结论 25（品牌 sweep 会自伤"必须点名上游"的代码，MUST_CONTAIN 是解药）**：
-`scripts/merge-package-json.ts` 的 `OMP_SCOPE` 被机械 sweep 从 `@oh-my-pi/`
+`scripts/merge-package-json.ts` 的 `OMP_SCOPE` 被机械 sweep 从 `@linxiraos/`
 改成 `@linxiraos/`，`zetaKeyFor()` 变 no-op：上游依赖键走"第三方"分支原样
 泄漏（每轮合并"重复键"损伤的真根因之一）。driver 测试 fixture 被同一遍
 sweep 同化后对打坏免疫，只剩 2 个红测试是信号。修复：常量恢复 + fixture
-还原 + **MUST_CONTAIN 断言 driver/测试必须携带 `@oh-my-pi/` 字面量**。
+还原 + **MUST_CONTAIN 断言 driver/测试必须携带 `@linxiraos/` 字面量**。
 同理修掉 AGENTS.md/playbook/账本里被 sweep 搞成同义反复的 prose
-（"上游 `@linxiraos/*`"应为"上游 `@oh-my-pi/*`"）。
+（"上游 `@linxiraos/*`"应为"上游 `@linxiraos/*`"）。
 
 **结论 26（worker 哨兵是"前缀门 + 常量"两侧结构，partial sweep 断家族）**：
 `isWorkerHostSelector`（pi-utils）按 `__zeta_worker_` 前缀门禁，v18.3.x sweep
@@ -726,7 +726,7 @@ squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶�
 - **指纹**：子进程 spawn 型测试成批失败（logger 字节契约、DailyRotateFile、
   ptree stderr、stderr guard、任何断言 `stderr === ""` 的测试），断言 diff
   里出现 `warn: Duplicate key "@linxiraos/xxx" in package.json:N`。
-- **根因**：合并 driver union 把上游 `@oh-my-pi/*` 依赖与 Zeta
+- **根因**：合并 driver union 把上游 `@linxiraos/*` 依赖与 Zeta
   `@linxiraos/*` 同名键并存的 manifest，再经 scope sweep 字符串改名后
   同一对象内出现重复键。bun 每次进程启动都向 stderr 打警告。
 - **修复**：`object_pairs_hook` 计数去重全部 `packages/*/package.json`；
@@ -746,7 +746,7 @@ squash 树（backup 基座 + 2 提交）首次 CI：5 个 test 桶红。逐桶�
 
 - `__omp_*` → `__zeta_*` 的 sweep 用 `--include="*.ts"` 执行，漏掉了
   `src/eval/js/shared/prelude.txt`（16 处桥调用改了 15 处，judge() 的
-  `__omp_call_tool__` 残留，本地绿、CI 红——vm 注入的字符串源码 ts 扫描
+  `__zeta_call_tool__` 残留，本地绿、CI 红——vm 注入的字符串源码 ts 扫描
   天生看不见）与 `src/eval/py/prelude.py` 的符号对。
 - 规则：全局符号改名的收口扫描一律 `git grep -n "__omp_<name>" -- .`
   （无后缀过滤），资源文件（.txt/.py/.js/.json/.kdl）逐命中判定。

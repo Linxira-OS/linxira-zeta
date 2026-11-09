@@ -608,7 +608,7 @@ interface CoreCommandInputMap {
   /**
    * Whole-package plugin enable/disable: whether the plugin enters the
    * Runtime session. Never uninstalls or touches node_modules. Writes the
-   * OMP-native files (installed_plugins.json / omp-plugins.lock.json /
+   * OMP-native files (installed_plugins.json / zeta-plugins.lock.json /
    * plugin-overrides.json) so `skills.get` reflects the change immediately.
    */
   "plugins.setEnabled": {

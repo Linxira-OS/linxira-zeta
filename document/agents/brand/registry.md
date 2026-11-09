@@ -12,7 +12,7 @@
 
 Zeta owns its product brand surface. Each upstream OMP merge must re-check
 this table row by row and restore the Zeta canonical form wherever the merge
-pulled an OMP (`π` / `PI_LOGO` / `@oh-my-pi` / `.zeta`) value back in. This is
+pulled an OMP (`π` / `PI_LOGO` / `@linxiraos` / `.zeta`) value back in. This is
 a hard merge rule — the v18.0.3 merge (c5ceed6285) silently reverted the ζ CLI
 brand, which this registry exists to prevent. Mechanical enforcement lives in
 `scripts/brand/` (usage: `document/merge-playbook.md`).
@@ -30,7 +30,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | 工作台与 IDE 包 | `@linxiraos/main`(bin `zetawork`/`zeta`，main/ 独立 Rust workspace)、`@linxiraos/ide`(bin `zetaide`，termide npm 面)、`@linxiraos/editor`(**无 bin**，只发平台叶二进制；载荷 = vendored termide 的**编辑器专用入口** `termide-editor`，2026-10-17 接手该包名（npm 1.2.1 仍为 TTT：旧的连字符编辑器 bin + `ttt.exe`；下一次发布切换为 `termide-editor[.exe]`、bin 消失——该包破坏性变更，见其 README）) | 发布链已全接线：ci.yml 发布链经 workflow_call 派发 main/ide/editor-publish.yml（2026-09-30 起，1.1.24 起实际发版）。**平台叶包内嵌的二进制是入库产物**——发版前必须重编并提交（main/npm/*/bin、editor/termide npm 同理），否则原样带出陈旧二进制（v1.1.25 事故：发的是 1.1.23 的 zeta.exe，v1.1.26 补丁修复）；editor 叶包的载荷是 `termide-editor[.exe]`（`cargo build --release --locked -p termide --bin termide-editor`，Windows 侧加 `--target x86_64-pc-windows-gnu`，拷进 leaf `bin/`，见 termide/VENDOR.md），`scripts/ci-release-publish.ts --editor` 在叶包缺载荷时**拒绝发布**而不是发包空壳；release 资产名（`zeta-work-*`/`zeta-ide-*`/`zeta-editor-*`/`zeta-cli-*`）属文件面，保持原样；**zetawork 面暂停（2026-11-05）**：`@linxiraos/main` 只在 `publish_zetawork` dispatch 输入时发布，包名保留给未来 main/super-agent 面；`@linxiraos/ide` 与 `@linxiraos/editor` 不受影响 |
 | 内部文档 URL scheme | `zeta://`（唯一；`zeta://docs` 根别名保留） | 出现 `omp://` 即全树 sweep（代码/提示词/docs 语料/测试 fixture）；v18.2.5 起不再保留 alias handler，`brand-check` MUST_NOT_CONTAIN 强制 | 
 | **Release 资产名（更新器 ↔ 发布链）** | `zeta-cli-<os>-<arch>[.exe]`（musl: `zeta-cli-linux-musl-*`） | 真源 `packages/utils/src/release-assets.ts`；守卫 `bun scripts/check-release-asset-names.ts`（CI check job）。**资产名不跟 `CLI_BIN_NAME`**——`zetacode` 是命令面，资产保留文件面 `zeta-cli-*`：v1.1.27 更新器按 bin 名拼 `zetacode-<os>-<arch>`，二进制回退下载对每个用户 404（旧版 1.1.27 硬编码 `zeta-cli-*` 反而是对的） |
-| npm scope | `@linxiraos/*`（pi-coding-agent→zeta；2026-11-05：`pi-omptype`→`zeta-schema`、`pi-snapcompact`→`zeta-compact`，目录名 `packages/omptype`、`packages/snapcompact` 不变） | 上游 `@oh-my-pi/*` 全量改写（driver `OMP_SCOPE` 必须保留 `@oh-my-pi/` 字面量，MUST_CONTAIN 守护） |
+| npm scope | `@linxiraos/*`（pi-coding-agent→zeta；2026-11-05：`pi-omptype`→`zeta-schema`、`pi-snapcompact`→`zeta-compact`，目录名 `packages/omptype`、`packages/snapcompact` 不变） | 上游 `@linxiraos/*` 全量改写（driver `OMP_SCOPE` 必须保留 `@linxiraos/` 字面量，MUST_CONTAIN 守护） |
 | Native 版本机制 | `pi_natives_build_version()` + `__piNativesBuildVersion` 值戳 | v18.3.3 起取代逐版本哨兵名；`check-version-consistency.ts` 钉机制符号而非版本派生名 |
 | Native Tokio 安装导出 | `__ompInstallTokioRuntime` | crate/index.js/loader 三方一致；勿 sweep 成 `__zeta*`（v18.0.10 改断，Tokio 静默不装） |
 | `/language` `/tracking` | builtin-zeta.ts | 合并后恢复 registry spread |
@@ -69,9 +69,9 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | `__omp_judgment_images[_N]` | 13 | **冻结**：judgment 上行 payload 的 state key，对面读它 | `packages/ai/src/judgment/systemone.ts` |
 | `mcp__omp__*` | 21 | **保留旧名 + 增补 `mcp__zeta__`**：外部 CLI（GitLab Duo 等）传来的工具名，只能多接受一个前缀，不能改喂进来的 | `providers/gitlab-duo-workflow.ts` |
 | `OMP_*` 环境变量 | **145 个名字 / 703 处**（文档 25 个） | **过渡期**：读旧写新，需要统一 alias 助手，不能逐处扫 | `packages/**`、`main/crates/**` |
-| `.omp-plugin` / `omp-plugins.lock.json` | 8 个文件 | **过渡期**：双读（`.omp-plugin` + `.zeta-plugin`），写新 | 插件发现/锁文件 |
+| `.omp-plugin` / `zeta-plugins.lock.json` | 8 个文件 | **过渡期**：双读（`.omp-plugin` + `.zeta-plugin`），写新 | 插件发现/锁文件 |
 
-已全量扫成 `__zeta*`（勿回退）：`__omp_call_tool__`→`__zeta_call_tool__`（38）、`__omp_log__`→`__zeta_log__`（22）、
+已全量扫成 `__zeta*`（勿回退）：`__zeta_call_tool__`→`__zeta_call_tool__`（38）、`__omp_log__`→`__zeta_log__`（22）、
 `__omp_import__`/`__omp_import_from__`（19）、`__omp_helpers__`（13）、`__omp_tools__`（13）、
 `__omp_prelude__`/`__omp_session__`/`__omp_shell__`/`__omp_magic*` 等，合计 227 处。
 上游 v18.15.0 仍是 `__omp_*`——**每次同步这批行必然冲突**，属已知成本。

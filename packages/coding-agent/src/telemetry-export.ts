@@ -1,7 +1,7 @@
 /**
  * OTLP telemetry export bootstrap.
  *
- * omp's agent core (`@linxiraos/pi-agent-core`) emits OpenTelemetry GenAI
+ * Zeta's agent core (`@linxiraos/pi-agent-core`) emits OpenTelemetry GenAI
  * spans through the global `@opentelemetry/api` tracer, and exposes run-level
  * callbacks for metrics/log pipelines. This module resolves the standard
  * `OTEL_*` env contract (endpoint, exporter selection, protocol,
@@ -14,7 +14,7 @@
  * misrouting protobuf payloads.
  */
 import type { AgentTelemetryConfig } from "@linxiraos/pi-agent-core";
-import { logger } from "@linxiraos/pi-utils";
+import { $otelEnv, logger } from "@linxiraos/pi-utils";
 
 /** Whether the model registered under a provider id and requested model id has known pricing. */
 export type TelemetryModelPricingResolver = (providerId: string, modelId: string) => boolean;
@@ -81,7 +81,7 @@ export function createTelemetryExportConfig(
 export async function initTelemetryExport(exportEnabled: boolean): Promise<void> {
 	if (initPromise) return initPromise;
 
-	if (!exportEnabled || process.env.OTEL_SDK_DISABLED?.trim().toLowerCase() === "true") return;
+	if (!exportEnabled || $otelEnv("OTEL_SDK_DISABLED")?.trim().toLowerCase() === "true") return;
 
 	const signalConfig = resolveSignalConfig();
 	if (!signalConfig.trace && !signalConfig.log && !signalConfig.metric) return;
@@ -108,21 +108,21 @@ function resolveSignalConfig(): TelemetrySignalConfig {
 	return {
 		trace: signalEnabled(
 			"trace",
-			process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ?? process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
-			process.env.OTEL_TRACES_EXPORTER,
-			process.env.OTEL_EXPORTER_OTLP_TRACES_PROTOCOL ?? process.env.OTEL_EXPORTER_OTLP_PROTOCOL,
+			$otelEnv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") ?? $otelEnv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+			$otelEnv("OTEL_TRACES_EXPORTER"),
+			$otelEnv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL") ?? $otelEnv("OTEL_EXPORTER_OTLP_PROTOCOL"),
 		),
 		log: signalEnabled(
 			"log",
-			process.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT ?? process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
-			process.env.OTEL_LOGS_EXPORTER,
-			process.env.OTEL_EXPORTER_OTLP_LOGS_PROTOCOL ?? process.env.OTEL_EXPORTER_OTLP_PROTOCOL,
+			$otelEnv("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT") ?? $otelEnv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+			$otelEnv("OTEL_LOGS_EXPORTER"),
+			$otelEnv("OTEL_EXPORTER_OTLP_LOGS_PROTOCOL") ?? $otelEnv("OTEL_EXPORTER_OTLP_PROTOCOL"),
 		),
 		metric: signalEnabled(
 			"metric",
-			process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT ?? process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
-			process.env.OTEL_METRICS_EXPORTER,
-			process.env.OTEL_EXPORTER_OTLP_METRICS_PROTOCOL ?? process.env.OTEL_EXPORTER_OTLP_PROTOCOL,
+			$otelEnv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT") ?? $otelEnv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+			$otelEnv("OTEL_METRICS_EXPORTER"),
+			$otelEnv("OTEL_EXPORTER_OTLP_METRICS_PROTOCOL") ?? $otelEnv("OTEL_EXPORTER_OTLP_PROTOCOL"),
 		),
 	};
 }

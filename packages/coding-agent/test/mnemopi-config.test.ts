@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import * as os from "node:os";
 import * as path from "node:path";
 import { getMemoriesDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -90,5 +91,14 @@ describe("loadMnemopiConfig database path resolution", () => {
 
 		expect(mnemopiConfigFor({ "mnemopi.dbPath": "" }, agentDir).dbPath).toBe(defaultPath);
 		expect(mnemopiConfigFor({ "mnemopi.dbPath": " \t " }, agentDir).dbPath).toBe(defaultPath);
+	});
+
+	it("expands a leading ~ in dbPath to the home directory", () => {
+		expect(mnemopiConfigFor({ "mnemopi.dbPath": "~/mnemopi/custom.db" }).dbPath).toBe(
+			path.join(os.homedir(), "mnemopi", "custom.db"),
+		);
+		expect(mnemopiConfigFor({ "mnemopi.dbPath": "  ~/custom.db  " }).dbPath).toBe(
+			path.join(os.homedir(), "custom.db"),
+		);
 	});
 });

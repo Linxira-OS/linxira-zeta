@@ -21,7 +21,7 @@ const args = process.argv.slice(2);
 const baseIdx = args.indexOf("--base");
 const BASE = baseIdx !== -1 ? args[baseIdx + 1] : "main";
 
-const OMP_TOKEN = /(?<![A-Za-z0-9_])omp(?![A-Za-z0-9_])|~\/\.omp|@oh-my-pi|\.omp-plugin|omp\.sh/;
+const OMP_TOKEN = /(?<![A-Za-z0-9_])omp(?![A-Za-z0-9_])|~\/\.omp|@linxiraos|\.omp-plugin|omp\.sh/;
 const ZETA_TOKEN = /zeta|CLI_BIN_NAME|ZETA_|\.zeta/;
 
 // The trailing `--` is load-bearing: this repo also has a `main/` directory

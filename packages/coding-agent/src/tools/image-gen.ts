@@ -14,7 +14,16 @@ import {
 } from "@linxiraos/pi-ai";
 import { ProviderHttpError } from "@linxiraos/pi-ai/error";
 import { getEffectiveTokenCost } from "@linxiraos/pi-catalog/models";
-import { isEnoent, logger, parseImageMetadata, prompt, ptree, Snowflake, untilAborted } from "@linxiraos/pi-utils";
+import {
+	isEnoent,
+	logger,
+	parseImageMetadata,
+	prompt,
+	ptree,
+	Snowflake,
+	truncate,
+	untilAborted,
+} from "@linxiraos/pi-utils";
 import { type RoleChainCandidate, resolveModelRoleValue, resolveRoleChain } from "../config/model-resolver";
 import { roleCandidatePool } from "../config/model-roles";
 import { isAuthenticated, type ModelRegistry } from "../config/model-registry";
@@ -27,6 +36,8 @@ import { resolveReadPath, specialFileKind } from "./path-utils";
 
 const IMAGE_TIMEOUT = 3 * 60 * 1000;
 const MAX_IMAGE_SIZE = 35 * 1024 * 1024;
+/** 单条失败原因的字符上限：网关 HTML 错误页等原始响应体不应整段进入模型与 TUI。 */
+const MAX_FAILURE_REASON_CHARS = 300;
 
 const aspectRatioSchema = type('"1:1" | "3:4" | "4:3" | "9:16" | "16:9" | "3:2" | "2:3"').describe("aspect ratio");
 const imageSizeSchema = type('"1024x1024" | "1536x1024" | "1024x1536"').describe("image size");
@@ -354,10 +365,22 @@ export const imageGenTool: CustomTool<typeof imageGenSchema, ImageGenToolDetails
 			}
 
 			const attempted = candidates.map(model => `${model.provider}/${model.id}`).join(", ");
+			// 压平空白并截断每条 provider 错误；去掉句末句号，避免与统一补的标点叠成 `..`。
+			const reasons =
+				failures.length > 0
+					? ` Failures: ${failures
+							.map(error =>
+								truncate(error.message.replace(/\s+/g, " ").trim(), MAX_FAILURE_REASON_CHARS).replace(
+									/\.$/,
+									"",
+								),
+							)
+							.join("; ")}.`
+					: "";
 			const suffix = skipped.length > 0 ? ` Skipped: ${skipped.join(", ")}.` : "";
 			throw new AggregateError(
 				failures,
-				`Image generation exhausted the resolved image chain${attempted ? `: ${attempted}` : "."}${suffix}`,
+				`Image generation exhausted the resolved image chain${attempted ? `: ${attempted}` : ""}.${reasons}${suffix}`,
 			);
 		});
 	},

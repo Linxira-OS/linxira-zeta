@@ -233,7 +233,7 @@ POST  /api/agent/:id/memory                  → 501 { error, unsupported, messa
   注意 title slot（fixed-width）在 session header 前，禁止裸解析第一行；
   列表兜底扫描用 `session-loader`/`readTitleSlotFromFile`。
 - agentDir：网关入口先按 web-ui 原语义归一 env：
-  `ZETA_CODING_AGENT_DIR → OMP_CODING_AGENT_DIR → PI_CODING_AGENT_DIR → ~/.zeta/agent`，
+  `ZETA_CODING_AGENT_DIR → OMP_CODING_AGENT_DIR → ZETA_CODING_AGENT_DIR → ~/.zeta/agent`，
   再调用 `getAgentDir()`（`@linxiraos/pi-utils`），保证 CLI/Web 同目录。
 - 扩展生命周期：`createAgentSession`（sdk）内部完成扩展发现/加载/初始化；
   网关在启动新会话后立即 `setToolUIContext(uiContext, true)` 把

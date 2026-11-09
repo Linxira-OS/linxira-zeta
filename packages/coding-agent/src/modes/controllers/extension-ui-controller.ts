@@ -29,6 +29,7 @@ import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-mess
 import { ApprovalDialogComponent } from "@linxiraos/pi-tui/overlays/approval-dialog";
 import {
 	type AskDialogPrompt,
+	type AskDialogPromptDraft,
 	type AskDialogPromptValue,
 	AskDialogComponent,
 	normalizeDialogQuestions,
@@ -741,7 +742,7 @@ export class ExtensionUiController {
 	): Promise<ExtensionAskDialogResult | undefined> {
 		return this.#presentDialog<ExtensionAskDialogResult>(dialogOptions?.signal, settle => {
 			let promptEditor: HookEditorComponent | undefined;
-			let promptResolve: ((value: AskDialogPromptValue | undefined) => void) | undefined;
+			let promptResolve: ((value: AskDialogPromptValue | AskDialogPromptDraft | undefined) => void) | undefined;
 			let closed = false;
 			const draftEditor = this.ctx.editor;
 			// A draft in progress when the ask lands keeps the keyboard, so in-flight
@@ -774,7 +775,7 @@ export class ExtensionUiController {
 				this.ctx.ui.requestRender();
 			};
 
-			const finishPrompt = (value: AskDialogPromptValue | undefined): void => {
+			const finishPrompt = (value: AskDialogPromptValue | AskDialogPromptDraft | undefined): void => {
 				const resolvePrompt = promptResolve;
 				promptResolve = undefined;
 				promptEditor?.dispose();
@@ -799,7 +800,7 @@ export class ExtensionUiController {
 					prompt.title,
 					prefill,
 					(text, images) => finishPrompt({ text, images }),
-					() => finishPrompt(undefined),
+					(text, images) => finishPrompt({ draft: { text, images } }),
 					{ promptStyle: true, externalEditor: editDialogExternally, question: prompt.question, ...options },
 				);
 				this.ctx.closeLinkBrowser();
@@ -809,10 +810,13 @@ export class ExtensionUiController {
 				this.ctx.ui.requestRender();
 			};
 
-			const promptForText = (prompt: AskDialogPrompt, prefill?: string): Promise<string | undefined> => {
+			const promptForText = (
+				prompt: AskDialogPrompt,
+				prefill?: string,
+			): Promise<string | AskDialogPromptDraft | undefined> => {
 				if (closed) return Promise.resolve(undefined);
-				const { promise, resolve } = Promise.withResolvers<string | undefined>();
-				promptResolve = value => resolve(value?.text);
+				const { promise, resolve } = Promise.withResolvers<string | AskDialogPromptDraft | undefined>();
+				promptResolve = value => resolve(value === undefined || "draft" in value ? value : value.text);
 				openPrompt(prompt, prefill, {});
 				return promise;
 			};
@@ -820,9 +824,11 @@ export class ExtensionUiController {
 			const promptWithImages = (
 				prompt: AskDialogPrompt,
 				prefill: AskDialogPromptValue | undefined,
-			): Promise<AskDialogPromptValue | undefined> => {
+			): Promise<AskDialogPromptValue | AskDialogPromptDraft | undefined> => {
 				if (closed) return Promise.resolve(undefined);
-				const { promise, resolve } = Promise.withResolvers<AskDialogPromptValue | undefined>();
+				const { promise, resolve } = Promise.withResolvers<
+					AskDialogPromptValue | AskDialogPromptDraft | undefined
+				>();
 				promptResolve = resolve;
 				openPrompt(prompt, prefill?.text, {
 					acceptImages: true,
@@ -1201,9 +1207,11 @@ export class ExtensionUiController {
 
 	/** Every `sendUserMessage` form prompts or queues a user turn (see `AgentSession.sendUserMessage`). */
 	#sendExtensionUserMessage: SendUserMessageHandler = (content, options) => {
-		this.ctx.session.sendUserMessage(content, options).catch((err: unknown) => {
+		const task = this.ctx.session.sendUserMessage(content, options);
+		task.catch((err: unknown) => {
 			this.ctx.showError(`Extension sendUserMessage failed: ${err instanceof Error ? err.message : String(err)}`);
 		});
+		return task;
 	};
 
 	/**

@@ -19,7 +19,7 @@ import {
  * Zeta name only.
  */
 
-const LEGACY = "omp-plugins.lock.json";
+const LEGACY = "zeta-plugins.lock.json";
 const CANONICAL = PLUGINS_LOCKFILE_CANONICAL;
 
 let home: string;

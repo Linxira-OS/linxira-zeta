@@ -17,7 +17,7 @@ import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle"
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { runSubprocess } from "@linxiraos/zeta/task/executor";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir, setInteractiveHost } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 import { localSession } from "../helpers/local-session";
 
@@ -32,6 +32,7 @@ const thinking = { mode: "effort", efforts: [Effort.Medium, Effort.High] } as co
 
 let savedEnv: Record<string, string | undefined> = {};
 let root: string;
+let savedInteractiveHost: boolean;
 
 function restoreEnvValue(key: string, value: string | undefined): void {
 	if (value === undefined) {
@@ -44,6 +45,7 @@ function restoreEnvValue(key: string, value: string | undefined): void {
 }
 
 beforeEach(async () => {
+	savedInteractiveHost = setInteractiveHost(false);
 	savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
 	root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-prewalk-revive-"));
 	const home = path.join(root, "home");
@@ -66,6 +68,7 @@ afterEach(async () => {
 	__resetDirsFromEnvForTests();
 	AgentStorage.close();
 	closeModelCache();
+	setInteractiveHost(savedInteractiveHost);
 	await removeWithRetries(root);
 });
 

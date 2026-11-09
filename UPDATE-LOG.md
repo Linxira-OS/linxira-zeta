@@ -307,7 +307,7 @@
 
 - **CLI 指令面审计**：会话退出提示与全部示例改用 `zeta-c`（此前打裸 `zeta` 落入工作台静默无动作）；`--resume` 尾斜杠/`.jsonl` 粘贴噪音归一为 id 解析，显式路径缺失报错而非静默铸造空会话；`update` 不再触碰工作台 `zeta` shim，GitHub/mise 回退指向 Linxira-OS/linxira-zeta。
 - **teamagent（pi-messenger 1.1.3）**：crew 子进程改跑 zeta CLI（此前 spawn 上游 pi）；user 角色目录修正为真实发现目录；状态从 `~/.pi` 迁 `~/.zeta`；项目级 crew 改 opt-in。
-- **插件锁文件名还原** `omp-plugins.lock.json`（sweep 误改 `zeta-plugins.lock.json` 导致项目级插件解析静默丢功能——文件名非品牌面）。
+- **插件锁文件名还原** `zeta-plugins.lock.json`（sweep 误改 `zeta-plugins.lock.json` 导致项目级插件解析静默丢功能——文件名非品牌面）。
 - **虚拟模块 specifier 统一** `zeta-legacy-pi-modules`（生产/消费两侧，修复 install smoke bundle 失败）。
 - **zh 本地化契约**：v18.4.11 新设置全部含 CJK 条目；`parseFlag`/`$env` 等测试桩补齐。
 - **第三方协议头部**：THIRD-PARTY-NOTICES 标题与导语改 Zeta（vendored 法律文本与上游署名行原样保留）。
@@ -646,7 +646,7 @@
 - 当前基于 **OMP v18.0.4**（`5eef8a2386`；v18.0.3 `160ed439ac` 亦已合并，`git merge-base --is-ancestor` 均验证通过）。
 - **OMP v18.0.3 合并**：TUI 采用上游新渲染架构（provider window / resize replay），streaming edit guard 改为异步增量验证，Julia 内核可用性探测加固（超时上限 + 进程组击杀）；Zeta 侧保留 web-gateway / i18n / `.zeta` 路径与 scrollback 扩展（tui.ts 三方融合）。
 - **OMP v18.0.4 合并**：update-cli 异步增量重构、streaming guard 漂移下限放宽（CI 抖动，上游 `4854db856c`）、zh 本地化 overlay（`38a7dff556`）。
-- **Zeta 品牌适配**：14 包统一 `@linxiraos/*` 版本线 1.0.11、`@oh-my-pi` 残留清零、`.zeta` → `.zeta` 路径、desktop / web-ui 版本号识别单源（desktop `package.json`）。
+- **Zeta 品牌适配**：14 包统一 `@linxiraos/*` 版本线 1.0.11、`@linxiraos` 残留清零、`.zeta` → `.zeta` 路径、desktop / web-ui 版本号识别单源（desktop `package.json`）。
 
 ### 版本与发布流程（v1.1.0）
 

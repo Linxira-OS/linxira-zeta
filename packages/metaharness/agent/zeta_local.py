@@ -385,7 +385,7 @@ class OmpLocal(BaseInstalledAgent):
                 "set -e; "
                 f"test -x {q(self._source_bun)} || {{ echo 'omp source mode: bun mount missing' >&2; exit 5; }}; "
                 f"test -f {q(cli)} || {{ echo 'omp source mode: repo mount missing' >&2; exit 5; }}; "
-                f"test -d {q(self._source_dir + '/node_modules/@oh-my-pi')} || "
+                f"test -d {q(self._source_dir + '/node_modules/@linxiraos')} || "
                 "{ echo 'omp source mode: linux deps mount missing' >&2; exit 5; }; "
                 f"{q(self._source_bun)} --version"
             ),

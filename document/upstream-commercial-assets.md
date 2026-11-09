@@ -151,7 +151,7 @@ bun scripts/brand/brand-check.ts
 |---|---|
 | `OMP_*` / `PI_*` 环境变量（约 190 个） | 文档化的用户配置项；改名破坏现有配置，且要求生产者/消费者同时改，漏一处即静默失效。正确路径是读旧写新分阶段迁移 |
 | Stencil `client-id "omp"` | 改则登录失败（见 §2） |
-| `.omp-plugin` / `omp-plugins.lock.json` | OMP/Claude 插件兼容面，刻意保留 |
+| `.omp-plugin` / `zeta-plugins.lock.json` | OMP/Claude 插件兼容面，刻意保留 |
 | `my.omp.sh` | 共享基础设施（见 §1）。**仅剩中继常量**：协作面默认端点已于 2026-10-15 移除（`collab.enabled` 默认关、`collab.relayUrl` 默认空，§1b）；分享上传面已于 2026-11-02 退役（`share.serverUrl` / `share.store` / CLI `share` 全删，§3d），`DEFAULT_RELAY_URL` 是唯一用途。安装提示 `omp.sh/install` **不在其列**：已换成自家站点安装器，见 §3c |
 
 ## 5. 遥测（已硬关闭）
