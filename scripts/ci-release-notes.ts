@@ -325,16 +325,17 @@ async function main(): Promise<void> {
  * Build the release asset index appended to the release body: the CLI binaries
  * (`zeta-cli-<target>`, matching `ci-release-build-binaries.ts` outfiles), the
  * bare product binaries (`zeta-ide-*` from the release_product_binaries job),
+ * the Work Studio desktop installers (`zeta-desktop-<version>-*`), the
+ * browser-edition archives (`linxira-zeta-<version>-workstudio-browser-*`),
  * then the remaining release assets (`LICENSE`, `SHA256SUMS.txt`,
  * `THIRD-PARTY-NOTICES.txt`, and the browser relay extension).
  * Every line links to its `releases/download` URL so release assets stay
  * discoverable from the notes without scripting.
  *
- * 1.3.0 removed the Electron desktop (`zeta-desktop-*`) and the workbench TUI
- * (`zeta-work-*`) from the release surface. The list is what `release_github`
- * actually uploads — v1.3.0 shipped notes that linked five desktop installers
- * and two `zeta-work-*` binaries that never existed, so keep this in lock-step
- * with that job's `files:` list.
+ * Keep every section in lock-step with the `release_github` job's `files:`
+ * list. A section must never link an asset that job does not upload (v1.3.0
+ * shipped notes that linked five desktop installers and two `zeta-work-*`
+ * binaries that never existed).
  */
 function buildAssetSections(version: string): string {
 	const releaseTag = `v${version}`;
@@ -345,6 +346,19 @@ function buildAssetSections(version: string): string {
 	// Bare product binaries from the release_product_binaries job; the
 	// distribution PKGBUILDs fetch these URLs verbatim.
 	const productAssets = ["zeta-ide-linux-x64", "zeta-ide-win-x64.exe"];
+	// Work Studio desktop installers produced by the desktop packaging matrix.
+	const desktopAssets = [
+		`zeta-desktop-${version}-win-x64.exe`,
+		`zeta-desktop-${version}-win-x64.zip`,
+		`zeta-desktop-${version}-linux-amd64.deb`,
+		`zeta-desktop-${version}-linux-x64.tar.gz`,
+		`zeta-desktop-${version}-linux-x86_64.AppImage`,
+	];
+	// Browser-edition archives from package-workstudio-browser.ts.
+	const browserAssets = [
+		`linxira-zeta-${version}-workstudio-browser-windows-x64.zip`,
+		`linxira-zeta-${version}-workstudio-browser-linux-x64.tar.gz`,
+	];
 	// Remaining release_github assets: root license, third-party notices, the
 	// checksum manifest, the browser relay extension, and the example-plugin
 	// environment. Keep in sync with that job's `files:` list.
@@ -356,7 +370,7 @@ function buildAssetSections(version: string): string {
 		EXAMPLE_PLUGIN_ZIP,
 	];
 
-	return `## CLI binaries\n\n${cliAssets.map(link).join("\n")}\n\n## Product binaries\n\n${productAssets.map(link).join("\n")}\n\n## Other assets\n\n${miscAssets.map(link).join("\n")}`;
+	return `## CLI binaries\n\n${cliAssets.map(link).join("\n")}\n\n## Product binaries\n\n${productAssets.map(link).join("\n")}\n\n## Desktop\n\n${desktopAssets.map(link).join("\n")}\n\n## Browser edition\n\n${browserAssets.map(link).join("\n")}\n\n## Other assets\n\n${miscAssets.map(link).join("\n")}`;
 }
 
 if (import.meta.main) {
