@@ -10,6 +10,10 @@ It is one data model, not a second messaging system: `hub send`, `agent://`
 writes, `ctx.messaging`, and the IM commands all resolve through the same
 address, and offline messages land in the same per-agent inbox.
 
+The vocabulary this page assumes — workspace, main agent, external binding,
+session origin, and relay — is defined in
+[agent-modes.md](./agent-modes.md); this page covers the transport.
+
 ## Addressing
 
 A cross-process address is `<workspace>/<agent>`:

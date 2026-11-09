@@ -5,6 +5,10 @@ When IM channels are enabled (`zetacode serve`, desktop app, or `--channels`), t
 message. From an ordinary IM chat (WeChat / Feishu / Telegram — plain text
 only) you drive Zeta with the `!` command grammar below.
 
+The mode and routing vocabulary used here — Personal Harness, workspace, main
+agent, external binding, session origin, relay — is defined in
+[agent-modes.md](./agent-modes.md).
+
 ## Roles
 
 - **Coordinator / Relay** (alias `main`, session name "Zeta Bot (Relay)") — the
