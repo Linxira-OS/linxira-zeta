@@ -63,8 +63,11 @@ async function raceProbeAgainstClaims(tempDir: TempDir, sessionId: string, round
 			"let failures = 0;",
 			"for (let i = 0; i < Number(rounds); i++) {",
 			"	const release = storage.claimSession(id, sessionPath);",
-			"	if (release) release();",
-			"	else failures++;",
+			// Hold each claim across a scheduler turn so the probe process can
+			// actually observe it under CI load; the claim still precedes the next one.
+			"	if (!release) { failures++; continue; }",
+			"	await Bun.sleep(0);",
+			"	release();",
 			"}",
 			'process.stdout.write(JSON.stringify({ failures }) + "\\n");',
 		],
