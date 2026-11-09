@@ -48,7 +48,7 @@ describe("gateway session tag mapping", () => {
 	}
 
 	/** Write a minimal valid session file and return its path. */
-	async function seedSession(cwd: string, fileName: string): Promise<string> {
+	async function seedSession(cwd: string, fileName: string, origin?: Record<string, unknown>): Promise<string> {
 		const dir = SessionManager.getDefaultSessionDir(cwd);
 		await fs.mkdir(dir, { recursive: true });
 		const file = join(dir, fileName);
@@ -58,6 +58,7 @@ describe("gateway session tag mapping", () => {
 			id: randomUUID(),
 			timestamp: new Date().toISOString(),
 			cwd,
+			...(origin ? { origin } : {}),
 		};
 		await fs.writeFile(file, `${JSON.stringify(header)}\n`, "utf8");
 		return file;
@@ -108,5 +109,68 @@ describe("gateway session tag mapping", () => {
 		for (const s of sessions) {
 			expect(s.id).toBeTruthy();
 		}
+	});
+
+	test("origin: a header stamp wins; a legacy transcript falls back to the registry tag", async () => {
+		await setup();
+		const cwd = await mkdtemp(join(tmpdir(), "zeta-gw-origin-"));
+		cleanups.push(() => rm(cwd, { recursive: true, force: true }));
+
+		// Pre-origin transcripts (no header field) still read as IM through web.yml.
+		const relayFile = await seedSession(cwd, "legacy-relay.jsonl");
+		const botFile = await seedSession(cwd, "legacy-bot.jsonl");
+		// A transcript that already carries a stamp keeps its own channel/alias.
+		const stampedFile = await seedSession(cwd, "stamped.jsonl", {
+			kind: "im",
+			channel: "telegram",
+			workspaceAlias: "main",
+		});
+		const normalFile = await seedSession(cwd, "personal.jsonl");
+
+		const webConfig = await WebConfig.load();
+		await webConfig.upsertBotSession({
+			id: "relay",
+			name: "Zeta Bot (Relay)",
+			tag: "relay",
+			sessionFile: relayFile,
+			createdAt: new Date().toISOString(),
+		});
+		await webConfig.upsertBotSession({
+			id: "abc123",
+			name: "Project",
+			tag: "bot",
+			sessionFile: botFile,
+			cwd,
+			workspaceAlias: "web",
+			chatId: "chat-9",
+			platform: "wechat",
+			createdAt: new Date().toISOString(),
+		});
+		await webConfig.upsertBotSession({
+			id: "xyz789",
+			name: "Draft",
+			tag: "draft",
+			sessionFile: stampedFile,
+			createdAt: new Date().toISOString(),
+		});
+
+		const sessions = await listAllSessionsWeb();
+		const byPath = new Map(sessions.map(s => [path.normalize(s.path), s]));
+
+		// relay and bot are distinct IM sessions, never merged into one identity.
+		expect(byPath.get(path.normalize(relayFile))?.origin).toEqual({ kind: "im", botSessionId: "relay" });
+		expect(byPath.get(path.normalize(botFile))?.origin).toEqual({
+			kind: "im",
+			botSessionId: "abc123",
+			channel: "wechat",
+			chatId: "chat-9",
+			workspaceAlias: "web",
+		});
+		expect(byPath.get(path.normalize(stampedFile))?.origin).toEqual({
+			kind: "im",
+			channel: "telegram",
+			workspaceAlias: "main",
+		});
+		expect(byPath.get(path.normalize(normalFile))?.origin).toBeUndefined();
 	});
 });

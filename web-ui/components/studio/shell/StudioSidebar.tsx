@@ -23,6 +23,11 @@ interface Props {
 	selectedProjectKey: string | null;
 	selectedWorkspacePath: string | null;
 	sessions: readonly StudioSessionSummary[];
+	/** IM/bot/relay conversations, listed only in their own group. */
+	imSessions: readonly StudioSessionSummary[];
+	/** Whether the "IM / Bot" group is shown; off by default. */
+	includeIm: boolean;
+	onToggleIm(): void;
 	activeSessionId: string | null;
 	onSelectProject(key: string): void;
 	onSelectWorkspace(path: string): void;
@@ -42,6 +47,9 @@ export function StudioSidebar({
 	selectedProjectKey,
 	selectedWorkspacePath,
 	sessions,
+	imSessions,
+	includeIm,
+	onToggleIm,
 	activeSessionId,
 	onSelectProject,
 	onSelectWorkspace,
@@ -107,6 +115,16 @@ export function StudioSidebar({
 						aria-label={t("studio.action.refresh")}
 					>
 						<span aria-hidden>⟳</span>
+					</button>
+					<button
+						type="button"
+						className={`icon-btn${includeIm ? " is-active" : ""}`}
+						onClick={onToggleIm}
+						aria-pressed={includeIm}
+						title={t("studio.session.showIm")}
+						aria-label={t("studio.session.showIm")}
+					>
+						<span aria-hidden>IM</span>
 					</button>
 					<button type="button" className="icon-btn" onClick={onRegisterProject} title={t("studio.action.addProject")} aria-label={t("studio.action.addProject")}>
 						<span aria-hidden>+</span>
@@ -254,6 +272,34 @@ export function StudioSidebar({
 						</section>
 					);
 				})}
+
+				{includeIm && imSessions.length > 0 ? (
+					<section className="sb-project" aria-label={t("studio.session.imGroup")}>
+						<div className="sb-project-row">
+							<span className="sb-project-name">{t("studio.session.imGroup")}</span>
+							<span className="sb-count">{imSessions.length}</span>
+						</div>
+						<ul className="sb-sessions">
+							{imSessions.map(session => (
+								<li key={session.id}>
+									<button
+										type="button"
+										className={`sb-session${session.id === activeSessionId ? " is-active" : ""}`}
+										onClick={() => onSelectSession(session)}
+										// IM rows never expose the absolute cwd: the alias or
+										// channel is the whole location the operator needs.
+										title={session.location ?? session.title}
+									>
+										{session.running ? <span className="sb-running" aria-hidden /> : null}
+										<span className="sb-session-title">{session.title}</span>
+										{session.location ? <span className="sb-session-location">{session.location}</span> : null}
+										<span className="sb-session-count">{session.messageCount}</span>
+									</button>
+								</li>
+							))}
+						</ul>
+					</section>
+				) : null}
 
 				{orphanSessions.length > 0 ? (
 					<section className="sb-project">

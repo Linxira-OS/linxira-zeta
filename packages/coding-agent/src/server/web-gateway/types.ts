@@ -7,6 +7,8 @@
  * (structurally compatible for the fields the web UI consumes).
  */
 
+import type { SessionOrigin } from "../../session/session-origin";
+
 export interface SessionHeader {
 	type: "session";
 	version?: number;
@@ -16,6 +18,8 @@ export interface SessionHeader {
 	parentSession?: string;
 	name?: string;
 	title?: string;
+	/** IM/bot/relay provenance; absent on personal sessions and legacy transcripts. */
+	origin?: SessionOrigin;
 }
 
 export interface SessionEntryBase {
@@ -212,6 +216,12 @@ export interface SessionInfo {
 	archivedFrom?: string;
 	/** Default-space bot session tag ("relay" | "bot" | "draft"); absent for ordinary sessions. */
 	tag?: string;
+	/**
+	 * IM/bot/relay provenance. Set from the transcript header, or recovered from
+	 * the web.yml `tag` for transcripts written before the header field existed,
+	 * so the UI can keep these out of personal lists. Absent on personal sessions.
+	 */
+	origin?: SessionOrigin;
 	/** True when the session's cwd resolves inside the OS temp dir (scratch sessions). */
 	temp?: boolean;
 }

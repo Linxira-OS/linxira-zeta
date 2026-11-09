@@ -443,6 +443,17 @@
 	white-space: nowrap;
 }
 
+/* IM rows show their safe alias/channel, never an absolute cwd. */
+.studio-root .sb-session-location {
+	flex: none;
+	max-width: 45%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 11px;
+	color: var(--studio-text-faint);
+}
+
 .studio-root .sb-session-count {
 	flex: none;
 	width: 3ch;

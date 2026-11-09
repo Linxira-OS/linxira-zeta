@@ -725,6 +725,9 @@ export class ZetaServer {
 				imControl: params => this.#imControlHook("coordinator", params),
 			},
 			serveSessionClient(),
+			// The coordinator is the default relay conversation: an IM session,
+			// never a personal coding session in Studio/History/resume.
+			{ kind: "im", botSessionId: "relay" },
 		);
 		this.#channelCoordinator = session.getSession();
 		// Give the coordinator a recognizable name in the session list ("Zeta Bot"
@@ -767,6 +770,13 @@ export class ZetaServer {
 						imControl: params => this.#imControlHook(entry.id, params),
 					},
 					serveSessionClient(),
+					{
+						kind: "im",
+						botSessionId: entry.id,
+						...(entry.platform ? { channel: entry.platform } : {}),
+						...(entry.chatId ? { chatId: entry.chatId } : {}),
+						...(entry.workspaceAlias ? { workspaceAlias: entry.workspaceAlias } : {}),
+					},
 				);
 				return session.getSession();
 			},

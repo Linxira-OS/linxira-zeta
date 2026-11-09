@@ -98,6 +98,7 @@ import {
 	type SessionContinuation,
 	type SessionInfo,
 } from "./session-listing";
+import { sameSessionOrigin, type SessionOrigin } from "./session-origin";
 import {
 	loadEntriesFromFile,
 	loadSessionFile,
@@ -2087,6 +2088,9 @@ export class SessionManager {
 			// `/new`, branch and fork inherit, and only a creator that knows better
 			// passes one explicitly.
 			client: options?.client ?? this.#header?.client,
+			// An IM/bot conversation stays IM across `/new`; a personal session
+			// never acquires a stamp here.
+			origin: options?.origin ?? this.#header?.origin,
 			parentSession: options?.parentSession,
 			providerPromptCacheKey: options?.providerPromptCacheKey,
 			taskPromptCacheKey: options?.taskPromptCacheKey,
@@ -2556,6 +2560,7 @@ export class SessionManager {
 			cwd: this.#cwd,
 			additionalDirectories: this.#additionalDirectories.length > 0 ? [...this.#additionalDirectories] : undefined,
 			client: this.#header.client,
+			origin: this.#header.origin,
 			parentSession: parentSessionId,
 			providerPromptCacheKey: SessionManager.getInheritedProviderPromptCacheKey(this.#header),
 			taskPromptCacheKey: this.#header.taskPromptCacheKey,
@@ -4033,6 +4038,27 @@ export class SessionManager {
 	}
 
 	/**
+	 * Stamp (or clear) the conversation's origin. IM/bot sessions are created
+	 * with the stamp already on the header; this lets a caller tag an existing
+	 * transcript opened from the registry, so a conversation created before the
+	 * stamp existed is recognised without rewriting history.
+	 */
+	async setOrigin(origin: SessionOrigin | undefined): Promise<void> {
+		const current = this.#header.origin;
+		if (sameSessionOrigin(current, origin)) return;
+		if (origin === undefined) delete this.#header.origin;
+		else this.#header.origin = { ...origin };
+		if (!this.#persist || !this.#sessionFile || !this.#shouldHaveSessionFile()) return;
+		this.#rewriteRequired = true;
+		await this.#rewriteAtomically();
+	}
+
+	/** The origin stamp on the header, or `undefined` for a personal session. */
+	getOrigin(): SessionOrigin | undefined {
+		return this.#header.origin;
+	}
+
+	/**
 	 * Stash the parent-derived sibling family candidate without touching the
 	 * header. Unlike {@link setTaskPromptCacheKey} this is neither persisted nor
 	 * carried into forks, moves, or new-session resets, so a fresh identity
@@ -4198,6 +4224,7 @@ export class SessionManager {
 			cwd: this.#cwd,
 			title: this.#sessionName,
 			titleSource: this.#titleSource,
+			origin: this.#header.origin,
 			parentSession: this.#persist ? sourceSessionFile : undefined,
 			additionalDirectories: this.#additionalDirectories.length > 0 ? [...this.#additionalDirectories] : undefined,
 		};
@@ -4472,7 +4499,14 @@ export class SessionManager {
 		filePath: string,
 		sessionDir?: string,
 		storage: SessionStorage = new FileSessionStorage(),
-		options?: { initialCwd?: string; parentSession?: string; suppressBreadcrumb?: boolean; throwIfMissing?: boolean },
+		options?: {
+			initialCwd?: string;
+			parentSession?: string;
+			suppressBreadcrumb?: boolean;
+			throwIfMissing?: boolean;
+			/** Stamp an existing transcript that predates the origin header field. */
+			origin?: SessionOrigin;
+		},
 	): Promise<SessionManager> {
 		const probed = await loadSessionFile(filePath, storage, { throwIfMissing: options?.throwIfMissing });
 		const header = probed.entries.find(entry => entry.type === "session") as SessionHeader | undefined;
@@ -4502,8 +4536,11 @@ export class SessionManager {
 			: probed;
 		await manager.#setSessionFile(filePath, loaded, {
 			throwIfMissing: options?.throwIfMissing,
-			newSession: { parentSession: options?.parentSession },
+			newSession: { parentSession: options?.parentSession, origin: options?.origin },
 		});
+		// An existing transcript written before the origin field is stamped here,
+		// so the IM/relay listing can recognise it without a migration pass.
+		if (options?.origin && manager.getOrigin() === undefined) await manager.setOrigin(options.origin);
 		return manager;
 	}
 
@@ -4769,27 +4806,31 @@ export class SessionManager {
 	 * By default includes the same folder in the repository's other git worktrees,
 	 * so a session `/wt` moved stays reachable from the checkout it left.
 	 * The directory scope limits the picker to its own session bucket.
+	 * IM/bot conversations are left out of the personal list unless
+	 * `options.includeIm` asks for them.
 	 */
 	static async listForPicker(
 		cwd: string,
 		sessionDir?: string,
 		storage: SessionStorage = new FileSessionStorage(),
 		worktreeScope: "directory" | "repo" = "repo",
+		options?: { includeIm?: boolean },
 	): Promise<PickerListing> {
 		const dir = sessionDir ?? SessionManager.getDefaultSessionDir(cwd, undefined, storage);
 		const [pinned, siblingDirs] = await Promise.all([
 			loadPinnedSessionIds(),
 			worktreeScope === "repo" ? worktreeSessionDirs(cwd, dir) : [],
 		]);
-		return listSessionsForPicker(dir, storage, pinned, siblingDirs);
+		return listSessionsForPicker(dir, storage, pinned, siblingDirs, options);
 	}
 
 	/** Picker-facing cross-project listing, same rules and passes as {@link listForPicker}. */
 	static async listAllForPicker(
 		storage: SessionStorage = new FileSessionStorage(),
 		sessionsRoot?: string,
+		options?: { includeIm?: boolean },
 	): Promise<PickerListing> {
-		return listAllSessionsForPicker(storage, await loadPinnedSessionIds(), sessionsRoot);
+		return listAllSessionsForPicker(storage, await loadPinnedSessionIds(), sessionsRoot, options);
 	}
 }
 
