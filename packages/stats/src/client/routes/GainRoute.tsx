@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { getGainDashboardStats } from "../api";
 import { t } from "../i18n";
 import { Chart, type ChartSeries, Legend } from "../charts";
-import { formatBytes, formatCompact, formatInteger, formatPercent } from "../data/formatters";
+import { formatBytes, formatCompact, formatInteger, formatPercent, formatUtcDay } from "../data/formatters";
 import { useQuery } from "../data/query";
 import { bucketAxis, rangeMeta } from "../data/range";
 import { densify } from "../data/series";
@@ -30,8 +30,6 @@ const DAY_MS = 86_400_000;
 const SOURCE_LABEL: Record<GainSource, string> = { snapcompact: "Snapcompact" };
 
 /** The server buckets gain by UTC calendar day (`YYYY-MM-DD`). */
-const DAY_LABEL = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
-
 interface SourceRow extends GainSourceTotals {
 	source: GainSource;
 	/** Share of all saved tokens (0-1). */
@@ -166,7 +164,7 @@ export function GainRoute({ active, range }: GainRouteProps) {
 						>
 							<Chart
 								slots={series.buckets.length}
-								tickLabel={i => DAY_LABEL.format(series.buckets[i])}
+								tickLabel={i => formatUtcDay(series.buckets[i])}
 								series={chartSeries}
 								height={260}
 								formatTooltip={formatInteger}
@@ -181,7 +179,7 @@ export function GainRoute({ active, range }: GainRouteProps) {
 							flush
 							stale={gain.stale}
 						>
-							<Table rows={sourceRows} rowKey={row => row.source} columns={SOURCE_COLUMNS} />
+							<Table rows={sourceRows} rowKey={row => row.source} columns={sourceColumns()} />
 						</Card>
 					</>
 				)}
@@ -190,52 +188,54 @@ export function GainRoute({ active, range }: GainRouteProps) {
 	);
 }
 
-const SOURCE_COLUMNS: Column<SourceRow>[] = [
-	{
-		key: "source",
-		header: t("gain.source"),
-		sort: row => row.source,
-		render: row => <span className="cell-primary">{SOURCE_LABEL[row.source]}</span>,
-	},
-	{
-		key: "tokens",
-		header: t("gain.saved-tokens"),
-		align: "right",
-		sort: row => row.savedTokens,
-		render: row => (
-			<span title={formatInteger(row.savedTokens)}>
-				<MeterCell value={row.share} max={1} display={formatCompact(row.savedTokens)} />
-			</span>
-		),
-	},
-	{
-		key: "share",
-		header: t("common.share"),
-		align: "right",
-		sort: row => row.share,
-		render: row => <span className="num muted">{formatPercent(row.share)}</span>,
-	},
-	{
-		key: "bytes",
-		header: t("gain.saved-bytes"),
-		align: "right",
-		sort: row => row.savedBytes,
-		render: row => <span className="num">{formatBytes(row.savedBytes)}</span>,
-	},
-	{
-		key: "hits",
-		header: t("gain.hits"),
-		align: "right",
-		sort: row => row.hits,
-		render: row => <span className="num">{formatInteger(row.hits)}</span>,
-	},
-	{
-		key: "reduction",
-		header: t("gain.reduction"),
-		align: "right",
-		sort: row => row.reductionPercent ?? -1,
-		render: row => (
-			<span className="num">{row.reductionPercent !== null ? formatPercent(row.reductionPercent) : "–"}</span>
-		),
-	},
-];
+function sourceColumns(): Column<SourceRow>[] {
+	return [
+		{
+			key: "source",
+			header: t("gain.source"),
+			sort: row => row.source,
+			render: row => <span className="cell-primary">{SOURCE_LABEL[row.source]}</span>,
+		},
+		{
+			key: "tokens",
+			header: t("gain.saved-tokens"),
+			align: "right",
+			sort: row => row.savedTokens,
+			render: row => (
+				<span title={formatInteger(row.savedTokens)}>
+					<MeterCell value={row.share} max={1} display={formatCompact(row.savedTokens)} />
+				</span>
+			),
+		},
+		{
+			key: "share",
+			header: t("common.share"),
+			align: "right",
+			sort: row => row.share,
+			render: row => <span className="num muted">{formatPercent(row.share)}</span>,
+		},
+		{
+			key: "bytes",
+			header: t("gain.saved-bytes"),
+			align: "right",
+			sort: row => row.savedBytes,
+			render: row => <span className="num">{formatBytes(row.savedBytes)}</span>,
+		},
+		{
+			key: "hits",
+			header: t("gain.hits"),
+			align: "right",
+			sort: row => row.hits,
+			render: row => <span className="num">{formatInteger(row.hits)}</span>,
+		},
+		{
+			key: "reduction",
+			header: t("gain.reduction"),
+			align: "right",
+			sort: row => row.reductionPercent ?? -1,
+			render: row => (
+				<span className="num">{row.reductionPercent !== null ? formatPercent(row.reductionPercent) : "–"}</span>
+			),
+		},
+	];
+}

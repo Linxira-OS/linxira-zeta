@@ -14,6 +14,7 @@ import {
 } from "../data/formatters";
 import { useQuery } from "../data/query";
 import { t } from "../i18n";
+import { formatTimestamp } from "../data/formatters";
 import { TraceView } from "../traces/TraceView";
 import type { SessionSummary } from "../types";
 import {
@@ -90,7 +91,7 @@ export function TracesRoute({ active, session, onOpenSession }: TracesRouteProps
 				header: t("common.started"),
 				align: "right",
 				render: row => (
-					<span className="muted" title={new Date(row.startedAt).toLocaleString()}>
+					<span className="muted" title={formatTimestamp(row.startedAt)}>
 						{formatRelativeTime(row.startedAt)}
 					</span>
 				),

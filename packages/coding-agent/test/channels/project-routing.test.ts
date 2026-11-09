@@ -13,10 +13,11 @@
  * - a PM session routes by its project, not by the global default workspace.
  */
 
-import { afterEach, describe, expect, test, vi } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
+import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
 import type { IrcMessage } from "@linxiraos/pi-channels";
 import { SessionRouter } from "../../src/channels/session-router";
 import { WebConfig } from "../../src/config/web-config";
@@ -118,6 +119,25 @@ async function makeHarness(defaultCwd: string, configDir: string): Promise<Harne
 
 describe("IM project routing", () => {
 	const cleanups: Array<() => Promise<void>> = [];
+	const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+	let testAgentDir: string;
+
+	// `createBotSession` writes its transcript into the real sessions root
+	// (`SessionManager.getDefaultSessionDir(cwd)`). Keep every temp workspace
+	// this suite creates out of the user's ~/.zeta store.
+	beforeAll(async () => {
+		testAgentDir = await mkdtemp(join(tmpdir(), "zeta-project-agent-"));
+		setAgentDir(testAgentDir);
+	});
+	afterAll(async () => {
+		await rm(testAgentDir, { recursive: true, force: true });
+		if (originalAgentDir) {
+			setAgentDir(originalAgentDir);
+		} else {
+			setAgentDir(join(getConfigRootDir(), "agent"));
+			delete process.env.ZETA_CODING_AGENT_DIR;
+		}
+	});
 
 	afterEach(async () => {
 		vi.restoreAllMocks();

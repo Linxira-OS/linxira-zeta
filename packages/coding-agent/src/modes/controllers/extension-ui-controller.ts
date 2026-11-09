@@ -13,6 +13,7 @@ import type {
 	ExtensionContextActions,
 	ExtensionCustomOptions,
 	ExtensionError,
+	ExtensionFormDialogResult,
 	ExtensionUIContext,
 	ExtensionUIDialogOptions,
 	ExtensionUISelectItem,
@@ -28,6 +29,7 @@ import { cfgExtensionAssistantTextRenderers } from "../../extensibility/settings
 import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
 import { ApprovalDialogComponent } from "@linxiraos/pi-tui/overlays/approval-dialog";
 import {
+	type AskDialogInputGuard,
 	type AskDialogPrompt,
 	type AskDialogPromptDraft,
 	type AskDialogPromptValue,
@@ -35,6 +37,8 @@ import {
 	normalizeDialogQuestions,
 } from "@linxiraos/pi-tui/overlays/ask-dialog";
 import { installExtensionComposerShape } from "@linxiraos/pi-tui/overlays/composer-shape-registry";
+import { HtmlFormDialog } from "@linxiraos/pi-tui/html-form/dialog";
+import { type HtmlForm, parseHtmlForm } from "@linxiraos/pi-tui/html-form/parse";
 import { EditorTopGap } from "@linxiraos/pi-tui/prompt/editor-top-gap";
 import { HookEditorComponent, type HookEditorOptions } from "@linxiraos/pi-tui/overlays/hook-editor";
 import { HookInputComponent } from "@linxiraos/pi-tui/overlays/hook-input";
@@ -136,6 +140,7 @@ export class ExtensionUiController {
 			confirm: (title, message, dialogOptions) => this.showHookConfirm(title, message, dialogOptions),
 			input: (title, placeholder, dialogOptions) => this.showHookInput(title, placeholder, dialogOptions),
 			askDialog: (questions, dialogOptions) => this.showAskDialog(questions, dialogOptions),
+			formDialog: (html, dialogOptions) => this.showFormDialog(html, dialogOptions),
 			approve: (prompt, dialogOptions) => this.showApproval(prompt, dialogOptions),
 			notify: (message, type) => this.showHookNotify(message, type),
 			onTerminalInput: handler => this.addExtensionTerminalInputListener(handler),
@@ -734,6 +739,68 @@ export class ExtensionUiController {
 		// of throwing inside `sanitizeCarriageReturns` or taking down the render.
 		const normalized = normalizeDialogQuestions(questions);
 		return this.#showLocalAskDialog(normalized, dialogOptions);
+	}
+
+	/** An agent-written HTML form in the composer's place ({@link HtmlFormDialog}). */
+	async showFormDialog(
+		html: string,
+		dialogOptions?: ExtensionUIDialogOptions,
+	): Promise<ExtensionFormDialogResult | undefined> {
+		const form = parseHtmlForm(html);
+		return this.#showLocalFormDialog(form, dialogOptions);
+	}
+
+	/**
+	 * A draft in progress when a dialog lands keeps the keyboard, so in-flight
+	 * typing never answers by accident; up/down hand input to the dialog and the
+	 * draft stays parked beneath it until the dialog closes.
+	 */
+	#draftInputGuard(): AskDialogInputGuard | undefined {
+		const draftEditor = this.ctx.editor;
+		if (draftEditor.getText().length === 0) return undefined;
+		return {
+			isBlocked: () => draftEditor.getText().length > 0,
+			handleInput: (keyData: string) => draftEditor.handleDraftEdit(keyData),
+			hint: "typing edits your prompt",
+			syncPresentation: (blocked: boolean) => {
+				draftEditor.focused = blocked;
+			},
+		};
+	}
+
+	#showLocalFormDialog(
+		form: HtmlForm,
+		dialogOptions: ExtensionUIDialogOptions | undefined,
+	): Promise<ExtensionFormDialogResult | undefined> {
+		return this.#presentDialog<ExtensionFormDialogResult>(dialogOptions?.signal, settle => {
+			const inputGuard = this.#draftInputGuard();
+			const dialog = new HtmlFormDialog(form, {
+				tui: this.ctx.ui,
+				cwd: this.ctx.sessionManager.getCwd(),
+				timeout: dialogOptions?.timeout,
+				onTimeout: data => {
+					dialogOptions?.onTimeout?.();
+					settle({ data, timedOut: true });
+				},
+				onSubmit: data => settle({ data }),
+				onCancel: () => settle(undefined),
+				inputGuard,
+			});
+			this.ctx.closeLinkBrowser();
+			this.ctx.editorContainer.clear();
+			this.ctx.editorContainer.addChild(dialog);
+			// The guarded draft stays visible beneath the form while typing edits it.
+			if (inputGuard) this.ctx.editorContainer.addChild(this.ctx.editor);
+			this.ctx.ui.setFocus(dialog);
+			this.ctx.ui.requestRender();
+			return () => {
+				dialog.dispose();
+				this.ctx.editorContainer.clear();
+				this.ctx.editorContainer.addChild(this.ctx.editor);
+				this.ctx.ui.setFocus(this.ctx.editor);
+				this.ctx.ui.requestRender();
+			};
+		});
 	}
 
 	#showLocalAskDialog(

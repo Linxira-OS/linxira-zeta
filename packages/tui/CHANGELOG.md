@@ -5,15 +5,6 @@
 - Released as part of Zeta 1.4.13.
 
 ## [9.4.0] - 2026-01-31
-
-### Added
-
-- Exported `padding` utility function for creating space-padded strings efficiently
-
-### Changed
-
-- Optimized padding operations across all components to use pre-allocated space buffer for better performance
-
 ## [8.4.1] - 2026-01-25
 
 ### Added

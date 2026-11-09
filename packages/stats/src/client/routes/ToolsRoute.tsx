@@ -44,10 +44,12 @@ export interface ToolsRouteProps {
 
 type CallMetric = "calls" | "errors";
 
-const METRIC_OPTIONS = [
-	{ value: "calls" as const, label: t("tools.calls") },
-	{ value: "errors" as const, label: t("tools.errors") },
-];
+function metricOptions() {
+	return [
+		{ value: "calls" as const, label: t("tools.calls") },
+		{ value: "errors" as const, label: t("tools.errors") },
+	];
+}
 
 /** Tools stacked individually in the calls chart; the rest fold into "Other". */
 const TOP_TOOLS = 6;
@@ -59,9 +61,8 @@ function bucketUnit(bucketMs: number): string {
 	return t("tools.bucket-day");
 }
 
-const NO_CALLS = <EmptyState title={t("tools.no-tool-calls")} />;
-
 export function ToolsRoute({ active, range }: ToolsRouteProps) {
+	const noCalls = <EmptyState title={t("tools.no-tool-calls")} />;
 	const tools = useQuery(["tools", range], ({ signal }) => getToolDashboardStats(range, signal), { enabled: active });
 	const [metric, setMetric] = useState<CallMetric>("calls");
 	const [hidden, toggleHidden] = useHiddenSeries();
@@ -160,10 +161,10 @@ export function ToolsRoute({ active, range }: ToolsRouteProps) {
 				index={1}
 				title={metric === "calls" ? t("tools.calls-over-time") : t("tools.errors-over-time")}
 				description={t("tools.chart-description", { bucket: bucketUnit(meta.bucketMs), count: TOP_TOOLS })}
-				actions={<Segmented size="sm" options={METRIC_OPTIONS} value={metric} onChange={setMetric} />}
+				actions={<Segmented size="sm" options={metricOptions()} value={metric} onChange={setMetric} />}
 				stale={tools.stale}
 			>
-				<QueryView query={tools} skeleton={<ChartSkeleton height={260} />} isEmpty={isEmpty} empty={NO_CALLS}>
+				<QueryView query={tools} skeleton={<ChartSkeleton height={260} />} isEmpty={isEmpty} empty={noCalls}>
 					{() => (
 						<div className="stack" style={{ gap: 12 }}>
 							<TimeChart
@@ -197,7 +198,7 @@ export function ToolsRoute({ active, range }: ToolsRouteProps) {
 				flush
 				stale={tools.stale}
 			>
-				<QueryView query={tools} skeleton={<TableSkeleton rows={8} />} isEmpty={isEmpty} empty={NO_CALLS}>
+				<QueryView query={tools} skeleton={<TableSkeleton rows={8} />} isEmpty={isEmpty} empty={noCalls}>
 					{() => (
 						<Table
 							rows={view.rows}
@@ -251,7 +252,7 @@ export function ToolsRoute({ active, range }: ToolsRouteProps) {
 					</div>
 				}
 			>
-				<QueryView query={tools} skeleton={<TableSkeleton rows={8} />} isEmpty={isEmpty} empty={NO_CALLS}>
+				<QueryView query={tools} skeleton={<TableSkeleton rows={8} />} isEmpty={isEmpty} empty={noCalls}>
 					{data => <ToolModelTable rows={data.byToolModel} tool={toolFilter} colors={view.colors} />}
 				</QueryView>
 			</Card>

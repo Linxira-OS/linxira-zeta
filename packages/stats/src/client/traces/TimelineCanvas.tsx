@@ -9,8 +9,9 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { formatDurationMs, formatInteger } from "../data/formatters";
+import { formatDurationMs, formatInteger, formatTimeOfDay } from "../data/formatters";
 import { t } from "../i18n";
+import { useLocale } from "../i18n/useLocale";
 import type { TraceMarker, TraceSpan, TraceSpanKind, TraceTrack } from "../types";
 import { buildTicks, formatOffset, type TraceScale } from "./time-scale";
 import { type TraceTheme, useTraceTheme } from "./trace-colors";
@@ -51,13 +52,15 @@ const SPAN_RADIUS = 3;
 /** Opacity of spans that don't match the search. */
 const DIM_ALPHA = 0.3;
 
-const LANE_ORDER: Array<{ kind: TraceSpanKind; label: string }> = [
-	{ kind: "turn", label: t("common.input") },
-	{ kind: "model", label: t("common.model") },
-	{ kind: "tool", label: t("trace.tools") },
-	{ kind: "subagent", label: t("trace.agents") },
-	{ kind: "background", label: t("trace.bg") },
-];
+function laneOrder(): Array<{ kind: TraceSpanKind; label: string }> {
+	return [
+		{ kind: "turn", label: t("common.input") },
+		{ kind: "model", label: t("common.model") },
+		{ kind: "tool", label: t("trace.tools") },
+		{ kind: "subagent", label: t("trace.agents") },
+		{ kind: "background", label: t("trace.bg") },
+	];
+}
 
 interface LaneRow {
 	track: TraceTrack;
@@ -128,7 +131,7 @@ function buildLayout(tracks: TraceTrack[], collapsed: ReadonlySet<string>): Time
 			y1: y,
 		};
 		y += HEADER_H;
-		for (const { kind, label } of LANE_ORDER) {
+		for (const { kind, label } of laneOrder()) {
 			const spans = byKind[kind];
 			// Main always shows the core lanes; optional lanes appear when populated.
 			const isCore = kind === "turn" || kind === "model" || kind === "tool";
@@ -227,6 +230,7 @@ export function TimelineCanvas({
 	traceStart,
 	autoFocus = true,
 }: TimelineCanvasProps) {
+	const locale = useLocale();
 	const colors = useTraceTheme();
 	const containerRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -247,7 +251,7 @@ export function TimelineCanvas({
 	const viewportRef = useRef(viewport);
 	viewportRef.current = viewport;
 
-	const layout = useMemo(() => buildLayout(tracks, collapsed), [tracks, collapsed]);
+	const layout = useMemo(() => buildLayout(tracks, collapsed), [tracks, collapsed, locale]);
 	const laneAxes = useMemo(() => buildLaneAxes(layout, scale), [layout, scale]);
 
 	// Observe container width (gutter excluded).
@@ -851,7 +855,7 @@ function renderTooltip(hover: Hit, traceStart: number, ref: React.RefObject<HTML
 			<div ref={ref} className="traces-tooltip" style={style}>
 				<div className="traces-tooltip-title">{marker.label}</div>
 				<div className="muted num">
-					{new Date(marker.time).toLocaleTimeString()} ({formatOffset(marker.time - traceStart)})
+					{formatTimeOfDay(marker.time)} ({formatOffset(marker.time - traceStart)})
 				</div>
 			</div>
 		);
@@ -862,7 +866,7 @@ function renderTooltip(hover: Hit, traceStart: number, ref: React.RefObject<HTML
 		<div ref={ref} className="traces-tooltip" style={style}>
 			<div className="traces-tooltip-title truncate">{span.label}</div>
 			<div className="muted num">
-				{formatDurationMs(span.end - span.start)} · {new Date(span.start).toLocaleTimeString()} (
+				{formatDurationMs(span.end - span.start)} · {formatTimeOfDay(span.start)} (
 				{formatOffset(span.start - traceStart)}){span.unterminated ? ` · ${t("trace.unterminated")}` : ""}
 			</div>
 			{span.kind === "model" && (

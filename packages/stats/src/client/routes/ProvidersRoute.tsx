@@ -52,21 +52,27 @@ export interface ProvidersRouteProps {
 
 type BurnMetric = "tokens" | "cost" | "requests";
 
-const BURN_OPTIONS = [
-	{ value: "tokens" as const, label: t("common.tokens") },
-	{ value: "cost" as const, label: t("common.cost"), title: t("providers.cost-title") },
-	{ value: "requests" as const, label: t("common.requests") },
-];
+// Built per render, like every translated option list: a module-level `t()`
+// call freezes the boot locale and survives a topbar language switch.
+function burnOptions() {
+	return [
+		{ value: "tokens" as const, label: t("common.tokens") },
+		{ value: "cost" as const, label: t("common.cost"), title: t("providers.cost-title") },
+		{ value: "requests" as const, label: t("common.requests") },
+	];
+}
 
 /** Providers stacked individually in the burn chart; the rest fold into "Other". */
 const TOP_PROVIDERS = 6;
 
-const TOKEN_MIX = [
-	{ key: "input", label: t("ui.uncached-input"), color: "#5b8cff" },
-	{ key: "cacheRead", label: t("common.cache-read"), color: "var(--chart-primary)" },
-	{ key: "cacheWrite", label: t("common.cache-write"), color: "#f5b54a" },
-	{ key: "output", label: t("common.output"), color: "var(--chart-secondary)" },
-] as const;
+function tokenMix() {
+	return [
+		{ key: "input", label: t("ui.uncached-input"), color: "#5b8cff" },
+		{ key: "cacheRead", label: t("common.cache-read"), color: "var(--chart-primary)" },
+		{ key: "cacheWrite", label: t("common.cache-write"), color: "#f5b54a" },
+		{ key: "output", label: t("common.output"), color: "var(--chart-secondary)" },
+	] as const;
+}
 
 interface WindowRef {
 	provider: string;
@@ -236,7 +242,7 @@ export function ProvidersRoute({ active, range }: ProvidersRouteProps) {
 									count: TOP_PROVIDERS,
 								})
 					}
-					actions={<Segmented size="sm" options={BURN_OPTIONS} value={metric} onChange={setMetric} />}
+					actions={<Segmented size="sm" options={burnOptions()} value={metric} onChange={setMetric} />}
 					stale={stats.stale}
 				>
 					<QueryView query={stats} skeleton={<ChartSkeleton height={260} />}>
@@ -468,9 +474,11 @@ function TokenMix({ provider }: { provider: ProviderAggregate }) {
 	};
 	return (
 		<div className="providers-mix">
-			<ShareBar segments={TOKEN_MIX.map(m => ({ key: m.key, label: m.label, value: mix[m.key], color: m.color }))} />
+			<ShareBar
+				segments={tokenMix().map(m => ({ key: m.key, label: m.label, value: mix[m.key], color: m.color }))}
+			/>
 			<Legend
-				items={TOKEN_MIX.map(m => ({
+				items={tokenMix().map(m => ({
 					key: m.key,
 					label: m.label,
 					color: m.color,
@@ -601,7 +609,7 @@ function WindowInsightsTable({
 		<Table
 			rows={insights}
 			rowKey={i => `${i.provider}::${i.windowKey}`}
-			columns={INSIGHT_COLUMNS}
+			columns={insightColumns()}
 			initialSort={{ key: "consumed", dir: "desc" }}
 			limit={12}
 			selectedKey={selected ? `${selected.provider}::${selected.windowKey}` : null}
@@ -611,104 +619,106 @@ function WindowInsightsTable({
 	);
 }
 
-const INSIGHT_COLUMNS: Column<ProviderWindowInsight>[] = [
-	{
-		key: "window",
-		header: t("providers.window"),
-		sort: i => `${i.provider} ${i.windowKey}`,
-		render: i => <LabelCell primary={i.windowKey} secondary={<span className="mono">{i.provider}</span>} />,
-	},
-	{
-		key: "accounts",
-		header: t("providers.accounts"),
-		title: t("providers.accounts-title"),
-		align: "right",
-		sort: i => i.accounts,
-		render: i => <span className="num">{formatInteger(i.accounts)}</span>,
-	},
-	{
-		key: "cycles",
-		header: t("providers.resets"),
-		title: t("providers.resets-title"),
-		align: "right",
-		sort: i => i.cycles,
-		render: i => <span className="num muted">{formatInteger(i.cycles)}</span>,
-	},
-	{
-		key: "consumed",
-		header: t("providers.windows-burned"),
-		title: t("providers.windows-burned-title"),
-		align: "right",
-		sort: i => i.fractionConsumed,
-		render: i => <span className="num">{i.fractionConsumed.toFixed(2)}</span>,
-	},
-	{
-		key: "capacity",
-		header: t("providers.tokens-per-window"),
-		title: t("providers.tokens-per-window-title"),
-		align: "right",
-		sort: i => i.estTokensPerWindow ?? -1,
-		render: i =>
-			i.estTokensPerWindow !== null ? (
-				<span className="num">{formatCompact(i.estTokensPerWindow)}</span>
-			) : (
-				<span className="dim" title={t("providers.too-little-consumed")}>
-					–
-				</span>
-			),
-	},
-	{
-		key: "peak",
-		header: t("providers.peak-utilization"),
-		title: t("providers.peak-utilization-title"),
-		align: "right",
-		sort: i => i.peakConcurrentFraction,
-		render: i => {
-			const load = i.accounts > 0 ? i.peakConcurrentFraction / i.accounts : 0;
-			return (
-				<MeterCell
-					value={i.peakConcurrentFraction}
-					max={i.accounts}
-					display={formatPercent(i.peakConcurrentFraction, 0)}
-					color={load >= 0.9 ? "var(--warn)" : undefined}
-				/>
-			);
+function insightColumns(): Column<ProviderWindowInsight>[] {
+	return [
+		{
+			key: "window",
+			header: t("providers.window"),
+			sort: i => `${i.provider} ${i.windowKey}`,
+			render: i => <LabelCell primary={i.windowKey} secondary={<span className="mono">{i.provider}</span>} />,
 		},
-	},
-	{
-		key: "ideal",
-		header: t("providers.accounts-needed"),
-		title: t("providers.accounts-needed-title"),
-		align: "right",
-		sort: i => i.idealAccounts - i.accounts,
-		render: i =>
-			i.idealAccounts > i.accounts ? (
-				<Badge tone="warn" mono>
-					{t("providers.ideal-accounts", {
-						ideal: formatInteger(i.idealAccounts),
-						have: formatInteger(i.accounts),
-					})}
-				</Badge>
-			) : (
-				<span className="num">{formatInteger(i.idealAccounts)}</span>
-			),
-	},
-	{
-		key: "exhausted",
-		header: t("providers.exhaustions"),
-		title: t("providers.exhaustions-title"),
-		align: "right",
-		sort: i => i.exhaustedEvents,
-		render: i =>
-			i.exhaustedEvents > 0 ? (
-				<Badge tone="warn" mono>
-					{t("providers.exhausted-n", { count: formatInteger(i.exhaustedEvents) })}
-				</Badge>
-			) : (
-				<span className="num dim">0</span>
-			),
-	},
-];
+		{
+			key: "accounts",
+			header: t("providers.accounts"),
+			title: t("providers.accounts-title"),
+			align: "right",
+			sort: i => i.accounts,
+			render: i => <span className="num">{formatInteger(i.accounts)}</span>,
+		},
+		{
+			key: "cycles",
+			header: t("providers.resets"),
+			title: t("providers.resets-title"),
+			align: "right",
+			sort: i => i.cycles,
+			render: i => <span className="num muted">{formatInteger(i.cycles)}</span>,
+		},
+		{
+			key: "consumed",
+			header: t("providers.windows-burned"),
+			title: t("providers.windows-burned-title"),
+			align: "right",
+			sort: i => i.fractionConsumed,
+			render: i => <span className="num">{i.fractionConsumed.toFixed(2)}</span>,
+		},
+		{
+			key: "capacity",
+			header: t("providers.tokens-per-window"),
+			title: t("providers.tokens-per-window-title"),
+			align: "right",
+			sort: i => i.estTokensPerWindow ?? -1,
+			render: i =>
+				i.estTokensPerWindow !== null ? (
+					<span className="num">{formatCompact(i.estTokensPerWindow)}</span>
+				) : (
+					<span className="dim" title={t("providers.too-little-consumed")}>
+						–
+					</span>
+				),
+		},
+		{
+			key: "peak",
+			header: t("providers.peak-utilization"),
+			title: t("providers.peak-utilization-title"),
+			align: "right",
+			sort: i => i.peakConcurrentFraction,
+			render: i => {
+				const load = i.accounts > 0 ? i.peakConcurrentFraction / i.accounts : 0;
+				return (
+					<MeterCell
+						value={i.peakConcurrentFraction}
+						max={i.accounts}
+						display={formatPercent(i.peakConcurrentFraction, 0)}
+						color={load >= 0.9 ? "var(--warn)" : undefined}
+					/>
+				);
+			},
+		},
+		{
+			key: "ideal",
+			header: t("providers.accounts-needed"),
+			title: t("providers.accounts-needed-title"),
+			align: "right",
+			sort: i => i.idealAccounts - i.accounts,
+			render: i =>
+				i.idealAccounts > i.accounts ? (
+					<Badge tone="warn" mono>
+						{t("providers.ideal-accounts", {
+							ideal: formatInteger(i.idealAccounts),
+							have: formatInteger(i.accounts),
+						})}
+					</Badge>
+				) : (
+					<span className="num">{formatInteger(i.idealAccounts)}</span>
+				),
+		},
+		{
+			key: "exhausted",
+			header: t("providers.exhaustions"),
+			title: t("providers.exhaustions-title"),
+			align: "right",
+			sort: i => i.exhaustedEvents,
+			render: i =>
+				i.exhaustedEvents > 0 ? (
+					<Badge tone="warn" mono>
+						{t("providers.exhausted-n", { count: formatInteger(i.exhaustedEvents) })}
+					</Badge>
+				) : (
+					<span className="num dim">0</span>
+				),
+		},
+	];
+}
 
 // ---------------------------------------------------------------------------
 // Window utilization
@@ -930,7 +940,7 @@ function WindowUtilizationCard({
 									<Table
 										rows={rows}
 										rowKey={r => `${r.series.windowKey}::${r.series.accountKey}`}
-										columns={ACCOUNT_COLUMNS}
+										columns={accountColumns()}
 										limit={16}
 										onRowClick={r => onSelect({ provider: r.series.provider, windowKey: r.series.windowKey })}
 										dense
@@ -1019,68 +1029,70 @@ function statusBadge(latest: AccountRow["latest"]): ReactNode {
 	return <Badge tone="ok">{t("ui.status-ok")}</Badge>;
 }
 
-const ACCOUNT_COLUMNS: Column<AccountRow>[] = [
-	{
-		key: "account",
-		header: t("providers.account"),
-		sort: r => r.name,
-		render: r => (
-			<span className="row" style={{ gap: 8 }}>
-				<span className="providers-swatch-slot">{r.color && <Swatch color={r.color} />}</span>
-				<span className="truncate providers-account" title={r.series.accountKey}>
-					{r.name}
+function accountColumns(): Column<AccountRow>[] {
+	return [
+		{
+			key: "account",
+			header: t("providers.account"),
+			sort: r => r.name,
+			render: r => (
+				<span className="row" style={{ gap: 8 }}>
+					<span className="providers-swatch-slot">{r.color && <Swatch color={r.color} />}</span>
+					<span className="truncate providers-account" title={r.series.accountKey}>
+						{r.name}
+					</span>
 				</span>
-			</span>
-		),
-	},
-	{
-		key: "window",
-		header: t("providers.window"),
-		sort: r => r.series.windowKey,
-		render: r => <span className={r.color ? undefined : "muted"}>{r.series.windowKey}</span>,
-	},
-	{
-		key: "latest",
-		header: t("providers.latest-used"),
-		align: "right",
-		sort: r => r.latest?.fraction ?? -1,
-		render: r =>
-			r.latest ? (
-				<MeterCell
-					value={r.latest.fraction}
-					max={1}
-					display={formatPercent(r.latest.fraction, 0)}
-					color={r.latest.exhausted ? "var(--bad)" : r.latest.fraction >= 0.8 ? "var(--warn)" : "var(--ok)"}
-				/>
-			) : (
-				<span className="dim">–</span>
 			),
-	},
-	{
-		key: "status",
-		header: t("providers.status"),
-		sort: r => (r.latest?.exhausted ? 2 : (r.latest?.fraction ?? 0) >= 0.8 ? 1 : 0),
-		render: r => statusBadge(r.latest),
-	},
-	{
-		key: "peak",
-		header: t("providers.peak-in-range"),
-		align: "right",
-		sort: r => r.peak ?? -1,
-		render: r => <span className="num">{r.peak === null ? "–" : formatPercent(r.peak, 0)}</span>,
-	},
-	{
-		key: "samples",
-		header: t("providers.snapshots"),
-		align: "right",
-		sort: r => r.samples,
-		render: r => <span className="num muted">{formatInteger(r.samples)}</span>,
-	},
-	{
-		key: "recorded",
-		header: t("providers.recorded"),
-		align: "right",
-		sort: r => r.latest?.timestamp ?? 0,
-		render: r => <span className="muted">{r.latest ? formatRelativeTime(r.latest.timestamp) : "–"}</span>,
-	},
-];
+		},
+		{
+			key: "window",
+			header: t("providers.window"),
+			sort: r => r.series.windowKey,
+			render: r => <span className={r.color ? undefined : "muted"}>{r.series.windowKey}</span>,
+		},
+		{
+			key: "latest",
+			header: t("providers.latest-used"),
+			align: "right",
+			sort: r => r.latest?.fraction ?? -1,
+			render: r =>
+				r.latest ? (
+					<MeterCell
+						value={r.latest.fraction}
+						max={1}
+						display={formatPercent(r.latest.fraction, 0)}
+						color={r.latest.exhausted ? "var(--bad)" : r.latest.fraction >= 0.8 ? "var(--warn)" : "var(--ok)"}
+					/>
+				) : (
+					<span className="dim">–</span>
+				),
+		},
+		{
+			key: "status",
+			header: t("providers.status"),
+			sort: r => (r.latest?.exhausted ? 2 : (r.latest?.fraction ?? 0) >= 0.8 ? 1 : 0),
+			render: r => statusBadge(r.latest),
+		},
+		{
+			key: "peak",
+			header: t("providers.peak-in-range"),
+			align: "right",
+			sort: r => r.peak ?? -1,
+			render: r => <span className="num">{r.peak === null ? "–" : formatPercent(r.peak, 0)}</span>,
+		},
+		{
+			key: "samples",
+			header: t("providers.snapshots"),
+			align: "right",
+			sort: r => r.samples,
+			render: r => <span className="num muted">{formatInteger(r.samples)}</span>,
+		},
+		{
+			key: "recorded",
+			header: t("providers.recorded"),
+			align: "right",
+			sort: r => r.latest?.timestamp ?? 0,
+			render: r => <span className="muted">{r.latest ? formatRelativeTime(r.latest.timestamp) : "–"}</span>,
+		},
+	];
+}

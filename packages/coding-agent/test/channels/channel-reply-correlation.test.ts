@@ -5,10 +5,11 @@
  * another chat and never to a Studio/attach turn.
  */
 
-import { afterEach, describe, expect, test, vi } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
 import type { IrcMessage } from "@linxiraos/pi-channels";
 import { SessionRouter } from "../../src/channels/session-router";
 import { WebConfig } from "../../src/config/web-config";
@@ -93,6 +94,25 @@ function mockWorkspaceSessions(byCwd: Map<string, ObservedStub>): void {
 
 describe("SessionRouter reply correlation", () => {
 	const cleanups: Array<() => Promise<void>> = [];
+	const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+	let testAgentDir: string;
+
+	// A bot session's transcript is written under the real sessions root
+	// (`SessionManager.getDefaultSessionDir(defaultCwd)`); isolate it so this
+	// suite never leaves temp-workspace buckets in ~/.zeta/agent/sessions.
+	beforeAll(async () => {
+		testAgentDir = await mkdtemp(join(tmpdir(), "zeta-correlate-agent-"));
+		setAgentDir(testAgentDir);
+	});
+	afterAll(async () => {
+		await rm(testAgentDir, { recursive: true, force: true });
+		if (originalAgentDir) {
+			setAgentDir(originalAgentDir);
+		} else {
+			setAgentDir(join(getConfigRootDir(), "agent"));
+			delete process.env.ZETA_CODING_AGENT_DIR;
+		}
+	});
 
 	afterEach(async () => {
 		vi.restoreAllMocks();

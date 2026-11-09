@@ -8,7 +8,7 @@ import { toError } from "@linxiraos/pi-utils/type-guards";
 import { Check, Copy, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { getSessionEntryDetail } from "../api";
-import { formatDurationMs, formatInteger } from "../data/formatters";
+import { formatDurationMs, formatInteger, formatTimeOfDay } from "../data/formatters";
 import { t } from "../i18n";
 import type { TraceSpan, TraceTrack } from "../types";
 import { Badge, Drawer, type DrawerProps, ErrorState, JsonBlock, KeyValues, Skeleton } from "../ui";
@@ -156,7 +156,7 @@ export function SpanDrawer({
 		{
 			key: "start",
 			label: t("trace.start"),
-			value: <span className="num">{new Date(span.start).toLocaleTimeString()}</span>,
+			value: <span className="num">{formatTimeOfDay(span.start)}</span>,
 		},
 		{ key: "track", label: t("trace.track"), value: <span className="mono">{track?.label ?? "-"}</span> },
 	];

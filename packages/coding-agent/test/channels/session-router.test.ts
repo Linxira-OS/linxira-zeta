@@ -5,11 +5,12 @@
  * live agent/model.
  */
 
-import { afterEach, describe, expect, test, vi } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import { join } from "node:path";
+import { getConfigRootDir, setAgentDir } from "@linxiraos/pi-utils";
 import { SessionRouter } from "../../src/channels/session-router";
 import { WebConfig } from "../../src/config/web-config";
 import type { LoadExtensionsResult } from "../../src/extensibility/extensions/types";
@@ -51,7 +52,27 @@ function makeStubSession(agentId: string): AgentSession {
 
 describe("SessionRouter", () => {
 	const cleanups: Array<() => Promise<void>> = [];
+	const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+	let testAgentDir: string;
 	let webConfig: WebConfig;
+
+	// Bot sessions materialize real session files through
+	// `SessionManager.getDefaultSessionDir(cwd)`. Without an isolated agent
+	// dir this suite writes every temp workspace into the user's real
+	// `~/.zeta/agent/sessions` store.
+	beforeAll(async () => {
+		testAgentDir = await mkdtemp(join(tmpdir(), "zeta-router-agent-"));
+		setAgentDir(testAgentDir);
+	});
+	afterAll(async () => {
+		await rm(testAgentDir, { recursive: true, force: true });
+		if (originalAgentDir) {
+			setAgentDir(originalAgentDir);
+		} else {
+			setAgentDir(path.join(getConfigRootDir(), "agent"));
+			delete process.env.ZETA_CODING_AGENT_DIR;
+		}
+	});
 
 	afterEach(async () => {
 		vi.restoreAllMocks();

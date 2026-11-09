@@ -292,7 +292,7 @@ export function ErrorsRoute({ active, range, onRequestClick }: ErrorsRouteProps)
 							rows={filtered}
 							rowKey={row => row.id ?? `${row.sessionFile}:${row.entryId}`}
 							onRowClick={row => row.id !== undefined && onRequestClick(row.id)}
-							columns={FAILURE_COLUMNS}
+							columns={failureColumns()}
 							initialSort={{ key: "time", dir: "desc" }}
 							limit={50}
 							dense
@@ -389,57 +389,59 @@ function SignatureDetail({ group, onRequestClick }: { group: ErrorGroupView; onR
 	);
 }
 
-const FAILURE_COLUMNS: readonly Column<MessageStats>[] = [
-	{
-		key: "time",
-		header: t("errors.when"),
-		width: 120,
-		sort: row => row.timestamp,
-		render: row => (
-			<span className="muted" title={formatTimestamp(row.timestamp)}>
-				{formatRelativeTime(row.timestamp)}
-			</span>
-		),
-	},
-	{
-		key: "model",
-		header: t("common.model"),
-		sort: row => row.model,
-		render: row => <LabelCell primary={<span className="mono">{row.model}</span>} secondary={row.provider} />,
-	},
-	{
-		key: "error",
-		header: t("common.error"),
-		sort: row => row.errorMessage ?? "",
-		render: row => (
-			<span className="errors-message" title={row.errorMessage ?? undefined}>
-				{row.errorMessage ?? t("errors.unknown-error")}
-			</span>
-		),
-	},
-	{
-		key: "project",
-		header: t("common.project"),
-		sort: row => row.folder,
-		render: row => (
-			<span className="mono muted" title={row.folder}>
-				{formatFolder(row.folder)}
-			</span>
-		),
-	},
-	{
-		key: "tokens",
-		header: t("common.tokens"),
-		align: "right",
-		sort: row => row.usage.totalTokens,
-		render: row => <span className="num">{formatInteger(row.usage.totalTokens)}</span>,
-	},
-	{
-		key: "cost",
-		header: t("common.cost"),
-		title: t("errors.cost-hint"),
-		align: "right",
-		sort: row => row.usage.cost.total,
-		render: row => <span className="num">{formatMessageCost(row, 4)}</span>,
-	},
-];
+function failureColumns(): readonly Column<MessageStats>[] {
+	return [
+		{
+			key: "time",
+			header: t("errors.when"),
+			width: 120,
+			sort: row => row.timestamp,
+			render: row => (
+				<span className="muted" title={formatTimestamp(row.timestamp)}>
+					{formatRelativeTime(row.timestamp)}
+				</span>
+			),
+		},
+		{
+			key: "model",
+			header: t("common.model"),
+			sort: row => row.model,
+			render: row => <LabelCell primary={<span className="mono">{row.model}</span>} secondary={row.provider} />,
+		},
+		{
+			key: "error",
+			header: t("common.error"),
+			sort: row => row.errorMessage ?? "",
+			render: row => (
+				<span className="errors-message" title={row.errorMessage ?? undefined}>
+					{row.errorMessage ?? t("errors.unknown-error")}
+				</span>
+			),
+		},
+		{
+			key: "project",
+			header: t("common.project"),
+			sort: row => row.folder,
+			render: row => (
+				<span className="mono muted" title={row.folder}>
+					{formatFolder(row.folder)}
+				</span>
+			),
+		},
+		{
+			key: "tokens",
+			header: t("common.tokens"),
+			align: "right",
+			sort: row => row.usage.totalTokens,
+			render: row => <span className="num">{formatInteger(row.usage.totalTokens)}</span>,
+		},
+		{
+			key: "cost",
+			header: t("common.cost"),
+			title: t("errors.cost-hint"),
+			align: "right",
+			sort: row => row.usage.cost.total,
+			render: row => <span className="num">{formatMessageCost(row, 4)}</span>,
+		},
+	];
+}
