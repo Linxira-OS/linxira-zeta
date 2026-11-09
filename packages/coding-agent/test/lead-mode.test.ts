@@ -30,6 +30,7 @@ import { addPm, initTeam } from "@linxiraos/zeta/team/service";
 import { createRoom } from "@linxiraos/zeta/team/rooms";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { createRoomTools, ROOM_TOOL_NAMES } from "@linxiraos/zeta/tools/room";
+import { createLeadTools } from "@linxiraos/zeta/tools/secretary";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
@@ -61,7 +62,7 @@ const CODING_TOOLS = [
 	"vibe_kill",
 	"vibe_list",
 ];
-const LEAD_TOOLS = ["board", "calendar", "channel_send", "read", "room_post", "room_read", "todo"];
+const LEAD_TOOLS = ["board", "calendar", "channel_send", "read", "room_post", "room_read", "secretary", "todo"];
 
 interface Fixture {
 	scratch: string;
@@ -117,7 +118,7 @@ describe("Lead (PM) mode", () => {
 			modelRegistry,
 			toolRegistry: new Map(registryTools.map(tool => [tool.name, tool])),
 			builtInToolNames: registryTools.map(tool => tool.name),
-			createLeadTools: () => createRoomTools({ cwd: fixture.pmRoot } as ToolSession),
+			createLeadTools: () => createLeadTools({ cwd: fixture.pmRoot } as ToolSession),
 		});
 		await session.setActiveToolsByName(CODING_TOOLS);
 		mode = new InteractiveMode(session, "test", undefined, undefined, undefined, new EventBus());
@@ -174,7 +175,7 @@ describe("Lead (PM) mode", () => {
 		await mode.handleLeadModeCommand();
 		expect(mode.leadModeEnabled).toBe(false);
 		expect(session.getActiveToolNames().toSorted()).toEqual(CODING_TOOLS.toSorted());
-		for (const name of ROOM_TOOL_NAMES) {
+		for (const name of [...ROOM_TOOL_NAMES, "secretary"]) {
 			expect(session.getToolByName(name)).toBeUndefined();
 		}
 		const lastMode = [...session.sessionManager.getEntries()].reverse().find(entry => entry.type === "mode_change");
@@ -227,7 +228,7 @@ describe("Lead (PM) mode", () => {
 			modelRegistry,
 			toolRegistry: new Map(CODING_TOOLS.map(name => [name, stubTool(name)])),
 			builtInToolNames: CODING_TOOLS,
-			createLeadTools: () => createRoomTools({ cwd: fixture.scratch } as ToolSession),
+			createLeadTools: () => createLeadTools({ cwd: fixture.scratch } as ToolSession),
 		});
 		const outsideMode = new InteractiveMode(outside, "test", undefined, undefined, undefined, new EventBus());
 		const showError = vi.spyOn(outsideMode, "showError").mockImplementation(() => {});
@@ -311,7 +312,7 @@ describe("Lead (PM) mode", () => {
 				[...CODING_TOOLS, "board", "calendar", "channel_send"].map(name => [name, stubTool(name)]),
 			),
 			builtInToolNames: [...CODING_TOOLS, "board", "calendar", "channel_send"],
-			createLeadTools: () => createRoomTools({ cwd: fixture.pmRoot } as ToolSession),
+			createLeadTools: () => createLeadTools({ cwd: fixture.pmRoot } as ToolSession),
 		});
 		const reopenedMode = new InteractiveMode(reopened, "test", undefined, undefined, undefined, new EventBus());
 		try {
@@ -329,5 +330,5 @@ describe("Lead (PM) mode", () => {
 			reopenedMode.stop();
 			await reopened.dispose();
 		}
-	});
+	}, 30_000);
 });

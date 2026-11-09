@@ -24,6 +24,7 @@ export const BUILTIN_TOOL_NAMES = [
 	"wait",
 	"todo",
 	"board",
+	"room_read",
 	"mode",
 	"web_search",
 	"time",

@@ -58,6 +58,7 @@ import { AstGrepTool } from "./ast-grep";
 import { BashTool } from "./bash";
 import { BoardTool } from "./board";
 import { CalendarTool } from "./calendar";
+import { RoomReadTool } from "./room";
 import { type BuiltinToolName, type HiddenToolName, normalizeToolNames } from "./builtin-names";
 import { ChannelSendTool } from "./channel-send";
 import { type CheckpointState, CheckpointTool, type CompletedRewindState, RewindTool } from "./checkpoint";
@@ -172,6 +173,7 @@ export * from "./read";
 export * from "./report-tool-issue";
 export * from "./resolve";
 export * from "./room";
+export * from "./secretary";
 export * from "./security-scan";
 export * from "./think";
 export * from "./dynamic-tools";
@@ -666,6 +668,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	wait: s => new WaitTool(s),
 	todo: s => new TodoTool(s),
 	board: s => new BoardTool(s),
+	room_read: s => new RoomReadTool(s),
 	mode: s => new ModeTool(s),
 	web_search: s => new WebSearchTool(s),
 	time: s => new TimeTool(s.settings),
@@ -856,6 +859,9 @@ export async function resolveBuiltinToolPlan(session: ToolSession, toolNames?: s
 		if (name === "board") {
 			return (session.taskDepth ?? 0) === 0 || requestedTools?.includes("board") === true;
 		}
+		// room_read is a Team surface, not a general coding tool: only a caller
+		// that names it (the secretary profile or Lead mode) gets it.
+		if (name === "room_read") return requestedTools?.includes("room_read") === true;
 		// Project tracking is opt-in (`tracking.enabled`, off by default): when the
 		// setting is off the agent must not receive `tracking_update` at all — the
 		// plan-approved prompt and todo-phase nudge already key off its presence.

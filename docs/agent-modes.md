@@ -24,7 +24,7 @@ defines them so they are not used interchangeably.
 | --- | --- | --- |
 | Coding Agent | **IMPLEMENTED** | Project cwd, normal coding prompt, existing tools and session behavior |
 | Personal Harness | **PARTIAL** | Kept default workspace, `PERSONA.md`, project-scoped memory, relay + bot sessions, IM hosting; first-class multiple personal main agents and persisted chat → agent bindings are incomplete |
-| PM / Super Agent | **PARTIAL** | `/lead` (alias `/pm`) runs the PM main agent in a registered Team PM workspace with rooms, board, and calendar; engineer roster rows and rooms ship; the secretary, Team Hub, and channel bindings do not |
+| PM / Super Agent | **PARTIAL** | `/lead` (alias `/pm`) runs the PM main agent in a registered Team PM workspace with rooms, board, calendar, and one PM-owned persistent Secretary; channel bindings and the full Team graph do not ship |
 | Workspace, main agent, relay | **IMPLEMENTED** | Workspace container, top-level sessions, `agent://` messaging, relay fallback |
 | External binding | **PARTIAL** | Runtime chat → agent (`@agent use`) and persisted chat → workspace/bot-session bindings ship; persisted chat → `agentId` is planned |
 | Session origin | **IMPLEMENTED** | Optional `origin` header (`im` + channel/chat/bot session/agent/binding/workspace alias); absent means `local`; legacy `relay` / `bot` / `draft` tags remain the fallback |
@@ -78,8 +78,8 @@ owning a repository unless it was explicitly bound.
 ### PM / Super Agent — PARTIAL
 
 The PM / Super Agent is the project manager for a Team PM workspace. Lead mode
-ships the PM main agent's coordination surface; the secretary and Team Hub do
-not.
+ships the PM main agent's coordination surface and its PM-owned persistent
+Secretary; Team Hub is a separate UI.
 
 What exists now:
 
@@ -93,14 +93,20 @@ What exists now:
 - The PM dispatches to engineer main agents through database-only Team rooms.
   `room_post` posts as the resolved PM id and validates membership; it never
   writes session JSONL. `room_read` lists rooms and reads members/events.
+- The `secretary` tool spawns, messages, or lists one PM-owned persistent
+  subagent. It is a real keep-alive task-executor child with `read`, `todo`,
+  `calendar`, `board`, and `room_read`; it has no folder, repository, branch, or
+  channel, and duplicated spawns return the existing Secretary. The durable
+  reference lives in the Team database `agents` table with the child transcript
+  as its session file.
 - The operator binds the project manually; the prompt forbids hidden project
   selection and invented agents.
 - A bot session bound to a project at creation is still a project-bound
   conversation, not a PM team.
 
-Missing: the PM-owned secretary persistent subagent, Team Hub, persisted
-chat → `agentId` bindings, and a board/task row model. Do not describe those as
-shipped.
+Missing: persisted chat → `agentId` bindings, a board/task row model, and the
+full Team graph. Cross-process Secretary revival relies on the normal CLI's
+persisted-subagent reviver; same-process park/revive and durable lookup ship.
 
 ## 2. Concepts
 

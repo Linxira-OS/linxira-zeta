@@ -72,6 +72,18 @@ function resolveMember(ctx: TeamContext, token: string): ResolvedMember {
 	if (engineerById && engineerById.teamId === ctx.team.id) {
 		return { agentId: engineerById.id, role: ROLE_ENGINEER };
 	}
+	const agentById = ctx.db.getAgentById(token);
+	if (agentById && agentById.teamId === ctx.team.id) {
+		return { agentId: agentById.id, role: agentById.role };
+	}
+
+	if (token === "secretary") {
+		const secretaries = ctx.db.listAgents(ctx.team.id).filter(agent => agent.role === "secretary");
+		if (secretaries.length === 1) return { agentId: secretaries[0].id, role: secretaries[0].role };
+		if (secretaries.length > 1) {
+			throw new TeamError(`Ambiguous room member "secretary"; use <pm>/secretary or the full agent id`);
+		}
+	}
 
 	const pm = ctx.db.getPm(ctx.team.id, token);
 	if (pm) return { agentId: pm.id, role: ROLE_PM };
@@ -79,6 +91,13 @@ function resolveMember(ctx: TeamContext, token: string): ResolvedMember {
 	if (token.includes("/")) {
 		const parts = token.split("/");
 		if (parts.length === 2) {
+			if (parts[1] === "secretary") {
+				const ownerPm = ctx.db.getPm(ctx.team.id, parts[0]);
+				if (ownerPm) {
+					const secretary = ctx.db.getAgentForPm(ctx.team.id, ownerPm.id, "secretary");
+					if (secretary) return { agentId: secretary.id, role: secretary.role };
+				}
+			}
 			const engineer = ctx.db.getEngineer(ctx.team.id, parts[0], parts[1]);
 			if (engineer) return { agentId: engineer.id, role: ROLE_ENGINEER };
 		}
@@ -163,9 +182,12 @@ export async function createRoom(options: CreateRoomOptions): Promise<CreateRoom
 				for (const engineer of ctx.db.listEngineers(ctx.team.id).filter(row => row.pmId === ownerPmId)) {
 					resolved.set(engineer.id, ROLE_ENGINEER);
 				}
+				const secretary = ctx.db.getAgentForPm(ctx.team.id, ownerPmId, "secretary");
+				if (secretary) resolved.set(secretary.id, secretary.role);
 			} else if (kind === "coordination") {
 				for (const pm of ctx.db.listPms(ctx.team.id)) resolved.set(pm.id, ROLE_PM);
 				for (const engineer of ctx.db.listEngineers(ctx.team.id)) resolved.set(engineer.id, ROLE_ENGINEER);
+				for (const agent of ctx.db.listAgents(ctx.team.id)) resolved.set(agent.id, agent.role);
 			}
 		}
 
