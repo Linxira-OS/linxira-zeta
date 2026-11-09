@@ -2,11 +2,11 @@ import { getLocale, t } from "../i18n";
 import type { MessageStats } from "../types";
 
 /**
- * One locale drives every number and date, and it is the *product's* — the
- * host CLI's language injected into the page, not the browser's. Mixing
- * conventions (e.g. `1,4 Mr` beside `97.0%` on a tr-TR browser) stays
- * impossible; the difference from the pre-i18n build is only that a `zh-CN`
- * dashboard now formats in `zh-CN` throughout.
+ * One locale drives number grouping, costs and dates, and it is the
+ * *product's* — the host CLI's language injected into the page, not the
+ * browser's. Mixing conventions (e.g. `1,4 Mr` beside `97.0%` on a tr-TR
+ * browser) stays impossible. Compact units are the exception in both locales:
+ * they stay `K`/`M`/`B` (see `formatCompact`).
  */
 function numberLocale(): string {
 	return getLocale();
