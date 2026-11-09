@@ -99,6 +99,10 @@ const LOCAL_ONLY: Record<string, string> = {
  * matching `run:` line (`bun scripts/x.ts`, `cargo nextest run`, …).
  */
 const ENTRY_EXCEPTIONS: Record<string, Record<string, string>> = {
+	check: {
+		"cargo install --locked":
+			"GitHub's cargo-deny step falls back to a source build (`cargo install --locked --force cargo-deny`) when the pinned release download fails; the mirror provisions cargo-deny once in its persistent `toolchains` job, so its `check` job never installs it",
+	},
 	bazel_lock: {
 		"bun scripts/gen-bazel-lock.ts":
 			"GitHub auto-refreshes MODULE.bazel.lock on failure (regenerate + upload the artifact); the mirror only reports the refresh hint — it must never write into the persistent shared workspace",
