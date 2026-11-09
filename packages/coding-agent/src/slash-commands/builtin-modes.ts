@@ -478,11 +478,6 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			if (runtime.ctx.vibeModeEnabled) return M.acLeadBlockedByVibe;
 			return M.acLeadOff;
 		},
-		handle: async (_command, runtime) => {
-			if (runtime.session.getLeadModeState()?.enabled) await runtime.session.exitMode("lead");
-			else await runtime.session.enterMode("lead");
-			return commandConsumed();
-		},
 		handleTui: async (_command, runtime) => {
 			await runtime.ctx.handleLeadModeCommand();
 		},

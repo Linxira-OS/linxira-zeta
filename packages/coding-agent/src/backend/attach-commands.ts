@@ -99,6 +99,9 @@ export const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
  */
 export const BACKEND_ATTACH_REFUSED_COMMANDS: Record<string, true> = {
 	live: true,
+	// Lead is a TUI mode whose replica status indicator is owned by the local
+	// interactive shell; the attach client does not mirror it.
+	lead: true,
 	// There is no top-level `/theme` or `/help` builtin: previously these were
 	// listed as attach-local, which sent them through the unknown-slash path
 	// (and, once removed, would forward the literal text to the model). Refuse
