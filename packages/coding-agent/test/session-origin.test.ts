@@ -10,12 +10,23 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { groupTeamSessions } from "@linxiraos/zeta/resume/team-groups";
 import { buildResumeDirectory } from "@linxiraos/zeta/resume/directory";
 import { FileSessionStorage, MemorySessionStorage } from "@linxiraos/zeta/session/session-storage";
-import { isImSession, sessionLocationLabel, type SessionOrigin } from "@linxiraos/zeta/session/session-origin";
+import {
+	isImSession,
+	isTeamSession,
+	normalizeSessionOrigin,
+	sameSessionOrigin,
+	sessionLocationLabel,
+	teamLocationLabel,
+	type SessionOrigin,
+	type TeamSessionOrigin,
+} from "@linxiraos/zeta/session/session-origin";
 import {
 	filterSessionsForPicker,
 	listSessionsForPicker,
+	resolveResumableSession,
 	type SessionInfo,
 } from "@linxiraos/zeta/session/session-listing";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
@@ -31,6 +42,15 @@ const IM_ORIGIN: SessionOrigin = {
 	// them yet.
 	agentId: "main-agent",
 	bindingId: "binding-telegram-chat-7",
+};
+
+const TEAM_ORIGIN: TeamSessionOrigin = {
+	kind: "team",
+	teamId: "acme",
+	pmId: "acme:core",
+	engineerId: "acme:core:alice",
+	repoId: "acme:api",
+	workspaceAlias: "core / alice / api",
 };
 
 const originTests: string[] = [];
@@ -98,6 +118,39 @@ describe("session origin helpers", () => {
 		expect(sessionLocationLabel({ kind: "im" }, { defaultWorkspaceLabel: "默认工作区" })).toBe("默认工作区");
 		// A personal session has no IM location label.
 		expect(sessionLocationLabel(undefined)).toBeUndefined();
+	});
+
+	test("a Team stamp round-trips, trims fields, and never becomes a path label", () => {
+		expect(normalizeSessionOrigin(TEAM_ORIGIN)).toEqual(TEAM_ORIGIN);
+		expect(normalizeSessionOrigin({ kind: "team", teamId: " acme ", pmId: "  ", roomId: "room-1" })).toEqual({
+			kind: "team",
+			teamId: "acme",
+			roomId: "room-1",
+		});
+		expect(isTeamSession(TEAM_ORIGIN)).toBe(true);
+		expect(isImSession(TEAM_ORIGIN)).toBe(false);
+		expect(teamLocationLabel(TEAM_ORIGIN)).toBe("core / alice / api");
+		expect(teamLocationLabel({ kind: "team", teamId: "acme" })).toBe("Team · acme");
+		expect(teamLocationLabel({ kind: "team", teamId: "acme" }, { defaultTeamLabel: "团队" })).toBe("团队");
+		expect(teamLocationLabel(IM_ORIGIN)).toBeUndefined();
+		expect(sessionLocationLabel(TEAM_ORIGIN)).toBeUndefined();
+	});
+
+	test("a malformed Team stamp reads as absent instead of hiding the session", () => {
+		// Missing identity, wrong schema, and unknown kinds all stay personal.
+		expect(normalizeSessionOrigin({ kind: "team" })).toBeUndefined();
+		expect(normalizeSessionOrigin({ kind: "team", teamId: "   " })).toBeUndefined();
+		expect(normalizeSessionOrigin({ kind: "team", teamId: 42 })).toBeUndefined();
+		expect(normalizeSessionOrigin({ kind: "crew", teamId: "acme" })).toBeUndefined();
+		expect(normalizeSessionOrigin(null)).toBeUndefined();
+		expect(normalizeSessionOrigin("team")).toBeUndefined();
+	});
+
+	test("origin equality distinguishes team fields and kinds", () => {
+		expect(sameSessionOrigin(TEAM_ORIGIN, { ...TEAM_ORIGIN })).toBe(true);
+		expect(sameSessionOrigin(TEAM_ORIGIN, { ...TEAM_ORIGIN, pmId: "acme:growth" })).toBe(false);
+		expect(sameSessionOrigin(TEAM_ORIGIN, { ...TEAM_ORIGIN, roomId: "room-1" })).toBe(false);
+		expect(sameSessionOrigin(TEAM_ORIGIN, IM_ORIGIN)).toBe(false);
 	});
 });
 
@@ -186,12 +239,30 @@ describe("picker visibility", () => {
 				bindingId: "binding-wechat-chat-9",
 			},
 		});
+		writeListedSession(storage, DIR, "team.jsonl", {
+			id: "team-id",
+			title: "T-101: fix the parser",
+			origin: TEAM_ORIGIN,
+		});
 		return storage;
 	}
 
-	test("the TUI picker hides IM conversations by default", async () => {
+	test("the TUI picker hides IM and Team conversations by default", async () => {
 		const listing = await listSessionsForPicker(DIR, seededStorage(), new Set());
 		expect(listing.sessions.map(session => session.id)).toEqual(["personal-id"]);
+	});
+
+	test("includeTeam shows only the personal and Team rows; includeIm keeps its own scope", async () => {
+		const teamListing = await listSessionsForPicker(DIR, seededStorage(), new Set(), [], { includeTeam: true });
+		expect(teamListing.sessions.map(session => session.id).sort()).toEqual(["personal-id", "team-id"]);
+		const imListing = await listSessionsForPicker(DIR, seededStorage(), new Set(), [], { includeIm: true });
+		expect(imListing.sessions.map(session => session.id).sort()).toEqual(["bot-id", "personal-id", "relay-id"]);
+		const both = await listSessionsForPicker(DIR, seededStorage(), new Set(), [], {
+			includeIm: true,
+			includeTeam: true,
+		});
+		expect(both.sessions.map(session => session.id).sort()).toEqual(["bot-id", "personal-id", "relay-id", "team-id"]);
+		expect(teamListing.sessions.find(session => session.id === "team-id")?.origin).toEqual(TEAM_ORIGIN);
 	});
 
 	test("includeIm shows the IM conversations, each with its own location", async () => {
@@ -200,8 +271,10 @@ describe("picker visibility", () => {
 		expect([...byId.keys()].sort()).toEqual(["bot-id", "personal-id", "relay-id"]);
 		expect(byId.get("personal-id")?.origin).toBeUndefined();
 		// The reserved agent/binding fields survive the header read unchanged.
-		expect(byId.get("bot-id")?.origin?.agentId).toBe("web-agent");
-		expect(byId.get("bot-id")?.origin?.bindingId).toBe("binding-wechat-chat-9");
+		const botOrigin = byId.get("bot-id")!.origin!;
+		if (!isImSession(botOrigin)) throw new Error("expected an IM origin");
+		expect(botOrigin.agentId).toBe("web-agent");
+		expect(botOrigin.bindingId).toBe("binding-wechat-chat-9");
 		expect(sessionLocationLabel(byId.get("bot-id")!.origin!)).toBe("web");
 		expect(sessionLocationLabel(byId.get("relay-id")!.origin!, { defaultWorkspaceLabel: "默认工作区" })).toBe(
 			"默认工作区",
@@ -240,6 +313,27 @@ describe("picker visibility", () => {
 		expect(filterSessionsForPicker([im], new Set(["relay-id"]), { includeIm: true }).map(s => s.id)).toEqual([
 			"relay-id",
 		]);
+		const team: SessionInfo = {
+			...personal,
+			path: `${DIR}/team.jsonl`,
+			id: "team-id",
+			origin: TEAM_ORIGIN,
+		};
+		// A pin never re-introduces a Team row into the personal list either.
+		expect(filterSessionsForPicker([team], new Set(["team-id"])).map(s => s.id)).toEqual([]);
+		expect(filterSessionsForPicker([team], new Set(["team-id"]), { includeTeam: true }).map(s => s.id)).toEqual([
+			"team-id",
+		]);
+	});
+
+	test("explicit --resume ids bypass the default origin filter", async () => {
+		const storage = seededStorage();
+		const match = await resolveResumableSession("team-id", "/repo", DIR, storage);
+		expect(match?.session.id).toBe("team-id");
+		expect(isTeamSession(match?.session.origin)).toBe(true);
+		// The same id is hidden from the picker the user is scrolling.
+		const listing = await listSessionsForPicker(DIR, storage, new Set());
+		expect(listing.sessions.some(session => session.id === "team-id")).toBe(false);
 	});
 });
 
@@ -274,5 +368,67 @@ describe("resume directory visibility", () => {
 		const withIm = await buildResumeDirectory({ ...options, includeIm: true });
 		const all = withIm.projects.flatMap(project => project.workspaces.flatMap(workspace => workspace.conversations));
 		expect(all.map(row => row.id).sort()).toEqual(["personal", "relay"]);
+	});
+
+	test("resume directory hides Team sessions unless includeTeam is set", async () => {
+		const options = {
+			sessions: [info("personal"), info("team", TEAM_ORIGIN)],
+			defaultWorkspace: "/repo",
+			resolveProject: (cwd: string) => ({ projectRoot: cwd, branch: null, isWorktree: false, isTopLevel: false }),
+		};
+		const directory = await buildResumeDirectory(options);
+		expect(directory.conversations.map(row => row.id)).toEqual(["personal"]);
+
+		const withTeam = await buildResumeDirectory({ ...options, includeTeam: true });
+		expect(withTeam.conversations.map(row => row.id).sort()).toEqual(["personal", "team"]);
+	});
+});
+
+describe("team grouping", () => {
+	function teamInfo(id: string, origin: SessionOrigin, modified: string): SessionInfo {
+		return {
+			path: `/sessions/${id}.jsonl`,
+			id,
+			cwd: "/team/worktree",
+			created: new Date(modified),
+			modified: new Date(modified),
+			messageCount: 2,
+			size: 1,
+			firstMessage: "hi",
+			allMessagesText: "hi",
+			title: id,
+			origin,
+		};
+	}
+
+	test("groups Team → PM → engineer → repo → conversation with newest first", () => {
+		const groups = groupTeamSessions([
+			teamInfo("t1", { ...TEAM_ORIGIN, repoId: "acme:api" }, "2026-06-27T00:00:00.000Z"),
+			teamInfo(
+				"t2",
+				{
+					kind: "team",
+					teamId: "acme",
+					pmId: "acme:core",
+					engineerId: "acme:core:alice",
+					repoId: "acme:web",
+				},
+				"2026-06-28T00:00:00.000Z",
+			),
+			teamInfo("t3", { kind: "team", teamId: "beta" }, "2026-06-29T00:00:00.000Z"),
+			// Personal and IM rows are not part of this grouping.
+			{ ...teamInfo("p", IM_ORIGIN, "2026-06-29T00:00:00.000Z") },
+		]);
+		expect(groups.map(group => group.teamId)).toEqual(["acme", "beta"]);
+		const acme = groups[0]!;
+		expect(acme.pms.map(pm => pm.label)).toEqual(["core"]);
+		const core = acme.pms[0]!;
+		expect(core.engineers.map(engineer => engineer.label)).toEqual(["alice"]);
+		const alice = core.engineers[0]!;
+		expect(alice.repos.map(repo => repo.label)).toEqual(["api", "web"]);
+		expect(alice.repos[0]!.conversations.map(row => row.id)).toEqual(["t1"]);
+		expect(groups[1]!.pms[0]!.label).toBe("Unassigned PM");
+		expect(groups[1]!.pms[0]!.engineers[0]!.label).toBe("Unassigned engineer");
+		expect(groups[1]!.pms[0]!.engineers[0]!.repos[0]!.label).toBe("Unassigned repo");
 	});
 });

@@ -197,7 +197,7 @@ export type SessionHistoryStatus = "active" | "archived" | "closed";
  * the UI keeps IM conversations out of the personal lists by default and
  * offers them in a separate group.
  */
-export interface SessionOriginSummary {
+export interface ImSessionOriginSummary {
 	readonly kind: "im";
 	readonly channel?: string;
 	readonly chatId?: string;
@@ -208,6 +208,23 @@ export interface SessionOriginSummary {
 	/** Channel/chat binding identity (mobile clients scope to one binding). */
 	readonly bindingId?: string;
 }
+
+/**
+ * Team provenance of a session created inside a Team checkout. The ids are the
+ * Team database's deterministic row ids; `workspaceAlias` is a name-only
+ * display label, never a path.
+ */
+export interface TeamSessionOriginSummary {
+	readonly kind: "team";
+	readonly teamId: string;
+	readonly pmId?: string;
+	readonly engineerId?: string;
+	readonly repoId?: string;
+	readonly roomId?: string;
+	readonly workspaceAlias?: string;
+}
+
+export type SessionOriginSummary = ImSessionOriginSummary | TeamSessionOriginSummary;
 
 /** One session-history row: opaque ids plus a safe, path-free summary. */
 export interface SessionHistoryEntry {

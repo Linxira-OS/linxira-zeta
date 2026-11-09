@@ -283,7 +283,7 @@ export interface SessionTreeNode {
 }
 
 /** IM/bot/relay provenance of a session (absent on personal coding sessions). */
-export interface SessionOrigin {
+export interface ImSessionOrigin {
   kind: "im";
   channel?: string;
   chatId?: string;
@@ -294,6 +294,19 @@ export interface SessionOrigin {
   /** Channel/chat binding identity; a mobile client scoped to one binding filters by it. */
   bindingId?: string;
 }
+
+/** Team provenance: deterministic row ids plus a name-only display alias. */
+export interface TeamSessionOrigin {
+  kind: "team";
+  teamId: string;
+  pmId?: string;
+  engineerId?: string;
+  repoId?: string;
+  roomId?: string;
+  workspaceAlias?: string;
+}
+
+export type SessionOrigin = ImSessionOrigin | TeamSessionOrigin;
 
 export interface SessionInfo {
   path: string;

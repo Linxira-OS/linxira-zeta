@@ -209,9 +209,8 @@ export interface DiagnosticReadModel {
 
 export type SessionHistoryStatus = "active" | "archived" | "closed";
 
-/** One session-history row: opaque ids plus a safe, path-free summary. */
 /** IM/bot/relay provenance of a session; absent on personal coding sessions. */
-export interface SessionOriginSummary {
+export interface ImSessionOriginSummary {
   readonly kind: "im";
   readonly channel?: string;
   readonly chatId?: string;
@@ -220,6 +219,21 @@ export interface SessionOriginSummary {
   readonly agentId?: string;
   readonly bindingId?: string;
 }
+
+/** Team provenance of a session created inside a Team checkout. */
+export interface TeamSessionOriginSummary {
+  readonly kind: "team";
+  readonly teamId: string;
+  readonly pmId?: string;
+  readonly engineerId?: string;
+  readonly repoId?: string;
+  readonly roomId?: string;
+  readonly workspaceAlias?: string;
+}
+
+export type SessionOriginSummary = ImSessionOriginSummary | TeamSessionOriginSummary;
+
+/** One session-history row: opaque ids plus a safe, path-free summary. */
 
 export interface SessionHistoryEntry {
   readonly historyId: HistoryEntryId;

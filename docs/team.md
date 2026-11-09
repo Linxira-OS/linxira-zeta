@@ -100,6 +100,34 @@ Walking up from any directory finds the nearest `.zeta/team.json` and returns
 `worktrees/<repo>/<pm>/<engineer>/…` layout. Outside the team root, a
 `.zeta/team-member.json` breadcrumb resolves the team.
 
+## Session origin and resume filtering
+
+A session created inside a resolved Team location is stamped with a
+`SessionHeader.origin` of `{ kind: "team", teamId, pmId?, engineerId?,
+repoId?, roomId?, workspaceAlias? }`. The ids are the team database's
+deterministic row ids (`acme`, `acme:core`, `acme:core:alice`, `acme:api`),
+so they keep matching the DB; `workspaceAlias` is built from names only
+(`core / alice / api / T-101`) and never contains an absolute path.
+
+Resolution happens at creation, synchronously, from the same upward
+`.zeta/team.json` walk as the CLI resolver: a PM workspace supplies
+`pmId`, the locked worktree layout supplies `pmId` / `engineerId` /
+`repoId`, and the global DB, when present, refines the rows and matches
+external `repo link` worktrees by path. A malformed marker or an
+unreadable DB leaves the session unstamped, which keeps it personal rather
+than hiding it. Team transcripts stay in the existing per-cwd JSONL
+buckets; nothing is moved, and no room events are written.
+
+The resume-picker/list APIs (`SessionManager.listForPicker`,
+`listAllForPicker`, `PickerListingOptions`) take `includeTeam`, default
+`false`: the current-folder and all-projects scopes hide Team rows, as
+they do IM rows. A Team scope passes `true` and feeds the rows to
+`groupTeamSessions` (`src/resume/team-groups.ts`), the Team → PM →
+engineer → repo → conversation grouping that the Team Hub's Sessions
+panel will reuse. An explicit `--resume <id>` resolves through the
+unfiltered listing and is not affected by the default filter. There is no
+Team TUI screen in this slice.
+
 ## Not in this slice
 
 Team Hub, PM mode, rooms and channel bindings, the team relationship graph,

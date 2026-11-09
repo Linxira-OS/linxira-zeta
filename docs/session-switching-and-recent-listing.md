@@ -48,6 +48,8 @@ There are two different listing pipelines:
 
 Picker callers use `listForPicker(...)` / `listAllForPicker()`, which also drop untitled empty stubs unless pinned. Titles or discoverable first prompts preserve zero-turn sessions; tail lifecycle status prevents an answered session from being mistaken for an empty stub. Explicit ID resolution keeps the unfiltered scan.
 
+`PickerListingOptions` hides non-personal conversations by default: IM/bot/relay rows need `includeIm`, Team-origin rows need `includeTeam`. Both filters apply to the indexed fast path too (the header origin is read whenever either kind can be excluded), and a pin never re-introduces a hidden row. The current-folder and all-projects scopes therefore show personal sessions only; a Team scope passes `includeTeam: true` and groups the rows with `groupTeamSessions` (Team → PM → engineer → repo → conversation). `--resume <id>` and `/resume <id>` resolve through `list`/`listAllSessions`, so an explicit id bypasses the default filter. `buildResumeDirectory` takes the same `includeIm` / `includeTeam` opt-ins for its project → workspace → conversation model.
+
 Normal per-directory scans repair the newest orphaned `.bak` created by the EPERM atomic-rewrite fallback when its primary JSONL is absent. `listSessionsReadOnly` is the non-mutating variant.
 
 ### Metadata fallback behavior

@@ -38,7 +38,12 @@ import { buildBootstrap } from "../bootstrap.js";
 import { StudioOperations } from "../registry.js";
 import type { StudioFamily, StudioHostContext } from "../registry.js";
 import { gatewayJson, invalid, requiredString, unavailable } from "../gateway.js";
-import { isImSession, normalizeSessionOrigin, type SessionOrigin } from "../../../session/session-origin.js";
+import {
+	isImSession,
+	isTeamSession,
+	normalizeSessionOrigin,
+	type SessionOrigin,
+} from "../../../session/session-origin.js";
 import type {
 	ConfigWriteResult,
 	EnvironmentId,
@@ -232,6 +237,7 @@ async function listHistory(input: {
 	readonly status?: SessionHistoryStatus;
 	readonly workspaceId?: WorkspaceId;
 	readonly includeIm?: boolean;
+	readonly includeTeam?: boolean;
 }): Promise<SessionHistoryReadModel> {
 	if (!isRecord(input)) throw invalid("input must be an object");
 	const status = historyStatus(input.status);
@@ -240,9 +246,13 @@ async function listHistory(input: {
 	if (workspaceId !== undefined && typeof workspaceId !== "string") throw invalid("workspaceId must be a string");
 	if (input.includeIm !== undefined && typeof input.includeIm !== "boolean")
 		throw invalid("includeIm must be a boolean");
-	// IM/bot/relay conversations are personal-agent surfaces too, but they are
-	// not coding sessions: a history/home list leaves them out unless asked.
+	if (input.includeTeam !== undefined && typeof input.includeTeam !== "boolean")
+		throw invalid("includeTeam must be a boolean");
+	// IM/bot/relay and Team conversations are personal-agent surfaces too, but
+	// they are not personal coding sessions: a history/home list leaves them out
+	// unless asked.
 	const includeIm = input.includeIm === true;
+	const includeTeam = input.includeTeam === true;
 
 	const [activeBody, archivedBody, identity] = await Promise.all([
 		status === "archived" ? Promise.resolve(undefined) : gatewayJson<unknown>("/api/sessions"),
@@ -257,6 +267,7 @@ async function listHistory(input: {
 		for (const row of rows) {
 			if (seen.has(row.id)) continue;
 			if (!includeIm && isImSession(row.origin)) continue;
+			if (!includeTeam && isTeamSession(row.origin)) continue;
 			if (workspaceId !== undefined && workspaceIdFor(row.cwd) !== workspaceId) continue;
 			seen.add(row.id);
 			entries.push(historyEntry(row, rowStatus, environmentId));
