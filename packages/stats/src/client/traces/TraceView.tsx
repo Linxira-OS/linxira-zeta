@@ -26,19 +26,23 @@ export interface TraceViewProps {
 	onBack: () => void;
 }
 
-const MODE_OPTIONS: Array<{ value: AxisMode; label: string; title?: string }> = [
-	{ value: "time", label: t("common.duration"), title: t("trace.mode-time-title") },
-	{ value: "turns", label: t("trace.turns"), title: t("trace.mode-turns-title") },
-	{ value: "calls", label: t("trace.calls"), title: t("trace.mode-calls-title") },
-];
+function modeOptions(): Array<{ value: AxisMode; label: string; title?: string }> {
+	return [
+		{ value: "time", label: t("common.duration"), title: t("trace.mode-time-title") },
+		{ value: "turns", label: t("trace.turns"), title: t("trace.mode-turns-title") },
+		{ value: "calls", label: t("trace.calls"), title: t("trace.mode-calls-title") },
+	];
+}
 
-const LEGEND: Array<{ kind: TraceSpanKind; label: string }> = [
-	{ kind: "turn", label: t("common.input") },
-	{ kind: "model", label: t("common.model") },
-	{ kind: "tool", label: t("trace.tool") },
-	{ kind: "subagent", label: t("trace.agent") },
-	{ kind: "background", label: t("trace.background") },
-];
+function legend(): Array<{ kind: TraceSpanKind; label: string }> {
+	return [
+		{ kind: "turn", label: t("common.input") },
+		{ kind: "model", label: t("common.model") },
+		{ kind: "tool", label: t("trace.tool") },
+		{ kind: "subagent", label: t("trace.agent") },
+		{ kind: "background", label: t("trace.background") },
+	];
+}
 
 export function TraceView({ file, active, onBack }: TraceViewProps) {
 	const query = useQuery<SessionTrace>(
@@ -307,7 +311,7 @@ export function SessionTraceView({
 				<div className="stack">
 					<div className="traces-toolbar">
 						<Segmented
-							options={MODE_OPTIONS}
+							options={modeOptions()}
 							value={mode}
 							onChange={setMode}
 							size="sm"
@@ -369,7 +373,7 @@ export function SessionTraceView({
 							)}
 						</div>
 						<div className="traces-legend">
-							{LEGEND.map(item => (
+							{legend().map(item => (
 								<span key={item.kind} className="traces-legend-item">
 									<span className="swatch" style={{ background: `var(${CATEGORY_VARS[item.kind]})` }} />
 									{item.label}

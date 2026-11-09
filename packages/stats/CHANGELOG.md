@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+### Fixed
+
+- Stats dashboard language switch: option lists, table headers, token-mix and agent labels built at module load no longer keep the boot language. Switching to English now leaves no Chinese labels behind.
+- Dashboard language now follows the host CLI/desktop setting (including `/stats` and trace links); the browser preference is only a fallback.
+- Compact units (`K`, `M`, `B`) and the `Token` term stay English in the Chinese dashboard, and chart dates use the dashboard locale instead of the browser's.
+
 ## [1.4.13] - 2026-11-08
 
 - Released as part of Zeta 1.4.13.

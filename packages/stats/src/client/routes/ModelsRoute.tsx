@@ -52,10 +52,12 @@ export interface ModelsRouteProps {
 
 type ShareMode = "share" | "requests";
 
-const SHARE_OPTIONS = [
-	{ value: "share" as const, label: t("common.share") },
-	{ value: "requests" as const, label: t("common.requests") },
-];
+function shareOptions() {
+	return [
+		{ value: "share" as const, label: t("common.share") },
+		{ value: "requests" as const, label: t("common.requests") },
+	];
+}
 
 /** Models plotted individually in the share chart; the rest fold into "Other". */
 const SHARE_LIMIT = 6;
@@ -147,7 +149,7 @@ export function ModelsRoute({ active, range }: ModelsRouteProps) {
 				actions={
 					<Segmented
 						size="sm"
-						options={SHARE_OPTIONS}
+						options={shareOptions()}
 						value={mode}
 						onChange={setMode}
 						aria-label={t("models.share-mode-aria")}

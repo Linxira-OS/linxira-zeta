@@ -13,7 +13,7 @@ import { parseExportArgs } from "../export/html/args";
 import { loadCustomShare } from "../export/custom-share";
 import { buildGithubSharePrompt, prepareShareForGithub } from "../export/share-github";
 import type { AgentSession } from "../session/agent-session";
-import { M } from "../i18n";
+import { currentLanguage, M } from "../i18n";
 import type { InteractiveModeContext } from "../modes/types";
 import { restartBrowserForModeChange } from "../tools/browser";
 import { cfgBrowserEnabled, cfgBrowserHeadless } from "../tools/browser/settings";
@@ -221,7 +221,7 @@ export const BUILTIN_OUTPUT_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				// Lazy: the stats dashboard (server + sqlite) loads on demand only,
 				// matching src/cli/stats-cli.ts, to keep CLI startup fast.
 				const { formatStatsDashboardUrl, startServer } = await import("@linxiraos/pi-stats");
-				const { hostname, port } = await startServer();
+				const { hostname, port } = await startServer(undefined, undefined, { language: currentLanguage() });
 				const url = `${formatStatsDashboardUrl(hostname, port)}/#/traces?s=${encodeURIComponent(sessionFile)}`;
 				await runtime.output(url);
 				return commandConsumed();

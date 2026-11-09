@@ -4,7 +4,7 @@ import { getCostDashboardStats } from "../api";
 import { t } from "../i18n";
 import { Chart, type ChartSeries, Legend, ShareBar, useHiddenSeries } from "../charts";
 import { buildModelColorLookup, modelKey, OTHER_COLOR, SERIES_COLORS } from "../data/colors";
-import { formatCost, formatEstimatedCost, formatInteger, formatPercent } from "../data/formatters";
+import { formatCost, formatEstimatedCost, formatInteger, formatPercent, formatUtcDay } from "../data/formatters";
 import { useQuery } from "../data/query";
 import { bucketAxis, rangeMeta } from "../data/range";
 import { densify, pivotSeries } from "../data/series";
@@ -35,10 +35,13 @@ export interface CostsRouteProps {
 
 type SplitMode = "model" | "component";
 
-const SPLIT_OPTIONS = [
-	{ value: "model" as const, label: t("costs.by-model") },
-	{ value: "component" as const, label: t("costs.by-component") },
-];
+// Translated labels are built at render time so the topbar switch updates them.
+function splitOptions() {
+	return [
+		{ value: "model" as const, label: t("costs.by-model") },
+		{ value: "component" as const, label: t("costs.by-component") },
+	];
+}
 
 /** Models stacked individually in the daily chart; the rest fold into "Other". */
 const MODEL_LIMIT = 6;
@@ -46,21 +49,14 @@ const MODEL_LIMIT = 6;
 /** The cost series is bucketed by UTC day on the server. */
 const DAY_MS = 86_400_000;
 
-const COMPONENTS = [
-	{ key: "costInput", label: t("common.input"), color: "#5b8cff" },
-	{ key: "costOutput", label: t("common.output"), color: "var(--chart-secondary)" },
-	{ key: "costCacheRead", label: t("common.cache-read"), color: "var(--chart-primary)" },
-	{ key: "costCacheWrite", label: t("common.cache-write"), color: "#f5b54a" },
-] as const satisfies readonly { key: keyof CostComponents; label: string; color: string }[];
-
-const UTC_DAY = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
-const UTC_DAY_LONG = new Intl.DateTimeFormat(undefined, {
-	weekday: "short",
-	month: "short",
-	day: "numeric",
-	year: "numeric",
-	timeZone: "UTC",
-});
+function components(): readonly { key: keyof CostComponents; label: string; color: string }[] {
+	return [
+		{ key: "costInput", label: t("common.input"), color: "#5b8cff" },
+		{ key: "costOutput", label: t("common.output"), color: "var(--chart-secondary)" },
+		{ key: "costCacheRead", label: t("common.cache-read"), color: "var(--chart-primary)" },
+		{ key: "costCacheWrite", label: t("common.cache-write"), color: "#f5b54a" },
+	];
+}
 
 export function CostsRoute({ active, range }: CostsRouteProps) {
 	const query = useQuery(["costs", range], ({ signal }) => getCostDashboardStats(range, signal), { enabled: active });
@@ -94,7 +90,7 @@ export function CostsRoute({ active, range }: CostsRouteProps) {
 					actions={
 						<Segmented
 							size="sm"
-							options={SPLIT_OPTIONS}
+							options={splitOptions()}
 							value={split}
 							onChange={setSplit}
 							aria-label={t("costs.split-by")}
@@ -110,8 +106,8 @@ export function CostsRoute({ active, range }: CostsRouteProps) {
 								<div className="stack" style={{ gap: 12 }}>
 									<Chart
 										slots={view.buckets.length}
-										tickLabel={i => UTC_DAY.format(view.buckets[i])}
-										tooltipTitle={i => UTC_DAY_LONG.format(view.buckets[i])}
+										tickLabel={i => formatUtcDay(view.buckets[i])}
+										tooltipTitle={i => formatUtcDay(view.buckets[i], true)}
 										series={series}
 										hidden={hidden}
 										height={280}
@@ -230,7 +226,7 @@ function buildCostsView(data: CostDashboardStats, range: TimeRange): CostsView {
 		dailyTotals: densify(points, buckets, p => p.cost),
 		unpricedPerDay: densify(points, buckets, p => p.unpricedRequests),
 		modelSeries,
-		componentSeries: COMPONENTS.map(c => ({
+		componentSeries: components().map(c => ({
 			key: c.key,
 			label: c.label,
 			color: c.color,
@@ -298,10 +294,10 @@ function ComponentBreakdown({ summary }: { summary: CostSummaryView }) {
 		<div className="stack" style={{ gap: 14 }}>
 			<ShareBar
 				height={10}
-				segments={COMPONENTS.map(c => ({ key: c.key, label: c.label, value: summary[c.key], color: c.color }))}
+				segments={components().map(c => ({ key: c.key, label: c.label, value: summary[c.key], color: c.color }))}
 			/>
 			<div className="costs-components">
-				{COMPONENTS.map(c => (
+				{components().map(c => (
 					<div key={c.key} className="costs-component-row">
 						<span className="row">
 							<Swatch color={c.color} />
@@ -331,7 +327,7 @@ function ComponentBreakdown({ summary }: { summary: CostSummaryView }) {
 }
 
 function buildCostColumns(view: CostsView): Column<CostModelRow>[] {
-	const componentColumns: Column<CostModelRow>[] = COMPONENTS.map(c => ({
+	const componentColumns: Column<CostModelRow>[] = components().map(c => ({
 		key: c.key,
 		header: c.label,
 		align: "right",
@@ -388,7 +384,7 @@ function buildCostColumns(view: CostsView): Column<CostModelRow>[] {
 			render: row =>
 				row.cost > 0 ? (
 					<ShareBar
-						segments={COMPONENTS.map(c => ({ key: c.key, label: c.label, value: row[c.key], color: c.color }))}
+						segments={components().map(c => ({ key: c.key, label: c.label, value: row[c.key], color: c.color }))}
 					/>
 				) : (
 					<span className="dim">–</span>

@@ -15,7 +15,7 @@ import {
 import { useQuery } from "../data/query";
 import { rangeMeta } from "../data/range";
 import { type RequestStatus, requestStatus, summarizeRequests } from "../data/view-models";
-import { REQUEST_STATUS } from "../ui/RequestDrawer";
+import { requestStatusMeta } from "../ui/RequestDrawer";
 import type { MessageStats, TimeRange } from "../types";
 import {
 	Card,
@@ -99,7 +99,7 @@ export function RequestsRoute({ active, range, onRequestClick }: RequestsRoutePr
 		value,
 		label: (
 			<>
-				{value === "all" ? t("requests.status-all") : REQUEST_STATUS[value].label}{" "}
+				{value === "all" ? t("requests.status-all") : requestStatusMeta(value).label}{" "}
 				<span className="dim num">{formatCompact(counts[value])}</span>
 			</>
 		),
@@ -215,7 +215,7 @@ export function RequestsRoute({ active, range, onRequestClick }: RequestsRoutePr
 							rows={filtered}
 							rowKey={row => row.id ?? `${row.sessionFile}:${row.entryId}`}
 							onRowClick={row => row.id !== undefined && onRequestClick(row.id)}
-							columns={REQUEST_COLUMNS}
+							columns={requestColumns()}
 							initialSort={{ key: "time", dir: "desc" }}
 							limit={100}
 							dense
@@ -237,98 +237,100 @@ export function RequestsRoute({ active, range, onRequestClick }: RequestsRoutePr
 	);
 }
 
-const REQUEST_COLUMNS: readonly Column<MessageStats>[] = [
-	{
-		key: "model",
-		header: t("common.model"),
-		sort: row => row.model,
-		render: row => <LabelCell primary={<span className="mono">{row.model}</span>} secondary={row.provider} />,
-	},
-	{
-		key: "time",
-		header: t("requests.when"),
-		sort: row => row.timestamp,
-		render: row => (
-			<span className="muted" title={formatTimestamp(row.timestamp)}>
-				{formatRelativeTime(row.timestamp)}
-			</span>
-		),
-	},
-	{
-		key: "project",
-		header: t("common.project"),
-		sort: row => row.folder,
-		render: row => (
-			<span className="mono muted truncate" title={row.folder} style={{ display: "block", maxWidth: 180 }}>
-				{formatFolder(row.folder)}
-			</span>
-		),
-	},
-	{
-		key: "input",
-		header: t("common.input"),
-		title: t("requests.uncached-input"),
-		align: "right",
-		sort: row => row.usage.input,
-		render: row => <span className="num">{formatCompact(row.usage.input)}</span>,
-	},
-	{
-		key: "cache",
-		header: t("common.cache-read"),
-		title: t("requests.cache-read-title"),
-		align: "right",
-		sort: row => row.usage.cacheRead,
-		render: row => (
-			<span className="num" title={t("requests.cache-write", { count: formatInteger(row.usage.cacheWrite) })}>
-				{formatCompact(row.usage.cacheRead)}
-			</span>
-		),
-	},
-	{
-		key: "output",
-		header: t("common.output"),
-		align: "right",
-		sort: row => row.usage.output,
-		render: row => <span className="num">{formatCompact(row.usage.output)}</span>,
-	},
-	{
-		key: "cost",
-		header: t("common.cost"),
-		title: t("requests.cost-estimate"),
-		align: "right",
-		sort: row => row.usage.cost.total,
-		render: row => <span className="num">{formatMessageCost(row, 4)}</span>,
-	},
-	{
-		key: "duration",
-		header: t("common.duration"),
-		align: "right",
-		sort: row => row.duration ?? -1,
-		render: row => <span className="num">{formatDurationMs(row.duration)}</span>,
-	},
-	{
-		key: "ttft",
-		header: t("requests.ttft"),
-		title: t("requests.ttft-hint"),
-		align: "right",
-		sort: row => row.ttft ?? -1,
-		render: row => <span className="num muted">{formatDurationMs(row.ttft)}</span>,
-	},
-	{
-		key: "status",
-		header: t("requests.status"),
-		sort: row => requestStatus(row),
-		render: row => {
-			const status = REQUEST_STATUS[requestStatus(row)];
-			return (
-				<span title={row.errorMessage ?? undefined}>
-					<LabelCell
-						lead={<Dot tone={status.tone} />}
-						primary={status.label}
-						secondary={<span className="mono">{row.stopReason}</span>}
-					/>
-				</span>
-			);
+function requestColumns(): readonly Column<MessageStats>[] {
+	return [
+		{
+			key: "model",
+			header: t("common.model"),
+			sort: row => row.model,
+			render: row => <LabelCell primary={<span className="mono">{row.model}</span>} secondary={row.provider} />,
 		},
-	},
-];
+		{
+			key: "time",
+			header: t("requests.when"),
+			sort: row => row.timestamp,
+			render: row => (
+				<span className="muted" title={formatTimestamp(row.timestamp)}>
+					{formatRelativeTime(row.timestamp)}
+				</span>
+			),
+		},
+		{
+			key: "project",
+			header: t("common.project"),
+			sort: row => row.folder,
+			render: row => (
+				<span className="mono muted truncate" title={row.folder} style={{ display: "block", maxWidth: 180 }}>
+					{formatFolder(row.folder)}
+				</span>
+			),
+		},
+		{
+			key: "input",
+			header: t("common.input"),
+			title: t("requests.uncached-input"),
+			align: "right",
+			sort: row => row.usage.input,
+			render: row => <span className="num">{formatCompact(row.usage.input)}</span>,
+		},
+		{
+			key: "cache",
+			header: t("common.cache-read"),
+			title: t("requests.cache-read-title"),
+			align: "right",
+			sort: row => row.usage.cacheRead,
+			render: row => (
+				<span className="num" title={t("requests.cache-write", { count: formatInteger(row.usage.cacheWrite) })}>
+					{formatCompact(row.usage.cacheRead)}
+				</span>
+			),
+		},
+		{
+			key: "output",
+			header: t("common.output"),
+			align: "right",
+			sort: row => row.usage.output,
+			render: row => <span className="num">{formatCompact(row.usage.output)}</span>,
+		},
+		{
+			key: "cost",
+			header: t("common.cost"),
+			title: t("requests.cost-estimate"),
+			align: "right",
+			sort: row => row.usage.cost.total,
+			render: row => <span className="num">{formatMessageCost(row, 4)}</span>,
+		},
+		{
+			key: "duration",
+			header: t("common.duration"),
+			align: "right",
+			sort: row => row.duration ?? -1,
+			render: row => <span className="num">{formatDurationMs(row.duration)}</span>,
+		},
+		{
+			key: "ttft",
+			header: t("requests.ttft"),
+			title: t("requests.ttft-hint"),
+			align: "right",
+			sort: row => row.ttft ?? -1,
+			render: row => <span className="num muted">{formatDurationMs(row.ttft)}</span>,
+		},
+		{
+			key: "status",
+			header: t("requests.status"),
+			sort: row => requestStatus(row),
+			render: row => {
+				const status = requestStatusMeta(requestStatus(row));
+				return (
+					<span title={row.errorMessage ?? undefined}>
+						<LabelCell
+							lead={<Dot tone={status.tone} />}
+							primary={status.label}
+							secondary={<span className="mono">{row.stopReason}</span>}
+						/>
+					</span>
+				);
+			},
+		},
+	];
+}

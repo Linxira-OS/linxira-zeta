@@ -1,4 +1,5 @@
 import * as stats from "@linxiraos/pi-stats";
+import { currentLanguage } from "../../i18n";
 import * as openUtils from "../../utils/open";
 import { ZETA_STATS_PORT } from "@linxiraos/pi-utils";
 
@@ -83,7 +84,7 @@ export async function launchStatsDashboard(
 	let requestedAddressIgnored = false;
 
 	if (!activeStatsServer) {
-		activeStatsServer = await stats.startServer(args.port, args.host, { judge });
+		activeStatsServer = await stats.startServer(args.port, args.host, { judge, language: currentLanguage() });
 	} else {
 		requestedAddressIgnored = args.port !== activeStatsServer.port || args.host !== activeStatsServer.hostname;
 		// Resolves to the live in-process server; only re-registers the judge.
