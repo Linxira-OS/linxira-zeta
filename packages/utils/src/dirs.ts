@@ -1060,6 +1060,17 @@ export function getStatsDbPath(): string {
 	return dirs.rootSubdir("stats.db", "data");
 }
 
+/**
+ * Get the global team database path (~/.zeta/data/zeta.db).
+ *
+ * One database for every team, PM, repo binding, engineer and worktree. It
+ * must never live inside a team root, a repository, or a workspace: markers
+ * on disk are discovery hints, this file is the authority.
+ */
+export function getZetaDbPath(): string {
+	return dirs.rootSubdir(path.join("data", "zeta.db"), "data");
+}
+
 /** Get the autoresearch state directory (~/.zeta/autoresearch). */
 export function getAutoresearchDir(): string {
 	return dirs.rootSubdir("autoresearch", "state");

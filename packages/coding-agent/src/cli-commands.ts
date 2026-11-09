@@ -291,6 +291,11 @@ export const commands: CommandEntry[] = [
 		help: commandHelp.streamHelp,
 	},
 	{
+		name: "team",
+		load: () => import("./commands/team").then(m => m.default),
+		help: commandHelp.teamHelp,
+	},
+	{
 		name: "update",
 		load: () => import("./commands/update").then(m => m.default),
 		help: commandHelp.updateHelp,
