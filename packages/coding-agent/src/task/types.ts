@@ -324,6 +324,8 @@ export interface AgentDefinition {
 	blocking?: boolean;
 	/** `true` = task spawns keep the `yield` tool and this agent's `output` schema even when `task.structured` is off. */
 	structured?: boolean;
+	/** `true` = the subagent owns a `todo` list instead of having the parent-owned tool stripped. */
+	ownsTodo?: boolean;
 	autoloadSkills?: string[];
 	/** When `false`, the agent's `read` tool returns verbatim file content instead of structural summaries. */
 	readSummarize?: boolean;

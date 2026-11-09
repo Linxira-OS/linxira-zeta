@@ -1,7 +1,7 @@
 /**
  * Team rooms: database-only rooms, membership resolved from real PM/engineer
  * rows, host-ordered events, reply targets, duplicate/empty rejection, the
- * v1 → v2 migration, doctor integrity checks, and the CLI verbs.
+ * v1 → v3 migration, doctor integrity checks, and the CLI verbs.
  *
  * Every fixture is a real temporary directory, SQLite database, and Git
  * repository; no mocks.
@@ -313,7 +313,7 @@ describe("team rooms", () => {
 		expect((await diagnoseTeam({ teamRoot, dbPath })).ok).toBe(true);
 	}, 30_000);
 
-	test("v1 database upgrades to the rooms schema without losing rows", () => {
+	test("v1 database upgrades to the rooms and agents schema without losing rows", () => {
 		const legacyPath = path.join(scratch, "legacy.db");
 		const seed = new TeamDb(legacyPath);
 		seed.insertTeam({ id: "legacy", name: "Legacy", rootPath: path.join(scratch, "legacy-team"), createdAt: 1 });
@@ -345,8 +345,10 @@ describe("team rooms", () => {
 
 		const verify = new Database(legacyPath);
 		const version = verify.query<{ user_version: number }, []>("PRAGMA user_version").get();
+		const agentsTable = verify.query("SELECT name FROM sqlite_master WHERE name = 'agents'").get();
 		verify.close();
-		expect(version?.user_version).toBe(2);
+		expect(version?.user_version).toBe(3);
+		expect(agentsTable).not.toBeNull();
 	}, 30_000);
 
 	test("CLI creates, lists, posts, and shows a room", () => {

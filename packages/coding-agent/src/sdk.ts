@@ -294,7 +294,7 @@ import {
 import {
 	BashTool,
 	BUILTIN_TOOLS,
-	createRoomTools,
+	createLeadTools,
 	createTools,
 	createVibeTools,
 	createXdevState,
@@ -5336,7 +5336,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 					: undefined,
 			createLeadTools:
 				(options.taskDepth ?? 0) === 0 && !options.parentTaskPrefix
-					? () => createRoomTools(toolSession)
+					? () => createLeadTools(toolSession)
 					: undefined,
 			builtInToolNames: builtInRegistryToolNames,
 			mcpManagerToolNames: initialMcpManagerToolNames,

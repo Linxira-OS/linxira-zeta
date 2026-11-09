@@ -10,6 +10,7 @@ import { parseAgentFields } from "../discovery/helpers";
 import agentFrontmatterTemplate from "../prompts/agents/frontmatter.md" with { type: "text" };
 import reviewerMd from "../prompts/agents/reviewer.md" with { type: "text" };
 import scoutMd from "../prompts/agents/scout.md" with { type: "text" };
+import secretaryMd from "../prompts/agents/secretary.md" with { type: "text" };
 import securityReviewerMd from "../prompts/agents/security-reviewer.md" with { type: "text" };
 import seanceMd from "../prompts/agents/seance.md" with { type: "text" };
 import taskMd from "../prompts/agents/task.md" with { type: "text" };
@@ -45,6 +46,7 @@ function buildAgentContent(def: EmbeddedAgentDef): string {
 const EMBEDDED_AGENT_DEFS: EmbeddedAgentDef[] = [
 	{ fileName: "scout.md", template: scoutMd },
 	{ fileName: "reviewer.md", template: reviewerMd },
+	{ fileName: "secretary.md", template: secretaryMd },
 	{ fileName: "security-reviewer.md", template: securityReviewerMd },
 	{ fileName: "seance.md", template: seanceMd },
 	{

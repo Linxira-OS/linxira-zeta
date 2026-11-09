@@ -117,6 +117,25 @@ CREATE INDEX IF NOT EXISTS idx_rooms_team ON rooms(team_id);
 CREATE INDEX IF NOT EXISTS idx_room_members_agent ON room_members(agent_id);
 CREATE INDEX IF NOT EXISTS idx_room_events_room ON room_events(room_id, seq);
 `,
+	`
+CREATE TABLE IF NOT EXISTS agents (
+	agent_id         TEXT PRIMARY KEY,
+	team_id          TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+	pm_id            TEXT NOT NULL REFERENCES team_pms(id) ON DELETE CASCADE,
+	role             TEXT NOT NULL CHECK (role IN ('secretary')),
+	persistence      TEXT NOT NULL CHECK (persistence IN ('persistent')),
+	parent_agent_id  TEXT NOT NULL,
+	session_id       TEXT,
+	session_file     TEXT,
+	state            TEXT NOT NULL,
+	created_at       INTEGER NOT NULL,
+	updated_at       INTEGER NOT NULL,
+	UNIQUE(pm_id, role)
+);
+
+CREATE INDEX IF NOT EXISTS idx_agents_team ON agents(team_id);
+CREATE INDEX IF NOT EXISTS idx_agents_pm ON agents(pm_id);
+`,
 ];
 
 /** Room kinds. A PM room names its owning PM; the other kinds have no PM. */
@@ -182,6 +201,34 @@ export interface WorktreeRecord {
 	branch: string;
 	baseBranch: string;
 	createdAt: number;
+}
+
+/** Persistent subagent roles a PM can own. */
+export type AgentRole = "secretary";
+
+/** Only persistent subagents are registered here in this slice. */
+export type AgentPersistence = "persistent";
+
+/** Durable lifecycle state of a PM-owned subagent. */
+export type AgentState = "starting" | "idle" | "parked" | "dead" | "unknown";
+
+/**
+ * A PM-owned persistent subagent. It has no folder, repository, or branch:
+ * `agent_id` is the runtime registry id, `pm_id` is the database owner, and
+ * `session_file` is the resumable child transcript.
+ */
+export interface AgentRecord {
+	id: string;
+	teamId: string;
+	pmId: string;
+	role: AgentRole;
+	persistence: AgentPersistence;
+	parentAgentId: string;
+	sessionId: string | null;
+	sessionFile: string | null;
+	state: AgentState;
+	createdAt: number;
+	updatedAt: number;
 }
 
 /** A room is a database row plus events; it is never a folder. */
@@ -266,6 +313,20 @@ interface DbWorktreeRow {
 	branch: string;
 	base_branch: string;
 	created_at: number;
+}
+
+interface DbAgentRow {
+	agent_id: string;
+	team_id: string;
+	pm_id: string;
+	role: AgentRole;
+	persistence: AgentPersistence;
+	parent_agent_id: string;
+	session_id: string | null;
+	session_file: string | null;
+	state: AgentState;
+	created_at: number;
+	updated_at: number;
 }
 
 interface DbRoomRow {
@@ -362,6 +423,22 @@ function parseMentions(raw: string | null): string[] {
 	} catch {
 		return [];
 	}
+}
+
+function toAgent(row: DbAgentRow): AgentRecord {
+	return {
+		id: row.agent_id,
+		teamId: row.team_id,
+		pmId: row.pm_id,
+		role: row.role,
+		persistence: row.persistence,
+		parentAgentId: row.parent_agent_id,
+		sessionId: row.session_id,
+		sessionFile: row.session_file,
+		state: row.state,
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
+	};
 }
 
 function toRoom(row: DbRoomRow): RoomRecord {
@@ -818,6 +895,84 @@ export class TeamDb {
 			.query<DbRoomEventRow, [string]>("SELECT * FROM room_events WHERE room_id = ? ORDER BY seq DESC LIMIT 1")
 			.get(roomId);
 		return row ? toRoomEvent(row) : null;
+	}
+
+	// ── PM-owned persistent agents ────────────────────────────────────────
+
+	listAgents(teamId: string): AgentRecord[] {
+		return this.#db
+			.query<DbAgentRow, [string]>("SELECT * FROM agents WHERE team_id = ? ORDER BY pm_id, role")
+			.all(teamId)
+			.map(toAgent);
+	}
+
+	getAgentById(id: string): AgentRecord | null {
+		const row = this.#db.query<DbAgentRow, [string]>("SELECT * FROM agents WHERE agent_id = ?").get(id);
+		return row ? toAgent(row) : null;
+	}
+
+	getAgentForPm(teamId: string, pmId: string, role: AgentRole): AgentRecord | null {
+		const row = this.#db
+			.query<DbAgentRow, [string, string, AgentRole]>(
+				"SELECT * FROM agents WHERE team_id = ? AND pm_id = ? AND role = ?",
+			)
+			.get(teamId, pmId, role);
+		return row ? toAgent(row) : null;
+	}
+
+	insertAgent(record: AgentRecord): void {
+		const now = nowSeconds();
+		this.#db
+			.query(
+				`INSERT INTO agents
+				 (agent_id, team_id, pm_id, role, persistence, parent_agent_id, session_id, session_file, state, created_at, updated_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				record.id,
+				record.teamId,
+				record.pmId,
+				record.role,
+				record.persistence,
+				record.parentAgentId,
+				record.sessionId,
+				record.sessionFile,
+				record.state,
+				record.createdAt || now,
+				record.updatedAt || now,
+			);
+	}
+
+	updateAgent(
+		id: string,
+		fields: Partial<Pick<AgentRecord, "sessionId" | "sessionFile" | "state" | "parentAgentId">>,
+	): void {
+		const assignments: string[] = [];
+		const values: (string | null)[] = [];
+		if (fields.sessionId !== undefined) {
+			assignments.push("session_id = ?");
+			values.push(fields.sessionId);
+		}
+		if (fields.sessionFile !== undefined) {
+			assignments.push("session_file = ?");
+			values.push(fields.sessionFile);
+		}
+		if (fields.state !== undefined) {
+			assignments.push("state = ?");
+			values.push(fields.state);
+		}
+		if (fields.parentAgentId !== undefined) {
+			assignments.push("parent_agent_id = ?");
+			values.push(fields.parentAgentId);
+		}
+		if (assignments.length === 0) return;
+		assignments.push("updated_at = ?");
+		values.push(String(nowSeconds()));
+		this.#db.query(`UPDATE agents SET ${assignments.join(", ")} WHERE agent_id = ?`).run(...values, id);
+	}
+
+	deleteAgent(id: string): void {
+		this.#db.query("DELETE FROM agents WHERE agent_id = ?").run(id);
 	}
 
 	/** Host assigns `seq`; the caller supplies the rest. */

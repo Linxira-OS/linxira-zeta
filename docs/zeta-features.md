@@ -178,9 +178,9 @@ and linked worktrees under `worktrees/<repo>/<pm>/<engineer>/{home,<task>}`.
 Structure lives in one SQLite database (`~/.zeta/data/zeta.db`); markers are
 discovery hints and `team doctor` reports drift. The TUI adds path entry, the
 Team Hub, and database-only rooms; `/lead` (alias `/pm`) runs a PM main agent in
-a PM workspace with `room_read`/`room_post` and no coding tools. Board rows,
-the secretary, channel bindings, the graph UI, and Vibe auto-start are not
-included. See [team.md](./team.md).
+a PM workspace with `room_read`/`room_post` and one PM-owned persistent
+Secretary subagent, and no coding tools. Board rows, channel bindings, the graph
+UI, and Vibe auto-start are not included. See [team.md](./team.md).
 
 ## Plugin registry
 

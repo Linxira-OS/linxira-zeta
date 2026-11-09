@@ -8,8 +8,9 @@ opens a read/write view of the Team database, while engineer worktrees and base
 repositories open the ordinary coding TUI. Explicit session launches
 (`--continue`, `--resume`, `--fork`, or a prompt) still open a coding session in
 a PM workspace, where `/lead` (alias `/pm`) runs the **PM main agent** with a
-coordination-only toolset. There is still **no team-wide agent, no board/task
-rows, and no channel binding**. `--execution vibe` records the engineer's
+coordination-only toolset and can spawn its one persistent Secretary subagent.
+There is still **no team-wide agent, no board/task rows, and no channel
+binding**. `--execution vibe` records the engineer's
 execution choice; it does not start Vibe, and no Team entry ever enables Vibe
 automatically.
 
@@ -51,7 +52,7 @@ All structure is written to one SQLite database: `~/.zeta/data/zeta.db`
 disk are discovery hints; `team doctor` reports drift between them and the
 database.
 
-Schema (`PRAGMA user_version` = 2):
+Schema (`PRAGMA user_version` = 3):
 
 | Table | Columns |
 | --- | --- |
@@ -64,6 +65,7 @@ Schema (`PRAGMA user_version` = 2):
 | `rooms` | `room_id`, `team_id`, `pm_id` (nullable), `name`, `kind`, `created_at` |
 | `room_members` | `room_id`, `agent_id`, `role`, `created_at` |
 | `room_events` | `seq`, `room_id`, `sent_at`, `sender_agent_id`, `kind`, `body`, `reply_to`, `mentions_json` |
+| `agents` | `agent_id`, `team_id`, `pm_id`, `role`, `persistence`, `parent_agent_id`, `session_id`, `session_file`, `state`, `created_at`, `updated_at` |
 
 Worktree `kind` is `home` or `task`; engineer `execution` is `normal` or `vibe`.
 A repo may be bound to several PMs, and one engineer may own a home worktree per
@@ -79,13 +81,14 @@ session JSONL.
 
 | Room kind | `pm_id` | Default members |
 | --- | --- | --- |
-| `pm` | the owning PM row id | that PM and the PM's engineers |
-| `coordination` (`--shared`) | `NULL` | every PM and engineer in the team |
+| `pm` | the owning PM row id | that PM, its engineers, and its Secretary when one is registered |
+| `coordination` (`--shared`) | `NULL` | every PM, engineer, and PM-owned agent in the team |
 | `room` (arbitrary) | `NULL` | empty until `--members` supplies agents |
 
 - Members resolve to real database rows. A token may be a PM name, an engineer
-  name, `<pm>/<engineer>`, or a full agent id (`<team>:<pm>[:<engineer>]`).
-  Unknown or ambiguous tokens are errors; rooms never invent an agent.
+  name, `<pm>/<engineer>`, a PM-owned agent id, `secretary`, `<pm>/secretary`, or
+  a full agent id (`<team>:<pm>[:<engineer>]`). Unknown or ambiguous tokens are
+  errors; rooms never invent an agent.
 - `--members` replaces the default roster, except that a PM room always keeps
   its owning PM. Duplicate room names in one team are rejected.
 - The host assigns every event a monotonic `seq` and a non-decreasing `sentAt`.
@@ -222,9 +225,9 @@ workspace opens the Team Hub; start a session explicitly (`--continue`,
 `--resume`, or with a prompt) to use `/lead`.
 
 - Active tools: `read`, optional parent-owned `todo`, `room_read`, `room_post`,
-  and `channel_send` / `board` / `calendar` when the session is configured for
-  them. `task`, `edit`, `write`, `bash`, `grep`, `glob`, and `vibe_*` are
-  removed while the mode is on.
+  `secretary`, and `channel_send` / `board` / `calendar` when the session is
+  configured for them. `task`, `edit`, `write`, `bash`, `grep`, `glob`, and
+  `vibe_*` are removed while the mode is on.
 - `room_read` lists the team's rooms or reads one room's members and newest
   events; `room_post` appends an event as the resolved PM agent. Both call the
   room service above, so membership is validated and no session JSONL is
@@ -238,6 +241,38 @@ workspace opens the Team Hub; start a session explicitly (`--continue`,
 - The Lead prompt coordinates engineer main agents through rooms and forbids
   coding, spawning workers, hidden project selection, and invented agents. It
   exists for the PM main agent, not for a Team-root session (there is none).
+
+## Secretary (PM-owned persistent subagent)
+
+Lead mode's `secretary` tool is a narrow handle on the PM's one persistent
+Secretary: `spawn [prompt]`, `send {message}`, or `list`. It cannot name another
+agent, request isolation, or pick a model.
+
+- The Secretary is a real keep-alive task-executor subagent, not a main agent:
+  no folder, Git repository, branch, Team-root seat, or external channel. The
+  Team database owns it (`agents.pm_id`, `role = secretary`,
+  `persistence = persistent`, `parent_agent_id` = PM row id), and its child
+  transcript is the resumable `session_file`.
+- Agent definition: `read`, `todo`, `calendar`, `board`, and read-only
+  `room_read`; no `edit`/`write`/`bash`/`grep`/`glob`/`task`/`vibe_*`/
+  `channel_send`. `ownsTodo: true` keeps its own todo list instead of the usual
+  parent-owned strip.
+- `spawn` is idempotent per PM: an existing Secretary is returned, never
+  duplicated. The first turn runs through `runStructuredSubagent` with
+  `keepAlive`, then the AgentLifecycleManager owns idle → park → revive.
+- `send` continues the same child session through `runSubagentFollowUpTurn`;
+  when the live registry ref is gone, the tool re-registers the durable
+  `session_file` as parked and lets the lifecycle reviver bring it back.
+- A PM room and a coordination room include a registered Secretary in their
+  default roster; `secretary` and `<pm>/secretary` also resolve as explicit
+  room members. The Secretary has no channel tool, so it cannot message outside
+  the Team.
+
+Cross-process cold revival depends on the top-level process installing
+`createPersistedSubagentReviverFactory` (the normal CLI startup does). This
+slice stores and tests the durable reference, in-process park/revive, and
+re-registration from the database; it does not run a second OS process to prove
+cold revival.
 
 ## Session origin and resume filtering
 
@@ -268,11 +303,11 @@ filter. The Team Hub is a separate surface and does not list sessions.
 
 ## Not in this slice
 
-Secretary creation, channel bindings, the team relationship graph, board/task
-rows, and Vibe auto-start remain unimplemented. Lead (PM) mode covers the PM
-main agent's coordination surface only; there is still no Team-root session,
-and the Hub itself is a UI without an Agent. The Hub shows only rooms and the
-PM/engineer roster, never a full graph; subagent control remains in Agent Hub.
-Rooms are reachable through `room_read`/`room_post` in Lead mode and through
-the CLI and Hub. The Engineer `execution` column is the only Team-side Vibe fact,
-and no Team entry enables Vibe.
+Channel bindings, the team relationship graph, board/task rows, and Vibe
+auto-start remain unimplemented. Lead (PM) mode covers the PM main agent's
+coordination surface; the Secretary is reachable only from that mode, and there
+is still no Team-root session. The Hub is a UI without an Agent and shows only
+rooms and the PM/engineer roster, never a full graph; subagent control remains
+in Agent Hub. Rooms are reachable through `room_read`/`room_post` in Lead mode
+and through the CLI and Hub. The Engineer `execution` column is the only
+Team-side Vibe fact, and no Team entry enables Vibe.
