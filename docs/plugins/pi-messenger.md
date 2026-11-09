@@ -11,9 +11,14 @@ This page is the activation and usage record for that plugin. Read [`plugins.md`
 - A `pi_messenger` tool that joins a room, lists participants, claims tasks, reserves file paths, and sends messages between agents sharing a project directory.
 - A `crew/` sub-agent set (planner / worker / reviewer / `crew-plan-sync`) discovered as task agents, with an orchestrator skill.
 - `/editor` — hands the current session to the companion editor (spawns the editor on the workspace root, at the requested target when one was given).
-- `/teamagent` — team/agent orchestration command.
+- `/teamagent` — registers the plugin's crew roles as spawnable subagents (pi-messenger crew layer; it is not Team mode).
 
 Internals: `plugins/official/pi-messenger/index.ts` registers everything; the crew logic is under `crew/`; the skill is `skills/pi-messenger-crew/SKILL.md`.
+
+`/teamagent` is not Zeta Team. It reads the plugin's crew store under
+`.zeta/messenger/team/` and writes agent files, and it never reads the Zeta Team
+database. Zeta Team commands (`/team`, `/team hub`, `/lead`, `/pm`) are core;
+this plugin owns the mesh and crew surfaces.
 
 ## Activating it
 

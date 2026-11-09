@@ -14,6 +14,11 @@ binding**. `--execution vibe` records the engineer's
 execution choice; it does not start Vibe, and no Team entry ever enables Vibe
 automatically.
 
+The `pi-messenger` official plugin owns only the mesh and crew surfaces. Its
+`/teamagent` command registers crew roles as spawnable subagents; it is not
+Team mode and does not read the Zeta Team database. `/team`, `/team hub`, and
+`/lead` (alias `/pm`) stay core.
+
 ## Path model
 
 ```text
