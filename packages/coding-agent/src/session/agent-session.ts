@@ -9478,10 +9478,35 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * @returns `"restored"` when recovery had a turn to re-run, `"continue"` when
 	 * the hidden synthetic continue was sent. Callers that only drive the turn
 	 * may ignore it; the Studio host reports it as `ContinueTurnOutcome.mode`.
-	 * @throws {AgentBusyError} while a turn runs.
 	 * @throws {Error} when there is no conversation to resume.
 	 */
 	async resume(): Promise<"restored" | "continue"> {
+		if (!this.isStreaming) return this.#resumeIdle();
+		// waitForIdle() reads a pending unwind as busy. Hold one from the interrupt
+		// until the continuation is live, so a host driving this session to a result
+		// (the subagent executor) never mistakes the gap for the end of the run.
+		const handoff = Promise.withResolvers<void>();
+		this.#abortUnwinds.add(handoff.promise);
+		const release = (): void => {
+			if (this.#abortUnwinds.delete(handoff.promise)) handoff.resolve();
+		};
+		try {
+			const queued = this.hasInterruptibleInput;
+			await this.abort({ reason: USER_INTERRUPT_LABEL, deliverQueuedMessages: queued });
+			// Interrupt-and-send: the abort's own drain resumes the run with the queued input.
+			if (queued) return "restored";
+			return await this.#resumeIdle(() => void this.#waitForPromptDispatchLive().then(release));
+		} finally {
+			release();
+		}
+	}
+
+	/**
+	 * {@link resume} on an idle session. `onAdmitted` fires once the directive
+	 * prompt claims the session; the bare resume schedules its continuation
+	 * before returning.
+	 */
+	async #resumeIdle(onAdmitted?: () => void): Promise<"restored" | "continue"> {
 		const prompt = this.#recovery.prepareResume();
 		if (!prompt) {
 			// A handoff or full compaction can leave only the summary: it carries the
@@ -9499,6 +9524,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				synthetic: true,
 				userInitiated: true,
 				expandPromptTemplates: false,
+				onPromptAdmitted: onAdmitted,
 			});
 			return "continue";
 		}
