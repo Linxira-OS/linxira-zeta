@@ -249,6 +249,15 @@ async function listProjects(): Promise<WorkspaceListReadModel> {
 }
 
 /**
+ * Path-free display name per Studio `WorkspaceId`, for read models that group
+ * by workspace without exposing the inventory itself.
+ */
+export async function readWorkspaceNames(): Promise<ReadonlyMap<WorkspaceId, string>> {
+	const directory = await loadProjectDirectory();
+	return new Map(directory.entries.map(entry => [workspaceIdOf(entry.key), entry.name]));
+}
+
+/**
  * `workspace.fileTree` handler → `POST /api/cwd/validate` (root only) then
  * `GET /api/files/<path>?type=list`.
  *

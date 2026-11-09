@@ -10,6 +10,7 @@ import type { ModelParameterValues, ModelParameterSources, ModelCatalogStatus } 
  */
 
 import type {
+  AgentId,
   OperatorStateSnapshot,
   StudioRuntimeSettingsSnapshot,
 } from "@linxiraos/studio-protocol";
@@ -266,6 +267,155 @@ export interface ResidentsReadModel {
   readonly residents: ReadonlyArray<ResidentSessionRow>;
   readonly activeSessionId?: SessionId;
   readonly generatedAt: string;
+}
+
+/**
+ * Object kind a Team graph node represents.
+ *
+ * The Team root is deliberately NOT a node kind: it is an ownerless container
+ * (`TeamGraphCluster` kind `"team"`) with no agent, workspace, Git repo, session
+ * or `AGENTS.md`. Only the objects below own something:
+ * - `pm-workspace`: `pms/<pm>/`, the PM main agent's plain-folder workspace;
+ * - `git-repo`: a canonical base repository at `<team>/repos/<repo>` (the only
+ *   Git layer); PMs bind to it through DB `repo_bindings`, never a per-PM copy;
+ * - `db-room`: a `rooms` row + `room_events`, never a folder;
+ * - `linked-worktree`: a worktree of a repository, outside it;
+ * - `agent`: a live main agent (PM or engineer; unclassified until the team
+ *   records exist);
+ * - `subagent`: a spawned child; it owns no folder, branch or worktree.
+ *
+ * Everything except `agent`/`subagent` is PLANNED: no producer parses
+ * `team.json`/`pm.json` or reads the team DB yet, so today the graph emits only
+ * live agents and subagents.
+ */
+export type TeamNodeKind = "pm-workspace" | "git-repo" | "db-room" | "linked-worktree" | "agent" | "subagent";
+
+/**
+ * Agent role inside a team. `unknown` is the honest value for a live main agent
+ * until `pm.json`/DB membership tells PM from engineer.
+ */
+export type TeamAgentRole = "pm" | "engineer" | "secretary" | "unknown";
+
+/**
+ * How an agent executes. `vibe` is a live director session; `unknown` is a
+ * root whose session is not attached in this process (no mode state to read).
+ */
+export type TeamExecutionMode = "vibe" | "normal" | "unknown";
+
+/**
+ * Whether the node can be revived from its transcript. Derived: a main agent is
+ * always persistent; a subagent is persistent when its transcript is retained.
+ */
+export type TeamNodeLifetime = "persistent" | "ephemeral";
+
+/** Authoritative registry lifecycle state. */
+export type TeamNodeStatus = "running" | "idle" | "parked" | "aborted";
+
+/**
+ * Edge kinds. `spawn` is real (registry parentage); `assignment`, `room`,
+ * `contains`, `binding` and `worktree-of` are contract slots for producers that
+ * do not exist yet (PM assignment, room membership, team containment, repo
+ * binding, worktree parentage).
+ */
+export type TeamEdgeKind = "spawn" | "assignment" | "room" | "contains" | "binding" | "worktree-of";
+
+interface TeamGraphNodeBase {
+  /** Stable id unique across the graph. Never a filesystem path. */
+  readonly nodeId: string;
+  readonly kind: TeamNodeKind;
+  readonly displayName: string;
+  /** Container this object is displayed in; `team` or `unassigned`. */
+  readonly clusterId: string;
+  /** Structural parent, when the producer knows one. */
+  readonly parentNodeId?: string;
+  /** Hashed Studio workspace id; never a path. */
+  readonly workspaceId?: WorkspaceId;
+  /** Workspace basename from the Host inventory; never a path. */
+  readonly workspaceName?: string;
+  readonly createdAt: string;
+  readonly lastActivityAt: string;
+}
+
+/** Live agent or subagent. Subagents own no folder, branch or worktree. */
+export interface TeamAgentNode extends TeamGraphNodeBase {
+  readonly kind: "agent" | "subagent";
+  readonly agentId: AgentId;
+  /** Root session id for an agent; child transcript scope for a subagent. */
+  readonly sessionId?: SessionId;
+  /** Present on `agent`; absent on `subagent`, whose kind already says it. */
+  readonly role?: TeamAgentRole;
+  readonly status: TeamNodeStatus;
+  readonly executionMode: TeamExecutionMode;
+  readonly lifetime: TeamNodeLifetime;
+  /** Spawn brief shown as the edge/node label, truncated for display. */
+  readonly assignment?: string;
+  readonly activity?: string;
+}
+
+/** A planned ownership object (PM workspace, repo, room, worktree). */
+export interface TeamPathNode extends TeamGraphNodeBase {
+  readonly kind: "pm-workspace" | "git-repo" | "db-room" | "linked-worktree";
+  /** Opaque producer id (team/pm/repo/room/worktree id), never a path. */
+  readonly objectId?: string;
+  /** For `linked-worktree`: the engineer's `home` or a task worktree. */
+  readonly worktreeKind?: "home" | "task";
+}
+
+export type TeamGraphNode = TeamAgentNode | TeamPathNode;
+
+/** One relationship between two Team graph nodes. */
+export interface TeamGraphEdge {
+  readonly edgeId: string;
+  readonly kind: TeamEdgeKind;
+  readonly from: string;
+  readonly to: string;
+  readonly label?: string;
+}
+
+/**
+ * A display container. A `team` cluster is the dashed ownerless boundary; it is
+ * never an agent node. `unassigned` groups live agents while no team record
+ * exists, and must not be presented as a Team.
+ */
+export interface TeamGraphCluster {
+  readonly clusterId: string;
+  readonly kind: "team" | "unassigned";
+  /** Team id from `.zeta/team.json`; absent for `unassigned`. */
+  readonly teamId?: string;
+  /** Team name; absent for `unassigned` (the renderer localizes its label). */
+  readonly label?: string;
+  /** Nodes displayed inside the boundary. */
+  readonly memberCount: number;
+}
+
+/** A producer the graph needs but this Host does not have yet. */
+export interface TeamGraphGap {
+  readonly id:
+    | "team-root"
+    | "pm-workspaces"
+    | "git-repos"
+    | "db-rooms"
+    | "worktrees"
+    | "roles"
+    | "assignments"
+    | "secretary";
+  readonly detail: string;
+}
+
+/**
+ * Team topology read model. Empty or partial data is first-class: the arrays may
+ * be empty and `gaps` names the missing producers instead of fabricating rows.
+ */
+export interface TeamGraphReadModel {
+  readonly generatedAt: string;
+  readonly nodes: ReadonlyArray<TeamGraphNode>;
+  readonly edges: ReadonlyArray<TeamGraphEdge>;
+  readonly clusters: ReadonlyArray<TeamGraphCluster>;
+  readonly gaps: ReadonlyArray<TeamGraphGap>;
+  /** True when the node cap dropped rows. */
+  readonly truncated?: boolean;
+  /** Mains whose subagent roster could not be read; their spawn tree is missing. */
+  readonly incompleteMainIds?: ReadonlyArray<string>;
 }
 
 /** Recent thread row for the home page: opaque id plus a safe title. */

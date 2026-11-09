@@ -22,6 +22,7 @@ export type SlashNativeUi =
   | "capabilities-plugins"
   | "capabilities-slash"
   | "agent-hub"
+  | "team"
   | "history"
   | "new-chat"
   | "command-palette"

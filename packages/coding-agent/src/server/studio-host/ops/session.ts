@@ -530,7 +530,7 @@ function agentSnapshot(value: unknown): StudioAgentSnapshot | undefined {
 }
 
 /** Roster for a session; a 404 means the gateway has no roster entry (no subagents). */
-async function readSessionAgents(sessionId: string): Promise<StudioAgentSnapshot[]> {
+export async function readSessionAgents(sessionId: string): Promise<StudioAgentSnapshot[]> {
 	const reply = await callGateway(`/api/agent/${segment(sessionId)}/subagents`);
 	if (reply.status === 404) return [];
 	if (reply.status < 200 || reply.status >= 300) {

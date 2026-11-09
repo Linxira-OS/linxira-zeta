@@ -47,6 +47,7 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 | `api/extension-ui/response` | Gateway（新增，非迁移） | ✅ 无会话应答通道：`{id, value?｜confirmed?｜cancelled?｜timedOut?｜answers?｜decision?}` → 按 `uiRequestOwners` 转发到拥有该对话框的会话。仅 `POST`（其余 405）；未知 id 404；`answers` 非数组 / `decision` 非字符串 400。见下方「Ask 通道」 |
 | `api/agent/[id]/context` | Gateway（新增，非迁移） | ✅ 上下文统计面板数据源：窗口占用 + 分类占用 + 压缩阈值 + 会话累计 token/调用计数（`context-usage.ts`）。**仅活会话**：未运行时回 `{ running: false }`（同 `GET /api/agent/<id>`），仅 `GET`（其余 405） |
 | `api/agent/[id]/subagents`、`[id]/subagents/events`（SSE）、`[id]/subagents/[subId]/transcript`、`[id]/subagents/[subId]/output` | Gateway（新增，非迁移） | ✅ 子代理名册读面（`subagents.ts`）：快照 / 增量 SSE / 字节分页转写 / 已发布输出。仅 `GET`（其余 405）；本节下方「子代理名册」给出 DTO 与词表映射。动作面（`cancel`/`steer`）**未实现**，见该节末尾 |
+| `api/agents` | Gateway（新增，非迁移） | ✅ Studio 团队图的活主代理事实（`team.ts`）：仅 `GET`（其余 405），只返回 `AgentRegistry` 的根 ref（`kind:"main"`、无 `parentId`）。子代理仍走上面的名册路由；`cwd` 只在内进程 hop 中使用，Studio 契约把它哈希成 `WorkspaceId`，绝不返回路径。见下方「团队图事实」 |
 | `api/auth/*`（5 条）、`api/models`、`api/models-config`、`models-config/test` | Gateway（AuthStorage/ModelRegistry） | W3 ✅ |
 | `api/skills/*`（5 条）、`api/plugins` | Gateway（`DefaultResourceLoader`/`DefaultPackageManager`） | W4 ✅ |
 | `api/channels/status`、`api/channels/wechat/{qrcode,reconnect,unbind}` | Gateway（`../channels` 的模块级桥） | ✅ 读面 + 微信登录/解绑；`qrcode` 仅 `GET`，其余仅 `POST` |
@@ -342,6 +343,37 @@ interface SubagentRosterEntry {
   `{action:"steer", message}` 拟复用 `handleRpcCancelSubagent` / `handleRpcSteerSubagent`
   （`rpc-mode.ts`，均已导出）+ `resolveOwnedLiveSubagent` 的所有权校验；本批只做读面，
   该路由保留为 404（未注册），实现时须一并补上 `AgentLifecycleManager.release` 与 tombstone 语义。
+
+## 团队图事实（`api/agents`）
+
+`GET /api/agents` 是 Studio `team.graph.get` 的唯一主代理来源（`web-gateway/team.ts`）：
+
+```json
+{ "agents": [ {
+  "id": "Main", "sessionId": "…", "displayName": "…",
+  "status": "running|idle|parked|aborted",
+  "createdAt": 0, "lastActivity": 0,
+  "live": true, "hasTranscript": true, "vibeEnabled": false,
+  "cwd": "…", "activity": "…"
+} ] }
+```
+
+- 只列 `AgentRegistry` 的根 ref（`kind === "main"` 且无 `parentId`）。子代理**不**在这里：
+  团队图经 `api/agent/:sessionId/subagents` 读取它们，保持父级/任务文本的既有投影。
+- `sessionId` 取活会话的 session id；无活会话时读 transcript 头；都没有则省略（该主代理
+  的子代理树在图中缺失，Studio 用 `incompleteMainIds` 报告）。
+- `vibeEnabled` 来自活会话的 `getVibeModeState()`；没有活会话时无法得知，返回 `false`，
+  Studio 侧映射为 `executionMode: "unknown"`，不猜测。
+- `cwd` 是内进程 hop 字段：`ops/team.ts` 用 `workspace-id.ts` 把它哈希成 Studio 的
+  `WorkspaceId`；Studio 读模型和渲染器都不会拿到路径。
+- 注册表是进程级的：其他进程里的主代理不会出现。这是团队图声明的缺口，不是本路由的
+  静默降级。
+- 团队图的 **Team 根本身不是 Agent 节点**：它是无主容器（无 Agent / workspace / Git /
+  session / `AGENTS.md`）。`pm-workspace`、`git-repo`、`db-room`、`linked-worktree`
+  节点需要 `.zeta/team.json`、`.zeta/pm.json`、仓库/`repo_bindings` 与房间 DB 的生产者；
+  本路由不提供这些数据，`team.graph.get` 用 `gaps` 声明缺失，绝不伪造。基础仓库只有
+  `<team>/repos/<repo>` 一份，多 PM 通过 DB `repo_bindings` 绑定；工作树位于
+  `<team>/worktrees/<repo>/<pm>/<engineer>/{home,<task>}/`。
 
 ## Ask 通道（`extension_ui_request(method:"ask")`）
 

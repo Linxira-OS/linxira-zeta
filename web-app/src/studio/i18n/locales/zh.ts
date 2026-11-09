@@ -264,6 +264,7 @@ const zhRaw = {
     "capabilities": "能力中心",
     "statistics": "统计",
     "agentHub": "Agent Hub",
+    "team": "团队",
     "modelConfig": "模型配置",
     "settings": "设置",
     "diagnostics": "诊断中心",
@@ -2764,6 +2765,147 @@ const zhRaw = {
     "noDiffToShow": "没有可显示的 Diff。",
     "linesAdded": " 行新增",
     "linesDeleted": " 行删除"
+  },
+  "team": {
+    "title": "团队关系图",
+    "subtitle": "Team 根是无主容器（不是 Agent、workspace 或 Git）。图只展示真实生产者：活跃 Agent、子代理与派生关系；PM workspace、Git 仓库、数据库房间和链接工作树尚未落地时明确标为缺失。",
+    "generatedAt": "生成于 {time}",
+    "refresh": "刷新团队关系图",
+    "partial": "部分数据",
+    "partialHint": "图只包含已有生产者的数据；下方列出了缺失的生产者。",
+    "loading": "正在读取主代理与子代理…",
+    "error": "团队关系图不可用",
+    "retry": "重试",
+    "filters": {
+      "project": "项目 / 工作区",
+      "allProjects": "全部项目",
+      "unnamedProject": "未命名工作区",
+      "room": "房间",
+      "roomsUnavailable": "暂无房间数据",
+      "roomsUnavailableHint": "房间与 PM ↔ PM 群组还没有生产者，无法筛选。",
+      "lifetime": "生命周期",
+      "allLifetimes": "全部"
+    },
+    "lifetime": {
+      "persistent": "持久",
+      "ephemeral": "临时"
+    },
+    "worktreeKind": {
+      "home": "HOME 工作树",
+      "task": "任务工作树"
+    },
+    "mode": {
+      "vibe": "Vibe",
+      "normal": "普通",
+      "unknown": "未知"
+    },
+    "nodeKind": {
+      "team": "TEAM",
+      "agent": "AGENT",
+      "subagent": "SUBAGENT",
+      "pm-workspace": "PM WORKSPACE",
+      "git-repo": "GIT REPO",
+      "db-room": "DB ROOM",
+      "linked-worktree": "LINKED WORKTREE"
+    },
+    "agentRole": {
+      "pm": "PM",
+      "engineer": "工程师",
+      "secretary": "秘书",
+      "unknown": "未分类"
+    },
+    "container": {
+      "unassigned": "无 Team 记录的活跃 Agent",
+      "noTeamRecord": "无 team.json",
+      "noAgent": "容器 · 不是 Agent",
+      "hint": "Team 根是无主容器：没有 Agent、workspace、Git、会话或 AGENTS.md。"
+    },
+    "status": {
+      "running": "运行中",
+      "idle": "空闲",
+      "parked": "已停放",
+      "aborted": "已中止"
+    },
+    "edge": {
+      "spawn": "派生",
+      "assignment": "指派",
+      "room": "房间",
+      "contains": "包含",
+      "binding": "仓库绑定",
+      "worktree-of": "工作树"
+    },
+    "legend": {
+      "title": "图例",
+      "ownership": "归属对象",
+      "teamHint": "TEAM 是无主容器边界，永远不是 Agent 节点。",
+      "roles": "Agent 角色",
+      "modes": "执行模式",
+      "lifetime": "生命周期",
+      "edges": "关系",
+      "unavailable": "暂无生产者，因此计数为 0"
+    },
+    "node": {
+      "spawnedBy": "由 {name} 派生",
+      "noWorkspace": "未登记工作区"
+    },
+    "lane": {
+      "members": "{count} 个节点",
+      "noObjects": "这个容器还没有可展示的 Agent、仓库、房间或工作树。"
+    },
+    "warn": {
+      "truncated": "节点数量达到上限，图已截断。",
+      "incomplete": "{count} 个 Agent 的子代理名册读取失败，其派生关系缺失。"
+    },
+    "empty": {
+      "title": "当前 Host 没有活跃 Agent",
+      "detail": "团队图只展示本进程内已注册的 Agent 及其子代理；Team 根、PM workspace、Git 仓库、房间与工作树要等对应生产者落地后才会出现。",
+      "filteredTitle": "没有符合筛选条件的节点",
+      "filteredDetail": "试试清除项目或生命周期筛选。",
+      "clearFilters": "清除筛选"
+    },
+    "preview": {
+      "title": "预览模式不伪造团队图",
+      "detail": "关闭预览模式以读取当前 Host 的真实 Agent 与子代理关系。"
+    },
+    "detail": {
+      "title": "节点详情",
+      "kind": "对象类型",
+      "object": "对象 ID",
+      "worktreeKind": "工作树类型",
+      "agent": "Agent",
+      "role": "角色",
+      "mode": "执行模式",
+      "lifetime": "生命周期",
+      "status": "状态",
+      "workspace": "工作区",
+      "parent": "派生者",
+      "assignment": "任务",
+      "session": "会话",
+      "created": "创建时间",
+      "lastActivity": "最近活动"
+    },
+    "gaps": {
+      "title": "数据缺口",
+      "detail": "以下事实没有生产者；图不会猜测它们。",
+      "teamRoot": "Team 根",
+      "pmWorkspaces": "PM workspace",
+      "gitRepos": "Git 仓库 / 绑定",
+      "dbRooms": "房间",
+      "worktrees": "链接工作树",
+      "roles": "Agent 角色",
+      "assignments": "PM → Agent 指派",
+      "secretary": "秘书"
+    },
+    "gapDetails": {
+      "teamRoot": "没有 `.zeta/team.json` 解析：Team 根是无主容器，不能作为 Agent 或 workspace。",
+      "pmWorkspaces": "没有 `.zeta/pm.json` 解析：`pms/<pm>/` 无法与其他主会话区分。",
+      "gitRepos": "没有仓库清单与 `repo_bindings` 生产者：基础仓库只在 `<team>/repos/<repo>` 存一份，PM 通过数据库绑定，不复制到各 PM 目录。",
+      "dbRooms": "房间是数据库 `rooms` 行 + `room_events`，不是文件夹；暂无生产者。",
+      "worktrees": "没有工作树清单生产者：链接工作树位于 `<team>/worktrees/<repo>/<pm>/<engineer>/{home,<task>}/`，在仓库之外。",
+      "roles": "PM、工程师、秘书角色尚未持久化，Agent 保持未分类。",
+      "assignments": "没有把 Agent 指派给 PM 的存储，所以没有指派边；spawn 关系是真实的。",
+      "secretary": "秘书是 Team 级持久 Agent，该角色尚不存在。"
+    }
   },
   "contextBar": {
     "branch": "分支",

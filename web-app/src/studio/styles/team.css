@@ -1,0 +1,710 @@
+/* ============================================================
+   Team relationship graph
+   Lanes, not an org chart: one card per main agent, its spawned
+   subagents in a wrapping column. Colors come from tokens.css;
+   dark + blue accent are the product defaults.
+   ============================================================ */
+
+.team-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-14);
+  padding-bottom: var(--sp-24);
+}
+
+.team-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-16);
+  flex-wrap: wrap;
+}
+
+.team-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin: 0;
+  font-size: var(--fs-18);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+
+.team-subtitle {
+  margin: var(--sp-4) 0 0;
+  max-width: 70ch;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+}
+
+.team-head-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+
+.team-badge {
+  padding: 1px var(--sp-6);
+  border-radius: var(--r-full);
+  border: 1px solid var(--border-strong);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+}
+
+.team-badge.partial {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.team-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-12);
+  flex-wrap: wrap;
+  padding: var(--sp-10) var(--sp-12);
+  border: 1px solid var(--border);
+  border-radius: var(--r-8);
+  background: var(--surface);
+}
+
+.team-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 150px;
+}
+
+.team-filter > span:first-child,
+.team-legend-title {
+  color: var(--text-3);
+  font-size: var(--fs-11);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.team-segment {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-6);
+  overflow: hidden;
+}
+
+.team-segment button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-8);
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font-size: var(--fs-12);
+  cursor: pointer;
+}
+
+.team-segment button + button {
+  border-left: 1px solid var(--border);
+}
+
+.team-segment button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.team-segment button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.team-segment .cnt,
+.team-legend-item .cnt {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-11);
+}
+
+.team-legend {
+  display: flex;
+  gap: var(--sp-16);
+  flex-wrap: wrap;
+  padding: var(--sp-10) var(--sp-12);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-8);
+}
+
+.team-legend-group {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  flex-wrap: wrap;
+}
+
+.team-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}
+
+.team-legend-item.is-unavailable {
+  opacity: 0.55;
+}
+
+.team-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.team-legend-swatch.kind-agent {
+  border-radius: 3px;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.team-legend-swatch.kind-subagent {
+  border-radius: 50%;
+  border-color: var(--tint-teal);
+  background: var(--tint-teal-soft);
+}
+
+.team-legend-swatch.kind-pm-workspace {
+  border-radius: 2px;
+  border-color: var(--tint-violet);
+  background: var(--tint-violet-soft);
+}
+
+.team-legend-swatch.kind-git-repo {
+  border-radius: 2px;
+  border-color: var(--tint-green);
+  background: var(--tint-green-soft);
+}
+
+.team-legend-swatch.kind-db-room {
+  border-radius: 50%;
+  border-style: dotted;
+  border-color: var(--tint-blue);
+  background: var(--tint-blue-soft);
+}
+
+.team-legend-swatch.kind-linked-worktree {
+  border-radius: 2px;
+  border-style: dashed;
+  border-color: var(--tint-orange);
+  background: var(--tint-orange-soft);
+}
+
+/* The Team root is a container, not an object: a dashed boundary swatch. */
+.team-legend-boundary {
+  width: 18px;
+  height: 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-4);
+  background: transparent;
+}
+
+.team-legend-ring {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+}
+
+.team-legend-ring.lifetime-ephemeral {
+  border-style: dashed;
+}
+
+.team-legend-line {
+  width: 22px;
+  height: 0;
+  border-top: 2px solid var(--accent);
+}
+
+.team-legend-line.edge-assignment {
+  border-top-style: dashed;
+  border-color: var(--tint-violet);
+}
+
+.team-legend-line.edge-room {
+  border-top-style: dotted;
+  border-color: var(--tint-blue);
+}
+
+.team-legend-line.edge-contains {
+  border-color: var(--border-strong);
+}
+
+.team-legend-line.edge-binding {
+  border-top-style: dashed;
+  border-color: var(--tint-green);
+}
+
+.team-legend-line.edge-worktree-of {
+  border-top-style: dotted;
+  border-color: var(--tint-orange);
+}
+
+/* ---------- Ownerless Team container (never an agent node) ---------- */
+
+.team-container {
+  position: relative;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-10);
+  padding: var(--sp-20) var(--sp-12) var(--sp-12);
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+
+.team-container-label {
+  position: absolute;
+  top: calc(-1 * var(--sp-8));
+  left: var(--sp-12);
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-6);
+  padding: 0 var(--sp-6);
+  background: var(--bg);
+  color: var(--text-2);
+  font-size: var(--fs-11);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.team-container-hint {
+  color: var(--text-faint);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.team-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-14);
+}
+
+.team-lane {
+  border: 1px solid var(--border);
+  border-radius: var(--r-8);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.team-lane-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  flex-wrap: wrap;
+  padding: var(--sp-10) var(--sp-12);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-inset);
+}
+
+.team-lane-title {
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+  font-size: var(--fs-14);
+}
+
+.team-lane-body {
+  display: grid;
+  grid-template-columns: minmax(200px, 300px) minmax(0, 1fr);
+  gap: var(--sp-16);
+  align-items: start;
+  padding: var(--sp-12);
+}
+
+@media (max-width: 760px) {
+  .team-lane-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.team-main-anchor {
+  position: relative;
+}
+
+/* An unassigned boundary has no agent anchor: peers share one flat grid. */
+.team-lane-body:has(> .team-children.is-flat) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.team-children.is-flat {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  padding-left: 0;
+  border-left: 0;
+}
+
+.team-children.is-flat .team-node::before {
+  display: none;
+}
+
+/* Spawn spine: the solid accent edge is the only edge kind with a producer. */
+.team-children {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding-left: var(--sp-14);
+  border-left: 2px solid var(--accent-border);
+}
+
+.team-children .team-node {
+  position: relative;
+}
+
+.team-children .team-node::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--sp-14) - 2px);
+  top: 22px;
+  width: var(--sp-14);
+  border-top: 2px solid var(--accent-border);
+}
+
+.team-lane-empty {
+  margin: 0;
+  align-self: center;
+}
+
+.team-node {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-8);
+  width: 100%;
+  padding: var(--sp-8) var(--sp-10);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-6);
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.team-node:hover {
+  border-color: var(--accent-border);
+  background: var(--surface-3);
+}
+
+.team-node.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-border);
+}
+
+.team-node[data-kind="agent"] {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-softer);
+}
+
+.team-node[data-kind="subagent"] {
+  border-left: 3px solid var(--tint-teal);
+}
+
+.team-node[data-kind="pm-workspace"] {
+  border-left: 3px solid var(--tint-violet);
+}
+
+.team-node[data-kind="git-repo"] {
+  border-left: 3px solid var(--tint-green);
+}
+
+.team-node[data-kind="db-room"] {
+  border-left: 3px dotted var(--tint-blue);
+}
+
+.team-node[data-kind="linked-worktree"] {
+  border-left: 3px dashed var(--tint-orange);
+}
+
+.team-object-glyph {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border: 1.5px solid var(--text-faint);
+  border-radius: 2px;
+}
+
+.team-node[data-lifetime="ephemeral"] {
+  border-style: dashed;
+}
+
+.team-node[data-status="aborted"] {
+  opacity: 0.75;
+}
+
+.team-status-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.team-status-dot.status-running {
+  background: var(--green);
+  box-shadow: 0 0 0 3px var(--green-soft);
+}
+
+.team-status-dot.status-idle {
+  background: var(--blue);
+}
+
+.team-status-dot.status-parked {
+  background: var(--amber);
+}
+
+.team-status-dot.status-aborted {
+  background: var(--red);
+}
+
+.team-node-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.team-node-name {
+  font-size: var(--fs-14);
+  font-weight: var(--fw-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-node-chips {
+  display: flex;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.team-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--sp-6);
+  border-radius: var(--r-full);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-3);
+  font-size: var(--fs-11);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.team-chip.kind-agent {
+  border-color: var(--accent-border);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.team-chip.kind-subagent {
+  border-color: var(--tint-teal-border);
+  color: var(--tint-teal);
+  background: var(--tint-teal-soft);
+}
+
+.team-chip.kind-pm-workspace {
+  border-color: var(--tint-violet-border);
+  color: var(--tint-violet);
+  background: var(--tint-violet-soft);
+}
+
+.team-chip.kind-git-repo {
+  border-color: var(--tint-green-border);
+  color: var(--tint-green);
+  background: var(--tint-green-soft);
+}
+
+.team-chip.kind-db-room {
+  border-style: dotted;
+  border-color: var(--tint-blue-border);
+  color: var(--tint-blue);
+  background: var(--tint-blue-soft);
+}
+
+.team-chip.kind-linked-worktree {
+  border-style: dashed;
+  border-color: var(--tint-orange-border);
+  color: var(--tint-orange);
+  background: var(--tint-orange-soft);
+}
+
+.team-chip.role-pm {
+  border-color: var(--tint-violet-border);
+  color: var(--tint-violet);
+  background: var(--tint-violet-soft);
+}
+
+.team-chip.role-engineer {
+  border-color: var(--tint-green-border);
+  color: var(--tint-green);
+  background: var(--tint-green-soft);
+}
+
+.team-chip.role-secretary {
+  border-color: var(--tint-blue-border);
+  color: var(--tint-blue);
+  background: var(--tint-blue-soft);
+}
+
+.team-chip.role-unknown {
+  border-style: dashed;
+  color: var(--text-3);
+}
+
+.team-chip.mode-vibe {
+  border-color: var(--tint-violet-border);
+  color: var(--tint-violet);
+  background: var(--tint-violet-soft);
+}
+
+.team-chip.mode-normal {
+  border-color: var(--tint-blue-border);
+  color: var(--tint-blue);
+  background: var(--tint-blue-soft);
+}
+
+.team-chip.mode-unknown {
+  border-style: dashed;
+  color: var(--text-faint);
+}
+
+.team-lane-head .team-chip.mode-unknown {
+  border-style: dashed;
+}
+
+.team-chip.lifetime-ephemeral {
+  border-style: dashed;
+}
+
+.team-node-assignment,
+.team-node-activity,
+.team-node-parent,
+.team-edge-note {
+  font-size: var(--fs-11);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.team-node-assignment {
+  color: var(--text-2);
+}
+
+.team-node-parent {
+  color: var(--text-faint);
+}
+
+.team-edge-note {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+}
+
+.team-edge-note.edge-assignment {
+  color: var(--tint-violet);
+}
+
+.team-edge-note.edge-room {
+  color: var(--tint-teal);
+}
+
+.team-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-32) var(--sp-16);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-10);
+  text-align: center;
+  color: var(--text-3);
+}
+
+.team-empty .icon {
+  color: var(--text-faint);
+}
+
+.team-empty h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-16);
+}
+
+.team-empty p {
+  margin: 0;
+  max-width: 60ch;
+  font-size: var(--fs-12);
+  line-height: 1.6;
+}
+
+.team-detail {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-8);
+  background: var(--surface);
+  padding: var(--sp-12);
+}
+
+.team-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-8);
+}
+
+.team-detail dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--sp-4) var(--sp-12);
+  margin: 0;
+  font-size: var(--fs-12);
+}
+
+.team-detail dt {
+  color: var(--text-3);
+}
+
+.team-detail dd {
+  margin: 0;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.team-gaps {
+  border: 1px solid var(--border);
+  border-radius: var(--r-8);
+  padding: var(--sp-12);
+  background: var(--bg-inset);
+}
+
+.team-gaps h3 {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-14);
+  color: var(--text-2);
+}
+
+.team-gaps ul {
+  margin: var(--sp-8) 0 0;
+  padding-left: var(--sp-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  color: var(--text-3);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+}
+
+.team-gaps b {
+  color: var(--text-2);
+  font-weight: var(--fw-medium);
+}

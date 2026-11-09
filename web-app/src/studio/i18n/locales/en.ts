@@ -264,6 +264,7 @@ export const en: LocaleDictionary = {
     "capabilities": "Capabilities",
     "statistics": "Statistics",
     "agentHub": "Agent Hub",
+    "team": "Team",
     "modelConfig": "Models",
     "settings": "Settings",
     "diagnostics": "Diagnostics",
@@ -2764,6 +2765,147 @@ export const en: LocaleDictionary = {
     "noDiffToShow": "No diff to display.",
     "linesAdded": " lines added",
     "linesDeleted": " lines deleted"
+  },
+  "team": {
+    "title": "Team graph",
+    "subtitle": "The Team root is an ownerless container — not an agent, workspace or Git repo. The graph shows only real producers: live agents, subagents and their spawn edges. PM workspaces, Git repos, DB rooms and linked worktrees are marked as gaps until their producers ship.",
+    "generatedAt": "Generated {time}",
+    "refresh": "Refresh team graph",
+    "partial": "Partial data",
+    "partialHint": "The graph contains only facts with a producer; missing producers are listed below.",
+    "loading": "Reading agents and subagents…",
+    "error": "Team graph unavailable",
+    "retry": "Retry",
+    "filters": {
+      "project": "Project / workspace",
+      "allProjects": "All projects",
+      "unnamedProject": "Unnamed workspace",
+      "room": "Room",
+      "roomsUnavailable": "No room data",
+      "roomsUnavailableHint": "Rooms and the PM ↔ PM peer group have no producer yet, so there is nothing to filter by.",
+      "lifetime": "Lifetime",
+      "allLifetimes": "All"
+    },
+    "lifetime": {
+      "persistent": "Persistent",
+      "ephemeral": "Ephemeral"
+    },
+    "worktreeKind": {
+      "home": "Home worktree",
+      "task": "Task worktree"
+    },
+    "mode": {
+      "vibe": "Vibe",
+      "normal": "Normal",
+      "unknown": "Unknown"
+    },
+    "nodeKind": {
+      "team": "TEAM",
+      "agent": "AGENT",
+      "subagent": "SUBAGENT",
+      "pm-workspace": "PM WORKSPACE",
+      "git-repo": "GIT REPO",
+      "db-room": "DB ROOM",
+      "linked-worktree": "LINKED WORKTREE"
+    },
+    "agentRole": {
+      "pm": "PM",
+      "engineer": "Engineer",
+      "secretary": "Secretary",
+      "unknown": "Unclassified"
+    },
+    "container": {
+      "unassigned": "Live agents without a team record",
+      "noTeamRecord": "No team.json",
+      "noAgent": "container · not an agent",
+      "hint": "The Team root is ownerless: no agent, workspace, Git, session or AGENTS.md."
+    },
+    "status": {
+      "running": "Running",
+      "idle": "Idle",
+      "parked": "Parked",
+      "aborted": "Aborted"
+    },
+    "edge": {
+      "spawn": "Spawn",
+      "assignment": "Assignment",
+      "room": "Room",
+      "contains": "Contains",
+      "binding": "Repo binding",
+      "worktree-of": "Worktree of"
+    },
+    "legend": {
+      "title": "Legend",
+      "ownership": "Ownership objects",
+      "teamHint": "TEAM is a dashed ownerless boundary, never an agent node.",
+      "roles": "Agent roles",
+      "modes": "Execution mode",
+      "lifetime": "Lifetime",
+      "edges": "Relations",
+      "unavailable": "No producer yet, so the count is 0"
+    },
+    "node": {
+      "spawnedBy": "Spawned by {name}",
+      "noWorkspace": "Unregistered workspace"
+    },
+    "lane": {
+      "members": "{count} nodes",
+      "noObjects": "This container has no agent, repo, room or worktree to show yet."
+    },
+    "warn": {
+      "truncated": "The node cap was reached; the graph is truncated.",
+      "incomplete": "The subagent roster failed for {count} agent(s); their spawn trees are missing."
+    },
+    "empty": {
+      "title": "No live agent in this host",
+      "detail": "The graph shows agents registered in this process and their subagents. The Team root, PM workspaces, Git repos, rooms and worktrees appear only once their producers exist.",
+      "filteredTitle": "No node matches the filters",
+      "filteredDetail": "Clear the project or lifetime filter and try again.",
+      "clearFilters": "Clear filters"
+    },
+    "preview": {
+      "title": "Preview mode does not fabricate a team graph",
+      "detail": "Leave preview mode to read the real agent/subagent relationships from the current Host."
+    },
+    "detail": {
+      "title": "Node details",
+      "kind": "Object kind",
+      "object": "Object id",
+      "worktreeKind": "Worktree kind",
+      "agent": "Agent",
+      "role": "Role",
+      "mode": "Execution mode",
+      "lifetime": "Lifetime",
+      "status": "Status",
+      "workspace": "Workspace",
+      "parent": "Spawned by",
+      "assignment": "Assignment",
+      "session": "Session",
+      "created": "Created",
+      "lastActivity": "Last activity"
+    },
+    "gaps": {
+      "title": "Data gaps",
+      "detail": "These facts have no producer; the graph does not guess them.",
+      "teamRoot": "Team root",
+      "pmWorkspaces": "PM workspaces",
+      "gitRepos": "Git repos / bindings",
+      "dbRooms": "Rooms",
+      "worktrees": "Linked worktrees",
+      "roles": "Agent roles",
+      "assignments": "PM → agent assignment",
+      "secretary": "Secretary"
+    },
+    "gapDetails": {
+      "teamRoot": "No `.zeta/team.json` parser: the Team root is an ownerless container, not an agent or workspace.",
+      "pmWorkspaces": "No `.zeta/pm.json` parser: `pms/<pm>/` cannot be distinguished from other main sessions.",
+      "gitRepos": "No repository inventory or `repo_bindings` producer: base repos live once at `<team>/repos/<repo>`; PMs bind through the DB, never a per-PM copy.",
+      "dbRooms": "Rooms are DB `rooms` rows + `room_events`, not folders; no producer exists.",
+      "worktrees": "No worktree inventory producer: linked worktrees live at `<team>/worktrees/<repo>/<pm>/<engineer>/{home,<task>}/`, outside the repo.",
+      "roles": "PM, engineer and secretary roles are not persisted; agents stay unclassified.",
+      "assignments": "No store assigns an agent to a PM, so assignment edges are absent; spawn parentage is real.",
+      "secretary": "A secretary is a team-scoped persistent agent; that role does not exist yet."
+    }
   },
   "contextBar": {
     "branch": "Branch",
