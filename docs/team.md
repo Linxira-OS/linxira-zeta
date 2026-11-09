@@ -59,9 +59,10 @@ Schema (`PRAGMA user_version` = 2):
 | `room_members` | `room_id`, `agent_id`, `role`, `created_at` |
 | `room_events` | `seq`, `room_id`, `sent_at`, `sender_agent_id`, `kind`, `body`, `reply_to`, `mentions_json` |
 
-`kind` is `home` or `task`; `execution` is `normal` or `vibe`. A repo may be
-bound to several PMs, and one engineer may own a home worktree per bound repo.
-Rooms are described below.
+Worktree `kind` is `home` or `task`; engineer `execution` is `normal` or `vibe`.
+A repo may be bound to several PMs, and one engineer may own a home worktree per
+bound repo. Room `kind` is `pm`, `coordination`, or `room`; rooms are described
+below.
 
 ## Rooms
 
