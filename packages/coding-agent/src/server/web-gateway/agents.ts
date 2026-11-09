@@ -368,7 +368,7 @@ export class AgentSessionWrapper {
 	#extensionStatuses = new Map<string, string>();
 	#extensionWidgets = new Map<string, { lines: string[]; placement: "aboveEditor" | "belowEditor" }>();
 	/** Serialized last-seen mode states, used to emit `mode_changed` diffs. */
-	#lastModeStates: Record<ModeId, string> = { plan: "null", goal: "null", vibe: "null" };
+	#lastModeStates: Record<ModeId, string> = { plan: "null", goal: "null", lead: "null", vibe: "null" };
 
 	// -- Multi-end session sync (durable-entry replication) ------------------
 	/** Monotonic sequence for durable-entry events; cursor for SSE replay. */
@@ -533,7 +533,7 @@ export class AgentSessionWrapper {
 			// External-state bridge: re-derive mode diffs and broadcast the new
 			// version. Clients use `state_changed` to re-fetch get_state and
 			// `mode_changed` to update mode banners without a full poll.
-			for (const mode of ["plan", "goal", "vibe"] as const) {
+			for (const mode of ["plan", "goal", "lead", "vibe"] as const) {
 				const state = this.#inner.getModeState(mode);
 				const serialized = JSON.stringify(state ?? null);
 				if (serialized !== this.#lastModeStates[mode]) {

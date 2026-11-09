@@ -1449,6 +1449,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	planModePaused = false;
 	goalModeEnabled = false;
 	goalModePaused = false;
+	leadModeEnabled = false;
 	vibeModeEnabled = false;
 	planModePlanFilePath: string | undefined = undefined;
 	/** Workflow of the paused plan session, so a resume re-arms ultra (or iterative)
@@ -1462,6 +1463,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	/** Last state reported through `mode_changed`; starts inactive so a restored session's modes are reported too. */
 	#reportedModeState: SessionModeState = {
 		plan: { status: "inactive" },
+		lead: { status: "inactive" },
 		vibe: { status: "inactive" },
 		goal: { status: "inactive" },
 		loop: { status: "inactive" },
@@ -1842,6 +1844,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	// session switches. While set, short replies like "c" are answers, not
 	// continue shortcuts.
 	#guidedGoalInterviewActive = false;
+	#leadModeEntry: Promise<void> | undefined;
 	#vibeModePreviousTools: string[] | undefined;
 	#vibeModeOwnerScope: VibeOwnerScope | undefined;
 	// In-flight #enterVibeMode promise: set before the activateVibeTools await
@@ -3731,6 +3734,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			plan: this.planModeEnabled
 				? { status: "active", planFilePath: this.session.getPlanModeState()?.planFilePath }
 				: { status: this.planModePaused ? "paused" : "inactive" },
+			lead: { status: this.leadModeEnabled ? "active" : "inactive" },
 			vibe: { status: this.vibeModeEnabled ? "active" : "inactive" },
 			goal:
 				goalActive || this.goalModePaused
@@ -3855,14 +3859,24 @@ export class InteractiveMode implements InteractiveModeContext {
 					return { code: "disabled", message: "Plan mode is disabled in settings (plan.enabled)." };
 				}
 				if (goalBlocks) return conflict("goal");
+				if (this.leadModeEnabled) return conflict("lead");
 				if (this.vibeModeEnabled) return conflict("vibe");
 				return () => this.#enterPlanMode();
+			case "lead":
+				if (request.action === "exit") return this.leadModeEnabled ? () => this.#exitLeadMode() : undefined;
+				if (request.action !== "enter") break;
+				if (this.leadModeEnabled) return undefined;
+				if (planBlocks) return conflict("plan");
+				if (goalBlocks) return conflict("goal");
+				if (this.vibeModeEnabled) return conflict("vibe");
+				return () => this.#enterLeadMode();
 			case "vibe":
 				if (request.action === "exit") return this.vibeModeEnabled ? () => this.#exitVibeMode() : undefined;
 				if (request.action !== "enter") break;
 				if (this.vibeModeEnabled) return undefined;
 				if (planBlocks) return conflict("plan");
 				if (goalBlocks) return conflict("goal");
+				if (this.leadModeEnabled) return conflict("lead");
 				return () => this.#enterVibeMode();
 			case "goal":
 				switch (request.action) {
@@ -3883,6 +3897,7 @@ export class InteractiveMode implements InteractiveModeContext {
 							return { code: "disabled", message: "Goal mode is disabled in settings (goal.enabled)." };
 						}
 						if (planBlocks) return conflict("plan");
+						if (this.leadModeEnabled) return conflict("lead");
 						if (this.vibeModeEnabled) return conflict("vibe");
 						return () => this.#enterGoalMode({ objective, tokenBudget: budget });
 					}
@@ -5693,6 +5708,12 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#notifyModeChanged();
 	}
 
+	#updateLeadModeStatus(): void {
+		this.statusLine.setLeadModeStatus(this.leadModeEnabled ? { enabled: true } : undefined);
+		this.ui.requestRender();
+		this.#notifyModeChanged();
+	}
+
 	/**
 	 * Anchored HUD of in-flight subagents, mirroring the Todos block above the
 	 * editor. Driven entirely by observer-registry change events, so rows appear
@@ -6009,6 +6030,13 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.#updateGoalModeStatus();
 		}
 
+		if (this.leadModeEnabled) {
+			await this.session.removeLeadToolsPreservingActive();
+			this.session.setLeadModeState(undefined);
+			this.leadModeEnabled = false;
+			this.#updateLeadModeStatus();
+		}
+
 		if (this.vibeModeEnabled && !options?.preserveVibe) {
 			const ownerScope = this.#vibeModeOwnerScope;
 			// This runs only from #reconcileModeFromSession, i.e. after switchSession
@@ -6052,6 +6080,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		// flags and settings, and that set — not a historical one — is what exiting
 		// vibe must restore.
 		const vibeToolsetLostToTeardown = this.vibeModeEnabled && !preserveVibe;
+		const leadToolsetLostToTeardown = this.leadModeEnabled;
 		// A session that records no model (a `/new` boundary) keeps the live model,
 		// which during plan mode is the transient plan-role model; hand it the
 		// pre-plan model instead. A recorded model was already restored by switchSession.
@@ -6102,6 +6131,22 @@ export class InteractiveMode implements InteractiveModeContext {
 						? readPersistedToolNames(sessionContext.modeData?.previousTools)
 						: undefined,
 				});
+			}
+			return;
+		}
+		if (sessionContext.mode === "lead") {
+			try {
+				await this.#enterLeadMode({
+					persistModeChange: false,
+					previousTools: leadToolsetLostToTeardown
+						? readPersistedToolNames(sessionContext.modeData?.previousTools)
+						: undefined,
+				});
+			} catch {
+				// The cwd no longer resolves to a registered PM workspace; keep
+				// the session as normal coding rather than re-entering a mode
+				// whose rooms cannot be reached.
+				this.sessionManager.appendModeChange("none");
 			}
 			return;
 		}
@@ -7299,6 +7344,73 @@ export class InteractiveMode implements InteractiveModeContext {
 		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
 	): Promise<boolean> {
 		return this.handlePlanModeCommand(initialPrompt, input, "ultra");
+	}
+
+	/**
+	 * `/lead` (alias `/pm`) toggle. Entering requires the session cwd to resolve
+	 * to a registered PM workspace, installs the room tools, and narrows the
+	 * active set to coordination tools only. Exiting restores the prior set.
+	 */
+	async handleLeadModeCommand(): Promise<boolean> {
+		if (this.leadModeEnabled) {
+			await this.#exitLeadMode();
+			return false;
+		}
+		if (this.planModeEnabled || this.planModePaused) {
+			this.#warnPlanModeBlocks();
+			return false;
+		}
+		if (this.goalModeEnabled || this.goalModePaused) {
+			this.showWarning("Exit goal mode first.");
+			return false;
+		}
+		if (this.vibeModeEnabled) {
+			this.showWarning("Exit vibe mode first.");
+			return false;
+		}
+		try {
+			await this.#enterLeadMode();
+		} catch (error) {
+			this.showError(`Could not enter lead mode: ${error instanceof Error ? error.message : String(error)}`);
+		}
+		return false;
+	}
+
+	async #enterLeadMode(options?: { persistModeChange?: boolean; previousTools?: string[] }): Promise<void> {
+		if (this.leadModeEnabled) return;
+		const inFlight = this.#leadModeEntry;
+		if (inFlight) {
+			await inFlight;
+			return;
+		}
+		const previousTools = options?.previousTools ?? this.session.getEnabledToolNames();
+		const entry = (async () => {
+			await this.session.enterLeadMode({
+				previousTools,
+				persistModeChange: options?.persistModeChange,
+			});
+			this.leadModeEnabled = true;
+			this.lastAssistantUsage = undefined;
+			this.#updateLeadModeStatus();
+			this.showStatus(
+				"Lead mode enabled. Coordinate engineer agents through rooms; toolset is read + optional Todo + rooms.",
+			);
+		})();
+		this.#leadModeEntry = entry;
+		try {
+			await entry;
+		} finally {
+			if (this.#leadModeEntry === entry) this.#leadModeEntry = undefined;
+		}
+	}
+
+	async #exitLeadMode(): Promise<void> {
+		if (!this.leadModeEnabled) return;
+		await this.session.exitLeadMode();
+		this.leadModeEnabled = false;
+		this.lastAssistantUsage = undefined;
+		this.#updateLeadModeStatus();
+		this.showStatus("Lead mode disabled.");
 	}
 
 	/**

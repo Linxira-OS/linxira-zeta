@@ -792,6 +792,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 	#loopModeStatus: SegmentContext["loopMode"] = null;
 	#goalModeStatus: { enabled: boolean; paused: boolean } | null = null;
 	#vibeModeStatus: { enabled: boolean } | null = null;
+	#leadModeStatus: { enabled: boolean } | null = null;
 	#vimStatus: SegmentContext["vim"] = null;
 	/**
 	 * Injected aggregator that returns the aggregate tok/s of this session's
@@ -1222,6 +1223,13 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 		const next = status ?? null;
 		if (this.#vibeModeStatus === next || this.#vibeModeStatus?.enabled === next?.enabled) return;
 		this.#vibeModeStatus = next;
+		this.#invalidateStatusLineRenderCache();
+	}
+
+	setLeadModeStatus(status: { enabled: boolean } | undefined): void {
+		const next = status ?? null;
+		if (this.#leadModeStatus === next || this.#leadModeStatus?.enabled === next?.enabled) return;
+		this.#leadModeStatus = next;
 		this.#invalidateStatusLineRenderCache();
 	}
 
@@ -2720,6 +2728,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 			goalMode: this.#goalModeStatus,
 			goalStatusInFooter: this.#goalModeStatus ? this.host.goalStatusInFooter(this.session) : false,
 			vibeMode: this.#vibeModeStatus,
+			leadMode: this.#leadModeStatus,
 			vim: this.#vimStatus,
 			stream: this.#streamStatus,
 			recording: this.#recording,

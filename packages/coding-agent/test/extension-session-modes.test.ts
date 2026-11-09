@@ -357,6 +357,7 @@ describe("ctx.sessionModes in the interactive TUI", () => {
 		}
 		expect(modes.getState()).toEqual({
 			plan: { status: "inactive" },
+			lead: { status: "inactive" },
 			vibe: { status: "inactive" },
 			goal: { status: "inactive" },
 			loop: { status: "inactive" },

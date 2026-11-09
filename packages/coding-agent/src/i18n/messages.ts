@@ -1994,6 +1994,7 @@ export interface Messages {
 	cmdReloadPlugins: string;
 	cmdPlanReview: string;
 	cmdVibe: string;
+	cmdLead: string;
 	cmdGoal: string;
 	cmdGoalSet: string;
 	cmdGoalShow: string;
@@ -2212,6 +2213,11 @@ export interface Messages {
 	acVibeBlockedByPlanMode: string; // "Vibe: blocked by plan mode"
 	acVibeBlockedByGoalMode: string; // "Vibe: blocked by goal mode"
 	acVibeOff: string; // "Vibe: off"
+	acLeadOn: string; // "Lead: on"
+	acLeadBlockedByPlanMode: string; // "Lead: blocked by plan mode"
+	acLeadBlockedByGoalMode: string; // "Lead: blocked by goal mode"
+	acLeadBlockedByVibe: string; // "Lead: blocked by vibe mode"
+	acLeadOff: string; // "Lead: off"
 	acGoalDisabledInSettings: string; // "Goal: disabled in settings"
 	acGoalBlockedByPlanMode: string; // "Goal: blocked by plan mode"
 	acGoalOff: string; // "Goal: off"
