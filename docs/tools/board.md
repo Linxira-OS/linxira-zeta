@@ -2,6 +2,15 @@
 
 > Read and edit the user's project board under `<project>/.zeta/board/`.
 
+## Status
+
+**IMPLEMENTED on `main` (PR #260); not yet in a tagged release.** The built-in
+tool is real and shares `board-store.ts` with the Web Gateway routes. It is
+project-scoped (no `cwd`/path input), top-level sessions receive it by default,
+and a subagent receives it only when its profile or spawn request names
+`board`. Storage format and the GUI/TUI/IDE panels are documented in
+[the user board](../board.md).
+
 ## Source
 - Entry: `packages/coding-agent/src/tools/board.ts`
 - Store: `packages/coding-agent/src/tools/board-store.ts` (shared with the web gateway)
