@@ -32,7 +32,7 @@ import {
 } from "@linxiraos/pi-utils";
 
 const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
-const originalPiProfile = process.env.PI_PROFILE;
+const originalPiProfile = process.env.ZETA_PROFILE;
 const originalOmpProfile = process.env.ZETA_PROFILE;
 let agentDirRoot: string | undefined;
 
@@ -53,7 +53,7 @@ afterEach(async () => {
 	// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
 	clearZetaExtensionCliRoots();
 	restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
-	restoreEnv("PI_PROFILE", originalPiProfile);
+	restoreEnv("ZETA_PROFILE", originalPiProfile);
 	restoreEnv("ZETA_PROFILE", originalOmpProfile);
 	__resetDirsFromEnvForTests();
 	if (agentDirRoot) {

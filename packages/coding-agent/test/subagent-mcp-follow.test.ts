@@ -18,7 +18,7 @@ import type { MCPStdioServerConfig } from "@linxiraos/zeta/mcp/types";
 import { type CreateAgentSessionOptions, createAgentSession } from "@linxiraos/zeta/sdk";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { createMCPProxyTools, followMCPTools } from "@linxiraos/zeta/task/executor";
+import { followMCPTools } from "@linxiraos/zeta/task/executor";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { manyToolName } from "./fixtures/many-tools-mcp";
 

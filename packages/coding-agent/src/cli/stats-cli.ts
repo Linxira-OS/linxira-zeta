@@ -103,12 +103,20 @@ export async function runStatsCommand(cmd: StatsCommandArgs): Promise<void> {
 	// streaming progress to the page. The judge (settings, auth, registry)
 	// resolves on the first Frustration estimate/run and lives until exit.
 	const cwd = process.cwd();
-	const { hostname, port } = await startServer(cmd.port, cmd.host, {
+	const { hostname, port, reused } = await startServer(cmd.port, cmd.host, {
 		judge: async () => (await openStandaloneJudge(cwd, "stats_frustration")).judge,
 		language: currentLanguage(),
 	});
 	const url = formatStatsDashboardUrl(hostname, port);
 	console.log(chalk.green(`Dashboard available at: ${url}`));
+
+	// Another process owns the reused dashboard: show it, never stop it, and let
+	// this command exit (nothing here holds the event loop open).
+	if (reused) {
+		openPath(url);
+		return;
+	}
+
 	openPath(url);
 	console.log(`Press ${formatKeyHint("ctrl+c")} to stop\n`);
 

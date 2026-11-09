@@ -1336,10 +1336,10 @@ Used by interactive rendering when custom messages are displayed.
 
 ### Compact rows
 
-A renderer's component may implement `isTranscriptBlockCompact(): boolean` (the `CompactTranscriptBlock` interface in `@oh-my-pi/pi-tui/chrome/transcript-container`). While it returns `true`, the message packs against neighboring compact blocks. The terminal draws no blank row between them, and Tern shows the run as one block without gaps. Empty or hidden blocks between two compact ones keep the run going.
+A renderer's component may implement `isTranscriptBlockCompact(): boolean` (the `CompactTranscriptBlock` interface in `@linxiraos/pi-tui/chrome/transcript-container`). While it returns `true`, the message packs against neighboring compact blocks. The terminal draws no blank row between them, and Tern shows the run as one block without gaps. Empty or hidden blocks between two compact ones keep the run going.
 
 ```ts
-import { type Component, truncateToWidth } from "@oh-my-pi/pi-tui";
+import { type Component, truncateToWidth } from "@linxiraos/pi-tui";
 
 class StatusRow implements Component {
 	constructor(readonly label: string) {}

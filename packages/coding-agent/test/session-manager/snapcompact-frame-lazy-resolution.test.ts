@@ -86,7 +86,6 @@ describe("lazy snapcompact frame resolution", () => {
 	const originalEnv = {
 		ZETA_CODING_AGENT_DIR: process.env.ZETA_CODING_AGENT_DIR,
 		ZETA_PROFILE: process.env.ZETA_PROFILE,
-		PI_PROFILE: process.env.PI_PROFILE,
 	};
 
 	async function makeTempDir(): Promise<string> {

@@ -12,7 +12,7 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AgentSession, PromptDroppedError } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { IrcBridge, type IrcBridgeHost } from "@linxiraos/zeta/session/irc-bridge";
 import { convertToLlm, type CustomMessage, USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
@@ -1194,9 +1194,13 @@ describe("AgentSession aside delivery", () => {
 			return images;
 		});
 		let asideSettled = false;
-		const asidePromise = session.sendUserMessage("GENERATION_RACE_ASIDE", { deliverAs: "aside" }).then(() => {
-			asideSettled = true;
-		});
+		const asidePromise = session.sendUserMessage("GENERATION_RACE_ASIDE", { deliverAs: "aside" }).then(
+			() => undefined,
+			(error: unknown) => {
+				asideSettled = true;
+				return error;
+			},
+		);
 		let newSessionPromise: Promise<boolean> | undefined;
 		try {
 			await normalizeStarted.promise;
@@ -1214,6 +1218,7 @@ describe("AgentSession aside delivery", () => {
 			releaseNormalize.resolve();
 			await setImmediate();
 			expect(asideSettled).toBe(true);
+			expect(await asidePromise).toBeInstanceOf(PromptDroppedError);
 			expect(session.isSessionTransitioning).toBe(true);
 			expect(ready).toBe(false);
 			expect(JSON.stringify(session.agent.state.messages)).not.toContain("GENERATION_RACE_ASIDE");

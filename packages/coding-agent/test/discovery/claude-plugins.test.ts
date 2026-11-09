@@ -61,7 +61,7 @@ describe("listClaudePluginRoots", () => {
 		originalHome = process.env.HOME;
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 		originalOmpProfileEnv = process.env.ZETA_PROFILE;
-		originalPiProfileEnv = process.env.PI_PROFILE;
+		originalPiProfileEnv = process.env.ZETA_PROFILE;
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
 		delete process.env.CLAUDE_CONFIG_DIR;
 		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "claude-plugins-test-"));
@@ -84,7 +84,7 @@ describe("listClaudePluginRoots", () => {
 		// so restore every env var it can touch before rebuilding the resolver.
 		restoreEnvValue("HOME", originalHome);
 		restoreEnvValue("ZETA_PROFILE", originalOmpProfileEnv);
-		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
+		restoreEnvValue("ZETA_PROFILE", originalPiProfileEnv);
 		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
 		restoreEnvValue("CLAUDE_CONFIG_DIR", originalClaudeConfigDir);
 		enableProvider("claude-plugins");

@@ -38,7 +38,7 @@ function probeEnv(): Record<string, string | undefined> {
 	for (const key in env) {
 		if (key.startsWith("XDG_") || key.startsWith("PUPPETEER_")) delete env[key];
 	}
-	for (const key of ["ZETA_CODING_AGENT_DIR", "PI_CONFIG_DIR", "ZETA_PROFILE", "PI_PROFILE"]) delete env[key];
+	for (const key of ["ZETA_CODING_AGENT_DIR", "PI_CONFIG_DIR", "ZETA_PROFILE", "ZETA_PROFILE"]) delete env[key];
 	return env;
 }
 

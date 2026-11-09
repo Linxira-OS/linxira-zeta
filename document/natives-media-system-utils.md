@@ -1,6 +1,6 @@
 # Natives media + system utilities
 
-This document covers the media/system/conversion exports in `@oh-my-pi/pi-natives`: audio capture/playback and live WebRTC media, terminal SIXEL conversion, SVG rasterization, snapcompact PNG rendering, HTML/PDF conversion, clipboard access, token counting, DeviceCheck, macOS appearance/power helpers, and work profiling.
+This document covers the media/system/conversion exports in `@linxiraos/pi-natives`: audio capture/playback and live WebRTC media, terminal SIXEL conversion, SVG rasterization, snapcompact PNG rendering, HTML/PDF conversion, clipboard access, token counting, DeviceCheck, macOS appearance/power helpers, and work profiling.
 
 ## Implementation files
 

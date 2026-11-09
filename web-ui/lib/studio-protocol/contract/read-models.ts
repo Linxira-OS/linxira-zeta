@@ -380,7 +380,7 @@ export interface TokenUsageReadModel {
 }
 
 /**
- * Loopback endpoint of the native `omp stats` dashboard, which the statistics
+ * Loopback endpoint of the native `zetacode stats` dashboard, which the statistics
  * page embeds. The Host starts the dashboard on demand and probes it with its
  * own identity header, so `available` reflects a server that answered — not a
  * path that was found on disk. `url` is loopback-only and carries a deep link

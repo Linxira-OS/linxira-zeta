@@ -1,6 +1,6 @@
 # Plugin manager and installer plumbing
 
-This document describes how `omp plugin` npm/git/link and marketplace operations mutate plugin state on disk and become runtime capabilities. Marketplace installs keep their own registries and cache, then register the cached plugin through the same `node_modules` and `zeta-plugins.lock.json` runtime surfaces used by npm/git/link installs; the pre-rename `omp-plugins.lock.json` is still read and migrated on first read (see `document/brand-surface-rules.md`, DUAL row); see `docs/marketplace.md`.
+This document describes how `omp plugin` npm/git/link and marketplace operations mutate plugin state on disk and become runtime capabilities. Marketplace installs keep their own registries and cache, then register the cached plugin through the same `node_modules` and `zeta-plugins.lock.json` runtime surfaces used by npm/git/link installs; the pre-rename `zeta-plugins.lock.json` is still read and migrated on first read (see `document/brand-surface-rules.md`, DUAL row); see `docs/marketplace.md`.
 
 ## Scope and architecture
 
@@ -23,7 +23,7 @@ omp plugin <npm/link action> ...
   -> mutate user plugins data root {package.json,node_modules,zeta-plugins.lock.json}
   -> enabled-plugin enumeration discovers user and nearest project plugin roots
   -> direct loaders resolve manifest-declared tool/extension entries
-  -> `omp-plugins` capability discovery scans conventional skills/hooks/tools/commands/rules/prompts/MCP content; task discovery scans `agents/`
+  -> `zeta-plugins` capability discovery scans conventional skills/hooks/tools/commands/rules/prompts/MCP content; task discovery scans `agents/`
 
 omp plugin install name@marketplace / omp install name@marketplace
   -> MarketplaceManager
@@ -108,7 +108,7 @@ Every Bun package-manager call below (`install`, `update`, `uninstall`, `pm cach
 
 1. Parse feature bracket syntax from install spec.
 2. Validate the spec: git specs via `validateGitSpec`; npm specs against the package-name regex + shell-metacharacter denylist.
-3. Ensure plugin `package.json` exists (`omp-plugins`, private dependencies map).
+3. Ensure plugin `package.json` exists (`zeta-plugins`, private dependencies map).
 4. Run `bun install --no-cache <packageSpec>` for npm, or `bun install <gitSpec>` for Git, in the user plugins directory; `--force` is forwarded when requested. Reinstalls prune stale dependency entries first. Reinstalling an existing Git plugin also refreshes Bun's matching Git cache and runs `bun update <resolved-name>` to refresh the lockfile revision.
 5. Resolve the installed package name (npm: strip version via `extractPackageName`; git: diff `dependencies` before/after) and read `node_modules/<name>/package.json`.
 6. Resolve manifest and compute `enabledFeatures`:
@@ -122,7 +122,7 @@ Every Bun package-manager call below (`install`, `update`, `uninstall`, `pm cach
 ### Update semantics
 
 - `omp plugin install pkg@newVersion` updates the dependency and runtime version. A plain reinstall resets enablement to true and feature selection to defaults unless explicitly supplied; settings remain in the separate settings map.
-- `omp plugin upgrade <package-name>` uses the source recorded in `plugins/package.json`: npm moves to the latest published version, while Git re-resolves its recorded ref. It preserves enablement and feature selection, removing selected features absent from a new feature map. Local links and `file:`/`link:`/`workspace:`/`portal:` dependencies have nothing to upgrade and are rejected.
+- `zetacode plugin upgrade <package-name>` uses the source recorded in `plugins/package.json`: npm moves to the latest published version, while Git re-resolves its recorded ref. It preserves enablement and feature selection, removing selected features absent from a new feature map. Local links and `file:`/`link:`/`workspace:`/`portal:` dependencies have nothing to upgrade and are rejected.
 - Upgrade compares both package version and Bun lockfile resolution, so a moving Git ref can report a changed revision without a version bump.
 - Install snapshots the prior package tree, `package.json`, and `bun.lock`. Failure during installation, feature/extension validation, or runtime-config save attempts to restore all three.
 - No separate npm-plugin startup update check or migration action exists.
@@ -207,8 +207,8 @@ Manifest entries may point to a file. Tool/hook/command directories require a di
 ## Current runtime wiring
 
 - Manifest-declared **tools** feed `discoverAndLoadCustomTools` through `getAllPluginToolPaths(cwd)`.
-- Manifest-declared **extensions** feed `discoverAndLoadExtensions` through `getAllPluginExtensionPaths(cwd)`.
-- The `omp-plugins` capability provider separately scans conventional `skills/`, `hooks/pre|post/`, `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json`/`mcp.json` under enabled npm/link plugin roots. Task-agent discovery scans the same roots' `agents/`. Marketplace roots are excluded there and handled through `claude-plugins` plus marketplace task-agent discovery instead.
+- Manifest-declared **extensions** feed `discoverAndLoadExtensions` through `listPackageExtensionModules()` (which `/extensions` also lists).
+- The `zeta-plugins` capability provider separately scans conventional `skills/`, `hooks/pre|post/`, `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json`/`mcp.json` under enabled npm/link plugin roots. Task-agent discovery scans the same roots' `agents/`. Marketplace roots are excluded there and handled through `claude-plugins` plus marketplace task-agent discovery instead.
 - Packages whose root `plugin.json` targets Agent Plugins 1.0.0 use `agent-plugins` for portable `skills/` and root `mcp.json`, from both marketplace and extension-package roots. Legacy providers skip those two surfaces but can still load client-specific content from hybrid packages; fatally invalid standard manifests suppress legacy discovery.
 - Manifest hook/command path resolvers remain exported, but runtime hook/slash discovery uses the conventional capability-provider scans rather than `getAllPluginHookPaths()` or `getAllPluginCommandPaths()`.
 - Direct custom-tool and extension path lists are de-duplicated by resolved absolute path (`seen`, first path wins).
@@ -292,7 +292,7 @@ Operationally, `doctor --fix` can repair some drift (`bun install`, orphaned con
 - [`src/extensibility/plugins/loader.ts`](../packages/coding-agent/src/extensibility/plugins/loader.ts) — enabled-plugin discovery and manifest tool/hook/command/extension path resolution
 - [`src/extensibility/plugins/parser.ts`](../packages/coding-agent/src/extensibility/plugins/parser.ts) — install spec and package-name parsing helpers
 - [`src/extensibility/plugins/types.ts`](../packages/coding-agent/src/extensibility/plugins/types.ts) — manifest/runtime/override type contracts
-- [`src/discovery/omp-plugins.ts`](../packages/coding-agent/src/discovery/omp-plugins.ts) — conventional capability discovery for npm/link extension packages
+- [`src/discovery/zeta-plugins.ts`](../packages/coding-agent/src/discovery/zeta-plugins.ts) — conventional capability discovery for npm/link extension packages
 - [`src/task/discovery.ts`](../packages/coding-agent/src/task/discovery.ts) — conventional `agents/` discovery for extension and marketplace plugin roots
 - [`src/discovery/claude-plugins.ts`](../packages/coding-agent/src/discovery/claude-plugins.ts) — marketplace-plugin capability discovery
 - [`src/discovery/agent-plugins.ts`](../packages/coding-agent/src/discovery/agent-plugins.ts) — portable Agent Plugins skills and MCP discovery

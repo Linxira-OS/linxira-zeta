@@ -1914,7 +1914,6 @@ describe("zetacode usage reset", () => {
 	const originalEnv = {
 		ZETA_CODING_AGENT_DIR: process.env.ZETA_CODING_AGENT_DIR,
 		ZETA_PROFILE: process.env.ZETA_PROFILE,
-		PI_PROFILE: process.env.PI_PROFILE,
 	};
 
 	/** A response that never arrives; it rejects once the request's signal aborts. */

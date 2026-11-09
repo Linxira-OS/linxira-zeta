@@ -512,8 +512,7 @@ export async function submitInteractiveInput(
 			};
 			input.dispatched = await session.promptCustomMessage(message, { streamingBehavior });
 		} else if (input.resume) {
-			// No queue intent: the streaming queue only carries user messages, so a
-			// continue shortcut while busy is rejected rather than queued as one.
+			// No queue intent: a continue shortcut interrupts a running turn instead.
 			await session.resume();
 		} else if (isKnownSkillCommand(skillHost, input.text)) {
 			// Resubmitted skill text must dispatch through the skill path, or the
@@ -717,7 +716,6 @@ async function runInteractiveMode(
 			eventBus,
 			startupLease?.composer,
 			subagentEventBus,
-			refreshScopedModelsAfterLogin,
 		);
 		startupLease?.adopt();
 	} catch (error) {
@@ -760,6 +758,7 @@ async function runInteractiveMode(
 			await setupWizard.markSetupWizardComplete(settings);
 		}
 		playStartupSplash = showStartupSplash && setupScenes.length === 0;
+		const offersStartupWorktree = !resuming;
 
 		await logger.time("InteractiveMode.init", () =>
 			mode.init({
@@ -903,6 +902,7 @@ async function runInteractiveMode(
 			mode.showError(errorMessage);
 		}
 	}
+	mode.settleStartupRun();
 
 	while (true) {
 		const input = await mode.getUserInput();
@@ -1178,6 +1178,7 @@ export interface ScopedModelSink {
 	readonly isDisposed: boolean;
 	readonly scopedModels: ReadonlyArray<{ model: Model; thinkingLevel?: ThinkingLevel }>;
 	setScopedModels(scopedModels: Array<{ model: Model; thinkingLevel?: ThinkingLevel }>): void;
+	setScopedModelsRefresher(refresher: (() => Promise<void>) | undefined): void;
 }
 
 /**
@@ -2876,6 +2877,7 @@ export async function runRootCommand(
 			const refreshScopedModelsAfterLogin = async () => {
 				await rebuildScopedModels(session, parsedArgs, modelRegistry, settingsInstance);
 			};
+			session.setScopedModelsRefresher(refreshScopedModelsAfterLogin);
 			watchScopedModelSettings(session, parsedArgs, modelRegistry, settingsInstance);
 
 			if (modelFallbackMessage) {

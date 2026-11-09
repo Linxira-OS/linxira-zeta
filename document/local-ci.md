@@ -174,9 +174,11 @@ they keep talking to the official registries.
   are fine — but never put such a literal inside a `run:` command.
 
 `ENTRY_EXCEPTIONS` is the *only* way to record a deliberate asymmetry, and every
-row carries its reason: today it holds `bazel_lock` (no failure-refresh),
-`native_addons` (addon staged in place) and `main_tests` (nextest). Add a row
-only with a reason that a reviewer can check.
+row carries its reason: today it holds `check` (GitHub's cargo-deny release
+download falls back to a source build; the mirror installs cargo-deny once in
+`toolchains`), `bazel_lock` (no failure-refresh), `native_addons` (addon staged
+in place) and `main_tests` (nextest). Add a row only with a reason that a
+reviewer can check.
 
 It runs as the last step of the local `check` job **and** in the GitHub `check`
 job:

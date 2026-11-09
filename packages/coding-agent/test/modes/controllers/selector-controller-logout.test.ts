@@ -85,6 +85,7 @@ describe("SelectorController logout", () => {
 			},
 			session: {
 				sessionId: "session-logout-test",
+				refreshScopedModels: vi.fn(async () => {}),
 				modelRegistry: {
 					authStorage,
 					refreshProvider,

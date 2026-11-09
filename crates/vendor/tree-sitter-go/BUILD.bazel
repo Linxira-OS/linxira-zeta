@@ -20,7 +20,7 @@ cargo_build_script(
         "noclippy",
         "norustfmt",
     ],
-    version = "0.25.0",
+    version = "1.4.13",
     deps = all_crate_deps(build = True),
 )
 
@@ -39,7 +39,7 @@ rust_library(
         "noclippy",
         "norustfmt",
     ],
-    version = "0.25.0",
+    version = "1.4.13",
     deps = all_crate_deps(normal = True) + [":build_script"],
 )
 

@@ -41,7 +41,7 @@ Project scope (created by an explicit `--scope project` marketplace install, or 
 ```
 
 `zeta-plugins.lock.json` is the canonical name every writer targets and every
-reader asks for. A pre-rename `omp-plugins.lock.json` is **not** read.
+reader asks for. A pre-rename `zeta-plugins.lock.json` is **not** read.
 
 `.zeta` here is the config-dir name, so `ZETA_CONFIG_DIR=<name>` moves the project tree to `<project>/<name>/plugins` as well. The value is a **relative** directory name under the user's home; absolute paths and `..` are rejected instead of being re-joined to home.
 
@@ -295,14 +295,14 @@ Verified against this tree; each is reported rather than worked around here.
 
 2. **A lockfile entry without a `package.json` dependency and without a symlink is skipped** as stale (`loader.ts:229-231`), so an npm-installed plugin whose dependency entry was removed silently stays unloaded while `zeta-plugins.lock.json` still records it.
 
-3. **The pre-rename lockfile is not read.** Only `zeta-plugins.lock.json` is read; an old `omp-plugins.lock.json` is inert and ignored.
+3. **The pre-rename lockfile is not read.** Only `zeta-plugins.lock.json` is read; an old `zeta-plugins.lock.json` is inert and ignored.
 
 ## The lockfile name
 
 The plugin lockfile is `zeta-plugins.lock.json` in every scope. It carries
 per-plugin runtime state (enabled flag, feature selection, versions).
 
-- Only `zeta-plugins.lock.json` is read. The pre-rename `omp-plugins.lock.json`
+- Only `zeta-plugins.lock.json` is read. The pre-rename `zeta-plugins.lock.json`
   is not consulted.
 - Every writer targets the canonical name, so `zetacode plugin link/install/
   enable/disable/config` and marketplace installs all record into

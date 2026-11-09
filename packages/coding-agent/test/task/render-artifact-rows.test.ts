@@ -68,7 +68,7 @@ describe("task renderer: isolation artifact row labels", () => {
 	});
 
 	it("keeps the Branch label on sanitized artifact rows", async () => {
-		const text = await renderResultText(makeResult({ branchName: "omp/task/Worker" }));
+		const text = await renderResultText(makeResult({ branchName: "zeta/task/Worker" }));
 		expect(text).toContain("Branch:");
 	});
 

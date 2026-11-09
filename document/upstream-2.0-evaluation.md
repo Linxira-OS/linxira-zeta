@@ -51,7 +51,7 @@ Zeta 是 OMP 下游发行版：运行时、包布局与内部 `@linxiraos/*` 命
   （对照组 zeta↔OMP 同源文件为 92%–100%，随机基线中位 0.113），说明 OMP 保留的是 pi 的**骨架**，
   字面代码只剩约两成；且 OMP 文件普遍是 pi 的 1.1–15 倍大（`agent-loop.ts` 4.5×、`read.ts` 13×）。
 - **「插件层」其实是内核的运行时基座**，不是外挂：上游 OMP 侧，
-  `@oh-my-pi/pi-natives` / `pi-catalog` / `omptype` / `pi-wire` 分别被
+  `@linxiraos/pi-natives` / `pi-catalog` / `omptype` / `pi-wire` 分别被
   **291 / 955 / 355 / 230** 个文件 import（含 `packages/agent`、`packages/ai`、`packages/tui` 内核包）。
   zeta 侧对应为 `259 / 958 / 362 / 214`（`pi-swap-report.md` §3.1）。
 

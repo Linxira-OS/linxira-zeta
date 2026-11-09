@@ -151,7 +151,7 @@ const RICH: SpotlightDetails = {
 		lines: 10,
 		start: 40,
 		path: "src/ingest.ts",
-		heat: "3712849-01",
+		heat: "3712948-01",
 		why: "sabbbracfs",
 		kept: [
 			[1, 2],
@@ -183,11 +183,11 @@ function words(node: TspNode | TspPropNode | undefined): string | undefined {
 	return p?.text ?? p?.spans?.map(s => s.t).join("");
 }
 
-/** A legend entry (`omp.spotlight.key`): its swatch's glyph and tone, and its muted label. */
+/** A legend entry (`zeta.spotlight.key`): its swatch's glyph and tone, and its muted label. */
 function keyOf(key: TspNode): { swatch?: string; tone: unknown; label?: string } {
 	const [swatch, label] = key.c ?? [];
-	expect(prop(key, "role")).toBe("omp.spotlight.key");
-	expect(prop(swatch, "role")).toBe("omp.spotlight.swatch");
+	expect(prop(key, "role")).toBe("zeta.spotlight.key");
+	expect(prop(swatch, "role")).toBe("zeta.spotlight.swatch");
 	expect(prop(label, "spans")).toEqual([{ t: words(label), s: "muted" }]);
 	return { swatch: words(swatch), tone: prop(swatch, "tone"), label: words(label) };
 }
@@ -385,10 +385,10 @@ describe("spotlight notice", () => {
 		expect(prop(overlay, "head")).toBe("⭐ Spotlight · read · 1.2K → 600 chars · saved 150 toks");
 
 		// The request collapses to the intent on one line; the toggle names the other non-blank parameters.
-		let params = h.find(node => node.p?.role === "omp.spotlight.params");
+		let params = h.find(node => node.p?.role === "zeta.spotlight.params");
 		expect(params?.c).toHaveLength(1);
 		const intent = params?.c?.[0];
-		expect(prop(intent, "role")).toBe("omp.spotlight.param");
+		expect(prop(intent, "role")).toBe("zeta.spotlight.param");
 		const [name, value, more] = within(intent, "text");
 		expect(words(name)).toBe("intent");
 		expect(value?.p).toMatchObject({
@@ -398,25 +398,25 @@ describe("spotlight notice", () => {
 			title: "Find the failing step",
 		});
 		expect(more?.p).toMatchObject({
-			role: "omp.spotlight.more",
+			role: "zeta.spotlight.more",
 			text: "task, commands, source, probe, model ▸",
 			actions: { click: "params" },
 		});
 
 		h.event({ ev: "action", sf: h.terminal.surface!, id: more!.id, act: "params" });
 		await h.render();
-		params = h.find(node => node.p?.role === "omp.spotlight.params");
+		params = h.find(node => node.p?.role === "zeta.spotlight.params");
 		const names = (params?.c ?? []).map(paramRow => words(within(paramRow, "text")[0]));
 		expect(names).toEqual(["intent", "task", "commands", "source", "probe", "model"]);
-		expect(words(h.find(node => node.p?.role === "omp.spotlight.more"))).toBe("fewer ▾");
+		expect(words(h.find(node => node.p?.role === "zeta.spotlight.more"))).toBe("fewer ▾");
 		const task = h.find(node => node.p?.title === "Why does ingest\nstall?");
 		expect(task?.p).toMatchObject({ spans: [{ t: "Why does ingest stall?" }], lines: 2, truncate: "end" });
 		const model = h.find(node => node.p?.title === "whiskers-latest\nlow thinking");
 		expect(prop(model, "spans")).toEqual([{ t: "whiskers-latest" }, { t: " · ", s: "dim" }, { t: "low thinking" }]);
 
 		// The legend counts each class of line; the budget and cutoff sit at the end.
-		const summary = h.find(node => node.p?.role === "omp.spotlight.summary");
-		const keys = (summary?.c ?? []).filter(child => prop(child, "role") === "omp.spotlight.key");
+		const summary = h.find(node => node.p?.role === "zeta.spotlight.summary");
+		const keys = (summary?.c ?? []).filter(child => prop(child, "role") === "zeta.spotlight.key");
 		expect(keys.map(keyOf)).toEqual([
 			{ swatch: "■", tone: "accent", label: "kept by score 2" },
 			{ swatch: "■", tone: "neutral", label: "kept as structure 2" },
@@ -424,7 +424,7 @@ describe("spotlight notice", () => {
 			{ swatch: "■", tone: "error", label: "cut though hot 1" },
 			{ swatch: "■", tone: "muted", label: "cut 4" },
 		]);
-		expect(words(h.find(node => node.p?.role === "omp.spotlight.budget"))).toBe(
+		expect(words(h.find(node => node.p?.role === "zeta.spotlight.budget"))).toBe(
 			"budget 590 of 600 chars · cutoff 0.88",
 		);
 
@@ -433,7 +433,7 @@ describe("spotlight notice", () => {
 		expect(codes).toHaveLength(1);
 		const [code] = codes;
 		expect(code?.p).toMatchObject({
-			role: "omp.spotlight.code",
+			role: "zeta.spotlight.code",
 			text: RICH_ORIGINAL,
 			path: "src/ingest.ts",
 			start: 40,
@@ -449,7 +449,7 @@ describe("spotlight notice", () => {
 		expect(markAt(41)).toEqual({ line: 41, heat: 7 / 9, tone: "accent", wash: parts(1) });
 		// Hidden: heat only, unless it scored hot.
 		expect(markAt(43)).toEqual({ line: 43, heat: 2 / 9, wash: parts(3) });
-		expect(markAt(44)).toEqual({ line: 44, heat: 8 / 9, tone: "error", wash: parts(4) });
+		expect(markAt(44)).toEqual({ line: 44, heat: 1, tone: "error", wash: parts(4) });
 		// A context line Spotlight never scored still carries its tone.
 		expect(markAt(47)).toEqual({ line: 47, tone: "info", wash: parts(7) });
 		expect(parts(4)[0]).toBeCloseTo(0.8, 2);
@@ -464,7 +464,7 @@ describe("spotlight notice", () => {
 			to: 45,
 			label: "  … 4 lines cut",
 			note: [
-				{ t: "4 lines · peak 0.89", s: "muted" },
+				{ t: "4 lines · peak 1.00", s: "muted" },
 				{ t: " · line 44 cut by the budget", s: "error" },
 			],
 			tone: "error",
@@ -482,7 +482,7 @@ describe("spotlight notice", () => {
 			path: "src/ingest.ts",
 			start: 44,
 			numbers: true,
-			marks: [{ line: 44, heat: 8 / 9, tone: "error", wash: parts(4) }],
+			marks: [{ line: 44, heat: 1, tone: "error", wash: parts(4) }],
 		});
 		expect(prop(sum, "spans")).toEqual([{ t: "0.80 + 0.30 = 1.10 · cutoff 0.88", s: "muted" }]);
 		expect(prop(why, "spans")).toEqual([
@@ -490,15 +490,15 @@ describe("spotlight notice", () => {
 		]);
 
 		// The shaping notes the model saw, blank ones left out.
-		const notes = h.find(node => node.p?.role === "omp.spotlight.notes");
+		const notes = h.find(node => node.p?.role === "zeta.spotlight.notes");
 		expect(within(notes, "text").map(words)).toEqual(["notes the model saw", "[spotlight: 5 of 10 lines kept]"]);
 
 		// The footer keys the rows' wash, the parts in their order across a row, before Close.
 		const footer = within(overlay, "row").find(node => prop(node, "role") === "zeta.actions");
 		const legend = footer?.c?.[0];
-		expect(prop(legend, "role")).toBe("omp.spotlight.legend");
+		expect(prop(legend, "role")).toBe("zeta.spotlight.legend");
 		const [ramp, tint] = legend?.c?.[0]?.c ?? [];
-		expect(prop(ramp, "role")).toBe("omp.spotlight.ramp");
+		expect(prop(ramp, "role")).toBe("zeta.spotlight.ramp");
 		expect(words(tint)).toBe("row tint, left to right: Spotlight → word overlap");
 		expect(footer?.c?.[1]?.k).toBe("spacer");
 
@@ -525,9 +525,9 @@ describe("spotlight notice", () => {
 			{ from: 2, to: 3, note: [{ t: "2 lines · peak 0.22", s: "muted" }] },
 			{ from: 5, to: 5, note: [{ t: "1 line", s: "muted" }] },
 		]);
-		expect(h.find(node => node.p?.role === "omp.spotlight.summary")).toBeUndefined();
-		expect(h.find(node => node.p?.role === "omp.spotlight.legend")).toBeUndefined();
-		expect(h.find(node => node.p?.role === "omp.spotlight.notes")).toBeUndefined();
+		expect(h.find(node => node.p?.role === "zeta.spotlight.summary")).toBeUndefined();
+		expect(h.find(node => node.p?.role === "zeta.spotlight.legend")).toBeUndefined();
+		expect(h.find(node => node.p?.role === "zeta.spotlight.notes")).toBeUndefined();
 		expect(h.errors).toEqual([]);
 	});
 
@@ -621,7 +621,7 @@ describe("spotlight notice", () => {
 		);
 		const [code] = within(overlay, "code");
 		expect((prop(code, "folds") as TspCodeFold[])[0]).toMatchObject({ from: 42, to: 45, label: "  … 4 lines cut" });
-		const notes = h.find(node => node.p?.role === "omp.spotlight.notes");
+		const notes = h.find(node => node.p?.role === "zeta.spotlight.notes");
 		expect(within(notes, "text").map(words)).toEqual([
 			"notes the model would have seen",
 			"[spotlight: 5 of 10 lines kept]",

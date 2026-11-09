@@ -631,7 +631,7 @@ export const PREVIEW_UPDATES = {
 } as const;
 
 /**
- * Statistics panel demo aggregates. The real page embeds the local `omp stats`
+ * Statistics panel demo aggregates. The real page embeds the local `zetacode stats`
  * dashboard, which preview mode must not fabricate — these numbers stand in for
  * that panel so the surface is not empty while preview is on.
  */

@@ -35,7 +35,7 @@
 | CI-020 | 上游新增/修改的测试与夹具没有合并审计                      | v18.15.0 合并审计                 | 已加门禁（已推 `ceca124008f`）                    |
 | CI-021 | Bazel lock 输入哈希用了 Windows 工作区而非 Git blob        | run `41627466260`                 | 已修（`131f4c9b33a`）                             |
 | CI-022 | session client 在 fork/persistCopy/forkFrom 丢失           | run `41606325272`                 | 已修（`ceca124008f`）                             |
-| CI-023 | eval prelude 残留 `__omp_call_tool__`                      | run `41606325272`                 | 已修（`ceca124008f`）                             |
+| CI-023 | eval prelude 残留 `__zeta_call_tool__`                      | run `41606325272`                 | 已修（`ceca124008f`）                             |
 | CI-024 | 上游新增 i18n 键没有调用点，orphan guard 红                | run `41636522109`                 | 已修（`131f4c9b33a`）                             |
 | CI-025 | 品牌替换后 QR/catalog/browser 契约未同步                   | run `41606325272`                 | 已修（`ceca124008f`）                             |
 | CI-026 | merge test audit 只归一化路径，不归一化 prose              | run `41627466260`                 | 已修（`ceca124008f`）                             |
@@ -378,10 +378,10 @@ TAB_GROUPS["model"]`，以及 `Taste` 的四条不在 `TAB_GROUPS["memory"]`。
   `drop-session-trash.test.ts`。
 - **fixed by**：`ceca124008f`。
 
-## CI-023 eval prelude 残留 `__omp_call_tool__`
+## CI-023 eval prelude 残留 `__zeta_call_tool__`
 
 - **现象**：run `41606325272` 的 `completion-bridge.test.ts` 退出码 1；错误为
-  `globalThis.__omp_call_tool__ is not a function`。
+  `globalThis.__zeta_call_tool__ is not a function`。
 - **触发点**：v18.16 把 `completion().attempts()` 加进 prelude。
 - **根因**：prelude 绝大多数调用点已改成 `__zeta_call_tool__`，但 attempts 分支
   仍调用旧名；runtime 只安装 `__zeta_call_tool__`。这是跨面 token 对，静态扫不到

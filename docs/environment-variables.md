@@ -20,7 +20,9 @@ Most runtime lookups use `$env` from `@linxiraos/pi-utils` (`packages/utils/src/
 4. Active config-root `.env` (normally `~/.zeta/.env`) for keys whose current value is empty/unset
 5. Home `.env` (`~/.env`) for keys whose current value is empty/unset
 
-The agent/root locations respect profiles, `ZETA_CONFIG_DIR`, and—only for the default profile—`ZETA_CODING_AGENT_DIR`. Whole dotenv files are parsed with Bun's `node:util.parseEnv`, including quoted multiline values, escaped newlines, and inline comments. Names must be shell identifiers (`[A-Za-z_][A-Za-z0-9_]*`); unsafe names/values are discarded. Variable references remain literal in this parser; only Bun's launch-directory dotenv autoload performs variable expansion before this module runs. Child-shell filtering uses the same parser to identify project dotenv values across `.env`, `.env.<NODE_ENV>` (default `development`), `.env.local`, and `.env.<NODE_ENV>.local`. It removes project-dotenv credentials from shell subprocesses while preserving launcher…
+`OTEL_*` entries in the agent, config-root and home `.env` files are not part of `$env`: omp's telemetry reads them privately (see [OpenTelemetry export](#11-opentelemetry-export)). Their precedence among themselves, and below a shell export or project `.env`, is unchanged.
+
+The agent/root locations respect profiles, `PI_CONFIG_DIR`, and—only for the default profile—`ZETA_CODING_AGENT_DIR`. Whole dotenv files are parsed with Bun's `node:util.parseEnv`, including quoted multiline values, escaped newlines, and inline comments. Names must be shell identifiers (`[A-Za-z_][A-Za-z0-9_]*`); unsafe names/values are discarded. Variable references remain literal in this parser; only Bun's launch-directory dotenv autoload performs variable expansion before this module runs. Child-shell filtering uses the same parser to identify project dotenv values across `.env`, `.env.<NODE_ENV>` (default `development`), `.env.local`, and `.env.<NODE_ENV>.local`. It removes project-dotenv credentials from shell subprocesses while preserving launcher-owned variables; Linux's original exec environment provides the authoritative launch snapshot, with best-effort value matching elsewhere.
 
 Variable namespace: product knobs use the `ZETA_` prefix. A few knobs that were formerly `OMP_`-prefixed keep reading the old spelling as an alias when the `ZETA_` name is unset or empty (`ZETA_MCP_TIMEOUT_MS`, `ZETA_MCP_STARTUP_TIMEOUT_MS`, `ZETA_MCP_REQUIRE_READY`, `ZETA_APP_NAME`, `ZETA_GITHUB_CACHE_DB`, `ZETA_COMMIT_CACHE_DB`, `ZETA_JUDGMENT_CACHE_DB`). Upstream `PI_*` variables remain plumbing and are not user knobs.
 
@@ -226,11 +228,12 @@ When `CLAUDE_CODE_USE_FOUNDRY` is enabled, Anthropic requests switch to Foundry 
    - a filesystem path to PEM content, or
    - inline PEM (including escaped `\n` sequences).
 
-   `NODE_EXTRA_CA_CERTS` is honoured for every provider fetch (OpenAI-compatible,
-   Codex, Ollama, Azure Responses, Google, Anthropic), not just Foundry — Bun's
-   `fetch` does not consume the env var natively, so the bundle is merged into
-   `RequestInit.tls.ca` alongside the system root store. The `CLAUDE_CODE_*` mTLS
-   material remains Anthropic-Foundry-specific.
+   `NODE_EXTRA_CA_CERTS` is honoured for provider fetches (OpenAI-compatible,
+   Codex, Ollama, Azure Responses, Google, Anthropic) and remote MCP HTTP/SSE
+   transports. Bun's `fetch` does not consume the env var natively, so the
+   bundle is merged into `RequestInit.tls.ca` alongside the system root store,
+   including when loaded from the agent `.env` after process startup. The
+   `CLAUDE_CODE_*` mTLS material remains Anthropic-Foundry-specific.
 
 | Variable                                 | Value type                                     | Behavior                                                                                                                                                                                              |
 | ---------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -739,6 +742,8 @@ Zeta initializes OTLP export only when at least one signal has an endpoint. Set 
 | `OTEL_EXPORTER_OTLP_PROTOCOL` and per-signal `..._PROTOCOL` variants                                            | Only `http/protobuf` is enabled by this runtime; another explicit protocol disables that signal |
 | `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`                                                                 | OpenTelemetry resource metadata                                                                 |
 | `OTEL_LOG_LEVEL`                                                                                                | Minimum exported Zeta log level                                                                  |
+
+`OTEL_*` entries in OMP's own `.env` files (agent dir, config root, home `.env`) configure OMP's exporter only. OMP keeps them in a private map instead of `Bun.env`/`process.env`, so they are absent from the process environment of the programs omp launches (bash and PTY commands, subagent shells, JS eval and tab workers, LSP/DAP/MCP servers, installers) and from `process.env` seen by extensions and hooks. This is isolation from inheritance, not confidentiality: the files remain readable on disk, and in-process code that imports `$otelEnv` from `@linxiraos/pi-utils` can read the values. While omp constructs its OpenTelemetry exporters at startup, the values are placed in `process.env` for the duration of that synchronous step only. A variable exported in the launching shell wins over the file and stays visible to children, and the project `.env` is unchanged. One limitation: when omp starts in a directory whose `.env` is itself one of omp's own files (for example `$HOME`), that file is applied to the environment before omp's loader runs (by Bun's dotenv autoload, or by omp's own loader when autoload is off), so its values are treated like project `.env` values and stay visible; start omp from a project directory, or keep `OTEL_*` in the agent-dir file (`~/.omp/agent/.env`), which Bun does not auto-load unless that directory is the working directory. Because these values are not in `process.env`, secret masking, which collects secrets from `process.env`, does not see a credential embedded in such a value, such as the password in `scheme://user:pass@host`. An extension that needs its own OpenTelemetry configuration should get it from the shell environment. A child `omp` process re-reads the same files and exports with its own configuration.
 
 Header values are percent-decoded, so encode spaces and the `,`/`=` delimiters:
 

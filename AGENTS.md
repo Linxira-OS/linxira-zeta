@@ -64,7 +64,7 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
   - **用户可见配置只走 Zeta 名**：`ZETA_AUTH_BROKER_*`、`ZETA_AUTORESEARCH_DB_DIR`、
     `ZETA_CONVERSATION_PARSER_REUSE`、`ZETA_HARMONY_DEBUG`、`ZETA_NO_WEBP`、
     `ZETA_PROFILE`（以及 `ZETA_WORKTREE_DIR`）没有旧名回退；`.omp-plugin` 清单目录与
-    `omp-plugins` provider 别名已删除，只认 `zeta-plugins` 与 Zeta 扩展包。上游状态目录
+    `zeta-plugins` provider 别名已删除，只认 `zeta-plugins` 与 Zeta 扩展包。上游状态目录
     （`~/.omp` 的 models/credentials/dotenv）**一律不读**，没有 `ZETA_OMP_COMPAT`
     之类的开关；迁移只能由用户显式复制文件完成。
   - **共享端点归台账管**：`my.omp.sh` 的协作中继常量随 live-session 协作于 2026-11-07

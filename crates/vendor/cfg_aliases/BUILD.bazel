@@ -64,5 +64,5 @@ rust_library(
         "@@//bazel/triples:x86_64-unknown-linux-musl": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
-    version = "0.1.1",
+    version = "1.4.13",
 )

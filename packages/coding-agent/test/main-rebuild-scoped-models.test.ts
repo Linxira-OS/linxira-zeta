@@ -67,6 +67,8 @@ class FakeSession implements ScopedModelSink {
 	constructor(initial: ReadonlyArray<{ model: Model; thinkingLevel?: ThinkingLevel }>) {
 		this.scopedModels = initial;
 	}
+	setScopedModelsRefresher(_refresher: (() => Promise<void>) | undefined): void {}
+
 	setScopedModels(scopedModels: Array<{ model: Model; thinkingLevel?: ThinkingLevel }>): void {
 		this.setCalls += 1;
 		this.scopedModels = scopedModels;
@@ -198,9 +200,12 @@ describe("rebuildScopedModels after login", () => {
 		const session = new FakeSession([{ model: active }]);
 		const ctx = {
 			settings,
-			session: { model: active, modelRegistry: registry },
-			refreshScopedModelsAfterLogin: async () => {
-				await rebuildScopedModels(session, parseArgs([]), registry, settings);
+			session: {
+				model: active,
+				modelRegistry: registry,
+				refreshScopedModels: async () => {
+					await rebuildScopedModels(session, parseArgs([]), registry, settings);
+				},
 			},
 		};
 

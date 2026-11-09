@@ -78,7 +78,7 @@ async function mount(blocks: readonly Component[]): Promise<{ h: TspHarness; tra
 function entries(h: TspHarness): (string | string[])[] {
 	const root = h.find(node => node.p?.role === "zeta.transcript")!;
 	return (root.c ?? []).map((node: TspNode) =>
-		node.p?.role === "omp.compact" ? (node.c ?? []).map(member => member.id) : node.id,
+		node.p?.role === "zeta.compact" ? (node.c ?? []).map(member => member.id) : node.id,
 	);
 }
 
@@ -102,7 +102,7 @@ describe("native compact runs", () => {
 		const id = (block: Component) => nativeComponentId(block);
 		// Tern spaces every top-level entry; an empty or hidden one splitting the run would put gaps back.
 		expect(entries(h)).toEqual([id(n1!), [id(c1!), id(reply), id(c2!), id(hidden!), id(c3!)], id(n2!)]);
-		expect(h.find(node => node.p?.role === "omp.compact")?.p).toMatchObject({ gap: "none" });
+		expect(h.find(node => node.p?.role === "zeta.compact")?.p).toMatchObject({ gap: "none" });
 
 		// Tern's expand toggle on a member reaches that member, not the run.
 		h.event({ ev: "toggle", sf: h.terminal.surface!, id: id(c2!), collapsed: false });
@@ -135,7 +135,7 @@ describe("native compact runs", () => {
 		const { h, transcript } = await mount(blocks);
 		const id = (block: Component) => nativeComponentId(block);
 		const members = [c1!, c2!, c3!, c4!].map(id);
-		const run = h.find(node => node.p?.role === "omp.compact")!.id;
+		const run = h.find(node => node.p?.role === "zeta.compact")!.id;
 
 		// A block joining the end of the run lands inside the same entry.
 		const c5 = new Line("c5");

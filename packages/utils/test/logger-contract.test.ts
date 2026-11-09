@@ -58,7 +58,6 @@ async function runScenario(
 				USERPROFILE: primaryDir,
 				ZETA_CONFIG_DIR: ".zeta",
 				ZETA_PROFILE: "",
-				PI_PROFILE: "",
 				XDG_DATA_HOME: "",
 				XDG_STATE_HOME: "",
 				XDG_CACHE_HOME: "",

@@ -43,6 +43,7 @@ describe("SelectorController login", () => {
 				clear: vi.fn(),
 			},
 			session: {
+				refreshScopedModels: vi.fn(async () => {}),
 				modelRegistry: {
 					authStorage,
 					refresh,

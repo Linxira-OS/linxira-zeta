@@ -10,6 +10,7 @@ import { buildModel } from "@linxiraos/pi-catalog/build";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import type { ExtensionUIContext } from "@linxiraos/zeta/extensibility/extensions";
+import { cfgExtensions } from "@linxiraos/zeta/extensibility/settings";
 import { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
 import { buildSkillPromptMessage } from "@linxiraos/zeta/extensibility/skills";
@@ -1429,6 +1430,40 @@ describe("ACP agent", () => {
 			"Unknown ACP ext method",
 		);
 
+		harness.abortController.abort();
+		await Bun.sleep(0);
+	});
+
+	it("lists extension modules configured for the requested project, not the ACP process", async () => {
+		const harness = await createHarness();
+		const other = path.join(harness.cwdA, "other");
+		const target = path.join(harness.cwdB, "fleet");
+		await Bun.write(path.join(other, "package.json"), JSON.stringify({ omp: { extensions: ["./wrong.ts"] } }));
+		await Bun.write(path.join(other, "wrong.ts"), "export default function wrong() {}\n");
+		await Bun.write(path.join(target, "package.json"), JSON.stringify({ omp: { extensions: ["./hello.ts"] } }));
+		await Bun.write(path.join(target, "hello.ts"), "export default function hello() {}\n");
+		await Bun.write(path.join(harness.cwdA, ".zeta", "config.yml"), "extensions:\n  - ./other\n");
+		await Bun.write(
+			path.join(harness.cwdB, ".zeta", "config.yml"),
+			"extensions:\n  - ./fleet\ndisabledExtensions:\n  - extension-module:hello\n",
+		);
+		cfgExtensions.set(Settings.instance, [other]);
+
+		const result = await harness.agent.extMethod("_omp/extensions", { cwd: harness.cwdB });
+		expect(result.extensions).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: "extension-module:hello",
+					path: path.join(target, "hello.ts"),
+					state: "disabled",
+					disabledReason: "item-disabled",
+					source: expect.objectContaining({ level: "project" }),
+				}),
+			]),
+		);
+		expect(result.extensions).not.toEqual(
+			expect.arrayContaining([expect.objectContaining({ id: "extension-module:wrong" })]),
+		);
 		harness.abortController.abort();
 		await Bun.sleep(0);
 	});

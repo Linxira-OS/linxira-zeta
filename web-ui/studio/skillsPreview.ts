@@ -295,7 +295,7 @@ export function createPreviewDrawerItems(): DrawerItem[] {
     {
       kind: "plugin",
       name: "browser-lab",
-      src: "本地目录 · ~/omp-plugins/browser-lab",
+      src: "本地目录 · ~/zeta-plugins/browser-lab",
       status: "error",
       tools: 0,
       commands: 0,
