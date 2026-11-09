@@ -138,6 +138,7 @@ function staticGroups(input: PaletteCatalogInput): PaletteGroup[] {
         { id: "page-workbench", icon: "layout", label: "nav.workbench", keywords: "workbench 工作台", action: { kind: "route", route: "workbench" } },
         { id: "page-home", icon: "home", label: "nav.home", keywords: "home 首页 项目主页", action: { kind: "route", route: "home" } },
         { id: "page-hub", icon: "bot", label: "nav.agentHub", keywords: "agent hub 代理", action: { kind: "route", route: "agent-hub" } },
+        { id: "page-team", icon: "network", label: "nav.team", keywords: "team graph 团队 关系图", action: { kind: "route", route: "team" } },
         { id: "page-cap", icon: "package", label: "nav.capabilities", keywords: "capabilities 能力中心", action: { kind: "route", route: "capabilities" } },
         { id: "page-mc", icon: "server", label: "nav.modelConfig", keywords: "model config 模型配置", action: { kind: "route", route: "model-config" } },
         { id: "page-set", icon: "settings", label: "nav.settings", keywords: "settings 设置", action: { kind: "route", route: "settings" } },

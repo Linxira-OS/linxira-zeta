@@ -16,6 +16,7 @@ import "./styles/components.css";
 import "./styles/sidebar.css";
 import "./styles/workbench.css";
 import "./styles/pages.css";
+import "./styles/team.css";
 import "./styles/agent-hub.css";
 import "./styles/models-roles.css";
 import "./App.css";

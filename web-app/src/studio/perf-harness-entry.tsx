@@ -30,6 +30,7 @@ import "./styles/components.css";
 import "./styles/sidebar.css";
 import "./styles/workbench.css";
 import "./styles/pages.css";
+import "./styles/team.css";
 import "./App.css";
 import "./styles/typography.css";
 

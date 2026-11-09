@@ -286,6 +286,7 @@ const QUERY_INPUTS = {
   "mcp.get": {},
   "mcp.logs.get": { name: "filesystem" },
   "agents.definitions.get": {},
+  "team.graph.get": {},
   "projects.list": {},
   "workspace.fileTree": { workspaceId: WORKSPACE_ID },
   "usage.get": {},
@@ -405,6 +406,17 @@ const QUERY_RESPONSES = {
       roleAliases: [],
       projectScopeAvailable: false,
       generatedAt: T0,
+    },
+  },
+  "team.graph.get": {
+    ok: true,
+    queryName: "team.graph.get",
+    result: {
+      generatedAt: T0,
+      nodes: [],
+      edges: [],
+      clusters: [],
+      gaps: [],
     },
   },
   "projects.list": {

@@ -83,6 +83,8 @@ import type {
   ResidentsReadModel,
   SessionHistoryReadModel,
   SessionHistoryStatus,
+  TeamGraphReadModel,
+  TeamNodeLifetime,
   TokenUsageReadModel,
   StatsDashboardReadModel,
   WorkspaceListReadModel,
@@ -120,6 +122,13 @@ export interface QueryInputMap extends ContextViewQueryMap {
   /** Recent Host-owned probe log for one configured MCP server. */
   "mcp.logs.get": { readonly name: string };
   "agents.definitions.get": EmptyInput;
+  /** Team topology from live main agents, spawn parentage, and their rosters. */
+  "team.graph.get": {
+    readonly workspaceId?: WorkspaceId;
+    readonly lifetime?: TeamNodeLifetime;
+    /** One main's team; omit for every cluster. */
+    readonly clusterId?: string;
+  };
   "projects.list": EmptyInput;
   /** Lists one directory level. Omit path for the workspace root. */
   "workspace.fileTree": { readonly workspaceId: WorkspaceId; readonly path?: string };
@@ -188,6 +197,8 @@ export interface QueryResultMap extends ContextViewResultMap {
   "mcp.logs.get": McpLogsReadModel;
   /** Configured OMP task-agent definitions. Disk scan, not Agent Hub. */
   "agents.definitions.get": AgentDefinitionsReadModel;
+  /** Team nodes/edges/clusters; empty arrays plus `gaps` when producers are missing. */
+  "team.graph.get": TeamGraphReadModel;
   /** Host workspace inventory. Paths never leave the Host registry. */
   "projects.list": WorkspaceListReadModel;
   "workspace.fileTree": WorkspaceFileTreeReadModel;

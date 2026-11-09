@@ -60,9 +60,9 @@ import type {
 	WorkspaceRecord,
 } from "../contract/index.js";
 import type { AgentId, ConversationOpenResult, ConversationTarget, OperatorStateSnapshot } from "../protocol/index.js";
-import { resumePathKey } from "../../../resume/paths.js";
 import { openPath } from "../../../utils/open.js";
 import { readAgentConversationPage, readTranscriptPage, sessionOps } from "./session.js";
+import { workspaceIdFor } from "./workspace-id.js";
 import { workspaceOps } from "./workspace.js";
 
 /** Session listing cap the Renderer mirrors (`PROJECT_HISTORY_QUERY_MAX`). */
@@ -111,18 +111,6 @@ function isoField(record: Record<string, unknown>, field: string): string | unde
 // ---------------------------------------------------------------------------
 // Shared identities — derived, never paths.
 // ---------------------------------------------------------------------------
-
-/**
- * Opaque workspace identity, matching `projects.list` (`ops/workspace.ts`):
- * SHA-256 over the canonical workspace key, so a `history.list` filter and the
- * workspace inventory name the same workspace without either carrying a path.
- */
-function workspaceIdFor(cwd: string): WorkspaceId {
-	const digest = createHash("sha256")
-		.update(`zeta-workspace\u0000${resumePathKey(cwd)}`)
-		.digest("hex");
-	return `ws-${digest.slice(0, 16)}` as WorkspaceId;
-}
 
 /** Opaque identity of this Zeta environment (the host that owns the sessions). */
 function environmentIdFor(version: string): EnvironmentId {
