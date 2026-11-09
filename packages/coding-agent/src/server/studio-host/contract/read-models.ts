@@ -285,25 +285,33 @@ export interface ResidentsReadModel {
  *   Git layer); PMs bind to it through DB `repo_bindings`, never a per-PM copy;
  * - `db-room`: a `rooms` row + `room_events`, never a folder;
  * - `linked-worktree`: a worktree of a repository, outside it;
- * - `agent`: a live main agent (PM or engineer; unclassified until the team
- *   records exist);
+ * - `engineer`: a Team DB engineer record; it carries a live main agent when
+ *   one is attached, and stays `offline` otherwise;
+ * - `agent`: a live main agent that no Team record claims;
  * - `subagent`: a spawned child; it owns no folder, branch or worktree.
  *
- * Everything except `agent`/`subagent` is PLANNED: no producer parses
- * `team.json`/`pm.json` or reads the team DB yet, so today the graph emits only
- * live agents and subagents.
+ * Every kind except `agent`/`subagent` comes from the Team DB or a live-agent
+ * fact. A missing row is absent, never synthesized.
  */
-export type TeamNodeKind = "pm-workspace" | "git-repo" | "db-room" | "linked-worktree" | "agent" | "subagent";
+export type TeamNodeKind =
+	| "pm-workspace"
+	| "git-repo"
+	| "db-room"
+	| "linked-worktree"
+	| "engineer"
+	| "agent"
+	| "subagent";
 
 /**
  * Agent role inside a team. `unknown` is the honest value for a live main agent
- * until `pm.json`/DB membership tells PM from engineer.
+ * that no PM/engineer/secretary record claims.
  */
 export type TeamAgentRole = "pm" | "engineer" | "secretary" | "unknown";
 
 /**
- * How an agent executes. `vibe` is a live director session; `unknown` is a
- * root whose session is not attached in this process (no mode state to read).
+ * How an agent executes. `vibe` is a live director session or a Team engineer
+ * recorded as `vibe`; `unknown` is a root whose session is not attached in this
+ * process (no mode state to read).
  */
 export type TeamExecutionMode = "vibe" | "normal" | "unknown";
 
@@ -313,14 +321,20 @@ export type TeamExecutionMode = "vibe" | "normal" | "unknown";
  */
 export type TeamNodeLifetime = "persistent" | "ephemeral";
 
-/** Authoritative registry lifecycle state. */
-export type TeamNodeStatus = "running" | "idle" | "parked" | "aborted";
+/**
+ * Lifecycle state. `offline` is a Team DB record whose main session is not
+ * attached in this process, so no live registry status exists.
+ */
+export type TeamNodeStatus = "running" | "idle" | "parked" | "aborted" | "offline";
 
 /**
- * Edge kinds. `spawn` is real (registry parentage); `assignment`, `room`,
- * `contains`, `binding` and `worktree-of` are contract slots for producers that
- * do not exist yet (PM assignment, room membership, team containment, repo
- * binding, worktree parentage).
+ * Edge kinds, all backed by a producer:
+ * - `spawn`: registry parentage or a PM-owned persistent subagent row;
+ * - `assignment`: Team DB `engineers.pm_id`;
+ * - `room`: Team DB `room_members` (member → room);
+ * - `contains`: a worktree holds its engineer's workspace;
+ * - `binding`: Team DB `repo_bindings` (PM → base repo);
+ * - `worktree-of`: Team DB `worktrees.repo_id` (base repo → linked worktree).
  */
 export type TeamEdgeKind = "spawn" | "assignment" | "room" | "contains" | "binding" | "worktree-of";
 
@@ -347,7 +361,7 @@ export interface TeamAgentNode extends TeamGraphNodeBase {
 	readonly agentId: AgentId;
 	/** Root session id for an agent; child transcript scope for a subagent. */
 	readonly sessionId?: SessionId;
-	/** Present on `agent`; absent on `subagent`, whose kind already says it. */
+	/** Present on `agent`; also names a PM-owned Secretary subagent. */
 	readonly role?: TeamAgentRole;
 	readonly status: TeamNodeStatus;
 	readonly executionMode: TeamExecutionMode;
@@ -357,16 +371,42 @@ export interface TeamAgentNode extends TeamGraphNodeBase {
 	readonly activity?: string;
 }
 
-/** A planned ownership object (PM workspace, repo, room, worktree). */
+/**
+ * A Team DB ownership object (PM workspace, repo, room, worktree). A PM
+ * workspace may also carry the live PM main agent facts; a linked worktree
+ * names its branch. Paths are never serialized.
+ */
 export interface TeamPathNode extends TeamGraphNodeBase {
 	readonly kind: "pm-workspace" | "git-repo" | "db-room" | "linked-worktree";
 	/** Opaque producer id (team/pm/repo/room/worktree id), never a path. */
 	readonly objectId?: string;
 	/** For `linked-worktree`: the engineer's `home` or a task worktree. */
 	readonly worktreeKind?: "home" | "task";
+	/** Worktree branch as recorded by the Team DB, never a path. */
+	readonly branch?: string;
+	/** Live PM main agent attached to a `pm-workspace`, when one exists. */
+	readonly agentId?: AgentId;
+	readonly sessionId?: SessionId;
+	readonly status?: TeamNodeStatus;
+	readonly executionMode?: TeamExecutionMode;
+	readonly lifetime?: TeamNodeLifetime;
 }
 
-export type TeamGraphNode = TeamAgentNode | TeamPathNode;
+/**
+ * A Team DB engineer record. `executionMode` is the recorded Team Vibe/normal
+ * mode, and `offline` means no live main session is attached in this process.
+ */
+export interface TeamEngineerNode extends TeamGraphNodeBase {
+	readonly kind: "engineer";
+	readonly objectId?: string;
+	readonly agentId?: AgentId;
+	readonly sessionId?: SessionId;
+	readonly status: TeamNodeStatus;
+	readonly executionMode: TeamExecutionMode;
+	readonly lifetime: TeamNodeLifetime;
+}
+
+export type TeamGraphNode = TeamAgentNode | TeamPathNode | TeamEngineerNode;
 
 /** One relationship between two Team graph nodes. */
 export interface TeamGraphEdge {

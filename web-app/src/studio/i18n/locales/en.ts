@@ -2768,7 +2768,7 @@ export const en: LocaleDictionary = {
   },
   "team": {
     "title": "Team graph",
-    "subtitle": "The Team root is an ownerless container — not an agent, workspace or Git repo. The graph shows only real producers: live agents, subagents and their spawn edges. PM workspaces, Git repos, DB rooms and linked worktrees are marked as gaps until their producers ship.",
+    "subtitle": "The Team root is an ownerless container — not an agent, workspace or Git repo. The graph reads the Team DB (teams, PM workspaces, base repos, bindings, engineers, worktrees, rooms, secretaries) and the live agent registry. A DB record without an attached session is offline, never a fabricated agent.",
     "generatedAt": "Generated {time}",
     "refresh": "Refresh team graph",
     "partial": "Partial data",
@@ -2780,9 +2780,12 @@ export const en: LocaleDictionary = {
       "project": "Project / workspace",
       "allProjects": "All projects",
       "unnamedProject": "Unnamed workspace",
+      "pm": "PM",
+      "allPms": "All PMs",
       "room": "Room",
-      "roomsUnavailable": "No room data",
-      "roomsUnavailableHint": "Rooms and the PM ↔ PM peer group have no producer yet, so there is nothing to filter by.",
+      "allRooms": "All rooms",
+      "repo": "Base repo",
+      "allRepos": "All repos",
       "lifetime": "Lifetime",
       "allLifetimes": "All"
     },
@@ -2803,6 +2806,7 @@ export const en: LocaleDictionary = {
       "team": "TEAM",
       "agent": "AGENT",
       "subagent": "SUBAGENT",
+      "engineer": "ENGINEER",
       "pm-workspace": "PM WORKSPACE",
       "git-repo": "GIT REPO",
       "db-room": "DB ROOM",
@@ -2824,7 +2828,8 @@ export const en: LocaleDictionary = {
       "running": "Running",
       "idle": "Idle",
       "parked": "Parked",
-      "aborted": "Aborted"
+      "aborted": "Aborted",
+      "offline": "Offline"
     },
     "edge": {
       "spawn": "Spawn",
@@ -2842,7 +2847,7 @@ export const en: LocaleDictionary = {
       "modes": "Execution mode",
       "lifetime": "Lifetime",
       "edges": "Relations",
-      "unavailable": "No producer yet, so the count is 0"
+      "unavailable": "Not present in this view"
     },
     "node": {
       "spawnedBy": "Spawned by {name}",
@@ -2858,9 +2863,9 @@ export const en: LocaleDictionary = {
     },
     "empty": {
       "title": "No live agent in this host",
-      "detail": "The graph shows agents registered in this process and their subagents. The Team root, PM workspaces, Git repos, rooms and worktrees appear only once their producers exist.",
+      "detail": "The graph reads the Team DB and the agents registered in this process. An empty Team DB still leaves live agents in the unassigned boundary; no row is invented.",
       "filteredTitle": "No node matches the filters",
-      "filteredDetail": "Clear the project or lifetime filter and try again.",
+      "filteredDetail": "Clear the project, PM, room, repo or lifetime filter and try again.",
       "clearFilters": "Clear filters"
     },
     "preview": {
@@ -2872,6 +2877,7 @@ export const en: LocaleDictionary = {
       "kind": "Object kind",
       "object": "Object id",
       "worktreeKind": "Worktree kind",
+      "branch": "Branch",
       "agent": "Agent",
       "role": "Role",
       "mode": "Execution mode",

@@ -7,16 +7,18 @@
  *   `readSessionAgents`) and `GET /api/projects` (workspace display names,
  *   through `readWorkspaceNames`). The pure projection lives in
  *   `team-projection.ts`.
+ * - The global Team DB (`~/.zeta/data/zeta.db`) supplies the structural rows:
+ *   teams, PM workspaces, base repos, bindings, engineers, worktrees, rooms,
+ *   room members and PM-owned persistent agents. `team-db.ts` reads one
+ *   snapshot; a missing database is an empty inventory, not an error.
  *
- * Only facts that have a producer become nodes and edges:
+ * Every node and edge has a producer:
  * - mains are process root refs, so a host in another process is not visible;
  * - subagents come from the root-scoped roster (live + persisted rows);
- * - spawn edges are registry parentage;
- * - execution mode is read from the live session's vibe state.
- *
- * PM / engineer / secretary roles, PM→main assignments, rooms and the PM↔PM
- * peer group have no producer. They stay absent: the read model names them in
- * `gaps`, and nothing is synthesized to fill the picture.
+ * - a live main whose cwd is a PM workspace or engineer worktree is attached
+ *   to that DB record; a DB record with no attached session is `offline`;
+ * - spawn edges are registry parentage or a PM-owned Secretary row;
+ * - bindings, assignments, room membership and worktree edges are Team DB rows.
  */
 import { logger } from "@linxiraos/pi-utils";
 import type { TeamGraphReadModel, TeamNodeLifetime, WorkspaceId } from "../contract/index.js";
@@ -24,6 +26,7 @@ import type { StudioAgentSnapshot } from "../protocol/index.js";
 import { gatewayJson, invalid } from "../gateway.js";
 import type { StudioFamily } from "../registry.js";
 import { readSessionAgents } from "./session.js";
+import { emptyTeamDbFacts, readTeamDbFacts } from "./team-db.js";
 import { LIFETIMES, TEAM_STATUS, projectTeamGraph, type TeamGraphQuery, type TeamMainFact } from "./team-projection.js";
 import { readWorkspaceNames } from "./workspace.js";
 
@@ -121,12 +124,20 @@ async function readTeamGraph(input: unknown): Promise<TeamGraphReadModel> {
 		}),
 	);
 
+	let teamDb = emptyTeamDbFacts();
+	try {
+		teamDb = readTeamDbFacts();
+	} catch (error) {
+		// A corrupt or locked DB must not hide the live agents the gateway read.
+		logger.warn("studio-host: team graph Team DB unavailable", { error: String(error) });
+	}
+
 	const query: TeamGraphQuery = {
 		...(record.workspaceId !== undefined ? { workspaceId: record.workspaceId as WorkspaceId } : {}),
 		...(lifetime !== undefined ? { lifetime: lifetime as TeamNodeLifetime } : {}),
 		...(record.clusterId !== undefined ? { clusterId: record.clusterId as string } : {}),
 	};
-	const graph = projectTeamGraph({ mains, rosters, workspaceNames, generatedAt: new Date() }, query);
+	const graph = projectTeamGraph({ mains, rosters, workspaceNames, teamDb, generatedAt: new Date() }, query);
 	// A failed roster read is reported, not hidden: the page still shows the
 	// mains it could read and names the teams whose spawn tree is missing.
 	return incompleteMainIds.length === 0 ? graph : { ...graph, incompleteMainIds };

@@ -309,13 +309,42 @@ engineer → repo → conversation grouping. An explicit `--resume <id>`
 resolves through the unfiltered listing and is not affected by the default
 filter. The Team Hub is a separate surface and does not list sessions.
 
+## Studio relationship graph
+
+`team.graph.get` (`packages/coding-agent/src/server/studio-host/ops/team.ts`,
+pure projection in `team-projection.ts`, UI in `web-app/src/studio/TeamPage.tsx`)
+reads one snapshot of the global Team database plus the live main-agent
+registry:
+
+- **Team cluster** — one dashed ownerless boundary per `teams` row. It is a
+  container, never an agent node; no Team-root session exists.
+- **PM workspace** — a `team_pms` row (`pms/<pm>/`, plain folder), carrying the
+  live PM main agent when its cwd matches the workspace path.
+- **Git repo** — one `repos` row per canonical base repo; a PM joins through a
+  `binding` edge from `repo_bindings`, never a per-PM copy.
+- **Engineer** — an `engineers` row with its recorded `vibe`/`normal` mode. A
+  live main whose cwd is that engineer's home or task worktree is attached; a
+  row with no attached session is `offline`, never a fabricated agent.
+- **Linked worktree** — a `worktrees` row (`home`/`<task>`, branch name), with
+  `worktree-of` to its base repo and `contains` to its engineer.
+- **DB room** — a `rooms` row; `room_members` emits `room` edges from PM,
+  engineer and Secretary records.
+- **Secretary** — an `agents` row (`role = secretary`, `persistent`) as a
+  subagent owned by its PM (`spawn` edge).
+
+An unclaimed live main remains an `agent` node inside its Team boundary (or the
+`unassigned` boundary when no team root contains its cwd). The read model
+serializes hashed workspace ids and basenames, never filesystem paths. There are
+no remaining producer gaps; an empty or missing database is an empty inventory,
+not an error.
+
 ## Not in this slice
 
-Channel bindings, the team relationship graph, board/task rows, and Vibe
-auto-start remain unimplemented. Lead (PM) mode covers the PM main agent's
-coordination surface; the Secretary is reachable only from that mode, and there
-is still no Team-root session. The Hub is a UI without an Agent and shows only
-rooms and the PM/engineer roster, never a full graph; subagent control remains
-in Agent Hub. Rooms are reachable through `room_read`/`room_post` in Lead mode
-and through the CLI and Hub. The Engineer `execution` column is the only
-Team-side Vibe fact, and no Team entry enables Vibe.
+Channel bindings, board/task rows, and Vibe auto-start remain unimplemented.
+Lead (PM) mode covers the PM main agent's coordination surface; the Secretary is
+reachable only from that mode, and there is still no Team-root session. The Hub
+is a UI without an Agent and shows only rooms and the PM/engineer roster;
+subagent control remains in Agent Hub. Rooms are reachable through
+`room_read`/`room_post` in Lead mode and through the CLI and Hub. The Engineer
+`execution` column is the only Team-side Vibe fact, and no Team entry enables
+Vibe.
