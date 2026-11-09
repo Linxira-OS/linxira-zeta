@@ -51,6 +51,7 @@ import { SessionBusyError, type AgentSession, type ModeId } from "../../session/
 import type { AgentSessionEvent } from "../../session/agent-session-events";
 import type { SessionClient } from "../../session/session-entries";
 import { SessionManager } from "../../session/session-manager";
+import type { SessionOrigin } from "../../session/session-origin";
 import { type TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
@@ -1437,11 +1438,19 @@ export function createGatewayUiContext(
 // Session lifecycle
 // ---------------------------------------------------------------------------
 
-async function openSessionManagerForAgent(filePath: string, cwd?: string): Promise<SessionManager> {
+async function openSessionManagerForAgent(
+	filePath: string,
+	cwd?: string,
+	origin?: SessionOrigin,
+): Promise<SessionManager> {
 	// `cwd` is the project, not the session directory: a fresh/headerless
 	// transcript (bot sessions are created before their first write) must record
 	// the project as its cwd instead of falling back to the process cwd.
-	return SessionManager.open(filePath, undefined, undefined, { suppressBreadcrumb: true, initialCwd: cwd });
+	return SessionManager.open(filePath, undefined, undefined, {
+		suppressBreadcrumb: true,
+		initialCwd: cwd,
+		...(origin === undefined ? {} : { origin }),
+	});
 }
 
 /**
@@ -1452,7 +1461,9 @@ async function openSessionManagerForAgent(filePath: string, cwd?: string): Promi
  * into the session's ToolSession — only the coordinator session (web/desktop
  * mode) supplies them. `client` stamps provenance on a session created here
  * (the default covers the gateway's own browser callers; the serve coordinator
- * passes what its process is).
+ * passes what its process is). `origin` stamps an IM/bot conversation so
+ * Studio and the resume picker keep it out of personal lists; personal
+ * sessions omit it.
  */
 export interface SessionChannelHooks {
 	channelSend?: (opts: { text: string; to?: string; channel?: string }) => Promise<void>;
@@ -1468,6 +1479,7 @@ export async function startRpcSession(
 	toolNames?: string[],
 	channelHooks?: SessionChannelHooks,
 	client: SessionClient = "web",
+	origin?: SessionOrigin,
 ): Promise<{ session: AgentSessionWrapper; realSessionId: string }> {
 	const existingLock = startLocks.get(key);
 	if (existingLock) return existingLock;
@@ -1475,9 +1487,12 @@ export async function startRpcSession(
 	const start = (async () => {
 		let manager: SessionManager;
 		if (sessionFile) {
-			manager = await openSessionManagerForAgent(sessionFile, cwd);
+			manager = await openSessionManagerForAgent(sessionFile, cwd, origin);
 		} else {
-			manager = SessionManager.create(cwd ?? process.cwd(), undefined, undefined, { client });
+			manager = SessionManager.create(cwd ?? process.cwd(), undefined, undefined, {
+				client,
+				...(origin === undefined ? {} : { origin }),
+			});
 		}
 
 		const realSessionId = manager.getSessionId();

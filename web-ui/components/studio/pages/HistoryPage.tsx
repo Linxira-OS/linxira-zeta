@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/components/studio/i18n";
 import { hostErrorMessage } from "@/components/studio/primitives/hostError";
 import { Icon } from "@/components/studio/primitives/icons";
+import { isImSession, sessionLocationLabel } from "@/lib/session-origin";
 import type { SessionInfo } from "@/lib/types";
 import {
 	archiveSession,
@@ -48,6 +49,8 @@ export function HistoryPage({
 	const [rows, setRows] = useState<SessionInfo[]>([]);
 	const [selected, setSelected] = useState<string | null>(null);
 	const [query, setQuery] = useState("");
+	/** IM/bot/relay conversations are hidden from history unless asked for. */
+	const [includeIm, setIncludeIm] = useState(false);
 	const [busy, setBusy] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
@@ -69,13 +72,14 @@ export function HistoryPage({
 		const needle = query.trim().toLowerCase();
 		return rows
 			.filter(row => (cwd ? row.cwd === cwd || row.projectRoot === cwd : true))
+			.filter(row => includeIm || !isImSession(row))
 			.filter(row =>
 				needle
 					? `${row.name ?? ""} ${row.firstMessage ?? ""} ${row.cwd}`.toLowerCase().includes(needle)
 					: true,
 			)
 			.sort((a, b) => (a.modified < b.modified ? 1 : -1));
-	}, [rows, cwd, query]);
+	}, [rows, cwd, query, includeIm]);
 
 	const current = visible.find(row => row.id === selected) ?? visible[0];
 
@@ -120,6 +124,14 @@ export function HistoryPage({
 						placeholder={t("studio.history.search")}
 						onChange={event => setQuery(event.target.value)}
 					/>
+					<label className="small muted">
+						<input
+							type="checkbox"
+							checked={includeIm}
+							onChange={event => setIncludeIm(event.target.checked)}
+						/>{" "}
+						{t("studio.history.includeIm")}
+					</label>
 					<span className="spacer" />
 					<button type="button" className="icon-btn small" aria-label={t("studio.action.refresh")} onClick={() => void load()}>
 						<Icon name="refresh" extra="sm" />
@@ -147,7 +159,10 @@ export function HistoryPage({
 									<span className="archive-meta">
 										{formatWhen(row.modified)} · {row.messageCount} {t("studio.history.messages")}
 									</span>
-									<span className="archive-excerpt ellipsis">{row.cwd}</span>
+									{/* IM rows show an alias/channel; only personal rows show a path. */}
+									<span className="archive-excerpt ellipsis">
+										{isImSession(row) ? sessionLocationLabel(row, t) : row.cwd}
+									</span>
 								</button>
 							))}
 						</div>

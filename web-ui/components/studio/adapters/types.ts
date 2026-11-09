@@ -133,6 +133,10 @@ export interface StudioSessionSummary {
 	/** Resolved project/workspace keys so the sidebar can group without re-resolving. */
 	projectKey: string | null;
 	workspaceKey: string | null;
+	/** True for an IM/bot/relay conversation; kept out of personal lists by default. */
+	im: boolean;
+	/** Safe location label for an IM row (alias / channel / default workspace); null for personal. */
+	location: string | null;
 }
 
 /**

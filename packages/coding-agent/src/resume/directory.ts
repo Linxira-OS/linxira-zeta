@@ -10,6 +10,7 @@
 
 import * as path from "node:path";
 
+import { isImSession } from "../session/session-origin";
 import type { SessionInfo } from "../session/session-listing";
 import { sessionDisplayName } from "../session/session-listing";
 import { loadPinnedSessionIds } from "../session/session-pins";
@@ -49,6 +50,13 @@ export interface BuildResumeDirectoryOptions {
 	 * that need the raw classified model.
 	 */
 	filterSubagents?: boolean;
+	/**
+	 * Keep IM/bot/relay conversations in the directory. Defaults to false: the
+	 * project registry and resume source describe personal coding sessions, so a
+	 * bot chat must not inflate a project's conversation count. Studio lists IM
+	 * sessions in their own group from the session endpoint instead.
+	 */
+	includeIm?: boolean;
 }
 
 function missingProjectInfo(cwd: string): ProjectInfo {
@@ -219,9 +227,11 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 	const defaultWorkspace = options.defaultWorkspace ?? defaultCoordinatorWorkspace();
 	const defaultWorkspaceKey = resumePathKey(defaultWorkspace);
 	const resolver = options.resolveProject ?? resolveProject;
-	const sessions = options.filterSubagents
+	const nonSubagent = options.filterSubagents
 		? options.sessions.filter(session => !(session.parentSessionPath && session.agent?.trim()))
 		: options.sessions;
+	const sessions =
+		options.includeIm === true ? nonSubagent : nonSubagent.filter(session => !isImSession(session.origin));
 
 	const cwds = new Set<string>([defaultWorkspace]);
 	for (const projectRoot of options.registeredProjects ?? []) {

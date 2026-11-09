@@ -18,7 +18,6 @@ import type {
   AgentId,
   AgentTranscriptPage,
   ApprovalMode,
-  BtwSnapshot,
   CapabilityManifest,
   ConversationTranscriptPage,
   ConversationOpenResult,
@@ -107,6 +106,8 @@ export interface QueryInputMap extends ContextViewQueryMap {
     readonly limit?: number;
     readonly status?: SessionHistoryStatus;
     readonly workspaceId?: WorkspaceId;
+    /** Include IM/bot/relay conversations (default false). */
+    readonly includeIm?: boolean;
   };
   "residents.list": EmptyInput;
   "session.state": EmptyInput;

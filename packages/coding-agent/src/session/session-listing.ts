@@ -13,6 +13,7 @@ import { EVAL_STATE_CONTEXT_TYPE } from "../eval/state";
 import { recoverBackendReplicas } from "./backend-replica-recovery";
 import { visitEntriesFromFile } from "./session-loader";
 import { computeDefaultSessionDir } from "./session-paths";
+import { isImSession, normalizeSessionOrigin, type SessionOrigin } from "./session-origin";
 import { FileSessionStorage, type SessionStorage, type SessionStorageStat } from "./session-storage";
 import { listSessionTitles, lookupSessionTitle, recordSessionTitle, recordSessionTitles } from "./session-index";
 
@@ -39,6 +40,11 @@ export interface SessionInfo {
 	cwd: string;
 	/** Git branch recorded when the session was created; absent for legacy sessions. */
 	branch?: string;
+	/**
+	 * Present when the conversation belongs to an IM/bot/relay channel. Absent
+	 * on personal sessions and on transcripts written before the stamp existed.
+	 */
+	origin?: SessionOrigin;
 	title?: string;
 	/** Path to the parent session (if this session was forked or spawned as a subagent). */
 	parentSessionPath?: string;
@@ -363,10 +369,20 @@ interface SessionListHeader {
 	id: string;
 	cwd?: string;
 	branch?: string;
+	origin?: SessionOrigin;
 	title?: string;
 	parentSession?: string;
 	continuationOf?: string;
 	timestamp?: string;
+}
+
+/** The header's nested origin, from its raw first line. Malformed JSON reads as absent. */
+function parseSessionListOrigin(line: string): SessionOrigin | undefined {
+	try {
+		return normalizeSessionOrigin((JSON.parse(line) as { origin?: unknown }).origin);
+	} catch {
+		return undefined;
+	}
 }
 
 function normalizeTitleOverride(title: string | undefined): string | null | undefined {
@@ -384,6 +400,7 @@ function sessionListHeaderFromRecord(
 		id: record.id,
 		cwd: typeof record.cwd === "string" ? record.cwd : undefined,
 		branch: typeof record.branch === "string" ? record.branch : undefined,
+		origin: normalizeSessionOrigin(record.origin),
 		title:
 			titleOverride === null
 				? undefined
@@ -403,6 +420,7 @@ function parseSessionListHeaderLine(line: string, titleOverride?: string | null)
 		id,
 		cwd: extractStringProperty(line, "cwd"),
 		branch: extractStringProperty(line, "branch"),
+		origin: parseSessionListOrigin(line),
 		title: titleOverride === null ? undefined : (titleOverride ?? extractStringProperty(line, "title")),
 		parentSession: extractStringProperty(line, "parentSession"),
 		continuationOf: extractStringProperty(line, "continuationOf"),
@@ -557,6 +575,7 @@ async function scanSessionFile(
 			id: header.id,
 			cwd: header.cwd ?? "",
 			...(header.branch ? { branch: header.branch } : {}),
+			...(header.origin ? { origin: header.origin } : {}),
 			title: header.title ?? shortSummary,
 			parentSessionPath: header.parentSession,
 			...(agent ? { agent } : {}),
@@ -817,9 +836,32 @@ export function normalizeResumeSessionArg(sessionArg: string): string {
 	return sessionArg.replace(/[\\/]+$/, "").replace(/\.jsonl$/i, "");
 }
 
-/** Picker-facing view of a session list: empties dropped, pinned sessions kept. */
-function filterSessionsForPicker(sessions: SessionInfo[], pinnedIds: ReadonlySet<string>): SessionInfo[] {
-	return sessions.filter(session => pinnedIds.has(session.id) || !isEmptySession(session));
+/** Options shared by the resume-picker listings. */
+export interface PickerListingOptions {
+	/**
+	 * Include IM/bot/relay conversations. Defaults to false: a personal resume
+	 * list must not offer a relay chat as if it were a coding session. Callers
+	 * that show an "IM / Bot" group pass true for that group and filter by
+	 * {@link isImSession} themselves, or call the listing twice.
+	 */
+	includeIm?: boolean;
+}
+
+/**
+ * Picker-facing view of a session list: empties dropped, pinned sessions kept.
+ * IM conversations stay out of the personal list even when pinned; only
+ * `options.includeIm` (the "IM / Bot" view) brings them back.
+ */
+export function filterSessionsForPicker(
+	sessions: SessionInfo[],
+	pinnedIds: ReadonlySet<string>,
+	options: PickerListingOptions = {},
+): SessionInfo[] {
+	const includeIm = options.includeIm === true;
+	return sessions.filter(session => {
+		if (!includeIm && isImSession(session.origin)) return false;
+		return pinnedIds.has(session.id) || !isEmptySession(session);
+	});
 }
 
 /**
@@ -846,6 +888,7 @@ export async function listSessionsForPicker(
 	storage: SessionStorage,
 	pinnedIds: ReadonlySet<string>,
 	siblingDirs: readonly string[] = [],
+	options: PickerListingOptions = {},
 ): Promise<PickerListing> {
 	let files: string[];
 	try {
@@ -853,7 +896,7 @@ export async function listSessionsForPicker(
 	} catch {
 		return settledListing([]);
 	}
-	return pickerListing(files, storage, pinnedIds, () => collectSessionsFromFiles(files, storage, true));
+	return pickerListing(files, storage, pinnedIds, options, () => collectSessionsFromFiles(files, storage, true));
 }
 
 /** {@link listSessionsForPicker} across every project directory under `sessionsRoot`. */
@@ -861,6 +904,7 @@ export async function listAllSessionsForPicker(
 	storage: SessionStorage,
 	pinnedIds: ReadonlySet<string>,
 	sessionsRoot: string = getSessionsDir(),
+	options: PickerListingOptions = {},
 ): Promise<PickerListing> {
 	let files: string[];
 	try {
@@ -870,7 +914,7 @@ export async function listAllSessionsForPicker(
 	}
 	// Realpath dedupe costs a syscall per file, so only the full scan pays it;
 	// the indexed rows keep one row per session id instead.
-	return pickerListing(files, storage, pinnedIds, async () =>
+	return pickerListing(files, storage, pinnedIds, options, async () =>
 		collectSessionsFromFiles(await dedupeRealPaths(files), storage, true),
 	);
 }
@@ -888,17 +932,18 @@ async function pickerListing(
 	files: readonly string[],
 	storage: SessionStorage,
 	pinnedIds: ReadonlySet<string>,
+	options: PickerListingOptions,
 	scan: () => Promise<SessionInfo[]>,
 ): Promise<PickerListing> {
 	// The index is keyed by real session ids; in-memory test storages must not
 	// touch the process-wide history.db.
 	const useIndex = storage instanceof FileSessionStorage;
 	const titles = useIndex ? listSessionTitles() : new Map<string, string>();
-	const sessions = await indexedSessions(files, titles);
+	const sessions = await indexedSessions(files, titles, storage, options.includeIm === true);
 	// Start the scan only now: its reads would otherwise queue ahead of the stats above.
 	const complete = scan().then(scanned => {
 		if (useIndex) indexScannedTitles(scanned, titles);
-		return filterSessionsForPicker(scanned, pinnedIds);
+		return filterSessionsForPicker(scanned, pinnedIds, options);
 	});
 	return sessions.length > 0 ? { sessions, complete } : settledListing(await complete);
 }
@@ -910,7 +955,12 @@ async function pickerListing(
  * session is never {@link isEmptySession} and each id gets one row, so the
  * rows are a subset of the full scan's.
  */
-async function indexedSessions(files: readonly string[], titles: ReadonlyMap<string, string>): Promise<SessionInfo[]> {
+async function indexedSessions(
+	files: readonly string[],
+	titles: ReadonlyMap<string, string>,
+	storage: SessionStorage,
+	includeIm: boolean,
+): Promise<SessionInfo[]> {
 	if (titles.size === 0) return [];
 	const titled = new Map<string, { file: string; title: string }>();
 	for (const file of files) {
@@ -927,10 +977,16 @@ async function indexedSessions(files: readonly string[], titles: ReadonlyMap<str
 			} catch {
 				return undefined;
 			}
+			// The row is built from the file name and title alone, so an IM stamp
+			// needs the header. Read it only when the default (exclude) is in force:
+			// the fast path must not leak a relay chat into the personal list.
+			const origin = includeIm ? undefined : await readHeaderOrigin(file, storage);
+			if (!includeIm && isImSession(origin)) return undefined;
 			return {
 				path: file,
 				id,
 				cwd: "",
+				...(origin ? { origin } : {}),
 				title,
 				created: sessionCreatedFromSessionPath(file) ?? stat.mtime,
 				modified: stat.mtime,
@@ -942,6 +998,16 @@ async function indexedSessions(files: readonly string[], titles: ReadonlyMap<str
 		}),
 	);
 	return sessions.filter(session => session !== undefined).sort(compareNewestFirst);
+}
+
+/** Read just the header line's origin, for the picker's indexed fast path. */
+async function readHeaderOrigin(file: string, storage: SessionStorage): Promise<SessionOrigin | undefined> {
+	try {
+		const [head] = await storage.readTextSlices(file, SESSION_LIST_PREFIX_BYTES, 0);
+		return parseSessionListHeader(head, parseJsonlLenient<Record<string, unknown>>(head))?.origin;
+	} catch {
+		return undefined;
+	}
 }
 
 /**

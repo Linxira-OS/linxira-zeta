@@ -6645,6 +6645,8 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
   const [hiddenPreviewThreads, setHiddenPreviewThreads] = useState<ReadonlySet<string>>(() => new Set());
   /** 历史页的全量会话模型（含已归档）；进入历史页时懒加载，归档动作后刷新。 */
   const [historyAll, setHistoryAll] = useState<SessionHistoryReadModel | undefined>(undefined);
+  /** IM/bot/relay conversations stay out of the history surfaces until asked for. */
+  const [includeImHistory, setIncludeImHistory] = useState(false);
   const initialPreview = defaultPreviewSelection();
   const [previewProjectId, setPreviewProjectId] = useState(initialPreview.projectId);
   const [previewThreadId, setPreviewThreadId] = useState(initialPreview.threadId);
@@ -6890,7 +6892,10 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
   useEffect(() => {
     if (!wantHistoryAll) return;
     let cancelled = false;
-    void client.query("history.list", { limit: PROJECT_THREADS_QUERY_MAX })
+    void client.query("history.list", {
+      limit: PROJECT_THREADS_QUERY_MAX,
+      ...(includeImHistory ? { includeIm: true } : {}),
+    })
       .then((all) => {
         if (!cancelled) setHistoryAll(all);
       })
@@ -6900,7 +6905,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     return () => {
       cancelled = true;
     };
-  }, [wantHistoryAll, client]);
+  }, [wantHistoryAll, client, includeImHistory]);
   const previewThread = findPreviewThread(previewThreadId);
   /** 顶栏「归档」目标：当前选中的历史会话，或驻留 Runtime 上的会话。
       进行中的会话也可以归档：Host 会先停止再移走文件。 */
@@ -7421,8 +7426,15 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     const loaded = state.model.history?.entries.length ?? 20;
     try {
       const [active, all] = await Promise.all([
-        client.query("history.list", { limit: Math.min(Math.max(loaded, 20), PROJECT_THREADS_QUERY_MAX), status: "active" }),
-        client.query("history.list", { limit: PROJECT_THREADS_QUERY_MAX }),
+        client.query("history.list", {
+          limit: Math.min(Math.max(loaded, 20), PROJECT_THREADS_QUERY_MAX),
+          status: "active",
+          ...(includeImHistory ? { includeIm: true } : {}),
+        }),
+        client.query("history.list", {
+          limit: PROJECT_THREADS_QUERY_MAX,
+          ...(includeImHistory ? { includeIm: true } : {}),
+        }),
       ]);
       onHistoryChange(active);
       setHistoryAll(all);
@@ -7431,7 +7443,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
       // 刷新失败保留现有条目；下次进入历史页会重查。
       return undefined;
     }
-  }, [client, onHistoryChange, refreshProjectHistory, state.model.history?.entries.length, state.model.workspaces]);
+  }, [client, onHistoryChange, refreshProjectHistory, state.model.history?.entries.length, state.model.workspaces, includeImHistory]);
 
   /** Semantic title updates are authoritative; refresh the owning project and
    * reconcile the legacy global/history-page models in the same turn. */
@@ -8894,6 +8906,11 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
                   onImported={() => void refreshHistoryModels()}
                   onImportedOpen={(sessionId, workspaceId) => { void client.query("history.list", { workspaceId, limit: PROJECT_THREADS_QUERY_MAX }).then(history => { const entry = history.entries.find(item => item.sessionId === sessionId); if (entry) void openHistoryEntry(entry, workspaceId); else setSessionActionError("Imported session is not yet available; refresh history"); }); }}
                   {...(historyModel ? { history: historyModel } : {})}
+                  includeIm={includeImHistory}
+                  onToggleIm={() => {
+                    setHistoryAll(undefined);
+                    setIncludeImHistory((value) => !value);
+                  }}
                   onRoute={go}
                   onSelectThread={chrome.onSelectThread}
                   onUnarchive={chrome.onUnarchiveThread}

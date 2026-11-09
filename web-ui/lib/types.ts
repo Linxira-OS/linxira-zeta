@@ -282,6 +282,19 @@ export interface SessionTreeNode {
   compressedEntryIds?: string[];
 }
 
+/** IM/bot/relay provenance of a session (absent on personal coding sessions). */
+export interface SessionOrigin {
+  kind: "im";
+  channel?: string;
+  chatId?: string;
+  botSessionId?: string;
+  workspaceAlias?: string;
+  /** Main agent owning the conversation when the default workspace hosts several. */
+  agentId?: string;
+  /** Channel/chat binding identity; a mobile client scoped to one binding filters by it. */
+  bindingId?: string;
+}
+
 export interface SessionInfo {
   path: string;
   id: string;
@@ -300,6 +313,8 @@ export interface SessionInfo {
   worktreeBranch?: string;
   /** Default-space bot session tag ("relay" | "bot" | "draft"); absent for ordinary sessions. */
   tag?: string;
+  /** IM/bot/relay provenance. Absent on personal sessions and legacy transcripts. */
+  origin?: SessionOrigin;
   /** Set only in the archived listing: the original project cwd. */
   archivedFrom?: string;
   /** True when cwd is inside the OS temp dir (test/throwaway sessions). */

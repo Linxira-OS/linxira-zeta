@@ -39,6 +39,7 @@ import { createAgentSession } from "../sdk";
 import type { AgentSession } from "../session/agent-session";
 import type { AgentSessionEvent } from "../session/agent-session-events";
 import { SessionManager } from "../session/session-manager";
+import { isImSession, sameSessionOrigin, type SessionOrigin } from "../session/session-origin";
 import type { ImControlParams, ImControlResult } from "./im-control";
 
 /** Upper bound for a delegated `workspace_run` turn (no reply → timeout error). */
@@ -829,6 +830,59 @@ export class SessionRouter {
 		return this.#webConfig.getBotSession(id);
 	}
 
+	/** The origin stamp for one registry entry. */
+	#botOrigin(entry: BotSessionEntry, chat?: { channelId: ChannelId; peer: string }): SessionOrigin {
+		const channel = chat?.channelId ?? entry.platform;
+		const chatId = chat?.peer ?? entry.chatId;
+		return {
+			kind: "im",
+			botSessionId: entry.id,
+			...(channel ? { channel } : {}),
+			...(chatId ? { chatId } : {}),
+			...(entry.workspaceAlias ? { workspaceAlias: entry.workspaceAlias } : {}),
+		};
+	}
+
+	/**
+	 * Make the transcript's header agree with the registry: an IM origin stamp,
+	 * and the registry display name only when the transcript has none yet. A
+	 * title the operator set (in Studio or via `rename_session`) is never
+	 * overwritten by a later runtime start.
+	 */
+	async #syncBotSessionMetadata(entry: BotSessionEntry, session: AgentSession): Promise<void> {
+		const manager = session.sessionManager;
+		// An injected runtime factory (tests, alternate hosts) may expose only the
+		// AgentSession surface. Metadata is an enhancement, never a start failure.
+		if (!manager) return;
+		const desired = this.#botOrigin(entry);
+		if (!isImSession(manager.getOrigin())) await manager.setOrigin(desired);
+		if (!manager.getSessionName()) await manager.setSessionName(entry.name, "user");
+	}
+
+	/**
+	 * Record the chat a bot session answers in the registry and on its
+	 * transcript when either changed. A no-op for repeat deliveries from the
+	 * same chat, so the hot path never rewrites web.yml.
+	 */
+	async #rememberBotChat(id: string, channelId: ChannelId, peer: string): Promise<void> {
+		const entry = this.#webConfig.getBotSession(id);
+		if (!entry) return;
+		const changed = entry.platform !== channelId || entry.chatId !== peer;
+		const updated: BotSessionEntry = { ...entry, platform: channelId, chatId: peer };
+		if (changed) {
+			await this.#webConfig.upsertBotSession(updated);
+			const handle = this.#botSessions.get(id);
+			if (handle) handle.entry = { ...handle.entry, platform: channelId, chatId: peer };
+		}
+		const handle = this.#botSessions.get(id);
+		const manager = handle?.session.sessionManager;
+		if (!handle || !manager) return;
+		const desired = this.#botOrigin(updated);
+		if (!sameSessionOrigin(manager.getOrigin(), desired)) {
+			await manager.setOrigin(desired).catch(() => {});
+		}
+	}
+
 	/** Ensure the relay registry entry exists (points at the coordinator transcript). */
 	async ensureRelaySession(sessionFile: string): Promise<void> {
 		if (this.#webConfig.getBotSession("relay")) return;
@@ -871,6 +925,12 @@ export class SessionRouter {
 		await this.#webConfig.upsertBotSession(entry);
 		const ensured = await this.ensureBotSession(entry);
 		if (!ensured.ok) return ensured;
+		// Name the fresh transcript after the registry entry now, so Studio and
+		// History show the requested name before the first message arrives.
+		const manager = ensured.session.sessionManager;
+		if (manager && manager.getSessionName() !== cleanName) {
+			await manager.setSessionName(cleanName, "user").catch(() => {});
+		}
 		return { ok: true, entry };
 	}
 
@@ -915,7 +975,24 @@ export class SessionRouter {
 		const updated = { ...entry, name: cleanName };
 		await this.#webConfig.upsertBotSession(updated);
 		const handle = this.#botSessions.get(id);
+		// The transcript title is what Studio, History and the resume picker
+		// display; the web.yml name alone left the old title on every list.
 		if (handle) handle.entry = updated;
+		if (handle?.session.sessionManager) {
+			await handle.session.sessionManager.setSessionName(cleanName, "user").catch(error => {
+				logger.warn("Bot session title sync failed", {
+					id,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			});
+		} else {
+			await SessionManager.renameSessionTitle(entry.sessionFile, cleanName, { cwd: entry.cwd }).catch(error => {
+				logger.warn("Bot session title rename failed", {
+					id,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			});
+		}
 		return { ok: true, name: cleanName };
 	}
 
@@ -1025,6 +1102,9 @@ export class SessionRouter {
 			const unsubscribe = session.subscribe(event => this.#onBotSessionEvent(entry.id, event));
 			this.#botSessions.set(entry.id, { entry, session, unsubscribe });
 			this.#bridgeFor(entry.id, session);
+			// The registry owns the name and IM stamp; a transcript created before
+			// the stamp existed is corrected here (one rewrite, then a no-op).
+			await this.#syncBotSessionMetadata(entry, session);
 			if (entry.lang) this.#applyLanguageToSession(session, entry.lang);
 			return { ok: true, session };
 		} catch (error) {
@@ -1042,7 +1122,13 @@ export class SessionRouter {
 		// `initialCwd` is what a headerless/fresh transcript records as its
 		// project; without it the manager falls back to the process cwd and the
 		// bot silently answers for the wrong repository.
-		const manager = await SessionManager.open(entry.sessionFile, undefined, undefined, { initialCwd: cwd });
+		const manager = await SessionManager.open(entry.sessionFile, undefined, undefined, {
+			initialCwd: cwd,
+			// A fresh/headerless transcript records its IM origin on first write,
+			// so it never appears as a personal session even before the runtime
+			// sync below runs.
+			origin: this.#botOrigin(entry),
+		});
 		const caller = this.#contextForBot(entry);
 		const { session } = await createAgentSession({
 			cwd: manager.getCwd(),
@@ -1102,6 +1188,7 @@ export class SessionRouter {
 			mode: null,
 		});
 		this.#runtimeBindings.delete(`${channelId}:${peer}`);
+		await this.#rememberBotChat(id, channelId, peer);
 		const lang = (await this.languageFor(channelId, peer)) ?? entry.lang;
 		if (lang) this.#applyLanguageToSession(ensured.session, lang);
 		return { ok: true, id };
@@ -1186,6 +1273,7 @@ export class SessionRouter {
 		const lang = (await this.languageFor(channelId, peer)) ?? handle.entry.lang;
 		if (lang) this.#applyLanguageToSession(handle.session, lang);
 		this.#botLastChat.set(id, { channelId, peer });
+		await this.#rememberBotChat(id, channelId, peer);
 		const bridge = this.#bridgeFor(id, handle.session);
 		const msg: IrcMessage = {
 			id: Snowflake.next(),

@@ -64,6 +64,7 @@ async function archivedSessionInfo(archiveFile: string): Promise<SessionInfo | n
 			firstMessage: "(archived session)",
 			projectRoot: header.cwd ?? "",
 			archivedFrom: header.cwd ?? "",
+			...(header.origin ? { origin: header.origin } : {}),
 		} satisfies SessionInfo;
 	} catch (error) {
 		logger.warn("web-gateway: archived session unreadable", {

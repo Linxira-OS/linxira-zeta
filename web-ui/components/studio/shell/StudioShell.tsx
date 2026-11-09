@@ -38,6 +38,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { fetchSessions } from "@/lib/session-api";
 import { fetchProjects, projectForPath, putProject, unregisterProject } from "@/lib/projects-api";
 import { sessionDisplayTitle } from "@/components/sidebar/sidebar-shared";
+import { isImSession, sessionLocationLabel } from "@/lib/session-origin";
 import type { SessionInfo } from "@/lib/types";
 import type {
 	StudioMode,
@@ -80,6 +81,8 @@ function toSessionSummary(
 		running: running.has(info.id),
 		projectKey: project?.key ?? null,
 		workspaceKey: workspace?.key ?? null,
+		im: isImSession(info),
+		location: sessionLocationLabel(info, t),
 	};
 }
 
@@ -112,6 +115,12 @@ function StudioShellContent({ mode }: { mode: StudioMode }) {
 	const [selectedWorkspacePath, setSelectedWorkspacePath] = useState<string | null>(null);
 	const [tabMeta, setTabMeta] = useState<Record<string, TabRuntimeMeta>>({});
 	const [sessionCache, setSessionCache] = useState<Record<string, SessionInfo>>({});
+	/**
+	 * IM/bot/relay conversations are personal-agent surfaces too, but they are
+	 * not coding sessions: every normal list leaves them out until the operator
+	 * asks for the "IM / Bot" group.
+	 */
+	const [includeIm, setIncludeIm] = useState(false);
 
 	const [restoredTabs] = useState(() => (mode === "panel" ? null : readPersistedSessionTabs()));
 	const sessionTabs = useSessionTabs({ initialState: restoredTabs ?? undefined });
@@ -192,6 +201,10 @@ function StudioShellContent({ mode }: { mode: StudioMode }) {
 		() => sessions.map(info => toSessionSummary(info, projects, runningSet, t)),
 		[sessions, projects, runningSet, t],
 	);
+	/** Personal sessions: project/workspace groups and the palette's recents. */
+	const personalSummaries = useMemo(() => sessionSummaries.filter(session => !session.im), [sessionSummaries]);
+	/** IM/bot/relay conversations, shown only in their own group. */
+	const imSummaries = useMemo(() => sessionSummaries.filter(session => session.im), [sessionSummaries]);
 
 	// --- persistence --------------------------------------------------------
 	useEffect(() => {
@@ -425,7 +438,10 @@ function StudioShellContent({ mode }: { mode: StudioMode }) {
 							error={projectsError ?? sessionsError}
 							selectedProjectKey={selectedProjectKey}
 							selectedWorkspacePath={selectedWorkspace?.path ?? null}
-							sessions={sessionSummaries}
+							sessions={personalSummaries}
+							imSessions={imSummaries}
+							includeIm={includeIm}
+							onToggleIm={() => setIncludeIm(value => !value)}
 							activeSessionId={activeTab?.sessionId ?? null}
 							onSelectProject={key => {
 								setSelectedProjectKey(key);
@@ -516,7 +532,7 @@ function StudioShellContent({ mode }: { mode: StudioMode }) {
 				<StudioStatusBar
 					project={selectedProject}
 					workspace={selectedWorkspace}
-					sessions={sessions.length}
+					sessions={personalSummaries.length}
 					running={runningSet.size}
 					error={projectsError ?? sessionsError}
 					route={route}
@@ -526,7 +542,7 @@ function StudioShellContent({ mode }: { mode: StudioMode }) {
 			<StudioCommandPalette
 				open={paletteOpen}
 				onOpenChange={setPaletteOpen}
-				sessions={sessionSummaries}
+				sessions={includeIm ? sessionSummaries : personalSummaries}
 				actions={paletteActions}
 			/>
 

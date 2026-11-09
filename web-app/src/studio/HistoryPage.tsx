@@ -302,9 +302,16 @@ function HostHistRow({
 }) {
   const status = HOST_STATUS[entry.status];
   const archived = entry.status === "archived";
-  const { t } = useI18n();
+  const { t, resolvedLanguage } = useI18n();
   const consultLabel = useConsultLabel();
   const title = hostHistoryTitle(entry, t("conversation.untitledSession"));
+  // IM rows show an alias/channel, never an absolute cwd; a personal row has none.
+  const imLocation = entry.origin === undefined
+    ? undefined
+    : entry.origin.workspaceAlias
+      ?? (entry.origin.channel !== undefined && entry.origin.channel.length > 0
+        ? `IM · ${entry.origin.channel}`
+        : resolvedLanguage === "zh" ? "默认工作区" : "Default workspace");
   return (
     <div className="hist-row">
       <span className="a-ic purple" aria-hidden="true"><Icon name="message" extra="sm" /></span>
@@ -316,6 +323,7 @@ function HostHistRow({
         <span className="h-sub">
           <span>{t("history.messagesCount", { count: entry.messageCount })}</span>
           <span>{formatHostTime(entry.lastActiveAt, t)}</span>
+          {imLocation ? <span>{imLocation}</span> : null}
           {entry.summary ? <span>{entry.summary}</span> : null}
         </span>
       </a>
@@ -376,6 +384,8 @@ export function HistoryPage({
   onSelectThread,
   onUnarchive,
   onDeleteSession,
+  includeIm,
+  onToggleIm,
 }: {
   nativeContext?: NativeHistoryContext;
   client?: StudioClient;
@@ -388,6 +398,9 @@ export function HistoryPage({
   onUnarchive?: (entry: SessionHistoryEntry) => void;
   /** 真实模式「删除会话」；预览模式下为 undefined（走演示确认 + toast）。 */
   onDeleteSession?: (entry: SessionHistoryEntry, deleteManagedArtifacts?: boolean) => Promise<boolean> | boolean;
+  /** IM/bot/relay conversations are hidden unless explicitly requested. */
+  includeIm?: boolean;
+  onToggleIm?: () => void;
 }) {
   const { preview } = usePreviewMode();
   const { t, resolvedLanguage } = useI18n();
@@ -460,9 +473,12 @@ export function HistoryPage({
   );
   const hostRows = useMemo(
     () => (history?.entries ?? [])
+      // The Host already excludes IM by default; this keeps a model queried
+      // before the toggle was turned off from leaking a bot row afterwards.
+      .filter((entry) => includeIm === true || entry.origin === undefined)
       .filter((entry) => `${hostHistoryTitle(entry, t("conversation.untitledSession"))} ${entry.summary ?? ""}`.toLowerCase().includes(q))
       .filter((entry) => matchesStatusTab(entry.status, statusTab)),
-    [history, q, statusTab, t],
+    [history, q, statusTab, t, includeIm],
   );
 
   const titleMetadata = useSessionTitles(client,nativeContext,hostRows.flatMap(entry=>entry.sessionId?[{id:entry.sessionId,title:entry.title}]:[]),workspaceTab==="catalog");
@@ -499,6 +515,14 @@ export function HistoryPage({
                 onClick={() => setStatusTab(tab.id)}
               >{t(tab.key)}</button>
             ))}
+            {onToggleIm ? (
+              <button
+                type="button"
+                className={`btn small ${includeIm === true ? "primary" : "outline"}`}
+                aria-pressed={includeIm === true}
+                onClick={onToggleIm}
+              >IM / Bot</button>
+            ) : null}
           </div>
           {preview
             ? (

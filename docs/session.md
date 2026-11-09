@@ -83,6 +83,15 @@ Session files are JSONL: one JSON object per line. Current files physically begi
 	"previousSessionFiles": ["/old/location/session.jsonl"],
 	"providerPromptCacheKey": "optional inherited cache identity",
 	"taskPromptCacheKey": "optional local-only Task sibling family key",
+	"origin": {
+		"kind": "im",
+		"channel": "wechat",
+		"chatId": "chat-7",
+		"botSessionId": "relay",
+		"workspaceAlias": "main",
+		"agentId": "optional main-agent id",
+		"bindingId": "optional channel/chat binding id"
+	},
 	"parentSession": "optional lineage marker"
 }
 ```
@@ -101,6 +110,7 @@ Notes:
 - `parentSession` is an opaque lineage string. Current code writes either a session id or a session path depending on flow (`fork`, `forkFrom`, `createBranchedSession`, or explicit `newSession({ parentSession })`). Treat it as metadata, not a typed foreign key.
 
 - `titleSource` is `auto` or `user`; automatic renames cannot overwrite a user title.
+- `origin` marks a conversation that belongs to an IM/bot/relay channel rather than a personal coding session. It is optional and additive: an absent field reads as personal, and a transcript written before the field existed is still recognized through its `relay`/`bot`/`draft` web.yml registry tag. `agentId` and `bindingId` are reserved for a default workspace that hosts several main agents (personal, WeChat, Feishu, …), each with its own channel/chat binding; a mobile client scoped to one binding filters by them. Studio, the resume picker and `history.list` hide IM conversations by default and expose them only through an explicit "IM / Bot" filter; the transcript itself stays fully usable as a personal agent.
 
 ### Entry Base (`SessionEntryBase`)
 

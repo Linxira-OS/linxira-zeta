@@ -18,7 +18,7 @@ import * as path from "node:path";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { getBlobsDir, logger } from "@linxiraos/pi-utils";
 import { parseModelString } from "@linxiraos/pi-tui/overlays/model-selector";
-import { WebConfig } from "../../config/web-config";
+import { type BotSessionEntry, WebConfig } from "../../config/web-config";
 import { exportFromFile } from "../../export/html";
 import type { SessionEntry as RuntimeSessionEntry } from "../../session/session-entries";
 import { listAllSessions as listRuntimeSessions } from "../../session/session-listing";
@@ -196,12 +196,12 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
 		pathToId.set(sessionPathKey(s.path), s.id);
 	}
 
-	// Default-space bot sessions (relay/bot/draft) carry a tag so the web UI can
-	// hide or label them; other sessions have no tag.
+	// Default-space bot sessions (relay/bot/draft) carry a tag and an origin so
+	// the web UI can keep them out of personal lists; other sessions have neither.
 	const webConfig = await WebConfig.load();
-	const tagByPath = new Map<string, string>();
+	const botByPath = new Map<string, BotSessionEntry>();
 	for (const entry of webConfig.getBotSessions()) {
-		tagByPath.set(sessionPathKey(entry.sessionFile), entry.tag);
+		botByPath.set(sessionPathKey(entry.sessionFile), entry);
 	}
 
 	const uniqueCwds = [...new Set(runtimeSessions.map(s => s.cwd).filter(Boolean))];
@@ -215,7 +215,21 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
 	return runtimeSessions.map(s => {
 		cacheSessionPath(s.id, s.path);
 		const project = s.cwd ? projectByCwd.get(s.cwd) : undefined;
-		const tag = tagByPath.get(sessionPathKey(s.path));
+		const botEntry = botByPath.get(sessionPathKey(s.path));
+		const tag = botEntry?.tag;
+		// The header stamp is authoritative; a transcript written before it
+		// existed still reads as IM through its web.yml registry entry.
+		const origin =
+			s.origin ??
+			(botEntry
+				? {
+						kind: "im" as const,
+						botSessionId: botEntry.id,
+						...(botEntry.platform ? { channel: botEntry.platform } : {}),
+						...(botEntry.chatId ? { chatId: botEntry.chatId } : {}),
+						...(botEntry.workspaceAlias ? { workspaceAlias: botEntry.workspaceAlias } : {}),
+					}
+				: undefined);
 		return {
 			path: s.path,
 			id: s.id,
@@ -233,6 +247,7 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
 			...((s.branch ?? project?.branch) ? { branch: s.branch ?? project?.branch ?? undefined } : {}),
 			...(project?.isWorktree && project.branch ? { worktreeBranch: project.branch } : {}),
 			...(tag ? { tag } : {}),
+			...(origin ? { origin } : {}),
 			...(s.cwd && isTempCwd(s.cwd) ? { temp: true } : {}),
 		} satisfies SessionInfo;
 	});
