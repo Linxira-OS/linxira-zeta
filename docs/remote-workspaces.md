@@ -152,10 +152,12 @@ session's project is authoritative. `!session list` shows each session's
 project (`→ [alias]`). The `relay` session is the coordinator's transcript in
 the default workspace and **cannot be deleted or rebound**.
 
-Session files are tagged (`relay` / `bot` / `draft`) in the web session list.
-The web sidebar hides relay/bot sessions by default; toggle **Show hidden bot
-sessions** in the Web settings tab (saved to `web.yml remote.showBotSessions`)
-to show and label them.
+Session files carry an `origin` (`im`, with channel/chat/workspace alias) or,
+for older transcripts, a `relay` / `bot` / `draft` registry tag. Work Studio,
+its History page, the TUI resume picker, and `history.list` hide those
+conversations by default; use the explicit **IM / Bot** filter to show them.
+IM rows show a workspace alias or `IM · <channel>` instead of an absolute
+path. The legacy web-ui snapshot keeps the `remote.showBotSessions` toggle.
 
 ## Language (`!lang`)
 
@@ -204,9 +206,9 @@ uses the same `plan_approve` path.
 per-chat bindings (`remote.sessionMappings: [{platform, chatId,
 workspaceAlias, mode}]`), the bot-session registry
 (`remote.botSessions: [{id, name, tag, sessionFile, cwd, workspaceAlias, …}]`),
-and the sidebar toggle (`remote.showBotSessions`), so all of it survives
-restarts. `@workspace use` is a runtime-only override; `@workspace bind` and
-`!session` operations persist.
+and the legacy web-ui sidebar toggle (`remote.showBotSessions`), so all of it
+survives restarts. `@workspace use` is a runtime-only override;
+`@workspace bind` and `!session` operations persist.
 
 ## Remote access
 
