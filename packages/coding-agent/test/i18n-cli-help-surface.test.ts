@@ -89,7 +89,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/ssh.ts": 10,
 	"commands/stats.ts": 4,
 	"commands/stream.ts": 3,
-	"commands/team.ts": 10,
+	"commands/team.ts": 17,
 	"commands/tiny-models.ts": 3,
 	"commands/token.ts": 5,
 	"commands/toks.ts": 2,

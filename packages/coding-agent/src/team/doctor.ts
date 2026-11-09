@@ -12,7 +12,7 @@ import type { VcsGitRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { resolveTeamDbPath, TeamDb, type RepoRecord } from "./db";
+import { resolveTeamDbPath, ROOM_KINDS, TeamDb, type RepoRecord } from "./db";
 import { TeamError } from "./errors";
 import {
 	baseRepoPath,
@@ -459,6 +459,67 @@ export async function diagnoseTeam(options: DoctorOptions = {}): Promise<DoctorR
 					"Linked worktree on disk has no worktrees row",
 				);
 			}
+		}
+
+		const rooms = db.listRooms(team.id);
+		const roomNameCounts = new Map<string, number>();
+		for (const room of rooms) {
+			roomNameCounts.set(room.name, (roomNameCounts.get(room.name) ?? 0) + 1);
+			doctor.add(`room.kind:${room.name}`, ROOM_KINDS.includes(room.kind), `kind "${room.kind}"`);
+			const owner = room.pmId ? db.getPmById(room.pmId) : null;
+			const ownerOk = room.kind === "pm" ? owner !== null && owner.teamId === team.id : room.pmId === null;
+			doctor.add(
+				`room.pm:${room.name}`,
+				ownerOk,
+				room.kind === "pm"
+					? ownerOk
+						? `owned by PM ${owner?.name ?? room.pmId}`
+						: "PM room references a missing or foreign PM"
+					: room.pmId === null
+						? "no owning PM"
+						: `Only a pm room may name an owning PM; found ${room.pmId}`,
+			);
+
+			const members = db.listRoomMembers(room.id);
+			for (const member of members) {
+				const pm = db.getPmById(member.agentId);
+				const engineer = pm ? null : db.getEngineerById(member.agentId);
+				const resolved = pm?.teamId === team.id || engineer?.teamId === team.id;
+				doctor.add(
+					`room.member:${room.name}/${member.agentId}`,
+					resolved,
+					resolved ? `role "${member.role}"` : "Member does not resolve to this team's PM or engineer",
+				);
+			}
+			if (room.kind === "pm" && room.pmId && !members.some(member => member.agentId === room.pmId)) {
+				doctor.fail(`room.owner-member:${room.name}`, "PM room does not list its owning PM as a member");
+			}
+			if (room.kind !== "pm" && members.length === 0) {
+				doctor.fail(`room.empty:${room.name}`, "Room has no members", "warning");
+			}
+
+			for (const event of db.listRoomEvents(room.id)) {
+				const senderIsMember = members.some(member => member.agentId === event.senderAgentId);
+				doctor.add(
+					`room.event.sender:${room.name}#${event.seq}`,
+					senderIsMember,
+					senderIsMember ? `sender ${event.senderAgentId}` : "Event sender is not a member of this room",
+				);
+				if (event.replyTo !== null) {
+					const target = db.getRoomEvent(event.replyTo);
+					const replyOk = target !== null && target.roomId === room.id && target.seq < event.seq;
+					doctor.add(
+						`room.event.reply:${room.name}#${event.seq}`,
+						replyOk,
+						replyOk
+							? `reply to #${event.replyTo}`
+							: `Reply target #${event.replyTo} is not an earlier event in this room`,
+					);
+				}
+			}
+		}
+		for (const [name, count] of roomNameCounts) {
+			if (count > 1) doctor.fail(`room.duplicate:${name}`, `${count} rooms share the name "${name}"`);
 		}
 
 		return { teamRoot, teamId: team.id, ok: doctor.ok, checks: doctor.checks };

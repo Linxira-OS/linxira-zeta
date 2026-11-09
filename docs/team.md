@@ -1,10 +1,11 @@
-# Team foundation (paths and database)
+# Team foundation (paths, database, and rooms)
 
-`zetacode team` implements the first vertical slice of the Team path model:
-the ownerless team root, PM workspaces, canonical base repositories, PM
-bindings, engineers, and linked worktrees. There is **no Team UI, no team-wide
-agent, no rooms, no tasks/board rows, and no PM mode** in this slice. `--execution
-vibe` records the engineer's execution choice; it does not start Vibe.
+`zetacode team` implements the Team path model and its first collaboration
+primitive: the ownerless team root, PM workspaces, canonical base repositories,
+PM bindings, engineers, linked worktrees, and database-only rooms. There is
+**no Team UI, no team-wide agent, no tasks/board rows, and no PM mode** in this
+slice. `--execution vibe` records the engineer's execution choice; it does not
+start Vibe.
 
 ## Path model
 
@@ -44,7 +45,7 @@ All structure is written to one SQLite database: `~/.zeta/data/zeta.db`
 disk are discovery hints; `team doctor` reports drift between them and the
 database.
 
-Schema (`PRAGMA user_version` = 1):
+Schema (`PRAGMA user_version` = 2):
 
 | Table | Columns |
 | --- | --- |
@@ -54,9 +55,43 @@ Schema (`PRAGMA user_version` = 1):
 | `repo_bindings` | `repo_id`, `pm_id`, `created_at` |
 | `engineers` | `id`, `team_id`, `pm_id`, `name`, `execution`, `created_at` |
 | `worktrees` | `id`, `team_id`, `repo_id`, `pm_id`, `engineer_id`, `kind`, `name`, `path`, `branch`, `base_branch`, `created_at` |
+| `rooms` | `room_id`, `team_id`, `pm_id` (nullable), `name`, `kind`, `created_at` |
+| `room_members` | `room_id`, `agent_id`, `role`, `created_at` |
+| `room_events` | `seq`, `room_id`, `sent_at`, `sender_agent_id`, `kind`, `body`, `reply_to`, `mentions_json` |
 
-`kind` is `home` or `task`; `execution` is `normal` or `vibe`. A repo may be
-bound to several PMs, and one engineer may own a home worktree per bound repo.
+Worktree `kind` is `home` or `task`; engineer `execution` is `normal` or `vibe`.
+A repo may be bound to several PMs, and one engineer may own a home worktree per
+bound repo. Room `kind` is `pm`, `coordination`, or `room`; rooms are described
+below.
+
+## Rooms
+
+A room is **database rows only**: a `rooms` row, its `room_members` rows, and an
+append-only `room_events` log. It is never a folder, Git repository, workspace,
+or session, so posting never writes a transcript and room events cannot enter
+session JSONL.
+
+| Room kind | `pm_id` | Default members |
+| --- | --- | --- |
+| `pm` | the owning PM row id | that PM and the PM's engineers |
+| `coordination` (`--shared`) | `NULL` | every PM and engineer in the team |
+| `room` (arbitrary) | `NULL` | empty until `--members` supplies agents |
+
+- Members resolve to real database rows. A token may be a PM name, an engineer
+  name, `<pm>/<engineer>`, or a full agent id (`<team>:<pm>[:<engineer>]`).
+  Unknown or ambiguous tokens are errors; rooms never invent an agent.
+- `--members` replaces the default roster, except that a PM room always keeps
+  its owning PM. Duplicate room names in one team are rejected.
+- The host assigns every event a monotonic `seq` and a non-decreasing `sentAt`.
+  The body is trimmed and must be non-empty. `reply_to` must name an earlier
+  event in the same room.
+- The sender must be a room member. A PM room defaults its sender to the owning
+  PM; other rooms require `--sender`.
+- `@name` tokens are stored in `mentions_json` as a JSON array. Readers still see
+  the original body.
+- Read API for a future TUI/Studio: `showRoom`, `readRoomEvents` (including
+  `afterSeq` incremental reads), `listRooms` with member/event markers, and
+  `TeamDb.listRoomsForAgent`. No UI is provided yet.
 
 ## Commands
 
@@ -68,6 +103,11 @@ zetacode team repo link <repo> <path> [--root <path>]
 zetacode team repo bind <repo> --pm <pm> [--root <path>]
 zetacode team engineer add <name> --pm <pm> --repo <repo> [--execution normal|vibe]
 zetacode team worktree add <task> --repo <repo> --pm <pm> --engineer <name>
+zetacode team room create <name> --pm <pm> [--members <a,b>]
+zetacode team room create <name> --shared [--members <a,b>]
+zetacode team room list [--root <path>]
+zetacode team room show <room> [--limit <n>]
+zetacode team room post <room> --body <text> [--sender <agent>] [--reply-to <seq>]
 zetacode team doctor [--root <path>] [--json]
 ```
 
@@ -86,11 +126,21 @@ zetacode team doctor [--root <path>] [--json]
 - `worktree add` creates `worktrees/<repo>/<pm>/<engineer>/<task>` on
   `team/<team>/<pm>/<engineer>/<task>`, branched from the base repository's
   default branch.
+- `room create` writes the room and its membership rows. A PM room takes
+  `--pm`; `--shared` (or `--kind coordination`) creates a team-wide room with no
+  owning PM; any other room is an arbitrary team room. No directory is created.
+- `room list` prints kind, owning PM, member count, and the latest sequence.
+- `room show` prints members and the newest events (default 50, oldest first).
+- `room post` appends one event and prints its host-assigned sequence. `--sender`
+  accepts the same tokens as membership; `--reply-to` names an earlier sequence
+  in the same room.
 - `doctor` does not repair. It validates the ownerless root, PM markers and
   plain-folder status, base repo paths and branches, database rows and
-  bindings, worktree paths/branches/registration, and reports unregistered PM
-  folders, base repos, or linked worktrees. Warnings do not fail the command;
-  errors exit non-zero.
+  bindings, worktree paths/branches/registration, and room integrity: duplicate
+  names, PM ownership, member rows that resolve to this team's PMs or engineers,
+  the owning PM's membership, event senders, and reply links. It also reports
+  unregistered PM folders, base repos, or linked worktrees. Warnings do not fail
+  the command; errors exit non-zero.
 
 ## Resolver
 
@@ -130,6 +180,7 @@ Team TUI screen in this slice.
 
 ## Not in this slice
 
-Team Hub, PM mode, rooms and channel bindings, the team relationship graph,
-board/task rows, and Vibe auto-start remain unimplemented. The Engineer
+Team Hub, PM mode, channel bindings, the team relationship graph, board/task
+rows, and Vibe auto-start remain unimplemented. Room data exists only in the
+database and CLI; there is no Team Hub, room UI, or PM prompt. The Engineer
 `execution` column is the only Vibe-related fact stored here.

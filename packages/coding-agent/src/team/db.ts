@@ -83,7 +83,46 @@ CREATE INDEX IF NOT EXISTS idx_engineers_pm ON engineers(pm_id);
 CREATE INDEX IF NOT EXISTS idx_worktrees_repo ON worktrees(repo_id);
 CREATE INDEX IF NOT EXISTS idx_worktrees_engineer ON worktrees(engineer_id);
 `,
+	`
+CREATE TABLE IF NOT EXISTS rooms (
+	room_id     TEXT PRIMARY KEY,
+	team_id     TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+	pm_id       TEXT REFERENCES team_pms(id) ON DELETE CASCADE,
+	name        TEXT NOT NULL,
+	kind        TEXT NOT NULL CHECK (kind IN ('pm', 'coordination', 'room')),
+	created_at  INTEGER NOT NULL,
+	UNIQUE(team_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS room_members (
+	room_id     TEXT NOT NULL REFERENCES rooms(room_id) ON DELETE CASCADE,
+	agent_id    TEXT NOT NULL,
+	role        TEXT NOT NULL,
+	created_at  INTEGER NOT NULL,
+	PRIMARY KEY (room_id, agent_id)
+);
+
+CREATE TABLE IF NOT EXISTS room_events (
+	seq              INTEGER PRIMARY KEY AUTOINCREMENT,
+	room_id          TEXT NOT NULL REFERENCES rooms(room_id) ON DELETE CASCADE,
+	sent_at          INTEGER NOT NULL,
+	sender_agent_id  TEXT NOT NULL,
+	kind             TEXT NOT NULL,
+	body             TEXT NOT NULL,
+	reply_to         INTEGER REFERENCES room_events(seq) ON DELETE SET NULL,
+	mentions_json    TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_rooms_team ON rooms(team_id);
+CREATE INDEX IF NOT EXISTS idx_room_members_agent ON room_members(agent_id);
+CREATE INDEX IF NOT EXISTS idx_room_events_room ON room_events(room_id, seq);
+`,
 ];
+
+/** Room kinds. A PM room names its owning PM; the other kinds have no PM. */
+export type RoomKind = "pm" | "coordination" | "room";
+
+export const ROOM_KINDS: readonly RoomKind[] = ["pm", "coordination", "room"];
 
 /** Default database file, with an explicit test/smoke override. */
 export function resolveTeamDbPath(): string {
@@ -145,6 +184,42 @@ export interface WorktreeRecord {
 	createdAt: number;
 }
 
+/** A room is a database row plus events; it is never a folder. */
+export interface RoomRecord {
+	id: string;
+	teamId: string;
+	/** Owning PM row id for a `pm` room; null for coordination and arbitrary rooms. */
+	pmId: string | null;
+	name: string;
+	kind: RoomKind;
+	createdAt: number;
+}
+
+export interface RoomMemberRecord {
+	roomId: string;
+	agentId: string;
+	role: string;
+	createdAt: number;
+}
+
+export interface RoomEventRecord {
+	seq: number;
+	roomId: string;
+	sentAt: number;
+	senderAgentId: string;
+	kind: string;
+	body: string;
+	replyTo: number | null;
+	mentions: string[];
+}
+
+/** Room list row with its member count and latest event markers. */
+export interface RoomSummaryRecord extends RoomRecord {
+	memberCount: number;
+	lastSeq: number | null;
+	lastSentAt: number | null;
+}
+
 interface DbTeamRow {
 	id: string;
 	name: string;
@@ -191,6 +266,39 @@ interface DbWorktreeRow {
 	branch: string;
 	base_branch: string;
 	created_at: number;
+}
+
+interface DbRoomRow {
+	room_id: string;
+	team_id: string;
+	pm_id: string | null;
+	name: string;
+	kind: RoomKind;
+	created_at: number;
+}
+
+interface DbRoomSummaryRow extends DbRoomRow {
+	member_count: number;
+	last_seq: number | null;
+	last_sent_at: number | null;
+}
+
+interface DbRoomMemberRow {
+	room_id: string;
+	agent_id: string;
+	role: string;
+	created_at: number;
+}
+
+interface DbRoomEventRow {
+	seq: number;
+	room_id: string;
+	sent_at: number;
+	sender_agent_id: string;
+	kind: string;
+	body: string;
+	reply_to: number | null;
+	mentions_json: string | null;
 }
 
 function toTeam(row: DbTeamRow): TeamRecord {
@@ -246,6 +354,58 @@ function toWorktree(row: DbWorktreeRow): WorktreeRecord {
 	};
 }
 
+function parseMentions(raw: string | null): string[] {
+	if (!raw) return [];
+	try {
+		const value: unknown = JSON.parse(raw);
+		return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+	} catch {
+		return [];
+	}
+}
+
+function toRoom(row: DbRoomRow): RoomRecord {
+	return {
+		id: row.room_id,
+		teamId: row.team_id,
+		pmId: row.pm_id,
+		name: row.name,
+		kind: row.kind,
+		createdAt: row.created_at,
+	};
+}
+
+function toRoomSummary(row: DbRoomSummaryRow): RoomSummaryRecord {
+	return {
+		...toRoom(row),
+		memberCount: row.member_count,
+		lastSeq: row.last_seq,
+		lastSentAt: row.last_sent_at,
+	};
+}
+
+function toRoomMember(row: DbRoomMemberRow): RoomMemberRecord {
+	return {
+		roomId: row.room_id,
+		agentId: row.agent_id,
+		role: row.role,
+		createdAt: row.created_at,
+	};
+}
+
+function toRoomEvent(row: DbRoomEventRow): RoomEventRecord {
+	return {
+		seq: row.seq,
+		roomId: row.room_id,
+		sentAt: row.sent_at,
+		senderAgentId: row.sender_agent_id,
+		kind: row.kind,
+		body: row.body,
+		replyTo: row.reply_to,
+		mentions: parseMentions(row.mentions_json),
+	};
+}
+
 function nowSeconds(): number {
 	return Math.floor(Date.now() / 1000);
 }
@@ -272,6 +432,11 @@ export function worktreeRowId(
 	name: string,
 ): string {
 	return `${teamId}:${repoName}:${pmId}:${engineer}:${kind}:${name}`;
+}
+
+/** Deterministic room id; room names are unique per team. */
+export function roomRowId(teamId: string, roomName: string): string {
+	return `${teamId}:${roomName}`;
 }
 
 /** One open connection to the global team database. */
@@ -524,5 +689,157 @@ export class TeamDb {
 
 	deleteWorktree(id: string): void {
 		this.#db.query("DELETE FROM worktrees WHERE id = ?").run(id);
+	}
+
+	// ── rooms ─────────────────────────────────────────────────────────────
+
+	listRooms(teamId: string): RoomRecord[] {
+		return this.#db
+			.query<DbRoomRow, [string]>("SELECT * FROM rooms WHERE team_id = ? ORDER BY name")
+			.all(teamId)
+			.map(toRoom);
+	}
+
+	listRoomSummaries(teamId: string): RoomSummaryRecord[] {
+		return this.#db
+			.query<DbRoomSummaryRow, [string]>(
+				`SELECT r.*,
+				        (SELECT COUNT(*) FROM room_members m WHERE m.room_id = r.room_id) AS member_count,
+				        (SELECT MAX(seq) FROM room_events e WHERE e.room_id = r.room_id) AS last_seq,
+				        (SELECT sent_at FROM room_events e WHERE e.room_id = r.room_id ORDER BY seq DESC LIMIT 1) AS last_sent_at
+				 FROM rooms r
+				 WHERE r.team_id = ?
+				 ORDER BY r.name`,
+			)
+			.all(teamId)
+			.map(toRoomSummary);
+	}
+
+	getRoom(teamId: string, name: string): RoomRecord | null {
+		const row = this.#db
+			.query<DbRoomRow, [string, string]>("SELECT * FROM rooms WHERE team_id = ? AND name = ?")
+			.get(teamId, name);
+		return row ? toRoom(row) : null;
+	}
+
+	getRoomById(id: string): RoomRecord | null {
+		const row = this.#db.query<DbRoomRow, [string]>("SELECT * FROM rooms WHERE room_id = ?").get(id);
+		return row ? toRoom(row) : null;
+	}
+
+	insertRoom(record: RoomRecord): void {
+		this.#db
+			.query("INSERT INTO rooms (room_id, team_id, pm_id, name, kind, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+			.run(record.id, record.teamId, record.pmId, record.name, record.kind, record.createdAt || nowSeconds());
+	}
+
+	deleteRoom(id: string): void {
+		this.#db.query("DELETE FROM rooms WHERE room_id = ?").run(id);
+	}
+
+	// ── room membership ───────────────────────────────────────────────────
+
+	listRoomMembers(roomId: string): RoomMemberRecord[] {
+		return this.#db
+			.query<DbRoomMemberRow, [string]>("SELECT * FROM room_members WHERE room_id = ? ORDER BY agent_id")
+			.all(roomId)
+			.map(toRoomMember);
+	}
+
+	getRoomMember(roomId: string, agentId: string): RoomMemberRecord | null {
+		const row = this.#db
+			.query<DbRoomMemberRow, [string, string]>("SELECT * FROM room_members WHERE room_id = ? AND agent_id = ?")
+			.get(roomId, agentId);
+		return row ? toRoomMember(row) : null;
+	}
+
+	insertRoomMember(record: RoomMemberRecord): void {
+		this.#db
+			.query("INSERT INTO room_members (room_id, agent_id, role, created_at) VALUES (?, ?, ?, ?)")
+			.run(record.roomId, record.agentId, record.role, record.createdAt || nowSeconds());
+	}
+
+	deleteRoomMember(roomId: string, agentId: string): void {
+		this.#db.query("DELETE FROM room_members WHERE room_id = ? AND agent_id = ?").run(roomId, agentId);
+	}
+
+	/** Rooms this agent belongs to, for a future TUI/Studio read model. */
+	listRoomsForAgent(teamId: string, agentId: string): RoomRecord[] {
+		return this.#db
+			.query<DbRoomRow, [string, string]>(
+				`SELECT r.* FROM rooms r
+				 JOIN room_members m ON m.room_id = r.room_id
+				 WHERE r.team_id = ? AND m.agent_id = ?
+				 ORDER BY r.name`,
+			)
+			.all(teamId, agentId)
+			.map(toRoom);
+	}
+
+	// ── room events ───────────────────────────────────────────────────────
+
+	/**
+	 * Events in sequence order. With `limit`, the newest `limit` events are
+	 * returned still in ascending sequence order, so readers can page back.
+	 */
+	listRoomEvents(roomId: string, limit?: number): RoomEventRecord[] {
+		if (limit === undefined) {
+			return this.#db
+				.query<DbRoomEventRow, [string]>("SELECT * FROM room_events WHERE room_id = ? ORDER BY seq")
+				.all(roomId)
+				.map(toRoomEvent);
+		}
+		return this.#db
+			.query<DbRoomEventRow, [string, number]>(
+				"SELECT * FROM room_events WHERE room_id = ? ORDER BY seq DESC LIMIT ?",
+			)
+			.all(roomId, limit)
+			.reverse()
+			.map(toRoomEvent);
+	}
+
+	/** Events after `afterSeq`, for incremental room reads. */
+	listRoomEventsAfter(roomId: string, afterSeq: number): RoomEventRecord[] {
+		return this.#db
+			.query<DbRoomEventRow, [string, number]>(
+				"SELECT * FROM room_events WHERE room_id = ? AND seq > ? ORDER BY seq",
+			)
+			.all(roomId, afterSeq)
+			.map(toRoomEvent);
+	}
+
+	getRoomEvent(seq: number): RoomEventRecord | null {
+		const row = this.#db.query<DbRoomEventRow, [number]>("SELECT * FROM room_events WHERE seq = ?").get(seq);
+		return row ? toRoomEvent(row) : null;
+	}
+
+	getLastRoomEvent(roomId: string): RoomEventRecord | null {
+		const row = this.#db
+			.query<DbRoomEventRow, [string]>("SELECT * FROM room_events WHERE room_id = ? ORDER BY seq DESC LIMIT 1")
+			.get(roomId);
+		return row ? toRoomEvent(row) : null;
+	}
+
+	/** Host assigns `seq`; the caller supplies the rest. */
+	insertRoomEvent(record: Omit<RoomEventRecord, "seq">): RoomEventRecord {
+		const mentionsJson = record.mentions.length > 0 ? JSON.stringify(record.mentions) : null;
+		const row = this.#db
+			.query<{ seq: number }, [string, number, string, string, string, number | null, string | null]>(
+				`INSERT INTO room_events
+				 (room_id, sent_at, sender_agent_id, kind, body, reply_to, mentions_json)
+				 VALUES (?, ?, ?, ?, ?, ?, ?)
+				 RETURNING seq`,
+			)
+			.get(
+				record.roomId,
+				record.sentAt,
+				record.senderAgentId,
+				record.kind,
+				record.body,
+				record.replyTo,
+				mentionsJson,
+			);
+		if (!row) throw new Error("room_events insert returned no sequence");
+		return { ...record, seq: row.seq };
 	}
 }
