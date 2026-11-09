@@ -14,9 +14,6 @@ import { getZetaDbPath } from "@linxiraos/pi-utils/dirs";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-/** Bump when a migration is appended. */
-export const TEAM_DB_VERSION = 1;
-
 const MIGRATIONS: readonly string[] = [
 	`
 CREATE TABLE IF NOT EXISTS teams (
@@ -288,10 +285,6 @@ export class TeamDb {
 		this.#db.run("PRAGMA busy_timeout = 5000");
 		this.#db.run("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON;");
 		this.#migrate();
-	}
-
-	get db(): Database {
-		return this.#db;
 	}
 
 	close(): void {
