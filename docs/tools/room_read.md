@@ -4,8 +4,8 @@
 
 ## Status
 
-**IMPLEMENTED on `main` as Lead mode's coordination surface; not yet in a
-tagged release.** Lead mode installs `room_read` and `room_post` together.
+**IMPLEMENTED (PR #276); not yet in a tagged release.** Lead mode installs
+`room_read` and `room_post` together.
 The bundled `secretary` subagent also receives `room_read` (but never
 `room_post`) so it can summarize room context without speaking in it.
 
