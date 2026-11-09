@@ -16,7 +16,7 @@ only) you drive Zeta with the `!` command grammar below.
 | `channel_send` allowlist | **IMPLEMENTED** | Outbound targets are checked against `channels.allowedPeers`; an agent cannot message a peer the operator never authorized. |
 | Channel+chat → one agent | **IMPLEMENTED** (runtime) | `@agent use` binds a chat to one agent target for the life of the process; the override is in-memory and clears on restart. |
 | Persisted channel+chat → `agentId` | **PLANNED** | Persisting the agent binding and hosting several main agents in the default workspace is design-only; today bindings persist as workspace/bot-session rows. |
-| Local IM session hiding | **IMPLEMENTED** (Work Studio) / **PLANNED** (TUI, History) | The Work Studio sidebar hides relay/bot sessions by default (`remote.showBotSessions`); TUI resume/history origin filtering is not implemented. |
+| Local IM session hiding | **IMPLEMENTED** | IM/bot/relay transcripts carry `SessionHeader.origin` (`kind: "im"` with channel/chat/bot/workspace fields). Studio, the resume picker, and `history.list` hide them by default; Work Studio History has an explicit **IM / Bot** (`includeIm`) view, and IM rows show an alias or `IM · <channel>` instead of an absolute cwd. The old `relay`/`bot`/`draft` tags remain the fallback for pre-origin transcripts. See [session origin](./session.md#header-sessionheader). |
 
 Tool contracts: [`workspace_run`](./tools/workspace_run.md),
 [`channel_send`](./tools/channel_send.md), [`im_control`](./tools/im-control.md).
@@ -148,10 +148,16 @@ session's project is authoritative. `!session list` shows each session's
 project (`→ [alias]`). The `relay` session is the coordinator's transcript in
 the default workspace and **cannot be deleted or rebound**.
 
-Session files are tagged (`relay` / `bot` / `draft`) in the web session list.
-The web sidebar hides relay/bot sessions by default; toggle **Show hidden bot
-sessions** in the Web settings tab (saved to `web.yml remote.showBotSessions`)
-to show and label them.
+Session files carry a `SessionHeader.origin` (`kind: "im"` with channel, chat,
+bot-session, workspace and optional agent/binding fields) while the older
+`relay` / `bot` / `draft` registry tags remain the fallback for transcripts
+written before that stamp. Personal lists hide IM/bot/relay conversations by
+default: Work Studio History and the session sidebar, the TUI resume picker,
+`history.list`/`recentThreads`, and the resume directory.
+Work Studio History has an explicit **IM / Bot** (`includeIm`) view; IM rows
+show the workspace alias or `IM · <channel>` instead of an absolute cwd. The
+frozen `web-ui` sidebar still uses the legacy `remote.showBotSessions` toggle.
+See [session origin](./session.md#header-sessionheader).
 
 ## Language (`!lang`)
 
