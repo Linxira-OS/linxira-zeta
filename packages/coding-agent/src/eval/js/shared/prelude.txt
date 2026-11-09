@@ -99,7 +99,7 @@ if (!globalThis.__zeta_js_prelude_loaded__) {
 		} else {
 			throw new TypeError('sh() expects a command string or a template literal: sh("ls -la") or sh`ls ${dir}`');
 		}
-		const { output, exitCode, timedOut } = await globalThis.__omp_call_tool__("__shell__", args);
+		const { output, exitCode, timedOut } = await globalThis.__zeta_call_tool__("__shell__", args);
 		if (exitCode === 0) return output;
 		const status = timedOut ? `timed out after ${args.timeout}s` : `exited with code ${exitCode}`;
 		const error = new Error(`$ ${args.command}: ${status}${output ? `\n${output.trimEnd()}` : ""}`);

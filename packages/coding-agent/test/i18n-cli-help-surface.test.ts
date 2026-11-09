@@ -42,7 +42,6 @@ import { M } from "../src/i18n";
 const EXCLUDED_FILES: Record<string, number> = {
 	"cli/command-help.ts": 56,
 	"cli/gallery-fixtures/agentic.ts": 3,
-	"cli/gallery-fixtures/misc.ts": 4,
 	"cli/tiny-models-cli.ts": 1,
 	"commands/agents.ts": 6,
 	"commands/anonymize.ts": 2,
