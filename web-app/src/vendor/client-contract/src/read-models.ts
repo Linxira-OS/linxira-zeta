@@ -314,8 +314,8 @@ export type TeamNodeStatus = "running" | "idle" | "parked" | "aborted";
 /**
  * Edge kinds. `spawn` is real (registry parentage); `assignment`, `room`,
  * `contains`, `binding` and `worktree-of` are contract slots for producers that
- * do not exist yet (PM assignment, room membership, team containment, shared
- * repo binding, worktree parentage).
+ * do not exist yet (PM assignment, room membership, team containment, repo
+ * binding, worktree parentage).
  */
 export type TeamEdgeKind = "spawn" | "assignment" | "room" | "contains" | "binding" | "worktree-of";
 
