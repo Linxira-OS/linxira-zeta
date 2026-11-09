@@ -92,6 +92,9 @@ Session files are JSONL: one JSON object per line. Current files physically begi
 		"agentId": "optional main-agent id",
 		"bindingId": "optional channel/chat binding id"
 	},
+	// or { "kind": "team", "teamId": "acme", "pmId": "acme:core",
+	//      "engineerId": "acme:core:alice", "repoId": "acme:api",
+	//      "workspaceAlias": "core / alice / api" }
 	"parentSession": "optional lineage marker"
 }
 ```
@@ -110,7 +113,7 @@ Notes:
 - `parentSession` is an opaque lineage string. Current code writes either a session id or a session path depending on flow (`fork`, `forkFrom`, `createBranchedSession`, or explicit `newSession({ parentSession })`). Treat it as metadata, not a typed foreign key.
 
 - `titleSource` is `auto` or `user`; automatic renames cannot overwrite a user title.
-- `origin` marks a conversation that belongs to an IM/bot/relay channel rather than a personal coding session. It is optional and additive: an absent field reads as personal, and a transcript written before the field existed is still recognized through its `relay`/`bot`/`draft` web.yml registry tag. `agentId` and `bindingId` are reserved for a default workspace that hosts several main agents (personal, WeChat, Feishu, …), each with its own channel/chat binding; a mobile client scoped to one binding filters by them. Studio, the resume picker and `history.list` hide IM conversations by default and expose them only through an explicit "IM / Bot" filter; the transcript itself stays fully usable as a personal agent.
+- `origin` marks a conversation that belongs to an IM/bot/relay channel or to a Team checkout rather than a personal coding session. It is optional and additive: an absent or malformed field reads as personal, and an IM transcript written before the field existed is still recognized through its `relay`/`bot`/`draft` web.yml registry tag. `agentId` and `bindingId` are reserved for a default workspace that hosts several main agents (personal, WeChat, Feishu, …), each with its own channel/chat binding; a mobile client scoped to one binding filters by them. Studio, the resume picker and `history.list` hide IM conversations by default and expose them only through an explicit "IM / Bot" filter; the transcript itself stays fully usable as a personal agent. A `kind: "team"` stamp carries `teamId` and the optional deterministic row ids `pmId` / `engineerId` / `repoId` / `roomId` plus a name-only `workspaceAlias`; created inside a resolved Team location, it is hidden from the default current-folder/all-projects scopes and from `history.list` unless `includeTeam` is set, and grouped as Team → PM → engineer → repo → conversation. `--resume <id>` bypasses that filter. Team transcripts stay in the same per-cwd JSONL buckets; nothing is moved.
 
 ### Entry Base (`SessionEntryBase`)
 

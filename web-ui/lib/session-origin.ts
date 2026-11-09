@@ -21,10 +21,11 @@ export function isImSession(row: SessionOriginRow): boolean {
  * session, whose callers keep showing their own project/workspace path.
  */
 export function sessionLocationLabel(row: SessionOriginRow, t: Translate): string | null {
-	if (!isImSession(row)) return null;
-	const alias = row.origin?.workspaceAlias?.trim();
+	const origin = row.origin;
+	if (origin?.kind !== "im") return null;
+	const alias = origin.workspaceAlias?.trim();
 	if (alias) return alias;
-	const channel = row.origin?.channel?.trim();
+	const channel = origin.channel?.trim();
 	if (channel) return t("studio.session.imChannel", { channel });
 	return t("studio.session.imDefaultWorkspace");
 }

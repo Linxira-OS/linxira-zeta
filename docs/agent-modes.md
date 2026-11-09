@@ -210,16 +210,24 @@ The rule:
   the TUI resume picker — show personal (`local`) conversations by default.
   IM/relay/bot conversations appear only through an explicit **IM / Bot**
   group or filter.
+- Team-origin conversations (`kind: "team"`) follow the same rule: a session
+  created inside a resolved Team location (PM workspace, engineer home/task
+  worktree, team base repository) is hidden from the current-folder and
+  all-projects scopes unless the reader passes `includeTeam`. A Team scope
+  groups the rows Team → PM → engineer → repo → conversation; an explicit
+  `--resume <id>` bypasses the filter.
 - A mobile/external client scoped to one binding shows only that binding's
   chat; it does not browse the machine's other conversations.
-- An IM row is labelled by workspace alias or `IM · <channel>`, never by an
-  absolute filesystem path. The path may still be available in details/copy.
+- An IM row is labelled by workspace alias or `IM · <channel>`; a Team row by
+  its name-built alias or `Team · <teamId>`. Neither shows an absolute
+  filesystem path.
 
 Status: **IMPLEMENTED** for the local surfaces. The origin stamp drives the
 default filter, with the `relay` / `bot` / `draft` tag as the fallback for
-transcripts written before it existed; `history.list` and the resume
-directory take the same `includeIm` opt-in. **PLANNED:** a mobile client
-scoped to one binding, which filters on the origin's `agentId` / `bindingId`.
+IM transcripts written before it existed; `history.list`, the resume listing
+and `buildResumeDirectory` take the same `includeIm` opt-in and add
+`includeTeam`, with the Team grouping in `groupTeamSessions`. **PLANNED:** a mobile client scoped to one
+binding, which filters on the origin's `agentId` / `bindingId`.
 
 ## 4. Board and calendar
 

@@ -13,5 +13,6 @@ export * from "./types";
 export * from "./paths";
 export * from "./preferences";
 export * from "./directory";
+export * from "./team-groups";
 export * from "./view-model";
 export * from "./adapter";

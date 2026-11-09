@@ -108,6 +108,8 @@ export interface QueryInputMap extends ContextViewQueryMap {
     readonly workspaceId?: WorkspaceId;
     /** Include IM/bot/relay conversations (default false). */
     readonly includeIm?: boolean;
+    /** Include Team-origin conversations (default false). */
+    readonly includeTeam?: boolean;
   };
   "residents.list": EmptyInput;
   "session.state": EmptyInput;

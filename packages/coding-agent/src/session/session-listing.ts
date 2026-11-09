@@ -13,7 +13,7 @@ import { EVAL_STATE_CONTEXT_TYPE } from "../eval/state";
 import { recoverBackendReplicas } from "./backend-replica-recovery";
 import { visitEntriesFromFile } from "./session-loader";
 import { computeDefaultSessionDir } from "./session-paths";
-import { isImSession, normalizeSessionOrigin, type SessionOrigin } from "./session-origin";
+import { isImSession, isTeamSession, normalizeSessionOrigin, type SessionOrigin } from "./session-origin";
 import { FileSessionStorage, type SessionStorage, type SessionStorageStat } from "./session-storage";
 import { listSessionTitles, lookupSessionTitle, recordSessionTitle, recordSessionTitles } from "./session-index";
 
@@ -845,21 +845,38 @@ export interface PickerListingOptions {
 	 * {@link isImSession} themselves, or call the listing twice.
 	 */
 	includeIm?: boolean;
+	/**
+	 * Include Team conversations (Team → PM → engineer → repo groups). Defaults
+	 * to false: the current-folder and all-projects scopes describe personal
+	 * coding sessions, so a Team checkout's transcript stays out of them. A
+	 * Team scope passes true and groups the rows with `groupTeamSessions` from
+	 * the resume data layer.
+	 */
+	includeTeam?: boolean;
+}
+
+/**
+ * True when the option set hides the session's origin. A personal row is
+ * always visible; IM and Team rows need their own opt-in.
+ */
+export function isOriginHidden(origin: SessionOrigin | undefined, options: PickerListingOptions = {}): boolean {
+	if (isImSession(origin)) return options.includeIm !== true;
+	if (isTeamSession(origin)) return options.includeTeam !== true;
+	return false;
 }
 
 /**
  * Picker-facing view of a session list: empties dropped, pinned sessions kept.
- * IM conversations stay out of the personal list even when pinned; only
- * `options.includeIm` (the "IM / Bot" view) brings them back.
+ * IM and Team conversations stay out of the personal list even when pinned;
+ * only `options.includeIm` / `options.includeTeam` bring them back.
  */
 export function filterSessionsForPicker(
 	sessions: SessionInfo[],
 	pinnedIds: ReadonlySet<string>,
 	options: PickerListingOptions = {},
 ): SessionInfo[] {
-	const includeIm = options.includeIm === true;
 	return sessions.filter(session => {
-		if (!includeIm && isImSession(session.origin)) return false;
+		if (isOriginHidden(session.origin, options)) return false;
 		return pinnedIds.has(session.id) || !isEmptySession(session);
 	});
 }
@@ -939,7 +956,7 @@ async function pickerListing(
 	// touch the process-wide history.db.
 	const useIndex = storage instanceof FileSessionStorage;
 	const titles = useIndex ? listSessionTitles() : new Map<string, string>();
-	const sessions = await indexedSessions(files, titles, storage, options.includeIm === true);
+	const sessions = await indexedSessions(files, titles, storage, options);
 	// Start the scan only now: its reads would otherwise queue ahead of the stats above.
 	const complete = scan().then(scanned => {
 		if (useIndex) indexScannedTitles(scanned, titles);
@@ -959,7 +976,7 @@ async function indexedSessions(
 	files: readonly string[],
 	titles: ReadonlyMap<string, string>,
 	storage: SessionStorage,
-	includeIm: boolean,
+	options: PickerListingOptions,
 ): Promise<SessionInfo[]> {
 	if (titles.size === 0) return [];
 	const titled = new Map<string, { file: string; title: string }>();
@@ -977,11 +994,15 @@ async function indexedSessions(
 			} catch {
 				return undefined;
 			}
-			// The row is built from the file name and title alone, so an IM stamp
-			// needs the header. Read it only when the default (exclude) is in force:
-			// the fast path must not leak a relay chat into the personal list.
-			const origin = includeIm ? undefined : await readHeaderOrigin(file, storage);
-			if (!includeIm && isImSession(origin)) return undefined;
+			// The row is built from the file name and title alone, so a non-personal
+			// stamp needs the header. Read it whenever either origin kind can be
+			// excluded: the fast path must not leak a relay chat or Team session
+			// into the personal list. With both kinds included, no header read.
+			const origin =
+				options.includeIm === true && options.includeTeam === true
+					? undefined
+					: await readHeaderOrigin(file, storage);
+			if (isOriginHidden(origin, options)) return undefined;
 			return {
 				path: file,
 				id,

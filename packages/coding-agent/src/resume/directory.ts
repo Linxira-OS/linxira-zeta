@@ -10,7 +10,7 @@
 
 import * as path from "node:path";
 
-import { isImSession } from "../session/session-origin";
+import { isImSession, isTeamSession } from "../session/session-origin";
 import type { SessionInfo } from "../session/session-listing";
 import { sessionDisplayName } from "../session/session-listing";
 import { loadPinnedSessionIds } from "../session/session-pins";
@@ -57,6 +57,12 @@ export interface BuildResumeDirectoryOptions {
 	 * sessions in their own group from the session endpoint instead.
 	 */
 	includeIm?: boolean;
+	/**
+	 * Keep Team conversations in the directory. Defaults to false: a Team
+	 * checkout's sessions belong to the Team → PM → engineer → repo grouping
+	 * (`groupTeamSessions`), not to the personal project registry.
+	 */
+	includeTeam?: boolean;
 }
 
 function missingProjectInfo(cwd: string): ProjectInfo {
@@ -230,8 +236,11 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 	const nonSubagent = options.filterSubagents
 		? options.sessions.filter(session => !(session.parentSessionPath && session.agent?.trim()))
 		: options.sessions;
-	const sessions =
-		options.includeIm === true ? nonSubagent : nonSubagent.filter(session => !isImSession(session.origin));
+	const sessions = nonSubagent.filter(session => {
+		if (options.includeIm !== true && isImSession(session.origin)) return false;
+		if (options.includeTeam !== true && isTeamSession(session.origin)) return false;
+		return true;
+	});
 
 	const cwds = new Set<string>([defaultWorkspace]);
 	for (const projectRoot of options.registeredProjects ?? []) {

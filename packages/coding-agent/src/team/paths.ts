@@ -75,6 +75,18 @@ async function readJsonIfPresent(file: string): Promise<unknown | undefined> {
 	}
 }
 
+/** {@link readJsonIfPresent}, for the session-creation path that cannot await. */
+function readJsonSyncIfPresent(file: string): unknown | undefined {
+	let text: string;
+	try {
+		text = fs.readFileSync(file, "utf8");
+	} catch (error) {
+		if (isEnoent(error)) return undefined;
+		throw error;
+	}
+	return JSON.parse(text) as unknown;
+}
+
 /** Parse and validate a team marker; throws with the offending path. */
 export function parseTeamMarker(value: unknown, file: string): TeamMarker {
 	if (!isRecord(value)) throw new TeamError(`Invalid team marker (expected an object): ${file}`);
@@ -332,4 +344,97 @@ export async function resolveTeamLocation(startDir: string): Promise<TeamLocatio
 	}
 
 	return null;
+}
+
+/**
+ * Synchronous {@link resolveTeamLocation}, for session creation (which cannot
+ * await before writing the header). Same rules: the nearest upward
+ * `.zeta/team.json` wins, a PM marker below it supplies `pmId`, the locked
+ * worktree layout supplies `pmId` through its PM workspace, and an external
+ * repository's `.zeta/team-member.json` breadcrumb resolves the team. Throws
+ * on a malformed marker just as the async resolver does; callers that must not
+ * fail session creation catch and treat the location as absent.
+ */
+export function resolveTeamLocationSync(startDir: string): TeamLocation | null {
+	const origin = canonicalPath(startDir);
+	let dir = path.resolve(startDir);
+	let pmCandidate: { root: string; value: unknown; file: string } | undefined;
+	let memberCandidate: { root: string; value: unknown; file: string } | undefined;
+
+	while (true) {
+		const teamValue = readJsonSyncIfPresent(teamMarkerPath(dir));
+		if (teamValue !== undefined) {
+			const marker = parseTeamMarker(teamValue, teamMarkerPath(dir));
+			const location: TeamLocation = { teamRoot: dir, teamId: marker.teamId, teamName: marker.name };
+			if (pmCandidate && pathWithin(dir, pmCandidate.root)) {
+				const pm = parsePmMarker(pmCandidate.value, pmCandidate.file);
+				if (pm.teamId !== marker.teamId) {
+					throw new TeamError(
+						`PM marker ${pmCandidate.file} belongs to team "${pm.teamId}", not "${marker.teamId}"`,
+					);
+				}
+				location.pmId = pm.pmId;
+				location.pmRoot = pmCandidate.root;
+			} else {
+				const rel = path.relative(canonicalPath(dir), origin).split(path.sep).filter(Boolean);
+				if (rel[0] === "worktrees" && rel.length >= 4) {
+					const pmRoot = pmWorkspacePath(dir, rel[2]);
+					try {
+						const pm = readPmMarkerSync(pmRoot);
+						if (pm && pm.teamId === marker.teamId) {
+							location.pmId = pm.pmId;
+							location.pmRoot = pmRoot;
+						}
+					} catch {
+						// A malformed PM marker is a doctor problem, not a resolution failure.
+					}
+				}
+			}
+			return location;
+		}
+
+		if (!pmCandidate) {
+			const pmValue = readJsonSyncIfPresent(pmMarkerPath(dir));
+			if (pmValue !== undefined) pmCandidate = { root: dir, value: pmValue, file: pmMarkerPath(dir) };
+		}
+		if (!memberCandidate) {
+			const memberValue = readJsonSyncIfPresent(teamMemberMarkerPath(dir));
+			if (memberValue !== undefined) {
+				memberCandidate = { root: dir, value: memberValue, file: teamMemberMarkerPath(dir) };
+			}
+		}
+
+		const parent = path.dirname(dir);
+		if (parent === dir) break;
+		dir = parent;
+	}
+
+	if (memberCandidate) {
+		const member = parseTeamMemberMarker(memberCandidate.value, memberCandidate.file);
+		const teamRoot = canonicalPath(member.teamRoot);
+		const markerFile = teamMarkerPath(teamRoot);
+		const value = readJsonSyncIfPresent(markerFile);
+		if (value === undefined) {
+			throw new TeamError(
+				`team-member marker ${memberCandidate.file} points at ${teamRoot}, which has no .zeta/team.json`,
+			);
+		}
+		const marker = parseTeamMarker(value, markerFile);
+		if (marker.teamId !== member.teamId) {
+			throw new TeamError(
+				`team-member marker ${memberCandidate.file} names team "${member.teamId}", but ${teamRoot} is "${marker.teamId}"`,
+			);
+		}
+		return { teamRoot, teamId: marker.teamId, teamName: marker.name };
+	}
+
+	return null;
+}
+
+/** Read and validate a PM marker synchronously; `null` when absent. */
+function readPmMarkerSync(pmRoot: string): PmMarker | null {
+	const file = pmMarkerPath(pmRoot);
+	const value = readJsonSyncIfPresent(file);
+	if (value === undefined) return null;
+	return parsePmMarker(value, file);
 }

@@ -95,9 +95,11 @@ import {
 	listSessionsForPicker,
 	movesConversation,
 	type PickerListing,
+	type PickerListingOptions,
 	type SessionContinuation,
 	type SessionInfo,
 } from "./session-listing";
+import { resolveTeamSessionOrigin } from "../team/session-origin";
 import { sameSessionOrigin, type SessionOrigin } from "./session-origin";
 import {
 	loadEntriesFromFile,
@@ -2088,9 +2090,10 @@ export class SessionManager {
 			// `/new`, branch and fork inherit, and only a creator that knows better
 			// passes one explicitly.
 			client: options?.client ?? this.#header?.client,
-			// An IM/bot conversation stays IM across `/new`; a personal session
-			// never acquires a stamp here.
-			origin: options?.origin ?? this.#header?.origin,
+			// An IM/bot or Team conversation keeps its stamp across `/new`; a new
+			// session created inside a resolved Team location is stamped from that
+			// location. A personal session outside a team never acquires one.
+			origin: options?.origin ?? this.#header?.origin ?? resolveTeamSessionOrigin(this.#cwd),
 			parentSession: options?.parentSession,
 			providerPromptCacheKey: options?.providerPromptCacheKey,
 			taskPromptCacheKey: options?.taskPromptCacheKey,
@@ -4314,12 +4317,14 @@ export class SessionManager {
 		const sessionDir = SessionManager.getDefaultSessionDir(cwd, undefined, storage);
 		const id = mintSessionId();
 		const timestamp = nowIso();
+		const origin = resolveTeamSessionOrigin(cwd);
 		const header: SessionHeader = {
 			type: "session",
 			version: CURRENT_SESSION_VERSION,
 			id,
 			timestamp,
 			cwd: path.resolve(cwd),
+			...(origin === undefined ? {} : { origin }),
 		};
 		const file = path.join(sessionDir, `${fileSafeTimestamp(timestamp)}_${id}.jsonl`);
 		storage.writeTextSync(file, `${serializeTitleSlot({ updatedAt: timestamp })}${JSON.stringify(header)}\n`);
@@ -4806,15 +4811,15 @@ export class SessionManager {
 	 * By default includes the same folder in the repository's other git worktrees,
 	 * so a session `/wt` moved stays reachable from the checkout it left.
 	 * The directory scope limits the picker to its own session bucket.
-	 * IM/bot conversations are left out of the personal list unless
-	 * `options.includeIm` asks for them.
+	 * IM/bot and Team conversations are left out of the personal list unless
+	 * `options.includeIm` / `options.includeTeam` ask for them.
 	 */
 	static async listForPicker(
 		cwd: string,
 		sessionDir?: string,
 		storage: SessionStorage = new FileSessionStorage(),
 		worktreeScope: "directory" | "repo" = "repo",
-		options?: { includeIm?: boolean },
+		options?: PickerListingOptions,
 	): Promise<PickerListing> {
 		const dir = sessionDir ?? SessionManager.getDefaultSessionDir(cwd, undefined, storage);
 		const [pinned, siblingDirs] = await Promise.all([
@@ -4828,7 +4833,7 @@ export class SessionManager {
 	static async listAllForPicker(
 		storage: SessionStorage = new FileSessionStorage(),
 		sessionsRoot?: string,
-		options?: { includeIm?: boolean },
+		options?: PickerListingOptions,
 	): Promise<PickerListing> {
 		return listAllSessionsForPicker(storage, await loadPinnedSessionIds(), sessionsRoot, options);
 	}

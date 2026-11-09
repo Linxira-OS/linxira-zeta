@@ -36,8 +36,11 @@ describe("resume picker title index", () => {
 		removeSyncWithRetries(testAgentDir);
 	});
 
-	async function createSession(title?: string): Promise<string> {
-		const session = SessionManager.create(cwd);
+	async function createSession(
+		title?: string,
+		origin?: { kind: "team"; teamId: string; pmId?: string },
+	): Promise<string> {
+		const session = SessionManager.create(cwd, undefined, undefined, origin === undefined ? {} : { origin });
 		session.appendMessage({ role: "user", content: `prompt for ${title ?? "untitled"}`, timestamp: 1 });
 		if (title) await session.setSessionName(title, "user");
 		session.appendMessage(makeAssistantMessage());
@@ -58,6 +61,24 @@ describe("resume picker title index", () => {
 
 		expect(listing.sessions.map(session => [session.path, session.title])).toEqual([[titled, "Indexed title"]]);
 		expect((await listing.complete).map(session => session.path)).toEqual([untitled]);
+	});
+
+	it("hides indexed Team rows by default and shows them with includeTeam", async () => {
+		const personal = await createSession("Personal title");
+		const team = await createSession("Team title", { kind: "team", teamId: "acme", pmId: "acme:core" });
+
+		const hidden = await SessionManager.listForPicker(cwd);
+		expect(hidden.sessions.map(session => session.path)).toEqual([personal]);
+		await hidden.complete;
+
+		const shown = await SessionManager.listForPicker(cwd, undefined, undefined, "repo", { includeTeam: true });
+		expect(shown.sessions.map(session => session.path).sort()).toEqual([personal, team].sort());
+		expect(shown.sessions.find(session => session.path === team)?.origin).toEqual({
+			kind: "team",
+			teamId: "acme",
+			pmId: "acme:core",
+		});
+		await shown.complete;
 	});
 
 	it("backfills header titles the index lacks, so the next listing starts with them", async () => {
