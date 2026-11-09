@@ -11,6 +11,7 @@
  */
 
 import { getProjectDir } from "@linxiraos/pi-utils/dirs";
+import * as logger from "@linxiraos/pi-utils/logger";
 import type { VcsGitRepo } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import * as fs from "node:fs";
@@ -266,14 +267,41 @@ async function inspectBaseRepo(basePath: string): Promise<BaseRepoFacts> {
 	return { defaultBranch, remoteUrl: remoteUrl ?? null, headBranch: branch };
 }
 
+/** Keep the discovery breadcrumb out of the base repo's own status via local exclude. */
+async function excludeBreadcrumbLocally(repoPath: string): Promise<void> {
+	const handle = vcs.git(repoPath);
+	if (!handle) return;
+	const excludePath = path.join(handle.info().gitDir, "info", "exclude");
+	const pattern = "/.zeta/team-member.json";
+	let text = "";
+	try {
+		text = await Bun.file(excludePath).text();
+	} catch {
+		// No local exclude yet; Bun.write creates the file (and parent dirs).
+	}
+	const lines = text.split(/\r?\n/).map(line => line.trim());
+	if (lines.includes(pattern)) return;
+	const separator = text.length > 0 && !text.endsWith("\n") ? "\n" : "";
+	await Bun.write(excludePath, `${text}${separator}${pattern}\n`);
+}
+
 async function registerRepoBreadcrumb(ctx: TeamContext, repo: RepoRecord): Promise<void> {
-	await writeTeamMemberMarker(repo.basePath, {
-		schemaVersion: TEAM_SCHEMA_VERSION,
-		kind: "team-member",
-		teamId: ctx.team.id,
-		repoName: repo.name,
-		teamRoot: ctx.teamRoot,
-	});
+	try {
+		await writeTeamMemberMarker(repo.basePath, {
+			schemaVersion: TEAM_SCHEMA_VERSION,
+			kind: "team-member",
+			teamId: ctx.team.id,
+			repoName: repo.name,
+			teamRoot: ctx.teamRoot,
+		});
+		await excludeBreadcrumbLocally(repo.basePath);
+	} catch (error) {
+		// The database is authoritative; doctor reports a missing breadcrumb.
+		logger.warn("team: failed to write repository breadcrumb", {
+			repo: repo.basePath,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
 }
 
 export interface AddRepoOptions extends TeamContextOptions {

@@ -134,6 +134,10 @@ describe("team foundation", () => {
 		await expectTeamError(bindRepo({ repo: "api", pm: "core", teamRoot, dbPath }), /already bound/i);
 	}, 30_000);
 
+	test("repo link keeps the breadcrumb out of Git status", () => {
+		expect(runGit(fixtureRepo, "status", "--porcelain")).toBe("");
+	});
+
 	test("resolver walks up from repo, PM workspace, and linked worktree", async () => {
 		expect(await resolveTeamLocation(fixtureRepo)).toMatchObject({
 			teamId: "acme",
