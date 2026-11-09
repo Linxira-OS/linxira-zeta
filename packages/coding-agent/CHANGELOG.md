@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- Resume picker: rows pre-loaded from the title index now carry their session's recorded cwd, so a conversation stays under its own project and workspace instead of moving to whichever directory the picker was opened from
 - IM project routing: bot sessions can be bound to a repository (`!session new <name> project:<alias>`, `!session project <alias>`), run in that repo's cwd, and route inbound messages by their project instead of the global default workspace; a chat's selected session supersedes a stale direct binding
 - Tool-call isolation: `workspace_run` only accepts registered workspaces and a project-bound session cannot delegate into another repo (the relay coordinator keeps its cross-repo role); `channel_send` enforces `channels.allowedPeers`; `workspace_run`/`channel_send` reports and defaults follow the invoking session's chat
 - A workspace that fails to open now answers with an explicit error instead of silently falling back to the default-workspace coordinator, and fresh bot transcripts record their project as cwd rather than the process cwd

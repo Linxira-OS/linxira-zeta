@@ -4,13 +4,14 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { loadResumeDirectory } from "@linxiraos/zeta/resume";
+import { getConfigRootDir, getSessionsDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { makeAssistantMessage } from "../session-manager/helpers";
 
 /**
- * The resume picker opens on rows built from history.db titles, before any
- * session file is read, then completes with the full scan, which backfills
- * the titles the index lacks.
+ * The resume picker opens on rows built from history.db titles plus each
+ * file's 4 KB header prefix, before a full content scan, then completes with
+ * the full scan, which backfills the titles the index lacks.
  */
 describe("resume picker title index", () => {
 	let testAgentDir: string;
@@ -39,8 +40,9 @@ describe("resume picker title index", () => {
 	async function createSession(
 		title?: string,
 		origin?: { kind: "team"; teamId: string; pmId?: string },
+		sessionCwd = cwd,
 	): Promise<string> {
-		const session = SessionManager.create(cwd, undefined, undefined, origin === undefined ? {} : { origin });
+		const session = SessionManager.create(sessionCwd, undefined, undefined, origin === undefined ? {} : { origin });
 		session.appendMessage({ role: "user", content: `prompt for ${title ?? "untitled"}`, timestamp: 1 });
 		if (title) await session.setSessionName(title, "user");
 		session.appendMessage(makeAssistantMessage());
@@ -51,7 +53,7 @@ describe("resume picker title index", () => {
 		return file;
 	}
 
-	it("lists indexed titles without reading session files, then completes with the full scan", async () => {
+	it("lists indexed titles without a full content scan, then completes with the full scan", async () => {
 		const titled = await createSession("Indexed title");
 		const untitled = await createSession();
 		// Unreadable now: only the index can still name this session.
@@ -61,6 +63,33 @@ describe("resume picker title index", () => {
 
 		expect(listing.sessions.map(session => [session.path, session.title])).toEqual([[titled, "Indexed title"]]);
 		expect((await listing.complete).map(session => session.path)).toEqual([untitled]);
+	});
+
+	it("keeps each indexed row's recorded cwd, so the resume tree never regroups it under the launch workspace", async () => {
+		const repoA = path.join(testAgentDir, "repo-a");
+		const repoB = path.join(testAgentDir, "repo-b");
+		const launchWorkspace = path.join(testAgentDir, "launch-workspace");
+		for (const dir of [repoA, repoB, launchWorkspace]) fs.mkdirSync(dir, { recursive: true });
+		await createSession("Alpha", undefined, repoA);
+		await createSession("Beta", undefined, repoB);
+
+		const sessionsRoot = getSessionsDir(testAgentDir);
+		const listing = await SessionManager.listAllForPicker(undefined, sessionsRoot);
+		const rowCwds = Object.fromEntries(listing.sessions.map(session => [session.title, session.cwd]));
+		expect(rowCwds).toEqual({ Alpha: repoA, Beta: repoB });
+
+		const directory = await loadResumeDirectory({
+			sessionsRoot,
+			defaultWorkspace: launchWorkspace,
+			pinnedIds: new Set(),
+			preferences: { version: 1, projects: {} },
+		});
+		const byTitle = new Map(directory.conversations.map(conversation => [conversation.title, conversation]));
+		expect(byTitle.get("Alpha")?.cwd).toBe(repoA);
+		expect(byTitle.get("Beta")?.cwd).toBe(repoB);
+		expect(directory.projects.find(project => project.root === repoA)?.counts.conversations).toBe(1);
+		expect(directory.projects.find(project => project.root === repoB)?.counts.conversations).toBe(1);
+		expect(directory.projects.find(project => project.root === launchWorkspace)?.counts.conversations ?? 0).toBe(0);
 	});
 
 	it("hides indexed Team rows by default and shows them with includeTeam", async () => {

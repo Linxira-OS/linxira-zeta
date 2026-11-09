@@ -1003,10 +1003,13 @@ async function pickerListing(
 
 /**
  * Preliminary picker rows for the `files` whose session id has an indexed
- * title, from the file name, `stat`, and the title alone. What only a content
- * read yields stays neutral: no `cwd`, first message, or status. A titled
- * session is never {@link isEmptySession} and each id gets one row, so the
- * rows are a subset of the full scan's.
+ * title. Reads the 4 KB header prefix for the recorded `cwd` and the
+ * non-personal `origin` stamps: without them a row cannot be grouped under its
+ * own project/workspace, and every row would fall back to whatever workspace
+ * the picker was opened from. Everything else that needs a content read stays
+ * neutral: no first message or status. A titled session is never
+ * {@link isEmptySession} and each id gets one row, so the rows are a subset of
+ * the full scan's.
  */
 async function indexedSessions(
 	files: readonly string[],
@@ -1030,20 +1033,17 @@ async function indexedSessions(
 			} catch {
 				return undefined;
 			}
-			// The row is built from the file name and title alone, so a non-personal
-			// stamp needs the header. Read it whenever either origin kind can be
-			// excluded: the fast path must not leak a relay chat or Team session
-			// into the personal list. With both kinds included, no header read.
-			const origin =
-				options.includeIm === true && options.includeTeam === true
-					? undefined
-					: await readHeaderOrigin(file, storage);
-			if (isOriginHidden(origin, options)) return undefined;
+			// The recorded cwd and non-personal stamps live in the header. Read
+			// the prefix unconditionally: a row without its own cwd cannot be
+			// grouped under its project, and the resume tree would file it under
+			// the workspace the picker happened to open in.
+			const header = await readIndexedHeader(file, storage);
+			if (isOriginHidden(header.origin, options)) return undefined;
 			return {
 				path: file,
 				id,
-				cwd: "",
-				...(origin ? { origin } : {}),
+				cwd: header.cwd ?? "",
+				...(header.origin ? { origin: header.origin } : {}),
 				title,
 				created: sessionCreatedFromSessionPath(file) ?? stat.mtime,
 				modified: stat.mtime,
@@ -1057,13 +1057,20 @@ async function indexedSessions(
 	return sessions.filter(session => session !== undefined).sort(compareNewestFirst);
 }
 
-/** Read just the header line's origin, for the picker's indexed fast path. */
-async function readHeaderOrigin(file: string, storage: SessionStorage): Promise<SessionOrigin | undefined> {
+/** Recorded location fields from the header line, for the picker's indexed fast path. */
+async function readIndexedHeader(
+	file: string,
+	storage: SessionStorage,
+): Promise<{ cwd?: string; origin?: SessionOrigin }> {
 	try {
 		const [head] = await storage.readTextSlices(file, SESSION_LIST_PREFIX_BYTES, 0);
-		return parseSessionListHeader(head, parseJsonlLenient<Record<string, unknown>>(head))?.origin;
+		const header = parseSessionListHeader(head, parseJsonlLenient<Record<string, unknown>>(head));
+		return {
+			...(header?.cwd ? { cwd: header.cwd } : {}),
+			...(header?.origin ? { origin: header.origin } : {}),
+		};
 	} catch {
-		return undefined;
+		return {};
 	}
 }
 
