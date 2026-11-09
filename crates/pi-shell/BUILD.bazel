@@ -37,7 +37,7 @@ rust_library(
         "//bazel:fastbuild": ["-Copt-level=1"],
         "//conditions:default": [],
     }),
-    version = "1.4.11",
+    version = "1.4.13",
     deps = all_crate_deps(normal = True) + [
         ":build_script",
         "//crates/pi-builtins",
@@ -57,7 +57,7 @@ rust_binary(
     crate_root = "src/bin/obash/main.rs",
     edition = "2024",
     proc_macro_deps = all_crate_deps(proc_macro = True),
-    version = "1.4.11",
+    version = "1.4.13",
     deps = all_crate_deps(normal = True) + [":pi-shell"],
 )
 

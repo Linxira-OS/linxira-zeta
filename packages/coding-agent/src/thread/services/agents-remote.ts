@@ -12,7 +12,12 @@
 import type { IrcDeliveryReceipt, IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import { logger } from "@linxiraos/pi-utils";
 import type { AgentAwaitsApi } from "../../registry/agent-awaits";
-import type { AdoptOptions, AgentLifecycleApi, PersistedSubagentReviverFactory } from "../../registry/agent-lifecycle";
+import type {
+	AdoptOptions,
+	AgentLifecycleApi,
+	AgentReleaseOptions,
+	PersistedSubagentReviverFactory,
+} from "../../registry/agent-lifecycle";
 import type {
 	AgentHistorySummary,
 	AgentRef,
@@ -227,7 +232,7 @@ export class RemoteAgentLifecycle implements AgentLifecycleApi {
 		return this.#remote.call("ensureLive", id);
 	}
 
-	release(id: string, expected?: AgentRefExpectation, options?: { tombstone?: boolean }): Promise<boolean> {
+	release(id: string, expected?: AgentRefExpectation, options?: AgentReleaseOptions): Promise<boolean> {
 		return this.#remote.call("release", id, expected, options);
 	}
 

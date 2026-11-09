@@ -1178,6 +1178,7 @@ export interface ScopedModelSink {
 	readonly isDisposed: boolean;
 	readonly scopedModels: ReadonlyArray<{ model: Model; thinkingLevel?: ThinkingLevel }>;
 	setScopedModels(scopedModels: Array<{ model: Model; thinkingLevel?: ThinkingLevel }>): void;
+	setScopedModelsRefresher(refresher: (() => Promise<void>) | undefined): void;
 }
 
 /**
@@ -2876,6 +2877,7 @@ export async function runRootCommand(
 			const refreshScopedModelsAfterLogin = async () => {
 				await rebuildScopedModels(session, parsedArgs, modelRegistry, settingsInstance);
 			};
+			session.setScopedModelsRefresher(refreshScopedModelsAfterLogin);
 			watchScopedModelSettings(session, parsedArgs, modelRegistry, settingsInstance);
 
 			if (modelFallbackMessage) {

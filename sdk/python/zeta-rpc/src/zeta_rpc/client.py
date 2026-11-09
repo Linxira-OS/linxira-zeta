@@ -601,6 +601,11 @@ class RpcClient(WireClient):
         with self._state_lock:
             return self._listener_errors.snapshot()
 
+    @property
+    def ready(self) -> ReadyEvent | None:
+        """The server's startup `ready` frame; `None` before `start()` receives it."""
+        return self._ready_event
+
     def start(self) -> RpcClient:
         if self._started:
             raise RpcError("RPC client is already started")

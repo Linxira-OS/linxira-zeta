@@ -1,10 +1,10 @@
 import type { ImageContent } from "@linxiraos/pi-ai";
-import { logger } from "@linxiraos/pi-utils";
+import type { PipeStreams } from "@linxiraos/pi-natives";
+import { isRecord, logger } from "@linxiraos/pi-utils";
 import type { StructuredSubagentOutput } from "@linxiraos/pi-tui/tools/task";
 import type { OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
 import { IrcBus } from "../irc/bus";
 import type { JobWidgetInputs, JobWidgetRegistry } from "../job-widgets/types";
-import type { PipeStreams } from "@linxiraos/pi-natives";
 
 const DELIVERY_RETRY_BASE_MS = 500;
 const DELIVERY_RETRY_MAX_MS = 30_000;
@@ -96,6 +96,27 @@ export interface AsyncJobDetails extends Record<string, unknown> {
 	images?: ImageContent[];
 	/** Tool output metadata needed when a completion is delivered or recovered later. */
 	meta?: OutputMeta;
+}
+
+/**
+ * Progress record of one task job's agent. A batch `task` call shares one
+ * `progress` array across its jobs, so the entry whose `id` is `agentId` wins;
+ * a job reporting only its own spawn falls back to the first entry. Used by job
+ * snapshots and eval `wait()` progress rows.
+ */
+export function agentProgress(
+	details: AsyncJobDetails | undefined,
+	agentId: string,
+): Record<string, unknown> | undefined {
+	const progress = details?.progress;
+	if (!Array.isArray(progress)) return undefined;
+	let first: Record<string, unknown> | undefined;
+	for (const record of progress) {
+		if (!isRecord(record)) continue;
+		if (record.id === agentId) return record;
+		first ??= record;
+	}
+	return first;
 }
 
 export interface AsyncJob {

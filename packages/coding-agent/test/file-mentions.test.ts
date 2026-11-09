@@ -16,7 +16,7 @@ let originalPiProfile: string | undefined;
 beforeEach(async () => {
 	originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 	originalOmpProfile = process.env.ZETA_PROFILE;
-	originalPiProfile = process.env.PI_PROFILE;
+	originalPiProfile = process.env.ZETA_PROFILE;
 	const agentDir = await createTempDir();
 	setAgentDir(agentDir);
 });
@@ -24,7 +24,7 @@ beforeEach(async () => {
 afterEach(async () => {
 	restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDir);
 	restoreEnvValue("ZETA_PROFILE", originalOmpProfile);
-	restoreEnvValue("PI_PROFILE", originalPiProfile);
+	restoreEnvValue("ZETA_PROFILE", originalPiProfile);
 	__resetDirsFromEnvForTests();
 	for (const dir of tempDirs.splice(0, tempDirs.length)) {
 		await removeWithRetries(dir);

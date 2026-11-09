@@ -23,9 +23,10 @@
  */
 
 import * as fs from "node:fs/promises";
-import { logger, untilAborted } from "@linxiraos/pi-utils";
+import { logger, postmortem, untilAborted } from "@linxiraos/pi-utils";
 import type { AgentSession } from "../session/agent-session";
 import { type AgentSessionHandle, isLocalAgentSession } from "../session/agent-session-handle";
+import type { AgentSessionDisposeOptions } from "../session/agent-session-types";
 import { applySubagentModelOverride, modelFailureLedgerForSession } from "../task/model-switch";
 import { trackLateCleanup } from "../utils/late-cleanup";
 import {
@@ -143,6 +144,14 @@ interface ReopeningAgent {
 	promise: Promise<AgentRef>;
 }
 
+/** How {@link AgentLifecycleApi.release} ends an agent. */
+export interface AgentReleaseOptions {
+	/** Explicit kill: keep a terminal `aborted` row and persist the kill marker. */
+	tombstone?: boolean;
+	/** Forwarded to the live session's dispose (e.g. the reason its `session_exit` record carries). */
+	dispose?: AgentSessionDisposeOptions;
+}
+
 /** Public surface of the process-global agent lifecycle, implemented locally on main and by a proxy in workers. */
 export interface AgentLifecycleApi {
 	/** Install the factory used to cold-revive `parked` refs restored from disk. */
@@ -162,7 +171,7 @@ export interface AgentLifecycleApi {
 	/** Return the live session, reviving it if parked or killed. */
 	ensureLive(id: string, options?: EnsureLiveOptions): Promise<AgentSessionHandle>;
 	/** Dispose if live and drop timers; `tombstone` keeps a terminal `aborted` row. */
-	release(id: string, expected?: AgentRefExpectation, options?: { tombstone?: boolean }): Promise<boolean>;
+	release(id: string, expected?: AgentRefExpectation, options?: AgentReleaseOptions): Promise<boolean>;
 	/** Tear down every adopted agent. */
 	dispose(deadlineAt?: number): Promise<void>;
 }
@@ -650,7 +659,7 @@ export class AgentLifecycleManager implements AgentLifecycleApi {
 	 * it does not destroy it: {@link ensureLive} (a message, Hub revive/focus)
 	 * reopens the transcript.
 	 */
-	async release(id: string, expected?: AgentRefExpectation, options?: { tombstone?: boolean }): Promise<boolean> {
+	async release(id: string, expected?: AgentRefExpectation, options?: AgentReleaseOptions): Promise<boolean> {
 		const adopted = this.#adopted.get(id);
 		const current = this.#registry.get(id);
 		const currentMatches =
@@ -698,7 +707,7 @@ export class AgentLifecycleManager implements AgentLifecycleApi {
 			// dispose the captured session, even when tombstone persistence fails.
 			if (live) {
 				try {
-					await live.dispose();
+					await live.dispose(options?.dispose);
 				} catch (error) {
 					logger.warn("AgentLifecycleManager.release: session dispose failed", { id, error: String(error) });
 				}
@@ -722,9 +731,14 @@ export class AgentLifecycleManager implements AgentLifecycleApi {
 		this.#disposed = true;
 		this.#unsubscribe = undefined;
 		const ids = [...new Set([...this.#adopted.keys(), ...this.#parks.keys()])];
+		// A turn still running (a revived or woken agent) is cut off by this
+		// teardown, not stopped: its session records a process exit, so
+		// `zetacode --restore` goes on with it.
+		const cutOff: AgentReleaseOptions = { dispose: { reason: postmortem.Reason.EXIT } };
 		await Promise.all(
 			ids.map(async id => {
-				const release = this.release(id).then(() => {});
+				const running = this.#registry.get(id)?.status === "running";
+				const release = this.release(id, undefined, running ? cutOff : undefined).then(() => {});
 				try {
 					await untilAborted(AbortSignal.timeout(Math.max(0, deadlineAt - Date.now())), () => release);
 				} catch (error) {

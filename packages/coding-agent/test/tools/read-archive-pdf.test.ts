@@ -73,7 +73,7 @@ describe("PDF archive members", () => {
 		pdf = textPdf();
 		originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 		originalOmpProfile = process.env.ZETA_PROFILE;
-		originalPiProfile = process.env.PI_PROFILE;
+		originalPiProfile = process.env.ZETA_PROFILE;
 		setAgentDir(temp.join("agent"));
 	});
 
@@ -81,7 +81,7 @@ describe("PDF archive members", () => {
 		vi.restoreAllMocks();
 		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDir);
 		restoreEnvValue("ZETA_PROFILE", originalOmpProfile);
-		restoreEnvValue("PI_PROFILE", originalPiProfile);
+		restoreEnvValue("ZETA_PROFILE", originalPiProfile);
 		__resetDirsFromEnvForTests();
 		await temp.remove();
 	});

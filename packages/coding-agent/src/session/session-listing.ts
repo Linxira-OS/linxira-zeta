@@ -322,6 +322,26 @@ function countAssistantMarkers(content: string): number {
 	return countRoleMarkers(content, "assistant");
 }
 
+/**
+ * The message of a complete `message` record line when it is a user or
+ * assistant turn. JSON escapes quotes inside strings, so a bare `"user"` or
+ * `"assistant"` can only be a key or value: lines without either skip the
+ * parse, and large non-turn records (memory recall, tool results) cost one
+ * substring scan. Malformed or partial lines return undefined.
+ */
+function parseTurnLine(line: string): Message | undefined {
+	if (!line.includes('"user"') && !line.includes('"assistant"')) return undefined;
+	let record: { type?: unknown; message?: Message };
+	try {
+		record = JSON.parse(line);
+	} catch {
+		return undefined;
+	}
+	if (record.type !== "message") return undefined;
+	const role = record.message?.role;
+	return role === "user" || role === "assistant" ? record.message : undefined;
+}
+
 /** The last `model_change`/`model_usage` record's model id in `entries`, if any. */
 function latestModelName(entries: readonly Record<string, unknown>[]): string | undefined {
 	for (let index = entries.length - 1; index >= 0; index--) {
@@ -551,6 +571,35 @@ async function scanSessionFile(
 			}
 		}
 
+		assistantTurns = Math.max(assistantTurns, countAssistantMarkers(content), countAssistantMarkers(suffix));
+		// Records between the bounded windows go unseen: a first prompt behind a
+		// large leading entry (memory recall, attachment) or a reply (after a
+		// `/skill:` invocation), and an assistant record that fits in neither
+		// window. Recover both in one line-boundary pass rather than trusting the gap.
+		let needPrompt = !firstMessage;
+		let needTurn = assistantTurns === 0;
+		if ((needPrompt || needTurn) && size > SESSION_LIST_PREFIX_BYTES && storage.scanLines) {
+			try {
+				await storage.scanLines(file, line => {
+					const message = parseTurnLine(line);
+					if (message?.role === "assistant" && needTurn) {
+						assistantTurns = 1;
+						needTurn = false;
+					} else if (message?.role === "user" && needPrompt) {
+						// Cap at what a prompt read from the prefix could hold.
+						const text = textContent(message.content, " ").slice(0, SESSION_LIST_PREFIX_BYTES);
+						if (text) {
+							firstMessage = text;
+							allMessages.unshift(text);
+							needPrompt = false;
+						}
+					}
+					return !needPrompt && !needTurn;
+				});
+			} catch {
+				// Backend unreadable: keep the bounded-window evidence.
+			}
+		}
 		firstMessage ||= extractFirstDisplayMessageFromPrefix(content) ?? "";
 		// The suffix is the file's tail, so its last model record supersedes any
 		// in the prefix window; fall back to the prefix when the tail has none.
@@ -558,18 +607,6 @@ async function scanSessionFile(
 			(withStatus ? latestModelName(parseJsonlLenient<Record<string, unknown>>(suffix)) : undefined) ??
 			latestModelName(entries);
 		const messageCount = Math.max(parsedMessageCount, countMessageMarkers(content));
-		// Either bounded window may hold the only copy of an assistant record,
-		// and neither may: a >prefix record before a >suffix tail leaves the
-		// middle unexamined. When both windows miss, ask the backend for a full
-		// line-boundary scan rather than trusting the gap.
-		assistantTurns = Math.max(assistantTurns, countAssistantMarkers(content), countAssistantMarkers(suffix));
-		if (assistantTurns === 0 && storage.hasAssistantTurn) {
-			try {
-				if (await storage.hasAssistantTurn(file)) assistantTurns = 1;
-			} catch {
-				// Backend unreadable: keep the bounded-window evidence.
-			}
-		}
 		const info: SessionInfo = {
 			path: file,
 			id: header.id,

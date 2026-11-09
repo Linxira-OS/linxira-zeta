@@ -38,7 +38,7 @@ describe("native executable custom tool discovery", () => {
 		originalHome = process.env.HOME;
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 		originalOmpProfileEnv = process.env.ZETA_PROFILE;
-		originalPiProfileEnv = process.env.PI_PROFILE;
+		originalPiProfileEnv = process.env.ZETA_PROFILE;
 		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-builtin-tools-"));
 		const home = path.join(root, "home");
 		project = path.join(root, "project");
@@ -62,7 +62,7 @@ describe("native executable custom tool discovery", () => {
 		vi.restoreAllMocks();
 		restoreEnvValue("HOME", originalHome);
 		restoreEnvValue("ZETA_PROFILE", originalOmpProfileEnv);
-		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
+		restoreEnvValue("ZETA_PROFILE", originalPiProfileEnv);
 		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
 		__resetDirsFromEnvForTests();
 		// Loading the fixtures opens the legacy extension parse cache under the temp HOME; Windows can't remove it while open.

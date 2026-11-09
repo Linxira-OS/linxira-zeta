@@ -9,7 +9,7 @@ import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
 
 const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const originalOmpProfile = process.env.ZETA_PROFILE;
-const originalPiProfile = process.env.PI_PROFILE;
+const originalPiProfile = process.env.ZETA_PROFILE;
 
 let tempAgentDir: TempDir | undefined;
 let originalExitCode: typeof process.exitCode;
@@ -64,7 +64,7 @@ afterEach(async () => {
 	process.exitCode = originalExitCode;
 	restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
 	restoreEnv("ZETA_PROFILE", originalOmpProfile);
-	restoreEnv("PI_PROFILE", originalPiProfile);
+	restoreEnv("ZETA_PROFILE", originalPiProfile);
 	__resetDirsFromEnvForTests();
 	// runSearchCommand opens <agentDir>/models.db; Windows cannot delete an open database.
 	closeModelCache();

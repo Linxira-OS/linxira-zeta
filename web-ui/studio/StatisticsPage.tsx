@@ -10,7 +10,7 @@ type Phase = "loading" | "ready" | "unavailable";
 /**
  * Native statistics page.
  *
- * Everything below the shell's tab bar is the upstream `omp stats` dashboard
+ * Everything below the shell's tab bar is the upstream `zetacode stats` dashboard
  * itself, embedded from its loopback origin. It already ships every section,
  * drill-down and trace view, and it carries its own range switcher and sync
  * button, so this page deliberately adds no toolbar of its own: a second set of

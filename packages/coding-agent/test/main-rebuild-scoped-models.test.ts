@@ -67,6 +67,8 @@ class FakeSession implements ScopedModelSink {
 	constructor(initial: ReadonlyArray<{ model: Model; thinkingLevel?: ThinkingLevel }>) {
 		this.scopedModels = initial;
 	}
+	setScopedModelsRefresher(_refresher: (() => Promise<void>) | undefined): void {}
+
 	setScopedModels(scopedModels: Array<{ model: Model; thinkingLevel?: ThinkingLevel }>): void {
 		this.setCalls += 1;
 		this.scopedModels = scopedModels;

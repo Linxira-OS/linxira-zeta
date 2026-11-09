@@ -51,7 +51,7 @@ describe("global --profile flag", () => {
 		originalAgentDir = getAgentDir();
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 		originalOmpProfileEnv = process.env.ZETA_PROFILE;
-		originalPiProfileEnv = process.env.PI_PROFILE;
+		originalPiProfileEnv = process.env.ZETA_PROFILE;
 		originalConfigDir = process.env.ZETA_CONFIG_DIR;
 		configDir = `.zeta-profile-cli-test-${Snowflake.next()}`;
 		process.env.ZETA_CONFIG_DIR = configDir;
@@ -79,9 +79,9 @@ describe("global --profile flag", () => {
 			process.env.ZETA_PROFILE = originalOmpProfileEnv;
 		}
 		if (originalPiProfileEnv === undefined) {
-			delete process.env.PI_PROFILE;
+			delete process.env.ZETA_PROFILE;
 		} else {
-			process.env.PI_PROFILE = originalPiProfileEnv;
+			process.env.ZETA_PROFILE = originalPiProfileEnv;
 		}
 		if (originalAgentDirEnv === undefined) {
 			delete process.env.ZETA_CODING_AGENT_DIR;
@@ -108,7 +108,7 @@ describe("global --profile flag", () => {
 		const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 		setProfile(undefined);
 		process.env.ZETA_PROFILE = "work";
-		delete process.env.PI_PROFILE;
+		delete process.env.ZETA_PROFILE;
 
 		await runCli(["--version"]);
 
@@ -189,7 +189,7 @@ describe("global --profile flag", () => {
 				NO_COLOR: "1",
 			};
 			delete childEnv.ZETA_PROFILE;
-			delete childEnv.PI_PROFILE;
+			delete childEnv.ZETA_PROFILE;
 			delete childEnv.ZETA_CODING_AGENT_DIR;
 			delete childEnv.ZETA_PROFILE_BOOTSTRAP_SENTINEL;
 
@@ -242,7 +242,7 @@ describe("global --profile flag", () => {
 				ZETA_PROFILE: "..",
 				NO_COLOR: "1",
 			};
-			delete childEnv.PI_PROFILE;
+			delete childEnv.ZETA_PROFILE;
 			delete childEnv.ZETA_CODING_AGENT_DIR;
 
 			const proc = Bun.spawn([process.execPath, probePath], {

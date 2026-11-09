@@ -1500,6 +1500,10 @@ function notificationToLine(n: TerminalNotification): string {
 const OSC99_UNSAFE = /[\x00-\x1f\x7f\x80-\x9f]/u;
 const OSC99_MAX_PAYLOAD_BYTES = 2048;
 const OSC99_APP_NAME = "zeta";
+// Kitty matches notification ids across its whole process, not per window, so
+// a bare counter would collide between zeta sessions sharing one kitty instance
+// and turn a new notification into a silent replacement of another session's.
+const OSC99_ID_PREFIX = `zeta-${crypto.randomUUID().slice(0, 8)}`;
 let nextOsc99NotificationId = 1;
 
 function base64Utf8(value: string): string {
@@ -1513,7 +1517,7 @@ function sanitizeOsc99Id(id: string | undefined): string {
 }
 
 function osc99Id(id: string | undefined): string {
-	return sanitizeOsc99Id(id) || `zeta-${nextOsc99NotificationId++}`;
+	return sanitizeOsc99Id(id) || `${OSC99_ID_PREFIX}-${nextOsc99NotificationId++}`;
 }
 
 function utf8CodePointBytes(char: string): number {

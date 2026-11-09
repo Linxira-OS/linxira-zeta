@@ -679,7 +679,7 @@ interface CoreCommandInputMap {
   "agents.definition.delete": AgentDefinitionDeleteInput;
   /** Persist per-agent overlays in config.yml (disable / model / prewalk / advisor). */
   "agents.definition.configure": AgentDefinitionConfigureInput;
-  /** Open the native `omp stats` dashboard in the default browser. */
+  /** Open the native `zetacode stats` dashboard in the default browser. */
   "usage.openDashboard": EmptyInput;
   /** Execute one strictly typed Host-owned Git operation. */
   "git.execute": GitExecuteInput;

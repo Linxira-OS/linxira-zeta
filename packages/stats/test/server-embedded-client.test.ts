@@ -51,7 +51,6 @@ process.stdout.write(JSON.stringify({ url: "http://" + server.hostname + ":" + s
 			PI_CONFIG_DIR: ".zeta",
 			ZETA_CODING_AGENT_DIR: path.join(root, ".zeta", "agent"),
 			ZETA_PROFILE: "",
-			PI_PROFILE: "",
 			XDG_DATA_HOME: path.join(root, "data"),
 			XDG_STATE_HOME: path.join(root, "state"),
 			XDG_CACHE_HOME: path.join(root, "cache"),

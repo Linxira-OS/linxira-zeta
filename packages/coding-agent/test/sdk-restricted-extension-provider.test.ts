@@ -39,7 +39,7 @@ describe("restricted sessions sharing extension providers", () => {
 	let settings: Settings;
 
 	const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
-	const originalPiProfile = process.env.PI_PROFILE;
+	const originalPiProfile = process.env.ZETA_PROFILE;
 	const originalOmpProfile = process.env.ZETA_PROFILE;
 
 	beforeEach(() => {
@@ -61,7 +61,7 @@ describe("restricted sessions sharing extension providers", () => {
 			authStorage.close();
 		} finally {
 			restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
-			restoreEnv("PI_PROFILE", originalPiProfile);
+			restoreEnv("ZETA_PROFILE", originalPiProfile);
 			restoreEnv("ZETA_PROFILE", originalOmpProfile);
 			__resetDirsFromEnvForTests();
 			removeSyncWithRetries(tempDir);
@@ -70,7 +70,7 @@ describe("restricted sessions sharing extension providers", () => {
 
 	afterAll(() => {
 		restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
-		restoreEnv("PI_PROFILE", originalPiProfile);
+		restoreEnv("ZETA_PROFILE", originalPiProfile);
 		restoreEnv("ZETA_PROFILE", originalOmpProfile);
 		__resetDirsFromEnvForTests();
 	});

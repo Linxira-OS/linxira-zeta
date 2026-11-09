@@ -652,7 +652,7 @@ export function setProfile(profile: string | undefined): void {
 		dirs = new DirResolver({ profile: activeProfile });
 		process.env.ZETA_PROFILE = activeProfile;
 		process.env.ZETA_PROFILE = activeProfile;
-		process.env.PI_PROFILE = activeProfile;
+		process.env.ZETA_PROFILE = activeProfile;
 		process.env.ZETA_CODING_AGENT_DIR = dirs.agentDir;
 	} else {
 		for (const key of PROFILE_ENV_KEYS) {

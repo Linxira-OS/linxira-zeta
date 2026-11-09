@@ -52,7 +52,7 @@ describe("native image blob lifetime", () => {
 					PI_TUI_NATIVE: "1",
 				};
 				delete env.ZETA_PROFILE;
-				delete env.PI_PROFILE;
+				delete env.ZETA_PROFILE;
 				await Promise.all(
 					["config", "agent", "session-owners", "xdg-config", "data/omp", "state/omp", "cache/omp"].map(dir =>
 						fs.promises.mkdir(root.join(dir), { recursive: true }),
