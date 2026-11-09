@@ -25,6 +25,7 @@ import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
 import { TeamDb } from "@linxiraos/zeta/team/db";
+import { resolveLeadWorkspace } from "@linxiraos/zeta/team/lead";
 import { addPm, initTeam } from "@linxiraos/zeta/team/service";
 import { createRoom } from "@linxiraos/zeta/team/rooms";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -152,6 +153,18 @@ describe("Lead (PM) mode", () => {
 		}
 		const lastMode = [...session.sessionManager.getEntries()].reverse().find(entry => entry.type === "mode_change");
 		expect(lastMode?.type === "mode_change" ? lastMode.mode : undefined).toBe("none");
+	});
+
+	it("resolves only the PM workspace, not the team root or an engineer worktree", async () => {
+		const worktree = path.join(fixture.teamRoot, "worktrees", "api", "core", "alice", "home");
+		fs.mkdirSync(worktree, { recursive: true });
+		expect(await resolveLeadWorkspace(fixture.pmRoot)).toMatchObject({
+			teamId: "acme",
+			pmId: "acme:core",
+			pmName: "core",
+		});
+		await expect(resolveLeadWorkspace(fixture.teamRoot)).rejects.toThrow(/PM workspace/);
+		await expect(resolveLeadWorkspace(worktree)).rejects.toThrow(/PM workspace/);
 	});
 
 	it("refuses to enter while plan or goal mode is active", async () => {
