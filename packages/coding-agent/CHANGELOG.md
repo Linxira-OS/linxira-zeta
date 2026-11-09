@@ -4,6 +4,9 @@
 - Tool-call isolation: `workspace_run` only accepts registered workspaces and a project-bound session cannot delegate into another repo (the relay coordinator keeps its cross-repo role); `channel_send` enforces `channels.allowedPeers`; `workspace_run`/`channel_send` reports and defaults follow the invoking session's chat
 - A workspace that fails to open now answers with an explicit error instead of silently falling back to the default-workspace coordinator, and fresh bot transcripts record their project as cwd rather than the process cwd
 - `im_control` gained `project=` for `new_session` and a `bind_project` operation, and its session listing shows each session's project
+### Added
+
+- The user board (`.zeta/board/`) is now a built-in `board` tool, not only an API/UI surface: `list`, `get`, `create`, `update`, `move`, `assign` and `delete` against the session's project root, sharing the gateway's store. Top-level sessions receive it by default; subagents get it only when their `tools:` list names `board`.
 
 ## [1.4.13] - 2026-11-08
 

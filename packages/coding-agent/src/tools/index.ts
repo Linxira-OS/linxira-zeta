@@ -56,6 +56,7 @@ import { AskTool } from "./ask";
 import { AstEditTool } from "./ast-edit";
 import { AstGrepTool } from "./ast-grep";
 import { BashTool } from "./bash";
+import { BoardTool } from "./board";
 import { type BuiltinToolName, type HiddenToolName, normalizeToolNames } from "./builtin-names";
 import { ChannelSendTool } from "./channel-send";
 import { type CheckpointState, CheckpointTool, type CompletedRewindState, RewindTool } from "./checkpoint";
@@ -134,6 +135,8 @@ export * from "../lsp";
 export * from "../task";
 export * from "../web/search";
 export * from "./ask";
+export * from "./board";
+export * from "./board-store";
 export * from "./ast-edit";
 export * from "./ast-grep";
 export * from "./bash";
@@ -659,6 +662,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	task: s => TaskTool.create(s),
 	wait: s => new WaitTool(s),
 	todo: s => new TodoTool(s),
+	board: s => new BoardTool(s),
 	mode: s => new ModeTool(s),
 	web_search: s => new WebSearchTool(s),
 	time: s => new TimeTool(s.settings),
@@ -842,6 +846,12 @@ export async function resolveBuiltinToolPlan(session: ToolSession, toolNames?: s
 		if (name === "ida") return cfgIdaAvailable.get(session.settings);
 		if (name === "todo")
 			return (!includeYield || session.prewalkArmed === true) && cfgTodoEnabled.get(session.settings);
+		// The board is project state every top-level session may use. A subagent
+		// inherits it only when its agent profile names `board` in `tools:`, so a
+		// child cannot rewrite the user's board by default.
+		if (name === "board") {
+			return (session.taskDepth ?? 0) === 0 || requestedTools?.includes("board") === true;
+		}
 		// Project tracking is opt-in (`tracking.enabled`, off by default): when the
 		// setting is off the agent must not receive `tracking_update` at all — the
 		// plan-approved prompt and todo-phase nudge already key off its presence.

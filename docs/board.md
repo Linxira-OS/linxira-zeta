@@ -7,11 +7,36 @@ separate from the agent's own todo list:
 | Layer | Owner | Lifetime | Where |
 | --- | --- | --- | --- |
 | Agent todo | the agent | one session | the `todo` tool / session state |
-| User board | the user | across sessions and workspaces | `<project>/.zeta/board/*.md` |
+| User board | the user; agents may edit it through the `board` tool | across sessions and workspaces | `<project>/.zeta/board/*.md` |
 
-The two models are not merged. An agent may be handed a card's brief, but the
-board is not the agent's task list and the agent's todo is not written to disk
-by this feature.
+The two models are not merged. An agent may be handed a card's brief or edit a
+card when the user asks, but the board is not the agent's task list and the
+agent's todo is not written to disk by this feature.
+
+## Agent tool
+
+`board` is a built-in tool (`BUILTIN_TOOLS.board`), not a plugin. It is
+project-scoped: the project root is the session root, and the tool has no
+`cwd`/path parameter, so a model can never point it at another directory.
+
+| Action | Behavior |
+| --- | --- |
+| `list` | cards, optionally filtered by `column`/`status`, `assignee`/`owner` and `tag`, plus skipped-file warnings |
+| `get` | one card and its brief |
+| `create` | new card; id = slug of the title (returned) |
+| `update` | `title`, `description`/`body`, `tags`, `assignee`/`owner`, `due`; the id never changes |
+| `move` | rewrite the card's `column` |
+| `assign` | set `assignee` to `user` or `agent` |
+| `delete` | remove the card file |
+
+Top-level sessions receive the tool by default. A subagent receives it only
+when its agent profile's `tools:` frontmatter names `board`; it is never
+inherited implicitly. `loadMode = "discoverable"`, so with the default
+`tools.xdev` on it is an `xd://board` device. The card fields are the store's:
+`column` is the status, `body` is the description, `assignee` is the owner;
+`description`, `status` and `owner` are accepted aliases. There is no priority
+field in the store. See `docs/tools/board.md` for the full input contract.
+
 
 ## File format
 
@@ -102,6 +127,8 @@ file exists but does not parse, and 500 for a filesystem failure.
   board, grouped by column; `h`/`l` move, `Enter` opens the card file in the
   editor.
 
-All three call the same reader/writer (`termide/crates/panel-ide/src/board.rs`
-for Rust; `packages/coding-agent/src/server/web-gateway/board.ts` for the
-gateway), so the formats cannot drift.
+All three read and write the same card format: the Rust panel implements it in
+`termide/crates/panel-ide/src/board.rs`, while the TypeScript side lives in
+`packages/coding-agent/src/tools/board-store.ts` and is used by the gateway
+routes (`packages/coding-agent/src/server/web-gateway/board.ts`) and the
+built-in `board` tool, so the formats cannot drift.
