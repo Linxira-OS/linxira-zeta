@@ -163,8 +163,8 @@ using the same hub/`agent://`/`ctx.messaging` model. See
 Three product modes share one runtime: the **Coding Agent** (project cwd and
 the existing coding prompt), the **Personal Harness** (the kept default
 workspace, several main agents, computer control, and a project only when
-explicitly bound), and the **PM / Super Agent** (manual project binding; board,
-calendar, engineers and secretary). [agent-modes.md](./agent-modes.md) defines
+explicitly bound), and **Lead mode** (manual Team PM binding; board, calendar,
+engineer coordination, and a PM-owned Secretary). [agent-modes.md](./agent-modes.md) defines
 them together with workspace, main agent, external binding, session origin
 (`local` vs `im`), and relay, states which parts are IMPLEMENTED / PARTIAL /
 PLANNED, and keeps Vibe, Advisor, and `/review` distinct.
