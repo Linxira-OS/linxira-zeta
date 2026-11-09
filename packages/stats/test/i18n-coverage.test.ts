@@ -1,8 +1,12 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import { interpolateMessage, translateMessage } from "../src/client/i18n/format";
+import { resolveInitialLocale, setLocale } from "../src/client/i18n";
 import { enMessages, type MessageKey } from "../src/client/i18n/messages/en";
 import { zhCNMessages } from "../src/client/i18n/messages/zh-CN";
 import { resolveBrowserLocale, resolveLocaleTag } from "../src/locale";
+
+/** Han characters; an English string never needs them. Locale names stay in zh-CN. */
+const CJK = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
 
 /**
  * Messages that are deliberately identical in English and Chinese: product
@@ -48,6 +52,20 @@ describe("stats i18n catalogues", () => {
 		expect(mismatched).toEqual([]);
 	});
 
+	it("keeps the English catalogue free of CJK characters", () => {
+		const offenders = (Object.entries(enMessages) as [MessageKey, string][])
+			.filter(([, message]) => CJK.test(message))
+			.map(([key, message]) => `${key}: ${message}`);
+		expect(offenders).toEqual([]);
+	});
+
+	it("keeps technical unit suffixes in English in both catalogues", () => {
+		expect(zhCNMessages["common.tokens"]).toBe("Token");
+		expect(zhCNMessages["common.tokens-per-second"]).toBe("Token/s");
+		expect(zhCNMessages["common.output-tokens-per-second"]).toBe("输出 Token/s");
+		expect(zhCNMessages["models.tok-per-second"]).toBe("{value} Token/s");
+	});
+
 	it("translates every key unless it is on the identical allowlist", () => {
 		const untranslated = Object.keys(enMessages).filter(key => {
 			const typed = key as MessageKey;
@@ -55,6 +73,43 @@ describe("stats i18n catalogues", () => {
 			return zh !== undefined && zh === enMessages[typed] && !IDENTICAL_OK.has(typed);
 		});
 		expect(untranslated).toEqual([]);
+	});
+});
+
+describe("stats initial locale", () => {
+	const original = {
+		localStorage: Object.getOwnPropertyDescriptor(globalThis, "localStorage"),
+		navigator: Object.getOwnPropertyDescriptor(globalThis, "navigator"),
+		injected: Object.getOwnPropertyDescriptor(globalThis, "__ZETA_STATS_LOCALE__"),
+	};
+
+	afterEach(() => {
+		setLocale("en");
+		for (const [name, descriptor] of Object.entries({
+			localStorage: original.localStorage,
+			navigator: original.navigator,
+			__ZETA_STATS_LOCALE__: original.injected,
+		})) {
+			if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+			else Reflect.deleteProperty(globalThis, name);
+		}
+	});
+
+	function install(host: string | undefined, browser: readonly string[]): void {
+		Object.defineProperty(globalThis, "localStorage", {
+			configurable: true,
+			value: { getItem: () => null, setItem: () => {} },
+		});
+		Object.defineProperty(globalThis, "navigator", { configurable: true, value: { languages: browser } });
+		if (host === undefined) Reflect.deleteProperty(globalThis, "__ZETA_STATS_LOCALE__");
+		else Object.defineProperty(globalThis, "__ZETA_STATS_LOCALE__", { configurable: true, value: host });
+	}
+
+	it("follows the host-injected language over the browser preference", () => {
+		install("zh-CN", ["en-US"]);
+		expect(resolveInitialLocale()).toBe("zh-CN");
+		install("en", ["zh-CN"]);
+		expect(resolveInitialLocale()).toBe("en");
 	});
 });
 

@@ -16,8 +16,13 @@ export function formatInteger(value: number): string {
 	return value.toLocaleString(numberLocale());
 }
 
+/**
+ * Compact units stay English in every locale (`1.2B`, `23M`, `546K`):
+ * `zh-CN` would otherwise print `12亿` / `2300万`, which the dashboard's
+ * charts and table cells never use.
+ */
 export function formatCompact(value: number): string {
-	return value.toLocaleString(numberLocale(), { notation: "compact" });
+	return value.toLocaleString("en", { notation: "compact" });
 }
 
 export function formatCost(value: number, digits?: number): string {
@@ -148,6 +153,42 @@ export function formatTimestamp(timestamp: number): string {
 			hourCycle: "h23",
 		});
 		dateFormatters.set(locale, formatter);
+	}
+	return formatter.format(timestamp);
+}
+
+const utcDayFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/** UTC day label for the cost/gain charts; `long` adds the weekday and year. */
+export function formatUtcDay(timestamp: number, long = false): string {
+	const locale = getLocale();
+	const key = `${locale}:${long ? "long" : "short"}`;
+	let formatter = utcDayFormatters.get(key);
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat(
+			locale,
+			long
+				? { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }
+				: { month: "short", day: "numeric", timeZone: "UTC" },
+		);
+		utcDayFormatters.set(key, formatter);
+	}
+	return formatter.format(timestamp);
+}
+
+/** Wall-clock time of day to the second, using the dashboard locale. */
+export function formatTimeOfDay(timestamp: number): string {
+	const locale = getLocale();
+	const key = `${locale}:time`;
+	let formatter = dateFormatters.get(key);
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat(locale, {
+			hour: "2-digit",
+			minute: "2-digit",
+			second: "2-digit",
+			hourCycle: "h23",
+		});
+		dateFormatters.set(key, formatter);
 	}
 	return formatter.format(timestamp);
 }

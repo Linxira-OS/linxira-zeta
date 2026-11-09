@@ -21,12 +21,22 @@ import { JsonBlock } from "./JsonBlock";
 import { ErrorState, Skeleton } from "./States";
 import "./request-drawer.css";
 
-/** Label and tone for each request outcome; shared by the request tables. */
-export const REQUEST_STATUS: Record<RequestStatus, { label: string; tone: Tone }> = {
-	ok: { label: t("ui.status-ok"), tone: "ok" },
-	aborted: { label: t("common.aborted"), tone: "warn" },
-	failed: { label: t("common.failed"), tone: "bad" },
+const REQUEST_STATUS_TONE: Record<RequestStatus, Tone> = {
+	ok: "ok",
+	aborted: "warn",
+	failed: "bad",
 };
+
+const REQUEST_STATUS_KEY = {
+	ok: "ui.status-ok",
+	aborted: "common.aborted",
+	failed: "common.failed",
+} as const;
+
+/** Label and tone for each request outcome; shared by the request tables. */
+export function requestStatusMeta(status: RequestStatus): { label: string; tone: Tone } {
+	return { label: t(REQUEST_STATUS_KEY[status]), tone: REQUEST_STATUS_TONE[status] };
+}
 
 export interface RequestDrawerProps {
 	id: number | null;
@@ -40,7 +50,7 @@ export function RequestDrawer({ id, onClose }: RequestDrawerProps) {
 	});
 	// Never show the previous request's payload under a new id.
 	const details = query.stale ? null : query.data;
-	const status = details ? REQUEST_STATUS[requestStatus(details)] : null;
+	const status = details ? requestStatusMeta(requestStatus(details)) : null;
 
 	return (
 		<Drawer

@@ -23,6 +23,7 @@ import {
 	Badge,
 	Card,
 	ChartSkeleton,
+	type Column,
 	Dot,
 	LabelCell,
 	PageHeader,
@@ -42,29 +43,37 @@ export interface OverviewRouteProps {
 
 type ActivityMetric = "requests" | "tokens" | "cost";
 
-const ACTIVITY_OPTIONS = [
-	{ value: "requests" as const, label: t("common.requests") },
-	{ value: "tokens" as const, label: t("common.tokens") },
-	{ value: "cost" as const, label: t("common.cost") },
-];
+// Translated labels are functions, not module-level constants: `t()` reads the
+// active locale, so a table built at import time would keep the boot language
+// after the topbar switch (the Chinese labels in an English dashboard bug).
+function activityOptions() {
+	return [
+		{ value: "requests" as const, label: t("common.requests") },
+		{ value: "tokens" as const, label: t("common.tokens") },
+		{ value: "cost" as const, label: t("common.cost") },
+	];
+}
 
-const AGENT_LABEL: Record<AgentType, string> = {
-	main: t("overview.main-agent"),
-	subagent: t("overview.subagents"),
-	advisor: t("overview.advisor"),
+const AGENT_LABEL_KEY: Record<AgentType, "overview.main-agent" | "overview.subagents" | "overview.advisor"> = {
+	main: "overview.main-agent",
+	subagent: "overview.subagents",
+	advisor: "overview.advisor",
 };
+
 const AGENT_COLOR: Record<AgentType, string> = {
 	main: "var(--chart-primary)",
 	subagent: "var(--chart-secondary)",
 	advisor: "#9d7bff",
 };
 
-const TOKEN_MIX = [
-	{ key: "input", label: t("overview.uncached-input"), color: "#5b8cff" },
-	{ key: "cacheRead", label: t("common.cache-read"), color: "var(--chart-primary)" },
-	{ key: "cacheWrite", label: t("common.cache-write"), color: "#f5b54a" },
-	{ key: "output", label: t("common.output"), color: "var(--chart-secondary)" },
-] as const;
+function tokenMix() {
+	return [
+		{ key: "input", label: t("overview.uncached-input"), color: "#5b8cff" },
+		{ key: "cacheRead", label: t("common.cache-read"), color: "var(--chart-primary)" },
+		{ key: "cacheWrite", label: t("common.cache-write"), color: "#f5b54a" },
+		{ key: "output", label: t("common.output"), color: "var(--chart-secondary)" },
+	] as const;
+}
 
 export function OverviewRoute({ active, range, onRequestClick }: OverviewRouteProps) {
 	const overview = useQuery(["overview", range], ({ signal }) => getOverviewStats(range, signal), { enabled: active });
@@ -200,7 +209,7 @@ export function OverviewRoute({ active, range, onRequestClick }: OverviewRoutePr
 								? t("overview.per-hour")
 								: t("overview.per-day")
 					}
-					actions={<Segmented size="sm" options={ACTIVITY_OPTIONS} value={metric} onChange={setMetric} />}
+					actions={<Segmented size="sm" options={activityOptions()} value={metric} onChange={setMetric} />}
 					stale={overview.stale}
 				>
 					<QueryView query={overview} skeleton={<ChartSkeleton height={260} />}>
@@ -236,7 +245,7 @@ export function OverviewRoute({ active, range, onRequestClick }: OverviewRoutePr
 								<div className="stack" style={{ gap: 18 }}>
 									<div className="stack" style={{ gap: 10 }}>
 										<ShareBar
-											segments={TOKEN_MIX.map(slice => ({
+											segments={tokenMix().map(slice => ({
 												key: slice.key,
 												label: slice.label,
 												value: mix[slice.key],
@@ -244,7 +253,7 @@ export function OverviewRoute({ active, range, onRequestClick }: OverviewRoutePr
 											}))}
 										/>
 										<Legend
-											items={TOKEN_MIX.map(slice => ({
+											items={tokenMix().map(slice => ({
 												key: slice.key,
 												label: slice.label,
 												color: slice.color,
@@ -259,7 +268,7 @@ export function OverviewRoute({ active, range, onRequestClick }: OverviewRoutePr
 										<ShareBar
 											segments={agents.segments.map(s => ({
 												key: s.agentType,
-												label: AGENT_LABEL[s.agentType],
+												label: t(AGENT_LABEL_KEY[s.agentType]),
 												value: s.tokens,
 												color: AGENT_COLOR[s.agentType],
 											}))}
@@ -268,7 +277,7 @@ export function OverviewRoute({ active, range, onRequestClick }: OverviewRoutePr
 											<div key={s.agentType} className="row" style={{ justifyContent: "space-between" }}>
 												<span className="row">
 													<span className="swatch" style={{ background: AGENT_COLOR[s.agentType] }} />
-													{AGENT_LABEL[s.agentType]}
+													{t(AGENT_LABEL_KEY[s.agentType])}
 													<span className="dim num">
 														{t("overview.requests-short", { count: formatInteger(s.requests) })}
 													</span>
@@ -310,7 +319,7 @@ export function OverviewRoute({ active, range, onRequestClick }: OverviewRoutePr
 							rows={rows}
 							rowKey={row => row.id ?? `${row.sessionFile}:${row.entryId}`}
 							onRowClick={row => row.id !== undefined && onRequestClick(row.id)}
-							columns={REQUEST_COLUMNS}
+							columns={requestColumns()}
 							dense
 						/>
 					)}
@@ -320,44 +329,46 @@ export function OverviewRoute({ active, range, onRequestClick }: OverviewRoutePr
 	);
 }
 
-const REQUEST_COLUMNS = [
-	{
-		key: "model",
-		header: t("common.model"),
-		render: (row: MessageStats) => <LabelCell primary={row.model} secondary={row.provider} />,
-	},
-	{
-		key: "time",
-		header: t("overview.when"),
-		render: (row: MessageStats) => <span className="muted">{formatRelativeTime(row.timestamp)}</span>,
-	},
-	{
-		key: "tokens",
-		header: t("common.tokens"),
-		align: "right" as const,
-		render: (row: MessageStats) => <span className="num">{formatInteger(row.usage.totalTokens)}</span>,
-	},
-	{
-		key: "cost",
-		header: t("common.cost"),
-		align: "right" as const,
-		render: (row: MessageStats) => <span className="num">{formatMessageCost(row, 4)}</span>,
-	},
-	{
-		key: "duration",
-		header: t("common.duration"),
-		align: "right" as const,
-		render: (row: MessageStats) => <span className="num">{formatDurationMs(row.duration)}</span>,
-	},
-	{
-		key: "status",
-		header: t("overview.status"),
-		align: "right" as const,
-		render: (row: MessageStats) =>
-			row.errorMessage ? (
-				<Badge tone="bad">{t("common.failed")}</Badge>
-			) : (
-				<Badge tone="ok">{t("overview.ok")}</Badge>
-			),
-	},
-];
+function requestColumns(): Column<MessageStats>[] {
+	return [
+		{
+			key: "model",
+			header: t("common.model"),
+			render: (row: MessageStats) => <LabelCell primary={row.model} secondary={row.provider} />,
+		},
+		{
+			key: "time",
+			header: t("overview.when"),
+			render: (row: MessageStats) => <span className="muted">{formatRelativeTime(row.timestamp)}</span>,
+		},
+		{
+			key: "tokens",
+			header: t("common.tokens"),
+			align: "right" as const,
+			render: (row: MessageStats) => <span className="num">{formatInteger(row.usage.totalTokens)}</span>,
+		},
+		{
+			key: "cost",
+			header: t("common.cost"),
+			align: "right" as const,
+			render: (row: MessageStats) => <span className="num">{formatMessageCost(row, 4)}</span>,
+		},
+		{
+			key: "duration",
+			header: t("common.duration"),
+			align: "right" as const,
+			render: (row: MessageStats) => <span className="num">{formatDurationMs(row.duration)}</span>,
+		},
+		{
+			key: "status",
+			header: t("overview.status"),
+			align: "right" as const,
+			render: (row: MessageStats) =>
+				row.errorMessage ? (
+					<Badge tone="bad">{t("common.failed")}</Badge>
+				) : (
+					<Badge tone="ok">{t("overview.ok")}</Badge>
+				),
+		},
+	];
+}
