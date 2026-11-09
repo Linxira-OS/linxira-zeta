@@ -480,7 +480,7 @@ export async function runCli(argv: string[]): Promise<void> {
 		if (extracted.profile !== undefined) {
 			setProfile(extracted.profile);
 		} else {
-			// No explicit --profile: activate any ZETA_PROFILE/ZETA_PROFILE inherited
+			// No explicit --profile: activate any ZETA_PROFILE inherited
 			// from the environment. Module-load resolution deliberately swallows an
 			// invalid value to avoid an uncaught throw before this try/catch is in
 			// scope (see `readProfileFromEnvSafe` in dirs.ts), and callers may set
@@ -488,7 +488,7 @@ export async function runCli(argv: string[]): Promise<void> {
 			// validation here turns `ZETA_PROFILE=.. zetacode --version` into a clean error;
 			// calling setProfile keeps every later path helper on the env-selected
 			// profile instead of the default agent directory.
-			setProfile(resolveProfileEnv(process.env.ZETA_PROFILE ?? process.env.ZETA_PROFILE));
+			setProfile(resolveProfileEnv(process.env.ZETA_PROFILE));
 		}
 		if (extracted.aliasName !== undefined) {
 			// Command boundary: shell/path setup is used only by --alias.

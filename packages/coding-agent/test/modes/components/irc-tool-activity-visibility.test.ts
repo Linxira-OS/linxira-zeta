@@ -132,7 +132,7 @@ describe("IRC tool activity visibility", () => {
 			});
 			expect(card).toMatchObject({
 				k: "card",
-				p: { role: "omp.irc.incoming", head: [{ t: expect.stringContaining("Main") }] },
+				p: { role: "zeta.irc.incoming", head: [{ t: expect.stringContaining("Main") }] },
 			});
 			expect(card?.c).toContainEqual(expect.objectContaining({ k: "md", p: { text: body } }));
 		} finally {

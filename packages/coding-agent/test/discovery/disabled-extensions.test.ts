@@ -200,7 +200,7 @@ describe("disabledExtensions runtime filtering", () => {
 		const loose = path.join(tempDir, "loose.ts");
 		await Bun.write(
 			path.join(fleet, "package.json"),
-			JSON.stringify({ omp: { extensions: ["./extensions/hello.ts"] } }),
+			JSON.stringify({ zeta: { extensions: ["./extensions/hello.ts"] } }),
 		);
 		await Bun.write(hello, "export default function hello() {}\n");
 		await Bun.write(loose, "export default function loose() {}\n");
@@ -240,7 +240,7 @@ describe("disabledExtensions runtime filtering", () => {
 		const guard = path.join(fleet, "hooks", "pre", "guard.ts");
 		await Bun.write(
 			path.join(fleet, "package.json"),
-			JSON.stringify({ omp: { extensions: ["./hooks/pre/guard.ts"] } }),
+			JSON.stringify({ zeta: { extensions: ["./hooks/pre/guard.ts"] } }),
 		);
 		await Bun.write(guard, "export default function guard() {}\n");
 		// The loader's hook discovery reads configured package roots from disk.

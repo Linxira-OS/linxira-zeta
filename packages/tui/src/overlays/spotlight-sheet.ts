@@ -67,9 +67,9 @@ const LEGEND: readonly { cls: LineClass; tone: TspTone; label: string }[] = [
 	{ cls: "cut", tone: "muted", label: "cut" },
 ];
 
-/** One legend entry (role `omp.spotlight.key`): a swatch and a muted label. */
+/** One legend entry (role `zeta.spotlight.key`): a swatch and a muted label. */
 function legendKey(swatch: NativeNode, label: string): NativeNode {
-	return row([swatch, text([span(label, "muted")])], { gap: "xs", align: "center", role: "omp.spotlight.key" });
+	return row([swatch, text([span(label, "muted")])], { gap: "xs", align: "center", role: "zeta.spotlight.key" });
 }
 
 /** A count with thousands separators. */
@@ -104,7 +104,7 @@ function nonBlankParams(params: SpotlightRequestParams): Param[] {
 }
 
 /**
- * One parameter's row (role `omp.spotlight.param`): its name, then its non-blank values on one run of spaces and at
+ * One parameter's row (role `zeta.spotlight.param`): its name, then its non-blank values on one run of spaces and at
  * most `lines` lines, whole in the tooltip; `end` (the toggle) last.
  */
 function paramRow(param: Param, lines: number, end?: NativeNode): NativeNode {
@@ -115,11 +115,11 @@ function paramRow(param: Param, lines: number, end?: NativeNode): NativeNode {
 		return i === 0 ? [part] : [span(" · ", param.style ? `dim ${param.style}` : "dim"), part];
 	});
 	const shown = text(spans, { lines, truncate: "end", title: whole.join("\n") });
-	return row(compact([text(param.name), shown, end]), { gap: "md", align: "baseline", role: "omp.spotlight.param" });
+	return row(compact([text(param.name), shown, end]), { gap: "md", align: "baseline", role: "zeta.spotlight.param" });
 }
 
 /**
- * What the result's Spotlight requests sent besides its lines (role `omp.spotlight.params`): collapsed, the first
+ * What the result's Spotlight requests sent besides its lines (role `zeta.spotlight.params`): collapsed, the first
  * parameter (the intent) on one line and a toggle naming the rest; expanded, a row per parameter.
  */
 function requestParams(params: SpotlightRequestParams, expanded: boolean): NativeNode | undefined {
@@ -129,14 +129,14 @@ function requestParams(params: SpotlightRequestParams, expanded: boolean): Nativ
 	const toggle =
 		rest.length > 0
 			? text(expanded ? "fewer ▾" : `${rest.map(param => param.name).join(", ")} ▸`, {
-					role: "omp.spotlight.more",
+					role: "zeta.spotlight.more",
 					actions: { click: "params" },
 				})
 			: undefined;
 	const rows = (expanded ? named : named.slice(0, 1)).map((param, i) =>
 		paramRow(param, expanded ? 2 : 1, i === 0 ? toggle : undefined),
 	);
-	return col(rows, { gap: "xs", role: "omp.spotlight.params" });
+	return col(rows, { gap: "xs", role: "zeta.spotlight.params" });
 }
 
 /** The class the summary counts original line `i` (0-based) in; undefined without a reason. */
@@ -148,7 +148,7 @@ function lineClass(original: SpotlightOriginal, i: number): LineClass | undefine
 }
 
 /**
- * The summary row (role `omp.spotlight.summary`): a legend swatch and count per class of the shown lines (with
+ * The summary row (role `zeta.spotlight.summary`): a legend swatch and count per class of the shown lines (with
  * reasons), then the ranking step's budget and cutoff and whether the view is cut; undefined when it has nothing.
  */
 function summary(original: SpotlightOriginal, shown: number, total: number): NativeNode | undefined {
@@ -161,7 +161,7 @@ function summary(original: SpotlightOriginal, shown: number, total: number): Nat
 		}
 		for (const { cls, tone, label } of LEGEND) {
 			const n = counts.get(cls);
-			if (n) items.push(legendKey(text("■", { role: "omp.spotlight.swatch", tone }), `${label} ${count(n)}`));
+			if (n) items.push(legendKey(text("■", { role: "zeta.spotlight.swatch", tone }), `${label} ${count(n)}`));
 		}
 	}
 	const facts: string[] = [];
@@ -175,12 +175,12 @@ function summary(original: SpotlightOriginal, shown: number, total: number): Nat
 	}
 	if (shown < total) facts.push(`first ${count(shown)} of ${count(total)} lines`);
 	if (items.length === 0 && facts.length === 0) return undefined;
-	const budget = facts.length > 0 && text([span(facts.join(" · "), "muted")], { role: "omp.spotlight.budget" });
+	const budget = facts.length > 0 && text([span(facts.join(" · "), "muted")], { role: "zeta.spotlight.budget" });
 	return row(compact([...items, node("spacer", { grow: 1 }), budget]), {
 		gap: "md",
 		align: "center",
 		wrap: true,
-		role: "omp.spotlight.summary",
+		role: "zeta.spotlight.summary",
 	});
 }
 
@@ -280,7 +280,7 @@ function hotCard(sheet: SheetText, i: number): TspPropNode {
 					]),
 				why !== undefined && text([span(why, "error")]),
 			]),
-			{ gap: "xs", role: "omp.spotlight.card" },
+			{ gap: "xs", role: "zeta.spotlight.card" },
 		),
 	);
 }
@@ -333,7 +333,7 @@ function folds(sheet: SheetText): TspCodeFold[] {
 const OVERVIEW_MIN_LINES = 60;
 
 /**
- * The original as one `code` element (role `omp.spotlight.code`): marks, folds, and the overview past
+ * The original as one `code` element (role `zeta.spotlight.code`): marks, folds, and the overview past
  * {@link OVERVIEW_MIN_LINES}. Command output (no file) wraps, a file keeps its lines.
  */
 function originalCode(sheet: SheetText): NativeNode {
@@ -341,7 +341,7 @@ function originalCode(sheet: SheetText): NativeNode {
 	const marks = compact(sheet.lines.map((_, i) => lineMark(original, i)));
 	const shut = folds(sheet);
 	return code(sheet.lines.join("\n"), {
-		role: "omp.spotlight.code",
+		role: "zeta.spotlight.code",
 		path: sheet.path,
 		start: original.start,
 		numbers: true,
@@ -368,20 +368,20 @@ function shapingNotes(sheet: SheetText, heldOut: boolean): NativeNode | undefine
 	const heading = heldOut ? "notes the model would have seen" : "notes the model saw";
 	return col([text([span(heading, "muted")]), ...notes.map(note => text([span(note, "muted mono")]))], {
 		gap: "xs",
-		role: "omp.spotlight.notes",
+		role: "zeta.spotlight.notes",
 	});
 }
 
 /**
- * The footer's key to the rows' wash (role `omp.spotlight.legend`): the heat ramp (role `omp.spotlight.ramp`, drawn
+ * The footer's key to the rows' wash (role `zeta.spotlight.legend`): the heat ramp (role `zeta.spotlight.ramp`, drawn
  * by the terminal) before the rank's parts in their order across a row.
  */
 function rankLegend(rank: SpotlightRank): NativeNode {
 	const label =
 		rank.parts.length > 1 ? `row tint, left to right: ${rank.parts.join(" → ")}` : `row tint: ${rank.parts[0]}`;
-	return row([legendKey(text("", { role: "omp.spotlight.ramp" }), label)], {
+	return row([legendKey(text("", { role: "zeta.spotlight.ramp" }), label)], {
 		align: "center",
-		role: "omp.spotlight.legend",
+		role: "zeta.spotlight.legend",
 	});
 }
 

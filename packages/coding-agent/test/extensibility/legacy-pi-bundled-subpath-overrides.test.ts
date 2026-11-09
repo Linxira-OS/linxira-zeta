@@ -104,7 +104,7 @@ export const observed = {
 			link: [{ type: "link", text: "photo.png", href: "file:///tmp/photo.png" }],
 		});
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		for (const key of keys) expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
+		for (const key of keys) expect(overrides[key]).toBe(`zeta-legacy-pi-bundled:${key}`);
 	});
 
 	it("loads exported .js utility aliases from the same host modules", async () => {
@@ -133,7 +133,7 @@ export const observed = {
 		);
 		expect(observed).toEqual({ sharedLexer: true, sharedCache: true, text: "photo.png" });
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		for (const key of keys) expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
+		for (const key of keys) expect(overrides[key]).toBe(`zeta-legacy-pi-bundled:${key}`);
 	});
 
 	it("expands wildcard exports for concrete on-disk targets (issue #3442 follow-up)", () => {

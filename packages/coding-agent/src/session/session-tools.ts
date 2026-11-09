@@ -2560,15 +2560,19 @@ export class SessionTools {
 				// awaiting its final commit: its own lifecycle published its own
 				// snapshot, so only carry the prompt forward.
 				if (this.#baseSystemPrompt !== previousBaseSystemPrompt) return true;
-				const promptChanged =
-					previousBaseSystemPrompt.length !== built.systemPrompt.length ||
-					previousBaseSystemPrompt.some((part, index) => part !== built.systemPrompt[index]);
+				const promptChanged = !samePromptBlocks(previousBaseSystemPrompt, built.systemPrompt);
 				this.#baseSystemPrompt = built.systemPrompt;
 				this.#promptSurface = candidate;
 				this.#setBasePromptXdevNames(built.xdevCatalogNames);
 				this.#host.clearMemoryPromotionSnapshot();
-				if (!samePromptBlocks(previousBaseSystemPrompt, this.#baseSystemPrompt)) {
+				if (promptChanged) {
 					this.#host.clearInheritedProviderPromptCacheKey();
+				}
+				// A cleared per-turn override must be replaced by the base prompt even when
+				// the bytes did not change; an identical re-apply is skipped so a byte-equal
+				// rebuild keeps its applied prompt and inherited provider cache lineage.
+				const applied = this.#turnSystemPromptOverride ?? this.#baseSystemPrompt;
+				if (!samePromptBlocks(this.#host.agent.state.systemPrompt, applied)) {
 					this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 				}
 
