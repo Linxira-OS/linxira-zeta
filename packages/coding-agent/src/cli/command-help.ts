@@ -215,7 +215,7 @@ export const webHelp = {
 } satisfies CommandMetadata;
 
 export const teamHelp = {
-	description: "Manage an ownerless team root, PM workspaces, base repos, engineers, and worktrees",
+	description: "Manage an ownerless team root, PM workspaces, base repos, engineers, worktrees, and rooms",
 } satisfies CommandMetadata;
 
 export const worktreeHelp = {

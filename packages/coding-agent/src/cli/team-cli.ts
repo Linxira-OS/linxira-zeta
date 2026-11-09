@@ -9,6 +9,7 @@ import { CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
 import { CliUsageError } from "@linxiraos/pi-utils/cli";
 import { diagnoseTeam, type DoctorReport } from "../team/doctor";
 import { formatTeamError, TeamError } from "../team/errors";
+import { createRoom, listRooms, postRoomEvent, showRoom, type RoomView } from "../team/rooms";
 import { addEngineer, addPm, addRepoClone, addRepoLink, addTaskWorktree, bindRepo, initTeam } from "../team/service";
 
 export interface TeamCliOptions {
@@ -21,6 +22,13 @@ export interface TeamCliOptions {
 	repo?: string;
 	engineer?: string;
 	execution?: string;
+	shared?: boolean;
+	kind?: string;
+	members?: string;
+	body?: string;
+	sender?: string;
+	replyTo?: string;
+	limit?: string;
 	json?: boolean;
 }
 
@@ -35,7 +43,13 @@ Commands:
   engineer add <name> --pm <pm> --repo <repo>                 Create the engineer home worktree
               [--execution normal|vibe]
   worktree add <task> --repo <repo> --pm <pm> --engineer <n>  Create a task worktree
-  doctor [--root <path>] [--json]                             Validate root, PMs, repos, worktrees
+  room create <name> --pm <pm> [--members a,b]                Create a PM room
+  room create <name> --shared [--members a,b]                 Create a coordination room
+  room list [--root <path>]                                   List database-only rooms
+  room show <room> [--limit <n>]                              Show members and ordered events
+  room post <room> --body <text> [--sender <id>] [--reply-to <seq>]
+                                                              Append one room event
+  doctor [--root <path>] [--json]                             Validate root, PMs, repos, worktrees, rooms
 
 Global flags: --json prints machine-readable results. ZETA_TEAM_DB overrides
 the global database path (default ~/.zeta/data/zeta.db).`;
@@ -49,6 +63,18 @@ function requireRest(rest: string[], index: number, label: string, usage: string
 function requireFlag(value: string | undefined, flag: string, usage: string): string {
 	if (!value?.trim()) throw new CliUsageError(`Missing ${flag}. Usage: ${usage}`);
 	return value;
+}
+
+function parsePositiveInt(value: string | undefined, flag: string): number | undefined {
+	if (value === undefined) return undefined;
+	if (!/^[0-9]+$/.test(value.trim())) {
+		throw new CliUsageError(`${flag} must be a positive integer; got "${value}"`);
+	}
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed < 1) {
+		throw new CliUsageError(`${flag} must be a positive integer; got "${value}"`);
+	}
+	return parsed;
 }
 
 function writeJson(value: unknown): void {
@@ -161,6 +187,96 @@ async function runWorktree(options: TeamCliOptions, rest: string[]): Promise<voi
 	else process.stdout.write(`Created task worktree ${record.name} at ${record.path} (${record.branch})\n`);
 }
 
+function printRoomList(teamRoot: string | undefined, rooms: Awaited<ReturnType<typeof listRooms>>): void {
+	if (rooms.length === 0) {
+		process.stdout.write("No rooms. Create one with `zetacode team room create <name> --pm <pm>`.\n");
+		return;
+	}
+	for (const room of rooms) {
+		const pm = room.pmId ? ` pm=${room.pmId}` : "";
+		const last = room.lastSeq === null ? "no events" : `last=#${room.lastSeq}`;
+		process.stdout.write(`${room.name}  ${room.kind}${pm}  members=${room.memberCount}  ${last}\n`);
+	}
+	if (teamRoot) process.stdout.write(`\n${rooms.length} room(s) in ${teamRoot}\n`);
+}
+
+function printRoomView(view: RoomView): void {
+	const { room, members, events } = view;
+	const pm = room.pmId ? ` pm=${room.pmId}` : "";
+	process.stdout.write(`Room ${room.name} (${room.kind}${pm}) ${members.length} member(s)\n`);
+	for (const member of members) process.stdout.write(`  - ${member.agentId} (${member.role})\n`);
+	if (events.length === 0) {
+		process.stdout.write("  (no events)\n");
+		return;
+	}
+	process.stdout.write("\n");
+	for (const event of events) {
+		const at = new Date(event.sentAt * 1000).toISOString();
+		const reply = event.replyTo === null ? "" : ` (reply to #${event.replyTo})`;
+		const mentions = event.mentions.length > 0 ? ` @${event.mentions.join(" @")}` : "";
+		const body = event.body.replace(/\r?\n/g, "\n    ");
+		process.stdout.write(
+			`#${event.seq} ${at} ${event.senderAgentId} [${event.kind}]${reply}${mentions}\n  ${body}\n`,
+		);
+	}
+}
+
+async function runRoom(options: TeamCliOptions, rest: string[]): Promise<void> {
+	const verb = requireRest(rest, 0, "room action", `${CLI_BIN_NAME} team room create|list|show|post`);
+	if (verb === "create") {
+		const name = requireRest(rest, 1, "room name", `${CLI_BIN_NAME} team room create <name> --pm <pm>`);
+		const result = await createRoom({
+			name,
+			pm: options.pm,
+			shared: options.shared,
+			kind: options.kind,
+			members: options.members,
+			teamRoot: options.root,
+		});
+		if (options.json) {
+			writeJson(result);
+		} else {
+			const pm = result.room.pmId ? ` pm=${result.room.pmId}` : "";
+			process.stdout.write(
+				`Created room "${result.room.name}" (${result.room.kind}${pm}) with ${result.members.length} member(s)\n`,
+			);
+		}
+		return;
+	}
+	if (verb === "list") {
+		const rooms = await listRooms({ teamRoot: options.root });
+		if (options.json) writeJson(rooms);
+		else printRoomList(options.root, rooms);
+		return;
+	}
+	if (verb === "show") {
+		const room = requireRest(rest, 1, "room name", `${CLI_BIN_NAME} team room show <room> [--limit <n>]`);
+		const view = await showRoom({ room, limit: parsePositiveInt(options.limit, "--limit"), teamRoot: options.root });
+		if (options.json) writeJson(view);
+		else printRoomView(view);
+		return;
+	}
+	if (verb === "post") {
+		const room = requireRest(rest, 1, "room name", `${CLI_BIN_NAME} team room post <room> --body <text>`);
+		const body = requireFlag(options.body, "--body <text>", `${CLI_BIN_NAME} team room post <room> --body <text>`);
+		const result = await postRoomEvent({
+			room,
+			body,
+			sender: options.sender,
+			replyTo: parsePositiveInt(options.replyTo, "--reply-to"),
+			teamRoot: options.root,
+		});
+		if (options.json) writeJson(result);
+		else {
+			process.stdout.write(
+				`Posted #${result.event.seq} to room "${result.room.name}" as ${result.event.senderAgentId}\n`,
+			);
+		}
+		return;
+	}
+	throw new CliUsageError(`Unknown room action "${verb}". Expected: create, list, show, post`);
+}
+
 async function runDoctor(options: TeamCliOptions): Promise<void> {
 	const report = await diagnoseTeam({ teamRoot: options.root });
 	if (options.json) {
@@ -191,6 +307,9 @@ export async function runTeamCommand(options: TeamCliOptions): Promise<void> {
 				return;
 			case "worktree":
 				await runWorktree(options, rest);
+				return;
+			case "room":
+				await runRoom(options, rest);
 				return;
 			case "doctor":
 				await runDoctor(options);

@@ -70,7 +70,7 @@ export function slugifyTeamName(name: string): string {
 	return slug;
 }
 
-function validateSegment(kind: string, value: string): void {
+export function validateSegment(kind: string, value: string): void {
 	if (
 		!NAME_RE.test(value) ||
 		value === "." ||
@@ -91,13 +91,13 @@ export interface TeamContextOptions {
 	dbPath?: string;
 }
 
-interface TeamContext {
+export interface TeamContext {
 	db: TeamDb;
 	team: TeamRecord;
 	teamRoot: string;
 }
 
-async function loadContext(options: TeamContextOptions): Promise<TeamContext> {
+export async function loadContext(options: TeamContextOptions): Promise<TeamContext> {
 	const db = new TeamDb(options.dbPath ?? resolveTeamDbPath());
 	try {
 		let teamRoot: string;
