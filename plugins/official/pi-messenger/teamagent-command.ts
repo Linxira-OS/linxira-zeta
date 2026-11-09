@@ -125,11 +125,7 @@ export function addTeamAgent(
 	}
 	// Non-editing crew roles are read-only by contract; without an allowlist the
 	// spawned agent would inherit every tool. An explicit role.tools wins.
-	const tools = role.tools?.length
-		? role.tools
-		: isNonEditingTeamRole(name)
-			? [...NON_EDITING_ROLE_TOOLS]
-			: undefined;
+	const tools = role.tools?.length ? role.tools : isNonEditingTeamRole(name) ? [...NON_EDITING_ROLE_TOOLS] : undefined;
 	fs.mkdirSync(dir, { recursive: true });
 	fs.writeFileSync(filePath, renderAgentMarkdown({ ...role, name, tools }), "utf8");
 	return { ok: true, message: `Registered ${name} (${scope} scope)`, filePath };
@@ -162,6 +158,9 @@ export function listTeamAgents(scope: "project" | "user", cwd: string): string[]
 		.sort();
 }
 
+const CREW_SETUP_HINT = 'pi_messenger({ action: "team.setup", name: "<name>" })';
+const CREW_CHARTER_HINT = 'pi_messenger({ action: "team.charter.create", name: "<name>", message: "<text>" })';
+
 function twoCol(rows: Array<[string, string]>, gap = 2): string {
 	if (rows.length === 0) return "(none)";
 	const width = Math.max(...rows.map(([left]) => left.length));
@@ -172,9 +171,9 @@ function profiles(cwd: string): string {
 	const active = teamStore.getActiveTeam(cwd);
 	const saved = teamStore.listProfiles();
 	const lines = [
-		`Active team: ${active ? `${active.name} (profile: ${active.profile ?? "default"})` : "(none — run /teamagent setup <name>)"}`,
+		`Active crew: ${active ? `${active.name} (profile: ${active.profile ?? "default"})` : `(none — run ${CREW_SETUP_HINT})`}`,
 		"",
-		"Profiles:",
+		"Crew profiles:",
 		twoCol(saved.map(profile => [profile.name, profile.description ?? ""] as [string, string])),
 	];
 	return lines.join("\n");
@@ -190,14 +189,14 @@ function roles(cwd: string): string {
 
 function status(cwd: string): string {
 	const team = teamStore.getActiveTeam(cwd);
-	if (!team) return "No active team in this project. Activate one with /teamagent setup <name>.";
+	if (!team) return `No active crew in this project. Activate one with ${CREW_SETUP_HINT}.`;
 	const profile = teamStore.loadActiveProfile(cwd);
 	const counts = teamStore.memoryCounts(cwd);
 	const memory = Object.entries(counts)
 		.map(([type, count]) => `${type}=${count}`)
 		.join(" ");
 	return [
-		`Team: ${team.name}`,
+		`Crew: ${team.name}`,
 		`Profile: ${team.profile ?? "default"}`,
 		`Description: ${profile?.description ?? "(none)"}`,
 		`Memory: ${memory || "(empty)"}`,
@@ -207,20 +206,20 @@ function status(cwd: string): string {
 
 function charter(cwd: string): string {
 	const text = teamStore.readCharter(cwd);
-	return text ?? "No charter yet. Create one with /teamagent charter <text>.";
+	return text ?? `No charter yet. Create one with ${CREW_CHARTER_HINT}.`;
 }
 
 const SUBCOMMANDS: Record<string, { description: string; run: (cwd: string, rest: string) => string }> = {
-	"profile.list": { description: "List team profiles and the active team", run: profiles },
+	"profile.list": { description: "List crew profiles and the active crew", run: profiles },
 	roles: { description: "List resolvable roles (built-in + profile overrides)", run: roles },
-	status: { description: "Show active team, memory counts and charter state", run: status },
-	"charter.show": { description: "Print the active team charter", run: charter },
+	status: { description: "Show active crew, memory counts and charter state", run: status },
+	"charter.show": { description: "Print the active crew charter", run: charter },
 };
 
 /** Registered slash command: /teamagent <add|list|remove> … */
 export function registerTeamAgentCommand(pi: ExtensionAPI): void {
 	pi.registerCommand("teamagent", {
-		description: "Register crew roles as spawnable subagents (project or user scope)",
+		description: "Register pi-messenger crew roles as spawnable subagents",
 		getArgumentCompletions: prefix => {
 			const token = prefix.trim().toLowerCase();
 			const verbs = ["roles", "status", "profile.list", "charter.show", "agents", "add", "remove"].filter(v =>
@@ -239,14 +238,14 @@ export function registerTeamAgentCommand(pi: ExtensionAPI): void {
 					[
 						"Usage:",
 						"  /teamagent roles                 list crew roles",
-						"  /teamagent status                active team, memory, charter",
-						"  /teamagent profile.list         team profiles",
+						"  /teamagent status                active crew, memory, charter",
+						"  /teamagent profile.list         crew profiles",
 						"  /teamagent charter.show         print the charter",
 						"  /teamagent agents               list registered subagents",
 						"  /teamagent add <role> [--project|--user]   register a crew role as a spawnable subagent",
 						"  /teamagent remove <name> [--project|--user]",
 						"",
-						"Scope defaults to the project (<cwd>/.zeta/agents, requires \"trustProjectAgents\": true",
+						'Scope defaults to the project (<cwd>/.zeta/agents, requires "trustProjectAgents": true',
 						"  in <cwd>/.zeta/pi-messenger.json); --project names that default explicitly and",
 						"  --user writes ~/.zeta/agent/agents. --user and --project cannot be combined.",
 					].join("\n"),
@@ -349,9 +348,7 @@ export function registerTeamAgentCommand(pi: ExtensionAPI): void {
 				return;
 			}
 
-			reply(
-				`Unknown subcommand "${verb}". Use roles, status, profile.list, charter.show, agents, add or remove.`,
-			);
+			reply(`Unknown subcommand "${verb}". Use roles, status, profile.list, charter.show, agents, add or remove.`);
 		},
 	});
 }

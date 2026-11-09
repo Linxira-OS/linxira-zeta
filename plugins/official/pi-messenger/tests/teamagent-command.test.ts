@@ -85,11 +85,7 @@ describe("teamagent command", () => {
 
 	it("add --user lands where discovery reads user agents", async () => {
 		const { addTeamAgent } = await loadModule();
-		const result = addTeamAgent(
-			{ name: "worker", description: "Implementation agent" },
-			"user",
-			cwd,
-		);
+		const result = addTeamAgent({ name: "worker", description: "Implementation agent" }, "user", cwd);
 
 		expect(result.ok).toBe(true);
 		expect(result.filePath).toBe(path.join(agentDir, "agents", "worker.md"));
@@ -111,10 +107,7 @@ describe("teamagent command", () => {
 
 	it("registers project scope and reports immediate spawnability with the opt-in", async () => {
 		fs.mkdirSync(path.join(cwd, ".zeta"), { recursive: true });
-		fs.writeFileSync(
-			path.join(cwd, ".zeta", "pi-messenger.json"),
-			JSON.stringify({ trustProjectAgents: true }),
-		);
+		fs.writeFileSync(path.join(cwd, ".zeta", "pi-messenger.json"), JSON.stringify({ trustProjectAgents: true }));
 
 		const { registerTeamAgentCommand } = await loadModule();
 		const { pi, sent, handlers } = createMockPi();
@@ -248,5 +241,29 @@ describe("teamagent command", () => {
 		await handlers[0]("nope", { cwd });
 
 		expect(sent[0].content).toContain("roles, status, profile.list, charter.show, agents, add or remove");
+	});
+
+	it("status points at the real team.setup tool action, not a dead verb", async () => {
+		const { registerTeamAgentCommand } = await loadModule();
+		const { pi, sent, handlers } = createMockPi();
+		registerTeamAgentCommand(pi as never);
+
+		await handlers[0]("status", { cwd });
+
+		expect(sent[0].content).toContain('pi_messenger({ action: "team.setup", name: "<name>" })');
+		expect(sent[0].content).not.toContain("/teamagent setup");
+		expect(sent[0].content).toContain("No active crew");
+	});
+
+	it("profile.list points at the real team.setup tool action, not a dead verb", async () => {
+		const { registerTeamAgentCommand } = await loadModule();
+		const { pi, sent, handlers } = createMockPi();
+		registerTeamAgentCommand(pi as never);
+
+		await handlers[0]("profile.list", { cwd });
+
+		expect(sent[0].content).toContain('pi_messenger({ action: "team.setup", name: "<name>" })');
+		expect(sent[0].content).not.toContain("/teamagent setup");
+		expect(sent[0].content).toContain("Active crew");
 	});
 });
