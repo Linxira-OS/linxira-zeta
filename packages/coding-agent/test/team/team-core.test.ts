@@ -115,6 +115,10 @@ describe("team foundation", () => {
 		await expectTeamError(initTeam({ name: "Acme", root: teamRoot, dbPath }), /already exists/i);
 	}, 30_000);
 
+	test("reserved Windows names are rejected", async () => {
+		await expectTeamError(initTeam({ name: "CON", root: path.join(scratch, "con-team"), dbPath }), /reserved/i);
+	}, 30_000);
+
 	test("pm add writes a plain PM workspace with .zeta/pm.json", async () => {
 		const pmRoot = pmWorkspacePath(teamRoot, "core");
 		const marker = JSON.parse(fs.readFileSync(pmMarkerPath(pmRoot), "utf8"));

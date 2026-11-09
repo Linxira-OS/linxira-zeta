@@ -56,6 +56,7 @@ const nowSeconds = (): number => Math.floor(Date.now() / 1000);
 
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const TEAM_ID_RE = /^[a-z0-9][a-z0-9-]*$/;
+const WINDOWS_RESERVED_RE = /^(?:CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])(?:\..*)?$/i;
 
 /** Resolve a requested team name into a branch/path-safe id. */
 export function slugifyTeamName(name: string): string {
@@ -65,13 +66,20 @@ export function slugifyTeamName(name: string): string {
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-+|-+$/g, "");
 	if (!slug) throw new TeamError(`Team name "${name}" does not contain any usable characters`);
+	if (WINDOWS_RESERVED_RE.test(slug)) throw new TeamError(`Team name "${name}" resolves to reserved name "${slug}"`);
 	return slug;
 }
 
 function validateSegment(kind: string, value: string): void {
-	if (!NAME_RE.test(value) || value === "." || value === ".." || value.endsWith(".")) {
+	if (
+		!NAME_RE.test(value) ||
+		value === "." ||
+		value === ".." ||
+		value.endsWith(".") ||
+		WINDOWS_RESERVED_RE.test(value)
+	) {
 		throw new TeamError(
-			`Invalid ${kind} "${value}". Use letters, digits, ".", "_" or "-", starting with a letter or digit.`,
+			`Invalid ${kind} "${value}". Use letters, digits, ".", "_" or "-", starting with a letter or digit; Windows device names are reserved.`,
 		);
 	}
 }
