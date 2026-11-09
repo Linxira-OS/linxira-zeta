@@ -38,7 +38,7 @@ import { acquireChannelLock, channelLockPath, type ChannelLockHandle } from "../
 import { type ImControlParams, type ImControlResult, runImControl } from "../channels/im-control";
 import { approveRemotePlan, type PlanApproveMode } from "../channels/plan-approval";
 import { renderPlanToPng } from "../channels/plan-image";
-import { SessionRouter } from "../channels/session-router";
+import { type ChannelToolContext, SessionRouter } from "../channels/session-router";
 import { routeWorkspaceCommand } from "../channels/workspace-router";
 import { spawnWebUi } from "../commands/web-ui-launcher";
 import { Settings } from "../config/settings";
@@ -709,25 +709,19 @@ export class ZetaServer {
 			});
 		}
 		const coordinatorFile = await resolveCoordinatorFile(defaultWorkspace, process.cwd(), config);
+		const coordinatorContext: ChannelToolContext = {
+			sessionKey: "coordinator",
+			projectDir: defaultWorkspace,
+			relay: true,
+		};
 		const { session, realSessionId } = await startRpcSession(
 			"__zeta_serve_coordinator__",
 			coordinatorFile,
 			defaultWorkspace,
 			undefined,
 			{
-				channelSend: async opts => {
-					const runtime = this.#channelRuntimeRef;
-					const router = this.#router;
-					if (!runtime || !router) throw new Error("IM channels are not started");
-					const target = router.resolvePush(opts);
-					if (!target) throw new Error("No channel or peer bound to this session");
-					await runtime.sendText(target.channelId, target.to, opts.text);
-				},
-				workspaceRun: async opts => {
-					const router = this.#router;
-					if (!router) throw new Error("Workspace router is not started");
-					return router.run(opts.workspace, opts.task);
-				},
+				channelSend: opts => this.#channelSendHook(opts, coordinatorContext),
+				workspaceRun: opts => this.#workspaceRunHook(opts, coordinatorContext),
 				imControl: params => this.#imControlHook("coordinator", params),
 			},
 			serveSessionClient(),
@@ -747,21 +741,29 @@ export class ZetaServer {
 				return runtime.sendText(channelId, to, text);
 			},
 			defaultCwd: defaultWorkspace,
-			channelSend: opts => this.#channelSendHook(opts),
-			workspaceRun: opts => this.#workspaceRunHook(opts),
+			channelSend: (opts, caller) => this.#channelSendHook(opts, caller),
+			workspaceRun: (opts, caller) => this.#workspaceRunHook(opts, caller),
 			imControl: (sessionKey, params) => this.#imControlHook(sessionKey, params),
 			// Bot sessions route through startRpcSession so they register in the
 			// web gateway (web-UI plan approval opens them by id) and never spawn
 			// a duplicate live session on the same transcript.
 			createBotSessionRuntime: async entry => {
+				// A bot/PM session runs in ITS project: never the default workspace
+				// when the entry is bound to another repo.
+				const cwd = entry.cwd ?? defaultWorkspace;
+				const caller: ChannelToolContext = {
+					sessionKey: entry.id,
+					projectDir: cwd,
+					...(entry.workspaceAlias !== undefined && { workspaceAlias: entry.workspaceAlias }),
+				};
 				const { session } = await startRpcSession(
 					`__zeta_serve_bot__${entry.id}`,
 					entry.sessionFile,
-					defaultWorkspace,
+					cwd,
 					undefined,
 					{
-						channelSend: opts => this.#channelSendHook(opts),
-						workspaceRun: opts => this.#workspaceRunHook(opts),
+						channelSend: opts => this.#channelSendHook(opts, caller),
+						workspaceRun: opts => this.#workspaceRunHook(opts, caller),
 						imControl: params => this.#imControlHook(entry.id, params),
 					},
 					serveSessionClient(),
@@ -828,20 +830,22 @@ export class ZetaServer {
 	}
 
 	/** channel_send tool sink shared by the coordinator and every bot session. */
-	#channelSendHook(opts: { text: string; to?: string; channel?: string }): Promise<void> {
-		const runtime = this.#channelRuntimeRef;
+	#channelSendHook(opts: { text: string; to?: string; channel?: string }, caller?: ChannelToolContext): Promise<void> {
 		const router = this.#router;
-		if (!runtime || !router) throw new Error("IM channels are not started");
-		const target = router.resolvePush(opts);
-		if (!target) throw new Error("No channel or peer bound to this session");
-		return runtime.sendText(target.channelId, target.to, opts.text);
+		if (!router) throw new Error("IM channels are not started");
+		// `push` defaults a bot session to its own chat and enforces allowedPeers.
+		return router.push(opts, caller);
 	}
 
 	/** workspace_run tool sink shared by the coordinator and every bot session. */
-	#workspaceRunHook(opts: { workspace: string; task: string }): Promise<{ reply: string }> {
+	#workspaceRunHook(
+		opts: { workspace: string; task: string },
+		caller?: ChannelToolContext,
+	): Promise<{ reply: string }> {
 		const router = this.#router;
 		if (!router) throw new Error("Workspace router is not started");
-		return router.run(opts.workspace, opts.task);
+		// `caller` scopes a project-bound session to its own repo.
+		return router.run(opts.workspace, opts.task, caller);
 	}
 
 	/**
@@ -1180,8 +1184,11 @@ export class ZetaServer {
 			getChatModel: () => this.#getChatModel(channelId, peer),
 		});
 		if (consumed) return;
-		// `@agent use` wins; then direct-mode workspace bindings; everything
-		// else goes to the chat's active bot session, then the relay coordinator.
+		// `@agent use` wins; then the chat's project — its bot session (a PM
+		// bound to one repo), its direct workspace binding, or the channel
+		// default — and finally the relay coordinator. A binding that cannot be
+		// opened reports an error; it never silently falls back to the default
+		// workspace, which would answer for a repository it does not own.
 		const route = router ? await router.resolveChatTarget(channelId, peer) : ({ kind: "relay" } as const);
 		if (route.kind === "agent" && router) {
 			const result = await router.deliverToAgent(route.target, channelId, peer, body);
@@ -1195,27 +1202,42 @@ export class ZetaServer {
 			}
 			return;
 		}
+		if (route.kind === "bot" && router) {
+			const result = await router.deliverToBotSession(route.id, channelId, peer, body);
+			if (!result.ok) {
+				logger.warn("Bot session injection failed", { channel: channelId, id: route.id, error: result.error });
+				await runtime.sendText(
+					channelId,
+					peer,
+					`无法投递到 Bot 会话 ${route.id}：${result.error ?? "unknown error"}`,
+				);
+			}
+			return;
+		}
 		if (route.kind === "workspace" && router) {
 			const result = await router.deliverDirect(route.alias, channelId, peer, body);
 			if (!result.ok) {
 				logger.warn("Direct-mode injection failed", {
 					channel: channelId,
+					alias: route.alias,
 					error: result.error,
 				});
-				await runtime.host.deliver(channelId, peer, body);
+				await runtime.sendText(
+					channelId,
+					peer,
+					`无法连接到工作区 [${route.alias}]：${result.error ?? "unknown error"}`,
+				);
 			}
 			return;
 		}
-		if (router) {
-			const activeId = await router.activeBotSessionIdFor(channelId, peer);
-			if (activeId && activeId !== "relay") {
-				const result = await router.deliverToBotSession(activeId, channelId, peer, body);
-				if (result.ok) return;
-				logger.warn("Bot session injection failed", {
-					channel: channelId,
-					error: result.error,
-				});
-			}
+		if (route.kind === "unavailable") {
+			logger.warn("Chat binding unavailable", {
+				channel: channelId,
+				alias: route.alias,
+				error: route.error,
+			});
+			await runtime.sendText(channelId, peer, `无法打开工作区 [${route.alias}]：${route.error}`);
+			return;
 		}
 		// Relay: prefix the chat's reply language so the shared coordinator
 		// session replies in the right language without per-chat system prompts

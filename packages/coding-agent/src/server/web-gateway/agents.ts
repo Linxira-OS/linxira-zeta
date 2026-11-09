@@ -1438,7 +1438,10 @@ export function createGatewayUiContext(
 // ---------------------------------------------------------------------------
 
 async function openSessionManagerForAgent(filePath: string, cwd?: string): Promise<SessionManager> {
-	return SessionManager.open(filePath, cwd, undefined, { suppressBreadcrumb: true });
+	// `cwd` is the project, not the session directory: a fresh/headerless
+	// transcript (bot sessions are created before their first write) must record
+	// the project as its cwd instead of falling back to the process cwd.
+	return SessionManager.open(filePath, undefined, undefined, { suppressBreadcrumb: true, initialCwd: cwd });
 }
 
 /**
