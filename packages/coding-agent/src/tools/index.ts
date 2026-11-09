@@ -57,6 +57,7 @@ import { AstEditTool } from "./ast-edit";
 import { AstGrepTool } from "./ast-grep";
 import { BashTool } from "./bash";
 import { BoardTool } from "./board";
+import { CalendarTool } from "./calendar";
 import { type BuiltinToolName, type HiddenToolName, normalizeToolNames } from "./builtin-names";
 import { ChannelSendTool } from "./channel-send";
 import { type CheckpointState, CheckpointTool, type CompletedRewindState, RewindTool } from "./checkpoint";
@@ -173,6 +174,7 @@ export * from "./resolve";
 export * from "./security-scan";
 export * from "./think";
 export * from "./dynamic-tools";
+export * from "./calendar";
 export * from "./time";
 export * from "./todo";
 export * from "./tts";
@@ -666,6 +668,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	mode: s => new ModeTool(s),
 	web_search: s => new WebSearchTool(s),
 	time: s => new TimeTool(s.settings),
+	calendar: s => new CalendarTool(s),
 	write: s => new WriteTool(s),
 	memory_edit: MemoryEditTool.createIf,
 	retain: MemoryRetainTool.createIf,
@@ -915,6 +918,12 @@ export async function resolveBuiltinToolPlan(session: ToolSession, toolNames?: s
 		}
 		if (name === "task") {
 			return canSpawnAtDepth(cfgTaskMaxRecursionDepth.get(session.settings), session.taskDepth ?? 0);
+		}
+		// Calendar events belong to the working project the user is talking to.
+		// A top-level session always sees the tool; a subagent only when its
+		// profile `tools:` list asks for it explicitly.
+		if (name === "calendar") {
+			return (session.taskDepth ?? 0) === 0 || (requestedTools?.includes("calendar") ?? false);
 		}
 		// `session.dynamicTools` deliberately does not gate tool presence: `time`
 		// must stay registered even while its injection is off, because the model

@@ -27,6 +27,7 @@ export const BUILTIN_TOOL_NAMES = [
 	"mode",
 	"web_search",
 	"time",
+	"calendar",
 	"write",
 	"memory_edit",
 	"retain",
