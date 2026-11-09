@@ -214,6 +214,10 @@ export const webHelp = {
 	description: "Start the Work Studio server (no browser)",
 } satisfies CommandMetadata;
 
+export const teamHelp = {
+	description: "Manage an ownerless team root, PM workspaces, base repos, engineers, and worktrees",
+} satisfies CommandMetadata;
+
 export const worktreeHelp = {
 	description: "Add, list, or clear git worktrees (clone-first when enabled)",
 } satisfies CommandMetadata;

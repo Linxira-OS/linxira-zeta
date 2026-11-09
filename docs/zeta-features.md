@@ -169,6 +169,16 @@ them together with workspace, main agent, external binding, session origin
 (`local` vs `im`), and relay, states which parts are IMPLEMENTED / PARTIAL /
 PLANNED, and keeps Vibe, Advisor, and `/review` distinct.
 
+## Team foundation
+
+`zetacode team` ships the structural first slice of the Team path model: an
+ownerless team root (`.zeta/team.json`), PM workspaces (`pms/<pm>/.zeta/pm.json`),
+canonical base repositories under `repos/<repo>`, PM↔repo bindings, engineers,
+and linked worktrees under `worktrees/<repo>/<pm>/<engineer>/{home,<task>}`.
+Structure lives in one SQLite database (`~/.zeta/data/zeta.db`); markers are
+discovery hints and `team doctor` reports drift. No Team Hub, PM mode, rooms,
+board rows, graph UI, or Vibe auto-start is included. See [team.md](./team.md).
+
 ## Plugin registry
 
 Plugins come from the marketplace plus npm, git and local-link sources; the
