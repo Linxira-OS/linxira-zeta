@@ -1,6 +1,5 @@
 ## [Unreleased]
 
-## [1.4.8] - 2026-11-02
 ## [18.18.1] - 2026-11-08
 
 ### Changed
@@ -67,3 +66,5 @@
 
 - Initial release of the Chrome MV3 extension, enabling the omp browser tool to attach to and drive existing browser tabs via chrome.debugger.
 - Added automatic, robust tab management that groups active agent-driven tabs into a dedicated per-window "omp" tab group and ensures clean dissolution upon disconnect.
+
+## [1.4.8] - 2026-11-02

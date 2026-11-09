@@ -1,15 +1,25 @@
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-09
+
 ### Added
 
 - Added the Team Hub overlay: a database-backed roster of rooms, PMs and engineers with room events, real-member posting, filtering and keyboard navigation.
 - Added the HTML form dialog used by `ask` and extension `ui.formDialog`: paginated terminal forms with keyboard navigation, images and inline SVG, free-text "Other" answers, and partial submission on inactivity timeout.
+- Added undo support to Editor with Ctrl+- hotkey. Undo coalesces consecutive word characters into one unit (fish-style). ([#831](https://github.com/badlogic/pi-mono/pull/831) by [@Perlence](https://github.com/Perlence))
+- Hardware cursor positioning for IME support in `Editor` and `Input` components. The terminal cursor now follows the text cursor position, enabling proper IME candidate window placement for CJK input. ([#719](https://github.com/badlogic/pi-mono/pull/719))
+- `Focusable` interface for components that need hardware cursor positioning. Implement `focused: boolean` and emit `CURSOR_MARKER` in render output when focused.
+- `CURSOR_MARKER` constant and `isFocusable()` type guard exported from the package
 
-## [1.4.13] - 2026-11-08
+### Changed
 
-- Released as part of Zeta 1.4.13.
+- Changed Editor component to use proper box borders with vertical side borders instead of horizontal-only borders
 
-## [9.4.0] - 2026-01-31
+### Fixed
+
+- Decode Kitty CSI-u printable sequences in the editor so shifted symbol keys (e.g., `@`, `?`) work in terminals that enable Kitty keyboard protocol ([#779](https://github.com/badlogic/pi-mono/pull/779) by [@iamd3vil](https://github.com/iamd3vil))
+- Keyboard shortcuts (Ctrl+C, Ctrl+D, etc.) now work on non-Latin keyboard layouts (Russian, Ukrainian, Bulgarian, etc.) in terminals supporting Kitty keyboard protocol with alternate key reporting ([#718](https://github.com/badlogic/pi-mono/pull/718) by [@dannote](https://github.com/dannote))
+
 ## [8.4.1] - 2026-01-25
 
 ### Added
@@ -102,6 +112,10 @@
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
+## [1.4.13] - 2026-11-08
+
+- Released as part of Zeta 1.4.13.
+
 ## [1.4.12] - 2026-11-08
 
 - Synced with upstream OMP v18.18.0.
@@ -115,7 +129,6 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Changed
 
 - Settings list descriptions now wrap to the available width instead of truncating
-- Changed Editor component to use proper box borders with vertical side borders instead of horizontal-only borders
 
 ### Fixed
 
@@ -324,32 +337,6 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 
 - 上游 v18.2.5 同步:每击键/每帧渲染浪费削减、billing 摘要重构、stream 状态分段、paint-listener 通知管线。
 - 主题、覆盖层、chat、工具渲染器与 apps 组件自 coding-agent 迁入本包(模块迁移)。
-
-## [0.49.1] - 2026-01-18
-
-### Added
-
-- Added undo support to Editor with Ctrl+- hotkey. Undo coalesces consecutive word characters into one unit (fish-style). ([#831](https://github.com/badlogic/pi-mono/pull/831) by [@Perlence](https://github.com/Perlence))
-
-## [0.48.0] - 2026-01-16
-
-### Fixed
-
-- Decode Kitty CSI-u printable sequences in the editor so shifted symbol keys (e.g., `@`, `?`) work in terminals that enable Kitty keyboard protocol ([#779](https://github.com/badlogic/pi-mono/pull/779) by [@iamd3vil](https://github.com/iamd3vil))
-
-## [0.47.0] - 2026-01-16
-
-### Added
-
-- Hardware cursor positioning for IME support in `Editor` and `Input` components. The terminal cursor now follows the text cursor position, enabling proper IME candidate window placement for CJK input. ([#719](https://github.com/badlogic/pi-mono/pull/719))
-- `Focusable` interface for components that need hardware cursor positioning. Implement `focused: boolean` and emit `CURSOR_MARKER` in render output when focused.
-- `CURSOR_MARKER` constant and `isFocusable()` type guard exported from the package
-
-## [0.46.0] - 2026-01-15
-
-### Fixed
-
-- Keyboard shortcuts (Ctrl+C, Ctrl+D, etc.) now work on non-Latin keyboard layouts (Russian, Ukrainian, Bulgarian, etc.) in terminals supporting Kitty keyboard protocol with alternate key reporting ([#718](https://github.com/badlogic/pi-mono/pull/718) by [@dannote](https://github.com/dannote))
 
 ## [0.45.6] - 2026-01-13
 
