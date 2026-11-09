@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+### Added
+
+- Added the Team Hub overlay: a database-backed roster of rooms, PMs and engineers with room events, real-member posting, filtering and keyboard navigation.
+- Added the HTML form dialog used by `ask` and extension `ui.formDialog`: paginated terminal forms with keyboard navigation, images and inline SVG, free-text "Other" answers, and partial submission on inactivity timeout.
+
 ## [1.4.13] - 2026-11-08
 
 - Released as part of Zeta 1.4.13.

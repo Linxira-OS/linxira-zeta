@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Released as part of Zeta 1.5.0. `pi-messenger` remains the bundled official plugin (Crew/Mesh); its `/teamagent` command is the plugin's crew layer, not Zeta Team, and does not read the Team database.
+
 ## [1.4.13] - 2026-11-08
 
 - Released as part of Zeta 1.4.13.

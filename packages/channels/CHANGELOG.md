@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Released as part of Zeta 1.5.0; no package-specific user-visible changes.
+
 ## [1.4.13] - 2026-11-08
 
 - `channels.allowedPeers` is now the first inbound check, ahead of command routing and the workspace/direct/bot/relay dispatch: an unauthorized sender gets an explicit refusal and can never open an arbitrary workspace path or start a turn

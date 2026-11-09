@@ -2,8 +2,22 @@
 
 ## 下一版本（Unreleased）
 
+### 1.5.0
+- **Zeta Team 落地（无主 Team 根）**：`zetacode team` 新增无主 Team 根（`<root>/.zeta/team.json`；不是 Agent、没有 `AGENTS.md`/Git/Team 根会话）、PM 工作区（`pms/<pm>/`）、规范基础仓库（`repos/<repo>/`，也可用 `repo link` 就地登记）、PM↔仓库绑定、工程师与真实链接工作树（`home` + 每任务）位于 `worktrees/<repo>/<pm>/<engineer>/`；一个 SQLite Team 数据库（默认 `~/.zeta/data/zeta.db`，`ZETA_TEAM_DB` 可覆盖）记录 teams/PM/repos/bindings/engineers/worktrees/rooms/agents，`team doctor` 报告磁盘标记与数据库漂移。没有 team-wide Agent。
+- **Team Hub**：在 Team 根或 PM 工作区直接启动 `zetacode` 打开数据库驱动的 Hub（房间、PM、工程师；房间显示类型/归属/成员数/最新 `seq`，工程师显示记录的 execution 与工作树），`r` 重载、`s` 以真实成员身份发帖、`/` 过滤；Hub 不创建会话或转写，也不伪造 Agent。显式会话启动（`--continue`/`--resume`/提示词等）仍进入普通编码。
+- **DB-only 房间**：PM 房间、共享 coordination 房间与自定义房间只是数据库行（`rooms`/`room_members`/append-only `room_events`），带主机分配的单调 `seq`、`@提及` 与回复链；`room_read`/`room_post` 与 Hub 发帖都不会写入会话 JSONL。
+- **Session origin 与恢复分组**：Team 位置内创建的会话写入 `origin: team`（team/pm/engineer/repo/room/workspaceAlias）；个人作用域的 resume/list 默认隐藏 Team 行，Team 作用域按 Team → PM → 工程师 → 仓库 → 会话分组。修复索引行丢失记录 cwd 导致会话漂移的问题（#274）。
+- **Lead（PM）模式**：`/lead`（别名 `/pm`）在已登记的 PM 工作区运行 PM 主 Agent，工具面仅 `read`、可选父级 `todo`、`room_read`/`room_post`、`secretary`，以及按配置提供的 `channel_send`/`board`/`calendar`；在工作树、基础仓库或 Team 根会被拒绝，与 plan/goal/vibe 互斥，退出恢复原工具面。
+- **PM Secretary**：每个 PM 一个持久 keep-alive 子 Agent；`secretary spawn` 幂等创建，`secretary send` 继续同一会话；Team 数据库持有其行与可恢复转写，工具仅 `read`/`todo`/`calendar`/`board`/只读 `room_read`。
+- **Team 关系图**：`team.graph.get` 读取 Team 数据库快照 + 本进程活跃主 Agent，输出无主 Team 虚线边界、PM 工作区、规范仓库与 `binding` 边、工程师（记录 `vibe`/`normal`；无会话为 `offline`，不伪造 Agent）、链接工作树、DB 房间/成员边与 Secretary `spawn` 边；Studio 增加 PM/房间/仓库筛选和 Vibe/普通、持久/临时、home/task 徽标。
+- **Vibe 不是 Team**：`/vibe` 仍是 Super Agent 的导演模式（router/worker 执行编排）；Team 工程师的 `--execution vibe` 只记录选择，任何 Team 入口都不会自动启用 Vibe，Team Vibe v2 未实现。
+- **插件边界**：`pi-messenger` 仍是随包官方插件（Crew/Mesh）；`/teamagent` 是插件 crew 层，不是 Zeta Team，也不读 Team 数据库。`/team`、`/team hub`、`/lead`、`/pm` 属核心，新增测试锁定 core/plugin 边界。
+- **上游基线 OMP v18.18.3**（含 v18.18.1/.2）：`ask` 改为 HTML 表单（`{ html }`，支持图片、free-text "Other"、扩展 `ui.formDialog`、ACP form elicitation、超时部分提交）；同时带入 shell `sd` builtin、重叠 bash 调用 fork shell，以及 Cursor/压缩/会话修复。
+- **统计面板语言与单位**（#275）：仪表板跟随宿主 CLI/桌面语言，紧凑单位 `K`/`M`/`B` 与 `Token` 术语不随中文界面翻译，日期按仪表板 locale；英文界面不再残留中文标签。
+- **清理**：删除未使用的 Team DB 访问器，刷新导出元数据与 Cargo/Bazel/nix 锁文件；保持发布面一致。
+- **未完成（不要当成已交付）**：聊天 → PM 的持久化绑定仍缺（当前只有运行时与会话/workspace 绑定）；原生 Android 应用推到 1.5.1（目前只有移动 Web UI）；Team 图只读本进程活跃 Agent，跨进程注册表未做；插件的 Team 层重命名与既有数据迁移未做。
+
 ### 1.4.12
-- **Team 关系图接入真实生产者**：`team.graph.get` 现在读取全局 Team 数据库（teams、PM workspace、base repos、repo_bindings、engineers、worktrees、rooms/room_members、agents）与本进程活跃主 Agent。Team 根仍是虚线无主边界；PM workspace、`repos/<repo>`、工程师（记录 + 活会话，缺会话为 offline）、链接工作树、DB 房间和 Secretary 都有真实节点与 binding/assignment/worktree-of/contains/room/spawn 边；无 Team 记录时活跃 Agent 留在 unassigned 边界。UI 增加 PM/房间/仓库筛选、Vibe/普通、持久/临时、home/task 徽标与详情，且不再显示伪造缺口。
 - **桌面应用回归，两种发行版**：Work Studio 桌面壳恢复发布，同一 staged runtime（编译后的 `zeta` 内核 + 原生 addon + `web-app` 渲染器）产出 Electron 版（内置 Chromium；Windows NSIS/zip、Linux AppImage/deb/tar.gz）与无浏览器引擎版（`linxira-zeta-<v>-workstudio-browser-*`，启动 `serve` 后用系统默认浏览器打开）。桌面壳不再依赖冻结的 `web-ui`，统一通过 `ZETA_WEB_APP_DIR` 指向随包的渲染器；`serve`/`web` 帮助文案与桌面菜单名统一为 Work Studio。
 - **上游基线**：OMP `v18.18.0`。
 

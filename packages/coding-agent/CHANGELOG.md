@@ -1,11 +1,35 @@
 ## [Unreleased]
 
-- Resume picker: rows pre-loaded from the title index now carry their session's recorded cwd, so a conversation stays under its own project and workspace instead of moving to whichever directory the picker was opened from
+### Added
+
+- **Zeta Team foundation** — `zetacode team` creates and manages an ownerless Team root (`<root>/.zeta/team.json`; no Agent, `AGENTS.md`, Git repository, or Team-root session), PM workspaces (`pms/<pm>/`), canonical base repositories (`repos/<repo>/`, or registered in place with `repo link`), PM↔repo bindings, engineers, and real linked Git worktrees (`home` and per-task) under `worktrees/<repo>/<pm>/<engineer>/`. One SQLite database (`~/.zeta/data/zeta.db`, `ZETA_TEAM_DB` override) records teams, PMs, repos, bindings, engineers, worktrees, rooms and agents, and `team doctor` reports drift between the markers on disk and the database.
+- **Team Hub** — launching at the Team root or a PM workspace opens a database-backed Hub of rooms, PMs and engineers (rooms show kind, owner, member count and latest `seq`; engineers show their recorded execution mode and worktrees), with `r` reload, `s` post as a real member, `/` filter, and no session, transcript, or fabricated agent behind it.
+- **Team rooms** — PM, shared coordination, and custom rooms are database rows only (`rooms`, `room_members`, append-only `room_events`) with host-assigned monotonic `seq`, `@mentions`, reply links, and `room_read`/`room_post`; a room post never enters session JSONL.
+- **Team session origin and resume grouping** — sessions created under a Team location carry `origin: { kind: "team", teamId, pmId, engineerId, repoId, roomId, workspaceAlias }`; the resume picker/list APIs hide Team rows from personal scopes by default, and a Team scope groups them Team → PM → engineer → repo → conversation.
+- **Lead (PM) mode** — `/lead` (alias `/pm`) runs the PM main agent in a registered PM workspace with a coordination-only toolset (`read`, optional parent-owned `todo`, `room_read`/`room_post`, `secretary`, plus configured `channel_send`/`board`/`calendar`); it refuses worktrees, base repositories and the Team root, is mutually exclusive with plan/goal/vibe, and restores the exact prior toolset on exit.
+- **PM Secretary** — one persistent keep-alive subagent per PM, created idempotently by Lead mode's `secretary spawn` and continued with `secretary send`; the Team database owns its row and resumable transcript, and its profile is limited to `read`, `todo`, `calendar`, `board` and read-only `room_read`.
+- **Team graph in Work Studio** — `team.graph.get` projects one snapshot of the Team database plus the live main-agent registry: a dashed ownerless Team boundary, PM workspaces, canonical repos and `binding` edges, engineers (recorded `vibe`/`normal` mode; an unattached row is `offline`, never a fabricated agent), linked worktrees, DB rooms with membership edges, and Secretary `spawn` edges; the UI adds PM/room/repo filters and Vibe/normal, persistent/ephemeral and home/task badges.
+
+### Changed
+
+- Synced with upstream OMP **v18.18.1, v18.18.2 and v18.18.3** (baseline v18.18.3), bringing the shell `sd` builtin, forked session shells for overlapping bash calls, and the Cursor, compaction and session fixes from those tags.
+- `ask` now takes one HTML `<form>` (`{ html }`) instead of a `questions[]` array: radios, checkboxes, selects, text inputs and textareas with the recommendation preselected, pictures (`<img>` from an http(s) URL, a `data:` URI or a local file, and inline SVG), free-text "Other" answers, extension `ui.formDialog`, ACP form elicitation, and partial submission on inactivity timeout; results return a unified `answers` object.
+- **Vibe remains an execution mode, not a Team**: `/vibe` is the Super Agent director over persistent router/worker sessions. A Team engineer's `--execution vibe` only records the choice, no Team entry enables Vibe automatically, and Team Vibe v2 is not implemented.
+- **Plugin boundary is explicit**: `pi-messenger` remains the bundled official plugin (Crew/Mesh); `/teamagent` is its crew layer and is not Zeta Team, reading `.zeta/messenger/team/` and never the Team database. Zeta Team commands (`/team`, `/team hub`, `/lead`, `/pm`) stay core, and a new proof test pins the core/plugin ownership cutover.
+
+### Fixed
+
+- Resume picker: rows pre-loaded from the title index now carry their session's recorded cwd, so a conversation stays under its own project and workspace instead of moving to whichever directory the picker was opened from ([#274](https://github.com/Linxira-OS/linxira-zeta/pull/274))
+- The stats dashboard follows the host CLI/desktop language and uses language-independent compact units (`K`/`M`/`B`) with locale dates, so switching to English leaves no Chinese labels behind ([#275](https://github.com/Linxira-OS/linxira-zeta/pull/275))
 - IM project routing: bot sessions can be bound to a repository (`!session new <name> project:<alias>`, `!session project <alias>`), run in that repo's cwd, and route inbound messages by their project instead of the global default workspace; a chat's selected session supersedes a stale direct binding
 - Tool-call isolation: `workspace_run` only accepts registered workspaces and a project-bound session cannot delegate into another repo (the relay coordinator keeps its cross-repo role); `channel_send` enforces `channels.allowedPeers`; `workspace_run`/`channel_send` reports and defaults follow the invoking session's chat
 - A workspace that fails to open now answers with an explicit error instead of silently falling back to the default-workspace coordinator, and fresh bot transcripts record their project as cwd rather than the process cwd
 - `im_control` gained `project=` for `new_session` and a `bind_project` operation, and its session listing shows each session's project
-### Added
+
+### Removed
+
+- Dropped unused Team DB accessors and stale export metadata.
+
 ## [1.4.13] - 2026-11-08
 
 ### Added
