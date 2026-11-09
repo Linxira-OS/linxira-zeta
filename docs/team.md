@@ -259,7 +259,9 @@ agent, request isolation, or pick a model.
   parent-owned strip.
 - `spawn` is idempotent per PM: an existing Secretary is returned, never
   duplicated. The first turn runs through `runStructuredSubagent` with
-  `keepAlive`, then the AgentLifecycleManager owns idle → park → revive.
+  `keepAlive`, then the AgentLifecycleManager owns idle → park → revive. A
+  reservation whose first turn died before a transcript existed is re-run on
+  the same row instead of being returned as an unusable Secretary.
 - `send` continues the same child session through `runSubagentFollowUpTurn`;
   when the live registry ref is gone, the tool re-registers the durable
   `session_file` as parked and lets the lifecycle reviver bring it back.

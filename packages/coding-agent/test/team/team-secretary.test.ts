@@ -200,6 +200,54 @@ describe("PM-owned Secretary", () => {
 		}
 	});
 
+	it("reruns the first turn when a previous spawn died without a transcript", async () => {
+		const id = secretaryAgentId("acme:core");
+		const seeded = new TeamDb(dbPath);
+		try {
+			seeded.insertAgent({
+				id,
+				teamId: "acme",
+				pmId: "acme:core",
+				role: SECRETARY_ROLE,
+				persistence: "persistent",
+				parentAgentId: "acme:core",
+				sessionId: null,
+				sessionFile: null,
+				state: "starting",
+				createdAt: 1,
+				updatedAt: 1,
+			});
+		} finally {
+			seeded.close();
+		}
+
+		const childFile = path.join(pmRoot, "secretary.jsonl");
+		const run = vi.spyOn(structuredSubagent, "runStructuredSubagent").mockImplementation(async request => {
+			AgentRegistry.global().register({
+				id: request.identity?.id ?? "secretary",
+				displayName: "Secretary",
+				kind: "sub",
+				parentId: "main",
+				session: null,
+				sessionFile: childFile,
+				status: "parked",
+			});
+			return structuredResult("Recovered.");
+		});
+
+		const spawned = await spawnSecretary(toolSession(pmRoot), workspace, "Start over.");
+		expect(spawned.created).toBe(true);
+		expect(run).toHaveBeenCalledTimes(1);
+		expect(spawned.record).toMatchObject({ id, sessionFile: childFile, state: "parked", createdAt: 1 });
+
+		const verify = new TeamDb(dbPath);
+		try {
+			expect(verify.listAgents("acme")).toHaveLength(1);
+		} finally {
+			verify.close();
+		}
+	});
+
 	it("continues the same Secretary after registry loss and keeps the durable lookup", async () => {
 		const childFile = path.join(pmRoot, "secretary.jsonl");
 		vi.spyOn(structuredSubagent, "runStructuredSubagent").mockImplementation(async request => {

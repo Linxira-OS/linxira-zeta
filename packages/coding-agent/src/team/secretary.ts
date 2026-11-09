@@ -127,10 +127,16 @@ export async function spawnSecretary(
 	const existing = existingSecretary(workspace.teamId, workspace.pmId, dbPath);
 	if (existing) {
 		const live = findOrRegisterLive(session, existing);
-		return { record: persistRuntimeReference(dbPath, existing.id, live) ?? existing, live, created: false };
+		// A transcript or a live ref is the Secretary this PM already owns.
+		// A reservation with neither means a previous spawn died mid-turn; run
+		// its first turn again, because returning it as-is would hand the PM a
+		// Secretary that can never be messaged.
+		if (live || existing.sessionFile) {
+			return { record: persistRuntimeReference(dbPath, existing.id, live) ?? existing, live, created: false };
+		}
 	}
 
-	const id = secretaryAgentId(workspace.pmId);
+	const id = existing?.id ?? secretaryAgentId(workspace.pmId);
 	const now = Math.floor(Date.now() / 1000);
 	const reserved: AgentRecord = {
 		id,
@@ -142,12 +148,16 @@ export async function spawnSecretary(
 		sessionId: null,
 		sessionFile: null,
 		state: "starting",
-		createdAt: now,
+		createdAt: existing?.createdAt ?? now,
 		updatedAt: now,
 	};
 	const reserveDb = new TeamDb(dbPath);
 	try {
-		reserveDb.insertAgent(reserved);
+		if (existing) {
+			reserveDb.updateAgent(id, { state: "starting" });
+		} else {
+			reserveDb.insertAgent(reserved);
+		}
 	} catch (error) {
 		const winner = existingSecretary(workspace.teamId, workspace.pmId, dbPath);
 		if (winner) {

@@ -87,7 +87,7 @@ const TEAM_GAPS: readonly TeamGraphGap[] = [
 	{
 		id: "roles",
 		detail:
-			"PM, engineer and secretary roles are not persisted (docs/agent-modes.md marks PM/Super Agent as planned); live agents stay unclassified.",
+			"PM and engineer roles are not persisted in a store this graph reads; the Team database does store PM-owned Secretary rows, but this graph has no Team-DB producer, so live agents stay unclassified.",
 	},
 	{
 		id: "assignments",
@@ -96,7 +96,8 @@ const TEAM_GAPS: readonly TeamGraphGap[] = [
 	},
 	{
 		id: "secretary",
-		detail: "A secretary is a team-scoped persistent agent that does not exist yet, so it has no node.",
+		detail:
+			"A PM-owned Secretary is a Team database `agents` row plus a child transcript, not a folder; this graph has no Team-DB producer, so it has no node.",
 	},
 ];
 
