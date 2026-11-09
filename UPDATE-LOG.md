@@ -3,6 +3,7 @@
 ## 下一版本（Unreleased）
 
 ### 1.4.12
+- **Team 关系图接入真实生产者**：`team.graph.get` 现在读取全局 Team 数据库（teams、PM workspace、base repos、repo_bindings、engineers、worktrees、rooms/room_members、agents）与本进程活跃主 Agent。Team 根仍是虚线无主边界；PM workspace、`repos/<repo>`、工程师（记录 + 活会话，缺会话为 offline）、链接工作树、DB 房间和 Secretary 都有真实节点与 binding/assignment/worktree-of/contains/room/spawn 边；无 Team 记录时活跃 Agent 留在 unassigned 边界。UI 增加 PM/房间/仓库筛选、Vibe/普通、持久/临时、home/task 徽标与详情，且不再显示伪造缺口。
 - **桌面应用回归，两种发行版**：Work Studio 桌面壳恢复发布，同一 staged runtime（编译后的 `zeta` 内核 + 原生 addon + `web-app` 渲染器）产出 Electron 版（内置 Chromium；Windows NSIS/zip、Linux AppImage/deb/tar.gz）与无浏览器引擎版（`linxira-zeta-<v>-workstudio-browser-*`，启动 `serve` 后用系统默认浏览器打开）。桌面壳不再依赖冻结的 `web-ui`，统一通过 `ZETA_WEB_APP_DIR` 指向随包的渲染器；`serve`/`web` 帮助文案与桌面菜单名统一为 Work Studio。
 - **上游基线**：OMP `v18.18.0`。
 

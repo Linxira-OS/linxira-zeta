@@ -28,8 +28,12 @@ import { useI18n } from "./i18n";
 import { usePreviewMode } from "./preview/PreviewContext";
 import {
   buildTeamLanes,
+  filterTeamGraph,
   isAgentNode,
+  nodeLifecycle,
+  nodeRole,
   teamEdgeCounts,
+  teamFilterOptions,
   teamKindCounts,
   teamLifetimeCounts,
   teamProjectOptions,
@@ -59,6 +63,7 @@ const NODE_KINDS: ReadonlyArray<TeamNodeKind> = [
   "git-repo",
   "db-room",
   "linked-worktree",
+  "engineer",
   "agent",
   "subagent",
 ];
@@ -69,11 +74,12 @@ const MODE_KEY: Record<TeamExecutionMode, string> = {
   unknown: "team.mode.unknown",
 };
 
-const STATUS_KEY: Record<"running" | "idle" | "parked" | "aborted", string> = {
+const STATUS_KEY: Record<"running" | "idle" | "parked" | "aborted" | "offline", string> = {
   running: "team.status.running",
   idle: "team.status.idle",
   parked: "team.status.parked",
   aborted: "team.status.aborted",
+  offline: "team.status.offline",
 };
 
 const GAP_KEY: Record<TeamGraphGap["id"], string> = {
@@ -111,32 +117,32 @@ function NodeCard({
 }) {
   const { t } = useI18n();
   const agent = isAgentNode(node);
+  const lifecycle = nodeLifecycle(node);
+  const role = nodeRole(node);
   return (
     <button
       type="button"
       className={`team-node${selected ? " is-selected" : ""}`}
       data-kind={node.kind}
-      data-mode={agent ? node.executionMode : undefined}
-      data-lifetime={agent ? node.lifetime : undefined}
-      data-status={agent ? node.status : undefined}
+      data-mode={lifecycle?.executionMode}
+      data-lifetime={lifecycle?.lifetime}
+      data-status={lifecycle?.status}
       onClick={onSelect}
     >
-      {agent ? <span className={`team-status-dot status-${node.status}`} aria-hidden="true" /> : <span className="team-object-glyph" aria-hidden="true" />}
+      {lifecycle ? <span className={`team-status-dot status-${lifecycle.status}`} aria-hidden="true" /> : <span className="team-object-glyph" aria-hidden="true" />}
       <span className="team-node-main">
         <span className="team-node-name">{node.displayName}</span>
         <span className="team-node-chips">
           <span className={`team-chip kind-${node.kind}`}>{nodeKindLabel(t, node.kind)}</span>
-          {agent && node.kind === "agent" ? (
-            <span className="team-chip role-unknown">{t(`team.agentRole.${node.role ?? "unknown"}`)}</span>
-          ) : null}
+          {role ? <span className={`team-chip role-${role}`}>{t(`team.agentRole.${role}`)}</span> : null}
           {!agent && node.kind === "linked-worktree" && node.worktreeKind ? (
             <span className={`team-chip worktree-${node.worktreeKind}`}>{t(`team.worktreeKind.${node.worktreeKind}`)}</span>
           ) : null}
-          {agent ? (
+          {lifecycle ? (
             <>
-              <span className={`team-chip mode-${node.executionMode}`}>{t(MODE_KEY[node.executionMode])}</span>
-              <span className={`team-chip lifetime-${node.lifetime}`}>{t(`team.lifetime.${node.lifetime}`)}</span>
-              <span className={`team-chip status-${node.status}`}>{t(STATUS_KEY[node.status])}</span>
+              <span className={`team-chip mode-${lifecycle.executionMode}`}>{t(MODE_KEY[lifecycle.executionMode])}</span>
+              <span className={`team-chip lifetime-${lifecycle.lifetime}`}>{t(`team.lifetime.${lifecycle.lifetime}`)}</span>
+              <span className={`team-chip status-${lifecycle.status}`}>{t(STATUS_KEY[lifecycle.status])}</span>
             </>
           ) : null}
         </span>
@@ -158,6 +164,9 @@ export function TeamPage({ client }: { client: StudioClient }) {
   const [graph, setGraph] = useState<TeamGraphReadModel | undefined>(undefined);
   const [error, setError] = useState("");
   const [project, setProject] = useState("all");
+  const [pm, setPm] = useState("all");
+  const [room, setRoom] = useState("all");
+  const [repo, setRepo] = useState("all");
   const [lifetime, setLifetime] = useState<LifetimeFilter>("all");
   const [selected, setSelected] = useState<string | undefined>(undefined);
   const [nonce, setNonce] = useState(0);
@@ -187,16 +196,35 @@ export function TeamPage({ client }: { client: StudioClient }) {
     };
   }, [client, project, lifetime, nonce, preview, t]);
 
-  const lanes = useMemo(() => (graph ? buildTeamLanes(graph) : []), [graph]);
+  const filterOptions = useMemo(
+    () => (graph ? teamFilterOptions(graph) : { pms: [], rooms: [], repos: [] }),
+    [graph],
+  );
+  const viewGraph = useMemo(
+    () =>
+      graph
+        ? filterTeamGraph(graph, {
+            ...(pm === "all" ? {} : { pmId: pm }),
+            ...(room === "all" ? {} : { roomId: room }),
+            ...(repo === "all" ? {} : { repoId: repo }),
+          })
+        : undefined,
+    [graph, pm, room, repo],
+  );
+  const lanes = useMemo(() => (viewGraph ? buildTeamLanes(viewGraph) : []), [viewGraph]);
   const projects = useMemo(() => (graph ? teamProjectOptions(graph) : []), [graph]);
-  const edgeCounts = useMemo(() => teamEdgeCounts(graph?.edges ?? []), [graph]);
-  const lifetimeCounts = useMemo(() => teamLifetimeCounts(graph?.nodes ?? []), [graph]);
-  const kindCounts = useMemo(() => teamKindCounts(graph?.nodes ?? []), [graph]);
-  const nodeById = useMemo(() => new Map((graph?.nodes ?? []).map(node => [node.nodeId, node])), [graph]);
+  const edgeCounts = useMemo(() => teamEdgeCounts(viewGraph?.edges ?? []), [viewGraph]);
+  const lifetimeCounts = useMemo(() => teamLifetimeCounts(viewGraph?.nodes ?? []), [viewGraph]);
+  const kindCounts = useMemo(() => teamKindCounts(viewGraph?.nodes ?? []), [viewGraph]);
+  const nodeById = useMemo(() => new Map((viewGraph?.nodes ?? []).map(node => [node.nodeId, node])), [viewGraph]);
   const selectedNode = selected === undefined ? undefined : nodeById.get(selected);
-  const filtered = project !== "all" || lifetime !== "all";
+  const filtered = project !== "all" || pm !== "all" || room !== "all" || repo !== "all" || lifetime !== "all";
   const selectedParentLabel =
     selectedNode?.parentNodeId === undefined ? undefined : nodeById.get(selectedNode.parentNodeId)?.displayName;
+  const selectedRole = selectedNode === undefined ? undefined : nodeRole(selectedNode);
+  const selectedLifecycle = selectedNode === undefined ? undefined : nodeLifecycle(selectedNode);
+  const selectedAgentId =
+    selectedNode !== undefined && "agentId" in selectedNode ? selectedNode.agentId : undefined;
 
   const refresh = useCallback(() => setNonce(value => value + 1), []);
 
@@ -247,9 +275,30 @@ export function TeamPage({ client }: { client: StudioClient }) {
           </AppSelect>
         </div>
         <div className="team-filter">
+          <span>{t("team.filters.pm")}</span>
+          <AppSelect value={pm} onChange={event => setPm(event.target.value)}>
+            <option value="all">{t("team.filters.allPms")}</option>
+            {filterOptions.pms.map(option => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
+          </AppSelect>
+        </div>
+        <div className="team-filter">
           <span>{t("team.filters.room")}</span>
-          <AppSelect value="none" onChange={() => {}} disabled title={t("team.filters.roomsUnavailableHint")}>
-            <option value="none">{t("team.filters.roomsUnavailable")}</option>
+          <AppSelect value={room} onChange={event => setRoom(event.target.value)}>
+            <option value="all">{t("team.filters.allRooms")}</option>
+            {filterOptions.rooms.map(option => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
+          </AppSelect>
+        </div>
+        <div className="team-filter">
+          <span>{t("team.filters.repo")}</span>
+          <AppSelect value={repo} onChange={event => setRepo(event.target.value)}>
+            <option value="all">{t("team.filters.allRepos")}</option>
+            {filterOptions.repos.map(option => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
           </AppSelect>
         </div>
         <div className="team-filter" role="group" aria-label={t("team.filters.lifetime")}>
@@ -366,7 +415,17 @@ export function TeamPage({ client }: { client: StudioClient }) {
           <h3>{filtered ? t("team.empty.filteredTitle") : t("team.empty.title")}</h3>
           <p>{filtered ? t("team.empty.filteredDetail") : t("team.empty.detail")}</p>
           {filtered ? (
-            <button type="button" className="btn small outline" onClick={() => { setProject("all"); setLifetime("all"); }}>
+            <button
+              type="button"
+              className="btn small outline"
+              onClick={() => {
+                setProject("all");
+                setPm("all");
+                setRoom("all");
+                setRepo("all");
+                setLifetime("all");
+              }}
+            >
               {t("team.empty.clearFilters")}
             </button>
           ) : null}
@@ -447,26 +506,29 @@ export function TeamPage({ client }: { client: StudioClient }) {
           </div>
           <dl>
             <dt>{t("team.detail.kind")}</dt><dd>{nodeKindLabel(t, selectedNode.kind)}</dd>
-            {isAgentNode(selectedNode) ? (
+            {selectedRole ? (
+              <><dt>{t("team.detail.role")}</dt><dd>{t(`team.agentRole.${selectedRole}`)}</dd></>
+            ) : null}
+            {selectedAgentId ? (
+              <><dt>{t("team.detail.agent")}</dt><dd>{selectedAgentId}</dd></>
+            ) : null}
+            {selectedLifecycle ? (
               <>
-                <dt>{t("team.detail.agent")}</dt><dd>{selectedNode.agentId}</dd>
-                <dt>{t("team.detail.role")}</dt>
-                <dd>{selectedNode.kind === "agent" ? t(`team.agentRole.${selectedNode.role ?? "unknown"}`) : t("team.nodeKind.subagent")}</dd>
-                <dt>{t("team.detail.mode")}</dt><dd>{t(MODE_KEY[selectedNode.executionMode])}</dd>
-                <dt>{t("team.detail.lifetime")}</dt><dd>{t(`team.lifetime.${selectedNode.lifetime}`)}</dd>
-                <dt>{t("team.detail.status")}</dt><dd>{t(STATUS_KEY[selectedNode.status])}</dd>
-                {selectedNode.parentNodeId ? (<><dt>{t("team.detail.parent")}</dt><dd>{selectedParentLabel ?? selectedNode.parentNodeId}</dd></>) : null}
-                {selectedNode.assignment ? (<><dt>{t("team.detail.assignment")}</dt><dd>{selectedNode.assignment}</dd></>) : null}
-                {selectedNode.sessionId ? (<><dt>{t("team.detail.session")}</dt><dd>{selectedNode.sessionId}</dd></>) : null}
+                <dt>{t("team.detail.mode")}</dt><dd>{t(MODE_KEY[selectedLifecycle.executionMode])}</dd>
+                <dt>{t("team.detail.lifetime")}</dt><dd>{t(`team.lifetime.${selectedLifecycle.lifetime}`)}</dd>
+                <dt>{t("team.detail.status")}</dt><dd>{t(STATUS_KEY[selectedLifecycle.status])}</dd>
               </>
-            ) : (
-              <>
-                <dt>{t("team.detail.object")}</dt><dd>{selectedNode.objectId ?? selectedNode.nodeId}</dd>
-                {selectedNode.kind === "linked-worktree" && selectedNode.worktreeKind ? (
-                  <><dt>{t("team.detail.worktreeKind")}</dt><dd>{t(`team.worktreeKind.${selectedNode.worktreeKind}`)}</dd></>
-                ) : null}
-              </>
-            )}
+            ) : null}
+            {selectedNode.parentNodeId ? (<><dt>{t("team.detail.parent")}</dt><dd>{selectedParentLabel ?? selectedNode.parentNodeId}</dd></>) : null}
+            {selectedNode.kind === "agent" && selectedNode.assignment ? (<><dt>{t("team.detail.assignment")}</dt><dd>{selectedNode.assignment}</dd></>) : null}
+            {selectedNode.sessionId ? (<><dt>{t("team.detail.session")}</dt><dd>{selectedNode.sessionId}</dd></>) : null}
+            {"objectId" in selectedNode && selectedNode.objectId ? (<><dt>{t("team.detail.object")}</dt><dd>{selectedNode.objectId}</dd></>) : null}
+            {selectedNode.kind === "linked-worktree" && selectedNode.worktreeKind ? (
+              <><dt>{t("team.detail.worktreeKind")}</dt><dd>{t(`team.worktreeKind.${selectedNode.worktreeKind}`)}</dd></>
+            ) : null}
+            {selectedNode.kind === "linked-worktree" && selectedNode.branch ? (
+              <><dt>{t("team.detail.branch")}</dt><dd>{selectedNode.branch}</dd></>
+            ) : null}
             <dt>{t("team.detail.workspace")}</dt>
             <dd>{selectedNode.workspaceName ?? selectedNode.workspaceId ?? t("team.node.noWorkspace")}</dd>
             <dt>{t("team.detail.created")}</dt><dd>{formatTime(selectedNode.createdAt, resolvedLanguage)}</dd>

@@ -546,6 +546,11 @@ export class TeamDb {
 
 	// ── teams ──────────────────────────────────────────────────────────────
 
+	/** Every registered team, ordered for a stable read-model projection. */
+	listTeams(): TeamRecord[] {
+		return this.#db.query<DbTeamRow, []>("SELECT * FROM teams ORDER BY name, id").all().map(toTeam);
+	}
+
 	getTeam(id: string): TeamRecord | null {
 		const row = this.#db.query<DbTeamRow, [string]>("SELECT * FROM teams WHERE id = ?").get(id);
 		return row ? toTeam(row) : null;

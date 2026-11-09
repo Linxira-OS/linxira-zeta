@@ -2768,7 +2768,7 @@ const zhRaw = {
   },
   "team": {
     "title": "团队关系图",
-    "subtitle": "Team 根是无主容器（不是 Agent、workspace 或 Git）。图只展示真实生产者：活跃 Agent、子代理与派生关系；PM workspace、Git 仓库、数据库房间和链接工作树尚未落地时明确标为缺失。",
+    "subtitle": "Team 根是无主容器（不是 Agent、workspace 或 Git）。图读取 Team 数据库（Team、PM workspace、基础仓库、绑定、工程师、工作树、房间、秘书）与本进程的活跃 Agent 注册表。数据库记录没有活跃会话时标为离线，不伪造 Agent。",
     "generatedAt": "生成于 {time}",
     "refresh": "刷新团队关系图",
     "partial": "部分数据",
@@ -2780,9 +2780,12 @@ const zhRaw = {
       "project": "项目 / 工作区",
       "allProjects": "全部项目",
       "unnamedProject": "未命名工作区",
+      "pm": "PM",
+      "allPms": "全部 PM",
       "room": "房间",
-      "roomsUnavailable": "暂无房间数据",
-      "roomsUnavailableHint": "房间与 PM ↔ PM 群组还没有生产者，无法筛选。",
+      "allRooms": "全部房间",
+      "repo": "基础仓库",
+      "allRepos": "全部仓库",
       "lifetime": "生命周期",
       "allLifetimes": "全部"
     },
@@ -2803,6 +2806,7 @@ const zhRaw = {
       "team": "TEAM",
       "agent": "AGENT",
       "subagent": "SUBAGENT",
+      "engineer": "工程师",
       "pm-workspace": "PM WORKSPACE",
       "git-repo": "GIT REPO",
       "db-room": "DB ROOM",
@@ -2824,7 +2828,8 @@ const zhRaw = {
       "running": "运行中",
       "idle": "空闲",
       "parked": "已停放",
-      "aborted": "已中止"
+      "aborted": "已中止",
+      "offline": "离线"
     },
     "edge": {
       "spawn": "派生",
@@ -2842,7 +2847,7 @@ const zhRaw = {
       "modes": "执行模式",
       "lifetime": "生命周期",
       "edges": "关系",
-      "unavailable": "暂无生产者，因此计数为 0"
+      "unavailable": "当前视图没有此类节点"
     },
     "node": {
       "spawnedBy": "由 {name} 派生",
@@ -2858,9 +2863,9 @@ const zhRaw = {
     },
     "empty": {
       "title": "当前 Host 没有活跃 Agent",
-      "detail": "团队图只展示本进程内已注册的 Agent 及其子代理；Team 根、PM workspace、Git 仓库、房间与工作树要等对应生产者落地后才会出现。",
+      "detail": "团队图读取 Team 数据库与本进程内已注册的 Agent。Team 数据库为空时，活跃 Agent 仍显示在无归属边界中，不伪造任何行。",
       "filteredTitle": "没有符合筛选条件的节点",
-      "filteredDetail": "试试清除项目或生命周期筛选。",
+      "filteredDetail": "试试清除项目、PM、房间、仓库或生命周期筛选。",
       "clearFilters": "清除筛选"
     },
     "preview": {
@@ -2872,6 +2877,7 @@ const zhRaw = {
       "kind": "对象类型",
       "object": "对象 ID",
       "worktreeKind": "工作树类型",
+      "branch": "分支",
       "agent": "Agent",
       "role": "角色",
       "mode": "执行模式",

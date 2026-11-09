@@ -199,6 +199,12 @@
   background: var(--tint-orange-soft);
 }
 
+.team-legend-swatch.kind-engineer {
+  border-radius: 50%;
+  border-color: var(--tint-green);
+  background: var(--tint-green-soft);
+}
+
 /* The Team root is a container, not an object: a dashed boundary swatch. */
 .team-legend-boundary {
   width: 18px;
@@ -463,6 +469,11 @@
   background: var(--red);
 }
 
+.team-status-dot.status-offline {
+  background: transparent;
+  border: 1px dashed var(--text-faint);
+}
+
 .team-node-main {
   display: flex;
   flex-direction: column;
@@ -533,6 +544,28 @@
   border-color: var(--tint-orange-border);
   color: var(--tint-orange);
   background: var(--tint-orange-soft);
+}
+
+.team-chip.kind-engineer {
+  border-color: var(--tint-green-border);
+  color: var(--tint-green);
+  background: var(--tint-green-soft);
+}
+
+.team-chip.worktree-home {
+  border-color: var(--tint-orange-border);
+  color: var(--tint-orange);
+}
+
+.team-chip.worktree-task {
+  border-style: dashed;
+  border-color: var(--tint-orange-border);
+  color: var(--tint-orange);
+}
+
+.team-chip.status-offline {
+  border-style: dashed;
+  color: var(--text-faint);
 }
 
 .team-chip.role-pm {
