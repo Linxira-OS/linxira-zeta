@@ -5,10 +5,13 @@ primitive: the ownerless team root, PM workspaces, canonical base repositories,
 PM bindings, engineers, linked worktrees, and database-only rooms. The TUI adds
 **path entry** and the **Team Hub**: launching at a Team root or PM workspace
 opens a read/write view of the Team database, while engineer worktrees and base
-repositories open the ordinary coding TUI. There is still **no team-wide agent,
-no PM/Lead mode, no board/task rows, and no channel binding**. `--execution vibe`
-records the engineer's execution choice; it does not start Vibe, and no Team
-entry ever enables Vibe automatically.
+repositories open the ordinary coding TUI. Explicit session launches
+(`--continue`, `--resume`, `--fork`, or a prompt) still open a coding session in
+a PM workspace, where `/lead` (alias `/pm`) runs the **PM main agent** with a
+coordination-only toolset. There is still **no team-wide agent, no board/task
+rows, and no channel binding**. `--execution vibe` records the engineer's
+execution choice; it does not start Vibe, and no Team entry ever enables Vibe
+automatically.
 
 ## Path model
 
@@ -152,7 +155,7 @@ zetacode team doctor [--root <path>] [--json]
 | cwd | Opens | Notes |
 | --- | --- | --- |
 | exactly the Team root (`.zeta/team.json`) | **Team Hub** | A UI surface, never an Agent. No team-root session, no `AGENTS.md`, no model request. |
-| exactly a PM workspace (`.zeta/pm.json`) | **Team Hub**, focused on that PM | PM/Lead mode does not exist yet, so the Hub is the honest entry; no fake PM agent. |
+| exactly a PM workspace (`.zeta/pm.json`) | **Team Hub**, focused on that PM | A bare launch opens the Hub (no fake PM agent). An explicit session launch stays in coding; `/lead` (alias `/pm`) then runs the PM main agent — see [Lead (PM) mode](#lead-pm-mode). |
 | `repos/<repo>` (including nested dirs) | normal coding TUI + warning | The base repository is not an agent cwd and keeps its default branch. |
 | `worktrees/<repo>/<pm>/<engineer>/home` or `/<task>` | normal coding TUI + breadcrumb | Breadcrumb reads `Team / PM / repo / engineer / worktree`; Vibe stays off unless `/vibe`. |
 | any other directory below the Team root | normal coding TUI + warning | No sibling guessing; `/team hub` is available. |
@@ -208,6 +211,34 @@ Walking up from any directory finds the nearest `.zeta/team.json` and returns
 `worktrees/<repo>/<pm>/<engineer>/…` layout. Outside the team root, a
 `.zeta/team-member.json` breadcrumb resolves the team.
 
+## Lead (PM) mode
+
+`/lead` (alias `/pm`) turns the top-level interactive session into the PM for
+the workspace it was opened in. It is valid only when the cwd resolves to a
+registered PM workspace (`pms/<pm>/` with `.zeta/pm.json`); a worktree, a base
+repository, or the team root is refused with an error, and a failed entry
+leaves the session's tools untouched. A bare `zetacode` launch at a PM
+workspace opens the Team Hub; start a session explicitly (`--continue`,
+`--resume`, or with a prompt) to use `/lead`.
+
+- Active tools: `read`, optional parent-owned `todo`, `room_read`, `room_post`,
+  and `channel_send` / `board` / `calendar` when the session is configured for
+  them. `task`, `edit`, `write`, `bash`, `grep`, `glob`, and `vibe_*` are
+  removed while the mode is on.
+- `room_read` lists the team's rooms or reads one room's members and newest
+  events; `room_post` appends an event as the resolved PM agent. Both call the
+  room service above, so membership is validated and no session JSONL is
+  written.
+- The mode is mutually exclusive with plan/goal/vibe. Exiting restores the
+  exact prior toolset and journals `mode_change: none`.
+- The mode is journaled as `mode_change: lead` with the prior toolset; a
+  reopened session re-enters Lead mode when its cwd still resolves to the PM
+  workspace, and otherwise clears back to normal coding. The status line shows
+  `Lead`.
+- The Lead prompt coordinates engineer main agents through rooms and forbids
+  coding, spawning workers, hidden project selection, and invented agents. It
+  exists for the PM main agent, not for a Team-root session (there is none).
+
 ## Session origin and resume filtering
 
 A session created inside a resolved Team location is stamped with a
@@ -237,8 +268,11 @@ filter. The Team Hub is a separate surface and does not list sessions.
 
 ## Not in this slice
 
-PM/Lead mode (prompt and toolset), secretary creation, channel bindings, the
-team relationship graph, board/task rows, and Vibe auto-start remain
-unimplemented. The Hub shows only rooms and the PM/engineer roster, never a full
-graph; subagent control remains in Agent Hub. The Engineer `execution` column is
-the only Vibe-related fact stored here, and no Team entry enables Vibe.
+Secretary creation, channel bindings, the team relationship graph, board/task
+rows, and Vibe auto-start remain unimplemented. Lead (PM) mode covers the PM
+main agent's coordination surface only; there is still no Team-root session,
+and the Hub itself is a UI without an Agent. The Hub shows only rooms and the
+PM/engineer roster, never a full graph; subagent control remains in Agent Hub.
+Rooms are reachable through `room_read`/`room_post` in Lead mode and through
+the CLI and Hub. The Engineer `execution` column is the only Team-side Vibe fact,
+and no Team entry enables Vibe.

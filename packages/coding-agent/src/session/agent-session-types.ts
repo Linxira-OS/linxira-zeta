@@ -302,6 +302,8 @@ export interface AgentSessionConfig {
 	toolRegistry?: Map<string, AgentTool>;
 	/** Creates tools registered only while vibe mode is active. */
 	createVibeTools?: () => AgentTool[];
+	/** Creates tools registered only while lead (PM) mode is active. */
+	createLeadTools?: () => AgentTool[];
 	/** Names whose current registry entry is the built-in implementation. */
 	builtInToolNames?: Iterable<string>;
 	/** MCP names whose initial registry entries came from the manager snapshot. */

@@ -534,6 +534,11 @@ const modeSegment: StatusLineSegment = {
 			return { content: accentFg(ctx, "accent", content), visible: true };
 		}
 
+		if (ctx.leadMode?.enabled) {
+			const content = withIcon(theme.icon.agents, "Lead");
+			return { content: accentFg(ctx, "accent", content), visible: true };
+		}
+
 		const loop = ctx.loopMode;
 		if (loop) {
 			const icon = loop.state === "paused" ? theme.icon.pause || theme.icon.loop : theme.icon.loop;
@@ -563,6 +568,7 @@ const modeSegment: StatusLineSegment = {
 		const goal = ctx.goalMode;
 		if (goal && (goal.enabled || goal.paused)) return describeGoalMode(ctx, goal);
 		if (ctx.vibeMode?.enabled) return segView([span("Vibe", accentToken(ctx, "accent"))], "agents");
+		if (ctx.leadMode?.enabled) return segView([span("Lead", accentToken(ctx, "accent"))], "agents");
 		const loop = ctx.loopMode;
 		if (loop) {
 			const paused = loop.state === "paused";

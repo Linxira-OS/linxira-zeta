@@ -19,7 +19,7 @@
 export type { AgentSessionEvent, AgentSessionEventListener } from "./agent-session-events";
 // Zeta: session-layer mode API. Kept as part of this module because the mode
 // controllers, interactive mode and the web gateway all import it from here.
-export type ModeId = "plan" | "goal" | "vibe";
+export type ModeId = "plan" | "goal" | "lead" | "vibe";
 
 export interface PlanModeEntryOptions {
 	initialPrompt?: string;
@@ -62,6 +62,10 @@ export interface GuidedGoalStartOptions {
 	images?: ImageContent[];
 }
 export interface VibeModeEntryOptions {
+	persistModeChange?: boolean;
+	previousTools?: string[];
+}
+export interface LeadModeEntryOptions {
 	persistModeChange?: boolean;
 	previousTools?: string[];
 }
@@ -252,6 +256,7 @@ import autoContinuePrompt from "../prompts/system/auto-continue.md" with { type:
 import checkpointActiveNoticeTemplate from "../prompts/system/checkpoint-active-notice.md" with { type: "text" };
 import interruptedThinkingTemplate from "../prompts/system/interrupted-thinking.md" with { type: "text" };
 import manualContinuePrompt from "../prompts/system/manual-continue.md" with { type: "text" };
+import leadModeActivePrompt from "../prompts/system/lead-mode-active.md" with { type: "text" };
 import planModeActivePrompt from "../prompts/system/plan-mode-active.md" with { type: "text" };
 import planModeReferencePrompt from "../prompts/system/plan-mode-reference.md" with { type: "text" };
 import planModeToolDecisionReminderPrompt from "../prompts/system/plan-mode-tool-decision-reminder.md" with { type: "text" };
@@ -348,6 +353,7 @@ import { resumeCommand } from "../utils/resume-command";
 import { parseCardTitleReply, splitCardTitle } from "../utils/title-card";
 import { generateSessionTitle, nerdGlyphsActive } from "../utils/title-generator";
 import { buildNamedToolChoice, isToolChoiceActive } from "../utils/tool-choice";
+import { type LeadModeState, resolveLeadWorkspace } from "../team/lead";
 import { type VibeOwnerScope, type VibeParentSession, VibeSessionRegistry } from "../vibe/runtime";
 import type { VibeModeState } from "../vibe/state";
 import type { AgentSessionEvent, AgentSessionEventListener } from "./agent-session-events";
@@ -517,6 +523,7 @@ import {
 	SKILL_PROMPT_MESSAGE_TYPE,
 	sanitizeAssistantForReparentedHistory,
 	USER_INTERRUPT_LABEL,
+	LEAD_MODE_CONTEXT_MESSAGE_TYPE,
 	VIBE_MODE_CONTEXT_MESSAGE_TYPE,
 	operatorTitleText,
 } from "./messages";
@@ -1272,6 +1279,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	#experimentalContextNotesReminder: { prompt: string; generation: number } | undefined;
 	#planModeState: PlanModeState | undefined;
 	#vibeModeState: VibeModeState | undefined;
+	#leadModeState: LeadModeState | undefined;
+	#leadModePreviousTools: string[] | undefined;
 	#goalModeState: GoalModeState | undefined;
 	#goalRuntime: GoalRuntime;
 	readonly #advisors: SessionAdvisors;
@@ -2336,12 +2345,14 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	}
 
 	/** Current state snapshot for a mode, if active (external-state contract). */
-	getModeState(mode: ModeId): PlanModeState | GoalModeState | VibeModeState | undefined {
+	getModeState(mode: ModeId): PlanModeState | GoalModeState | LeadModeState | VibeModeState | undefined {
 		switch (mode) {
 			case "plan":
 				return this.getPlanModeState();
 			case "goal":
 				return this.getGoalModeState();
+			case "lead":
+				return this.getLeadModeState();
 			case "vibe":
 				return this.getVibeModeState();
 			default:
@@ -2360,6 +2371,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			case "goal":
 				await this.enterGoalMode((options ?? {}) as GoalModeEntryOptions);
 				return;
+			case "lead":
+				await this.enterLeadMode((options ?? {}) as LeadModeEntryOptions);
+				return;
 			case "vibe":
 				await this.enterVibeMode((options ?? {}) as VibeModeEntryOptions);
 				return;
@@ -2374,6 +2388,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				return;
 			case "goal":
 				await this.exitGoalMode((options ?? {}) as GoalModeExitOptions);
+				return;
+			case "lead":
+				await this.exitLeadMode();
 				return;
 			case "vibe":
 				await this.exitVibeMode();
@@ -2401,6 +2418,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			return;
 		}
 		if (this.#goalModeState?.enabled) throw new Error("Exit goal mode first.");
+		if (this.#leadModeState?.enabled) throw new Error("Exit lead mode first.");
 		if (this.#vibeModeState?.enabled) throw new Error("Exit vibe mode first.");
 
 		const planFilePath = options.planFilePath ?? (this.getPlanReferencePath() || "local://PLAN.md");
@@ -2659,6 +2677,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	async enterGoalMode(options: GoalModeEntryOptions = {}): Promise<void> {
 		if (this.#goalModeState?.enabled) return;
 		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
+		if (this.#leadModeState?.enabled) throw new Error("Exit lead mode first.");
 		if (this.#vibeModeState?.enabled) throw new Error("Exit vibe mode first.");
 
 		const previousTools = this.getEnabledToolNames().filter(name => name !== "goal");
@@ -2683,6 +2702,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 */
 	async startGuidedGoal(options: GuidedGoalStartOptions = {}): Promise<void> {
 		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
+		if (this.#leadModeState?.enabled) throw new Error("Exit lead mode first.");
 		if (this.#vibeModeState?.enabled) throw new Error("Exit vibe mode first.");
 		if (!cfgGoalEnabled.get(this.settings)) {
 			throw new Error("Goal mode is disabled. Enable it in settings (goal.enabled).");
@@ -2808,6 +2828,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (this.#vibeModeState?.enabled) return this.#vibeModeOwnerScope!;
 		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
 		if (this.#goalModeState?.enabled) throw new Error("Exit goal mode first.");
+		if (this.#leadModeState?.enabled) throw new Error("Exit lead mode first.");
 
 		const vibeRegistry = VibeSessionRegistry.global();
 		const ownerScope = vibeRegistry.ownerScope(this.#vibeParentSession());
@@ -2844,6 +2865,61 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#vibeModePreviousTools = undefined;
 		this.#vibeModeOwnerScope = undefined;
 		return killed;
+	}
+
+	/**
+	 * Enter Lead (PM) mode — reduced coordination toolset plus room tools.
+	 * Requires the session cwd to resolve to a registered PM workspace; that
+	 * check throws with the reason, leaving the session untouched.
+	 */
+	async enterLeadMode(options: LeadModeEntryOptions = {}): Promise<LeadModeState> {
+		if (this.#leadModeState?.enabled) return this.#leadModeState;
+		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
+		if (this.#goalModeState?.enabled) throw new Error("Exit goal mode first.");
+		if (this.#vibeModeState?.enabled) throw new Error("Exit vibe mode first.");
+
+		const workspace = await resolveLeadWorkspace(this.sessionManager.getCwd());
+		const previousTools = options.previousTools ?? this.getEnabledToolNames();
+		const leadBaseTools = ["read"];
+		if (this.hasBuiltInTool("todo")) leadBaseTools.push("todo");
+		for (const name of ["channel_send", "board", "calendar"]) {
+			if (this.hasBuiltInTool(name)) leadBaseTools.push(name);
+		}
+		await this.activateLeadTools(leadBaseTools);
+		this.#leadModePreviousTools = previousTools;
+		const state: LeadModeState = {
+			enabled: true,
+			teamId: workspace.teamId,
+			teamName: workspace.teamName,
+			pmId: workspace.pmId,
+			pmName: workspace.pmName,
+		};
+		this.setLeadModeState(state);
+		if (this.isStreaming) {
+			await this.sendLeadModeContext({ deliverAs: "steer" });
+		}
+		if (options.persistModeChange !== false) {
+			this.sessionManager.appendModeChange("lead", {
+				previousTools,
+				teamId: workspace.teamId,
+				pmId: workspace.pmId,
+			});
+		}
+		return state;
+	}
+
+	/** Exit Lead mode, restoring the pre-mode toolset. */
+	async exitLeadMode(): Promise<void> {
+		if (!this.#leadModeState?.enabled) return;
+		await this.runModeExitTeardown(async () => {
+			if (this.isStreaming) {
+				await this.abort();
+			}
+			await this.deactivateLeadTools(this.#leadModePreviousTools ?? []);
+			this.setLeadModeState(undefined);
+		});
+		this.#leadModePreviousTools = undefined;
+		this.sessionManager.appendModeChange("none");
 	}
 
 	async getPlanFileContent(planFilePath: string): Promise<string | null> {
@@ -3369,6 +3445,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			autoApprove: config.autoApprove,
 			toolRegistry: config.toolRegistry,
 			createVibeTools: config.createVibeTools,
+			createLeadTools: config.createLeadTools,
 			createThinkTool: config.createThinkTool,
 			builtInToolNames: config.builtInToolNames,
 			mcpManagerToolNames: config.mcpManagerToolNames,
@@ -5153,7 +5230,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (message.role === "hookMessage" || message.role === "custom") {
 			// One-run instructions must not return from persisted history: prewalk
 			// nudges are consumed once, and Vibe context is rebuilt only while active.
-			if (!isPrewalkPlanNudge(message) && message.customType !== VIBE_MODE_CONTEXT_MESSAGE_TYPE) {
+			if (
+				!isPrewalkPlanNudge(message) &&
+				message.customType !== VIBE_MODE_CONTEXT_MESSAGE_TYPE &&
+				message.customType !== LEAD_MODE_CONTEXT_MESSAGE_TYPE
+			) {
 				this.sessionManager.appendCustomMessageEntry(
 					message.customType,
 					message.content,
@@ -8311,6 +8392,18 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		return this.#tools.activateVibeTools(baseToolNames);
 	}
 
+	activateLeadTools(baseToolNames: string[]): Promise<void> {
+		return this.#tools.activateLeadTools(baseToolNames);
+	}
+
+	deactivateLeadTools(nextToolNames: string[]): Promise<void> {
+		return this.#tools.deactivateLeadTools(nextToolNames);
+	}
+
+	removeLeadToolsPreservingActive(): Promise<void> {
+		return this.#tools.removeLeadToolsPreservingActive();
+	}
+
 	/** Uninstalls vibe tools and activates the replacement set. */
 	deactivateVibeTools(nextToolNames: string[]): Promise<void> {
 		return this.#tools.deactivateVibeTools(nextToolNames);
@@ -8931,6 +9024,37 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		return this.#vibeModeState;
 	}
 
+	getLeadModeState(): LeadModeState | undefined {
+		return this.#leadModeState;
+	}
+
+	setLeadModeState(state: LeadModeState | undefined): void {
+		this.#leadModeState = state;
+		this.bumpStateVersion();
+		if (state?.enabled) return;
+
+		const isLeadContext = (message: AgentMessage): boolean =>
+			message.role === "custom" && message.customType === LEAD_MODE_CONTEXT_MESSAGE_TYPE;
+		const messages = this.agent.state.messages;
+		const filtered = messages.filter(message => !isLeadContext(message));
+		const historyChanged = filtered.length !== messages.length;
+		if (historyChanged) this.agent.replaceMessages(filtered);
+
+		const steering = this.agent.peekSteeringQueue();
+		const followUp = this.agent.peekFollowUpQueue();
+		const filteredSteering = steering.filter(message => !isLeadContext(message));
+		const filteredFollowUp = followUp.filter(message => !isLeadContext(message));
+		if (filteredSteering.length !== steering.length || filteredFollowUp.length !== followUp.length) {
+			this.agent.replaceQueues(filteredSteering, filteredFollowUp);
+			this.#reconcileQueuedMessageDrain();
+		}
+		this.#pendingNextTurnMessages = this.#pendingNextTurnMessages.filter(message => !isLeadContext(message));
+
+		if (!historyChanged) return;
+		this.#advisors.resetAllRuntimes("lead-mode-exit");
+		this.#closeCodexProviderSessionsForHistoryRewrite();
+	}
+
 	setVibeModeState(state: VibeModeState | undefined): void {
 		this.#vibeModeState = state;
 		this.bumpStateVersion();
@@ -8958,9 +9082,12 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#closeCodexProviderSessionsForHistoryRewrite();
 	}
 
-	#assertVibeSessionTransitionAllowed(action: string): void {
+	#assertModeSessionTransitionAllowed(action: string): void {
 		if (this.#vibeModeState?.enabled) {
 			throw new Error(`Cannot ${action} while vibe mode is active. Exit vibe mode first.`);
+		}
+		if (this.#leadModeState?.enabled) {
+			throw new Error(`Cannot ${action} while lead mode is active. Exit lead mode first.`);
 		}
 	}
 
@@ -9136,6 +9263,21 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		);
 	}
 
+	async sendLeadModeContext(options?: { deliverAs?: "steer" | "followUp" | "nextTurn" | "aside" }): Promise<void> {
+		const message = this.#buildLeadModeMessage();
+		if (!message) return;
+		await this.sendCustomMessage(
+			{
+				customType: message.customType,
+				content: message.content,
+				display: message.display,
+				details: message.details,
+				attribution: message.attribution,
+			},
+			options ? { deliverAs: options.deliverAs } : undefined,
+		);
+	}
+
 	resolveRoleModel(role: string): Model | undefined {
 		return this.#models.resolveRoleModel(role);
 	}
@@ -9291,6 +9433,25 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			role: "custom",
 			customType: VIBE_MODE_CONTEXT_MESSAGE_TYPE,
 			content: prompt.render(vibeModeActivePrompt, {
+				todoAvailable: this.getActiveToolNames().includes("todo"),
+			}),
+			display: false,
+			attribution: "agent",
+			timestamp: Date.now(),
+		};
+	}
+
+	#buildLeadModeMessage(): CustomMessage | null {
+		const state = this.#leadModeState;
+		if (!state?.enabled) return null;
+		return {
+			role: "custom",
+			customType: LEAD_MODE_CONTEXT_MESSAGE_TYPE,
+			content: prompt.render(leadModeActivePrompt, {
+				teamId: state.teamId,
+				teamName: state.teamName,
+				pmId: state.pmId,
+				pmName: state.pmName,
 				todoAvailable: this.getActiveToolNames().includes("todo"),
 			}),
 			display: false,
@@ -10313,6 +10474,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			const vibeModeMessage = this.#buildVibeModeMessage();
 			if (vibeModeMessage) {
 				messages.push(vibeModeMessage);
+			}
+			const leadModeMessage = this.#buildLeadModeMessage();
+			if (leadModeMessage) {
+				messages.push(leadModeMessage);
 			}
 			if (options?.prependMessages) {
 				messages.push(...options.prependMessages);
@@ -12930,7 +13095,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		const queued = this.#enterSessionTransition(() => this.newSession(options));
 		if (queued) return queued;
 		using _transition = this.#beginSessionTransition();
-		this.#assertVibeSessionTransitionAllowed("start a new session");
+		this.#assertModeSessionTransitionAllowed("start a new session");
 		const previousSessionFile = this.sessionFile;
 
 		// Emit session_before_switch event with reason "new" (can be cancelled)
@@ -13086,7 +13251,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		const queued = this.#enterSessionTransition(() => this.fork(entryId, options));
 		if (queued) return queued;
 		using _transition = this.#beginSessionTransition();
-		this.#assertVibeSessionTransitionAllowed("fork the session");
+		this.#assertModeSessionTransitionAllowed("fork the session");
 		const requireIdleFor = entryId !== undefined || options?.requireIdle ? "fork the session" : undefined;
 		if (entryId !== undefined) {
 			if (this.sessionManager.getEntry(entryId)?.type !== "message") {
@@ -13221,7 +13386,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 	/** Move the active session and artifacts after enforcing mode transition invariants. */
 	async moveSession(newCwd: string, targetSessionDir?: string): Promise<void> {
-		this.#assertVibeSessionTransitionAllowed("move the session");
+		this.#assertModeSessionTransitionAllowed("move the session");
 		await this.sessionManager.moveTo(newCwd, targetSessionDir);
 	}
 

@@ -28,7 +28,7 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	// -- Session layer: mode API (web-gateway/ACP external clients) ------------
 	{
 		file: "packages/coding-agent/src/session/agent-session.ts",
-		symbol: 'export type ModeId = "plan" | "goal" | "vibe";',
+		symbol: 'export type ModeId = "plan" | "goal" | "lead" | "vibe";',
 		why: "shared ModeController API for external clients (CLI mode + gateway)",
 	},
 	{

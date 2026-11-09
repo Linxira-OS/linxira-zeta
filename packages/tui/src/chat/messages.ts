@@ -28,6 +28,9 @@ export const PREWALK_PLAN_MESSAGE_TYPE = "prewalk-plan";
 /** Custom message type for the transient Vibe mode directive. */
 export const VIBE_MODE_CONTEXT_MESSAGE_TYPE = "vibe-mode-context";
 
+/** Custom message type for the transient Lead (PM) mode directive. */
+export const LEAD_MODE_CONTEXT_MESSAGE_TYPE = "lead-mode-context";
+
 /** Fallback type for extension-injected messages that omit a custom type. */
 export const DEFAULT_CUSTOM_MESSAGE_TYPE = "custom-message";
 

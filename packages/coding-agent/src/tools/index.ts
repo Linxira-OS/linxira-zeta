@@ -171,6 +171,7 @@ export * from "./plugin-manager";
 export * from "./read";
 export * from "./report-tool-issue";
 export * from "./resolve";
+export * from "./room";
 export * from "./security-scan";
 export * from "./think";
 export * from "./dynamic-tools";

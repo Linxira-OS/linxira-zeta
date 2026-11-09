@@ -24,7 +24,7 @@ defines them so they are not used interchangeably.
 | --- | --- | --- |
 | Coding Agent | **IMPLEMENTED** | Project cwd, normal coding prompt, existing tools and session behavior |
 | Personal Harness | **PARTIAL** | Kept default workspace, `PERSONA.md`, project-scoped memory, relay + bot sessions, IM hosting; first-class multiple personal main agents and persisted chat → agent bindings are incomplete |
-| PM / Super Agent | **PLANNED** | Board and calendar tools ship; a project-bound bot session is the nearest existing shape; no PM prompt, PM Team, engineer roster, or secretary |
+| PM / Super Agent | **PARTIAL** | `/lead` (alias `/pm`) runs the PM main agent in a registered Team PM workspace with rooms, board, and calendar; engineer roster rows and rooms ship; the secretary, Team Hub, and channel bindings do not |
 | Workspace, main agent, relay | **IMPLEMENTED** | Workspace container, top-level sessions, `agent://` messaging, relay fallback |
 | External binding | **PARTIAL** | Runtime chat → agent (`@agent use`) and persisted chat → workspace/bot-session bindings ship; persisted chat → `agentId` is planned |
 | Session origin | **IMPLEMENTED** | Optional `origin` header (`im` + channel/chat/bot session/agent/binding/workspace alias); absent means `local`; legacy `relay` / `bot` / `draft` tags remain the fallback |
@@ -75,31 +75,32 @@ and one uniform personal-surface presentation for several personal agents.
 Those are the remaining PARTIAL pieces; do not describe a Personal Harness as
 owning a repository unless it was explicitly bound.
 
-### PM / Super Agent — PLANNED
+### PM / Super Agent — PARTIAL
 
-The PM / Super Agent mode is the project manager for one manually bound
-project. It is not implemented.
-
-Target behavior:
-
-- The operator binds the project manually. Chat text cannot choose the project
-  implicitly.
-- The PM owns that project's task list, board, and calendar; it assigns
-  engineers (workers/subagents) and has a secretary for scheduling and notes.
-- The PM has its own prompt, distinct from the coding prompt and the personal
-  harness prompt.
+The PM / Super Agent is the project manager for a Team PM workspace. Lead mode
+ships the PM main agent's coordination surface; the secretary and Team Hub do
+not.
 
 What exists now:
 
-- The `board` and `calendar` tools are built-in and project-scoped, so a
-  top-level session in the project can maintain both today.
-- A bot session can be bound to a project at creation
-  (`!session new <name> project:<alias>`) or rebound later
-  (`!session project <alias>`). That session runs in the repository and is
-  what the current docs call a PM/secretary session. It is a project-bound
+- Open a session in `pms/<pm>/` (with `.zeta/pm.json` and a database row) and
+  run `/lead` (alias `/pm`). The mode requires that PM workspace and refuses a
+  worktree, base repository, or unrelated cwd.
+- The Lead toolset is `read`, optional `todo`, `room_read`, `room_post`, and
+  `channel_send` / `board` / `calendar` when configured. `edit`, `write`,
+  `bash`, `grep`, `glob`, `task`, and `vibe_*` are removed, so the PM cannot
+  code.
+- The PM dispatches to engineer main agents through database-only Team rooms.
+  `room_post` posts as the resolved PM id and validates membership; it never
+  writes session JSONL. `room_read` lists rooms and reads members/events.
+- The operator binds the project manually; the prompt forbids hidden project
+  selection and invented agents.
+- A bot session bound to a project at creation is still a project-bound
   conversation, not a PM team.
-- There is no PM prompt, no PM Team provider, no engineer roster, and no
-  secretary agent. Do not describe any of them as shipped.
+
+Missing: the PM-owned secretary persistent subagent, Team Hub, persisted
+chat → `agentId` bindings, and a board/task row model. Do not describe those as
+shipped.
 
 ## 2. Concepts
 
@@ -312,8 +313,9 @@ These are easy to confuse with the three modes. They are not:
   It is neither Vibe nor Advisor. See
   [slash-command-internals.md](./slash-command-internals.md).
 
-A Coding Agent, a Personal Harness, and (later) a PM may each run Vibe or an
-Advisor without changing their mode.
+A Coding Agent and a Personal Harness may run Vibe or an Advisor without
+changing their mode. A PM runs Lead (PM) mode instead of Vibe: the two are
+mutually exclusive, and Lead dispatches through rooms to engineer main agents.
 
 ## Related
 

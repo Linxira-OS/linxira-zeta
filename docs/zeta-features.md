@@ -176,8 +176,11 @@ ownerless team root (`.zeta/team.json`), PM workspaces (`pms/<pm>/.zeta/pm.json`
 canonical base repositories under `repos/<repo>`, PM↔repo bindings, engineers,
 and linked worktrees under `worktrees/<repo>/<pm>/<engineer>/{home,<task>}`.
 Structure lives in one SQLite database (`~/.zeta/data/zeta.db`); markers are
-discovery hints and `team doctor` reports drift. No Team Hub, PM mode, rooms,
-board rows, graph UI, or Vibe auto-start is included. See [team.md](./team.md).
+discovery hints and `team doctor` reports drift. The TUI adds path entry, the
+Team Hub, and database-only rooms; `/lead` (alias `/pm`) runs a PM main agent in
+a PM workspace with `room_read`/`room_post` and no coding tools. Board rows,
+the secretary, channel bindings, the graph UI, and Vibe auto-start are not
+included. See [team.md](./team.md).
 
 ## Plugin registry
 

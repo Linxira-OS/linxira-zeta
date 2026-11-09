@@ -173,6 +173,8 @@ interface SessionToolsOptions {
 	autoApprove?: boolean;
 	toolRegistry?: Map<string, AgentTool>;
 	createVibeTools?: () => AgentTool[];
+	/** Creates tools registered only while lead (PM) mode is active. */
+	createLeadTools?: () => AgentTool[];
 	/** Creates the private `think` scratchpad tool for runtime setting changes. */
 	createThinkTool?: () => Promise<AgentTool | null>;
 	builtInToolNames?: Iterable<string>;
@@ -403,8 +405,10 @@ export class SessionTools {
 	#autoApprove: boolean;
 	#toolRegistry: Map<string, AgentTool>;
 	#createVibeTools: (() => AgentTool[]) | undefined;
+	#createLeadTools: (() => AgentTool[]) | undefined;
 	#createThinkTool: SessionToolsOptions["createThinkTool"];
 	#installedVibeToolNames = new Set<string>();
+	#installedLeadToolNames = new Set<string>();
 	/** An MCP refresh landed while vibe narrowed the active set; vibe exit activates its manager tools. */
 	#vibeDeferredMcpRefresh = false;
 	#builtInToolNames: Set<string>;
@@ -554,6 +558,7 @@ export class SessionTools {
 		this.#autoApprove = options.autoApprove === true;
 		this.#toolRegistry = options.toolRegistry ?? new Map();
 		this.#createVibeTools = options.createVibeTools;
+		this.#createLeadTools = options.createLeadTools;
 		this.#createThinkTool = options.createThinkTool;
 		this.#builtInToolNames = new Set(options.builtInToolNames ?? []);
 		this.#mcpManagerToolNames = new Set(options.mcpManagerToolNames ?? []);
@@ -1090,6 +1095,57 @@ export class SessionTools {
 			this.#builtInToolNames.delete(name);
 		}
 		this.#installedVibeToolNames.clear();
+	}
+
+	/** Installs and activates the ephemeral Lead (PM) tool set. */
+	activateLeadTools(baseToolNames: string[]): Promise<void> {
+		return this.runToolRegistryMutation(async () => {
+			const createLeadTools = this.#createLeadTools;
+			if (!createLeadTools) {
+				throw new Error("Lead tools are unavailable in this session.");
+			}
+
+			const tools = createLeadTools();
+			const leadToolNames = tools.map(tool => tool.name);
+			if (new Set(leadToolNames).size !== leadToolNames.length) {
+				throw new Error("Lead tool names must be unique.");
+			}
+
+			for (const tool of tools) {
+				if (this.#toolRegistry.has(tool.name)) continue;
+				this.#toolRegistry.set(tool.name, this.#wrapRuntimeTool(tool));
+				this.#builtInToolNames.add(tool.name);
+				this.#installedLeadToolNames.add(tool.name);
+			}
+
+			await this.#applyActiveToolsByName([...new Set([...baseToolNames, ...leadToolNames])]);
+		});
+	}
+
+	/** Uninstalls lead tools and activates the replacement set. */
+	deactivateLeadTools(nextToolNames: string[]): Promise<void> {
+		return this.runToolRegistryMutation(async () => {
+			this.#uninstallLeadTools();
+			await this.#applyActiveToolsByName(nextToolNames);
+		});
+	}
+
+	/** Removes lead tools without restoring a source-session snapshot. */
+	removeLeadToolsPreservingActive(): Promise<void> {
+		return this.runToolRegistryMutation(async () => {
+			const removed = new Set(this.#installedLeadToolNames);
+			this.#uninstallLeadTools();
+			const nextEnabled = this.getEnabledToolNames().filter(name => !removed.has(name));
+			await this.#applyActiveToolsByName(nextEnabled);
+		});
+	}
+
+	#uninstallLeadTools(): void {
+		for (const name of this.#installedLeadToolNames) {
+			this.#toolRegistry.delete(name);
+			this.#builtInToolNames.delete(name);
+		}
+		this.#installedLeadToolNames.clear();
 	}
 
 	#getEditModeSession() {

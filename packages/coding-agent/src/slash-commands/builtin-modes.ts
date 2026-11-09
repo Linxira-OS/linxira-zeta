@@ -467,6 +467,22 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		},
 	},
 	{
+		name: "lead",
+		aliases: ["pm"],
+		icon: "agents",
+		description: () => M.cmdLead,
+		getTuiAutocompleteDescription: runtime => {
+			if (runtime.ctx.leadModeEnabled) return M.acLeadOn;
+			if (runtime.ctx.planModeEnabled) return M.acLeadBlockedByPlanMode;
+			if (runtime.ctx.goalModeEnabled) return M.acLeadBlockedByGoalMode;
+			if (runtime.ctx.vibeModeEnabled) return M.acLeadBlockedByVibe;
+			return M.acLeadOff;
+		},
+		handleTui: async (_command, runtime) => {
+			await runtime.ctx.handleLeadModeCommand();
+		},
+	},
+	{
 		name: "goal",
 		icon: "goal",
 		description: () => M.cmdGoal,

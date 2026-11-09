@@ -98,6 +98,10 @@ export interface SegmentContext {
 	vibeMode: {
 		enabled: boolean;
 	} | null;
+	/** Lead (PM) mode indicator; optional so existing context fixtures stay valid. */
+	leadMode?: {
+		enabled: boolean;
+	} | null;
 	/** Team breadcrumb (`Team / PM / repo / engineer / worktree`) when the cwd resolves into a team. */
 	team?: {
 		label: string;
