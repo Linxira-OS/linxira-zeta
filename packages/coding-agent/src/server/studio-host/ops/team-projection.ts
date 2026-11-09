@@ -9,7 +9,8 @@
  * - the Team root is an ownerless container, never a node and never an agent;
  * - `pms/<pm>/` is the PM main agent's workspace, not a Git repo;
  * - rooms are DB rows + `room_events`, not folders;
- * - only engineer/shared repositories are Git; worktrees are linked worktrees;
+ * - only canonical base repos at `<team>/repos/<repo>` are Git (one clone, PMs
+ *   bind through DB `repo_bindings`); worktrees are linked worktrees outside it;
  * - subagents own no folder, branch or worktree.
  *
  * Only `agent` and `subagent` nodes have a producer today. PM workspaces,
