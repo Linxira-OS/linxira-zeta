@@ -86,6 +86,7 @@ import { WindowControls } from "./windowControls";
 import { HomePage, ProfileEditDialog, SecondaryPage } from "./HomePage";
 import { HistoryPage } from "./HistoryPage";
 import { AgentHubPage, setHubIntent } from "./AgentHub";
+import { TeamPage } from "./TeamPage";
 import { CapabilitiesPage, setCapIntent, type CapTab } from "./CapabilitiesPage";
 import { ModelConfigPage, modelConfigHasUnsavedChanges, setModelConfigIntent } from "./ModelConfigPage";
 import { approvalPickerDisabled, ComposerApprovalPicker } from "./ComposerApprovalPicker";
@@ -282,7 +283,7 @@ import { buildGitStatusLookup, GIT_STATUS_META, type TreeGitStatus } from "./git
 
 const PREVIEW_PLAN_TITLE = PREVIEW_DECK_ITEMS.find((item) => item.kind === "plan")?.title ?? "Plan";
 
-const KNOWN_ROUTES: ReadonlyArray<Route> = ["home", "workbench", "history", "agent-hub", "capabilities", "model-config", "settings", "diagnostics", "media", "evaluation", "statistics"];
+const KNOWN_ROUTES: ReadonlyArray<Route> = ["home", "workbench", "history", "agent-hub", "team", "capabilities", "model-config", "settings", "diagnostics", "media", "evaluation", "statistics"];
 
 function parseStoredRoute(value: string | undefined): Route | undefined {
   return value !== undefined && (KNOWN_ROUTES as readonly string[]).includes(value) ? (value as Route) : undefined;
@@ -331,11 +332,11 @@ type ClientStateSource = StudioClient & {
   onState?: (listener: (state: ClientState) => void) => Unsubscribe;
 };
 
-type Route = "home" | "workbench" | "history" | "agent-hub" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics";
+type Route = "home" | "workbench" | "history" | "agent-hub" | "team" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics";
 type SecondaryRoute = Exclude<Route, "workbench">;
 
 function isSecondary(route: Route): route is SecondaryRoute {
-  return route === "home" || route === "history" || route === "agent-hub" || route === "capabilities" || route === "model-config" || route === "settings" || route === "diagnostics" || route === "media" || route === "evaluation" || route === "statistics";
+  return route === "home" || route === "history" || route === "agent-hub" || route === "team" || route === "capabilities" || route === "model-config" || route === "settings" || route === "diagnostics" || route === "media" || route === "evaluation" || route === "statistics";
 }
 
 const SECONDARY_META: Record<SecondaryRoute, { titleKey: string; icon: string }> = {
@@ -343,6 +344,7 @@ const SECONDARY_META: Record<SecondaryRoute, { titleKey: string; icon: string }>
   home: { titleKey: "nav.home", icon: "home" },
   history: { titleKey: "nav.history", icon: "history" },
   "agent-hub": { titleKey: "nav.agentHub", icon: "bot" },
+  team: { titleKey: "nav.team", icon: "network" },
   capabilities: { titleKey: "nav.capabilities", icon: "package" },
   "model-config": { titleKey: "nav.modelConfig", icon: "server" },
   settings: { titleKey: "nav.settings", icon: "settings" },
@@ -3317,6 +3319,7 @@ function AppTopbar({ state, client, chrome, onRoute, threadTitle, sideOpen, onTo
             <div className="menu title-menu-popover tb-overflow-menu" role="menu" aria-label={t("common.more")} onMouseDown={event => event.stopPropagation()}>
               {openMenu === "overflow-tokens" ? <>{preview ? <PreviewTokenPanel /> : <RealTokenPanel telemetry={telemetry} view={viewedTelemetry} />}<TokenCounterPane client={client} /></> : openMenu === "overflow-context" ? (preview ? <PreviewContextPanel /> : <RealContextPanel telemetry={telemetry} view={viewedTelemetry} />) : <>
                 <MenuItem icon="bot" onClick={() => run(() => onRoute("agent-hub"))}>{t("nav.agentHub")}</MenuItem>
+                <MenuItem icon="network" onClick={() => run(() => onRoute("team"))}>{t("nav.team")}</MenuItem>
                 <MenuItem icon="history" onClick={() => run(() => onRoute("history"))}>{t("nav.history")}</MenuItem>
                 <MenuItem icon="terminal" onClick={() => run(onOpenTerminal)}>{t("nav.terminal")}</MenuItem>
                 <MenuItem icon="diff" onClick={() => run(onOpenChanges)}>Changes</MenuItem>
@@ -6948,7 +6951,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     : t("conversation.untitledSession");
   const threadTitle = previewMode.preview
     ? (previewThread?.thread.title ?? "跟踪上游 pi-web 更新到 zeta-web")
-    : currentThreadTitle ?? (state.route === "history" ? t("menu.history") : state.route === "home" ? t("menu.home") : state.route === "agent-hub" ? "Agent Hub" : state.route === "capabilities" ? t("menu.capabilities") : state.route === "model-config" ? t("menu.modelConfig") : untitledThreadTitle);
+    : currentThreadTitle ?? (state.route === "history" ? t("menu.history") : state.route === "home" ? t("menu.home") : state.route === "agent-hub" ? "Agent Hub" : state.route === "team" ? t("nav.team") : state.route === "capabilities" ? t("menu.capabilities") : state.route === "model-config" ? t("menu.modelConfig") : untitledThreadTitle);
   const onProvisionalSessionChange = useCallback((change: {
     readonly sessionId?: SessionId;
     readonly workspaceId?: WorkspaceId;
@@ -7891,6 +7894,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     if (ui === "capabilities-plugins") { setCapIntent("plugins"); go("capabilities"); return; }
     if (ui === "capabilities-slash") { setCapIntent("slash"); go("capabilities"); return; }
     if (ui === "agent-hub") { go("agent-hub"); return; }
+    if (ui === "team") { go("team"); return; }
     if (ui === "history") { go("history"); return; }
     if (ui === "new-chat") { startNewChat(); return; }
     if (ui === "command-palette") { openPalette(); return; }
@@ -8810,6 +8814,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               <button className="menu-item" role="menuitem" onClick={() => startNewChat()}>{t("menu.newThread")}<span className="kbd">{formatShortcut(SHORTCUTS.newChat)}</span></button>
               <button className="menu-item" role="menuitem" onClick={() => go("history")}>{t("menu.history")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("agent-hub")}>Agent Hub</button>
+              <button className="menu-item" role="menuitem" onClick={() => go("team")}>{t("nav.team")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("capabilities")}>{t("menu.capabilities")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("model-config")}>{t("menu.modelConfig")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("media")}>{t("media.title")}</button>
@@ -8937,6 +8942,8 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               loadMentions={fetchHubMentions}
               onOpenMain={() => go("workbench")}
             />
+          ) : pageRoute === "team" ? (
+            <TeamPage client={client} />
           ) : pageRoute === "media" ? (
             <MediaPage client={client} workspaceId={hubWorkspaceId} sessionId={snapshot?.sessionId} runtimeAvailable={hubRuntimeConnected} {...(capabilities ? { capabilities } : {})} onInsert={insertPreparedPrompt} />
           ) : pageRoute === "evaluation" ? (

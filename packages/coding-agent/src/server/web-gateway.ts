@@ -40,6 +40,7 @@ import {
 	handleSubagentRoster,
 	handleSubagentTranscript,
 } from "./web-gateway/subagents";
+import { handleTeamAgentsGet } from "./web-gateway/team";
 import { handleArchiveSession, handleListArchivedSessions, handleUnarchiveSession } from "./web-gateway/archive";
 import {
 	handleAllProviders,
@@ -594,6 +595,13 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (pathname === "/api/agent/new") {
 		if (req.method === "POST") return handleAgentNew(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/agents") {
+		// Live root-agent facts for the Team graph read model (`ops/team.ts`).
+		// A literal route next to the agent family it describes.
+		if (req.method === "GET") return handleTeamAgentsGet();
 		return json({ error: "Method not allowed" }, 405);
 	}
 
