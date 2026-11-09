@@ -581,6 +581,23 @@ const modeSegment: StatusLineSegment = {
 	},
 };
 
+/**
+ * Team breadcrumb: only rendered inside a resolved Team worktree/repository, so
+ * ordinary sessions pay no width. The host supplies a display-only label.
+ */
+const teamSegment: StatusLineSegment = {
+	id: "team",
+	render(ctx) {
+		if (!ctx.team) return { content: "", visible: false };
+		const label = ctx.team.label;
+		return { content: theme.fg("statusLinePath", withIcon(theme.icon.agents, label)), visible: true };
+	},
+	describe(ctx) {
+		if (!ctx.team) return null;
+		return segView([span(ctx.team.label, "statusLinePath strong")], "agents");
+	},
+};
+
 const pathSegment: StatusLineSegment = {
 	id: "path",
 	render(ctx) {
@@ -1337,6 +1354,7 @@ export const SEGMENTS: Record<StatusLineSegmentId, StatusLineSegment> = {
 	status: statusSegment,
 	model: modelSegment,
 	mode: modeSegment,
+	team: teamSegment,
 	path: pathSegment,
 	git: gitSegment,
 	pr: prSegment,

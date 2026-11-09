@@ -134,7 +134,7 @@ Then use `isKeyRelease()` / `isKeyRepeat()` if needed.
 
 ### Built-in full-screen surfaces
 
-The coding-agent integration also mounts built-in full-screen surfaces outside `ctx.ui.custom(...)`. [Agent Hub](./agent-hub.md) is the live roster and control surface for subagents. Its file-backed transcript viewer borrows the alternate screen while it is open, then restores the Hub beneath it on close.
+The coding-agent integration also mounts built-in full-screen surfaces outside `ctx.ui.custom(...)`. [Agent Hub](./agent-hub.md) is the live roster and control surface for subagents. Its file-backed transcript viewer borrows the alternate screen while it is open, then restores the Hub beneath it on close. [Team Hub](./team.md#tui-entry-and-team-hub) is the database-backed room/roster surface; a bare launch at a Team root or PM workspace opens it instead of a coding session, `/team hub` opens it inside a session, and `Esc` returns to the previous screen.
 
 ## Mount points and return contracts
 

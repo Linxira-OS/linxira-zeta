@@ -654,6 +654,8 @@ export interface InteractiveModeContext {
 	showHookConfirm(title: string, message: string, dialogOptions?: InteractiveSelectorDialogOptions): Promise<boolean>;
 	showDebugSelector(): Promise<void>;
 	showAgentHub(options?: AgentHubOpenOptions): void;
+	/** Open the Team Hub overlay for the Team containing the session cwd. */
+	showTeamHub(): void;
 	resetObserverRegistry(): void;
 
 	// Input handling

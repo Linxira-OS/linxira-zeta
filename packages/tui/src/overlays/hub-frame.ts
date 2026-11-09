@@ -148,7 +148,7 @@ export class HubFrame {
 	readonly #footer = new PanelRows();
 	readonly #bottom = new PanelRows();
 	readonly #stack: Stack;
-	readonly #title: string;
+	#title: string;
 	readonly #sidebarBounds: { min: number; max: number };
 	/** Whether narrow layouts may reduce the body floor to keep the sidebar usable. */
 	readonly #preserveSidebar: boolean;
@@ -193,6 +193,13 @@ export class HubFrame {
 
 	/** Invalidate the composed layout. */
 	invalidate(): void {
+		this.#stack.invalidate();
+	}
+
+	/** Replace the frame title after asynchronous data supplies a display name. */
+	setTitle(title: string): void {
+		if (this.#title === title) return;
+		this.#title = title;
 		this.#stack.invalidate();
 	}
 

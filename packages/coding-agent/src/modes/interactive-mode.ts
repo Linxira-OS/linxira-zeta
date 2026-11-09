@@ -9713,6 +9713,16 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#selectorController.showAgentHub(this.#observerRegistry, options);
 	}
 
+	/** Open Team Hub for the Team containing this session; Esc restores the session. */
+	showTeamHub(): void {
+		this.#selectorController.showTeamHub();
+	}
+
+	/** Persistent Team breadcrumb in the status line; `undefined` hides it. */
+	setTeamBreadcrumb(label: string | undefined): void {
+		this.statusLine.setTeamBreadcrumb(label);
+	}
+
 	resetObserverRegistry(): void {
 		this.#observerRegistry.resetSessions();
 		this.#observerRegistry.setMainSession(this.sessionManager.getSessionFile() ?? undefined);
