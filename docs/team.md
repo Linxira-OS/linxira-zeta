@@ -1,11 +1,14 @@
-# Team foundation (paths, database, and rooms)
+# Team foundation (paths, database, rooms, and the Team Hub)
 
 `zetacode team` implements the Team path model and its first collaboration
 primitive: the ownerless team root, PM workspaces, canonical base repositories,
-PM bindings, engineers, linked worktrees, and database-only rooms. There is
-**no Team UI, no team-wide agent, no tasks/board rows, and no PM mode** in this
-slice. `--execution vibe` records the engineer's execution choice; it does not
-start Vibe.
+PM bindings, engineers, linked worktrees, and database-only rooms. The TUI adds
+**path entry** and the **Team Hub**: launching at a Team root or PM workspace
+opens a read/write view of the Team database, while engineer worktrees and base
+repositories open the ordinary coding TUI. There is still **no team-wide agent,
+no PM/Lead mode, no board/task rows, and no channel binding**. `--execution vibe`
+records the engineer's execution choice; it does not start Vibe, and no Team
+entry ever enables Vibe automatically.
 
 ## Path model
 
@@ -142,6 +145,61 @@ zetacode team doctor [--root <path>] [--json]
   unregistered PM folders, base repos, or linked worktrees. Warnings do not fail
   the command; errors exit non-zero.
 
+## TUI entry and Team Hub
+
+`zetacode` classifies the launch directory before creating a session:
+
+| cwd | Opens | Notes |
+| --- | --- | --- |
+| exactly the Team root (`.zeta/team.json`) | **Team Hub** | A UI surface, never an Agent. No team-root session, no `AGENTS.md`, no model request. |
+| exactly a PM workspace (`.zeta/pm.json`) | **Team Hub**, focused on that PM | PM/Lead mode does not exist yet, so the Hub is the honest entry; no fake PM agent. |
+| `repos/<repo>` (including nested dirs) | normal coding TUI + warning | The base repository is not an agent cwd and keeps its default branch. |
+| `worktrees/<repo>/<pm>/<engineer>/home` or `/<task>` | normal coding TUI + breadcrumb | Breadcrumb reads `Team / PM / repo / engineer / worktree`; Vibe stays off unless `/vibe`. |
+| any other directory below the Team root | normal coding TUI + warning | No sibling guessing; `/team hub` is available. |
+| outside every Team | normal coding TUI | No Team UI or warning. |
+
+A malformed or unsupported marker never blocks a coding launch: the ordinary
+session opens with a warning instead. Explicit launches that already choose work
+(`--resume`, `--continue`, `--fork`, `--restore`, `--backend`/`--attach`, a goal,
+or a prompt) keep their normal meaning and skip Hub auto-entry. On a bare
+interactive launch, `/team hub` opens the Hub from any Team directory; `Esc`
+returns to the previous coding session.
+
+The Hub reads the global database on open, on `r`, and after a post. It never
+creates a session or a transcript and never fabricates agents, rooms, or
+statuses:
+
+- Left pane: rooms from `rooms`/`room_events` (`shared`, PM, custom), then PMs
+  and engineers from `team_pms`/`engineers`. Rooms show kind, owner, member
+  count, the real latest `seq`, and `+N` events that arrived since this Hub
+  opened or the room was last viewed. Engineers show the DB `execution` value
+  and registered worktree count; the Hub has no running/idle status source and
+  therefore shows none.
+- Right pane: the selected room's newest 200 events in ascending `seq`, with
+  host `sentAt`, resolved sender, and reply target. An empty room says so.
+- Selecting an engineer shows the real worktree rows (kind, branch, path).
+
+| Key | Behavior |
+| --- | --- |
+| `j` / `k` | Move in the roster, or scroll events when the event pane has focus. |
+| `h` / `l`, `Tab` | Switch between roster and events. |
+| `Enter` | Open the selected room's events, or the selected engineer's worktrees. |
+| `g` | Jump to the shared coordination room. |
+| `p` | Cycle the focused PM's rooms. |
+| `s` | Compose a room event. `Tab`-cycles a real room member as sender; `Enter` posts through the room service; `Esc` cancels. |
+| `a` | Close the Hub and open Agent Hub (subagent control stays there). A standalone Hub says it needs a coding session. |
+| `r` | Reload roster and events from the database. |
+| `/` | Filter rooms, people, and events. `Esc` clears the filter first. |
+| `Esc` | Return from events to the roster, clear the filter, then close the Hub. |
+
+Posting is a `room_events` insert only. A shared room needs an explicit member
+sender (the composer requires one); a PM room defaults to its owning PM in the
+CLI and the composer always names the selected member. No room post becomes
+session JSONL.
+
+Team-origin sessions were already grouped by `groupTeamSessions` for the resume
+picker; the Hub does not list sessions or duplicate that grouping.
+
 ## Resolver
 
 Walking up from any directory finds the nearest `.zeta/team.json` and returns
@@ -173,14 +231,14 @@ The resume-picker/list APIs (`SessionManager.listForPicker`,
 `false`: the current-folder and all-projects scopes hide Team rows, as
 they do IM rows. A Team scope passes `true` and feeds the rows to
 `groupTeamSessions` (`src/resume/team-groups.ts`), the Team → PM →
-engineer → repo → conversation grouping that the Team Hub's Sessions
-panel will reuse. An explicit `--resume <id>` resolves through the
-unfiltered listing and is not affected by the default filter. There is no
-Team TUI screen in this slice.
+engineer → repo → conversation grouping. An explicit `--resume <id>`
+resolves through the unfiltered listing and is not affected by the default
+filter. The Team Hub is a separate surface and does not list sessions.
 
 ## Not in this slice
 
-Team Hub, PM mode, channel bindings, the team relationship graph, board/task
-rows, and Vibe auto-start remain unimplemented. Room data exists only in the
-database and CLI; there is no Team Hub, room UI, or PM prompt. The Engineer
-`execution` column is the only Vibe-related fact stored here.
+PM/Lead mode (prompt and toolset), secretary creation, channel bindings, the
+team relationship graph, board/task rows, and Vibe auto-start remain
+unimplemented. The Hub shows only rooms and the PM/engineer roster, never a full
+graph; subagent control remains in Agent Hub. The Engineer `execution` column is
+the only Vibe-related fact stored here, and no Team entry enables Vibe.

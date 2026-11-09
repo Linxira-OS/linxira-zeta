@@ -47,6 +47,24 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		handle: handleDesignCommand,
 	},
 	{
+		name: "team",
+		description: () => M.cmdTeam,
+		icon: "agents",
+		subcommands: [{ name: "hub", description: () => M.cmdTeamHub }],
+		subcommandOptional: true,
+		allowArgs: true,
+		handleTui: (command, runtime) => {
+			const sub = command.args.trim().split(/\s+/)[0]?.toLowerCase();
+			if (sub === "hub") {
+				runtime.ctx.showTeamHub();
+				runtime.ctx.editor.setText("");
+				return;
+			}
+			runtime.ctx.showWarning(M.teamHubUsage);
+			runtime.ctx.editor.setText("");
+		},
+	},
+	{
 		name: "language",
 		description: () => M.cmdLanguage,
 		icon: "globe",

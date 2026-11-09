@@ -98,6 +98,10 @@ export interface SegmentContext {
 	vibeMode: {
 		enabled: boolean;
 	} | null;
+	/** Team breadcrumb (`Team / PM / repo / engineer / worktree`) when the cwd resolves into a team. */
+	team?: {
+		label: string;
+	} | null;
 	/** Modal editing state, or null when `tui.vimMode` is off. */
 	vim: {
 		mode: "insert" | "normal" | "visual" | "visual-line" | "replace";

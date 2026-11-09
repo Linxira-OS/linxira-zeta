@@ -792,6 +792,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 	#loopModeStatus: SegmentContext["loopMode"] = null;
 	#goalModeStatus: { enabled: boolean; paused: boolean } | null = null;
 	#vibeModeStatus: { enabled: boolean } | null = null;
+	#teamBreadcrumb: SegmentContext["team"] = null;
 	#vimStatus: SegmentContext["vim"] = null;
 	/**
 	 * Injected aggregator that returns the aggregate tok/s of this session's
@@ -1222,6 +1223,14 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 		const next = status ?? null;
 		if (this.#vibeModeStatus === next || this.#vibeModeStatus?.enabled === next?.enabled) return;
 		this.#vibeModeStatus = next;
+		this.#invalidateStatusLineRenderCache();
+	}
+
+	/** Team breadcrumb; `undefined` hides the segment (outside a Team, or a plain subdirectory). */
+	setTeamBreadcrumb(label: string | undefined): void {
+		const next = label ? { label } : null;
+		if (this.#teamBreadcrumb?.label === next?.label) return;
+		this.#teamBreadcrumb = next;
 		this.#invalidateStatusLineRenderCache();
 	}
 
@@ -2720,6 +2729,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 			goalMode: this.#goalModeStatus,
 			goalStatusInFooter: this.#goalModeStatus ? this.host.goalStatusInFooter(this.session) : false,
 			vibeMode: this.#vibeModeStatus,
+			team: this.#teamBreadcrumb,
 			vim: this.#vimStatus,
 			stream: this.#streamStatus,
 			recording: this.#recording,

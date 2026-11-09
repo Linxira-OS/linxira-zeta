@@ -108,6 +108,8 @@ Advisor transcript files (`__advisor*.jsonl`) appear as `advisor`-kind rows unde
 
 Agent Hub is the human-facing live session view. Adjacent commands and internal URLs serve narrower purposes:
 
+- [Team Hub](./team.md#tui-entry-and-team-hub) (`/team hub`) shows Team rooms and the PM/engineer roster from the Team database. It has no subagent control: pressing `a` closes it and opens Agent Hub.
+
 `/agents` is a separate agent-definition/settings hub, not the live roster. It manages discovered agents, enable/disable state, model overrides, prewalk, and advisor selection.
 
 - `/jobs` prints a snapshot of running and recently settled asynchronous tool jobs. It does not replace the per-agent transcript or control view. `/jobs kill <id>|all` cancels running jobs from the command line.
