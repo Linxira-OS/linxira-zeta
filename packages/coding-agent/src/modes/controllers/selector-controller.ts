@@ -128,7 +128,11 @@ import { getEditorCommand, openInEditor } from "../../utils/external-editor";
 import { collapseSharedUsageReports } from "@linxiraos/pi-tui/overlays/usage-display";
 import { limitMatchesActiveAccount } from "../../slash-commands/helpers/active-oauth-account";
 import { AgentHubOverlayComponent } from "@linxiraos/pi-tui/overlays/agent-hub";
+import { TeamHubOverlayComponent } from "@linxiraos/pi-tui/overlays/team-hub";
 import { createAgentHubRuntime } from "../agent-hub-runtime";
+import { resolveTeamEntry } from "../../team/entry";
+import { createTeamHubDataSource } from "../../team/hub-data";
+import type { TeamEntry } from "../../team/entry";
 import { AgentsHubComponent } from "@linxiraos/pi-tui/overlays/agents-hub";
 import { CopySelectorComponent } from "@linxiraos/pi-tui/overlays/copy-selector";
 import { ExtensionDashboard } from "@linxiraos/pi-tui/overlays/extensions/extension-dashboard";
@@ -244,6 +248,7 @@ type MenuKind =
 	| "model-hub"
 	| "agents-dashboard"
 	| "agent-hub"
+	| "team-hub"
 	| "usage-dashboard";
 
 /** An open menu: registered when the request runs, filled once its component mounts. */
@@ -2996,5 +3001,59 @@ export class SelectorController {
 		} else {
 			showReadyHub();
 		}
+	}
+
+	/**
+	 * Open the Team Hub for the Team containing the session cwd. The Hub is a UI:
+	 * it reads the Team database and never loads a team-root transcript. Esc
+	 * closes it and restores this coding session.
+	 */
+	showTeamHub(): void {
+		if (this.#focusOpenMenu("team-hub")) return;
+		const menu = this.#claimMenu("team-hub");
+		void (async () => {
+			let entry: TeamEntry;
+			try {
+				entry = await resolveTeamEntry(this.ctx.sessionManager.getCwd());
+			} catch (error) {
+				this.#releaseMenu("team-hub", menu);
+				this.ctx.showWarning(error instanceof Error ? error.message : String(error));
+				return;
+			}
+			if (!entry.teamRoot || !entry.teamId) {
+				this.#releaseMenu("team-hub", menu);
+				this.ctx.showWarning(
+					"This session is not inside a Team. Run `zetacode` in a Team root or an engineer worktree.",
+				);
+				return;
+			}
+			if (this.#openMenus.get("team-hub") !== menu || menu.component) return;
+			let closed = false;
+			const done = (): void => {
+				if (closed) return;
+				closed = true;
+				hub.dispose();
+				menu.handle?.hide();
+				this.#releaseMenu("team-hub", menu);
+				this.focusActiveEditorArea();
+				this.ctx.ui.requestRender();
+			};
+			const hub = new TeamHubOverlayComponent({
+				source: createTeamHubDataSource({
+					teamRoot: entry.teamRoot,
+					teamId: entry.teamId,
+					teamName: entry.teamName,
+				}),
+				ui: this.ctx.ui,
+				initialPmId: entry.pmId,
+				onDone: done,
+				requestRender: () => this.ctx.ui.requestRender(),
+				openAgentHub: () => {
+					done();
+					this.ctx.showAgentHub();
+				},
+			});
+			this.#mountMenu(menu, hub, () => this.#showFullscreenMenu(hub));
+		})();
 	}
 }

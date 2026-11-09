@@ -48,7 +48,9 @@ export const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
 	// Display-only overlays and client-side capture. `pause` freezes the local
 	// renderer, `hub` reads the mirrored agent tree, `record` writes the TUI
 	// transcript on this machine, and `open`/`debug` never touch the backend.
+	// `/team hub` reads the local Team database, so it stays local too.
 	hub: true,
+	team: true,
 	pause: true,
 	sidebar: true,
 	record: true,

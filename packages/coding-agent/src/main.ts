@@ -139,6 +139,7 @@ import {
 import { ForkSourceNotFoundError, SessionManager, SessionMoveRefusedError } from "./session/session-manager";
 import { forkIfMovedAway } from "./session/session-transfer";
 import { shouldShowStartupSplash } from "./startup-splash";
+import { isTeamHubEntry, resolveTeamEntry } from "./team/entry";
 import {
 	discoverSystemPromptOverride,
 	discoverTitleSystemPromptFile,
@@ -721,6 +722,23 @@ async function runInteractiveMode(
 	} catch (error) {
 		startupLease?.dispose();
 		throw error;
+	}
+
+	// Team breadcrumb and entry warning: an engineer worktree/base repository shows
+	// where it sits; an unmarked subdirectory or malformed marker warns without
+	// changing the coding session. Team roots and PM workspaces never reach here
+	// (they open the Team Hub instead).
+	try {
+		const entry = await resolveTeamEntry(session.sessionManager.getCwd());
+		if (entry.breadcrumb && entry.breadcrumb.length > 0) {
+			mode.setTeamBreadcrumb(entry.breadcrumb.join(" / "));
+		}
+		if (entry.warning) notifs.push({ kind: "warn", message: entry.warning });
+	} catch (error) {
+		notifs.push({
+			kind: "warn",
+			message: `Team entry could not be resolved: ${error instanceof Error ? error.message : String(error)}`,
+		});
 	}
 
 	let setupWizard: typeof SetupWizardModule | undefined;
@@ -2002,6 +2020,51 @@ export async function runRootCommand(
 		if (standalone && explicitBackend) {
 			process.stderr.write(chalk.red("--standalone cannot be combined with --backend/--attach/--backend-url.\n"));
 			process.exit(1);
+		}
+		// Path entry: a bare interactive launch inside a Team root or PM workspace
+		// opens Team Hub — a UI surface, not an Agent. It creates no session, so a
+		// Team root never gains a transcript or AGENTS.md, and it never starts Vibe.
+		// Explicit session/backend/prompt launches keep their normal meaning.
+		const teamHubLaunch =
+			isInteractive &&
+			parsedArgs.messages.length === 0 &&
+			parsedArgs.fileArgs.length === 0 &&
+			!parsedArgs.continue &&
+			!parsedArgs.resume &&
+			!parsedArgs.fork &&
+			!parsedArgs.restore &&
+			parsedArgs.goal === undefined &&
+			parsedArgs.plan === undefined &&
+			!explicitBackend &&
+			!isForeignSessionImport(parsedArgs);
+		if (teamHubLaunch) {
+			try {
+				// Latency boundary: the Team Hub overlay/standalone runner must not load
+				// for print/RPC/subcommand launches, so only this branch imports it.
+				const entry = await resolveTeamEntry(cwd);
+				if (isTeamHubEntry(entry)) {
+					stopPendingStartupComposer();
+					stopStartupWatchdog();
+					logger.endTiming();
+					const { runTeamHubEntry } = await import("./team/hub-entry");
+					try {
+						await runTeamHubEntry(entry);
+					} catch (error) {
+						process.stderr.write(
+							`${chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`)}\n`,
+						);
+						process.exit(1);
+					}
+					process.exit(0);
+				}
+			} catch (error) {
+				// A marker problem must not block an ordinary coding launch; the
+				// in-session entry path reports it as a banner too.
+				notifs.push({
+					kind: "warn",
+					message: `Team entry could not be resolved: ${error instanceof Error ? error.message : String(error)}`,
+				});
+			}
 		}
 		// Transport is decided before any local session exists. A bare launch is
 		// local unless backend mode is enabled; explicit --attach/--backend must

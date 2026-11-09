@@ -2049,6 +2049,9 @@ export interface Messages {
 	cmdContext: string;
 	cmdExtensions: string;
 	cmdAgents: string;
+	cmdTeam: string;
+	cmdTeamHub: string;
+	teamHubUsage: string;
 	cmdFork: string;
 	cmdForkPane: string;
 	cmdForkWindow: string;
