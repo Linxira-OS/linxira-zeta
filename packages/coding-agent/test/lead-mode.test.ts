@@ -46,7 +46,21 @@ function stubTool(name: string): AgentTool {
 	};
 }
 
-const CODING_TOOLS = ["read", "todo", "edit", "bash", "grep", "glob", "task", "vibe_spawn"];
+const CODING_TOOLS = [
+	"read",
+	"todo",
+	"edit",
+	"write",
+	"bash",
+	"grep",
+	"glob",
+	"task",
+	"vibe_spawn",
+	"vibe_send",
+	"vibe_wait",
+	"vibe_kill",
+	"vibe_list",
+];
 const LEAD_TOOLS = ["board", "calendar", "channel_send", "read", "room_post", "room_read", "todo"];
 
 interface Fixture {
@@ -132,7 +146,19 @@ describe("Lead (PM) mode", () => {
 		await mode.handleLeadModeCommand();
 		expect(mode.leadModeEnabled).toBe(true);
 		expect(session.getActiveToolNames().toSorted()).toEqual(LEAD_TOOLS.toSorted());
-		for (const name of ["edit", "bash", "task", "grep", "glob", "vibe_spawn"]) {
+		for (const name of [
+			"edit",
+			"write",
+			"bash",
+			"grep",
+			"glob",
+			"task",
+			"vibe_spawn",
+			"vibe_send",
+			"vibe_wait",
+			"vibe_kill",
+			"vibe_list",
+		]) {
 			expect(session.getActiveToolNames()).not.toContain(name);
 		}
 		expect(session.getLeadModeState()).toMatchObject({
