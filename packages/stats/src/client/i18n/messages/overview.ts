@@ -35,7 +35,7 @@ export const overview = {
 		"overview.by-agent": "By agent",
 		"overview.requests-short": "{count} req",
 		"overview.main-agent": "Main agent",
-		"overview.subagents": "Subagents",
+		"overview.subagents": "Subagent",
 		"overview.advisor": "Advisor",
 		// ── latest requests card + table ────────────────────────────────────
 		"overview.latest-requests": "Latest requests",

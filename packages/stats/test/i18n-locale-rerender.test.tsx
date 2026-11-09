@@ -129,6 +129,7 @@ describe("stats locale rerender", () => {
 		expect(english).toContain("Requests");
 		expect(english).toContain("Main agent");
 		expect(english).toContain("Subagent");
+		expect(english).not.toContain("Subagents");
 		expect(english).toContain("Uncached input");
 		expect(english).toContain("Cache read");
 		expect(english).toContain("Cache write");
