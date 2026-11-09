@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@linxiraos/pi-agent-core",
+  "name": "@oh-my-pi/pi-agent-core",
   "version": "18.9.2",
   "description": "General-purpose agent with transport abstraction, state management, and attachment support",
   "homepage": "https://omp.sh",
@@ -35,16 +35,16 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@linxiraos/pi-ai": "catalog:",
-    "@linxiraos/pi-catalog": "catalog:",
-    "@linxiraos/pi-natives": "catalog:",
-    "@linxiraos/pi-utils": "catalog:",
-    "@linxiraos/pi-wire": "catalog:",
-    "@linxiraos/zeta-compact": "catalog:",
+    "@oh-my-pi/pi-ai": "catalog:",
+    "@oh-my-pi/pi-catalog": "catalog:",
+    "@oh-my-pi/pi-natives": "catalog:",
+    "@oh-my-pi/pi-utils": "catalog:",
+    "@oh-my-pi/pi-wire": "catalog:",
+    "@oh-my-pi/snapcompact": "catalog:",
     "@opentelemetry/api": "catalog:"
   },
   "devDependencies": {
-    "@linxiraos/zeta-schema": "catalog:",
+    "@oh-my-pi/omptype": "catalog:",
     "@opentelemetry/context-async-hooks": "catalog:",
     "@opentelemetry/sdk-trace-base": "catalog:",
     "@types/bun": "catalog:"

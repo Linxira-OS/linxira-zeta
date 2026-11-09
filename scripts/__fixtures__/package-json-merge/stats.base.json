@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@linxiraos/omp-stats",
+  "name": "@oh-my-pi/omp-stats",
   "version": "18.9.2",
   "description": "Local observability dashboard for omp AI usage statistics",
   "homepage": "https://omp.sh",
@@ -42,9 +42,9 @@
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'"
   },
   "dependencies": {
-    "@linxiraos/pi-ai": "catalog:",
-    "@linxiraos/pi-catalog": "catalog:",
-    "@linxiraos/pi-utils": "catalog:",
+    "@oh-my-pi/pi-ai": "catalog:",
+    "@oh-my-pi/pi-catalog": "catalog:",
+    "@oh-my-pi/pi-utils": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"

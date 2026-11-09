@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@linxiraos/pi-wire",
+  "name": "@oh-my-pi/pi-wire",
   "version": "18.10.0",
   "description": "Shared wire protocol types for omp packages",
   "homepage": "https://omp.sh",
