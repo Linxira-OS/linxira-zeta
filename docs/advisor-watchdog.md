@@ -1,8 +1,20 @@
 # Advisor, WATCHDOG.md, and WATCHDOG.yml
 
-The advisor subsystem attaches one or more optional reviewer models to a session. Each advisor reviews primary-agent transcript updates, can inspect the workspace with its own tools, and injects concise advice back into the primary session.
+The advisor subsystem attaches one or more optional second-model advisors to a session. Each advisor reviews primary-agent transcript updates, can inspect the workspace with its own tools, and injects concise advice back into the primary session.
 
 An advisor does not approve actions or mutate primary session state directly. Its default investigative toolset is `read`, `grep`, and `glob`, plus `recall` when the active memory backend provides it, but a `WATCHDOG.yml` roster entry may grant any built-in — including mutating tools such as `edit`, `write`, `bash`, and `eval`. Those tools run in an isolated advisor `ToolSession`, but they honor the session's normal approval mode and per-tool policies; grant them only when the advisor model and workspace are trusted (see [Tools and isolation](#tools-and-isolation)).
+
+## Status and boundaries
+
+| Surface | Status | Meaning |
+| ------- | ------ | ------- |
+| Advisor runtime | **IMPLEMENTED** | Passive second-model review of the primary transcript; emits `nit` / `concern` / `blocker` notes and never edits or approves. |
+| `/review` | **IMPLEMENTED** — separate feature | An explicit code-review command that builds a prompt for the `task` tool with `agent: "reviewer"`. It is not the advisor and does not run automatically. See [Bundled command note: `/review`](./slash-command-internals.md#15-bundled-command-note-review). |
+| `security_scan` | **IMPLEMENTED** — separate feature | Vulnerability scanning, `security.enabled` default `false`; not a reviewer or advisor. |
+| Studio Advisor panel | **PARTIAL — hidden** | `AdvisorConfigPane` exists in Work Studio and calls `advisors.config.get/save`, but the studio host registers neither op, so the panel is hidden. It should appear only after those host ops ship. |
+| TUI `/advisor …` | **IMPLEMENTED** | `on` / `off` / `status` / `dump` / `configure` work in the TUI. |
+
+Configuration keys live in [Settings → Advisor](./settings.md#advisor).
 
 ## Implementation files
 

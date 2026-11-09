@@ -2,6 +2,19 @@
 
 Vibe mode turns the top-level interactive session into a **director** for persistent background worker sessions instead of letting it edit or execute commands itself. The director's active tools are reduced to `read`, optional parent-owned `todo`, and five worker-control tools. Workers do the searching, editing, running, and building; the director verifies their claims by reading touched files. The parent owns the main todo list; workers normally omit `todo`, except when their own prewalk handoff requires it.
 
+## Status
+
+| Mode | Status | Behavior |
+| ---- | ------ | -------- |
+| Coding `/vibe` | **IMPLEMENTED** | Hard Director. The active toolset is reduced to `read`, optional parent-owned `todo`, and `vibe_spawn/send/wait/kill/list`; `task`, `edit`, `write`, `bash`, `grep`, and `glob` are removed while the mode is on. |
+| Team Vibe v2 | **PLANNED** (design only) | Engineer-only (PM, secretary, and Boss cannot enable it). It preserves the engineer's full coding toolset **and** `task` **and** persistent `vibe_*`; it does not reuse the hard Director mode. Budgets: max concurrency, per-turn spawn cap, per-worker token/turn cap, idle auto-kill, digest/compact, no broadcast by default. `/team vibe` is not implemented. |
+
+Vibe is an execution/orchestration feature, not a Team role or an organization
+layer. Model routing for the bundled `sonic`/`task` workers follows
+`task.agentModelOverrides.*` and `modelRoles` (see
+[Settings](./settings.md)); the worker tool surface is described in
+[`task`](./tools/task.md).
+
 ## Enabling and disabling
 
 Toggle it with the `/vibe` slash command:

@@ -6,6 +6,21 @@ browser and without a running web server. It reads and writes the same
 and the GUI settings page. There is one config source and one runtime — these
 are all front-ends onto it.
 
+## Status
+
+| Area | Status | Where it stands |
+| ---- | ------ | --------------- |
+| WeChat / Feishu / Telegram adapters | **IMPLEMENTED** | Real server adapters in `packages/channels/src/{wechat,feishu,telegram}.ts`, hosted by the CLI/TUI session and `zetacode serve` from one runtime. The desktop shell and GUI settings page read/write the same `web.yml`. |
+| TIM adapter | **PLANNED** — not implemented | No TIM/Tencent-IM adapter exists in the tree; only the three adapters above are compiled in. |
+| Channel + chat → agent target | **IMPLEMENTED** | In `serve`, each channel+chat resolves to exactly one target: `@agent use` override, active bot session/project, persisted workspace binding, channel-default workspace, else the relay coordinator (the default-workspace bot). See [Remote Workspaces & IM Relay](./remote-workspaces.md). |
+| Relay answers only unbound chats | **IMPLEMENTED** | The relay coordinator is the fallback; a chat with any project/workspace/agent binding is not answered by the default workspace, and an unopenable binding returns an error instead of falling back. |
+| Allowlist, dedupe, reply correlation | **IMPLEMENTED** | `channels.allowedPeers` gate (`packages/channels/src/auth.ts`), durable per-channel message-id dedupe (`seen-store.ts`), and per-message reply correlation (`reply-correlator.ts`) are wired into every host. |
+| Local IM session visibility | **IMPLEMENTED** (Work Studio sidebar) / **PLANNED** (TUI/History) | Relay/bot sessions are hidden in the Work Studio sidebar by default; **Show hidden bot sessions** (`remote.showBotSessions`) reveals them. TUI resume/history do not yet filter by session origin. |
+
+The CLI surface (`zetacode channels …`) only inspects, pairs, and configures;
+it never hosts the runtime. GUI parity is documented in
+[GUI IM channels](./gui-im-channels.md).
+
 ```sh
 zetacode channels status [--json]
 zetacode channels login wechat [--json] [--timeout <seconds>]
@@ -183,7 +198,9 @@ No HTTP server is involved: `startChannels` only needs `getAgentId`,
 `deliverIrcMessage`, `subscribe`, and `setIrcAutoReplyListener`, which
 `AgentSession` already implements. Inbound messages are delivered as IRC
 messages to that session and replies go back through the same `ChannelHost`
-used by serve. `channel_send` becomes available in that session.
+used by serve. `channel_send` becomes available in that session (see the
+[`channel_send` tool](./tools/channel_send.md)); delivery still honors
+`channels.allowedPeers` and per-message dedupe/reply correlation.
 
 Lifecycle:
 
