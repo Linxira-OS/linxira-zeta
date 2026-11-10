@@ -99,7 +99,25 @@ Current registered skill providers:
    - `codex`
 7. `opencode` (priority 55)
 8. `github` (priority 30) — `.github/skills/<name>/SKILL.md` (GitHub Agent Skills layout, project-only)
-9. `zeta-managed` (priority 5) — auto-learn skills under `~/.zeta/agent/managed-skills`, registered in `src/discovery/builtin.ts` and discovered unconditionally (only writing/nudging is gated by `autolearn.enabled`); always defers to a same-named authored skill
+9. `zeta-official` (priority 10) — the bundled pack in `skills/official/` (embedded in published binaries and seeded into the agent directory); a name the user skills directory already serves is not supplied again, and `skills.enableOfficial: false` removes the whole pack
+10. `zeta-managed` (priority 5) — auto-learn skills under `~/.zeta/agent/managed-skills`, registered in `src/discovery/builtin.ts` and discovered unconditionally (only writing/nudging is gated by `autolearn.enabled`); always defers to a same-named authored skill
+
+### Bundled official skills
+
+The `zeta-official` provider ships the pack in `skills/official/`, one directory per skill (`skills/official/<name>/SKILL.md`) with `name` and `description` frontmatter. The same files are embedded into bundled distributions and installable into the user skills directory from Work Studio; installing copies ordinary editable files, so a later pack update does not overwrite an edited skill.
+
+| Skill | Use it for |
+| --- | --- |
+| `adr` | Recording an architecture or contract decision (public API, data model, security/auth, dependency/license, irreversible migration, release scope) as an ADR, with the ADR template, numbering, and supersede rules |
+| `creator` | Creating, inspecting, installing, enabling, or disabling Zeta plugins, and reporting the restart they need |
+| `docx` | Reading and writing Word (`.docx`) documents |
+| `grill-me` | Interviewing the user one question at a time about an under-specified plan, with a recommended answer per question |
+| `pdf` | Reading, extracting, and producing PDF files |
+| `pptx` | Reading and producing PowerPoint (`.pptx`) presentations |
+| `prd` | Writing a Product Requirements Document at project or feature kickoff; runs the `grill-me` interview and routes architecture decisions to `adr` |
+| `xlsx` | Reading, computing on, and producing Excel (`.xlsx`) spreadsheets |
+
+The `adr` and `prd` skills are companions: `prd` fixes product intent before implementation planning, and `adr` records the technical commitments (APIs, data model, migrations, dependencies) that the requirements imply. Neither replaces the other, and `grill-me` stays the shared interview discipline.
 
 The `skillshare` provider resolves packages against `skills.registryUrl`. No skill registry ships with Zeta and the default is empty, so `zetacode skill install`, `zetacode skill search`, and `zetacode skill publish` need a compatible registry you configure first.
 
