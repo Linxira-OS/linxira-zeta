@@ -45,6 +45,7 @@ import * as commandsSettings from "../commands/settings";
 import * as streamSettings from "../stream/settings";
 import * as commitSettings from "../commit/settings";
 import * as cliGcSettings from "../cli/gc-settings";
+import * as teamSettings from "../team/settings";
 import * as sessionTrashSettings from "../session/trash-settings";
 import * as spotlightSettings from "../spotlight/settings";
 
@@ -89,6 +90,7 @@ const DOMAINS: readonly Readonly<Record<string, unknown>>[] = [
 	commitSettings,
 	cliGcSettings,
 	spotlightSettings,
+	teamSettings,
 	// Last so the Files tab's "Session Trash" section lands after
 	// Editing/Reading/Read Summaries/LSP (TAB_GROUPS must mirror this order).
 	sessionTrashSettings,

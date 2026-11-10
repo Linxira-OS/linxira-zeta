@@ -354,6 +354,7 @@ import { parseCardTitleReply, splitCardTitle } from "../utils/title-card";
 import { generateSessionTitle, nerdGlyphsActive } from "../utils/title-generator";
 import { buildNamedToolChoice, isToolChoiceActive } from "../utils/tool-choice";
 import { type LeadModeState, resolveLeadWorkspace } from "../team/lead";
+import { applyEngineerSkillAssignments, type EngineerSkillInjectionResult } from "./engineer-skills";
 import { type VibeOwnerScope, type VibeParentSession, VibeSessionRegistry } from "../vibe/runtime";
 import type { VibeModeState } from "../vibe/state";
 import type { AgentSessionEvent, AgentSessionEventListener } from "./agent-session-events";
@@ -8431,6 +8432,16 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	/** Rediscovers skills without rebuilding the system prompt's skill list. */
 	reloadSkills(): Promise<void> {
 		return this.#tools.reloadSkills();
+	}
+
+	/**
+	 * Rediscover skills and apply the PM's engineer-skill assignments to this
+	 * session (`/reload-skills`). Only skills not already in the transcript are
+	 * injected; there is no hot reload of a running assignment otherwise.
+	 */
+	async reloadEngineerSkills(): Promise<EngineerSkillInjectionResult> {
+		await this.refreshSkills();
+		return applyEngineerSkillAssignments(this);
 	}
 
 	/**

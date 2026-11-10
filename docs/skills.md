@@ -169,6 +169,18 @@ When no tool metadata is supplied, the prompt builder uses the presence of `read
 
 Task tool subagents receive the session's discovered/provided skills list via normal session creation; there is no per-task skill pinning override.
 
+### Team engineer assignments
+
+A Team PM can assign approved skills to its own engineer main agents (see
+[team.md](team.md#engineer-skill-assignment)). The assignment is a database row
+referencing a discovered skill by name/source, never a path. An engineer
+session whose cwd is a registered worktree loads its assignments as hidden
+autoload prompts at session start and on resume (the same `autoload.md` format
+used for subagent `autoloadSkills`), once per transcript. A live engineer does
+not hot-reload assignments: `/reload-skills` (or a restart) rediscovers skills
+and injects newly assigned ones. Plugin/registry skills require an operator
+allowlist entry (`team.skillAllowlist`) before they can be assigned or injected.
+
 ### Interactive `/skill:<name>` commands
 
 If `skills.enableSkillCommands` is true, interactive mode registers one slash command per discovered skill.

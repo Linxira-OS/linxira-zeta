@@ -62,7 +62,17 @@ const CODING_TOOLS = [
 	"vibe_kill",
 	"vibe_list",
 ];
-const LEAD_TOOLS = ["board", "calendar", "channel_send", "read", "room_post", "room_read", "secretary", "todo"];
+const LEAD_TOOLS = [
+	"board",
+	"calendar",
+	"channel_send",
+	"engineer_skills",
+	"read",
+	"room_post",
+	"room_read",
+	"secretary",
+	"todo",
+];
 
 interface Fixture {
 	scratch: string;
@@ -175,7 +185,7 @@ describe("Lead (PM) mode", () => {
 		await mode.handleLeadModeCommand();
 		expect(mode.leadModeEnabled).toBe(false);
 		expect(session.getActiveToolNames().toSorted()).toEqual(CODING_TOOLS.toSorted());
-		for (const name of [...ROOM_TOOL_NAMES, "secretary"]) {
+		for (const name of [...ROOM_TOOL_NAMES, "secretary", "engineer_skills"]) {
 			expect(session.getToolByName(name)).toBeUndefined();
 		}
 		const lastMode = [...session.sessionManager.getEntries()].reverse().find(entry => entry.type === "mode_change");
