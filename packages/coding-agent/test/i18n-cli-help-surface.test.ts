@@ -52,7 +52,9 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/backend.ts": 5,
 	"commands/bench.ts": 15,
 	"commands/browser-relay.ts": 6,
-	"commands/channels.ts": 8,
+	// Discord and QQ (OneBot v11) added three English flag descriptions in
+	// `commands/channels.ts`; the IM settings pane does not touch that CLI.
+	"commands/channels.ts": 11,
 	"commands/cleanse.ts": 5,
 	"commands/clip.ts": 4,
 	"commands/commit.ts": 6,
