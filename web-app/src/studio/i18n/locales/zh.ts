@@ -1449,12 +1449,16 @@ const zhRaw = {
       "channel": {
         "wechat": "微信",
         "feishu": "飞书 / Lark",
-        "telegram": "Telegram"
+        "telegram": "Telegram",
+        "discord": "Discord",
+        "qq": "QQ（OneBot v11）"
       },
       "channelDesc": {
         "wechat": "扫码登录；bot token 由微信写入，本页不会索要。",
         "feishu": "App ID 与 App Secret，先经平台校验通过才保存。",
-        "telegram": "bot token，先用 getMe 校验再保存。"
+        "telegram": "bot token，先用 getMe 校验再保存。",
+        "discord": "bot token 与允许频道；凭据保存在 web.yml，请在原始配置中编辑。",
+        "qq": "OneBot v11 桥接地址；登录与二维码由桥接端负责。"
       },
       "state": {
         "running": "运行中",
@@ -1488,6 +1492,7 @@ const zhRaw = {
       "domainFeishu": "飞书（open.feishu.cn）",
       "domainLark": "Lark（open.larksuite.com）",
       "telegramToken": "bot token",
+      "unsupportedCredentials": "本页暂不提供 Discord / QQ 凭据编辑；请在原始 web 配置（高级 → 原始配置）中设置 channels.discord.* / channels.qq.*。",
       "secretSaved": "已保存 — 留空则不修改",
       "validateSave": "验证并保存",
       "validating": "验证中…",

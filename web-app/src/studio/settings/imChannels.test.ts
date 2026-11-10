@@ -63,6 +63,8 @@ function configPaths(): WebConfigView {
 			wechat: { enabled: true, botToken: MASKED_SECRET, workspaceRoot: "/work/alpha" },
 			feishu: { enabled: false, appId: "cli_1" },
 			telegram: { enabled: false },
+			discord: { enabled: false },
+			qq: { enabled: false, mode: "forward" },
 		},
 		remote: {},
 	};
@@ -174,6 +176,15 @@ describe("view state", () => {
 		expect(channelConfigured("wechat", config)).toBe(true);
 		expect(channelConfigured("feishu", config)).toBe(false);
 		expect(channelConfigured("telegram", config)).toBe(false);
+		expect(channelConfigured("discord", config)).toBe(false);
+		// QQ has two credential shapes: forward needs an endpoint, reverse a token.
+		expect(channelConfigured("qq", config)).toBe(false);
+		config.channels.qq.endpoint = "ws://127.0.0.1:3001";
+		expect(channelConfigured("qq", config)).toBe(true);
+		config.channels.qq.mode = "reverse";
+		expect(channelConfigured("qq", config)).toBe(false);
+		config.channels.qq.token = "••••";
+		expect(channelConfigured("qq", config)).toBe(true);
 	});
 
 	test("WeChat stages follow the route's words", () => {

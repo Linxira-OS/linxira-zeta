@@ -1449,12 +1449,16 @@ export const en: LocaleDictionary = {
       "channel": {
         "wechat": "WeChat",
         "feishu": "Feishu / Lark",
-        "telegram": "Telegram"
+        "telegram": "Telegram",
+        "discord": "Discord",
+        "qq": "QQ (OneBot v11)"
       },
       "channelDesc": {
         "wechat": "Login by scanning a QR code. WeChat writes the bot token itself; this page never asks for one.",
         "feishu": "App ID and App Secret, validated against the platform before they are saved.",
-        "telegram": "Bot token, validated with getMe before it is saved."
+        "telegram": "Bot token, validated with getMe before it is saved.",
+        "discord": "Bot token plus allowed channels; the credential lives in web.yml and is edited there.",
+        "qq": "OneBot v11 bridge endpoint; login and QR belong to the bridge."
       },
       "state": {
         "running": "Running",
@@ -1488,6 +1492,7 @@ export const en: LocaleDictionary = {
       "domainFeishu": "Feishu (open.feishu.cn)",
       "domainLark": "Lark (open.larksuite.com)",
       "telegramToken": "Bot token",
+      "unsupportedCredentials": "Discord / QQ credentials are not editable on this page yet; set channels.discord.* / channels.qq.* in the raw web config (Advanced → Raw configuration).",
       "secretSaved": "Saved — leave empty to keep it",
       "validateSave": "Validate and save",
       "validating": "Validating…",

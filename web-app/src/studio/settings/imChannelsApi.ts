@@ -14,7 +14,7 @@
 
 import { isRecord } from "../typeGuards";
 
-export const CHANNEL_IDS = ["wechat", "feishu", "telegram"] as const;
+export const CHANNEL_IDS = ["wechat", "feishu", "telegram", "discord", "qq"] as const;
 export type ChannelId = (typeof CHANNEL_IDS)[number];
 
 /** The mask `GET /api/web-config` uses in place of every stored secret. */
@@ -58,11 +58,29 @@ export interface TelegramChannelView {
 	botToken?: string;
 }
 
+export interface DiscordChannelView {
+	enabled: boolean;
+	workspaceRoot?: string;
+	/** Masked (`••••`) when a token is stored. */
+	botToken?: string;
+}
+
+export interface QqChannelView {
+	enabled: boolean;
+	workspaceRoot?: string;
+	endpoint?: string;
+	/** Masked (`••••`) when a token is stored. */
+	token?: string;
+	mode?: "forward" | "reverse";
+}
+
 export interface WebConfigView {
 	channels: {
 		wechat: WechatChannelView;
 		feishu: FeishuChannelView;
 		telegram: TelegramChannelView;
+		discord: DiscordChannelView;
+		qq: QqChannelView;
 	};
 	remote: {
 		workspaces?: unknown;
@@ -196,6 +214,8 @@ export async function fetchWebConfig(fetcher: ChannelsFetch = defaultFetch): Pro
 			wechat: channelView<WechatChannelView>(channels.wechat, ["workspaceRoot", "botToken", "ilinkBotId"]),
 			feishu: channelView<FeishuChannelView>(channels.feishu, ["workspaceRoot", "appId", "appSecret", "domain"]),
 			telegram: channelView<TelegramChannelView>(channels.telegram, ["workspaceRoot", "botToken"]),
+			discord: channelView<DiscordChannelView>(channels.discord, ["workspaceRoot", "botToken"]),
+			qq: channelView<QqChannelView>(channels.qq, ["workspaceRoot", "endpoint", "token", "mode"]),
 		},
 		remote: {
 			workspaces: remote.workspaces,
@@ -272,6 +292,10 @@ export type WebConfigPath =
 	| "channels.feishu.workspaceRoot"
 	| "channels.telegram.enabled"
 	| "channels.telegram.workspaceRoot"
+	| "channels.discord.enabled"
+	| "channels.discord.workspaceRoot"
+	| "channels.qq.enabled"
+	| "channels.qq.workspaceRoot"
 	| "remote.sessionMappings";
 
 /** `PUT /api/web-config` — one dot path. The gateway restarts channels after a `channels.*` write. */
@@ -344,14 +368,19 @@ export async function revokeAllPairedDevices(fetcher: ChannelsFetch, keepCurrent
 // ---------------------------------------------------------------------------
 
 export function isChannelId(value: unknown): value is ChannelId {
-	return value === "wechat" || value === "feishu" || value === "telegram";
+	return CHANNEL_IDS.some(id => id === value);
 }
 
 /** True when the config carries a stored (masked) secret for that channel. */
 export function channelConfigured(id: ChannelId, config: WebConfigView): boolean {
 	if (id === "wechat") return secretPresent(config.channels.wechat.botToken);
 	if (id === "feishu") return Boolean(config.channels.feishu.appId) && secretPresent(config.channels.feishu.appSecret);
-	return secretPresent(config.channels.telegram.botToken);
+	if (id === "telegram") return secretPresent(config.channels.telegram.botToken);
+	if (id === "discord") return secretPresent(config.channels.discord.botToken);
+	// QQ over OneBot: reverse mode needs its token, forward mode an endpoint.
+	return config.channels.qq.mode === "reverse"
+		? secretPresent(config.channels.qq.token)
+		: Boolean(config.channels.qq.endpoint);
 }
 
 function secretPresent(value: string | undefined): boolean {

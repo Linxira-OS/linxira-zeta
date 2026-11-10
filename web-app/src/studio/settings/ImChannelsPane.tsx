@@ -69,6 +69,8 @@ const CHANNEL_PATHS: Record<ChannelId, { enabled: WebConfigPath; workspaceRoot: 
 	wechat: { enabled: "channels.wechat.enabled", workspaceRoot: "channels.wechat.workspaceRoot" },
 	feishu: { enabled: "channels.feishu.enabled", workspaceRoot: "channels.feishu.workspaceRoot" },
 	telegram: { enabled: "channels.telegram.enabled", workspaceRoot: "channels.telegram.workspaceRoot" },
+	discord: { enabled: "channels.discord.enabled", workspaceRoot: "channels.discord.workspaceRoot" },
+	qq: { enabled: "channels.qq.enabled", workspaceRoot: "channels.qq.workspaceRoot" },
 };
 
 const EMPTY_DRAFT: BindingDraft = { platform: "wechat", chatId: "", workspaceAlias: "", sessionId: "" };
@@ -510,6 +512,9 @@ export function ImChannelsPane({ visible }: { visible: boolean }) {
 						pending={pending === "credentials:telegram"}
 						onValidate={validateCredentials}
 					/>
+					<p className="im-hint" data-unavailable="credentials:discord,qq">
+						{t("settings.imChannels.unsupportedCredentials")}
+					</p>
 				</SettingSection>
 			) : null}
 
