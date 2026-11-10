@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-10
+
 ### Added
 
 - **Work Studio browser terminal** — the Studio UI runs a real terminal in the browser over the gateway PTY (xterm.js), with selectable and creatable shell profiles (shell, arguments, working directory, environment), live PTY resize, a session list that survives navigation, and reconnect/replay instead of a dead pane. Terminal profiles are validated server-side; a profile cannot escape the workspace roots ([#282](https://github.com/Linxira-OS/linxira-zeta/pull/282)).
