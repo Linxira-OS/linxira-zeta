@@ -1961,6 +1961,8 @@ export const en = {
 	cmdMemoryMmDelete: "Delete a mental model from the bank (id required)",
 	cmdMemoryMmReload: "Re-pull the cached <mental_models> block",
 	cmdCd: "Change directory: pick a folder and switch this session there",
+	cdPickerNavHint: "j/k move · type or / to filter · Enter open · ⌫ up · Ctrl+P pin · Ctrl+R resume",
+	cdPickerFilterHint: "type to filter · Enter open · Esc clear filter",
 	cdPickerTitle: "Change directory",
 	cdPickerUseThisFolder: "Use this folder",
 	cdPickerDrives: "This PC",

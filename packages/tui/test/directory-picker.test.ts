@@ -150,6 +150,33 @@ describe("DirectoryPickerOverlay", () => {
 		expect(overlay.current).toBe("/home/me/project/docs");
 	});
 
+	it("moves with j/k outside the filter", () => {
+		const { overlay, options } = build();
+		overlay.handleInput("j"); // use(0) → ..(1)
+		overlay.handleInput("j"); // → pin(2)
+		overlay.handleInput("\r");
+		expect(options.onSelect).toHaveBeenCalledWith("/home/me/work");
+	});
+
+	it("filters a name that starts with j after an explicit /", () => {
+		const { overlay } = build({
+			"/home/me/project": listing({
+				directories: [
+					{ name: "java", path: "/home/me/project/java" },
+					{ name: "docs", path: "/home/me/project/docs" },
+				],
+			}),
+		});
+		overlay.handleInput("/");
+		overlay.handleInput("ja");
+		const lines = overlay.renderContent(80).join("\n");
+		expect(lines).toContain("java/");
+		expect(lines).not.toContain("docs/");
+		overlay.handleInput("\x1b"); // Esc clears the filter instead of closing
+		expect(overlay.current).toBe("/home/me/project");
+		expect(overlay.renderContent(80).join("\n")).toContain("docs/");
+	});
+
 	it("filters by typed text and keeps Backspace for the filter when it has content", () => {
 		const { overlay } = build();
 		overlay.handleInput("do");

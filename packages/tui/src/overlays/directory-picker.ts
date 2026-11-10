@@ -14,7 +14,15 @@
  * scrolls, a click activates the row under the pointer.
  */
 import * as path from "node:path";
-import { SelectList, Text, matchesKey, routeSgrMouseInput, type SelectItem, type SgrMouseEvent } from "../index";
+import {
+	SelectList,
+	Text,
+	extractPrintableText,
+	matchesKey,
+	routeSgrMouseInput,
+	type SelectItem,
+	type SgrMouseEvent,
+} from "../index";
 import { getSelectListTheme, theme } from "../theme/theme";
 import { OverlayPanel } from "../chrome/overlay-box";
 import { routeSelectListMouseWithTopBorder } from "../chrome/select-list-mouse-routing";
@@ -84,6 +92,8 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 	#sheet: SelectListSheet;
 	#statusText: Text;
 	#rows: Row[] = [];
+	/** True while typed characters filter; j/k move only outside it. */
+	#filtering = false;
 	#current: string | null;
 	#listing: DirectoryPickerListing;
 	#closed = false;
@@ -110,6 +120,7 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 			noun: "folders",
 		});
 		this.#rebuild();
+		this.#hint();
 	}
 
 	/** Directories listed at the current level (tests and hosts). */
@@ -159,13 +170,63 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 			if (row) this.#resume(row.entry.path);
 			return;
 		}
-		// Backspace moves up only while the filter is empty; otherwise it edits the filter.
-		if (matchesKey(data, "backspace") && this.#selectList.getFilter().length === 0) {
+		if (this.#filtering) {
+			if (matchesKey(data, "escape") || matchesKey(data, "ctrl+c")) {
+				this.#filtering = false;
+				this.#selectList.setFilter("");
+				this.#hint();
+				return;
+			}
+			if (matchesKey(data, "backspace") && this.#selectList.getFilter().length === 0) {
+				this.#filtering = false;
+				this.#goUp();
+				return;
+			}
+			this.#selectList.handleInput(data);
+			this.invalidate();
+			return;
+		}
+		// Navigation mode: vim keys move, and typing starts a filter. `/` starts one
+		// explicitly, which is how a filter may begin with `j` or `k`.
+		if (matchesKey(data, "j")) {
+			this.#selectList.handleInput("\x1b[B");
+			this.invalidate();
+			return;
+		}
+		if (matchesKey(data, "k")) {
+			this.#selectList.handleInput("\x1b[A");
+			this.invalidate();
+			return;
+		}
+		if (matchesKey(data, "/")) {
+			this.#filtering = true;
+			this.#selectList.setFilter("");
+			this.#hint();
+			return;
+		}
+		if (matchesKey(data, "backspace")) {
 			this.#goUp();
 			return;
 		}
+		if (extractPrintableText(data) !== undefined) this.#filtering = true;
 		this.#selectList.handleInput(data);
+		this.#hint();
 		this.invalidate();
+	}
+
+	/** Footer line: the mode-specific key hints. */
+	#hint(): void {
+		this.#statusText.setText(
+			theme.fg(
+				"dim",
+				this.#filtering
+					? tuiText("cdPickerFilterHint", "type to filter · Enter open · Esc clear filter")
+					: tuiText(
+							"cdPickerNavHint",
+							"j/k move · type or / to filter · Enter open · ⌫ up · Ctrl+P pin · Ctrl+R resume",
+						),
+			),
+		);
 	}
 
 	#handleMouse(event: SgrMouseEvent): boolean {
@@ -272,8 +333,10 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 
 	#navigate(directory: string | null): void {
 		this.#current = directory;
-		this.#statusText.setText("");
+		this.#filtering = false;
+		this.#selectList.setFilter("");
 		this.#rebuild();
+		this.#hint();
 	}
 
 	#goUp(): void {

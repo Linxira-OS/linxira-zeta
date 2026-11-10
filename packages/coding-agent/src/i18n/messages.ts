@@ -1972,6 +1972,8 @@ export interface Messages {
 	cmdMemoryMmDelete: string;
 	cmdMemoryMmReload: string;
 	cmdCd: string;
+	cdPickerNavHint: string;
+	cdPickerFilterHint: string;
 	cdPickerTitle: string;
 	cdPickerUseThisFolder: string;
 	cdPickerDrives: string;

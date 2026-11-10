@@ -1933,6 +1933,8 @@ export const zh = {
 	cmdMemoryMmDelete: "从库中删除心智模型（需要 id）",
 	cmdMemoryMmReload: "重新拉取缓存的 <mental_models> 块",
 	cmdCd: "切换目录：选择文件夹并把当前会话切换过去",
+	cdPickerNavHint: "j/k 移动 · 输入或 / 过滤 · Enter 打开 · ⌫ 上一级 · Ctrl+P 固定 · Ctrl+R 恢复会话",
+	cdPickerFilterHint: "输入以过滤 · Enter 打开 · Esc 清除过滤",
 	cdPickerTitle: "切换目录",
 	cdPickerUseThisFolder: "使用此文件夹",
 	cdPickerDrives: "此电脑",
