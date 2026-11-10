@@ -280,6 +280,46 @@ and the response is `no-store`.
 Token checks are hash-compared against the revoked list as well as the active
 token, so a config file that still shows an old value cannot re-enable it.
 
+### Device tokens (per-device revocation)
+
+`remote.token` is one machine-wide secret: rotating it logs out every client.
+Pairing therefore also mints a **device token** — `zdt_` plus 32 random bytes —
+which identifies one phone, browser or app and is revoked on its own.
+
+- **Issued once** by `POST /api/v1/pair` (`{code, device?: {label?, platform?,
+  machineId?}}` → `{csrf, expiresAt, device: {id, token, label, platform,
+  scopes}}`). The plaintext token appears in that response only; the file keeps
+  its SHA-256.
+- **Storage**: `<agentDir>/auth/devices.json`, mode `0600`, written atomically
+  under the config file lock. Missing file = no devices (an upgrade changes
+  nothing); a corrupt file fails closed for device tokens while loopback and the
+  machine token keep working, so the operator can always re-pair.
+- **Accepted** wherever `remote.token` is: `Authorization: Bearer zdt_…` or
+  `X-Zeta-Token: zdt_…`. Loopback callers still need no credential at all.
+- **Listed**: `GET /api/remote/devices` →
+  `{devices: [{id, label, platform, scopes, createdAt, lastSeenAt, revokedAt}],
+  currentDeviceId, legacyTokenActive}`. No token or hash is ever returned;
+  `currentDeviceId` is the caller's own row (`null` for loopback / machine token).
+- **Revoked**: `DELETE /api/remote/devices/:id` (idempotent; unknown id = 404;
+  self-revocation allowed) and `POST /api/remote/devices/revoke-all`
+  (`{keepCurrent?: boolean}`, default `false`). Revocation rejects that token
+  immediately and drops its live Studio sessions and event sockets in the
+  serving process.
+- **Scope**: `read` (bootstrap/query/events) and `write` (commands + device
+  management). Issued with both; a read-only device gets `403 insufficient_scope`
+  on revocation.
+- **Rotation is separate**: rotating `remote.token` does not revoke devices. The
+  rotate response reports `devicesStillActive` so a settings panel can say
+  "旋转不会让已配对设备下线".
+
+**Two-factor (TOTP) is not part of this layer today.** It is planned for device
+and account security only — pairing, device revocation, token rotation, recovery
+codes — and never for IM channel credentials, which stay platform-native
+(WeChat QR, Feishu `appId`+`appSecret`+`domain`, Telegram `botToken`, and for
+future adapters Discord `botToken`+intents / QQ OneBot bridge endpoint+Bearer).
+A device token is a single factor; 2FA would be added *in front of* it, not
+instead of it. Nothing in this layer issues or verifies TOTP codes today.
+
 ### Access gate and rate limiting
 
 The gate keys on the **socket peer address**, never the client-supplied `Host`
