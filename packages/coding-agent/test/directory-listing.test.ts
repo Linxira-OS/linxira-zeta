@@ -21,6 +21,7 @@ import {
 	listWindowsDrives,
 	parentDirectory,
 	parseLinuxMounts,
+	WINDOWS_DRIVE_QUERY,
 	parseWindowsLogicalDisks,
 	volumeKindLabel,
 } from "@linxiraos/zeta/utils/directory-listing";
@@ -67,6 +68,15 @@ describe("Windows volumes", () => {
 	it("drops malformed rows instead of showing a fake drive", () => {
 		expect(parseWindowsLogicalDisks("not json")).toEqual([]);
 		expect(parseWindowsLogicalDisks(JSON.stringify([{ DeviceID: "nope", DriveType: 3 }, null]))).toEqual([]);
+	});
+
+	it("puts the Win32 query console on UTF-8 before reading labels", () => {
+		// A non-English Windows writes volume labels in the OEM code page; reading
+		// that as UTF-8 mangles them.
+		expect(WINDOWS_DRIVE_QUERY).toContain("[Console]::OutputEncoding");
+		expect(WINDOWS_DRIVE_QUERY.indexOf("[Console]::OutputEncoding")).toBeLessThan(
+			WINDOWS_DRIVE_QUERY.indexOf("Get-CimInstance"),
+		);
 	});
 
 	it("maps every Win32 DriveType value", () => {

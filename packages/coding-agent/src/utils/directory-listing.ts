@@ -159,8 +159,13 @@ export function parseWindowsLogicalDisks(json: string): DriveInfo[] {
 	return drives.sort((left, right) => left.path.localeCompare(right.path));
 }
 
-/** Win32_LogicalDisk query used by {@link listWindowsDrives}. */
+/**
+ * Win32_LogicalDisk query used by {@link listWindowsDrives}. The console is put
+ * on UTF-8 first: a volume label on a non-English Windows is written in the
+ * OEM code page otherwise, and reading that as UTF-8 mangles it.
+ */
 export const WINDOWS_DRIVE_QUERY =
+	"[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; " +
 	"Get-CimInstance -ClassName Win32_LogicalDisk | Select-Object DeviceID,DriveType,VolumeName | ConvertTo-Json -Compress";
 
 let windowsDrivesCache: DriveInfo[] | undefined;
