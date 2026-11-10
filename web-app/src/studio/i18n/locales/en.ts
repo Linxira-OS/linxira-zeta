@@ -2469,7 +2469,19 @@ export const en: LocaleDictionary = {
     "userCreated": "Manual terminal",
     "starting": "Starting terminal…",
     "noSessions": "No terminal sessions yet",
-    "clickToStart": "Click \"New Terminal\" to launch local Shell."
+    "clickToStart": "Click \"New Terminal\" to launch local Shell.",
+    "close": "Close terminal",
+    "retry": "Retry",
+    "copy": "Copy",
+    "paste": "Paste",
+    "reconnect": "Reconnect",
+    "shellPicker": "Shell",
+    "renderer": "Renderer",
+    "gatewayError": "Terminal gateway unavailable",
+    "gatewayErrorDetail": "Could not reach the local terminal service.",
+    "profilesWarning": "Shell profile configuration issue",
+    "localOnly": "Local terminals are unavailable for this execution target.",
+    "profileError": "Terminal is unavailable"
   },
   "notice": {
     "title": "Welcome to Zeta",

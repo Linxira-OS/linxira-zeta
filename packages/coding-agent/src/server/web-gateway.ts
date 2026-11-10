@@ -166,6 +166,7 @@ import {
 	handleTerminalDelete,
 	handleTerminalEnsure,
 	handleTerminalList,
+	handleTerminalProfiles,
 	handleTerminalResize,
 	handleTerminalTicket,
 	handleTerminalWsUpgrade,
@@ -244,6 +245,7 @@ const OPEN_RE = /^\/api\/open$/;
 const DESKTOP_INFO_RE = /^\/api\/desktop\/info$/;
 const OPEN_OPTIONS_RE = /^\/api\/open\/options$/;
 const TERMINAL_LIST_RE = /^\/api\/terminal$/;
+const TERMINAL_PROFILES_RE = /^\/api\/terminal\/profiles$/;
 const TERMINAL_ENSURE_RE = /^\/api\/terminal\/ensure$/;
 const TERMINAL_ID_RE = new RegExp(`^/api/terminal/(${SESSION_ID_PART})$`);
 const TERMINAL_RESIZE_RE = new RegExp(`^/api/terminal/(${SESSION_ID_PART})/resize$`);
@@ -820,6 +822,13 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (TERMINAL_ENSURE_RE.test(pathname)) {
 		if (req.method === "POST") return handleTerminalEnsure(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	// `profiles` is eight characters and would also match the terminal-id
+	// route, so the catalog must be dispatched before that capture.
+	if (TERMINAL_PROFILES_RE.test(pathname)) {
+		if (req.method === "GET") return handleTerminalProfiles();
 		return json({ error: "Method not allowed" }, 405);
 	}
 
