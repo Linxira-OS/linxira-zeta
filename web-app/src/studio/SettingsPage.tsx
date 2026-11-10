@@ -7,11 +7,13 @@ import { NativePreferencesPane, type NativePreferencesContext } from "./settings
 import { ArtifactStorageSettings } from "./media/ArtifactLibraryPane";
 import { ImChannelsPane } from "./settings/ImChannelsPane";
 /**
- * 设置页（Phase 1 IA 重构）：7 个标签的壳。
+ * 设置页（Phase 1 IA 重构）：十个标签的壳。
  *
  * 职责原则：设置页只负责「改变全局行为」，不管理对象——模型 / Provider /
  * 角色 / Fallback 在模型配置页，能力启停在能力中心，子代理定义在模型配置
- * · 子代理，会话管理在历史页，Runtime / Bridge / 日志在诊断页。
+ * · 子代理，会话管理在历史页，Runtime / Bridge / 日志在诊断页。IM 渠道是
+ * 例外：它直接读写网关（/api/channels/*、/api/web-config、/api/remote/*），
+ * 不经过 appSettings，也不在本地保留配置副本。
  *
  * 数据面：真实模式读 appSettings 本地存储 + 审批模式（Host 快照），并可选接收
  * Runtime settings snapshot；预览模式读 preview/settingsPreview 演示值，演示控件只改本地 UI 状态。
