@@ -169,12 +169,15 @@ describe("PM → engineer skill assignment", () => {
 		expect(() => assignEngineerSkill({ teamId: "acme", pmId: "acme:core", engineer: "bob", skill, dbPath })).toThrow(
 			/another PM/,
 		);
-		expect(() =>
-			assignEngineerSkill({ teamId: "acme", pmId: "acme:core", engineer: "other", skill, dbPath }),
-		).toThrow(/PM, not an engineer/);
 		expect(() => assignEngineerSkill({ teamId: "acme", pmId: "acme:core", engineer: "core", skill, dbPath })).toThrow(
 			/PM, not an engineer/,
 		);
+		expect(() =>
+			assignEngineerSkill({ teamId: "acme", pmId: "acme:core", engineer: "acme:core", skill, dbPath }),
+		).toThrow(/PM, not an engineer/);
+		expect(() =>
+			assignEngineerSkill({ teamId: "acme", pmId: "acme:core", engineer: "acme:other", skill, dbPath }),
+		).toThrow(/PM, not an engineer/);
 		expect(() =>
 			assignEngineerSkill({ teamId: "acme", pmId: "acme:other", engineer: "alice", skill, dbPath }),
 		).toThrow(/another PM/);

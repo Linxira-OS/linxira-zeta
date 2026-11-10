@@ -195,6 +195,15 @@ export function resolveOwnedEngineer(db: TeamDb, teamId: string, pmId: string, t
 	}
 	const trimmed = token.trim();
 	if (!trimmed) throw new TeamError("Missing engineer name");
+	if (trimmed === pm.id) {
+		throw new TeamError(`"${pm.name}" is a PM, not an engineer; a PM cannot assign skills to itself.`);
+	}
+	const pmById = db.getPmById(trimmed);
+	if (pmById && pmById.teamId === teamId) {
+		throw new TeamError(
+			`"${pmById.name}" is a PM, not an engineer; a PM cannot assign skills to itself or another PM.`,
+		);
+	}
 
 	const byId = db.getEngineerById(trimmed);
 	if (byId) {
