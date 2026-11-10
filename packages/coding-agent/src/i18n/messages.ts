@@ -1971,6 +1971,15 @@ export interface Messages {
 	cmdQuit: string;
 	cmdMemoryMmDelete: string;
 	cmdMemoryMmReload: string;
+	cmdCd: string;
+	cdPickerTitle: string;
+	cdPickerUseThisFolder: string;
+	cdPickerDrives: string;
+	cdPickerMounts: string;
+	cdPickerPinned: string;
+	cdPickerPinnedFmt: string;
+	cdPickerUnpinnedFmt: string;
+	startupHomeTempNotice: string;
 	cmdMove: string;
 	cmdAddDir: string;
 	cmdRemoveDir: string;
@@ -2149,6 +2158,7 @@ export interface Messages {
 	bmSkillListingFmt: string; // Skill listing: %s., %s = on|off
 	cmdShakeAcp: string;
 	cmdMemoryAcp: string;
+	cmdCdAcp: string;
 	cmdMoveAcp: string;
 	cmdAddDirAcp: string;
 	cmdRemoveDirAcp: string;

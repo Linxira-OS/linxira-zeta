@@ -119,9 +119,25 @@ describe("parseArgs — --cwd flag", () => {
 		});
 		const setProjectDir = vi.spyOn(utils, "setProjectDir").mockImplementation(() => {});
 
-		await applyStartupCwd(parseArgs([]));
+		const result = await applyStartupCwd(parseArgs([]));
 
 		expect(setProjectDir).toHaveBeenCalledTimes(1);
 		expect(setProjectDir).toHaveBeenCalledWith(fallback);
+		// The UI explains the switch instead of leaving the temp workspace unexplained.
+		expect(result.autoChdir).toEqual({ from: home, to: fallback });
+	});
+
+	it("keeps home launches put with --allow-home and reports no switch", async () => {
+		const home = String.raw`C:\Users\reporter`;
+		if (!platformDescriptor) throw new Error("process.platform descriptor is unavailable");
+		Object.defineProperty(process, "platform", { ...platformDescriptor, value: "win32" });
+		vi.spyOn(os, "homedir").mockReturnValue(home);
+		vi.spyOn(utils, "getProjectDir").mockReturnValue(home);
+		const setProjectDir = vi.spyOn(utils, "setProjectDir").mockImplementation(() => {});
+
+		const result = await applyStartupCwd(parseArgs(["--allow-home"]));
+
+		expect(setProjectDir).not.toHaveBeenCalled();
+		expect(result.autoChdir).toBeUndefined();
 	});
 });

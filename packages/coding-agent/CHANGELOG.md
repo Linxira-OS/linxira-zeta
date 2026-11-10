@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+
+- `/cd` changes the session's working directory from inside the TUI: a folder-only picker that lists the real Windows volumes (drive type and volume label, so a phone or a CD is not an internal disk; A:/B: only when present) or the POSIX mount points from `/proc/mounts`, with pinned paths, type-to-filter, keyboard and mouse selection, and `Ctrl+R` to open the session resume tree on a folder instead of switching to it. Switching relocates the session file and artifacts into the destination bucket and re-scopes project settings, memory, plugins, skills and commands; a home-directory launch keeps its `~/tmp` workspace and now says so in a startup notice.
+
 ### Fixed
 
 - Startup resolves Claude Code's plugin registries once per project instead of once per capability surface: the ancestor walk that finds a project registry and the project/cwd realpaths are shared by `claude-plugins`, `agent-plugins` and `zeta-plugins`, which removes repeated filesystem work from skill and slash-command discovery.

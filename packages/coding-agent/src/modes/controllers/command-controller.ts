@@ -48,6 +48,8 @@ import { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
 import { promptCacheDetails } from "@linxiraos/pi-tui/status-line/prompt-cache";
 import { messageBlock, PresentedBlock } from "@linxiraos/pi-tui/chat/transcript-presentation";
 import { MoveOverlay, type MoveOverlayResult } from "@linxiraos/pi-tui/overlays/move-overlay";
+import { DirectoryPickerOverlay } from "@linxiraos/pi-tui/overlays/directory-picker";
+import { loadDirectoryPickerSource } from "../directory-picker-source";
 import { moveDirectorySource } from "../move-directory-source";
 import { getMarkdownTheme, getSymbolTheme, theme, type Theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "../../modes/types";
@@ -1597,6 +1599,50 @@ export class CommandController {
 				new Text(`${theme.fg("accent", `${theme.status.success} Moved to ${resolvedPath}`)}`, 1, 1),
 			]);
 		}
+	}
+
+	/**
+	 * `/cd` — change the session working directory through the folder picker.
+	 *
+	 * Picking a folder relocates the session through the same safe path as
+	 * `/move <path>` (session file and artifacts move to the new bucket, the
+	 * project dir/settings/plugins/skills/commands are re-scoped, and a failure
+	 * rolls the whole switch back). Ctrl+R or Ctrl+click on a row opens `/resume`
+	 * focused on that folder's conversations instead of switching.
+	 */
+	async showDirectoryPicker(): Promise<void> {
+		if (this.ctx.session.isStreaming) {
+			this.ctx.showWarning("Wait for the current response to finish or abort it before changing directory.");
+			return;
+		}
+		const cwd = this.ctx.sessionManager.getCwd();
+		let resumePath: string | undefined;
+		const source = await loadDirectoryPickerSource();
+		const picked = await this.ctx.showHookCustom<string | undefined>(
+			(_tui, _theme, _keybindings, done) =>
+				new DirectoryPickerOverlay({
+					source,
+					initialPath: cwd,
+					home: os.homedir(),
+					onSelect: directory => done(directory),
+					onResume: directory => {
+						resumePath = directory;
+						done(undefined);
+					},
+					onCancel: () => done(undefined),
+				}),
+			// Fullscreen so the terminal reports mouse clicks for row selection.
+			{ overlay: true, overlayOptions: { fullscreen: true } },
+		);
+		if (resumePath) {
+			await this.ctx.showSessionSelector(undefined, undefined, {
+				workspacePath: resumePath,
+				initialScope: "workspace",
+			});
+			return;
+		}
+		if (!picked) return;
+		await this.handleMoveCommand(picked);
 	}
 
 	/**

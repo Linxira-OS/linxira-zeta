@@ -3,14 +3,24 @@ import * as path from "node:path";
 import { directoryExists, getProjectDir, normalizePathForComparison, setProjectDir } from "@linxiraos/pi-utils";
 import type { Args } from "./args";
 
-async function maybeAutoChdir(parsed: Args): Promise<void> {
+export interface StartupCwdResult {
+	/**
+	 * Set when a launch from the home directory (or the OS temp directory) was
+	 * moved off it. The interactive UI shows it as a startup notice so the
+	 * directory in the status line is not a surprise; the launch itself is
+	 * unchanged (zetacode never runs in the home directory).
+	 */
+	autoChdir?: { from: string; to: string };
+}
+
+async function maybeAutoChdir(parsed: Args): Promise<StartupCwdResult> {
 	if (parsed.allowHome || parsed.cwd) {
-		return;
+		return {};
 	}
 
 	const home = os.homedir();
 	if (!home) {
-		return;
+		return {};
 	}
 
 	const normalizePath = normalizePathForComparison;
@@ -18,7 +28,7 @@ async function maybeAutoChdir(parsed: Args): Promise<void> {
 	const cwd = normalizePath(getProjectDir());
 	const normalizedHome = normalizePath(home);
 	if (cwd !== normalizedHome) {
-		return;
+		return {};
 	}
 
 	const candidates =
@@ -29,7 +39,7 @@ async function maybeAutoChdir(parsed: Args): Promise<void> {
 				continue;
 			}
 			setProjectDir(candidate);
-			return;
+			return { autoChdir: { from: home, to: candidate } };
 		} catch {
 			// Try next candidate.
 		}
@@ -39,13 +49,15 @@ async function maybeAutoChdir(parsed: Args): Promise<void> {
 		const fallback = os.tmpdir();
 		if (fallback && normalizePath(fallback) !== cwd && (await directoryExists(fallback))) {
 			setProjectDir(fallback);
+			return { autoChdir: { from: home, to: fallback } };
 		}
 	} catch {
 		// Ignore fallback errors.
 	}
+	return {};
 }
 
-export async function applyStartupCwd(parsed: Args): Promise<void> {
+export async function applyStartupCwd(parsed: Args): Promise<StartupCwdResult> {
 	if (parsed.cwd) {
 		try {
 			setProjectDir(parsed.cwd);
@@ -65,7 +77,7 @@ export async function applyStartupCwd(parsed: Args): Promise<void> {
 		// so downstream consumers (buildSessionOptions, settings/discovery, session
 		// persistence) don't re-resolve a relative string against the new cwd.
 		parsed.cwd = getProjectDir();
-		return;
+		return {};
 	}
-	await maybeAutoChdir(parsed);
+	return maybeAutoChdir(parsed);
 }
