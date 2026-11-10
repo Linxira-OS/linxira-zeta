@@ -93,4 +93,11 @@ entry (`set-security`) and a desktop tray item (**Identity & Devices** →
 - **Remote access token UI** rotates/revokes the machine token, but editing the
   TLS/`publicUrl`/plain-HTTP settings still requires the raw web config
   (Advanced → Raw configuration).
+- **Remote renderer authentication** is still incomplete: the gateway gate
+  requires `remote.token` (or a device token) for non-loopback `/api/*`, and
+  the renderer does not yet inject the token from a pairing fragment. A remote
+  browser therefore reaches these panes only when something in front of it adds
+  the credential; otherwise each read shows the gateway's `unauthorized` error.
+  The matrix still advertises the actions because the host supports them; the
+  missing piece is renderer plumbing, not authorization policy.
 - **SSH targets** remain unavailable until the desktop bridge ships.
