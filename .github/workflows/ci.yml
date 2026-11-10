@@ -8,6 +8,7 @@ on:
          - "plugins/**"
          - "desktop/**"
          - "web-ui/**"
+         - "web-app/**"
          - "editor/**"
          - "termide/**"
          - "main/**"
@@ -60,6 +61,7 @@ on:
          - "plugins/**"
          - "desktop/**"
          - "web-ui/**"
+         - "web-app/**"
          - "editor/**"
          - "termide/**"
          - "main/**"
@@ -286,6 +288,13 @@ jobs:
          - name: Studio naming guard
            working-directory: web-app
            run: bun run check:naming
+         # The runtime diagnostics read model decides whether "no managed
+         # install" is a failure. A source runtime that is its own host must
+         # not render as "Runtime not installed"; pin that here because the
+         # renderer's unit tests are otherwise not part of any CI bucket.
+         - name: Test the Studio diagnostics read model
+           working-directory: web-app
+           run: bun test src/studio/diagnosticsModel.test.ts src/studio/deck/capabilitySupport.test.ts
          - name: Verify Rust license compliance (cargo-deny 0.20.2)
            run: |
               # Prebuilt release binary checked against digests pinned here:

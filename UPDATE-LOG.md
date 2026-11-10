@@ -2,6 +2,9 @@
 
 ## 下一版本（Unreleased）
 
+### Work Studio 诊断（未发布）
+- **系统 Runtime 不再被误报为未安装**：当 Host 自身就是运行中的 `compatible-system` Runtime（源码/开发构建）时，诊断页显示「系统 Runtime 运行正常（未托管）」、托管卡片「系统 Runtime（未托管）」、签名「不适用（无托管制品）」、上游「本机 Runtime · 无上游记录」；`runtime.install` 与 `runtime.ensure` 能力分开渲染，不再给出必败的 Install 按钮，也不再弹「无法确认 Runtime 工件通道」。运行中的托管 Runtime 缺少安装记录改为黄色提示，launch/handshake/断连失败保留自身错误文案。
+
 ### 桌面安装包体积（未发布）
 - **Electron 版减重 ~165 MiB**：内核二进制已把本平台 native addon 以 zstd 帧内嵌（`packages/natives/scripts/embed-native.ts`，首次运行解压到 `~/.zeta/natives/<版本>/`），`prepare-runtime.mjs` 仍把 `.node` 再复制一份到 `resources/zeta`，1.5.1 Windows 安装树里重复了 124.1 MiB。现不再随包复制，与命令行版发布物保持一致。
 - **Electron 语言包收敛**：`electron-builder.yml` 新增 `electronLanguages: [en-US, zh-CN]`，不再随包 55 个 `.pak`（安装后 42 MiB、安装包约 10 MiB）。

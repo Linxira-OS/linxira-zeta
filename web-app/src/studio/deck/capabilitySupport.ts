@@ -58,3 +58,19 @@ export function sessionActionSupport(manifest: CapabilityManifest | undefined): 
 		export: ids.has(SESSION_ACTION_CAPABILITY.export),
 	};
 }
+
+/**
+ * The two runtime actions the Diagnostics page offers have different Host
+ * requirements: `runtime.install` writes a managed artifact, while
+ * `runtime.ensure` only probes (and may relaunch) the current runtime. A host
+ * that is its own runtime advertises `ensure` but not `install`; treating
+ * `ensure` as "can manage" put an Install button on a page that has no managed
+ * artifact and no channel to fetch one.
+ */
+export function runtimeActionSupport(manifest: CapabilityManifest | undefined): {
+	readonly install: boolean;
+	readonly ensure: boolean;
+} {
+	const ids = supportedCapabilityIds(manifest);
+	return { install: ids.has("runtime.install"), ensure: ids.has("runtime.ensure") };
+}
