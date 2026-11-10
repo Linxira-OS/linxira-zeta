@@ -5,7 +5,7 @@
  */
 import * as path from "node:path";
 import * as url from "node:url";
-import { getProjectDir, logger, untilAborted, withTimeout } from "@linxiraos/pi-utils";
+import { APP_NAME, getProjectDir, logger, untilAborted, withTimeout } from "@linxiraos/pi-utils";
 import { describeMCPTimeout, isMCPTimeoutEnabled, resolveMCPTimeoutMs } from "./timeout";
 import { createHttpTransport } from "./transports/http";
 import { createSseTransport, LegacySseConnectionTimeoutError } from "./transports/sse";
@@ -40,9 +40,10 @@ import type {
 
 import { MCP_PROTOCOL_VERSION } from "./types";
 
-/** Client info sent during initialization */
+/** Client info sent during initialization. ACP clients see this for the MCP
+ * servers they declare at `session/new`, so it must name Zeta, not upstream. */
 const CLIENT_INFO = {
-	name: "omp-coding-agent",
+	name: `${APP_NAME}-coding-agent`,
 	version: "1.0.0",
 };
 

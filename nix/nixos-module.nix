@@ -10,13 +10,13 @@ let
 in
 {
   options.programs.zeta = {
-    enable = lib.mkEnableOption "OMP coding agent";
+    enable = lib.mkEnableOption "Zeta coding agent";
 
     package = lib.mkOption {
       type = lib.types.package;
       default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
-      defaultText = lib.literalExpression "inputs.omp.packages.${pkgs.stdenv.hostPlatform.system}.default";
-      description = "OMP package to install system-wide.";
+      defaultText = lib.literalExpression "inputs.zeta.packages.${pkgs.stdenv.hostPlatform.system}.default";
+      description = "Zeta package to install system-wide.";
     };
   };
 

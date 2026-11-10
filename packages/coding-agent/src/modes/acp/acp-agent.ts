@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { AgentBusyError, type AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
-import { getAgentDir, getBlobsDir, isEnoent, logger, type postmortem, VERSION } from "@linxiraos/pi-utils";
+import { APP_NAME, getAgentDir, getBlobsDir, isEnoent, logger, type postmortem, VERSION } from "@linxiraos/pi-utils";
 import {
 	type Agent,
 	type AgentSideConnection,
@@ -1050,8 +1050,11 @@ export class AcpAgent implements Agent {
 		return {
 			protocolVersion: PROTOCOL_VERSION,
 			agentInfo: {
-				name: "zeta",
-				title: "zeta",
+				// `name` is the protocol identity clients match on (product slug);
+				// `title` is the display name the client surfaces. Neither may carry
+				// the upstream OMP spelling: ACP clients classify the agent from them.
+				name: APP_NAME,
+				title: "Zeta",
 				version: VERSION,
 			},
 			authMethods,

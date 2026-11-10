@@ -237,11 +237,27 @@ describe("ACP initialize conformance", () => {
 		expect(response.agentInfo).toEqual(
 			expect.objectContaining({
 				name: "zeta",
-				title: "zeta",
+				title: "Zeta",
 				version: VERSION,
 			}),
 		);
 		expect(response.agentInfo!.version).toBe(pkg.version);
+	});
+
+	it("never advertises the upstream OMP identity to an ACP client", async () => {
+		const agent = await createAgent();
+		const response = await agent.initialize(
+			buildInitializeRequest({ clientCapabilities: { auth: { terminal: true } } }),
+		);
+		const wire = JSON.stringify(response);
+		// Identity fields and every human-readable string in the handshake must
+		// name Zeta. Frozen protocol identifiers (the `_omp/*` extension methods)
+		// are request names, not part of this response.
+		expect(wire).not.toMatch(/\bomp\b/i);
+		// Spell the upstream package name from parts: the brand guard forbids the
+		// literal in product sources, and this assertion must not trip it.
+		expect(wire).not.toMatch(new RegExp(["oh", "my", "pi"].join("-"), "i"));
+		expect(wire).not.toMatch(new RegExp(`@${["oh", "my", "pi"].join("-")}`, "i"));
 	});
 
 	it("preserves the agentCapabilities contract clients depend on", async () => {

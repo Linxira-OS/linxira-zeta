@@ -169,7 +169,7 @@ stdenv.mkDerivation {
       signIfRequired "packages/natives/native/${platform.addon}"
     ''}
 
-    echo "Compiling OMP"
+    echo "Compiling zeta"
     BUN_COMPILE_EXECUTABLE_PATH="${bunRuntimeTemplate}/libexec/bun" \
       bun --cwd="$PWD/packages/coding-agent" run build
 
@@ -206,7 +206,7 @@ stdenv.mkDerivation {
     remove-references-to -t ${bun} "$out/bin/zeta"
   '';
 
-  # Prebuilt addons that omp bun-installs into its cache at first use
+  # Prebuilt addons that zetacode bun-installs into its cache at first use
   # (onnxruntime-node, sherpa-onnx-node, sharp, fastembed) are process.dlopen'd and
   # need libstdc++.so.6 / libgcc_s.so.1, which nix glibc's default loader path lacks;
   # their own DT_RUNPATH means this executable's RPATH is never consulted for their
@@ -225,7 +225,7 @@ stdenv.mkDerivation {
   postFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
     patchelf --add-needed libstdc++.so.6 "$out/bin/zeta"
     wrapProgram "$out/bin/zeta" \
-      --set-default OMP_NATIVE_LIBRARY_PATH "${lib.makeLibraryPath runtimeNativeLibraries}"
+      --set-default ZETA_NATIVE_LIBRARY_PATH "${lib.makeLibraryPath runtimeNativeLibraries}"
   '';
 
   disallowedReferences = [ bun ];
@@ -247,9 +247,9 @@ stdenv.mkDerivation {
   doInstallCheck = true;
   installCheckPhase = ''
     runHook preInstallCheck
-    # Capture rather than pipe into grep: piping masks a signal death of omp
+    # Capture rather than pipe into grep: piping masks a signal death of zeta
     # under `set -o pipefail` (grep -q's exit status wins), which hid the
-    # loader SIGSEGV in issue #9881. With a variable, errexit surfaces omp's
+    # loader SIGSEGV in issue #9881. With a variable, errexit surfaces zeta's
     # real exit status and stderr in the build log.
     smokeOutput="$(HOME="$TMPDIR" "$out/bin/zeta" --smoke-test)"
     grep -q "smoke-test: ok" <<<"$smokeOutput"
@@ -259,7 +259,7 @@ stdenv.mkDerivation {
       # The addons are dlopen'd, so prove the advertised directories actually
       # resolve the libraries rather than merely carrying a plausible string.
       env -u LD_LIBRARY_PATH BUN_BE_BUN=1 "$out/bin/zeta" -e \
-        'const {dlopen}=require("bun:ffi");const dirs=(process.env.OMP_NATIVE_LIBRARY_PATH||"").split(":").filter(Boolean);const need={"libstdc++.so.6":{__cxa_demangle:{args:["ptr","ptr","ptr","ptr"],returns:"ptr"}},"libgcc_s.so.1":{_Unwind_Backtrace:{args:["ptr","ptr"],returns:"i32"}}};for(const lib of Object.keys(need)){let ok=false;for(const d of dirs){try{dlopen(d+"/"+lib,need[lib]);ok=true;break}catch(e){}}if(!ok){console.error("unresolved: "+lib);process.exit(1)}}'
+        'const {dlopen}=require("bun:ffi");const dirs=(process.env.ZETA_NATIVE_LIBRARY_PATH||"").split(":").filter(Boolean);const need={"libstdc++.so.6":{__cxa_demangle:{args:["ptr","ptr","ptr","ptr"],returns:"ptr"}},"libgcc_s.so.1":{_Unwind_Backtrace:{args:["ptr","ptr"],returns:"i32"}}};for(const lib of Object.keys(need)){let ok=false;for(const d of dirs){try{dlopen(d+"/"+lib,need[lib]);ok=true;break}catch(e){}}if(!ok){console.error("unresolved: "+lib);process.exit(1)}}'
       # The libstdc++ preload (see postFixup) must survive: without it addons the
       # main process dlopen's directly fail to resolve libstdc++.so.6 on NixOS.
       # wrapProgram moved the real ELF to .zeta-wrapped.
@@ -273,7 +273,7 @@ stdenv.mkDerivation {
         # lives at the host's driver link, which does not exist in this sandbox
         # and is not a property of the build.
         env -u LD_LIBRARY_PATH BUN_BE_BUN=1 "$out/bin/zeta" -e \
-          'const {dlopen}=require("bun:ffi");const dirs=(process.env.OMP_NATIVE_LIBRARY_PATH||"").split(":").filter(Boolean);const need={"libcublasLt.so.13":{cublasLtGetVersion:{args:[],returns:"ptr"}},"libcublas.so.13":{cublasGetVersion:{args:[],returns:"ptr"}},"libcurand.so.10":{curandGetVersion:{args:["ptr"],returns:"i32"}},"libcudart.so.13":{cudaRuntimeGetVersion:{args:["ptr"],returns:"i32"}}};for(const lib of Object.keys(need)){let ok=false;for(const d of dirs){try{dlopen(d+"/"+lib,need[lib]);ok=true;break}catch(e){}}if(!ok){console.error("unresolved: "+lib);process.exit(1)}}'
+          'const {dlopen}=require("bun:ffi");const dirs=(process.env.ZETA_NATIVE_LIBRARY_PATH||"").split(":").filter(Boolean);const need={"libcublasLt.so.13":{cublasLtGetVersion:{args:[],returns:"ptr"}},"libcublas.so.13":{cublasGetVersion:{args:[],returns:"ptr"}},"libcurand.so.10":{curandGetVersion:{args:["ptr"],returns:"i32"}},"libcudart.so.13":{cudaRuntimeGetVersion:{args:["ptr"],returns:"i32"}}};for(const lib of Object.keys(need)){let ok=false;for(const d of dirs){try{dlopen(d+"/"+lib,need[lib]);ok=true;break}catch(e){}}if(!ok){console.error("unresolved: "+lib);process.exit(1)}}'
       ''
     }
     ${lib.optionalString stdenv.hostPlatform.isDarwin ''
@@ -294,10 +294,10 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Terminal-based coding agent with multi-model support";
-    homepage = "https://omp.sh";
-    changelog = "https://github.com/can1357/oh-my-pi/releases/tag/v${packageJson.version}";
+    homepage = "https://linxira-os.github.io/zeta/";
+    changelog = "https://github.com/Linxira-OS/linxira-zeta/releases/tag/v${packageJson.version}";
     license = lib.licenses.mit;
-    mainProgram = "omp";
+    mainProgram = "zeta";
     platforms = [
       "aarch64-darwin"
       "aarch64-linux"

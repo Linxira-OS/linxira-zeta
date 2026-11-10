@@ -474,7 +474,7 @@
 			"rootMarkers": ["package.json", "tsconfig.json", "jsconfig.json"],
 			"languages": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
 			"initOptions": {
-				"hostInfo": "omp-coding-agent",
+				"hostInfo": "zeta-coding-agent",
 				"preferences": {
 					"includeInlayParameterNameHints": "all",
 					"includeInlayVariableTypeHints": true,

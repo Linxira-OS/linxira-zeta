@@ -1,6 +1,6 @@
 # Hooks Examples
 
-Example hooks for omp-coding-agent. Hook modules load through the extension runner, so every `pi.on(...)` handler here behaves like an extension handler.
+Example hooks for Zeta. Hook modules load through the extension runner, so every `pi.on(...)` handler here behaves like an extension handler.
 
 ## Usage
 
