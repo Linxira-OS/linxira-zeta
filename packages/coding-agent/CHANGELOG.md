@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Fixed
+
+- A `task` batch no longer repaints its transcript card once per spawn progress tick: spawn updates are coalesced to at most one cumulative snapshot per 100 ms (the same cadence as the subagent HUD), so fan-out no longer turns every spawn's 150 ms report into its own full-card rebuild and deep sanitize on the TUI thread. Terminal spawn snapshots still publish immediately, and the tool's final result is unchanged.
+
 ## [1.5.0] - 2026-11-09
 
 ### Added
