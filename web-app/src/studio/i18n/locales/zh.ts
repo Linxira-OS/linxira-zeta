@@ -2588,7 +2588,19 @@ const zhRaw = {
     "userCreated": "手动创建的终端",
     "starting": "正在启动终端…",
     "noSessions": "还没有终端会话",
-    "clickToStart": "点「新建终端」启动本机 Shell。"
+    "clickToStart": "点「新建终端」启动本机 Shell。",
+    "close": "关闭终端",
+    "retry": "重试",
+    "copy": "复制",
+    "paste": "粘贴",
+    "reconnect": "重新连接",
+    "shellPicker": "Shell",
+    "renderer": "渲染器",
+    "gatewayError": "终端网关不可用",
+    "gatewayErrorDetail": "无法连接本机终端服务。",
+    "profilesWarning": "Shell 配置有问题",
+    "localOnly": "当前执行目标不支持本机终端。",
+    "profileError": "终端不可用"
   },
   "notice": {
     "title": "欢迎体验 Zeta",

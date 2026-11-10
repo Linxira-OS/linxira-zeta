@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Work Studio terminal bench</title>
+	</head>
+	<body>
+		<header>
+			<h1>Work Studio terminal bench</h1>
+			<span id="status">idle</span>
+			<button id="run" type="button">Run all</button>
+			<button id="clear" type="button">Remove gateway terminals</button>
+		</header>
+		<main>
+			<section id="host" aria-label="Terminal under test"></section>
+			<section class="panel">
+				<h2>Results</h2>
+				<table id="results">
+					<thead>
+						<tr><th>scenario</th><th>renderer</th><th>ok</th><th>metrics</th><th>note</th></tr>
+					</thead>
+					<tbody></tbody>
+				</table>
+			</section>
+			<section class="panel">
+				<h2>Log</h2>
+				<pre id="log"></pre>
+			</section>
+		</main>
+		<script type="module" src="/src/termbench/main.ts"></script>
+	</body>
+</html>
