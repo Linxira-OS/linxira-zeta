@@ -357,6 +357,12 @@ jobs:
            run: bun scripts/check-workbench-bundles.ts
          - name: Windows icon guard
            run: bun scripts/check-windows-icons.ts
+         # The product mark is one drawing: every raster, favicon and app icon
+         # under assets/, web-app/public/ and web-ui/public/icons/ is derived
+         # from the SVGs. This guards self-containment, sizes, the declared
+         # 16px fallback, and that the archived/legacy marks stay inert.
+         - name: Logo asset guard
+           run: bun scripts/check-logo-assets.ts
          # Both language-server registries (the coding-agent's and termide's) are
          # generated from `lsp/servers.json`. A hand edit to a generated file, or
          # a canonical change that was never regenerated, desyncs the two editors.

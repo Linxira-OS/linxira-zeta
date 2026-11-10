@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512" role="img" aria-label="Zeta concept 02 Aperture, 16px">
+  <title>Concept 02 — Aperture, 16px (12u widened cut)</title>
+  <!-- Archived concept board drawing (not production). -->
+  <defs>
+    <mask id="aperture-cut-sm" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#000"/>
+      <rect x="4" y="4" width="56" height="56" rx="15" fill="#fff"/>
+      <path d="M10 19H38L25 44H64" fill="none" stroke="#000" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <rect width="64" height="64" fill="#2AC9C1" mask="url(#aperture-cut-sm)"/>
+</svg>

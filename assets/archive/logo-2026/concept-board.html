@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zeta — Logo System Concepts</title>
+<style>
+  :root{
+    --bg:#090D0F;
+    --panel:#11181C;
+    --panel-2:#0D1417;
+    --stage:#0B1113;
+    --strip:#1A2429;
+    --line:#223036;
+    --line-2:#2A3B41;
+    --text:#E8F0F1;
+    --muted:#93A4A8;
+    --dim:#6F8287;
+    --teal:#2AC9C1;
+    --coral:#F36F5D;
+    --ink:#0E1417;
+    --paper:#F2F5F4;
+    --sans:"Segoe UI","Inter","Helvetica Neue",Arial,system-ui,sans-serif;
+    --mono:"Cascadia Code","SFMono-Regular",Consolas,"Liberation Mono",monospace;
+    --round:"Arial Rounded MT Bold","Hiragino Maru Gothic ProN","Varela Round","Segoe UI",system-ui,sans-serif;
+    --radius:22px;
+  }
+  *{box-sizing:border-box}
+  html{color-scheme:dark}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--teal);color:var(--ink)}
+  a{color:var(--teal);text-decoration:none}
+  a:hover{text-decoration:underline}
+  :focus-visible{outline:2px solid var(--teal);outline-offset:3px}
+  .sprite{position:absolute;width:0;height:0;overflow:hidden}
+  .wrap{max-width:1560px;margin:0 auto}
+  .eyebrow{
+    margin:0 0 10px;
+    font-family:var(--mono);
+    font-size:.7rem;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--teal);
+  }
+  .hero{
+    border-bottom:1px solid var(--line);
+    padding:clamp(28px,5vw,64px) clamp(20px,4vw,56px) clamp(32px,5vw,56px);
+    background:var(--panel-2);
+  }
+  .hero-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1.35fr) minmax(260px,.65fr);
+    gap:clamp(28px,5vw,72px);
+    align-items:end;
+  }
+  .hero h1{
+    margin:0;
+    max-width:13ch;
+    font-size:clamp(2.6rem,6.6vw,6.2rem);
+    line-height:.94;
+    letter-spacing:-.055em;
+    font-weight:760;
+  }
+  .hero h1 em{font-style:normal;color:var(--teal)}
+  .lede{
+    max-width:62ch;
+    margin:22px 0 0;
+    color:var(--muted);
+    font-size:clamp(.95rem,1.25vw,1.08rem);
+    line-height:1.65;
+  }
+  .lede strong{color:var(--text);font-weight:650}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}
+  .chip{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:6px 10px;
+    border:1px solid var(--line-2);
+    border-radius:999px;
+    color:var(--muted);
+    font-size:.72rem;
+    letter-spacing:.02em;
+    white-space:nowrap;
+  }
+  .chip::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--teal)}
+  .chip--coral::before{background:var(--coral)}
+  .hero-side{display:flex;flex-direction:column;gap:14px}
+  .hero-stage{
+    aspect-ratio:1;
+    display:grid;place-items:center;
+    background:var(--stage);
+    border:1px solid var(--line);
+    border-radius:28px;
+    overflow:hidden;
+  }
+  .hero-stage svg{width:62%;height:62%;color:var(--teal)}
+  .hero-caption{
+    display:flex;justify-content:space-between;gap:12px;
+    color:var(--dim);
+    font-family:var(--mono);
+    font-size:.65rem;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+  }
+  .palette{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .swatch{
+    display:flex;align-items:center;gap:9px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:var(--panel);
+  }
+  .swatch i{display:block;width:22px;height:22px;border-radius:6px;background:var(--c);flex:none}
+  .swatch b{display:block;font-size:.72rem;font-weight:650;line-height:1.2}
+  .swatch small{display:block;font-family:var(--mono);font-size:.6rem;color:var(--dim);line-height:1.4}
+  .principles{
+    padding:clamp(24px,4vw,42px) clamp(20px,4vw,56px);
+    border-bottom:1px solid var(--line);
+  }
+  .principles-inner{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:18px;
+    overflow:hidden;
+  }
+  .principle{background:var(--panel);padding:20px}
+  .principle span{
+    display:block;
+    margin-bottom:14px;
+    font-family:var(--mono);
+    font-size:.65rem;
+    color:var(--coral);
+    letter-spacing:.12em;
+  }
+  .principle h2{margin:0 0 6px;font-size:.95rem;letter-spacing:-.015em}
+  .principle p{margin:0;color:var(--muted);font-size:.78rem;line-height:1.55}
+  .board{padding:clamp(28px,4vw,48px) clamp(20px,4vw,56px)}
+  .board-head{
+    display:flex;justify-content:space-between;align-items:end;gap:24px;
+    margin-bottom:20px;
+  }
+  .board-head h2{
+    margin:0;
+    font-size:clamp(1.5rem,2.6vw,2.2rem);
+    letter-spacing:-.035em;
+  }
+  .board-head p{margin:0;max-width:52ch;color:var(--muted);font-size:.82rem}
+  .concept-grid{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:22px;
+  }
+  .card{
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    padding:18px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+  }
+  .card-top{display:flex;align-items:flex-start;gap:11px}
+  .num{
+    flex:none;
+    display:inline-grid;place-items:center;
+    min-width:34px;height:26px;
+    padding:0 6px;
+    border:1px solid var(--line-2);
+    border-radius:8px;
+    color:var(--teal);
+    font-family:var(--mono);
+    font-size:.66rem;
+    letter-spacing:.06em;
+  }
+  .card h3{margin:0;font-size:1.32rem;line-height:1.1;letter-spacing:-.03em}
+  .tag{margin:4px 0 0;color:var(--muted);font-size:.74rem;line-height:1.4}
+  .previews{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .previews--wide{grid-template-columns:1fr}
+  .stage{
+    position:relative;
+    aspect-ratio:1;
+    display:grid;place-items:center;
+    border:1px solid var(--line);
+    border-radius:16px;
+    overflow:hidden;
+  }
+  .stage--dark{background:var(--stage);color:var(--teal);--accent:var(--coral)}
+  .stage--light{background:var(--paper);color:var(--ink);--accent:var(--coral)}
+  .stage .mark{width:72%;height:72%;display:block}
+  .stage-label{
+    position:absolute;left:9px;bottom:7px;
+    color:var(--dim);
+    font-family:var(--mono);
+    font-size:.56rem;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+  }
+  .stage--light .stage-label{color:#7A898D}
+  .size-strip{
+    display:flex;align-items:flex-end;flex-wrap:wrap;gap:13px;
+    padding:10px 11px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:14px;
+  }
+  .fav{display:flex;flex-direction:column;align-items:center;gap:5px}
+  .fav-box{
+    display:grid;place-items:center;
+    background:var(--strip);
+    border-radius:4px;
+    overflow:hidden;
+    color:var(--teal);
+  }
+  .fav-box svg{display:block;width:100%;height:100%}
+  .f16{width:16px;height:16px}
+  .f32{width:32px;height:32px}
+  .f64{width:64px;height:64px}
+  .fav figcaption{color:var(--dim);font-family:var(--mono);font-size:.56rem;letter-spacing:.04em}
+  .app{display:flex;align-items:center;gap:9px;margin-left:auto}
+  .app-icon{
+    width:82px;height:82px;flex:none;
+    border-radius:19px;
+    overflow:hidden;
+    border:1px solid var(--line-2);
+    background:var(--ink);
+  }
+  .app-icon svg{display:block;width:100%;height:100%}
+  .app-meta{display:flex;flex-direction:column;gap:1px;color:var(--dim);font-family:var(--mono);font-size:.56rem;line-height:1.45;letter-spacing:.04em;text-transform:uppercase}
+  .app-meta strong{color:var(--muted);font-weight:600;font-size:.62rem}
+  .micro{margin:-4px 0 0;color:var(--dim);font-size:.64rem;line-height:1.4}
+  .construction{
+    display:flex;align-items:center;gap:12px;
+    padding:10px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:14px;
+  }
+  .construction svg{width:96px;height:96px;flex:none;color:var(--teal);--grid:#7C9094}
+  .construction p{margin:0;color:var(--muted);font-size:.7rem;line-height:1.5}
+  .construction strong{color:var(--text);font-weight:650}
+  .mono{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .mono-box{
+    width:52px;height:52px;flex:none;
+    display:grid;place-items:center;
+    border:1px solid var(--line-2);
+    border-radius:11px;
+    overflow:hidden;
+  }
+  .mono-box svg{width:40px;height:40px}
+  .mono--dark{background:var(--stage);color:#EAF6F5;--accent:currentColor}
+  .mono--light{background:var(--paper);color:var(--ink);--accent:currentColor}
+  .mono p{margin:0 0 0 3px;max-width:24ch;color:var(--dim);font-size:.64rem;line-height:1.45}
+  .mono-lockups{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .mono-lockup{
+    display:flex;align-items:center;justify-content:center;gap:.28em;
+    padding:13px 8px;
+    border-radius:12px;
+    border:1px solid var(--line-2);
+    font-family:var(--round);
+    font-size:18px;
+    font-weight:700;
+    letter-spacing:-.045em;
+    line-height:1;
+  }
+  .mono-lockup svg{width:1.25em;height:1.25em;flex:none}
+  .notes{display:grid;gap:8px;font-size:.76rem;line-height:1.55;color:#C5D2D5}
+  .notes p{margin:0}
+  .notes strong{color:var(--text);font-weight:650}
+  .label{
+    display:block;
+    margin-bottom:2px;
+    color:var(--teal);
+    font-family:var(--mono);
+    font-size:.56rem;
+    letter-spacing:.13em;
+    text-transform:uppercase;
+  }
+  .lockup{
+    display:flex;align-items:center;gap:.3em;
+    font-size:clamp(22px,3.2vw,40px);
+    line-height:1;
+    white-space:nowrap;
+  }
+  .lockup svg{width:1.25em;height:1.25em;flex:none;color:var(--mark)}
+  .lockup .wordmark{
+    font-family:var(--round);
+    font-weight:700;
+    letter-spacing:-.045em;
+  }
+  .stage--lockup{aspect-ratio:2.15/1}
+  .stage--lockup.stage--dark{--mark:var(--teal);color:#EAF6F5}
+  .stage--lockup.stage--light{--mark:var(--teal);color:var(--ink)}
+  .stage--lockup .lockup{transform:translateY(.01em)}
+  .recommend{
+    padding:clamp(32px,5vw,60px) clamp(20px,4vw,56px);
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    background:var(--panel-2);
+  }
+  .section-head{max-width:820px;margin-bottom:22px}
+  .section-head h2{margin:0 0 8px;font-size:clamp(1.7rem,3.4vw,2.8rem);letter-spacing:-.045em;line-height:1.05}
+  .section-head p{margin:0;color:var(--muted);font-size:.88rem;line-height:1.65}
+  .rec-grid{
+    display:grid;
+    grid-template-columns:1.15fr 1fr .8fr;
+    gap:16px;
+    align-items:stretch;
+  }
+  .rec-card{
+    display:flex;flex-direction:column;gap:12px;
+    padding:18px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:20px;
+  }
+  .rec-primary{border-color:#2C5153;background:#0F1A1C}
+  .rec-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .rec-head h3{margin:0;font-size:1.3rem;letter-spacing:-.03em}
+  .verdict{
+    padding:4px 7px;
+    border:1px solid var(--line-2);
+    border-radius:6px;
+    color:var(--teal);
+    font-family:var(--mono);
+    font-size:.56rem;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+  }
+  .rec-alt .verdict{color:var(--muted)}
+  .rec-preview{
+    display:grid;place-items:center;
+    aspect-ratio:1.75/1;
+    background:var(--stage);
+    border:1px solid var(--line);
+    border-radius:14px;
+    color:var(--teal);
+    --accent:var(--coral);
+  }
+  .rec-preview svg{width:44%;height:44%}
+  .rec-card p{margin:0;color:var(--muted);font-size:.78rem;line-height:1.6}
+  .rec-list{margin:0;padding-left:17px;color:#C5D2D5;font-size:.76rem;line-height:1.6}
+  .rec-list li{margin:4px 0}
+  .rec-list li::marker{color:var(--teal)}
+  .rec-list strong{color:var(--text);font-weight:650}
+  .avoid{border-color:#4A2B29;background:#171211}
+  .avoid h3{margin:0 0 2px;font-size:.92rem;color:var(--coral);letter-spacing:.01em}
+  .avoid p{margin:0 0 6px;color:var(--muted);font-size:.72rem}
+  .avoid ul{margin:0;padding-left:16px;color:#C9D4D6;font-size:.72rem;line-height:1.55}
+  .avoid li{margin:5px 0}
+  .avoid li::marker{color:var(--coral)}
+  .compare-wrap{margin-top:18px;overflow-x:auto;border:1px solid var(--line);border-radius:16px}
+  table.compare{width:100%;border-collapse:collapse;min-width:640px;font-size:.76rem}
+  table.compare th,table.compare td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  table.compare th{
+    color:var(--dim);
+    font-family:var(--mono);
+    font-size:.58rem;
+    font-weight:600;
+    letter-spacing:.11em;
+    text-transform:uppercase;
+    background:#0D1417;
+  }
+  table.compare tr:last-child td{border-bottom:0}
+  table.compare td:first-child{color:var(--text);font-weight:600}
+  .s-good{color:var(--teal)}
+  .s-mid{color:var(--muted)}
+  .s-weak{color:var(--coral)}
+  .footnote{margin:9px 0 0;color:var(--dim);font-size:.66rem}
+  .system{padding:clamp(32px,5vw,60px) clamp(20px,4vw,56px)}
+  .system-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .rule-card{padding:16px;background:var(--panel);border:1px solid var(--line);border-radius:16px}
+  .rule-card h3{margin:0 0 8px;font-size:.86rem;letter-spacing:-.01em}
+  .rule-card ul{margin:0;padding-left:16px;color:var(--muted);font-size:.72rem;line-height:1.6}
+  .rule-card li{margin:4px 0}
+  .rule-card li::marker{color:var(--teal)}
+  .rule-card strong{color:var(--text);font-weight:650}
+  .do-dont{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  .dd{padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--panel)}
+  .dd h3{margin:0 0 8px;font-size:.86rem}
+  .dd--do{border-color:#2C5153}
+  .dd--do h3{color:var(--teal)}
+  .dd--dont{border-color:#4A2B29}
+  .dd--dont h3{color:var(--coral)}
+  .dd ul{margin:0;padding-left:16px;color:var(--muted);font-size:.72rem;line-height:1.6}
+  .dd li{margin:4px 0}
+  .dd--do li::marker{color:var(--teal)}
+  .dd--dont li::marker{color:var(--coral)}
+  .footer{
+    display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+    padding:18px clamp(20px,4vw,56px);
+    border-top:1px solid var(--line);
+    color:var(--dim);
+    font-family:var(--mono);
+    font-size:.62rem;
+    letter-spacing:.04em;
+  }
+  @media (max-width:1240px){
+    .concept-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .rec-grid{grid-template-columns:1fr 1fr}
+    .avoid{grid-column:1/-1}
+    .system-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
+  @media (max-width:900px){
+    .hero-grid{grid-template-columns:1fr}
+    .hero h1{max-width:15ch}
+    .hero-side{max-width:420px}
+    .principles-inner{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .board-head{display:block}
+    .board-head p{margin-top:8px}
+  }
+  @media (max-width:760px){
+    .concept-grid{grid-template-columns:1fr}
+    .rec-grid{grid-template-columns:1fr}
+    .avoid{grid-column:auto}
+    .system-grid{grid-template-columns:1fr}
+    .do-dont{grid-template-columns:1fr}
+    .previews{grid-template-columns:1fr 1fr}
+    .stage{aspect-ratio:1}
+  }
+  @media (max-width:520px){
+    .principles-inner{grid-template-columns:1fr}
+    .palette{grid-template-columns:1fr 1fr}
+    .app{width:100%;margin-left:0;justify-content:flex-start}
+    .size-strip{gap:10px}
+    .f64{width:56px;height:56px}
+  }
+</style>
+</head>
+<body>
+
+<svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
+  <defs>
+    <mask id="cut-c2" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#000"/>
+      <rect x="8" y="8" width="48" height="48" rx="12" fill="#fff"/>
+      <path d="M15 18H40L24 46H60" fill="none" stroke="#000" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+    <mask id="cut-c2-sm" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#000"/>
+      <rect x="4" y="4" width="56" height="56" rx="15" fill="#fff"/>
+      <path d="M10 19H38L25 44H64" fill="none" stroke="#000" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+    <mask id="cut-c4-a" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#000"/>
+      <rect x="8" y="8" width="26" height="26" rx="9" fill="#fff"/>
+      <path d="M15 15V25H24" fill="none" stroke="#000" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="29.5" y="29.5" width="29" height="29" rx="10.5" fill="#000"/>
+    </mask>
+    <mask id="cut-c4-b" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#000"/>
+      <rect x="32" y="32" width="24" height="24" rx="8" fill="#fff"/>
+      <path d="M38 38H50L38 50H50" fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+    <mask id="cut-c4-sm" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#000"/>
+      <rect x="6" y="6" width="52" height="52" rx="14" fill="#fff"/>
+      <path d="M46 46H16V16H46L28 46H46" fill="none" stroke="#000" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+
+    <symbol id="grid64" viewBox="0 0 64 64">
+      <g fill="none" stroke="var(--grid,#7C9094)" stroke-width=".35">
+        <rect x=".2" y=".2" width="63.6" height="63.6" opacity=".28"/>
+        <path d="M8 0V64M16 0V64M24 0V64M32 0V64M40 0V64M48 0V64M56 0V64M0 8H64M0 16H64M0 24H64M0 32H64M0 40H64M0 48H64M0 56H64" opacity=".16"/>
+        <rect x="8" y="8" width="48" height="48" stroke-dasharray="2 2.4" opacity=".55"/>
+        <path d="M32 28.5V35.5M28.5 32H35.5" opacity=".55"/>
+      </g>
+    </symbol>
+
+    <symbol id="m-c1" viewBox="0 0 64 64">
+      <path d="M50 50H14V14H50L28 50H50" fill="none" stroke="currentColor" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="m-c2" viewBox="0 0 64 64">
+      <rect width="64" height="64" fill="currentColor" mask="url(#cut-c2)"/>
+    </symbol>
+    <symbol id="m-c2-sm" viewBox="0 0 64 64">
+      <rect width="64" height="64" fill="currentColor" mask="url(#cut-c2-sm)"/>
+    </symbol>
+    <symbol id="m-c3" viewBox="0 0 64 64">
+      <path d="M12 12V50H26" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M28 12H49L28 42H49" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="52" cy="50" r="4" fill="var(--accent,#F36F5D)"/>
+    </symbol>
+    <symbol id="m-c3-sm" viewBox="0 0 64 64">
+      <path d="M12 12V50H26" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M28 12H49L28 42H49" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="52" cy="50" r="5" fill="var(--accent,#F36F5D)"/>
+    </symbol>
+    <symbol id="m-c4" viewBox="0 0 64 64">
+      <rect width="64" height="64" fill="currentColor" mask="url(#cut-c4-a)"/>
+      <rect width="64" height="64" fill="var(--accent,#F36F5D)" mask="url(#cut-c4-b)"/>
+    </symbol>
+    <symbol id="m-c4-sm" viewBox="0 0 64 64">
+      <rect width="64" height="64" fill="currentColor" mask="url(#cut-c4-sm)"/>
+    </symbol>
+    <symbol id="m-c5" viewBox="0 0 64 64">
+      <path d="M18 14H48L18 48H48V28H34V38H28V48" fill="none" stroke="currentColor" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="m-c5-sm" viewBox="0 0 64 64">
+      <path d="M18 14H46L18 48H46" fill="none" stroke="currentColor" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+  </defs>
+</svg>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Zeta · Identity exploration · 2026</p>
+        <h1>A flatter, <em>rounder</em> Zeta.</h1>
+        <p class="lede">Six directions that keep the <strong>LZ monogram</strong> and the <strong>Zeta name</strong>. Built on a 64-unit grid with rounded caps, round joins, flat fills, and one coral accent at most. No gradients, no shadows, no 3D. The starting point is <strong>assets/zeta-mark.svg</strong> — a geometric L + Z in teal and coral with square caps; these concepts evolve that idea without touching production.</p>
+        <div class="chips">
+          <span class="chip">64u master grid</span>
+          <span class="chip">Round caps &amp; joins</span>
+          <span class="chip">Dark default</span>
+          <span class="chip chip--coral">Coral ≤ 10%</span>
+          <span class="chip">16 / 32 / 64 / 512</span>
+        </div>
+      </div>
+      <div class="hero-side">
+        <div class="hero-stage" role="img" aria-label="Fold, primary LZ monogram, on dark">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg>
+        </div>
+        <div class="hero-caption"><span>01 Fold · primary direction</span><span>64u</span></div>
+        <div class="palette">
+          <div class="swatch" style="--c:#2AC9C1"><i></i><div><b>Teal</b><small>#2AC9C1</small></div></div>
+          <div class="swatch" style="--c:#F36F5D"><i></i><div><b>Coral</b><small>#F36F5D</small></div></div>
+          <div class="swatch" style="--c:#0E1417"><i></i><div><b>Ink</b><small>#0E1417</small></div></div>
+          <div class="swatch" style="--c:#F2F5F4"><i></i><div><b>Paper</b><small>#F2F5F4</small></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="principles">
+  <div class="wrap">
+    <div class="principles-inner">
+      <div class="principle"><span>01</span><h2>Keep the LZ read</h2><p>Every direction still spells L and Z. The hierarchy is Z first, L second — the name leads, the monogram holds it.</p></div>
+      <div class="principle"><span>02</span><h2>One continuous idea</h2><p>Prefer one ribbon, one tile, or one loop over assembled parts. Shared rails are better than seams.</p></div>
+      <div class="principle"><span>03</span><h2>Scale down honestly</h2><p>If a detail disappears at 16px, the concept needs a declared small-size fallback — not a blurry compromise.</p></div>
+      <div class="principle"><span>04</span><h2>Mono first</h2><p>Teal is the default, coral is optional. The mark must survive one ink, one paper, and a transparent cutout.</p></div>
+    </div>
+  </div>
+</section>
+
+<main class="board">
+  <div class="wrap">
+    <div class="board-head">
+      <div>
+        <p class="eyebrow">Six concepts</p>
+        <h2>Big preview, real sizes, construction.</h2>
+      </div>
+      <p>Each card shows dark and light, the favicon at 16 / 32 / 64, the 512 app icon, the 64-unit construction grid, and one-color behavior. “16·s” means a declared simplified asset for 16px.</p>
+    </div>
+
+    <div class="concept-grid">
+
+      <article class="card" id="fold">
+        <div class="card-top">
+          <span class="num">01</span>
+          <div><h3>Fold</h3><p class="tag">Rounded L+Z monogram · one continuous ribbon</p></div>
+        </div>
+        <div class="previews">
+          <div class="stage stage--dark" role="img" aria-label="Fold mark on dark">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg>
+            <span class="stage-label">Dark</span>
+          </div>
+          <div class="stage stage--light" role="img" aria-label="Fold mark on light">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg>
+            <span class="stage-label">Light</span>
+          </div>
+        </div>
+        <div class="size-strip">
+          <div class="fav"><div class="fav-box f16"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg></div><figcaption>16</figcaption></div>
+          <div class="fav"><div class="fav-box f32"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg></div><figcaption>32</figcaption></div>
+          <div class="fav"><div class="fav-box f64"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg></div><figcaption>64</figcaption></div>
+          <div class="app">
+            <div class="app-icon"><svg viewBox="0 0 64 64" aria-hidden="true" style="color:#2AC9C1"><rect width="64" height="64" rx="14" fill="#0E1417"/><use href="#m-c1"/></svg></div>
+            <div class="app-meta"><strong>512</strong><span>app icon</span></div>
+          </div>
+        </div>
+        <div class="construction">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#grid64"/><use href="#m-c1"/></svg>
+          <p><strong>Construction.</strong> 64 grid, 7.5u stroke, round caps and joins. Key points: (14,14) (50,14) (50,50) (14,50); the diagonal lands at (28,50). The L foot and the Z bottom rail are one shared rail. Safe area 8u; optical center 32,32.</p>
+        </div>
+        <div class="mono">
+          <div class="mono-box mono--dark"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg></div>
+          <div class="mono-box mono--light"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg></div>
+          <p>One ink, no counter-color. Paper on dark; ink on light.</p>
+        </div>
+        <div class="notes">
+          <p><span class="label">Rationale</span>The L’s stem and foot become the Z’s bottom rail. One path, no seams: the eye reads Z first, then finds the L holding its left edge. It is the closest evolution of the current mark, with the square caps and miter joins replaced by rounded strokes.</p>
+          <p><span class="label">Favicon</span>Holds at 16px: the diagonal and the left rail stay separated at roughly 1.9px. No simplified asset is required.</p>
+          <p><span class="label">App icon</span>The mark sits at about 68% of the 512 tile, with a 10% clear margin. Teal on the dark tile; ink on a light tile.</p>
+          <p><span class="label">Watch-out</span>Do not shorten the L foot; the bottom-left rail is what makes the L read. Do not add a second stroke to “fix” the diagonal.</p>
+        </div>
+      </article>
+
+      <article class="card" id="aperture">
+        <div class="card-top">
+          <span class="num">02</span>
+          <div><h3>Aperture</h3><p class="tag">Negative-space Z in an L-shaped tile</p></div>
+        </div>
+        <div class="previews">
+          <div class="stage stage--dark" role="img" aria-label="Aperture mark on dark">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c2"/></svg>
+            <span class="stage-label">Dark</span>
+          </div>
+          <div class="stage stage--light" role="img" aria-label="Aperture mark on light">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c2"/></svg>
+            <span class="stage-label">Light</span>
+          </div>
+        </div>
+        <div class="size-strip">
+          <div class="fav"><div class="fav-box f16"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c2-sm"/></svg></div><figcaption>16·s</figcaption></div>
+          <div class="fav"><div class="fav-box f32"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c2"/></svg></div><figcaption>32</figcaption></div>
+          <div class="fav"><div class="fav-box f64"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c2"/></svg></div><figcaption>64</figcaption></div>
+          <div class="app">
+            <div class="app-icon"><svg viewBox="0 0 64 64" aria-hidden="true" style="color:#2AC9C1"><rect width="64" height="64" rx="14" fill="#0E1417"/><use href="#m-c2"/></svg></div>
+            <div class="app-meta"><strong>512</strong><span>app icon</span></div>
+          </div>
+        </div>
+        <p class="micro">s = widened 12u aperture for 16px; the standard 9u cut is used at 32 and 64.</p>
+        <div class="construction">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#grid64"/><use href="#m-c2"/></svg>
+          <p><strong>Construction.</strong> Tile 8–56, r12. Aperture 9u, round caps: (15,18) → (40,18), diagonal to (24,46), exit at (60,46). The cut is transparent (mask / evenodd), not a painted line. Safe area 8u; the tile is the mark.</p>
+        </div>
+        <div class="mono">
+          <div class="mono-box mono--dark"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c2"/></svg></div>
+          <div class="mono-box mono--light"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c2"/></svg></div>
+          <p>One color; the cut stays transparent. Never fill the aperture with a second color.</p>
+        </div>
+        <div class="notes">
+          <p><span class="label">Rationale</span>A rounded tile with a Z-shaped aperture. The solid left and bottom edges read as the L; the cut reads as the Z. The mark is one flat shape, so the background becomes the second color — no outline, no gradient, no shadow.</p>
+          <p><span class="label">Favicon</span>At 16 the 9u cut closes into a blob; the declared 16px asset widens the aperture to 12u in a 4–60 crop. At 32 and 64 the standard cut is used.</p>
+          <p><span class="label">App icon</span>The tile sits at about 75% of the 512 icon on a dark background; the aperture shows the dark app tile. Keep the outer corner radius consistent with the platform mask.</p>
+          <p><span class="label">Watch-out</span>Do not use the standard cut at 16px. Do not add an inner border to separate the tile from the background; the negative space is the point.</p>
+        </div>
+      </article>
+
+      <article class="card" id="prompt">
+        <div class="card-top">
+          <span class="num">03</span>
+          <div><h3>Prompt</h3><p class="tag">Terminal bracket + Z + one coral cursor</p></div>
+        </div>
+        <div class="previews">
+          <div class="stage stage--dark" role="img" aria-label="Prompt mark on dark">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c3"/></svg>
+            <span class="stage-label">Dark</span>
+          </div>
+          <div class="stage stage--light" role="img" aria-label="Prompt mark on light">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c3"/></svg>
+            <span class="stage-label">Light</span>
+          </div>
+        </div>
+        <div class="size-strip">
+          <div class="fav"><div class="fav-box f16"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c3-sm"/></svg></div><figcaption>16·s</figcaption></div>
+          <div class="fav"><div class="fav-box f32"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c3"/></svg></div><figcaption>32</figcaption></div>
+          <div class="fav"><div class="fav-box f64"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c3"/></svg></div><figcaption>64</figcaption></div>
+          <div class="app">
+            <div class="app-icon"><svg viewBox="0 0 64 64" aria-hidden="true" style="color:#2AC9C1"><rect width="64" height="64" rx="14" fill="#0E1417"/><use href="#m-c3"/></svg></div>
+            <div class="app-meta"><strong>512</strong><span>app icon</span></div>
+          </div>
+        </div>
+        <p class="micro">s = 8u strokes and a 5u dot for 16px; the dot is decorative, never the only carrier of meaning.</p>
+        <div class="construction">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#grid64"/><use href="#m-c3"/></svg>
+          <p><strong>Construction.</strong> L: (12,12) → (12,50) → (26,50). Z: (28,12) → (49,12) → (28,42) → (49,42). Dot: r4 at (52,50). Stroke 7u, round caps; safe area 8u. The dot stays inside 56u.</p>
+        </div>
+        <div class="mono">
+          <div class="mono-box mono--dark"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c3"/></svg></div>
+          <div class="mono-box mono--light"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c3"/></svg></div>
+          <p>Drop the coral: the dot inherits ink or paper. The L and Z still read without it.</p>
+        </div>
+        <div class="notes">
+          <p><span class="label">Rationale</span>A rounded L bracket, a compact Z, and one coral dot: the shortest read of “Zeta” as a command line. The dot is the only coral and behaves like a cursor, not a status light. This is the most product-native direction.</p>
+          <p><span class="label">Favicon</span>16 uses 8u strokes and a 5u dot; 32 and 64 use the standard 7u mark. At 16 the dot is roughly 2.5px — present, but not load-bearing.</p>
+          <p><span class="label">App icon</span>Teal L/Z with a coral dot on the dark tile; ink L/Z with a coral dot on light. The dot is the only accent in the icon.</p>
+          <p><span class="label">Watch-out</span>Do not use the dot as an online/offline indicator, a notification badge, or the only difference between variants. Do not let the L bracket and Z collide.</p>
+        </div>
+      </article>
+
+      <article class="card" id="cluster">
+        <div class="card-top">
+          <span class="num">04</span>
+          <div><h3>Cluster</h3><p class="tag">Two rounded tiles · Team / multi-agent</p></div>
+        </div>
+        <div class="previews">
+          <div class="stage stage--dark" role="img" aria-label="Cluster mark on dark">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c4"/></svg>
+            <span class="stage-label">Dark</span>
+          </div>
+          <div class="stage stage--light" role="img" aria-label="Cluster mark on light">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c4"/></svg>
+            <span class="stage-label">Light</span>
+          </div>
+        </div>
+        <div class="size-strip">
+          <div class="fav"><div class="fav-box f16"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c4-sm"/></svg></div><figcaption>16·s</figcaption></div>
+          <div class="fav"><div class="fav-box f32"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c4"/></svg></div><figcaption>32</figcaption></div>
+          <div class="fav"><div class="fav-box f64"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c4"/></svg></div><figcaption>64</figcaption></div>
+          <div class="app">
+            <div class="app-icon"><svg viewBox="0 0 64 64" aria-hidden="true" style="color:#2AC9C1;--accent:#F36F5D"><rect width="64" height="64" rx="14" fill="#0E1417"/><use href="#m-c4"/></svg></div>
+            <div class="app-meta"><strong>512</strong><span>app icon</span></div>
+          </div>
+        </div>
+        <p class="micro">s = the two-tile cluster collapses to a single tile with a 9.5u LZ aperture at 16px. 32 is the minimum for the cluster.</p>
+        <div class="construction">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#grid64"/><use href="#m-c4"/></svg>
+          <p><strong>Construction.</strong> Tile A 8–34, r9; tile B 32–56, r8. A 2.5u transparent gap (mask) separates them. L stroke 5.5u; Z stroke 5u. The two tiles share the 64 grid but not a stroke; safe area 8u.</p>
+        </div>
+        <div class="mono">
+          <div class="mono-box mono--dark"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c4"/></svg></div>
+          <div class="mono-box mono--light"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c4"/></svg></div>
+          <p>Both tiles become one ink; the gap and glyph cuts keep them separate. Coral is optional.</p>
+        </div>
+        <div class="notes">
+          <p><span class="label">Rationale</span>Two app-like tiles, one carrying L and one carrying Z, overlap on a diagonal. The gap is a transparent knockout, so the tiles stay separate in one color. The coral second tile is the “other agent” — use it sparingly, and only when the team story matters.</p>
+          <p><span class="label">Favicon</span>Do not use the two-tile cluster at 16. The 16 asset is a single tile with a 9.5u LZ aperture, so both letters survive; 32 is the minimum for the cluster, and 64 is the comfortable size.</p>
+          <p><span class="label">App icon</span>The cluster sits at about 75% of the 512 tile. The coral tile is the only large coral area in the system; it still stays under 10% of the icon.</p>
+          <p><span class="label">Watch-out</span>Do not let the gap become a dark outline. Do not add a third tile. Do not rotate the tiles; the axis-aligned grid is the brand.</p>
+        </div>
+      </article>
+
+      <article class="card" id="loop">
+        <div class="card-top">
+          <span class="num">05</span>
+          <div><h3>Loop</h3><p class="tag">Loop Z with an L cutout · single color</p></div>
+        </div>
+        <div class="previews">
+          <div class="stage stage--dark" role="img" aria-label="Loop mark on dark">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c5"/></svg>
+            <span class="stage-label">Dark</span>
+          </div>
+          <div class="stage stage--light" role="img" aria-label="Loop mark on light">
+            <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c5"/></svg>
+            <span class="stage-label">Light</span>
+          </div>
+        </div>
+        <div class="size-strip">
+          <div class="fav"><div class="fav-box f16"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c5-sm"/></svg></div><figcaption>16·s</figcaption></div>
+          <div class="fav"><div class="fav-box f32"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c5"/></svg></div><figcaption>32</figcaption></div>
+          <div class="fav"><div class="fav-box f64"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c5"/></svg></div><figcaption>64</figcaption></div>
+          <div class="app">
+            <div class="app-icon"><svg viewBox="0 0 64 64" aria-hidden="true" style="color:#2AC9C1"><rect width="64" height="64" rx="14" fill="#0E1417"/><use href="#m-c5"/></svg></div>
+            <div class="app-meta"><strong>512</strong><span>app icon</span></div>
+          </div>
+        </div>
+        <p class="micro">s = the loop is removed for 16px; the plain Z keeps the silhouette. 32 is the minimum for the loop.</p>
+        <div class="construction">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#grid64"/><use href="#m-c5"/></svg>
+          <p><strong>Construction.</strong> Path: (18,14) → (48,14) → (18,48) → (48,48) → up to (48,28) → (34,28) → (34,38) → (28,38) → (28,48). Stroke 7.5u; the loop counter is the L cutout. Safe area 8u; the loop makes the mark bottom-right heavy, so check optical center at 32,32.</p>
+        </div>
+        <div class="mono">
+          <div class="mono-box mono--dark"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c5"/></svg></div>
+          <div class="mono-box mono--light"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c5"/></svg></div>
+          <p>Native one-color mark; the loop counter is transparent. No accent, no second fill.</p>
+        </div>
+        <div class="notes">
+          <p><span class="label">Rationale</span>A Z whose lower terminal loops back into the baseline. The loop encloses an L-shaped counter; the mark is one flat color and one continuous stroke. It is the most expressive option and the least literal — a zeta glyph more than a monogram.</p>
+          <p><span class="label">Favicon</span>At 16 the loop closes into a blob; the 16 asset is a plain Z. At 32 the loop is visible but the L counter is tight; 64 is comfortable. Below 32 use the plain Z — this is the declared trade-off.</p>
+          <p><span class="label">App icon</span>Teal on the dark tile, ink on light. Keep 10% clear space; the loop makes the mark bottom-right heavy, so center the bounding box, not the stroke.</p>
+          <p><span class="label">Watch-out</span>Do not add a second loop. Do not fill the L counter. Do not use the loop below 32px without the plain-Z fallback.</p>
+        </div>
+      </article>
+
+      <article class="card" id="lockup">
+        <div class="card-top">
+          <span class="num">06</span>
+          <div><h3>Lockup</h3><p class="tag">Rounded zeta wordmark + compact LZ mark</p></div>
+        </div>
+        <div class="previews previews--wide">
+          <div class="stage stage--dark stage--lockup" role="img" aria-label="Zeta horizontal lockup on dark">
+            <div class="lockup">
+              <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg>
+              <span class="wordmark">zeta</span>
+            </div>
+            <span class="stage-label">Dark</span>
+          </div>
+          <div class="stage stage--light stage--lockup" role="img" aria-label="Zeta horizontal lockup on light">
+            <div class="lockup">
+              <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg>
+              <span class="wordmark">zeta</span>
+            </div>
+            <span class="stage-label">Light</span>
+          </div>
+        </div>
+        <div class="size-strip">
+          <div class="fav"><div class="fav-box f16"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg></div><figcaption>16</figcaption></div>
+          <div class="fav"><div class="fav-box f32"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg></div><figcaption>32</figcaption></div>
+          <div class="fav"><div class="fav-box f64"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg></div><figcaption>64</figcaption></div>
+          <div class="app">
+            <div class="app-icon"><svg viewBox="0 0 64 64" aria-hidden="true" style="color:#2AC9C1"><rect width="64" height="64" rx="14" fill="#0E1417"/><use href="#m-c1"/></svg></div>
+            <div class="app-meta"><strong>512</strong><span>app icon</span></div>
+          </div>
+        </div>
+        <p class="micro">The favicon is the mark, not the wordmark. The wordmark is not used below 48px in production.</p>
+        <div class="construction">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#grid64"/><use href="#m-c1"/></svg>
+          <p><strong>Lockup metrics.</strong> Mark height 1.25× the wordmark font size; gap 0.30×; baseline aligned to the mark’s visual bottom; clear space 0.5× the mark. The mark uses the 64 grid; the wordmark is live text in this board and must be outlined for production.</p>
+        </div>
+        <div class="mono-lockups">
+          <div class="mono-lockup mono--dark"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg><span class="wordmark">zeta</span></div>
+          <div class="mono-lockup mono--light"><svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg><span class="wordmark">zeta</span></div>
+        </div>
+        <p class="micro">One-color lockup: mark and wordmark share the same ink. Two-tone (teal mark + paper/ink wordmark) is the default.</p>
+        <div class="notes">
+          <p><span class="label">Rationale</span>The system lockup: the Fold mark at 1.25× the wordmark size, set in a rounded geometric sans. The mark is the compact LZ; the wordmark carries the name. Use the mark alone when the name is already present, and never put a tagline inside the mark.</p>
+          <p><span class="label">Favicon</span>The favicon is the mark, not the wordmark. 16 / 32 / 64 use Fold; the wordmark is not used below 48px.</p>
+          <p><span class="label">App icon</span>Fold on the dark app tile; no wordmark. The 512 export uses the same 64-grid construction as the mark.</p>
+          <p><span class="label">Watch-out</span>The board’s wordmark is live text in Arial Rounded MT Bold with a Segoe fallback. Production must outline the approved drawing; do not ship a system font as the logo.</p>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</main>
+
+<section class="recommend" id="recommendation">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">Recommendation</p>
+      <h2>Lead with Fold. Extend with Cluster.</h2>
+      <p>Fold is the safest evolution of the current mark: one geometry, one ink, no accent dependency, and a clean 16px read. Cluster is the strongest storytelling alternate for Team and multi-agent surfaces, provided the 16px collapse ships with it.</p>
+    </div>
+    <div class="rec-grid">
+      <article class="rec-card rec-primary">
+        <div class="rec-head"><h3>01 · Fold</h3><span class="verdict">Primary</span></div>
+        <div class="rec-preview" role="img" aria-label="Fold, primary recommendation">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c1"/></svg>
+        </div>
+        <p>One continuous ribbon: L stem and foot become the Z bottom rail. Flat, rounded, and native to the dark teal system. Coral is optional, so the mark can live anywhere.</p>
+        <ul class="rec-list">
+          <li><strong>Scalability:</strong> best in the set. A single 7.5u stroke, no counters, no accent; 16px is a clean Z with an L edge.</li>
+          <li><strong>Recognizability:</strong> reads Z in the first glance; the L is a second read, which is the right hierarchy for the Zeta name.</li>
+          <li><strong>Brand fit:</strong> direct evolution of the geometric LZ, now flat and round; dark-first and teal-native.</li>
+          <li><strong>Use:</strong> primary product mark, favicon, app icon, docs, terminal chrome, loading states.</li>
+        </ul>
+      </article>
+      <article class="rec-card rec-alt">
+        <div class="rec-head"><h3>04 · Cluster</h3><span class="verdict">Alternate</span></div>
+        <div class="rec-preview" role="img" aria-label="Cluster, alternate recommendation">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#m-c4"/></svg>
+        </div>
+        <p>Two rounded tiles with L and Z. The transparent gap keeps the cluster readable in one color; the coral tile is a controlled second-agent accent.</p>
+        <ul class="rec-list">
+          <li><strong>Scalability:</strong> strong at 32 and 64; needs the declared single-tile 16px fallback. The extra asset is worth it when the team story matters.</li>
+          <li><strong>Recognizability:</strong> L and Z are explicit; the cluster reads Team / multi-agent immediately.</li>
+          <li><strong>Brand fit:</strong> good for collaboration and agent surfaces; coral is limited to the second tile.</li>
+          <li><strong>Use:</strong> team and multi-agent launches, collaborative surfaces, secondary brand moments. Not the only mark in 16px contexts.</li>
+        </ul>
+      </article>
+      <aside class="rec-card avoid">
+        <h3>Do not use</h3>
+        <p>The shortcuts that break this system:</p>
+        <ul>
+          <li>Aperture’s standard 9u cut at 16px — use the 12u small cut.</li>
+          <li>Cluster at 16px without the single-tile fallback.</li>
+          <li>Loop below 32px; the loop closes into a blob.</li>
+          <li>Prompt’s coral dot as a status light, badge, or the only differentiator.</li>
+          <li>Gradients, shadows, bevels, 3D, square caps, or strokes below 7u.</li>
+          <li>Coral as a large background; keep it at or below 10% of the mark area.</li>
+          <li>A non-rounded wordmark, or text inside the mark.</li>
+          <li>Rotated tiles, perspective, or off-grid optical “fixes” that break 16px.</li>
+        </ul>
+      </aside>
+    </div>
+    <div class="compare-wrap">
+      <table class="compare">
+        <thead>
+          <tr><th>Concept</th><th>16 px</th><th>Mono</th><th>Distinctiveness</th><th>Role</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>01 Fold</td><td class="s-good">Strong</td><td class="s-good">Native</td><td class="s-mid">Medium</td><td>Primary</td></tr>
+          <tr><td>02 Aperture</td><td class="s-good">Good*</td><td class="s-good">Native cut</td><td class="s-good">High</td><td>App / icon alternate</td></tr>
+          <tr><td>03 Prompt</td><td class="s-good">Good</td><td class="s-good">Good</td><td class="s-good">High</td><td>Product / terminal</td></tr>
+          <tr><td>04 Cluster</td><td class="s-mid">Fallback</td><td class="s-good">Good</td><td class="s-good">High</td><td>Alternate</td></tr>
+          <tr><td>05 Loop</td><td class="s-mid">Fallback</td><td class="s-good">Native</td><td class="s-good">High</td><td>Campaign</td></tr>
+          <tr><td>06 Lockup</td><td class="s-good">Mark only</td><td class="s-good">Good</td><td class="s-mid">System</td><td>Brand lockup</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="footnote">* Aperture at 16px requires the widened 12u aperture; the standard 9u cut is for 32px and above.</p>
+  </div>
+</section>
+
+<section class="system">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">System rules</p>
+      <h2>One grid, one accent, no tricks.</h2>
+      <p>These rules apply to every concept. The mark is flat by construction: if a direction needs a shadow to read, it is not ready.</p>
+    </div>
+    <div class="system-grid">
+      <div class="rule-card">
+        <h3>Geometry</h3>
+        <ul>
+          <li><strong>64-unit</strong> master grid; export from the grid, never trace a PNG.</li>
+          <li><strong>8u safe area</strong> inside the 64 tile; app icon keeps a 10% clear margin.</li>
+          <li><strong>7.5u stroke</strong> for primary marks; 5–6u only inside tiles. Round caps and round joins.</li>
+          <li>Radii 8–14u; optical center at <strong>32,32</strong>; nudge ±1u only when a loop or diagonal makes the mass uneven.</li>
+        </ul>
+      </div>
+      <div class="rule-card">
+        <h3>Color</h3>
+        <ul>
+          <li><strong>Teal #2AC9C1</strong> is the primary mark color on dark.</li>
+          <li><strong>Coral #F36F5D</strong> is an accent: one dot, one tile, never a large field; ≤10% of the mark area.</li>
+          <li><strong>Ink #0E1417</strong> on paper; <strong>Paper #F2F5F4</strong> on ink.</li>
+          <li>No gradients, no opacity fades, no tinted shadows. Transparent cuts only.</li>
+        </ul>
+      </div>
+      <div class="rule-card">
+        <h3>Clear space &amp; sizes</h3>
+        <ul>
+          <li>Clear space: <strong>0.5× mark height</strong> on all sides.</li>
+          <li>Favicon: 16 / 32 / 64; use the declared 16px fallback where needed.</li>
+          <li>App icon: 512 export, mark at 60–75%, 10% margin.</li>
+          <li>Wordmark lockup: mark 1.25× wordmark, gap 0.30×, baseline aligned.</li>
+        </ul>
+      </div>
+      <div class="rule-card">
+        <h3>Exports</h3>
+        <ul>
+          <li>SVG with strokes editable; outline for production if the platform requires it.</li>
+          <li>PNG 512 and 1024 with transparent background; dark and light variants.</li>
+          <li>ICO 16 / 32 / 48 / 64; maskable 512 with 10% safe padding.</li>
+          <li>Name by concept and size: <strong>zeta-fold-512.png</strong>, <strong>zeta-cluster-64.png</strong>.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="do-dont">
+      <div class="dd dd--do">
+        <h3>Do</h3>
+        <ul>
+          <li>Keep the Z read first and the L second.</li>
+          <li>Use the transparent cut as the second color.</li>
+          <li>Ship the declared small-size fallback with the main asset.</li>
+          <li>Test on ink, paper, and a mid-gray browser chrome.</li>
+          <li>Align the lockup to the mark’s visual bottom, not its bounding box.</li>
+        </ul>
+      </div>
+      <div class="dd dd--dont">
+        <h3>Don’t</h3>
+        <ul>
+          <li>Add a gradient, shadow, bevel, or 3D perspective.</li>
+          <li>Use square caps, miter joins, or hairline strokes.</li>
+          <li>Paint the negative cut with a second color.</li>
+          <li>Use coral as a background or as a large tile fill.</li>
+          <li>Set the wordmark in a non-rounded font, or put text inside the mark.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <span>Zeta logo system · concept board</span>
+  <span>No production assets changed · inline SVG/CSS · no external assets, fonts, scripts, gradients, or shadows</span>
+  <span>2026-11-10</span>
+</footer>
+
+</body>
+</html>

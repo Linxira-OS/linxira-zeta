@@ -97,7 +97,10 @@ starts in the tray.
 
 Icons: Windows packages `icon.ico`; Linux and macOS use `icon.png` (an ICO is
 not a valid GTK/AppKit icon), and the Linux installer's `.desktop` entry points
-at that PNG.
+at that PNG. Both are rendered from `assets/icon.svg` (the concept-04 Cluster
+mark) by `desktop/scripts/generate-icon.mjs`, the first step of `npm run build`
+in `desktop/`; that step also refreshes the committed PNG/ICO exports and the
+web favicons, so a changed mark is regenerated in one command.
 
 Updates: `checkUpdates` maps the gateway's existing `GET /api/update/check`
 answer (runtime artifact availability) into the Studio diagnostics shape. The
