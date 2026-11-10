@@ -22,7 +22,12 @@ import {
 	logoutChannel,
 	setChannelEnabled,
 } from "../channels/channel-status";
-import { acquireChannelLock, channelLockPath } from "../channels/instance-lock";
+import {
+	acquireChannelLock,
+	channelLockPath,
+	channelPairingLockPath,
+	wechatPairingBlockedByHost,
+} from "../channels/instance-lock";
 import { formatCredentialIdentity, runCredentialLogin, type CredentialLoginResult } from "../channels/credential-login";
 import { renderTerminalQr } from "../channels/qr-terminal";
 import {
@@ -257,11 +262,13 @@ export default class Channels extends Command {
 					);
 					return;
 				}
-				// A QR login rewrites the bot credentials a host binds, so it takes
-				// the same single-instance lock as a host: a second login (or a
-				// login racing a running host) would fight over the same bot.
+				// Pairing is not hosting. A separate lock serializes two logins,
+				// while a live host that only owns other channels stays up: the
+				// token written here is picked up by its next restart. A host that
+				// already owns WeChat is refused instead of racing its connection.
+				const configDir = path.dirname(webConfig.path);
 				const acquired = await acquireChannelLock({
-					lockPath: channelLockPath(path.dirname(webConfig.path)),
+					lockPath: channelPairingLockPath(configDir),
 					metadata: {
 						pid: process.pid,
 						host: "cli",
@@ -276,6 +283,13 @@ export default class Channels extends Command {
 					return;
 				}
 				try {
+					const hostCheck = await wechatPairingBlockedByHost(channelLockPath(configDir));
+					if (!hostCheck.ok) {
+						if (flags.json) writeJson({ channel, state: "locked", error: hostCheck.message });
+						else process.stderr.write(chalk.red(`${hostCheck.message}\n`));
+						process.exitCode = 1;
+						return;
+					}
 					await this.#loginWechat(channel, flags.json === true, Math.max(1, flags.timeout ?? 180), webConfig);
 				} finally {
 					await acquired.lock.release();

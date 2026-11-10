@@ -1,4 +1,5 @@
 import { BUILTIN_ZETA_SLASH_COMMANDS } from "./builtin-zeta";
+import { BUILTIN_CHANNELS_SLASH_COMMAND } from "./builtin-channels";
 import { BUILTIN_OUTPUT_SLASH_COMMANDS } from "./builtin-output";
 import { clearSubmittedText, restoreDetachedDraft } from "./helpers/draft";
 import {
@@ -55,6 +56,7 @@ const BUILTIN_SLASH_COMMAND_REGISTRY: ReadonlyArray<SlashCommandSpec> = [
 	...BUILTIN_CONTROL_SLASH_COMMANDS,
 	...BUILTIN_EDITS_SLASH_COMMANDS,
 	...BUILTIN_ZETA_SLASH_COMMANDS,
+	BUILTIN_CHANNELS_SLASH_COMMAND,
 ];
 
 const BUILTIN_SLASH_COMMAND_LOOKUP = new Map<string, SlashCommandSpec>();
@@ -80,6 +82,7 @@ export const BUILTIN_SLASH_COMMAND_DEFS: ReadonlyArray<BuiltinSlashCommand> = BU
 		name: command.name,
 		aliases: command.aliases,
 		allowArgs: command.allowArgs === true,
+		hidden: command.hidden === true,
 		// Keep the thunk itself: resolving here would re-freeze the locale that
 		// happens to be active when this module is imported.
 		get description(): string | (() => string) {
@@ -151,9 +154,9 @@ export const BUILTIN_SLASH_COMMANDS: ReadonlyArray<TuiBuiltinSlashCommand> = BUI
 );
 
 export function buildTuiBuiltinSlashCommands(runtime: TuiSlashCommandRuntime): ReadonlyArray<TuiBuiltinSlashCommand> {
-	return BUILTIN_SLASH_COMMAND_DEFS.filter(cmd => cmd.enabled === undefined || cmd.enabled(runtime.ctx.settings)).map(
-		cmd => materializeTuiBuiltinSlashCommand(cmd, runtime),
-	);
+	return BUILTIN_SLASH_COMMAND_DEFS.filter(
+		cmd => cmd.hidden !== true && (cmd.enabled === undefined || cmd.enabled(runtime.ctx.settings)),
+	).map(cmd => materializeTuiBuiltinSlashCommand(cmd, runtime));
 }
 
 /**
