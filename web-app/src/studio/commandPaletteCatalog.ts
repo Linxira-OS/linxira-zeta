@@ -181,6 +181,7 @@ function staticGroups(input: PaletteCatalogInput): PaletteGroup[] {
         { id: "set-context", icon: "layers", label: "palette.settingsContext", keywords: "context compact 上下文与记忆 压缩 记忆 memory hindsight mnemopi", action: { kind: "openSettings", group: "context" } },
         { id: "set-files", icon: "terminal", label: "palette.settingsFiles", keywords: "files edit mode hashline lsp shell 文件与终端 终端", action: { kind: "openSettings", group: "files" } },
         { id: "set-tasks", icon: "play", label: "palette.settingsTasks", keywords: "tasks plan goal loop 任务与执行 子任务 并发", action: { kind: "openSettings", group: "tasks" } },
+        { id: "set-channels", icon: "plug", label: "palette.settingsChannels", keywords: "channels im wechat feishu telegram bot qrcode credentials bindings 渠道 微信 飞书 绑定 扫码 凭据", action: { kind: "openSettings", group: "channels" } },
         { id: "set-advanced", icon: "wrench", label: "palette.settingsAdvanced", keywords: "advanced 设置 高级 配置层级 重试 循环保护", action: { kind: "openSettings", group: "advanced" } },
         { id: "mc-providers", icon: "server", label: "palette.modelProviders", keywords: "model config providers 模型配置 供应商", action: { kind: "openModelConfig", tab: "providers" } },
         { id: "mc-roles", icon: "steering", label: "palette.modelRoles", keywords: "model config roles 模型配置 角色", action: { kind: "openModelConfig", tab: "roles" } },

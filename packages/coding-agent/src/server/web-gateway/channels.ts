@@ -40,6 +40,7 @@ import type { ChannelId } from "../../channels";
 import { triggerRestartChannels } from "../../channels";
 import { runCredentialLogin } from "../../channels/credential-login";
 import { WebConfig } from "../../config/web-config";
+import { renderQrSvg } from "../pairing";
 
 /** Why a send did not happen, in the runtime's terms. */
 export type ChannelSendFailure =
@@ -88,6 +89,32 @@ function requiredText(value: unknown): string | null {
 	if (typeof value !== "string") return null;
 	const trimmed = value.trim();
 	return trimmed === "" ? null : trimmed;
+}
+
+/** Image payloads (`data:image/…` or an image URL) are shown as images, not re-encoded. */
+const QR_IMAGE_PAYLOAD = /^(data:image\/|https?:\/\/[^\s]*\.(?:png|jpe?g|gif|webp|svg)(?:[?#]|$))/i;
+
+/**
+ * The WeChat login QR as SVG, for surfaces that must draw a scannable symbol
+ * without a QR library of their own (Work Studio, the desktop shell).
+ *
+ * `qrcodeUrl` is the content WeChat expects a phone to read, so encoding it
+ * locally is what the terminal login does with block characters. Image
+ * payloads and payloads too large for a version-40 symbol are left to the
+ * caller: the route still returns `qrcodeUrl`, and the surface renders it as
+ * an image instead of pretending to have a symbol.
+ */
+export function renderWechatLoginQrSvg(qrcodeUrl: string): string | undefined {
+	const payload = qrcodeUrl.trim();
+	if (payload === "" || QR_IMAGE_PAYLOAD.test(payload)) return undefined;
+	try {
+		return renderQrSvg(payload, { label: "WeChat login QR" });
+	} catch (error) {
+		logger.warn("Could not encode the WeChat login QR", {
+			error: error instanceof Error ? error.message : String(error),
+		});
+		return undefined;
+	}
 }
 
 /** `POST /api/channels/send` — see the module doc for the contract. */

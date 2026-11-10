@@ -1,0 +1,61 @@
+/* Settings → IM channels. Grids keep the three credential/binding fields on one
+   line on a wide window and stack them when the pane gets narrow. */
+
+.im-channel-row { align-items: flex-start; }
+.im-channel-main { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.im-channel-main .input { width: 100%; max-width: 420px; }
+
+.im-error { color: var(--red); font-size: var(--fs-12); margin: var(--sp-6) 0; }
+.im-notice { color: var(--green); font-size: var(--fs-12); margin: var(--sp-6) 0; }
+.im-note,
+.im-empty { color: var(--text-3); font-size: var(--fs-11); margin: var(--sp-6) 0; }
+.im-hint { color: var(--text-3); font-size: var(--fs-11); }
+.im-muted { color: var(--text-3); }
+.im-mono { font-family: var(--font-mono); font-size: var(--fs-11); overflow-wrap: anywhere; }
+.im-actions { display: flex; align-items: center; gap: var(--sp-8); flex-wrap: wrap; }
+
+.im-qr,
+.im-pairing { display: flex; align-items: flex-start; gap: var(--sp-16); padding: var(--sp-12) 0; }
+.im-qr-frame {
+  width: 168px; height: 168px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: var(--r-8);
+  background: var(--surface); overflow: hidden;
+}
+.im-qr-svg svg { width: 168px; height: 168px; display: block; }
+.im-qr-image { width: 168px; height: 168px; object-fit: contain; }
+.im-qr-placeholder { padding: var(--sp-12); text-align: center; font-size: var(--fs-11); color: var(--text-3); }
+.im-qr-payload { padding: var(--sp-8); font-size: var(--fs-11); overflow-wrap: anywhere; }
+.im-qr-copy { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+.im-qr-state { font-size: var(--fs-12); margin: 0; }
+
+.im-credential-form,
+.im-binding-form,
+.im-test-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-8) var(--sp-12);
+  align-items: end;
+  padding: var(--sp-10) 0;
+  border-bottom: 1px solid var(--border);
+}
+.im-credential-form:last-of-type { border-bottom: none; }
+.im-field { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.im-field > span { font-size: var(--fs-11); color: var(--text-2); }
+.im-field .input,
+.im-field .select { width: 100%; }
+.im-field-wide { grid-column: span 2; }
+.im-binding-form .im-hint,
+.im-binding-form .im-actions,
+.im-test-form .im-actions { grid-column: 1 / -1; }
+
+.im-root-row { align-items: center; }
+
+.im-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-8); margin: var(--sp-8) 0; }
+.im-table { width: 100%; border-collapse: collapse; font-size: var(--fs-12); }
+.im-table th,
+.im-table td { text-align: left; padding: var(--sp-6) var(--sp-10); border-bottom: 1px solid var(--border); vertical-align: middle; }
+.im-table th { font-size: var(--fs-11); font-weight: var(--fw-medium); color: var(--text-3); }
+.im-table tr:last-child td { border-bottom: none; }
+.im-preserved { margin-left: var(--sp-6); }
+.im-row-actions { display: flex; gap: var(--sp-4); justify-content: flex-end; }

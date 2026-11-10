@@ -65,11 +65,12 @@ export function parsePairingPayload(payload: string): ParsedPairingPayload | nul
 }
 
 /**
- * Render a payload as a self-contained SVG QR symbol. The web-ui drops the
- * markup into the settings panel; there is no script or external reference in
+ * Render a payload as a self-contained SVG QR symbol. Settings panels drop the
+ * markup into their own container; there is no script or external reference in
  * it, and module coordinates are integers so the browser can scale it crisply.
+ * Throws when the payload does not fit a version-40 symbol.
  */
-export function renderPairingQrSvg(payload: string, options: { margin?: number } = {}): string {
+export function renderQrSvg(payload: string, options: { margin?: number; label?: string } = {}): string {
 	const qr = QrCode.encodeText(payload, "M");
 	const margin = Math.max(0, Math.trunc(options.margin ?? 4));
 	const size = qr.size + margin * 2;
@@ -80,11 +81,16 @@ export function renderPairingQrSvg(payload: string, options: { margin?: number }
 		}
 	}
 	return [
-		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="Zeta pairing code" shape-rendering="crispEdges">`,
+		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="${options.label ?? "QR code"}" shape-rendering="crispEdges">`,
 		`<rect width="${size}" height="${size}" fill="#ffffff"/>`,
 		`<path fill="#111827" d="${segments.join("")}"/>`,
 		"</svg>",
 	].join("");
+}
+
+/** The pairing code's QR, with the label the settings panel shows. */
+export function renderPairingQrSvg(payload: string, options: { margin?: number } = {}): string {
+	return renderQrSvg(payload, { ...options, label: "Zeta pairing code" });
 }
 
 /** First non-internal IPv4 address — the LAN address a phone can dial. */

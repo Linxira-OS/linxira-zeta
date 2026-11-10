@@ -355,7 +355,7 @@ independently of `channels.lock`.
 | `zetacode` / `zetacode -p`  | Hosts the runtime in the normal session (no workspace router; messages go to that session).                                    |
 | `zetacode channels …`       | Inspects/pairs/configures the shared `web.yml`; never hosts.                                                                   |
 | `/channels` (TUI)           | Same facts/pairing from inside a live TUI; suspends and restarts this session's host around a WeChat QR login.                 |
-| GUI settings page           | Reads/writes the same `web.yml` and `GET /api/channels/wechat/qrcode` for its QR; a CLI login is visible there and vice versa. |
+| GUI settings page (Work Studio) | Reads/writes the same `web.yml`, shows the QR from `GET /api/channels/wechat/qrcode` (server-rendered `svg`), and edits `remote.sessionMappings`; a CLI login is visible there and vice versa. See [GUI IM channels](./gui-im-channels.md). |
 
 The gateway routes (`/api/channels/status`, `/api/channels/send`,
 `/api/channels/credentials`, `/api/channels/wechat/{qrcode,reconnect,unbind}`)
