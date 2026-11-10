@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Linxira Zeta
-Comment=Linxira Zeta — projects, terminals and the coding agent
-Exec=/usr/lib/zetawork/zetawork-gui %U
-Icon=zetawork
-Terminal=false
-Categories=Development;
-StartupWMClass=zetawork-gui

@@ -29,7 +29,7 @@ something unrelated. Web addresses are not opened by the workbench either.
 | `.md`, `.mdx` | the **Markdown page** — rendered read-only (headings, lists, fences), never a text buffer you could accidentally edit |
 | source and config (`rs`, `ts`, `tsx`, `js`, `jsx`, `py`, `go`, `c`, `h`, `cpp`, `java`, `kt`, `swift`, `rb`, `php`, `cs`, `css`, `html`, `json`, `toml`, `yaml`, …) | the **IDE page** — the same embedded `panel-ide` the TUI runs |
 | anything else | the text editor |
-| `.pdf` | the PDF page (`gui-pdf-viewer.md`); the TUI refuses it |
+| `.pdf` | the text editor; there is no rendered PDF page |
 
 A file already open in the target pane is activated, never reloaded: an
 unsaved buffer is the user's work.

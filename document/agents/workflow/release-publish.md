@@ -24,9 +24,10 @@
   `packages/snapcompact` 发 `@linxiraos/zeta-compact`）；以包内 `name` 为准，
   目录名不随包名改。
 - **冻结 / 暂停面只在 dispatch 时发**：`web-ui`（`@linxiraos/zeta-web`）自
-  2026-11-05 冻结，`release_web_ui_packages` 只在 `publish_web_ui` 输入为真时运行；
-  `@linxiraos/main`（zetawork）暂停，`release_main_packages` 只在
-  `publish_zetawork` 为真时派发 `main-publish.yml`。"链路已接线"不等于"每轮发布"。
+  2026-11-05 冻结，`release_web_ui_packages` 只在 `publish_web_ui` 输入为真时运行。
+  `@linxiraos/main`（zetawork）已于 2026-11 从树中移除：`release_main_packages`、
+  `publish_zetawork` 与 `main-publish.yml` 均已删除，npm 上的已发布版本保持
+  deprecated/reserved。"链路已接线"不等于"每轮发布"。
 - **产品渲染器不单独发 npm**：`web-app`（`@linxiraos/zeta-web-app`，`private`）
   随 `zeta serve` / 安装包分发；它的构建门禁在 CI `check` job，不在发布链。
 

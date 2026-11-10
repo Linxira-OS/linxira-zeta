@@ -40,12 +40,12 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
   `~/.zeta/run/daemon.log`。只有测试可以开可见终端。
 - **产品面只有三个（2026-11-06 规范）。** **Work Studio** = 浏览器面（`web-app/`，
   由 `zetacode serve` 托管）；`zetacode` = CLI/TUI agent；`zetaide` = **终端 IDE**
-  （Rust termide / ratatui，不是 GUI）。**不存在 Rust UI**：`zetawork-gui`（egui +
-  WebView2）不是产品面，`zeta-main` 的嵌套终端工作台被 Work Studio 取代。详细边界见
-  `document/agents/surface/surfaces.md`。
+  （Rust termide / ratatui，不是 GUI）。**不存在 Rust UI**：旧的 zetawork Rust 线
+  （TUI/GUI）已于 2026-11 从树中移除（git 历史保留），其语义由 Work Studio 接管。
+  详细边界见 `document/agents/surface/surfaces.md`。
 - **品牌面不许被上游改回。** `.zeta` / `~/.zeta`；**已发布 bin 名**保留
-  `zetawork` / `zetacode` / `zetaide`（`zetawork` 是 `@linxiraos/main` 的暂停面，
-  不代表产品形态）；内部文档协议 `zeta://`；npm scope `@linxiraos/*`；release 资产名
+  `zetacode` / `zetaide`（`zetawork` 是已退役的 `@linxiraos/main` 包名：弃用保留，
+  源码已不在树里，不代表产品形态）；内部文档协议 `zeta://`；npm scope `@linxiraos/*`；release 资产名
   `zeta-cli-*`（**不跟 bin 名**）；OTLP `service.name` = `zeta`；遥测导出硬关闭
   （`TELEMETRY_EXPORT_ENABLED = false`，没有开关）。启动字符画 `ZETA_LOGO` /
   `ZETA_WORDMARK` / `ZETA_SUBLINE` **永久冻结**，判据是
@@ -97,14 +97,13 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
 | Gateway REST handler | `packages/coding-agent/src/server/web-gateway/`（路由在 `web-gateway.ts`） |
 | 频道 / 机器人运行时 | `packages/coding-agent/src/channels/` |
 | 配置层（web.yml） | `packages/coding-agent/src/config/web-config.ts` |
-| zetawork（TUI / GUI，**暂停**） | `main/crates/zeta-main/`、`main/crates/zetawork-gui/`（`@linxiraos/main` 只在 `publish_zetawork` 输入时发布） |
-| zetaide / vendored TermIDE | `termide/`（**不要**在 `main/` 里重写 vendored 面板库） |
+| zetaide / vendored TermIDE | `termide/`（vendored 面板库只在此处维护） |
 | `@linxiraos/editor` npm 面 | `editor/` |
 | Work Studio 桌面壳（Electron / 无浏览器引擎两版） | `desktop/`；渲染器与内核复用 `web-app/` + `packages/coding-agent`，不新增第二套 UI 代码 |
 
 依赖方向不可倒：`web-app/` 只经 HTTP 打 `/api/v1/*`（Studio 宿主，由它转 gateway）；
-`desktop/`、`web-ui/` 属冻结/暂停面，同样只走 HTTP，
-**不得 import `packages/*` 源码**。
+`desktop/`、`web-ui/` 只走 HTTP，
+**不得 import `packages/*` 源码**（`web-ui/` 冻结，`desktop/` 是活动桌面版）。
 
 Catalog 值（models、identity、descriptors、cache）从 `@linxiraos/pi-catalog/<module>` 引；
 `@linxiraos/pi-ai` 只导出它自己签名用到的类型，别经它拿 catalog 值。

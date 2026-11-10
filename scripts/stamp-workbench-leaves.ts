@@ -2,12 +2,12 @@
 /**
  * Stamp the workbench platform leaves.
  *
- * `main/npm/main-<platform>/bin/` and `termide/npm/ide-<platform>/bin/` hold
- * committed release binaries: nothing regenerates them from source in CI, and
- * the manifest version moves with every release bump. Without a stamp, a leaf
- * whose binary was never rebuilt still publishes under the new version and
- * every install of that platform gets the previous release's workbench — the
- * "only checked for existence" half of the release-surface audit.
+ * `termide/npm/ide-<platform>/bin/` holds committed release binaries: nothing
+ * regenerates them from source in CI, and the manifest version moves with
+ * every release bump. Without a stamp, a leaf whose binary was never rebuilt
+ * still publishes under the new version and every install of that platform
+ * gets the previous release's workbench — the "only checked for existence"
+ * half of the release-surface audit.
  *
  * After rebuilding a leaf binary, run this (the release ritual commits the
  * binary and its stamp together):

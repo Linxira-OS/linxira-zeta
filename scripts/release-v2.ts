@@ -27,7 +27,6 @@ import { runChangelogFixer } from "./fix-changelogs";
  * match.
  */
 import { generateNixBunDeps, normalizeLockfileVersion } from "./gen-nix-bun";
-import { mainWorkspaceMembers, pinnedWorkspaceVersions, rewriteWorkspaceVersions } from "./cargo-workspace-lock";
 import { distributionManifests, distributionPins, NPM_DISTRIBUTIONS } from "./npm-distributions";
 import { selectLatestZetaTag, validateExplicitVersion, watchCI } from "./release";
 
@@ -195,15 +194,12 @@ async function assertConsistency(version: string): Promise<void> {
 		if (manifest.version !== version) problems.push(`${manifestPath}: ${manifest.version} != ${version}`);
 	}
 
-	// Vendored npm distributions: launcher, platform leaves and same-line
-	// companions ride the line, and the launcher's optionalDependencies pins
-	// must have moved with them — a pin left behind publishes a launcher that
-	// installs the previous release's leaf/companion (PR #119). Runs after the
-	// Step 2f bump, so a pin whose sed pattern missed fails here instead of
-	// reaching npm.
+	// Vendored npm distributions: launcher, platform leaves and their pins
+	// ride the line, and the launcher's optionalDependencies pins must have
+	// moved with them — a pin left behind publishes a launcher that installs
+	// the previous release's leaf (PR #119). Runs after the Step 2f bump, so a
+	// pin whose sed pattern missed fails here instead of reaching npm.
 	for (const dist of NPM_DISTRIBUTIONS) {
-		// Suspended products keep their frozen line; see npm-distributions.ts.
-		if (dist.paused) continue;
 		for (const rel of distributionManifests(dist)) {
 			const manifest = await Bun.file(rel).json();
 			if (manifest.version !== version) problems.push(`${rel}: ${manifest.version} != ${version}`);
@@ -225,22 +221,6 @@ async function assertConsistency(version: string): Promise<void> {
 	const cargoToml = await Bun.file("Cargo.toml").text();
 	const cargoVersion = cargoToml.match(/^\s*version = "([^"]+)"/m)?.[1];
 	if (cargoVersion !== version) problems.push(`Cargo.toml workspace: ${cargoVersion} != ${version}`);
-
-	// main/ is its own workspace: the manifest AND every member entry in its
-	// lock must ride the line, or the release ships a tree whose
-	// `cargo build --locked` refuses to run (only zeta-main used to be patched).
-	const mainToml = await Bun.file("main/Cargo.toml").text();
-	const mainVersion = /\[workspace\.package\][^[]*?version = "([^"]+)"/s.exec(mainToml)?.[1];
-	if (mainVersion !== version) problems.push(`main/Cargo.toml workspace: ${mainVersion} != ${version}`);
-	const mainMembers = mainWorkspaceMembers();
-	const mainLocked = pinnedWorkspaceVersions(
-		await Bun.file("main/Cargo.lock").text(),
-		mainMembers.map(m => m.name),
-	);
-	for (const member of mainMembers) {
-		const pinned = mainLocked.get(member.name);
-		if (pinned !== version) problems.push(`main/Cargo.lock ${member.name}: ${pinned ?? "<absent>"} != ${version}`);
-	}
 
 	// v18.3.3+ mechanism: no per-release sentinel name — verify the stamp
 	// mechanism symbols instead (same list as the Step-2c check below).
@@ -553,19 +533,14 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 		await $`sd '^(\s{4}version = ")[^"]+(")' ${replacement} ${buildFile}`;
 	}
 
-	// Step 2f: vendored npm distributions (editor, termide/ide, the zeta
-	// workbench; not Bun workspaces — bumped here so the CI trusted-publishing
-	// jobs release them on the same release version). The launcher pins its
-	// platform leaves AND its same-line companions (zetacode/zetaide) EXACTLY
-	// in optionalDependencies, so those refs move in the same pass: a launcher
-	// bumped without its pins installs the previous release's leaf/companion
+	// Step 2f: vendored npm distributions (editor, termide/ide; not Bun
+	// workspaces — bumped here so the CI trusted-publishing jobs release them
+	// on the same release version). The launcher pins its platform leaves
+	// EXACTLY in optionalDependencies, so those refs move in the same pass: a
+	// launcher bumped without its pins installs the previous release's leaf
 	// (the 1.2.0 editor launcher shipped pinning 1.1.28 and was hand-fixed in
 	// PR #119). Registry: scripts/npm-distributions.ts.
 	for (const dist of NPM_DISTRIBUTIONS) {
-		if (dist.paused) {
-			console.log(`Skipping ${dist.dir}: ${dist.paused}`);
-			continue;
-		}
 		console.log(`Updating ${dist.dir} npm distribution to ${version}...`);
 		for (const dir of [dist.dir, ...dist.leaves.map(leaf => leaf.dir)]) {
 			await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${dir}/package.json`;
@@ -579,23 +554,6 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 			await $`sd ${`"${pin.name}": "[^"]+"`} ${`"${pin.name}": "${version}"`} ${dist.dir}/package.json`;
 		}
 	}
-
-	// Step 2f-4: the main workbench is a separate Cargo workspace whose
-	// version stamps the published workbench binary (`zeta --version`) — it
-	// rides the same release line (mirror of Step 2b/2d for main/).
-	console.log("Updating main workbench Cargo workspace...");
-	await $`sd '^ *version = "[^"]+"' ${`version = "${version}"`} main/Cargo.toml`;
-	// EVERY member rides the line, not just zeta-main: `cargo build --locked`
-	// in main/ refuses a lock whose sibling crates (`zetawork-gui`, `sysmon`,
-	// `workbench-projects`) still carry the previous version.
-	const mainMembers = mainWorkspaceMembers();
-	const mainLock = rewriteWorkspaceVersions(
-		await Bun.file("main/Cargo.lock").text(),
-		mainMembers.map(m => m.name),
-		version,
-	);
-	await Bun.write("main/Cargo.lock", mainLock.lock);
-	console.log(`  main/Cargo.lock: ${mainLock.rewritten.length} workspace members -> ${version}`);
 
 	// Step 3: desktop shell (package.json + package-lock.json root version).
 	console.log("Updating desktop version...");

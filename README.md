@@ -52,9 +52,10 @@ ports). Per-tree modification ledgers and the full fork declaration are in
 Every command launches standalone with its own `--help`. Work Studio is the
 workbench: the page served by `zetacode serve` shares the CLI's runtime, host
 contract (`/api/v1/*`) and settings, and hands coding/editing off to `zetacode`
-and `zetaide` instead of re-implementing them. The `zetawork` / `zeta` bins still
-exist in the paused `@linxiraos/main` package; the name is reserved for the
-main/super-agent surface, and no Rust GUI ships under it (2026-11-06).
+and `zetaide` instead of re-implementing them. The retired `@linxiraos/main`
+package name is reserved for the future main/super-agent surface; its source is
+gone from this tree (git history retains it), and no Rust GUI ships under it
+(2026-11-06).
 
 ## Repository Map
 
@@ -76,13 +77,12 @@ Where each directory belongs:
 | Path | Contents |
 | --- | --- |
 | `packages/` | The published runtime packages (`@linxiraos/*`): coding-agent, ai, agent, tui, catalog, stats, channels, wire, mnemopi, natives, utils, omptype, browser-relay. |
-| `main/` | Paused Rust line (2026-11-05), its own Cargo workspace: the TUI (`crates/zeta-main`), the egui GUI (`crates/zetawork-gui`), `crates/sysmon`. Not a product surface; releases do not build it. |
-| `termide/` | Vendored TermIDE panel library — the panels both workbenches embed — plus the `zetaide` entry (`@linxiraos/ide`). Deviations from the vendored snapshot are logged in `termide/VENDOR.md`. |
+| `termide/` | Vendored TermIDE panel library — the panels `zetaide` embeds — plus the `zetaide` entry (`@linxiraos/ide`). Deviations from the vendored snapshot are logged in `termide/VENDOR.md`. |
 | `editor/` | The built-in editor pane's npm face. The payload is a `termide-editor` binary; the package declares no command. |
 | `crates/` | Rust runtime crates compiled as native addons (`pi-natives`, `pi-ast`, `pi-diff`, `pi-builtins`, …), built by Bazel. |
 | `web-app/` | **Work Studio**: the product renderer (Vite 7 + React), its own npm project. Ships inside `@linxiraos/zeta` at `dist/web-app`. |
 | `web-ui/` | Frozen OMP Web snapshot (2026-11-05): not built, not published, no new features. |
-| `desktop/` | Paused Electron shell. No new code; not part of any product surface. |
+| `desktop/` | Work Studio desktop editions (Electron shell and browser-engine-free build); packaged by `release_desktop`. |
 | `plugins/` | `official/` first-party plugins (source in-tree, `INDEX.md` registry) and `community/` pointer files. |
 | `docs/` | Runtime documentation shipped with the product (`zeta://docs`). |
 | `document/` | Internal engineering docs: architecture contracts, merge playbook, release mechanics, roadmap. Never packaged. |
@@ -114,9 +114,10 @@ zetacode serve                # serves the Web UI on loopback
 ```
 
 Work Studio ships inside that package: the renderer is staged at `dist/web-app`
-and `ZETA_WEB_APP_DIR` overrides it for a custom build. `npm i -g @linxiraos/main`
-still installs, but that Rust workbench is paused (2026-11-05); `zetacode serve`
-is the supported entry point. Install the other tools standalone:
+and `ZETA_WEB_APP_DIR` overrides it for a custom build. `@linxiraos/main` is
+deprecated and reserved for a future main/super-agent surface; its source is no
+longer in this tree, so `zetacode serve` is the supported entry point. Install
+the other tools standalone:
 
 ```sh
 npm i -g @linxiraos/zeta      # zetacode — coding agent CLI
@@ -150,8 +151,8 @@ one origin, no proxy:
 - **One host contract** — every read and action goes through `/api/v1/*`
   (`docs/zeta-serve-web.md`), so the CLI, the browser and remote clients see the
   same capabilities; the capability manifest hides anything not implemented.
-- **No Rust UI** — the old egui/WebView2 workbench (`main/crates/zetawork-gui`)
-  is not a product surface; its design work lands in `web-app/src/studio/`.
+- **No Rust UI** — the retired egui/WebView2 workbench is gone; Work Studio's
+  design work lands in `web-app/src/studio/`.
 
 ## The Coding Agent
 
@@ -199,9 +200,9 @@ Zeta is built on two upstream projects:
 | [Pi](https://github.com/earendil-works/pi)            | Semantic-port source for feature work, never a raw merge source |
 
 Work Studio (`web-app/`) is a fork of OMP Studio that Zeta now maintains; its
-host (`packages/coding-agent/src/server/studio-host/`) is Zeta's own. The Rust
-workbench (`main/`) is paused. The old `web-ui/` renderer is an abandoned
-third-party OMP Web snapshot, not a Zeta surface. Vendored
+host (`packages/coding-agent/src/server/studio-host/`) is Zeta's own. The old
+`web-ui/` renderer is an abandoned third-party OMP Web snapshot, not a Zeta
+surface. Vendored
 projects keep their own licences and are listed in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt); the merge
 procedure is recorded in [document/upstream-sync.md](document/upstream-sync.md).
 
@@ -213,12 +214,11 @@ inherits from upstream — and what Zeta owns — is stated per component:
 | Component                                                          | Origin                                 |
 | ------------------------------------------------------------------ | -------------------------------------- |
 | `web-app/` (Work Studio renderer)                                  | Zeta-maintained fork of OMP Studio (MIT) |
-| `main/` (Rust workbench, paused; `@linxiraos/main`, bins `zetawork`/`zeta`) | Zeta-originated                |
 | `packages/coding-agent/` (CLI, `zetacode`)                         | OMP runtime tree, release-tag merges   |
 | `packages/ai`, `agent`, `catalog`, `tui`, `natives`, `utils`, `stats` | OMP runtime tree                     |
 | `termide/` (TermIDE, `@linxiraos/ide`, binaries `zetaide`)         | [termide/termide](https://github.com/termide/termide), vendored fork (maintained here) |
 | `web-ui/`                                                          | **Abandoned** third-party OMP Web snapshot (`17380936778/omp-web`); not built |
-| `desktop/`                                                         | Zeta-originated, paused (Electron)     |
+| `desktop/`                                                         | Zeta-originated (Electron + browser editions) |
 | `packages/coding-agent/src/channels/` (WeChat/Feishu/Telegram bridge) | Zeta-originated                     |
 | `packages/coding-agent/src/server/` (web-gateway, `zetacode serve`) | Zeta-originated                       |
 
@@ -283,10 +283,11 @@ top. Per product surface:
   reference; not built, not shipped, receives no features or fixes, and is not a
   Zeta support surface. Work Studio supersedes it.
 
-### `zetawork` — Rust workbench (Zeta-originated, paused)
+### `zetawork` — retired Rust workbench (Zeta-originated, removed)
 
-- **Origin**: Zeta's own Rust TUI/GUI line (`main/`), paused 2026-11-05; its npm
-  packages ship only by explicit dispatch. AGPL-3.0-only.
+- **Origin**: Zeta's own Rust TUI/GUI line, retired 2026-11-05 and removed from
+  the tree in 2026-11; git history retains it. The `@linxiraos/main` npm name
+  stays deprecated and reserved for a future main/super-agent surface.
 
 ## Zeta-Originated Capabilities
 
@@ -408,8 +409,7 @@ substitute for exercising the changed behavior.
 The primary application lives in `packages/coding-agent/`. Shared runtime
 packages include `packages/ai/`, `packages/catalog/`, `packages/agent/`,
 `packages/tui/`, and `packages/natives/`. The browser renderer lives in
-`web-app/` (its own npm project); the paused Rust workbench lives in `main/`,
-and the vendored TermIDE tree under `termide/`.
+`web-app/` (its own npm project), and the vendored TermIDE tree under `termide/`.
 
 ## Platform Support
 
@@ -449,17 +449,16 @@ an unregistered upstream endpoint appears.
 
 ## License
 
-Zeta carries two licences, split by path:
+Zeta is MIT. Vendored projects keep their own licences:
 
-| Path                                                                     | Licence                                   |
-| ------------------------------------------------------------------------ | ----------------------------------------- |
-| `main/` — the paused Rust workbench (`zetawork`, `zeta`, and its npm packages) | **AGPL-3.0-only** ([text](main/LICENSE)) |
-| `packages/`, `crates/`, `sdk/`, `web-ui/`, `desktop/`, `docs/`, `document/`, `scripts/` | **MIT**                    |
-| `termide/`, `editor/` — vendored TermIDE                                  | **MIT** ([text](termide/LICENSE))        |
+| Path                                                     | Licence                            |
+| -------------------------------------------------------- | ---------------------------------- |
+| `packages/`, `crates/`, `sdk/`, `web-ui/`, `desktop/`, `docs/`, `document/`, `scripts/` | **MIT** |
+| `termide/`, `editor/` — vendored TermIDE                  | **MIT** ([text](termide/LICENSE))  |
 
-The root [LICENSE](LICENSE) states the split and reproduces the MIT text that
-governs everything outside `main/`. Derived and vendored projects keep their own
-licences and are listed in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+The root [LICENSE](LICENSE) reproduces the MIT text. Derived and vendored
+projects keep their own licences and are listed in
+[THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
 
 Zeta's copyright lines mark Zeta's modifications and additions only; the
 upstream notices and licence texts remain in force for the upstream portions.
@@ -468,9 +467,6 @@ changed, and which trees are abandoned — is stated under
 [Differences from Upstream](#differences-from-upstream). In particular, `web-ui/`
 is an abandoned third-party snapshot: it is not a Zeta-maintained surface, and
 Zeta's additions to it are limited to the frozen snapshot as received.
-
-Commercial licensing of the Rust workbench is available by arrangement with the
-maintainers.
 
 Work Studio's editor is built in: `@linxiraos/editor` is the reserved package
 name for its binary payload (the earlier TTT-derived Go payload was removed
@@ -508,13 +504,12 @@ Pi / Pi Web（语义移植来源）。逐树改动账目与完整 fork 声明见
 | 路径 | 是什么 |
 | --- | --- |
 | `packages/` | 运行时包（`@linxiraos/*`）：coding-agent、ai、agent、tui、catalog、stats、channels、wire、mnemopi、natives 等 |
-| `main/` | 暂停的 Rust 线（2026-11-05）：TUI（`crates/zeta-main`）、egui GUI（`crates/zetawork-gui`）、共享采样（`crates/sysmon`）。不是产品面，release 不构建 |
 | `termide/` | vendored TermIDE 面板库 + `zetaide`；对快照的偏离登记在 `termide/VENDOR.md` |
 | `editor/` | 内置编辑器面板的 npm 面（载荷是 `termide-editor` 二进制，不声明命令） |
 | `crates/` | 原生 Rust 运行时 crate（`pi-natives` 等），由 Bazel 构建 |
 | `web-app/` | **Work Studio**：产品渲染器（Vite 7 + React），独立 npm 工程；随 `@linxiraos/zeta` 出货到 `dist/web-app` |
 | `web-ui/` | 冻结的 OMP Web 快照（2026-11-05）：不构建、不发布、不加功能 |
-| `desktop/` | 暂停的 Electron 壳：不新增代码，不属于任何产品面 |
+| `desktop/` | Work Studio 桌面版（Electron 壳 + 无浏览器引擎版）；由 `release_desktop` 打包 |
 | `plugins/` | `official/`（第一方插件源码 + `INDEX.md` 登记）与 `community/`（指针文件） |
 | `docs/` | 随产品打包的运行时文档（`zeta://docs`）；`document/` 是内部工程文档，不打包 |
 | `scripts/` | 构建、发布、打包与 CI 守卫 |
@@ -534,8 +529,8 @@ Pi / Pi Web（语义移植来源）。逐树改动账目与完整 fork 声明见
 
 每条命令都能独立启动、各有自己的 `--help`。Work Studio 就是工作台：`zetacode serve`
 服务的页面与 CLI 共用运行时、宿主契约（`/api/v1/*`）和设置，编码/编辑交给
-`zetacode` 与 `zetaide`，不另做一套。`zetawork` / `zeta` 这两个 bin 仍在暂停的
-`@linxiraos/main` 包里；名字保留给 main/super-agent 面，**没有 Rust GUI 随它出货**
+`zetacode` 与 `zetaide`，不另做一套。已退役的 `@linxiraos/main` 包名保留给未来的
+main/super-agent 面；它的源码已不在本树（git 历史保留），**没有 Rust GUI 随它出货**
 （2026-11-06）。
 
 ### 快速开始
@@ -548,8 +543,8 @@ zetacode serve                # 在 loopback 上服务 Work Studio
 ```
 
 Work Studio 就在这个包里：渲染器随包放在 `dist/web-app`，自定义构建用
-`ZETA_WEB_APP_DIR` 覆盖。`npm i -g @linxiraos/main` 仍可安装，但那个 Rust
-工作台已暂停（2026-11-05）；`zetacode serve` 是受支持的入口。其它工具独立安装：
+`ZETA_WEB_APP_DIR` 覆盖。`@linxiraos/main` 已弃用，保留给未来的 main/super-agent 面；
+源码已不在本树，`zetacode serve` 是受支持的入口。其它工具独立安装：
 
 ```sh
 npm i -g @linxiraos/zeta      # zetacode — 编码 Agent CLI
@@ -579,8 +574,8 @@ bun run dev
   agent 会话都在同一视图里。
 - **单一宿主契约** —— 所有读取与动作都走 `/api/v1/*`（`docs/zeta-serve-web.md`），
   CLI、浏览器、远程客户端看到同一份能力清单；未实现的操作不出现在清单里。
-- **没有 Rust UI** —— 旧的 egui/WebView2 工作台（`main/crates/zetawork-gui`）不是
-  产品面；它的设计工作落在 `web-app/src/studio/`。
+- **没有 Rust UI** —— 旧的 egui/WebView2 工作台已移除；设计工作落在
+  `web-app/src/studio/`。
 
 ### 编码 Agent
 
@@ -623,9 +618,8 @@ Zeta 基于两个上游项目:
 | [Pi](https://github.com/earendil-works/pi)            | 功能工作的语义移植来源,绝不作为原始合并源 |
 
 Work Studio(`web-app/`)是 Zeta 接手的 OMP Studio 分支，其宿主
-(`packages/coding-agent/src/server/studio-host/`)是我们自己的实现；Rust 工作台
-(`main/`)已暂停；旧的 `web-ui/` 是**已放弃维护**的第三方 OMP Web 快照，不是 Zeta
-的产品面。vendored 项目保持各自的许可,
+(`packages/coding-agent/src/server/studio-host/`)是我们自己的实现；旧的 `web-ui/`
+是**已放弃维护**的第三方 OMP Web 快照，不是 Zeta 的产品面。vendored 项目保持各自的许可,
 列在 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt);合并流程记录在
 [document/upstream-sync.md](document/upstream-sync.md)。
 
@@ -637,12 +631,11 @@ Work Studio(`web-app/`)是 Zeta 接手的 OMP Studio 分支，其宿主
 | 组件                                                              | 来源                                   |
 | ----------------------------------------------------------------- | -------------------------------------- |
 | `web-app/`（Work Studio 渲染器）                                  | Zeta 维护的 OMP Studio 分支（MIT）     |
-| `main/`（Rust 工作台，已暂停；`@linxiraos/main`，二进制 `zetawork`/`zeta`） | Zeta 原创                    |
 | `packages/coding-agent/`(CLI,`zetacode`)                          | OMP 运行时树,按发布 tag 合并           |
 | `packages/ai`、`agent`、`catalog`、`tui`、`natives`、`utils`、`stats` | OMP 运行时树                       |
 | `termide/`(TermIDE,`@linxiraos/ide`,二进制 `zetaide`)             | [termide/termide](https://github.com/termide/termide)，vendored 分支（此处维护） |
 | `web-ui/`                                                         | **已放弃维护**的第三方 OMP Web 快照（`17380936778/omp-web`）；不构建 |
-| `desktop/`                                                        | Zeta 原创，已暂停（Electron）          |
+| `desktop/`                                                        | Zeta 原创（Electron + 无浏览器引擎版） |
 | `packages/coding-agent/src/channels/`(微信/飞书/Telegram 桥接)    | Zeta 原创                              |
 | `packages/coding-agent/src/server/`(web-gateway,`zetacode serve`) | Zeta 原创                              |
 
@@ -696,10 +689,10 @@ Zeta 修改与新增的部分。按产品面说明：
 - **状态**：**已放弃维护**（2026-11-05）。只作为冻结快照保存供参考；不构建、不出货、
   不接收功能或修复，不属于 Zeta 支持面。产品面由 Work Studio 取代。
 
-#### `zetawork` — Rust 工作台（Zeta 原创，已暂停）
+#### `zetawork` — Rust 工作台（Zeta 原创，已移除）
 
-- **来源**：Zeta 自己的 Rust TUI/GUI 线（`main/`），2026-11-05 暂停；其 npm 包只在
-  显式 dispatch 时发布。AGPL-3.0-only。
+- **来源**：Zeta 自己的 Rust TUI/GUI 线，2026-11-05 退役、2026-11 从树中移除；
+  git 历史保留。`@linxiraos/main` 包名继续弃用并保留给未来的 main/super-agent 面。
 
 ### Zeta 自有能力
 
@@ -721,9 +714,9 @@ Zeta 修改与新增的部分。按产品面说明：
   plan-image 路由和工作区作用域的执行工具。
 - **用量与统计扩展** —— `/api/usage/daily` 与 `usage.*` 宿主操作供给 Work Studio
   面板;上游的 stats 数据库与 `zetacode stats` 仪表板仍是底座。
-- **Linux 下游打包** —— 桌面归档(`zeta-desktop`、AppImage、Arch)保留冻结的
-  名称/摘要契约,但自 2026-11-05 暂停起**只能手动 dispatch**,release 不再
-  发布它们;见 `document/release.md`。
+- **Linux 下游打包** —— Work Studio 桌面版由 `release_desktop` 打包
+  （Electron 版与无浏览器引擎版）;zetawork 桌面归档链已随 2026-11-05 退役
+  一并移除;见 `document/release.md`。
 - **继承自上游**(非 Zeta 原创):`autoresearch` 实验循环、自定义工具与
   TypeScript 命令、斜杠命令市场、ACP 支持,在本仓库带品牌适配出货——见
   [docs/custom-tools.md](./docs/custom-tools.md)、
@@ -770,8 +763,7 @@ bun --cwd=packages/coding-agent test test/<file>.test.ts
 
 主应用位于 `packages/coding-agent/`。共享运行时包包括 `packages/ai/`、
 `packages/catalog/`、`packages/agent/`、`packages/tui/` 和
-`packages/natives/`。工作区在 `main/`(独立 Cargo workspace),vendored
-树在 `termide/`。
+`packages/natives/`。vendored 树在 `termide/`。
 
 ### 平台支持
 
@@ -809,23 +801,20 @@ Pi 是语义功能来源,不是原始合并来源。仓库规则见
 
 ### 许可证
 
-Zeta 按路径承载两种许可:
+Zeta 采用 MIT 许可。vendored 项目保持各自的许可:
 
 | 路径                                                                  | 许可                                      |
 | --------------------------------------------------------------------- | ----------------------------------------- |
-| `main/` — 暂停的 Rust 工作台(`zetawork`、`zeta` 及其 npm 包)         | **AGPL-3.0-only**([全文](main/LICENSE))  |
 | `packages/`、`crates/`、`sdk/`、`web-ui/`、`desktop/`、`docs/`、`document/`、`scripts/` | **MIT**          |
 | `termide/`、`editor/` — vendored TermIDE                              | **MIT**([全文](termide/LICENSE))          |
 
-根目录 [LICENSE](LICENSE) 说明分层,并复述管辖 `main/` 之外全部代码的 MIT 文本。
+根目录 [LICENSE](LICENSE) 复述 MIT 文本。
 派生与 vendored 项目保持各自许可,列在 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)。
 
 Zeta 的版权行只标注 Zeta 的修改与新增；上游部分仍以上游版权声明与许可文本为准。
 逐产品面的边界（哪些来自 OMP、TermIDE、OMP Studio，Zeta 改了什么，哪些树已放弃维护）
 见 [与上游的差异](#与上游的差异)。其中 `web-ui/` 是**已放弃维护**的第三方快照：
 它不是 Zeta 维护的产品面，Zeta 对它的改动仅限于接收时的冻结快照。
-
-工作台的商业授权可与维护者协商。
 
 工作区的编辑器是内置面板:`@linxiraos/editor` 是预留给该面板二进制载荷的包名
 (早先由 [TTT Editor](https://github.com/eugenioenko/ttt) 派生的 Go 载荷已于

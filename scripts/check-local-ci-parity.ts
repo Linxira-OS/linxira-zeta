@@ -41,13 +41,11 @@ const EXCLUDED: Record<string, string> = {
 	release_gate: "release chain",
 	release_binary: "release chain",
 	release_product_binaries: "release chain",
-	release_desktop_archives: "release chain",
 	release_desktop: "release chain (Electron/browser desktop packaging is GitHub-runner only)",
 	release_native_leaves: "release chain",
 	release_github: "release chain",
 	release_npm: "release chain",
 	release_ide_packages: "release chain",
-	release_main_packages: "release chain",
 	release_plugin_packages: "release chain",
 	release_plugin_packages_manual: "release chain",
 	release_web_ui_packages: "release chain",
@@ -71,7 +69,6 @@ const MIRRORED: Record<string, string> = {
 	test_smoke: "test_smoke",
 	install_methods: "install_methods",
 	termide_tests: "termide_tests",
-	main_tests: "main_tests",
 	// The local desktop_tests job is the mirror of the GitHub job that carries
 	// the cheap web/desktop contracts (desktop `npm test` + the launcher/serve
 	// reuse suites); the release-only desktop_linux/windows packaging stays out.
@@ -110,12 +107,6 @@ const ENTRY_EXCEPTIONS: Record<string, Record<string, string>> = {
 	native_addons: {
 		"bun scripts/bazel-natives.ts $NATIVE_TARGETS":
 			"the mirror stages the built addon straight into packages/natives/native/ (no artifact plumbing); GitHub installs it from the uploaded artifact through shell-literal invocations this guard's entry-point regex does not count",
-	},
-	main_tests: {
-		"cargo nextest run":
-			"nextest ships in the mirror's persistent toolchain store (per-crate parallelism on one box); GitHub has no nextest",
-		"cargo test --workspace":
-			"the mirror's `cargo nextest run … || cargo test --workspace` fallback half; GitHub runs it as the primary",
 	},
 };
 

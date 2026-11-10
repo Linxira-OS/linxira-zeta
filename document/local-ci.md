@@ -54,9 +54,8 @@ reddens the GitHub run too.
 | `test_smoke` | same id | CLI smoke |
 | `install_methods` | same id | |
 | `termide_tests` | `termide_tests` | fmt / check / clippy / nextest (zetaide) |
-| `main_tests` | `main_tests` | fmt / check / clippy + `cargo nextest run` (GitHub has no nextest, registered in `ENTRY_EXCEPTIONS`) |
 | `web_desktop_tests` | `desktop_tests` | the desktop contract suites + the CLI's Web UI launcher resolution |
-| `release_*`, `release_metadata`, `release_gate`, `native_addons_cross` | — | excluded by design: release chain（1.3.1 起 `release_desktop_archives` 也在其中：桌面归档要两条 Linux 腿的产物，镜像跑不动）, Windows/macOS legs |
+| `release_*`, `release_metadata`, `release_gate`, `native_addons_cross` | — | excluded by design: release chain, Windows/macOS legs |
 
 Local-only jobs: `preflight` (tag guard) and `toolchains` (persistent toolchain
 store + `bun install`).
@@ -176,8 +175,8 @@ they keep talking to the official registries.
 `ENTRY_EXCEPTIONS` is the *only* way to record a deliberate asymmetry, and every
 row carries its reason: today it holds `check` (GitHub's cargo-deny release
 download falls back to a source build; the mirror installs cargo-deny once in
-`toolchains`), `bazel_lock` (no failure-refresh), `native_addons` (addon staged
-in place) and `main_tests` (nextest). Add a row only with a reason that a
+`toolchains`), `bazel_lock` (no failure-refresh) and `native_addons` (addon
+staged in place). Add a row only with a reason that a
 reviewer can check.
 
 It runs as the last step of the local `check` job **and** in the GitHub `check`

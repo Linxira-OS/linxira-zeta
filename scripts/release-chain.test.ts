@@ -5,7 +5,6 @@ import { parse } from "yaml";
 import { LEAF_TARGETS, SHIPPED_LEAF_TAGS } from "../packages/natives/scripts/gen-npm-packages";
 import { SHIPPED_CLI_ASSETS, shippedCliAssetName } from "../packages/utils/src/release-assets";
 import { buildNativeOptionalDependencies } from "./ci-release-publish";
-import { mainWorkspaceMembers, pinnedWorkspaceVersions, rewriteWorkspaceVersions } from "./cargo-workspace-lock";
 import { leafStampProblem, STAMP_SUFFIX, type LeafStamp, WORKBENCH_LEAVES } from "./workbench-leaves";
 
 const ROOT = path.resolve(import.meta.dir, "..");
@@ -25,51 +24,6 @@ const workflow = parse(fs.readFileSync(path.join(ROOT, WORKFLOW), "utf8")) as Wo
 function stepRun(job: string, step: string): string {
 	return workflow.jobs?.[job]?.steps?.find(candidate => candidate.name === step)?.run ?? "";
 }
-
-describe("main/ Cargo workspace lock", () => {
-	it("rewrites every workspace member, not just zeta-main", () => {
-		const members = mainWorkspaceMembers().map(member => member.name);
-		// Derived from main/Cargo.toml + each member manifest: a new crate joins
-		// the bump automatically, and a rename updates both sides at once.
-		expect(members.length).toBeGreaterThan(1);
-		expect(members).toContain("zeta-main");
-		expect(members).toContain("zetawork-gui");
-		expect(members).toContain("sysmon");
-		expect(members).toContain("workbench-projects");
-
-		const lock = fs.readFileSync(path.join(ROOT, "main", "Cargo.lock"), "utf8");
-		const { lock: bumped, rewritten } = rewriteWorkspaceVersions(lock, members, "9.9.9");
-		expect(rewritten.sort()).toEqual([...members].sort());
-		const pinnedAfter = pinnedWorkspaceVersions(bumped, members);
-		for (const name of members) expect(pinnedAfter.get(name)).toBe("9.9.9");
-		// Only member entries move: an unrelated path dependency keeps its own line.
-		expect(bumped).toContain('name = "termide-core"');
-	});
-
-	it("throws when a workspace member has no lock entry", () => {
-		expect(() =>
-			rewriteWorkspaceVersions(
-				'[[package]]\nname = "zeta-main"\nversion = "1.0.0"\n',
-				["zeta-main", "ghost"],
-				"2.0.0",
-			),
-		).toThrow("ghost");
-	});
-
-	it("has every member of the committed lock on the manifest version", () => {
-		const manifestVersion = /\[workspace\.package\][^[]*?version = "([^"]+)"/s.exec(
-			fs.readFileSync(path.join(ROOT, "main", "Cargo.toml"), "utf8"),
-		)?.[1];
-		const lock = fs.readFileSync(path.join(ROOT, "main", "Cargo.lock"), "utf8");
-		const pinned = pinnedWorkspaceVersions(
-			lock,
-			mainWorkspaceMembers().map(member => member.name),
-		);
-		for (const member of mainWorkspaceMembers()) {
-			expect(pinned.get(member.name)).toBe(manifestVersion);
-		}
-	});
-});
 
 describe("native leaf single source of truth", () => {
 	it("pins exactly the leaves the release publishes", () => {
@@ -157,10 +111,10 @@ describe("release asset surfaces", () => {
 		}
 	});
 
-	it("leaves the paused zetawork families off every release surface", () => {
-		// zetawork is paused (2026-11-05 ruling): its TUI and the desktop
-		// archives are not release assets, so none of the three surfaces may
-		// name them — a leftover glob would silently re-publish a paused build.
+	it("leaves the retired zetawork families off every release surface", () => {
+		// The zetawork TUI and desktop archives were retired (2026-11-05
+		// ruling): none of the three surfaces may name them — a leftover glob
+		// would silently re-publish a retired build.
 		for (const family of [
 			`${STAGED_DIR}/zeta-work-*`,
 			`${STAGED_DIR}/linxira-zeta-*-setup-x64.exe`,

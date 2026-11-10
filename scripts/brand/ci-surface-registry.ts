@@ -107,11 +107,7 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			},
 			{
 				job: "release_product_binaries",
-				why: "bare zeta-ide binary build/upload for distribution repackaging; release_github preflight expects zeta-ide-* assets (zetawork paused 2026-11-05: the zeta-work-*/zetawork-gui-* legs left the matrix, and the zeta-editor-* legs retired 2026-10-16)",
-			},
-			{
-				job: "release_desktop_archives",
-				why: "Zeta-only: packages the zetawork desktop surface (Windows NSIS installer with companions + GUI-only zip, Linux .pkg.tar.zst + AppImage). PAUSED with zetawork (user ruling 2026-11-05): dispatch-only via `build_desktop_archives`, never on a release, and release_github no longer needs it. Keep the definition so a manual revival does not have to reconstruct the packaging chain",
+				why: "bare zeta-ide binary build/upload for distribution repackaging; release_github preflight expects zeta-ide-* assets (the zeta-editor-* legs retired 2026-10-16)",
 			},
 			{
 				job: "release_plugin_packages_manual",
@@ -131,10 +127,6 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			},
 			{ job: "release_npm", why: "npm publish of the zeta CLI package" },
 			{
-				job: "release_main_packages",
-				why: "Zeta-only workbench npm publish (@linxiraos/main + leaves) via main-publish.yml; restored with the 1.3.1 TUI re-ship after the 1.3.0 hold, and ordered after both companion lines so a release never publishes a workbench whose peers lag",
-			},
-			{
 				job: "release_editor_packages",
 				why: "Zeta-only editor package publish — the @linxiraos/editor distribution (the built-in editor's termide-editor payload, which took the name over from the retired TTT editor on 2026-10-17); v18.4.3 merge dropped it, breaking tag-triggered publishing (damage class 7 追记)",
 			},
@@ -142,7 +134,6 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				job: "termide_tests",
 				why: "Zeta-only termide test bucket; v18.4.3 merge 7137261d83e silently dropped it (damage class 7 追记)",
 			},
-			{ job: "main_tests", why: "main test bucket" },
 			{
 				job: "release_ide_packages",
 				why: "Zeta-only ide package publish (renamed from release_work_packages in 7d588b2503b; damage class 7 追记)",
@@ -165,7 +156,7 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			{
 				job: "release_github",
 				needs: ["release_metadata", "release_gate", "release_binary", "release_product_binaries"],
-				why: "damage class 10: every family the release uploads must be built and uploaded before the release is created (zetawork paused 2026-11-05: zeta-cli-* and zeta-ide-*; the dispatch-only archives job is deliberately not an edge)",
+				why: "damage class 10: every family the release uploads must be built and uploaded before the release is created (zeta-cli-* and zeta-ide-*)",
 			},
 			{
 				job: "web_desktop_tests",
@@ -250,17 +241,6 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			{
 				job: "publish",
 				why: "manual ide package re-publish path (ide rename round); sole recovery channel when the tag-triggered chain breaks (damage class 7 追记)",
-			},
-		],
-		needsEdges: [],
-		artifactRules: [],
-	},
-	{
-		file: ".github/workflows/main-publish.yml",
-		requiresAll: [
-			{
-				job: "publish",
-				why: "manual main-branch package publish path; must survive every merge like its ide sibling (damage class 7)",
 			},
 		],
 		needsEdges: [],

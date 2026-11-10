@@ -153,9 +153,8 @@ async function main(): Promise<void> {
 	const unchanged: string[] = [];
 
 	// Fail before writing anything when the pin registry and the tree disagree:
-	// a renamed or removed leaf/companion would otherwise half-apply the bump.
+	// a renamed or removed leaf would otherwise half-apply the bump.
 	for (const dist of NPM_DISTRIBUTIONS) {
-		if (dist.paused) continue;
 		const parentRel = `${dist.dir}/package.json`;
 		const parent = readJson(parentRel) as { optionalDependencies?: Record<string, string> };
 		for (const pin of distributionPins(dist)) {
@@ -269,16 +268,14 @@ async function main(): Promise<void> {
 		}
 	}
 
-	// 3b. Vendored npm distributions (editor / main / termide — published by
-	// `ci-release-publish.ts --editor`/`--ide` and the workbench job). Not Bun
-	// workspaces: the launcher, its platform leaves, its same-line companions
-	// (zetacode/zetaide under `@linxiraos/main`), and the launcher's exact pins
-	// all ride the release line. The 1.2.0 editor launcher was lifted to the
-	// line while its pins stayed at 1.1.28 (hand-fixed in PR #119), so the pins
-	// are part of this pass. The editor distribution is registered again: its
-	// payload is the built-in editor's termide-editor entry.
+	// 3b. Vendored npm distributions (editor / termide — published by
+	// `ci-release-publish.ts --editor`/`--ide`). Not Bun workspaces: the
+	// launcher, its platform leaves and the launcher's exact pins all ride the
+	// release line. The 1.2.0 editor launcher was lifted to the line while its
+	// pins stayed at 1.1.28 (hand-fixed in PR #119), so the pins are part of
+	// this pass. The editor distribution is registered again: its payload is
+	// the built-in editor's termide-editor entry.
 	for (const dist of NPM_DISTRIBUTIONS) {
-		if (dist.paused) continue;
 		bumpManifest(
 			`${dist.dir}/package.json`,
 			distributionPins(dist).map(pin => pin.name),

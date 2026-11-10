@@ -30,7 +30,6 @@
 import { Glob } from "bun";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { mainWorkspaceMembers, pinnedWorkspaceVersions } from "./cargo-workspace-lock";
 import { distributionManifests, distributionPins, NPM_DISTRIBUTIONS, NPM_MANIFEST_GLOB } from "./npm-distributions";
 
 const root = path.resolve(import.meta.dir, "..");
@@ -132,19 +131,6 @@ function main(): void {
 	const cargoToml = fs.readFileSync(path.join(root, "Cargo.toml"), "utf8");
 	const cargoVersion = cargoToml.match(/^\s*version = "([^"]+)"/m)?.[1];
 	if (cargoVersion !== expected) problems.push(`Cargo.toml workspace: ${cargoVersion} != ${expected}`);
-	// main/ is an independent Cargo workspace (the zeta workbench) and rides
-	// the same release line.
-	const mainToml = fs.readFileSync(path.join(root, "main", "Cargo.toml"), "utf8");
-	const mainVersion = /\[workspace\.package\][^[]*?version = "([^"]+)"/s.exec(mainToml)?.[1];
-	if (mainVersion !== expected) problems.push(`main/Cargo.toml workspace: ${mainVersion} != ${expected}`);
-	// ...and so does every member entry in its lock. A bump that rewrote only
-	// zeta-main left `cargo build --locked` in main/ refusing to run on the
-	// three siblings (`zetawork-gui`, `sysmon`, `workbench-projects`).
-	const mainLock = fs.readFileSync(path.join(root, "main", "Cargo.lock"), "utf8");
-	for (const member of mainWorkspaceMembers()) {
-		const pinned = pinnedWorkspaceVersions(mainLock, [member.name]).get(member.name);
-		if (pinned !== expected) problems.push(`main/Cargo.lock ${member.name}: ${pinned ?? "<absent>"} != ${expected}`);
-	}
 
 	// Bazel-face crate versions: the hand-written crates/*/BUILD.bazel targets
 	// carry a `version` attr printed in bazel logs/cache keys; a stale one is
@@ -217,13 +203,11 @@ function main(): void {
 	// at 1.1.28 and had to be hand-fixed (PR #119). The editor distribution
 	// changed payload on 2026-10-16/17 (TTT out, the built-in editor's
 	// termide-editor entry in) and is registered again, so the registry holds
-	// editor/ + main/ + termide/.
+	// editor/ + termide/.
 	const registeredPins: Record<string, ReadonlySet<string>> = {};
 	for (const dist of NPM_DISTRIBUTIONS) {
 		const parentRel = `${dist.dir}/package.json`;
 		registeredPins[parentRel] = new Set(distributionPins(dist).map(pin => pin.name));
-		// Suspended products keep their frozen line; see npm-distributions.ts.
-		if (dist.paused) continue;
 		for (const rel of distributionManifests(dist)) {
 			const manifestVersion = readVersion(rel);
 			if (manifestVersion !== expected) problems.push(`${rel}: ${manifestVersion} != ${expected}`);
@@ -244,7 +228,7 @@ function main(): void {
 	// worktree checked out under a dot dir (`.worktrees/`) or under `temp/`
 	// (this repo's worktree home per AGENTS.md) would otherwise be scanned too —
 	// filter all three out explicitly, or a local run reports the copies in
-	// `temp/<topic>/main/npm/...` as unregistered distributions.
+	// `temp/<topic>/termide/npm/...` as unregistered distributions.
 	const npmManifests = [...new Glob(NPM_MANIFEST_GLOB).scanSync({ cwd: root })]
 		.map(rel => rel.replaceAll("\\", "/"))
 		.filter(

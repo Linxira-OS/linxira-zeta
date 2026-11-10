@@ -29,8 +29,8 @@ const ALLOW: Array<{ pattern: RegExp; why: string }> = [
 		why: "platform binary leaves, published to npm, installed only for the matching os/cpu",
 	},
 	{
-		pattern: /^@linxiraos\/(editor|ide|main)(-|$)/,
-		why: "companion products (editor/ide/workbench), separate repos and workspaces",
+		pattern: /^@linxiraos\/(editor|ide)(-|$)/,
+		why: "companion products (editor/ide), separate repos and workspaces",
 	},
 	{
 		pattern: /^@linxiraos\/zeta-web$/,

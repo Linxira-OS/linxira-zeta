@@ -13,7 +13,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const repoRoot = path.join(import.meta.dir, "..");
-const icon = path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "icon.ico");
+const icon = path.join(repoRoot, "assets", "zeta.ico");
 
 interface Problems {
 	problems: string[];
@@ -56,25 +56,10 @@ function checkSources(): Problems {
 	}
 	expectIncludes(problems, "web-app/index.html", 'href="./icon.png"');
 	expectIncludes(problems, "web-app/index.html", 'href="./favicon.ico"');
-	expectIncludes(problems, "main/crates/zetawork-gui/assets/zetawork-gui.rc", '1 ICON "icon.ico"');
-	expectIncludes(problems, "main/crates/zeta-main/assets/zeta-main.rc", "../zetawork-gui/assets/icon.ico");
-	expectIncludes(problems, "termide/assets/termide.rc", "../../../main/crates/zetawork-gui/assets/icon.ico");
+	expectIncludes(problems, "termide/assets/termide.rc", "../../../assets/zeta.ico");
 	expectIncludes(problems, "termide/assets/termide.rc", "@ZETA_ICON@");
-	expectIncludes(problems, "termide/build.rs", 'join("zetawork-gui")');
-	expectIncludes(
-		problems,
-		"packages/coding-agent/scripts/compile-binary.ts",
-		'main", "crates", "zetawork-gui", "assets", "icon.ico"',
-	);
-	const installer = read("scripts/packaging/windows/installer.nsi");
-	for (const needle of [
-		'!if /FileExists "${SOURCE_DIR}/zetawork-gui.exe"',
-		'File "${SRC}zetawork.ico"',
-		'"$INSTDIR\\zetawork.ico" 0',
-		'DisplayIcon" "$INSTDIR\\zetawork.ico"',
-	]) {
-		if (!installer.includes(needle)) problems.push(`scripts/packaging/windows/installer.nsi: missing ${needle}`);
-	}
+	expectIncludes(problems, "termide/build.rs", 'join("zeta.ico")');
+	expectIncludes(problems, "packages/coding-agent/scripts/compile-binary.ts", 'assets", "zeta.ico"');
 	return { problems };
 }
 

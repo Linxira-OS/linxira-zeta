@@ -22,8 +22,7 @@ defined in [agent-modes.md](./agent-modes.md); the chat command grammar is in
 | Local IM session visibility | **IMPLEMENTED** | IM/bot/relay transcripts are stamped with `SessionHeader.origin`. Studio, the resume picker, and `history.list` hide IM conversations by default; Work Studio History exposes an explicit **IM / Bot** (`includeIm`) view, and IM rows show the workspace alias or `IM · <channel>` instead of an absolute cwd. See [session origin](./session.md#header-sessionheader). |
 
 The CLI surface (`zetacode channels …`) only inspects, pairs, and configures;
-it never hosts the runtime. GUI parity is documented in
-[GUI IM channels](./gui-im-channels.md).
+it never hosts the runtime.
 
 ```sh
 zetacode channels status [--json]

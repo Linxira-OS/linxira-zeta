@@ -1,11 +1,11 @@
 /**
  * The workbench platform leaves' committed binaries and their freshness stamp.
  *
- * The manifests (`main/npm/main-<platform>`, `termide/npm/ide-<platform>`) ride
- * the release version line, but the binaries beside them are built out of
- * band and committed. Nothing in CI rebuilds them, so "exists" was the only
- * thing anyone checked: a leaf published under a bumped version still shipped
- * the previous release's workbench.
+ * The manifests (`termide/npm/ide-<platform>`) ride the release version line,
+ * but the binaries beside them are built out of band and committed. Nothing in
+ * CI rebuilds them, so "exists" was the only thing anyone checked: a leaf
+ * published under a bumped version still shipped the previous release's
+ * workbench.
  *
  * `bun scripts/stamp-workbench-leaves.ts` writes `bin/<binary>.stamp.json`
  * (`{ version, sha256 }`) after a rebuild, and `scripts/check-workbench-bundles.ts`
@@ -26,10 +26,8 @@ export interface WorkbenchLeaf {
 	binary: string;
 }
 
-/** Every workbench platform leaf, both platforms of both launchers. */
+/** Every workbench platform leaf, both platforms of the ide launcher. */
 export const WORKBENCH_LEAVES: readonly WorkbenchLeaf[] = [
-	{ dir: "main/npm/main-windows-x64", binary: "zeta.exe" },
-	{ dir: "main/npm/main-linux-x64", binary: "zeta-linux-x64" },
 	{ dir: "termide/npm/ide-windows-x64", binary: "termide.exe" },
 	{ dir: "termide/npm/ide-linux-x64", binary: "termide-linux-x64" },
 ];

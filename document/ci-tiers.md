@@ -36,7 +36,7 @@ opts back into the main gate when a manual run really needs it.
 | `test_coding_agent_native` | 3 shards | 1 shard | skipped |
 | `test_coding_agent_browser` | skipped | skipped | runs |
 | other TS buckets | run | run | skipped |
-| `main_tests` / `termide_tests` | diff against `origin/main`; skip untouched | diff against the pushed base | skipped unless needed |
+| `termide_tests` | diff against `origin/main`; skip untouched | diff against the pushed base | skipped unless needed |
 | release/publish jobs | skipped | skipped unless HEAD carries a `v*` tag | run |
 
 Native cache key inputs are Cargo/Bazel/rust-toolchain/build files. A version
