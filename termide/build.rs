@@ -83,10 +83,7 @@ fn zeta_version(manifest_dir: &Path) -> Option<String> {
 fn resource_script(manifest_dir: &Path, out_dir: &Path) -> Result<PathBuf, String> {
     let template = fs::read_to_string(manifest_dir.join("assets").join("termide.rc"))
         .map_err(|error| format!("assets/termide.rc: {error}"))?;
-    let icon = manifest_dir
-        .join("..")
-        .join("assets")
-        .join("zeta.ico");
+    let icon = manifest_dir.join("..").join("assets").join("zeta.ico");
     if !icon.exists() {
         return Err(format!("{}: missing", icon.display()));
     }
