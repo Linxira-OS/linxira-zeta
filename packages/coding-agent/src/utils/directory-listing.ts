@@ -82,7 +82,10 @@ export function listChildDirectories(
 		}
 		const entries = dirents
 			.filter(entry => entryIsDirectory(directory, entry))
-			.map(entry => ({ name: entry.name, path: path.join(directory, entry.name) }));
+			.map(entry => ({ name: entry.name, path: path.join(directory, entry.name) }))
+			// readdir order is filesystem-dependent (creation order on ext4); the
+			// picker's rows must not reorder between machines.
+			.sort((left, right) => left.name.localeCompare(right.name));
 		dirCache.set(directory, { time: now, entries });
 	}
 	// Hidden filtering happens per call so one cache serves both views.
