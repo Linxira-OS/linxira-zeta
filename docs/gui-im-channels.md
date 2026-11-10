@@ -7,8 +7,10 @@
 > that group. Neither the paused Rust GUI (`main/crates/zetawork-gui`) nor the
 > frozen `web-ui/` snapshot is a channel settings surface.
 
-The pane is a front-end over `/api/channels/*`, `/api/web-config`, and
-`/api/remote/*`. It keeps no state store of its own: `~/.zeta/agent/web.yml` and
+The pane is a front-end over `/api/channels/*` and `/api/web-config`. Device,
+pairing, remote-token and TOTP actions live next door in **Settings → 身份与设备**
+(`SecuritySettingsPane.tsx`); the surface matrix shared by both pages is
+documented in [Work Studio surfaces](./studio-surfaces.md). It keeps no state store of its own: `~/.zeta/agent/web.yml` and
 the live `serve` channel runtime remain the only truth, shared with
 `zetacode channels …` in a terminal. Opening the pane reads the gateway, a
 write re-reads it, and nothing renders a value the gateway did not send.
@@ -23,8 +25,7 @@ write re-reads it, and nothing renders a value the gateway did not send.
 | Credentials | `POST /api/channels/credentials` | Validate against the platform, then save; never stores an unvalidated secret |
 | WeChat login | `GET /api/channels/wechat/qrcode`, `POST …/reconnect`, `POST …/unbind` | QR + state, fresh login, logout |
 | One test message | `POST /api/channels/send` | `{channelId, to, text}` through the running channel |
-| Paired devices | `GET /api/remote/devices`, `DELETE …/devices/:id`, `POST …/devices/revoke-all` | List and revoke; tokens never appear |
-| Pairing QR | `GET /api/remote/pairing` | Shows `svg` + address; the plaintext token in that response is dropped |
+
 
 ## Channels and runtime words
 
@@ -104,13 +105,12 @@ before an avoidable 400.
 
 ## Devices and second factor
 
-The device registry exists (`auth/device-registry.ts`, `auth/device-auth.ts`), so
-the pane shows real paired devices with platform, scopes, last-seen and a
-per-device 撤销 as well as 撤销所有设备 (`keepCurrent` spares this device).
-Pairing shows the server's QR (`svg`) and the address for a new device.
-
-There is **no TOTP/2FA endpoint**: the pane states that it is not implemented
-and offers no switch. Responses never include a token or hash.
+They are not on this page. **Settings → 身份与设备** holds the real paired-device
+list (platform, scopes, last-seen, per-device 撤销 and 撤销所有设备), pairing QR,
+remote-token rotation/revocation, and the TOTP second factor
+(`/api/auth/2fa`; first enrollment is local-only, sensitive remote mutations
+need a step-up). Moving them out of the IM pane is what makes 2FA discoverable;
+see [Work Studio surfaces](./studio-surfaces.md) for the per-surface matrix.
 
 ## Old surfaces
 

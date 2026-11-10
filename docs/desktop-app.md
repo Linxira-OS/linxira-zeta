@@ -86,8 +86,9 @@ Window lifecycle: closing to the tray hides the window; a real close (or
 `activate` with no window) recreates it from the persisted bounds instead of
 leaving the process windowless. Tray **Open Settings** sends the Studio
 `app.settings` menu command rather than reloading a query-only URL; tray
-**IM Channels** sends `app.settings:channels`, which opens the same Work Studio
-settings group as the browser. There is no separate desktop channel UI.
+**IM Channels** sends `app.settings:channels` and **Identity & Devices** sends
+`app.settings:security`; both open the same Work Studio settings groups as the
+browser. There is no separate desktop channel or security UI.
 
 Launch integration: the shell registers the `zeta://` scheme, handles
 `open-url`/`open-file`, and treats a second-instance `--cwd=<dir>` as a request

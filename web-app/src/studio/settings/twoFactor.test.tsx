@@ -9,7 +9,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { TotpPanel, type TotpPanelProps } from "./ImChannelsPane";
+import { TotpPanel, type TotpPanelProps } from "./SecuritySettingsPane";
 import {
 	confirmTwoFactor,
 	disableTwoFactor,
@@ -19,7 +19,7 @@ import {
 	putTwoFactorPolicy,
 	regenerateRecoveryCodes,
 	verifyTwoFactor,
-} from "./imChannelsApi";
+} from "./securityApi";
 
 type Call = { url: string; init: RequestInit | undefined };
 
@@ -139,6 +139,7 @@ function panelProps(overrides: Partial<TotpPanelProps> = {}): TotpPanelProps {
 		code: "",
 		error: null,
 		pending: null,
+		readOnly: false,
 		onCode: () => undefined,
 		onEnroll: () => undefined,
 		onConfirm: () => undefined,
@@ -168,8 +169,8 @@ describe("TotpPanel", () => {
 			/>,
 		);
 		expect(html).toContain('data-totp-state="off"');
-		expect(html).toContain("totpEnroll");
-		expect(html).toContain("totpLocalOnly");
+		expect(html).toContain("enroll");
+		expect(html).toContain("localOnly");
 		expect(html.includes('role="switch"')).toBe(false);
 	});
 
@@ -192,7 +193,49 @@ describe("TotpPanel", () => {
 		expect(html).toContain('data-totp-state="required"');
 		expect(html).toContain('role="switch"');
 		expect(html).toContain('aria-checked="true"');
-		expect(html).toContain("totpRemaining:8");
+		expect(html).toContain("remaining:8");
+	});
+
+	test("a read-only surface shows status but offers no mutation", () => {
+		const enrolled = renderToStaticMarkup(
+			<TotpPanel
+				{...panelProps({
+					readOnly: true,
+					status: {
+						enrolled: true,
+						required: true,
+						enrolledAt: "2026-11-10T00:00:00.000Z",
+						recoveryCodesRemaining: 3,
+						pending: false,
+						verified: false,
+						verifiedUntil: null,
+					},
+				})}
+			/>,
+		);
+		expect(enrolled).toContain('data-read-only="true"');
+		expect(enrolled.includes('role="switch"')).toBe(false);
+		expect(enrolled.includes("disable")).toBe(false);
+		expect(enrolled.includes("regenerate")).toBe(false);
+
+		const off = renderToStaticMarkup(
+			<TotpPanel
+				{...panelProps({
+					readOnly: true,
+					status: {
+						enrolled: false,
+						required: false,
+						enrolledAt: null,
+						recoveryCodesRemaining: 0,
+						pending: false,
+						verified: false,
+						verifiedUntil: null,
+					},
+				})}
+			/>,
+		);
+		expect(off.includes(">enroll<")).toBe(false);
+		expect(off).toContain("localOnly");
 	});
 
 	test("enrollment shows the QR, secret and recovery codes once", () => {

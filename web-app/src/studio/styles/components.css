@@ -329,6 +329,7 @@
   flex: none;
 }
 .banner.amber { background: var(--amber-soft); color: var(--amber); }
+.banner.mobile { background: var(--accent-soft); color: var(--text-2); }
 .banner.red { background: var(--red-soft); color: var(--red); }
 .banner .banner-detail { color: var(--text-2); }
 .banner .banner-actions { margin-left: auto; display: flex; gap: var(--sp-6); flex: none; }

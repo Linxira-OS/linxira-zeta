@@ -1,11 +1,12 @@
 /**
- * Work Studio → IM channels / device settings: the data layer.
+ * Work Studio → IM channels: the data layer.
  *
  * The gateway owns every fact this pane shows — `~/.zeta/agent/web.yml`
- * (`GET`/`PUT /api/web-config`), the live `zetacode serve` channel runtime
- * (`/api/channels/*`), and the per-device registry (`/api/remote/*`). This
- * module only shapes requests and responses: it keeps no cache, stores no
- * credential, and never invents a value the server did not send.
+ * (`GET`/`PUT /api/web-config`) and the live `zetacode serve` channel runtime
+ * (`/api/channels/*`). Device, pairing, remote-token and TOTP facts live in
+ * `securityApi.ts` (Settings → 身份与设备). This module only shapes requests and
+ * responses: it keeps no cache, stores no credential, and never invents a
+ * value the server did not send.
  *
  * The functions take a `fetcher` so the tests can drive real response shapes
  * without a live server; production passes the global `fetch` (same origin,
@@ -13,6 +14,7 @@
  */
 
 import { isRecord } from "../typeGuards";
+import { defaultGatewayFetch, gatewayJson, type GatewayFetch } from "./gatewayRequest";
 
 export const CHANNEL_IDS = ["wechat", "feishu", "telegram", "discord", "qq"] as const;
 export type ChannelId = (typeof CHANNEL_IDS)[number];
@@ -20,9 +22,10 @@ export type ChannelId = (typeof CHANNEL_IDS)[number];
 /** The mask `GET /api/web-config` uses in place of every stored secret. */
 export const MASKED_SECRET = "••••";
 
-export type ChannelsFetch = (input: string, init?: RequestInit) => Promise<Response>;
+/** Alias kept for the pane and its tests; the transport lives in gatewayRequest.ts. */
+export type ChannelsFetch = GatewayFetch;
 
-const defaultFetch: ChannelsFetch = (input, init) => fetch(input, init);
+const defaultFetch: ChannelsFetch = defaultGatewayFetch;
 
 // ---------------------------------------------------------------------------
 // Response shapes
@@ -141,84 +144,13 @@ export type CredentialRequest =
 	| { channel: "feishu"; appId?: string; appSecret?: string; domain?: "feishu" | "lark" }
 	| { channel: "telegram"; botToken?: string };
 
-export interface PairedDevice {
-	id: string;
-	label: string;
-	platform: string;
-	scopes: readonly string[];
-	createdAt: string;
-	lastSeenAt: string | null;
-	revokedAt: string | null;
-}
-
-export interface DeviceInventory {
-	devices: readonly PairedDevice[];
-	currentDeviceId: string | null;
-	legacyTokenActive: boolean;
-}
-
-/** The pairing response minus the token: a surface shows the symbol, never the secret. */
-export interface PairingQr {
-	url: string;
-	svg: string;
-}
-
-/** `GET /api/auth/2fa` — account/device second factor, never the secret. */
-export interface TwoFactorStatus {
-	enrolled: boolean;
-	required: boolean;
-	enrolledAt: string | null;
-	recoveryCodesRemaining: number;
-	pending: boolean;
-	verified: boolean;
-	verifiedUntil: string | null;
-}
-
-/** What enroll returns: the plaintext secret and recovery codes exist only in this response. */
-export interface TwoFactorEnrollment {
-	secret: string;
-	otpauthUrl: string;
-	qrSvg: string;
-	recoveryCodes: readonly string[];
-	expiresAt: string;
-}
-
-export interface TwoFactorVerification {
-	verifiedUntil: string;
-	method: "totp" | "recovery";
-	recoveryCodesRemaining: number;
-}
-
-// ---------------------------------------------------------------------------
-// Transport
-// ---------------------------------------------------------------------------
-
-async function readPayload(response: Response): Promise<unknown> {
-	try {
-		return (await response.json()) as unknown;
-	} catch {
-		return null;
-	}
-}
-
-/** One request; a non-2xx answer becomes an `Error` carrying the gateway's own text. */
-async function request(fetcher: ChannelsFetch, input: string, init?: RequestInit): Promise<unknown> {
-	const response = await fetcher(input, init);
-	const payload = await readPayload(response);
-	if (!response.ok) {
-		const detail = isRecord(payload) && typeof payload.error === "string" ? payload.error : `HTTP ${response.status}`;
-		throw new Error(detail);
-	}
-	return payload;
-}
-
 // ---------------------------------------------------------------------------
 // Reads
 // ---------------------------------------------------------------------------
 
 /** `GET /api/channels/status` — only the channels the runtime actually started. */
 export async function fetchChannelStatus(fetcher: ChannelsFetch = defaultFetch): Promise<ChannelStatusEntry[]> {
-	const payload = await request(fetcher, "/api/channels/status");
+	const payload = await gatewayJson(fetcher, "/api/channels/status");
 	const entries = isRecord(payload) ? payload.channels : undefined;
 	if (!Array.isArray(entries)) throw new Error("Channel status response is malformed");
 	const status: ChannelStatusEntry[] = [];
@@ -231,7 +163,7 @@ export async function fetchChannelStatus(fetcher: ChannelsFetch = defaultFetch):
 
 /** `GET /api/web-config` — the merged config with every secret masked. */
 export async function fetchWebConfig(fetcher: ChannelsFetch = defaultFetch): Promise<WebConfigView> {
-	const payload = await request(fetcher, "/api/web-config");
+	const payload = await gatewayJson(fetcher, "/api/web-config");
 	if (!isRecord(payload) || !isRecord(payload.channels)) throw new Error("Web config response is malformed");
 	const channels = payload.channels;
 	const remote = isRecord(payload.remote) ? payload.remote : {};
@@ -264,48 +196,13 @@ function channelView<T>(value: unknown, keys: readonly string[]): T {
 
 /** `GET /api/channels/wechat/qrcode` — the live login symbol, if a login is pending. */
 export async function fetchWechatQr(fetcher: ChannelsFetch = defaultFetch): Promise<WechatQr> {
-	const payload = await request(fetcher, "/api/channels/wechat/qrcode");
+	const payload = await gatewayJson(fetcher, "/api/channels/wechat/qrcode");
 	if (!isRecord(payload)) throw new Error("WeChat QR response is malformed");
 	const qr: WechatQr = { pending: payload.pending === true };
 	if (typeof payload.qrcodeUrl === "string" && payload.qrcodeUrl !== "") qr.qrcodeUrl = payload.qrcodeUrl;
 	if (typeof payload.status === "string" && payload.status !== "") qr.status = payload.status;
 	if (typeof payload.svg === "string" && payload.svg !== "") qr.svg = payload.svg;
 	return qr;
-}
-
-/** `GET /api/remote/devices` — paired devices, never their tokens. */
-export async function fetchPairedDevices(fetcher: ChannelsFetch = defaultFetch): Promise<DeviceInventory> {
-	const payload = await request(fetcher, "/api/remote/devices");
-	if (!isRecord(payload) || !Array.isArray(payload.devices)) throw new Error("Device list response is malformed");
-	const devices: PairedDevice[] = [];
-	for (const entry of payload.devices) {
-		if (!isRecord(entry) || typeof entry.id !== "string" || entry.id === "") continue;
-		devices.push({
-			id: entry.id,
-			label: typeof entry.label === "string" ? entry.label : "",
-			platform: typeof entry.platform === "string" ? entry.platform : "unknown",
-			scopes: Array.isArray(entry.scopes)
-				? entry.scopes.filter((scope): scope is string => typeof scope === "string")
-				: [],
-			createdAt: typeof entry.createdAt === "string" ? entry.createdAt : "",
-			lastSeenAt: typeof entry.lastSeenAt === "string" ? entry.lastSeenAt : null,
-			revokedAt: typeof entry.revokedAt === "string" ? entry.revokedAt : null,
-		});
-	}
-	return {
-		devices,
-		currentDeviceId: typeof payload.currentDeviceId === "string" ? payload.currentDeviceId : null,
-		legacyTokenActive: payload.legacyTokenActive === true,
-	};
-}
-
-/** `GET /api/remote/pairing` — the QR a new device scans; the token is intentionally dropped. */
-export async function fetchPairingQr(fetcher: ChannelsFetch = defaultFetch): Promise<PairingQr> {
-	const payload = await request(fetcher, "/api/remote/pairing");
-	if (!isRecord(payload) || typeof payload.url !== "string" || typeof payload.svg !== "string") {
-		throw new Error("Pairing response is malformed");
-	}
-	return { url: payload.url, svg: payload.svg };
 }
 
 // ---------------------------------------------------------------------------
@@ -328,7 +225,7 @@ export type WebConfigPath =
 
 /** `PUT /api/web-config` — one dot path. The gateway restarts channels after a `channels.*` write. */
 export async function putWebConfigValue(fetcher: ChannelsFetch, path: WebConfigPath, value: unknown): Promise<void> {
-	await request(fetcher, "/api/web-config", {
+	await gatewayJson(fetcher, "/api/web-config", {
 		method: "PUT",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify({ path, value }),
@@ -343,7 +240,7 @@ export async function validateChannelCredentials(
 	fetcher: ChannelsFetch,
 	body: CredentialRequest,
 ): Promise<CredentialResult> {
-	const payload = await request(fetcher, "/api/channels/credentials", {
+	const payload = await gatewayJson(fetcher, "/api/channels/credentials", {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(body),
@@ -357,7 +254,7 @@ export async function validateChannelCredentials(
 
 /** `POST /api/channels/wechat/{reconnect,unbind}`. */
 export async function runWechatAction(fetcher: ChannelsFetch, action: "reconnect" | "unbind"): Promise<void> {
-	await request(fetcher, `/api/channels/wechat/${action}`, { method: "POST" });
+	await gatewayJson(fetcher, `/api/channels/wechat/${action}`, { method: "POST" });
 }
 
 /** `POST /api/channels/send` — one test message through a running channel. */
@@ -365,130 +262,11 @@ export async function sendChannelTest(
 	fetcher: ChannelsFetch,
 	body: { channelId: ChannelId; to: string; text: string },
 ): Promise<void> {
-	await request(fetcher, "/api/channels/send", {
+	await gatewayJson(fetcher, "/api/channels/send", {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(body),
 	});
-}
-
-/** `DELETE /api/remote/devices/:id`. */
-export async function revokePairedDevice(fetcher: ChannelsFetch, id: string): Promise<void> {
-	await request(fetcher, `/api/remote/devices/${encodeURIComponent(id)}`, { method: "DELETE" });
-}
-
-/** `POST /api/remote/devices/revoke-all` — `keepCurrent` spares the calling device. */
-export async function revokeAllPairedDevices(fetcher: ChannelsFetch, keepCurrent: boolean): Promise<number> {
-	const payload = await request(fetcher, "/api/remote/devices/revoke-all", {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify({ keepCurrent }),
-	});
-	return isRecord(payload) && typeof payload.revoked === "number" ? payload.revoked : 0;
-}
-
-// ---------------------------------------------------------------------------
-// Two-factor (TOTP) — account/device security only, never IM credentials
-// ---------------------------------------------------------------------------
-
-function twoFactorStatus(value: unknown): TwoFactorStatus {
-	const record = isRecord(value) ? value : {};
-	return {
-		enrolled: record.enrolled === true,
-		required: record.required === true,
-		enrolledAt: typeof record.enrolledAt === "string" ? record.enrolledAt : null,
-		recoveryCodesRemaining: typeof record.recoveryCodesRemaining === "number" ? record.recoveryCodesRemaining : 0,
-		pending: record.pending === true,
-		verified: record.verified === true,
-		verifiedUntil: typeof record.verifiedUntil === "string" ? record.verifiedUntil : null,
-	};
-}
-
-/** `GET /api/auth/2fa`. */
-export async function fetchTwoFactorStatus(fetcher: ChannelsFetch = defaultFetch): Promise<TwoFactorStatus> {
-	return twoFactorStatus(await request(fetcher, "/api/auth/2fa"));
-}
-
-/** `POST /api/auth/2fa/enroll` — local (or recently verified) callers only. */
-export async function enrollTwoFactor(fetcher: ChannelsFetch = defaultFetch): Promise<TwoFactorEnrollment> {
-	const payload = await request(fetcher, "/api/auth/2fa/enroll", { method: "POST" });
-	if (!isRecord(payload) || typeof payload.secret !== "string" || typeof payload.otpauthUrl !== "string") {
-		throw new Error("2FA enrollment response is malformed");
-	}
-	const codes = Array.isArray(payload.recoveryCodes)
-		? payload.recoveryCodes.filter((code): code is string => typeof code === "string")
-		: [];
-	return {
-		secret: payload.secret,
-		otpauthUrl: payload.otpauthUrl,
-		qrSvg: typeof payload.qrSvg === "string" ? payload.qrSvg : "",
-		recoveryCodes: codes,
-		expiresAt: typeof payload.expiresAt === "string" ? payload.expiresAt : "",
-	};
-}
-
-/** `POST /api/auth/2fa/confirm` — activates the pending secret. */
-export async function confirmTwoFactor(fetcher: ChannelsFetch, code: string): Promise<void> {
-	await request(fetcher, "/api/auth/2fa/confirm", {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify({ code }),
-	});
-}
-
-/** `POST /api/auth/2fa/verify` — `{code}` or `{recoveryCode}`. */
-export async function verifyTwoFactor(
-	fetcher: ChannelsFetch,
-	credential: { code?: string; recoveryCode?: string },
-): Promise<TwoFactorVerification> {
-	const payload = await request(fetcher, "/api/auth/2fa/verify", {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify(credential),
-	});
-	if (!isRecord(payload) || typeof payload.verifiedUntil !== "string") {
-		throw new Error("2FA verification response is malformed");
-	}
-	return {
-		verifiedUntil: payload.verifiedUntil,
-		method: payload.method === "recovery" ? "recovery" : "totp",
-		recoveryCodesRemaining: typeof payload.recoveryCodesRemaining === "number" ? payload.recoveryCodesRemaining : 0,
-	};
-}
-
-/** `POST /api/auth/2fa/disable` — local callers need no code. */
-export async function disableTwoFactor(fetcher: ChannelsFetch, code?: string): Promise<void> {
-	await request(fetcher, "/api/auth/2fa/disable", {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify(code !== undefined && code !== "" ? { code } : {}),
-	});
-}
-
-/** `POST /api/auth/2fa/recovery/regenerate` — the old set dies immediately. */
-export async function regenerateRecoveryCodes(fetcher: ChannelsFetch, code: string): Promise<string[]> {
-	const payload = await request(fetcher, "/api/auth/2fa/recovery/regenerate", {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify({ code }),
-	});
-	return isRecord(payload) && Array.isArray(payload.recoveryCodes)
-		? payload.recoveryCodes.filter((entry): entry is string => typeof entry === "string")
-		: [];
-}
-
-/** `PUT /api/auth/2fa/policy` — enabling without enrollment is a 400, never a fake switch. */
-export async function putTwoFactorPolicy(fetcher: ChannelsFetch, required: boolean): Promise<void> {
-	await request(fetcher, "/api/auth/2fa/policy", {
-		method: "PUT",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify({ required }),
-	});
-}
-
-/** True when a failed call needs a TOTP step-up before it can be retried. */
-export function isTwoFactorRequired(error: unknown): boolean {
-	return error instanceof Error && error.message === "totp_required";
 }
 
 // ---------------------------------------------------------------------------

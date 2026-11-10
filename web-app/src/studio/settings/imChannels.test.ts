@@ -9,8 +9,6 @@ import {
 	chatBindings,
 	conflictingBinding,
 	fetchChannelStatus,
-	fetchPairedDevices,
-	fetchPairingQr,
 	fetchWebConfig,
 	fetchWechatQr,
 	isAbsolutePath,
@@ -112,25 +110,6 @@ describe("channel reads", () => {
 			status: "wait",
 			svg: "<svg/>",
 		});
-	});
-
-	test("devices parse without a token field", async () => {
-		const { fetcher } = fakeFetch(() =>
-			Response.json({
-				devices: [{ id: "dev_1", label: "Phone", platform: "android", scopes: ["read"], createdAt: "2026-01-01T00:00:00.000Z", lastSeenAt: null, revokedAt: null }],
-				currentDeviceId: null,
-				legacyTokenActive: true,
-			}),
-		);
-		const inventory = await fetchPairedDevices(fetcher);
-		expect(inventory.legacyTokenActive).toBe(true);
-		expect(inventory.devices.length).toBe(1);
-		expect(inventory.devices[0]?.label).toBe("Phone");
-	});
-
-	test("pairing drops the plaintext token", async () => {
-		const { fetcher } = fakeFetch(() => Response.json({ url: "http://host:43141", token: "secret", payload: "p", svg: "<svg/>" }));
-		expect(await fetchPairingQr(fetcher)).toEqual({ url: "http://host:43141", svg: "<svg/>" });
 	});
 });
 
