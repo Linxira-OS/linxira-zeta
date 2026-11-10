@@ -1,4 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
+import { stripVTControlCharacters } from "node:util";
+import { TUI } from "@linxiraos/pi-tui";
 import { plainText } from "../src/native/spans";
 import { visibleWidth } from "../src/utils";
 import {
@@ -10,6 +12,7 @@ import {
 	renderConversationRow,
 	renderProjectRow,
 	renderProjectRule,
+	renderProjectSeparator,
 	renderScopeHeader,
 	renderScopeHeaderHits,
 	renderWorkspaceRow,
@@ -33,7 +36,12 @@ import {
 	SessionSelectorComponent,
 	type SessionSelectorOptions,
 } from "../src/overlays/session-selector";
-import { initTheme } from "../src/theme";
+import { initTheme, theme } from "../src/theme";
+import { withoutTerminalMultiplexer } from "./helpers/terminal-multiplexer";
+import { VirtualRenderScheduler } from "./virtual-render-scheduler";
+import { VirtualTerminal } from "./virtual-terminal";
+
+withoutTerminalMultiplexer();
 
 beforeAll(async () => {
 	await initTheme(false);
@@ -352,6 +360,17 @@ describe("resume tree rows", () => {
 		const second = plainText(renderConversationRow(interrupted, { width: 80, selected: false, now: T }));
 		expect(first.indexOf("Alpha")).toBe(second.indexOf("Interrupted"));
 		expect(statusColumnWidth()).toBeGreaterThanOrEqual("interrupted".length);
+	});
+
+	it("draws a distinct colored rule between project groups only", () => {
+		for (const width of [20, 40, 80, 120]) {
+			const separator = renderProjectSeparator(width);
+			expect(plainText(separator)).toBe(theme.boxRound.horizontal.repeat(width));
+			expect(separator).toBe(theme.fg("muted", theme.boxRound.horizontal.repeat(width)));
+			// Brighter than the header rule, but still a quiet full-width line.
+			expect(separator).not.toBe(renderProjectRule(width));
+			expect(plainText(renderProjectRule(width))).toBe(plainText(separator));
+		}
 	});
 
 	it("middle-ellipsizes long paths and keeps the tail", () => {
@@ -1130,6 +1149,309 @@ describe("resume tree component", () => {
 			for (const line of component.render(width)) {
 				expect(plainText(line).length).toBeLessThanOrEqual(width);
 			}
+		}
+	});
+});
+
+describe("resume project group separators", () => {
+	const WIDTH = 80;
+	const HEIGHT = 40;
+	const RULE = "─";
+
+	function groupedView(options: { collapsed?: string; projectNames?: readonly string[] } = {}): ResumeTreeView {
+		const names = options.projectNames ?? ["alpha", "beta", "gamma"];
+		const built: ResumeTreeRow[] = [];
+		for (const name of names) {
+			const root = `/work/${name}`;
+			const projectEntry: ResumeTreeProject = {
+				key: root,
+				root,
+				name,
+				alias: null,
+				displayName: name,
+				isDefault: false,
+				pinned: false,
+				collapsed: options.collapsed === name,
+				lastActivity: new Date(T),
+				counts: { conversations: 2, workspaces: 2, pinnedConversations: 0 },
+			};
+			built.push({
+				type: "project",
+				key: root,
+				project: projectEntry,
+				pinned: false,
+				collapsed: projectEntry.collapsed,
+				conversationCount: 2,
+				totalConversationCount: 2,
+				workspaceCount: 2,
+				totalWorkspaceCount: 2,
+			});
+			if (projectEntry.collapsed) continue;
+			for (const workspaceName of ["app", "lib"]) {
+				const workspaceKey = `${root}/${workspaceName}`;
+				const workspaceEntry: ResumeTreeWorkspace = {
+					key: workspaceKey,
+					path: workspaceKey,
+					name: workspaceName,
+					projectKey: root,
+					branch: null,
+					pinned: false,
+					lastActivity: new Date(T),
+					counts: { conversations: 1, pinnedConversations: 0 },
+				};
+				built.push({
+					type: "workspace",
+					key: workspaceKey,
+					workspace: workspaceEntry,
+					projectKey: root,
+					pinned: false,
+					conversationCount: 1,
+					totalConversationCount: 1,
+				});
+				const id = `${name}-${workspaceName}`;
+				const entry = conversation(id, `${name} ${workspaceName} note`, T, {
+					projectKey: root,
+					workspaceKey,
+					cwd: workspaceKey,
+				});
+				built.push({
+					type: "conversation",
+					key: id,
+					conversation: entry,
+					projectKey: root,
+					workspaceKey,
+					pinned: false,
+					current: false,
+					pinnedOnly: false,
+				});
+			}
+		}
+		return view(built);
+	}
+
+	function subset(initial: ResumeTreeView, key: string): ResumeTreeView {
+		const rows = initial.rows.filter(row => (row.type === "project" ? row.key === key : row.projectKey === key));
+		return view(rows, { totalConversations: initial.counts.totalConversations });
+	}
+
+	async function mount(
+		initial: ResumeTreeView,
+		options: {
+			width?: number;
+			height?: number;
+			viewFor?: (scope: ResumeTreeScope, query: string) => ResumeTreeView | null;
+		} = {},
+	) {
+		const width = options.width ?? WIDTH;
+		const height = options.height ?? HEIGHT;
+		const terminal = new VirtualTerminal(width, height);
+		const scheduler = new VirtualRenderScheduler();
+		const tui = new TUI(terminal, true, { renderScheduler: scheduler });
+		const source = fakeSource(initial, { viewFor: options.viewFor });
+		const component = new ResumeTreeComponent({
+			source: source.source,
+			getTerminalRows: () => height,
+			onSelect: () => {},
+			onCancel: () => {},
+			onExit: () => {},
+			searchFocused: false,
+		});
+		component.onRequestRender = () => tui.requestRender();
+		tui.start();
+		tui.showOverlay(component, {
+			anchor: "top-left",
+			width: "100%",
+			maxHeight: "100%",
+			margin: 0,
+			fullscreen: true,
+		});
+		tui.setFocus(component);
+		await scheduler.settle(terminal);
+		return { terminal, tui, component, scheduler };
+	}
+
+	function plainViewport(terminal: VirtualTerminal): string[] {
+		return terminal.getViewport().map(row => stripVTControlCharacters(row).trimEnd());
+	}
+
+	function isRule(line: string | undefined, width = WIDTH): boolean {
+		return line !== undefined && line.length === width && /^─+$/.test(line);
+	}
+
+	/** Project headers are the only rows whose text starts with a fold glyph at project depth. */
+	function headerIndexes(lines: readonly string[]): number[] {
+		return lines.flatMap((line, index) => (/^(?: {2}|❯ )(?:▾|▸) /.test(line) ? [index] : []));
+	}
+
+	function ruleIndexes(lines: readonly string[], width = WIDTH): number[] {
+		return lines.flatMap((line, index) => (isRule(line, width) ? [index] : []));
+	}
+
+	it("draws exactly one boundary rule between three projects and keeps the header rule", async () => {
+		const initial = groupedView();
+		const { terminal, tui, component } = await mount(initial);
+		try {
+			const lines = plainViewport(terminal);
+			const headers = headerIndexes(lines);
+			expect(headers).toHaveLength(3);
+			expect(ruleIndexes(lines)).toHaveLength(5);
+
+			const expected = new Set<number>();
+			for (const [position, index] of headers.entries()) {
+				// The path/workspace rule under the header stays.
+				expect(isRule(lines[index + 1])).toBe(true);
+				expected.add(index + 1);
+				if (position === 0) {
+					expect(isRule(lines[index - 1])).toBe(false);
+					continue;
+				}
+				// Exactly one boundary rule sits above every later project.
+				expect(isRule(lines[index - 1])).toBe(true);
+				expected.add(index - 1);
+			}
+			// No rule exists between workspaces or conversations.
+			expect(new Set(ruleIndexes(lines))).toEqual(expected);
+
+			const raw = component.render(WIDTH);
+			expect(raw.filter(line => line === renderProjectSeparator(WIDTH))).toHaveLength(2);
+			expect(raw.filter(line => line === renderProjectRule(WIDTH))).toHaveLength(3);
+			for (const line of lines) expect(visibleWidth(line)).toBeLessThanOrEqual(WIDTH);
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("keeps both boundary rules when a project is collapsed", async () => {
+		const initial = groupedView({ collapsed: "beta" });
+		const { terminal, tui } = await mount(initial);
+		try {
+			const lines = plainViewport(terminal);
+			const headers = headerIndexes(lines);
+			expect(headers).toHaveLength(3);
+			expect(ruleIndexes(lines)).toHaveLength(5);
+			expect(isRule(lines[headers[1]! - 1])).toBe(true);
+			expect(isRule(lines[headers[2]! - 1])).toBe(true);
+			// Four workspaces stay listed; no rule was invented between them.
+			const workspaceRows = lines.filter(line => /^(?: {4}|❯ {3})(?:▾|▸) /.test(line));
+			expect(workspaceRows).toHaveLength(4);
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("drops boundary rules when a search leaves one project", async () => {
+		const initial = groupedView();
+		const filtered = subset(initial, "/work/gamma");
+		const { terminal, tui, scheduler } = await mount(initial, {
+			viewFor: (_scope, query) => (query.trim() ? filtered : initial),
+		});
+		try {
+			terminal.sendInput("/");
+			for (const glyph of "gamma") terminal.sendInput(glyph);
+			await scheduler.settle(terminal);
+			const lines = plainViewport(terminal);
+			const headers = headerIndexes(lines);
+			expect(headers).toHaveLength(1);
+			expect(ruleIndexes(lines)).toEqual([headers[0]! + 1]);
+			expect(isRule(lines[headers[0]! - 1])).toBe(false);
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("shows no rule at all when the search matches nothing", async () => {
+		const initial = groupedView();
+		const empty = view([], { totalConversations: initial.counts.totalConversations });
+		const { terminal, tui, scheduler } = await mount(initial, {
+			viewFor: (_scope, query) => (query.trim() ? { ...empty, query: { raw: query } } : initial),
+		});
+		try {
+			terminal.sendInput("/");
+			for (const glyph of "zzz") terminal.sendInput(glyph);
+			await scheduler.settle(terminal);
+			const lines = plainViewport(terminal);
+			expect(lines.join("\n")).toContain("No conversations match");
+			expect(ruleIndexes(lines)).toEqual([]);
+			expect(headerIndexes(lines)).toEqual([]);
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("keeps boundary rules full width when the terminal is narrow", async () => {
+		const narrow = 28;
+		const initial = groupedView();
+		const { terminal, tui } = await mount(initial, { width: narrow });
+		try {
+			const lines = plainViewport(terminal);
+			const headers = headerIndexes(lines);
+			const separatorIndexes = ruleIndexes(lines, narrow).filter(index => !headers.includes(index - 1));
+			expect(headers).toHaveLength(3);
+			// Two boundary rules, both exactly the content width.
+			expect(separatorIndexes).toHaveLength(2);
+			for (const index of separatorIndexes) expect(lines[index]).toBe(RULE.repeat(narrow));
+			for (const line of lines) expect(visibleWidth(line)).toBeLessThanOrEqual(narrow);
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("never lets the selection land on a boundary rule", async () => {
+		const initial = groupedView();
+		const { terminal, tui, component, scheduler } = await mount(initial);
+		try {
+			const before = plainViewport(terminal);
+			const headers = headerIndexes(before);
+			const separator = headers[1]! - 1;
+			const cursorRow = before.findIndex(line => line.startsWith(`${theme.nav.cursor} `));
+			expect(cursorRow).toBeGreaterThan(0);
+
+			component.handleInput(`\x1b[<0;5;${separator + 1}M`);
+			tui.requestRender();
+			await scheduler.settle(terminal);
+			const clicked = plainViewport(terminal);
+			expect(clicked.findIndex(line => line.startsWith(`${theme.nav.cursor} `))).toBe(cursorRow);
+			expect(clicked[separator]).toBe(RULE.repeat(WIDTH));
+
+			component.handleInput("\x1b[B");
+			tui.requestRender();
+			await scheduler.settle(terminal);
+			const moved = plainViewport(terminal);
+			const movedRow = moved.findIndex(line => line.startsWith(`${theme.nav.cursor} `));
+			// Down steps over the header rule line to the workspace, never onto a rule.
+			expect(movedRow).toBe(cursorRow + 2);
+			expect(isRule(moved[movedRow])).toBe(false);
+			expect(moved[movedRow]).toContain("app");
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("counts boundary rules while scrolling to the last project", async () => {
+		const names = ["p1", "p2", "p3", "p4", "p5", "p6"];
+		const initial = groupedView({ projectNames: names });
+		const height = 24;
+		const { terminal, tui, component, scheduler } = await mount(initial, { height });
+		try {
+			for (let step = 0; step < 29; step++) component.handleInput("\x1b[B");
+			tui.requestRender();
+			await scheduler.settle(terminal);
+			const lines = plainViewport(terminal);
+			expect(lines).toHaveLength(height);
+			expect(lines.join("\n")).toContain("p6 lib note");
+			const cursorRow = lines.findIndex(line => line.startsWith(`${theme.nav.cursor} `));
+			expect(cursorRow).toBeGreaterThanOrEqual(0);
+			expect(lines[cursorRow]).toContain("p6 lib note");
+			// Every visible rule still belongs to a project header, top or bottom cut included.
+			const headers = headerIndexes(lines);
+			const boundaries = ruleIndexes(lines).filter(index => !headers.includes(index - 1));
+			expect(boundaries.length).toBeLessThanOrEqual(5);
+			for (const index of boundaries) {
+				// A window that starts on a boundary keeps its header right below.
+				if (index + 1 < lines.length && index > 0) expect(headers).toContain(index + 1);
+			}
+		} finally {
+			tui.stop();
 		}
 	});
 });
