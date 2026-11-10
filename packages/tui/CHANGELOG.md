@@ -1,24 +1,18 @@
 ## [Unreleased]
 
-## [1.5.0] - 2026-11-09
-
 ### Added
 
-- Added the Team Hub overlay: a database-backed roster of rooms, PMs and engineers with room events, real-member posting, filtering and keyboard navigation.
-- Added the HTML form dialog used by `ask` and extension `ui.formDialog`: paginated terminal forms with keyboard navigation, images and inline SVG, free-text "Other" answers, and partial submission on inactivity timeout.
-- Added undo support to Editor with Ctrl+- hotkey. Undo coalesces consecutive word characters into one unit (fish-style). ([#831](https://github.com/badlogic/pi-mono/pull/831) by [@Perlence](https://github.com/Perlence))
-- Hardware cursor positioning for IME support in `Editor` and `Input` components. The terminal cursor now follows the text cursor position, enabling proper IME candidate window placement for CJK input. ([#719](https://github.com/badlogic/pi-mono/pull/719))
-- `Focusable` interface for components that need hardware cursor positioning. Implement `focused: boolean` and emit `CURSOR_MARKER` in render output when focused.
-- `CURSOR_MARKER` constant and `isFocusable()` type guard exported from the package
+- `/channels` opens the IM operator surface in the TUI: list configured channels and their live health (`state`, `detail`, `lastError`, `since`, `lastInboundAt`), run `login`/`status`/`logout`/`unbind`, and take a per-channel pairing lock so two processes cannot pair the same account at once. The command is refused on a backend-attached client, where the owning process owns pairing.
+- `/cd` is a session command with a folder-only picker: real Windows volumes (drive type and volume label; A:/B: only when the system reports them) or POSIX mount points from `/proc/mounts`, pinned folders, type-to-filter, keyboard and mouse selection, `Ctrl+P` to pin, and `Ctrl+R` to open `/resume` on the highlighted folder instead of switching to it. A `/cd <path>` argument moves directly like `/move`.
 
 ### Changed
 
-- Changed Editor component to use proper box borders with vertical side borders instead of horizontal-only borders
+- Large transcript replays on resume now hydrate a bounded window instead of the whole session, so a multi-thousand-entry transcript no longer freezes the TUI before the first frame; scrolling past the window pages the rest in on demand.
+- Starting in the home directory keeps the `~/tmp` (or OS temp) workspace and reports the switch in a startup notice instead of failing silently.
 
 ### Fixed
 
-- Decode Kitty CSI-u printable sequences in the editor so shifted symbol keys (e.g., `@`, `?`) work in terminals that enable Kitty keyboard protocol ([#779](https://github.com/badlogic/pi-mono/pull/779) by [@iamd3vil](https://github.com/iamd3vil))
-- Keyboard shortcuts (Ctrl+C, Ctrl+D, etc.) now work on non-Latin keyboard layouts (Russian, Ukrainian, Bulgarian, etc.) in terminals supporting Kitty keyboard protocol with alternate key reporting ([#718](https://github.com/badlogic/pi-mono/pull/718) by [@dannote](https://github.com/dannote))
+- A `task` batch coalesces spawn progress into at most one cumulative snapshot per 100 ms (matching the subagent HUD cadence), so a wide fan-out no longer rebuilds and deep-sanitizes the transcript card once per spawn report on the TUI thread; terminal spawn snapshots still publish immediately.
 
 ## [8.4.1] - 2026-01-25
 
@@ -111,6 +105,26 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.5.0] - 2026-11-09
+
+### Added
+
+- Added the Team Hub overlay: a database-backed roster of rooms, PMs and engineers with room events, real-member posting, filtering and keyboard navigation.
+- Added the HTML form dialog used by `ask` and extension `ui.formDialog`: paginated terminal forms with keyboard navigation, images and inline SVG, free-text "Other" answers, and partial submission on inactivity timeout.
+- Added undo support to Editor with Ctrl+- hotkey. Undo coalesces consecutive word characters into one unit (fish-style). ([#831](https://github.com/badlogic/pi-mono/pull/831) by [@Perlence](https://github.com/Perlence))
+- Hardware cursor positioning for IME support in `Editor` and `Input` components. The terminal cursor now follows the text cursor position, enabling proper IME candidate window placement for CJK input. ([#719](https://github.com/badlogic/pi-mono/pull/719))
+- `Focusable` interface for components that need hardware cursor positioning. Implement `focused: boolean` and emit `CURSOR_MARKER` in render output when focused.
+- `CURSOR_MARKER` constant and `isFocusable()` type guard exported from the package
+
+### Changed
+
+- Changed Editor component to use proper box borders with vertical side borders instead of horizontal-only borders
+
+### Fixed
+
+- Decode Kitty CSI-u printable sequences in the editor so shifted symbol keys (e.g., `@`, `?`) work in terminals that enable Kitty keyboard protocol ([#779](https://github.com/badlogic/pi-mono/pull/779) by [@iamd3vil](https://github.com/iamd3vil))
+- Keyboard shortcuts (Ctrl+C, Ctrl+D, etc.) now work on non-Latin keyboard layouts (Russian, Ukrainian, Bulgarian, etc.) in terminals supporting Kitty keyboard protocol with alternate key reporting ([#718](https://github.com/badlogic/pi-mono/pull/718) by [@dannote](https://github.com/dannote))
 
 ## [1.4.13] - 2026-11-08
 

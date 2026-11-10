@@ -6,8 +6,10 @@
   2 000-character splitting, 429 handling, resume/reconnect, and health states
 - Added the QQ channel as a generic OneBot v11 client (forward or reverse
   WebSocket, Bearer token, `echo` correlation, group/private peers, images,
-  reconnect, `get_status` probing). No bridge is bundled; NapCat, LLBot, and
-  SnowLuma are documented as user-supplied processes
+  reconnect, `get_status` probing). Bridges are bring-your-own: nothing is
+  bundled, downloaded or installed. NapCat and LLOneBot are documented as
+  user-supplied processes; SnowLuma is experimental and documented at its
+  community mirror. Bridge licences and account risk stay with the user
 - Added per-platform deny-by-default allowlists (`channels.discord.allowedChannels`,
   `channels.qq.allowedGroups`) and extended `ChannelStatus` with the adapter
   health (`state`, `detail`, `lastError`, `since`, `lastInboundAt`)

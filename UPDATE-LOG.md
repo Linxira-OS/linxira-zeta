@@ -2,6 +2,21 @@
 
 ## 下一版本（Unreleased）
 
+### 1.5.1
+- **Work Studio 浏览器终端（#282）**：Studio 界面通过网关 PTY 在浏览器里跑真实终端（xterm.js），支持选择/创建 shell profile（shell、参数、工作目录、环境变量）、实时调整 PTY 尺寸、导航后保留会话列表，并在断线后重连回放而不是留下死面板；profile 由服务端校验，不能越出工作区根。
+- **TUI `/channels` 与安全配对锁（#283）**：列出已配置 IM 渠道及其实时健康（状态、详情、最后错误、起始时间、最后入站），执行 `login`/`status`/`logout`/`unbind`，并按渠道加配对锁，避免两个进程同时配对同一账号；后端 attach 的客户端会拒绝该命令，把配对留给持有进程。
+- **`/cd` 目录切换（#287）**：TUI 内新增高频 `/cd` 命令；无参数打开只列目录的文件夹选择器（Windows 显示真实卷、驱动器类型与卷标，A:/B: 仅在系统存在时出现；POSIX 读 `/proc/mounts`），支持固定目录、输入过滤、键鼠选择，`Ctrl+P` 固定、`Ctrl+R` 在该目录上打开 `/resume`；`/cd <path>` 等价 `/move`。切换会把会话文件与产物迁到目标桶并重绑项目设置/记忆/插件/技能/命令，失败整体回滚；主目录启动仍保留 `~/tmp` 工作区并在启动提示中说明。
+- **Work Studio IM 渠道设置（#286）**：一个面板统一 WeChat、Feishu、Telegram、Discord、QQ：实时状态、微信扫码登录、token 类适配器的凭据录入、聊天绑定（`remote.sessionMappings`）与工作区/机器人会话选择；读写与 CLI 相同的 `web.yml`。
+- **Discord 与 QQ OneBot v11 适配器（#288）**：Discord 走官方 Bot API（Gateway v10、`MESSAGE_CONTENT` intent、服务器频道/私信、@提及与回复触发、附件大小上限、2000 字分块、429 处理、断线重连、健康状态）；QQ 为通用 OneBot v11 客户端（正向/反向 WebSocket、Bearer token、`echo` 关联、群/私聊、图片、重连、`get_status` 探活）。两者默认拒绝启动，必须先配置 `channels.discord.allowedChannels` / `channels.qq.allowedGroups|allowedUsers`；`zetacode channels login discord|qq` 先验证后落盘。**QQ 桥全部 BYO**：不打包、不下载、不安装任何桥；NapCat、LLOneBot 由用户自行运行，SnowLuma 标注为实验性并指向社区镜像；桥的许可证与账号风险自负。
+- **按设备令牌的远端鉴权（#285）**：配对为每台设备签发独立的 `zdt_…` 令牌与注册表行（标签、平台、scope、创建/最后活跃），可单独列出与吊销；轮换机器级 `remote.token` 不再让所有已配对设备掉线。令牌仅以哈希落盘，注册表损坏时设备令牌 fail-closed，loopback 与机器令牌仍可用。
+- **设备 2FA / TOTP（#292）**：RFC 6238 注册、十个一次性恢复码、`/2fa` 命令面、可配置 `required` 策略，以及按设备校验（远端写 12 小时、吊销设备/轮换 token 等敏感操作 10 分钟）；注册仅限本地或最近验证过的写设备，避免被盗 token 装上攻击者的第二因子。密钥位于 `<agentDir>/auth/totp.json`，权限 `0600`。
+- **大会话回放窗口（#284）**：resume 时只水合有界窗口，数千条转写不再在首帧前整份加载；滚动时再分页补入。
+- **TUI 子代理进度合并（#289）**：`task` 批量生成的进度合并为每 100 ms 至多一个累计快照，宽扇出不再为每次 spawn 报告重建并深度 sanitize 整张卡片；终止快照仍立即发布。
+- **启动/性能（#280）**：插件注册表（Claude Code、agent、Zeta）的祖先遍历与 project/cwd realpath 每项目只解析一次，而不是每个能力面各解析一次，减少技能与斜杠命令发现中的重复文件系统工作。
+- **Team（1.5 线）**：无主 Team 根、数据库驱动的 Hub/房间、`/lead` PM 模式、PM Secretary 与 Studio Team 图自 1.5.0 起交付并在本版保持不变；1.5.1 不含 Team schema 变更。
+- **文档/i18n（#290/#291）**：渠道、桌面与远端文档指向 Work Studio IM 面板；`/channels` 描述与 CLI 帮助由 i18n 目录支撑，帮助清单按 Discord/QQ 新 flag 重新固定。
+- **未完成（不要当成已交付）**：**没有 Android 原生应用或 Tier 1 移动客户端**——移动端只有浏览器 UI 与 Work Studio 浏览器版，路线图中的轻量 WebView 外壳未构建，不存在 APK/AAB 或应用商店包；**聊天 → PM 的 `agentId` 持久绑定未做**，聊天绑定目前只映射到工作区别名或机器人会话，设置面板的该列标注“未实现”且从不写入；**2FA 密钥只有文件系统保护**（`0600`，无 OS keychain/TPM），也没有 WebAuthn/passkey 第二因子；**远端 Work Studio 的设备 token 注入仍未端到端打通**，仍需通过 URL fragment/localStorage 手动携带配对令牌。
+
 ### 1.5.0
 - **IM 渠道扩展**：新增 **Discord**（官方 Bot API：Gateway v10 + `MESSAGE_CONTENT` intent、服务器频道/私信、@提及与回复触发、附件下载、2000 字分块、429/断线重连、健康状态）与 **QQ**（通用 OneBot v11 客户端：正向/反向 WebSocket、Bearer token、群/私聊、图片、`echo` 关联、重连与 `get_status` 探活）。两个新平台**默认拒绝启动**，必须先配置 `channels.discord.allowedChannels` / `channels.qq.allowedGroups|allowedUsers`；`zetacode channels login discord|qq` 先验证后落盘。QQ 不打包、不自动安装任何桥（NapCat / LLBot / SnowLuma 由用户自行运行，许可证与账号风险自负）。
 - **Zeta Team 落地（无主 Team 根）**：`zetacode team` 新增无主 Team 根（`<root>/.zeta/team.json`；不是 Agent、没有 `AGENTS.md`/Git/Team 根会话）、PM 工作区（`pms/<pm>/`）、规范基础仓库（`repos/<repo>/`，也可用 `repo link` 就地登记）、PM↔仓库绑定、工程师与真实链接工作树（`home` + 每任务）位于 `worktrees/<repo>/<pm>/<engineer>/`；一个 SQLite Team 数据库（默认 `~/.zeta/data/zeta.db`，`ZETA_TEAM_DB` 可覆盖）记录 teams/PM/repos/bindings/engineers/worktrees/rooms/agents，`team doctor` 报告磁盘标记与数据库漂移。没有 team-wide Agent。
