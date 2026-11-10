@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512" role="img" aria-label="Zeta concept 04 Cluster (selected)">
+  <title>Concept 04 — Cluster (selected for production)</title>
+  <!-- Archived concept board drawing. Production form: assets/zeta-mark.svg
+       (with ink plate) and assets/icon.svg. This copy keeps the board's
+       transparent background so the knockout gap shows. -->
+  <defs>
+    <mask id="cluster-l" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#000"/>
+      <rect x="8" y="8" width="26" height="26" rx="9" fill="#fff"/>
+      <path d="M15 15V25H24" fill="none" stroke="#000" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="29.5" y="29.5" width="29" height="29" rx="10.5" fill="#000"/>
+    </mask>
+    <mask id="cluster-z" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#000"/>
+      <rect x="32" y="32" width="24" height="24" rx="8" fill="#fff"/>
+      <path d="M38 38H50L38 50H50" fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <rect width="64" height="64" fill="#2AC9C1" mask="url(#cluster-l)"/>
+  <rect width="64" height="64" fill="#F36F5D" mask="url(#cluster-z)"/>
+</svg>

@@ -43,6 +43,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | **`OMP_*` 环境变量（2026-10-10 裁定：暂不改）** | 保持 `OMP_*` | **190 个变量、约 2000 处引用**，且多数是 `docs/environment-variables.md` 里文档化的用户配置项。一次性改名会（a）破坏用户现有配置与脚本（b）要求生产者/消费者同时改，漏一处即静默失效（2026-10-10 的 `bin: "omp"` 夹具事故就是这个成因）。正确路径是**读旧写新**的分阶段迁移，需独立方案与守卫后再动。`brand-check` 现有规则**不覆盖** env 名，故合并不会误扫，也不会误报 |
 | **Work Studio 身份与归属（2026-11-06）** | 产品名 Zeta；`web-app/` 是 **Zeta 维护的 OMP Studio 分支**（MIT），仓库/更新/启动提示链接指向 `Linxira-OS/linxira-zeta`；Studio 线协议名 `zeta-studio` | MIT 上游正文与 `Copyright (c) 2026 snowpear and OMP Studio contributors` **必须保留**，其后追加 `Copyright (c) 2026 Linxira-OS and Zeta contributors`；`THIRD-PARTY-NOTICES.txt` 不得再把 Studio 写成 "unmodified"；`brand-check` 拦 `OMP Studio`/`omp-studio`（仅豁免 README 跟随 MIT 归属与两个本地 IndexedDB 键） |
 | 品牌残留守卫 | `bun scripts/brand/brand-check.ts`（已进 CI check job） | 机械规则进 `scripts/brand/brand-rules.ts`，散文只留判断 |
+| **产品标记 / 应用图标（2026-11-10 定稿：概念 04 Cluster）** | `assets/zeta-mark.svg`（512 主标记）、`assets/icon.svg`（应用图标）、`assets/icon-maskable.svg`（maskable/apple-touch）；**≥32px 用双块簇，16/24 用 `assets/zeta-mark-16.svg` 单块 LZ 回退** | 旧标记只留 `assets/legacy/zeta-mark-lz-legacy.svg` / `assets/legacy/icon-lz-legacy.svg`，落选概念只留 `assets/archive/logo-2026/`；运行期/构建代码不得引用两者；`bun scripts/check-logo-assets.ts`（CI check job）校验 SVG 自包含、PNG/ICO 尺寸、16px 回退与生成脚本一致 |
 | 产品前门（README/logo/名称/主页/安装文档） | Zeta 产品面 | 完整合并后单独 branding-overlay commit |
 
 **启动字符画定稿（2026-10-18 用户裁定）**：`packages/tui/src/prompt/welcome.ts` 的
@@ -50,6 +51,44 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 最终稿，永久冻结**——不再讨论字形美观、不再换字体、不再改宽度或渐变。合并带回了别的画就
 按本表恢复；任何"字符画看起来断了/像别的字"的判断一律作废，除非用户**再次明确要求**修改。
 判据仍是 `brand-check` 的逐字校验（手改一个字符即红）。
+
+## 产品标记（Logo）——概念 04 Cluster（2026-11-10 定稿）
+
+形状：64u 网格上的两枚圆角方块。teal `#2AC9C1` 块承 L 孔、coral `#F36F5D` 块承 Z 孔，
+两块的 2.5u 间隙是**透明挖空**（不是描边、不是深色缝隙），因此单色下仍读得出两块。
+平涂、圆头圆角；没有渐变、阴影、斜面、3D，也不用方头/尖角。概念板：`temp/zeta-logo-concepts.html`，
+落选概念与概念板存档在 `assets/archive/logo-2026/`。
+
+**尺寸阈值：≥32px 用双块簇；16/24 用 `assets/zeta-mark-16.svg`（单块 + 9.5u LZ 孔径）。**
+双块在 16px 会把两个字母糊成一团，所以 16px 不是一个缩小的簇，而是声明好的回退图。
+
+| 文件 | 用途 |
+|---|---|
+| `assets/zeta-mark.svg` | 主标记：512、ink 底板、teal L + coral Z |
+| `assets/zeta-mark-light.svg` | 同几何，paper 底板 |
+| `assets/zeta-mark-mono.svg` / `assets/zeta-mark-mono-inverse.svg` | 单色（ink / paper），透明底 |
+| `assets/zeta-mark-16.svg` | 16px 单块 LZ 回退（16/24 与 favicon 的 16/24 条目） |
+| `assets/icon.svg` | 应用图标（圆角 ink 底板，标记占约 75%） |
+| `assets/icon-maskable.svg` | maskable / apple-touch：全出血底板 + 80% 安全区 |
+
+导出链：`desktop/scripts/generate-icon.mjs`（`desktop` 的 `npm run build` 首步）从上述 SVG
+一次产出 `assets/zeta-mark-{16,32,64,512,1024}.png`、`assets/icon-{512,1024}.png`、
+`assets/favicon.ico`、`web-app/public/{icon.png,favicon.ico}`、`web-ui/public/icons/*`、
+`desktop/build/*`、`main/crates/zetawork-gui/assets/icon.png`（256）；再由
+`bun scripts/packaging/windows/generate-icon.ts` 产出 `main/crates/zetawork-gui/assets/icon.ico`。
+**改 SVG 后必须重跑两者并提交产物**，否则 `check-windows-icons` 与实际栅格各说各话。
+
+历史：改版前的标记与图标保留在 `assets/legacy/zeta-mark-lz-legacy.svg` /
+`assets/legacy/icon-lz-legacy.svg`；概念 01 Fold、02 Aperture、03 Prompt、05 Loop、06 Lockup
+以及概念板本身存档在 `assets/archive/logo-2026/`（含 README 说明选择与否决理由）。
+两者都**只作历史**，不进任何 bundle/import，生产代码不得引用。
+
+守卫：`bun scripts/check-logo-assets.ts`（CI check job）——SVG 必须自包含（无外链、无
+`<script>`/`<image>`/渐变/滤镜）、mask 引用必须存在、PNG/ICO 尺寸与目录约定一致、
+16px 回退与生成脚本的 `size < 32` 切换一致、归档/旧资产存在且不被生产文件引用。
+
+**启动字符画不在本表范围内**：`ZETA_LOGO` / `ZETA_WORDMARK` / `ZETA_SUBLINE` 仍按上节永久冻结，
+本次改标不动它们，`brand-check` 的逐字校验继续强制。
 
 ## 待扫清单：`omp` 形状的内部记号（2026-11-02 实测）
 

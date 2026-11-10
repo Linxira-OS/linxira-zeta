@@ -388,10 +388,10 @@ pub fn paint_marker(ui: &Ui, icon: Icon, rect: egui::Rect, color: Color32) {
 //
 // The desktop mark is the repository's `assets/icon.svg`, rasterized once at
 // 256×256 into `assets/icon.png` beside this crate (so a clean build needs no
-// SVG renderer and no network). The PNG is committed full-bleed and the
-// rounded corners are masked here, by [`rounded_alpha`], at the same radius
-// the shell uses for cards — scaled from the 48 pt size the 关于 page draws it
-// at, so the 32 px taskbar and the 256 px window raster read the same.
+// SVG renderer and no network). The PNG is committed with its own rounded
+// plate, and the corners are masked here too, by [`rounded_alpha`], at the same
+// radius the shell uses for cards — scaled from the 48 pt size the 关于 page
+// draws it at, so the 32 px taskbar and the 256 px window raster read the same.
 
 /// The committed raster of the repository's `assets/icon.svg`.
 pub const APP_ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");

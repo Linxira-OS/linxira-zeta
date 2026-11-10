@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 268 96" width="536" height="192" role="img" aria-label="Zeta concept 06 Lockup">
+  <title>Concept 06 — Lockup (mark + rounded wordmark)</title>
+  <!-- Archived concept board drawing (not production). The wordmark is live text
+       in a rounded system font; no licensed outline exists, so this concept was
+       not shipped as an asset. Do not use below 48px. -->
+  <g transform="translate(0 8) scale(1.25)">
+    <path d="M50 50H14V14H50L28 50H50" fill="none" stroke="#2AC9C1" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="104" y="70" font-family="Arial Rounded MT Bold, Hiragino Maru Gothic ProN, Varela Round, Segoe UI, sans-serif" font-weight="700" font-size="64" letter-spacing="-2.9" fill="#0E1417">zeta</text>
+</svg>

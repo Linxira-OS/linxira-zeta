@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Archived 2026-11-10: the pre-Cluster app icon (same drawing as
+     zeta-mark-lz-legacy.svg). Kept for history only; nothing loads it. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Zeta LZ (legacy)">
+  <rect width="512" height="512" fill="#0E1417"/>
+  <g fill="none" stroke="#2AC9C1" stroke-width="52" stroke-linecap="square">
+    <path d="M96 96V416H240" stroke-linejoin="miter"/>
+    <path d="M288 96H432L288 416H432" stroke-linejoin="bevel"/>
+  </g>
+  <rect x="464" y="392" width="48" height="48" fill="#F36F5D"/>
+</svg>
