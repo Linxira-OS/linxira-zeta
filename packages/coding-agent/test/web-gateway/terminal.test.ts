@@ -22,6 +22,7 @@ import {
 	handleTerminalDelete,
 	handleTerminalEnsure,
 	handleTerminalList,
+	handleTerminalProfiles,
 	handleTerminalResize,
 	handleTerminalTicket,
 	handleTerminalWsUpgrade,
@@ -43,6 +44,7 @@ import {
 	termProgramVersion,
 	terminalWebSocketHandler,
 	shellSpawnArgs,
+	windowsPanePath,
 	type TerminalPtyFactory,
 	type TerminalSpawnSpec,
 	type TerminalWsData,
@@ -50,8 +52,9 @@ import {
 } from "../../src/server/web-gateway/terminal";
 import type { OpenProbeContext } from "../../src/utils/bin-discovery";
 import type { ResolvedTerminal } from "../../src/server/web-gateway/open";
+import { CUSTOM_PROFILES_ENV, resetShellProfileCacheForTests } from "../../src/server/web-gateway/terminal-profiles";
 
-const ENV_KEYS = ["ZETA_CODING_AGENT_DIR"];
+const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", CUSTOM_PROFILES_ENV];
 const savedEnv = new Map<string, string | undefined>();
 const cleanups: Array<() => Promise<void>> = [];
 
@@ -79,6 +82,7 @@ afterEach(async () => {
 	await Promise.all(cleanups.splice(0).map(fn => fn()));
 	resetTerminalManagerForTests();
 	resetPtyBackend();
+	resetShellProfileCacheForTests();
 });
 
 // --- fake PTY ---
@@ -408,15 +412,22 @@ describe("pane spawn environment", () => {
 		await setup();
 		installFakePty();
 		const saved = process.env.ZETA_BIN_DIR;
-		process.env.ZETA_BIN_DIR = "/opt/zeta/bin";
+		const binDir = process.platform === "win32" ? "C:\\zeta\\bin" : "/opt/zeta/bin";
+		process.env.ZETA_BIN_DIR = binDir;
 		try {
 			const response = await createTerminal({ cwd: process.cwd() });
 			expect(response.status).toBe(200);
 			const env = fakePtys.at(-1)?.spec.env ?? {};
 			const key = Object.keys(env).find(candidate => candidate.toUpperCase() === "PATH") ?? "";
 			const delimiter = process.platform === "win32" ? ";" : ":";
-			expect(env[key]?.startsWith(`/opt/zeta/bin${delimiter}`)).toBe(true);
-			expect(env[key]?.slice(`/opt/zeta/bin${delimiter}`.length)).toBe(process.env[key] ?? "");
+			expect(env[key]?.startsWith(`${binDir}${delimiter}`)).toBe(true);
+			const rest = env[key]?.slice(`${binDir}${delimiter}`.length) ?? "";
+			const inherited = process.env[key] ?? "";
+			expect(rest).toBe(
+				process.platform === "win32"
+					? windowsPanePath(inherited, process.env as Record<string, string>)
+					: inherited,
+			);
 		} finally {
 			if (saved === undefined) delete process.env.ZETA_BIN_DIR;
 			else process.env.ZETA_BIN_DIR = saved;
@@ -1051,6 +1062,138 @@ describe("terminal session end signals", () => {
 		expect(closed).toContain(1000);
 		const list = (await (await handleTerminalList()).json()) as { terminals: Array<{ id: string }> };
 		expect(list.terminals.map(term => term.id)).not.toContain(oldest);
+	});
+});
+
+// --- shell profiles (catalog + spawn selection) ---
+
+describe("terminal shell profiles", () => {
+	function installCustomProfiles(): void {
+		process.env[CUSTOM_PROFILES_ENV] = JSON.stringify([
+			{ id: "alpha", label: "Alpha Shell", command: process.execPath, args: ["-v"] },
+			{ id: "beta", label: "Beta Shell", command: process.execPath, args: ["--version"] },
+		]);
+		resetShellProfileCacheForTests();
+	}
+
+	test("GET catalog exposes unique ids, a default and serializable fields", async () => {
+		await setup();
+		installFakePty();
+		const res = handleTerminalProfiles();
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			profiles: Array<{ id: string; command: string; args: string[]; label: string; source: string }>;
+			defaultProfileId: string | null;
+			platform: string;
+			warnings: string[];
+		};
+		expect(body.platform).toBe(process.platform);
+		expect(body.warnings).toEqual([]);
+		expect(body.profiles.length).toBeGreaterThan(0);
+		expect(new Set(body.profiles.map(profile => profile.id)).size).toBe(body.profiles.length);
+		expect(body.defaultProfileId).toBe(body.profiles[0]!.id);
+		for (const profile of body.profiles) {
+			expect(profile.command.length).toBeGreaterThan(0);
+			expect(profile.command).not.toContain("\0");
+			expect(Array.isArray(profile.args)).toBe(true);
+		}
+	});
+
+	test("create with a configured profile spawns that command and reports the id", async () => {
+		await setup();
+		installFakePty();
+		installCustomProfiles();
+		const cwd = await mkdtemp(join(tmpdir(), "zeta-term-cwd-"));
+		cleanups.push(() => rm(cwd, { recursive: true, force: true }));
+
+		const res = await createTerminal({ cwd, profileId: "custom:alpha" });
+		expect(res.status).toBe(200);
+		const created = (await res.json()) as { id: string; profile: string; program: string; shell: string };
+		expect(created.profile).toBe("custom:alpha");
+		expect(created.program).toBe("shell");
+		expect(created.shell).toBe("Alpha Shell");
+		expect(fakePtys[0]!.spec.application).toBe(process.execPath);
+		expect(fakePtys[0]!.spec.args).toEqual(["-v"]);
+
+		const unknown = await createTerminal({ cwd, profileId: "custom:missing" });
+		expect(unknown.status).toBe(400);
+		const unknownBody = (await unknown.json()) as { code: string };
+		expect(unknownBody.code).toBe("profile_not_found");
+	});
+
+	test("ensure switches profile inside one slot by respawning the PTY", async () => {
+		await setup();
+		installFakePty();
+		installCustomProfiles();
+		const cwd = await mkdtemp(join(tmpdir(), "zeta-term-cwd-"));
+		cleanups.push(() => rm(cwd, { recursive: true, force: true }));
+		const ensure = (profileId: string) =>
+			handleTerminalEnsure(
+				new Request("http://127.0.0.1/api/terminal/ensure", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ cwd, instanceId: "slot-1", profileId }),
+				}),
+			);
+
+		const first = (await (await ensure("custom:alpha")).json()) as { id: string; reused: boolean; profile: string };
+		expect(first.reused).toBe(false);
+		expect(first.profile).toBe("custom:alpha");
+
+		const again = (await (await ensure("custom:alpha")).json()) as { id: string; reused: boolean };
+		expect(again.reused).toBe(true);
+		expect(again.id).toBe(first.id);
+		expect(fakePtys).toHaveLength(1);
+
+		const switched = (await (await ensure("custom:beta")).json()) as { id: string; reused: boolean; profile: string };
+		expect(switched.reused).toBe(false);
+		expect(switched.profile).toBe("custom:beta");
+		expect(switched.id).not.toBe(first.id);
+		expect(fakePtys).toHaveLength(2);
+		expect(fakePtys[0]!.killed).toBe(true);
+		expect(fakePtys[1]!.spec.args).toEqual(["--version"]);
+	});
+
+	test("translates a POSIX PATH for native Windows shells", () => {
+		const env = { SystemRoot: "C:\\Windows" };
+		expect(windowsPanePath("/c/Users/me/bin:/usr/bin:/e/Program Files/Git/cmd:.", env)).toBe(
+			[
+				"C:\\Windows\\System32",
+				"C:\\Windows",
+				"C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+				"C:\\Users\\me\\bin",
+				"E:\\Program Files\\Git\\cmd",
+			].join(";"),
+		);
+		expect(windowsPanePath("C:\\Windows\\System32;C:\\Tools", env)).toBe("C:\\Windows\\System32;C:\\Tools");
+		expect(windowsPanePath("C:\\zeta\\bin;/c/Users/me/bin:/usr/bin", env)).toBe(
+			[
+				"C:\\Windows\\System32",
+				"C:\\Windows",
+				"C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+				"C:\\zeta\\bin",
+				"C:\\Users\\me\\bin",
+			].join(";"),
+		);
+		expect(windowsPanePath("", env)).toBe("");
+	});
+
+	test("a profile cannot be combined with another program", async () => {
+		await setup();
+		installFakePty();
+		installCustomProfiles();
+		const cwd = await mkdtemp(join(tmpdir(), "zeta-term-cwd-"));
+		cleanups.push(() => rm(cwd, { recursive: true, force: true }));
+		const res = await handleTerminalEnsure(
+			new Request("http://127.0.0.1/api/terminal/ensure", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ cwd, instanceId: "conflict", profileId: "custom:alpha", program: "zetaide" }),
+			}),
+		);
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { code: string };
+		expect(body.code).toBe("profile_program_conflict");
 	});
 });
 

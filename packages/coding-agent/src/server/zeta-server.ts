@@ -100,7 +100,7 @@ export interface ZetaServerOptions {
 	/** Web Gateway 端口，默认 43143（仅 127.0.0.1） */
 	gatewayPort?: number;
 	/**
-	 * 启动 IM channels（WeChat/Feishu/Telegram）。默认 false；web.yml 中任一
+	 * 启动 IM channels（WeChat/Feishu/Telegram/Discord/QQ）。默认 false；web.yml 中任一
 	 * channel 启用时也会自动开启。CLI TUI 模式永不创建 ZetaServer，因此
 	 * 纯 CLI 会话不会加载任何 channel 监听器。
 	 */
@@ -916,7 +916,12 @@ export class ZetaServer {
 	/** Start the channel runtime when any channel is enabled (fresh copy). */
 	async #startChannelRuntime(webConfig: WebConfig): Promise<void> {
 		const data = webConfig.getData();
-		const anyEnabled = data.channels.wechat.enabled || data.channels.feishu.enabled || data.channels.telegram.enabled;
+		const anyEnabled =
+			data.channels.wechat.enabled ||
+			data.channels.feishu.enabled ||
+			data.channels.telegram.enabled ||
+			data.channels.discord.enabled ||
+			data.channels.qq.enabled;
 		if (!this.#options.channels && !anyEnabled) {
 			await this.#stopChannelRuntime();
 			return;
@@ -1006,12 +1011,10 @@ export class ZetaServer {
 		this.#channelRuntime = runtime;
 		await this.#channelLock?.update({ channels: [...runtime.channels.keys()] });
 		this.#channelRuntimeRef = runtime;
-		registerChannelStatus(() =>
-			["wechat", "feishu", "telegram"].map(id => ({
-				id: id as ChannelId,
-				running: this.#channelRuntimeRef?.channels.has(id as ChannelId) ?? false,
-			})),
-		);
+		// The runtime owns the list: it includes channels that are enabled but
+		// refused to start (empty allowlist) with the reason, so a settings page
+		// never shows a healthy switch for a channel that never connected.
+		registerChannelStatus(() => this.#channelRuntimeRef?.status() ?? []);
 		// The gateway's IM write entry (`POST /api/channels/send`) resolves
 		// against the same runtime, so an out-of-process caller gets the same
 		// answers the in-process `channel_send` tool does: "not enabled" when

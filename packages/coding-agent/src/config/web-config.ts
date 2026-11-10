@@ -46,6 +46,35 @@ export interface TelegramChannelConfig extends WebConfigChannelBase {
 	botToken?: string;
 }
 
+/**
+ * Discord (official Bot API). `allowedChannels` is required for the adapter to
+ * start: an empty list is deny-by-default, never "everyone". Entries are
+ * channel ids, or `guild:<id>` to allow every channel in one guild.
+ */
+export interface DiscordChannelConfig extends WebConfigChannelBase {
+	botToken?: string;
+	allowedChannels?: string[];
+	/** Optional sender-id restriction applied inside the allowed channels. */
+	allowedUsers?: string[];
+}
+
+/**
+ * QQ over a user-supplied OneBot v11 bridge (NapCat / LLBot / SnowLuma …).
+ * Zeta stores only the endpoint, the token and the optional bot uin; login and
+ * QR belong to the bridge. `allowedGroups`/`allowedUsers` are required for the
+ * adapter to start and hold bare QQ numbers.
+ */
+export interface QqChannelConfig extends WebConfigChannelBase {
+	endpoint?: string;
+	token?: string;
+	mode?: "forward" | "reverse";
+	/** Reverse-mode loopback listen port (default 8082). */
+	port?: number;
+	selfId?: string;
+	allowedGroups?: string[];
+	allowedUsers?: string[];
+}
+
 /** A registered remote workspace with a user-facing alias. */
 export interface RemoteWorkspace {
 	/** Unique alias used in IM commands (`@workspace use <alias>`, `*<alias>`). */
@@ -56,7 +85,7 @@ export interface RemoteWorkspace {
 
 /** Per-chat binding: route one remote chat directly to a workspace. */
 export interface SessionMapping {
-	platform: "wechat" | "feishu" | "telegram";
+	platform: "wechat" | "feishu" | "telegram" | "discord" | "qq";
 	/** Optional connection id (separates multiple bots on one platform). */
 	connectionId?: string;
 	/** Optional chat type (dm | group | …). Empty matches any. */
@@ -130,6 +159,8 @@ export interface WebConfigData {
 		wechat: WeChatChannelConfig;
 		feishu: FeishuChannelConfig;
 		telegram: TelegramChannelConfig;
+		discord: DiscordChannelConfig;
+		qq: QqChannelConfig;
 		/** Optional allowlist of peers (channel-agnostic ids) allowed to talk to
 		 *  the agent; empty = everyone (default, unchanged behavior). */
 		allowedPeers?: string[];
@@ -168,6 +199,8 @@ const DEFAULT_DATA: WebConfigData = {
 		wechat: { enabled: false },
 		feishu: { enabled: false },
 		telegram: { enabled: false },
+		discord: { enabled: false, allowedChannels: [], allowedUsers: [] },
+		qq: { enabled: false, mode: "forward", port: 8082, allowedGroups: [], allowedUsers: [] },
 	},
 	remote: {},
 };
@@ -178,10 +211,12 @@ const SECRET_PATHS: Record<string, true> = {
 	"channels.wechat.peerTokens": true,
 	"channels.feishu.appSecret": true,
 	"channels.telegram.botToken": true,
+	"channels.discord.botToken": true,
+	"channels.qq.token": true,
 	"remote.token": true,
 };
 
-type LeafType = "boolean" | "string" | "domain" | "strings" | "record" | "workspaces" | "mappings";
+type LeafType = "boolean" | "string" | "number" | "domain" | "mode" | "strings" | "record" | "workspaces" | "mappings";
 
 /** Known dot paths → expected leaf type (for PUT validation). */
 const KNOWN_PATHS: Record<string, LeafType> = {
@@ -204,6 +239,20 @@ const KNOWN_PATHS: Record<string, LeafType> = {
 	"channels.telegram.enabled": "boolean",
 	"channels.telegram.workspaceRoot": "string",
 	"channels.telegram.botToken": "string",
+	"channels.discord.enabled": "boolean",
+	"channels.discord.workspaceRoot": "string",
+	"channels.discord.botToken": "string",
+	"channels.discord.allowedChannels": "strings",
+	"channels.discord.allowedUsers": "strings",
+	"channels.qq.enabled": "boolean",
+	"channels.qq.workspaceRoot": "string",
+	"channels.qq.endpoint": "string",
+	"channels.qq.token": "string",
+	"channels.qq.mode": "mode",
+	"channels.qq.port": "number",
+	"channels.qq.selfId": "string",
+	"channels.qq.allowedGroups": "strings",
+	"channels.qq.allowedUsers": "strings",
 	"remote.host": "string",
 	"remote.token": "string",
 	"remote.publicUrl": "string",
@@ -240,6 +289,14 @@ function validateValue(leafType: LeafType, value: unknown): void {
 			return;
 		case "domain":
 			if (value !== "feishu" && value !== "lark") throw new Error('Expected "feishu" or "lark"');
+			return;
+		case "number":
+			if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 65_535) {
+				throw new Error("Expected an integer between 1 and 65535");
+			}
+			return;
+		case "mode":
+			if (value !== "forward" && value !== "reverse") throw new Error('Expected "forward" or "reverse"');
 			return;
 		case "strings":
 			if (!Array.isArray(value) || value.some(item => typeof item !== "string")) {
@@ -307,6 +364,8 @@ const CHANNEL_PLATFORMS: Record<string, true> = {
 	wechat: true,
 	feishu: true,
 	telegram: true,
+	discord: true,
+	qq: true,
 };
 
 /**
@@ -324,7 +383,7 @@ function mappingProblem(entry: unknown): string | null {
 	}
 	const record = entry as Record<string, unknown>;
 	if (typeof record.platform !== "string" || !Object.hasOwn(CHANNEL_PLATFORMS, record.platform)) {
-		return 'Expected platform "wechat", "feishu" or "telegram"';
+		return 'Expected platform "wechat", "feishu", "telegram", "discord" or "qq"';
 	}
 	if (!requiredText(record.chatId)) return "Each binding needs a chatId";
 	if (record.workspaceAlias !== undefined && record.workspaceAlias !== "" && !requiredText(record.workspaceAlias)) {

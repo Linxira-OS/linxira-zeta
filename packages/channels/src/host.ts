@@ -25,19 +25,29 @@
 
 import type { AssistantMessage, TextContent } from "@linxiraos/pi-ai";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
-import { CHANNEL_PEER_REFUSED_TEXT, isPeerAllowed } from "./auth";
-import type { ChannelId } from "./channel";
+import { CHANNEL_PEER_REFUSED_TEXT, isPeerAllowedFor, type ChannelAllowlists, type PeerIdentity } from "./auth";
+import type { ChannelId, ChannelSendOptions } from "./channel";
 import { ReplyCorrelator } from "./reply-correlator";
 import type { ChannelSession, ChannelSessionEvent, IrcMessage } from "./types";
 
 /** Outbound sink: resolves a channel + peer to a `sendText` call. */
-export type ChannelSendFn = (channelId: ChannelId, to: string, text: string) => Promise<void>;
+export type ChannelSendFn = (
+	channelId: ChannelId,
+	to: string,
+	text: string,
+	options?: ChannelSendOptions,
+) => Promise<void>;
 
 /** Outcome of one inbound injection. */
 export type ChannelDeliveryResult = { ok: true } | { ok: false; reason: "peer-not-allowed" | "duplicate" };
 
 /** One refusal per unauthorized peer per minute — enough to be explicit, not a spam vector. */
 const REFUSAL_COOLDOWN_MS = 60_000;
+
+/** Distinguish the legacy bare allowlist from the channel-aware policy. */
+function isLegacyAllowlist(value: ChannelAllowlists | readonly string[]): value is readonly string[] {
+	return Array.isArray(value);
+}
 /** Second-line in-memory dedupe (routeInbound owns the durable per-channel state). */
 const DELIVERED_ID_TTL_MS = 24 * 60 * 60_000;
 const MAX_DELIVERED_IDS = 512;
@@ -54,7 +64,7 @@ function assistantText(message: AssistantMessage | undefined): string {
 export class ChannelHost {
 	readonly #session: ChannelSession;
 	readonly #send: ChannelSendFn;
-	readonly #allowedPeers: readonly string[];
+	readonly #allow: ChannelAllowlists;
 	readonly #replies: ReplyCorrelator;
 	readonly #deliveredIds = new Map<string, number>();
 	readonly #refusedAt = new Map<string, number>();
@@ -62,12 +72,18 @@ export class ChannelHost {
 	#observerInstalled = false;
 	#lastInbound: { channelId: ChannelId; peer: string } | null = null;
 
-	constructor(session: ChannelSession, send: ChannelSendFn, allowedPeers?: readonly string[]) {
+	constructor(session: ChannelSession, send: ChannelSendFn, allow?: ChannelAllowlists | readonly string[]) {
 		this.#session = session;
 		this.#send = send;
-		this.#allowedPeers = allowedPeers ?? [];
+		this.#allow = allow === undefined ? {} : isLegacyAllowlist(allow) ? { legacy: allow } : allow;
 		this.#replies = new ReplyCorrelator({
-			sendText: (target, text) => this.#send(target.channelId, target.peer, text),
+			sendText: (target, text) =>
+				this.#send(
+					target.channelId,
+					target.peer,
+					text,
+					target.messageId ? { replyToMessageId: target.messageId } : undefined,
+				),
 		});
 	}
 
@@ -119,10 +135,16 @@ export class ChannelHost {
 	 * Inject one inbound channel message into the coordinator session and
 	 * bind the sender so the turn's final reply returns to them.
 	 */
-	async deliver(channelId: ChannelId, peer: string, body: string, messageId?: string): Promise<ChannelDeliveryResult> {
+	async deliver(
+		channelId: ChannelId,
+		peer: string,
+		body: string,
+		messageId?: string,
+		identity?: Omit<PeerIdentity, "peer">,
+	): Promise<ChannelDeliveryResult> {
 		// Authorization is the FIRST inbound check, mirroring `routeInbound`:
 		// an unauthorized sender must never reach dispatch or start a turn.
-		if (!isPeerAllowed(peer, this.#allowedPeers)) {
+		if (!isPeerAllowedFor(channelId, { peer, ...identity }, this.#allow)) {
 			logger.warn("Channel message refused: peer not in allowedPeers", { channel: channelId, peer });
 			this.#refuse(channelId, peer);
 			return { ok: false, reason: "peer-not-allowed" };

@@ -53,7 +53,12 @@ describe("TelegramChannel", () => {
 			() => updatesResponse([{ update_id: 7, message: { message_id: 13, chat: { id: 2002 }, text: "after" } }]),
 		);
 
-		const ch = new TelegramChannel({ botToken: "tok", onMessage: (peer, body) => seen.push({ peer, body }) });
+		const ch = new TelegramChannel({
+			botToken: "tok",
+			onMessage: message => {
+				seen.push({ peer: message.peer, body: message.body });
+			},
+		});
 		await ch.start();
 		await Bun.sleep(50);
 		await stopChannel(ch);
@@ -77,7 +82,12 @@ describe("TelegramChannel", () => {
 			]),
 		);
 
-		const ch = new TelegramChannel({ botToken: "tok", onMessage: (_peer, body) => seen.push(body) });
+		const ch = new TelegramChannel({
+			botToken: "tok",
+			onMessage: message => {
+				seen.push(message.body);
+			},
+		});
 		await ch.start();
 		await Bun.sleep(10);
 		await stopChannel(ch);

@@ -1293,6 +1293,62 @@ async function registrySignature(filePath: string): Promise<string> {
 	}
 }
 
+/**
+ * Registry paths a plugin-roots read is keyed by: the registry files (including
+ * the ancestor walk that finds a project registry) and the real paths of the
+ * project and cwd. Resolving them costs a directory walk plus two realpaths, and
+ * every capability surface of a launch (`claude-plugins`, `agent-plugins`,
+ * `zeta-plugins`, …) asks for the same `(home, cwd)`, so the paths are remembered
+ * until {@link clearClaudePluginRootsCache} runs. Claude's `enabledPlugins`
+ * overrides are read per call: they decide which roots load, not which files
+ * exist, and a settings edit must take effect without a restart.
+ */
+interface PluginRegistryPaths {
+	claudeConfigDir: string;
+	zetaRegistryPath: string;
+	resolvedProjectPath: string | null;
+	activeClaudeProjectPath: string | null;
+	canonicalCwd: string | null;
+	settingsDirs: string[];
+	files: readonly string[];
+}
+
+const pluginRegistryPathsCache = new Map<string, Promise<PluginRegistryPaths>>();
+
+async function resolvePluginRegistryPaths(home: string, cwd: string | undefined): Promise<PluginRegistryPaths> {
+	const cacheKey = `${home}\u0000${cwd ?? ""}`;
+	const cached = pluginRegistryPathsCache.get(cacheKey);
+	if (cached) return cached;
+	// Long-lived hosts can name many projects; the roots cache this keys is bounded too.
+	if (pluginRegistryPathsCache.size >= 32) pluginRegistryPathsCache.clear();
+	const pending = (async (): Promise<PluginRegistryPaths> => {
+		const { claudeConfigDir, zetaRegistryPath, resolvedProjectPath, files } = await resolvePluginRegistryFiles(
+			home,
+			cwd,
+		);
+		const projectRoot = resolvedProjectPath ? path.dirname(path.dirname(path.dirname(resolvedProjectPath))) : cwd;
+		const activeClaudeProjectPath = projectRoot ? await canonicalClaudeProjectPath(projectRoot) : null;
+		const canonicalCwd = cwd ? await canonicalClaudeProjectPath(cwd) : null;
+		const settingsDirs = [...new Set([activeClaudeProjectPath, canonicalCwd].filter((d): d is string => !!d))];
+		return {
+			claudeConfigDir,
+			zetaRegistryPath,
+			resolvedProjectPath,
+			activeClaudeProjectPath,
+			canonicalCwd,
+			settingsDirs,
+			files,
+		};
+	})();
+	pluginRegistryPathsCache.set(cacheKey, pending);
+	try {
+		return await pending;
+	} catch (error) {
+		if (pluginRegistryPathsCache.get(cacheKey) === pending) pluginRegistryPathsCache.delete(cacheKey);
+		throw error;
+	}
+}
+
 /** Whether a registry file changed on disk since `entry` was read from it. */
 async function isStaleRootsEntry(entry: PluginRootsCacheEntry): Promise<boolean> {
 	const [recorded, current] = await Promise.all([entry.signatures, Promise.all(entry.files.map(registrySignature))]);
@@ -1359,14 +1415,15 @@ export function listClaudePluginRoots(
 
 /** {@link listClaudePluginRoots}; with `revalidate`, a cached result whose registry files changed is read again. */
 async function readPluginRoots(home: string, cwd: string | undefined, revalidate: boolean): Promise<PluginRootsResult> {
-	const { claudeConfigDir, zetaRegistryPath, resolvedProjectPath, files } = await resolvePluginRegistryFiles(
-		home,
-		cwd,
-	);
-	const projectRoot = resolvedProjectPath ? path.dirname(path.dirname(path.dirname(resolvedProjectPath))) : cwd;
-	const activeClaudeProjectPath = projectRoot ? await canonicalClaudeProjectPath(projectRoot) : null;
-	const canonicalCwd = cwd ? await canonicalClaudeProjectPath(cwd) : null;
-	const settingsDirs = [...new Set([activeClaudeProjectPath, canonicalCwd].filter((d): d is string => !!d))];
+	const {
+		claudeConfigDir,
+		zetaRegistryPath,
+		resolvedProjectPath,
+		files,
+		activeClaudeProjectPath,
+		canonicalCwd,
+		settingsDirs,
+	} = await resolvePluginRegistryPaths(home, cwd);
 	const enabledOverrides = await readClaudeEnabledPlugins(claudeConfigDir, settingsDirs);
 	const cacheKey = `${claudeConfigDir}:${zetaRegistryPath}:${resolvedProjectPath ?? ""}:${activeClaudeProjectPath ?? ""}:${canonicalCwd ?? ""}:${enabledOverrides.sources.join("|")}`;
 	const cached = pluginRootsCache.get(cacheKey);
@@ -1599,6 +1656,7 @@ async function loadClaudePluginRoots({
  */
 export function clearClaudePluginRootsCache(): void {
 	pluginRootsCache.clear();
+	pluginRegistryPathsCache.clear();
 	for (const invalidate of pluginCacheInvalidators) invalidate();
 	preloadedPluginRoots = [...injectedPluginDirRoots];
 	// Re-warm preloaded roots asynchronously so sync LSP config reads stay valid
