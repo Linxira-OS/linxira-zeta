@@ -266,7 +266,7 @@ export function validateLinkage(raw: unknown, ctx: LinkageContext): string[] {
 	const verifiedRelease = record(release.verifiedRelease, "release.verifiedRelease", problems);
 	text(verifiedRelease.version, "release.verifiedRelease.version", problems);
 	const pending = record(release.pendingRelease, "release.pendingRelease", problems);
-	if (pending.status === "not-published-at-analysis-time" && pending.version === verifiedRelease.version) {
+	if (pending.version === verifiedRelease.version) {
 		problems.push("a pending release cannot be the verified release");
 	}
 

@@ -17,7 +17,7 @@ authoritative for install and upgrade.
 
 | Repository | Visibility | Role | Current state |
 | --- | --- | --- | --- |
-| `Linxira-OS/linxira-zeta` | public | Source + GitHub release for the product (`v<version>` tags) | `v1.5.0` published 2026-11-10; `main` is 1.5.1 with no tag yet |
+| `Linxira-OS/linxira-zeta` | public | Source + GitHub release for the product (`v<version>` tags) | `v1.5.0` published 2026-11-10; `v1.5.1` tag exists at `54b0ffeb658`, release and assets not yet published |
 | `Linxira-OS/packages` | public | Arch PKGBUILDs for Linxira packages; CI builds, signs and publishes pacman repositories | `[linxira-zeta]` rolling release tag `zeta-repo`, rebuilt 2026-11-10 with 1.5.0 |
 | `Linxira-OS/linxira-packages` | public | Signed `[linxira]` pacman repository database + packages on GitHub Pages | `linxira-catalog 3.6.0-1` and the system stack; **no** `linxira-zeta` |
 | `Linxira-OS/linxira-catalog` | public | Compiles/publishes the reviewed software catalog database (`catalog-v2.json`, `catalog-v3.json`) | `VERSION` 3.6.0, tag `v3.6.0`; packaged as `linxira-catalog` |
@@ -194,4 +194,7 @@ Unverified or pending (see the manifest `verification.claims`):
 - Windows installer replacement (distinct installer identity, requires
   uninstall);
 - automatic repo discovery on pre-2026-10-28 installs (blocked, §6);
-- any 1.5.1 package or asset (not published at analysis time).
+- a `v1.5.1` GitHub release, desktop assets or `[linxira-zeta]` package: the
+  tag `v1.5.1` exists at `54b0ffeb658`, but the release does not exist yet and
+  the rolling repository still lists `linxira-zeta` 1.5.0-1. The manifest
+  therefore keeps `verifiedRelease` at 1.5.0 and records 1.5.1 as pending.

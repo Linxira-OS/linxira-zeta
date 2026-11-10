@@ -245,8 +245,10 @@
 		},
 		"pendingRelease": {
 			"version": "1.5.1",
-			"status": "not-published-at-analysis-time",
-			"note": "desktop/package.json is 1.5.1 on main, but no v1.5.1 tag, GitHub release, release asset or [linxira-zeta] package exists yet. Nothing in this manifest asserts 1.5.1 availability."
+			"status": "tag-published-release-pending",
+			"tag": "v1.5.1",
+			"tagCommit": "54b0ffeb6588f95c0e3ceccc645a1d22c30daf48",
+			"note": "The v1.5.1 tag exists, but no GitHub release/asset and no [linxira-zeta] package exists yet (the rolling repository still serves 1.5.0-1). verifiedRelease stays 1.5.0 until the release and package appear."
 		}
 	},
 	"migration": {
@@ -487,10 +489,16 @@
 				"evidence": "BLOCKED for pre-2026-10-28 installs: the inspected Linxira OS image (linxira-zeta 1.4.4-1, installed 2026-10-27) has only the [linxira] section in /etc/pacman.conf and no XferCommand; linxira-zeta is absent from that repository. The [linxira-zeta] section is appended only by the newer installer code."
 			},
 			{
+				"id": "release-1.5.1-tag",
+				"status": "verified",
+				"statement": "The v1.5.1 tag exists on the product repository.",
+				"evidence": "gh api git/ref/tags/v1.5.1 -> commit 54b0ffeb6588f95c0e3ceccc645a1d22c30daf48 (the main 1.5.1 bump commit)."
+			},
+			{
 				"id": "release-1.5.1",
 				"status": "unverified",
-				"statement": "1.5.1 desktop packages or assets exist.",
-				"evidence": "Not published: no v1.5.1 tag, release, asset or repo package at analysis time; desktop/package.json is bumped to 1.5.1 on main."
+				"statement": "A v1.5.1 GitHub release, desktop assets and a [linxira-zeta] 1.5.1 package exist.",
+				"evidence": "Not published at the time of this update: releases/tags/v1.5.1 returns 404 and the zeta-repo release lists only linxira-zeta 1.5.0-1 assets. Only the tag exists."
 			}
 		]
 	}
