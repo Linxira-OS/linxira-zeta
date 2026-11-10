@@ -435,6 +435,11 @@ jobs:
          - name: Studio naming guard
            working-directory: web-app
            run: bun run check:naming
+         # Same read-model regression as GitHub `check`: "no managed install"
+         # on a host that is its own runtime must not read as a missing runtime.
+         - name: Test the Studio diagnostics read model
+           working-directory: web-app
+           run: bun test src/studio/diagnosticsModel.test.ts src/studio/deck/capabilitySupport.test.ts
          - name: Verify Rust license compliance (cargo-deny)
            shell: bash
            run: |

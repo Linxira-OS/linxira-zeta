@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { CapabilityManifest } from "@linxiraos/studio-protocol";
-import { sessionActionSupport, supportedCapabilityIds, supportsCapability } from "./capabilitySupport";
+import { runtimeActionSupport, sessionActionSupport, supportedCapabilityIds, supportsCapability } from "./capabilitySupport";
 
 function manifest(entries: ReadonlyArray<[string, "stable" | "unavailable"]>): CapabilityManifest {
 	return {
@@ -36,5 +36,16 @@ describe("capability support", () => {
 			["operator.invoke", "stable"],
 		]));
 		expect(full).toEqual({ rename: true, fork: true, handoff: true, compact: true, export: true });
+	});
+
+	test("runtime.ensure does not imply a managed install", () => {
+		// A host that is its own runtime probes through ensure but cannot install.
+		expect(runtimeActionSupport(manifest([["runtime.ensure", "stable"]]))).toEqual({ install: false, ensure: true });
+		expect(runtimeActionSupport(manifest([
+			["runtime.ensure", "stable"],
+			["runtime.install", "stable"],
+		]))).toEqual({ install: true, ensure: true });
+		expect(runtimeActionSupport(manifest([["runtime.install", "unavailable"]]))).toEqual({ install: false, ensure: false });
+		expect(runtimeActionSupport(undefined)).toEqual({ install: false, ensure: false });
 	});
 });

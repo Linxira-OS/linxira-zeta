@@ -25,6 +25,8 @@ import {
   formatDiagnosticEntryMessage,
   formatRuntimeConnectionFacts,
   formatRuntimeConnectionLine,
+  isSystemRuntime,
+  isUnmanagedSystemRuntime,
   runtimeCanReconnect,
   runtimeCanRestart,
   type DiagnosticsCheck,
@@ -36,7 +38,7 @@ import { useI18n } from "./i18n";
 import { fileManagerName } from "./platformCopy";
 import { PLATFORM } from "./platform";
 import { ensureRuntimeConnection } from "./runtimeEnsure";
-import { supportsCapability } from "./deck/capabilitySupport";
+import { runtimeActionSupport } from "./deck/capabilitySupport";
 import { isUpdateCheckTimeout, queryWithTimeout } from "./updateCheck";
 import { checkForUpdates, downloadUpdateToReady, fetchUpdatePrefs, useUpdates } from "./settings/updates";
 
@@ -221,6 +223,7 @@ function previewCapabilities(): CapManifest {
 
 function heroIcon(kind: DiagnosticsHero["kind"]): string {
   if (kind === "ok") return "check";
+  if (kind === "notice") return "info";
   if (kind === "update" || kind === "installing" || kind === "connecting") return "update";
   if (kind === "missing") return "package";
   return "alert-c";
@@ -228,7 +231,7 @@ function heroIcon(kind: DiagnosticsHero["kind"]): string {
 
 function heroClass(kind: DiagnosticsHero["kind"]): string {
   if (kind === "ok") return "ok";
-  if (kind === "update" || kind === "installing" || kind === "connecting") return "warn";
+  if (kind === "notice" || kind === "update" || kind === "installing" || kind === "connecting") return "warn";
   return "fail";
 }
 
@@ -331,7 +334,9 @@ export function DiagnosticsPage({
   const viewDiag = preview ? previewDiagnostics(scenario) : diag;
   const viewCaps = preview ? previewCapabilities() : caps;
   /** 重连/重启都走 `runtime.ensure`；Host 未提供时只保留「重新检查」，不发必败命令。 */
-  const runtimeEnsureSupported = preview || supportsCapability(caps, "runtime.ensure");
+  const { install: runtimeInstallable, ensure: runtimeEnsureSupported } = preview
+    ? { install: true, ensure: true }
+    : runtimeActionSupport(caps);
   const runtimeUpdate = preview ? undefined : updates.state.check?.runtime;
   const runtimeUpdateBlocker = preview
     ? scenario === "blocked" ? t("diagnostics.runtimeUpdateBlockerDemo", { version: mock.requiredAppVersion }) : undefined
@@ -352,8 +357,13 @@ export function DiagnosticsPage({
     if (!runtimeEnsureSupported && derived.hero.primary === "reconnect") {
       return { ...derived, hero: { ...derived.hero, primary: "recheck" } };
     }
+    // `runtime.ensure` alone does not install managed artifacts: only offer
+    // Install/Update when the Host actually advertises `runtime.install`.
+    if (!runtimeInstallable && (derived.hero.primary === "install" || derived.hero.primary === "update")) {
+      return { ...derived, hero: { ...derived.hero, primary: "recheck", showReinstall: false } };
+    }
     return derived;
-  }, [viewRuntime, viewEnv, viewDiag, viewCaps, t, blocksLocalUpdate, runtimeUpdateBlocker, runtimeEnsureSupported]);
+  }, [viewRuntime, viewEnv, viewDiag, viewCaps, t, blocksLocalUpdate, runtimeUpdateBlocker, runtimeEnsureSupported, runtimeInstallable]);
 
   const refreshQueries = useCallback(async (): Promise<boolean> => {
     const [d, c, e] = await Promise.allSettled([
@@ -499,6 +509,13 @@ export function DiagnosticsPage({
 
   const installRuntime = useCallback(async (kind: "install" | "update" | "reinstall" | "import") => {
     setConfirmReinstall(false);
+    // No `runtime.install` means no managed artifact to write (and no channel
+    // to fetch one). Failing early with the host-capability copy beats the
+    // "cannot confirm runtime artifact channel" error the command would raise.
+    if (!runtimeInstallable) {
+      show(t("common.unsupportedByRuntime"), "alert-c");
+      return;
+    }
     if (kind === "update" && blocksLocalUpdate) {
       show(runtimeUpdateBlocker!, "alert-c");
       return;
@@ -644,7 +661,7 @@ export function DiagnosticsPage({
     } finally {
       setBusy(null);
     }
-  }, [beginAction, client, preview, show, t, updates.state.check?.runtime.plan, blocksLocalUpdate, runtimeUpdateBlocker]);
+  }, [beginAction, client, preview, show, t, updates.state.check?.runtime.plan, blocksLocalUpdate, runtimeUpdateBlocker, runtimeInstallable]);
 
   const restartRuntime = useCallback(async () => {
     setConfirmRestart(false);
@@ -794,9 +811,17 @@ export function DiagnosticsPage({
   const problems = (viewDiag?.entries ?? []).filter((entry) => entry.level === "error" || entry.level === "warning");
   const capList = viewCaps?.capabilities ?? [];
   const maintenanceAvailable = capList.some(cap => cap.id === "maintenance.gc.status" && cap.grade !== "unavailable");
-  const runtimeManageable = capList.some(cap => (cap.id === "runtime.install" || cap.id === "runtime.ensure") && cap.grade !== "unavailable");
   const installer = viewEnv?.installer;
-  const canReinstall = view.hero.showReinstall;
+  const unmanagedSystemRuntime = isUnmanagedSystemRuntime(viewRuntime, installer);
+  const managedRuntimeValue = unmanagedSystemRuntime
+    ? t("diagnostics.unmanagedSystemRuntime")
+    : installer?.version ?? t("common.notInstalled");
+  const upstreamDetail = viewRuntime?.upstreamCommit
+    ? viewRuntime.upstreamCommit.slice(0, 7)
+    : isSystemRuntime(viewRuntime)
+      ? t("diagnostics.upstreamNoneSystem")
+      : t("diagnostics.noCommit");
+  const canReinstall = view.hero.showReinstall && runtimeInstallable;
   const canRestart = runtimeCanRestart(viewRuntime);
 
   return (
@@ -822,7 +847,7 @@ export function DiagnosticsPage({
               {currentPreviewScenario ? t(currentPreviewScenario.labelKey) : ""}
             </button>
           ) : null}
-          {runtimeManageable ? <button type="button" className="btn outline" disabled={busy !== null} onClick={() => void checkUpdate(true)}>
+          {runtimeInstallable ? <button type="button" className="btn outline" disabled={busy !== null} onClick={() => void checkUpdate(true)}>
             <Icon name="update" extra="sm" />{t("diagnostics.checkUpdate")}
           </button> : null}
         </div>
@@ -834,7 +859,7 @@ export function DiagnosticsPage({
           <b id="diagHeroTitle">{view.hero.title}</b>
           <div className="small">{view.hero.detail}</div>
         </div>
-        {runtimeManageable ? <div className="es-actions">
+        {runtimeInstallable || runtimeEnsureSupported ? <div className="es-actions">
           <button type="button" className="btn primary" disabled={busy !== null || (view.hero.primary === "update" && blocksLocalUpdate)} data-tip={view.hero.primary === "update" && blocksLocalUpdate ? runtimeUpdateBlocker : undefined} onClick={runPrimary}>
             <Icon name={primaryIcon(view.hero.primary)} extra="sm" />
             {primaryLabel(view.hero.primary, busy, t)}
@@ -853,19 +878,21 @@ export function DiagnosticsPage({
       ) : null}
 
       <div className="diag-ver-grid">
-        {runtimeManageable ? <div className="diag-ver">
+        {installer !== undefined || runtimeInstallable ? <div className="diag-ver">
           <div className="dv-k">{t("diagnostics.managedRuntimeTitle")}</div>
-          <div className="dv-v">{installer?.version ?? t("common.notInstalled")}</div>
+          <div className="dv-v">{managedRuntimeValue}</div>
           <div className="dv-s">
-            {blocksLocalUpdate && installer?.status === "update-available" ? runtimeUpdateBlocker : installer?.status === "update-available" && installer.availableVersion
-              ? t("diagnostics.updatableTo", { version: installer.availableVersion })
-              : installer?.status === "not-installed" && installer.availableVersion
-                ? t("diagnostics.localArtifact", { version: installer.availableVersion })
-                : installer?.status === "failed"
-                  ? installer.message ?? t("diagnostics.installFailed")
-                  : installer?.status === "installed"
-                    ? t("diagnostics.isCurrentInstall")
-                    : t("diagnostics.noManagedInstall")}
+            {blocksLocalUpdate && installer?.status === "update-available" ? runtimeUpdateBlocker : unmanagedSystemRuntime
+              ? t("diagnostics.unmanagedSystemRuntimeDetail")
+              : installer?.status === "update-available" && installer.availableVersion
+                ? t("diagnostics.updatableTo", { version: installer.availableVersion })
+                : installer?.status === "not-installed" && installer.availableVersion
+                  ? t("diagnostics.localArtifact", { version: installer.availableVersion })
+                  : installer?.status === "failed"
+                    ? installer.message ?? t("diagnostics.installFailed")
+                    : installer?.status === "installed"
+                      ? t("diagnostics.isCurrentInstall")
+                      : t("diagnostics.noManagedInstall")}
           </div>
         </div> : null}
         <div className="diag-ver">
@@ -876,7 +903,7 @@ export function DiagnosticsPage({
         <div className="diag-ver">
           <div className="dv-k">{t("diagnostics.upstreamOmpTitle")}</div>
           <div className="dv-v">{viewRuntime?.upstreamVersion ?? "—"}</div>
-          <div className="dv-s">{viewRuntime?.upstreamCommit ? viewRuntime.upstreamCommit.slice(0, 7) : t("diagnostics.noCommit")}</div>
+          <div className="dv-s">{upstreamDetail}</div>
         </div>
       </div>
 
@@ -908,7 +935,7 @@ export function DiagnosticsPage({
               <span className="ck-name">{check.label}</span>
               <span className="ck-detail wrap">{check.action === "update" && blocksLocalUpdate ? runtimeUpdateBlocker : check.detail}</span>
               <span className="ck-actions">
-                {check.action && (runtimeManageable || check.action === "problems") ? (
+                {check.action && (runtimeInstallable || check.action === "problems") ? (
                   <button type="button" className="btn small outline" disabled={(busy !== null && check.action !== "problems") || (check.action === "update" && blocksLocalUpdate)} onClick={() => runCheckAction(check.action!)}>
                     {check.action === "install" ? t("common.install") : check.action === "update" ? t("common.update") : t("common.view")}
                   </button>
@@ -919,9 +946,10 @@ export function DiagnosticsPage({
         </div>
       </div>
 
-      {runtimeManageable ? <div className="diag-section">
+      {runtimeInstallable || runtimeEnsureSupported ? <div className="diag-section">
         <h3>{t("diagnostics.maintenanceTitle")}</h3>
         <div className="set-section">
+          {runtimeInstallable ? <>
           <div className="set-row">
             <div className="sr-label">{t("updates.rollbackRuntime")}</div>
             <button type="button" className="btn outline" disabled={busy !== null || (!preview && !globalThis.zetaStudioChrome?.rollbackRuntimeUpdate)} onClick={() => void maintainRuntime("rollback")}>{t("updates.rollbackRuntime")}</button>
@@ -972,6 +1000,7 @@ export function DiagnosticsPage({
               </button>
             </div>
           </div>
+          </> : null}
           <div className="set-row">
             <div>
               <div className="sr-label">{t("diagnostics.copyReportLabel")}</div>

@@ -31,7 +31,7 @@ export type I18nT = (key: string, params?: Record<string, unknown>) => string;
  */
 const zhT: I18nT = (key, params) => translate("zh", key, params as TranslationParams | undefined);
 
-export type DiagnosticsHeroKind = "ok" | "update" | "missing" | "down" | "failed" | "installing" | "connecting";
+export type DiagnosticsHeroKind = "ok" | "notice" | "update" | "missing" | "down" | "failed" | "installing" | "connecting";
 export type DiagnosticsHeroAction = "recheck" | "install" | "update" | "reconnect";
 export type DiagnosticsCheckTone = "ok" | "warn" | "error";
 export type DiagnosticsCheckAction = "install" | "update" | "problems";
@@ -195,6 +195,38 @@ export function formatRuntimeAutoRespawnCopy(status: RuntimeAutoRespawnStatus, t
 
 export function formatRuntimeDisconnectCode(code: RuntimeDisconnectCode, t: I18nT = zhT): string {
   return t(DISCONNECT_CODE_LABEL[code]);
+}
+
+/**
+ * `compatible-system` / `limited-system`: Zeta is itself the running runtime.
+ * Such a host has no managed artifact backing that process, so a missing
+ * managed installation is the expected state, not a launch failure.
+ */
+export function isSystemRuntime(runtime: RuntimeConnection | undefined): boolean {
+  return runtime?.classification === "compatible-system" || runtime?.classification === "limited-system";
+}
+
+/**
+ * A system runtime with no managed installation is the source/dev layout: the
+ * runtime is mounted by this host, so the installer has nothing of its own to
+ * report. `"not-installed"` here describes the *managed* install only and must
+ * not be rendered as a missing runtime — not even while the connection is
+ * reconnecting or after a drop.
+ */
+export function isUnmanagedSystemRuntime(
+  runtime: RuntimeConnection | undefined,
+  installer: RuntimeInstallState | undefined,
+): boolean {
+  return isSystemRuntime(runtime) && installer?.status === "not-installed";
+}
+
+/**
+ * No managed artifact exists, so there is no signature to verify. This is
+ * different from `"unknown"`, which means an artifact exists but its signature
+ * could not be read.
+ */
+export function isSignatureNotApplicable(installer: RuntimeInstallState | undefined): boolean {
+  return installer !== undefined && installer.status === "not-installed" && installer.availableVersion === undefined;
 }
 
 /**
@@ -451,7 +483,7 @@ export function deriveDiagnosticsView(
     problemCount: problems.length,
     checks: [
       runtimeCheck(runtime, t),
-      installCheck(installer, t),
+      installCheck(installer, runtime, t),
       signatureCheck(installer, t),
       platformCheck(input.environment, t),
       capabilityCheck(capCount, t),
@@ -475,7 +507,9 @@ function deriveHero(
     ? t("diagnostics.heroCurrentVersion", { version: input.runtimeVersion })
     : t("diagnostics.versionUnknown");
   const signature = input.installer
-    ? t("diagnostics.heroSignature", { sig: t(SIGNATURE_LABEL[input.installer.signature]) })
+    ? isSignatureNotApplicable(input.installer)
+      ? t("diagnostics.heroSignatureNotApplicable")
+      : t("diagnostics.heroSignature", { sig: t(SIGNATURE_LABEL[input.installer.signature]) })
     : t("diagnostics.heroSignatureUnknown");
   const baseDetail = `${version} · ${signature} · ${checked}`;
 
@@ -497,7 +531,36 @@ function deriveHero(
       showReinstall: true,
     };
   }
-  if (input.installer?.status === "not-installed") {
+  if (input.runtime?.status === "connected" && isUnmanagedSystemRuntime(input.runtime, input.installer)) {
+    return {
+      kind: "ok",
+      title: t("diagnostics.heroSystemRuntimeTitle"),
+      detail: baseDetail,
+      primary: "recheck",
+      showReinstall: false,
+    };
+  }
+  if (input.runtime?.status === "connected" && input.installer?.status === "not-installed") {
+    // The runtime is healthy but this host has no managed install record for
+    // it. Not a failure: offer the local artifact when there is one.
+    const available = input.installer.availableVersion
+      ? t("diagnostics.heroFoundLocalArtifact", { version: input.installer.availableVersion })
+      : t("diagnostics.managedRuntimeRecordMissing");
+    return {
+      kind: "notice",
+      title: t("diagnostics.heroManagedRecordMissingTitle"),
+      detail: `${baseDetail} · ${available}`,
+      primary: input.installer.availableVersion ? "install" : "recheck",
+      showReinstall: false,
+    };
+  }
+  // Only "there is no runtime yet because none is installed" belongs to the
+  // installer hero. A launch/handshake failure or a dropped connection keeps
+  // its own error copy, so the page cannot relabel a crash as "not installed".
+  const runtimeNeedsInstall =
+    input.runtime === undefined
+    || (input.runtime.status === "unavailable" && (input.runtime.unavailableCode === undefined || input.runtime.unavailableCode === "not-installed"));
+  if (input.installer?.status === "not-installed" && runtimeNeedsInstall) {
     const available = input.installer.availableVersion
       ? t("diagnostics.heroFoundLocalArtifact", { version: input.installer.availableVersion })
       : t("diagnostics.heroNoLocalArtifact");
@@ -583,7 +646,7 @@ function runtimeCheck(runtime: RuntimeConnection | undefined, t: I18nT): Diagnos
   return { id: "runtime", label: t("diagnostics.checkRuntimeLabel"), detail: t(RUNTIME_LABEL[runtime.status]), tone: "error" };
 }
 
-function installCheck(installer: RuntimeInstallState | undefined, t: I18nT): DiagnosticsCheck {
+function installCheck(installer: RuntimeInstallState | undefined, runtime: RuntimeConnection | undefined, t: I18nT): DiagnosticsCheck {
   if (installer === undefined) {
     return { id: "install", label: t("diagnostics.checkInstallLabel"), detail: t("diagnostics.checkInstallUnreadable"), tone: "warn" };
   }
@@ -618,6 +681,27 @@ function installCheck(installer: RuntimeInstallState | undefined, t: I18nT): Dia
       action: "install",
     };
   }
+  // `not-installed` speaks about the managed install only. A connected system
+  // runtime provides the runtime itself, so this is the expected state.
+  if (isUnmanagedSystemRuntime(runtime, installer)) {
+    return {
+      id: "install",
+      label: t("diagnostics.checkInstallLabel"),
+      detail: t("diagnostics.managedRuntimeBundled"),
+      tone: "ok",
+    };
+  }
+  if (runtime?.status === "connected") {
+    return {
+      id: "install",
+      label: t("diagnostics.checkInstallLabel"),
+      detail: installer.availableVersion
+        ? t("diagnostics.notInstalledWithArtifact", { version: installer.availableVersion })
+        : t("diagnostics.managedRuntimeRecordMissing"),
+      tone: "warn",
+      action: "install",
+    };
+  }
   return {
     id: "install",
     label: t("diagnostics.checkInstallLabel"),
@@ -632,6 +716,9 @@ function installCheck(installer: RuntimeInstallState | undefined, t: I18nT): Dia
 function signatureCheck(installer: RuntimeInstallState | undefined, t: I18nT): DiagnosticsCheck {
   if (installer === undefined) {
     return { id: "signature", label: t("diagnostics.checkSignatureLabel"), detail: t("diagnostics.checkSignatureUnreadable"), tone: "warn" };
+  }
+  if (isSignatureNotApplicable(installer)) {
+    return { id: "signature", label: t("diagnostics.checkSignatureLabel"), detail: t("diagnostics.signatureNotApplicable"), tone: "ok" };
   }
   if (installer.signature === "verified") {
     return { id: "signature", label: t("diagnostics.checkSignatureLabel"), detail: t(SIGNATURE_LABEL.verified), tone: "ok" };
