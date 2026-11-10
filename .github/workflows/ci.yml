@@ -342,6 +342,8 @@ jobs:
            run: bun scripts/check-ci-surface.ts
          - name: Release asset-name guard
            run: bun scripts/check-release-asset-names.ts
+         - name: Package linkage guard
+           run: bun scripts/check-package-linkage.ts
          - name: Service port guard
            run: bun scripts/check-service-ports.ts
          - name: Scope import guard
@@ -479,6 +481,11 @@ jobs:
          # unit tests rather than a native-artifact bucket.
          - name: Unit-test the release chain
            run: bun test scripts/release-chain.test.ts
+         # The external package-repository contract: identity/asset/migration
+         # consistency, the release asset upload, and the "no automatic
+         # in-place upgrade across different installer identities" rule.
+         - name: Unit-test the package linkage contract
+           run: bun test scripts/check-package-linkage.test.ts
          # Orphan suite: `plugins/official/pi-messenger/tests` is a **vitest**
          # suite outside the bun workspace — the root `plugins/*` glob stops at
          # `plugins/official`, so `bun install` never installed its deps and no
@@ -1851,6 +1858,7 @@ jobs:
                 packages/coding-agent/binaries/linxira-zeta-*-workstudio-browser-* \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
                 plugins/dist/zeta-plugin-example-*.zip \
+                packaging/package-linkage.json \
                 LICENSE \
                 THIRD-PARTY-NOTICES.txt
          - name: Create GitHub Release
@@ -1865,11 +1873,80 @@ jobs:
                  packages/coding-agent/binaries/linxira-zeta-*-workstudio-browser-*
                  packages/browser-relay/dist/zeta-browser-relay-extension.zip
                  plugins/dist/zeta-plugin-example-*.zip
+                 packaging/package-linkage.json
                  LICENSE
                  THIRD-PARTY-NOTICES.txt
                  SHA256SUMS.txt
               body_path: release-notes.md
               generate_release_notes: true
+
+   # Proves the Linux upgrade path with the real published packages. Both
+   # pacman transactions run in disposable roots
+   # (scripts/packaging/verify-linux-upgrade.sh): zwork-era linxira-zeta ->
+   # current linxira-zeta in place, and the retired linxira-zetawork replaced
+   # through the published Replaces/Conflicts. ~/.zeta is seeded and compared
+   # byte-for-byte, and the bundled kernel must report the upgraded version.
+   #
+   # The [linxira-zeta] rebuild is asynchronous in Linxira-OS/packages, so this
+   # job runs after the release is published and is advisory: a lagging package
+   # repository must not fail a release, but a broken upgrade must be visible.
+   verify_linux_upgrade:
+      name: Verify Linux upgrade (zwork -> Zeta)
+      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_github.result == 'success' }}
+      needs: [release_metadata, release_github]
+      runs-on: ubuntu-22.04
+      continue-on-error: true
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - name: Install libarchive tools
+           run: sudo apt-get update && sudo apt-get install -y libarchive-tools
+         - name: Download the zwork-era package and the current repository package
+           env:
+              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+           run: |
+              set -euo pipefail
+              mkdir -p temp/upgrade
+              gh release download v1.4.10 --repo Linxira-OS/linxira-zeta \
+                --pattern 'linxira-zeta-1.4.10-1-x86_64.pkg.tar.zst' --dir temp/upgrade --clobber
+              gh release download zeta-repo --repo Linxira-OS/packages \
+                --pattern 'linxira-zeta.db.tar.zst' --dir temp/upgrade --clobber
+              gh release download zeta-repo --repo Linxira-OS/packages \
+                --pattern 'linxira-zeta-[0-9]*.pkg.tar.zst' --dir temp/upgrade --clobber
+              old=$(ls temp/upgrade/linxira-zeta-1.4.10-*.pkg.tar.zst)
+              new=$(ls temp/upgrade/linxira-zeta-[0-9]*.pkg.tar.zst | grep -v '/linxira-zeta-1\.4\.10-' | sort -V | tail -n1)
+              old_ver=$(bsdtar -xOf "$old" .PKGINFO | sed -n 's/^pkgver = //p')
+              new_ver=$(bsdtar -xOf "$new" .PKGINFO | sed -n 's/^pkgver = //p')
+              # The manifest version must describe what the signed index says it does.
+              db_sha=$(bsdtar -xOf temp/upgrade/linxira-zeta.db.tar.zst | awk '
+                /^%NAME%$/ { getline; name = $0; next }
+                /^%SHA256SUM%$/ { getline; if (name == "linxira-zeta") { print; exit } }')
+              actual_sha=$(sha256sum "$new" | awk '{print $1}')
+              if [ "$db_sha" != "$actual_sha" ]; then
+                echo "::error::package sha256 $actual_sha does not match the signed index $db_sha"
+                exit 1
+              fi
+              release_ver="${{ needs.release_metadata.outputs.release-tag }}"
+              release_ver=${release_ver#v}
+              echo "old=$old_ver new=$new_ver release=$release_ver"
+              if [ "${new_ver%-*}" != "$release_ver" ]; then
+                echo "::warning::[linxira-zeta] serves $new_ver while the release tag is $release_ver; the packages workflow has not rebuilt yet"
+              fi
+              {
+                echo "OLD_PKG=$old"
+                echo "NEW_PKG=$new"
+                echo "OLD_VER=$old_ver"
+                echo "NEW_VER=$new_ver"
+              } >> "$GITHUB_ENV"
+         - name: Upgrade in disposable pacman roots
+           run: |
+              docker run --rm -v "$PWD:/workspace" -w /workspace \
+                -e OLD_PKG -e NEW_PKG -e OLD_VER -e NEW_VER \
+                archlinux:base bash -euxo pipefail -c '
+                  bash scripts/packaging/verify-linux-upgrade.sh \
+                    --old "$OLD_PKG" --new "$NEW_PKG" \
+                    --expect-old "$OLD_VER" --expect-new "$NEW_VER"
+                '
 
    release_npm:
       name: Publish to npm
