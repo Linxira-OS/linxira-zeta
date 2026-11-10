@@ -115,6 +115,11 @@
   --dur-exit: 120ms;
   --dur-tactile: 80ms;  /* Quick feedback for button presses */
 
+  /* Window chrome strip (three 44px caption buttons in the desktop shell).
+     The titlebar reserves this width so app controls never sit under the
+     fixed caption buttons. */
+  --window-controls-width: 132px;
+
   /* Z-index — the scale is the contract; raw values in component files are not.
      Every layer below is referenced by name from the component CSS. */
   --z-base: 1;
@@ -130,6 +135,11 @@
      会被浮窗盖住而点不到。 */
   --z-float: 70;
   --z-modal: 80;
+  /* The desktop caption buttons are portaled onto <body> and fixed: window
+     chrome must outrank `.modal-backdrop` (--z-modal), because `.app` is its
+     own `isolation: isolate` stacking context and cannot lift a child above a
+     body-level overlay. Below hover tips and toasts. */
+  --z-window-controls: 85;
   /* Hover tips sit above modal content, below toast. */
   --z-tip: 90;
   --z-toast: 100;

@@ -27,6 +27,7 @@ import {
 import { classifyDroppedPath, findWorkspace, firstEditorTarget, isPathWithin, resolveWorkspaceFile, type WorkspaceLocation } from "./workspace-actions";
 import { fieldOf } from "./json";
 import { mapUpdateCheck } from "./update-check";
+import { WINDOW_CONTROL_CHANNELS, runWindowControl, windowState } from "./window-controls";
 import { resolveToolIn, type ToolResolutionDeps } from "./tool-resolution";
 import {
 	DEFAULT_WORKSPACE_STATE,
@@ -376,27 +377,22 @@ ipcMain.handle(
 
 function pushWindowState(win: BrowserWindow): void {
 	if (win.isDestroyed()) return;
-	win.webContents.send("pi:window-state", { maximized: win.isMaximized() });
+	win.webContents.send(WINDOW_CONTROL_CHANNELS.state, windowState(win));
 }
 
-ipcMain.handle("pi:window-minimize", (): void => {
-	mainWindow?.minimize();
+ipcMain.handle(WINDOW_CONTROL_CHANNELS.minimize, (): void => {
+	runWindowControl(mainWindow, "minimize");
 });
 
-ipcMain.handle("pi:window-maximize", (): void => {
-	const win = mainWindow;
-	if (!win || win.isDestroyed()) return;
-	if (win.isMaximized()) win.unmaximize();
-	else win.maximize();
+ipcMain.handle(WINDOW_CONTROL_CHANNELS.maximize, (): void => {
+	runWindowControl(mainWindow, "maximize");
 });
 
-ipcMain.handle("pi:window-close", (): void => {
-	mainWindow?.close();
+ipcMain.handle(WINDOW_CONTROL_CHANNELS.close, (): void => {
+	runWindowControl(mainWindow, "close");
 });
 
-ipcMain.handle("pi:window-state", (): { maximized: boolean } => {
-	return { maximized: mainWindow && !mainWindow.isDestroyed() ? mainWindow.isMaximized() : false };
-});
+ipcMain.handle(WINDOW_CONTROL_CHANNELS.state, (): { maximized: boolean } => windowState(mainWindow));
 
 // ---------------------------------------------------------------------------
 // Desktop capability bridge (`window.zetaStudioChrome`, same object as

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useI18n } from "./i18n";
 
 /**
@@ -82,19 +83,31 @@ function CaptionGlyph({ children }: { children: ReactNode }) {
 
 /**
  * Minimize / maximize-restore / close, rendered at the trailing edge of the
- * existing titlebar. Renders nothing outside the desktop shell.
+ * titlebar. Renders nothing outside the desktop shell.
+ *
+ * The buttons are portaled to `<body>` and pinned: `.app` is an
+ * `isolation: isolate` stacking context for the background layer, so anything
+ * inside it — including the titlebar — paints BELOW a modal backdrop
+ * (`--z-modal`). A dialog then swallows every click on the caption buttons and
+ * they look dead. Window chrome must not live inside page stacking contexts:
+ * fixed on `<body>` it stays above every overlay (and keeps the drag region's
+ * layout untouched, since a placeholder is not needed: the titlebar reserves
+ * the strip in CSS).
  */
 export function WindowControls() {
-	const { t } = useI18n();
 	const bridge = desktopWindowBridge();
+	if (bridge === undefined) return null;
+	if (typeof document === "undefined") return null;
+	return createPortal(<CaptionButtons bridge={bridge} />, document.body);
+}
+
+/** The three caption buttons; exported for markup tests and the portal. */
+export function CaptionButtons({ bridge }: { bridge: DesktopWindowControlBridge }) {
+	const { t } = useI18n();
 	const [maximized, setMaximized] = useState(false);
 
-	useEffect(() => {
-		if (bridge === undefined) return;
-		return subscribeWindowMaximized(bridge, setMaximized);
-	}, [bridge]);
+	useEffect(() => subscribeWindowMaximized(bridge, setMaximized), [bridge]);
 
-	if (bridge === undefined) return null;
 	const run = (action: () => Promise<void>) => {
 		void action().catch(() => {
 			// The window may already be gone; the OS is the source of truth.
