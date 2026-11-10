@@ -189,7 +189,7 @@ export async function runRenderCommand(args: RenderCommandArgs): Promise<number>
 		// Replay: transcript context build + component construction (the phase
 		// renderInitialMessages runs after /tree navigation and on resume).
 		const replayStart = performance.now();
-		await mode.renderInitialMessages({ clearTerminalHistory: true });
+		await mode.renderInitialMessages({ clearTerminalHistory: true, limitTranscript: false });
 		const replayMs = performance.now() - replayStart;
 
 		// First full paint: compose every transcript row and emit it, exactly

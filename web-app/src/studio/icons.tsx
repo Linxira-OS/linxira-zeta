@@ -48,6 +48,7 @@ const PATHS: Record<string, string> = {
   trash: '<path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4M6.5 7v4M9.5 7v4"/>',
   pencil: '<path d="M10.5 2.5 13.5 5.5 5.5 13.5l-3.5.5.5-3.5z"/>',
   copy: '<rect x="5.5" y="5.5" width="8" height="8" rx="1.2"/><path d="M10.5 3.5v-1h-8v8h1"/>',
+  clipboard: '<rect x="4" y="3" width="8" height="11" rx="1.5"/><path d="M6 1.5h4v3H6z"/>',
   external: '<path d="M6.5 3.5H3v9.5h9.5V9.5M9 2.5h4.5V7M13.2 2.8 7.5 8.5"/>',
   more: '<circle cx="3.5" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="8" r="1.1" fill="currentColor" stroke="none"/>',
   filter: '<path d="M2 3.5h12l-4.5 5v4l-3 1.5v-5.5z"/>',

@@ -45,6 +45,7 @@
 | `fix/browser-relay-hello-race` | fix | browser relay hello 竞态修复（`c1f6c6c6a79`；`git branch --merged main` 已含此分支） | unassigned | — | 已并入 `main`，删前记 SHA |
 | `port/studio-conversation` | port | Studio 会话面语义移植（`d2ab1add16f`，未并入 `main`；内容随 `feat/web-ui-studio-migration` 走） | agent | 2026-11-05 | 迁移分支合入 `main` 后删；删前记 SHA |
 | `port/studio-sidebar` | port | Studio 侧栏移植 + `port/studio-pages` 合并（`d5ef794bfd7`，未并入 `main`） | agent | 2026-11-05 | 迁移分支合入 `main` 后删；删前记 SHA |
+| `feat/device-account-ux` | feat | 远端访问的设备凭据层：`src/server/auth/{device-registry,device-auth}.ts`、配对签发 `zdt_` 设备令牌、`/api/remote/devices` 列表/撤销/全撤销、门禁接受设备令牌、撤销时断开该设备的 Studio 会话、修复 token 认证远端被 loopback Origin 误判 403；含 `test/server-auth/` 与 docs。2FA/TOTP 只定契约不实现。worktree `temp/device-account-ux` | agent | 2026-11-10 | 合入 `main` 后删（删前记 SHA） |
 | `temp/release-dispatch` | temp | 临时 release dispatch 工作流实验（`89963b49b81`，未并入 `main`） | unassigned | — | 实验结束即删；删前记 SHA |
 | `feat/StaticCompression` | feat | 静态资源构建期预压缩（`.br`/`.gz` 边车）+ `Accept-Encoding` 协商；worktree `temp/StaticCompression` | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
 | `feat/PluginRegistry` | feat | Studio 插件列表改为真实 Zeta 插件注册表 + 启停写对文件 + `ui.panels` 清单；worktree `temp/PluginRegistry` | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |

@@ -18,6 +18,7 @@
 
 import { WebConfig } from "../../config/web-config";
 import { isRemoteTokenAccepted, MASKED_TOKEN } from "../../utils/remote-token";
+import { deviceRegistry } from "../auth/device-registry";
 import { hostIsLoopback } from "./origin";
 
 export interface AuthLimiterOptions {
@@ -195,8 +196,10 @@ export async function checkBrowserAccess(
 }
 
 /**
- * Full gate for one non-loopback request: rate limit, then token verification
- * (active token and not revoked). Returns `null` when the request may proceed.
+ * Full gate for one non-loopback request: rate limit, then credential
+ * verification. A request passes with either the machine-wide `remote.token`
+ * (the pairing QR's bootstrap secret) or an active per-device token, so one
+ * phone can be revoked without invalidating every other client.
  *
  * A successful check clears the peer's failure history; a failure is recorded
  * before the 401 (and a request that trips the limit is itself answered 429).
@@ -212,6 +215,12 @@ export async function checkRemoteAccess(
 	const config = await WebConfig.load();
 	const provided = req.headers.get("authorization") ?? req.headers.get("x-zeta-token");
 	if (isRemoteTokenAccepted(config.getData().remote, provided)) {
+		limiter.clear(peerKey);
+		return null;
+	}
+	// Per-device credential: resolving it also refreshes `lastSeenAt` (throttled),
+	// so the device list can show when a phone was last heard from.
+	if ((await deviceRegistry().resolve(provided ?? "")) !== undefined) {
 		limiter.clear(peerKey);
 		return null;
 	}

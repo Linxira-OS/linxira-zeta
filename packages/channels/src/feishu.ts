@@ -13,9 +13,9 @@
 
 import * as Lark from "@larksuiteoapi/node-sdk";
 import { logger } from "@linxiraos/pi-utils";
-import type { ChatChannel, ChatImage } from "./channel";
+import type { ChannelCapabilities, ChatChannel, ChatImage, InboundMessage } from "./channel";
 
-export type FeishuInboundHandler = (peer: string, body: string, messageId?: string) => void;
+export type FeishuInboundHandler = (message: InboundMessage) => void;
 
 export interface FeishuChannelOptions {
 	appId: string;
@@ -28,9 +28,11 @@ interface FeishuTextEventData {
 	message?: {
 		message_id?: string;
 		chat_id?: string;
+		chat_type?: string;
 		message_type?: string;
 		content?: string;
 	};
+	sender?: { sender_id?: { open_id?: string; user_id?: string } };
 }
 
 /** `bot_p2p_chat_entered` v2 event payload (first contact in a private chat). */
@@ -44,6 +46,12 @@ const P2P_ONBOARDING_TEXT =
 
 export class FeishuChannel implements ChatChannel {
 	readonly id = "feishu" as const;
+	readonly capabilities: ChannelCapabilities = {
+		maxTextLength: Number.POSITIVE_INFINITY,
+		supportsImages: true,
+		supportsFiles: false,
+		supportsTyping: false,
+	};
 	readonly #options: FeishuChannelOptions;
 	readonly #onMessage: FeishuInboundHandler;
 	#client: Lark.Client | null = null;
@@ -136,7 +144,15 @@ export class FeishuChannel implements ChatChannel {
 			.trim();
 		if (text === "") return;
 		logger.debug("Feishu message received", { chatId, length: text.length });
-		this.#onMessage(chatId, text, message.message_id);
+		const sender = data.sender?.sender_id;
+		this.#onMessage({
+			peer: chatId,
+			chatType: message.chat_type === "group" ? "group" : "dm",
+			...(sender?.open_id || sender?.user_id ? { senderId: sender.open_id ?? sender.user_id } : {}),
+			body: text,
+			...(message.message_id ? { messageId: message.message_id } : {}),
+			ts: Date.now(),
+		});
 	}
 
 	#onP2pEntered(data: FeishuP2pEnteredData): void {

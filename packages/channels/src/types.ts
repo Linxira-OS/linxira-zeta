@@ -77,6 +77,32 @@ export interface ChannelsWebConfig {
 				domain?: "feishu" | "lark";
 			};
 			telegram: { enabled: boolean; botToken?: string };
+			discord: {
+				enabled: boolean;
+				botToken?: string;
+				workspaceRoot?: string;
+				/** Channel ids (or `guild:<id>`) allowed to reach the agent. */
+				allowedChannels?: string[];
+				/** Optional sender-id restriction applied inside those channels. */
+				allowedUsers?: string[];
+			};
+			qq: {
+				enabled: boolean;
+				workspaceRoot?: string;
+				/** Forward mode: the bridge's ws:// endpoint. */
+				endpoint?: string;
+				/** OneBot access token (required for reverse mode). */
+				token?: string;
+				mode?: "forward" | "reverse";
+				/** Reverse mode listen port (loopback). */
+				port?: number;
+				/** Bot QQ number, when known. */
+				selfId?: string;
+				/** Group numbers allowed to reach the agent. */
+				allowedGroups?: string[];
+				/** QQ numbers allowed in private chat. */
+				allowedUsers?: string[];
+			};
 			allowedPeers?: string[];
 		};
 	};

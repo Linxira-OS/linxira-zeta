@@ -14,7 +14,7 @@ import { WeChatChannel } from "@linxiraos/pi-channels";
 import type { WebConfig, WebConfigData } from "../config/web-config";
 import { channelLockPath, type ChannelLockSnapshot, readChannelLock } from "./instance-lock";
 
-export const CHANNEL_IDS: readonly ChannelId[] = ["wechat", "feishu", "telegram"];
+export const CHANNEL_IDS: readonly ChannelId[] = ["wechat", "feishu", "telegram", "discord", "qq"];
 
 export function isChannelId(value: string): value is ChannelId {
 	return CHANNEL_IDS.includes(value as ChannelId);
@@ -67,7 +67,7 @@ export interface ChannelStatusEntry {
 	boundPeers: number;
 	workspaceRoute: ChannelWorkspaceRoute;
 	/** How this channel authenticates. */
-	login: "qr" | "credentials";
+	login: "qr" | "credentials" | "endpoint";
 }
 
 export interface ChannelRuntimeStatus {
@@ -99,6 +99,13 @@ function channelConfigured(data: WebConfigData, id: ChannelId): boolean {
 			return Boolean(data.channels.feishu.appId && data.channels.feishu.appSecret);
 		case "telegram":
 			return Boolean(data.channels.telegram.botToken);
+		case "discord":
+			return Boolean(data.channels.discord.botToken);
+		case "qq":
+			// Reverse mode needs a port + token; forward mode needs an endpoint.
+			return data.channels.qq.mode === "reverse"
+				? Boolean(data.channels.qq.token)
+				: Boolean(data.channels.qq.endpoint);
 	}
 }
 
@@ -159,7 +166,7 @@ export async function collectChannelStatus(
 			running: runtime.hosting && runtime.channels.includes(id),
 			boundPeers: boundPeerCount(data, id),
 			workspaceRoute: workspaceRouteFor(webConfig, channel.workspaceRoot),
-			login: id === "wechat" ? "qr" : "credentials",
+			login: id === "wechat" ? "qr" : id === "qq" ? "endpoint" : "credentials",
 		};
 	});
 	return { configPath: webConfig.path, runtime, channels };
@@ -234,6 +241,16 @@ export async function logoutChannel(
 	if (channel === "telegram") {
 		await webConfig.set("channels.telegram.botToken", "");
 		return { channel, cleared: ["channels.telegram.botToken"] };
+	}
+	if (channel === "discord") {
+		await webConfig.set("channels.discord.botToken", "");
+		return { channel, cleared: ["channels.discord.botToken"] };
+	}
+	if (channel === "qq") {
+		await webConfig.set("channels.qq.endpoint", "");
+		await webConfig.set("channels.qq.token", "");
+		await webConfig.set("channels.qq.selfId", "");
+		return { channel, cleared: ["channels.qq.endpoint", "channels.qq.token", "channels.qq.selfId"] };
 	}
 	await webConfig.set("channels.feishu.appId", "");
 	await webConfig.set("channels.feishu.appSecret", "");

@@ -63,6 +63,12 @@ import {
 } from "../../utils/bin-discovery";
 import { hostIsLoopback, isAllowedOrigin } from "../web-gateway";
 import { ZETA_IDE_BINS, resolveTerminal, type ResolvedTerminal } from "./open";
+import {
+	findShellProfile,
+	normalizeProfileCwd,
+	terminalShellCatalog,
+	type TerminalShellProfile,
+} from "./terminal-profiles";
 
 // --- tunables (spec §15) ---
 
@@ -109,6 +115,8 @@ export interface SessionProgram {
 	args: string[];
 	/** Non-null on the fallback branch, so the UI can state it. */
 	fallbackReason: SessionFallbackReason | null;
+	/** Shell profile that produced this program, when the caller picked one. */
+	profileId?: string | null;
 }
 
 // --- PTY backend seam ---
@@ -246,6 +254,8 @@ export interface TerminalInfo {
 	instance: string;
 	/** Which program the PTY runs (a shell, the workbench, or a companion). */
 	program: TerminalProgram;
+	/** Selected shell profile id, or null for the platform default. */
+	profile: string | null;
 	/** Why the shell fallback happened; null when the requested program ran. */
 	fallbackReason: SessionFallbackReason | null;
 	exited: boolean;
@@ -358,6 +368,8 @@ class TerminalManager {
 		instanceId?: string;
 		/** `shell` (default), the opt-in `workbench`, or a shipped companion. */
 		program?: TerminalProgram;
+		/** Shell profile id from `GET /api/terminal/profiles`; a closed set. */
+		profileId?: string;
 		/**
 		 * `TERM_PROGRAM_VERSION` the pane's child sees. The desktop shell sends
 		 * its own version; anything else falls back to this gateway's version
@@ -366,7 +378,29 @@ class TerminalManager {
 		termProgramVersion?: string;
 	}): Promise<{ ok: true; session: TerminalSession; ticket: string; injected: boolean } | TerminalFailure> {
 		this.#pruneTickets();
-		const resolved = this.#resolveCwd(options.cwd);
+		const requestedProfile = options.profileId ? findShellProfile(options.profileId) : null;
+		if (options.profileId && !requestedProfile) {
+			return {
+				ok: false,
+				status: 400,
+				code: "profile_not_found",
+				error: `unknown shell profile: ${options.profileId}`,
+			};
+		}
+		if (requestedProfile && options.program !== undefined && options.program !== "shell") {
+			return {
+				ok: false,
+				status: 400,
+				code: "profile_program_conflict",
+				error: "a shell profile cannot be combined with another terminal program",
+			};
+		}
+		// A plain shell (no explicit program) uses the catalog's default, so the
+		// pane, the picker and the reported profile id always agree. Workbench /
+		// companion sessions keep their own resolution.
+		const wantsPlainShell = options.program === undefined || options.program === "shell";
+		const profile = requestedProfile ?? (wantsPlainShell ? (terminalShellCatalog().profiles[0] ?? null) : null);
+		const resolved = this.#resolveCwd(options.cwd ?? normalizeProfileCwd(profile?.cwd));
 		if (!resolved.ok) return resolved;
 		const cwd = resolved.cwd;
 		const instance = options.instanceId ?? DEFAULT_TERMINAL_INSTANCE;
@@ -389,7 +423,9 @@ class TerminalManager {
 			};
 		}
 
-		const program = resolveSessionProgram(defaultProbeContext(), { program: options.program });
+		const program = profile
+			? profileSessionProgram(profile)
+			: resolveSessionProgram(defaultProbeContext(), { program: options.program });
 		if (!program)
 			return { ok: false, status: 500, code: "no_program", error: "no terminal shell found on this system" };
 
@@ -423,7 +459,7 @@ class TerminalManager {
 			// `panel-terminal`'s `set_env`, so the terminal identity is stated
 			// here. Without `TERM_PROGRAM=zetawork` a hosted `zetacode` picks no
 			// image protocol (see `packages/tui/src/terminal-capabilities.ts`).
-			env: paneEnv(paneChildEnv(process.env, options.termProgramVersion), defaultProbeContext()),
+			env: sessionSpawnEnv(options.termProgramVersion, profile),
 			cols: 80,
 			rows: 24,
 			onData: chunk => this.#broadcast(session, chunk),
@@ -466,6 +502,8 @@ class TerminalManager {
 		replace?: boolean;
 		/** `shell` (default), the opt-in `workbench`, or a shipped companion. */
 		program?: TerminalProgram;
+		/** Shell profile id; a different id reattaches by spawning that shell. */
+		profileId?: string;
 		/** Forwarded to the spawned PTY as `TERM_PROGRAM_VERSION` (see {@link create}). */
 		termProgramVersion?: string;
 	}): Promise<
@@ -480,12 +518,26 @@ class TerminalManager {
 				error: `invalid terminal instance id: ${instance}`,
 			};
 		}
-		const resolved = this.#resolveCwd(options.cwd);
+		const requestedProfile = options.profileId ? findShellProfile(options.profileId) : null;
+		if (options.profileId && !requestedProfile) {
+			return {
+				ok: false,
+				status: 400,
+				code: "profile_not_found",
+				error: `unknown shell profile: ${options.profileId}`,
+			};
+		}
+		const resolved = this.#resolveCwd(options.cwd ?? normalizeProfileCwd(requestedProfile?.cwd));
 		if (!resolved.ok) return resolved;
 
 		const existing = this.findBySlot(sessionSlotKey(resolved.cwd, instance));
 		if (existing) {
-			if (!options.replace) {
+			// A caller that names a profile gets that shell: silently reusing the
+			// slot's old one would make the picker lie. An unspecified profile id
+			// keeps the legacy reattach contract (whatever the slot runs).
+			const profileChanged =
+				options.profileId !== undefined && (existing.program.profileId ?? null) !== options.profileId;
+			if (!options.replace && !profileChanged) {
 				this.#pruneTickets();
 				return {
 					ok: true,
@@ -655,6 +707,7 @@ class TerminalManager {
 			cwd: session.cwd,
 			instance: session.instance,
 			program: session.program.kind,
+			profile: session.program.profileId ?? null,
 			fallbackReason: session.program.fallbackReason,
 			exited: session.exited,
 			exitCode: session.exitCode,
@@ -768,6 +821,87 @@ export function shellSpawnArgs(shell: ResolvedTerminal): string[] {
 		default:
 			return [...shell.args];
 	}
+}
+
+/**
+ * Program for a discovered shell profile. The profile came from the server's
+ * catalog, so its command is trusted exactly like the platform default.
+ */
+export function profileSessionProgram(profile: TerminalShellProfile): SessionProgram {
+	return {
+		kind: "shell",
+		label: profile.label,
+		command: profile.command,
+		args: [...profile.args],
+		fallbackReason: null,
+		profileId: profile.id,
+	};
+}
+
+/** Profiles that run a native Windows image, not an MSYS/WSL shell. */
+const NATIVE_WINDOWS_SHELLS: ReadonlySet<string> = new Set(["pwsh", "powershell", "cmd", "custom"]);
+
+/**
+ * `zetacode serve` is often launched from Git Bash, where `PATH` is POSIX
+ * (`/c/Users/...:/usr/bin:.`). A native Windows shell cannot use it: PowerShell
+ * reports `A drive named '.' does not exist` for every command because `.` is
+ * an entry, and `/c/...` entries do not resolve. Translate what has a Windows
+ * equivalent, drop MSYS-only dirs and relative entries, and keep the Windows
+ * system dirs first. Non-Windows platforms and already-Windows PATHs are
+ * returned untouched.
+ */
+export function windowsPanePath(raw: string, env: Record<string, string>): string {
+	if (raw.length === 0) return raw;
+	// `paneEnv` prepends companion directories with `;` even when the inherited
+	// PATH is POSIX, so split on `;` first and on `:` only inside non-drive
+	// segments. A drive letter (`C:\…`) is never mistaken for a separator.
+	const segments = raw.split(";").flatMap(part => {
+		if (/^[a-zA-Z]:[\\/]/.test(part) || part.startsWith("\\\\")) return [part];
+		return part.split(":");
+	});
+	const isPosix = (entry: string): boolean => entry === "." || entry.startsWith("/");
+	if (!segments.some(isPosix)) return raw;
+	const translated: string[] = [];
+	const seen = new Set<string>();
+	const add = (entry: string | undefined): void => {
+		if (!entry) return;
+		const value = entry.trim().replace(/^"|"$/g, "");
+		if (!value || value === ".") return;
+		const key = value.toLowerCase();
+		if (seen.has(key)) return;
+		seen.add(key);
+		translated.push(value);
+	};
+	const systemRoot = env.SystemRoot ?? env.windir ?? "C:\\Windows";
+	add(`${systemRoot}\\System32`);
+	add(systemRoot);
+	add(`${systemRoot}\\System32\\WindowsPowerShell\\v1.0`);
+	for (const entry of segments) {
+		const drive = /^\/([a-zA-Z])\/(.*)$/.exec(entry);
+		if (drive) {
+			add(`${drive[1]!.toUpperCase()}:\\${drive[2]!.replace(/\//g, "\\")}`);
+		} else if (/^[a-zA-Z]:[\\/]/.test(entry) || entry.startsWith("\\\\")) {
+			add(entry);
+		}
+		// `/usr/bin`, `/mingw64/bin`, … are MSYS-only; dropping them is honest.
+	}
+	return translated.join(";");
+}
+
+/**
+ * The env a pane's child inherits: terminal identity and the companion PATH
+ * first, then the profile's explicit overrides (which may replace `PATH`).
+ */
+function sessionSpawnEnv(version: unknown, profile: TerminalShellProfile | null): Record<string, string> {
+	let base = process.env as Record<string, string>;
+	if (process.platform === "win32" && profile && NATIVE_WINDOWS_SHELLS.has(profile.kind)) {
+		const pathKey = Object.keys(base).find(key => key.toUpperCase() === "PATH") ?? "PATH";
+		base = { ...base, [pathKey]: windowsPanePath(base[pathKey] ?? "", base) };
+	}
+	const env = paneEnv(paneChildEnv(base, version), defaultProbeContext()) as Record<string, string>;
+	// Profile overrides are explicit configuration and land last.
+	if (profile?.env) Object.assign(env, profile.env);
+	return env;
 }
 
 /**
@@ -1041,6 +1175,7 @@ function sessionPayload(
 		cwd: session.cwd,
 		instance: session.instance,
 		program: session.program.kind,
+		profile: session.program.profileId ?? null,
 		fallbackReason: session.program.fallbackReason,
 		ticket,
 		...extra,
@@ -1058,6 +1193,7 @@ export async function handleTerminalCreate(req: Request): Promise<Response> {
 		file: typeof body.file === "string" ? body.file : undefined,
 		line: intOrUndefined(body.line),
 		col: intOrUndefined(body.col),
+		profileId: typeof body.profileId === "string" ? body.profileId : undefined,
 		termProgramVersion: typeof body.termProgramVersion === "string" ? body.termProgramVersion : undefined,
 	});
 	if (!result.ok) return failurePayload(result);
@@ -1085,6 +1221,7 @@ export async function handleTerminalEnsure(req: Request): Promise<Response> {
 		col: intOrUndefined(body.col),
 		replace: body.replace === true,
 		program: isTerminalProgram(body.program) ? body.program : undefined,
+		profileId: typeof body.profileId === "string" ? body.profileId : undefined,
 		termProgramVersion: typeof body.termProgramVersion === "string" ? body.termProgramVersion : undefined,
 	});
 	if (!result.ok) {
@@ -1095,6 +1232,20 @@ export async function handleTerminalEnsure(req: Request): Promise<Response> {
 
 export function handleTerminalList(): Response {
 	return json({ terminals: manager.list() });
+}
+
+/**
+ * Local shell catalog for the picker. Detection failures are warnings (the
+ * profile simply is not listed); nothing here spawns a PTY.
+ */
+export function handleTerminalProfiles(): Response {
+	const catalog = terminalShellCatalog();
+	return json({
+		profiles: catalog.profiles,
+		defaultProfileId: catalog.defaultProfileId,
+		platform: catalog.platform,
+		warnings: catalog.warnings,
+	});
 }
 
 export function handleTerminalDelete(id: string): Response {

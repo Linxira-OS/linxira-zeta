@@ -5021,63 +5021,75 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 .term .warn { color: var(--amber); }
 .term div { white-space: pre-wrap; word-break: break-all; color: var(--text-2); }
 
-/* Terminal 多终端布局（左列表 + 右输出） */
-.term-layout { display: flex; flex: 1; width: 100%; height: 100%; min-height: 0; }
-.term-list {
-  width: 200px;
+/* Terminal: horizontal tabs over one raw ANSI grid per tab. */
+.term-layout { display: flex; flex-direction: column; flex: 1; width: 100%; height: 100%; min-height: 0; }
+.term-tabs {
   flex: none;
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--sp-8);
-  overflow-y: auto;
-}
-.term-item {
   display: flex;
   align-items: center;
-  gap: var(--sp-8);
-  padding: 6px var(--sp-8);
+  gap: 4px;
+  padding: 4px var(--sp-8);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.term-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px var(--sp-8);
+  border: 1px solid transparent;
   border-radius: var(--r-6);
+  background: transparent;
+  color: var(--text-2);
   cursor: pointer;
+  white-space: nowrap;
+  max-width: 230px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
 }
-.term-item:hover { background: var(--surface-hover); }
-.term-item.active { background: var(--accent-soft); }
-.term-item.active .ti-name { color: var(--accent); }
-.term-item.ended { opacity: 0.55; }
-.term-item .ti-icon {
-  width: 22px; height: 22px;
-  border-radius: var(--r-4);
-  background: var(--surface-2);
-  color: var(--text-3);
-  display: inline-flex; align-items: center; justify-content: center;
-  flex: none;
-}
-.term-item.active .ti-icon { background: var(--accent-soft); color: var(--accent); }
-.term-item .ti-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.term-item .ti-name { font-family: var(--font-mono); font-size: var(--fs-11); font-weight: var(--fw-medium); color: var(--text); }
-.term-item .ti-sub { font-family: var(--font-mono); font-size: calc(9.5px * var(--text-font-scale)); color: var(--text-faint); }
-.term-item .ti-badge {
-  flex: none;
-  height: 15px;
-  padding: 0 4px;
-  border-radius: var(--r-4);
-  font-size: calc(9px * var(--text-font-scale));
-  font-weight: var(--fw-bold);
-  display: inline-flex; align-items: center;
-}
-.ti-badge.purple { background: var(--accent-soft); color: var(--accent); }
-.ti-badge.gray { background: var(--surface-3); color: var(--text-3); }
+.term-tab:hover { background: var(--surface-hover); }
+.term-tab.active { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent); }
+.term-tab.ended { opacity: 0.6; }
+.term-tab-name { min-width: 0; }
 .term-new {
-  margin-top: auto;
-  display: flex; align-items: center; justify-content: center; gap: var(--sp-6);
-  padding: 7px;
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 24px;
   border: 1px dashed var(--border-strong);
   border-radius: var(--r-6);
-  font-size: var(--fs-11);
   color: var(--text-3);
 }
 .term-new:hover { border-color: var(--accent); color: var(--accent); }
+.term-new:disabled { opacity: 0.5; cursor: default; }
+.term-shell {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--text-3);
+  font-size: var(--fs-11);
+}
+.term-shell select {
+  max-width: 210px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-6);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+.term-renderer { text-transform: uppercase; letter-spacing: 0.04em; }
+.term-banner {
+  flex: none;
+  display: flex; align-items: center; gap: var(--sp-8);
+  padding: 5px var(--sp-12);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-11);
+}
+.term-banner.error { color: var(--red); background: var(--red-soft); }
+.term-banner.warn { color: var(--amber); background: var(--amber-soft); }
+.term-banner .btn { margin-left: auto; }
+.term-error { padding: 4px var(--sp-12); margin: 0; }
 .term-view { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .term-cwd {
   flex: none;
@@ -5097,7 +5109,9 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
 .term-xterm {
   height: 100%;
   width: 100%;
-  padding: var(--sp-6) var(--sp-8);
+  /* No gutter: the grid starts at the panel edge. Per-line padding here is
+     exactly the "later lines shifted right" bug class in TUI apps. */
+  padding: 0;
   box-sizing: border-box;
 }
 .term-xterm .xterm,
