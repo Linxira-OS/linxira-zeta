@@ -32,15 +32,16 @@ import { renderTerminalQr } from "../channels/qr-terminal";
 import { restartSessionChannels, suspendActiveSessionChannels } from "../channels/session-host";
 import { runWechatLogin, wechatQrDisplayPayload, type WechatLoginResult } from "../channels/wechat-login";
 import { WebConfig } from "../config/web-config";
+import { M } from "../i18n";
 import { commandConsumed } from "./helpers/parse";
 import type { ParsedSlashCommand, SlashCommandSpec } from "./types";
 
 const SUBCOMMANDS = [
-	{ name: "status", description: "Show channel runtime, credentials, and routing" },
-	{ name: "login", description: "Pair a channel (wechat QR, feishu/telegram guidance)" },
-	{ name: "enable", description: "Enable a channel in web.yml and restart the host" },
-	{ name: "disable", description: "Disable a channel in web.yml and restart the host" },
-	{ name: "logout", description: "Show credential-clearing guidance for a channel" },
+	{ name: "status", description: () => M.cmdChannelsStatus },
+	{ name: "login", description: () => M.cmdChannelsLogin },
+	{ name: "enable", description: () => M.cmdChannelsEnable },
+	{ name: "disable", description: () => M.cmdChannelsDisable },
+	{ name: "logout", description: () => M.cmdChannelsLogout },
 ] as const;
 
 const USAGE = [
@@ -243,7 +244,7 @@ function credentialGuidance(channel: ChannelId): string {
 export const BUILTIN_CHANNELS_SLASH_COMMAND: SlashCommandSpec = {
 	name: "channels",
 	icon: "broadcast",
-	description: "Inspect, pair, and toggle IM channels (operator entry)",
+	description: () => M.cmdChannels,
 	allowArgs: true,
 	hidden: true,
 	subcommands: SUBCOMMANDS.map(subcommand => ({ ...subcommand })),
