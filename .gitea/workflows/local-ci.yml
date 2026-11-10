@@ -473,6 +473,11 @@ jobs:
            run: bun scripts/check-workbench-bundles.ts
          - name: Windows icon guard
            run: bun scripts/check-windows-icons.ts
+         # 镜像 GitHub `check` job：产品标记只有一份画（SVG），其余栅格、
+         # favicon 与应用图标都由它派生；这里的守卫查自包含、尺寸、16px 回退
+         # 接线，以及归档/旧资产不被生产文件引用。
+         - name: Logo asset guard
+           run: bun scripts/check-logo-assets.ts
          # 镜像 GitHub `check` job：两个语言服务器注册表（coding-agent 与 termide）
          # 都由 `lsp/servers.json` 生成；手工改生成物或改了规范文件忘记重生成，
          # 都会让两个编辑器悄悄分叉。
