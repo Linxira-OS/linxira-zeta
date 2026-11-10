@@ -6,13 +6,15 @@
  * Only `message.text` payloads are forwarded (media and `/command` messages
  * are ignored).
  *
- * Outbound: `sendMessage` for text, multipart `sendPhoto` for images.
+ * Outbound: `sendMessage` for text (split at Telegram's 4096-character limit),
+ * multipart `sendPhoto` for images.
  */
 
 import { logger } from "@linxiraos/pi-utils";
-import type { ChatChannel, ChatImage } from "./channel";
+import type { ChannelCapabilities, ChannelSendOptions, ChatChannel, ChatImage, InboundMessage } from "./channel";
+import { splitText } from "./text";
 
-export type TelegramInboundHandler = (peer: string, body: string, messageId?: string) => void;
+export type TelegramInboundHandler = (message: InboundMessage) => void;
 
 export interface TelegramChannelOptions {
 	botToken: string;
@@ -25,9 +27,16 @@ const API_BASE = "https://api.telegram.org";
 const POLL_TIMEOUT_SECONDS = 35;
 const REQUEST_TIMEOUT_MS = 70_000;
 const RETRY_DELAY_MS = 3_000;
+const MAX_TEXT = 4_096;
 
 export class TelegramChannel implements ChatChannel {
 	readonly id = "telegram" as const;
+	readonly capabilities: ChannelCapabilities = {
+		maxTextLength: MAX_TEXT,
+		supportsImages: true,
+		supportsFiles: false,
+		supportsTyping: false,
+	};
 	readonly #botToken: string;
 	readonly #onMessage: TelegramInboundHandler;
 	readonly #fetch: typeof globalThis.fetch;
@@ -86,7 +95,8 @@ export class TelegramChannel implements ChatChannel {
 						update_id?: number;
 						message?: {
 							message_id?: number;
-							chat?: { id?: number };
+							chat?: { id?: number; type?: string };
+							from?: { id?: number; username?: string; first_name?: string };
 							text?: string;
 						};
 					}>;
@@ -99,11 +109,26 @@ export class TelegramChannel implements ChatChannel {
 					const text = update.message?.text;
 					if (chatId === undefined || typeof text !== "string" || text === "") continue;
 					if (text.startsWith("/")) continue;
+					const chatType = update.message?.chat?.type;
+					const from = update.message?.from;
 					logger.debug("Telegram message received", {
 						chatId,
 						length: text.length,
 					});
-					this.#onMessage(String(chatId), text, String(update.message?.message_id ?? ""));
+					this.#onMessage({
+						peer: String(chatId),
+						chatType:
+							chatType === "group" || chatType === "supergroup"
+								? "group"
+								: chatType === "channel"
+									? "channel"
+									: "dm",
+						...(typeof from?.id === "number" ? { senderId: String(from.id) } : {}),
+						...(from?.username || from?.first_name ? { senderName: from.username ?? from.first_name } : {}),
+						body: text,
+						messageId: String(update.message?.message_id ?? ""),
+						ts: Date.now(),
+					});
 				}
 			} catch (error) {
 				if (this.#abort?.signal.aborted) break;
@@ -116,14 +141,27 @@ export class TelegramChannel implements ChatChannel {
 		}
 	}
 
-	async sendText(to: string, text: string): Promise<void> {
-		const res = await this.#fetch(this.#apiUrl("sendMessage"), {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ chat_id: to, text }),
-		});
-		if (!res.ok) {
-			throw new Error(`Telegram sendMessage failed (HTTP ${res.status}): ${await res.text()}`);
+	async sendText(to: string, text: string, options?: ChannelSendOptions): Promise<void> {
+		const replyTo = options?.replyToMessageId;
+		for (const [index, chunk] of splitText(text, MAX_TEXT).entries()) {
+			for (let attempt = 0; ; attempt++) {
+				const res = await this.#fetch(this.#apiUrl("sendMessage"), {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						chat_id: to,
+						text: chunk,
+						...(index === 0 && replyTo ? { reply_parameters: { message_id: Number(replyTo) } } : {}),
+					}),
+				});
+				if (res.ok) break;
+				if (res.status === 429 && attempt < 2) {
+					const body = (await res.json().catch(() => null)) as { parameters?: { retry_after?: number } } | null;
+					await Bun.sleep(Math.max(1, body?.parameters?.retry_after ?? 1) * 1_000);
+					continue;
+				}
+				throw new Error(`Telegram sendMessage failed (HTTP ${res.status}): ${await res.text()}`);
+			}
 		}
 	}
 

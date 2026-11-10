@@ -86,7 +86,8 @@ export default class Serve extends Command {
 			default: false,
 		}),
 		channels: Flags.boolean({
-			description: "Start IM channels (WeChat/Feishu/Telegram); also enabled when any channel is enabled in web.yml",
+			description:
+				"Start IM channels (WeChat/Feishu/Telegram/Discord/QQ); also enabled when any channel is enabled in web.yml",
 			default: false,
 		}),
 		autostart: Flags.boolean({

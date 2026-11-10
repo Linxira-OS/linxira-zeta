@@ -115,7 +115,8 @@ export const launchHelp = {
 		export: Flags.string({ description: "Export session file to HTML and exit" }),
 		"no-title": Flags.boolean({ description: "Disable title auto-generation" }),
 		channels: Flags.boolean({
-			description: "Host IM channels (WeChat/Feishu/Telegram) in this session; also enabled per channel in web.yml",
+			description:
+				"Host IM channels (WeChat/Feishu/Telegram/Discord/QQ) in this session; also enabled per channel in web.yml",
 		}),
 		"spinner-interval": Flags.string({
 			description:
