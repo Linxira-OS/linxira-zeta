@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { parseFrontmatter } from "@linxiraos/pi-utils";
 import { getProviderInfo, loadCapability } from "../src/capability";
 import { type Skill, skillCapability } from "../src/capability/skill";
 // Static import: builtin.ts reads the env overrides at provider-load time, not
@@ -97,6 +98,49 @@ describe("official skills dir fallback chain", () => {
 			expect(existsSync(candidates[0])).toBe(false);
 		} finally {
 			await rm(installRoot, { recursive: true, force: true });
+		}
+	});
+});
+
+/**
+ * Pack hygiene: discovery only needs `name` + `description`, but a bad name, a
+ * duplicate, or a skill missing from the docs table degrades matching and
+ * hides the pack from readers. The bundled pack is authored in-tree, so these
+ * are repository invariants rather than user-data checks.
+ */
+describe("bundled official skills pack hygiene", () => {
+	const packDir = path.resolve(import.meta.dir, "../../../skills/official");
+
+	async function readPack(): Promise<{ dir: string; name: string; description: string }[]> {
+		const entries: { dir: string; name: string; description: string }[] = [];
+		for await (const relative of new Bun.Glob("*/SKILL.md").scan({ cwd: packDir, dot: false })) {
+			const file = path.join(packDir, relative);
+			const { frontmatter } = parseFrontmatter(await Bun.file(file).text(), { source: file, repair: false });
+			const dir = path.basename(path.dirname(file));
+			entries.push({
+				dir,
+				name: typeof frontmatter.name === "string" ? frontmatter.name : "",
+				description: typeof frontmatter.description === "string" ? frontmatter.description : "",
+			});
+		}
+		return entries.sort((a, b) => a.dir.localeCompare(b.dir));
+	}
+
+	test("every bundled skill has a directory-matching name and a description", async () => {
+		const skills = await readPack();
+		expect(skills.length).toBeGreaterThanOrEqual(8);
+		for (const skill of skills) {
+			expect(skill.name, `${skill.dir}/SKILL.md frontmatter name`).toBe(skill.dir);
+			expect(skill.description.trim().length, `${skill.dir}/SKILL.md description`).toBeGreaterThan(0);
+		}
+		expect(new Set(skills.map(skill => skill.name)).size).toBe(skills.length);
+	});
+
+	test("docs/skills.md lists every bundled skill in the official pack table", async () => {
+		const skills = await readPack();
+		const doc = await Bun.file(path.resolve(import.meta.dir, "../../../docs/skills.md")).text();
+		for (const skill of skills) {
+			expect(doc).toContain(`| \`${skill.name}\` |`);
 		}
 	});
 });
