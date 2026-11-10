@@ -1883,6 +1883,12 @@ export const en = {
 	cmdSecurityDisposition: "Set a finding disposition with rationale",
 	cmdSettings: "Open settings menu",
 	cmdSettingsReset: "Reset settings to defaults",
+	cmdChannels: "Inspect, pair, and toggle IM channels (operator entry)",
+	cmdChannelsStatus: "Show channel runtime, credentials, and routing",
+	cmdChannelsLogin: "Pair a channel (WeChat QR, Feishu/Telegram guidance)",
+	cmdChannelsEnable: "Enable a channel in web.yml and restart the host",
+	cmdChannelsDisable: "Disable a channel in web.yml and restart the host",
+	cmdChannelsLogout: "Show credential-clearing guidance for a channel",
 	settingsResetConfirmHint:
 		"This will reset %s configured setting(s) to defaults. Run /settings reset confirm to proceed.",
 	settingsResetDoneFmt: "Reset %s setting(s) to defaults.",

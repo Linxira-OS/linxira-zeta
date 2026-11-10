@@ -34,6 +34,7 @@ import {
 	type MemoryPressureLevel,
 } from "./fanout-pressure";
 import { shedUnderMemoryPressure } from "./memory-shed";
+import { flushToolUpdates, runWithCoalescedToolUpdates } from "./tool-update";
 import type { ToolSession } from "..";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import type { Settings } from "../config/settings";
@@ -1172,7 +1173,12 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 		const launchSession = this.#launchSessions.get(toolCallId);
 		this.#launchSessions.delete(toolCallId);
 		try {
-			return await this.#dispatch(toolCallId, rawParams, launchSession, signal, onUpdate);
+			// A batch reports progress per spawn on its own cadence; hand the UI at
+			// most one cumulative snapshot per window instead of one per spawn tick.
+			return await runWithCoalescedToolUpdates<AgentToolResult<TaskToolDetails>, AgentToolResult<TaskToolDetails>>(
+				onUpdate,
+				wrapped => this.#dispatch(toolCallId, rawParams, launchSession, signal, wrapped),
+			);
 		} finally {
 			// No-op once dispatch adopted; otherwise nothing launched early may outlive the call.
 			launchSession?.discard("task call settled without adopting speculative launches");
@@ -1777,6 +1783,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						? `Background task ${agentId} failed.`
 						: `Background task ${agentId} complete.`;
 					await reportProgress(statusText, buildDetails() as unknown as Record<string, unknown>);
+					flushToolUpdates<AgentToolResult<TaskToolDetails>>(onUpdate);
 					const deliveryText = `${finalText}${await buildFollowUpHint(singleResult?.aborted === true)}`;
 					const structured = singleResult?.structuredOutput;
 					if (resultFailed) {
@@ -1793,6 +1800,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 					onSettled?.(true);
 					const statusText = `Background task ${agentId} failed.`;
 					await reportProgress(statusText, buildDetails() as unknown as Record<string, unknown>);
+					flushToolUpdates<AgentToolResult<TaskToolDetails>>(onUpdate);
 					const message = error instanceof Error ? error.message : String(error);
 					const hint = AgentRegistry.global().get(agentId) ? await buildFollowUpHint(false) : "";
 					throw new TaskJobError(`${message}${hint}`);

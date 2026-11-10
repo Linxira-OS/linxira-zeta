@@ -35,12 +35,14 @@ export interface SessionChannelHost {
 }
 
 let activeHost: SessionChannelHost | null = null;
+/** Most recent start request for this session, so `/channels` can restart it. */
+let lastContext: StartSessionChannelsOptions | null = null;
 
 export type StartSessionChannelsResult =
 	| { started: true; host: SessionChannelHost }
 	| {
 			started: false;
-			reason: "already-running" | "not-enabled" | "instance-lock" | "start-failed";
+			reason: "already-running" | "not-enabled" | "unpaired" | "instance-lock" | "start-failed";
 			message: string;
 			channels: ChannelId[];
 	  };
@@ -74,6 +76,7 @@ function defaultQrHint(payload: WeChatQrStatus): void {
  * holder — never silently ignored.
  */
 export async function startSessionChannels(options: StartSessionChannelsOptions): Promise<StartSessionChannelsResult> {
+	lastContext = options;
 	const plan = resolveChannelHosting(options.webConfig, options.flag === true);
 	if (!plan.shouldStart) {
 		return {
@@ -99,9 +102,25 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 	// The CLI path pairs explicitly, then the next host uses the token.
 	const data = options.webConfig.getData();
 	let effectiveWebConfig: ChannelsWebConfig = options.webConfig;
-	if (data.channels.wechat.enabled && !data.channels.wechat.botToken) {
+	const unpairedWechat = data.channels.wechat.enabled && !data.channels.wechat.botToken;
+	if (unpairedWechat) {
+		// Do not take the host lock when there is nothing left to host: an
+		// unpaired WeChat must be pairable from this session or another
+		// terminal. Holding `channels.lock` here was the old deadlock.
+		const hostable = plan.enabled.filter(id => id !== "wechat");
+		if (hostable.length === 0) {
+			return {
+				started: false,
+				reason: "unpaired",
+				message:
+					"WeChat is enabled but not paired: run `/channels login wechat` in this session " +
+					`(or \`${CLI_BIN_NAME} channels login wechat\`), then retry.`,
+				channels: [],
+			};
+		}
 		process.stderr.write(
-			`[channels] WeChat is enabled but not paired; run \`${CLI_BIN_NAME} channels login wechat\`, then restart this session.\n`,
+			`[channels] WeChat is enabled but not paired; run \`/channels login wechat\` in this session ` +
+				`(or \`${CLI_BIN_NAME} channels login wechat\`), then restart this session.\n`,
 		);
 		effectiveWebConfig = {
 			getData: () => {
@@ -122,7 +141,11 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 			host: hostKind,
 			cwd: process.cwd(),
 			sessionId: options.sessionId,
-			channels: [],
+			// Publish the planned set before the runtime starts. A pairing
+			// process must see "wechat is planned" rather than the empty list
+			// that only means "still starting"; the actual set replaces it
+			// after `startChannels` returns.
+			channels: plan.enabled,
 		},
 	});
 	if (!acquired.ok) {
@@ -203,4 +226,44 @@ export async function sendFromSessionChannel(opts: { text: string; to?: string; 
 /** True when this process currently hosts channels (used by lifecycle wiring). */
 export function hasActiveSessionChannels(): boolean {
 	return activeHost !== null;
+}
+
+/** Remember a session's start request even when no channel is enabled yet. */
+export function rememberSessionChannelContext(options: StartSessionChannelsOptions): void {
+	lastContext = options;
+}
+
+/**
+ * Stop the live host (if any) and start again from the remembered request.
+ * Used after `/channels enable|disable|login` so the runtime reflects the
+ * config immediately instead of waiting for a session restart.
+ *
+ * Returns `null` when this session never attempted to host channels.
+ */
+export async function restartSessionChannels(): Promise<StartSessionChannelsResult | null> {
+	const context = lastContext;
+	if (!context) return null;
+	await stopActiveSessionChannels();
+	return await startSessionChannels(context);
+}
+
+/**
+ * Stop this process's channel host without forgetting the request. Pairing
+ * calls this before opening the QR flow so `channels.pairing.lock` and
+ * `channels.lock` do not overlap, then {@link restartSessionChannels}
+ * re-establishes whichever channels the fresh `web.yml` enables.
+ */
+export async function suspendActiveSessionChannels(): Promise<boolean> {
+	const host = activeHost;
+	if (!host) return false;
+	await host.stop();
+	return true;
+}
+
+/** Stop the live host, if this process has one. Idempotent. */
+export async function stopActiveSessionChannels(): Promise<void> {
+	const host = activeHost;
+	if (!host) return;
+	await host.stop().catch(() => {});
+	if (activeHost === host) activeHost = null;
 }

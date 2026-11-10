@@ -1902,6 +1902,12 @@ export interface Messages {
 	cmdSecurityDisposition: string;
 	cmdSettings: string;
 	cmdSettingsReset: string;
+	cmdChannels: string;
+	cmdChannelsStatus: string;
+	cmdChannelsLogin: string;
+	cmdChannelsEnable: string;
+	cmdChannelsDisable: string;
+	cmdChannelsLogout: string;
 	settingsResetConfirmHint: string;
 	settingsResetDoneFmt: string;
 	settingsResetKeyDoneFmt: string;
