@@ -124,7 +124,7 @@ function materializeTuiBuiltinSlashCommand(
 			materialized.getArgumentCompletions = buildArgumentCompletions(subcommands, options);
 			materialized.getInlineHint = buildSubcommandInlineHint(subcommands, options);
 		}
-	} else if (cmd.name === "move") {
+	} else if (cmd.name === "move" || cmd.name === "cd") {
 		materialized.getArgumentCompletions = buildDirectoryArgumentCompletions();
 		if (cmd.inlineHint) materialized.getInlineHint = buildStaticInlineHint(cmd.inlineHint);
 	} else if (cmd.name === "local" && runtime) {

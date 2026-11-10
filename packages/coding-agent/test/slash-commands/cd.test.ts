@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import * as piUtils from "@linxiraos/pi-utils";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { M } from "../../src/i18n";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
@@ -53,6 +54,22 @@ describe("/cd", () => {
 		expect(command?.allowArgs).toBe(true);
 		expect(M.cmdCd.length).toBeGreaterThan(0);
 		expect(M.cmdCdAcp.length).toBeGreaterThan(0);
+	});
+
+	it("completes directories for /cd <path> like /move", async () => {
+		const command = BUILTIN_SLASH_COMMANDS.find(entry => entry.name === "cd");
+		expect(command?.getArgumentCompletions).toBeFunction();
+		fs.mkdirSync(path.join(tempDir, "projects"));
+		fs.writeFileSync(path.join(tempDir, "README.md"), "");
+		const projectDir = vi.spyOn(piUtils, "getProjectDir").mockReturnValue(tempDir);
+		try {
+			const result = await command!.getArgumentCompletions!("");
+			const values = result?.map(item => item.value) ?? [];
+			expect(values).toContain("projects/");
+			expect(values).not.toContain("README.md");
+		} finally {
+			projectDir.mockRestore();
+		}
 	});
 
 	it("opens the folder picker when no path is given", async () => {
