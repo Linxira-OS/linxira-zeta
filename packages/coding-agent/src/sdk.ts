@@ -259,6 +259,7 @@ import {
 } from "./session/session-tools";
 import { anthropicSlowModeHasNoSiblingHeadroom } from "./session/anthropic-slow-mode";
 import { CacheWarmer } from "./session/cache-warmer";
+import { applyEngineerSkillAssignments } from "./session/engineer-skills";
 import { createSettingsAwareStreamFn } from "./session/settings-stream-fn";
 import { SnapcompactInlineTransformer } from "./session/snapcompact-inline";
 import { createSnapcompactSavingsRecorder } from "./session/snapcompact-savings-journal";
@@ -6125,6 +6126,17 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		startDeferredMCPDiscovery?.(session);
 
 		startupCleanup.move();
+		// Engineer main agents load the PM's skill assignments as hidden autoload
+		// prompts. The check is a cheap no-op outside a registered worktree, and a
+		// failure must never block session creation. Live sessions do not hot
+		// reload; `/reload-skills` or a restart applies later changes.
+		if (!isSubagentSession) {
+			try {
+				await applyEngineerSkillAssignments(session);
+			} catch (error) {
+				logger.warn("Engineer skill injection failed", { error: String(error) });
+			}
+		}
 		return {
 			session,
 			extensionsResult,

@@ -170,6 +170,7 @@ export interface Messages {
 	cmdEnglish: string; // English
 	cmdSetTheCLIDisplayLanguage: string; // Set the CLI display language
 	cmdSkills: string; // Search, install, and update skills from the skills registry
+	cmdReloadSkills: string; // Rediscover skills and inject newly assigned engineer skills
 	cmdSkillsSearch: string; // Search the skill registry
 	cmdSkillsInstall: string; // Install registry skills
 	cmdSkillsInstalled: string; // List installed registry skills

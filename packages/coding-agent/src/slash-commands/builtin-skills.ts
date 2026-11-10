@@ -135,4 +135,44 @@ export const BUILTIN_SKILLS_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			}
 		},
 	},
+	{
+		name: "reload-skills",
+		icon: "skill",
+		description: () => M.cmdReloadSkills,
+		allowArgs: false,
+		handle: async (_command, runtime) => {
+			try {
+				const result = await runtime.session.reloadEngineerSkills();
+				const lines = [
+					result.applied.length === 0
+						? "Skills rediscovered; no new assigned skills were injected."
+						: `Injected assigned skills: ${result.applied.join(", ")}.`,
+				];
+				if (result.alreadyLoaded.length > 0) lines.push(`Already loaded: ${result.alreadyLoaded.join(", ")}.`);
+				if (result.missing.length > 0) lines.push(`Not discovered: ${result.missing.join(", ")}.`);
+				if (result.blocked.length > 0) lines.push(`Not operator-approved: ${result.blocked.join(", ")}.`);
+				await runtime.output(lines.join(" "));
+			} catch (error) {
+				await runtime.output(`Reload skills: ${errorMessage(error)}`);
+			}
+		},
+		handleTui: async (_command, runtime) => {
+			const { ctx } = runtime;
+			clearSubmittedText(runtime);
+			try {
+				const result = await ctx.session.reloadEngineerSkills();
+				const lines = [
+					result.applied.length === 0
+						? "Skills rediscovered; no new assigned skills were injected."
+						: `Injected assigned skills: ${result.applied.join(", ")}.`,
+				];
+				if (result.alreadyLoaded.length > 0) lines.push(`Already loaded: ${result.alreadyLoaded.join(", ")}.`);
+				if (result.missing.length > 0) lines.push(`Not discovered: ${result.missing.join(", ")}.`);
+				if (result.blocked.length > 0) lines.push(`Not operator-approved: ${result.blocked.join(", ")}.`);
+				ctx.showStatus(lines.join(" "));
+			} catch (error) {
+				ctx.showError(`Reload skills: ${errorMessage(error)}`);
+			}
+		},
+	},
 ];

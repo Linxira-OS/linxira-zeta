@@ -2,6 +2,9 @@
 
 ## 下一版本（Unreleased）
 
+### Team 技能分配（未发布）
+- **PM → 工程师技能分配**：Team 数据库新增 `agent_skills` 表（schema v4；`team_id`/`pm_id`/`engineer_id`/`skill_name`/`source`/`qualified_name`/`assigned_by`/`created_at`，按工程师+技能唯一）。Lead 模式新增 `engineer_skills` 工具（`list|assign|remove`），PM 只能操作自己名下的工程师，拒绝 PM 自身与其他 PM；只接受已发现技能名，无路径参数。分配在工程师会话启动/恢复时以隐藏 autoload 提示注入，每次转写只注入一次；运行中的工程师需 `/reload-skills` 或重启，不做热重载。插件/注册表来源（可带 hooks/tools）为高风险，需操作员在 `team.skillAllowlist` 放行；官方/自写技能默认允许。删除只停止后续注入，不回收已加载内容。
+
 ### 1.5.1
 - **Work Studio 浏览器终端（#282）**：Studio 界面通过网关 PTY 在浏览器里跑真实终端（xterm.js），支持选择/创建 shell profile（shell、参数、工作目录、环境变量）、实时调整 PTY 尺寸、导航后保留会话列表，并在断线后重连回放而不是留下死面板；profile 由服务端校验，不能越出工作区根。
 - **TUI `/channels` 与安全配对锁（#283）**：列出已配置 IM 渠道及其实时健康（状态、详情、最后错误、起始时间、最后入站），执行 `login`/`status`/`logout`/`unbind`，并按渠道加配对锁，避免两个进程同时配对同一账号；后端 attach 的客户端会拒绝该命令，把配对留给持有进程。

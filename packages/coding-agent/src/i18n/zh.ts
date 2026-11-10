@@ -2017,6 +2017,7 @@ export const zh = {
 	cmdModelpresetDelete: "删除已保存的预设",
 	cmdUsage: "显示提供商用量与限制",
 	cmdSkills: "向 agent 提供内置技能文档（搜索、安装、更新）",
+	cmdReloadSkills: "重新发现技能并注入新分配的工程师技能",
 	cmdSkillsSearch: "搜索技能注册表",
 	cmdSkillsInstall: "从注册表安装技能",
 	cmdRecord: "开始或停止将当前屏幕录制为可回放文件",
