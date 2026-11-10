@@ -1,0 +1,505 @@
+{
+	"$comment": "Upstream linkage for Zeta desktop packages. This file declares the product's own identity and release linkage only. Distro/package-repository package names are owned and normalized by the external package repository (Linxira-OS/packages); do not infer or invent package names from this manifest.",
+	"schemaVersion": 1,
+	"product": {
+		"id": "zeta-desktop",
+		"displayName": "Zeta",
+		"productName": "Zeta",
+		"npmPackage": "zeta-desktop",
+		"npmPublished": false,
+		"appId": "com.zeta.desktop",
+		"executable": "zeta-desktop",
+		"homepage": "https://linxira-os.github.io/zeta/",
+		"license": "MIT",
+		"sourceRepository": "https://github.com/Linxira-OS/linxira-zeta",
+		"configRoot": "~/.zeta"
+	},
+	"upstreamIdentity": {
+		"sourceOfTruth": ["desktop/package.json", "desktop/electron-builder.yml"],
+		"tagPattern": "v{version}",
+		"artifactNamePattern": "zeta-desktop-{version}-{platform}-{arch}.{ext}",
+		"platformSuffixes": {
+			"linux-x64": "zeta-desktop-{version}-linux-x64.tar.gz",
+			"linux-deb": "zeta-desktop-{version}-linux-amd64.deb",
+			"linux-appimage": "zeta-desktop-{version}-linux-x86_64.AppImage",
+			"windows-installer": "zeta-desktop-{version}-win-x64.exe",
+			"windows-zip": "zeta-desktop-{version}-win-x64.zip"
+		},
+		"checksumAsset": "SHA256SUMS.txt",
+		"normalizationRule": "The external package repository maps upstream release assets onto its own package names. A package name present in that repository is authoritative for install/upgrade; this manifest never claims a distro package name that the repository has not published."
+	},
+	"repositories": [
+		{
+			"id": "source",
+			"role": "source + GitHub release",
+			"repository": "Linxira-OS/linxira-zeta",
+			"visibility": "public",
+			"tagPattern": "v{version}",
+			"releaseAssets": [
+				"zeta-desktop-{version}-linux-x64.tar.gz",
+				"zeta-desktop-{version}-linux-amd64.deb",
+				"zeta-desktop-{version}-linux-x86_64.AppImage",
+				"zeta-desktop-{version}-win-x64.exe",
+				"zeta-desktop-{version}-win-x64.zip",
+				"linxira-zeta-{version}-workstudio-browser-linux-x64.tar.gz",
+				"linxira-zeta-{version}-workstudio-browser-windows-x64.zip",
+				"zeta-cli-linux-x64",
+				"zeta-cli-linux-musl-x64",
+				"zeta-cli-windows-x64.exe",
+				"zeta-ide-linux-x64",
+				"zeta-ide-win-x64.exe",
+				"zeta-browser-relay-extension.zip",
+				"zeta-plugin-example-1.0.0.zip",
+				"LICENSE",
+				"THIRD-PARTY-NOTICES.txt",
+				"SHA256SUMS.txt"
+			]
+		},
+		{
+			"id": "binary-packages",
+			"role": "Arch PKGBUILDs; CI builds, signs and publishes pacman repositories",
+			"repository": "Linxira-OS/packages",
+			"visibility": "public",
+			"workflow": ".github/workflows/packages.yml",
+			"pacmanRepositories": [
+				{
+					"section": "linxira-zeta",
+					"server": "https://linxira-os.github.io/packages/zeta/$arch",
+					"fallbackServer": "https://github.com/Linxira-OS/packages/releases/download/zeta-repo",
+					"indexAssets": [
+						"linxira-zeta.db",
+						"linxira-zeta.db.tar.zst",
+						"linxira-zeta.db.sig",
+						"linxira-zeta.db.tar.zst.sig",
+						"linxira-zeta.files",
+						"linxira-zeta.files.tar.zst"
+					],
+					"rollingReleaseTag": "zeta-repo",
+					"packageFilesRetained": "previous package files stay in the rolling release so a version can be reinstalled; stale assets not produced by the current build are dropped"
+				},
+				{
+					"section": "linxira",
+					"server": "https://linxira-os.github.io/linxira-packages/$arch",
+					"note": "Main system repository. Does not contain linxira-zeta (verified from the x86_64 index); the desktop package is only in linxira-zeta."
+				}
+			]
+		},
+		{
+			"id": "signed-package-db",
+			"role": "signed [linxira] pacman repository database + package mirror on GitHub Pages",
+			"repository": "Linxira-OS/linxira-packages",
+			"visibility": "public",
+			"server": "https://linxira-os.github.io/linxira-packages/$arch",
+			"containsZetaDesktop": false
+		},
+		{
+			"id": "catalog-db",
+			"role": "compiles and publishes the reviewed software catalog database (catalog-v2.json + catalog-v3.json, packaged as linxira-catalog)",
+			"repository": "Linxira-OS/linxira-catalog",
+			"visibility": "public",
+			"version": "3.6.0",
+			"releaseTagPattern": "v{version}",
+			"versionFile": "VERSION",
+			"package": "linxira-catalog"
+		}
+	],
+	"packages": [
+		{
+			"ecosystem": "npm",
+			"name": "@linxiraos/zeta",
+			"version": "1.5.0",
+			"bins": ["zetacode"],
+			"status": "current",
+			"role": "coding-agent CLI (the kernel the desktop shell spawns)"
+		},
+		{
+			"ecosystem": "npm",
+			"name": "@linxiraos/ide",
+			"version": "1.5.0",
+			"bins": ["zetaide"],
+			"status": "current",
+			"role": "terminal IDE"
+		},
+		{
+			"ecosystem": "npm",
+			"name": "@linxiraos/main",
+			"version": "1.4.10",
+			"bins": ["zetawork", "zeta"],
+			"status": "paused",
+			"role": "legacy Rust workbench npm launcher; publication only via the manual publish_zetawork gate. Frozen at 1.4.10; it is NOT the desktop product and does not receive 1.5.x."
+		},
+		{
+			"ecosystem": "npm",
+			"name": "@linxiraos/main-linux-x64",
+			"version": "1.4.10",
+			"status": "paused",
+			"role": "platform leaf of @linxiraos/main"
+		},
+		{
+			"ecosystem": "npm",
+			"name": "zeta-desktop",
+			"version": "1.5.1",
+			"status": "private",
+			"role": "desktop shell npm identity (desktop/package.json). Private: not published to the npm registry; no npm upgrade path exists for it."
+		},
+		{
+			"ecosystem": "pacman",
+			"name": "linxira-zeta",
+			"repository": "binary-packages",
+			"section": "linxira-zeta",
+			"version": "1.5.0-1",
+			"filename": "linxira-zeta-1.5.0-1-x86_64.pkg.tar.zst",
+			"size": 353927734,
+			"sha256": "a64fba61bf9ce60a495ddb84414ef42a4b2bae76f134ca90a92a74c52a2308d7",
+			"sourceAsset": "zeta-desktop-1.5.0-linux-x64.tar.gz",
+			"provides": [],
+			"replaces": ["linxira-zetawork"],
+			"conflicts": ["linxira-zetawork"],
+			"installs": [
+				"opt/linxira-zeta/",
+				"usr/bin/zeta-desktop",
+				"usr/share/applications/linxira-zeta.desktop",
+				"usr/share/icons/hicolor/512x512/apps/linxira-zeta.png"
+			],
+			"status": "current"
+		},
+		{
+			"ecosystem": "pacman",
+			"name": "linxira-zeta-c-bin",
+			"repository": "binary-packages",
+			"section": "linxira-zeta",
+			"version": "1.5.0-2",
+			"provides": ["zetacode"],
+			"conflicts": ["zetacode-bin"],
+			"status": "current"
+		},
+		{
+			"ecosystem": "pacman",
+			"name": "linxira-zeta-ide",
+			"repository": "binary-packages",
+			"section": "linxira-zeta",
+			"version": "1.5.0-2",
+			"provides": ["zetaide"],
+			"status": "current"
+		},
+		{
+			"ecosystem": "pacman",
+			"name": "linxira-zeta",
+			"repository": "binary-packages",
+			"section": "linxira-zeta",
+			"version": "1.4.10-1",
+			"status": "legacy",
+			"role": "zetawork-era desktop (TUI + GUI) under the same package name; replaced in place by 1.5.x",
+			"provides": ["zetawork", "linxira-zeta"],
+			"installs": [
+				"usr/bin/zetawork",
+				"usr/bin/zetacode",
+				"usr/bin/zetaide",
+				"usr/lib/zetawork/zetawork-gui",
+				"usr/lib/zetawork/zetacode",
+				"usr/lib/zetawork/zetaide",
+				"usr/lib/zetawork/web-ui/",
+				"usr/share/applications/linxira-zeta.desktop",
+				"usr/share/icons/hicolor/256x256/apps/zetawork.png"
+			]
+		},
+		{
+			"ecosystem": "pacman",
+			"name": "linxira-zetawork",
+			"version": "1.4.1-1",
+			"status": "retired",
+			"role": "legacy standalone workbench binary package (usr/bin/zetawork); replaced and conflicted by current linxira-zeta"
+		},
+		{
+			"ecosystem": "deb",
+			"name": "zeta-desktop",
+			"version": "1.5.0",
+			"status": "current",
+			"homepage": "https://linxira-os.github.io/zeta/",
+			"conflicts": [],
+			"replaces": [],
+			"note": "electron-builder default package; the 1.4.10 zetawork era shipped no deb, so the first deb installs are already zeta-desktop."
+		},
+		{
+			"ecosystem": "pacman",
+			"name": "linxira-catalog",
+			"repository": "binary-packages",
+			"section": "linxira",
+			"version": "3.6.0-1",
+			"status": "current",
+			"role": "catalog DB package (separate product, listed for repository topology completeness)"
+		}
+	],
+	"release": {
+		"verifiedRelease": {
+			"version": "1.5.0",
+			"tag": "v1.5.0",
+			"publishedAt": "2026-11-10T00:09:51Z",
+			"prerelease": false,
+			"assets": {
+				"zeta-desktop-1.5.0-linux-x64.tar.gz": "628b064b5b4d9b12437d39e9ac7720e08aedb02b6fceb150e96fa10904cb88b0",
+				"zeta-desktop-1.5.0-linux-amd64.deb": "a7c7a090059475e9fa46a9faa0ff3fcd6ea1ba8477ffe3ae181ca7ee95af45b0",
+				"zeta-desktop-1.5.0-linux-x86_64.AppImage": "d24a29fec18a37fa8a24a8b7dd906a4ca91fa4ef7d6ced67c1fc44cf7da7970d",
+				"linxira-zeta-1.5.0-workstudio-browser-linux-x64.tar.gz": "d78a5163f6d3373c402f77142426e0ff7c7c12a4770eb9fdabd22936cb564d80"
+			}
+		},
+		"pendingRelease": {
+			"version": "1.5.1",
+			"status": "tag-published-release-pending",
+			"tag": "v1.5.1",
+			"tagCommit": "54b0ffeb6588f95c0e3ceccc645a1d22c30daf48",
+			"note": "The v1.5.1 tag exists, but no GitHub release/asset and no [linxira-zeta] package exists yet (the rolling repository still serves 1.5.0-1). verifiedRelease stays 1.5.0 until the release and package appear."
+		}
+	},
+	"migration": {
+		"policy": "Never claim an automatic in-place upgrade where the installer identity or package name differs. Each row below is the authoritative statement for its platform.",
+		"oldProducts": {
+			"zetawork": {
+				"description": "Rust TUI + GUI workbench packaged as linxira-zeta (<= 1.4.10) and as linxira-zetawork (<= 1.4.1)",
+				"npm": "@linxiraos/main",
+				"bins": ["zetawork", "zeta"],
+				"configRoot": "~/.zeta"
+			}
+		},
+		"productMapping": {
+			"zetawork-gui": {
+				"old": "zetawork GUI (/usr/lib/zetawork/zetawork-gui, Windows zetawork-gui.exe)",
+				"new": "zeta-desktop",
+				"newPackageIdentity": "npm zeta-desktop (private) / pacman linxira-zeta / deb zeta-desktop",
+				"automatic": false
+			},
+			"zetawork-tui": {
+				"old": "zetawork TUI (/usr/bin/zetawork, @linxiraos/main bin zetawork)",
+				"new": null,
+				"note": "the workbench TUI is retired; the CLI is @linxiraos/zeta (bin zetacode)"
+			},
+			"@linxiraos/main": {
+				"old": "@linxiraos/main",
+				"new": "@linxiraos/zeta",
+				"renamed": false,
+				"note": "no package rename: @linxiraos/main stays paused at 1.4.10; @linxiraos/zeta is the surviving CLI package (bin zetacode)"
+			}
+		},
+		"rows": [
+			{
+				"platform": "linux-pacman",
+				"from": { "package": "linxira-zeta", "versions": "<= 1.4.10-1 (zetawork era)" },
+				"to": { "package": "linxira-zeta", "versions": ">= 1.5.0-1" },
+				"samePackageName": true,
+				"mechanism": "in-place",
+				"requiresUninstall": false,
+				"requiresReplace": false,
+				"procedure": "pacman -Syu (with the linxira-zeta section configured) or pacman -U <linxira-zeta-1.5.x pkg>",
+				"verified": true,
+				"verificationNote": "2026-11-10: scripts/packaging/verify-linux-upgrade.sh installed the published linxira-zeta-1.4.10-1 into a clean pacman root and upgraded it to the published 1.5.0-1 (sha256 a64fba61...). Version 1.5.0-1, old /usr/bin/zetawork and /usr/lib/zetawork removed, new /opt layout present, bundled kernel reported 1.5.0, ~/.zeta byte-identical. The verify_linux_upgrade CI job repeats it."
+			},
+			{
+				"platform": "linux-pacman",
+				"from": { "package": "linxira-zetawork", "versions": "<= 1.4.1-1" },
+				"to": { "package": "linxira-zeta", "versions": ">= 1.5.0-1" },
+				"samePackageName": false,
+				"mechanism": "replace",
+				"requiresUninstall": false,
+				"requiresReplace": true,
+				"replaces": ["linxira-zetawork"],
+				"conflicts": ["linxira-zetawork"],
+				"procedure": "pacman -Syu; pacman honours the target package's Replaces/Conflicts. A bare pacman -U of linxira-zeta does not apply Replaces, so remove linxira-zetawork first in that path.",
+				"verified": true,
+				"verificationNote": "2026-11-10: a synthetic linxira-zetawork 1.4.1-1 package was installed, then pacman -Su from a file:// repository holding the published 1.5.0-1 package removed it and installed linxira-zeta through the published Replaces/Conflicts (stub /usr/bin/zetawork removed). The package identity is synthetic because the retired package is no longer published; the target package and its fields are the real published artifact."
+			},
+			{
+				"platform": "linux-deb",
+				"from": { "package": "zeta-desktop", "versions": "<= 1.4.13" },
+				"to": { "package": "zeta-desktop", "versions": ">= 1.5.0" },
+				"samePackageName": true,
+				"mechanism": "in-place",
+				"requiresUninstall": false,
+				"procedure": "dpkg -i zeta-desktop-<version>-linux-amd64.deb (or apt install ./<deb>)",
+				"verified": false,
+				"verificationNote": "Control fields verified for 1.5.0 (Package: zeta-desktop, no Conflicts/Replaces). No deb existed in the 1.4.10 zetawork release, so this row only covers 1.4.12+ installs."
+			},
+			{
+				"platform": "linux-appimage",
+				"from": { "asset": "linxira-zeta-<version>-x86_64.AppImage or zeta-desktop-<version>-linux-x86_64.AppImage" },
+				"to": { "asset": "zeta-desktop-<version>-linux-x86_64.AppImage" },
+				"mechanism": "replace-file",
+				"requiresUninstall": false,
+				"procedure": "replace the AppImage file; no package manager state exists",
+				"verified": false
+			},
+			{
+				"platform": "windows",
+				"from": {
+					"installer": "zetawork per-user NSIS (installs zetawork-gui.exe + companions)",
+					"installDir": "%LOCALAPPDATA%\\Programs\\Linxira Zeta",
+					"registryKey": "HKCU\\Software\\LinxiraZeta",
+					"appId": null
+				},
+				"to": {
+					"installer": "electron-builder NSIS",
+					"installDir": "%LOCALAPPDATA%\\Programs\\Zeta",
+					"appId": "com.zeta.desktop"
+				},
+				"sameInstallerIdentity": false,
+				"mechanism": "replace",
+				"requiresUninstall": true,
+				"procedure": "uninstall the zetawork installer, then install zeta-desktop-<version>-win-x64.exe; the two installers do not share an appId or install directory",
+				"verified": false,
+				"verificationNote": "Old installer identity is the repository's paused NSIS script (Linxira Zeta / HKCU\\Software\\LinxiraZeta); the new one is electron-builder with appId com.zeta.desktop. No automatic in-place upgrade is claimed."
+			},
+			{
+				"platform": "npm",
+				"from": { "package": "@linxiraos/main", "versions": "<= 1.4.10 (paused)" },
+				"to": { "package": null, "note": "the workbench npm surface is not renamed into zeta-desktop; the CLI remains @linxiraos/zeta (bin zetacode)" },
+				"mechanism": "none",
+				"requiresUninstall": false,
+				"procedure": "npm uninstall -g @linxiraos/main; install the desktop package or @linxiraos/zeta. Do not expect @linxiraos/main to publish 1.5.x.",
+				"verified": true,
+				"verificationNote": "npm registry shows @linxiraos/main latest 1.4.10 and zeta-desktop absent; desktop/package.json is private."
+			}
+		],
+		"packageManagerFields": {
+			"pacman": {
+				"samePackageNameUpgrade": "linxira-zeta -> linxira-zeta",
+				"replaces": ["linxira-zetawork"],
+				"conflicts": ["linxira-zetawork"],
+				"providesDropped": ["zetawork"],
+				"note": "The 1.5.x package no longer Provides zetawork. Nothing in the repositories depends on that virtual; a third-party package that does will need updating."
+			},
+			"deb": {
+				"package": "zeta-desktop",
+				"replaces": [],
+				"conflicts": []
+			},
+			"npm": {
+				"renamed": false
+			}
+		}
+	},
+	"configCompatibility": {
+		"configRoot": "~/.zeta",
+		"preserved": true,
+		"sharedWithLegacy": true,
+		"evidence": "The zetawork GUI and CLI read ~/.zeta (projects.json, serve.json, agent/web.yml, agent/sessions/, zetawork.toml); the 1.5.x desktop shell discovers the service through ~/.zeta/serve.json and the zeta CLI owns the same root (APP_NAME=zeta). Package payloads never touch $HOME.",
+		"notMigrated": [
+			"Electron shell window/workspace state (app.getPath('userData')/workspace-state.json, desktop-settings.json) has no counterpart in the zetawork GUI and starts fresh.",
+			"Old zetawork GUI preferences stored in ~/.zeta/zetawork.toml are left on disk but are not read by the Electron shell."
+		]
+	},
+	"updateChannel": {
+		"inAppUpdater": false,
+		"appUpdateMechanism": "release installer/archive replacement; the desktop shell advertises no app-side download (desktop/src/update-check.ts returns plan=none for the app)",
+		"runtimeUpdates": "owned by the bundled service via GET /api/update/check",
+		"distributionChannels": [
+			{
+				"channel": "linxira-zeta",
+				"kind": "pacman rolling repository",
+				"source": "Linxira-OS/packages release tag zeta-repo",
+				"versionFlow": "Linxira-OS/linxira-zeta tag v<version> -> upstream-sync opens chore(bump) PR -> packages.yml rebuilds linxira-zeta-<version>-1 -> release asset + index replaced"
+			},
+			{
+				"channel": "github-release",
+				"kind": "GitHub release assets",
+				"source": "Linxira-OS/linxira-zeta tag v<version>"
+			},
+			{
+				"channel": "npm",
+				"kind": "npm registry",
+				"packages": ["@linxiraos/zeta", "@linxiraos/ide"],
+				"note": "desktop shell is private and not on npm"
+			}
+		],
+		"provisioning": "The installed system needs the [linxira-zeta] section in /etc/pacman.conf. The current installer appends it (linxirapacstrap._enable_target_linxira_repo) and enables linxira-pacman-fetch; installs created before that change do not have it."
+	},
+	"verification": {
+		"checkedAt": "2026-11-10",
+		"procedures": {
+			"linuxUpgrade": {
+				"script": "scripts/packaging/verify-linux-upgrade.sh",
+				"ciJob": "verify_linux_upgrade",
+				"runsOn": "archlinux:base container, disposable pacman roots",
+				"covers": [
+					"linxira-zeta 1.4.10-1 -> current linxira-zeta in place",
+					"installed version equals the target package version",
+					"old zetawork file set removed; new /opt layout present",
+					"bundled kernel starts and reports the target version",
+					"~/.zeta byte-identical across the upgrade",
+					"linxira-zetawork replaced through the published Replaces/Conflicts"
+				],
+				"notCovered": [
+					"Electron window start under a display server (the bundled kernel is what the script executes)",
+					"deb/dpkg transaction",
+					"Windows installer replacement"
+				]
+			}
+		},
+		"claims": [
+			{
+				"id": "release-1.5.0-exists",
+				"status": "verified",
+				"statement": "v1.5.0 is a published, non-prerelease GitHub release with linux tar.gz, deb, AppImage and win assets.",
+				"evidence": "gh api releases/tags/v1.5.0: published_at 2026-11-10T00:09:51Z; asset list + SHA256SUMS.txt hashes recorded in release.verifiedRelease."
+			},
+			{
+				"id": "pacman-package-1.5.0",
+				"status": "verified",
+				"statement": "linxira-zeta 1.5.0-1 is published in the [linxira-zeta] rolling repository with Replaces/Conflicts linxira-zetawork.",
+				"evidence": "linxira-zeta.db.tar.zst entry: version 1.5.0-1, csize 353927734, sha256 a64fba61..., %REPLACES% linxira-zetawork, %CONFLICTS% linxira-zetawork; release asset present in Linxira-OS/packages@zeta-repo."
+			},
+			{
+				"id": "legacy-package-identity",
+				"status": "verified",
+				"statement": "The zetawork-era desktop was the same pacman package name (linxira-zeta, 1.4.10-1) that Provides zetawork/linxira-zeta; a separate linxira-zetawork 1.4.1-1 package existed earlier.",
+				"evidence": ".PKGINFO of the published linxira-zeta-1.4.10-1 package; installed pacman DB /var/lib/pacman/local/linxira-zeta-1.4.4-1 (desc/files) on a real Linxira OS install; retired PKGBUILD for linxira-zetawork."
+			},
+			{
+				"id": "new-package-drops-zetawork-provides",
+				"status": "verified",
+				"statement": "linxira-zeta 1.5.x no longer Provides zetawork and installs /opt/linxira-zeta + /usr/bin/zeta-desktop instead of /usr/bin/zetawork.",
+				"evidence": "Current PKGBUILD package() and the published repo DB entry (no %PROVIDES%)."
+			},
+			{
+				"id": "same-pkgname-in-place",
+				"status": "verified",
+				"statement": "An existing linxira-zeta 1.4.x install upgrades in place to 1.5.x via pacman without uninstall.",
+				"evidence": "2026-11-10, Linxira OS (Arch) pacman in disposable roots: published linxira-zeta-1.4.10-1 -> published linxira-zeta-1.5.0-1 (sha256 a64fba61...). Installed version 1.5.0-1; /usr/bin/zetawork and /usr/lib/zetawork gone; /opt/linxira-zeta + /usr/bin/zeta-desktop present; bundled kernel printed zetacode/1.5.0; ~/.zeta byte-identical. Reproduce with scripts/packaging/verify-linux-upgrade.sh."
+			},
+			{
+				"id": "zetawork-replace-transaction",
+				"status": "verified",
+				"statement": "pacman applies the published Replaces/Conflicts and removes linxira-zetawork when upgrading.",
+				"evidence": "2026-11-10: synthetic linxira-zetawork 1.4.1-1 -> pacman -Su with the published 1.5.0-1 package in a file:// repo; the old package and /usr/bin/zetawork were removed and linxira-zeta 1.5.0-1 installed."
+			},
+			{
+				"id": "deb-identity",
+				"status": "verified",
+				"statement": "The deb is Package: zeta-desktop, Version 1.5.0, with no Conflicts/Replaces fields.",
+				"evidence": "control member extracted from zeta-desktop-1.5.0-linux-amd64.deb."
+			},
+			{
+				"id": "npm-desktop-private",
+				"status": "verified",
+				"statement": "zeta-desktop is not published to npm; @linxiraos/main is frozen at 1.4.10.",
+				"evidence": "registry.npmjs.org: zeta-desktop -> Not found; @linxiraos/main dist-tags.latest 1.4.10; desktop/package.json private=true."
+			},
+			{
+				"id": "existing-install-repo-provisioning",
+				"status": "unverified",
+				"statement": "Every existing 1.4.x install can discover 1.5.x with pacman -Syu.",
+				"evidence": "BLOCKED for pre-2026-10-28 installs: the inspected Linxira OS image (linxira-zeta 1.4.4-1, installed 2026-10-27) has only the [linxira] section in /etc/pacman.conf and no XferCommand; linxira-zeta is absent from that repository. The [linxira-zeta] section is appended only by the newer installer code."
+			},
+			{
+				"id": "release-1.5.1-tag",
+				"status": "verified",
+				"statement": "The v1.5.1 tag exists on the product repository.",
+				"evidence": "gh api git/ref/tags/v1.5.1 -> commit 54b0ffeb6588f95c0e3ceccc645a1d22c30daf48 (the main 1.5.1 bump commit)."
+			},
+			{
+				"id": "release-1.5.1",
+				"status": "unverified",
+				"statement": "A v1.5.1 GitHub release, desktop assets and a [linxira-zeta] 1.5.1 package exist.",
+				"evidence": "Not published at the time of this update: releases/tags/v1.5.1 returns 404 and the zeta-repo release lists only linxira-zeta 1.5.0-1 assets. Only the tag exists."
+			}
+		]
+	}
+}

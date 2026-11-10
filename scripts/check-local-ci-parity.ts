@@ -45,6 +45,7 @@ const EXCLUDED: Record<string, string> = {
 	release_desktop: "release chain (Electron/browser desktop packaging is GitHub-runner only)",
 	release_native_leaves: "release chain",
 	release_github: "release chain",
+	verify_linux_upgrade: "release chain (post-release advisory; needs published release assets + docker)",
 	release_npm: "release chain",
 	release_ide_packages: "release chain",
 	release_main_packages: "release chain",
