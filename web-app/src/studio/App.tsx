@@ -3750,7 +3750,9 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
   const promptDispatchGate = useMemo(createComposerDispatchGate, []);
   useEffect(() => () => promptUnsub.current?.(), []);
   const terminalRef = useRef<TerminalPaneHandle>(null);
-  const terminalAvailable = typeof globalThis.zetaStudioTerminal !== "undefined";
+  // The pane owns its honest unavailable state: the browser path talks to the
+  // gateway, the Electron path to the preload. Neither is gated here.
+  const terminalAvailable = true;
   const { preview } = usePreviewMode();
   const treeConfirm = useUserMessageTreeConfirm(preview);
   const [inspectTarget, setInspectTarget] = useState<SubagentHubTarget | null>(null);
@@ -8317,6 +8319,10 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      // The terminal owns every key while it has focus (Ctrl+C, Escape, vim
+      // mappings). Without this guard the app's single-key shortcuts swallow
+      // them before xterm sees them.
+      if (event.target instanceof Element && event.target.closest(".term-xterm")) return;
       if (event.key === "Escape") {
         if (paletteOpen) {
           closePalette();

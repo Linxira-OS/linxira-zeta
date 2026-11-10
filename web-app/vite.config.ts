@@ -59,7 +59,12 @@ export default defineConfig({
 	plugins: [react(), packagedCspPlugin(), graphicVendorPlugin()],
 	base: "./",
 	server: {
-		proxy: { "/api": "http://127.0.0.1:43143", "/health": "http://127.0.0.1:43143" },
+		// Terminal panes and Studio events ride WebSockets on the gateway, so the
+		// dev proxy must forward upgrades as well as HTTP.
+		proxy: {
+			"/api": { target: "http://127.0.0.1:43143", ws: true },
+			"/health": { target: "http://127.0.0.1:43143", ws: true },
+		},
 		cors: { origin: ["null", /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/] },
 	},
 	build: {
