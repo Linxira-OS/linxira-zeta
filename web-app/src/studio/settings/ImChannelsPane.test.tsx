@@ -1,9 +1,34 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { BindingsTable, RuntimeChip } from "./ImChannelsPane";
+import { BindingsTable, RuntimeChip, WechatQrFrame } from "./ImChannelsPane";
 import type { ChatBinding } from "./imChannelsApi";
 
 const noop = (_row: ChatBinding): void => undefined;
+
+describe("WeChat QR frame", () => {
+	test("the gateway's SVG is what the pane draws", () => {
+		const qr = { pending: true, qrcodeUrl: "https://liteapp.weixin.qq.com/q/abc", status: "wait", svg: '<svg viewBox="0 0 21 21"></svg>' };
+		const html = renderToStaticMarkup(<WechatQrFrame qr={qr} stage="pending" />);
+		expect(html).toContain('data-qr="svg"');
+		expect(html).toContain("<svg");
+		expect(html).not.toContain("<img");
+	});
+
+	test("an image payload is shown as an image, not re-encoded", () => {
+		const qr = { pending: true, qrcodeUrl: "data:image/png;base64,AAAA", status: "wait" };
+		const html = renderToStaticMarkup(<WechatQrFrame qr={qr} stage="pending" />);
+		expect(html).toContain("<img");
+		expect(html).toContain("data:image/png;base64,AAAA");
+		expect(html).not.toContain('data-qr="svg"');
+	});
+
+	test("no pending login shows the stage word", () => {
+		const html = renderToStaticMarkup(<WechatQrFrame qr={{ pending: false }} stage="unbound" />);
+		expect(html).toContain("im-qr-placeholder");
+		expect(html).not.toContain("<svg");
+		expect(html).not.toContain("<img");
+	});
+});
 
 describe("runtime chip", () => {
 	test("each runtime word is a distinct, stable state hook", () => {

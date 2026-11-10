@@ -59,6 +59,7 @@ import {
 	type DeviceInventory,
 	type PairingQr,
 	type WechatQr,
+	type WechatLoginStage,
 	type WebConfigPath,
 	type WebConfigView,
 } from "./imChannelsApi";
@@ -74,6 +75,34 @@ const EMPTY_DRAFT: BindingDraft = { platform: "wechat", chatId: "", workspaceAli
 
 function errorText(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * The QR frame: the gateway's own `svg` when it sent one, the raw image when
+ * WeChat returned an image payload, the payload text as a last resort, and the
+ * stage word when there is no pending login at all.
+ */
+export function WechatQrFrame({ qr, stage }: { qr: WechatQr | null; stage: WechatLoginStage }) {
+	const { t } = useI18n();
+	const qrImage =
+		qr?.pending === true &&
+		qr.qrcodeUrl !== undefined &&
+		/^(data:image\/|https?:\/\/.*\.(png|jpe?g|gif|webp|svg)(\?|#|$))/i.test(qr.qrcodeUrl);
+	return (
+		<div className="im-qr-frame">
+			{qr?.pending === true && qr.svg !== undefined ? (
+				// The gateway renders this symbol from the payload WeChat issued; it is
+				// our own markup (no script, no external reference).
+				<div className="im-qr-svg" data-qr="svg" dangerouslySetInnerHTML={{ __html: qr.svg }} />
+			) : qrImage && qr?.qrcodeUrl !== undefined ? (
+				<img className="im-qr-image" src={qr.qrcodeUrl} alt={t("settings.imChannels.wechatLogin")} width={168} height={168} />
+			) : qr?.pending === true && qr.qrcodeUrl !== undefined ? (
+				<code className="im-qr-payload">{qr.qrcodeUrl}</code>
+			) : (
+				<span className="im-qr-placeholder">{t(`settings.imChannels.qr.${stage}`)}</span>
+			)}
+		</div>
+	);
 }
 
 /** The runtime word chip; `data-state` is the stable hook the tests read. */
@@ -389,11 +418,6 @@ export function ImChannelsPane({ visible }: { visible: boolean }) {
 	};
 
 	const stage = wechatLoginStage(qr, config?.channels.wechat.botToken !== undefined);
-	const qrImage =
-		qr?.pending === true &&
-		qr.qrcodeUrl !== undefined &&
-		/^(data:image\/|https?:\/\/.*\.(png|jpe?g|gif|webp|svg)(\?|#|$))/i.test(qr.qrcodeUrl);
-
 	return (
 		<>
 			<h3>{t("settings.imChannels.title")}</h3>
@@ -432,19 +456,7 @@ export function ImChannelsPane({ visible }: { visible: boolean }) {
 
 			<SettingSection title={t("settings.imChannels.wechatLogin")} desc={t("settings.imChannels.wechatLoginDesc")}>
 				<div className="im-qr" data-stage={stage}>
-					<div className="im-qr-frame">
-						{qr?.pending === true && qr.svg !== undefined ? (
-							// The gateway renders this symbol from the payload WeChat issued;
-							// it is our own markup (no script, no external reference).
-							<div className="im-qr-svg" data-qr="svg" dangerouslySetInnerHTML={{ __html: qr.svg }} />
-						) : qrImage && qr?.qrcodeUrl !== undefined ? (
-							<img className="im-qr-image" src={qr.qrcodeUrl} alt={t("settings.imChannels.wechatLogin")} width={168} height={168} />
-						) : qr?.pending === true && qr.qrcodeUrl !== undefined ? (
-							<code className="im-qr-payload">{qr.qrcodeUrl}</code>
-						) : (
-							<span className="im-qr-placeholder">{t(`settings.imChannels.qr.${stage}`)}</span>
-						)}
-					</div>
+					<WechatQrFrame qr={qr} stage={stage} />
 					<div className="im-qr-copy">
 						<p className="im-qr-state">{t(`settings.imChannels.qr.${stage}`)}</p>
 						{!wechatEnabled ? <p className="im-hint">{t("settings.imChannels.qr.disabled")}</p> : null}
