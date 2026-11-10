@@ -45,6 +45,7 @@ import {
 } from "../web-gateway/remote-access";
 import { WebConfig } from "../../config/web-config";
 import { logger } from "@linxiraos/pi-utils";
+import { deviceRegistry, inferPlatform, type PublicDevice } from "../auth/device-registry";
 import { buildBootstrap } from "./bootstrap.js";
 import { StudioOperations, StudioOpError, toClientError } from "./registry.js";
 import type { StudioHostContext } from "./registry.js";
@@ -68,6 +69,11 @@ interface StudioSession {
 	expiresAt: number;
 	scope: SubscriptionScope;
 	outstanding: number;
+	/**
+	 * Device this session was paired for. Present when pairing issued a device
+	 * token, so revoking that device can drop the session and its sockets.
+	 */
+	deviceId?: string;
 }
 
 /** Per-connection state for the event socket. */
@@ -79,6 +85,8 @@ export interface StudioWsData {
 /** The slice of a Bun socket the host needs (kept structural for testability). */
 export interface StudioSocket {
 	send(data: string): unknown;
+	/** Optional so test doubles stay trivial; real Bun sockets close on revoke. */
+	close?(): unknown;
 }
 
 /** Event bodies the host emits; the envelope fields are added here, once. */
@@ -216,7 +224,14 @@ export class StudioHost {
 		// `isAllowedOrigin` + implicit pairing alone must never authorize `/api/v1`.
 		const access = await checkBrowserAccess(req, remoteAddr);
 		if (access.denial) return access.denial;
-		if (!isAllowedOrigin(req.headers.get("origin"))) return json({ error: "forbidden" }, 403);
+		// The Origin allowlist is a CSRF guard for *ambient* authority: a local
+		// browser whose cookie the page carries implicitly. A peer that already
+		// presented a token (or device token) proved possession of a secret, and a
+		// phone's own origin is never loopback — enforcing the allowlist there
+		// made every remote, correctly authenticated Studio 403.
+		if (access.genuinelyLocal && !isAllowedOrigin(req.headers.get("origin"))) {
+			return json({ error: "forbidden" }, 403);
+		}
 		const context: StudioHostContext = {
 			origin: req.headers.get("origin") ?? undefined,
 			capabilities: this.#operations.capabilities().manifest,
@@ -259,19 +274,56 @@ export class StudioHost {
 		}
 		limiter.clear(limiterKey);
 		if (!this.#pairingReusable) this.#pairing.used = true;
-		const [sessionId, session] = this.#createSession();
-		return json({ csrf: session.csrf, expiresAt: session.expiresAt }, 200, {
-			"set-cookie": this.#sessionCookie(sessionId),
-		});
+		// Pairing is what turns "this phone knows the QR secret" into "this phone
+		// has its own revocable credential". The plaintext token leaves only in
+		// this response; the registry keeps its hash.
+		let issued: { device: PublicDevice; token: string };
+		try {
+			issued = await deviceRegistry().issue(this.#deviceRequest(body, req));
+		} catch (error) {
+			logger.warn("Device registration failed during pairing", {
+				error: error instanceof Error ? error.message : String(error),
+			});
+			return json({ error: "device_registry_unavailable" }, 500);
+		}
+		const [sessionId, session] = this.#createSession(issued.device.id);
+		return json(
+			{ csrf: session.csrf, expiresAt: session.expiresAt, device: { ...issued.device, token: issued.token } },
+			200,
+			{ "set-cookie": this.#sessionCookie(sessionId) },
+		);
 	}
 
-	#createSession(): [string, StudioSession] {
+	/**
+	 * Read the optional `device` block a client sends with its pairing code.
+	 * The label is a display string; the platform is normalized by the registry
+	 * and defaults to what the User-Agent implies.
+	 */
+	#deviceRequest(body: unknown, req: Request): { label?: string; platform?: string; machineId?: string } {
+		const empty: { label?: string; platform?: string; machineId?: string } = {
+			platform: inferPlatform(req.headers.get("user-agent")),
+		};
+		if (body === null || typeof body !== "object" || !("device" in body)) return empty;
+		const raw = body.device;
+		if (raw === null || typeof raw !== "object") return empty;
+		const label = "label" in raw && typeof raw.label === "string" ? raw.label : undefined;
+		const platform = "platform" in raw && typeof raw.platform === "string" ? raw.platform : undefined;
+		const machineId = "machineId" in raw && typeof raw.machineId === "string" ? raw.machineId : undefined;
+		return {
+			...(label !== undefined ? { label } : {}),
+			platform: platform ?? empty.platform,
+			...(machineId !== undefined ? { machineId } : {}),
+		};
+	}
+
+	#createSession(deviceId?: string): [string, StudioSession] {
 		const sessionId = token(32);
 		const session: StudioSession = {
 			csrf: token(24),
 			expiresAt: this.#now() + SESSION_TTL_MS,
 			scope: { scope: "all" },
 			outstanding: 0,
+			...(deviceId !== undefined ? { deviceId } : {}),
 		};
 		this.#sessions.set(sessionId, session);
 		return [sessionId, session];
@@ -411,6 +463,34 @@ export class StudioHost {
 		if (!set) return;
 		set.delete(socket);
 		if (set.size === 0) this.#sockets.delete(sessionId);
+	}
+
+	/**
+	 * Revoke every Studio session (and event socket) that pairing bound to one
+	 * device. Called by the device-revoke route: the access gate already stops
+	 * that device's token, so this only has to tear down authority that was
+	 * granted earlier — a live cookie session and an upgraded WebSocket.
+	 *
+	 * Returns how many sessions were dropped, for tests and logs.
+	 */
+	dropDeviceSessions(deviceId: string): number {
+		let dropped = 0;
+		for (const [sessionId, session] of this.#sessions) {
+			if (session.deviceId !== deviceId) continue;
+			this.#sessions.delete(sessionId);
+			dropped += 1;
+			const sockets = this.#sockets.get(sessionId);
+			if (sockets === undefined) continue;
+			this.#sockets.delete(sessionId);
+			for (const socket of sockets) {
+				try {
+					socket.close?.();
+				} catch {
+					// A socket that already failed to close must not block revocation.
+				}
+			}
+		}
+		return dropped;
 	}
 
 	/** Deliver one event to every live socket of one session. */
