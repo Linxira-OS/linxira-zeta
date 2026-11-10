@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Zeta cluster mark">
+  <title>Zeta — Cluster mark (L + Z tiles)</title>
+  <!--
+    Concept 04 "Cluster": two rounded tiles, L and Z, separated by a 2.5u
+    transparent gap (64u master grid x8). Teal tile A, coral tile B. The letter
+    apertures are knockouts, so they stay transparent instead of being painted.
+    Flat only: no gradients, shadows, bevels or 3D.
+    Minimum size for this asset: 32px. Below that use zeta-mark-16.svg.
+  -->
+  <defs>
+    <mask id="zeta-cluster-l" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="#000"/>
+      <rect x="64" y="64" width="208" height="208" rx="72" fill="#fff"/>
+      <path d="M120 120V200H192" fill="none" stroke="#000" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="236" y="236" width="232" height="232" rx="84" fill="#000"/>
+    </mask>
+    <mask id="zeta-cluster-z" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="#000"/>
+      <rect x="256" y="256" width="192" height="192" rx="64" fill="#fff"/>
+      <path d="M304 304H400L304 400H400" fill="none" stroke="#000" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <rect width="512" height="512" fill="#0E1417"/>
+  <rect width="512" height="512" fill="#2AC9C1" mask="url(#zeta-cluster-l)"/>
+  <rect width="512" height="512" fill="#F36F5D" mask="url(#zeta-cluster-z)"/>
+</svg>
