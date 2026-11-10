@@ -11,7 +11,7 @@
 
 /** Path prefixes (repo-relative, forward slashes) never scanned. */
 export const SKIP_PREFIXES = [
-	"web-ui/", // separate OMP Web snapshot with its own AGENTS.md
+	"web-ui/", // frozen zeta-web snapshot: `web-ui/scripts/check-studio-naming.ts` guards its copy (this table's file classes do not fit its Next.js tree)
 	"temp/", // local reference clones, never committed
 	"document/", // internal docs: upstream provenance lives here by design
 	"docs/", // runtime docs may reference upstream interop surfaces

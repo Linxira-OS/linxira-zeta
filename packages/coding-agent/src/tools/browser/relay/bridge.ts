@@ -2111,7 +2111,7 @@ export class RelayBridge {
 			this.#replyError(
 				conn,
 				msg,
-				"the omp relay extension in this browser predates download tracking; run `zetacode browser-relay install` and reload the extension in chrome://extensions",
+				"the Zeta relay extension in this browser predates download tracking; run `zetacode browser-relay install` and reload the extension in chrome://extensions",
 			);
 			return false;
 		}

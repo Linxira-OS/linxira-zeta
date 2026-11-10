@@ -1098,7 +1098,7 @@ export function Unavailable() {
         <div className="main-col">
           <div className="empty" style={{ flex: 1, justifyContent: "center" }}>
             <Icon name="alert" extra="lg" />
-            <h1>Studio client unavailable</h1>
+            <h1>Z Work Studio client unavailable</h1>
             <p className="muted">Inject a StudioClient through the desktop shell or WebUI bridge.</p>
           </div>
         </div>
@@ -1156,7 +1156,7 @@ function VirtualEventTranscript({ events }: { events: readonly ShellEventLogEntr
   );
 }
 
-const CURRENT_PROJECT = { id: "omp-studio", name: "OMP Studio" } as const;
+const CURRENT_PROJECT = { id: "omp-studio", name: "Z Work Studio" } as const;
 
 type SelectedProject = { readonly id: string; readonly name: string };
 
@@ -2264,7 +2264,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
         />
         <button className="sb-brand" data-tip={t("nav.home")} onClick={() => onRoute("home")}>
           <AppIcon className="logo" size={22} />
-          <span className="name">OMP Studio</span>
+          <span className="name">Z Work Studio</span>
         </button>
         <button
           className="icon-btn"
@@ -2726,7 +2726,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
           ref={ompBtnRef}
           type="button"
           className={`sb-user${hasUpdate ? " has-update" : ""}`}
-          aria-label={`${profile.displayName} · ${hasUpdate ? `${t("appUpdate.foundNewVersion")} v${effectiveUpdate?.version} · ` : ""}OMP 状态与环境菜单`}
+          aria-label={`${profile.displayName} · ${hasUpdate ? `${t("appUpdate.foundNewVersion")} v${effectiveUpdate?.version} · ` : ""}Zeta 状态与环境菜单`}
           aria-haspopup="menu"
           aria-expanded={chrome.ompMenuOpen}
           onClick={chrome.onToggleOmpMenu}
@@ -2784,7 +2784,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
               ref={ompMenuRef}
               className="menu title-menu-popover omp-menu"
               role="menu"
-              aria-label="OMP 状态与环境"
+              aria-label="Zeta 状态与环境"
               style={{
                 position: "fixed",
                 left: ompMenuPos.left,
@@ -3065,7 +3065,7 @@ function AppTopbar({ state, client, chrome, onRoute, threadTitle, sideOpen, onTo
   );
   const realGit = useGitRepository(client, preview ? undefined : realActiveWorkspace?.workspaceId);
   const crumbProject = preview
-    ? (previewProject?.name ?? "omp-web")
+    ? (previewProject?.name ?? "zeta-web")
     : (realActiveWorkspace?.name ?? t("conversation.noProjectSelected"));
   const crumbBranch = preview ? (previewProject?.branch ?? "main") : (realGit.repository?.branch ?? (realGit.repository?.detached ? "detached HEAD" : "—"));
   const crumbThread = preview ? (previewHit?.thread.title ?? threadTitle) : threadTitle;
@@ -3417,7 +3417,7 @@ type OptimisticPrompt = { readonly pending: PendingUser; readonly phase: PromptS
 let nextOptimisticPromptId = 1;
 
 const PROMPT_SEND_PHASE_LABEL: Record<PromptSendPhase, string> = {
-  starting: "Starting OMP",
+  starting: "Starting Zeta",
   sending: "Sending",
   initiating: "Initiating",
 };
@@ -3708,7 +3708,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     setRememberedPlan(undefined);
     setPlanDialogOpen(false);
   }, [selectedSessionId]);
-  // 预览模式的排队栏演示：t1「跟踪上游 pi-web 更新到 omp-web」流式中显示 fixture
+  // 预览模式的排队栏演示：t1「跟踪上游 pi-web 更新到 zeta-web」流式中显示 fixture
   // 两条消息；操作只改本地列表，不触 Host（AGENTS.md 预览规则）。
   const previewQueueActive = preview === true && previewThreadId === "t1";
   const [previewQueue, setPreviewQueue] = useState<QueuedMessage[]>([]);
@@ -6368,7 +6368,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
               <Icon name="console" extra="sm" />Output
             </button>
             <button className={bottomTab === "logs" ? "active" : ""} role="tab" aria-selected={bottomTab === "logs"} onClick={() => { onBottomTabChange("logs"); onBottomOpenChange(true); }}>
-              <Icon name="book" extra="sm" />OMP Logs
+              <Icon name="book" extra="sm" />Zeta Logs
               {state.events.length > 0 && <span className="chip gray xs">{state.events.length}<span className="sr-only"> {t("shell.eventsCount", { count: state.events.length })}</span></span>}
             </button>
             <button className={bottomTab === "pvlogs" ? "active" : ""} role="tab" aria-selected={bottomTab === "pvlogs"} onClick={() => { onBottomTabChange("pvlogs"); onBottomOpenChange(true); }}>
@@ -6450,7 +6450,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
             ) : null}
           </div>
           <div className={`bp-page${bottomTab === "logs" ? " active" : ""}`} id="bpLogs" role="tabpanel">
-            <div className="panel-head"><div><h2>OMP Logs</h2><p className="muted">{t("shell.ompLogsVirtualDesc")}</p></div><span className="mono">{t("shell.eventsCount", { count: state.events.length })}</span></div>
+            <div className="panel-head"><div><h2>Zeta Logs</h2><p className="muted">{t("shell.ompLogsVirtualDesc")}</p></div><span className="mono">{t("shell.eventsCount", { count: state.events.length })}</span></div>
             <VirtualEventTranscript events={state.events} />
           </div>
           <div className={`bp-page${bottomTab === "pvlogs" ? " active" : ""}`} id="bpPvlogs" role="tabpanel">
@@ -6868,7 +6868,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     ? t("conversation.newChat")
     : t("conversation.untitledSession");
   const threadTitle = previewMode.preview
-    ? (previewThread?.thread.title ?? "跟踪上游 pi-web 更新到 omp-web")
+    ? (previewThread?.thread.title ?? "跟踪上游 pi-web 更新到 zeta-web")
     : currentThreadTitle ?? (state.route === "history" ? t("menu.history") : state.route === "home" ? t("menu.home") : state.route === "agent-hub" ? "Agent Hub" : state.route === "capabilities" ? t("menu.capabilities") : state.route === "model-config" ? t("menu.modelConfig") : untitledThreadTitle);
   const onProvisionalSessionChange = useCallback((change: {
     readonly sessionId?: SessionId;
@@ -9056,7 +9056,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
                 </div>
                 <div className="modal-body">
                   <dl className="about-list">
-                    <div className="about-row"><dt>{t("common.product")}</dt><dd>OMP Studio</dd></div>
+                    <div className="about-row"><dt>{t("common.product")}</dt><dd>Z Work Studio</dd></div>
                     <div className="about-row"><dt>{t("appUpdate.currentVersion")}</dt><dd>{(previewMode.preview ? PREVIEW_APP_UPDATE.currentVersion : localAppVersion ?? appUpdate.state.updateInfo?.currentVersion) || "—"}</dd></div>
                     <div className="about-row"><dt>Client contract</dt><dd>v{CLIENT_CONTRACT_VERSION}</dd></div>
                     <div className="about-row"><dt>Runtime</dt><dd>{runtime?.status ?? t("common.unavailable")}{runtime?.classification ? ` · ${runtime.classification}` : ""}</dd></div>

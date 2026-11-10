@@ -217,7 +217,7 @@ function claimSessionOrRefuse(id: string, file: string, action: string): () => v
 	const release = new FileSessionStorage().claimSession(id, file);
 	if (!release) {
 		throw new SessionTransferError(
-			`Cannot ${action} ${file}: another live omp process writes this session. Exit it first. Nothing was changed.`,
+			`Cannot ${action} ${file}: another live Zeta process writes this session. Exit it first. Nothing was changed.`,
 		);
 	}
 	return release;
@@ -364,9 +364,9 @@ function parseManifest(bytes: Uint8Array, archive: string): SessionArchiveManife
 		throw new SessionTransferError(`Bad session archive ${archive}: manifest.json has no version.`);
 	}
 	if (version !== SESSION_ARCHIVE_VERSION) {
-		const hint = version > SESSION_ARCHIVE_VERSION ? " Update omp on this machine." : "";
+		const hint = version > SESSION_ARCHIVE_VERSION ? " Update Zeta on this machine." : "";
 		throw new SessionTransferError(
-			`Unsupported session archive version ${version} in ${archive}: omp ${VERSION} reads version ${SESSION_ARCHIVE_VERSION}.${hint}`,
+			`Unsupported session archive version ${version} in ${archive}: Zeta ${VERSION} reads version ${SESSION_ARCHIVE_VERSION}.${hint}`,
 		);
 	}
 	if (typeof id !== "string" || typeof cwd !== "string" || typeof omp !== "string") {

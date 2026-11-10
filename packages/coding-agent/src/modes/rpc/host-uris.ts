@@ -104,7 +104,7 @@ export class RpcHostUriBridge {
 			// Built-in schemes are OMP-owned: a host shadowing one would change its semantics for
 			// the whole process, and `clear()` would then delete it for later sessions.
 			if (this.#router.isBuiltin(scheme)) {
-				throw new Error(`Host URI scheme is reserved by OMP: ${scheme}://`);
+				throw new Error(`Host URI scheme is reserved by Zeta: ${scheme}://`);
 			}
 			normalized.set(scheme, {
 				scheme,

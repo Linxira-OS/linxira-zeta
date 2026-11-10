@@ -93,7 +93,7 @@ function renderContextGaugeState(state: GalleryFixtureState, width: number): rea
 
 /** Prompt-cache lifecycle per gallery state; `error` shows both reasons it is not cached. */
 const PROMPT_CACHE_CASES: Record<GalleryFixtureState, readonly { status: PromptCacheStatus; note: string }[]> = {
-	streaming: [{ status: GALLERY_PROMPT_CACHE.warm, note: "cached — omp refreshes it before the 5m tier lapses" }],
+	streaming: [{ status: GALLERY_PROMPT_CACHE.warm, note: "cached — Zeta refreshes it before the 5m tier lapses" }],
 	progress: [{ status: GALLERY_PROMPT_CACHE.likelyWarm, note: "likely cached — read off a reopened session" }],
 	success: [{ status: GALLERY_PROMPT_CACHE.refreshing, note: "cached — 1h tier, refresh in flight" }],
 	error: [

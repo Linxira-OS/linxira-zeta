@@ -202,6 +202,6 @@ export function ExecutionTargetPicker({ onOpen, otherMenuOpen = false }: { onOpe
       </form>}
     </dialog>, document.body) : null}
     {preview && demoPasswordProfile ? <SshPasswordDialog demo profile={demoPasswordProfile} onCancel={() => setDemoPasswordProfile(undefined)} onSubmit={() => { setDemoPreparation(demoPasswordProfile); setDemoPasswordProfile(undefined); }} /> : null}
-    {preview && demoPreparation ? <SshPreparationDialog demo profile={demoPreparation} status={{ id: demoPreparation.id, state: "awaiting-approval", stage: "confirmation", platform: "linux", arch: "x64", installRoot: "~/.local/share/omp-studio/remote" }} onCancel={() => setDemoPreparation(undefined)} onApprove={() => { setDemo(demoPreparation.name); setDemoPreparation(undefined); }} /> : null}
+    {preview && demoPreparation ? <SshPreparationDialog demo profile={demoPreparation} status={{ id: demoPreparation.id, state: "awaiting-approval", stage: "confirmation", platform: "linux", arch: "x64", installRoot: "~/.local/share/zeta/remote" }} onCancel={() => setDemoPreparation(undefined)} onApprove={() => { setDemo(demoPreparation.name); setDemoPreparation(undefined); }} /> : null}
   </span>;
 }

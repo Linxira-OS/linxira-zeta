@@ -137,7 +137,7 @@ export class SecurityProtocolHandler implements ProtocolHandler {
 				content: [
 					"# Security",
 					"",
-					"OMP-owned software-security analysis resources. The namespace is read-only; use explicit security commands or tools for mutations.",
+					"Zeta-owned software-security analysis resources. The namespace is read-only; use explicit security commands or tools for mutations.",
 					"",
 					"- `security://scans` — list scans",
 					"",

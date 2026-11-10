@@ -287,7 +287,7 @@ async function openBrowserHandle(kind: BrowserKind, opts: AcquireBrowserOptions)
 		}
 		if (outcome === "outdated-relay") {
 			throw new ToolError(
-				`The browser relay at ${cdpUrl} is out of date. Restart the relay under this OMP version, then retry.`,
+				`The browser relay at ${cdpUrl} is out of date. Restart the relay under this Zeta version, then retry.`,
 			);
 		}
 		if (outcome === "outdated-extension") {

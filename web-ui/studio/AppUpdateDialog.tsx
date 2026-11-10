@@ -158,7 +158,7 @@ export function AppUpdateDialog({
 
   const openGithub = useCallback((event: ReactMouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    const url = update.htmlUrl ?? "https://github.com/the-snowpear/omp-studio/releases";
+    const url = update.htmlUrl ?? "https://github.com/Linxira-OS/linxira-zeta/releases";
     const openUrl = globalThis.ompStudioChrome?.openUrl;
     if (openUrl !== undefined) {
       void openUrl({ url });
@@ -182,7 +182,7 @@ export function AppUpdateDialog({
               {t("appUpdate.dialogTitle")} {preview ? t("appUpdate.demoUpdate") : ""}
             </span>
             <h2 id="appUpdateTitle">
-              {update.name || (update.version ? `OMP Studio v${update.version}` : "OMP Studio")}
+              {update.name || (update.version ? `Z Work Studio v${update.version}` : "Z Work Studio")}
             </h2>
             <p className="create-branch-sub" style={{ marginTop: 4, display: "flex", gap: 12, alignItems: "center" }}>
               <span>

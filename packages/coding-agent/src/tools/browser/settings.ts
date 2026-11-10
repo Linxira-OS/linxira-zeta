@@ -88,7 +88,7 @@ export const cfgBrowserFreezeOnTurnEnd = register({
 		group: "Grep & Browser",
 		label: "Freeze Browser Tabs On Turn End",
 		description:
-			"Freeze OMP-owned headless browser tabs when a turn settles so animated pages stop burning CPU/GPU while idle. Tabs unfreeze automatically on next use; pass persist:true on open to opt a tab out.",
+			"Freeze Zeta-owned headless browser tabs when a turn settles so animated pages stop burning CPU/GPU while idle. Tabs unfreeze automatically on next use; pass persist:true on open to opt a tab out.",
 	},
 });
 
@@ -101,7 +101,7 @@ export const cfgBrowserIdleCloseSec = register({
 		group: "Grep & Browser",
 		label: "Browser Idle Close Timeout",
 		description:
-			"Close OMP-owned headless browser tabs idle longer than this many seconds (0 = never; session dispose still reaps). Never touches relay/CDP/spawned browsers or other sessions' tabs.",
+			"Close Zeta-owned headless browser tabs idle longer than this many seconds (0 = never; session dispose still reaps). Never touches relay/CDP/spawned browsers or other sessions' tabs.",
 		options: [
 			{ value: "0", label: "Never" },
 			{ value: "900", label: "15 minutes" },

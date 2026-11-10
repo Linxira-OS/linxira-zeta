@@ -213,7 +213,7 @@ function formatMcpSourceLabel(label: string | undefined, t: (k: string) => strin
   if (!label) return "";
   if (label === "用户" || label === "User") return t("subagents.scopeUser");
   if (label === "项目" || label === "Project") return t("subagents.scopeProject");
-  if (label === "OMP" || label === "内置") return t("skills.scopeBuiltin");
+  if (label === "内置") return t("skills.scopeBuiltin");
   return label;
 }
 

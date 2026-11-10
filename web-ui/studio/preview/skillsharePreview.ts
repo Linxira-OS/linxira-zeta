@@ -1,6 +1,6 @@
 import type { SkillshareResultMap } from "@/lib/studio-protocol/protocol";
 const hit = { package: "@studio/service-review", description: "检查服务配置与运行日志，保存配置后由使用者明确启动。", version: "1.2.0", downloads: 184, updatedAt: 1789948800000 };
-export const PREVIEW_SKILLSHARE_STATUS: SkillshareResultMap["skillshare.status"] = { registry: "https://skills.omp.sh", accountAuthenticated: true, publishAuthenticated: true, privateTokenChannel: true, actions: [] };
+export const PREVIEW_SKILLSHARE_STATUS: SkillshareResultMap["skillshare.status"] = { registry: "https://skills.sh", accountAuthenticated: true, publishAuthenticated: true, privateTokenChannel: true, actions: [] };
 export const PREVIEW_SKILLSHARE_SEARCH: SkillshareResultMap["skillshare.search"] = { hits: [hit], total: 1, page: 0, perPage: 20 };
 export const PREVIEW_SKILLSHARE_PACKAGE: SkillshareResultMap["skillshare.package"] = {
   package: hit.package, description: hit.description, keywords: ["services", "review"], owners: ["studio"], tags: { latest: "1.2.0", stable: "1.1.0" }, totalVersions: 2,

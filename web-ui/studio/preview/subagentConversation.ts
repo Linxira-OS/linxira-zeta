@@ -49,7 +49,7 @@ const DOCS_ITEMS: ConversationItem[] = [
     parentId: "preview-docs-user",
     createdAt: T2,
     role: "assistant",
-    content: [{ type: "text", text: "Release Notes 里和 Studio 相关的是 conversation live projector 与 session telemetry。" }],
+    content: [{ type: "text", text: "Release Notes 里和 Z Work Studio 相关的是 conversation live projector 与 session telemetry。" }],
   },
 ];
 

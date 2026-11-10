@@ -171,7 +171,7 @@ export const cfgExtensionHandlersToolCallTimeoutMs = register({
 		group: "Extensions",
 		label: "Tool Call Handler Timeout (ms)",
 		description:
-			"Positive finite active-work timeout for extension tool_call handlers; invalid values use 30000ms, and time awaiting OMP-owned dialogs does not count",
+			"Positive finite active-work timeout for extension tool_call handlers; invalid values use 30000ms, and time awaiting Zeta-owned dialogs does not count",
 	},
 });
 

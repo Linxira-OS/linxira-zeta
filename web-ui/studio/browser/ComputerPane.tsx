@@ -259,7 +259,7 @@ export function ComputerPane({ client, sessionId, available, visible, capabiliti
     emptyDescription = zh ? "查看代理操作的屏幕与窗口，随时掌握当前进展。" : "View the screens and windows your agent is working with.";
   } else if (!desktopCapture) {
     emptyTitle = zh ? "在桌面客户端查看" : "Open the desktop app";
-    emptyDescription = zh ? "电脑截图通过桌面客户端读取，请在 OMP Studio 桌面版打开此面板。" : "Open this panel in the OMP Studio desktop app to view computer captures.";
+    emptyDescription = zh ? "电脑截图通过桌面客户端读取，请在 Z Work Studio 桌面版打开此面板。" : "Open this panel in the Z Work Studio desktop app to view computer captures.";
   } else if (!status.available) {
     emptyTitle = status.capturePermission === "denied" ? zh ? "需要屏幕录制权限" : "Screen recording permission needed" : zh ? "电脑截图暂不可用" : "Screen capture unavailable";
     emptyDescription = computerReason(status.reason, zh) ?? (zh ? "请在系统设置中允许屏幕录制，授权后会自动更新。" : "Allow screen recording in system settings. Status updates automatically.");

@@ -164,7 +164,7 @@ function manifestAvailability(entry: OperatorCommandManifestEntry, metadata: Stu
 }
 
 function manifestDisabledReason(entry: OperatorCommandManifestEntry, metadata: StudioSlashCommand | undefined): string | undefined {
-  if (entry.presentation === "terminal" && !hasLocalSlashMapping(metadata)) return "此指令需要终端交互，暂不能在 Studio 中执行";
+  if (entry.presentation === "terminal" && !hasLocalSlashMapping(metadata)) return "此指令需要终端交互，暂不能在 Z Work Studio 中执行";
   if (entry.availability === "available") return undefined;
   return entry.availability === "blocked" ? "Runtime 已阻止此指令" : "Runtime 已禁用此指令";
 }

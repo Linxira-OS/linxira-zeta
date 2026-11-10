@@ -397,7 +397,7 @@ function AssistantRunViewInner({
     <div className={`ev ev-assistant${process ? " ev-process" : ""}`} data-item-id={first.row.itemId}>
       {process ? null : (
         <div className="ev-head">
-          <span className="who"><span className="role-badge a">π</span>OMP</span>
+          <span className="who"><span className="role-badge a">ζ</span>Zeta</span>
           <span className="muted">{formatTime(first.row.createdAt)}</span>
           <AssistantStatus status={last.row.status} />
         </div>
@@ -646,7 +646,7 @@ export const ConversationItemView = memo(function ConversationItemView({
       <div className={`ev ev-assistant${process ? " ev-process" : ""}`} data-item-id={row.itemId}>
         {process ? null : (
           <div className="ev-head">
-            <span className="who"><span className="role-badge a">π</span>OMP</span>
+            <span className="who"><span className="role-badge a">ζ</span>Zeta</span>
             <span className="muted">{formatTime(row.createdAt)}</span>
             <AssistantStatus status={row.status} />
           </div>

@@ -10,7 +10,7 @@ export const PREVIEW_ACCOUNT_STATUS: AccountStatusResult = {
       id: "preview-claude",
       provider: "anthropic",
       label: "demo@example.com",
-      organization: "Studio demo",
+      organization: "Z Work Studio demo",
       source: "oauth",
       active: true,
       reportedAt: previewNow,

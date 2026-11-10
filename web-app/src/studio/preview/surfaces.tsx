@@ -483,7 +483,7 @@ export function PreviewGitPanel() {
         <GitTip text="演示"><button type="button" className="btn small outline" disabled>Pull</button></GitTip>
         <GitTip text="演示"><button type="button" className="btn small outline" disabled>Push</button></GitTip>
       </div>
-      <div className="git-notice" role="status">演示仓库状态（omp-web / main）。预览模式下不执行任何 Git 操作。</div>
+      <div className="git-notice" role="status">演示仓库状态（zeta-web / main）。预览模式下不执行任何 Git 操作。</div>
       <div className="git-actions">
         <GitMoreActionsMenu />
         <span className="tiny muted">演示</span>

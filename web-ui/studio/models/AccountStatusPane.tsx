@@ -392,8 +392,8 @@ export function AccountStatusPane({
               <strong>{logoutTarget.label}</strong>
               <p>
                 {zh
-                  ? "移除此账户的原生登录凭据，会影响使用同一凭据的其他 OMP 会话。其他账户和 API 密钥保留。"
-                  : "Remove the native login credential for this account. Other OMP sessions using it are affected; other accounts and API keys remain."}
+                  ? "移除此账户的原生登录凭据，会影响使用同一凭据的其他 Zeta 会话。其他账户和 API 密钥保留。"
+                  : "Remove the native login credential for this account. Other Zeta sessions using it are affected; other accounts and API keys remain."}
               </p>
               <button
                 className="btn danger"

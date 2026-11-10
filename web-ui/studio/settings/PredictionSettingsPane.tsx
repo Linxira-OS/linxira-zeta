@@ -387,7 +387,7 @@ export function PredictionSettingsPane({
           >
             <option value="session">{zh ? "仅本会话" : "This session"}</option>
             <option value="global">
-              {zh ? "OMP 全局设置" : "Global OMP setting"}
+              {zh ? "Zeta 全局设置" : "Global Zeta setting"}
             </option>
           </AppSelect>
         </label>
@@ -422,7 +422,7 @@ export function PredictionSettingsPane({
           {(
             {
               default: zh ? "默认值" : "Default",
-              global: zh ? "OMP 全局" : "Global OMP",
+              global: zh ? "Zeta 全局" : "Global Zeta",
               project: zh ? "项目" : "Project",
               runtime: zh ? "本会话" : "This session",
               env: zh ? "环境" : "Environment",
@@ -453,8 +453,8 @@ export function PredictionSettingsPane({
         label={zh ? "外部提示词历史" : "External prompt history"}
         desc={
           zh
-            ? "仅导入你手动选择的 Claude Code / Codex JSONL 文件，最多 8 MiB、2,000 条。只用于 Studio 本地预测，不写入 OMP 会话历史。"
-            : "Import only a Claude Code / Codex JSONL file you select, up to 8 MiB and 2,000 prompts. Used for local Studio prediction without changing OMP session history."
+            ? "仅导入你手动选择的 Claude Code / Codex JSONL 文件，最多 8 MiB、2,000 条。只用于 Z Work Studio 本地预测，不写入 Zeta 会话历史。"
+            : "Import only a Claude Code / Codex JSONL file you select, up to 8 MiB and 2,000 prompts. Used for local Z Work Studio prediction without changing Zeta session history."
         }
       >
         <button

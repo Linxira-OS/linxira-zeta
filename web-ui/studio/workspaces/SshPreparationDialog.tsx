@@ -17,7 +17,7 @@ export function SshPreparationDialog({ profile, status, demo = false, onApprove,
     <p className="ssh-preparation-target"><Icon name="terminal" /><strong>{profile.name}</strong><span>{system}{status.arch ? ` · ${status.arch}` : ""}</span></p>
     <ol className="ssh-preparation-steps">{["连接与体检", "准备运行环境", "选择项目"].map((label, index) => <li key={label} aria-current={index === (step < 2 ? 0 : 1) ? "step" : undefined}>{index + 1}<span>{label}</span></li>)}</ol>
     {confirm ? <>
-      <p>将自动安装私有 Node、OMP Studio Host 和签名 Runtime，远端无需预装 Node。</p>
+      <p>将自动安装私有 Node、Z Work Studio Host 和签名 Runtime，远端无需预装 Node。</p>
       <p className="muted small">安装位置</p><code className="ssh-install-path">{status.installRoot}</code>
       <p className="muted small">本机模型配置与 API Key 会同步到这台机器的私有配置中。OAuth 由本机统一刷新，刷新令牌保留本机。</p>
       <p className="muted small">默认由远端联网，网络连接失败时通过本机联网。文件、命令与构建在远端执行。</p>

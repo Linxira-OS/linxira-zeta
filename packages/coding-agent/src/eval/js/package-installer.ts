@@ -62,7 +62,7 @@ export function resolveJsPackageEnvironment(
 	}
 	const key = Bun.hash(project).toString(16).padStart(16, "0");
 	const root = path.join(getAgentDir(), "cache", "eval-js", "environments", key);
-	return { mode, root, packageRoot: root, description: `OMP-managed environment at ${root}` };
+	return { mode, root, packageRoot: root, description: `Zeta-managed environment at ${root}` };
 }
 
 async function ensureManagedManifest(

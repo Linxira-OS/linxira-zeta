@@ -225,7 +225,7 @@ const TRANSPORTS: readonly TransportType[] = ["stdio", "http", "sse"];
 
 /** How each transport reads as a choice and in the review. */
 const TRANSPORT_CHOICES: Readonly<Record<TransportType, { icon: string; label: string; description: string }>> = {
-	stdio: { icon: "terminal", label: "Local command", description: "omp starts it on this machine" },
+	stdio: { icon: "terminal", label: "Local command", description: "Zeta starts it on this machine" },
 	http: { icon: "globe", label: "Remote server", description: "Streamable HTTP endpoint" },
 	sse: { icon: "broadcast", label: "Server-sent events", description: "Older HTTP servers" },
 };
@@ -808,7 +808,7 @@ export class MCPAddWizard extends OverlayPanel {
 
 	#renderTransportStep(): void {
 		this.#choiceStep({
-			title: "How does omp reach it?",
+			title: "How does Zeta reach it?",
 			lead: `Pick how ${this.#state.name} talks to Zeta.`,
 			choices: TRANSPORTS.map(transport => ({ ...TRANSPORT_CHOICES[transport], tag: transport })),
 			escape: "go back",
@@ -818,7 +818,7 @@ export class MCPAddWizard extends OverlayPanel {
 	#renderCommandStep(): void {
 		this.#inputStep({
 			title: "Command",
-			lead: "The program omp starts for this server.",
+			lead: "The program Zeta starts for this server.",
 			initial: this.#state.command,
 			placeholder: "npx",
 			escape: "go back",
@@ -829,7 +829,7 @@ export class MCPAddWizard extends OverlayPanel {
 	#renderArgsStep(): void {
 		this.#inputStep({
 			title: "Arguments",
-			lead: `Passed to ${this.#state.command}, separated by spaces. omp tries the connection next.`,
+			lead: `Passed to ${this.#state.command}, separated by spaces. Zeta tries the connection next.`,
 			initial: this.#state.args,
 			placeholder: "-y @modelcontextprotocol/server-github",
 			optional: true,
@@ -839,7 +839,7 @@ export class MCPAddWizard extends OverlayPanel {
 	#renderUrlStep(): void {
 		this.#inputStep({
 			title: "Server URL",
-			lead: `Where ${this.#state.name} listens. omp tries the connection next.`,
+			lead: `Where ${this.#state.name} listens. Zeta tries the connection next.`,
 			initial: this.#state.url,
 			placeholder: "https://mcp.example.com/mcp",
 			note: "Starts with http:// or https://",
@@ -967,7 +967,7 @@ export class MCPAddWizard extends OverlayPanel {
 			{
 				phase: PHASE_REVIEW,
 				title: "Review and save",
-				lead: "omp connects to the server as soon as it is saved.",
+				lead: "Zeta connects to the server as soon as it is saved.",
 				body: [
 					node(
 						"kv",
@@ -1330,7 +1330,7 @@ export class MCPAddWizard extends OverlayPanel {
 	#renderAuthMethodStep(): void {
 		this.#choiceStep({
 			title: "How does it authenticate?",
-			lead: `${this.#state.name} needs credentials before omp can use it.`,
+			lead: `${this.#state.name} needs credentials before Zeta can use it.`,
 			choices: [
 				{ icon: "log-in", label: "Sign in with OAuth", description: "Opens your browser" },
 				{ icon: "key", label: "API key or token", description: "Paste it, or run a command that prints it" },
@@ -1385,7 +1385,7 @@ export class MCPAddWizard extends OverlayPanel {
 	#renderOAuthScopesStep(): void {
 		this.#inputStep({
 			title: "Scopes",
-			lead: "What omp may access, separated by spaces. Sign-in starts next.",
+			lead: "What Zeta may access, separated by spaces. Sign-in starts next.",
 			initial: this.#state.oauthScopes,
 			placeholder: "read write",
 			escape: "go back",
@@ -1458,7 +1458,7 @@ export class MCPAddWizard extends OverlayPanel {
 			phase: PHASE_CONNECTION,
 			title: "Trying the connection",
 			tone: "accent",
-			lead: "omp connects once to see whether the server needs credentials.",
+			lead: "Zeta connects once to see whether the server needs credentials.",
 			ansi: new Text(theme.fg("muted", `Connecting to ${sanitize(target)}…`), 0, 0),
 			native: [statusRow("busy", [span("Connecting to "), span(replaceTabs(target), "mono")])],
 		});
@@ -1549,7 +1549,7 @@ export class MCPAddWizard extends OverlayPanel {
 					phase: PHASE_CONNECTION,
 					title: "Couldn't connect",
 					tone: "warning",
-					lead: "omp saves the server anyway; fix it later with /mcp.",
+					lead: "Zeta saves the server anyway; fix it later with /mcp.",
 					ansi: failureBody,
 					native: [errorBlock(nativeErrorText(error)), statusRow("busy", "Adding the server anyway…")],
 				});
@@ -1732,7 +1732,7 @@ export class MCPAddWizard extends OverlayPanel {
 				phase: PHASE_AUTH,
 				title: "Checking the server",
 				tone: "success",
-				lead: "omp tries the new credentials before saving.",
+				lead: "Zeta tries the new credentials before saving.",
 				ansi: healthBody,
 				native: [checks(statusRow("busy", "Waiting for the server to answer…", "health"))],
 			});
@@ -1786,7 +1786,7 @@ export class MCPAddWizard extends OverlayPanel {
 				healthBody.addChild(new Spacer(1));
 				healthBody.addChild(new Text(theme.fg("muted", healthError), 0, 0));
 				this.#setNativeBody([
-					checks(statusRow("warn", "The server didn't answer; omp saves it anyway", "health")),
+					checks(statusRow("warn", "The server didn't answer; Zeta saves it anyway", "health")),
 					errorBlock(nativeHealthError),
 				]);
 			}

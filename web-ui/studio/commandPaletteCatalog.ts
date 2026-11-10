@@ -153,7 +153,7 @@ function staticGroups(preview: boolean): PaletteGroup[] {
         { id: "open-problems", icon: "alert", label: "palette.openProblems", keywords: "problems 打开 Problems", action: { kind: "openBottom", tab: "problems" } },
         { id: "open-tests", icon: "test", label: "palette.openTests", keywords: "tests 打开 Tests", action: { kind: "openBottom", tab: "tests" } },
         { id: "open-output", icon: "console", label: "palette.openOutput", keywords: "output 打开 Output", action: { kind: "openBottom", tab: "output" } },
-        { id: "open-logs", icon: "pulse", label: "palette.openLogs", keywords: "logs 日志 打开 OMP Logs", action: { kind: "openBottom", tab: "logs" } },
+        { id: "open-logs", icon: "pulse", label: "palette.openLogs", keywords: "logs 日志 打开 Zeta Logs", action: { kind: "openBottom", tab: "logs" } },
         { id: "open-pvlogs", icon: "globe", label: "palette.openPreviewLogs", keywords: "preview logs 打开 Preview Logs", action: { kind: "openBottom", tab: "pvlogs" } },
         { id: "open-changes", icon: "diff", label: "palette.openChanges", keywords: "changes 打开 Changes", action: { kind: "openSide", tab: "changes" } },
         { id: "open-git", icon: "branch", label: "palette.openGit", keywords: "git branch commit push pull stage 打开 Git", action: { kind: "openSide", tab: "git" } },

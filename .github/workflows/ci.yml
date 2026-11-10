@@ -295,6 +295,9 @@ jobs:
          - name: Test the Studio diagnostics read model
            working-directory: web-app
            run: bun test src/studio/diagnosticsModel.test.ts src/studio/deck/capabilitySupport.test.ts
+         - name: Web UI naming guard
+           working-directory: web-ui
+           run: bun run check:naming
          - name: Verify Rust license compliance (cargo-deny 0.20.2)
            run: |
               # Prebuilt release binary checked against digests pinned here:
