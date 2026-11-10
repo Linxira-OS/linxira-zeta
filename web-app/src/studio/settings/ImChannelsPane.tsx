@@ -154,7 +154,7 @@ export function BindingsTable({
 					{rows.map(row => {
 						const preserved = unknownBindingKeys(row);
 						return (
-							<tr key={bindingKey(row)} data-binding={bindingKey(row)}>
+							<tr key={bindingKey(row)}>
 								<td>{row.platform}</td>
 								<td className="im-mono">{row.chatId}</td>
 								<td>

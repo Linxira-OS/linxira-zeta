@@ -58,7 +58,8 @@ describe("bindings table", () => {
 		];
 		const html = renderToStaticMarkup(<BindingsTable rows={rows} onEdit={noop} onRemove={noop} />);
 		expect(html.includes("<table")).toBe(true);
-		expect(html.match(/<tr /g)?.length).toBe(2);
+		const tableBody = /<tbody>([\s\S]*)<\/tbody>/.exec(html)?.[1] ?? "";
+		expect(tableBody.match(/<tr[\s>]/g)?.length).toBe(2);
 		expect(html).toContain("oc_1");
 		expect(html).toContain("alpha");
 		expect(html).toContain('data-unavailable="agent"');
