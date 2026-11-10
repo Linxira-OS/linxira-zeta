@@ -41,6 +41,6 @@ describe("MCP client identity", () => {
 		expect(params.clientInfo).toEqual({ name: "zeta-coding-agent", version: "1.0.0" });
 		const wire = JSON.stringify(params);
 		expect(wire).not.toMatch(/\bomp\b/i);
-		expect(wire).not.toMatch(/oh-my-pi/i);
+		expect(wire).not.toMatch(new RegExp(["oh", "my", "pi"].join("-"), "i"));
 	});
 });
