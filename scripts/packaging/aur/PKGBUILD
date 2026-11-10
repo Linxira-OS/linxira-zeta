@@ -9,10 +9,10 @@ pkgver=1.0.0
 pkgrel=1
 pkgdesc="Zeta Coding Agent — AI-powered terminal coding assistant"
 arch=('x86_64')
-url="https://github.com/can1357/oh-my-pi"
+url="https://github.com/Linxira-OS/linxira-zeta"
 license=('MIT')
 depends=('glibc')
-source=("zeta-cli-linux-x64::https://github.com/can1357/oh-my-pi/releases/download/v${pkgver}/zeta-cli-linux-x64")
+source=("zeta-cli-linux-x64::https://github.com/Linxira-OS/linxira-zeta/releases/download/v${pkgver}/zeta-cli-linux-x64")
 sha256sums=('SKIP')
 install=zeta.install
 

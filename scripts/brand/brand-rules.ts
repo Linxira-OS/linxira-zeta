@@ -307,8 +307,23 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 	// exact Zeta form so a merge that restores upstream's spelling fails here.
 	{
 		file: "packages/coding-agent/src/modes/acp/acp-agent.ts",
-		needle: 'name: "zeta",',
-		why: "ACP agentInfo advertises the product identity `zeta`; upstream's `omp` mislabels the agent at initialize (acp-initialize-conformance asserts name+title)",
+		needle: "name: APP_NAME,",
+		why: "ACP agentInfo name is the product slug from APP_NAME (`zeta`); upstream's `omp` mislabels the agent at initialize (acp-initialize-conformance asserts name+title)",
+	},
+	{
+		file: "packages/coding-agent/src/modes/acp/acp-agent.ts",
+		needle: 'title: "Zeta",',
+		why: "ACP agentInfo title is the display brand `Zeta`; upstream's `omp` mislabels the agent at initialize",
+	},
+	{
+		file: "nix/package.nix",
+		needle: 'mainProgram = "zeta";',
+		why: "the Nix package's executable is zeta (installPhase writes $out/bin/zeta); upstream's `omp` made `nix run` launch an OMP-named binary",
+	},
+	{
+		file: "nix/package.nix",
+		needle: "--set-default ZETA_NATIVE_LIBRARY_PATH",
+		why: "worker-client.ts reads ZETA_NATIVE_LIBRARY_PATH; upstream's OMP_ spelling left the packaged addon's C++ runtime unresolved",
 	},
 	{
 		file: "packages/coding-agent/src/modes/acp/acp-agent.ts",
@@ -767,6 +782,19 @@ export const MUST_NOT_CONTAIN: Array<{
 	{
 		needle: /Launch the omp TUI/,
 		why: "the ACP terminal-auth description is Zeta-branded (modes/acp/acp-agent.ts)",
+		exempt: ["CHANGELOG.md"],
+	},
+	{
+		needle: /mainProgram = "omp"/,
+		why: "the Nix package's mainProgram is zeta, matching the installed $out/bin/zeta; `omp` would name the upstream CLI",
+	},
+	{
+		needle: /OMP_NATIVE_LIBRARY_PATH/,
+		why: "the packaged native addon overlay is ZETA_NATIVE_LIBRARY_PATH (read by subprocess/worker-client.ts)",
+	},
+	{
+		needle: /omp-coding-agent/,
+		why: "MCP clientInfo and LSP hostInfo name the Zeta client; upstream's omp-coding-agent mislabels it to MCP servers and language servers",
 		exempt: ["CHANGELOG.md"],
 	},
 	{

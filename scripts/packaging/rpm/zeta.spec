@@ -4,14 +4,14 @@ Release:        1%{?dist}
 Summary:        Zeta Coding Agent — AI-powered terminal coding assistant
 
 License:        MIT
-URL:            https://github.com/can1357/oh-my-pi
+URL:            https://github.com/Linxira-OS/linxira-zeta
 Source0:        zeta-cli-linux-x64
 
 BuildArch:      x86_64
 Requires:       glibc >= 2.28
 
 %description
-Zeta is an OMP downstream distribution that provides a terminal-based
+Zeta is a downstream distribution of OMP that provides a terminal-based
 AI coding agent with multi-provider LLM support, tool calling, and
 state management. Includes a built-in Stats Dashboard and Web UI.
 

@@ -944,7 +944,7 @@ export const LSP_SERVERS: Record<string, ServerConfig> = JSON.parse(
 			"jsconfig.json"
 		],
 		"initOptions": {
-			"hostInfo": "omp-coding-agent",
+			"hostInfo": "zeta-coding-agent",
 			"preferences": {
 				"includeInlayParameterNameHints": "all",
 				"includeInlayVariableTypeHints": true,

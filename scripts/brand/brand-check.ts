@@ -28,7 +28,7 @@ import {
 import { diffBrandArt } from "./logo-art";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const SCAN_EXT = /\.(ts|tsx|rs|json|md|toml|kdl|sh|ps1)$/;
+const SCAN_EXT = /\.(ts|tsx|rs|json|md|toml|kdl|sh|ps1|nix)$/;
 // Line-leading comment markers for MUST_NOT_CONTAIN rules with skipCommentLines:
 // a rule that bans a token in copy must not flag an explanatory comment that
 // names the token. Block-comment body lines (`\s*\*…`) and line comments are
