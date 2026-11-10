@@ -167,7 +167,7 @@ async function createBenchSession(options: CreateBenchOptions): Promise<BenchSes
 	hostNode.append(container);
 	const instanceId = options.instanceId ?? `bench-${Math.random().toString(36).slice(2, 10)}`;
 	const profileId = options.profileId ?? defaultProfileId;
-	let connection: BenchSession["connection"] | undefined;
+	const bridge: { send: (data: string) => void } = { send: () => {} };
 	let inboundDelayMs = 0;
 	let info: GatewayTerminalInfo | null = null;
 	const session = new XtermSession({
@@ -175,7 +175,7 @@ async function createBenchSession(options: CreateBenchOptions): Promise<BenchSes
 		renderer: options.renderer,
 		active: true,
 		scrollback: 10_000,
-		onInput: data => connection?.send(data),
+		onInput: data => bridge.send(data),
 		onResize: (cols, rows) => {
 			if (info) void gatewayTerminal.resize(info.id, cols, rows).catch(() => {});
 		},
@@ -206,7 +206,7 @@ async function createBenchSession(options: CreateBenchOptions): Promise<BenchSes
 			await gatewayTerminal.remove(info.id).catch(() => {});
 		},
 	};
-	connection = gatewayTerminal.connect(info, {
+	const connection = gatewayTerminal.connect(info, {
 		onData: text => {
 			const apply = (): void => {
 				bench.received += text.length;
@@ -219,8 +219,9 @@ async function createBenchSession(options: CreateBenchOptions): Promise<BenchSes
 		},
 		onError: message => log(`session ${info.id}: ${message}`),
 	});
+	bridge.send = data => connection.send(data);
 	bench.connection = connection;
-	await waitFor(() => connection?.state === "open", 5_000, "terminal socket");
+	await waitFor(() => connection.state === "open", 5_000, "terminal socket");
 	return bench;
 }
 
@@ -662,7 +663,7 @@ async function runContextLoss(renderer: TerminalRenderer): Promise<ScenarioResul
 	const container = document.createElement("div");
 	container.className = "bench-term";
 	hostNode.append(container);
-	let changes: string[] = [];
+	const changes: string[] = [];
 	const session = new XtermSession({
 		container,
 		renderer,
