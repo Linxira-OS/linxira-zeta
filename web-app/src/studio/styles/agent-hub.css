@@ -54,9 +54,6 @@
 .hub-main .hm-ic {
   width: 34px;
   height: 34px;
-  border-radius: var(--r-8);
-  background: var(--accent-soft);
-  color: var(--accent);
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -249,6 +249,20 @@ if (
 	problems.push("packages/stats/src/client/favicon.ico: differs from assets/favicon.ico");
 }
 
+// The renderer's default AI/Zeta avatar draws both production SVG files
+// directly; a stale copy would show the previous mark inside the conversation.
+const RENDERER_MARK_COPIES: ReadonlyArray<readonly [string, string]> = [
+	["web-app/public/zeta-mark.svg", "assets/zeta-mark.svg"],
+	["web-app/public/zeta-mark-16.svg", "assets/zeta-mark-16.svg"],
+];
+for (const [relative, canonical] of RENDERER_MARK_COPIES) {
+	if (!fs.existsSync(resolve(relative))) {
+		problems.push(`${relative}: missing`);
+	} else if (!fs.readFileSync(resolve(relative)).equals(fs.readFileSync(resolve(canonical)))) {
+		problems.push(`${relative}: differs from ${canonical}`);
+	}
+}
+
 // 16px fallback: the cluster holds from 32px up, and the generator must switch.
 const cluster = readText("assets/zeta-mark.svg");
 if (!cluster.includes("zeta-mark-16.svg")) problems.push("assets/zeta-mark.svg: does not name the 16px fallback");

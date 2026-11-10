@@ -73,7 +73,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 
 导出链：`desktop/scripts/generate-icon.mjs`（`desktop` 的 `npm run build` 首步）从上述 SVG
 一次产出 `assets/zeta-mark-{16,32,64,512,1024}.png`、`assets/icon-{512,1024}.png`、
-`assets/favicon.ico`、`web-app/public/{icon.png,favicon.ico}`、`web-ui/public/icons/*`、
+`assets/favicon.ico`、`web-app/public/{icon.png,favicon.ico,zeta-mark.svg,zeta-mark-16.svg}`、`web-ui/public/icons/*`、
 `desktop/build/*`、`main/crates/zetawork-gui/assets/icon.png`（256）；再由
 `bun scripts/packaging/windows/generate-icon.ts` 产出 `main/crates/zetawork-gui/assets/icon.ico`。
 **改 SVG 后必须重跑两者并提交产物**，否则 `check-windows-icons` 与实际栅格各说各话。

@@ -534,7 +534,6 @@
   font-size: calc(10px * var(--text-font-scale)); font-weight: var(--fw-bold);
 }
 .role-badge.u { background: var(--surface-3); color: var(--text-2); }
-.role-badge.a { background: var(--accent-soft); color: var(--accent); }
 
 /* 用户消息：聊天气泡（右对齐 + accent 实底 + 右下小角指向发送者）
    参照 Claude / Cursor 等 agent 客户端的惯例：用户消息用气泡，

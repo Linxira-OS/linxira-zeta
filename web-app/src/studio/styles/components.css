@@ -755,3 +755,17 @@ textarea.input { height: auto; min-height: 72px; padding: var(--sp-8) var(--sp-1
 .st-done { color: var(--green); }
 .st-failed { color: var(--red); }
 .st-aborted { color: var(--text-3); }
+
+/* ---------- Zeta avatar (default AI identity) ----------
+   The mark carries its own ink plate, so no surface behind it: only a hairline
+   ring keeps the plate edge readable where the theme background is equally dark
+   or equally light. Radius is a percentage so 18px rows and the 34px banner
+   share one rule without looking boxy. */
+.zeta-avatar {
+  display: inline-block;
+  flex: none;
+  border-radius: 22%;
+  object-fit: contain;
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+.zeta-avatar-fallback { display: inline-block; }
