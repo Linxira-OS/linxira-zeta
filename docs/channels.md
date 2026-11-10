@@ -12,14 +12,14 @@ defined in [agent-modes.md](./agent-modes.md); the chat command grammar is in
 
 ## Status
 
-| Area | Status | Where it stands |
-| ---- | ------ | --------------- |
-| WeChat / Feishu / Telegram adapters | **IMPLEMENTED** | Real server adapters in `packages/channels/src/{wechat,feishu,telegram}.ts`, hosted by the CLI/TUI session and `zetacode serve` from one runtime. The desktop shell and GUI settings page read/write the same `web.yml`. |
-| TIM adapter | **PLANNED** — not implemented | No TIM/Tencent-IM adapter exists in the tree; only the three adapters above are compiled in. |
-| Channel + chat → agent target | **IMPLEMENTED** | In `serve`, each channel+chat resolves to exactly one target: `@agent use` override, active bot session/project, persisted workspace binding, channel-default workspace, else the relay coordinator (the default-workspace bot). See [Remote Workspaces & IM Relay](./remote-workspaces.md). |
-| Relay answers only unbound chats | **IMPLEMENTED** | The relay coordinator is the fallback; a chat with any project/workspace/agent binding is not answered by the default workspace, and an unopenable binding returns an error instead of falling back. |
-| Allowlist, dedupe, reply correlation | **IMPLEMENTED** | `channels.allowedPeers` gate (`packages/channels/src/auth.ts`), durable per-channel message-id dedupe (`seen-store.ts`), and per-message reply correlation (`reply-correlator.ts`) are wired into every host. |
-| Local IM session visibility | **IMPLEMENTED** | IM/bot/relay transcripts are stamped with `SessionHeader.origin`. Studio, the resume picker, and `history.list` hide IM conversations by default; Work Studio History exposes an explicit **IM / Bot** (`includeIm`) view, and IM rows show the workspace alias or `IM · <channel>` instead of an absolute cwd. See [session origin](./session.md#header-sessionheader). |
+| Area                                 | Status                        | Where it stands                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| WeChat / Feishu / Telegram adapters  | **IMPLEMENTED**               | Real server adapters in `packages/channels/src/{wechat,feishu,telegram}.ts`, hosted by the CLI/TUI session and `zetacode serve` from one runtime. The desktop shell and GUI settings page read/write the same `web.yml`.                                                                                                                                                 |
+| TIM adapter                          | **PLANNED** — not implemented | No TIM/Tencent-IM adapter exists in the tree; only the three adapters above are compiled in.                                                                                                                                                                                                                                                                             |
+| Channel + chat → agent target        | **IMPLEMENTED**               | In `serve`, each channel+chat resolves to exactly one target: `@agent use` override, active bot session/project, persisted workspace binding, channel-default workspace, else the relay coordinator (the default-workspace bot). See [Remote Workspaces & IM Relay](./remote-workspaces.md).                                                                             |
+| Relay answers only unbound chats     | **IMPLEMENTED**               | The relay coordinator is the fallback; a chat with any project/workspace/agent binding is not answered by the default workspace, and an unopenable binding returns an error instead of falling back.                                                                                                                                                                     |
+| Allowlist, dedupe, reply correlation | **IMPLEMENTED**               | `channels.allowedPeers` gate (`packages/channels/src/auth.ts`), durable per-channel message-id dedupe (`seen-store.ts`), and per-message reply correlation (`reply-correlator.ts`) are wired into every host.                                                                                                                                                            |
+| Local IM session visibility          | **IMPLEMENTED**               | IM/bot/relay transcripts are stamped with `SessionHeader.origin`. Studio, the resume picker, and `history.list` hide IM conversations by default; Work Studio History exposes an explicit **IM / Bot** (`includeIm`) view, and IM rows show the workspace alias or `IM · <channel>` instead of an absolute cwd. See [session origin](./session.md#header-sessionheader). |
 
 The CLI surface (`zetacode channels …`) only inspects, pairs, and configures;
 it never hosts the runtime. GUI parity is documented in
@@ -219,7 +219,45 @@ Lifecycle:
 Channels that are enabled but missing credentials are skipped by the adapter
 with a warning, exactly as in `serve`. WeChat without a token is skipped by the
 CLI host specifically (rather than starting a hidden QR login that would
-compete with `channels login wechat`); pair first, then restart the session.
+compete with `channels login wechat`); pair first, or use `/channels login
+wechat` (below), then restart the session if you paired elsewhere.
+
+## `/channels` in the TUI
+
+`/channels` is the operator entry for a TUI-only machine; it is hidden from the
+everyday command palette and documented here instead. It shares `web.yml` and
+the same login flow as the CLI:
+
+```
+/channels status
+/channels login wechat [timeout-seconds]
+/channels login feishu|telegram
+/channels enable <wechat|feishu|telegram>
+/channels disable <wechat|feishu|telegram>
+/channels logout <wechat|feishu|telegram>
+```
+
+- `status` prints the same enabled/running/configured/peers/route/login facts
+  as `zetacode channels status`.
+- `login wechat` renders the QR in the transcript with the workspace's
+  half-block encoder. Before opening the flow it suspends this session's
+  channel host (if any), so the QR poll never competes with a running adapter;
+  it then restarts whichever channels the fresh `web.yml` enables. A second
+  login is serialized by `<agent dir>/run/channels.pairing.lock`.
+- `login feishu|telegram` does **not** prompt for secrets inside the transcript.
+  It prints the equivalent `zetacode channels login …` command; the CLI
+  validates and saves the credential.
+- `enable`/`disable` persist the flag and restart the live host immediately
+  when this session previously attempted hosting.
+- `logout` is guidance only; the CLI performs the actual credential clear.
+
+Lock behavior: a session that has only an unpaired WeChat enabled starts no
+host and takes **no** `channels.lock`, so `zetacode channels login wechat` from
+another terminal still works. If the session hosts another channel, its lock
+names that channel; a WeChat login is allowed because the host does not own
+WeChat. A host that already owns WeChat refuses the second login instead of
+racing its connection. `channels.pairing.lock` serializes QR logins
+independently of `channels.lock`.
 
 ## Relationship to `serve` and the GUI
 
@@ -228,6 +266,7 @@ compete with `channels login wechat`); pair first, then restart the session.
 | `zetacode serve --channels` | Hosts the runtime in the web server process with the coordinator/workspace router.                                             |
 | `zetacode` / `zetacode -p`  | Hosts the runtime in the normal session (no workspace router; messages go to that session).                                    |
 | `zetacode channels …`       | Inspects/pairs/configures the shared `web.yml`; never hosts.                                                                   |
+| `/channels` (TUI)           | Same facts/pairing from inside a live TUI; suspends and restarts this session's host around a WeChat QR login.                 |
 | GUI settings page           | Reads/writes the same `web.yml` and `GET /api/channels/wechat/qrcode` for its QR; a CLI login is visible there and vice versa. |
 
 The gateway routes (`/api/channels/status`, `/api/channels/send`,
