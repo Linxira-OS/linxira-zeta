@@ -40,15 +40,15 @@ describe("ovnfs checkout recovery", () => {
 
 	beforeEach(async () => {
 		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-ovnfs-"));
-		savedEnv = process.env.OMP_WORKTREE_DIR;
-		delete process.env.OMP_WORKTREE_DIR;
+		savedEnv = process.env.ZETA_WORKTREE_DIR;
+		delete process.env.ZETA_WORKTREE_DIR;
 		setWorktreesDir(path.join(root, "wt"));
 	});
 
 	afterEach(async () => {
 		setWorktreesDir(undefined);
-		if (savedEnv === undefined) delete process.env.OMP_WORKTREE_DIR;
-		else process.env.OMP_WORKTREE_DIR = savedEnv;
+		if (savedEnv === undefined) delete process.env.ZETA_WORKTREE_DIR;
+		else process.env.ZETA_WORKTREE_DIR = savedEnv;
 		vi.restoreAllMocks();
 		await fs.rm(root, { recursive: true, force: true });
 	});
