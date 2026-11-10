@@ -54,11 +54,16 @@ describe("GET /api/channels/wechat/qrcode", () => {
 		});
 		const res = await webGatewayFetch(qrRequest(), "127.0.0.1");
 		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body).toMatchObject({
 			pending: true,
 			qrcodeUrl: "https://liteapp.weixin.qq.com/q/demo",
 			status: "wait",
 		});
+		// The settings pane draws this symbol itself: the gateway encodes the
+		// same payload the terminal renders as block characters.
+		expect(typeof body["svg"]).toBe("string");
+		expect(String(body["svg"]).startsWith("<svg")).toBe(true);
 	});
 
 	test("only GET is accepted", async () => {
