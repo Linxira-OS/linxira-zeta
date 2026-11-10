@@ -43,11 +43,16 @@ export async function deleteSessionFiles(
 	options: DeleteSessionFilesOptions = {},
 ): Promise<DeleteSessionFilesResult> {
 	const sessionId = await readSessionHeaderId(sessionPath).catch(() => undefined);
+	const storage = options.storage ?? new FileSessionStorage();
 	let deleted = true;
 	if ((options.mode ?? "trash") === "permanent") {
-		await (options.storage ?? new FileSessionStorage()).deleteSessionWithArtifacts(sessionPath);
+		await storage.deleteSessionWithArtifacts(sessionPath);
 	} else {
-		const moved = await moveSessionToTrash(sessionPath);
+		// FileStorage owns the trash move; alternate storage backends that do not
+		// implement it still share the same filesystem trash primitive.
+		const trash = (storage as Partial<Pick<FileSessionStorage, "moveSessionWithArtifactsToTrash">>)
+			.moveSessionWithArtifactsToTrash;
+		const moved = trash ? await trash.call(storage, sessionPath) : await moveSessionToTrash(sessionPath);
 		deleted = moved.moved || moved.entry === null;
 	}
 	if (sessionId) {
