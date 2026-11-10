@@ -2046,6 +2046,7 @@ export const en = {
 	cmdUsage: "Show provider usage and limits",
 	cmdUsageReset: "Spend a saved provider rate-limit reset",
 	cmdSkills: "Give the agent the built-in skills guide (search, install, update)",
+	cmdReloadSkills: "Rediscover skills and inject newly assigned engineer skills",
 	cmdSkillsSearch: "Search the skill registry",
 	cmdSkillsInstall: "Install registry skills",
 	cmdRecord: "Start or stop recording this screen to a replayable file",

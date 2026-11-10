@@ -131,6 +131,7 @@ export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
 		"Compatibility",
 		"Git",
 		"Skills",
+		"Team",
 	],
 	context: ["General", "Compaction", "Zeta Context Cache", "Rules (TTSR)", "Experimental"],
 	memory: ["General", "Taste", "Auto-Learn", "Mnemopi", "Hindsight", "Sharpshooter"],

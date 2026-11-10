@@ -136,6 +136,23 @@ CREATE TABLE IF NOT EXISTS agents (
 CREATE INDEX IF NOT EXISTS idx_agents_team ON agents(team_id);
 CREATE INDEX IF NOT EXISTS idx_agents_pm ON agents(pm_id);
 `,
+	`
+CREATE TABLE IF NOT EXISTS agent_skills (
+	team_id         TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+	pm_id           TEXT NOT NULL REFERENCES team_pms(id) ON DELETE CASCADE,
+	engineer_id     TEXT NOT NULL REFERENCES engineers(id) ON DELETE CASCADE,
+	skill_name      TEXT NOT NULL,
+	source          TEXT NOT NULL,
+	qualified_name  TEXT NOT NULL,
+	assigned_by     TEXT NOT NULL,
+	created_at      INTEGER NOT NULL,
+	PRIMARY KEY (engineer_id, qualified_name),
+	UNIQUE (engineer_id, skill_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_skills_pm ON agent_skills(pm_id);
+CREATE INDEX IF NOT EXISTS idx_agent_skills_team ON agent_skills(team_id);
+`,
 ];
 
 /** Room kinds. A PM room names its owning PM; the other kinds have no PM. */
@@ -186,6 +203,27 @@ export interface EngineerRecord {
 	pmId: string;
 	name: string;
 	execution: "normal" | "vibe";
+	createdAt: number;
+}
+
+/**
+ * A skill a PM assigned to one of its own engineers. The row references the
+ * skill by name and discovery source — never by filesystem path — so an
+ * assignment cannot inject arbitrary files. `qualified_name` is
+ * `<provider>:<skill name>` and is the assignment's identity inside one
+ * engineer (`PRIMARY KEY (engineer_id, qualified_name)`).
+ */
+export interface AgentSkillRecord {
+	teamId: string;
+	pmId: string;
+	engineerId: string;
+	skillName: string;
+	/** Discovery source (`<provider>:<level>`), e.g. `native:project`. */
+	source: string;
+	/** Stable `<provider>:<skill name>` identity. */
+	qualifiedName: string;
+	/** PM row id that made the assignment (audit). */
+	assignedBy: string;
 	createdAt: number;
 }
 
@@ -301,6 +339,17 @@ interface DbEngineerRow {
 	created_at: number;
 }
 
+interface DbAgentSkillRow {
+	team_id: string;
+	pm_id: string;
+	engineer_id: string;
+	skill_name: string;
+	source: string;
+	qualified_name: string;
+	assigned_by: string;
+	created_at: number;
+}
+
 interface DbWorktreeRow {
 	id: string;
 	team_id: string;
@@ -395,6 +444,19 @@ function toEngineer(row: DbEngineerRow): EngineerRecord {
 		pmId: row.pm_id,
 		name: row.name,
 		execution: row.execution,
+		createdAt: row.created_at,
+	};
+}
+
+function toAgentSkill(row: DbAgentSkillRow): AgentSkillRecord {
+	return {
+		teamId: row.team_id,
+		pmId: row.pm_id,
+		engineerId: row.engineer_id,
+		skillName: row.skill_name,
+		source: row.source,
+		qualifiedName: row.qualified_name,
+		assignedBy: row.assigned_by,
 		createdAt: row.created_at,
 	};
 }
@@ -717,6 +779,65 @@ export class TeamDb {
 
 	deleteEngineer(id: string): void {
 		this.#db.query("DELETE FROM engineers WHERE id = ?").run(id);
+	}
+
+	// ── agent skills (PM → engineer assignment) ────────────────────────────
+
+	/** Assignments for one engineer, ordered by skill name for a stable read model. */
+	listAgentSkills(engineerId: string): AgentSkillRecord[] {
+		return this.#db
+			.query<DbAgentSkillRow, [string]>(
+				"SELECT * FROM agent_skills WHERE engineer_id = ? ORDER BY skill_name, qualified_name",
+			)
+			.all(engineerId)
+			.map(toAgentSkill);
+	}
+
+	/** Every assignment made by one PM, ordered by engineer then skill. */
+	listAgentSkillsForPm(pmId: string): AgentSkillRecord[] {
+		return this.#db
+			.query<DbAgentSkillRow, [string]>(
+				"SELECT * FROM agent_skills WHERE pm_id = ? ORDER BY engineer_id, skill_name, qualified_name",
+			)
+			.all(pmId)
+			.map(toAgentSkill);
+	}
+
+	getAgentSkill(engineerId: string, qualifiedName: string): AgentSkillRecord | null {
+		const row = this.#db
+			.query<DbAgentSkillRow, [string, string]>(
+				"SELECT * FROM agent_skills WHERE engineer_id = ? AND qualified_name = ?",
+			)
+			.get(engineerId, qualifiedName);
+		return row ? toAgentSkill(row) : null;
+	}
+
+	insertAgentSkill(record: AgentSkillRecord): void {
+		this.#db
+			.query(
+				`INSERT INTO agent_skills
+				 (team_id, pm_id, engineer_id, skill_name, source, qualified_name, assigned_by, created_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				record.teamId,
+				record.pmId,
+				record.engineerId,
+				record.skillName,
+				record.source,
+				record.qualifiedName,
+				record.assignedBy,
+				record.createdAt || nowSeconds(),
+			);
+	}
+
+	deleteAgentSkill(engineerId: string, qualifiedName: string): boolean {
+		const before = this.getAgentSkill(engineerId, qualifiedName);
+		if (!before) return false;
+		this.#db
+			.query("DELETE FROM agent_skills WHERE engineer_id = ? AND qualified_name = ?")
+			.run(engineerId, qualifiedName);
+		return true;
 	}
 
 	// ── worktrees ─────────────────────────────────────────────────────────
