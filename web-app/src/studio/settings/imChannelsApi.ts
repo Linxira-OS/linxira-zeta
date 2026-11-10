@@ -163,6 +163,32 @@ export interface PairingQr {
 	svg: string;
 }
 
+/** `GET /api/auth/2fa` — account/device second factor, never the secret. */
+export interface TwoFactorStatus {
+	enrolled: boolean;
+	required: boolean;
+	enrolledAt: string | null;
+	recoveryCodesRemaining: number;
+	pending: boolean;
+	verified: boolean;
+	verifiedUntil: string | null;
+}
+
+/** What enroll returns: the plaintext secret and recovery codes exist only in this response. */
+export interface TwoFactorEnrollment {
+	secret: string;
+	otpauthUrl: string;
+	qrSvg: string;
+	recoveryCodes: readonly string[];
+	expiresAt: string;
+}
+
+export interface TwoFactorVerification {
+	verifiedUntil: string;
+	method: "totp" | "recovery";
+	recoveryCodesRemaining: number;
+}
+
 // ---------------------------------------------------------------------------
 // Transport
 // ---------------------------------------------------------------------------
@@ -258,7 +284,9 @@ export async function fetchPairedDevices(fetcher: ChannelsFetch = defaultFetch):
 			id: entry.id,
 			label: typeof entry.label === "string" ? entry.label : "",
 			platform: typeof entry.platform === "string" ? entry.platform : "unknown",
-			scopes: Array.isArray(entry.scopes) ? entry.scopes.filter((scope): scope is string => typeof scope === "string") : [],
+			scopes: Array.isArray(entry.scopes)
+				? entry.scopes.filter((scope): scope is string => typeof scope === "string")
+				: [],
 			createdAt: typeof entry.createdAt === "string" ? entry.createdAt : "",
 			lastSeenAt: typeof entry.lastSeenAt === "string" ? entry.lastSeenAt : null,
 			revokedAt: typeof entry.revokedAt === "string" ? entry.revokedAt : null,
@@ -299,11 +327,7 @@ export type WebConfigPath =
 	| "remote.sessionMappings";
 
 /** `PUT /api/web-config` — one dot path. The gateway restarts channels after a `channels.*` write. */
-export async function putWebConfigValue(
-	fetcher: ChannelsFetch,
-	path: WebConfigPath,
-	value: unknown,
-): Promise<void> {
+export async function putWebConfigValue(fetcher: ChannelsFetch, path: WebConfigPath, value: unknown): Promise<void> {
 	await request(fetcher, "/api/web-config", {
 		method: "PUT",
 		headers: { "content-type": "application/json" },
@@ -361,6 +385,110 @@ export async function revokeAllPairedDevices(fetcher: ChannelsFetch, keepCurrent
 		body: JSON.stringify({ keepCurrent }),
 	});
 	return isRecord(payload) && typeof payload.revoked === "number" ? payload.revoked : 0;
+}
+
+// ---------------------------------------------------------------------------
+// Two-factor (TOTP) — account/device security only, never IM credentials
+// ---------------------------------------------------------------------------
+
+function twoFactorStatus(value: unknown): TwoFactorStatus {
+	const record = isRecord(value) ? value : {};
+	return {
+		enrolled: record.enrolled === true,
+		required: record.required === true,
+		enrolledAt: typeof record.enrolledAt === "string" ? record.enrolledAt : null,
+		recoveryCodesRemaining: typeof record.recoveryCodesRemaining === "number" ? record.recoveryCodesRemaining : 0,
+		pending: record.pending === true,
+		verified: record.verified === true,
+		verifiedUntil: typeof record.verifiedUntil === "string" ? record.verifiedUntil : null,
+	};
+}
+
+/** `GET /api/auth/2fa`. */
+export async function fetchTwoFactorStatus(fetcher: ChannelsFetch = defaultFetch): Promise<TwoFactorStatus> {
+	return twoFactorStatus(await request(fetcher, "/api/auth/2fa"));
+}
+
+/** `POST /api/auth/2fa/enroll` — local (or recently verified) callers only. */
+export async function enrollTwoFactor(fetcher: ChannelsFetch = defaultFetch): Promise<TwoFactorEnrollment> {
+	const payload = await request(fetcher, "/api/auth/2fa/enroll", { method: "POST" });
+	if (!isRecord(payload) || typeof payload.secret !== "string" || typeof payload.otpauthUrl !== "string") {
+		throw new Error("2FA enrollment response is malformed");
+	}
+	const codes = Array.isArray(payload.recoveryCodes)
+		? payload.recoveryCodes.filter((code): code is string => typeof code === "string")
+		: [];
+	return {
+		secret: payload.secret,
+		otpauthUrl: payload.otpauthUrl,
+		qrSvg: typeof payload.qrSvg === "string" ? payload.qrSvg : "",
+		recoveryCodes: codes,
+		expiresAt: typeof payload.expiresAt === "string" ? payload.expiresAt : "",
+	};
+}
+
+/** `POST /api/auth/2fa/confirm` — activates the pending secret. */
+export async function confirmTwoFactor(fetcher: ChannelsFetch, code: string): Promise<void> {
+	await request(fetcher, "/api/auth/2fa/confirm", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ code }),
+	});
+}
+
+/** `POST /api/auth/2fa/verify` — `{code}` or `{recoveryCode}`. */
+export async function verifyTwoFactor(
+	fetcher: ChannelsFetch,
+	credential: { code?: string; recoveryCode?: string },
+): Promise<TwoFactorVerification> {
+	const payload = await request(fetcher, "/api/auth/2fa/verify", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify(credential),
+	});
+	if (!isRecord(payload) || typeof payload.verifiedUntil !== "string") {
+		throw new Error("2FA verification response is malformed");
+	}
+	return {
+		verifiedUntil: payload.verifiedUntil,
+		method: payload.method === "recovery" ? "recovery" : "totp",
+		recoveryCodesRemaining: typeof payload.recoveryCodesRemaining === "number" ? payload.recoveryCodesRemaining : 0,
+	};
+}
+
+/** `POST /api/auth/2fa/disable` — local callers need no code. */
+export async function disableTwoFactor(fetcher: ChannelsFetch, code?: string): Promise<void> {
+	await request(fetcher, "/api/auth/2fa/disable", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify(code !== undefined && code !== "" ? { code } : {}),
+	});
+}
+
+/** `POST /api/auth/2fa/recovery/regenerate` — the old set dies immediately. */
+export async function regenerateRecoveryCodes(fetcher: ChannelsFetch, code: string): Promise<string[]> {
+	const payload = await request(fetcher, "/api/auth/2fa/recovery/regenerate", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ code }),
+	});
+	return isRecord(payload) && Array.isArray(payload.recoveryCodes)
+		? payload.recoveryCodes.filter((entry): entry is string => typeof entry === "string")
+		: [];
+}
+
+/** `PUT /api/auth/2fa/policy` — enabling without enrollment is a 400, never a fake switch. */
+export async function putTwoFactorPolicy(fetcher: ChannelsFetch, required: boolean): Promise<void> {
+	await request(fetcher, "/api/auth/2fa/policy", {
+		method: "PUT",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ required }),
+	});
+}
+
+/** True when a failed call needs a TOTP step-up before it can be retried. */
+export function isTwoFactorRequired(error: unknown): boolean {
+	return error instanceof Error && error.message === "totp_required";
 }
 
 // ---------------------------------------------------------------------------
