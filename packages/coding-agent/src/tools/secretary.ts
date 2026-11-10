@@ -12,6 +12,7 @@ import type { AgentRecord } from "../team/db";
 import { type LeadWorkspace, resolveLeadWorkspace } from "../team/lead";
 import { SECRETARY_LABEL, listSecretary, sendSecretary, spawnSecretary, type SecretaryView } from "../team/secretary";
 import type { Tool, ToolSession } from "./index";
+import { createEngineerSkillTools } from "./engineer-skills";
 import { createRoomTools } from "./room";
 
 const secretarySchema = type({
@@ -106,7 +107,7 @@ export class SecretaryTool implements AgentTool<typeof secretarySchema, Secretar
 	}
 }
 
-/** Lead mode's coordination tools: rooms plus the Secretary handle. */
+/** Lead mode's coordination tools: rooms, the Secretary handle, and engineer skills. */
 export function createLeadTools(session: ToolSession): Tool[] {
-	return [...createRoomTools(session), new SecretaryTool(session)];
+	return [...createRoomTools(session), new SecretaryTool(session), ...createEngineerSkillTools(session)];
 }

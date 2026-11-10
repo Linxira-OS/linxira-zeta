@@ -58,7 +58,7 @@ All structure is written to one SQLite database: `~/.zeta/data/zeta.db`
 disk are discovery hints; `team doctor` reports drift between them and the
 database.
 
-Schema (`PRAGMA user_version` = 3):
+Schema (`PRAGMA user_version` = 4):
 
 | Table | Columns |
 | --- | --- |
@@ -72,6 +72,7 @@ Schema (`PRAGMA user_version` = 3):
 | `room_members` | `room_id`, `agent_id`, `role`, `created_at` |
 | `room_events` | `seq`, `room_id`, `sent_at`, `sender_agent_id`, `kind`, `body`, `reply_to`, `mentions_json` |
 | `agents` | `agent_id`, `team_id`, `pm_id`, `role`, `persistence`, `parent_agent_id`, `session_id`, `session_file`, `state`, `created_at`, `updated_at` |
+| `agent_skills` | `team_id`, `pm_id`, `engineer_id`, `skill_name`, `source`, `qualified_name`, `assigned_by`, `created_at` (unique per engineer+qualified name and engineer+skill name) |
 
 Worktree `kind` is `home` or `task`; engineer `execution` is `normal` or `vibe`.
 A repo may be bound to several PMs, and one engineer may own a home worktree per
@@ -231,9 +232,9 @@ workspace opens the Team Hub; start a session explicitly (`--continue`,
 `--resume`, or with a prompt) to use `/lead`.
 
 - Active tools: `read`, optional parent-owned `todo`, `room_read`, `room_post`,
-  `secretary`, and `channel_send` / `board` / `calendar` when the session is
-  configured for them. `task`, `edit`, `write`, `bash`, `grep`, `glob`, and
-  `vibe_*` are removed while the mode is on.
+  `secretary`, `engineer_skills`, and `channel_send` / `board` / `calendar` when
+  the session is configured for them. `task`, `edit`, `write`, `bash`, `grep`,
+  `glob`, and `vibe_*` are removed while the mode is on.
 - `room_read` lists the team's rooms or reads one room's members and newest
   events; `room_post` appends an event as the resolved PM agent. Both call the
   room service above, so membership is validated and no session JSONL is
@@ -247,6 +248,39 @@ workspace opens the Team Hub; start a session explicitly (`--continue`,
 - The Lead prompt coordinates engineer main agents through rooms and forbids
   coding, spawning workers, hidden project selection, and invented agents. It
   exists for the PM main agent, not for a Team-root session (there is none).
+
+## Engineer skill assignment
+
+A PM can assign approved skills to its **own** engineer main agents through the
+Lead-mode `engineer_skills` tool. Assignments are rows in `agent_skills`; they
+reference a discovered skill by name/source and never by filesystem path.
+
+- `engineer_skills list` lists the PM's assignments by engineer;
+  `list engineer=<name>` also shows the skills that engineer's discovery
+  exposes, with risk and operator-approval state.
+- `assign engineer=<name> skill=<name>` and `remove …` accept an engineer name,
+  `<pm>/<engineer>`, or the full row id, plus a discovered skill name or
+  `<provider>:<name>`. There is no path input, so the tool cannot inject a file
+  the engineer could not already discover; hidden/manual-only skills (`hide:
+  true`) are rejected.
+- Ownership is enforced: another PM's engineer is rejected, and a PM name
+  (including the caller's) is rejected as “not an engineer”. `assigned_by` is
+  the PM row id and `created_at` records the time.
+- Authored/official skills are allowed by default. Plugin and registry
+  providers (`zeta-plugins`, `claude-plugins`, `agent-plugins`, `skillshare`)
+  can ship hooks/tools/plugins, so they are high risk and need an
+  operator-approved entry in `team.skillAllowlist` (a bare name,
+  `provider:name`, provider id, `provider:*`, `*`, or a glob). The engineer
+  session re-checks the allowlist before injecting.
+- Injection happens when an engineer main-agent session starts or resumes: the
+  assigned skills are injected as hidden autoload prompts (the same mechanic as
+  subagent `autoloadSkills`), once per transcript. A live engineer does not
+  hot-reload; it must run `/reload-skills` or restart. Removing an assignment
+  stops future injections but cannot retract content the running session
+  already loaded.
+- Discovery for assignment uses the engineer's home worktree (falling back to
+  the PM workspace), so a PM sees the skills that engineer's own session would
+  discover. Skill files are never copied.
 
 ## Secretary (PM-owned persistent subagent)
 

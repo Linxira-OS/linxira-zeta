@@ -90,6 +90,7 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	Isolation: "隔离",
 	"Commands & Skills": "命令与技能",
 	Skills: "技能",
+	Team: "团队",
 	Services: "服务",
 	Fireworks: "Fireworks 模型",
 	"Tiny Model": "微型模型",
@@ -1793,6 +1794,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"skills.enabled": {
 		label: "技能",
 		description: "启用技能发现与加载（SKILL.md 工作流）",
+	},
+	"team.skillAllowlist": {
+		label: "团队技能白名单",
+		description: "允许 PM 分配给自属工程师的高风险插件/注册表技能（名称、provider:name、provider 或 glob）",
 	},
 	shellPath: {
 		label: "Shell 路径",
