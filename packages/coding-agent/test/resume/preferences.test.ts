@@ -80,6 +80,25 @@ describe("resume preferences", () => {
 		expect(cleared.workspaces?.[resumePathKey(REPO_B)]).toBeUndefined();
 	});
 
+	it("removes a project registration without deleting its sessions", async () => {
+		const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "resume-remove-project-"));
+		const sessionFile = path.join(projectRoot, "zeta_20260101_keep-me.jsonl");
+		fs.writeFileSync(sessionFile, `${JSON.stringify({ type: "session", id: "keep-me" })}\n`);
+		try {
+			await registerProject(projectRoot, agentDir);
+			expect((await loadResumePreferences(agentDir)).projects[resumePathKey(projectRoot)]).toEqual({
+				registered: true,
+			});
+
+			await unregisterProject(projectRoot, agentDir);
+
+			expect((await loadResumePreferences(agentDir)).projects[resumePathKey(projectRoot)]).toBeUndefined();
+			expect(fs.existsSync(sessionFile)).toBe(true);
+		} finally {
+			fs.rmSync(projectRoot, { recursive: true, force: true });
+		}
+	});
+
 	it("never hides the seeded default workspace project", async () => {
 		await setProjectHidden(DEFAULT_WORKSPACE, true, agentDir);
 		expect((await loadResumePreferences(agentDir)).projects[resumePathKey(DEFAULT_WORKSPACE)]).toBeUndefined();
