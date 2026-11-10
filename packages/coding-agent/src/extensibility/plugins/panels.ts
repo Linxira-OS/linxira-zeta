@@ -12,9 +12,8 @@
  * draw a panel with `zetacode serve` down — the gateway is the browser's
  * adapter, not a prerequisite for native panels.
  *
- * The rendering side lives in Rust (`main/crates/zetawork-gui/src/plugin_panels.rs`);
- * both validators must reject the same shapes, which is why the error strings
- * here come from {@link parsePluginUi} rather than a second implementation.
+ * The native rendering side was the retired zetawork GUI (removed 2026-11);
+ * the validators here stay the single declaration-side contract.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";

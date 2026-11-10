@@ -7,9 +7,8 @@
  *                      `/usr/bin/zetawork` & co. here); a PATH hit is used
  *                      directly, with no cross-component version validation
  *   ③ npm-form fallback — the global-bin dirs npm/pnpm/bun install launcher
- *                      shims into (the same set zetawork's Rust prober
- *                      augments Windows PATH with); the npm launcher shim
- *                      itself (`main/npm/main/bin/zeta.js`) resolves the
+ *                      shims into; the npm launcher shim itself
+ *                      (`termide/npm/ide/bin/zetaide.js`) resolves the
  *                      vendored platform-leaf binary at this tier
  *
  * The `which`-style probe primitive lives here too so the tier composition

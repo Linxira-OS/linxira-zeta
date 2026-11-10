@@ -23,7 +23,10 @@ upstream position changes.
 
 ## Shipped (Zeta-originated capabilities)
 
-These exist today (headline capabilities are marked in the root `README.md`):
+These exist today (headline capabilities are marked in the root `README.md`).
+Rows that name `main/crates/**` or `docs/gui-*.md` describe the **retired
+zetawork line**: its code and runtime docs were removed in 2026-11 (git history
+retains them); the capability itself is either gone or now lives in Work Studio.
 
 | Capability                                     | Where                                                                       | Notes                                                                                                                                                    |
 | ---------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
