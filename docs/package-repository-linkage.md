@@ -17,8 +17,8 @@ authoritative for install and upgrade.
 
 | Repository | Visibility | Role | Current state |
 | --- | --- | --- | --- |
-| `Linxira-OS/linxira-zeta` | public | Source + GitHub release for the product (`v<version>` tags) | `v1.5.0` published 2026-11-10; `v1.5.1` tag exists at `54b0ffeb658`, release and assets not yet published |
-| `Linxira-OS/packages` | public | Arch PKGBUILDs for Linxira packages; CI builds, signs and publishes pacman repositories | `[linxira-zeta]` rolling release tag `zeta-repo`, rebuilt 2026-11-10 with 1.5.0 |
+| `Linxira-OS/linxira-zeta` | public | Source + GitHub release for the product (`v<version>` tags) | `v1.5.1` published 2026-11-10T13:10:33Z at tag `54b0ffeb658` (18 assets incl. `package-linkage.json`); `v1.5.0` remains as the previous release |
+| `Linxira-OS/packages` | public | Arch PKGBUILDs for Linxira packages; CI builds, signs and publishes pacman repositories | `[linxira-zeta]` rolling release tag `zeta-repo`, updated 2026-11-10T13:18:15Z with 1.5.1 |
 | `Linxira-OS/linxira-packages` | public | Signed `[linxira]` pacman repository database + packages on GitHub Pages | `linxira-catalog 3.6.0-1` and the system stack; **no** `linxira-zeta` |
 | `Linxira-OS/linxira-catalog` | public | Compiles/publishes the reviewed software catalog database (`catalog-v2.json`, `catalog-v3.json`) | `VERSION` 3.6.0, tag `v3.6.0`; packaged as `linxira-catalog` |
 
@@ -49,13 +49,13 @@ signed repository indexes and release assets, not from the package API.
 
 | Ecosystem | Name | Version | Notes |
 | --- | --- | --- | --- |
-| pacman / `[linxira-zeta]` | `linxira-zeta` | 1.5.0-1 | desktop shell; `Replaces`/`Conflicts` `linxira-zetawork`; 353,927,734 B; sha256 `a64fba61…2308d7` |
-| pacman / `[linxira-zeta]` | `linxira-zeta-c-bin` | 1.5.0-2 | `Provides zetacode`, `Conflicts zetacode-bin` |
-| pacman / `[linxira-zeta]` | `linxira-zeta-ide` | 1.5.0-2 | `Provides zetaide` |
+| pacman / `[linxira-zeta]` | `linxira-zeta` | 1.5.1-1 | desktop shell; `Replaces`/`Conflicts` `linxira-zetawork`; 354,210,921 B; sha256 `d173cda5…61bc0` |
+| pacman / `[linxira-zeta]` | `linxira-zeta-c-bin` | 1.5.1-1 | `Provides zetacode`, `Conflicts zetacode-bin` |
+| pacman / `[linxira-zeta]` | `linxira-zeta-ide` | 1.5.1-1 | `Provides zetaide` |
 | pacman / `[linxira-zeta]` | `linxira-zetawork` | 1.4.1-1 | **retired**; `Provides zetawork`, installs `/usr/bin/zetawork` |
 | pacman / `[linxira-zeta]` | `linxira-zeta` | 1.4.10-1 | **legacy zwork desktop** (TUI + GUI), same package name |
 | pacman / `[linxira]` | `linxira-catalog` | 3.6.0-1 | catalog DB package (separate product) |
-| npm | `@linxiraos/zeta` | 1.5.0 | bin `zetacode` |
+| npm | `@linxiraos/zeta` | 1.5.0 | bin `zetacode` (npm publish follows its own release leg) |
 | npm | `@linxiraos/ide` | 1.5.0 | bin `zetaide` |
 | npm | `@linxiraos/main` | 1.4.10 | **paused**; bins `zetawork`, `zeta`; does not receive 1.5.x |
 | npm | `@linxiraos/main-linux-x64` | 1.4.10 | paused platform leaf |
@@ -149,52 +149,59 @@ New installs get both pacman sections from the installer
 Verified gap: an inspected Linxira OS install with `linxira-zeta 1.4.4-1`
 (installed 2026-10-27) has only `[linxira]` in `/etc/pacman.conf` and no
 `XferCommand`. `linxira-zeta` is absent from `[linxira]`, so `pacman -Syu`
-cannot see 1.5.0 on that system until the `[linxira-zeta]` section is added
-(or the package is installed explicitly with `pacman -U`). This is why the
-manifest marks "every existing 1.4.x install can discover 1.5.x with
-pacman -Syu" as **unverified** rather than claiming a guarantee.
+cannot see the current `[linxira-zeta]` release (1.5.1) on that system until
+the `[linxira-zeta]` section is added (or the package is installed explicitly
+with `pacman -U`). This is why the manifest marks "every existing 1.4.x
+install can discover 1.5.x with pacman -Syu" as **unverified** rather than
+claiming a guarantee.
 
-For 1.5.0 → 1.5.1 the same rule applies: once `v1.5.1` exists and the packages
-workflow republishes `zeta-repo`, systems with the section upgrade in place;
-systems without it do not.
+The rolling repository now serves 1.5.1, so systems that do have the section
+upgrade from 1.4.x or 1.5.0 in place; systems without it still do not.
 
 ## 7. Verification status
 
-Verified from live sources:
+Verified from live sources (2026-11-10):
 
-- `v1.5.0` release, its assets and `SHA256SUMS.txt` hashes;
-- `linxira-zeta` 1.5.0-1 in the signed `[linxira-zeta]` index, including
-  `Replaces`/`Conflicts` and the package sha256 (`a64fba61…`), matching the
-  downloaded package byte for byte;
+- `v1.5.1` release: tag `54b0ffeb658`, published 2026-11-10T13:10:33Z,
+  desktop tar.gz/deb/AppImage and Windows exe/zip assets, `SHA256SUMS.txt`;
+  `package-linkage.json` is attached (the release copy is refreshed with this
+  update).
+- `linxira-zeta` 1.5.1-1 in the signed `[linxira-zeta]` index (csize
+  354,210,921 B, sha256 `d173cda5…61bc0`), `Replaces`/`Conflicts`
+  `linxira-zetawork`; `linxira-zeta-c-bin` and `linxira-zeta-ide` are 1.5.1-1.
+  The 1.5.0 assets are no longer published — the rolling repository replaced
+  them.
 - legacy identity: published `linxira-zeta-1.4.10-1` `.PKGINFO`
   (`Provides zetawork`, `linxira-zeta`), an installed 1.4.4-1 pacman DB, and the
   retired `linxira-zetawork` 1.4.1-1 PKGBUILD;
-- deb control fields; npm versions and `zeta-desktop` absence;
+- deb control fields (1.5.0), npm versions and `zeta-desktop` absence;
 - **the pacman upgrade transaction**, run 2026-11-10 in a Linxira OS (Arch)
-  environment with the published packages:
+  environment with real artifacts:
 
   ```
-  linxira-zeta 1.4.10-1  ->  linxira-zeta 1.5.0-1   (same package name, in place)
-  PASS: upgraded version is 1.5.0-1
+  linxira-zeta 1.4.10-1      -> linxira-zeta 1.5.0-1   (both published)
+  linxira-zeta 1.5.0-1       -> linxira-zeta 1.5.1-1   (same package name, in place)
+  PASS: upgraded version is 1.5.1-1
   PASS: /usr/bin/zetawork and /usr/lib/zetawork removed
   PASS: /opt/linxira-zeta + /usr/bin/zeta-desktop present (symlink)
   PASS: ~/.zeta is byte-identical
-  PASS: bundled kernel starts and reports 1.5.0 (zetacode/1.5.0)
+  PASS: bundled kernel starts and reports 1.5.1
   PASS: synthetic linxira-zetawork 1.4.1-1 replaced through pacman -Su
   ```
 
-  The retired `linxira-zetawork` package is no longer published, so its side of
-  the transaction uses a synthetic 1.4.1-1 package with the real package name,
-  version and file; the replacing package and its `Replaces`/`Conflicts` fields
-  are the real 1.5.0-1 artifact.
+  The rolling cleanup removed the published 1.5.0-1 package, so that leg of
+  the transaction is a package rebuilt from the published upstream 1.5.0
+  archive with the published 1.5.0 PKGBUILD; the target is the real published
+  1.5.1-1 package (sha256 `d173cda5…`). The retired `linxira-zetawork` package
+  is likewise no longer published, so its side uses a synthetic 1.4.1-1
+  package with the real name, version and file.
 
-Unverified or pending (see the manifest `verification.claims`):
+Unverified (see the manifest `verification.claims`):
 
 - deb (dpkg) and AppImage replacement transactions;
 - Windows installer replacement (distinct installer identity, requires
   uninstall);
-- automatic repo discovery on pre-2026-10-28 installs (blocked, §6);
-- a `v1.5.1` GitHub release, desktop assets or `[linxira-zeta]` package: the
-  tag `v1.5.1` exists at `54b0ffeb658`, but the release does not exist yet and
-  the rolling repository still lists `linxira-zeta` 1.5.0-1. The manifest
-  therefore keeps `verifiedRelease` at 1.5.0 and records 1.5.1 as pending.
+- automatic repo discovery on pre-2026-10-28 installs (blocked, §6): the
+  inspected install has no `[linxira-zeta]` section, so the repository's
+  1.5.1 is not discoverable there without a one-time configuration or an
+  explicit `pacman -U`.

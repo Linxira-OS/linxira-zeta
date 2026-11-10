@@ -232,23 +232,39 @@
 	],
 	"release": {
 		"verifiedRelease": {
-			"version": "1.5.0",
-			"tag": "v1.5.0",
-			"publishedAt": "2026-11-10T00:09:51Z",
-			"prerelease": false,
-			"assets": {
-				"zeta-desktop-1.5.0-linux-x64.tar.gz": "628b064b5b4d9b12437d39e9ac7720e08aedb02b6fceb150e96fa10904cb88b0",
-				"zeta-desktop-1.5.0-linux-amd64.deb": "a7c7a090059475e9fa46a9faa0ff3fcd6ea1ba8477ffe3ae181ca7ee95af45b0",
-				"zeta-desktop-1.5.0-linux-x86_64.AppImage": "d24a29fec18a37fa8a24a8b7dd906a4ca91fa4ef7d6ced67c1fc44cf7da7970d",
-				"linxira-zeta-1.5.0-workstudio-browser-linux-x64.tar.gz": "d78a5163f6d3373c402f77142426e0ff7c7c12a4770eb9fdabd22936cb564d80"
-			}
-		},
-		"pendingRelease": {
 			"version": "1.5.1",
-			"status": "tag-published-release-pending",
 			"tag": "v1.5.1",
 			"tagCommit": "54b0ffeb6588f95c0e3ceccc645a1d22c30daf48",
-			"note": "The v1.5.1 tag exists, but no GitHub release/asset and no [linxira-zeta] package exists yet (the rolling repository still serves 1.5.0-1). verifiedRelease stays 1.5.0 until the release and package appear."
+			"publishedAt": "2026-11-10T13:10:33Z",
+			"prerelease": false,
+			"assets": {
+				"zeta-desktop-1.5.1-linux-x64.tar.gz": "fc359eebbfa2bcae359dad11ddab70537a30ed1888e2762ca0912d0532325014",
+				"zeta-desktop-1.5.1-linux-amd64.deb": "cff5a076d759cc4b9e4ab2b3bc83fc85ffb261cd76142dc3e6211f7a5f53b4b2",
+				"zeta-desktop-1.5.1-linux-x86_64.AppImage": "f4b4bdc87336973d3e960e02c146bce66690762edf83aa398ccb88adc8746fd8",
+				"zeta-desktop-1.5.1-win-x64.exe": "ffa2ddfdb89ebb969b9a790a87cc43b503e7c135fca0ff462fc79bcad41a90a1",
+				"zeta-desktop-1.5.1-win-x64.zip": "2d74a21d7ec033b50f48dbbabdf46b33b2cd55854021434097181c4dbcc85ce8",
+				"linxira-zeta-1.5.1-workstudio-browser-linux-x64.tar.gz": "2511601e87849c1e1333032855ac94c8c6f759c0d4774012ea1905172c4f1020",
+				"linxira-zeta-1.5.1-workstudio-browser-windows-x64.zip": "88c9c2d7e9dc255006af4cfce75acf6fa2d948a6d71ced6f62792171ac94aac6"
+			}
+		},
+		"packageRepository": {
+			"section": "linxira-zeta",
+			"rollingTag": "zeta-repo",
+			"updatedAt": "2026-11-10T13:18:15Z",
+			"packages": [
+				{
+					"name": "linxira-zeta",
+					"version": "1.5.1-1",
+					"filename": "linxira-zeta-1.5.1-1-x86_64.pkg.tar.zst",
+					"csize": 354210921,
+					"sha256": "d173cda517ce05c34e77a03675c2c994c4775268059f8855e0a07cc859161bc0",
+					"replaces": ["linxira-zetawork"],
+					"conflicts": ["linxira-zetawork"]
+				},
+				{ "name": "linxira-zeta-c-bin", "version": "1.5.1-1", "provides": ["zetacode"], "conflicts": ["zetacode-bin"] },
+				{ "name": "linxira-zeta-ide", "version": "1.5.1-1", "provides": ["zetaide"] }
+			],
+			"note": "The rolling repository replaced the 1.5.0 assets with 1.5.1; a 1.5.0-1 package is no longer published, so the 1.5.0->1.5.1 transaction uses a package rebuilt from the published upstream 1.5.0 archive."
 		}
 	},
 	"migration": {
@@ -419,7 +435,8 @@
 				"ciJob": "verify_linux_upgrade",
 				"runsOn": "archlinux:base container, disposable pacman roots",
 				"covers": [
-					"linxira-zeta 1.4.10-1 -> current linxira-zeta in place",
+					"linxira-zeta 1.4.10-1 (published) -> 1.5.0-1 (published) in place",
+					"linxira-zeta 1.5.0-1 (rebuilt from the published upstream 1.5.0 archive) -> published 1.5.1-1 in place",
 					"installed version equals the target package version",
 					"old zetawork file set removed; new /opt layout present",
 					"bundled kernel starts and reports the target version",
@@ -435,16 +452,16 @@
 		},
 		"claims": [
 			{
-				"id": "release-1.5.0-exists",
+				"id": "release-1.5.1-exists",
 				"status": "verified",
-				"statement": "v1.5.0 is a published, non-prerelease GitHub release with linux tar.gz, deb, AppImage and win assets.",
-				"evidence": "gh api releases/tags/v1.5.0: published_at 2026-11-10T00:09:51Z; asset list + SHA256SUMS.txt hashes recorded in release.verifiedRelease."
+				"statement": "v1.5.1 is a published, non-prerelease GitHub release with linux tar.gz, deb, AppImage and win assets.",
+				"evidence": "gh api releases/tags/v1.5.1: published_at 2026-11-10T13:10:33Z, 18 assets after package-linkage.json upload; SHA256SUMS.txt hashes recorded in release.verifiedRelease."
 			},
 			{
-				"id": "pacman-package-1.5.0",
+				"id": "pacman-package-1.5.1",
 				"status": "verified",
-				"statement": "linxira-zeta 1.5.0-1 is published in the [linxira-zeta] rolling repository with Replaces/Conflicts linxira-zetawork.",
-				"evidence": "linxira-zeta.db.tar.zst entry: version 1.5.0-1, csize 353927734, sha256 a64fba61..., %REPLACES% linxira-zetawork, %CONFLICTS% linxira-zetawork; release asset present in Linxira-OS/packages@zeta-repo."
+				"statement": "linxira-zeta 1.5.1-1 is published in the [linxira-zeta] rolling repository with Replaces/Conflicts linxira-zetawork.",
+				"evidence": "linxira-zeta.db.tar.zst (zeta-repo updated 2026-11-10T13:18:15Z): linxira-zeta 1.5.1-1, csize 354210921, sha256 d173cda5..., Replaces/Conflicts linxira-zetawork; linxira-zeta-c-bin and linxira-zeta-ide 1.5.1-1. The 1.5.0 assets are no longer published."
 			},
 			{
 				"id": "legacy-package-identity",
@@ -461,14 +478,14 @@
 			{
 				"id": "same-pkgname-in-place",
 				"status": "verified",
-				"statement": "An existing linxira-zeta 1.4.x install upgrades in place to 1.5.x via pacman without uninstall.",
-				"evidence": "2026-11-10, Linxira OS (Arch) pacman in disposable roots: published linxira-zeta-1.4.10-1 -> published linxira-zeta-1.5.0-1 (sha256 a64fba61...). Installed version 1.5.0-1; /usr/bin/zetawork and /usr/lib/zetawork gone; /opt/linxira-zeta + /usr/bin/zeta-desktop present; bundled kernel printed zetacode/1.5.0; ~/.zeta byte-identical. Reproduce with scripts/packaging/verify-linux-upgrade.sh."
+				"statement": "An existing linxira-zeta 1.4.x/1.5.0 install upgrades in place to 1.5.1 via pacman without uninstall.",
+				"evidence": "2026-11-10, Linxira OS (Arch) pacman in disposable roots: published 1.4.10-1 -> published 1.5.0-1, then published 1.5.1-1 (sha256 d173cda5...) over a 1.5.0-1 package rebuilt from the published upstream 1.5.0 archive (the rolling cleanup removed the published 1.5.0-1). Final version 1.5.1-1; /usr/bin/zetawork and /usr/lib/zetawork gone; /opt/linxira-zeta + /usr/bin/zeta-desktop present; bundled kernel printed zetacode/1.5.1; ~/.zeta byte-identical. Reproduce with scripts/packaging/verify-linux-upgrade.sh."
 			},
 			{
 				"id": "zetawork-replace-transaction",
 				"status": "verified",
 				"statement": "pacman applies the published Replaces/Conflicts and removes linxira-zetawork when upgrading.",
-				"evidence": "2026-11-10: synthetic linxira-zetawork 1.4.1-1 -> pacman -Su with the published 1.5.0-1 package in a file:// repo; the old package and /usr/bin/zetawork were removed and linxira-zeta 1.5.0-1 installed."
+				"evidence": "2026-11-10: synthetic linxira-zetawork 1.4.1-1 -> pacman -Su with the published 1.5.1-1 package in a file:// repo; the old package and /usr/bin/zetawork were removed and linxira-zeta 1.5.1-1 installed."
 			},
 			{
 				"id": "deb-identity",
@@ -496,9 +513,27 @@
 			},
 			{
 				"id": "release-1.5.1",
-				"status": "unverified",
+				"status": "verified",
 				"statement": "A v1.5.1 GitHub release, desktop assets and a [linxira-zeta] 1.5.1 package exist.",
-				"evidence": "Not published at the time of this update: releases/tags/v1.5.1 returns 404 and the zeta-repo release lists only linxira-zeta 1.5.0-1 assets. Only the tag exists."
+				"evidence": "Release published 2026-11-10T13:10:33Z with zeta-desktop-1.5.1 linux tar.gz/deb/AppImage and win exe/zip; package-linkage.json attached (sha256 ef9f8f61..., before this update). [linxira-zeta] zeta-repo updated 2026-11-10T13:18:15Z with linxira-zeta/c-bin/ide 1.5.1-1."
+			},
+			{
+				"id": "deb-upgrade-transaction",
+				"status": "unverified",
+				"statement": "A dpkg/apt upgrade from an earlier zeta-desktop deb to 1.5.1 preserves the install.",
+				"evidence": "Not exercised. Only the control identity of the 1.5.0 deb was inspected; the 1.5.1 deb transaction is untested."
+			},
+			{
+				"id": "appimage-replace-transaction",
+				"status": "unverified",
+				"statement": "Replacing an older AppImage with zeta-desktop-1.5.1-linux-x86_64.AppImage starts correctly.",
+				"evidence": "Not exercised: AppImage replacement is an unmanaged file swap with no pacman/dpkg transaction to assert."
+			},
+			{
+				"id": "windows-installer-replace",
+				"status": "unverified",
+				"statement": "Uninstalling the zetawork installer and installing zeta-desktop-1.5.1-win-x64.exe preserves user data.",
+				"evidence": "Not exercised. The installers have different identities (HKCU\\Software\\LinxiraZeta vs appId com.zeta.desktop), so this is a replace path, never an in-place upgrade."
 			}
 		]
 	}

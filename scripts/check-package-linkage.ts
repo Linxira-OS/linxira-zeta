@@ -264,10 +264,20 @@ export function validateLinkage(raw: unknown, ctx: LinkageContext): string[] {
 
 	const release = record(manifest.release, "release", problems);
 	const verifiedRelease = record(release.verifiedRelease, "release.verifiedRelease", problems);
-	text(verifiedRelease.version, "release.verifiedRelease.version", problems);
-	const pending = record(release.pendingRelease, "release.pendingRelease", problems);
-	if (pending.version === verifiedRelease.version) {
-		problems.push("a pending release cannot be the verified release");
+	const version = text(verifiedRelease.version, "release.verifiedRelease.version", problems);
+	if (version !== "" && verifiedRelease.tag !== `v${version}`) {
+		problems.push(`release.verifiedRelease.tag must be v${version}`);
+	}
+	const packageRepository = record(release.packageRepository, "release.packageRepository", problems);
+	const repositoryPackages = Array.isArray(packageRepository.packages) ? packageRepository.packages : [];
+	const desktopRepoPackage = repositoryPackages.find(entry => isRecord(entry) && entry.name === "linxira-zeta");
+	if (!isRecord(desktopRepoPackage)) {
+		problems.push("release.packageRepository.packages must include linxira-zeta");
+	} else if (version !== "" && desktopRepoPackage.version !== `${version}-1`) {
+		problems.push(`release.packageRepository linxira-zeta version must be ${version}-1`);
+	}
+	if (release.pendingRelease !== undefined) {
+		problems.push("release.pendingRelease must be removed once the verified release is published");
 	}
 
 	const verification = record(manifest.verification, "verification", problems);
