@@ -16,7 +16,7 @@
 |---|---|---:|---|
 | `text` | `string` | Yes | Message body to send. |
 | `to` | `string` | No | Target peer identifier (WeChat user id / Feishu open_id / Telegram chat_id). Defaults to the session-bound peer (the user who sent the last inbound message). |
-| `channel` | `"wechat" \| "feishu" \| "telegram"` | No | Channel to use. Defaults to the session-bound channel. |
+| `channel` | `"wechat" \| "feishu" \| "telegram" \| "discord" \| "qq"` | No | Channel to use. Defaults to the session-bound channel. |
 
 ## Outputs
 - `content[0].type = "text"` — `"Sent."` on success.

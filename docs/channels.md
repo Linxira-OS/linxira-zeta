@@ -15,6 +15,8 @@ defined in [agent-modes.md](./agent-modes.md); the chat command grammar is in
 | Area | Status | Where it stands |
 | ---- | ------ | --------------- |
 | WeChat / Feishu / Telegram adapters | **IMPLEMENTED** | Real server adapters in `packages/channels/src/{wechat,feishu,telegram}.ts`, hosted by the CLI/TUI session and `zetacode serve` from one runtime. The desktop shell and GUI settings page read/write the same `web.yml`. |
+| Discord adapter | **IMPLEMENTED** | Official Bot API (Gateway v10 + REST) in `packages/channels/src/discord.ts`: guild channels and DMs, @mention/reply trigger, slash `/help` + `/status`, attachments, split at 2 000 chars, 429 handling, resume/reconnect. |
+| QQ adapter (OneBot v11) | **IMPLEMENTED** | Generic OneBot v11 client in `packages/channels/src/onebot.ts`: forward or reverse WebSocket, Bearer token, group/private, images, `echo` correlation, reconnect and `get_status` health. **No bridge is bundled**; the user runs NapCat / LLBot / SnowLuma. |
 | TIM adapter | **PLANNED** — not implemented | No TIM/Tencent-IM adapter exists in the tree; only the three adapters above are compiled in. |
 | Channel + chat → agent target | **IMPLEMENTED** | In `serve`, each channel+chat resolves to exactly one target: `@agent use` override, active bot session/project, persisted workspace binding, channel-default workspace, else the relay coordinator (the default-workspace bot). See [Remote Workspaces & IM Relay](./remote-workspaces.md). |
 | Relay answers only unbound chats | **IMPLEMENTED** | The relay coordinator is the fallback; a chat with any project/workspace/agent binding is not answered by the default workspace, and an unopenable binding returns an error instead of falling back. |
@@ -30,12 +32,14 @@ zetacode channels status [--json]
 zetacode channels login wechat [--json] [--timeout <seconds>]
 zetacode channels login feishu [--app-id <id>] [--app-secret <secret>] [--domain feishu|lark] [--json]
 zetacode channels login telegram [--token <bot-token>] [--json]
+zetacode channels login discord [--token <bot-token>] [--json]
+zetacode channels login qq [--endpoint <ws-url>] [--token <access-token>] [--mode forward|reverse] [--port <n>] [--json]
 zetacode channels logout <channel> [--json]
 zetacode channels enable <channel> [--json]
 zetacode channels disable <channel> [--json]
 ```
 
-`<channel>` is `wechat`, `feishu`, or `telegram`.
+`<channel>` is `wechat`, `feishu`, `telegram`, `discord`, or `qq`.
 
 ## `status`
 
@@ -128,6 +132,8 @@ code; see the next section.
 ```sh
 zetacode channels login feishu [--app-id <id>] [--app-secret <secret>] [--domain feishu|lark] [--json]
 zetacode channels login telegram [--token <bot-token>] [--json]
+zetacode channels login discord [--token <bot-token>] [--json]
+zetacode channels login qq [--endpoint <ws-url>] [--token <access-token>] [--mode forward|reverse] [--port <n>] [--json]
 ```
 
 Missing flags are prompted for on a TTY (the secret is not echoed). With
@@ -174,6 +180,85 @@ button per channel, disabled while a check runs, showing 未验证 while empty,
 `/api/channels/credentials`; the gateway validates against the platform, saves,
 and asks a running `serve` to restart its channels. A blank secret re-validates
 the stored one.
+
+## Discord and QQ
+
+Both channels are **deny-by-default**: a token/endpoint alone is not enough,
+because a public guild or a QQ group is reachable by strangers who could open
+workspaces and start turns. The adapter refuses to start until the allowlist
+is non-empty, and `/api/channels/status` reports the reason.
+
+### Discord
+
+1. Create an application in the Discord Developer Portal, add a bot, and copy
+   its token.
+2. Enable the **Message Content** privileged intent (Bot → Privileged Gateway
+   Intents). Without it `MESSAGE_CREATE` carries no text and the adapter
+   reports `auth-failed` on close 4013/4014.
+3. Invite the bot with `bot` + `applications.commands` scopes.
+4. Validate and save the token:
+
+   ```sh
+   zetacode channels login discord --token <bot-token>
+   ```
+
+5. Set the allowlist in `web.yml` and enable the channel:
+
+   ```yaml
+   channels:
+     discord:
+       enabled: true
+       botToken: "…"
+       allowedChannels: ["123456789012345678", "guild:987654321098765432"]
+       allowedUsers: []          # optional sender restriction
+   ```
+
+`allowedChannels` holds channel ids; `guild:<id>` allows every channel in one
+guild. DMs are accepted from users who share a guild with the bot. Messages in
+guild channels must @mention the bot or reply to one of its messages; DMs do
+not. Slash commands `/help` and `/status` answer ephemerally and never start a
+turn.
+
+### QQ over OneBot v11 (bring your own bridge)
+
+Zeta implements the MIT-licensed [OneBot v11](https://github.com/botuniverse/onebot-11)
+protocol only. It does **not** bundle, download, or auto-install a bridge, and
+it never handles QQ login/QR or reads local QQ data. Run a bridge yourself:
+
+| Bridge | Mode | License | Notes |
+|---|---|---|---|
+| [NapCat](https://github.com/NapNeko/NapCatQQ) | headless NTQQ protocol side | Limited Redistribution License (non-commercial, no public modified builds) | most common; WebUI QR login; typical OneBot HTTP/WS ports 3000/3001, WebUI 6099 |
+| [LLBot (LLOneBot)](https://github.com/LLOneBot/LuckyLilliaBot) | standalone | GPL-2.0 | OneBot 11 + Satori + Milky |
+| [SnowLuma](https://github.com/SnowLuma/SnowLuma) | injects the desktop QQ client | source-available non-commercial EULA + proprietary native binaries | newest and least stable; do not rely on it for production |
+
+Forward mode (Zeta dials the bridge's OneBot WebSocket) is the default:
+
+```sh
+zetacode channels login qq --endpoint ws://127.0.0.1:3001 --token <access-token>
+```
+
+Reverse mode (the bridge dials a loopback server Zeta owns; token required):
+
+```sh
+zetacode channels login qq --mode reverse --port 8082 --token <access-token>
+```
+
+```yaml
+channels:
+  qq:
+    enabled: true
+    mode: forward            # or reverse
+    endpoint: ws://127.0.0.1:3001
+    token: "…"
+    port: 8082               # reverse mode only
+    selfId: "10001"          # optional; read from get_login_info otherwise
+    allowedGroups: ["42"]    # bare group numbers
+    allowedUsers: ["900"]    # bare QQ numbers for private chat
+```
+
+Group messages only start a turn when the bot is @mentioned; private chats are
+accepted from every allowlisted user. Peers are namespaced `group:<id>` /
+`user:<id>` so a group and a user with the same number never collide.
 
 ## `logout`, `enable`, `disable`
 
@@ -255,6 +340,12 @@ zetacode --channels
 
 # Headless turn with an enabled channel hosted for its duration
 zetacode -p "check the build"
+
+# Validate a Discord bot token, then save it
+zetacode channels login discord --token MTIz…
+
+# Validate an OneBot bridge endpoint (NapCat/LLBot/SnowLuma)
+zetacode channels login qq --endpoint ws://127.0.0.1:3001 --token abc
 
 # Forget the WeChat pairing
 zetacode channels logout wechat

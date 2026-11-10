@@ -23,10 +23,10 @@
 
 import * as crypto from "node:crypto";
 import { logger } from "@linxiraos/pi-utils";
-import type { ChatChannel, ChatImage } from "./channel";
+import type { ChannelCapabilities, ChatChannel, ChatImage, InboundMessage } from "./channel";
 import type { ChannelsWebConfig } from "./types";
 
-export type WeChatInboundHandler = (peer: string, body: string, messageId?: string) => void;
+export type WeChatInboundHandler = (message: InboundMessage) => void;
 
 /** QR login progress surfaced to the UI (web settings panel). */
 export interface WeChatQrStatus {
@@ -111,6 +111,12 @@ function wechatMessageId(msg: WeChatMessage): string | undefined {
 
 export class WeChatChannel implements ChatChannel {
 	readonly id = "wechat" as const;
+	readonly capabilities: ChannelCapabilities = {
+		maxTextLength: Number.POSITIVE_INFINITY,
+		supportsImages: true,
+		supportsFiles: false,
+		supportsTyping: false,
+	};
 	readonly #options: WeChatChannelOptions;
 	readonly #onMessage: WeChatInboundHandler;
 	readonly #fetch: typeof globalThis.fetch;
@@ -441,7 +447,14 @@ export class WeChatChannel implements ChatChannel {
 						from,
 						length: textItem.length,
 					});
-					this.#onMessage(from, textItem, wechatMessageId(msg));
+					this.#onMessage({
+						peer: from,
+						chatType: "dm",
+						senderId: from,
+						body: textItem,
+						...(wechatMessageId(msg) ? { messageId: wechatMessageId(msg) } : {}),
+						ts: Date.now(),
+					});
 				}
 			} catch (error) {
 				if (this.#abort?.signal.aborted) break;

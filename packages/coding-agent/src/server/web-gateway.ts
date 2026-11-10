@@ -64,6 +64,8 @@ import {
 } from "./web-gateway/board";
 import { checkRemoteAccess } from "./web-gateway/remote-access";
 import { isRemoteTokenAccepted } from "../utils/remote-token";
+import { deviceRegistry } from "./auth/device-registry";
+import { handleDeviceDelete, handleDevicesGet, handleDevicesRevokeAllPost } from "./auth/device-auth";
 import { handleChannelCredentials, handleChannelSend, renderWechatLoginQrSvg } from "./web-gateway/channels";
 import { handleAgentContextUsage } from "./web-gateway/context-usage";
 import {
@@ -274,6 +276,13 @@ const FILES_RE = /^\/api\/files\/(.+)$/;
 const REMOTE_PAIRING_RE = /^\/api\/remote\/pairing$/;
 const REMOTE_TOKEN_ROTATE_RE = /^\/api\/remote\/token\/rotate$/;
 const REMOTE_TOKEN_REVOKE_RE = /^\/api\/remote\/token\/revoke$/;
+// Per-device credentials: the list, one revocation, and "revoke every device".
+// The revoke-all form is matched first because it would otherwise be captured
+// as a device id.
+const REMOTE_DEVICES_RE = /^\/api\/remote\/devices$/;
+const REMOTE_DEVICES_REVOKE_ALL_RE = /^\/api\/remote\/devices\/revoke-all$/;
+const REMOTE_DEVICE_ID_PART = "[A-Za-z0-9_-]{1,64}";
+const REMOTE_DEVICE_RE = new RegExp(`^/api/remote/devices/(${REMOTE_DEVICE_ID_PART})$`);
 const DOCS_RE = /^\/api\/docs\/([A-Za-z0-9._/-]+)$/;
 const BLOB_RE = /^\/api\/blobs\/([^/]+)$/;
 const CHANNELS_WECHAT_QR_RE = /^\/api\/channels\/wechat\/qrcode$/;
@@ -334,19 +343,20 @@ export { hostIsLoopback, isAllowedOrigin };
 /**
  * Access control: loopback requests (the local web UI, desktop shell, dev
  * proxy) pass without a token; any request that arrives from a non-loopback
- * socket (LAN IP, tunnel, reverse proxy, 0.0.0.0 bind) must present the
- * configured `remote.token` — and that token must not be revoked/rotated away.
- * With no token configured, non-loopback access is denied outright, so
- * exposing the port cannot yield an unauthenticated control plane.
+ * socket (LAN IP, tunnel, reverse proxy, 0.0.0.0 bind) must present either the
+ * configured `remote.token` (not revoked/rotated away) or an active per-device
+ * token. With no credential configured, non-loopback access is denied outright,
+ * so exposing the port cannot yield an unauthenticated control plane.
  *
  * Rate limiting lives in {@link checkRemoteAccess}; this predicate is the
- * token-only check used where a boolean answer is enough (the stats route).
+ * credential-only check used where a boolean answer is enough (the stats route).
  */
 export async function authorizedForAccess(req: Request, remoteAddr?: string): Promise<boolean> {
 	if (hostIsLoopback(req, remoteAddr)) return true;
 	const config = await WebConfig.load();
 	const provided = req.headers.get("authorization") ?? req.headers.get("x-zeta-token");
-	return isRemoteTokenAccepted(config.getData().remote, provided);
+	if (isRemoteTokenAccepted(config.getData().remote, provided)) return true;
+	return (await deviceRegistry().resolve(provided ?? "")) !== undefined;
 }
 
 /** In-process fetch handler; ZetaServer dispatches to this directly. */
@@ -958,6 +968,33 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (REMOTE_PAIRING_RE.test(pathname)) {
 		if (req.method === "GET") return handleRemotePairingGet(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	// Per-device credentials. The list is readable by any authenticated caller
+	// (a paired phone may need to see its own row); mutations additionally need
+	// `write` scope, enforced in the handler.
+	if (REMOTE_DEVICES_RE.test(pathname)) {
+		if (req.method === "GET") return handleDevicesGet(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (REMOTE_DEVICES_REVOKE_ALL_RE.test(pathname)) {
+		if (req.method === "POST") return handleDevicesRevokeAllPost(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const deviceId = capture(pathname, REMOTE_DEVICE_RE);
+	if (deviceId) {
+		if (req.method === "DELETE") {
+			const response = await handleDeviceDelete(req, deviceId[0]);
+			// Drop that device's live Studio sessions and event sockets. Harmless
+			// when the row was already revoked (there is nothing left to drop) and
+			// essential when it was active: the gate stops its token, and this stops
+			// an already-upgraded socket from receiving more events.
+			if (response.ok) studioHost().dropDeviceSessions(deviceId[0]);
+			return response;
+		}
 		return json({ error: "Method not allowed" }, 405);
 	}
 

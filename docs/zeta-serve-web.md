@@ -64,17 +64,28 @@ The renderer speaks the Studio host contract on the same origin:
 | Route | Auth | Purpose |
 |---|---|---|
 | `GET /health` | none | `{ok:true, protocolVersion:1}` — "is this a Studio host" |
-| `POST /api/v1/pair` | remote-access gate + pairing code | Sets the `studio_session` cookie, returns `{csrf, expiresAt}` |
+| `POST /api/v1/pair` | remote-access gate + pairing code | Sets the `studio_session` cookie, returns `{csrf, expiresAt, device: {id, token, …}}`; the device token is shown once |
 | `POST /api/v1/session/revoke` | remote-access gate + cookie + `X-Studio-CSRF` | Drops the session |
 | `GET /api/v1/bootstrap` | remote-access gate + cookie | Identity, runtime status, surfaces, capability manifest |
 | `POST /api/v1/query` | remote-access gate + cookie | `ClientQueryRequest` → `ClientQueryResponse` |
 | `POST /api/v1/command` | remote-access gate + cookie + `X-Studio-CSRF` | `ClientCommandRequest` → 202 `ClientCommandAccepted` |
 | `WS /api/v1/events` | remote-access gate + cookie | Event subscription (`ClientEvent`) |
 
+Per-device credentials live on the gateway surface (see
+[Remote access](./remote-workspaces.md#device-tokens-per-device-revocation)):
+
+| Route | Auth | Purpose |
+|---|---|---|
+| `GET /api/remote/devices` | remote-access gate | `{devices, currentDeviceId, legacyTokenActive}` — never a token or hash |
+| `DELETE /api/remote/devices/:id` | gate + `write` scope | Revoke one device (idempotent; 404 for an unknown id) |
+| `POST /api/remote/devices/revoke-all` | gate + `write` scope | `{keepCurrent?: boolean}` — revoke every device, optionally sparing the caller |
+
 `zetacode serve` prints the single-use pairing code (60 s TTL); set
 `ZETA_STUDIO_PAIRING_CODE` to pin it for scripted runs. Bodies are capped at
-1 MiB, one session may hold eight commands in flight, and every route except
-`/health` requires a loopback `Origin`.
+1 MiB, one session may hold eight commands in flight, and a genuinely local
+peer must send a loopback `Origin` (a peer that already presented a token or
+device token proved possession of a secret, so the loopback-only Origin
+allowlist — a CSRF guard for ambient cookie authority — does not apply to it).
 
 Every `/api/v1` route sits behind the same remote-access gate as `/api/*`:
 a request passes without a token only when the socket peer is loopback **and**

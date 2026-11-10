@@ -170,16 +170,19 @@ export async function handleChannelSend(req: Request): Promise<Response> {
 
 /**
  * `POST /api/channels/credentials` — validate, then save, a Feishu app
- * credential or a Telegram bot token.
+ * credential, a Telegram/Discord bot token, or a QQ OneBot endpoint.
  *
  * The GUI and the CLI call the same `runCredentialLogin`: the platform must
  * accept the credential before `web.yml` changes, and the response carries the
  * bot identity the platform reported so the surface can show who was paired.
  * A rejected credential is a caller error (400); a platform timeout is 504.
  *
- * Body: `{ channel: "feishu", appId?, appSecret?, domain? }` or
- * `{ channel: "telegram", botToken? }`. Omitted fields fall back to the values
- * already stored, so "re-validate what is saved" is the same route.
+ * Body: `{ channel: "feishu", appId?, appSecret?, domain? }`,
+ * `{ channel: "telegram" | "discord", botToken? }`, or
+ * `{ channel: "qq", endpoint?, token?, mode?, port? }`. Omitted fields fall
+ * back to the values already stored, so "re-validate what is saved" is the
+ * same route. Nothing is written unless the platform (or, for QQ forward
+ * mode, the bridge's `get_login_info`) accepted it.
  */
 export async function handleChannelCredentials(req: Request): Promise<Response> {
 	let body: unknown;
@@ -193,10 +196,11 @@ export async function handleChannelCredentials(req: Request): Promise<Response> 
 	}
 	const record = body as Record<string, unknown>;
 	const channel = requiredText(record.channel);
-	if (channel !== "feishu" && channel !== "telegram") {
-		return json({ error: 'channel must be "feishu" or "telegram"' }, 400);
+	if (channel !== "feishu" && channel !== "telegram" && channel !== "discord" && channel !== "qq") {
+		return json({ error: 'channel must be "feishu", "telegram", "discord" or "qq"' }, 400);
 	}
 	const field = (key: string): string | undefined => requiredText(record[key]) ?? undefined;
+	const port = typeof record.port === "number" && Number.isInteger(record.port) ? record.port : undefined;
 
 	const result = await runCredentialLogin(channel, {
 		webConfig: await WebConfig.shared(),
@@ -204,6 +208,10 @@ export async function handleChannelCredentials(req: Request): Promise<Response> 
 		appSecret: field("appSecret"),
 		domain: record.domain === "lark" ? "lark" : record.domain === "feishu" ? "feishu" : undefined,
 		botToken: field("botToken"),
+		endpoint: field("endpoint"),
+		token: field("token"),
+		mode: record.mode === "reverse" ? "reverse" : record.mode === "forward" ? "forward" : undefined,
+		port,
 	});
 	if (result.state !== "connected") {
 		return json(

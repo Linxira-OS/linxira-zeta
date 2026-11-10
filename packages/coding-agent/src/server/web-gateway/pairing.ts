@@ -9,6 +9,7 @@
  */
 
 import { WebConfig } from "../../config/web-config";
+import { deviceRegistry } from "../auth/device-registry";
 import { buildPairingPayload, parsePairingPayload, renderPairingQrSvg, resolvePairingBaseUrl } from "../pairing";
 
 function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -47,7 +48,16 @@ export async function handleRemoteTokenRotatePost(req: Request): Promise<Respons
 	if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 	const config = await WebConfig.load();
 	const token = await config.rotateRemoteToken();
-	return json({ ok: true, token, tokenUpdatedAt: config.getData().remote.tokenUpdatedAt ?? null });
+	// Rotation retires the machine-wide secret only. Paired devices keep their own
+	// tokens, so the response reports how many are still active — a settings panel
+	// must be able to say "rotate did not log out your phone".
+	const devicesStillActive = await deviceRegistry().activeCount();
+	return json({
+		ok: true,
+		token,
+		tokenUpdatedAt: config.getData().remote.tokenUpdatedAt ?? null,
+		devicesStillActive,
+	});
 }
 
 /**

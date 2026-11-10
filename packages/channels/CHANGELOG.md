@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+- Added the Discord channel (official Bot API): Gateway v10 with the
+  `MESSAGE_CONTENT` intent, guild-channel/DM routing, @mention and reply
+  triggers, ephemeral `/help` + `/status`, attachment download with a size cap,
+  2 000-character splitting, 429 handling, resume/reconnect, and health states
+- Added the QQ channel as a generic OneBot v11 client (forward or reverse
+  WebSocket, Bearer token, `echo` correlation, group/private peers, images,
+  reconnect, `get_status` probing). No bridge is bundled; NapCat, LLBot, and
+  SnowLuma are documented as user-supplied processes
+- Added per-platform deny-by-default allowlists (`channels.discord.allowedChannels`,
+  `channels.qq.allowedGroups`) and extended `ChannelStatus` with the adapter
+  health (`state`, `detail`, `lastError`, `since`, `lastInboundAt`)
+- Inbound adapters now report a structured message (sender, chat type, reply
+  target, attachments) instead of `(peer, body, messageId)`; the runtime folds
+  downloaded attachment paths into the body the agent reads
+
 ## [1.5.0] - 2026-11-09
 
 - Released as part of Zeta 1.5.0; no package-specific user-visible changes.
