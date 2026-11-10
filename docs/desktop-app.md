@@ -21,15 +21,33 @@ The packaged runtime directory (`resources/zeta` in Electron, `zeta/` in the
 browser archive) is:
 
 ```
-zeta[.exe]        compiled kernel (zetacode)
+zeta[.exe]        compiled kernel (zetacode); embeds the target's native addon
 web-app/          Work Studio renderer build
-pi_natives.*.node native addons for the target
 ```
+
+The kernel carries the native addon as zstd frames inside the executable
+(`packages/natives/scripts/embed-native.ts`) and extracts it into
+`~/.zeta/natives/<natives version>/` on first run. Do not stage
+`pi_natives.*.node` beside it: each variant is 100–180 MiB and the packaged
+copy was never used while the embedded one loaded, so it only duplicated the
+kernel (124 MiB of every 1.5.1 Windows install).
 
 The shell sets `ZETA_WEB_APP_DIR` to its bundled `web-app/`; the browser
 launcher relies on the same environment being unnecessary because the renderer
 sits beside the binary. Everything else (`ZETA_DESKTOP`, the open-bridge
 secret) is desktop-only wiring.
+
+## Size
+
+Two payloads dominate the full edition: Chromium inside Electron (~275 MiB
+installed) and the compiled kernel (~260 MiB, native addon included). 1.5.1
+installed 744 MiB (~780 MB) from a 250 MiB installer; 124 MiB of that was a
+second copy of the native addon staged beside the kernel and 42 MiB was
+Electron's full locale set. With the addon staging removed and
+`electronLanguages` narrowed to `en-US`/`zh-CN`, the same tree installs at
+~579 MiB (~600 MB) from a ~195 MiB installer. `package-desktop.mjs` enforces
+both invariants through `scripts/packaging-budget.mjs`, so a regression fails
+packaging instead of silently bloating the download.
 
 ## Naming
 

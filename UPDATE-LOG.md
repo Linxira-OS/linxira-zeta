@@ -2,6 +2,12 @@
 
 ## 下一版本（Unreleased）
 
+### 桌面安装包体积（未发布）
+- **Electron 版减重 ~165 MiB**：内核二进制已把本平台 native addon 以 zstd 帧内嵌（`packages/natives/scripts/embed-native.ts`，首次运行解压到 `~/.zeta/natives/<版本>/`），`prepare-runtime.mjs` 仍把 `.node` 再复制一份到 `resources/zeta`，1.5.1 Windows 安装树里重复了 124.1 MiB。现不再随包复制，与命令行版发布物保持一致。
+- **Electron 语言包收敛**：`electron-builder.yml` 新增 `electronLanguages: [en-US, zh-CN]`，不再随包 55 个 `.pak`（安装后 42 MiB、安装包约 10 MiB）。
+- **实测**：1.5.1 安装树 744 MiB（约 780 MB）、NSIS 安装包 250 MiB；同配置重建后 572 MiB（本机内核，比发布内核小 6.8 MB）、安装包 192 MiB；换回 1.5.1 发布内核约 579 MiB / 195 MiB。
+- **回归防护**：新增 `desktop/scripts/packaging-budget.mjs`（`package-desktop.mjs` 打包后校验：`resources/zeta` 不得出现 `.node`，`locales/` 只能有 `en-US`/`zh-CN`），附 4 个单测；违反即打包失败。
+
 ### Team 技能分配（未发布）
 - **PM → 工程师技能分配**：Team 数据库新增 `agent_skills` 表（schema v4；`team_id`/`pm_id`/`engineer_id`/`skill_name`/`source`/`qualified_name`/`assigned_by`/`created_at`，按工程师+技能唯一）。Lead 模式新增 `engineer_skills` 工具（`list|assign|remove`），PM 只能操作自己名下的工程师，拒绝 PM 自身与其他 PM；只接受已发现技能名，无路径参数。分配在工程师会话启动/恢复时以隐藏 autoload 提示注入，每次转写只注入一次；运行中的工程师需 `/reload-skills` 或重启，不做热重载。插件/注册表来源（可带 hooks/tools）为高风险，需操作员在 `team.skillAllowlist` 放行；官方/自写技能默认允许。删除只停止后续注入，不回收已加载内容。
 

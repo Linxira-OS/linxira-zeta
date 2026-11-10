@@ -51,18 +51,10 @@ const stagedZeta = path.join(stagingDir, platformInfo.zetaBinaryName);
 fs.copyFileSync(zetaBinary, stagedZeta);
 if (process.platform !== "win32") fs.chmodSync(stagedZeta, 0o755);
 
-const nativeDir = path.join(repoRoot, "packages", "natives", "native");
-const nativePrefix = `pi_natives.${platformInfo.nativeTag}`;
-const nativeAddons = fs.existsSync(nativeDir)
-	? fs.readdirSync(nativeDir).filter(f => f.startsWith(`${nativePrefix}.node`) || (f.startsWith(`${nativePrefix}-`) && f.endsWith(".node")))
-	: [];
-if (nativeAddons.length === 0) {
-	throw new Error(`No native addons for ${platformInfo.nativeTag} in ${nativeDir}; run the natives build first.`);
-}
-for (const addon of nativeAddons) {
-	fs.copyFileSync(path.join(nativeDir, addon), path.join(stagingDir, addon));
-}
-
+// Native addons are not staged beside the kernel: the standalone binary embeds
+// the target's addon(s) as zstd frames (packages/natives/scripts/embed-native.ts)
+// and extracts them into the user cache on first run. Copying the `.node` files
+// too only duplicated the addon: 124 MiB of the 744 MiB installed by 1.5.1.
 fs.cpSync(webAppDist, path.join(stagingDir, "web-app"), { recursive: true });
 
 
