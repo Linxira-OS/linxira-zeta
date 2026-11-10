@@ -40,7 +40,7 @@ export type ReplyTarget = ChatReplyTarget | SinkReplyTarget;
 
 export interface ReplyCorrelatorOptions {
 	/** Delivers a chat reply inside and outside an observation. */
-	sendText(target: { channelId: ChannelId; peer: string }, text: string): void | Promise<void>;
+	sendText(target: ChatReplyTarget, text: string): void | Promise<void>;
 	/** Pending replies older than this are dropped (default 10 minutes). */
 	ttlMs?: number;
 	/** Upper bound on pending replies; the oldest is evicted past it. */
@@ -185,7 +185,15 @@ export class ReplyCorrelator {
 		try {
 			if (target.kind === "chat") {
 				void Promise.resolve(
-					this.#options.sendText({ channelId: target.channelId, peer: target.peer }, text),
+					this.#options.sendText(
+						{
+							kind: "chat",
+							channelId: target.channelId,
+							peer: target.peer,
+							...(target.messageId === undefined ? {} : { messageId: target.messageId }),
+						},
+						text,
+					),
 				).catch(error => {
 					logger.warn("Channel reply delivery failed", {
 						channel: target.channelId,

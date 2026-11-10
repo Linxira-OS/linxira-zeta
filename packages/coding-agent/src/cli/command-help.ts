@@ -38,7 +38,7 @@ export const browserRelayHelp = {
 } satisfies CommandMetadata;
 
 export const channelsHelp = {
-	description: "Inspect, pair, and toggle IM channels (WeChat/Feishu/Telegram) without a browser",
+	description: "Inspect, pair, and toggle IM channels (WeChat/Feishu/Telegram/Discord/QQ) without a browser",
 } satisfies CommandMetadata;
 
 export const cleanseHelp = {
