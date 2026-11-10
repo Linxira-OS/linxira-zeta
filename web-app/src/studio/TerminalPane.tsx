@@ -43,7 +43,9 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; w
   const targetStatus = executionTarget.inventory.statuses.find(status => status.id === executionTarget.id);
   const canCreate = !executionTarget.id || (targetStatus?.state === "connected" && !targetStatus.operation);
   const selectSession = (id: string): void => { store.activeIds.set(executionTarget.id, id); setActiveId(id); };
-  const defaultShell = newProfileId ?? defaultProfileId ?? undefined;
+  const active = sessions.find(session => session.id === activeId) ?? sessions[0] ?? null;
+  const activeHost = active ? store.hosts.get(active.id) : undefined;
+  const defaultShell = newProfileId ?? active?.profile ?? defaultProfileId ?? undefined;
 
   const createSession = useCallback(async () => {
     if (!api || createLock.current || !canCreate) return;
@@ -79,8 +81,6 @@ export const TerminalPane = forwardRef<TerminalPaneHandle, { visible: boolean; w
     })();
   }, [api, visible, canCreate, sessions.length, store, createSession]);
 
-  const active = sessions.find(session => session.id === activeId) ?? sessions[0] ?? null;
-  const activeHost = active ? store.hosts.get(active.id) : undefined;
   const selectedProfile = active?.profile ?? newProfileId ?? defaultProfileId ?? "";
 
   const changeProfile = async (profileId: string): Promise<void> => {
