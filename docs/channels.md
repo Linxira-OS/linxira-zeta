@@ -229,7 +229,7 @@ it never handles QQ login/QR or reads local QQ data. Run a bridge yourself:
 | -------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | [NapCat](https://github.com/NapNeko/NapCatQQ)                  | headless NTQQ protocol side   | Limited Redistribution License (non-commercial, no public modified builds) | most common; WebUI QR login; typical OneBot HTTP/WS ports 3000/3001, WebUI 6099 |
 | [LLBot (LLOneBot)](https://github.com/LLOneBot/LuckyLilliaBot) | standalone                    | GPL-2.0                                                                    | OneBot 11 + Satori + Milky                                                      |
-| [SnowLuma](https://github.com/SnowLuma/SnowLuma)               | injects the desktop QQ client | source-available non-commercial EULA + proprietary native binaries         | newest and least stable; do not rely on it for production                       |
+| SnowLuma (community mirror: [TomyJan/SnowLuma](https://github.com/TomyJan/SnowLuma))               | injects the desktop QQ client | source-available non-commercial EULA + proprietary native binaries         | newest and least stable; the official repository is currently unreachable, so do not rely on it for production                       |
 
 Forward mode (Zeta dials the bridge's OneBot WebSocket) is the default:
 
