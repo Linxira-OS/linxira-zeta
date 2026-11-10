@@ -2,6 +2,7 @@
 
 ### Fixed
 
+- A `task` batch no longer repaints its transcript card once per spawn progress tick: spawn updates are coalesced to at most one cumulative snapshot per 100 ms (the same cadence as the subagent HUD), so fan-out no longer turns every spawn's 150 ms report into its own full-card rebuild and deep sanitize on the TUI thread. Terminal spawn snapshots still publish immediately, and the tool's final result is unchanged.
 - Startup resolves Claude Code's plugin registries once per project instead of once per capability surface: the ancestor walk that finds a project registry and the project/cwd realpaths are shared by `claude-plugins`, `agent-plugins` and `zeta-plugins`, which removes repeated filesystem work from skill and slash-command discovery.
 
 ## [1.5.0] - 2026-11-09

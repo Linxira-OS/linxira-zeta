@@ -55,6 +55,7 @@
 | `feat/release-114` | feat | 1.4.11 集成分支：四个并行流合并 + 渲染端依赖升级；worktree `temp/release-114` | agent | 2026-11-06 | 发布并合并后删（删前记 SHA） |
 | `feat/ci-buckets` | feat | 把真浏览器/Chromium 测试从每次 push 的 CI 挪进独立 `browser` bucket：`ci-test-ts.ts` 第五个 bucket + `coding-agent-browser` 模式、`ci.yml` 夜间 schedule/`browser_tests` dispatch/release 专属 job 与 `release_gate` 断言、Gitea 镜像、CI surface/parity/文档同步；顺带补上本地 `check` job 缺失的 web-app 构建 | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
 | `fix/board-tool` | fix | 把 `.zeta/board/` 从仅有 API/UI 提升为内置 `board` 工具：共享 store、list/get/create/update/move/assign/delete、项目根绑定、子代理显式 `tools: board` 门禁与测试；worktree `temp/board-tool` | agent | 2026-11-09 | 合入 `main` 后删（删前记 SHA） |
+| `perf/tui-subagent-load` | fix | 多子代理 fan-out 下 TUI 响应性：`task` 批次进度更新按 100 ms 合并（leading + trailing，终态立即 flush），消除每 spawn 每 150 ms 的全卡重建/深清洗；含合并正确性与 fan-out 预算测试。worktree `temp/tui-load-perf` | agent | 2026-11-10 | 合入 `main` 后删（删前记 SHA） |
 
 | `feat/team-core` | feat | Team path/DB foundation（第一纵切）：`.zeta/team.json` / `.zeta/pm.json` 解析与上行 resolver、单库 `~/.zeta/data/zeta.db`（teams/team_pms/repos/repo_bindings/engineers/worktrees）、`zetacode team` 的 init/pm/repo/engineer/worktree/doctor（真实 `git worktree add`）；无 UI/房间/graph。worktree `temp/team-core` | agent | 2026-11-09 | 合入 `main` 后删（删前记 SHA） |
 
