@@ -2,7 +2,7 @@
  * Studio operations — workspace inventory and the Explorer tree.
  *
  * Owned operations: `projects.list`, `workspace.fileTree` (queries) plus
- * `workspace.open` and `workspace.file.create` (commands).
+ * `workspace.open`, `workspace.hide` and `workspace.file.create` (commands).
  *
  * Operation → gateway route:
  * - `projects.list` → `GET /api/projects` (`server/web-gateway/projects.ts`),
@@ -22,6 +22,10 @@
  *   runs one runtime on the process default and only `defaultWorkspaceKey` is
  *   `active` — so this records the operator's open preference and reports the
  *   registry truthfully instead of claiming the runtime moved.
+ * - `workspace.hide` → `PUT /api/projects { path, hidden }`: toggles the shared
+ *   folder visibility preference. Hiding is reversible metadata; the folder
+ *   disappears from the default inventory but its sessions stay on disk, and
+ *   the TUI picker reveals it with Show hidden.
  * - `workspace.file.create` → the multipart upload primitive on `/api/files`
  *   (`POST ?type=upload&conflict=error`) carrying one empty file, because no
  *   JSON route creates a file. The root is registered first, and `conflict=error`
@@ -322,6 +326,28 @@ async function openWorkspace(input: unknown): Promise<WorkspaceListReadModel> {
 }
 
 /**
+ * `workspace.hide` → `PUT /api/projects { path, hidden }`.
+ *
+ * The renderer only knows the opaque workspace id, so the host resolves it
+ * back to the registry path. The gateway reads the same preference file as the
+ * TUI resume picker; this is metadata, never a registry removal or a delete.
+ */
+async function hideWorkspace(input: unknown): Promise<WorkspaceListReadModel> {
+	const workspaceId = requiredString(input, "workspaceId");
+	const hidden =
+		typeof (input as { hidden?: unknown }).hidden === "boolean" ? (input as { hidden: boolean }).hidden : true;
+	const entry = requireWorkspace(await loadProjectDirectory(), workspaceId);
+	const reply = await callGateway(PROJECTS_ROUTE, { method: "PUT", body: { path: entry.path, hidden } });
+	if (reply.status === 400 || reply.status === 404) {
+		throw invalid(`cannot hide workspace ${workspaceId}: the gateway rejected its directory`);
+	}
+	if (reply.status < 200 || reply.status >= 300) {
+		throw unavailable(`PUT ${PROJECTS_ROUTE} → ${reply.status}`);
+	}
+	return toWorkspaceList(parseProjectDirectory(reply.body));
+}
+
+/**
  * `workspace.file.create` → `POST /api/files/<parent>?type=upload&conflict=error`.
  *
  * The gateway's only create primitive is the multipart upload, so an empty file
@@ -375,6 +401,7 @@ export const workspaceOps: StudioFamily = {
 	},
 	commands: {
 		"workspace.open": openWorkspace,
+		"workspace.hide": hideWorkspace,
 		"workspace.file.create": createFile,
 	},
 };

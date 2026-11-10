@@ -114,6 +114,8 @@ export interface QueryInputMap extends ContextViewQueryMap {
 		readonly includeIm?: boolean;
 		/** Include Team-origin conversations (default false). */
 		readonly includeTeam?: boolean;
+		/** Include conversations/folders hidden by shared metadata (default false). */
+		readonly includeHidden?: boolean;
 	};
 	"residents.list": EmptyInput;
 	"session.state": EmptyInput;
@@ -636,6 +638,8 @@ interface CoreCommandInputMap {
 	"models.webSearch.credential.remove": ModelWebSearchCredentialRemoveInput;
 	/** Activate a known workspace (Host-owned registry; never a path). */
 	"workspace.open": { readonly workspaceId: WorkspaceId };
+	/** Hide/unhide one folder in the shared registry; metadata only. */
+	"workspace.hide": { readonly workspaceId: WorkspaceId; readonly hidden?: boolean };
 	/** Open the system directory picker and register the chosen folder. */
 	"workspace.pick": { readonly name?: string };
 	/** Create an empty file inside the selected workspace. */
@@ -772,6 +776,7 @@ interface CoreCommandResultMap {
 	"models.webSearch.credential.set": ConfigWriteResult;
 	"models.webSearch.credential.remove": ConfigWriteResult;
 	"workspace.open": WorkspaceListReadModel;
+	"workspace.hide": WorkspaceListReadModel;
 	"workspace.pick": WorkspaceListReadModel;
 	"workspace.file.create": WorkspaceFileMutationResult;
 	"workspace.directory.create": WorkspaceFileMutationResult;

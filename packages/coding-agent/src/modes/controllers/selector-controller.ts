@@ -90,6 +90,7 @@ import { findSessionContinuation, readSessionInfo, type SessionInfo } from "../.
 import { SessionManager } from "../../session/session-manager";
 import { resolveManagedSessionRoot } from "../../session/session-paths";
 import { loadPinnedSessionIds } from "../../session/session-pins";
+import { deleteSessionFiles } from "../../session/session-delete";
 import { FileSessionStorage } from "../../session/session-storage";
 import { toLogoutAccounts, listLogoutAccounts, logoutCredential } from "../../slash-commands/helpers/logout";
 import type {
@@ -2216,7 +2217,7 @@ export class SelectorController {
 				if (!(await this.#detachActiveSessionBeforeDeletion(session.path))) return false;
 				const storage = new FileSessionStorage();
 				try {
-					await storage.moveSessionWithArtifactsToTrash(session.path);
+					await deleteSessionFiles(session.path, { mode: "trash", storage });
 					return true;
 				} catch (error) {
 					throw new Error(`Failed to delete session: ${error instanceof Error ? error.message : String(error)}`, {

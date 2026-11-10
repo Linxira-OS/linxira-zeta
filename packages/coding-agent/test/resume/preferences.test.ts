@@ -9,8 +9,10 @@ import {
 	resumePreferencesPath,
 	setProjectAlias,
 	setProjectCollapsed,
+	setProjectHidden,
 	setProjectPreference,
 	setWorkspaceAlias,
+	setWorkspaceHidden,
 	toggleProjectPin,
 	toggleWorkspacePin,
 	unregisterProject,
@@ -62,6 +64,25 @@ describe("resume preferences", () => {
 		await setWorkspaceAlias(REPO_A, null, agentDir);
 		const cleared = await loadResumePreferences(agentDir);
 		expect(cleared.workspaces?.[resumePathKey(REPO_A)]).toEqual({ pinned: true });
+	});
+
+	it("round-trips hidden project and folder metadata", async () => {
+		await setProjectHidden(REPO_A, true, agentDir);
+		await setWorkspaceHidden(REPO_B, true, agentDir);
+		const loaded = await loadResumePreferences(agentDir);
+		expect(loaded.projects[resumePathKey(REPO_A)]).toEqual({ hidden: true });
+		expect(loaded.workspaces?.[resumePathKey(REPO_B)]).toEqual({ hidden: true });
+
+		await setProjectHidden(REPO_A, false, agentDir);
+		await setWorkspaceHidden(REPO_B, false, agentDir);
+		const cleared = await loadResumePreferences(agentDir);
+		expect(cleared.projects[resumePathKey(REPO_A)]).toBeUndefined();
+		expect(cleared.workspaces?.[resumePathKey(REPO_B)]).toBeUndefined();
+	});
+
+	it("never hides the seeded default workspace project", async () => {
+		await setProjectHidden(DEFAULT_WORKSPACE, true, agentDir);
+		expect((await loadResumePreferences(agentDir)).projects[resumePathKey(DEFAULT_WORKSPACE)]).toBeUndefined();
 	});
 
 	it("seeds the default project as pinned and registered", async () => {

@@ -39,6 +39,7 @@ function sanitizeWorkspacePreference(value: unknown): ResumeWorkspacePreferences
 	if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
 	const result: ResumeWorkspacePreferences = {};
 	if ("pinned" in value && typeof value.pinned === "boolean") result.pinned = value.pinned;
+	if ("hidden" in value && typeof value.hidden === "boolean") result.hidden = value.hidden;
 	if ("alias" in value && typeof value.alias === "string") {
 		const alias = value.alias.trim();
 		if (alias) result.alias = alias;
@@ -50,6 +51,7 @@ function sanitizeProjectPreference(value: unknown): ResumeProjectPreferences | n
 	if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
 	const result: ResumeProjectPreferences = {};
 	if ("pinned" in value && typeof value.pinned === "boolean") result.pinned = value.pinned;
+	if ("hidden" in value && typeof value.hidden === "boolean") result.hidden = value.hidden;
 	if ("collapsed" in value && typeof value.collapsed === "boolean") result.collapsed = value.collapsed;
 	if ("registered" in value && typeof value.registered === "boolean") result.registered = value.registered;
 	if ("alias" in value && typeof value.alias === "string") {
@@ -193,7 +195,7 @@ export async function setProjectPreference(
 			if (alias) next.alias = alias;
 			else delete next.alias;
 		}
-		for (const field of ["pinned", "collapsed", "registered", "lastOpened", "alias"] as const) {
+		for (const field of ["pinned", "hidden", "collapsed", "registered", "lastOpened", "alias"] as const) {
 			if (next[field] === undefined) delete next[field];
 		}
 		if (Object.keys(next).length > 0) preferences.projects[key] = next;
@@ -255,6 +257,44 @@ export async function toggleWorkspacePin(workspaceKey: string, agentDir: string 
 		return preferences;
 	}, agentDir);
 	return pinned;
+}
+
+/**
+ * Hide or unhide a project. Hiding is shared display metadata: the resume
+ * picker and Work Studio leave it out of their default lists, while the
+ * transcripts and registry entry stay untouched. The default workspace project
+ * is never hidden.
+ */
+export async function setProjectHidden(
+	projectKey: string,
+	hidden: boolean,
+	agentDir: string = getAgentDir(),
+): Promise<void> {
+	if (hidden && sameResumePath(projectKey, defaultCoordinatorWorkspace())) return;
+	await setProjectPreference(projectKey, { hidden: hidden || undefined }, agentDir);
+}
+
+/**
+ * Hide or unhide a folder (one workspace path). This is the "Hide folder"
+ * operation both surfaces share; sessions under the folder remain on disk and
+ * can be listed again by unhiding or by the TUI's Show hidden toggle.
+ */
+export async function setWorkspaceHidden(
+	workspaceKey: string,
+	hidden: boolean,
+	agentDir: string = getAgentDir(),
+): Promise<void> {
+	const key = resumePathKey(workspaceKey);
+	if (!key) throw new Error("A workspace key is required");
+	await updateResumePreferences(preferences => {
+		const workspaces = (preferences.workspaces ??= {});
+		const next: ResumeWorkspacePreferences = { ...workspaces[key] };
+		if (hidden) next.hidden = true;
+		else delete next.hidden;
+		if (Object.keys(next).length > 0) workspaces[key] = next;
+		else delete workspaces[key];
+		return preferences;
+	}, agentDir);
 }
 
 /** Persist a project's collapsed state. */

@@ -14,6 +14,7 @@ import { isImSession, isTeamSession } from "../session/session-origin";
 import type { SessionInfo } from "../session/session-listing";
 import { sessionDisplayName } from "../session/session-listing";
 import { loadPinnedSessionIds } from "../session/session-pins";
+import { loadHiddenSessionIds } from "../session/session-visibility";
 import { SessionManager } from "../session/session-manager";
 import type { SessionStorage } from "../session/session-storage";
 import { defaultCoordinatorWorkspace } from "../default-workspace";
@@ -24,6 +25,7 @@ import type {
 	ResumeConversation,
 	ResumeDirectory,
 	ResumeDirectoryCounts,
+	ResumeHiddenCounts,
 	ResumePreferences,
 	ResumeProject,
 	ResumeWorkspace,
@@ -36,6 +38,8 @@ export interface BuildResumeDirectoryOptions {
 	sessions: readonly SessionInfo[];
 	preferences?: ResumePreferences;
 	pinnedIds?: ReadonlySet<string>;
+	/** Conversation ids hidden by the shared visibility store. */
+	hiddenIds?: ReadonlySet<string>;
 	/** Default workspace anchor; defaults to `defaultCoordinatorWorkspace()`. */
 	defaultWorkspace?: string;
 	/** Session file of the running conversation, marked `current`. */
@@ -107,6 +111,8 @@ function createProject(key: string, root: string, isDefault: boolean, preference
 			// The seeded default project is pinned regardless of stored state.
 			pinned: isDefault || preference.pinned === true,
 			removable: !isDefault,
+			// The seeded default project is the current workspace anchor: never hidden.
+			hidden: !isDefault && preference.hidden === true,
 			collapsed: preference.collapsed === true,
 			lastActivity: null,
 			workspaces: [],
@@ -137,6 +143,7 @@ function createWorkspace(
 		branch: info.branch,
 		isWorktree: info.isWorktree,
 		pinned: preference.pinned === true,
+		hidden: preference.hidden === true,
 		lastActivity: null,
 		conversations: [],
 		counts: { conversations: 0, pinnedConversations: 0 },
@@ -230,6 +237,7 @@ function disambiguateProjectNames(projects: readonly ResumeProject[]): void {
 export async function buildResumeDirectory(options: BuildResumeDirectoryOptions): Promise<ResumeDirectory> {
 	const preferences = options.preferences ?? { version: 1, projects: {} };
 	const pinnedIds = options.pinnedIds ?? new Set<string>();
+	const hiddenIds = options.hiddenIds ?? new Set<string>();
 	const defaultWorkspace = options.defaultWorkspace ?? defaultCoordinatorWorkspace();
 	const defaultWorkspaceKey = resumePathKey(defaultWorkspace);
 	const resolver = options.resolveProject ?? resolveProject;
@@ -317,6 +325,7 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 			modified: session.modified,
 			status: session.status,
 			pinned: pinnedIds.has(session.id),
+			hidden: hiddenIds.has(session.id) || bucket.project.hidden || workspace.hidden,
 			current: sameResumePath(session.path, options.currentSessionPath),
 			// A subagent carries both a parent and the agent marker; a user fork
 			// carries the parent alone and must stay a `fork`.
@@ -375,6 +384,14 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 			conversations: conversations.length,
 			pinnedConversations: countPinned(conversations),
 		} satisfies ResumeDirectoryCounts,
+		hiddenCounts: {
+			projects: sortedProjects.filter(project => project.hidden).length,
+			workspaces: sortedProjects.reduce(
+				(total, project) => total + project.workspaces.filter(workspace => workspace.hidden).length,
+				0,
+			),
+			conversations: conversations.filter(conversation => conversation.hidden).length,
+		} satisfies ResumeHiddenCounts,
 	};
 }
 
@@ -388,7 +405,67 @@ export interface LoadResumeDirectoryOptions extends Omit<BuildResumeDirectoryOpt
 	agentDir?: string;
 	preferences?: ResumePreferences;
 	pinnedIds?: ReadonlySet<string>;
+	hiddenIds?: ReadonlySet<string>;
 	preferencesOptions?: LoadResumePreferencesOptions;
+}
+
+/**
+ * Hidden metadata is a display filter, not deletion: every surface keeps the
+ * full directory in memory and projects this view. The default (false) removes
+ * hidden projects, folders and conversations while preserving registry rows
+ * whose folders are merely empty; `showHidden` returns the directory unchanged
+ * so the TUI can reveal everything without rescanning.
+ */
+export function filterHiddenResumeDirectory(directory: ResumeDirectory, showHidden = false): ResumeDirectory {
+	if (showHidden) return directory;
+	const projects = directory.projects.flatMap(project => {
+		if (project.hidden) return [];
+		const hadWorkspaces = project.workspaces.length > 0;
+		const workspaces = project.workspaces.flatMap(workspace => {
+			if (workspace.hidden) return [];
+			const conversations = workspace.conversations.filter(conversation => !conversation.hidden);
+			return [
+				{
+					...workspace,
+					conversations,
+					counts: {
+						conversations: conversations.length,
+						pinnedConversations: countPinned(conversations),
+					},
+				},
+			];
+		});
+		// A project whose only folders were hidden disappears; a registry row that
+		// never had a folder (registered empty project) stays listed.
+		if (hadWorkspaces && workspaces.length === 0) return [];
+		const conversations = workspaces.flatMap(workspace => workspace.conversations);
+		return [
+			{
+				...project,
+				workspaces,
+				conversations,
+				counts: {
+					conversations: conversations.length,
+					workspaces: workspaces.length,
+					pinnedConversations: countPinned(conversations),
+				},
+			},
+		];
+	});
+	const workspaces = projects.flatMap(project => project.workspaces);
+	const conversations = projects.flatMap(project => project.conversations);
+	return {
+		...directory,
+		projects,
+		workspaces,
+		conversations,
+		counts: {
+			projects: projects.length,
+			workspaces: workspaces.length,
+			conversations: conversations.length,
+			pinnedConversations: countPinned(conversations),
+		},
+	};
 }
 
 /**
@@ -396,10 +473,11 @@ export interface LoadResumeDirectoryOptions extends Omit<BuildResumeDirectoryOpt
  * conversations, session pins and project preferences.
  */
 export async function loadResumeDirectory(options: LoadResumeDirectoryOptions = {}): Promise<ResumeDirectory> {
-	const [sessions, pinnedIds, preferences] = await Promise.all([
+	const [sessions, pinnedIds, preferences, hiddenIds] = await Promise.all([
 		options.sessions ?? (await SessionManager.listAllForPicker(options.storage, options.sessionsRoot)).sessions,
 		options.pinnedIds ?? loadPinnedSessionIds(options.agentDir),
 		options.preferences ?? loadResumePreferences(options.agentDir, options.preferencesOptions),
+		options.hiddenIds ?? loadHiddenSessionIds(options.agentDir),
 	]);
-	return buildResumeDirectory({ ...options, sessions, pinnedIds, preferences });
+	return buildResumeDirectory({ ...options, sessions, pinnedIds, preferences, hiddenIds });
 }

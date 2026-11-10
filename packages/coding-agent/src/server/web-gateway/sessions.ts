@@ -25,7 +25,7 @@ import { listAllSessions as listRuntimeSessions } from "../../session/session-li
 import { parseSessionContent } from "../../session/session-loader";
 import { SessionManager } from "../../session/session-manager";
 import { BLOB_EXTERNALIZE_THRESHOLD } from "../../session/session-persistence";
-import { moveSessionToTrash } from "../../session/session-trash";
+import { deleteSessionFiles } from "../../session/session-delete";
 import { serializeTitleSlot } from "../../session/session-title-slot";
 import { getRpcSession } from "./agents";
 import { invalidateProjectCache, type ProjectInfo, resolveProject } from "./projects";
@@ -999,10 +999,12 @@ export async function handleDeleteSession(sessionId: string): Promise<Response> 
 		}
 
 		removeRunningSession(sessionId);
-		// Soft-delete: the transcript (plus artifacts and stale backups) moves to
+		// Soft-delete through the same helper the TUI picker uses: the transcript
+		// (plus artifacts and stale backups) moves to
 		// `~/.zeta/trash/sessions/<timestamp>_<id>/` so `/trash` + `/restore` can
-		// recover it until the retention sweeper expires it.
-		await moveSessionToTrash(filePath);
+		// recover it until the retention sweeper expires it, and shared hide/pin
+		// metadata is dropped in the same step.
+		await deleteSessionFiles(filePath, { mode: "trash" });
 		invalidateSessionPathCache(sessionId);
 		invalidateSessionListCache();
 		await maybeRemoveWorktreeAfterSessionDelete(sessionCwd);

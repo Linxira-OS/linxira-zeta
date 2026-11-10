@@ -1651,6 +1651,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 				currentPath: string | undefined;
 				hidden: number;
 				showCwd: boolean;
+				showHidden: boolean | undefined;
 				model: ResumePickerModel | undefined;
 		  }
 		| undefined;
@@ -2330,6 +2331,29 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 				),
 			);
 		}
+		if (source.hideConversation && selectedConversation) {
+			actions.push(
+				pickerAction(
+					"hide",
+					selectedConversation.conversation.hidden
+						? tuiText("resumeUnhideAction", "Unhide")
+						: tuiText("resumeHideAction", "Hide"),
+					"h",
+				),
+			);
+		}
+		const hiddenTotal = source.hiddenCount?.() ?? 0;
+		if (source.setShowHidden && (source.showHidden === true || hiddenTotal > 0)) {
+			actions.push(
+				pickerAction(
+					"show-hidden",
+					source.showHidden
+						? tuiText("resumeHideHiddenAction", "Don't show hidden")
+						: tuiTextFmt("resumeShowHiddenFmt", "Show hidden (%d)", hiddenTotal),
+					"v",
+				),
+			);
+		}
 		if (source.refresh) actions.push(pickerAction("refresh", tuiText("resumeRefreshAction", "Refresh"), "r"));
 		if (list.onToggleScope) actions.push(pickerAction("scope", resumeScopeLabel(nextResumeScope(kind)), "tab"));
 		actions.push(
@@ -2445,7 +2469,8 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 			cached.scopeKey === scopeKey &&
 			cached.currentPath === currentPath &&
 			cached.hidden === this.#resumeHidden.size &&
-			cached.showCwd === showCwd
+			cached.showCwd === showCwd &&
+			cached.showHidden === source.showHidden
 		) {
 			return cached.model;
 		}
@@ -2455,6 +2480,8 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 			currentSessionPath: currentPath,
 			hidden: this.#resumeHidden,
 			showCwd,
+			showHidden: source.showHidden === true,
+			hiddenTotal: source.hiddenCount?.() ?? 0,
 			preferredPath: this.#sessionList.selectedSession?.path,
 		});
 		this.#resumeModelMemo = {
@@ -2465,6 +2492,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 			currentPath,
 			hidden: this.#resumeHidden.size,
 			showCwd,
+			showHidden: source.showHidden,
 			model,
 		};
 		return model;
@@ -2502,6 +2530,34 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 			this.#showError(error instanceof Error ? error.message : String(error));
 			this.#onRequestRender?.();
 		});
+	}
+
+	/** Hide or unhide the selected conversation, then re-read the directory. */
+	#toggleResumeHidden(): void {
+		const source = this.#resumeSource;
+		const hide = source?.hideConversation;
+		const path = this.#sessionList.selectedSession?.path;
+		if (!source || !hide || !path || !source.directory) return;
+		const context = resumeConversationContext(source.directory, path);
+		if (!context) return;
+		void (async () => {
+			await hide.call(source, context.conversation, !context.conversation.hidden);
+			await source.refresh?.();
+			this.#invalidateResume();
+			this.#onRequestRender?.();
+		})().catch((error: unknown) => {
+			this.#showError(error instanceof Error ? error.message : String(error));
+			this.#onRequestRender?.();
+		});
+	}
+
+	/** Reveal or hide rows hidden by shared metadata (no rescan). */
+	#toggleResumeShowHidden(): void {
+		const source = this.#resumeSource;
+		if (!source?.setShowHidden) return;
+		source.setShowHidden(source.showHidden !== true);
+		this.#invalidateResume();
+		this.#onRequestRender?.();
 	}
 
 	/** Re-scan the directory, showing the loading line meanwhile. */
@@ -2702,7 +2758,9 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		else if (ev.act === "pin") {
 			if (this.#resumeSource) this.#toggleResumePin();
 			else list.requestPin();
-		} else if (ev.act === "refresh") this.#refreshResume();
+		} else if (ev.act === "hide") this.#toggleResumeHidden();
+		else if (ev.act === "show-hidden") this.#toggleResumeShowHidden();
+		else if (ev.act === "refresh") this.#refreshResume();
 		else if (ev.act === "scope") {
 			list.onToggleScope?.();
 		} else if (ev.act === "clear") list.clearSearch();

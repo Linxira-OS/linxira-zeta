@@ -587,6 +587,13 @@ type ArchivePending =
   | { kind: "preview"; threadId: string; title: string; streaming: boolean }
   | { kind: "real"; entry: SessionHistoryEntry; streaming: boolean; workspaceId?: WorkspaceId };
 
+/** One conversation row awaiting its destructive delete confirmation. */
+interface DeleteConversationTarget {
+  readonly entry: SessionHistoryEntry;
+  readonly workspaceId?: WorkspaceId;
+  readonly title: string;
+}
+
 function archiveConfirmIsStreaming(
   pending: ArchivePending,
   live: { readonly sessionId?: string; readonly isStreaming?: boolean } | undefined,
@@ -992,6 +999,59 @@ function ThreadRowMenu({ id, openId, onToggle, contextPoint, menu }: {
   );
 }
 
+/** Destructive delete confirmation shared by every conversation row menu. */
+function DeleteConversationDialog({ title, busy, error, onConfirm, onCancel }: {
+  title: string;
+  busy: boolean;
+  error?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useI18n();
+  useEffect(() => {
+    if (busy) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [busy, onCancel]);
+  return createPortal(
+    <div className="modal-backdrop create-project-backdrop" role="presentation" onMouseDown={busy ? undefined : onCancel}>
+      <section
+        className="modal create-project-modal create-branch-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="deleteConversationTitle"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="create-project-head">
+          <div>
+            <span className="create-project-kicker">SESSION</span>
+            <h2 id="deleteConversationTitle">{t("shell.deleteConversationTitle")}</h2>
+            <p className="create-branch-sub">{t("shell.deleteConversationDesc", { title })}</p>
+          </div>
+          <button type="button" className="icon-btn" aria-label={t("common.close")} disabled={busy} onClick={onCancel}><Icon name="x" /></button>
+        </div>
+        <div className="create-project-body">
+          {error !== undefined ? <div className="create-project-error" role="alert"><Icon name="alert" extra="sm" />{error}</div> : null}
+        </div>
+        <div className="create-project-foot">
+          <button type="button" className="btn outline" autoFocus disabled={busy} onClick={onCancel}>{t("common.cancel")}</button>
+          <button type="button" className="btn danger" disabled={busy} onClick={onConfirm}>
+            {busy
+              ? <><span className="spinner" aria-hidden="true" />{t("history.deleting")}</>
+              : <><Icon name="trash" extra="sm" /><span>{t("shell.deleteConversationAction")}</span></>}
+          </button>
+        </div>
+      </section>
+    </div>,
+    document.body,
+  );
+}
+
 function AnchoredPop({ id, openId, onToggle, tip, label, align = "start", triggerClassName, popoverClassName, children, panel }: {
   id: string;
   openId: string | null;
@@ -1266,6 +1326,14 @@ type ShellChrome = {
   onUnarchiveThread: (entry: SessionHistoryEntry) => void;
   /** 历史页「删除会话」：session.delete，永久删除本地文件与相关残留。 */
   onDeleteSessionThread: (entry: SessionHistoryEntry, deleteManagedArtifacts?: boolean) => Promise<boolean>;
+  /** 会话行 ⋯「删除对话」：先确认，再走同一个 session.delete。 */
+  onRequestDeleteThread: (entry: SessionHistoryEntry, workspaceId?: WorkspaceId) => void;
+  /** 未落历史目录的提交行也能删除：先解析其历史行，再确认。 */
+  onRequestDeleteProvisional: (thread: ProvisionalProjectThread) => void;
+  /** 未落历史目录的提交行 Fork：先解析历史行，再走同一 Fork 路径。 */
+  onForkProvisionalThread: (thread: ProvisionalProjectThread) => void;
+  /** 项目/文件夹行 ⋯「隐藏文件夹」：共享可见性元数据，不删除任何会话。 */
+  onHideProject: (workspaceId: string, name: string) => void;
   /** 顶栏「对话选项」：打开重命名对话框（builtin.rename，标题持久化到会话槽）。 */
   onRenameThread: () => void;
   /** 顶栏「对话选项」：Fork 当前会话（session.fork，Runtime 身份切换）。 */
@@ -1955,6 +2023,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
   const ompMenuRef = useRef<HTMLDivElement>(null);
   const [ompMenuPos, setOmpMenuPos] = useState<{ left: number; bottom?: number; top?: number }>({ left: 0, bottom: 0 });
   const [fileSearch, setFileSearch] = useState("");
+  const [hiddenPreviewProjects, setHiddenPreviewProjects] = useState<ReadonlySet<string>>(new Set());
   const [fileRefreshToken, setFileRefreshToken] = useState(0);
   const [previewFileMessage, setPreviewFileMessage] = useState<string | undefined>(undefined);
   const [newEntryKind, setNewEntryKind] = useState<WorkspaceCreationKind | null>(null);
@@ -2071,11 +2140,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
     setRowMenuPoint({ x: event.clientX, y: event.clientY });
     setOpenRowMenuId(id);
   };
-  /** 行级会话动作可用性：与顶栏同一语义——写表面只看真实 Runtime 快照。
-      行菜单的目标是所在行会话：非当前会话由 runThreadRowAction 先打开（resume）再执行。 */
-  const sessionLive = liveSnapshot !== undefined;
-  const sessionBusy = liveSnapshot?.isStreaming === true || liveSnapshot?.isCompacting === true;
-  const rowActionReason = !sessionLive ? t("common.unavailable") : t("common.loading");
+  /** 行级会话动作的目标是所在行会话：非当前会话由 runThreadRowAction 先打开（resume）再执行。 */
   const pendingInteraction = state.clientState?.interaction.pending ?? null;
   const residentModel = state.clientState?.entities.residents;
   const residentRows = residentRowsOf(residentModel);
@@ -2342,7 +2407,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
           </div>
         </div>
         <div className="sb-scroll" id="projectList">
-          {preview ? PREVIEW_PROJECTS.map((project) => {
+          {preview ? PREVIEW_PROJECTS.filter((project) => !hiddenPreviewProjects.has(project.id)).map((project) => {
             const open = chrome.previewProjectId === project.id && chrome.projectListExpanded;
             return (
               <div className="project" key={project.id}>
@@ -2369,9 +2434,20 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                       {project.dirty > 0 ? <span className="muted tiny">{project.dirty}</span> : null}
                     </span>
                   </button>
-                  {/* 悬停浮现的操作区：最右 + 在此项目下新建会话，其左 ⋯ 更多（功能未接入） */}
+                  {/* 悬停操作区：最右 + 新建会话；其左 ⋯ 是项目/文件夹菜单（隐藏文件夹）。 */}
                   <span className="p-actions">
-                    <button type="button" className="icon-btn" data-tip={t("common.moreNotImplemented")} aria-label={t("common.moreActions")} disabled><Icon name="more" extra="sm" /></button>
+                    <ThreadRowMenu
+                      id={`project:${project.id}`}
+                      openId={openRowMenuId}
+                      onToggle={setOpenRowMenuId}
+                      contextPoint={openRowMenuId === `project:${project.id}` ? rowMenuPoint : null}
+                      menu={
+                        <MenuItem
+                          icon="eye-off"
+                          onClick={() => runRowAction(() => setHiddenPreviewProjects((current) => new Set(current).add(project.id)))}
+                        >{t("shell.hideFolder")}</MenuItem>
+                      }
+                    />
                     <button type="button" className="icon-btn" data-tip={t("shell.newChatInProject")} aria-label={t("shell.newChatInProject")} onClick={() => chrome.onStartChatInProject({ id: project.id, name: project.name })}><Icon name="plus" extra="sm" /></button>
                   </span>
                 </div>
@@ -2478,9 +2554,20 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                         {waitingCount > 0 ? <span className="chip amber xs" aria-label={`等待 ${waitingCount}`}>{waitingCount}</span> : null}
                       </span>
                     </button>
-                    {/* 悬停浮现的操作区：最右 + 在此项目下新建会话，其左 ⋯ 更多（功能未接入） */}
+                    {/* 悬停操作区：最右 + 新建会话；其左 ⋯ 是项目/文件夹菜单（隐藏文件夹）。 */}
                     <span className="p-actions">
-                      <button type="button" className="icon-btn" data-tip={t("common.moreNotImplemented")} aria-label={t("common.moreActions")} disabled><Icon name="more" extra="sm" /></button>
+                      <ThreadRowMenu
+                        id={`project:${workspace.workspaceId}`}
+                        openId={openRowMenuId}
+                        onToggle={setOpenRowMenuId}
+                        contextPoint={openRowMenuId === `project:${workspace.workspaceId}` ? rowMenuPoint : null}
+                        menu={
+                          <MenuItem
+                            icon="eye-off"
+                            onClick={() => runRowAction(() => chrome.onHideProject(workspace.workspaceId, workspace.name))}
+                          >{t("shell.hideFolder")}</MenuItem>
+                        }
+                      />
                       <button type="button" className="icon-btn" data-tip={t("shell.newChatInProject")} aria-label={t("shell.newChatInProject")} onClick={() => chrome.onStartChatInProject({ id: workspace.workspaceId, name: workspace.name })}><Icon name="plus" extra="sm" /></button>
                     </span>
                   </div>
@@ -2524,22 +2611,16 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                                 contextPoint={openRowMenuId === `provisional:${String(thread.sessionId)}` ? rowMenuPoint : null}
                                 menu={
                                   <>
-                                    <ThreadActionMenuItems
-                                      live={sessionLive && chrome.activeProvisionalSessionId === thread.sessionId}
-                                      busy={sessionBusy}
-                                      compacting={liveSnapshot?.isCompacting === true}
-                                      compactPending={chrome.compactPending}
-                                      reason={t("common.unavailable")}
-                                      supported={sessionActions}
-                                      onRename={() => runRowAction(chrome.onRenameThread)}
-                                      onFork={() => runRowAction(chrome.onForkThread)}
-                                      onHandoff={() => runRowAction(chrome.onHandoffThread)}
-                                      onCompact={() => runRowAction(chrome.onCompactThread)}
-                                      onExport={() => runRowAction(chrome.onExportThread)}
-                                      onHistory={() => runRowAction(() => onRoute("history"))}
-                                    />
+                                    <MenuItem
+                                      icon="fork"
+                                      {...(sessionActions.fork ? {} : { disabled: true, title: t("common.unsupportedByRuntime") })}
+                                      onClick={() => runRowAction(() => chrome.onForkProvisionalThread(thread))}
+                                    >{t("shell.forkThread")}</MenuItem>
                                     <div className="menu-sep" />
-                                    <MenuItem icon="archive" onClick={() => runRowAction(() => chrome.onArchiveProvisionalThread(thread))}>{t("history.archiveSession")}</MenuItem>
+                                    <MenuItem
+                                      icon="trash"
+                                      onClick={() => runRowAction(() => chrome.onRequestDeleteProvisional(thread))}
+                                    >{t("shell.deleteConversation")}</MenuItem>
                                   </>
                                 }
                               />
@@ -2600,22 +2681,16 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                               contextPoint={openRowMenuId === entry.historyId ? rowMenuPoint : null}
                               menu={
                                 <>
-                                  <ThreadActionMenuItems
-                                    live={sessionLive}
-                                    busy={running}
-                                    compacting={liveSnapshot?.sessionId === entry.sessionId && liveSnapshot?.isCompacting === true}
-                                    compactPending={chrome.compactPending}
-                                    reason={rowActionReason}
-                                    supported={sessionActions}
-                                    onRename={() => runRowAction(() => chrome.onThreadRowAction(entry, workspace.workspaceId as WorkspaceId, "rename"))}
-                                    onFork={() => runRowAction(() => chrome.onThreadRowAction(entry, workspace.workspaceId as WorkspaceId, "fork"))}
-                                    onHandoff={() => runRowAction(() => chrome.onThreadRowAction(entry, workspace.workspaceId as WorkspaceId, "handoff"))}
-                                    onCompact={() => runRowAction(() => chrome.onThreadRowAction(entry, workspace.workspaceId as WorkspaceId, "compact"))}
-                                    onExport={() => runRowAction(() => chrome.onThreadRowAction(entry, workspace.workspaceId as WorkspaceId, "export"))}
-                                    onHistory={() => runRowAction(() => onRoute("history"))}
-                                  />
+                                  <MenuItem
+                                    icon="fork"
+                                    {...(sessionActions.fork ? {} : { disabled: true, title: t("common.unsupportedByRuntime") })}
+                                    onClick={() => runRowAction(() => chrome.onThreadRowAction(entry, workspace.workspaceId as WorkspaceId, "fork"))}
+                                  >{t("shell.forkThread")}</MenuItem>
                                   <div className="menu-sep" />
-                                  <MenuItem icon="archive" onClick={() => runRowAction(() => chrome.onArchiveThread(entry, workspace.workspaceId))}>{t("history.archiveSession")}</MenuItem>
+                                  <MenuItem
+                                    icon="trash"
+                                    onClick={() => runRowAction(() => chrome.onRequestDeleteThread(entry, workspace.workspaceId as WorkspaceId))}
+                                  >{t("shell.deleteConversation")}</MenuItem>
                                 </>
                               }
                             />
@@ -6710,6 +6785,10 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
   const [dialog, setDialog] = useState<ShellDialog | null>(null);
   /** 归档确认弹窗：点「归档」只打开此窗，确认后才执行预览隐藏或 session.archive。 */
   const [archivePending, setArchivePending] = useState<ArchivePending | null>(null);
+  /** 会话行 ⋯「删除对话」的确认目标；确认后走同一个 session.delete。 */
+  const [deleteConversationTarget, setDeleteConversationTarget] = useState<DeleteConversationTarget | null>(null);
+  const [deleteConversationBusy, setDeleteConversationBusy] = useState(false);
+  const [deleteConversationError, setDeleteConversationError] = useState<string | undefined>(undefined);
   const [archiveBusy, setArchiveBusy] = useState(false);
   const archiveBusyRef = useRef(false);
   const [archiveError, setArchiveError] = useState<string | undefined>(undefined);
@@ -8172,6 +8251,77 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     })();
   };
 
+  /** Open the destructive confirmation for one persisted conversation row. */
+  const requestDeleteThread = (entry: SessionHistoryEntry, workspaceId?: WorkspaceId) => {
+    setDeleteConversationError(undefined);
+    setDeleteConversationTarget({
+      entry,
+      ...(workspaceId === undefined ? {} : { workspaceId }),
+      title: entry.title ?? t("conversation.untitledSession"),
+    });
+  };
+
+  /** A submitted provisional row may not be in the catalog yet: resolve first. */
+  const requestDeleteProvisionalThread = (thread: ProvisionalProjectThread) => {
+    void (async () => {
+      const entry = await resolveProvisionalHistoryEntry(thread);
+      if (entry === undefined) {
+        setSessionActionError("会话记录仍在写入，请稍后重试");
+        return;
+      }
+      requestDeleteThread(entry, thread.workspaceId);
+    })();
+  };
+
+  const confirmDeleteConversation = () => {
+    const target = deleteConversationTarget;
+    if (target === null || deleteConversationBusy) return;
+    setDeleteConversationBusy(true);
+    setDeleteConversationError(undefined);
+    void deleteSessionThread(target.entry, true).then((ok) => {
+      if (ok) setDeleteConversationTarget(null);
+      setDeleteConversationBusy(false);
+    }).catch((error) => {
+      setDeleteConversationError(hostErrorMessage(error, "删除对话失败"));
+      setDeleteConversationBusy(false);
+    });
+  };
+
+  const forkProvisionalThread = (thread: ProvisionalProjectThread) => {
+    void (async () => {
+      const entry = await resolveProvisionalHistoryEntry(thread);
+      if (entry === undefined) {
+        setSessionActionError("会话记录仍在写入，请稍后重试");
+        return;
+      }
+      runThreadRowAction(entry, thread.workspaceId, "fork");
+    })();
+  };
+
+  /** Hide one folder through the shared registry; nothing on disk is deleted. */
+  const hideProject = (workspaceId: string, name: string) => {
+    void workspaceActionQueue.enqueue(async () => {
+      try {
+        const handle = await client.command("workspace.hide", { workspaceId: workspaceId as WorkspaceId });
+        const workspaces = await waitReceipt<WorkspaceListReadModel>(client, handle.requestId);
+        onWorkspacesChange(workspaces);
+        collapseProject(workspaceId);
+        setProjectThreadLimits((current) => {
+          if (!(workspaceId in current)) return current;
+          const { [workspaceId]: _hidden, ...rest } = current;
+          return rest;
+        });
+        if (selectedProject?.id === workspaceId) {
+          const active = workspaces.workspaces.find((workspace) => workspace.active) ?? workspaces.workspaces[0];
+          setSelectedProject(active === undefined ? null : { id: active.workspaceId, name: active.name });
+        }
+        setShellNotice({ text: t("shell.hideFolderDone", { name }), icon: "eye-off" });
+      } catch (error) {
+        setShellNotice({ text: hostErrorMessage(error, t("shell.hideFolderFailed")), icon: "alert" });
+      }
+    });
+  };
+
   const requestArchiveProvisionalThread = (thread: ProvisionalProjectThread) => {
     if (archiveBusyRef.current) {
       notifyArchiveBusy();
@@ -8713,6 +8863,10 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     onArchiveProvisionalThread: requestArchiveProvisionalThread,
     onUnarchiveThread: unarchiveThread,
     onDeleteSessionThread: deleteSessionThread,
+    onRequestDeleteThread: requestDeleteThread,
+    onRequestDeleteProvisional: requestDeleteProvisionalThread,
+    onForkProvisionalThread: forkProvisionalThread,
+    onHideProject: hideProject,
     // 显式无参包装：防止未来被直接挂到 onClick 时把事件对象当成 initialTitle/target。
     onRenameThread: () => openRenameDialog(),
     onForkThread: forkThread,
@@ -9211,6 +9365,19 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
             </div>
           </section>
         </div>
+      ) : null}
+      {deleteConversationTarget !== null ? (
+        <DeleteConversationDialog
+          title={deleteConversationTarget.title}
+          busy={deleteConversationBusy}
+          {...(deleteConversationError === undefined ? {} : { error: deleteConversationError })}
+          onConfirm={confirmDeleteConversation}
+          onCancel={() => {
+            if (deleteConversationBusy) return;
+            setDeleteConversationTarget(null);
+            setDeleteConversationError(undefined);
+          }}
+        />
       ) : null}
       {dialog ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setDialog(null)}>

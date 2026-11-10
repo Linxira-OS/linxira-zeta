@@ -7,6 +7,12 @@
 - **Electron 语言包收敛**：`electron-builder.yml` 新增 `electronLanguages: [en-US, zh-CN]`，不再随包 55 个 `.pak`（安装后 42 MiB、安装包约 10 MiB）。
 - **实测**：1.5.1 安装树 744 MiB（约 780 MB）、NSIS 安装包 250 MiB；同配置重建后 572 MiB（本机内核，比发布内核小 6.8 MB）、安装包 192 MiB；换回 1.5.1 发布内核约 579 MiB / 195 MiB。
 - **回归防护**：新增 `desktop/scripts/packaging-budget.mjs`（`package-desktop.mjs` 打包后校验：`resources/zeta` 不得出现 `.node`，`locales/` 只能有 `en-US`/`zh-CN`），附 4 个单测；违反即打包失败。
+### 会话可见性与删除（未发布）
+- **统一隐藏 / 移除 / 删除语义**：隐藏对话只写共享元数据（`session-visibility.json`，按会话 id），转写与产物不动；隐藏文件夹写 `resume-projects.json` 的 `hidden` 标志，从 Work Studio 默认项目列表与 TUI 目录默认视图消失，但不删除 checkout 或会话；移除项目只删注册/分组记录（`registered: false` / `unregisterProject`），不碰转写；删除对话由 TUI 选择器与 `DELETE /api/sessions/:id` 共用 `session-delete.ts`，默认移入 `<agentDir>/trash/sessions` 回收站，并清除该会话的隐藏/固定元数据。
+- **TUI**：resume 选择器默认显示全部，新增 `h` 隐藏/取消隐藏、`v` 显示已隐藏项（不重新扫描目录），项目/文件夹菜单同样支持隐藏。
+- **Work Studio**：侧栏与历史默认隐藏共享隐藏项；项目行 `⋯` 只保留「隐藏文件夹」，会话行 `⋯` 只保留 Fork 与「删除对话」（确认后走同一 `session.delete`），删除 `更多（暂未实现）` 占位按钮。
+- **API**：新增 `workspace.hide`（`{ workspaceId, hidden? }` → 共享注册表）和 `history.list` 的 `includeHidden` 开关；`projects.list` / `history.list` 默认过滤隐藏项。
+- **文档/测试**：`docs/session.md` 记录四种操作的边界与两端显示策略；新增共享可见性、目录过滤、隐藏偏好和共享删除的聚焦测试。
 
 ### Team 技能分配（未发布）
 - **PM → 工程师技能分配**：Team 数据库新增 `agent_skills` 表（schema v4；`team_id`/`pm_id`/`engineer_id`/`skill_name`/`source`/`qualified_name`/`assigned_by`/`created_at`，按工程师+技能唯一）。Lead 模式新增 `engineer_skills` 工具（`list|assign|remove`），PM 只能操作自己名下的工程师，拒绝 PM 自身与其他 PM；只接受已发现技能名，无路径参数。分配在工程师会话启动/恢复时以隐藏 autoload 提示注入，每次转写只注入一次；运行中的工程师需 `/reload-skills` 或重启，不做热重载。插件/注册表来源（可带 hooks/tools）为高风险，需操作员在 `team.skillAllowlist` 放行；官方/自写技能默认允许。删除只停止后续注入，不回收已加载内容。

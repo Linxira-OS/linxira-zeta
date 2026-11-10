@@ -115,6 +115,17 @@ Notes:
 - `titleSource` is `auto` or `user`; automatic renames cannot overwrite a user title.
 - `origin` marks a conversation that belongs to an IM/bot/relay channel or to a Team checkout rather than a personal coding session. It is optional and additive: an absent or malformed field reads as personal, and an IM transcript written before the field existed is still recognized through its `relay`/`bot`/`draft` web.yml registry tag. `agentId` and `bindingId` are reserved for a default workspace that hosts several main agents (personal, WeChat, Feishu, …), each with its own channel/chat binding; a mobile client scoped to one binding filters by them. Studio, the resume picker and `history.list` hide IM conversations by default and expose them only through an explicit "IM / Bot" filter; the transcript itself stays fully usable as a personal agent. A `kind: "team"` stamp carries `teamId` and the optional deterministic row ids `pmId` / `engineerId` / `repoId` / `roomId` plus a name-only `workspaceAlias`; created inside a resolved Team location, it is hidden from the default current-folder/all-projects scopes and from `history.list` unless `includeTeam` is set, and grouped as Team → PM → engineer → repo → conversation. `--resume <id>` bypasses that filter. Team transcripts stay in the same per-cwd JSONL buckets; nothing is moved.
 
+### Visibility and deletion
+
+Hiding and deleting are different user intents and different storage operations:
+
+- **Hide / unhide a conversation** writes metadata only (`<agentDir>/session-visibility.json`, keyed by session id). The JSONL, artifacts and checkout are untouched. The TUI resume picker and Work Studio read the same file; hide is reversible from either surface.
+- **Hide folder** writes `hidden: true` for that folder path in `<agentDir>/resume-projects.json` (the same registry the TUI and gateway already share). The folder disappears from Work Studio's default project list and from the TUI directory's default view; its sessions and checkout stay on disk. The TUI reveals hidden folders/conversations with the **Show hidden** action (`v`), and both surfaces can unhide (TUI menu/`h`, or a future Work Studio reveal control).
+- **Remove path/project** is the registry removal (`PUT /api/projects { registered: false }`, TUI `unregisterProject`): it drops the registry/pin/group entry only. Transcripts remain and can still be found through history. The default workspace project is never removable.
+- **Delete conversation** is destructive and shared: the TUI picker and `DELETE /api/sessions/:id` both call the same `session-delete.ts` helper. The default mode moves the transcript, artifacts and stale backups to `~/.zeta/trash/sessions/<timestamp>_<id>/`, so `/trash` + `/restore` can recover it until retention expires; `--resume`'s standalone picker uses the permanent mode. Either mode removes the conversation's hidden flag and pin so deleted state cannot leak back.
+
+Surface policy: the TUI resume picker shows all conversations by default and reveals shared-hidden rows with **Show hidden** (the directory is never rescanned for this toggle). Work Studio's sidebar/history hide shared-hidden sessions and folders by default and expose no dead "coming soon" items. A row menu is contextual: conversation rows offer **Fork** and **Delete conversation**, folder rows offer **Hide folder** only. Both delete paths confirm before the destructive call; Fork uses the existing `session.fork` continuation path.
+
 ### Entry Base (`SessionEntryBase`)
 
 All non-header entries include:
