@@ -1912,9 +1912,13 @@ jobs:
               gh release download zeta-repo --repo Linxira-OS/packages \
                 --pattern 'linxira-zeta.db.tar.zst' --dir temp/upgrade --clobber
               gh release download zeta-repo --repo Linxira-OS/packages \
-                --pattern 'linxira-zeta-[0-9]*.pkg.tar.zst' --dir temp/upgrade --clobber
+                --pattern 'linxira-zeta-*.pkg.tar.zst' --dir temp/upgrade --clobber
               old=$(ls temp/upgrade/linxira-zeta-1.4.10-*.pkg.tar.zst)
-              new=$(ls temp/upgrade/linxira-zeta-[0-9]*.pkg.tar.zst | grep -v '/linxira-zeta-1\.4\.10-' | sort -V | tail -n1)
+              # The desktop package is the only linxira-zeta-<version>-<rel>-x86_64
+              # asset; c-bin/ide sort differently and are excluded by the regex.
+              new=$(ls temp/upgrade/linxira-zeta-*.pkg.tar.zst |
+                grep -E '/linxira-zeta-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+-x86_64\.pkg\.tar\.zst$' |
+                grep -v '/linxira-zeta-1\.4\.10-' | sort -V | tail -n1)
               old_ver=$(bsdtar -xOf "$old" .PKGINFO | sed -n 's/^pkgver = //p')
               new_ver=$(bsdtar -xOf "$new" .PKGINFO | sed -n 's/^pkgver = //p')
               # The manifest version must describe what the signed index says it does.
