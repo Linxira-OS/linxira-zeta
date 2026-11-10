@@ -17,7 +17,6 @@
  */
 
 import * as fs from "node:fs";
-import { OFFICIAL_SKILLS_PROVIDER_ID } from "../capability/skill";
 import type { TeamSessionOrigin } from "../session/session-origin";
 import { type AgentSkillRecord, type EngineerRecord, resolveTeamDbPath, TeamDb } from "./db";
 import { TeamError } from "./errors";
@@ -46,19 +45,7 @@ export const HIGH_RISK_SKILL_PROVIDERS: Readonly<Record<string, true>> = {
 	"agent-plugins": true,
 };
 
-/** Provider ids that are safe by default (documentation for the UI). */
-export const DEFAULT_ALLOWED_SKILL_PROVIDERS: Readonly<Record<string, true>> = {
-	[OFFICIAL_SKILLS_PROVIDER_ID]: true,
-	native: true,
-	custom: true,
-	claude: true,
-	codex: true,
-	agents: true,
-	opencode: true,
-	github: true,
-	"zeta-managed": true,
-};
-
+/** Assignment risk: plugin/registry sources are high, everything else low. */
 export type SkillRisk = "low" | "high";
 
 /** Provider id for a loaded skill (`_source.provider`, else the `source` prefix). */
