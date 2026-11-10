@@ -14,6 +14,7 @@
 - **TUI 子代理进度合并（#289）**：`task` 批量生成的进度合并为每 100 ms 至多一个累计快照，宽扇出不再为每次 spawn 报告重建并深度 sanitize 整张卡片；终止快照仍立即发布。
 - **启动/性能（#280）**：插件注册表（Claude Code、agent、Zeta）的祖先遍历与 project/cwd realpath 每项目只解析一次，而不是每个能力面各解析一次，减少技能与斜杠命令发现中的重复文件系统工作。
 - **Team（1.5 线）**：无主 Team 根、数据库驱动的 Hub/房间、`/lead` PM 模式、PM Secretary 与 Studio Team 图自 1.5.0 起交付并在本版保持不变；1.5.1 不含 Team schema 变更。
+- **官方技能 `adr` / `prd`（#293）**：随包新增架构决策记录（ADR）与产品需求文档（PRD）两个官方技能，包含模板、判定与交叉引用，`grill-me` 也指向它们；与 `docx`/`pptx`/`xlsx`/`pdf` 同一发现路径，合入 1.5.1 一并发布。
 - **文档/i18n（#290/#291）**：渠道、桌面与远端文档指向 Work Studio IM 面板；`/channels` 描述与 CLI 帮助由 i18n 目录支撑，帮助清单按 Discord/QQ 新 flag 重新固定。
 - **未完成（不要当成已交付）**：**没有 Android 原生应用或 Tier 1 移动客户端**——移动端只有浏览器 UI 与 Work Studio 浏览器版，路线图中的轻量 WebView 外壳未构建，不存在 APK/AAB 或应用商店包；**聊天 → PM 的 `agentId` 持久绑定未做**，聊天绑定目前只映射到工作区别名或机器人会话，设置面板的该列标注“未实现”且从不写入；**2FA 密钥只有文件系统保护**（`0600`，无 OS keychain/TPM），也没有 WebAuthn/passkey 第二因子；**远端 Work Studio 的设备 token 注入仍未端到端打通**，仍需通过 URL fragment/localStorage 手动携带配对令牌。
 
