@@ -249,6 +249,31 @@ describe("remote write gate", () => {
 		expect(await denied.json()).toMatchObject({ error: "totp_required" });
 	});
 
+	test("remote commands are write-gated while queries stay readable", async () => {
+		await setup();
+		await enableTwoFactor();
+		const issued = await registry.issue({ platform: "android" });
+		const host = new StudioHost(operations(), { pairingCode: "424242" });
+		const post = (path: string, body: unknown) =>
+			host.handle(
+				new Request(`http://127.0.0.1${path}`, {
+					method: "POST",
+					headers: { "content-type": "application/json", authorization: `Bearer ${issued.token}` },
+					body: JSON.stringify(body),
+				}),
+				REMOTE_PEER,
+			);
+
+		const denied = await post("/api/v1/command", { commandName: "core.abort" });
+		expect(denied.status).toBe(403);
+		expect(await denied.json()).toMatchObject({ error: "totp_required" });
+
+		// A query reaches ordinary session auth instead of the 2FA gate.
+		const query = await post("/api/v1/query", { queryName: "environment.get" });
+		expect(query.status).toBe(401);
+		expect(await query.json()).toEqual({ error: "unauthenticated" });
+	});
+
 	test("pairing a new device needs a fresh step-up", async () => {
 		await setup();
 		await enableTwoFactor();
