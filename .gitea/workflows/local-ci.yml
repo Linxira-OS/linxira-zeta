@@ -459,6 +459,8 @@ jobs:
            run: bun scripts/check-ci-surface.ts
          - name: Release asset-name guard
            run: bun scripts/check-release-asset-names.ts
+         - name: Package linkage guard
+           run: bun scripts/check-package-linkage.ts
          - name: Service port guard
            run: bun scripts/check-service-ports.ts
          - name: Scope import guard
@@ -533,6 +535,8 @@ jobs:
          # other gate unit tests.
          - name: Unit-test the release chain
            run: bun test scripts/release-chain.test.ts
+         - name: Unit-test the package linkage contract
+           run: bun test scripts/check-package-linkage.test.ts
          # 镜像 GitHub `check` job：pi-messenger 的 vitest 套件在 bun workspace 之外
          #（根 `plugins/*` glob 到 `plugins/official` 为止），任何 bucket 都跑不到它。
          # 因此这里自带依赖安装（package.json 声明 vitest，包内 .gitignore 已忽略
