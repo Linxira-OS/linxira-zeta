@@ -23,7 +23,10 @@ upstream position changes.
 
 ## Shipped (Zeta-originated capabilities)
 
-These exist today (headline capabilities are marked in the root `README.md`):
+These exist today (headline capabilities are marked in the root `README.md`).
+Rows that name `main/crates/**` or `docs/gui-*.md` describe the **retired
+zetawork line**: its code and runtime docs were removed in 2026-11 (git history
+retains them); the capability itself is either gone or now lives in Work Studio.
 
 | Capability                                     | Where                                                                       | Notes                                                                                                                                                    |
 | ---------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -93,15 +96,15 @@ These exist today (headline capabilities are marked in the root `README.md`):
 - 产品渲染层 = `web-app/`（我们自己的 Vite 7 构建），由 `zetacode serve` 直接托管
   （`server/studio-web-app.ts`，CSP / immutable 资产 / history fallback）。宿主契约
   `/api/v1/*` 由 `server/studio-host/` 回答，能力清单只广播已实现的操作。
-- **`zetawork`（`main/crates/zeta-main` 的 TUI + `zetawork-gui` 的 GUI）与 `desktop/`
-  Electron 壳一并暂挂**：不新增代码、不随 release 构建、不再发 npm。Rust 侧 i18n
-  相关工作随之搁置（`zeta-main` 零 i18n 不是缺陷，是暂挂面的状态）。
-- **`@linxiraos/main` 包名保留**：暂挂发布（`main-publish.yml` 仍可手动 dispatch，
-  release 链改由 `publish_zetawork` 输入显式开启）。后续把「main 面」——super agent /
-  Room / resident agent——装进这个包时再恢复自动发布，届时它的 `bin` 语义是**宿主**，
-  不是拉起 ratatui 二进制。
+- **`zetawork`（`main/crates/zeta-main` 的 TUI + `zetawork-gui` 的 GUI）与旧 `desktop/`
+  Electron 链**：zetawork 已于 2026-11 从树中移除（git 历史保留）；`desktop/` 自
+  2026-11-07 起是活动的 Work Studio 桌面版。Rust 侧 i18n 相关工作随移除作废。
+- **`@linxiraos/main` 包名保留**：npm 上已发布版本保持 deprecate 状态，树内不再有源码
+  或发布腿。后续把「main 面」——super agent / Room / resident agent——装进这个包时再
+  恢复自动发布，届时它的 `bin` 语义是**宿主**，不是拉起 ratatui 二进制。
 - 已发布版本（`@linxiraos/main`、`main-{linux,windows}-x64`、`@linxiraos/zeta-web`）
-  不删除，只 `npm deprecate`；`@linxiraos/ide`（zetaide / TermIDE）是独立发布线，不受影响。
+  不删除、不 unpublish：文档标记为 deprecated/reserved（保留已安装用户的可解析性）；
+  `@linxiraos/ide`（zetaide / TermIDE）是独立发布线，不受影响。
 
 **2026-11-05 审计记录**：本节原「`zetawork` 是唯一桌面应用」（2026-10-15 裁决 + 2026-10-16 修订）
 整段已删除 —— 被上方 2026-11-05 裁决取代（zetawork 暂挂；产品渲染器是 `web-app/`，
@@ -110,11 +113,11 @@ These exist today (headline capabilities are marked in the root `README.md`):
 
 ### P0 — GUI 按 HTML 稿重做（`main/crates/zetawork-gui`）
 
-**2026-11-06 作废（不是暂挂）**：这条要求把 HTML 稿做进 Rust GUI（egui + WebView2），
+**2026-11 移除**：这条要求把 HTML 稿做进 Rust GUI（egui + WebView2），
 而 2026-11-06 的形态规范明确「不存在 Rust UI」。设计稿的实现面改为 **Work Studio**
-（`web-app/`），它已经接管了工作台/布局/面板的呈现；`zetawork-gui` 的代码保留在树里
-作为历史，不构建、不发布、不恢复。需要复用设计稿时，改 `web-app/src/studio/`，不要动
-`main/crates/zetawork-gui`。
+（`web-app/`），它已经接管了工作台/布局/面板的呈现；`zetawork-gui` 已于 2026-11
+从树中移除（git 历史保留），不构建、不发布、不恢复。需要复用设计稿时，改
+`web-app/src/studio/`。
 
 - **唯一基准 = 用户的两份 HTML 稿**：`Downloads/index.html` 与 `Downloads/workspace-v2.html`；
   两份**各有侧重、按各自侧重开发** —— 信息面（右栏四页·含上下文页、设置/用量模态、状态栏）
@@ -129,9 +132,8 @@ These exist today (headline capabilities are marked in the root `README.md`):
 
 ### P0 — 工作区 ↔ 会话绑定与布局持久化（布局与会话分离）
 
-**2026-11-05 暂挂**：本项是 zetawork 的布局面，随 zetawork 一并暂停；`main/crates/zeta-main/src/settings.rs`
-至今只写 `shell`/`drag`/`focus_follows_mouse`/`close_confirmation` + `[[slots]]`，没有 `[[workspace]]`。
-重启条件 = zetawork 恢复（`publish_zetawork` 重新自动发布）。
+**2026-11 作废**：本项是 zetawork 的布局面，随 zetawork 移除一并作废；
+`main/crates/zeta-main/src/settings.rs` 已不在树里。
 
 **核心原则**：**布局与会话分离** —— 工作区/面板/面板内标签属于**布局**；会话只是面板上的一个
 **可空引用**。因此删会话永远不毁布局。
@@ -196,8 +198,8 @@ termide 的 Rust 编辑器核心**（`panel-editor` + `lsp` + `highlight` + `buf
    Color Picker。
 
 **不做**（只登记 Deferred Queue）：Vim/Emacs 兼容层、Docker Manager、Go Test Runner（我们不写
-Go）、cheat-sheet/http-client 类玩具。**PDF** 已落地为 GUI 页（1.4.0，见 Shipped；TUI 永不渲染，
-已由 `zeta-main` 的 `the_workbench_never_renders_a_pdf` 钉住）。
+Go）、cheat-sheet/http-client 类玩具。**PDF** 的 GUI 页（1.4.0）随 zetawork 一起
+于 2026-11 移除；TUI 永不渲染。
 
 参考物：`temp/ttt`（TTT 上游原版，`github.com/eugenioenko/ttt`）的形态与
 `community-plugins.json`（45 条 = 24 `lsp-*` + 7 `formatter-*` + 14 功能插件）。

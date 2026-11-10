@@ -416,24 +416,9 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "the coding CLI installs exactly one bin (`zetacode`); the package manifest is what npm links",
 	},
 	{
-		file: "main/npm/main/package.json",
-		needle: '"zetawork": "bin/zetawork.js"',
-		why: "the workbench's npm face: `zetawork` opens the workspace, bare `zeta` prints the suite index (both entries exec one binary with `--zeta-entry=`)",
-	},
-	{
 		file: "termide/npm/ide/package.json",
 		needle: '"zetaide": "bin/zetaide.js"',
 		why: "the terminal IDE's npm face (one bin, launcher file named after it)",
-	},
-	{
-		file: "main/crates/zeta-main/src/help.rs",
-		needle: "  zetawork              Launch the workspace in the current directory",
-		why: "the bare-`zeta` index help is the suite's discovery surface (registry: 伴侣产品 bin): it must spell the canonical bins and the `zetawork web` subcommand, or users are told to run commands that no longer exist",
-	},
-	{
-		file: "main/crates/zeta-main/src/main.rs",
-		needle: '"web" | "server" => web_action(&args[1..]),',
-		why: "`zetawork web` is the workbench's only local server (registry: 伴侣产品 bin): it reuses the CLI's serve machine — dropping the dispatch arm removes the browser-facing full Web UI",
 	},
 ];
 
@@ -848,7 +833,6 @@ export const MUST_NOT_CONTAIN: Array<{
 		why: "one bin per product: the hyphenated compatibility names and the retired editor command are deleted (registry: CLI bin 命名 / 伴侣产品 bin). Copy, resolver tables and bin maps read `zetacode` / `zetawork` / `zetaide`; a hit is a stale rename or a merge re-adding an alias no install creates",
 		skipCommentLines: true,
 		exempt: [
-			"main/crates/zeta-main/src/suite.rs", // asserts each retired name resolves to no tool
 			"document/brand-surface-rules.md", // the registry doc names what it retired
 			"CHANGELOG.md", // released entries are immutable history
 			"UPDATE-LOG.md",

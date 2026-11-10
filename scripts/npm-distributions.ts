@@ -6,7 +6,7 @@
  *   - `scripts/set-version.ts` (Step 3b: local/test bump)
  *   - `scripts/check-version-consistency.ts` (drift gate)
  *
- * A distribution is a launcher package (`editor/npm/editor`, `main/npm/main`)
+ * A distribution is a launcher package (`editor/npm/editor`, `termide/npm/ide`)
  * plus the platform leaves it pins EXACTLY in `optionalDependencies`
  * (`@linxiraos/editor-windows-x64`). None of them is a Bun workspace member,
  * so the version line has no other writer. The launcher ships no binary
@@ -22,16 +22,6 @@
  * Adding a distribution: register it here. `check-version-consistency.ts`
  * fails on any unregistered `@linxiraos/*` entry under an npm distribution's
  * `optionalDependencies`, so the table cannot silently fall behind the tree.
- *
- * `companions` are the same shape of pin for a *different product* the
- * launcher installs beside itself. `@linxiraos/main` (the zetawork workbench)
- * pins `@linxiraos/zeta` (bin `zetacode`) and `@linxiraos/ide` (bin `zetaide`)
- * in the same `optionalDependencies` block, so one install yields the whole
- * suite. They are not leaves: no `os`/`cpu` gate, no binary of their own — the
- * binary stays in that product's own platform leaf, and the pin is what makes
- * npm materialize it. The pin still rides the line exactly (a stale pin
- * installs the previous release's companion), so every bump/check pass treats
- * it like a leaf pin.
  */
 
 export interface NpmLeafPin {
@@ -40,29 +30,11 @@ export interface NpmLeafPin {
 	/** Package name as pinned in the launcher's `optionalDependencies`. */
 	readonly name: string;
 }
-
-/**
- * A same-line companion *product* the launcher installs beside itself. Same
- * pin semantics as a leaf, but it is another product's launcher package, not
- * a platform leaf of this one.
- */
-export type NpmCompanionPin = NpmLeafPin;
-
 export interface NpmDistribution {
 	/** Repo-relative dir of the launcher package that pins `leaves`. */
 	readonly dir: string;
-	/**
-	 * Set while the product is suspended: its npm manifests keep the last
-	 * published version and are exempt from the release-line bump/checks until
-	 * the product returns. The leaves and pins must still agree with that
-	 * frozen version. Paused by the 2026-11-05 zetawork ruling (roadmap P0);
-	 * the zetawork npm line is only publishable through `publish_zetawork`.
-	 */
-	readonly paused?: string;
 	/** Platform leaves pinned by the launcher's `optionalDependencies`. */
 	readonly leaves: readonly NpmLeafPin[];
-	/** Companion products pinned in the same `optionalDependencies` block. */
-	readonly companions?: readonly NpmCompanionPin[];
 }
 
 export const NPM_DISTRIBUTIONS: readonly NpmDistribution[] = [
@@ -76,20 +48,6 @@ export const NPM_DISTRIBUTIONS: readonly NpmDistribution[] = [
 		],
 	},
 	{
-		// Suspended 2026-11-05 with the Rust workbench; see `paused` below.
-		dir: "main/npm/main",
-		paused: "zetawork suspended 2026-11-05 (roadmap P0): no Rust UI, npm line only via publish_zetawork",
-		leaves: [
-			{ dir: "main/npm/main-windows-x64", name: "@linxiraos/main-windows-x64" },
-			{ dir: "main/npm/main-linux-x64", name: "@linxiraos/main-linux-x64" },
-		],
-		// zetacode and zetaide ship with zetawork: one install, three commands.
-		companions: [
-			{ dir: "packages/coding-agent", name: "@linxiraos/zeta" },
-			{ dir: "termide/npm/ide", name: "@linxiraos/ide" },
-		],
-	},
-	{
 		dir: "termide/npm/ide",
 		leaves: [
 			{ dir: "termide/npm/ide-windows-x64", name: "@linxiraos/ide-windows-x64" },
@@ -98,9 +56,9 @@ export const NPM_DISTRIBUTIONS: readonly NpmDistribution[] = [
 	},
 ];
 
-/** Every pin (platform leaves, then companions) the launcher must carry. */
+/** Every pin (platform leaves) the launcher must carry. */
 export function distributionPins(distribution: NpmDistribution): readonly NpmLeafPin[] {
-	return [...distribution.leaves, ...(distribution.companions ?? [])];
+	return distribution.leaves;
 }
 
 /**

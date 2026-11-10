@@ -1,49 +1,36 @@
 #!/usr/bin/env bun
 /**
- * Workbench bundle guard — installing zetawork must install zetacode and
- * zetaide, in every install shape, without reaching for a system-wide install.
+ * Product bundle guard — the release must stage, pin and upload the commands
+ * it advertises (zetacode and zetaide), in every install shape.
  *
- * The three products are one suite but three packages: `@linxiraos/main`
- * (bin `zetawork`) pins `@linxiraos/zeta` (bin `zetacode`) and
- * `@linxiraos/ide` (bin `zetaide`) as same-line **companions** in its
- * `optionalDependencies`. Optional for the same reasons as the platform
- * leaves: the pins are exact (one version line), the binaries stay platform-
- * gated in each product's own leaf, and a companion that is unavailable for
- * the host degrades to one resolver message instead of failing the whole
- * install. A companion therefore can never be "fixed" by copying a binary
- * into another leaf — the pin is the bundle.
- *
- * Nothing else notices when that pin or one of the steps that carries it
+ * Nothing else notices when a pin or one of the steps that carries it
  * disappears: every manifest still parses, every test still passes, and the
- * damage only shows up as a user with a workbench and two missing commands.
- * This guard holds all three install shapes:
+ * damage only shows up as a user with a product whose command is missing.
+ * This guard holds the install shapes:
  *
- *   1. **npm install** — `main/npm/main/package.json` declares both
- *      companions at its own version; each companion manifest exists at that
- *      version, declares its command bin, and resolves its binary from its own
- *      `os`-gated platform leaves (`@linxiraos/{main,ide}-<plat>-x64/bin/…`),
- *      so `node_modules/@linxiraos/` holds the whole suite and a Linux
- *      install never drags a Windows payload.
+ *   1. **npm leaves** — `termide/npm/ide/package.json` pins its two `os`-gated
+ *      platform leaves at its own version; each leaf manifest exists at that
+ *      version, ships `bin/` with a stamped payload, and resolves its binary
+ *      from its own platform gate (`@linxiraos/ide-<plat>-x64/bin/…`), so a
+ *      Linux install never drags a Windows payload.
  *   2. **Staged runtime** — `scripts/ci-release-build-binaries.ts` stages one
  *      binary per shipped command (`zeta-cli-*` → zetacode, `zeta-ide-*` →
  *      zetaide) for linux and win32 into `packages/coding-agent/binaries/`,
  *      and every product target it declares is actually built by the
- *      `release_product_binaries` matrix. zetawork is paused (2026-11-05
- *      ruling) and its `zeta-work-*` / `zetawork-gui-*` legs are named in
- *      `UNSHIPPED_COMMANDS`, so a staged leg for one fails this guard.
- *   3. **Release archives** — `release_github` uploads the shipped families,
- *      and `release_main_packages` runs after `release_npm` (zetacode) and
- *      `release_ide_packages` (zetaide): a launcher published before its
- *      companions only ever exists as an install with two missing commands.
- *      (The zetawork npm line stays publishable through the manual
- *      `publish_zetawork` gate even though its release assets are gone.)
+ *      `release_product_binaries` matrix. A `work`/`gui` product target (the
+ *      retired zetawork legs) is named in `UNSHIPPED_COMMANDS`, so a staged
+ *      leg for one fails this guard.
+ *   3. **Release archives** — `release_github` uploads the shipped families
+ *      after `release_npm` (zetacode) and `release_ide_packages` (zetaide): a
+ *      release that uploads product binaries while the npm line lags is a
+ *      half-release.
  *
  * Also asserts this guard runs in both CI mirrors (GitHub + Gitea), so a
  * mirror edit cannot quietly drop it.
  *
  * Payload freshness: the leaves ship committed binaries whose manifest version
  * moves with each release, so existence alone proved nothing — a leaf could
- * publish the previous release's workbench under the new version. Each binary
+ * publish the previous release's binary under the new version. Each binary
  * now carries a `bin/<binary>.stamp.json` (`version` + `sha256`, written by
  * `bun scripts/stamp-workbench-leaves.ts`); this guard fails on a missing
  * stamp, a stamp older than the manifest, or a hash that no longer matches the
@@ -62,45 +49,34 @@ import { parse } from "yaml";
 import { leafStampProblem, STAMP_SUFFIX } from "./workbench-leaves";
 
 const ROOT = path.resolve(import.meta.dir, "..");
-const LAUNCHER_REL = "main/npm/main/package.json";
 const BUILD_BINARIES_REL = "scripts/ci-release-build-binaries.ts";
-const PUBLISH_REL = "scripts/ci-release-publish.ts";
 const GITHUB_WORKFLOW_REL = ".github/workflows/ci.yml";
 const LOCAL_WORKFLOW_REL = ".gitea/workflows/local-ci.yml";
-const MAIN_PUBLISH_REL = ".github/workflows/main-publish.yml";
 const STAGED_DIR = "packages/coding-agent/binaries";
 
 /**
  * The workbench distributions and the release binary base name each one
  * carries. This is the contract the launchers encode
- * (`main/npm/main/bin/launch.js` `EXE`, `termide/npm/ide/bin/zetaide.js`
- * `EXE`) and the leaf packages ship.
+ * (`termide/npm/ide/bin/zetaide.js` `EXE`) and the leaf packages ship.
  */
 const WORKBENCH_LEAVES: Record<string, string> = {
-	"main/npm/main": "zeta",
 	"termide/npm/ide": "termide",
 };
 
 /** Release product (`kind: "product"`) → the command it produces. */
 const PRODUCT_COMMANDS: Record<string, string> = {
-	work: "zetawork",
 	ide: "zetaide",
-	// The desktop app is not a command: when the paused archives path runs it
-	// ships inside the `linxira-zeta-*` product archives (zip on Windows,
-	// .pkg.tar.zst + AppImage on Linux) and its binary is installed off PATH.
-	// Mapping it here keeps the unshipped-leg check honest without advertising
-	// a fourth command.
+	// The retired zetawork legs stay mapped so a leftover target fails loudly
+	// instead of staging a binary nothing advertises.
+	work: "zetawork",
 	gui: "zetawork-desktop",
 };
 
 const PLATFORMS = ["linux", "win32"] as const;
 /**
- * The commands the release stages for both platforms. zetawork is paused
- * (user ruling 2026-11-05, roadmap P0): its TUI (`zeta-work-*`) and desktop
- * (`zetawork-gui-*`) legs left the release matrix, so only zetacode and
- * zetaide stage binaries. The list, the product legs in
- * `ci-release-build-binaries.ts` and the `release_product_binaries` matrix
- * move together.
+ * The commands the release stages for both platforms: zetacode and zetaide.
+ * The list, the product legs in `ci-release-build-binaries.ts` and the
+ * `release_product_binaries` matrix move together.
  */
 const COMMANDS = ["zetacode", "zetaide"] as const;
 /** Products this release does NOT ship; a staged leg for one is a failure. */
@@ -146,65 +122,14 @@ function manifest(rel: string): Manifest {
 	}
 }
 
-const launcher = manifest(LAUNCHER_REL);
-const lineVersion = launcher.version;
-if (typeof lineVersion !== "string") {
-	problems.push(`${LAUNCHER_REL}: no version — the guard cannot anchor the companion pins`);
-}
-// Suspended products keep their last published line: the launcher, its leaves
-// and its companion pins must still agree with each other, but not with the
-// repo's release line. 2026-11-05 zetawork ruling (scripts/npm-distributions.ts
-// carries the same pause marker for the bump/consistency tools).
-const repoLine = manifest("packages/coding-agent/package.json").version;
-const workbenchPaused = typeof lineVersion === "string" && typeof repoLine === "string" && lineVersion !== repoLine;
-// The ide distribution is a separate (active) line; only the workbench launcher
-// can be frozen, so leaves and pins are anchored per product.
 const ideLine = manifest("termide/npm/ide/package.json").version;
-const leafLine = (dir: string): string | undefined =>
-	dir.startsWith("termide/") ? (ideLine as string | undefined) : (lineVersion as string | undefined);
-
-/** Companion pins are the bundle's spec, not read back from the registry. */
-const companionPins: ReadonlyArray<{ dir: string; name: string }> = [
-	{ dir: "packages/coding-agent", name: "@linxiraos/zeta" },
-	{ dir: "termide/npm/ide", name: "@linxiraos/ide" },
-];
-/** Leaves the two workbench launchers resolve their binaries from. */
+/** Leaves the ide launcher resolves its binaries from. */
 const leafPins: ReadonlyArray<{ dir: string; name: string }> = [
-	{ dir: "main/npm/main-windows-x64", name: "@linxiraos/main-windows-x64" },
-	{ dir: "main/npm/main-linux-x64", name: "@linxiraos/main-linux-x64" },
 	{ dir: "termide/npm/ide-windows-x64", name: "@linxiraos/ide-windows-x64" },
 	{ dir: "termide/npm/ide-linux-x64", name: "@linxiraos/ide-linux-x64" },
 ];
 
-// 1. npm install shape — the companions are declared, pinned and resolvable.
-if (lineVersion) {
-	for (const pin of companionPins) {
-		const pinned = launcher.optionalDependencies?.[pin.name];
-		if (pinned !== lineVersion) {
-			problems.push(
-				`${LAUNCHER_REL}: optionalDependencies ${pin.name} is ${pinned ?? "<missing>"}, expected ${lineVersion} — ` +
-					"installing zetawork would not install that companion",
-			);
-		}
-		const companionRel = `${pin.dir}/package.json`;
-		if (!fs.existsSync(path.join(ROOT, companionRel))) {
-			problems.push(`${companionRel}: missing — companion ${pin.name} has no package`);
-			continue;
-		}
-		const companion = manifest(companionRel);
-		if (companion.name !== pin.name) {
-			problems.push(`${companionRel}: name is ${companion.name ?? "<missing>"}, expected ${pin.name}`);
-		}
-		if (!workbenchPaused && companion.version !== lineVersion) {
-			problems.push(`${companionRel}: ${companion.version ?? "<missing>"} != ${lineVersion} (workbench line)`);
-		}
-		if (Object.keys(companion.bin ?? {}).length === 0) {
-			problems.push(`${companionRel}: no bin — the installed companion could not be launched as a command`);
-		}
-	}
-}
-
-// 1b. Platform leaves: one payload per (product, platform), os-gated so npm
+// 1. Platform leaves: one payload per (product, platform), os-gated so npm
 // never materializes a foreign binary, pinned at the line version.
 for (const leaf of leafPins) {
 	const rel = `${leaf.dir}/package.json`;
@@ -213,13 +138,13 @@ for (const leaf of leafPins) {
 		continue;
 	}
 	const leafManifest = manifest(rel);
-	const expectedLeafLine = leafLine(leaf.dir);
-	if (expectedLeafLine && leafManifest.version !== expectedLeafLine) {
-		problems.push(`${rel}: ${leafManifest.version ?? "<missing>"} != ${expectedLeafLine} (workbench line)`);
+	if (ideLine && leafManifest.version !== ideLine) {
+		problems.push(`${rel}: ${leafManifest.version ?? "<missing>"} != ${ideLine} (workbench line)`);
 	}
 	if (Object.keys(leafManifest.optionalDependencies ?? {}).length > 0) {
 		// A leaf is a payload, never a launcher: a nested pin would move the
-		// binary one package down and the GUI's path walk would stop seeing it.
+		// binary one package down and the launcher's path walk would stop
+		// seeing it.
 		problems.push(`${rel}: a platform leaf must not declare optionalDependencies`);
 	}
 	const os = leafManifest.os ?? [];
@@ -238,7 +163,7 @@ for (const leaf of leafPins) {
 	} else {
 		// Freshness, not existence: the manifest version moves on every release
 		// bump, the committed binary does not. A leaf published without a
-		// rebuild hands that platform the previous release's workbench under a
+		// rebuild hands that platform the previous release's binary under a
 		// new version number, and nothing on npm's side notices.
 		// `bun scripts/stamp-workbench-leaves.ts` writes the stamp beside the
 		// binary it hashed.
@@ -260,26 +185,14 @@ for (const leaf of leafPins) {
 				if (stale) problems.push(`${leaf.dir}/bin/${exe}: ${stale}`);
 			}
 		}
-		// The workbench TUI embeds its crate version (`zetawork --version`);
-		// termide reports its own upstream crate version, so only the main
-		// leaves have a line marker to compare.
-		if (parentDir === "main/npm/main" && leafManifest.version) {
-			const marker = Buffer.from(`zetawork ${leafManifest.version}`);
-			if (!fs.readFileSync(binaryPath).includes(marker)) {
-				problems.push(
-					`${leaf.dir}/bin/${exe}: does not embed "zetawork ${leafManifest.version}" — the binary belongs to another version line`,
-				);
-			}
-		}
 	}
 	if (!Array.isArray(leafManifest.files) || !leafManifest.files.includes("bin")) {
 		problems.push(`${rel}: files does not include "bin" — npm would publish the leaf without its binary`);
 	}
 	const parent = manifest(`${parentDir}/package.json`);
-	const expectedPinLine = leafLine(leaf.dir);
-	if (expectedPinLine && parent.optionalDependencies?.[leaf.name] !== expectedPinLine) {
+	if (ideLine && parent.optionalDependencies?.[leaf.name] !== ideLine) {
 		problems.push(
-			`${parentDir}/package.json: optionalDependencies ${leaf.name} is ${parent.optionalDependencies?.[leaf.name] ?? "<missing>"}, expected ${expectedPinLine}`,
+			`${parentDir}/package.json: optionalDependencies ${leaf.name} is ${parent.optionalDependencies?.[leaf.name] ?? "<missing>"}, expected ${ideLine}`,
 		);
 	}
 }
@@ -312,14 +225,14 @@ for (const command of COMMANDS) {
 	for (const platform of PLATFORMS) {
 		if (!stagedPlatforms[command]?.includes(platform)) {
 			problems.push(
-				`${BUILD_BINARIES_REL}: no ${platform} release target stages ${command} — the staged runtime and the archives would miss it`,
+				`${BUILD_BINARIES_REL}: no ${platform} release target stages ${command} — the staged runtime and the release would miss it`,
 			);
 		}
 	}
 }
 if (!buildSource.includes("path.join(binariesDir, target.id")) {
 	problems.push(
-		`${BUILD_BINARIES_REL}: product targets are no longer staged into ${STAGED_DIR}/ (one directory beside zetawork)`,
+		`${BUILD_BINARIES_REL}: product targets are no longer staged into ${STAGED_DIR}/ (one directory beside zetacode)`,
 	);
 }
 
@@ -336,7 +249,7 @@ for (const target of productTargets) {
 	}
 }
 
-// 3. Release archives — every family uploads, after the companions publish.
+// 3. Release archives — every family uploads.
 const uploadSpec = githubJobs.release_github?.steps?.find(step => step.name === "Create GitHub Release")?.with?.files;
 const uploaded = typeof uploadSpec === "string" ? uploadSpec : "";
 
@@ -384,27 +297,13 @@ for (const asset of RELEASE_ASSET_SURFACES) {
 	}
 }
 
-// The workbench npm line ships again in 1.3.1, so its companion jobs must be
-// ordering edges of release_github, not just present: a release that uploads
-// the workbench binaries while the npm line lags is a half-release.
+// The product binaries ship next to their npm lines, so those jobs must stay
+// present: a release that uploads the binaries while an npm line lags is a
+// half-release.
 for (const companionJob of ["release_npm", "release_ide_packages"]) {
 	if (!githubJobs[companionJob]) {
 		problems.push(`${GITHUB_WORKFLOW_REL}: the companion publish job ${companionJob} is missing`);
 	}
-}
-if (!read(MAIN_PUBLISH_REL).includes("ci-release-publish.ts --main")) {
-	problems.push(
-		`${MAIN_PUBLISH_REL}: no \`ci-release-publish.ts --main\` — the workbench npm distribution has no publish step`,
-	);
-}
-const publishSource = read(PUBLISH_REL);
-for (const pin of companionPins) {
-	if (!publishSource.includes(`"${pin.name}"`)) {
-		problems.push(`${PUBLISH_REL}: MAIN_COMPANIONS no longer names ${pin.name} — the --main leg would not verify it`);
-	}
-}
-if (!publishSource.includes(`"main/npm/main"`)) {
-	problems.push(`${PUBLISH_REL}: the --main payload no longer includes main/npm/main`);
 }
 
 // 4. The guard itself must run in both CI mirrors, like check-license-map.ts.
@@ -425,7 +324,8 @@ if (problems.length > 0) {
 	process.exit(1);
 }
 console.log(
-	`Workbench bundles OK${workbenchPaused ? ` (zetawork ${lineVersion} paused; repo line ${repoLine})` : ``}: zetawork ${lineVersion} installs ${companionPins.map(pin => pin.name).join(" + ")}; ` +
-		`${leafPins.length} platform leaves pinned and stamped at ${lineVersion}, ${COMMANDS.length} commands × ${PLATFORMS.length} platforms staged in ${STAGED_DIR}/ and uploaded; ` +
-		`${RELEASE_ASSET_SURFACES.length} release assets consistent across upload/checksums/preflight; publish ordered after both companion legs`,
+	`Workbench bundles OK: ${leafPins.length} platform leaves pinned and stamped at ${ideLine}, ` +
+		`${COMMANDS.length} commands × ${PLATFORMS.length} platforms staged in ${STAGED_DIR}/ and uploaded; ` +
+		`${RELEASE_ASSET_SURFACES.length} release assets consistent across upload/checksums/preflight; ` +
+		`publish ordered after both companion legs`,
 );

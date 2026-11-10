@@ -12,10 +12,10 @@
 ## 命名变更（2026-11-06 用户裁定）
 
 - 「zetawork」作为**产品面名字**退役 → **Work Studio**，归 Web UI。
-- **不存在 Rust UI。** `main/crates/zetawork-gui`（egui + WebView2）不是产品面，也不恢复；
-  `main/crates/zeta-main`（ratatui 嵌套终端工作台）的语义被 Work Studio 取代。
-- `zetawork` 仍是 `@linxiraos/main` 的 **bin 名**（该包暂停、只保留名字）。bin 存在
-  不等于产品形态存在；引用旧名时必须按这个区分。
+- **不存在 Rust UI。** 旧的 `main/crates/zetawork-gui`（egui + WebView2）与
+  `main/crates/zeta-main`（ratatui 嵌套终端工作台）已于 2026-11 从树中移除
+  （git 历史保留）；后者的语义被 Work Studio 取代。
+- `zetawork` 仍是 `@linxiraos/main` 的**已退役包名**（弃用保留，源码不在树里）。
 
 ## 三件常被混淆的事
 
@@ -24,13 +24,12 @@
    独立（`ide-publish.yml`），与渲染器裁决无关。
 2. **`zetacode` 的 TUI 与 Work Studio 是同一宿主的两个面**：共用 `/api/v1/*` 契约、
    `ops/` 家族与会话状态，不得各自造一套查询/命令。
-3. **`desktop/`（Electron）与 `web-ui/`（Next 快照）都不是产品面**：前者暂停、后者冻结。
-   它们出现在历史文档里的"Web UI"指的是当时的内嵌壳，不是 Work Studio。
+3. **`desktop/` 是 Work Studio 的桌面版**（Electron + 无浏览器引擎版，由
+   `release_desktop` 打包）；`web-ui/` 是冻结快照。历史文档里的"Web UI"指的是
+   当时的内嵌壳，不是 Work Studio。
 
 ## 相关但不属于产品面
 
-- `main/crates/*`（`zeta-main`、`zetawork-gui`、`workbench-projects`、`sysmon`）：暂停的
-  Rust 线，不随 release 构建；恢复需要单独的裁决。
 - `packages/coding-agent/src/server/studio-host/`：Work Studio 的宿主实现（基建，归属
   `coding-agent` 包）。
 - `web-ui/`：只作快照与历史对照，不构建、不发布。

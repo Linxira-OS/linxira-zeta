@@ -10,7 +10,7 @@ on:
          - "web-ui/**"
          - "editor/**"
          - "termide/**"
-         - "main/**"
+         - "assets/**"
          - "crates/**"
          - "scripts/**"
          - "bazel/**"
@@ -62,7 +62,7 @@ on:
          - "web-ui/**"
          - "editor/**"
          - "termide/**"
-         - "main/**"
+         - "assets/**"
          - "crates/**"
          - "scripts/**"
          - "bazel/**"
@@ -123,10 +123,6 @@ on:
             description: "Publish only the official plugin packages (validates a pending npm trusted publisher)"
             type: boolean
             default: false
-         build_desktop_archives:
-            description: "Run the paused release_desktop_archives packaging path without a tag (zetawork suspended 2026-11-05; zetawork binaries must be staged manually)"
-            type: boolean
-            default: false
          desktop_app:
             description: "Package the Work Studio desktop editions without a release tag (upload-only smoke of the desktop pipeline)"
             type: boolean
@@ -137,10 +133,6 @@ on:
             default: false
          publish_web_ui:
             description: "Publish the frozen @linxiraos/zeta-web snapshot on release (superseded by web-app)"
-            type: boolean
-            default: false
-         publish_zetawork:
-            description: "Publish the paused @linxiraos/main workbench packages on release (zetawork is suspended since 2026-11-05)"
             type: boolean
             default: false
 
@@ -348,11 +340,10 @@ jobs:
            run: bun scripts/check-scope-imports.ts
          - name: Licence map guard
            run: bun scripts/check-license-map.ts
-         # Installing zetawork must install zetacode and zetaide: the launcher
-         # pins them as same-line companions, the release build stages all
-         # three beside each other, and the archives upload all three. A pin or
-         # a packaging leg that stops carrying a companion leaves users with a
-         # workbench and two missing commands — every manifest still parses.
+         # The release stages zetacode and zetaide beside each other and the
+         # ide launcher pins its platform leaves: a pin or a staging leg that
+         # stops carrying a command leaves users with a product whose command
+         # is missing — every manifest still parses.
          - name: Workbench bundle guard
            run: bun scripts/check-workbench-bundles.ts
          - name: Windows icon guard
@@ -471,9 +462,8 @@ jobs:
          # an audit that fails on an unresolvable --base).
          - name: Unit-test the merge gate
            run: bun test scripts/merge-gate.test.ts
-         # The release chain's own contract: Cargo.lock rewrite for every
-         # main/ workspace member, the shipped-vs-pinned native leaf sets, the
-         # updater's names against the shipped CLI assets, and the
+         # The release chain's own contract: the shipped-vs-pinned native leaf
+         # sets, the updater's names against the shipped CLI assets, and the
          # upload/checksums/preflight asset surfaces. Static and hermetic (reads
          # manifests, the lock and ci.yml), so it belongs beside the other gate
          # unit tests rather than a native-artifact bucket.
@@ -1296,7 +1286,7 @@ jobs:
    release_binary:
       name: "Release binary: ${{ matrix.target_id }}"
       if: ${{ !cancelled() &&
-         (needs.release_metadata.outputs.is-release == 'true' || inputs.build_desktop_archives || inputs.desktop_app) &&
+         (needs.release_metadata.outputs.is-release == 'true' || inputs.desktop_app) &&
          needs.native_addons.result == 'success' &&
          needs.native_addons_cross.result == 'success' }}
       needs: [release_metadata, native_addons, native_addons_cross]
@@ -1408,21 +1398,18 @@ jobs:
    # embeds no node addons — so this job runs purely in parallel with the test
    # fan-out. The cargo legs compile under the workspace's own
    # rust-toolchain.toml pin (currently 1.97.1, read at run time — the
-   # same toolchain main_tests / termide_tests gate with). Windows assets cross-compile on the Linux
+   # same toolchain termide_tests gates with). Windows assets cross-compile on the Linux
    # runner like the zeta-cli-* win32-x64 leg: cargo via the GNU target (the
    # same "Win GNU target" method the committed npm leaf binaries are
    # rebuilt with, no Windows runner needed).
    #
-   # zetawork is paused (2026-11-05 ruling): its `zeta-work-*` TUI and
-   # `zetawork-gui-*` desktop legs are not built or shipped here any more, and
-   # scripts/ci-release-build-binaries.ts no longer declares them, so a stale
-   # `RELEASE_TARGETS` value naming one fails as an unknown target.
+   # The retired zetawork legs (`zeta-work-*`, `zetawork-gui-*`) are not built
+   # or shipped here, and scripts/ci-release-build-binaries.ts no longer
+   # declares them, so a stale `RELEASE_TARGETS` value naming one fails as an
+   # unknown target.
    release_product_binaries:
       name: "Release product binary: ${{ matrix.target_id }}"
-      # `build_desktop_archives` is the paused archives dry run: it still wants
-      # the zetaide legs the desktop packaging carries as a companion.
-      if: ${{ !cancelled() &&
-         (needs.release_metadata.outputs.is-release == 'true' || inputs.build_desktop_archives) }}
+      if: ${{ !cancelled() && needs.release_metadata.outputs.is-release == 'true' }}
       needs: [release_metadata]
       strategy:
          fail-fast: false
@@ -1447,19 +1434,18 @@ jobs:
               # nasm: aws-lc-sys (pulled in by russh through the vendored
               # termide crates) assembles its windows-gnu crypto sources.
               sudo apt-get install -y --no-install-recommends mingw-w64 nasm
-         # The workspace pins are the source of truth: both `main/` and
-         # `termide/` ship a rust-toolchain.toml, and cargo obeys it no matter
-         # which toolchain the action made default. Hardcoding a version here
-         # (1.91.1, before the pin moved to 1.97.1) installed the wrong
-         # toolchain and the cross leg died with `can't find crate for core`
-         # because the pinned one had no windows-gnu target.
+         # The workspace pin is the source of truth: `termide/` ships a
+         # rust-toolchain.toml, and cargo obeys it no matter which toolchain
+         # the action made default. Hardcoding a version here (1.91.1, before
+         # the pin moved to 1.97.1) installed the wrong toolchain and the cross
+         # leg died with `can't find crate for core` because the pinned one had
+         # no windows-gnu target.
          - name: Resolve Rust toolchain pin
            id: rust-pin
            run: |
-              channel="$(sed -n 's/^channel *= *"\(.*\)"/\1/p' main/rust-toolchain.toml | head -1)"
-              termide_channel="$(sed -n 's/^channel *= *"\(.*\)"/\1/p' termide/rust-toolchain.toml | head -1)"
-              if [ -z "$channel" ] || [ "$channel" != "$termide_channel" ]; then
-                 echo "::error::main/ ($channel) and termide/ ($termide_channel) toolchain pins must exist and match"
+              channel="$(sed -n 's/^channel *= *"\(.*\)"/\1/p' termide/rust-toolchain.toml | head -1)"
+              if [ -z "$channel" ]; then
+                 echo "::error::termide/rust-toolchain.toml has no channel pin"
                  exit 1
               fi
               echo "channel=$channel" >> "$GITHUB_OUTPUT"
@@ -1470,7 +1456,7 @@ jobs:
               targets: ${{ matrix.platform == 'win32' && 'x86_64-pc-windows-gnu' || 'x86_64-unknown-linux-gnu' }}
          - uses: Swatinem/rust-cache@v2
            with:
-              workspaces: ${{ startsWith(matrix.target_id, 'zeta-ide-') && 'termide' || 'main' }}
+              workspaces: termide
          - name: Build release product binary
            env:
               RELEASE_TARGETS: ${{ matrix.target_id }}
@@ -1495,95 +1481,6 @@ jobs:
            with:
               name: zeta-binary-${{ matrix.target_id }}
               path: packages/coding-agent/binaries/${{ matrix.target_id }}*
-              if-no-files-found: error
-
-   # PAUSED (user ruling 2026-11-05: zetawork suspended, roadmap P0). This job
-   # is dispatch-only now — a release never runs it and release_github no
-   # longer waits on it, so the installer/AppImage/Arch archives are not
-   # release assets. The definition stays for the manual revival path: it
-   # packages the GUI + TUI + companions from `zeta-binary-*` artifacts, which
-   # a dispatch has to stage itself (the release matrix no longer builds the
-   # zetawork legs). See document/release.md.
-   release_desktop_archives:
-      name: Package zetawork desktop installer & archives (paused)
-      # Needs the CLI leg too: the installer and both Linux packages carry
-      # `zetacode` (zeta-binary-linux-x64 / zeta-binary-win32-x64) beside the
-      # GUI, alongside zetaide (zeta-binary-zeta-ide-{linux,win}-x64) and the
-      # TUI (zeta-binary-zeta-work-{linux,win}-x64).
-      if: ${{ always() && !cancelled() &&
-         inputs.build_desktop_archives &&
-         needs.release_binary.result == 'success' &&
-         needs.release_product_binaries.result == 'success' }}
-      needs: [release_metadata, release_binary, release_product_binaries]
-      runs-on: ubuntu-22.04
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-         - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-           with:
-              pattern: zeta-binary-*
-              path: packages/coding-agent/binaries
-              merge-multiple: true
-         # mksquashfs for appimagetool; docker is preinstalled on the runner and
-         # the Arch package is built inside archlinux/base-devel. NSIS builds
-         # the per-user Windows installer (`makensis`).
-         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-           with:
-              node-version: "24"
-         - name: Install AppImage and NSIS tooling
-           run: sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools zsync nsis
-         # Every product artifact carries the browser UI: `zetacode serve`
-         # hosts it from `<exe dir>/web-ui`, and the shipped binary is its Bun
-         # runtime (`BUN_BE_BUN=1`), so no Node is needed on the user machine.
-         - name: Build the Web UI (standalone)
-           working-directory: web-ui
-           env:
-              NEXT_OUTPUT_STANDALONE: "1"
-              NEXT_TELEMETRY_DISABLED: "1"
-           run: |
-              npm ci
-              npm run build
-         - name: Package the Windows portable product (full payload zip)
-           run: |
-              bun scripts/package-desktop-archives.ts windows \
-                --version "${{ needs.release_metadata.outputs.release-tag }}" \
-                --exe packages/coding-agent/binaries/zetawork-gui-win-x64.exe \
-                --tui packages/coding-agent/binaries/zeta-work-win-x64.exe \
-                --agent packages/coding-agent/binaries/zeta-cli-windows-x64.exe \
-                --ide packages/coding-agent/binaries/zeta-ide-win-x64.exe \
-                --dll packages/coding-agent/binaries/zetawork-gui-win-x64.dll \
-                --webui web-ui \
-                --out packages/coding-agent/binaries
-         - name: Package the Windows installer (NSIS, with companions)
-           run: |
-              bun scripts/package-desktop-archives.ts windows-installer \
-                --version "${{ needs.release_metadata.outputs.release-tag }}" \
-                --gui packages/coding-agent/binaries/zetawork-gui-win-x64.exe \
-                --tui packages/coding-agent/binaries/zeta-work-win-x64.exe \
-                --agent packages/coding-agent/binaries/zeta-cli-windows-x64.exe \
-                --ide packages/coding-agent/binaries/zeta-ide-win-x64.exe \
-                --dll packages/coding-agent/binaries/zetawork-gui-win-x64.dll \
-                --webui web-ui \
-                --out packages/coding-agent/binaries
-         - name: Package the Linux desktop app
-           run: |
-              bun scripts/package-desktop-archives.ts linux \
-                --version "${{ needs.release_metadata.outputs.release-tag }}" \
-                --gui packages/coding-agent/binaries/zetawork-gui-linux-x64 \
-                --tui packages/coding-agent/binaries/zeta-work-linux-x64 \
-                --agent packages/coding-agent/binaries/zeta-cli-linux-x64 \
-                --ide packages/coding-agent/binaries/zeta-ide-linux-x64 \
-                --webui web-ui \
-                --out packages/coding-agent/binaries
-         - name: Upload desktop installer & archives
-           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-           with:
-              name: zeta-binary-zetawork-archives
-              path: |
-                 packages/coding-agent/binaries/linxira-zeta-*-setup-x64.exe
-                 packages/coding-agent/binaries/linxira-zeta-*-windows-x64.zip
-                 packages/coding-agent/binaries/linxira-zeta-*.AppImage
-                 packages/coding-agent/binaries/linxira-zeta-*.pkg.tar.zst
               if-no-files-found: error
 
    release_desktop:
@@ -1745,11 +1642,8 @@ jobs:
          needs.release_binary.result == 'success' &&
          needs.release_product_binaries.result == 'success' &&
          !inputs.skip_npm }}
-      # zetawork is paused (2026-11-05 ruling): this job now uploads only what
-      # the release builds — CLI binaries, zetaide, the relay extension, the
-      # example-plugin zip and the root texts. The TUI and the desktop archives
-      # left the release surface with it, so release_desktop_archives is no
-      # longer a dependency (that job is dispatch-only).
+      # This job uploads only what the release builds — CLI binaries, zetaide,
+      # the relay extension, the example-plugin zip and the root texts.
       needs: [release_metadata, release_gate, release_binary, release_product_binaries, release_desktop]
       runs-on: ubuntu-22.04
       permissions:
@@ -2014,98 +1908,6 @@ jobs:
            working-directory: termide
            run: cargo nextest run --workspace
 
-   # The zeta workspace (main/) Rust gate — fmt / check / clippy / nextest,
-   # mirroring termide_tests. Self-skips when main/ is untouched; a manual
-   # dispatch always runs the full gate. Gates the workspace tree, not the
-   # Zeta release (release_gate does not depend on it). The workbench's npm
-   # distribution is not published from 1.3.0 (user ruling 2026-10-19); its
-   # main-publish.yml stays for manual republishes of already-released lines.
-
-   main_tests:
-      name: Test main workspace (zeta workbench)
-      runs-on: ubuntu-22.04
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - name: Detect main/ changes
-           id: main
-           env:
-              BEFORE: ${{ github.event.before }}
-              PR_BASE: ${{ github.event.pull_request.base.sha }}
-              DISPATCH_BASE: ${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && inputs.full != true && 'main' || '' }}
-           run: |
-              set -euo pipefail
-              base=""
-              if [ -n "$PR_BASE" ]; then
-                 base="$PR_BASE"
-              elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
-                 base="$BEFORE"
-              elif [ -n "$DISPATCH_BASE" ]; then
-                 base="refs/remotes/origin/main"
-                 git fetch --no-tags --depth=1 origin "+main:$base" || true
-              fi
-              if [ -z "$base" ]; then
-                 echo "No base revision (manual dispatch) - running the full gate"
-                 echo "skip=false" >> "$GITHUB_OUTPUT"
-                 exit 0
-              fi
-              if [ "$base" != "refs/remotes/origin/main" ]; then
-                 git fetch --no-tags --depth=1 origin "$base" || true
-              fi
-              # termide/ is in the pathspec because main/ path-links five
-              # termide crates (core, config, keyboard, panel-terminal,
-              # theme): a pure vendor change can break this workspace while
-              # termide_tests stays the only job that ran.
-              if git diff --name-only "$base" HEAD -- main/ termide/ | grep -q .; then
-                 echo "skip=false" >> "$GITHUB_OUTPUT"
-              else
-                 echo "main/ and termide/ untouched - skipping the workspace Rust gate"
-                 echo "skip=true" >> "$GITHUB_OUTPUT"
-              fi
-         - name: Resolve Rust toolchain pin
-           id: rust-pin
-           run: |
-              echo "channel=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' main/rust-toolchain.toml | head -1)" >> "$GITHUB_OUTPUT"
-         - uses: dtolnay/rust-toolchain@master
-           if: steps.main.outputs.skip != 'true'
-           with:
-              toolchain: ${{ steps.rust-pin.outputs.channel }}
-              components: rustfmt, clippy
-         - uses: Swatinem/rust-cache@v2
-           if: steps.main.outputs.skip != 'true'
-           with:
-              workspaces: main
-         - name: Check formatting
-           if: steps.main.outputs.skip != 'true'
-           working-directory: main
-           run: cargo fmt --all -- --check
-         - name: Check compilation
-           if: steps.main.outputs.skip != 'true'
-           working-directory: main
-           run: cargo check --workspace --all-targets
-         - name: Run clippy (strict mode)
-           if: steps.main.outputs.skip != 'true'
-           working-directory: main
-           run: cargo clippy --workspace --all-targets -- -D warnings
-         - name: Check the desktop shell with its release features
-           if: steps.main.outputs.skip != 'true'
-           working-directory: main
-           # `tray` and `os-notify` are release-only features: the release job
-           # turns them on for every platform. Without this step their code —
-           # the Linux KSNI tray included — would only ever be compiled at tag
-           # time, so a break there would surface after the version bump.
-           run: cargo check -p zetawork-gui --all-targets --features tray,os-notify
-         - name: Run tests
-           if: steps.main.outputs.skip != 'true'
-           working-directory: main
-           run: cargo test --workspace
-         - name: Run zetawork tests with release features
-           if: steps.main.outputs.skip != 'true'
-           working-directory: main
-           # `cargo test --workspace` builds the default feature set, so the
-           # tray queue/wakeup tests were never compiled. This step runs the
-           # same tests with the features the release binary ships.
-           run: cargo test -p zetawork-gui --features tray,os-notify
-
    # Publishes the built-in editor's npm distribution (@linxiraos/editor plus
    # its windows/linux x64 platform leaves) on release tags via npm trusted
    # publishing, dispatching the dedicated editor-publish.yml so the OIDC
@@ -2151,18 +1953,6 @@ jobs:
                  exit 1
               fi
               gh run watch "$rid" --exit-status --interval 15
-
-   # Publishes the zeta workbench npm distribution (@linxiraos/main plus its
-   # windows/linux x64 platform leaves) on release tags via npm trusted
-   # publishing, dispatching main-publish.yml so the OIDC claim matches the
-   # workflow binding (same lesson as v1.1.19's editor E404).
-   #
-   # The launcher pins zetacode (@linxiraos/zeta) and zetaide
-   # (@linxiraos/ide) as its same-line companions, so it must publish LAST:
-   # npm install of the workbench resolves those pins, and a launcher that
-   # lands before its companions exists only as an install with two missing
-   # commands (optionalDependencies skip silently). Hence the needs below —
-   # scripts/check-workbench-bundles.ts holds this edge.
 
    # Publishes the vendored termide (zetaide) npm distribution
    # (@linxiraos/ide plus its windows/linux x64 platform leaves) on release
@@ -2218,7 +2008,7 @@ jobs:
    # would publish a missing or stale build against a new gateway.
    #
    # needs: [release_metadata, release_gate] mirrors the vendored
-   # main/ide publish jobs — release_metadata supplies is-release (this
+   # ide publish jobs — release_metadata supplies is-release (this
    # job must not run on ordinary pushes) and release_gate carries the
    # release-state prerequisite: `check`'s guard steps run on a release run, and
    # publishing before they pass must be impossible. There is no build-artifact
@@ -2284,7 +2074,7 @@ jobs:
    # official plugin ships TS source (`index.ts` entry, `crew/**`, `skills/**`,
    # `bin` → `install.mjs`) for the host loader to transpile, so
    # `ci-release-publish.ts --plugin` packs the directory as-authored through
-   # the same as-is path the vendored main/ide/web-ui legs use. The
+   # the same as-is path the vendored ide/web-ui legs use. The
    # workspace `packages` table (release_npm) cannot carry it: that path's
    # `typescript` kind runs a declaration emit whose output the plugin cannot
    # consume — its sources use `allowImportingTsExtensions`, so the emitted
@@ -2313,47 +2103,6 @@ jobs:
    # `npm view @linxiraos/pi-messenger@<version>` and skips a version already on
    # the registry (and treats npm's E409 / "previously published versions"
    # output as already published).
-   # 1.3.1 restores the workbench npm line (user ruling 2026-10-18: the GUI
-   # stays out of npm, the TUI does not). The leaves carry committed binaries,
-   # so main-publish.yml packs the tree as committed — it never rebuilds.
-   # zetawork is suspended (2026-11-05, roadmap P0): the workbench packages stay
-   # published-but-frozen, and a release only dispatches this leg when
-   # `publish_zetawork` is set. `main-publish.yml` itself is untouched, so a
-   # manual `gh workflow run main-publish.yml` still works.
-   release_main_packages:
-      name: Publish zetawork npm packages
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
-         needs.release_gate.result == 'success' &&
-         needs.release_npm.result == 'success' &&
-         needs.release_ide_packages.result == 'success' &&
-         inputs.publish_zetawork &&
-         !inputs.skip_npm }}
-      needs: [release_metadata, release_gate, release_npm, release_ide_packages]
-      runs-on: ubuntu-22.04
-      permissions:
-         contents: read
-         actions: write
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-         - name: Dispatch main-publish.yml and wait for it
-           env:
-              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-           run: |
-              set -euo pipefail
-              gh workflow run main-publish.yml --ref "${GITHUB_REF_NAME}"
-              rid=""
-              for _ in $(seq 1 30); do
-                 sleep 10
-                 rid=$(gh run list --workflow=main-publish.yml --branch "${GITHUB_REF_NAME}" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
-                 [ -n "$rid" ] && break
-              done
-              if [ -z "$rid" ]; then
-                 echo "::error::main-publish run never appeared"
-                 exit 1
-              fi
-              gh run watch "$rid" --exit-status --interval 15
-
    # The same publish, without the release gate. npm's trusted-publisher entry
    # is validated by a single successful publish and its window is days wide, so
    # a retry must not queue behind bazel/native builds. Mutually exclusive with

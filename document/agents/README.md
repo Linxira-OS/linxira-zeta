@@ -40,7 +40,7 @@
 | `surface/web-app-performance.md` | 要测渲染器性能 / 复现前后对比 | `web-app` 测量协议：六项基线指标、perf harness 的构建与启动、数字记录格式 |
 | `workflow/branches.md` | 开工前 / 推送前 / 清理 worktree | 并行子代理流程、feature branch、内部整合批次（一次推）、`dev/*`、工作树纪律、`temp/` 与安全清理 |
 | `workflow/branch-registry.md` | 开分支 / 删分支 / 搞不清某条分支干什么 | 分支登记簿：命名即生命周期、在册表（用途/负责人/何时删）、退役表（含 SHA，可恢复）；`scripts/check-branch-registry.ts` 在本地门禁校验 |
-| `workflow/release-publish.md` | 动发布面或新包引导 | npm trusted publishing 两步握手、新包手动首发顺序、冻结发布面的 dispatch 开关（`publish_web_ui` / `publish_zetawork`） |
+| `workflow/release-publish.md` | 动发布面或新包引导 | npm trusted publishing 两步握手、新包手动首发顺序、冻结发布面的 dispatch 开关（`publish_web_ui`） |
 | `workflow/robomp.md` | 想复刻上游 issue→修复 PR→发布哨兵自动化 | robomp 的 webhook/队列/worktree/host tools、PR 前门禁、release sentinel 的真实职责与 Zeta 采纳边界 |
 | `workflow/github.md` | 要发评论 / 改 PR 描述 | PR 模板、贡献者原话要求、changelog 归属 |
 

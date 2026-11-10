@@ -4,10 +4,10 @@
  * The parser is the only gate between a hand-written manifest and a host that
  * draws what it is told, so every rejection names the entry that is wrong:
  * a typo must surface as a diagnostic, never as a panel that quietly never
- * appears. The panels themselves are rendered by the Rust host
- * (`main/crates/zetawork-gui/src/plugin_panels.rs`); this suite pins the
- * declaration side, including the backward-compatibility rule that a plugin
- * without `ui` behaves exactly as before.
+ * appears. The panels themselves were rendered by the retired zetawork GUI
+ * (removed 2026-11); this suite pins the declaration side, including the
+ * backward-compatibility rule that a plugin without `ui` behaves exactly as
+ * before.
  */
 import { describe, expect, it } from "bun:test";
 import { parsePluginUi } from "../src/extensibility/plugins/parser";

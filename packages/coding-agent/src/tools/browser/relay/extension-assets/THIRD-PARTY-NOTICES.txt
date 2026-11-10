@@ -19,7 +19,7 @@ Forked application trees:
 
 | Path | Upstream | Snapshot | License | What Zeta changed |
 |---|---|---|---|---|
-| `packages/ main/ crates/ python/ lsp/ sdk/ types/ skills/` | oh-my-pi (OMP), https://github.com/can1357/oh-my-pi | integrated through tag `v18.15.0` (`document/upstream-sync.md`) | see upstream files | product name, paths, command names and env prefixes; branded assets; internal identifiers renamed to `__zeta*` |
+| `packages/ crates/ python/ lsp/ sdk/ types/ skills/` | oh-my-pi (OMP), https://github.com/can1357/oh-my-pi | integrated through tag `v18.15.0` (`document/upstream-sync.md`) | see upstream files | product name, paths, command names and env prefixes; branded assets; internal identifiers renamed to `__zeta*` |
 | `web-ui/` | OMP Web, https://github.com/17380936778/omp-web | frozen snapshot, **abandoned 2026-11-05** (`document/upstream-sync.md`) | see upstream files | third-party UI, not maintained by Zeta: frozen as received, no builds, no fixes; the product renderer is `web-app/` (`Differences from Upstream` in README) |
 | `web-app/` (`src/studio`, `src/vendor/*`) | OMP Studio 0.1.17, https://github.com/the-snowpear/omp-studio | `0.1.17`, ported into the product renderer | MIT | maintained by Zeta now: the host contract is reimplemented in `studio-host` (pair/CSRF/query/command/events), the renderer was rebranded (`zeta-studio` wire name, Zeta links/fixtures), and Zeta adds windowed transcripts, precompressed static serving, the plugin registry, and the usage dashboard |
 | `termide/` | TermIDE, https://github.com/termide/termide | tag `0.46.0` = `a027ca788cd4c9d24f060cdcd3195ca2e475617b` | MIT | deviations listed in `termide/VENDOR.md` (28 entries) |
@@ -29,7 +29,7 @@ Forked application trees:
 Why the fork renames things at all: the upstream licenses and the product
 identity both require that a downstream distribution not present itself as the
 upstream. Renames therefore cover the product name, command names
-(`zetawork` / `zetacode` / `zetaide`), the `zeta://` scheme, the npm scope
+(`zetacode` / `zetaide`), the `zeta://` scheme, the npm scope
 `@linxiraos/*`, and release asset names (`zeta-cli-*`). User-visible
 configuration keeps accepting the legacy names during the transition, so an
 existing installation does not silently break.
@@ -377,20 +377,6 @@ License: Creative Commons Attribution 4.0 International (CC BY 4.0)
 This license allows the work and adaptations of it to be shared and used
 commercially, as long as it is attributed to Poppy Works. The font is bundled
 here (crates/pi-natives/src/fonts/Silver.ttf) as a CJK/Unicode bitmap fallback.
-
--------------------------------------------------------------------------------
-main/crates/zetawork-gui/assets/fonts/MapleMono-CN-Regular.ttf
-
-Maple Mono CN
-Source:  https://github.com/subframe7536/maple-font
-Version: 7.9
-Author:  The Maple Mono Project Authors
-Copyright 2022 The Maple Mono Project Authors
-
-License: SIL Open Font License, Version 1.1
-The full license text is bundled at
-main/crates/zetawork-gui/assets/fonts/OFL.txt and is installed with the
-desktop package. The font file is embedded unmodified in the GUI binary.
 
 -------------------------------------------------------------------------------
 packages/coding-agent/src/markit/NOTICE

@@ -8,8 +8,8 @@
  * by the host's real extension loader and locale loader, so a host-side rename
  * cannot leave the example quietly broken.
  *
- * The native rendering itself is the GUI's: `cargo test -p zetawork-gui`
- * covers `plugin_panels` against the same manifest text.
+ * The native rendering that consumed this contract was the retired zetawork
+ * GUI (removed 2026-11); the declaration side stays pinned here.
  */
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";

@@ -12,10 +12,10 @@ name: local-ci
 #   镜像：check / bazel_lock / rust_validate / native_addons /
 #        test_coding_agent_native / test_workspace / test_coding_agent_singleton /
 #        test_ts_native / test_coding_agent_ui / test_coding_agent_runtime /
-#        test_smoke / install_methods / termide_tests / main_tests
+#        test_smoke / install_methods / termide_tests
 #   裁掉：release_metadata / release_gate / release_binary /
 #        release_product_binaries / release_native_leaves / release_github /
-#        release_npm / release_{main,ide,web_ui,plugin}_packages（发布链，永不在此跑）
+#        release_npm / release_{ide,web_ui,plugin}_packages（发布链，永不在此跑）
 #        desktop_windows、native_addons_cross 的 win32/darwin 腿（Windows/macOS）
 #
 # 与 GitHub 侧刻意保持一致的地方：命令行入口全部走仓库脚本
@@ -277,8 +277,8 @@ jobs:
               fi
               "$TOOLS/bin/bun" --version
 
-              # rustup —— 仓库钉 nightly（rust-toolchain.toml），两个 vendor
-              # 工作区各钉 1.91.1（termide/ main/）。三个都要装，否则
+              # rustup —— 仓库钉 nightly（rust-toolchain.toml），vendor
+              # 工作区钉 1.91.1（termide/）。两个都要装，否则
               # `cargo fmt/clippy/test` 在 vendor 目录里会触发重编译。
               if [ ! -x "$RUSTUP_HOME/bin/rustup" ]; then
                  fetch https://sh.rustup.rs "$TOOLS/rustup-init.sh"
@@ -465,10 +465,9 @@ jobs:
            run: bun scripts/check-scope-imports.ts
          - name: Licence map guard
            run: bun scripts/check-license-map.ts
-         # 镜像 GitHub `check` job：安装 zetawork 必须同时装上 zetacode 与
-         # zetaide（同一条版本线的 companion 钉），发布构建把三个二进制放在
-         # 同一目录、发布资产三族齐发。钉或发布腿少带一个，用户装到的就是
-         # 一个工作台加两个失踪命令，而所有 manifest 仍然可解析。
+         # 镜像 GitHub `check` job：发布构建把 zetacode 与 zetaide 放在同一目录，
+         # ide launcher 钉住它的平台叶包。钉或发布腿少带一个命令，用户装到的
+         # 就是缺少命令的产品，而所有 manifest 仍然可解析。
          - name: Workbench bundle guard
            run: bun scripts/check-workbench-bundles.ts
          - name: Windows icon guard
@@ -1526,7 +1525,7 @@ jobs:
          - name: Test the serve reuse decision
            run: bun test packages/coding-agent/test/serve-registry.test.ts
 
-   # ── 8. vendor 工作区（镜像 termide_tests / main_tests）──────────────────
+   # ── 8. vendor 工作区（镜像 termide_tests）──────────────────────────────
    termide_tests:
       name: Test termide (vendored TermIDE)
       needs: [preflight, toolchains]
@@ -1622,110 +1621,3 @@ jobs:
            if: steps.termide.outputs.skip != 'true'
            working-directory: termide
            run: cargo nextest run --workspace || cargo test --workspace
-
-   main_tests:
-      name: Test main workspace (zeta workbench)
-      needs: [preflight, toolchains]
-      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'gates' || inputs.suite == 'rust') }}
-      runs-on: self-hosted
-      timeout-minutes: 120
-      steps:
-         # The NAS runner's egress to github.com is intermittent (observed:
-         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
-         # SSL unexpected eof` fetching a release asset), and actions/checkout
-         # has no retry - one reset loses the whole run. Clone from the Gitea
-         # instance instead: it is on the LAN and needs no action download.
-         - name: Checkout (local Gitea remote)
-           shell: bash
-           run: |
-              set -euo pipefail
-              ref="${{ github.ref }}"
-              sha="${{ github.sha }}"
-              host="${{ github.server_url }}"
-              host="${host#*://}"
-              token="${{ github.token }}"
-              auth=""
-              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
-              url="http://${auth}${host}/${{ github.repository }}.git"
-              if [ ! -d .git ]; then git init -q .; fi
-              if git remote get-url origin >/dev/null 2>&1; then
-                 git remote set-url origin "$url"
-              else
-                 git remote add origin "$url"
-              fi
-              git fetch -q --depth=1 --tags origin "$ref"
-              # --depth=1 only brings the ref tip; fall back to the full branch
-              # when the run's SHA is not that tip (branch moved mid-run).
-              if ! git checkout -q -f "$sha" 2>/dev/null; then
-                 git fetch -q --tags origin "$ref"
-                 git checkout -q -f "$sha"
-              fi
-              git log -1 --format='checked out %h %s'
-         - name: Toolchain PATH
-           shell: bash
-           run: |
-              set -euo pipefail
-              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
-              extra="${PATH_EXTRA:-}"
-              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
-              if [ -z "$extra" ]; then
-                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
-                 exit 1
-              fi
-              echo "$extra:$PATH" >> "$GITHUB_PATH"
-              # The host executor gives every job its own act/<hash> workdir;
-              # the toolchains job's node_modules is not visible here. Install
-              # the workspace graph before the job's bun commands (`oxlint`,
-              # test buckets, desktop launcher tests).
-              export PATH="$extra:$PATH"
-              bun install --frozen-lockfile
-         - name: Detect main/ changes
-           id: main
-           shell: bash
-           env:
-              BEFORE: ${{ github.event.before }}
-           run: |
-              set -euo pipefail
-              base=""
-              if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
-                 base="$BEFORE"
-              fi
-              if [ -z "$base" ]; then
-                 echo "No base revision (manual dispatch) - running the full gate"
-                 echo "skip=false" >> "$GITHUB_OUTPUT"
-                 exit 0
-              fi
-              git fetch --no-tags --depth=1 origin "$base" || true
-              if git diff --name-only "$base" HEAD -- main/ | grep -q .; then
-                 echo "skip=false" >> "$GITHUB_OUTPUT"
-              else
-                 echo "main/ untouched - skipping the workspace Rust gate"
-                 echo "skip=true" >> "$GITHUB_OUTPUT"
-              fi
-         - name: Check formatting
-           if: steps.main.outputs.skip != 'true'
-           working-directory: main
-           run: cargo fmt --all -- --check
-         - name: Check compilation
-           if: steps.main.outputs.skip != 'true'
-           working-directory: main
-           run: cargo check --workspace --all-targets
-         - name: Run clippy (strict mode)
-           if: steps.main.outputs.skip != 'true'
-           working-directory: main
-           run: cargo clippy --workspace --all-targets -- -D warnings
-         - name: Check the desktop shell with its release features
-           if: steps.main.outputs.skip != 'true'
-           working-directory: main
-           run: cargo check -p zetawork-gui --all-targets --features tray,os-notify
-         - name: Run tests
-           if: steps.main.outputs.skip != 'true'
-           working-directory: main
-           run: cargo nextest run --workspace || cargo test --workspace
-         - name: Run zetawork tests with release features
-           if: steps.main.outputs.skip != 'true'
-           working-directory: main
-           # Mirror ci.yml: `cargo test --workspace` uses default features, so
-           # the tray queue/wakeup tests were never compiled with the features
-           # the release binary ships.
-           run: cargo test -p zetawork-gui --features tray,os-notify

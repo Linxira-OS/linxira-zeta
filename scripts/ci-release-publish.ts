@@ -10,7 +10,7 @@
  * Publish targets whose manifests are already publish-ready pack as-authored
  * through `publishAsIsNpmDirs` instead of the steps below, each from its own
  * ci.yml job: `--editor`, `--ide`,
- * `--main`, `--web-ui` (vendored distributions) and `--plugin <dir>` (official
+ * `--web-ui` (vendored distributions) and `--plugin <dir>` (official
  * plugins, see that function).
  *
  * For each public TypeScript package we:
@@ -99,7 +99,6 @@ const repoRoot = path.join(import.meta.dir, "..");
 const isDryRun = process.argv.includes("--dry-run");
 const publishEditor = process.argv.slice(2).includes("--editor");
 const publishIde = process.argv.slice(2).includes("--ide");
-const publishMain = process.argv.slice(2).includes("--main");
 // web-ui is a standalone npm-only project (not a Bun workspace package), so it
 // packs/publishes through the vendored-dir path like main/termide. Its
 // `.next` build is produced by the invoking CI job before this runs.
@@ -116,12 +115,6 @@ const THIRD_PARTY_NOTICES = "THIRD-PARTY-NOTICES.txt";
 export function legalPayloadFiles(license: string | undefined): string[] {
 	switch (license) {
 		case "MIT":
-			return [MIT_LICENSE, THIRD_PARTY_NOTICES];
-		// The workbench suite (`@linxiraos/main` + its leaves) is AGPL: `main/`
-		// is its own workspace with its own LICENSE, which the license map
-		// enforces (document/release.md). Same payload shape as MIT: the
-		// package's own LICENSE, plus the repository's third-party notices.
-		case "AGPL-3.0-only":
 			return [MIT_LICENSE, THIRD_PARTY_NOTICES];
 		default:
 			throw new Error(`Unsupported package license: ${license ?? "<missing>"}`);
@@ -668,7 +661,7 @@ async function publishNativeLeafPackage(tag: string): Promise<string[]> {
  * as-authored (platform leaves first, then the launcher package that pins them
  * via optionalDependencies). Two callers:
  *
- *   - Vendored distributions (termide/, web-ui/, main/) — not Bun
+ *   - Vendored distributions (termide/, web-ui/) — not Bun
  *     workspace packages; only the legal payloads need staging before
  *     pack+publish. web-ui has no platform leaves and no `prepack` — its
  *     `.next` build is produced by the invoking CI job
@@ -767,74 +760,6 @@ async function publishEditorDirs(): Promise<string[]> {
 	return publishAsIsNpmDirs(EDITOR_NPM_DIRS);
 }
 
-/**
- * The `--main` payload: the zeta workbench's npm distribution — the launcher
- * package plus the platform leaves it pins, leaves first.
- */
-const MAIN_NPM_DIRS = ["main/npm/main-windows-x64", "main/npm/main-linux-x64", "main/npm/main"];
-
-/**
- * The companion products the workbench launcher installs beside itself,
- * pinned in the same `optionalDependencies` block as the platform leaves.
- * `@linxiraos/main` is the binary `zetawork`; these two are `zetacode` and
- * `zetaide`, so one install yields the whole suite and the GUI never has to
- * reach for a separate global install.
- *
- * They are **not published here**: each has its own trusted-publisher
- * workflow (`release_npm` → @linxiraos/zeta, `release_ide_packages` →
- * @linxiraos/ide), and `release_main_packages` is ordered after both in
- * ci.yml (`scripts/check-workbench-bundles.ts` holds that edge). What this
- * leg must guarantee is that the tree it is about to publish actually carries
- * them at the launcher's version — a launcher whose pins point at packages
- * this tree does not carry installs with two silently missing commands,
- * because optionalDependencies never fail an install.
- */
-const MAIN_COMPANIONS: ReadonlyArray<{ dir: string; name: string; bin: string }> = [
-	{ dir: "packages/coding-agent", name: "@linxiraos/zeta", bin: "zetacode" },
-	{ dir: "termide/npm/ide", name: "@linxiraos/ide", bin: "zetaide" },
-];
-
-/** Refuse a `--main` publish whose launcher cannot honour its companion pins. */
-async function assertMainCompanions(): Promise<{ version: string; dirs: string[] }> {
-	const launcherRel = "main/npm/main/package.json";
-	const launcher = (await Bun.file(path.join(repoRoot, launcherRel)).json()) as PackageManifest;
-	if (typeof launcher.version !== "string") throw new Error(`Missing version in ${launcherRel}`);
-	const problems: string[] = [];
-	for (const companion of MAIN_COMPANIONS) {
-		const rel = `${companion.dir}/package.json`;
-		if (!(await Bun.file(path.join(repoRoot, rel)).exists())) {
-			problems.push(`${rel}: missing — the workbench's ${companion.name} companion is not in this tree`);
-			continue;
-		}
-		const manifest = (await Bun.file(path.join(repoRoot, rel)).json()) as PackageManifest;
-		if (manifest.version !== launcher.version) {
-			problems.push(`${rel}: ${manifest.version} != ${launcher.version} (launcher version)`);
-		}
-		if (launcher.optionalDependencies?.[companion.name] !== launcher.version) {
-			problems.push(
-				`${launcherRel}: optionalDependencies ${companion.name} is ${launcher.optionalDependencies?.[companion.name]}, expected ${launcher.version}`,
-			);
-		}
-		if (typeof manifest.bin?.[companion.bin] !== "string") {
-			problems.push(`${rel}: bin.${companion.bin} is missing — installs would carry no ${companion.bin} command`);
-		}
-	}
-	if (problems.length > 0) {
-		throw new Error(
-			`Workbench companion payload is not release-ready:\n  - ${problems.join("\n  - ")}\n` +
-				"The workbench installs zetacode and zetaide as same-line companions; publishing a launcher whose pins this tree cannot honour ships two missing commands.",
-		);
-	}
-	return { version: launcher.version, dirs: MAIN_COMPANIONS.map(companion => companion.dir) };
-}
-
-/** `--main` entry point: verify the companion payload, then publish leaves + launcher. */
-async function publishMainDirs(): Promise<string[]> {
-	const { version, dirs } = await assertMainCompanions();
-	console.log(`Workbench companions verified at ${version}: ${dirs.join(", ")}`);
-	return publishAsIsNpmDirs(MAIN_NPM_DIRS);
-}
-
 async function prepareNativePackage(pkg: PublishPackage): Promise<PackageManifest> {
 	const manifest = await prepareNativeCorePackage(path.join(repoRoot, pkg.dir), !isDryRun);
 	if (isDryRun) {
@@ -913,13 +838,11 @@ if (import.meta.main) {
 			? await publishEditorDirs()
 			: publishIde
 				? await publishAsIsNpmDirs(["termide/npm/ide-windows-x64", "termide/npm/ide-linux-x64", "termide/npm/ide"])
-				: publishMain
-					? await publishMainDirs()
-					: publishWebUi
-						? await publishAsIsNpmDirs(["web-ui"])
-						: publishPluginDir
-							? await publishAsIsNpmDirs([publishPluginDir])
-							: await publishWorkspacePackages();
+				: publishWebUi
+					? await publishAsIsNpmDirs(["web-ui"])
+					: publishPluginDir
+						? await publishAsIsNpmDirs([publishPluginDir])
+						: await publishWorkspacePackages();
 	if (failed.length > 0) {
 		console.error(`Failed to publish ${failed.length} package(s): ${failed.join(", ")}`);
 		process.exit(1);

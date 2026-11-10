@@ -101,19 +101,18 @@ const targets: ReleaseTarget[] = [
 		outfile: "packages/coding-agent/binaries/zeta-cli-windows-arm64.exe",
 	},
 	// Bare product binaries. All are Cargo workspace builds (toolchain pinned
-	// by each workspace's rust-toolchain.toml, 1.91.1 — the same pin the
-	// main_tests/termide_tests jobs compile under). The win32 assets
-	// cross-build on the Linux runner: cargo via the GNU target.
+	// by the workspace's rust-toolchain.toml, 1.91.1 — the same pin the
+	// termide_tests job compiles under). The win32 assets cross-build on the
+	// Linux runner: cargo via the GNU target.
 	//
 	// One target per (product, platform) the release ships: `zeta-cli-*`
-	// legs (above) are zetacode; `zeta-ide-*` is zetaide. zetawork is paused
-	// (2026-11-05 ruling), so its `zeta-work-*` TUI and `zetawork-gui-*`
-	// desktop legs are deliberately absent: a stale `RELEASE_TARGETS` value
-	// naming them fails as an unknown target instead of silently building
-	// nothing. scripts/check-workbench-bundles.ts fails when a shipped
-	// product/platform pair disappears from this table and when an unshipped
-	// one reappears, so this list, the matrix legs and that guard move
-	// together.
+	// legs (above) are zetacode; `zeta-ide-*` is zetaide. The retired zetawork
+	// legs (`zeta-work-*`, `zetawork-gui-*`) are deliberately absent: a stale
+	// `RELEASE_TARGETS` value naming one fails as an unknown target instead of
+	// silently building nothing. scripts/check-workbench-bundles.ts fails when
+	// a shipped product/platform pair disappears from this table and when an
+	// unshipped one reappears, so this list, the matrix legs and that guard
+	// move together.
 	{
 		kind: "product",
 		id: "zeta-ide-linux-x64",
@@ -130,10 +129,8 @@ const targets: ReleaseTarget[] = [
 
 /** Cargo workspace roots per Rust product: package to build, produced bin. */
 const CARGO_PRODUCTS: Record<ProductBinaryTarget["product"], { dir: string; pkg: string; bin: string }> = {
-	// zetawork's TUI (`zeta-main`) and desktop (`zetawork-gui`) legs left the
-	// release surface with the 2026-11-05 pause ruling; only zetaide is staged
-	// here. The paused desktop packaging path stays dispatchable from
-	// scripts/package-desktop-archives.ts, which is fed by manual builds.
+	// Only zetaide is staged here; the retired zetawork TUI (`zeta-main`) and
+	// desktop (`zetawork-gui`) legs left the release surface in 2026-11-05.
 	ide: { dir: "termide", pkg: "termide", bin: "termide" },
 };
 

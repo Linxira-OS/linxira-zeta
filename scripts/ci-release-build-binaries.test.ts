@@ -45,9 +45,9 @@ describe("Windows release binary target", () => {
 		expect(output).not.toContain("DRY RUN bun run gen:native");
 	});
 
-	it("fails a paused zetawork target loudly instead of silently skipping it", async () => {
-		// zetawork is paused (2026-11-05 ruling) and its legs are gone from the
-		// target table; a stale RELEASE_TARGETS value must be a hard error.
+	it("fails a retired zetawork target loudly instead of silently skipping it", async () => {
+		// The zetawork legs were removed (2026-11-05 ruling) and are gone from
+		// the target table; a stale RELEASE_TARGETS value must be a hard error.
 		const result =
 			await $`bun scripts/ci-release-build-binaries.ts --dry-run --targets zeta-work-linux-x64,zetawork-gui-win-x64`
 				.cwd(repoRoot)

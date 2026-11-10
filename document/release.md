@@ -56,19 +56,16 @@ Build time belongs in the changelog and the git tag, not the version.
   Rust/cross/native compilation; native addons from main's cache or npm), main
   pushes run the full gate, and release runs skip the test fan-out. See
   [`ci-tiers.md`](./ci-tiers.md).
-- **Two publish legs are suspended (2026-11-05)**: `release_web_ui_packages`
-  (`@linxiraos/zeta-web`) and `release_main_packages` (`@linxiraos/main` +
-  leaves) only run when a dispatch sets `publish_web_ui` / `publish_zetawork`.
-  The renderer moved to `web-app` inside the CLI and `zetawork` is paused
-  (roadmap P0, 2026-11-05); the `web_ui_build` job was retired with its gate.
-  The manual `main-publish.yml` / `ci:release:publish-web-ui` paths are intact.
-  The same ruling took zetawork's **release assets** off the surface: the
-  `zeta-work-*` and `zetawork-gui-*` legs are gone from the
-  `release_product_binaries` matrix; the paused zetawork path
-  `release_desktop_archives` remains dispatch-only (`build_desktop_archives`),
-  and `release_github` also uploads the Work Studio desktop assets (see below).
-  neither family. The npm line stays publishable through the manual
-  `publish_zetawork` gate.
+- **One publish leg is suspended (2026-11-05)**: `release_web_ui_packages`
+  (`@linxiraos/zeta-web`) only runs when a dispatch sets `publish_web_ui`.
+  The renderer moved to `web-app` inside the CLI; the `web_ui_build` job was
+  retired with its gate, and the manual `ci:release:publish-web-ui` path is
+  intact. The zetawork release surface was **removed** in 2026-11: the
+  `zeta-work-*` / `zetawork-gui-*` legs left the `release_product_binaries`
+  matrix, and the `release_desktop_archives` job, its packaging scripts and
+  `main-publish.yml` are gone. `release_github` uploads the Work Studio desktop
+  assets (see below). `@linxiraos/main` stays deprecated on npm with no local
+  source line.
 - `.github/workflows/ci.yml` is the **only** workflow GitHub executes. It
   covers the Bun workspace, crates, desktop, and install methods. `web-ui/` must never add its own `.github/` workflow (subdirectory
   workflows are never triggered); new web-ui checks go into the root CI. The
@@ -131,7 +128,7 @@ plugins/official/pi-messenger`，把插件目录原样打包）发布——两�
   1.1.1（上一次手工补发），首次随线发布是它绑定关系的第一道实战检验。
   editor 三包 `@linxiraos/editor` / `@linxiraos/editor-windows-x64` /
   `@linxiraos/editor-linux-x64` 经 `release_editor_packages` job
-  （`ci-release-publish.ts --editor`）随 release tag 发布，载荷是 zetawork 内置
+  （`ci-release-publish.ts --editor`）随 release tag 发布，载荷是内置
   编辑器的**编辑器专用入口** `termide-editor`（vendored termide；TTT／Go 载荷
   2026-10-16 退场、包名与链路 2026-10-17 由它接手）。叶包内嵌二进制是入库产物：
   tag 前必须 `cargo build --release --locked -p termide --bin termide-editor`
@@ -142,15 +139,12 @@ plugins/official/pi-messenger`，把插件目录原样打包）发布——两�
 
    同一决定落在 CI：`desktop_mac` / `release_binary_hosted` /
    `release_github_verify` / `release_brew` 四个 job 删除，darwin/ARM 矩阵
-   leg 与 leaf tag 全部移除。`desktop_linux` / `desktop_windows` 也已删除：
-   桌面产物的唯一打包点是 Zeta-only 的 `release_desktop_archives`
-   （Windows NSIS 安装器 + GUI-only zip、Linux AppImage + Arch 包）。自
-   2026-11-05 zetawork 暂停起，该 job 只保留手动 `build_desktop_archives`。
-   Work Studio 的桌面产物走 `release_desktop`：Electron 版（Windows NSIS/zip、
+   leg 与 leaf tag 全部移除。`desktop_linux` / `desktop_windows` 也已删除。
+   旧 zetawork 的 `release_desktop_archives`（NSIS 安装器 + AppImage + Arch 包）
+   已于 2026-11 随 zetawork 一并移除。Work Studio 的桌面产物走
+   `release_desktop`：Electron 版（Windows NSIS/zip、
    Linux AppImage/deb/tar.gz）与无浏览器引擎版（`linxira-zeta-<v>-workstudio-browser-*`），
    两者都由同一 staged runtime（编译后的内核 + 原生 addon + `web-app`）打包。
-   派发路径，普通 release 不再运行它，`release_github` 也不再依赖它的产物
-   （见下方损伤类别 5）。
 
    **方向注记（未实施）**：CLI 与桌面将来可能拆分版本线独立发布——桌面追稳定
    （低频、大版本），CLI 高频快跑。届时 tag/repo 级拆分（如 `cli-vX.Y.Z` 与
@@ -470,7 +464,7 @@ Rules:
   retired: version/bump invocations now forward to `release-v2.ts`, and only
   `watch`/`deps` plus the shared helpers (`selectLatestZetaTag`,
   `validateExplicitVersion`, `watchCI`) remain.
-- The workbench platform leaves (`main/npm/main-*`, `termide/npm/ide-*`) ship
+- The workbench platform leaves (`termide/npm/ide-*`) ship
   a **committed** binary, and their manifest version moves with the bump. After
   rebuilding a leaf binary, run `bun scripts/stamp-workbench-leaves.ts` and
   commit the stamp beside the binary: `scripts/check-workbench-bundles.ts`
@@ -481,18 +475,9 @@ Rules:
   manifest up.) `release-v2.ts` runs the same guard **after the bump and
   before the commit/tag**, so a stale leaf aborts the release without
   consuming a tag.
-- **Suspended distributions:** `scripts/npm-distributions.ts` marks a
-  distribution `paused` when its product is suspended (today: `main/`, per the
-  2026-11-05 zetawork ruling). A paused launcher, its leaves and its companion
-  pins keep the last published version; `release-v2.ts` / `set-version.ts` skip
-  the bump, `check-version-consistency.ts` skips its line assertions, and
-  `check-workbench-bundles.ts` checks it against its own frozen version instead
-  of the repo line. Reviving the product means deleting the `paused` marker and
-  running a full bump (this is the one place the single version line is
-  deliberately broken, because nothing is published from it).
 
 - **Rebuilding leaves on the Windows workstation:** build inside WSL, not on
-  the `/mnt/c` mount. `main/` is copied to a fixed native workspace
+  the `/mnt/c` mount. `termide/` is copied to a fixed native workspace
   (`/root/zeta-build`), built there, and the binaries are copied back; the
   workspace is removed after the copy. Never point `CARGO_TARGET_DIR` at the
   repo or build a Rust tree through `/mnt/c` — the per-file stat/read cost
@@ -503,85 +488,65 @@ Rules:
   wsl -d <distro> -- bash -lc '
     rm -rf /root/zeta-build && mkdir -p /root/zeta-build &&
     tar -C /mnt/c/Users/<user>/Documents/GITHUB/zeta \
-        --exclude=main/target --exclude=main/.git -cf - main |
+        --exclude=termide/target --exclude=termide/.git -cf - termide |
       tar -C /root/zeta-build -xf - &&
-    cd /root/zeta-build/main &&
+    cd /root/zeta-build/termide &&
     export PATH=/root/.cargo/bin:$PATH &&
-    cargo build --release --locked -p zeta-main &&
-    cargo build --release --locked -p zeta-main \
+    cargo build --release --locked -p termide --bin termide &&
+    cargo build --release --locked -p termide --bin termide \
         --target x86_64-pc-windows-gnu &&
-    cp target/release/zeta /mnt/c/.../main/npm/main-linux-x64/bin/zeta-linux-x64 &&
-    cp target/x86_64-pc-windows-gnu/release/zeta.exe /mnt/c/.../main/npm/main-windows-x64/bin/zeta.exe
+    cp target/release/termide /mnt/c/.../termide/npm/ide-linux-x64/bin/termide-linux-x64 &&
+    cp target/x86_64-pc-windows-gnu/release/termide.exe /mnt/c/.../termide/npm/ide-windows-x64/bin/termide.exe
     rm -rf /root/zeta-build
   '
   ```
   The Windows cross link needs `x86_64-w64-mingw32-gcc` reachable from WSL
   (the repo's ordinary Windows build uses MSVC and is not available on this
-  host). `termide` leaves only need a fresh stamp when their binary is
-  unchanged.
-
-- `release-v2.ts` rewrites **every** member of the `main/` Cargo workspace in
-  `main/Cargo.lock` (not just `zeta-main`): a straggler makes
-  `cargo build --locked` in `main/` refuse to run, which takes the workbench
-  build legs down with it.
+  host). Run `bun scripts/stamp-workbench-leaves.ts` after copying.
 
 The changelog-side pre-tag gate (`[Unreleased]` completeness, no upstream
 version sections, `UPDATE-LOG.md` entry) lives in
 `document/dev-conventions.md` § Changelog.
 
-### Workbench bundle layout (zetawork + zetacode + zetaide)
+### Product bundle layout (zetacode + zetaide)
 
-Installing `zetawork` installs the whole suite. `@linxiraos/main` pins
-`@linxiraos/zeta` (bin `zetacode`) and `@linxiraos/ide` (bin `zetaide`) as
-**companions** in the same `optionalDependencies` block that pins its platform
-leaves — same exact version, same optional form (a companion unavailable for
-the host must not fail the workbench install; each product's binary stays
-inside its own `os`/`cpu`-gated leaf, so a Linux install never drags a Windows
-payload). No binary is duplicated between packages.
+The release stages both commands beside each other, and `@linxiraos/ide` pins
+its two `os`-gated platform leaves at its own version — same exact version,
+same optional form (a leaf unavailable for the host must not fail the install;
+each product's binary stays inside its own `os`/`cpu`-gated leaf, so a Linux
+install never drags a Windows payload). No binary is duplicated between
+packages. The retired `zetawork` launcher (`@linxiraos/main`) used to pin
+zetacode/zetaide as companions; it is gone from this tree.
 
 Where each command lives per install shape (`<root>` = the npm prefix's
 `node_modules/@linxiraos`):
 
 | Shape                             | Windows x64                                                                                                                      | Linux x64                                                                                                                                |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| npm install                       | `<root>/main-windows-x64/bin/zeta.exe`<br>`<root>/ide-windows-x64/bin/termide.exe`<br>`<root>/zeta/dist/cli.js` (bin `zetacode`) | `<root>/main-linux-x64/bin/zeta-linux-x64`<br>`<root>/ide-linux-x64/bin/termide-linux-x64`<br>`<root>/zeta/dist/cli.js` (bin `zetacode`) |
+| npm install                       | `<root>/ide-windows-x64/bin/termide.exe`<br>`<root>/zeta/dist/cli.js` (bin `zetacode`) | `<root>/ide-linux-x64/bin/termide-linux-x64`<br>`<root>/zeta/dist/cli.js` (bin `zetacode`) |
 | Staged runtime / release archives | `zeta-ide-win-x64.exe`, `zeta-cli-windows-x64.exe`                                                                               | `zeta-ide-linux-x64`, `zeta-cli-linux-x64`                                                                                               |
 
 The staged-runtime row is `packages/coding-agent/binaries/` — the one directory
 `scripts/ci-release-build-binaries.ts` stages every product into and
 `release_github` uploads from.
 
-**Release surface (zetawork paused 2026-11-05; user ruling 2026-10-18 for
-everything else).** Zetacode, zetaide and the packaging-time artifacts ship;
-zetawork's TUI and the desktop product do not:
+**Release surface (zetawork removed 2026-11; user ruling 2026-10-18 for
+everything else).** Zetacode, zetaide, the Work Studio desktop and the
+packaging-time artifacts ship:
 
 | Product          | Release assets                                                                                                                   | npm                                           |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | zetacode         | `zeta-cli-{linux-x64,linux-musl-x64,windows-x64.exe}`                                                                            | `@linxiraos/zeta`                             |
-| zetawork TUI     | — **paused** (2026-11-05): `zeta-work-*` left the build matrix and every release surface                                          | `@linxiraos/main` + the two leaves, only via the manual `publish_zetawork` gate |
-| Linxira Zeta desktop (the complete product) | — **paused** (2026-11-05): the installer/AppImage/Arch packaging job is dispatch-only (`build_desktop_archives`)                   | **none** — the GUI never enters the npm chain. Component binaries keep their own `zeta-cli-*` / `zeta-ide-*` names |
 | zetaide          | `zeta-ide-{linux-x64,win-x64.exe}`                                                                                               | `@linxiraos/ide`                              |
+| Work Studio desktop | `zeta-desktop-*` (Electron) and `linxira-zeta-*-workstudio-browser-*`                                                          | **none** — the desktop never enters the npm chain. Component binaries keep their own `zeta-cli-*` / `zeta-ide-*` names |
 | editor           | — (cloud component)                                                                                                              | `@linxiraos/editor`                           |
 | official plugins | `zeta-plugin-example-<ver>.zip`（三层插件教学环境：`scripts/build-example-plugin-zip.ts`，解压即含 `git` 历史） | `@linxiraos/pi-messenger`（`example-panel` 本期只以 zip 分发，不进 npm 发布腿） |
 
-The Electron desktop (`zeta-desktop-*`) is gone for good. The zetawork GUI
-mode and its installer set are paused with the workbench (2026-11-05): the
-formats below describe the packing code that is kept dispatchable, not assets
-a release publishes. Windows packaging produces an NSIS per-user installer
-(`$LOCALAPPDATA\Programs\zetawork`) that installs the GUI, both companions and
-the TUI beside each other, plus the legacy GUI-only zip (exe +
-`WebView2Loader.dll`). Linux packaging produces the **Arch package**
-(`.pkg.tar.zst`, `pacman -U`) and the AppImage; both install the GUI and the two
-companions off PATH (`/usr/lib/zetawork/`, launched by the desktop entry), so
-the product keeps exactly three commands: `zetawork`, `zetacode`, `zetaide`.
-
-`release_desktop_archives` (Zeta-only job) assembles those archives from the
-CLI and product legs. It is **dispatch-only** since 2026-11-05: a release never
-runs it, `release_github` no longer waits on it, and the build matrix no longer
-stages the zetawork legs it consumes, so a manual revival must stage
-`zetawork-gui-*` / `zeta-work-*` itself. `scripts/check-workbench-bundles.ts`
-holds the shipped families (zeta-cli/zeta-ide plus the relay, example-plugin
-and root texts) to the upload/checksum/preflight surfaces, and names
+The Electron desktop (`zeta-desktop-*`) is gone for good. The zetawork GUI,
+its NSIS installer, AppImage and Arch package were removed in 2026-11 with
+the workbench (2026-11-05 ruling); `scripts/check-workbench-bundles.ts` holds
+the shipped families (zeta-cli/zeta-ide plus the relay, example-plugin and
+root texts) to the upload/checksum/preflight surfaces, and names
 `zetawork` / `zetawork-desktop` as unshipped so a staged leg for one fails.
 Every asset name carries the numeric version (`v` stripped).
 **Work Studio desktop (2026-11-07 ruling).** `release_desktop` builds the
@@ -600,11 +565,9 @@ desktop application in two editions from one staged runtime — the compiled
 assets. The old zetawork archives stay retired.
 
 
-**Windows icon surface** — all shipped `.exe` files (GUI, TUI, `zetacode`,
-`zetaide`, `termide-editor`) embed the same committed logo from
-`main/crates/zetawork-gui/assets/icon.ico`; the NSIS installer installs that
-`.ico` and pins the Start Menu, desktop and Add/Remove icons to it rather than
-relying on an Explorer fallback. `bun scripts/check-windows-icons.ts` runs in
+**Windows icon surface** — all shipped `.exe` files (`zetacode`, `zetaide`,
+`termide-editor`) embed the same committed logo from `assets/zeta.ico`;
+`bun scripts/check-windows-icons.ts` runs in
 the `check` job and, with `--binaries <exe…>`, in every Windows release leg;
 it fails on a PE without `RT_ICON`/`RT_GROUP_ICON` or whose icon payload differs from the canonical `.ico`. `windres` resolution is
 prefixed-tool aware (`x86_64-w64-mingw32-windres`) because the Ubuntu runner
@@ -614,9 +577,7 @@ committed `.rc` template with an absolute icon path: older `windres` resolves
 `ICON` paths against the CWD, while newer ones use the `.rc` directory. Bun's
 cross-compiled Windows runtime may also carry its own icon group; the guard
 checks the lowest-id group (the one Explorer selects) against the canonical
-`.ico`. The NSIS script probes `${SOURCE_DIR}` once and picks the host
-separator (`/` on the Linux runner, `\` on Windows) because makensis rejects a
-foreign separator in `File` paths. The `win32-x64` zetacode leg runs on
+`.ico`. The `win32-x64` zetacode leg runs on
 `windows-2022` because Bun applies `windows.icon` only when compiling on
 Windows; Linux cross-builds retain Bun's own icon group and no app icon.
 
