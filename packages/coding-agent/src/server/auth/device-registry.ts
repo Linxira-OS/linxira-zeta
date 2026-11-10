@@ -7,7 +7,7 @@
  * layer: a paired device receives its own high-entropy token (`zdt_…`), stored
  * only as a SHA-256 hash, listed by label, and revoked individually.
  *
- * Contract (see `local://qfa-device-auth.md`):
+ * Contract:
  * - the file lives at `<agentDir>/auth/devices.json`, mode 0600, written
  *   atomically under the shared file lock (`WebConfig` uses the same helper);
  * - a missing file means "no devices yet" — the legacy `remote.token` keeps
