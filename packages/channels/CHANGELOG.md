@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-10
+
 - Added the Discord channel (official Bot API): Gateway v10 with the
   `MESSAGE_CONTENT` intent, guild-channel/DM routing, @mention and reply
   triggers, ephemeral `/help` + `/status`, attachment download with a size cap,

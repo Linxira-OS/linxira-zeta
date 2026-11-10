@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-10
+
 ### Added
 
 - `/channels` opens the IM operator surface in the TUI: list configured channels and their live health (`state`, `detail`, `lastError`, `since`, `lastInboundAt`), run `login`/`status`/`logout`/`unbind`, and take a per-channel pairing lock so two processes cannot pair the same account at once. The command is refused on a backend-attached client, where the owning process owns pairing.
