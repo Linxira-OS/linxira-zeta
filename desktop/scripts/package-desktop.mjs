@@ -14,6 +14,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { assertLeanAppTree } from "./packaging-budget.mjs";
 import { desktopPlatformInfo } from "./platform.mjs";
 
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -120,5 +121,6 @@ if (process.platform === "darwin") {
 const unpackedOut = path.join(releaseOut, `zeta-desktop-${manifest.version}-${platformInfo.platformId}-${process.arch}`);
 fs.rmSync(unpackedOut, { recursive: true, force: true });
 fs.cpSync(unpackedSource, unpackedOut, { recursive: true });
+assertLeanAppTree(unpackedOut);
 fs.rmSync(tempRoot, { recursive: true, force: true });
 console.log("packaged artifacts in", releaseOut);
