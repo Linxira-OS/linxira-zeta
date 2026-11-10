@@ -57,7 +57,7 @@ test("supports ZETA_WEB_HOSTNAME without trusting the ambient system HOSTNAME", 
   );
 });
 
-test("the gateway default matches the serve block, not OMP's 30142", () => {
+test("the gateway default matches the serve block, not the upstream 30142", () => {
   assert.equal(DEFAULT_GATEWAY_PORT, "43143");
   assert.equal(resolveGatewayUrl(undefined, {}), "http://127.0.0.1:43143");
 });
