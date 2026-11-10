@@ -92,6 +92,14 @@ The deb's control metadata (verified from the 1.5.0 asset) is
 
 ## 4. zwork → Zeta desktop migration
 
+Identity mapping (explicit, no guessing):
+
+| Old identity | New identity | Automatic |
+| --- | --- | --- |
+| zetawork GUI (`/usr/lib/zetawork/zetawork-gui`, `zetawork-gui.exe`) | `zeta-desktop` (npm identity, private) / `linxira-zeta` (pacman) / `zeta-desktop` (deb) | no — package/installer semantics below |
+| zetawork TUI (`/usr/bin/zetawork`, `@linxiraos/main` bin `zetawork`) | retired; the CLI is `@linxiraos/zeta` (bin `zetacode`) | no |
+| `@linxiraos/main` (paused, 1.4.10) | `@linxiraos/zeta` — **not a rename** | no |
+
 Two legacy products exist and they migrate differently. Never claim an
 automatic in-place upgrade where the package name or installer identity differs.
 

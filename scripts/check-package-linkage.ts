@@ -187,6 +187,15 @@ export function validateLinkage(raw: unknown, ctx: LinkageContext): string[] {
 	}
 
 	const migration = record(manifest.migration, "migration", problems);
+	const productMapping = record(migration.productMapping, "migration.productMapping", problems);
+	const guiMapping = record(productMapping["zetawork-gui"], "migration.productMapping.zetawork-gui", problems);
+	if (guiMapping.new !== "zeta-desktop") {
+		problems.push("migration.productMapping.zetawork-gui.new must be zeta-desktop");
+	}
+	const mainMapping = record(productMapping["@linxiraos/main"], "migration.productMapping.@linxiraos/main", problems);
+	if (mainMapping.new !== "@linxiraos/zeta" || mainMapping.renamed !== false) {
+		problems.push("migration.productMapping.@linxiraos/main must map to @linxiraos/zeta without claiming a rename");
+	}
 	const rows = migration.rows;
 	if (!Array.isArray(rows) || rows.length === 0) {
 		problems.push("migration.rows must be a non-empty array");
