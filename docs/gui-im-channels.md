@@ -1,150 +1,119 @@
-# IM Channels in the GUI
+# IM channels in Work Studio
 
-> **Status (2026-11-06).** This page documents the paused Rust GUI
-> (`main/crates/zetawork-gui`), which does not ship. The desktop surface is
-> **Work Studio** in the browser (`zetacode serve`); see
-> [`desktop-app.md`](./desktop-app.md).
+> **Status (2026-11-10).** The shipped surface is **Settings → IM 渠道** in Work
+> Studio (`web-app/src/studio/settings/ImChannelsPane.tsx`), served by
+> `zetacode serve`. The desktop shell shows the same page in its window; the
+> tray's **IM 渠道** item sends `app.settings:channels` and the renderer opens
+> that group. Neither the paused Rust GUI (`main/crates/zetawork-gui`) nor the
+> frozen `web-ui/` snapshot is a channel settings surface.
 
+The pane is a front-end over `/api/channels/*`, `/api/web-config`, and
+`/api/remote/*`. It keeps no state store of its own: `~/.zeta/agent/web.yml` and
+the live `serve` channel runtime remain the only truth, shared with
+`zetacode channels …` in a terminal. Opening the pane reads the gateway, a
+write re-reads it, and nothing renders a value the gateway did not send.
 
-The desktop shell (`main/crates/zetawork-gui`) exposes the same messaging-channel
-surface as the web desktop. It is the fourth remote target in 设置, next to
-zetacode's own options, the provider catalog, and the IM notification fallback.
+## Routes used
 
-The pane reads and writes the same gateway truth source the (deferred) Web UI
-was built against:
-
-| Surface | Route | File / runtime |
+| Surface | Route | What the pane does with it |
 |---|---|---|
-| Runtime state | `GET /api/channels/status` | the running `zetacode serve` channel runtime |
-| Configuration | `GET` / `PUT /api/web-config` | `~/.zeta/agent/web.yml` |
-| WeChat login | `GET /api/channels/wechat/qrcode`, `POST …/reconnect`, `POST …/unbind` | the live WeChat adapter |
-| One message | `POST /api/channels/send` | `ChannelRuntime.sendText` |
+| Runtime state | `GET /api/channels/status` | `{id, running}` per channel the runtime started; polled every 2 s |
+| Configuration | `GET /api/web-config` | Enabled flags, masked secrets, `remote.workspaces`, `remote.sessionMappings`, `remote.botSessions` |
+| Toggles / defaults | `PUT /api/web-config` | `channels.<id>.enabled`, `channels.<id>.workspaceRoot`, whole-array `remote.sessionMappings` |
+| Credentials | `POST /api/channels/credentials` | Validate against the platform, then save; never stores an unvalidated secret |
+| WeChat login | `GET /api/channels/wechat/qrcode`, `POST …/reconnect`, `POST …/unbind` | QR + state, fresh login, logout |
+| One test message | `POST /api/channels/send` | `{channelId, to, text}` through the running channel |
+| Paired devices | `GET /api/remote/devices`, `DELETE …/devices/:id`, `POST …/devices/revoke-all` | List and revoke; tokens never appear |
+| Pairing QR | `GET /api/remote/pairing` | Shows `svg` + address; the plaintext token in that response is dropped |
 
-The gateway origin is `webUrl` from `~/.zeta/serve.json`; the GUI accepts only a
-plain `http://` loopback origin with an explicit port (there is no TLS client in
-the shell). When the file is absent the pane says so and starts no request.
+## Channels and runtime words
 
-## Layering
+Three rows — 微信, 飞书 / Lark, Telegram — each with an enable switch and two
+chips:
 
-This pane follows the rule in `document/architecture-layers.md`: the GUI is a
-front-end over `/api/channels/*` and `/api/web-config` only. `~/.zeta/agent/web.yml`
-remains the single source of truth; the panel keeps the last response for drawing
-and a few text-field drafts, but it must not grow a state store of its own,
-write the file directly, or cache credentials. Every mutation is a gateway
-request followed by a read of the same routes the web desktop uses.
+- **运行中** — the status list reports the channel running;
+- **已停止** — the config disables it;
+- **错误：运行时未启动** — the config enables it but the status list does not
+  contain it. This is the honest "credentials missing, host refused to start,
+  or another process holds the channel lock" state; it is never smoothed into
+  either neighbour.
 
-## Controls
+`PUT channels.<id>.enabled` restarts the `serve` channel runtime, so the toggle
+takes effect immediately. Disabling never deletes credentials.
 
-### Channels
+## WeChat login
 
-Three rows — WeChat, Feishu / Lark, Telegram — each with an enable switch and a
-runtime word. The word is not a colour:
-
-- **运行中** — the gateway's status list reports the channel running;
-- **已停止** — the status list reports it stopped;
-- **错误：…** — the config enables it but the status list has no entry. That is
-  the "credentials missing, runtime did not start" case, surfaced instead of
-  hidden behind a stopped switch.
-
-A toggle is a `PUT channels.<id>.enabled`. The gateway restarts the channel
-runtime on any `channels.*` write, so the switch takes effect immediately.
-
-### WeChat login
-
-While WeChat is enabled, the pane polls `GET /api/channels/wechat/qrcode` every
-two seconds — the same interval as the web UI — and draws the QR:
-
-- `qrcodeUrl` that names an image (`data:image/…`, `.png`, `.jpg`, `.gif`,
-  `.webp`, `.svg`) is fetched and decoded when it is PNG or JPEG (the formats the
-  WeChat CDN serves); a `data:` URL is decoded in place.
-- anything else — the legacy iLink page URL (`liteapp.weixin.qq.com/…`), or an
-  image the `image` crate cannot read (SVG) — is encoded locally with
-  `qrcodegen`; the web UI sends a page URL to an external QR service, the GUI
-  deliberately does not.
-
-Stages, in the order a login walks them:
+While WeChat is enabled the pane polls `GET /api/channels/wechat/qrcode` every
+two seconds. The route answers `{pending, qrcodeUrl, status}` and, for a page
+payload, an additive `svg`; **the gateway renders that symbol from the same
+payload the terminal renders as block characters**, so the browser needs no QR
+library and the login URL is never sent to an external QR image service. Image
+payloads (`data:image/…`, an image URL) are shown as an `<img>` instead and the
+route omits `svg`.
 
 | Stage | Source | Shown as |
 |---|---|---|
-| `Pending` | `{pending:true,status:"wait"}`, or 重新连接 pressed | 待扫码 |
-| `Scanned` | `status:"scaned"` | 已扫码，请在手机上确认 |
-| `Connected` | `status:"confirmed"` (or a stored bot token with no login pending) | 已连接 |
-| `Expired` | `status:"expired"` | 二维码已过期，请重新连接 |
-| `Unbound` | 解绑 pressed | 已解绑 |
+| `pending` | `{pending:true,status:"wait"}` | 请用微信扫码 |
+| `scanned` | `status:"scaned"` | 已扫码，请在手机上确认 |
+| `connected` | `status:"confirmed"`, or a stored bot token with no pending login | 已连接 / 已登录（凭据已保存） |
+| `expired` | `status:"expired"` | 二维码已过期，请重新连接 |
+| `unbound` | `{pending:false}` and no stored token | 尚未登录 |
 
-`{pending:false}` returns to 未开始, except after 解绑: the unbound state stays
-visible until a new login actually starts, so the next poll cannot make the
-action look undone.
+重新连接 and 解绑 are disabled unless the channel is enabled and running (the
+routes answer 404 otherwise); 解绑 asks for confirmation because it clears the
+token and peer bindings on the live adapter.
 
-- **重新连接** — `POST /api/channels/wechat/reconnect`, then a fresh QR.
-- **解绑** — `POST /api/channels/wechat/unbind`. Clears the credentials and peer
-  bindings on the running adapter; the next poll's absence of a pending login
-  does not clear the 已解绑 word.
-
-### Credentials
+## Credentials
 
 - Feishu: `appId`, `appSecret`, `domain` (`feishu` / `lark`).
 - Telegram: `botToken`.
-- WeChat's bot token is written by the QR login itself, not by this pane.
+- WeChat's bot token is written by the QR login itself.
 
-Secret fields are write-only. `GET /api/web-config` masks every secret as
-`••••`; the row shows 已保存（留空则不修改） and starts with an empty draft, so
-the real value never reaches a widget. An empty draft is not written. A save
-commits the changed fields in order through `PUT /api/web-config`, then re-reads
-the whole config with `GET` (the route answers `{ok:true}`, not the new config),
-which is exactly the web UI's commit path.
+Secret fields are write-only: `GET /api/web-config` masks every secret as
+`••••`, the field starts empty, and an empty draft means "keep the stored
+value" — the same rule `runCredentialLogin` applies. A save goes through
+`POST /api/channels/credentials`, which validates against the platform first;
+a rejected credential writes nothing and its error text is redacted server-side.
+`channels.<id>.workspaceRoot` (the channel's default directory when a chat has no
+binding) is editable with an absolute path; empty means the coordinator session.
 
-### Workspace routing
+## Chat bindings
 
-The routing model is the web config's, unchanged (see
-[`remote-workspaces.md`](remote-workspaces.md) for the IM commands that consume
-it):
+`remote.sessionMappings` rows are listed as a table and edited in place:
 
-- **Per-channel default directory** — `channels.<id>.workspaceRoot`. Messages on
-  that channel land in this directory unless a chat binding says otherwise. An
-  empty value means the coordinator session.
-- **Alias registry** — `remote.workspaces`, entries `{alias, path}`. The alias
-  is what IM commands use: `@workspace use <alias>` or `*<alias>`. Legacy bare
-  path entries are shown with their directory name as the alias. `main` is
-  reserved for the relay coordinator.
-- **Chat bindings** — `remote.sessionMappings`, entries
-  `{platform, chatId, workspaceAlias, …}`. A binding routes one remote chat
-  directly to a workspace and wins over the channel default. The GUI edits
-  `platform`, `chatId` and `workspaceAlias`; every other field (`sessionId`,
-  `lang`, `mode`, `connectionId`, `chatType`) is preserved verbatim when the
-  array is rewritten.
+- platform, chat ID;
+- workspace alias (only aliases registered under `remote.workspaces`) or a bot
+  session (a read-only list from `remote.botSessions`, created by `!session …`
+  in chat);
+- `agentId` / PM is **PLANNED**: the column says 未实现 and the pane never
+  writes that key.
 
-The GUI writes the whole array for an add / edit / remove (the
-`PUT /api/web-config` contract), with the web config's validation: non-empty
-alias, absolute directory, no duplicate alias, no `main`, and a binding's alias
-must exist.
+A save rewrites the whole array — the `PUT /api/web-config` contract — with the
+row object copied and only the edited fields patched. `userId`, `chatType`,
+`connectionId`, `mode`, `lang` and unknown future keys are preserved; the table
+shows a "N other field(s) kept" chip so that is visible. The gateway validates
+the array with the router's own rules (non-empty chat ID, at least one target,
+a registered alias shape), and the pane mirrors those rules to disable Save
+before an avoidable 400.
 
-### Send test
+## Devices and second factor
 
-`POST /api/channels/send` with `{channelId, to, text}`. The route's status table
-is surfaced as the route names it:
+The device registry exists (`auth/device-registry.ts`, `auth/device-auth.ts`), so
+the pane shows real paired devices with platform, scopes, last-seen and a
+per-device 撤销 as well as 撤销所有设备 (`keepCurrent` spares this device).
+Pairing shows the server's QR (`svg`) and the address for a new device.
 
-| Status | Shown |
-|---|---|
-| 200 | 已发送 |
-| 404 | 没有这个渠道（unknown-channel） |
-| 400 | 未配对（unpaired），请先让对方给机器人发一条消息 |
-| 500 | 发送失败（failed） |
+There is **no TOTP/2FA endpoint**: the pane states that it is not implemented
+and offers no switch. Responses never include a token or hash.
 
-This is the same route the notification fallback uses; the pane only makes its
-failure kind visible instead of leaving it in a status-bar tooltip.
+## Old surfaces
 
-## Threading
-
-No request runs on the UI thread. Opening the pane starts one full read
-(status + config + QR); while the pane stays open, status + QR are polled every
-two seconds and the full config is re-read once a minute. Writes and the two
-WeChat actions run on short-lived worker threads, and a finished job updates the
-panel on the next frame. Closing the modal stops the poll.
-
-## Screenshot
-
-`ZETA_SHOTS_DIR=<dir> cargo +1.97.1-x86_64-pc-windows-gnu test -p zetawork-gui
---test shots -- --ignored im_channels_settings_screenshot` writes
-`16-im-channels.png`: the three channel rows, a locally encoded WeChat QR, the
-per-channel default directories, the three alias rows and the bindings.
+- `web-ui/` is frozen (frozen OMP Web snapshot): not built, not published, and
+  not linked from Work Studio. Its old Web/Bot settings page is not a second
+  entry point. Retirement/redirect plan: `zetacode serve` already prefers the
+  Work Studio build for every non-`/api/*` path; if the legacy page must stay
+  reachable for a compatibility window, redirect `/settings` and
+  `/?panel=settings` to Work Studio's settings route (only when the renderer
+  build is absent), and treat the old channel page as read-only. No new feature
+  lands there.
+- `main/crates/zetawork-gui` is paused and ships nothing.

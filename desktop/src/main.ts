@@ -1081,6 +1081,7 @@ interface TrayPrefs {
 interface DesktopLabels {
 	showWindow: string;
 	statsDashboard: string;
+	imChannels: string;
 	openSettings: string;
 	quit: string;
 	webUi: string;
@@ -1095,6 +1096,7 @@ interface DesktopLabels {
 const DEFAULT_DESKTOP_LABELS: DesktopLabels = {
 	showWindow: "Show Window",
 	statsDashboard: "Stats Dashboard",
+	imChannels: "IM Channels",
 	openSettings: "Open Settings",
 	quit: "Quit",
 	webUi: "Work Studio",
@@ -1209,6 +1211,15 @@ function trayContextMenu(): Electron.MenuItemConstructorOptions[] {
 	return [
 		{ label: trayLabels.showWindow, click: () => showMainWindow() },
 		{ label: trayLabels.statsDashboard, click: () => openStatsWindow() },
+		{
+			label: trayLabels.imChannels,
+			click: () => {
+				// Same Work Studio page as the browser; the group suffix opens the
+				// IM pane. There is no second (Rust) settings surface.
+				showMainWindow();
+				sendMenuCommand("app.settings:channels");
+			},
+		},
 		{
 			label: trayLabels.openSettings,
 			click: () => {

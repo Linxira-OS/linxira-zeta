@@ -142,7 +142,7 @@ import { SessionModelRecovery } from "./models/SessionModelRecovery";
 import { RuntimeQueueBar } from "./composer/RuntimeQueueBar";
 import { MessageQueueBar, type QueuedMessage } from "./MessageQueueBar";
 import { injectMagicKeyword, type MagicKeyword } from "./composerMode";
-import { SettingsPage, setSettingsIntent, type RuntimeSettingsApi } from "./SettingsPage";
+import { SettingsPage, isSettingsGroupId, setSettingsIntent, type RuntimeSettingsApi } from "./SettingsPage";
 import { DiagnosticsPage, setDiagnosticsIntent } from "./DiagnosticsPage";
 import { RuntimeLossBanner } from "./RuntimeLossBanner";
 import {
@@ -8365,6 +8365,17 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
   // macOS menu bar: the same actions as the shortcuts above plus a few menu-only ones.
   const runMenuCommand = useRef<(command: string) => void>(() => {});
   runMenuCommand.current = (command) => {
+    // `app.settings:<group>` is the desktop tray's deep link into one pane of
+    // the shared Work Studio settings page; the bare form opens the page.
+    if (command.startsWith("app.settings:")) {
+      const group = command.slice("app.settings:".length);
+      if (isSettingsGroupId(group)) {
+        setSettingsIntent(group);
+        setSettingsNonce((value) => value + 1);
+        go("settings");
+        return;
+      }
+    }
     switch (command) {
       case "app.settings": go("settings"); return;
       case "file.newChat": startNewChat(); return;

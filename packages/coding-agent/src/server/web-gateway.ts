@@ -64,7 +64,7 @@ import {
 } from "./web-gateway/board";
 import { checkRemoteAccess } from "./web-gateway/remote-access";
 import { isRemoteTokenAccepted } from "../utils/remote-token";
-import { handleChannelCredentials, handleChannelSend } from "./web-gateway/channels";
+import { handleChannelCredentials, handleChannelSend, renderWechatLoginQrSvg } from "./web-gateway/channels";
 import { handleAgentContextUsage } from "./web-gateway/context-usage";
 import {
 	handleCwdBrowseGet,
@@ -990,7 +990,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
 		const qr = getPendingWechatQr();
 		if (!qr) return json({ pending: false });
-		return json({ pending: true, qrcodeUrl: qr.qrcodeUrl, status: qr.status });
+		// `svg` is the same payload the terminal renders as block characters, so a
+		// browser surface needs no QR library (and never sends the login URL to an
+		// external image service). Image payloads leave it out.
+		const svg = renderWechatLoginQrSvg(qr.qrcodeUrl);
+		return json({ pending: true, qrcodeUrl: qr.qrcodeUrl, status: qr.status, ...(svg === undefined ? {} : { svg }) });
 	}
 
 	if (CHANNELS_WECHAT_RECONNECT_RE.test(pathname)) {

@@ -5,6 +5,7 @@ import { PredictionSettingsPane } from "./settings/PredictionSettingsPane";
 import "./composer/prediction.css";
 import { NativePreferencesPane, type NativePreferencesContext } from "./settings/NativePreferencesPane";
 import { ArtifactStorageSettings } from "./media/ArtifactLibraryPane";
+import { ImChannelsPane } from "./settings/ImChannelsPane";
 /**
  * 设置页（Phase 1 IA 重构）：7 个标签的壳。
  *
@@ -48,7 +49,7 @@ import type {
 
 export const SETTINGS_INTENT_KEY = "zeta.settingsIntent";
 
-export type SettingsGroupId = "general" | "background" | "interaction" | "permissions" | "context" | "files" | "tasks" | "advanced" | "native";
+export type SettingsGroupId = "general" | "background" | "interaction" | "permissions" | "context" | "files" | "tasks" | "channels" | "advanced" | "native";
 
 type GroupId = SettingsGroupId;
 
@@ -62,7 +63,7 @@ export interface RuntimeSettingsApi {
   readonly onSet?: (key: StudioRuntimeSettingKey, value: StudioRuntimeSettingValue, persist?: boolean) => void | Promise<void>;
 }
 
-const GROUP_IDS: ReadonlyArray<SettingsGroupId> = ["general", "background", "interaction", "permissions", "context", "files", "tasks", "advanced", "native"];
+const GROUP_IDS: ReadonlyArray<SettingsGroupId> = ["general", "background", "interaction", "permissions", "context", "files", "tasks", "channels", "advanced", "native"];
 
 export function setSettingsIntent(group: SettingsGroupId): void {
   try {
@@ -72,13 +73,17 @@ export function setSettingsIntent(group: SettingsGroupId): void {
   }
 }
 
+export function isSettingsGroupId(value: string): value is SettingsGroupId {
+  return GROUP_IDS.some((id) => id === value);
+}
+
 function takeSettingsIntent(): SettingsGroupId | null {
   try {
     const raw = sessionStorage.getItem(SETTINGS_INTENT_KEY);
     if (!raw) return null;
     sessionStorage.removeItem(SETTINGS_INTENT_KEY);
     const value = JSON.parse(raw) as { group?: unknown };
-    return GROUP_IDS.some((id) => id === value.group) ? value.group as SettingsGroupId : null;
+    return typeof value.group === "string" && isSettingsGroupId(value.group) ? value.group : null;
   } catch {
     return null;
   }
@@ -125,6 +130,7 @@ function SettingsPageContent({
     ["context", "layers", t("settings.tabs.context")],
     ["files", "terminal", t("settings.tabs.files")],
     ["tasks", "play", t("settings.tabs.tasks")],
+    ["channels", "plug", t("settings.tabs.channels")],
     ["advanced", "wrench", t("settings.tabs.advanced")],
     ["native", "settings", resolvedLanguage === "zh" ? "运行偏好" : "Runtime preferences"],
   ] as const).filter(([id]) => id !== "native" || nativeAvailable);
@@ -303,6 +309,9 @@ function SettingsPageContent({
             <SessionBudgetPane client={client} sessionId={nativeContext?.sessionId} available={nativeContext?.available === true} visible={group === "tasks"} capabilities={nativeContext?.capabilities} />
             <FeatureSettingsPane group="tasks" client={client} context={nativeContext} visible={group === "tasks"} />
             <SessionWorktreesPane client={client} context={nativeContext} visible={group === "tasks"} onOpenWorkspace={onOpenWorktree} />
+          </div>
+          <div {...pane("channels")} id="set-channels" role="tabpanel" aria-labelledby="setTab-channels" tabIndex={0}>
+            <ImChannelsPane visible={group === "channels"} />
           </div>
           <div {...pane("advanced")} id="set-advanced" role="tabpanel" aria-labelledby="setTab-advanced" tabIndex={0}>
             <AdvancedTab demo={demoRuntime} runtime={runtime} />

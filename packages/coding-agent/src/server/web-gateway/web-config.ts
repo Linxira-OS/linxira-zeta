@@ -17,6 +17,7 @@ const DESKTOP_LABELS: Record<string, Record<string, string>> = {
 	en: {
 		showWindow: "Show Window",
 		statsDashboard: "Stats Dashboard",
+		imChannels: "IM Channels",
 		openSettings: "Open Settings",
 		quit: "Quit",
 		webUi: "Work Studio",
@@ -30,6 +31,7 @@ const DESKTOP_LABELS: Record<string, Record<string, string>> = {
 	"zh-CN": {
 		showWindow: "显示主窗口",
 		statsDashboard: "统计面板",
+		imChannels: "IM 渠道",
 		openSettings: "打开设置",
 		quit: "退出",
 		webUi: "Work Studio",
