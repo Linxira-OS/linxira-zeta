@@ -28,8 +28,8 @@ write re-reads it, and nothing renders a value the gateway did not send.
 
 ## Channels and runtime words
 
-Three rows — 微信, 飞书 / Lark, Telegram — each with an enable switch and two
-chips:
+One row per adapter — 微信, 飞书 / Lark, Telegram, Discord, QQ (OneBot v11) —
+each with an enable switch and two chips:
 
 - **运行中** — the status list reports the channel running;
 - **已停止** — the config disables it;
@@ -38,8 +38,14 @@ chips:
   or another process holds the channel lock" state; it is never smoothed into
   either neighbour.
 
-`PUT channels.<id>.enabled` restarts the `serve` channel runtime, so the toggle
-takes effect immediately. Disabling never deletes credentials.
+Rows follow the runtime's own channel registry, so a Discord or QQ binding is
+never hidden from the table. `PUT channels.<id>.enabled` restarts the `serve`
+channel runtime, so the toggle takes effect immediately. Disabling never deletes
+credentials. Discord is deny-by-default until `channels.discord.allowedChannels`
+is non-empty and QQ needs `allowedGroups`/`allowedUsers`; that is why an enabled
+row can still read **错误：运行时未启动**. Discord and QQ have no validate-and-save
+route yet: the credentials section says so and points at the raw web config
+(`channels.discord.*`, `channels.qq.*`) instead of faking an editor.
 
 ## WeChat login
 
@@ -81,7 +87,7 @@ binding) is editable with an absolute path; empty means the coordinator session.
 
 `remote.sessionMappings` rows are listed as a table and edited in place:
 
-- platform, chat ID;
+- platform (the five adapters the runtime registers), chat ID;
 - workspace alias (only aliases registered under `remote.workspaces`) or a bot
   session (a read-only list from `remote.botSessions`, created by `!session …`
   in chat);
