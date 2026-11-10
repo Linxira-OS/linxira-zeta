@@ -355,6 +355,10 @@ jobs:
            run: bun scripts/check-package-linkage.ts
          - name: Service port guard
            run: bun scripts/check-service-ports.ts
+         - name: Dev isolation guard
+           run: bun scripts/check-dev-isolation.ts
+         - name: Unit-test the dev isolation guard
+           run: bun test scripts/dev-isolation.test.ts
          - name: Scope import guard
            run: bun scripts/check-scope-imports.ts
          - name: Licence map guard

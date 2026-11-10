@@ -17,6 +17,7 @@ import { Icon } from "./icons";
 import { ProcessMemoryPanel } from "./ProcessMemoryPanel";
 import { ToastHost } from "./ToastHost";
 import { usePreviewMode } from "./preview/PreviewContext";
+import { accessFor, detectSurface } from "./surfaces";
 import { PREVIEW_DIAGNOSTICS, type PreviewDiagScenario } from "./preview/fixtures";
 import { waitForCommandReceipt } from "./sessionLifecycle";
 import {
@@ -310,6 +311,13 @@ export function DiagnosticsPage({
   buildProvenance?: SessionBuildProvenance;
 }) {
   const { preview } = usePreviewMode();
+  // Desktop-only maintenance reads the same matrix as Settings → 身份与设备.
+  const surface = detectSurface();
+  const importAccess = accessFor(surface, "local-update-import");
+  const restartAccess = accessFor(surface, "runtime-restart");
+  const logsAccess = accessFor(surface, "open-logs");
+  const surfaceReason = (decision: { access: string; reason?: string }): string | undefined =>
+    decision.access === "show" ? undefined : decision.reason === undefined ? undefined : t(`settings.security.reason.${decision.reason}`);
  const [workspaceTab,setWorkspaceTab]=useState<"runtime"|"maintenance">("runtime");
   const updates = useUpdates();
   const { t, resolvedLanguage } = useI18n();
@@ -993,9 +1001,10 @@ export function DiagnosticsPage({
             <div>
               <div className="sr-label">{t("updates.importLocalDir")}</div>
               <div className="sr-desc">{t("updates.importLocalHint")}</div>
+              {surfaceReason(importAccess) ? <div className="sr-desc">{surfaceReason(importAccess)}</div> : null}
             </div>
             <div className="sr-control">
-              <button type="button" className="btn outline" disabled={busy !== null} onClick={() => void installRuntime("import")}>
+              <button type="button" className="btn outline" disabled={busy !== null || importAccess.access !== "show"} onClick={() => void installRuntime("import")}>
                 <Icon name="folder" extra="sm" />{t("updates.importLocalFile")}
               </button>
             </div>
@@ -1016,9 +1025,16 @@ export function DiagnosticsPage({
             <div>
               <div className="sr-label">{t("diagnostics.restartRuntimeLabel")}</div>
               <div className="sr-desc">{t("diagnostics.restartRuntimeDesc")}</div>
+              {surfaceReason(restartAccess) ? <div className="sr-desc">{surfaceReason(restartAccess)}</div> : null}
             </div>
             <div className="sr-control">
-              <button type="button" className="btn outline" disabled={busy !== null || !canRestart || !runtimeEnsureSupported} data-tip={runtimeEnsureSupported ? undefined : t("common.unsupportedByRuntime")} onClick={() => setConfirmRestart(true)}>
+              <button
+                type="button"
+                className="btn outline"
+                disabled={busy !== null || !canRestart || !runtimeEnsureSupported || restartAccess.access !== "show"}
+                data-tip={surfaceReason(restartAccess) ?? (runtimeEnsureSupported ? undefined : t("common.unsupportedByRuntime"))}
+                onClick={() => setConfirmRestart(true)}
+              >
                 <Icon name="refresh" extra="sm" />{t("common.restart")}
               </button>
             </div>
@@ -1027,9 +1043,10 @@ export function DiagnosticsPage({
             <div>
               <div className="sr-label">{t("diagnostics.exportLogsLabel")}</div>
               <div className="sr-desc">{t("diagnostics.exportLogsDesc")}</div>
+              {surfaceReason(logsAccess) ? <div className="sr-desc">{surfaceReason(logsAccess)}</div> : null}
             </div>
             <div className="sr-control">
-              <button type="button" className="btn outline" onClick={() => void exportLogs()}>
+              <button type="button" className="btn outline" disabled={logsAccess.access !== "show"} onClick={() => void exportLogs()}>
                 <Icon name="export" extra="sm" />{t("common.export")}
               </button>
             </div>
@@ -1038,9 +1055,10 @@ export function DiagnosticsPage({
             <div>
               <div className="sr-label">{t("diagnostics.openLogsLabel")}</div>
               <div className="sr-desc">{t("diagnostics.openLogsDesc", { fileManager: fileManagerName(t) })}</div>
+              {surfaceReason(logsAccess) ? <div className="sr-desc">{surfaceReason(logsAccess)}</div> : null}
             </div>
             <div className="sr-control">
-              <button type="button" className="btn outline" onClick={() => void openLogDir()}>
+              <button type="button" className="btn outline" disabled={logsAccess.access !== "show"} onClick={() => void openLogDir()}>
                 <Icon name="folder" extra="sm" />{t("common.open")}
               </button>
             </div>

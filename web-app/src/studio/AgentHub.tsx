@@ -46,6 +46,7 @@ import type { MentionCandidate } from "./composer/types";
 import { RuntimeLossBanner } from "./RuntimeLossBanner";
 import { supportsCapability } from "./deck/capabilitySupport";
 import { Icon } from "./icons";
+import { ZetaAvatar } from "./zetaAvatar";
 import { buildPreviewHub, previewJobInspections } from "./hubPreview";
 import type { PreviewAgent, PreviewJob, PreviewMetrics } from "./hubPreview";
 import { usePreviewMode } from "./preview/PreviewContext";
@@ -2644,7 +2645,7 @@ export function AgentHubPage({
 
         <div className="hub-main">
           <span className="hm-ic">
-            <Icon name="message" />
+            <ZetaAvatar size={34} />
           </span>
           <div className="hm-main">
             <div className="hm-title">

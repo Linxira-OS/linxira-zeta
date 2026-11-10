@@ -70,6 +70,10 @@ fs.writeFileSync(path.join(buildDir, "icon.ico"), ico);
 // and the PWA metadata all read these two files.
 fs.writeFileSync(path.join(webPublicDir, "icon.png"), png512);
 fs.writeFileSync(path.join(webPublicDir, "favicon.ico"), ico);
+// The renderer draws the default AI/Zeta avatar from the SVGs themselves (the
+// 16/24 fallback below 32px), so a build must never ship a stale drawing.
+fs.copyFileSync(markSourcePath, path.join(webPublicDir, "zeta-mark.svg"));
+fs.copyFileSync(smallSourcePath, path.join(webPublicDir, "zeta-mark-16.svg"));
 
 // Committed brand exports, regenerated from the SVGs so the raster set can
 // never drift from the source drawings.

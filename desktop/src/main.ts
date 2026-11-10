@@ -1082,6 +1082,7 @@ interface DesktopLabels {
 	showWindow: string;
 	statsDashboard: string;
 	imChannels: string;
+	security: string;
 	openSettings: string;
 	quit: string;
 	webUi: string;
@@ -1097,6 +1098,7 @@ const DEFAULT_DESKTOP_LABELS: DesktopLabels = {
 	showWindow: "Show Window",
 	statsDashboard: "Stats Dashboard",
 	imChannels: "IM Channels",
+	security: "Identity & Devices",
 	openSettings: "Open Settings",
 	quit: "Quit",
 	webUi: "Work Studio",
@@ -1218,6 +1220,13 @@ function trayContextMenu(): Electron.MenuItemConstructorOptions[] {
 				// IM pane. There is no second (Rust) settings surface.
 				showMainWindow();
 				sendMenuCommand("app.settings:channels");
+			},
+		},
+		{
+			label: trayLabels.security,
+			click: () => {
+				showMainWindow();
+				sendMenuCommand("app.settings:security");
 			},
 		},
 		{

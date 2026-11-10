@@ -12,6 +12,12 @@ protocols:
 artifactName: zeta-desktop-${version}-${os}-${arch}.${ext}
 copyright: Copyright (c) 2026 Linxira-OS
 electronVersion: 37.10.3
+# Chromium's built-in UI (context menus, native dialogs) plus spellcheck only
+# need the languages the product localizes; electron-builder otherwise copies
+# all ~55 locale packs (~42 MiB installed, ~10 MiB in the installer).
+electronLanguages:
+  - en-US
+  - zh-CN
 
 directories:
   output: release

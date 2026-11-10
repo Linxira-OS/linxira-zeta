@@ -143,6 +143,7 @@ import { RuntimeQueueBar } from "./composer/RuntimeQueueBar";
 import { MessageQueueBar, type QueuedMessage } from "./MessageQueueBar";
 import { injectMagicKeyword, type MagicKeyword } from "./composerMode";
 import { SettingsPage, isSettingsGroupId, setSettingsIntent, type RuntimeSettingsApi } from "./SettingsPage";
+import { detectSurface, navAllowedOnSurface } from "./surfaces";
 import { DiagnosticsPage, setDiagnosticsIntent } from "./DiagnosticsPage";
 import { RuntimeLossBanner } from "./RuntimeLossBanner";
 import {
@@ -662,6 +663,7 @@ export function AppMenu({ chrome, onRoute }: {
 }) {
   const { preview } = usePreviewMode();
   const { t } = useI18n();
+  const mobileSurface = detectSurface() === "mobile";
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -769,7 +771,9 @@ export function AppMenu({ chrome, onRoute }: {
               <MenuItem icon="server" hint={t("menu.modelConfigHint")} onClick={() => run(() => onRoute("model-config"))}>{t("nav.modelConfig")}</MenuItem>
               <MenuItem icon="image" onClick={() => run(() => onRoute("media"))}>{t("media.title")}</MenuItem>
               <div className="menu-sep" />
-              <MenuItem icon="settings" onClick={() => run(() => onRoute("settings"))}>{t("nav.settings")}</MenuItem>
+              {mobileSurface ? null : (
+                <MenuItem icon="settings" onClick={() => run(() => onRoute("settings"))}>{t("nav.settings")}</MenuItem>
+              )}
               <MenuItem icon="keyboard" onClick={() => run(() => chrome.onOpenDialog("shortcuts"))}>{t("nav.shortcuts")}</MenuItem>
               <MenuItem icon="info" onClick={() => run(() => chrome.onOpenDialog("about"))}>{t("nav.about")}</MenuItem>
             </div>,
@@ -1932,6 +1936,7 @@ export function RealFileTree({ client, workspaceId, label, refreshToken, search,
 export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDialog }: { state: ViewState; chrome: ShellChrome; client: StudioClient; onRoute: (route: Route) => void; onOpenAppUpdateDialog: () => void }) {
   const { t } = useI18n();
   const { preview } = usePreviewMode();
+  const mobileSurface = detectSurface() === "mobile";
   const capabilities = usableCapabilityManifest(
     state.model.capabilities,
     state.clientState?.connection.capabilityManifest,
@@ -2922,7 +2927,9 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                 {t("shell.checkUpdate")}
               </MenuItem>
               <MenuItem icon="server" onClick={() => { chrome.onToggleOmpMenu(); onRoute("model-config"); }}>{t("shell.openModelConfig")}</MenuItem>
-              <MenuItem icon="settings" onClick={() => { chrome.onToggleOmpMenu(); onRoute("settings"); }}>{t("shell.openSettings")}</MenuItem>
+              {mobileSurface ? null : (
+                <MenuItem icon="settings" onClick={() => { chrome.onToggleOmpMenu(); onRoute("settings"); }}>{t("shell.openSettings")}</MenuItem>
+              )}
               <MenuItem icon="package" onClick={() => { chrome.onToggleOmpMenu(); onRoute("capabilities"); }}>{t("shell.openCapabilities")}</MenuItem>
             </div>,
             document.body,
@@ -6556,6 +6563,9 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
   onHistoryChange: (history: SessionHistoryReadModel) => void;
 }) {
   const { t } = useI18n();
+  // One classification for the whole shell; the settings/security pane reads
+  // the same matrix so navigation, controls and copy cannot disagree.
+  const surface = detectSurface();
   const executionTarget = useExecutionTarget();
   const previewMode = usePreviewMode();
   const modelClient = (executionTarget.localClient ?? client) as ClientStateSource;
@@ -7279,6 +7289,12 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
   const go = useCallback((next: Route) => {
     setOpenMenu(null);
     setOmpMenuOpen(false);
+    if (!navAllowedOnSurface(surface, next)) {
+      // Mobile is binding-scoped chat: local runtime, credentials and device
+      // admin are not offered there, so a route that needs them lands on chat.
+      setShellNotice({ text: t("surface.mobileRouteBlocked"), icon: "info" });
+      next = "workbench";
+    }
     if (next === "home") {
       setSelectedProject(null);
       setExplorerOpen(false);
@@ -7304,7 +7320,13 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     });
     setTrailAt((value) => Math.min(value + 1, TRAIL_MAX - 1));
     onRoute(next);
-  }, [onRoute, trail, trailAt, state.model.workspaces]);
+  }, [onRoute, trail, trailAt, state.model.workspaces, surface, t]);
+
+  // A deep link or restored route can point at a surface this client does not
+  // offer (mobile has chat/history only); land on chat instead of a dead page.
+  useEffect(() => {
+    if (!navAllowedOnSurface(surface, state.route)) go("workbench");
+  }, [surface, state.route, go]);
 
   const runMenu = (action: () => void) => {
     setOpenMenu(null);
@@ -8835,8 +8857,12 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               <button className="menu-item" role="menuitem" onClick={() => go("capabilities")}>{t("menu.capabilities")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("model-config")}>{t("menu.modelConfig")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("media")}>{t("media.title")}</button>
-              <button className="menu-item" role="menuitem" onClick={() => go("settings")}>{t("menu.settings")}</button>
-              <button className="menu-item" role="menuitem" onClick={() => go("diagnostics")}>{t("menu.diagnostics")}</button>
+              {surface === "mobile" ? null : (
+                <>
+                  <button className="menu-item" role="menuitem" onClick={() => go("settings")}>{t("menu.settings")}</button>
+                  <button className="menu-item" role="menuitem" onClick={() => go("diagnostics")}>{t("menu.diagnostics")}</button>
+                </>
+              )}
               <div className="menu-sep" />
               <button className="menu-item" role="menuitem" onClick={() => { setOpenMenu(null); openPalette(); }}>{t("menu.commandPalette")}<span className="kbd">{formatShortcut(SHORTCUTS.commandPalette)}</span></button>
               <button className="menu-item" role="menuitem" onClick={() => go("home")}>{t("menu.home")}</button>
@@ -9028,6 +9054,12 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               <span><b>{t("shell.resyncRequired")}</b> · <span className="banner-detail">{t("shell.resyncRequiredDetail")}</span></span>
             </div>
           )}
+          {surface === "mobile" ? (
+            <div className="banner mobile" role="status" data-surface="mobile">
+              <Icon name="message" />
+              <span>{t("surface.mobileNotice")}</span>
+            </div>
+          ) : null}
           <RuntimeLossBanner
             {...(runtime === undefined ? {} : { runtime })}
             client={client}
