@@ -157,6 +157,7 @@ import { type ResetUsageAccount, ResetUsageSelectorComponent } from "@linxiraos/
 import { type BranchVariantPath, RewindSelectorComponent } from "@linxiraos/pi-tui/overlays/rewind-selector";
 import { SessionAccountSelectorComponent } from "@linxiraos/pi-tui/overlays/session-account-selector";
 import { SessionSelectorComponent, type SessionSelectorOptions } from "@linxiraos/pi-tui/overlays/session-selector";
+import type { ResumeScopeKindLike } from "@linxiraos/pi-tui/overlays/resume-picker";
 import { LiveResumePickerSource, loadResumePickerState } from "../resume-picker-source";
 import { SettingsSelectorComponent } from "@linxiraos/pi-tui/overlays/settings-selector";
 import { TranscriptBlock } from "@linxiraos/pi-tui/chrome/transcript-container";
@@ -2148,7 +2149,16 @@ export class SelectorController {
 		}
 	}
 
-	async showSessionSelector(source?: ForeignSessionSource, onSelect?: SessionPickHandler): Promise<void> {
+	/**
+	 * Open the resume picker. `options.workspacePath` opens it on another
+	 * directory's conversations (the `/cd` picker's secondary action), and
+	 * `options.initialScope` picks the starting scope instead of the persisted one.
+	 */
+	async showSessionSelector(
+		source?: ForeignSessionSource,
+		onSelect?: SessionPickHandler,
+		options: { workspacePath?: string; initialScope?: ResumeScopeKindLike } = {},
+	): Promise<void> {
 		let sessions: SessionInfo[];
 		let onSelectSession: (session: SessionInfo) => Promise<boolean>;
 		let selectorOptions: SessionSelectorOptions<SessionInfo> & {
@@ -2227,9 +2237,9 @@ export class SelectorController {
 				const sessionDir = this.ctx.sessionManager.getSessionDir();
 				const sessionsRoot = resolveManagedSessionRoot(sessionDir, cwd);
 				const resumeSource = new LiveResumePickerSource({
-					initialScope: initialState.scope,
+					initialScope: options.initialScope ?? initialState.scope,
 					initialState,
-					workspacePath: cwd,
+					workspacePath: options.workspacePath ?? cwd,
 					deleteMode: "trash",
 					...(sessionsRoot
 						? { sessionsRoot }

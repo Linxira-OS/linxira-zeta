@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+
+- `/cd` changes the session's working directory from inside the TUI: a folder-only picker that lists the real Windows volumes (drive type and volume label, so a phone or a CD is not an internal disk; A:/B: only when present) or the POSIX mount points from `/proc/mounts`, with pinned paths, type-to-filter, keyboard and mouse selection, and `Ctrl+R` to open the session resume tree on a folder instead of switching to it. Switching relocates the session file and artifacts into the destination bucket and re-scopes project settings, memory, plugins, skills and commands; a home-directory launch keeps its `~/tmp` workspace and now says so in a startup notice.
+
 ### Fixed
 
 - A `task` batch no longer repaints its transcript card once per spawn progress tick: spawn updates are coalesced to at most one cumulative snapshot per 100 ms (the same cadence as the subagent HUD), so fan-out no longer turns every spawn's 150 ms report into its own full-card rebuild and deep sanitize on the TUI thread. Terminal spawn snapshots still publish immediately, and the tool's final result is unchanged.

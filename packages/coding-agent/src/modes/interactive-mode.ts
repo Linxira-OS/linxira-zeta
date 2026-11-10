@@ -163,6 +163,7 @@ import {
 import type { AgentViewSession } from "../session/agent-session-handle";
 import type { CompactMode } from "../session/compact-modes";
 import type { ForeignSessionSource } from "../session/foreign-session-store";
+import type { ResumeScopeKindLike } from "@linxiraos/pi-tui/overlays/resume-picker";
 import { HistoryStorage } from "../session/history-storage";
 import { syncTextPrediction, textPredictionBackend } from "../predict/client";
 import { setWordPredictionHost } from "@linxiraos/pi-tui/prompt/word-completion";
@@ -9625,6 +9626,11 @@ export class InteractiveMode implements InteractiveModeContext {
 		await this.#commandController.handleMoveCommand(targetPath);
 	}
 
+	async showDirectoryPicker(): Promise<void> {
+		if (this.#vibeSessionTransitionBlocked()) return;
+		await this.#commandController.showDirectoryPicker();
+	}
+
 	async handleWorktreeCommand(branch?: string, options?: { keepChanges?: boolean }): Promise<void> {
 		if (this.#vibeSessionTransitionBlocked()) return;
 		const worktree = await this.#commandController.handleWorktreeCommand(branch, options);
@@ -9943,8 +9949,12 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#selectorController.showThinkingSelector();
 	}
 
-	showSessionSelector(source?: ForeignSessionSource, onSelect?: SessionPickHandler): void {
-		void this.#selectorController.showSessionSelector(source, onSelect);
+	showSessionSelector(
+		source?: ForeignSessionSource,
+		onSelect?: SessionPickHandler,
+		options?: { workspacePath?: string; initialScope?: ResumeScopeKindLike },
+	): void {
+		void this.#selectorController.showSessionSelector(source, onSelect, options);
 	}
 
 	async handleResumeSession(sessionPath: string, options?: ResumeSessionOptions): Promise<void> {

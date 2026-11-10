@@ -770,6 +770,43 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		},
 	},
 	{
+		name: "cd",
+		aliases: ["chdir"],
+		icon: "folderMove",
+		description: () => M.cmdCd,
+		acpDescription: () => M.cmdCdAcp,
+		inlineHint: "[<path>]",
+		allowArgs: true,
+		handle: async (command, runtime) => {
+			if (!command.args) return usage("Usage: /cd <path>", runtime);
+			if (runtime.session.isStreaming) return usage("Cannot change directory while streaming.", runtime);
+			const resolvedPath = resolveToCwd(command.args, runtime.cwd);
+			try {
+				const stat = await fs.stat(resolvedPath);
+				if (!stat.isDirectory()) return usage(`Not a directory: ${resolvedPath}`, runtime);
+			} catch {
+				return usage(`Directory does not exist: ${resolvedPath}`, runtime);
+			}
+			const failure = await relocateHeadlessSession(runtime, resolvedPath);
+			if (failure) return failure;
+			await runtime.output(`Changed directory to ${runtime.sessionManager.getCwd()}.`);
+			return commandConsumed();
+		},
+		handleTui: async (command, runtime) => {
+			if (runtime.ctx.session.isStreaming) {
+				runtime.ctx.showWarning("Wait for the current response to finish or abort it before changing directory.");
+				clearSubmittedText(runtime);
+				return;
+			}
+			runtime.ctx.editor.addToHistory(command.text);
+			clearSubmittedText(runtime);
+			const target = command.args.trim();
+			// `/cd <path>` moves directly; a bare `/cd` opens the folder picker.
+			if (target) await runtime.ctx.handleMoveCommand(target);
+			else await runtime.ctx.showDirectoryPicker();
+		},
+	},
+	{
 		name: "move",
 		icon: "folderMove",
 		description: () => M.cmdMove,

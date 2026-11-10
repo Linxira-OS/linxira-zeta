@@ -49,6 +49,7 @@ import { buildInitialMessage } from "./cli/initial-message";
 import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import type { SessionPickerOptions } from "@linxiraos/pi-tui/apps/session-picker";
 import { applyStartupCwd } from "./cli/startup-cwd";
+import { M } from "./i18n";
 import { runAutoUpdate } from "./cli/auto-update";
 import { getLatestRelease, isSourceCheckout, managedInstallName } from "./cli/update-cli";
 import { findConfigFile } from "./config";
@@ -1925,8 +1926,9 @@ export async function runRootCommand(
 		await logger.time("initTheme:initial", ensureTheme);
 
 		const parsedArgs = parsed;
+		let startupCwd: Awaited<ReturnType<typeof applyStartupCwd>> = {};
 		try {
-			await logger.time("applyStartupCwd", applyStartupCwd, parsedArgs);
+			startupCwd = await logger.time("applyStartupCwd", applyStartupCwd, parsedArgs);
 		} catch (error: unknown) {
 			const message = error instanceof Error ? error.message : String(error);
 			process.stderr.write(`${chalk.red(`Error: ${message}`)}\n`);
@@ -1934,6 +1936,14 @@ export async function runRootCommand(
 		}
 
 		const notifs: (InteractiveModeNotify | null)[] = [];
+		// A home-directory launch is moved off home (never run there, never write
+		// there); say so once instead of leaving the temp workspace unexplained.
+		if (startupCwd.autoChdir) {
+			notifs.push({
+				kind: "info",
+				message: M.startupHomeTempNotice.replace("%s", startupCwd.autoChdir.to),
+			});
+		}
 
 		if (parsedArgs.version) {
 			writeStartupNotice(parsedArgs, `${VERSION}\n`);
