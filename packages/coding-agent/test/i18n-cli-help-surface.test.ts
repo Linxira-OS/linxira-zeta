@@ -52,7 +52,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/backend.ts": 5,
 	"commands/bench.ts": 15,
 	"commands/browser-relay.ts": 6,
-	"commands/channels.ts": 8,
+	"commands/channels.ts": 11,
 	"commands/cleanse.ts": 5,
 	"commands/clip.ts": 4,
 	"commands/commit.ts": 6,

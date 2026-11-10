@@ -74,6 +74,60 @@ export function channelLockPath(agentDir: string): string {
 	return path.join(agentDir, "run", CHANNEL_LOCK_FILENAME);
 }
 
+/**
+ * Serializes QR pairing across processes. Separate from {@link channelLockPath}
+ * because pairing is not hosting: a TUI that hosts Feishu/Telegram must not
+ * make a WeChat login impossible, and two logins must not race the same bot.
+ */
+export const CHANNEL_PAIRING_LOCK_FILENAME = "channels.pairing.lock";
+
+/** Default pairing-lock location: `<agent dir>/run/channels.pairing.lock`. */
+export function channelPairingLockPath(agentDir: string): string {
+	return path.join(agentDir, "run", CHANNEL_PAIRING_LOCK_FILENAME);
+}
+
+/**
+ * Whether a live host is currently able to coexist with a WeChat QR login.
+ *
+ * A host that already owns the WeChat connection must not be replaced behind
+ * its back. A host that owns only other channels is safe: it will not touch
+ * WeChat until it restarts, and the login writes the token that the next
+ * restart reads. An empty `channels` list is treated as "still starting" so a
+ * host cannot be raced between acquiring its lock and publishing its set.
+ */
+export async function wechatPairingBlockedByHost(
+	lockPath: string,
+	options: { isAlive?: (pid: number) => boolean } = {},
+): Promise<
+	| { ok: true; holder: ChannelLockSnapshot | null }
+	| { ok: false; reason: "wechat-hosted" | "starting"; holder: ChannelLockSnapshot; message: string }
+> {
+	const holder = await readChannelLock(lockPath, options);
+	if (holder === null || !holder.alive) return { ok: true, holder };
+	const pid = holder.metadata.pid;
+	if (holder.metadata.channels.includes("wechat")) {
+		return {
+			ok: false,
+			reason: "wechat-hosted",
+			holder,
+			message:
+				`WeChat is already connected in pid ${pid} (${holder.metadata.host}). ` +
+				"Use `/channels login wechat` in that session, or stop that process first.",
+		};
+	}
+	if (holder.metadata.channels.length === 0) {
+		return {
+			ok: false,
+			reason: "starting",
+			holder,
+			message:
+				`IM channels are still starting in pid ${pid} (${holder.metadata.host}). ` +
+				"Retry pairing once that session is idle.",
+		};
+	}
+	return { ok: true, holder };
+}
+
 /** A pid exists when signalling it is permitted (EPERM means a live pid we do not own). */
 export function isProcessAlive(pid: number): boolean {
 	if (!Number.isInteger(pid) || pid <= 0) return false;

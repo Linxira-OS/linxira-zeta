@@ -22,7 +22,12 @@ import {
 	logoutChannel,
 	setChannelEnabled,
 } from "../channels/channel-status";
-import { acquireChannelLock, channelLockPath } from "../channels/instance-lock";
+import {
+	acquireChannelLock,
+	channelLockPath,
+	channelPairingLockPath,
+	wechatPairingBlockedByHost,
+} from "../channels/instance-lock";
 import { formatCredentialIdentity, runCredentialLogin, type CredentialLoginResult } from "../channels/credential-login";
 import { renderTerminalQr } from "../channels/qr-terminal";
 import {
@@ -126,7 +131,7 @@ export default class Channels extends Command {
 			options: ACTIONS,
 		}),
 		channel: Args.string({
-			description: "Channel id: wechat, feishu, or telegram (login/logout/enable/disable)",
+			description: "Channel id: wechat, feishu, telegram, discord, or qq (login/logout/enable/disable)",
 			required: false,
 		}),
 	};
@@ -143,7 +148,13 @@ export default class Channels extends Command {
 			description: "Feishu deployment: feishu or lark (login feishu)",
 			options: ["feishu", "lark"],
 		}),
-		token: Flags.string({ description: "Telegram bot token (login telegram)" }),
+		token: Flags.string({ description: "Bot token (login telegram / discord / qq)" }),
+		endpoint: Flags.string({ description: "OneBot WebSocket URL (login qq, forward mode)" }),
+		mode: Flags.string({
+			description: "OneBot transport (login qq): forward or reverse",
+			options: ["forward", "reverse"],
+		}),
+		port: Flags.integer({ description: "Reverse OneBot listen port (login qq; default 8082)" }),
 	};
 
 	static examples = [
@@ -151,6 +162,9 @@ export default class Channels extends Command {
 		`# Pair WeChat from this terminal (no browser)\n  ${CLI_BIN_NAME} channels login wechat`,
 		`# Validate a Feishu app credential, then save it\n  ${CLI_BIN_NAME} channels login feishu --app-id cli_… --app-secret …`,
 		`# Validate a Telegram bot token with getMe, then save it\n  ${CLI_BIN_NAME} channels login telegram --token 123:ABC`,
+		`# Validate a Discord bot token, then save it\n  ${CLI_BIN_NAME} channels login discord --token MTIz…`,
+		`# Validate an OneBot bridge endpoint (NapCat/LLBot/SnowLuma)\n  ${CLI_BIN_NAME} channels login qq --endpoint ws://127.0.0.1:3001 --token abc`,
+		`# Reverse OneBot: listen on loopback and wait for the bridge\n  ${CLI_BIN_NAME} channels login qq --mode reverse --port 8082 --token abc`,
 		`# Forget WeChat credentials and peer bindings\n  ${CLI_BIN_NAME} channels logout wechat`,
 		`# Enable a channel for the next CLI/TUI session or serve run\n  ${CLI_BIN_NAME} channels enable telegram`,
 	];
@@ -240,16 +254,21 @@ export default class Channels extends Command {
 							appSecret: flags["app-secret"],
 							domain: flags.domain as "feishu" | "lark" | undefined,
 							token: flags.token,
+							endpoint: flags.endpoint,
+							mode: flags.mode as "forward" | "reverse" | undefined,
+							port: flags.port,
 						},
 						webConfig,
 					);
 					return;
 				}
-				// A QR login rewrites the bot credentials a host binds, so it takes
-				// the same single-instance lock as a host: a second login (or a
-				// login racing a running host) would fight over the same bot.
+				// Pairing is not hosting. A separate lock serializes two logins,
+				// while a live host that only owns other channels stays up: the
+				// token written here is picked up by its next restart. A host that
+				// already owns WeChat is refused instead of racing its connection.
+				const configDir = path.dirname(webConfig.path);
 				const acquired = await acquireChannelLock({
-					lockPath: channelLockPath(path.dirname(webConfig.path)),
+					lockPath: channelPairingLockPath(configDir),
 					metadata: {
 						pid: process.pid,
 						host: "cli",
@@ -264,6 +283,13 @@ export default class Channels extends Command {
 					return;
 				}
 				try {
+					const hostCheck = await wechatPairingBlockedByHost(channelLockPath(configDir));
+					if (!hostCheck.ok) {
+						if (flags.json) writeJson({ channel, state: "locked", error: hostCheck.message });
+						else process.stderr.write(chalk.red(`${hostCheck.message}\n`));
+						process.exitCode = 1;
+						return;
+					}
 					await this.#loginWechat(channel, flags.json === true, Math.max(1, flags.timeout ?? 180), webConfig);
 				} finally {
 					await acquired.lock.release();
@@ -344,11 +370,15 @@ export default class Channels extends Command {
 			appSecret?: string;
 			domain?: "feishu" | "lark";
 			token?: string;
+			endpoint?: string;
+			mode?: "forward" | "reverse";
+			port?: number;
 		},
 		webConfig: WebConfig,
 	): Promise<void> {
 		const stored = webConfig.getData();
-		const label = channel === "feishu" ? "Feishu" : "Telegram";
+		const label =
+			channel === "feishu" ? "Feishu" : channel === "discord" ? "Discord" : channel === "qq" ? "QQ" : "Telegram";
 		let result: CredentialLoginResult;
 
 		if (channel === "feishu") {
@@ -372,6 +402,51 @@ export default class Channels extends Command {
 				appId,
 				appSecret,
 				domain: options.domain ?? saved.domain ?? "feishu",
+			});
+		} else if (channel === "discord") {
+			const saved = stored.channels.discord;
+			const token =
+				options.token?.trim() ||
+				saved.botToken?.trim() ||
+				(options.json ? "" : await promptFor("Discord bot token: ", true));
+			if (!token) {
+				throw new CliUsageError(
+					`Missing Discord bot token. Usage: ${CLI_BIN_NAME} channels login discord --token <token>`,
+				);
+			}
+			if (!options.json) process.stdout.write(chalk.dim("Validating with Discord (/users/@me)…\n"));
+			result = await runCredentialLogin(channel, { webConfig, botToken: token });
+		} else if (channel === "qq") {
+			const saved = stored.channels.qq;
+			const mode = options.mode ?? saved.mode ?? "forward";
+			const token = options.token?.trim() || saved.token?.trim() || "";
+			const endpoint =
+				options.endpoint?.trim() ||
+				saved.endpoint?.trim() ||
+				(mode === "forward" && !options.json
+					? await promptFor("OneBot endpoint (ws://127.0.0.1:3001): ", false)
+					: "");
+			const port = options.port ?? saved.port ?? 8082;
+			if (mode === "forward" && !endpoint) {
+				throw new CliUsageError(
+					`Missing OneBot endpoint. Usage: ${CLI_BIN_NAME} channels login qq --endpoint ws://127.0.0.1:3001 [--token <token>]`,
+				);
+			}
+			if (!options.json) {
+				process.stdout.write(
+					chalk.dim(
+						mode === "reverse"
+							? `Validating reverse OneBot on 127.0.0.1:${port}…\n`
+							: "Validating the OneBot endpoint (get_login_info)…\n",
+					),
+				);
+			}
+			result = await runCredentialLogin(channel, {
+				webConfig,
+				endpoint: endpoint || undefined,
+				token: token || undefined,
+				mode,
+				port,
 			});
 		} else {
 			const saved = stored.channels.telegram;

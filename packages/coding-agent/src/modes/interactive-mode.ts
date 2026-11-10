@@ -9419,6 +9419,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	async renderInitialMessages(options?: {
 		preserveExistingChat?: boolean;
 		clearTerminalHistory?: boolean;
+		limitTranscript?: boolean;
 	}): Promise<void> {
 		// A focus switch replays another session's transcript: claim that session's link schemes first.
 		this.#applyExtensionLinks();

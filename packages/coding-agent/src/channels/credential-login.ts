@@ -18,10 +18,23 @@
  * unbinds both channels by emptying the secret fields.
  */
 
-import type { FeishuChannelConfig, TelegramChannelConfig, WebConfig, WebConfigData } from "../config/web-config";
+import {
+	probeOneBotEndpoint,
+	probeOneBotReversePort,
+	type ReverseServerFactory,
+	type SocketFactory,
+} from "@linxiraos/pi-channels";
+import type {
+	DiscordChannelConfig,
+	FeishuChannelConfig,
+	QqChannelConfig,
+	TelegramChannelConfig,
+	WebConfig,
+	WebConfigData,
+} from "../config/web-config";
 
-/** Channels that pair with a pasted credential instead of a QR code. */
-export type CredentialChannel = "feishu" | "telegram";
+/** Channels that pair without a QR code (a pasted credential or an endpoint). */
+export type CredentialChannel = "feishu" | "telegram" | "discord" | "qq";
 
 /**
  * The same terminal states `wechat-login` reports. `pending` never escapes
@@ -56,6 +69,20 @@ export interface CredentialLoginOptions {
 	appSecret?: string;
 	domain?: "feishu" | "lark";
 	botToken?: string;
+	/** QQ forward mode: the bridge's OneBot WebSocket URL. */
+	endpoint?: string;
+	/** QQ access token (reverse mode requires it). */
+	token?: string;
+	/** QQ transport mode; defaults to the stored value, else `forward`. */
+	mode?: "forward" | "reverse";
+	/** QQ reverse mode: loopback listen port. */
+	port?: number;
+	/** QQ bot uin, when the operator already knows it. */
+	selfId?: string;
+	/** Test seam: OneBot forward-mode socket factory. */
+	createSocket?: SocketFactory;
+	/** Test seam: OneBot reverse-mode server factory. */
+	createReverseServer?: ReverseServerFactory;
 	/** How long one platform request may take (default 15 s). */
 	timeoutMs?: number;
 	/** Test seam: swaps `globalThis.fetch` for a stub HTTP endpoint. */
@@ -73,6 +100,7 @@ const FEISHU_BASE = {
 } as const;
 
 const TELEGRAM_BASE = "https://api.telegram.org";
+const DISCORD_BASE = "https://discord.com/api/v10";
 
 /** A platform request that exceeded {@link CredentialLoginOptions.timeoutMs}. */
 export class CredentialTimeoutError extends Error {
@@ -270,6 +298,39 @@ export async function validateTelegramToken(options: {
 	return { id, name, ...(username ? { username } : {}) };
 }
 
+/**
+ * Validate a Discord bot token with `GET /users/@me`. Discord puts the token in
+ * an `Authorization: Bot …` header (never in the URL), so the only secret this
+ * function can leak is the one the caller already holds.
+ */
+export async function validateDiscordToken(options: {
+	botToken: string;
+	timeoutMs?: number;
+	customFetch?: typeof globalThis.fetch;
+	baseUrl?: string;
+}): Promise<CredentialIdentity> {
+	const fetchImpl = options.customFetch ?? globalThis.fetch;
+	const base = (options.baseUrl ?? DISCORD_BASE).replace(/\/+$/, "");
+	const reply = await postJson(
+		fetchImpl,
+		`${base}/users/@me`,
+		{ method: "GET", headers: { authorization: `Bot ${options.botToken}` } },
+		options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+	);
+	const body = record(reply.body);
+	if (reply.status < 200 || reply.status >= 300) {
+		throw rejected(
+			`Discord rejected the bot token: ${platformMessage(body, `HTTP ${reply.status}`)}`,
+			options.botToken,
+		);
+	}
+	const id = text(body.id);
+	const username = text(body.username);
+	const name = text(body.global_name) || username || id;
+	if (!id || !name) throw rejected("Discord did not report a bot identity", options.botToken);
+	return { id, name, ...(username ? { username } : {}) };
+}
+
 function readStored(
 	data: WebConfigData,
 	channel: CredentialChannel,
@@ -278,10 +339,28 @@ function readStored(
 	appSecret?: string;
 	domain?: "feishu" | "lark";
 	botToken?: string;
+	endpoint?: string;
+	mode?: "forward" | "reverse";
+	port?: number;
+	selfId?: string;
 } {
 	if (channel === "feishu") {
 		const feishu = data.channels.feishu as FeishuChannelConfig;
 		return { appId: feishu.appId, appSecret: feishu.appSecret, domain: feishu.domain };
+	}
+	if (channel === "discord") {
+		const discord = data.channels.discord as DiscordChannelConfig;
+		return { botToken: discord.botToken };
+	}
+	if (channel === "qq") {
+		const qq = data.channels.qq as QqChannelConfig;
+		return {
+			endpoint: qq.endpoint,
+			botToken: qq.token,
+			mode: qq.mode,
+			port: qq.port,
+			selfId: qq.selfId,
+		};
 	}
 	const telegram = data.channels.telegram as TelegramChannelConfig;
 	return { botToken: telegram.botToken };
@@ -328,6 +407,68 @@ export async function runCredentialLogin(
 			return { channel, state: "connected", identity, credentialsPersisted: true };
 		}
 
+		if (channel === "discord") {
+			const botToken = options.botToken?.trim() || stored.botToken?.trim() || "";
+			if (!botToken) return fail("error", "Discord needs a bot token");
+			const identity = await validateDiscordToken({
+				botToken,
+				...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
+				...(options.customFetch ? { customFetch: options.customFetch } : {}),
+				...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
+			});
+			await options.webConfig.set("channels.discord.botToken", botToken);
+			return { channel, state: "connected", identity, credentialsPersisted: true };
+		}
+
+		if (channel === "qq") {
+			const mode = options.mode ?? stored.mode ?? "forward";
+			const token = options.token?.trim() || options.botToken?.trim() || stored.botToken?.trim() || "";
+			const port = options.port ?? stored.port ?? 8082;
+			if (mode === "reverse") {
+				if (!token) return fail("error", "QQ reverse mode needs an OneBot access token");
+				let bound: number;
+				try {
+					bound = probeOneBotReversePort({
+						port,
+						token,
+						...(options.createReverseServer ? { createServer: options.createReverseServer } : {}),
+					});
+				} catch (error) {
+					return fail(
+						"error",
+						`Cannot listen on 127.0.0.1:${port} for reverse OneBot: ${error instanceof Error ? error.message : String(error)}`,
+					);
+				}
+				await options.webConfig.set("channels.qq.mode", "reverse");
+				await options.webConfig.set("channels.qq.port", bound);
+				await options.webConfig.set("channels.qq.token", token);
+				return {
+					channel,
+					state: "connected",
+					identity: { id: "reverse", name: `reverse ws 127.0.0.1:${bound}` },
+					credentialsPersisted: true,
+				};
+			}
+			const endpoint = options.endpoint?.trim() || stored.endpoint?.trim() || "";
+			if (!endpoint) return fail("error", "QQ forward mode needs an OneBot endpoint (ws://127.0.0.1:3001)");
+			const probed = await probeOneBotEndpoint({
+				endpoint,
+				...(token ? { token } : {}),
+				...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
+				...(options.createSocket ? { createSocket: options.createSocket } : {}),
+			});
+			await options.webConfig.set("channels.qq.mode", "forward");
+			await options.webConfig.set("channels.qq.endpoint", endpoint);
+			await options.webConfig.set("channels.qq.token", token);
+			if (probed.selfId !== "") await options.webConfig.set("channels.qq.selfId", probed.selfId);
+			return {
+				channel,
+				state: "connected",
+				identity: { id: probed.selfId || "qq", name: probed.nickname || probed.selfId || endpoint },
+				credentialsPersisted: true,
+			};
+		}
+
 		const botToken = options.botToken?.trim() || stored.botToken?.trim() || "";
 		if (!botToken) return fail("error", "Telegram needs a bot token");
 		const identity = await validateTelegramToken({
@@ -339,7 +480,10 @@ export async function runCredentialLogin(
 		await options.webConfig.set("channels.telegram.botToken", botToken);
 		return { channel, state: "connected", identity, credentialsPersisted: true };
 	} catch (error) {
-		if (error instanceof CredentialTimeoutError) return fail("timeout", error.message);
-		return fail("error", error instanceof Error ? error.message : String(error));
+		const message = error instanceof Error ? error.message : String(error);
+		if (error instanceof CredentialTimeoutError || /did not answer in time|timed out/i.test(message)) {
+			return fail("timeout", message);
+		}
+		return fail("error", message);
 	}
 }

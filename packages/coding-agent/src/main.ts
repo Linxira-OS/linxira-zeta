@@ -54,7 +54,12 @@ import { runAutoUpdate } from "./cli/auto-update";
 import { getLatestRelease, isSourceCheckout, managedInstallName } from "./cli/update-cli";
 import { findConfigFile } from "./config";
 import { resolveChannelHosting } from "./channels/channel-status";
-import { sendFromSessionChannel, startSessionChannels } from "./channels/session-host";
+import {
+	rememberSessionChannelContext,
+	sendFromSessionChannel,
+	startSessionChannels,
+	stopActiveSessionChannels,
+} from "./channels/session-host";
 import { ModelRegistry } from "./config/model-registry";
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import {
@@ -3027,6 +3032,16 @@ export async function runRootCommand(
 			// Start the runtime against this live session (interactive and
 			// headless/print alike). `startChannels` needs only the ChannelSession
 			// contract; the lock prevents a second session/serve from double-binding.
+			// Remember the request even when nothing is enabled yet: `/channels
+			// enable|login` starts the host from this same session after a write.
+			if (sessionChannelsWebConfig) {
+				rememberSessionChannelContext({
+					session,
+					webConfig: sessionChannelsWebConfig,
+					flag: parsedArgs.channels === true,
+					sessionId: session.sessionManager.getSessionId(),
+				});
+			}
 			const sessionChannels =
 				sessionChannelsWebConfig && sessionChannelsPlan.shouldStart
 					? await startSessionChannels({
@@ -3135,13 +3150,13 @@ export async function runRootCommand(
 					}
 					// Print mode exits through postmortem.quit (process.exit), so the
 					// surrounding finally would never run; stop channels first.
-					if (sessionChannels?.started) await sessionChannels.host.stop().catch(() => {});
+					await stopActiveSessionChannels().catch(() => {});
 					await disposeSessionQuietly(session);
 					stopThemeWatcher();
 					await postmortem.quit(exitCode);
 				}
 			} finally {
-				if (sessionChannels?.started) await sessionChannels.host.stop().catch(() => {});
+				await stopActiveSessionChannels().catch(() => {});
 			}
 		}
 	} catch (error) {

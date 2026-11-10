@@ -420,6 +420,24 @@ describe("status --json shape", () => {
 					workspaceRoute: { workspaceRoot: null, alias: null, source: "default" },
 					login: "credentials",
 				},
+				{
+					id: "discord",
+					enabled: false,
+					configured: false,
+					running: false,
+					boundPeers: 0,
+					workspaceRoute: { workspaceRoot: null, alias: null, source: "default" },
+					login: "credentials",
+				},
+				{
+					id: "qq",
+					enabled: false,
+					configured: false,
+					running: false,
+					boundPeers: 0,
+					workspaceRoute: { workspaceRoot: null, alias: null, source: "default" },
+					login: "endpoint",
+				},
 			],
 		});
 	});

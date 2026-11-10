@@ -118,10 +118,104 @@ import { cfgReadToolResultPreview } from "../../tools/settings";
 interface RenderInitialMessagesOptions {
 	preserveExistingChat?: boolean;
 	clearTerminalHistory?: boolean;
+	/** Replay every message instead of the recent display window (benchmarks and tests). */
+	limitTranscript?: boolean;
 }
 
 const TRANSCRIPT_RENDER_CHUNK_MESSAGES = 32;
 const TRANSCRIPT_RENDER_CHUNK_MS = 8;
+/**
+ * Fresh resumes replay only the newest slice of a large transcript. Component
+ * construction and the first full paint are linear in rendered text, so a
+ * 30–100 MB session spent seconds building rows the user had already scrolled
+ * past. The session itself is untouched: model context still contains every
+ * message, and `/export` writes the full transcript. Older display rows are
+ * intentionally not hydrated into terminal scrollback, which cannot be
+ * prepended to after the fact.
+ */
+export const TRANSCRIPT_REPLAY_MAX_MESSAGES = 400;
+export const TRANSCRIPT_REPLAY_MAX_BYTES = 4 * 1024 * 1024;
+
+/** Display bytes a message contributes, without serializing tool arguments. */
+function approximateMessageDisplayBytes(message: AgentMessage): number {
+	let bytes = 64;
+	if (!("content" in message)) return bytes;
+	const content = message.content;
+	if (typeof content === "string") return bytes + content.length;
+	if (!Array.isArray(content)) return bytes;
+	for (const block of content) {
+		if (typeof block !== "object" || block === null) continue;
+		if ("text" in block && typeof block.text === "string") {
+			bytes += block.text.length;
+			continue;
+		}
+		if ("thinking" in block && typeof block.thinking === "string") bytes += block.thinking.length;
+	}
+	return bytes;
+}
+
+/**
+ * Tail window of a display transcript for a fresh replay. Starts at a user
+ * turn so a tool result never opens the transcript without its call. Returns
+ * the context unchanged when it already fits both caps.
+ */
+export function windowTranscriptReplay(
+	context: SessionContext,
+	maxMessages: number = TRANSCRIPT_REPLAY_MAX_MESSAGES,
+	maxBytes: number = TRANSCRIPT_REPLAY_MAX_BYTES,
+): { context: SessionContext; hiddenMessages: number } {
+	const messages = context.messages;
+	if (messages.length <= 1 || maxMessages <= 0 || maxBytes <= 0) {
+		return { context, hiddenMessages: 0 };
+	}
+	let start = messages.length;
+	let bytes = 0;
+	for (let i = messages.length - 1; i >= 0; i--) {
+		bytes += approximateMessageDisplayBytes(messages[i]!);
+		start = i;
+		if (messages.length - i >= maxMessages || bytes >= maxBytes) break;
+	}
+	if (start === 0) return { context, hiddenMessages: 0 };
+	// Prefer a user turn, but do not let one far ahead shrink the window to a
+	// handful of rows; an assistant turn is also a safe opening.
+	const USER_BOUNDARY_LOOKAHEAD = 32;
+	let userBoundary = start;
+	while (userBoundary < messages.length && messages[userBoundary]!.role !== "user") userBoundary++;
+	let boundary: number;
+	if (userBoundary < messages.length && userBoundary - start <= USER_BOUNDARY_LOOKAHEAD) {
+		boundary = userBoundary;
+	} else {
+		boundary = start;
+		while (
+			boundary < messages.length &&
+			messages[boundary]!.role !== "user" &&
+			messages[boundary]!.role !== "assistant"
+		) {
+			boundary++;
+		}
+		if (boundary >= messages.length) {
+			boundary = start;
+			while (boundary > 0 && messages[boundary]!.role !== "user" && messages[boundary]!.role !== "assistant") {
+				boundary--;
+			}
+			if (messages[boundary]?.role !== "user" && messages[boundary]?.role !== "assistant") boundary = start;
+		}
+	}
+	start = boundary;
+	if (start <= 0) return { context, hiddenMessages: 0 };
+	return {
+		context: {
+			...context,
+			messages: messages.slice(start),
+			// The window starts mid-conversation, so the previous-model/pending-reset
+			// state that classifies the first assistant turn is gone. Marking every
+			// retained turn explained suppresses a false cache-miss marker rather
+			// than guessing from a truncated prefix.
+			cacheMissExplainedAt: context.cacheMissExplainedAt ? messages.slice(start).map(() => true) : undefined,
+		},
+		hiddenMessages: start,
+	};
+}
 /**
  * Upper bound on full-transcript replay restarts inside
  * {@link UiHelpers.renderInitialMessages}. Each restart discards the staged
@@ -1145,6 +1239,16 @@ export class UiHelpers {
 			keepInFlightToolCalls: this.ctx.viewSession.isStreaming,
 		});
 		let replayEntryCount = this.ctx.viewSession.sessionManager.getEntries().length;
+		// A fresh transcript (startup resume, session switch, /tree navigation)
+		// may be arbitrarily large; a mid-session rebuild must keep the rows
+		// already on screen, so only the fresh path takes the display window.
+		const windowTranscript =
+			options.limitTranscript !== false &&
+			(options.clearTerminalHistory === true || !this.#chatRenderedBeforeReplay) &&
+			!this.ctx.viewSession.isStreaming;
+		const applyReplayWindow = (source: SessionContext) =>
+			windowTranscript ? windowTranscriptReplay(source) : { context: source, hiddenMessages: 0 };
+		let windowed = applyReplayWindow(context);
 
 		// Build against a detached container. Incremental construction still yields
 		// to terminal input, while paints keep using the complete visible transcript
@@ -1168,7 +1272,7 @@ export class UiHelpers {
 			// Resolve before replacing live component maps: streaming events may arrive during filesystem I/O.
 			await refreshAssistantMessageLinkTargets(
 				this.ctx,
-				context.messages.filter((message): message is AssistantMessage => message.role === "assistant"),
+				windowed.context.messages.filter((message): message is AssistantMessage => message.role === "assistant"),
 			);
 			if (generation !== this.#replayGeneration) return;
 
@@ -1182,14 +1286,24 @@ export class UiHelpers {
 			this.ctx.updatePendingMessagesDisplay();
 			this.ctx.pendingBashComponents = [];
 			this.ctx.pendingPythonComponents = [];
+			const addReplayWindowNotice = () => {
+				if (windowed.hiddenMessages === 0) return;
+				stagedChatContainer.addChild(
+					TranscriptNotice.line(
+						"warning",
+						`Showing the latest ${windowed.context.messages.length} of ${context.messages.length} messages for fast resume. Older messages remain in the session and in the model context; use /export for the full transcript.`,
+					),
+				);
+			};
+			addReplayWindowNotice();
 			while (true) {
 				const passRendererSetVersion = this.#textRendererSetVersion;
 				if (this.ctx.viewSession.isStreaming) {
 					// Live events mutate the same component maps; keep their replay atomic so
 					// a delta cannot land halfway through rebuilding its pending tool block.
-					this.ctx.renderSessionContext(context, renderOptions);
+					this.ctx.renderSessionContext(windowed.context, renderOptions);
 				} else {
-					await this.ctx.renderSessionContextIncrementally(context, renderOptions);
+					await this.ctx.renderSessionContextIncrementally(windowed.context, renderOptions);
 				}
 				if (generation !== this.#replayGeneration) return;
 				const entriesChanged = this.ctx.viewSession.sessionManager.getEntries().length !== replayEntryCount;
@@ -1216,10 +1330,11 @@ export class UiHelpers {
 					collapseCompactedHistory: cfgDisplayCollapseCompacted.get(settings),
 					keepInFlightToolCalls: this.ctx.viewSession.isStreaming,
 				});
+				windowed = applyReplayWindow(context);
 				replayEntryCount = this.ctx.viewSession.sessionManager.getEntries().length;
 				await refreshAssistantMessageLinkTargets(
 					this.ctx,
-					context.messages.filter((message): message is AssistantMessage => message.role === "assistant"),
+					windowed.context.messages.filter((message): message is AssistantMessage => message.role === "assistant"),
 				);
 				if (generation !== this.#replayGeneration) return;
 				stagedChatContainer.disposeChildren();
@@ -1227,6 +1342,7 @@ export class UiHelpers {
 				this.ctx.pendingTools.clear();
 				this.ctx.pendingBashComponents = [];
 				this.ctx.pendingPythonComponents = [];
+				addReplayWindowNotice();
 			}
 
 			const replayedChatChildren = [...stagedChatContainer.children];

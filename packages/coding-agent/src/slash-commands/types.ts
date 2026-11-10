@@ -32,6 +32,13 @@ export interface BuiltinSlashCommand {
 	icon?: SlashCommandIconName;
 	/** Whether the command consumes text after the command name. */
 	allowArgs?: boolean;
+	/**
+	 * Keep the command out of autocomplete/palette listings while still
+	 * resolving an explicit `/name` invocation. For low-frequency operator
+	 * entries such as `/channels` whose discovery belongs in docs, not the
+	 * everyday command menu.
+	 */
+	hidden?: boolean;
 	/** Subcommands for dropdown completion (e.g. /mcp add, /mcp list). */
 	subcommands?: SubcommandDef[];
 	/**

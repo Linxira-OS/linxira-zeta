@@ -49,6 +49,7 @@ export async function buildAvailableSlashCommands(
 
 	for (const command of BUILTIN_SLASH_COMMANDS_INTERNAL) {
 		if (!command.handle) continue;
+		if (command.hidden === true) continue;
 		// Advertise only commands the host's configuration currently allows; a
 		// disabled feature must not appear in the client's command list.
 		if (command.enabled !== undefined && session.settings !== undefined && !command.enabled(session.settings)) {
