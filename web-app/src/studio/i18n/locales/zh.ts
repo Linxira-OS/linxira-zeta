@@ -156,7 +156,6 @@ const zhRaw = {
     "more": "更多",
     "moreActions": "更多操作",
     "create": "创建",
-    "moreNotImplemented": "更多（暂未实现）",
     "unavailableInPreview": "预览模式下不可用",
     "unsupportedByRuntime": "当前 Runtime 不支持此操作",
     "opening": "正在打开…",

@@ -156,7 +156,6 @@ export const en: LocaleDictionary = {
     "more": "More",
     "moreActions": "More actions",
     "create": "Create",
-    "moreNotImplemented": "More (not implemented)",
     "unavailableInPreview": "Unavailable in preview mode",
     "unsupportedByRuntime": "Not supported by this Runtime",
     "opening": "Opening…",
