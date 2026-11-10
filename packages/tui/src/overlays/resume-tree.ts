@@ -607,6 +607,15 @@ export function renderProjectRule(width: number): string {
 	return truncateToWidth(theme.fg("dim", theme.boxRound.horizontal.repeat(Math.max(0, width))), width);
 }
 
+/**
+ * Full-width rule between two project sections. The header rule above binds a
+ * project to its workspaces; this boundary rule uses a brighter theme color so
+ * the eye can find where one project ends and the next begins.
+ */
+export function renderProjectSeparator(width: number): string {
+	return truncateToWidth(theme.fg("muted", theme.boxRound.horizontal.repeat(Math.max(0, width))), width);
+}
+
 /** A scope-segment hit range on the header line, in tree-local columns. */
 export interface ResumeScopeHit {
 	kind: ResumeTreeScope;
@@ -1006,17 +1015,32 @@ export class ResumeTreeComponent implements Component {
 		return row.type === "project" ? 2 : 1;
 	}
 
+	/**
+	 * Rendered line count per flattened row, including the boundary rule that
+	 * precedes every project after the first. Separators are not rows, so
+	 * selection and scroll arithmetic count them here.
+	 */
+	#lineCounts(flat: readonly FlatRow[]): number[] {
+		let seenProject = false;
+		return flat.map(entry => {
+			const separator = entry.row.type === "project" && seenProject ? 1 : 0;
+			if (entry.row.type === "project") seenProject = true;
+			return separator + this.#rowLines(entry.row);
+		});
+	}
+
 	#clampScroll(): void {
 		const flat = this.#visibleRows();
 		const height = this.#listHeight();
 		const index = this.#selectedIndex(flat);
+		const counts = this.#lineCounts(flat);
 		let start = Math.min(this.#scrollOffset, index);
 		const linesFrom = (from: number, to: number) => {
 			let total = 0;
-			for (let cursor = from; cursor < to; cursor++) total += this.#rowLines(flat[cursor]!.row);
+			for (let cursor = from; cursor < to; cursor++) total += counts[cursor]!;
 			return total;
 		};
-		while (start < index && linesFrom(start, index) + this.#rowLines(flat[index]!.row) > height) start++;
+		while (start < index && linesFrom(start, index) + counts[index]! > height) start++;
 		if (start > index) start = index;
 		this.#scrollOffset = Math.max(0, Math.min(start, Math.max(0, flat.length - 1)));
 	}
@@ -1746,13 +1770,18 @@ export class ResumeTreeComponent implements Component {
 		// path tail) add nothing there; the persisted choice still applies once
 		// the user moves to project/all.
 		const fullPaths = this.#scope !== "workspace" && this.#fullPaths;
+		// A scrolled window that starts past a project still owns that group's
+		// boundary rule, so the first visible row matches the height arithmetic.
+		let seenProject = flat.slice(0, this.#scrollOffset).some(entry => entry.row.type === "project");
 		for (let index = this.#scrollOffset; index < flat.length; index++) {
 			if (lines.length - bodyStart >= height && index !== selectedIndex) break;
 			const row = flat[index]!.row;
 			const selected = index === selectedIndex;
 			const lineIndex = lines.length;
 			if (row.type === "project") {
-				this.#hitRows.set(lineIndex, { kind: "toggle", key: rowIdentity(row) });
+				if (seenProject) lines.push(renderProjectSeparator(width));
+				seenProject = true;
+				this.#hitRows.set(lines.length, { kind: "toggle", key: rowIdentity(row) });
 				lines.push(
 					renderProjectRow(row, {
 						width,

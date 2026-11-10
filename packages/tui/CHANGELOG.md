@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Fixed
+
+- The resume picker draws a full-width, muted rule between project groups in the all-projects scope, so a long list no longer runs one repository's conversations into the next project's header. The dim rule under each project header and every workspace row stay as they were.
+
 ## [1.5.1] - 2026-11-10
 
 ### Added
