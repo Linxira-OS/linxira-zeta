@@ -15,7 +15,7 @@ import type { ToolSession } from "./index";
 const channelSendSchema = type({
 	text: type("string > 0").describe("Text to send to the IM channel."),
 	"to?": type("string").describe("Target peer identifier (user/group id). Defaults to the session-bound peer."),
-	"channel?": type("'wechat' | 'feishu' | 'telegram'").describe(
+	"channel?": type("'wechat' | 'feishu' | 'telegram' | 'discord' | 'qq'").describe(
 		"Channel to use. Defaults to the session-bound channel.",
 	),
 });
@@ -26,7 +26,7 @@ export class ChannelSendTool implements AgentTool<typeof channelSendSchema> {
 	readonly name = "channel_send";
 	readonly approval = "write" as const;
 	readonly label = "Channel Send";
-	readonly summary = "Send a message to the remote user through the IM channel (WeChat/Feishu/Telegram)";
+	readonly summary = "Send a message to the remote user through the IM channel (WeChat/Feishu/Telegram/Discord/QQ)";
 	readonly description = channelSendDescription;
 	readonly parameters = channelSendSchema;
 	readonly strict = true;

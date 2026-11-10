@@ -3,6 +3,7 @@
 ## 下一版本（Unreleased）
 
 ### 1.5.0
+- **IM 渠道扩展**：新增 **Discord**（官方 Bot API：Gateway v10 + `MESSAGE_CONTENT` intent、服务器频道/私信、@提及与回复触发、附件下载、2000 字分块、429/断线重连、健康状态）与 **QQ**（通用 OneBot v11 客户端：正向/反向 WebSocket、Bearer token、群/私聊、图片、`echo` 关联、重连与 `get_status` 探活）。两个新平台**默认拒绝启动**，必须先配置 `channels.discord.allowedChannels` / `channels.qq.allowedGroups|allowedUsers`；`zetacode channels login discord|qq` 先验证后落盘。QQ 不打包、不自动安装任何桥（NapCat / LLBot / SnowLuma 由用户自行运行，许可证与账号风险自负）。
 - **Zeta Team 落地（无主 Team 根）**：`zetacode team` 新增无主 Team 根（`<root>/.zeta/team.json`；不是 Agent、没有 `AGENTS.md`/Git/Team 根会话）、PM 工作区（`pms/<pm>/`）、规范基础仓库（`repos/<repo>/`，也可用 `repo link` 就地登记）、PM↔仓库绑定、工程师与真实链接工作树（`home` + 每任务）位于 `worktrees/<repo>/<pm>/<engineer>/`；一个 SQLite Team 数据库（默认 `~/.zeta/data/zeta.db`，`ZETA_TEAM_DB` 可覆盖）记录 teams/PM/repos/bindings/engineers/worktrees/rooms/agents，`team doctor` 报告磁盘标记与数据库漂移。没有 team-wide Agent。
 - **Team Hub**：在 Team 根或 PM 工作区直接启动 `zetacode` 打开数据库驱动的 Hub（房间、PM、工程师；房间显示类型/归属/成员数/最新 `seq`，工程师显示记录的 execution 与工作树），`r` 重载、`s` 以真实成员身份发帖、`/` 过滤；Hub 不创建会话或转写，也不伪造 Agent。显式会话启动（`--continue`/`--resume`/提示词等）仍进入普通编码。
 - **DB-only 房间**：PM 房间、共享 coordination 房间与自定义房间只是数据库行（`rooms`/`room_members`/append-only `room_events`），带主机分配的单调 `seq`、`@提及` 与回复链；`room_read`/`room_post` 与 Hub 发帖都不会写入会话 JSONL。

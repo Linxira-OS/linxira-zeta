@@ -132,7 +132,9 @@ describe("WeChatChannel", () => {
 		const ch = new WeChatChannel({
 			config: { botToken: "tok", baseUrl: "https://ilinkai.weixin.qq.com" },
 			customFetch: impl as unknown as typeof globalThis.fetch,
-			onMessage: (peer, body) => seen.push({ peer, body }),
+			onMessage: message => {
+				seen.push({ peer: message.peer, body: message.body });
+			},
 		});
 		await ch.start();
 		await Bun.sleep(5);
@@ -155,7 +157,9 @@ describe("WeChatChannel", () => {
 		const ch = new WeChatChannel({
 			config: { botToken: "tok", baseUrl: "https://ilinkai.weixin.qq.com" },
 			customFetch: impl as unknown as typeof globalThis.fetch,
-			onMessage: (peer, body) => seen.push({ peer, body }),
+			onMessage: message => {
+				seen.push({ peer: message.peer, body: message.body });
+			},
 		});
 		await ch.start();
 		await Bun.sleep(5);
