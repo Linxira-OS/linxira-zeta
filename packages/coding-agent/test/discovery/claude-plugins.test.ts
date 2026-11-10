@@ -493,6 +493,45 @@ describe("listClaudePluginRoots", () => {
 		expect(result3.roots).toHaveLength(2);
 	});
 
+	test("remembers the registry paths it resolved until the plugin caches are cleared", async () => {
+		const project = path.join(tempDir, "project");
+		const cwd = path.join(project, "sub");
+		await fs.mkdir(path.join(project, ".git"), { recursive: true });
+		await fs.mkdir(cwd, { recursive: true });
+
+		// No `.zeta` anywhere yet: the git anchor's registry path is the fallback.
+		expect((await listClaudePluginRoots(tempDir, cwd)).roots).toHaveLength(0);
+
+		// Every capability surface of a launch asks for the same roots, so the
+		// ancestor walk and realpaths behind them are resolved once per project.
+		// A project `.zeta` that appears afterwards is seen only after a cache clear.
+		const registryPath = path.join(cwd, ".zeta", "plugins", "installed_plugins.json");
+		await fs.mkdir(path.dirname(registryPath), { recursive: true });
+		await fs.writeFile(
+			registryPath,
+			JSON.stringify({
+				version: 2,
+				plugins: {
+					"late-plugin@market": [
+						{
+							scope: "project",
+							installPath: path.join(tempDir, "late-install"),
+							projectPath: project,
+							version: "1.0.0",
+							installedAt: "2025-01-01T00:00:00Z",
+							lastUpdated: "2025-01-01T00:00:00Z",
+						},
+					],
+				},
+			}),
+		);
+		expect((await listClaudePluginRoots(tempDir, cwd)).roots).toHaveLength(0);
+
+		clearClaudePluginRootsCache();
+		clearFsCache();
+		expect((await listClaudePluginRoots(tempDir, cwd)).roots.map(root => root.id)).toEqual(["late-plugin@market"]);
+	});
+
 	test("isolates cached OMP plugin roots by home when Claude config is shared", async () => {
 		const sharedClaudeConfig = path.join(tempDir, "shared-claude");
 		const firstHome = path.join(tempDir, "first-home");
