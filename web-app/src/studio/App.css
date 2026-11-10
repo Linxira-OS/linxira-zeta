@@ -76,18 +76,27 @@
 
 /* Frameless desktop shell (Electron `frame: false`): the renderer owns the
    caption buttons because the OS draws none. `WindowControls` renders nothing
-   in a browser tab, so browser builds keep their native window chrome. */
+   in a browser tab, so browser builds keep their native window chrome.
+   The group is portaled to <body> and fixed: `.app` isolates a stacking
+   context (background layer), so in-flow chrome would sit below every app
+   modal backdrop and stop receiving clicks while a dialog is open. */
 .window-controls {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 36px;
   display: flex;
   align-items: stretch;
-  align-self: stretch;
   flex: none;
-  margin-left: 6px;
-  /* No Window Controls Overlay exists on a frameless window, so the trailing
-     padding is only spacing: pull the buttons flush to the window edge the way
-     native caption buttons sit. */
-  margin-right: -10px;
+  z-index: var(--z-window-controls);
   -webkit-app-region: no-drag;
+}
+
+/* The fixed strip floats over the titlebar's trailing edge, which therefore
+   reserves its width so the app's own header controls never slide underneath.
+   Only the desktop shell has `.window-controls`; a browser tab is unchanged. */
+:root:has(.window-controls) .app-titlebar {
+  padding-right: calc(var(--window-controls-width) + 10px);
 }
 
 .window-control {

@@ -18,8 +18,10 @@ declare module "bun:test" {
 		toBeUndefined(): void;
 		toBeDefined(): void;
 		toBeGreaterThan(expected: number): void;
+		toBeLessThan(expected: number): void;
 		toEqual(expected: unknown): void;
 		toContain(expected: unknown): void;
+		toMatch(expected: RegExp | string): void;
 		toThrow(): void;
 		toHaveBeenCalled(): void;
 		toHaveBeenCalledTimes(count: number): void;

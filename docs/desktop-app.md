@@ -108,6 +108,13 @@ leaving the process windowless. Tray **Open Settings** sends the Studio
 `app.settings:security`; both open the same Work Studio settings groups as the
 browser. There is no separate desktop channel or security UI.
 
+The caption buttons are window chrome, not page content: in the desktop shell
+they are portaled onto `<body>` as a fixed strip above in-app modal overlays
+(`--z-window-controls`, above `--z-modal`), so minimize / maximize / close stay
+clickable while a Studio dialog is open. The titlebar reserves that strip's
+width so its own controls never sit underneath it. A browser tab renders no
+caption buttons and keeps the usual modal dimming.
+
 Launch integration: the shell registers the `zeta://` scheme, handles
 `open-url`/`open-file`, and treats a second-instance `--cwd=<dir>` as a request
 to register that folder in the project list. Login autostart passes `--hidden`
