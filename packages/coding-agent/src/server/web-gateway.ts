@@ -66,6 +66,18 @@ import { checkRemoteAccess } from "./web-gateway/remote-access";
 import { isRemoteTokenAccepted } from "../utils/remote-token";
 import { deviceRegistry } from "./auth/device-registry";
 import { handleDeviceDelete, handleDevicesGet, handleDevicesRevokeAllPost } from "./auth/device-auth";
+import {
+	forgetAllVerifications,
+	forgetDeviceVerification,
+	guardGatewayTwoFactor,
+	handleTwoFactorConfirmPost,
+	handleTwoFactorDisablePost,
+	handleTwoFactorEnrollPost,
+	handleTwoFactorPolicyPut,
+	handleTwoFactorRecoveryRegeneratePost,
+	handleTwoFactorStatusGet,
+	handleTwoFactorVerifyPost,
+} from "./auth/two-factor-auth";
 import { handleChannelCredentials, handleChannelSend, renderWechatLoginQrSvg } from "./web-gateway/channels";
 import { handleAgentContextUsage } from "./web-gateway/context-usage";
 import {
@@ -230,6 +242,15 @@ const AUTH_PROVIDERS_RE = /^\/api\/auth\/providers$/;
 const AUTH_API_KEY_RE = new RegExp(`^/api/auth/api-key/(${PROVIDER_PART})$`);
 const AUTH_LOGIN_RE = new RegExp(`^/api/auth/login/(${PROVIDER_PART})$`);
 const AUTH_LOGOUT_RE = new RegExp(`^/api/auth/logout/(${PROVIDER_PART})$`);
+// Account/device 2FA (TOTP). Distinct from provider OAuth above: this protects
+// remote device access, never IM or provider credentials.
+const AUTH_2FA_RE = /^\/api\/auth\/2fa$/;
+const AUTH_2FA_ENROLL_RE = /^\/api\/auth\/2fa\/enroll$/;
+const AUTH_2FA_CONFIRM_RE = /^\/api\/auth\/2fa\/confirm$/;
+const AUTH_2FA_VERIFY_RE = /^\/api\/auth\/2fa\/verify$/;
+const AUTH_2FA_DISABLE_RE = /^\/api\/auth\/2fa\/disable$/;
+const AUTH_2FA_RECOVERY_RE = /^\/api\/auth\/2fa\/recovery\/regenerate$/;
+const AUTH_2FA_POLICY_RE = /^\/api\/auth\/2fa\/policy$/;
 const MODELS_RE = /^\/api\/models$/;
 const MODELS_IMPORT_RE = /^\/api\/models\/import$/;
 const MODELS_DEFAULT_RE = /^\/api\/models\/default$/;
@@ -382,6 +403,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return json({ error: "Forbidden origin" }, 403);
 	}
 	const pathname = new URL(req.url).pathname;
+
+	// 2FA step-up for device/token mutations. Reads and unrelated writes pass;
+	// a genuinely local caller is never challenged (see auth/two-factor-auth.ts).
+	const twoFactorDenial = await guardGatewayTwoFactor(req, remoteAddr, pathname);
+	if (twoFactorDenial) return twoFactorDenial;
 
 	// Service identity, used by serve discovery/reuse (see `../serve-registry.ts`).
 	// Answered ahead of any session/dashboard state so a probe of a just-bound
@@ -743,6 +769,35 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return json({ error: "Method not allowed" }, 405);
 	}
 
+	if (AUTH_2FA_RE.test(pathname)) {
+		if (req.method === "GET") return handleTwoFactorStatusGet(req, remoteAddr);
+		return json({ error: "Method not allowed" }, 405);
+	}
+	if (AUTH_2FA_ENROLL_RE.test(pathname)) {
+		if (req.method === "POST") return handleTwoFactorEnrollPost(req, remoteAddr);
+		return json({ error: "Method not allowed" }, 405);
+	}
+	if (AUTH_2FA_CONFIRM_RE.test(pathname)) {
+		if (req.method === "POST") return handleTwoFactorConfirmPost(req, remoteAddr);
+		return json({ error: "Method not allowed" }, 405);
+	}
+	if (AUTH_2FA_VERIFY_RE.test(pathname)) {
+		if (req.method === "POST") return handleTwoFactorVerifyPost(req, remoteAddr);
+		return json({ error: "Method not allowed" }, 405);
+	}
+	if (AUTH_2FA_DISABLE_RE.test(pathname)) {
+		if (req.method === "POST") return handleTwoFactorDisablePost(req, remoteAddr);
+		return json({ error: "Method not allowed" }, 405);
+	}
+	if (AUTH_2FA_RECOVERY_RE.test(pathname)) {
+		if (req.method === "POST") return handleTwoFactorRecoveryRegeneratePost(req, remoteAddr);
+		return json({ error: "Method not allowed" }, 405);
+	}
+	if (AUTH_2FA_POLICY_RE.test(pathname)) {
+		if (req.method === "PUT") return handleTwoFactorPolicyPut(req, remoteAddr);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
 	if (MODELS_RE.test(pathname)) {
 		if (req.method === "GET") return handleModels(req);
 		return json({ error: "Method not allowed" }, 405);
@@ -980,7 +1035,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	}
 
 	if (REMOTE_DEVICES_REVOKE_ALL_RE.test(pathname)) {
-		if (req.method === "POST") return handleDevicesRevokeAllPost(req);
+		if (req.method === "POST") {
+			const response = await handleDevicesRevokeAllPost(req);
+			if (response.ok) forgetAllVerifications();
+			return response;
+		}
 		return json({ error: "Method not allowed" }, 405);
 	}
 
@@ -992,7 +1051,10 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 			// when the row was already revoked (there is nothing left to drop) and
 			// essential when it was active: the gate stops its token, and this stops
 			// an already-upgraded socket from receiving more events.
-			if (response.ok) studioHost().dropDeviceSessions(deviceId[0]);
+			if (response.ok) {
+				studioHost().dropDeviceSessions(deviceId[0]);
+				forgetDeviceVerification(deviceId[0]);
+			}
 			return response;
 		}
 		return json({ error: "Method not allowed" }, 405);

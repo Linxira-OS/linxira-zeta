@@ -31,13 +31,20 @@ import {
 	channelRuntimeState,
 	chatBindings,
 	conflictingBinding,
+	confirmTwoFactor,
+	disableTwoFactor,
+	enrollTwoFactor,
 	fetchChannelStatus,
 	fetchPairingQr,
 	fetchPairedDevices,
+	fetchTwoFactorStatus,
 	fetchWechatQr,
 	fetchWebConfig,
 	isAbsolutePath,
+	isTwoFactorRequired,
+	putTwoFactorPolicy,
 	putWebConfigValue,
+	regenerateRecoveryCodes,
 	removeBinding,
 	revokeAllPairedDevices,
 	revokePairedDevice,
@@ -47,6 +54,7 @@ import {
 	unknownBindingKeys,
 	upsertBinding,
 	validateChannelCredentials,
+	verifyTwoFactor,
 	wechatLoginStage,
 	workspaceAliases,
 	type BindingDraft,
@@ -58,6 +66,8 @@ import {
 	type CredentialRequest,
 	type DeviceInventory,
 	type PairingQr,
+	type TwoFactorEnrollment,
+	type TwoFactorStatus,
 	type WechatQr,
 	type WechatLoginStage,
 	type WebConfigPath,
@@ -228,6 +238,153 @@ function ChannelRow({
 	);
 }
 
+export interface TotpPanelProps {
+	status: TwoFactorStatus | null;
+	enrollment: TwoFactorEnrollment | null;
+	recoveryCodes: readonly string[];
+	code: string;
+	error: string | null;
+	pending: string | null;
+	onCode: (value: string) => void;
+	onEnroll: () => void;
+	onConfirm: () => void;
+	onPolicy: (required: boolean) => void;
+	onDisable: () => void;
+	onRegenerate: () => void;
+	t: (key: string, params?: Record<string, string | number>) => string;
+}
+
+/**
+ * Two-factor (TOTP) for remote device access. The toggle is only rendered once
+ * the store reports enrollment, so it can never claim "on" without a secret
+ * that a code can match; recovery codes appear exactly once per issuance.
+ */
+export function TotpPanel({
+	status,
+	enrollment,
+	recoveryCodes,
+	code,
+	error,
+	pending,
+	onCode,
+	onEnroll,
+	onConfirm,
+	onPolicy,
+	onDisable,
+	onRegenerate,
+	t,
+}: TotpPanelProps) {
+	const state = status === null ? "loading" : !status.enrolled ? "off" : status.required ? "required" : "enrolled";
+	return (
+		<div className="im-totp" data-totp-state={state}>
+			<div className="im-totp-head">
+				<div>
+					<strong>{t("settings.imChannels.totpTitle")}</strong>
+					<p className="im-hint">{t("settings.imChannels.totpDesc")}</p>
+				</div>
+				{status?.enrolled === true ? (
+					<Switch
+						checked={status.required}
+						disabled={pending !== null}
+						label={t("settings.imChannels.totpRequire")}
+						onChange={onPolicy}
+					/>
+				) : null}
+			</div>
+			{error !== null ? (
+				<p className="im-error" role="alert">
+					{error}
+				</p>
+			) : null}
+			{status === null ? (
+				<p className="im-empty">{t("settings.imChannels.loading")}</p>
+			) : status.enrolled ? (
+				<>
+					<p className="im-hint">
+						{status.required
+							? t("settings.imChannels.totpRequiredNote")
+							: t("settings.imChannels.totpOptionalNote")}
+					</p>
+					<p className="im-hint" data-totp-remaining>
+						{t("settings.imChannels.totpRemaining", { count: status.recoveryCodesRemaining })}
+					</p>
+					<div className="im-actions">
+						<button type="button" className="btn small danger" disabled={pending !== null} onClick={onDisable}>
+							{t("settings.imChannels.totpDisable")}
+						</button>
+						<button
+							type="button"
+							className="btn small"
+							disabled={pending !== null || code.trim() === ""}
+							onClick={onRegenerate}
+						>
+							{t("settings.imChannels.totpRegenerate")}
+						</button>
+					</div>
+				</>
+			) : (
+				<>
+					<div className="im-actions">
+						<button type="button" className="btn small" disabled={pending !== null} onClick={onEnroll}>
+							{t("settings.imChannels.totpEnroll")}
+						</button>
+					</div>
+					<p className="im-hint">{t("settings.imChannels.totpLocalOnly")}</p>
+				</>
+			)}
+			{enrollment !== null ? (
+				<div className="im-totp-enroll">
+					{enrollment.qrSvg !== "" ? (
+						<div className="im-qr-svg" dangerouslySetInnerHTML={{ __html: enrollment.qrSvg }} />
+					) : null}
+					<p className="im-qr-state">{t("settings.imChannels.totpScan")}</p>
+					<code className="im-mono" data-totp-secret>
+						{enrollment.secret}
+					</code>
+					<div className="im-actions im-totp-confirm">
+						<button
+							type="button"
+							className="btn small"
+							disabled={pending !== null || code.trim() === ""}
+							onClick={onConfirm}
+						>
+							{t("settings.imChannels.totpConfirm")}
+						</button>
+					</div>
+				</div>
+			) : null}
+			{recoveryCodes.length > 0 ? (
+				<div className="im-totp-recovery" data-recovery-codes={recoveryCodes.length}>
+					<p>{t("settings.imChannels.totpRecoveryCodes")}</p>
+					<ul className="im-totp-codes">
+						{recoveryCodes.map(entry => (
+							<li key={entry}>
+								<code>{entry}</code>
+							</li>
+						))}
+					</ul>
+					<p className="im-hint">{t("settings.imChannels.totpRecoveryHint")}</p>
+				</div>
+			) : null}
+			{status?.enrolled === true || enrollment !== null ? (
+				<div className="im-totp-code-row">
+					<label className="im-field">
+						<span>{t("settings.imChannels.totpCode")}</span>
+						<input
+							className="input"
+							inputMode="numeric"
+							autoComplete="one-time-code"
+							placeholder={t("settings.imChannels.totpCodePlaceholder")}
+							value={code}
+							onChange={event => onCode(event.target.value)}
+						/>
+					</label>
+				</div>
+			) : null}
+		</div>
+	);
+}
+
 export function ImChannelsPane({ visible }: { visible: boolean }) {
 	const { t } = useI18n();
 	const { preview } = usePreviewMode();
@@ -239,6 +396,13 @@ export function ImChannelsPane({ visible }: { visible: boolean }) {
 	const [pending, setPending] = useState<string | null>(null);
 	const [devices, setDevices] = useState<DeviceInventory | null>(null);
 	const [deviceError, setDeviceError] = useState<string | null>(null);
+	const [totp, setTotp] = useState<TwoFactorStatus | null>(null);
+	const [totpError, setTotpError] = useState<string | null>(null);
+	const [totpEnrollment, setTotpEnrollment] = useState<TwoFactorEnrollment | null>(null);
+	const [totpRecoveryCodes, setTotpRecoveryCodes] = useState<readonly string[]>([]);
+	const [totpCode, setTotpCode] = useState("");
+	const [stepUp, setStepUp] = useState<{ kind: "revoke"; id: string } | { kind: "revoke-all" } | null>(null);
+	const [stepUpCode, setStepUpCode] = useState("");
 	const [pairing, setPairing] = useState<PairingQr | null>(null);
 	const [testChannel, setTestChannel] = useState<ChannelId>("wechat");
 	const [testTo, setTestTo] = useState("");
@@ -262,6 +426,15 @@ export function ImChannelsPane({ visible }: { visible: boolean }) {
 			setDeviceError(null);
 		} catch (error) {
 			setDeviceError(errorText(error));
+		}
+	}, []);
+
+	const loadTwoFactor = useCallback(async () => {
+		try {
+			setTotp(await fetchTwoFactorStatus());
+			setTotpError(null);
+		} catch (error) {
+			setTotpError(errorText(error));
 		}
 	}, []);
 
@@ -296,6 +469,7 @@ export function ImChannelsPane({ visible }: { visible: boolean }) {
 			if (alive) setLoadError(errorText(error));
 		});
 		void loadDevices();
+		void loadTwoFactor();
 		const fast = window.setInterval(() => void poll(), 2000);
 		const slow = window.setInterval(() => {
 			void loadConfig().catch(() => undefined);
@@ -305,7 +479,7 @@ export function ImChannelsPane({ visible }: { visible: boolean }) {
 			window.clearInterval(fast);
 			window.clearInterval(slow);
 		};
-	}, [visible, preview, refreshAll, loadConfig, loadDevices]);
+	}, [visible, preview, refreshAll, loadConfig, loadDevices, loadTwoFactor]);
 
 	/** Run one write: pending key, one notice, refresh on success. */
 	const run = async (key: string, action: () => Promise<string>): Promise<void> => {
@@ -319,6 +493,115 @@ export function ImChannelsPane({ visible }: { visible: boolean }) {
 		} finally {
 			setPending(null);
 		}
+	};
+
+	const enrollTotp = (): void => {
+		void run("totp-enroll", async () => {
+			const enrollment = await enrollTwoFactor(fetch);
+			setTotpEnrollment(enrollment);
+			setTotpRecoveryCodes(enrollment.recoveryCodes);
+			setTotpCode("");
+			return t("settings.imChannels.totpEnrollReady");
+		});
+	};
+
+	const confirmTotp = (): void => {
+		void run("totp-confirm", async () => {
+			await confirmTwoFactor(fetch, totpCode.trim());
+			setTotpEnrollment(null);
+			setTotpRecoveryCodes([]);
+			setTotpCode("");
+			await loadTwoFactor();
+			return t("settings.imChannels.totpConfirmed");
+		});
+	};
+
+	const applyTotpPolicy = (required: boolean): void => {
+		void run("totp-policy", async () => {
+			await putTwoFactorPolicy(fetch, required);
+			await loadTwoFactor();
+			return required ? t("settings.imChannels.totpEnabled") : t("settings.imChannels.totpDisabledNotice");
+		});
+	};
+
+	const disableTotp = (): void => {
+		if (!window.confirm(t("settings.imChannels.totpDisableConfirm"))) return;
+		void run("totp-disable", async () => {
+			await disableTwoFactor(fetch);
+			setTotpEnrollment(null);
+			setTotpRecoveryCodes([]);
+			setTotpCode("");
+			await loadTwoFactor();
+			return t("settings.imChannels.totpDisabledNotice");
+		});
+	};
+
+	const regenerateTotp = (): void => {
+		void run("totp-regenerate", async () => {
+			const codes = await regenerateRecoveryCodes(fetch, totpCode.trim());
+			setTotpRecoveryCodes(codes);
+			setTotpCode("");
+			await loadTwoFactor();
+			return t("settings.imChannels.totpRegenerated");
+		});
+	};
+
+	/** A 403 `totp_required` is not a failure: it opens the step-up prompt. */
+	const askStepUp = (action: { kind: "revoke"; id: string } | { kind: "revoke-all" }): void => {
+		setStepUp(action);
+		setStepUpCode("");
+	};
+
+	const revokeDevice = (id: string): void => {
+		void run(`revoke:${id}`, async () => {
+			try {
+				await revokePairedDevice(fetch, id);
+			} catch (error) {
+				if (isTwoFactorRequired(error)) {
+					askStepUp({ kind: "revoke", id });
+					return t("settings.imChannels.totpStepUpNeeded");
+				}
+				throw error;
+			}
+			await loadDevices();
+			return t("settings.imChannels.revoked");
+		});
+	};
+
+	const revokeAllDevices = (): void => {
+		if (!window.confirm(t("settings.imChannels.revokeAllConfirm"))) return;
+		void run("revoke-all", async () => {
+			let count: number;
+			try {
+				count = await revokeAllPairedDevices(fetch, true);
+			} catch (error) {
+				if (isTwoFactorRequired(error)) {
+					askStepUp({ kind: "revoke-all" });
+					return t("settings.imChannels.totpStepUpNeeded");
+				}
+				throw error;
+			}
+			await loadDevices();
+			return t("settings.imChannels.revokedAll", { count });
+		});
+	};
+
+	const verifyStepUp = (): void => {
+		if (stepUp === null) return;
+		const action = stepUp;
+		void run("totp-stepup", async () => {
+			await verifyTwoFactor(fetch, { code: stepUpCode.trim() });
+			setStepUp(null);
+			setStepUpCode("");
+			if (action.kind === "revoke-all") {
+				const count = await revokeAllPairedDevices(fetch, true);
+				await loadDevices();
+				return t("settings.imChannels.revokedAll", { count });
+			}
+			await revokePairedDevice(fetch, action.id);
+			await loadDevices();
+			return t("settings.imChannels.revoked");
+		});
 	};
 
 	if (preview) {
@@ -671,14 +954,7 @@ export function ImChannelsPane({ visible }: { visible: boolean }) {
 						type="button"
 						className="btn small danger"
 						disabled={pending === "revoke-all" || devices === null}
-						onClick={() => {
-							if (!window.confirm(t("settings.imChannels.revokeAllConfirm"))) return;
-							void run("revoke-all", async () => {
-								const count = await revokeAllPairedDevices(fetch, true);
-								await loadDevices();
-								return t("settings.imChannels.revokedAll", { count });
-							});
-						}}
+						onClick={revokeAllDevices}
 					>
 						{t("settings.imChannels.revokeAll")}
 					</button>
@@ -737,12 +1013,9 @@ export function ImChannelsPane({ visible }: { visible: boolean }) {
 												className="btn small danger"
 												disabled={device.revokedAt !== null || pending === `revoke:${device.id}`}
 												onClick={() => {
-													if (!window.confirm(t("settings.imChannels.revokeConfirm", { label: device.label !== "" ? device.label : device.id }))) return;
-													void run(`revoke:${device.id}`, async () => {
-														await revokePairedDevice(fetch, device.id);
-														await loadDevices();
-														return t("settings.imChannels.revoked");
-													});
+													const label = device.label !== "" ? device.label : device.id;
+													if (!window.confirm(t("settings.imChannels.revokeConfirm", { label }))) return;
+													revokeDevice(device.id);
 												}}
 											>
 												{t("settings.imChannels.revoke")}
@@ -755,9 +1028,58 @@ export function ImChannelsPane({ visible }: { visible: boolean }) {
 					</div>
 				)}
 				{devices?.legacyTokenActive === true ? <p className="im-hint">{t("settings.imChannels.legacyToken")}</p> : null}
-				<p className="im-hint" data-unavailable="totp">
-					{t("settings.imChannels.totp")}
-				</p>
+				{stepUp !== null ? (
+					<div className="im-totp-stepup" role="dialog" aria-label={t("settings.imChannels.totpStepUpTitle")}>
+						<p>
+							<strong>{t("settings.imChannels.totpStepUpTitle")}</strong>
+						</p>
+						<p className="im-hint">{t("settings.imChannels.totpStepUpDesc")}</p>
+						<div className="im-actions">
+							<input
+								className="input"
+								inputMode="numeric"
+								autoComplete="one-time-code"
+								placeholder={t("settings.imChannels.totpCodePlaceholder")}
+								value={stepUpCode}
+								onChange={event => setStepUpCode(event.target.value)}
+							/>
+							<button
+								type="button"
+								className="btn small"
+								disabled={pending !== null || stepUpCode.trim() === ""}
+								onClick={verifyStepUp}
+							>
+								{t("settings.imChannels.totpVerify")}
+							</button>
+							<button
+								type="button"
+								className="btn small"
+								disabled={pending !== null}
+								onClick={() => {
+									setStepUp(null);
+									setStepUpCode("");
+								}}
+							>
+								{t("settings.imChannels.totpCancel")}
+							</button>
+						</div>
+					</div>
+				) : null}
+				<TotpPanel
+					status={totp}
+					enrollment={totpEnrollment}
+					recoveryCodes={totpRecoveryCodes}
+					code={totpCode}
+					error={totpError}
+					pending={pending}
+					onCode={setTotpCode}
+					onEnroll={enrollTotp}
+					onConfirm={confirmTotp}
+					onPolicy={applyTotpPolicy}
+					onDisable={disableTotp}
+					onRegenerate={regenerateTotp}
+					t={t}
+				/>
 			</SettingSection>
 		</>
 	);

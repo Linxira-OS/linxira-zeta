@@ -312,13 +312,38 @@ which identifies one phone, browser or app and is revoked on its own.
   rotate response reports `devicesStillActive` so a settings panel can say
   "旋转不会让已配对设备下线".
 
-**Two-factor (TOTP) is not part of this layer today.** It is planned for device
-and account security only — pairing, device revocation, token rotation, recovery
-codes — and never for IM channel credentials, which stay platform-native
-(WeChat QR, Feishu `appId`+`appSecret`+`domain`, Telegram `botToken`, and for
-future adapters Discord `botToken`+intents / QQ OneBot bridge endpoint+Bearer).
-A device token is a single factor; 2FA would be added *in front of* it, not
-instead of it. Nothing in this layer issues or verifies TOTP codes today.
+#### Two-factor (TOTP)
+
+2FA protects **device and account access**, never IM channel credentials
+(WeChat QR, Feishu `appId`+`appSecret`+`domain`, Telegram `botToken`, and future
+Discord/QQ adapters stay platform-native). It is added *in front of* the device
+token, not instead of it:
+
+- **Algorithm**: RFC 6238, HMAC-SHA1, 6 digits, 30-second step, ±1 step of
+  clock tolerance, 20-byte base32 secret. The accepted step is persisted; a
+  code at or below it is rejected as a replay even inside the window.
+- **Endpoints** (all behind the existing remote-access gate):
+  `GET /api/auth/2fa`, `POST /api/auth/2fa/enroll|confirm|verify|disable`,
+  `POST /api/auth/2fa/recovery/regenerate`, `PUT /api/auth/2fa/policy`.
+  Enroll/confirm return the secret, `otpauth://` URL, QR SVG and ten
+  `XXXXX-XXXXX` recovery codes exactly once; recovery codes are stored only as
+  SHA-256 and consumed one at a time.
+- **Storage**: `<agentDir>/auth/totp.json`, mode `0600`. There is no OS keychain
+  in this codebase, so the base32 secret is protected by filesystem permissions
+  alone; 2FA defends against a stolen device/machine token, not against a
+  compromised local account.
+- **Gates**: when `required` is true, remote `write` requests need a verify from
+  the last 12 hours; revoking a device, rotating/revoking `remote.token`, adding
+  a device (pairing), disabling 2FA and regenerating recovery codes need a
+  verify from the last 10 minutes. A genuinely local caller (loopback, no proxy
+  forwarding headers) is never challenged, so losing a phone cannot lock the
+  operator out of the machine. Reads stay open so the UI can ask for a code.
+- **Enrollment is local-only (or from a recently verified write device)**: a
+  stolen remote token must not install an attacker-controlled second factor.
+- **Migration**: optional. Existing device tokens keep working until the policy
+  is enabled; `PUT policy {required:true}` without enrollment answers
+  `400 not_enrolled` rather than showing a fake toggle. A corrupt or missing
+  store reads as "2FA off"; the local operator can enroll again.
 
 ### Access gate and rate limiting
 

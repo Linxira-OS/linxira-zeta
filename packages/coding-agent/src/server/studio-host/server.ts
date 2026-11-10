@@ -46,6 +46,7 @@ import {
 import { WebConfig } from "../../config/web-config";
 import { logger } from "@linxiraos/pi-utils";
 import { deviceRegistry, inferPlatform, type PublicDevice } from "../auth/device-registry";
+import { guardStudioTwoFactor } from "../auth/two-factor-auth";
 import { buildBootstrap } from "./bootstrap.js";
 import { StudioOperations, StudioOpError, toClientError } from "./registry.js";
 import type { StudioHostContext } from "./registry.js";
@@ -232,6 +233,11 @@ export class StudioHost {
 		if (access.genuinelyLocal && !isAllowedOrigin(req.headers.get("origin"))) {
 			return json({ error: "forbidden" }, 403);
 		}
+		// 2FA gates exactly two surfaces here: adding a device (pairing) needs a
+		// ten-minute step-up, and `/api/v1/command` needs the twelve-hour write
+		// window. Queries and bootstrap stay readable so the UI can ask for a code.
+		const twoFactorDenial = await guardStudioTwoFactor(req, remoteAddr, url.pathname);
+		if (twoFactorDenial) return twoFactorDenial;
 		const context: StudioHostContext = {
 			origin: req.headers.get("origin") ?? undefined,
 			capabilities: this.#operations.capabilities().manifest,

@@ -80,6 +80,25 @@ Per-device credentials live on the gateway surface (see
 | `DELETE /api/remote/devices/:id` | gate + `write` scope | Revoke one device (idempotent; 404 for an unknown id) |
 | `POST /api/remote/devices/revoke-all` | gate + `write` scope | `{keepCurrent?: boolean}` — revoke every device, optionally sparing the caller |
 
+Two-factor (TOTP) guards remote device access (never IM credentials):
+
+| Route | Auth | Purpose |
+|---|---|---|
+| `GET /api/auth/2fa` | remote-access gate | `{enrolled, required, verified, verifiedUntil, recoveryCodesRemaining, enrolledAt}` — never the secret |
+| `POST /api/auth/2fa/enroll` | genuine-local or 10-min step-up | `{secret, otpauthUrl, qrSvg, recoveryCodes, expiresAt}` — shown once |
+| `POST /api/auth/2fa/confirm` | same | `{code}` activates the pending secret |
+| `POST /api/auth/2fa/verify` | gate | `{code}` or `{recoveryCode}` → `{verifiedUntil, method, recoveryCodesRemaining}` |
+| `POST /api/auth/2fa/disable` | genuine-local, or step-up + code | erase secret, recovery codes and policy |
+| `POST /api/auth/2fa/recovery/regenerate` | step-up + code | new one-time codes; the old set dies |
+| `PUT /api/auth/2fa/policy` | genuine-local or step-up | `{required}`; `true` before enrollment → `400 not_enrolled` |
+
+State lives in `<agentDir>/auth/totp.json` (`0600`, atomic). Verification
+grants are in memory (12 h for writes, 10 min for sensitive device actions);
+a serve restart forgets them. There is no OS keychain here: the base32 secret
+is protected by file permissions only, so 2FA defends against a stolen token,
+not a compromised local account. A corrupt/missing file reads as "2FA off" and
+the local operator can re-enroll.
+
 `zetacode serve` prints the single-use pairing code (60 s TTL); set
 `ZETA_STUDIO_PAIRING_CODE` to pin it for scripted runs. Bodies are capped at
 1 MiB, one session may hold eight commands in flight, and a genuinely local
