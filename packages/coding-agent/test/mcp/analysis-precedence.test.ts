@@ -299,7 +299,7 @@ describe("analysis refresh input builder", () => {
 		expect(built.activeNativeTools).toEqual(["ast_grep"]);
 		// No admission snapshot means no allowlist: the existing session filter
 		// stays authoritative rather than an ownerless builder widening the bind.
-		expect(built.allowedTools).toBeUndefined();
+		expect(built.allowedServerTools).toBeUndefined();
 	});
 
 	test("derives allowedTools, project signals and approval from the supplied snapshot", () => {
@@ -315,7 +315,7 @@ describe("analysis refresh input builder", () => {
 			approve: async () => false,
 		});
 
-		expect(built.allowedTools).toEqual(["codegraph_explore"]);
+		expect(built.allowedServerTools).toEqual({ codegraph: ["codegraph_explore"] });
 		expect(built.project?.packageNames).toEqual([CODEGRAPH]);
 		expect(built.approve).toBeDefined();
 		expect(built.deniedServers).toBeUndefined();

@@ -219,7 +219,11 @@ export function resolveAnalysisMcp(input: AnalysisMcpResolveInput): AnalysisMcpD
 
 	for (const manifest of manifests) {
 		const configured = Object.entries(input.configs).filter(([name, config]) => {
-			return manifestForServer([manifest], name, config) !== undefined;
+			if (manifestForServer([manifest], name, config) !== undefined) return true;
+			// An alias with no declared package (e.g. codegraph-alt) is the same
+			// capability when its current tools/list exposes the manifest's tools.
+			// Explicit declared tool names are evidence; no arbitrary package guessing.
+			return input.serverTools?.[name]?.some(tool => manifest.tools.includes(tool)) === true;
 		});
 
 		if (configured.length === 0) {
