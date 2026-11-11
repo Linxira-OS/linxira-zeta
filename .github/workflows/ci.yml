@@ -298,6 +298,12 @@ jobs:
          - name: Web UI naming guard
            working-directory: web-ui
            run: bun run check:naming
+         # The diagram renderer is 3 MB of the bundle and must stay behind its
+         # `import()`. Read the built output, so a chunking change cannot
+         # silently modulepreload it again (see web-app/vite.config.ts).
+         - name: First-load guard (diagram renderer stays lazy)
+           working-directory: web-app
+           run: bun run check:first-load
          - name: Verify Rust license compliance (cargo-deny 0.20.2)
            run: |
               # Prebuilt release binary checked against digests pinned here:

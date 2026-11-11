@@ -443,6 +443,11 @@ jobs:
          - name: Web UI naming guard
            working-directory: web-ui
            run: bun run check:naming
+         # Parallel to ci.yml: read the built output and fail if the 3 MB
+         # diagram renderer is back on the boot path.
+         - name: First-load guard (diagram renderer stays lazy)
+           working-directory: web-app
+           run: bun run check:first-load
          - name: Verify Rust license compliance (cargo-deny)
            shell: bash
            run: |

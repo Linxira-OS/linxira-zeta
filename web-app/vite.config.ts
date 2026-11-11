@@ -29,6 +29,50 @@ function packagedCspPlugin() {
 	};
 }
 
+// Packages that only the diagram renderer pulls in. Mermaid is reached solely
+// through `import("mermaid")` (LazyMermaid.tsx, markdown.tsx), so its tree may
+// ride a chunk that the entry never imports statically. Anything the entry does
+// import statically belongs in `vendor`/`react`/`xterm`/`codemirror` instead —
+// otherwise the whole tree below moves into the first load and Vite emits a
+// `modulepreload` for it (the 3.36 MB regression this list guards against).
+const MERMAID_ONLY_PACKAGES = [
+	"mermaid",
+	"@mermaid-js",
+	"d3",
+	"dagre",
+	"dagre-d3",
+	"graphlib",
+	"cytoscape",
+	"@upsetjs",
+	"khroma",
+	"non-layered-tidy-tree-layout",
+	"@braintree",
+	"@iconify",
+	"langium",
+	"stylis",
+	"ts-dedent",
+	"delaunator",
+	"internmap",
+	"robust-predicates",
+	"roughjs",
+	"marked",
+	"fastdom",
+	"es-toolkit",
+	"dompurify",
+	"dayjs",
+	"uuid",
+];
+
+// First segment under `node_modules` is the package name, or the scope of a
+// scoped package (`@mermaid-js/parser` → `@mermaid-js`). Prefix matching is
+// deliberate: the diagram tree is made of families (`d3-*`, `dagre*`,
+// `@iconify*`), so an exact-name list would leave parts of it in `vendor` and
+// pull them into the first load.
+const isMermaidOnlyPackage = (id: string): boolean => {
+	const pkg = /node_modules[\\/]([^\\/]+)/.exec(id)?.[1] ?? "";
+	return pkg !== "" && MERMAID_ONLY_PACKAGES.some(name => pkg.startsWith(name));
+};
+
 // P0 renderer: a pure browser build with no host-specific coupling. The
 // relative base keeps the same bundle loadable from any origin the shell
 // later serves it from (including file:// during early desktop bring-up).
@@ -68,48 +112,37 @@ export default defineConfig({
 		cors: { origin: ["null", /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/] },
 	},
 	build: {
-		rollupOptions: {
+		rolldownOptions: {
 			input: { index: fileURLToPath(new URL("./index.html", import.meta.url)) },
 			output: {
-				// Keep the entry under the 500 kB warning: React, xterm, and the
-				// Studio client stay on their own cacheable vendor chunks.
-				// Mermaid is only imported lazily for fenced "mermaid" blocks, so its
-				// whole dependency tree rides its own chunk instead of inflating vendor.
-				manualChunks(id) {
-					if (!id.includes("node_modules")) return;
-					if (id.includes("/three/") || id.includes("\\three\\")) return "three";
-					if (id.includes("@xterm")) return "xterm";
-					if (id.includes("@codemirror") || id.includes("@lezer") || /node_modules[/\\]codemirror[/\\]/.test(id)) {
-						return "codemirror";
-					}
-					const mermaidPackages = [
-						"mermaid",
-						"@mermaid-js",
-						"d3",
-						"dagre",
-						"dagre-d3",
-						"graphlib",
-						"cytoscape",
-						"khroma",
-						"dompurify",
-						"katex",
-						"dayjs",
-						"@braintree",
-						"non-layered-tidy-tree-layout",
-						"@iconify",
-						"langium",
-						"stylis",
-						"ts-dedent",
-						"uuid",
-						"delaunator",
-						"internmap",
-						"robust-predicates",
-					];
-					const pkg = id.split(/node_modules[/\\]/)[1] ?? "";
-					if (mermaidPackages.some(name => pkg.startsWith(name))) return "mermaid";
-					if (id.includes("@linxiraos/studio-")) return "studio-client";
-					if (/node_modules[/\\](?:react-dom|react|scheduler)[/\\]/.test(id)) return "react";
-					return "vendor";
+				// `codeSplitting.groups`, not `manualChunks`: Vite 8 accepts the
+				// deprecated function form and then silently discards its result for
+				// the modules its own import-analysis injects, which is exactly how
+				// the async diagram chunk turned into a boot dependency. The groups
+				// below are the supported Vite 8 path and are honoured for every id.
+				codeSplitting: {
+					groups: [
+						// Vite's dynamic-import preload helper (`\0vite/preload-helper.js`)
+						// is required by the entry (modulepreload polyfill plus the entry's
+						// own `import()` calls) and by every lazy chunk that preloads its
+						// dependencies. Left unassigned, Rolldown parks it inside an async
+						// chunk, the entry then imports that chunk statically, and the
+						// whole payload (3 MB of Mermaid) lands in the first load. As its
+						// own always-loaded chunk it stays out of every lazy chunk.
+						{ name: "preload-helper", test: /vite[\\/]preload-helper/, priority: 100 },
+						{ name: "three", test: /node_modules[\\/]three[\\/]/, priority: 10 },
+						{ name: "xterm", test: /node_modules[\\/]@xterm[\\/]/, priority: 10 },
+						{ name: "codemirror", test: /node_modules[\\/](?:@codemirror|@lezer|codemirror)[\\/]/, priority: 10 },
+						// KaTeX typesets math inside Mermaid here; packages/export-web
+						// bundles its own copy. A separate lazy chunk means a future
+						// static KaTeX import cannot drag the whole diagram tree along.
+						{ name: "katex", test: /node_modules[\\/]katex[\\/]/, priority: 10 },
+						{ name: "mermaid", test: isMermaidOnlyPackage, priority: 10 },
+						{ name: "react", test: /node_modules[\\/](?:react|react-dom|scheduler)[\\/]/, priority: 10 },
+						// Keep the entry under the 500 kB warning: everything else
+						// cacheable stays in one static vendor chunk.
+						{ name: "vendor", test: /node_modules[\\/]/, priority: 0 },
+					],
 				},
 			},
 		},
