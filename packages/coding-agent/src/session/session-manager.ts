@@ -68,12 +68,14 @@ import {
 	type ModelUsageEntry,
 	lastSelfSelectedLeafId,
 	type NewSessionOptions,
+	type SessionClient,
 	type ResetBoundaryEntry,
 	type ServiceTierChangeEntry,
 	sessionEntryLeafId,
 	type SessionEntry,
 	type SessionHeader,
 	type SessionInitEntry,
+	type SessionRunInitEntry,
 	type SessionMessageEntry,
 	type SessionTitleSource,
 	type SessionTreeNode,
@@ -519,6 +521,7 @@ function isDraftOnlyMetadataEntry(entry: SessionEntry): boolean {
 		case "service_tier_change":
 		case "mode_change":
 		case "credential_pin":
+		case "run_init":
 			return true;
 		default:
 			return false;
@@ -965,6 +968,8 @@ export class SessionManager {
 	#bodyRevision = 0;
 	#sessionFile: string | undefined;
 	#header!: SessionHeader;
+	/** Client of the process/run holding this manager; header.client stays the creator. */
+	#client: SessionClient | undefined;
 	#titleUpdatedAt = "";
 	#hasTitleSlot = true;
 	#entries: SessionEntry[] = [];
@@ -2090,7 +2095,7 @@ export class SessionManager {
 			// A session started from inside a client stays that client's session:
 			// `/new`, branch and fork inherit, and only a creator that knows better
 			// passes one explicitly.
-			client: options?.client ?? this.#header?.client,
+			client: options?.client ?? this.#client ?? this.#header?.client,
 			// An IM/bot or Team conversation keeps its stamp across `/new`; a new
 			// session created inside a resolved Team location is stamped from that
 			// location. A personal session outside a team never acquires one.
@@ -2564,8 +2569,9 @@ export class SessionManager {
 			timestamp,
 			cwd: this.#cwd,
 			additionalDirectories: this.#additionalDirectories.length > 0 ? [...this.#additionalDirectories] : undefined,
-			client: this.#header.client,
+			client: this.#client ?? this.#header.client,
 			origin: this.#header.origin,
+			memoryNamespace: this.#header.memoryNamespace,
 			parentSession: parentSessionId,
 			providerPromptCacheKey: SessionManager.getInheritedProviderPromptCacheKey(this.#header),
 			taskPromptCacheKey: this.#header.taskPromptCacheKey,
@@ -2821,7 +2827,7 @@ export class SessionManager {
 		const manager = new SessionManager(this.#cwd, sessionDir, true, storage);
 		manager.#suppressBreadcrumb = options?.suppressBreadcrumb === true;
 		manager.#resetToNewSession({
-			client: this.#header.client,
+			client: this.#client ?? this.#header.client,
 			taskPromptCacheKey: this.#header.taskPromptCacheKey,
 		});
 		manager.#sessionName = this.#sessionName;
@@ -3766,8 +3772,24 @@ export class SessionManager {
 		compactionThreshold?: { thresholdPercent: number; thresholdTokens: number };
 		isolated?: boolean;
 		workPoolYieldItems?: WorkPoolYieldItem[];
+		/** Client that initiated this subagent run; absent means unknown. */
+		client?: SessionClient;
 	}): string {
 		const entry: SessionInitEntry = { type: "session_init", ...this.#freshEntryFields(), ...init };
+		this.#recordEntry(entry);
+		return entry.id;
+	}
+
+	/**
+	 * Append durable provenance for one run without touching the creator header.
+	 * Readers take the newest valid `run_init.client` as the current run.
+	 */
+	appendRunInit(client?: SessionClient): string {
+		const entry: SessionRunInitEntry = {
+			type: "run_init",
+			...this.#freshEntryFields(),
+			...(client === undefined ? {} : { client }),
+		};
 		this.#recordEntry(entry);
 		return entry.id;
 	}
@@ -4260,7 +4282,9 @@ export class SessionManager {
 			cwd: this.#cwd,
 			title: this.#sessionName,
 			titleSource: this.#titleSource,
+			client: this.#client ?? this.#header.client,
 			origin: this.#header.origin,
+			memoryNamespace: this.#header.memoryNamespace,
 			parentSession: this.#persist ? sourceSessionFile : undefined,
 			additionalDirectories: this.#additionalDirectories.length > 0 ? [...this.#additionalDirectories] : undefined,
 		};
@@ -4336,6 +4360,7 @@ export class SessionManager {
 	): SessionManager {
 		const dir = sessionDir ?? SessionManager.getDefaultSessionDir(cwd, undefined, storage);
 		const manager = new SessionManager(cwd, dir, true, storage);
+		manager.#client = options?.client;
 		manager.#resetToNewSession(options);
 		return manager;
 	}
@@ -4391,6 +4416,8 @@ export class SessionManager {
 			resetInheritedCost?: boolean;
 			repairInterruptedTail?: boolean;
 			seance?: boolean;
+			/** Client that initiated the fork; source creator is only the fallback. */
+			client?: SessionClient;
 		},
 	): Promise<SessionManager> {
 		const dir = sessionDir ?? SessionManager.getDefaultSessionDir(cwd, undefined, storage);
@@ -4415,8 +4442,9 @@ export class SessionManager {
 		if (options?.resetInheritedCost) SessionManager.#resetInheritedUsageCost(history);
 		manager.#resetToNewSession(
 			{
-				client: sourceHeader?.client,
+				client: options?.client ?? sourceHeader?.client,
 				parentSession: sourceHeader?.id,
+				memoryNamespace: sourceHeader?.memoryNamespace,
 				providerPromptCacheKey: SessionManager.getInheritedProviderPromptCacheKey(sourceHeader),
 				taskPromptCacheKey: sourceHeader?.taskPromptCacheKey,
 			},
@@ -4544,6 +4572,8 @@ export class SessionManager {
 			throwIfMissing?: boolean;
 			/** Stamp an existing transcript that predates the origin header field. */
 			origin?: SessionOrigin;
+			/** Client that initiated this run; appends `run_init`, never rewrites the header. */
+			client?: SessionClient;
 		},
 	): Promise<SessionManager> {
 		const probed = await loadSessionFile(filePath, storage, { throwIfMissing: options?.throwIfMissing });
@@ -4574,8 +4604,10 @@ export class SessionManager {
 			: probed;
 		await manager.#setSessionFile(filePath, loaded, {
 			throwIfMissing: options?.throwIfMissing,
-			newSession: { parentSession: options?.parentSession, origin: options?.origin },
+			newSession: { parentSession: options?.parentSession, origin: options?.origin, client: options?.client },
 		});
+		manager.#client = options?.client;
+		if (options?.client && probed.entries.length > 0) manager.appendRunInit(options.client);
 		// An existing transcript written before the origin field is stamped here,
 		// so the IM/relay listing can recognise it without a migration pass.
 		if (options?.origin && manager.getOrigin() === undefined) await manager.setOrigin(options.origin);

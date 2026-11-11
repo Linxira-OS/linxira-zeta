@@ -340,6 +340,8 @@ export interface CredentialPinEntry extends SessionEntryBase {
 /** Session init entry - captures initial context for subagent sessions (debugging/replay). */
 export interface SessionInitEntry extends SessionEntryBase {
 	type: "session_init";
+	/** Client that initiated this subagent run; absent means unknown, never inferred. */
+	client?: SessionClient;
 	/** System prompt blocks exactly as sent to the model; files written before blocks were kept store one joined string. */
 	systemPrompt: string[] | string;
 	/** Initial task/user message */
@@ -413,6 +415,17 @@ export interface ModeChangeEntry extends SessionEntryBase {
 }
 
 /**
+ * Durable provenance for one later run of an existing session. The creator
+ * stays in `SessionHeader.client`; readers take the newest valid
+ * `run_init.client` as the client holding the current run.
+ */
+export interface SessionRunInitEntry extends SessionEntryBase {
+	type: "run_init";
+	/** Client that started this run; absent means unknown, never a default. */
+	client?: SessionClient;
+}
+
+/**
  * Custom message entry for extensions to inject messages into LLM context.
  * Use customType to identify your extension's entries.
  *
@@ -453,7 +466,8 @@ export type SessionEntry =
 	| SessionRunInitEntry
 	| ModeChangeEntry
 	| CredentialPinEntry
-	| ResetBoundaryEntry;
+	| ResetBoundaryEntry
+	| SessionRunInitEntry;
 
 /** Leaf selected when replaying one entry; an off-branch entry restores the active leaf captured at append time. */
 export function sessionEntryLeafId(entry: SessionEntry): string | null {
