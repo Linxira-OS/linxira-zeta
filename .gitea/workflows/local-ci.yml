@@ -567,6 +567,9 @@ jobs:
          # 同 GitHub：冻结策略的单元测试 + 对 ci.yml / 独立发布 workflow 的静态断言。
          - name: Unit-test the release freeze policy
            run: bun test scripts/release-freeze.test.ts
+         # ADR 索引守卫的结构测试：单调缺口通过，重复 ID / 缺索引行 / 非法编号 / 空占位失败。
+         - name: Unit-test the ADR index guard
+           run: bun test scripts/check-adr-index.test.ts
          - name: Unit-test the package linkage contract
            run: bun test scripts/check-package-linkage.test.ts
          # 镜像 GitHub `check` job：pi-messenger 的 vitest 套件在 bun workspace 之外

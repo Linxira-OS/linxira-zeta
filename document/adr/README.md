@@ -56,12 +56,17 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 ## File and numbering rules
 
 - One decision per file: `NNNN-<lowercase-kebab-slug>.md`, zero-padded to four digits.
-- Number sequentially from the highest existing ID. Never reuse or renumber an ID.
+- Numbering is a stable identifier, not a dense sequence. Choose an ID greater
+  than every existing ID; gaps are allowed and MUST NOT be backfilled with a
+  placeholder ADR. Never reuse, renumber, or delete an ID, including an Accepted
+  one.
 - Every ADR carries `Status`, `Date`, `Deciders`, and `Links` metadata, plus
   `Context`, `Decision`, `Consequences`, `Alternatives`, and `Links` sections.
 - Add the index row in the same change as the ADR. The guard rejects an ADR
-  without an index row, an index row without a file, duplicate IDs, and gaps in
-  the sequence.
+  without an index row, an index row without a file, duplicate IDs or filenames,
+  a non-increasing or reserved ID, a malformed filename, and an empty
+  placeholder. It does not require contiguous numbering: `0001, 0002, 0005`
+  passes.
 - Link real PRs, docs, tests, and assets. Never invent a SHA, PR number, or
   external repository detail. If a fact is unknown, say so in the ADR and keep
   the status **Proposed**.

@@ -573,6 +573,10 @@ jobs:
          # 1.5.x tag can upload assets or publish npm by default.
          - name: Unit-test the release freeze policy
            run: bun test scripts/release-freeze.test.ts
+         # The ADR index guard is structural: monotonic gaps pass, while
+         # duplicates, missing index rows, illegal IDs and empty placeholders fail.
+         - name: Unit-test the ADR index guard
+           run: bun test scripts/check-adr-index.test.ts
          # The external package-repository contract: identity/asset/migration
          # consistency, the release asset upload, and the "no automatic
          # in-place upgrade across different installer identities" rule.
