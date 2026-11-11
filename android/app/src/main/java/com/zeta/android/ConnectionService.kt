@@ -20,21 +20,26 @@ import java.util.concurrent.TimeUnit
 /**
  * Foreground host state plus the background notification subscriber.
  *
- * While the WebView is foreground it owns the event stream; this service only
- * verifies the session. When the app goes background, the service subscribes to
- * the existing authenticated `WS /api/v1/events` surface with the same
- * device-bound cookie/token and surfaces agent completion and input prompts. It
- * sends no commands and keeps no second queue.
+ * The foreground WebView owns events. When the app is backgrounded this
+ * service subscribes to the existing authenticated `WS /api/v1/events` with the
+ * same cookie (command dispatch failures / state changes) and polls the existing
+ * `session.state` query for user state. Completion comes from `isStreaming` +
+ * `lastTurnOutcome`; input comes from `pendingInteraction`; neither is inferred
+ * from a dispatch receipt. It sends no commands and keeps no second queue.
  */
 class ConnectionService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var container: AppContainer
     private var pollJob: Job? = null
     private var eventReconnectJob: Job? = null
+    private var statePollJob: Job? = null
+    private var stateProbeJob: Job? = null
     @Volatile private var eventStream: HostEventStream? = null
     @Volatile private var currentCredential: Credential? = null
     @Volatile private var foreground = false
     @Volatile private var stopping = false
+    @Volatile private var lastState: AgentState? = null
+    private val stateLock = Any()
 
     private val eventClient by lazy {
         container.httpClient.newBuilder().pingInterval(20, TimeUnit.SECONDS).build()
@@ -54,11 +59,13 @@ class ConnectionService : Service() {
             ACTION_FOREGROUND -> {
                 foreground = true
                 closeEvents()
+                closeStatePoll()
                 return START_NOT_STICKY
             }
             ACTION_BACKGROUND -> {
                 foreground = false
                 ensureEvents()
+                ensureStatePoll()
                 return START_NOT_STICKY
             }
         }
@@ -75,8 +82,10 @@ class ConnectionService : Service() {
         }
         if (foreground) {
             closeEvents()
+            closeStatePoll()
         } else {
             ensureEvents()
+            ensureStatePoll()
         }
         return START_NOT_STICKY
     }
@@ -97,13 +106,13 @@ class ConnectionService : Service() {
                             verification = false,
                         ),
                     )
-                    if (!foreground) ensureEvents()
+                    if (!foreground) {
+                        ensureEvents()
+                        ensureStatePoll()
+                    }
                 }
                 SessionCheck.Unauthorized -> {
-                    container.credentialStore.clear()
-                    container.notifications.postRevoked()
-                    sendBroadcast(Intent(ACTION_SESSION_REVOKED).setPackage(packageName))
-                    stopConnection()
+                    revokeFromNative()
                     return
                 }
                 SessionCheck.TotpRequired -> {
@@ -125,6 +134,7 @@ class ConnectionService : Service() {
                         ),
                     )
                     closeEvents()
+                    closeStatePoll()
                 }
             }
             delay(POLL_INTERVAL_MS)
@@ -141,42 +151,98 @@ class ConnectionService : Service() {
         stream.connect()
     }
 
+    private fun ensureStatePoll() {
+        if (foreground || stopping) return
+        if (statePollJob?.isActive == true) return
+        statePollJob = scope.launch { stateLoop() }
+    }
+
+    private fun closeStatePoll() {
+        statePollJob?.cancel()
+        statePollJob = null
+        stateProbeJob?.cancel()
+        stateProbeJob = null
+        synchronized(stateLock) { lastState = null }
+    }
+
+    private suspend fun stateLoop() {
+        while (scope.isActive && !foreground && !stopping) {
+            queryStateOnce()
+            delay(STATE_POLL_INTERVAL_MS)
+        }
+    }
+
+    private fun probeState() {
+        if (foreground || stopping) return
+        stateProbeJob?.cancel()
+        stateProbeJob = scope.launch { queryStateOnce() }
+    }
+
+    private suspend fun queryStateOnce() {
+        val credential = currentCredential ?: container.credentialStore.load() ?: return
+        currentCredential = credential
+        when (val check = container.sessionVerifier.queryState(credential)) {
+            is StateCheck.Ok -> {
+                val previous = synchronized(stateLock) {
+                    lastState.also { lastState = check.state }
+                }
+                if (previous != null) notifyStateTransition(previous, check.state)
+            }
+            StateCheck.Unauthorized -> revokeFromNative()
+            is StateCheck.Forbidden -> {
+                // binding_scope / insufficient_scope: do not widen or clear the
+                // credential; the page will show the same refusal.
+            }
+            is StateCheck.NetworkError, is StateCheck.ServerError -> Unit
+        }
+    }
+
+    private fun notifyStateTransition(previous: AgentState, current: AgentState) {
+        val credential = currentCredential ?: return
+        if (current.pendingInteractionId != null &&
+            current.pendingInteractionId != previous.pendingInteractionId
+        ) {
+            container.notifications.postAgentEvent(
+                current.pendingInteractionId.hashCode().toLong(),
+                getString(R.string.notification_input_needed),
+                getString(
+                    R.string.notification_event_body,
+                    credential.host.host,
+                    current.pendingInteractionTitle ?: credential.bindingDescription,
+                ),
+            )
+        }
+        val outcomeChanged = current.lastTurnOutcome != null &&
+            current.lastTurnOutcome != previous.lastTurnOutcome
+        if (!current.isStreaming && (previous.isStreaming || outcomeChanged)) {
+            val interrupted = current.lastTurnOutcome == "interrupted"
+            container.notifications.postAgentEvent(
+                (current.sessionId.hashCode().toLong() shl 32) xor current.stateVersion,
+                getString(if (interrupted) R.string.notification_agent_failed else R.string.notification_agent_done),
+                getString(R.string.notification_event_body, credential.host.host, credential.bindingDescription),
+            )
+        }
+    }
+
     private val eventListener = object : HostEventStream.Listener {
         override fun onEvent(event: HostEvent) {
             if (foreground) return
-            val credential = currentCredential ?: return
             when {
-                event.kind == "interaction.required" -> {
-                    val title = event.interactionTitle ?: credential.bindingDescription
-                    container.notifications.postAgentEvent(
-                        event.cursor,
-                        getString(R.string.notification_input_needed),
-                        getString(R.string.notification_event_body, credential.host.host, title),
-                    )
-                }
+                event.kind == "state.changed" -> probeState()
                 event.kind == "command.receipt" -> {
                     val command = event.commandName.orEmpty()
                     if (command !in TURN_COMMANDS) return
-                    when (event.receiptStatus) {
-                        "completed" -> container.notifications.postAgentEvent(
-                            event.cursor,
-                            getString(R.string.notification_agent_done),
-                            getString(R.string.notification_event_body, credential.host.host, credential.bindingDescription),
-                        )
-                        "failed", "rejected", "outcome_unknown" -> container.notifications.postAgentEvent(
+                    if (event.receiptStatus == "failed" ||
+                        event.receiptStatus == "rejected" ||
+                        event.receiptStatus == "outcome_unknown"
+                    ) {
+                        val credential = currentCredential ?: return
+                        container.notifications.postAgentEvent(
                             event.cursor,
                             getString(R.string.notification_agent_failed),
                             getString(R.string.notification_event_body, credential.host.host, command),
                         )
                     }
-                }
-                event.kind == "conversation.changed" &&
-                    event.conversationKind == "conversation.turn.aborted" -> {
-                    container.notifications.postAgentEvent(
-                        event.cursor,
-                        getString(R.string.notification_agent_failed),
-                        getString(R.string.notification_event_body, credential.host.host, credential.bindingDescription),
-                    )
                 }
             }
         }
@@ -189,6 +255,11 @@ class ConnectionService : Service() {
                 delay(RECONNECT_DELAY_MS)
                 if (!foreground && !stopping) ensureEvents()
             }
+        }
+
+        override fun onUnauthorized() {
+            eventStream = null
+            revokeFromNative()
         }
     }
 
@@ -208,9 +279,17 @@ class ConnectionService : Service() {
         eventStream = null
     }
 
+    private fun revokeFromNative() {
+        container.credentialStore.clear()
+        container.notifications.postRevoked()
+        sendBroadcast(Intent(ACTION_SESSION_REVOKED).setPackage(packageName))
+        stopConnection()
+    }
+
     private fun stopConnection() {
         stopping = true
         closeEvents()
+        closeStatePoll()
         pollJob?.cancel()
         pollJob = null
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
@@ -229,6 +308,7 @@ class ConnectionService : Service() {
     override fun onDestroy() {
         stopping = true
         closeEvents()
+        closeStatePoll()
         pollJob?.cancel()
         scope.cancel()
         super.onDestroy()
@@ -244,6 +324,7 @@ class ConnectionService : Service() {
         const val ACTION_SESSION_REVOKED = "com.zeta.android.action.SESSION_REVOKED"
         const val EXTRA_FOREGROUND = "foreground"
         private const val POLL_INTERVAL_MS = 60_000L
+        private const val STATE_POLL_INTERVAL_MS = 15_000L
         private const val RECONNECT_DELAY_MS = 15_000L
         private val TURN_COMMANDS = setOf("core.prompt", "core.steer", "core.followUp", "core.continue")
     }

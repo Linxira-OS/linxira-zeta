@@ -13,10 +13,8 @@ data class HostEvent(
     val cursor: Long,
     val kind: String,
     val sessionId: String?,
-    val interactionTitle: String?,
     val commandName: String?,
     val receiptStatus: String?,
-    val conversationKind: String?,
 )
 
 /**
@@ -33,6 +31,7 @@ class HostEventStream(
     interface Listener {
         fun onEvent(event: HostEvent)
         fun onClosed(reason: String)
+        fun onUnauthorized()
     }
 
     private val lock = Any()
@@ -99,7 +98,11 @@ class HostEventStream(
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             synchronized(lock) { socket = null }
-            listener.onClosed(t.message ?: "socket_failure")
+            if (response?.code == 401) {
+                listener.onUnauthorized()
+            } else {
+                listener.onClosed(t.message ?: "socket_failure")
+            }
         }
     }
 
@@ -113,18 +116,14 @@ class HostEventStream(
         if (kind.isBlank()) return null
         val cursor = json.optString("cursor").toLongOrNull() ?: return null
         val authority = json.optString("authorityEpoch")
-        val interaction = json.optJSONObject("interaction")
         val receipt = json.optJSONObject("receipt")
-        val update = json.optJSONObject("update")
         return HostEvent(
             authorityEpoch = authority,
             cursor = cursor,
             kind = kind,
             sessionId = json.optString("sessionId").takeIf { it.isNotBlank() },
-            interactionTitle = interaction?.optString("title")?.takeIf { it.isNotBlank() },
             commandName = receipt?.optString("commandName")?.takeIf { it.isNotBlank() },
             receiptStatus = receipt?.optString("status")?.takeIf { it.isNotBlank() },
-            conversationKind = update?.optString("kind")?.takeIf { it.isNotBlank() },
         )
     }
 
