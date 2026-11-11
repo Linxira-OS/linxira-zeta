@@ -5,16 +5,15 @@ import { PredictionSettingsPane } from "./settings/PredictionSettingsPane";
 import "./composer/prediction.css";
 import { NativePreferencesPane, type NativePreferencesContext } from "./settings/NativePreferencesPane";
 import { ArtifactStorageSettings } from "./media/ArtifactLibraryPane";
-import { ImChannelsPane } from "./settings/ImChannelsPane";
 import { SecuritySettingsPane } from "./settings/SecuritySettingsPane";
 import { ImRuntimePage } from "./settings/ImRuntimePage";
 /**
- * 设置页（Phase 1 IA 重构）：十个标签的壳。
+ * 设置页（Phase 1 IA 重构）：设置组的壳。
  *
  * 职责原则：设置页只负责「改变全局行为」，不管理对象——模型 / Provider /
  * 角色 / Fallback 在模型配置页，能力启停在能力中心，子代理定义在模型配置
- * · 子代理，会话管理在历史页，Runtime / Bridge / 日志在诊断页。IM 渠道是
- * 例外：IM 渠道与「身份与设备」直接读写网关（/api/channels/*、/api/web-config、
+ * · 子代理，会话管理在历史页，Runtime / Bridge / 日志在诊断页。IM 运行时是
+ * 例外：IM 运行时与「身份与设备」直接读写网关（/api/channels/instances、/api/im/*、
  * /api/remote/*、/api/auth/2fa），不经过 appSettings，也不在本地保留配置副本。
  * 它们还必须按当前界面（桌面/本机浏览器/远程/移动）如实隐藏或降级动作，
  * 见 surfaces.ts 的能力矩阵。
@@ -55,7 +54,7 @@ import type {
 
 export const SETTINGS_INTENT_KEY = "zeta.settingsIntent";
 
-export type SettingsGroupId = "general" | "background" | "interaction" | "permissions" | "context" | "files" | "tasks" | "channels" | "imRuntime" | "security" | "advanced" | "native";
+export type SettingsGroupId = "general" | "background" | "interaction" | "permissions" | "context" | "files" | "tasks" | "imRuntime" | "security" | "advanced" | "native";
 
 type GroupId = SettingsGroupId;
 
@@ -69,7 +68,16 @@ export interface RuntimeSettingsApi {
   readonly onSet?: (key: StudioRuntimeSettingKey, value: StudioRuntimeSettingValue, persist?: boolean) => void | Promise<void>;
 }
 
-const GROUP_IDS: ReadonlyArray<SettingsGroupId> = ["general", "background", "interaction", "permissions", "context", "files", "tasks", "channels", "imRuntime", "security", "advanced", "native"];
+const GROUP_IDS: ReadonlyArray<SettingsGroupId> = ["general", "background", "interaction", "permissions", "context", "files", "tasks", "imRuntime", "security", "advanced", "native"];
+
+/** Old desktop/menu deep links to the removed `channels` tab now land on the runtime page. */
+const LEGACY_GROUP_ALIASES: Readonly<Record<string, GroupId>> = { channels: "imRuntime" };
+
+export function normalizeSettingsGroupId(value: string): GroupId | null {
+  const alias = LEGACY_GROUP_ALIASES[value];
+  if (alias !== undefined) return alias;
+  return isSettingsGroupId(value) ? value : null;
+}
 
 export function setSettingsIntent(group: SettingsGroupId): void {
   try {
@@ -89,7 +97,7 @@ function takeSettingsIntent(): SettingsGroupId | null {
     if (!raw) return null;
     sessionStorage.removeItem(SETTINGS_INTENT_KEY);
     const value = JSON.parse(raw) as { group?: unknown };
-    return typeof value.group === "string" && isSettingsGroupId(value.group) ? value.group : null;
+    return typeof value.group === "string" ? normalizeSettingsGroupId(value.group) : null;
   } catch {
     return null;
   }
@@ -136,7 +144,6 @@ function SettingsPageContent({
     ["context", "layers", t("settings.tabs.context")],
     ["files", "terminal", t("settings.tabs.files")],
     ["tasks", "play", t("settings.tabs.tasks")],
-    ["channels", "plug", t("settings.tabs.channels")],
     ["imRuntime", "message", t("settings.tabs.imRuntime")],
     ["security", "shield", t("settings.tabs.security")],
     ["advanced", "wrench", t("settings.tabs.advanced")],
@@ -317,9 +324,6 @@ function SettingsPageContent({
             <SessionBudgetPane client={client} sessionId={nativeContext?.sessionId} available={nativeContext?.available === true} visible={group === "tasks"} capabilities={nativeContext?.capabilities} />
             <FeatureSettingsPane group="tasks" client={client} context={nativeContext} visible={group === "tasks"} />
             <SessionWorktreesPane client={client} context={nativeContext} visible={group === "tasks"} onOpenWorkspace={onOpenWorktree} />
-          </div>
-          <div {...pane("channels")} id="set-channels" role="tabpanel" aria-labelledby="setTab-channels" tabIndex={0}>
-            <ImChannelsPane visible={group === "channels"} />
           </div>
           <div {...pane("imRuntime")} id="set-imRuntime" role="tabpanel" aria-labelledby="setTab-imRuntime" tabIndex={0}>
             <ImRuntimePage visible={group === "imRuntime"} />

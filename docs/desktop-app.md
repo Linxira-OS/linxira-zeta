@@ -5,10 +5,10 @@ runtime. Both carry Zeta's own kernel — the compiled `zeta` binary (the same
 CLI as `zetacode`), the native addons, and the Work Studio renderer
 (`web-app/dist`). Neither needs Bun, Node, or a separately installed CLI.
 
-| Edition | What it bundles | Download |
-| --- | --- | --- |
-| **Full (Electron)** | Chromium, the kernel, the renderer, tray and window chrome | Windows NSIS installer / portable zip, Linux AppImage / deb / tar.gz |
-| **Browser** | The kernel and the renderer only; no browser engine | Windows zip, Linux tar.gz, with a launcher that starts `zetacode serve` and opens the default browser |
+| Edition             | What it bundles                                            | Download                                                                                              |
+| ------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Full (Electron)** | Chromium, the kernel, the renderer, tray and window chrome | Windows NSIS installer / portable zip, Linux AppImage / deb / tar.gz                                  |
+| **Browser**         | The kernel and the renderer only; no browser engine        | Windows zip, Linux tar.gz, with a launcher that starts `zetacode serve` and opens the default browser |
 
 The Electron shell spawns the bundled `zetacode serve` and loads it inside its
 window; the browser edition's launcher does the same but hands the URL to the
@@ -51,11 +51,11 @@ packaging instead of silently bloating the download.
 
 ## Naming
 
-* **Work Studio** is the product surface, in the browser and in both desktop
+- **Work Studio** is the product surface, in the browser and in both desktop
   editions.
-* `web-app/` is the renderer; `zetacode serve` is its host.
-* `web-ui/` is an abandoned third-party snapshot and ships nothing.
-* `zetawork` (Rust TUI/GUI) is paused; no desktop asset comes from it.
+- `web-app/` is the renderer; `zetacode serve` is its host.
+- `web-ui/` is an abandoned third-party snapshot and ships nothing.
+- `zetawork` (Rust TUI/GUI) is paused; no desktop asset comes from it.
 
 ## Building locally
 
@@ -84,12 +84,12 @@ neither global.
 
 Capabilities the shell owns (paths never cross into the renderer):
 
-* window controls — `minimize`, `maximize` (toggle), `close`, `isMaximized`,
+- window controls — `minimize`, `maximize` (toggle), `close`, `isMaximized`,
   `onWindowState`;
-* project picker — `selectDirectory`, and `pickWorkspace` (native folder
+- project picker — `selectDirectory`, and `pickWorkspace` (native folder
   dialog + `PUT /api/projects` registration);
-* host opens — `getOpenTargets`, `openTarget`, `spawnTool` (zetacode / zetaide);
-* file shell actions — `openProjectInEditor`, `openProjectDirectory`,
+- host opens — `getOpenTargets`, `openTarget`, `spawnTool` (zetacode / zetaide);
+- file shell actions — `openProjectInEditor`, `openProjectDirectory`,
   `openFile`, `openFileWith`, `revealFileInFileManager`,
   `resolveFileAbsolutePath`, `listFileOpeners`, `getPathForFile`,
   `resolveDroppedPaths`, `pickPlanSavePath`;
@@ -130,7 +130,8 @@ Window lifecycle: closing to the tray hides the window; a real close (or
 `activate` with no window) recreates it from the persisted bounds instead of
 leaving the process windowless. Tray **Open Settings** sends the Studio
 `app.settings` menu command rather than reloading a query-only URL; tray
-**IM Channels** sends `app.settings:channels` and **Identity & Devices** sends
+**IM Channels** sends `app.settings:channels`, which the renderer aliases to
+**Settings → IM 运行时**, and **Identity & Devices** sends
 `app.settings:security`; both open the same Work Studio settings groups as the
 browser. There is no separate desktop channel or security UI.
 

@@ -47,16 +47,18 @@ describe("discoverability", () => {
 	const settings = readFileSync(join(HERE, "..", "SettingsPage.tsx"), "utf8");
 	const palette = readFileSync(join(HERE, "..", "commandPaletteCatalog.ts"), "utf8");
 
-	test("both IM channels and identity & devices are first-class settings groups", () => {
-		expect(settings).toContain('"channels"');
+	test("IM runtime is the single IM settings group", () => {
+		expect(settings).toContain('"imRuntime"');
 		expect(settings).toContain('"security"');
 		expect(settings).toContain("SecuritySettingsPane");
-		expect(settings).toContain("ImChannelsPane");
+		expect(settings).toContain("ImRuntimePage");
+		expect(settings.includes("ImChannelsPane")).toBe(false);
 	});
 
 	test("the command palette can jump straight to either group", () => {
-		expect(palette).toContain('group: "channels"');
+		expect(palette).toContain('group: "imRuntime"');
 		expect(palette).toContain('group: "security"');
+		expect(palette.includes('group: "channels"')).toBe(false);
 	});
 
 	test("the IM pane no longer owns the device/TOTP sections", () => {

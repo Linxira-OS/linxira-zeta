@@ -7,15 +7,15 @@
 
 ## The five surfaces
 
-| Surface | How it is detected | What it is |
-| --- | --- | --- |
-| **Desktop app** | `window.piDesktop` (window controls) or `window.zetaStudioChrome` (preload chrome API) | The Electron shell's renderer. |
-| **Local browser** | No desktop bridge, loopback hostname (`localhost`, `127.0.0.1`, `[::1]`) | A browser on the machine running `zetacode serve`. |
-| **Remote browser** | No desktop bridge, non-loopback origin | A browser reaching the machine through a tunnel/proxy. Being remote is an authorization question (`remote.token` + TOTP), not a capability verdict. |
-| **Mobile / WebView** | No desktop bridge, phone-sized coarse pointer or a mobile user agent | Binding-scoped chat client. Chat and the current project's conversations only. |
-| **TUI** | Not a renderer surface | Listed in the matrix for completeness: CLI/terminal operations. |
+| Surface              | How it is detected                                                                     | What it is                                                                                                                                          |
+| -------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Desktop app**      | `window.piDesktop` (window controls) or `window.zetaStudioChrome` (preload chrome API) | The Electron shell's renderer.                                                                                                                      |
+| **Local browser**    | No desktop bridge, loopback hostname (`localhost`, `127.0.0.1`, `[::1]`)               | A browser on the machine running `zetacode serve`.                                                                                                  |
+| **Remote browser**   | No desktop bridge, non-loopback origin                                                 | A browser reaching the machine through a tunnel/proxy. Being remote is an authorization question (`remote.token` + TOTP), not a capability verdict. |
+| **Mobile / WebView** | No desktop bridge, phone-sized coarse pointer or a mobile user agent                   | Binding-scoped chat client. Chat and the current project's conversations only.                                                                      |
+| **TUI**              | Not a renderer surface                                                                 | Listed in the matrix for completeness: CLI/terminal operations.                                                                                     |
 
-`GET /api/desktop/info` tells whether the *serving process* was spawned by the
+`GET /api/desktop/info` tells whether the _serving process_ was spawned by the
 shell; it is shown as host provenance and never grants renderer controls. A
 remote browser connected to a desktop-spawned serve still gets no window
 controls.
@@ -72,10 +72,11 @@ the reason.
 - **Settings → 身份与设备**: shows the current surface, the full matrix with the
   reason for each `unavailable`/`hidden` row, and the security actions
   themselves (devices, pairing, remote token, TOTP).
-- **Settings → IM 渠道**: channel status/QR/credentials/bindings. The pane is
-  reachable from remote browsers with a valid credential; a remote caller with
-  write scope can configure channels because the gateway supports it and TOTP
-  gates the sensitive mutations.
+- **Settings → IM 运行时**: per-instance status/QR/credentials/bindings/profiles/bot
+  commands through the instance editor. The page is reachable from remote
+  browsers with a valid credential; a remote caller with write scope can
+  configure channels because the gateway supports it and TOTP gates the
+  sensitive mutations.
 - **Diagnostics**: the import-local-update, restart and log rows are disabled
   with the matrix reason outside the desktop app.
 - **Navigation**: a mobile surface may open `workbench`, `history` and
@@ -83,14 +84,17 @@ the reason.
   2FA challenge; actions inside it are still decided by the matrix, so only the
   device list, pairing card and TOTP verification render there.
 
-## Discoverability (2026-11-11)
+## Discoverability (2026-11-12)
 
-The device list and TOTP used to sit at the bottom of **Settings → IM 渠道**,
+The device list and TOTP used to sit at the bottom of the legacy IM pane,
 which is why users could not find 2FA. They now live in **Settings → 身份与设备**
 (`web-app/src/studio/settings/SecuritySettingsPane.tsx`), with a command-palette
 entry (`set-security`) and a desktop tray item (**Identity & Devices** →
-`app.settings:security`). IM channels kept its own group and palette entry
-(`set-channels`) and tray item (**IM Channels**).
+`app.settings:security`). IM settings now have one advertised group,
+**Settings → IM 运行时** (`set-im-runtime`); the legacy `channels` group and
+`set-channels` entry are removed, and tray deep links / saved intents using
+`channels` are aliased to `imRuntime` rather than rendering the unmounted
+legacy pane.
 
 ## Workspace and session identity (2026-11-11)
 

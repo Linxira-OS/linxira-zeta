@@ -5,7 +5,6 @@
 > **Work Studio** in the browser (`zetacode serve`); see
 > [`desktop-app.md`](./desktop-app.md).
 
-
 `zetawork` (the egui desktop shell in `main/crates/zetawork-gui`) has two
 settings surfaces. This page says which one owns what, how a value travels to
 disk, and how the UI language reaches both the static strings and the schema
@@ -15,11 +14,11 @@ design notes live in [Web UI API](./web-ui/api.md)).
 
 ## Two surfaces, one complete one
 
-| Surface | Source of truth | What lives there |
-| --- | --- | --- |
-| 全部设置 (`Section::All`) | `GET /api/settings` on the running web gateway (`webUrl` in `~/.zeta/serve.json`; `statsUrl` is a different listener) | The complete zetacode/desktop schema: 10 tabs, 64 groups, 356 rows on this tree, of which 319 are visible (37 are hidden by their schema conditions; 393 keys carry UI metadata, and the remaining 37 have no control shape — arrays and numbers without declared choices stay config-file-only, exactly as in the CLI). Bool, enum/submenu, number, string, path-like string, credential, multiselect, provider-limit and model-role controls. |
-| The eight native sections | `~/.zeta/zetawork.toml` (`settings.rs`, 15 managed keys) and process state | 常规 (close policy, autostart, notifications, update check, backend lifecycle, residency), 外观 (theme, density, motion), 编辑器 (font, size, wrap, gutter + the five `zetacode config set` rows), 终端 (shell, font size), 快捷键, 项目 (the shared registry), 管理 (providers, storage), 关于 (scope, fonts, version). |
-| IM 渠道, 远程访问 | The gateway's `/api/channels/*`, `/api/web-config` and `/api/remote/*`; the files are `~/.zeta/agent/web.yml` (plus the channel runtimes in `zetacode serve`) | The web desktop's channel surface (status, WeChat QR login, credentials, routing, send test) and the remote-access surface (bind host, public URL, TLS files, plain-HTTP opt-in, token rotate/revoke, pairing QR). Neither writes `zetawork.toml`. |
+| Surface                   | Source of truth                                                                                                                                                                         | What lives there                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 全部设置 (`Section::All`) | `GET /api/settings` on the running web gateway (`webUrl` in `~/.zeta/serve.json`; `statsUrl` is a different listener)                                                                   | The complete zetacode/desktop schema: 10 tabs, 64 groups, 356 rows on this tree, of which 319 are visible (37 are hidden by their schema conditions; 393 keys carry UI metadata, and the remaining 37 have no control shape — arrays and numbers without declared choices stay config-file-only, exactly as in the CLI). Bool, enum/submenu, number, string, path-like string, credential, multiselect, provider-limit and model-role controls. |
+| The eight native sections | `~/.zeta/zetawork.toml` (`settings.rs`, 15 managed keys) and process state                                                                                                              | 常规 (close policy, autostart, notifications, update check, backend lifecycle, residency), 外观 (theme, density, motion), 编辑器 (font, size, wrap, gutter + the five `zetacode config set` rows), 终端 (shell, font size), 快捷键, 项目 (the shared registry), 管理 (providers, storage), 关于 (scope, fonts, version).                                                                                                                        |
+| IM 运行时, 远程访问       | The gateway's `/api/channels/instances`, `/api/channels/status`, `/api/im/*` and `/api/remote/*`; the files are `~/.zeta/agent/web.yml` (plus the channel runtimes in `zetacode serve`) | The web desktop's per-instance channel surface (status, per-instance credentials/validation, WeChat QR login, bindings, profiles, bot commands, send test) and the remote-access surface (bind host, public URL, TLS files, plain-HTTP opt-in, token rotate/revoke, pairing QR). Neither writes `zetawork.toml`.                                                                                                                                |
 
 The native sections stay because they control things the schema does not own:
 the window lifecycle, egui's own theme and fonts, the shell to spawn when the
@@ -110,18 +109,18 @@ PUT /api/settings {path, value}   → 200 {ok:true}
 
 ### Control mapping
 
-| Gateway `type` | Control | Value written |
-| --- | --- | --- |
-| `boolean` | switch | JSON boolean |
-| `enum` / `submenu` with options | combo box of localized labels | the option's raw `value` |
-| `enum` with `values` only | combo box of raw values | the value |
-| `submenu` with no options (runtime list) | current value, read-only | — |
-| `number` | text field, integer shape kept unless a fraction is typed | JSON number |
-| `text` | text field, committed on Enter/blur | JSON string |
-| `text` + `secret: true` | masked value + empty password field + 保存 | the newly typed string only |
-| `multiselect` | one checkbox per option | JSON array of selected values |
-| `providerLimits` | monospace JSON object editor | parsed JSON object |
-| `modelRoles` | monospace JSON object editor | parsed JSON object |
+| Gateway `type`                           | Control                                                   | Value written                 |
+| ---------------------------------------- | --------------------------------------------------------- | ----------------------------- |
+| `boolean`                                | switch                                                    | JSON boolean                  |
+| `enum` / `submenu` with options          | combo box of localized labels                             | the option's raw `value`      |
+| `enum` with `values` only                | combo box of raw values                                   | the value                     |
+| `submenu` with no options (runtime list) | current value, read-only                                  | —                             |
+| `number`                                 | text field, integer shape kept unless a fraction is typed | JSON number                   |
+| `text`                                   | text field, committed on Enter/blur                       | JSON string                   |
+| `text` + `secret: true`                  | masked value + empty password field + 保存                | the newly typed string only   |
+| `multiselect`                            | one checkbox per option                                   | JSON array of selected values |
+| `providerLimits`                         | monospace JSON object editor                              | parsed JSON object            |
+| `modelRoles`                             | monospace JSON object editor                              | parsed JSON object            |
 
 Strings are plain `text` rows (the gateway does not distinguish a path); a
 `text` row whose current value is an object or array — the fallback-chain and
@@ -192,13 +191,13 @@ The pane is the GUI port of the gateway's remote-access surface; it has no
 model or file of its own (`remote_access.rs` parses, `settings_remote.rs`
 draws and schedules the jobs).
 
-| Action | Route |
-| --- | --- |
-| Read host, public URL, TLS files, plain-HTTP opt-in, token state | `GET /api/web-config` |
-| Write one field | `PUT /api/web-config {path, value}` — `remote.host`, `remote.publicUrl`, `remote.tls.{enabled,cert,key}`, `remote.allowPlainHttp` |
-| Pairing code | `GET /api/remote/pairing` → `{url, token, payload, svg}`; the GUI encodes `payload` locally with `qrcodegen` and ignores `svg` |
-| Mint a token | `POST /api/remote/token/rotate` |
-| Drop every token | `POST /api/remote/token/revoke {all:true}` |
+| Action                                                           | Route                                                                                                                             |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Read host, public URL, TLS files, plain-HTTP opt-in, token state | `GET /api/web-config`                                                                                                             |
+| Write one field                                                  | `PUT /api/web-config {path, value}` — `remote.host`, `remote.publicUrl`, `remote.tls.{enabled,cert,key}`, `remote.allowPlainHttp` |
+| Pairing code                                                     | `GET /api/remote/pairing` → `{url, token, payload, svg}`; the GUI encodes `payload` locally with `qrcodegen` and ignores `svg`    |
+| Mint a token                                                     | `POST /api/remote/token/rotate`                                                                                                   |
+| Drop every token                                                 | `POST /api/remote/token/revoke {all:true}`                                                                                        |
 
 The config's token is masked by the gateway (`••••`); the pane keeps only
 "The token" as a two-state word (已保存 / 未设置) and never reads the value.

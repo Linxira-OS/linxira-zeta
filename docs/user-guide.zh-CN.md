@@ -80,24 +80,26 @@ zetacode --backend-url http://127.0.0.1:43143   # 钉死某一个后端
 
 ## 连接 IM 渠道
 
-启用 IM 渠道后（设置 → Web / 消息渠道，或在 `web.yml` 中），Zeta 会通过
-Telegram、飞书或微信回复你的消息，并把 agent 的回答转发回手机。
+启用 IM 渠道后（在 设置 → IM 运行时 新建/编辑实例，或直接编辑 `web.yml`），
+Zeta 会通过 Telegram、飞书、微信、Discord 或 QQ 回复你的消息，并把 agent 的
+回答转发回手机。Discord/QQ 的凭据在实例编辑器里填写并校验；旧「IM 渠道」
+设置入口已收敛到该页。
 
 **Telegram：**
 
 1. 用 @BotFather 创建机器人并复制 **token**。
-2. 在 设置 → Web / 消息渠道 中启用 Telegram 并粘贴 token。
+2. 在 设置 → IM 运行时 的实例编辑器中启用 Telegram 并粘贴 token。
 3. 保存；渠道连接成功后机器人即可使用。
 
 **飞书：**
 
 1. 在飞书开放平台创建企业自建应用。
-2. 在 设置 → Web / 消息渠道 中启用飞书，填写 **App ID** 与 **App Secret**。
+2. 在 设置 → IM 运行时 的实例编辑器中启用飞书，填写 **App ID** 与 **App Secret**。
 3. 保存；渠道连接成功。
 
 **微信：**
 
-1. 在 设置 → Web / 消息渠道 中启用微信。
+1. 在 设置 → IM 运行时 的实例编辑器中启用微信。
 2. 点击二维码，用微信扫码登录。
 3. 应用运行期间渠道保持连接。登录过期时，在设置中使用**重新连接**获取
    新二维码。
@@ -133,14 +135,13 @@ Telegram、飞书或微信回复你的消息，并把 agent 的回答转发回�
 Web / 消息渠道 → “关闭窗口时最小化到托盘”）；通过托盘菜单重新打开窗口
 或退出。
 
-
 ## 桌面入口：`zeta-d` 与 `zetacode`
 
 桌面安装只向 PATH 注册一个命令：`zeta-d`。
 
 - `zeta-d` — 运行捆绑的 CLI/TUI（与 `zetacode` 体验一致）。
 - `zeta-d -d` — 在当前目录打开桌面 GUI；也可传路径（`zeta-d -d
-  ~/projects/foo`）指定工作区。
+~/projects/foo`）指定工作区。
 
 裸 `zetacode` 永远属于 npm/源码安装，桌面捆绑包绝不注册该名称，两者共存零冲突。
 npm 安装也可以用 `zetacode --desktop [cwd]` 打开桌面 GUI；未找到桌面安装时会列出

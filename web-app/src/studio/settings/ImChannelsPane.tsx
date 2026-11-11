@@ -1,5 +1,10 @@
 /**
- * Settings → IM channels.
+ * Legacy Settings → IM channels pane.
+ *
+ * Historical component: `SettingsPage` no longer mounts it. The shipped
+ * surface is `ImRuntimePage` (per-instance editor, including Discord/QQ
+ * credentials); this file is retained only for its exported row/QR helpers and
+ * old references, not as an advertised settings entry.
  *
  * One page for the messaging channels and the chat bindings the router
  * consults. Device, pairing, remote-token and TOTP facts moved to
@@ -495,9 +500,6 @@ export function ImChannelsPane({ visible }: { visible: boolean }) {
 						pending={pending === "credentials:telegram"}
 						onValidate={validateCredentials}
 					/>
-					<p className="im-hint" data-unavailable="credentials:discord,qq">
-						{t("settings.imChannels.unsupportedCredentials")}
-					</p>
 				</SettingSection>
 			) : null}
 

@@ -16,6 +16,16 @@
 - **JSON Viewer（只读）**：`panel-ide` 新增自包含 JSON 解析器，数字按源码文本保存（大数/指数不经过 `f64`），字符串保留原始转义；树可折叠、语法错误显示行/列，`c` 复制值、`p` 复制 JSON Pointer，绝不写回文件。`Ctrl+J` 打开当前文件。
 - **TODO Scanner**：复用 `termide-walk` 的 git-ignore walker 与 `termide-core::util::is_binary_file`，跳过二进制与超过 1 MiB 的文件，结果上限 2000，支持取消；`Enter` 通过 `OpenFileAt` 跳到真实编辑器行列。`Ctrl+D` 打开。
 - **未验证**：本次仅完成源码编辑与静态检查，未在本机运行 `cargo`/nextest 或真实启动 zetaide（磁盘与构建窗口受限）；窄 Rust check 由父级在独立窗口执行。
+
+### IM 运行时 UI（未发布）
+
+- **按实例管理 IM**：Studio 新增 IM 运行时页（`web-app/src/studio/settings/ImRuntimePage.tsx`，导出给 Studio 路由挂载），消费冻结契约 ADR-IM-0007：`channels.instances` / `remote.imBindings` / `imAgents`。同一平台多实例、实例 id 命名空间、note、启用/停用、平台校验、每实例微信二维码/重连/解绑；密钥读取一律 `••••`，写入语义为“留空保留 / 显式清除写 null / 填值替换”，掩码不回传。
+- **绑定**：实例 + 聊天/线程/用户 + Agent Profile + target（workspace / team-pm / engineer）+ session + **answer/mention/observe**；mention 只在本实例被 @ 时回复、不自动回复，answer 每 (platform,chatId) 唯一。显示 needsReview 与 target-unavailable 原因并阻止保存到不可用目标；写回时剥离 UI 展示字段。
+- **Agent Profile**：persona（inline/file/workspace）、模型、位置、工具白名单（builtin/extensions/MCP/customTools/skills/commands，空=不允许、不继承环境工具）与记忆后端；`capabilities` 已从 schema 删除，页面不提供权限开关也不标示未建模权限；运行身份含 bindingId，由后端计算展示。
+- **Bot 状态**：读取当前绑定/会话/模型/answer-observe/语音能力与命令示例，实例级发送测试（409 ambiguous 待后端给候选实例）。
+- **TUI `/channels`**：新增管理页（instances/targets/bindings、needs-review/unknown-target）与 `enable-instance`/`disable-instance`；只读 v2 `channels.instances`/`remote.imBindings`，不再合成旧 platform path（未迁移时明确提示执行后端迁移）；任何 token/secret 不进入快照或 transcript。
+- **边界**：后端实例契约在 `feat/report-im`（041e8c0），本切片为本地集成；SettingsPage 接入 `imRuntime` 分组与命令面板；App.tsx 只增加 legacy `channels` 深链别名；真实浏览器交互验证尚未进行，验证不要求生产凭据。
+- **Settings 收敛（2026-11-12）**：删除 legacy「IM 渠道」设置组、tab 与命令面板 `set-channels`；`app.settings:channels` 与旧 `zeta.settingsIntent` 统一别名为 `imRuntime`。`ImChannelsPane` 保留为历史组件但不再挂载，不再向用户展示 Discord/QQ「凭据不可用」；QQ/Discord 凭据只在实例编辑器的统一 credential fields 中配置，仍走 `/api/channels/instances/<id>/validate`，不新增第二套 credential store。设备/2FA 仍在「身份与设备」。
 ### Work Studio 诊断（未发布）
 
 - **系统 Runtime 不再被误报为未安装**：当 Host 自身就是运行中的 `compatible-system` Runtime（源码/开发构建）时，诊断页显示「系统 Runtime 运行正常（未托管）」、托管卡片「系统 Runtime（未托管）」、签名「不适用（无托管制品）」、上游「本机 Runtime · 无上游记录」；`runtime.install` 与 `runtime.ensure` 能力分开渲染，不再给出必败的 Install 按钮，也不再弹「无法确认 Runtime 工件通道」。运行中的托管 Runtime 缺少安装记录改为黄色提示，launch/handshake/断连失败保留自身错误文案。

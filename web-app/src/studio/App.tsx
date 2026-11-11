@@ -144,7 +144,7 @@ import { SessionModelRecovery } from "./models/SessionModelRecovery";
 import { RuntimeQueueBar } from "./composer/RuntimeQueueBar";
 import { MessageQueueBar, type QueuedMessage } from "./MessageQueueBar";
 import { injectMagicKeyword, type MagicKeyword } from "./composerMode";
-import { SettingsPage, isSettingsGroupId, setSettingsIntent, type RuntimeSettingsApi } from "./SettingsPage";
+import { SettingsPage, normalizeSettingsGroupId, setSettingsIntent, type RuntimeSettingsApi } from "./SettingsPage";
 import { detectSurface, navAllowedOnSurface } from "./surfaces";
 import { DiagnosticsPage, setDiagnosticsIntent } from "./DiagnosticsPage";
 import { RuntimeLossBanner } from "./RuntimeLossBanner";
@@ -8547,8 +8547,9 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     // the shared Work Studio settings page; the bare form opens the page.
     if (command.startsWith("app.settings:")) {
       const group = command.slice("app.settings:".length);
-      if (isSettingsGroupId(group)) {
-        setSettingsIntent(group);
+      const resolved = normalizeSettingsGroupId(group);
+      if (resolved !== null) {
+        setSettingsIntent(resolved);
         setSettingsNonce((value) => value + 1);
         go("settings");
         return;
