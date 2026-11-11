@@ -2977,8 +2977,7 @@ export class SessionTools {
 	 * while vibe mode is active, activation waits for vibe exit.
 	 */
 	refreshMCPTools(mcpTools: CustomTool[], analysis?: AnalysisMcpRefreshInput): Promise<void> {
-		const filter = this.#host.mcpToolFilter;
-		const snapshot = filter ? mcpTools.filter(filter) : [...mcpTools];
+		const snapshot = [...mcpTools];
 		return this.runToolRegistryMutation(() =>
 			this.#host.isDisposed() ? Promise.resolve() : this.#applyMCPToolRefresh(snapshot, analysis),
 		);
@@ -3027,7 +3026,13 @@ export class SessionTools {
 				}
 			}
 		}
-		const acceptedMcpTools = analysisHook ? analysisHook.filterTools(dedupedMcpTools) : dedupedMcpTools;
+		// The host filter (settings-disabled tools + profile admission) stays the
+		// outer deny: the hook sees the raw snapshot so a denied/shadowed server
+		// still gets a reason, then the same filter decides what is actually bound.
+		const filter = this.#host.mcpToolFilter;
+		const acceptedMcpTools = (analysisHook ? analysisHook.filterTools(dedupedMcpTools) : dedupedMcpTools).filter(
+			tool => (filter ? filter(tool) : true),
+		);
 		const managerTools = acceptedMcpTools.map(customTool => {
 			const wrapped = wrapToolWithMetaNotice(
 				CustomToolAdapter.wrap(customTool, this.#getCustomToolContext) as AgentTool,
