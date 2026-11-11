@@ -145,6 +145,8 @@ import {
 import { ForkSourceNotFoundError, SessionManager, SessionMoveRefusedError } from "./session/session-manager";
 import { forkIfMovedAway } from "./session/session-transfer";
 import { shouldShowStartupSplash } from "./startup-splash";
+import { AgentRegistry } from "./registry/agent-registry";
+import { deliverPendingRoomEvents } from "./team/room-delivery";
 import { isTeamHubEntry, resolveTeamEntry } from "./team/entry";
 import {
 	discoverSystemPromptOverride,
@@ -2649,6 +2651,17 @@ export async function runRootCommand(
 		const createAgentSessionImpl = deps.createAgentSession ?? createAgentSession;
 		const createSession = async (options: CreateAgentSessionOptions): Promise<CreateAgentSessionResult> => {
 			const result = await logger.time("createAgentSession", createAgentSessionImpl, options);
+			const teamRef = AgentRegistry.global()
+				.list()
+				.find(ref => ref.session === result.session && ref.status !== "aborted");
+			if (teamRef) {
+				void deliverPendingRoomEvents({ agentId: teamRef.id, cwd: options.cwd ?? process.cwd() }).catch(error => {
+					logger.debug("team: pending room delivery failed", {
+						agentId: teamRef.id,
+						error: error instanceof Error ? error.message : String(error),
+					});
+				});
+			}
 			// Kick off background model discovery only after createAgentSession finishes its parallel
 			// discovery arms; running these concurrently contends for the event loop and stretches
 			// every parallel arm by ~30ms. Interactive startup defers it further, behind the first
