@@ -1157,6 +1157,12 @@ function commandMetadataSignature(commands: readonly LoadedCustomCommand[]): str
 export class AgentSession implements SettingsScope, AgentViewSession {
 	/** True while a command's agent/model override owns this session's execution policy. */
 	#commandPolicyActive = false;
+	/** Set when a command's policy could not be restored; prompts must not continue on unknown policy. */
+	#commandPolicyUncertain = false;
+	/** System prompt block of the named command agent, applied to the command's model turn. */
+	#commandAgentPersona: string | undefined;
+	/** Spawn allowlist of the active command agent; null when no command policy owns the session. */
+	#commandSpawns: string | null = null;
 	/**
 	 * Cross-thread identity token (`${homeThreadId}:${snowflake}`), unique per
 	 * session object across threads. Thread bridges encode a session by this key
@@ -8322,6 +8328,14 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		return this.#tools.getMountedXdevToolNames();
 	}
 
+	/**
+	 * Spawn allowlist owned by the active command agent (`*`, CSV, or `""` for
+	 * none), or `null` when the session's normal spawn policy applies.
+	 */
+	getCommandSpawns(): string | null {
+		return this.#commandSpawns;
+	}
+
 	/** Whether the edit tool is registered in this session. */
 	get hasEditTool(): boolean {
 		return this.#tools.hasEditTool;
@@ -9792,6 +9806,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		submittedAt: number,
 		outcome: PromptDispatchOutcome,
 	): Promise<boolean> {
+		if (this.#commandPolicyUncertain) {
+			throw new Error("Session command policy is uncertain after a failed restore; restart the session");
+		}
 		if (this.#commandPolicyActive) {
 			throw new Error("A command with an agent or model override is still running");
 		}
@@ -9842,6 +9859,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		let definition: AgentDefinition | undefined;
 		let selected: Prewalk | undefined;
 		let toolsChanged = false;
+		let failure: unknown;
 		this.#commandPolicyActive = true;
 		try {
 			if (metadata.agent) {
@@ -9876,40 +9894,51 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			}
 			if (definition) {
 				const agent = definition;
-				const canSpawn = agent.spawns === "*" || (agent.spawns?.length ?? 0) > 0;
+				// The task tool reads `getSessionSpawns()` on every call, so a concrete
+				// allowlist stays enforced by its existing resolveSpawnPolicy path.
+				const canSpawn = agent.spawns !== undefined;
 				const allowed = previousEnabled.filter(
 					name => (!agent.tools || agent.tools.includes(name)) && (name !== "task" || canSpawn),
 				);
+				toolsChanged = true;
+				this.#commandAgentPersona = agent.systemPrompt;
+				this.#commandSpawns = agent.spawns === "*" ? "*" : (agent.spawns?.join(",") ?? "");
 				await this.setActiveToolPresentation(
 					allowed,
 					previousMounted.filter(name => allowed.includes(name)),
 					true,
 				);
-				this.#tools.setTurnSystemPromptOverride(
-					[...this.#tools.baseSystemPrompt, agent.systemPrompt],
-					this.#tools.baseSystemPrompt,
-				);
-				toolsChanged = true;
 			}
 			return await run();
+		} catch (error) {
+			failure = error;
+			throw error;
 		} finally {
+			const restoreErrors: string[] = [];
 			try {
 				if (toolsChanged) {
-					this.#tools.clearTurnSystemPromptOverride();
+					this.#commandAgentPersona = undefined;
+					this.#commandSpawns = null;
 					this.agent.setSystemPrompt(this.#tools.baseSystemPrompt);
 					await this.setActiveToolPresentation(previousEnabled, previousMounted, true);
 				}
 			} catch (error) {
-				logger.warn("Failed to restore command tool policy", { error: String(error) });
+				restoreErrors.push(`tools/persona: ${String(error)}`);
 			}
 			try {
 				if (selected && previousModel) {
 					await this.setModelTemporary(previousModel, previousThinking, { ephemeral: true });
 				}
 			} catch (error) {
-				logger.warn("Failed to restore command model", { error: String(error) });
+				restoreErrors.push(`model: ${String(error)}`);
 			}
 			this.#commandPolicyActive = false;
+			if (restoreErrors.length > 0) {
+				this.#commandPolicyUncertain = true;
+				const message = `Command policy restore failed; session policy is uncertain: ${restoreErrors.join("; ")}`;
+				if (failure !== undefined) throw new AggregateError([failure, new Error(message)], message);
+				throw new Error(message);
+			}
 		}
 	}
 
@@ -10455,9 +10484,13 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			await this.#memory.transition;
 			if (!isCurrent()) return cancelled;
 			const sourceBase = this.#tools.baseSystemPrompt;
+			const commandPersona = this.#commandAgentPersona;
 			const basePreparation = await this.#tools.buildSystemPromptForAgentStart(prompt, isCurrent, signal);
 			if (!isCurrent()) return cancelled;
-			const result = await this.#extensionRunner?.emitBeforeAgentStart(prompt, images, basePreparation.systemPrompt);
+			const preparedPrompt = commandPersona
+				? [...basePreparation.systemPrompt, commandPersona]
+				: basePreparation.systemPrompt;
+			const result = await this.#extensionRunner?.emitBeforeAgentStart(prompt, images, preparedPrompt);
 			if (!isCurrent()) return cancelled;
 			// Overrides are opaque replacements, not string patches. Re-run only policy preparation
 			// against the winning base; discard this attempt's returned context and staged memory.
@@ -10515,10 +10548,17 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					if (!isCurrent() || !overrideIsCurrent()) return undefined;
 					if (basePreparation.commit?.() === false) return undefined;
 					if (result?.systemPrompt !== undefined) {
-						this.#tools.setTurnSystemPromptOverride(result.systemPrompt, basePreparation.systemPrompt);
+						this.#tools.setTurnSystemPromptOverride(
+							commandPersona ? [...result.systemPrompt, commandPersona] : result.systemPrompt,
+							preparedPrompt,
+						);
 					} else {
 						this.#tools.clearTurnSystemPromptOverride();
-						this.agent.setSystemPrompt(this.#tools.baseSystemPrompt);
+						this.agent.setSystemPrompt(
+							commandPersona
+								? [...this.#tools.baseSystemPrompt, commandPersona]
+								: this.#tools.baseSystemPrompt,
+						);
 					}
 					return messages;
 				},
@@ -14681,6 +14721,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * rather than missing context.
 	 */
 	async runEphemeralTurn(args: EphemeralTurnOptions): Promise<EphemeralTurnResult> {
+		if (this.#commandPolicyActive || this.#commandPolicyUncertain) {
+			throw new Error("A command with an agent or model override owns this session's execution policy");
+		}
 		const model = this.model;
 		if (!model) {
 			throw new Error("No active model on session");

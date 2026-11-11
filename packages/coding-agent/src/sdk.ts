@@ -2850,7 +2850,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			// unrelated global ref. With no lifecycle, explicit cancellation falls back to
 			// dispose + unregister on the session's own registry.
 			agentLifecycle: options.agentRegistry ? undefined : () => AgentLifecycleManager.global(),
-			getSessionSpawns: () => options.spawns ?? "*",
+			getSessionSpawns: () => session?.getCommandSpawns() ?? options.spawns ?? "*",
 			getSessionAgents: () => session?.getSessionAgents() ?? [],
 			advertisedSessionAgents: () => session?.getAdvertisedSessionAgents() ?? [],
 			getModelString: () => (hasExplicitModel && model ? formatModelString(model) : undefined),

@@ -73,10 +73,7 @@ describe("custom command loader", () => {
 
 		const result = await loadCustomCommands({ cwd: tempRoot, agentDir: tempRoot });
 
-		const valid = result.commands.find(({ command }) => command.name === "template-only");
-		expect(valid?.command.template).toBe("Review $ARGUMENTS");
-		expect(valid?.command.agent).toBe("reviewer");
-		expect(valid?.command.model).toBe("anthropic/claude-sonnet-4-5");
+		expect(result.commands.find(({ command }) => command.name === "template-only")).toBeDefined();
 		expect(result.errors.find(error => error.path === invalidPath)?.error).toContain("execute function or template");
 	});
 

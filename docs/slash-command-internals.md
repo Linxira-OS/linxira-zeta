@@ -162,8 +162,8 @@ template: Review $ARGUMENTS and report blocking findings only.
 ---
 ```
 
-- `agent` must name a discovered agent (project `.zeta/agents`, user roots, extension roots, then bundled). The command turn runs with that agent's system prompt appended to the session prompt and its tool list intersected with the tools this session may already use; `task` survives only when the agent declares `spawns`.
-- `model` resolves through the same selector path as `--model` (roles, aliases, scoped models, match preferences). Without `model`, the selected agent's `model` list is tried in order.
+- `agent` must name a discovered agent (project `.zeta/agents`, user roots, extension roots, then bundled). The command turn runs with that agent's system prompt appended to the session prompt and its tool list intersected with the tools this session may already use. `task` survives when the agent declares `spawns`; the allowlist is supplied to the task tool's existing spawn policy, so a child outside the list is rejected instead of inheriting the session's broader policy.
+- `model` resolves through the same selector path as `--model` (roles, aliases, scoped models, match preferences). Precedence is command `model` > selected agent's `model` list > the session's current model.
 - `template` replaces the Markdown body so a command can keep prose frontmatter and execution fields while shipping a different executable prompt.
 - Unknown agent names and unresolved model selectors fail explicitly before the command handler or the model request runs.
 - Precedence inside one turn: command `model` > selected agent's model list > the session's current model. The prior model, thinking level, persona and tool presentation are restored when the command turn settles, including handler and dispatch failures.
