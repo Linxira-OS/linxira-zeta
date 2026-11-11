@@ -26,7 +26,7 @@ import { readFile } from "../capability/fs";
 import { type MCPServer, mcpCapability } from "../capability/mcp";
 import { type Settings, settingsCapability } from "../capability/settings";
 import { type Skill, skillCapability } from "../capability/skill";
-import { type SlashCommand, slashCommandCapability } from "../capability/slash-command";
+import { commandFrontmatterExecution, type SlashCommand, slashCommandCapability } from "../capability/slash-command";
 import { slashCommandFrontmatterDisplay } from "@linxiraos/pi-tui/overlays/extensions/inspector-model";
 import type { LoadContext, LoadResult, SourceMeta } from "../capability/types";
 import { settings } from "../config/settings";
