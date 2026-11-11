@@ -191,6 +191,10 @@ class ContextReload implements ContextReloadService {
 		const setChanged = this.#pathListFingerprint !== undefined && this.#pathListFingerprint !== fingerprint;
 		const changed = setChanged || this.#hasChanges(observed);
 		if (!changed && !this.#dirty) {
+			// Commit the rotated window even on a no-change turn: the paths first
+			// stat'ed here still need their baseline, otherwise a later edit inside
+			// this window compares against nothing and is silently missed.
+			this.#commitObservation(paths, window, observed, fingerprint);
 			this.#reconcileWatchers(paths);
 			return false;
 		}
