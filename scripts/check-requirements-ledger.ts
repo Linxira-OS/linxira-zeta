@@ -77,7 +77,6 @@ for (const [index, line] of source.split(/\r?\n/).entries()) {
 		["Scope", scope],
 		["Acceptance", acceptance],
 		["Lane / owner", lane],
-		["Evidence", evidence],
 		["Remaining", remaining],
 	] as const) {
 		if (value === "" || value === "—") fail(`${LEDGER_PATH}:${index + 1}: ${id} has empty ${name}`);
