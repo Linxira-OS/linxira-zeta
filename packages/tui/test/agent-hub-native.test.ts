@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import type { TspKind, TspPickerProps } from "@linxiraos/pi-wire";
 import type { DescribeContext, NativeChild, NativeNode } from "../src/native/node";
 import { AgentHubOverlayComponent } from "../src/overlays/agent-hub";
-import type { AgentRecordLike } from "../src/overlays/agent-hub-types";
+import type { AgentRecordLike, IrcBusLike } from "../src/overlays/agent-hub-types";
 import {
 	type EventBusLike,
 	SessionObserverRegistry,
@@ -51,6 +51,7 @@ function createHub(
 	agents: AgentRecordLike[],
 	focused: string[] = [],
 	observers = new SessionObserverRegistry(),
+	irc: IrcBusLike = { unreadCount: () => 0 },
 ): AgentHubOverlayComponent {
 	return new AgentHubOverlayComponent({
 		observers,
@@ -67,7 +68,7 @@ function createHub(
 		lifecycle: () => {
 			throw new Error("lifecycle is not used by selection");
 		},
-		irc: { unreadCount: () => 0 },
+		irc,
 		activity: { setLive() {}, sync: async () => {}, query: () => [], recent: () => [] },
 		focusAgent: async id => {
 			focused.push(id);
@@ -230,6 +231,37 @@ test("a follow-up turn does not age the previous turn's snapshot across the idle
 		emit(TASK_SUBAGENT_LIFECYCLE_CHANNEL, { ...lifecycle, status: "started" });
 		hub.handleNativeEvent({ type: "select", key: "", item: "Idle" });
 		expect(pickerProps(hub).items?.find(item => item.id === "Worker")?.facts?.time).toBe(60_000);
+	} finally {
+		hub.dispose();
+	}
+});
+
+test("unread badges follow the IRC mailbox generation without a per-frame rebuild", () => {
+	let unread = 2;
+	let revision = 7;
+	let notifyMailbox: (() => void) | undefined;
+	const hub = createHub([agent("alpha", 3_000)], [], undefined, {
+		unreadCount: () => unread,
+		revision: () => revision,
+		onMailboxChange: listener => {
+			notifyMailbox = listener;
+			return () => {};
+		},
+	});
+	try {
+		const first = pickerProps(hub).items;
+		expect(first?.[0]?.badges?.map(badge => badge.text)).toContain("2 unread");
+		// A quiet repaint (selection move, hover, age tick) reuses the same array.
+		expect(pickerProps(hub).items).toBe(first);
+
+		// A queued message can arrive with no registry/observer event; the mailbox
+		// generation must break the cache and show the new count.
+		unread = 5;
+		revision += 1;
+		notifyMailbox?.();
+		const refreshed = pickerProps(hub).items;
+		expect(refreshed).not.toBe(first);
+		expect(refreshed?.[0]?.badges?.map(badge => badge.text)).toContain("5 unread");
 	} finally {
 		hub.dispose();
 	}

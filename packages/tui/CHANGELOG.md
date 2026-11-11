@@ -4,9 +4,10 @@
 
 - A terminal left in win32-input-mode by a crashed or killed process no longer swallows every keystroke (including IME commits): attach resets the mode, a pass-through decoder handles records already queued, and stop always clears it. Windows-only.
 - A focus-in now re-asserts raw mode, console VT-input flags, bracketed paste and an active win32-input-mode, and repaints the composer so the hardware cursor (the IME candidate anchor) returns; focus reports never reach the editor as text.
-- Cursor positioning and visibility are emitted inside the synchronized-output block, so a repaint cannot expose a hidden hardware cursor and make IME preedit/candidates flicker or detach.
+- The hardware cursor is hidden only for a frame that rewrites the row it sits on (or repaints the viewport); a quiet repaint leaves a visible cursor untouched, on synchronized-output and no-sync terminals alike, so IME preedit/candidates keep their anchor.
+- Decorative repaints (shimmer, spinner glyphs, todo strike) pause for 400 ms after a real keystroke; input and content frames still render immediately, so typing never waits on animation.
 - A frame a keystroke is waiting on skips the adaptive render floor; one slow animation frame no longer adds up to 200 ms to typing latency. The output-backlog gate still protects a terminal that is not draining.
-- The Agent Hub picker reuses its row array across selection/hover/age repaints and widens its roster data-change window with row count (up to 1 s at 500+ agents) instead of rebuilding and re-sending every row per frame.
+- The Agent Hub picker reuses its row array across selection/hover/age repaints. Registry, lifecycle and message changes invalidate it immediately (only streaming progress keeps a row-scaled coalescing window), and the IRC mailbox generation keeps unread badges current without polling every agent.
 - The resume picker draws a full-width, muted rule between project groups in the all-projects scope, so a long list no longer runs one repository's conversations into the next project's header. The dim rule under each project header and every workspace row stay as they were.
 
 ## [1.5.1] - 2026-11-10

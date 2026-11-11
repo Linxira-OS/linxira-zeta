@@ -100,6 +100,14 @@ export interface IrcBusApi {
 	take(agentId: string, from?: string): IrcMessage | undefined;
 	/** Unread count for the local Agent Hub overlay. */
 	unreadCount(agentId: string): number;
+	/**
+	 * Monotonic mailbox generation: bumped whenever an unread mailbox gains or
+	 * loses a message, so overlays can invalidate a cached roster without
+	 * polling every agent. Optional on cross-thread proxies that do not mirror it.
+	 */
+	revision?(): number;
+	/** Observe those generation bumps; returns the unsubscribe. Optional like {@link revision}. */
+	onMailboxChange?(listener: () => void): () => void;
 	/** Drain (or with `peek`, read) `agentId`'s buffered inbox. */
 	inbox(agentId: string, opts?: { peek?: boolean }): IrcMessage[];
 	/** Count a settled job of agent `from` owned by `to` as `from`'s reply to `to`. */
@@ -140,6 +148,9 @@ export class IrcBus implements IrcBusApi {
 	readonly #registry: AgentRegistryApi;
 	readonly #lifecycle: () => AgentLifecycleApi;
 	readonly #mailboxes = new Map<string, IrcMessage[]>();
+	/** Bumped on every mailbox shape change so a cached roster can invalidate unread badges. */
+	#mailboxRevision = 0;
+	readonly #mailboxListeners = new Set<() => void>();
 	readonly #waiters = new Map<string, IrcWaiter[]>();
 	/** The latest successful non-progress send per `from` → `to`; see {@link sentSince}. */
 	readonly #lastSent = new Map<string, Map<string, SendMark>>();
@@ -607,6 +618,7 @@ export class IrcBus implements IrcBusApi {
 		if (!mailbox || mailbox.length === 0) return [];
 		if (opts?.peek) return [...mailbox];
 		this.#mailboxes.delete(agentId);
+		this.#bumpMailboxRevision();
 		return mailbox;
 	}
 
@@ -619,6 +631,29 @@ export class IrcBus implements IrcBusApi {
 		return this.#mailboxes.get(agentId)?.length ?? 0;
 	}
 
+	/** Mailbox generation for cache invalidation; see {@link IrcBusApi.revision}. */
+	revision(): number {
+		return this.#mailboxRevision;
+	}
+
+	/** Observe mailbox generation bumps; see {@link IrcBusApi.onMailboxChange}. */
+	onMailboxChange(listener: () => void): () => void {
+		this.#mailboxListeners.add(listener);
+		return () => this.#mailboxListeners.delete(listener);
+	}
+
+	/** Advance the mailbox generation and wake cached rosters that track unread badges. */
+	#bumpMailboxRevision(): void {
+		this.#mailboxRevision += 1;
+		for (const listener of this.#mailboxListeners) {
+			try {
+				listener();
+			} catch (error) {
+				logger.debug("IrcBus: mailbox change listener failed", { error: String(error) });
+			}
+		}
+	}
+
 	#enqueue(message: IrcMessage): void {
 		let mailbox = this.#mailboxes.get(message.to);
 		if (!mailbox) {
@@ -626,6 +661,7 @@ export class IrcBus implements IrcBusApi {
 			this.#mailboxes.set(message.to, mailbox);
 		}
 		mailbox.push(message);
+		this.#bumpMailboxRevision();
 		if (mailbox.length > MAILBOX_CAP) {
 			const dropped = mailbox.shift();
 			logger.debug("IrcBus: mailbox full, dropped oldest message", {
@@ -662,6 +698,7 @@ export class IrcBus implements IrcBusApi {
 		if (index === -1) return undefined;
 		const [message] = mailbox.splice(index, 1);
 		if (mailbox.length === 0) this.#mailboxes.delete(agentId);
+		this.#bumpMailboxRevision();
 		return message;
 	}
 

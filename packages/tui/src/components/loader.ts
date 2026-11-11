@@ -369,6 +369,14 @@ export class Loader extends Text {
 				this.#intervalId = undefined;
 				return;
 			}
+			// Typing owns the frame budget: hold the shimmer/spinner still for the
+			// short post-input pause instead of repainting an unchanged glyph row
+			// under the IME candidate. Input echo is a separate, earlier frame.
+			const pauseMs = this.#ui?.decorativePauseRemainingMs?.() ?? 0;
+			if (pauseMs > 0) {
+				this.#scheduleTick(pauseMs);
+				return;
+			}
 			const startedAt = performance.now();
 			// The glyph is the shared clock's, so every spinner on screen shows the same frame.
 			const frame = sharedSpinnerFrame(this.#frames.length);

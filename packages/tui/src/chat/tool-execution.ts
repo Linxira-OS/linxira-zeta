@@ -227,6 +227,8 @@ class SafeToolRendererComponent implements Component {
 export interface ToolExecutionUi {
 	requestRender(): void;
 	requestComponentRender(component: Component): void;
+	/** Hold an animation-only repaint during the post-input pause; real updates keep the direct call. */
+	requestDecorativeRender?(component: Component): void;
 	resetDisplay(): void;
 	imageBudget?: TUI["imageBudget"];
 	showOverlay?: TUI["showOverlay"];
@@ -1051,7 +1053,8 @@ export class ToolExecutionComponent extends Container {
 	tickSpinner(frame: number): void {
 		this.#spinnerFrame = frame;
 		this.#renderState.spinnerFrame = frame;
-		this.#ui.requestComponentRender(this);
+		if (this.#ui.requestDecorativeRender) this.#ui.requestDecorativeRender(this);
+		else this.#ui.requestComponentRender(this);
 	}
 
 	#updateTodoStrikeAnimation(): void {
@@ -1079,7 +1082,8 @@ export class ToolExecutionComponent extends Container {
 			}
 			// Component-scoped: strike animation only mutates this tool block's
 			// glyph, so the TUI reuses every other root subtree (issue #4377).
-			this.#ui.requestComponentRender(this);
+			if (this.#ui.requestDecorativeRender) this.#ui.requestDecorativeRender(this);
+			else this.#ui.requestComponentRender(this);
 		}, 65);
 	}
 

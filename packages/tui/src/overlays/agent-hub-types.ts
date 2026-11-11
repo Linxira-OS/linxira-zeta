@@ -63,11 +63,15 @@ export interface AgentRecordLike {
 	};
 	lifecycle?: { responseAt?: number; acceptedAt?: number; terminalAt?: number };
 }
+/** Coarse registry event the roster uses to choose immediate vs coalesced refresh. */
+export interface AgentHubRegistryEvent {
+	readonly type?: "registered" | "status_changed" | "metadata_changed" | "removed";
+}
 /** Registry operations needed to display a live roster. */
 export interface AgentHubRegistry<TRecord extends AgentRecordLike = AgentRecordLike> {
 	list(): TRecord[];
 	get(id: string): TRecord | undefined;
-	onChange(listener: () => void): () => void;
+	onChange(listener: (event?: AgentHubRegistryEvent) => void): () => void;
 }
 /** Lifecycle actions exposed by the host. */
 export interface AgentLifecycleLike<TRecord extends AgentRecordLike = AgentRecordLike> {
@@ -77,4 +81,8 @@ export interface AgentLifecycleLike<TRecord extends AgentRecordLike = AgentRecor
 /** Unread-message counts supplied by the host IRC bus. */
 export interface IrcBusLike {
 	unreadCount(id: string): number;
+	/** Mailbox generation; a change means an unread badge may be stale. */
+	revision?(): number;
+	/** Wake the roster when that generation advances; returns the unsubscribe. */
+	onMailboxChange?(listener: () => void): () => void;
 }

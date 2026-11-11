@@ -54,6 +54,16 @@ function step(scheduler: DeferredScheduler): number | null {
 	return timer.delayMs;
 }
 
+/** Resolve with the next ANSI frame this TUI writes, without waiting on wall-clock time. */
+function nextFrame(tui: TUI): Promise<string> {
+	const { promise, resolve } = Promise.withResolvers<string>();
+	const unsubscribe = tui.addFrameWriteListener(frame => {
+		unsubscribe();
+		resolve(frame);
+	});
+	return promise;
+}
+
 class Recorder implements Component {
 	readonly received: string[] = [];
 	focused = false;
@@ -148,6 +158,40 @@ describe("TUI input priority", () => {
 			expect(recorder.received).toEqual([]);
 		} finally {
 			tui.stop();
+		}
+	});
+
+	it("does not hide a visible cursor on a quiet repaint, with or without sync output", async () => {
+		await initTheme();
+		for (const [name, value] of [
+			["PI_FORCE_SYNC_OUTPUT", "1"],
+			["PI_NO_SYNC_OUTPUT", "1"],
+		] as const) {
+			const previous = Bun.env[name];
+			Bun.env[name] = value;
+			const term = new VirtualTerminal(40, 10);
+			const tui = new TUI(term, true);
+			const input = new Input();
+			tui.addChild(input);
+			tui.setFocus(input);
+			try {
+				tui.start();
+				// The typing frame rewrites the caret row and may hide/show the cursor.
+				const typed = nextFrame(tui);
+				input.handleInput("a");
+				tui.requestRender();
+				await typed;
+				// The next frame changes nothing, so it must not touch cursor visibility.
+				const quiet = nextFrame(tui);
+				tui.requestRender();
+				const frame = await quiet;
+				expect(frame, name).not.toContain("\x1b[?25l");
+				expect(frame, name).not.toContain("\x1b[?25h");
+			} finally {
+				tui.stop();
+				if (previous === undefined) delete Bun.env[name];
+				else Bun.env[name] = previous;
+			}
 		}
 	});
 });

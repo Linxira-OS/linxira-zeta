@@ -53,6 +53,25 @@ describe("Loader component", () => {
 		loader.stop();
 	});
 
+	it("holds painted frames while the post-input decorative pause is active", () => {
+		vi.useFakeTimers({ now: 0 });
+		let pauseMs = 100;
+		const ui = { requestComponentRender: vi.fn(), decorativePauseRemainingMs: () => pauseMs };
+		const colorMessage = ((text: string) => text) as LoaderMessageColorFn & { animated: true };
+		colorMessage.animated = true;
+		const loader = new Loader(ui as unknown as TUI, text => text, colorMessage, "Checking", ["0", "1", "2", "3"]);
+
+		expect(ui.requestComponentRender).toHaveBeenCalledTimes(1); // the first frame
+		vi.advanceTimersByTime(40);
+		expect(ui.requestComponentRender).toHaveBeenCalledTimes(1); // held under the pause
+
+		pauseMs = 0;
+		vi.advanceTimersByTime(140);
+		expect(ui.requestComponentRender.mock.calls.length).toBeGreaterThan(1);
+
+		loader.stop();
+	});
+
 	it("skips animated render requests when composed text is unchanged before the spinner advances", () => {
 		vi.useFakeTimers({ now: 0 });
 		const ui = { requestComponentRender: vi.fn() };

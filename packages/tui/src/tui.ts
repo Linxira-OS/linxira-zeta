@@ -97,14 +97,16 @@ const SIDEBAR_APC_SUFFIX = "\x1b\\";
 // Bound the payload per frame: a pathological snapshot falls back to the ANSI
 // gutter instead of stalling the terminal's parser on a huge escape sequence.
 const SIDEBAR_APC_MAX = 64 * 1024;
-// Hide the hardware cursor before each paint/move write. Ghostty-style bar
-// cursors can otherwise leave visual afterimages while the TUI repaints the
-// row under a visible cursor. Paint writes also disable terminal autowrap:
-// several terminals keep a "pending wrap" flag after an exact-width row, so a
-// following cursor move can first wrap to the next row and produce staircase
-// trails. The TUI emits explicit CRLFs and restores autowrap before leaving the
-// paint. Synchronized output can be disabled for terminals with broken DEC 2026
-// implementations; autowrap discipline stays on either way.
+// Hide the hardware cursor for frames that rewrite the row it sits on (see
+// TUI#paintBegin); showing it again at the frame's end restores the IME
+// candidate anchor. Ghostty-style bar cursors can otherwise leave visual
+// afterimages while the TUI repaints the row under a visible cursor. Paint
+// writes also disable terminal autowrap: several terminals keep a "pending
+// wrap" flag after an exact-width row, so a following cursor move can first
+// wrap to the next row and produce staircase trails. The TUI emits explicit
+// CRLFs and restores autowrap before leaving the paint. Synchronized output can
+// be disabled for terminals with broken DEC 2026 implementations; autowrap
+// discipline stays on either way.
 const HIDE_CURSOR = "\x1b[?25l";
 const SYNC_OUTPUT_BEGIN = "\x1b[?2026h";
 const SYNC_OUTPUT_END = "\x1b[?2026l";
@@ -1077,6 +1079,13 @@ export class TUI extends Container {
 	// settle window, leaving only Unicode placeholder cells. Hold the first image
 	// paint until that window has passed; later images render normally.
 	static readonly #GHOSTTY_INITIAL_IMAGE_DELAY_MS = 100;
+	/**
+	 * How long after a keystroke decorative animation (shimmer, spinner,
+	 * elapsed-free effects) holds still. It keeps IME preedit/candidates from
+	 * fighting a 30 fps repaint while the user is typing; input frames never
+	 * wait on it.
+	 */
+	static readonly #DECORATIVE_INPUT_PAUSE_MS = 400;
 	#hardwareCursorRow = 0; // Normal-buffer cursor row, retained while the alternate buffer is active.
 	#hardwareCursorState: HardwareCursorState | null = null; // Current buffer's cursor paint/dedupe state.
 	#sixelProbePendingGraphics = false;
@@ -1087,6 +1096,9 @@ export class TUI extends Container {
 	#synchronizedOutputEnabled = shouldEnableSynchronizedOutputByDefault();
 	#paintBeginSequence = this.#synchronizedOutputEnabled ? PAINT_BEGIN : PAINT_BEGIN_NO_SYNC;
 	#paintEndSequence = this.#synchronizedOutputEnabled ? PAINT_END : PAINT_END_NO_SYNC;
+	/** `Date.now()` of the last real keystroke; decorative animation pauses briefly after it. */
+	#lastInputAtMs = 0;
+	#decorativeDeferredTimer?: NodeJS.Timeout;
 
 	#fullRedrawCount = 0;
 	// Caps how many inline images render as live graphics; older ones fall back
@@ -2849,6 +2861,10 @@ export class TUI extends Container {
 	stop(): void {
 		this.#appearanceReportUnsubscribe?.();
 		this.#appearanceReportUnsubscribe = undefined;
+		if (this.#decorativeDeferredTimer) {
+			clearTimeout(this.#decorativeDeferredTimer);
+			this.#decorativeDeferredTimer = undefined;
+		}
 		this.#cancelPostmortemRestore?.();
 		this.#cancelPostmortemRestore = undefined;
 		this.#debugServer?.stop();
@@ -3001,6 +3017,37 @@ export class TUI extends Container {
 		return this.#renderScheduler.scheduleRender(() => {
 			if (!this.#stopped) callback();
 		}, delayMs);
+	}
+
+	/**
+	 * Milliseconds left of the post-input decorative-animation pause. Callers
+	 * that repaint only for animation (shimmer, spinner glyphs) hold still while
+	 * this is positive; anything a keystroke needs still renders immediately.
+	 */
+	decorativePauseRemainingMs(now = Date.now()): number {
+		const elapsed = now - this.#lastInputAtMs;
+		return Math.max(0, TUI.#DECORATIVE_INPUT_PAUSE_MS - elapsed);
+	}
+
+	/**
+	 * Request an animation-only repaint. During the post-input pause it is held
+	 * until the pause ends instead of repainting under the IME candidate; real
+	 * content changes must keep calling {@link requestRender} or
+	 * {@link requestComponentRender}.
+	 */
+	requestDecorativeRender(_component?: Component): void {
+		if (this.#stopped) return;
+		const remaining = this.decorativePauseRemainingMs();
+		if (remaining <= 0) {
+			this.#requestOrdinaryRender();
+			return;
+		}
+		if (this.#decorativeDeferredTimer) return;
+		this.#decorativeDeferredTimer = setTimeout(() => {
+			this.#decorativeDeferredTimer = undefined;
+			if (!this.#stopped) this.#requestOrdinaryRender();
+		}, remaining);
+		this.#decorativeDeferredTimer.unref?.();
 	}
 
 	/**
@@ -3215,6 +3262,10 @@ export class TUI extends Container {
 			data = data.slice(0, searchFrom + match.index) + data.slice(searchFrom + match.index + match[0].length);
 		}
 		if (data.length === 0) return;
+		// A real keystroke (not a focus/mouse/CPR report filtered above) holds
+		// decorative animation still for a moment; the input frame itself renders
+		// normally, so this never adds typing latency.
+		this.#lastInputAtMs = Date.now();
 		// Every keystroke arms the input latch before any consumer runs, so whichever consumer
 		// requests the paint — an input listener or the focused component — it is paced at the input
 		// cadence, not the ceiling. Input that triggers no render leaves the latch for the next frame
@@ -3836,6 +3887,24 @@ export class TUI extends Container {
 	}
 
 	/**
+	 * Paint prefix for one frame. The hardware cursor is hidden only when the
+	 * frame rewrites the row it sits on: an unchanged visible cursor (the IME
+	 * candidate anchor) must not be hide/showed every frame, and a terminal
+	 * without DEC 2026 may display any prefix of the write.
+	 */
+	#paintBegin(hideCursor: boolean): string {
+		return `${this.#synchronizedOutputEnabled ? SYNC_OUTPUT_BEGIN : ""}${hideCursor ? HIDE_CURSOR : ""}${DISABLE_AUTOWRAP}`;
+	}
+
+	/** Insert HIDE_CURSOR after the sync opener (or at the start) in a frame already under construction. */
+	#hideCursorInPaint(frame: string): string {
+		if (this.#synchronizedOutputEnabled && frame.startsWith(SYNC_OUTPUT_BEGIN)) {
+			return SYNC_OUTPUT_BEGIN + HIDE_CURSOR + frame.slice(SYNC_OUTPUT_BEGIN.length);
+		}
+		return HIDE_CURSOR + frame;
+	}
+
+	/**
 	 * Bottom-row `Rebuilding…` notice, closed as its own synchronized update so
 	 * tmux forwards it before the replay that follows starts a new hold. Cursor
 	 * save/restore and no newline keep the row out of native scrollback; the
@@ -4076,7 +4145,7 @@ export class TUI extends Container {
 		const newTop = Math.max(0, Math.min(startTop + historyRows.length, height - rows)) + anchorPull;
 		const pendingAltExit = this.#pendingAltExit;
 		// A fused resize exit whose borrow never painted still owes its entry.
-		let buffer = this.#paintBeginSequence + (pendingAltExit ? this.#takePendingAltEnter() : "") + pendingAltExit;
+		let buffer = this.#paintBegin(false) + (pendingAltExit ? this.#takePendingAltEnter() : "") + pendingAltExit;
 		const renewSync =
 			destructiveReset &&
 			this.#resizeScrollbackMode === "rebuild" &&
@@ -4148,7 +4217,32 @@ export class TUI extends Container {
 			this.#screenImagePlacements.size === 0
 				? this.#movedRowsSequence(width, height, startTop, newTop, preparedHistory, prepared)
 				: undefined;
+		// The visible cursor is hidden for this frame only when the frame rewrites
+		// the row it sits on (or repaints/moves the viewport). A quiet repaint
+		// leaves it visible: the IME candidate anchor must not flicker at 30 fps.
+		const previousCursor = this.#hardwareCursorState;
+		const previousRow = previousCursor?.visible === true ? previousCursor.row : undefined;
+		const anchorRewritten =
+			previousRow !== undefined &&
+			(destructiveReset ||
+				!diffable ||
+				moved !== undefined ||
+				(previousRow >= newTop &&
+					previousRow < newTop + rows &&
+					this.#rowNeedsRewrite(
+						this.#providerWindow,
+						this.#providerPreparedRows,
+						prepared.lines,
+						prepared.rows,
+						previousRow - newTop,
+					)));
+		if (anchorRewritten) {
+			buffer = this.#hideCursorInPaint(buffer);
+			if (renewSync) syncBytes += Buffer.byteLength(HIDE_CURSOR);
+		}
+		let wroteRows = false;
 		if (moved !== undefined) {
+			wroteRows = true;
 			buffer += moved;
 		} else if (diffable) {
 			for (let index = 0; index < rows; index++) {
@@ -4163,6 +4257,7 @@ export class TUI extends Container {
 				) {
 					continue;
 				}
+				wroteRows = true;
 				const current = prepared.rows[index]!;
 				buffer += `\x1b[${newTop + index + 1};1H${this.#lineRewriteSequence(
 					current,
@@ -4173,9 +4268,11 @@ export class TUI extends Container {
 				)}`;
 			}
 			if (this.#providerWindow.length > rows && newTop + rows < height) {
+				wroteRows = true;
 				buffer += `\x1b[${newTop + rows + 1};1H\x1b[J`;
 			}
 		} else {
+			wroteRows = true;
 			// This write scrolls when history + viewport overflow the screen; the
 			// terminal pushes the physical top rows into scrollback. Rows above the
 			// old viewport are committed history (correct to push), but old live
@@ -4240,14 +4337,27 @@ export class TUI extends Container {
 			marker !== undefined && rows > 0
 				? this.#targetHardwareCursorState({ row: newTop + Math.min(marker.row, rows - 1), col: marker.col }, height)
 				: null;
+		const cursorChanged =
+			target === null
+				? previousCursor?.visible === true
+				: previousCursor === null ||
+					previousCursor.row !== target.row ||
+					previousCursor.col !== target.col ||
+					previousCursor.visible !== target.visible;
 		if (target) {
-			buffer += `\x1b[${target.row + 1};${target.col + 1}H${target.visible ? "\x1b[?25h" : "\x1b[?25l"}`;
+			// Reposition after any row write (absolute row writes moved the
+			// terminal cursor), a changed anchor, or a hide this frame issued.
+			if (wroteRows || cursorChanged || anchorRewritten) {
+				buffer += `\x1b[${target.row + 1};${target.col + 1}H${target.visible ? "\x1b[?25h" : "\x1b[?25l"}`;
+			}
 			this.#parkedViewportOffset = Math.max(0, target.row - mutableTop);
 		} else {
 			// Park the hidden cursor on the viewport's top row: terminals keep the
 			// cursor attached to its logical line through resize reflow, so the
-			// post-resize anchor probe can recover where the viewport landed.
-			buffer += `\x1b[?25l\x1b[${mutableTop + 1};1H`;
+			// post-resize anchor probe can recover where the viewport landed. A
+			// frame whose begin already hid the cursor does not hide it twice.
+			if (!anchorRewritten && this.#hardwareCursorState?.visible !== false) buffer += HIDE_CURSOR;
+			buffer += `\x1b[${mutableTop + 1};1H`;
 			this.#parkedViewportOffset = 0;
 		}
 		buffer += this.#paintEndSequence;
@@ -5039,6 +5149,23 @@ export class TUI extends Container {
 					this.#rowNeedsRewrite(this.#altPreviousLines, this.#altPreparedRows, prepared.lines, prepared.rows, r),
 				));
 		prelude += this.#retireImagePlacements(this.#altImagePlacements, prepared.lines, 0, full);
+		const previousCursor = this.#hardwareCursorState;
+		const previousRow = previousCursor?.visible === true ? previousCursor.row : undefined;
+		// Hide the cursor only when this frame rewrites the row it sits on (or
+		// repaints everything). A quiet, selection-move or age repaint leaves the
+		// visible cursor — the IME candidate anchor — untouched.
+		const anchorRewritten =
+			previousRow !== undefined &&
+			previousRow >= 0 &&
+			previousRow < height &&
+			(full ||
+				this.#rowNeedsRewrite(
+					this.#altPreviousLines,
+					this.#altPreparedRows,
+					prepared.lines,
+					prepared.rows,
+					previousRow,
+				));
 		let rowsBuffer = "";
 		for (let r = 0; r < height; r++) {
 			if (full) {
@@ -5061,7 +5188,6 @@ export class TUI extends Container {
 		this.#altPreviousLines = prepared.lines;
 		this.#altPreparedRows = prepared.rows;
 		const target = this.#targetHardwareCursorState(cursorPosition, height);
-		const previousCursor = this.#hardwareCursorState;
 		const cursorChanged =
 			target === null
 				? previousCursor?.visible === true
@@ -5069,8 +5195,8 @@ export class TUI extends Container {
 					previousCursor.row !== target.row ||
 					previousCursor.col !== target.col ||
 					previousCursor.visible !== target.visible;
-		const placeCursor = target !== null && (rowsBuffer !== "" || cursorChanged);
-		const hideCursor = target === null && previousCursor?.visible === true;
+		const placeCursor = target !== null && (rowsBuffer !== "" || cursorChanged || anchorRewritten);
+		const hideCursor = target === null && previousCursor?.visible === true && !anchorRewritten;
 		if (rowsBuffer === "" && !placeCursor && !hideCursor) {
 			if (prelude !== "") this.terminal.write(prelude);
 			return;
@@ -5082,7 +5208,7 @@ export class TUI extends Container {
 		} else if (hideCursor) {
 			cursorBuffer = "\x1b[?25l";
 		}
-		const frame = `${this.#paintBeginSequence}${prelude}${full ? "\x1b[H" : ""}${rowsBuffer}${cursorBuffer}${this.#paintEndSequence}`;
+		const frame = `${this.#paintBegin(anchorRewritten)}${prelude}${full ? "\x1b[H" : ""}${rowsBuffer}${cursorBuffer}${this.#paintEndSequence}`;
 		this.terminal.write(frame);
 		this.#notifyFrameWrite(frame);
 		this.#debugPaint = {

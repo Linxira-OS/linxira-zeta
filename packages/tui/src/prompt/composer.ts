@@ -392,7 +392,7 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 		this.editor.setActionKeys("app.exit", ["ctrl+d"]);
 		this.editor.onClear = () => this.#handleInterrupt();
 		this.editor.onExit = () => this.#requestExit(0);
-		this.editor.setShimmerRepaintHandler(() => this.ui.requestComponentRender(this.editor));
+		this.editor.setShimmerRepaintHandler(() => this.ui.requestDecorativeRender(this.editor));
 
 		if (!this.#preferences.quiet) this.#ensureWelcome();
 		this.#rebuildHeader();

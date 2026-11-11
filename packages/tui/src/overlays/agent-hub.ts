@@ -492,8 +492,16 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 	#pickerDataVersion = 0;
 	/** Last agent picker items; repaints for selection, hover or age ticks reuse the array. */
 	#pickerItemsCache:
-		| { version: number; viewMode: HubViewMode; at: number; items: readonly TspPickerItem[] }
+		| {
+				version: number;
+				viewMode: HubViewMode;
+				at: number;
+				ircRevision: number;
+				items: readonly TspPickerItem[];
+		  }
 		| undefined;
+	/** Last mailbox generation seen; a change invalidates unread badges without polling agents. */
+	#lastIrcRevision = -1;
 
 	constructor(deps: AgentHubDeps<TRecord>) {
 		super();
@@ -531,8 +539,33 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		this.#expandKeys = deps.expandKeys ?? ["ctrl+o"];
 		this.#focusAgent = deps.focusAgent;
 
-		this.#unsubscribers.push(this.#registry.onChange(() => this.#scheduleDataChange()));
-		this.#unsubscribers.push(this.#observers.onChange(() => this.#scheduleDataChange()));
+		this.#unsubscribers.push(
+			this.#registry.onChange(event => {
+				// Terminal state changed (spawn/status/removal): the badge and status
+				// must not wait for the progress coalescing window. Metadata refreshes
+				// share that window because they arrive with the same cadence.
+				this.#pickerDataVersion += 1;
+				this.#scheduleDataChange(event?.type !== "metadata_changed");
+			}),
+		);
+		this.#unsubscribers.push(
+			this.#observers.onChange(kind => {
+				// New activity/messages: invalidate the picker generation immediately.
+				// Only high-frequency streaming progress keeps the larger coalescing
+				// window; lifecycle changes and mailbox growth render right away.
+				this.#pickerDataVersion += 1;
+				const unreadChanged = this.#takeIrcRevision();
+				this.#scheduleDataChange(kind !== "progress" || unreadChanged);
+			}),
+		);
+		const unsubscribeMailbox = this.#irc.onMailboxChange?.(() => {
+			// A queued message changes the unread badge without any roster or
+			// observer event; render it now rather than waiting out the age tick.
+			this.#pickerDataVersion += 1;
+			this.#takeIrcRevision();
+			this.#scheduleDataChange(true);
+		});
+		if (unsubscribeMailbox) this.#unsubscribers.push(unsubscribeMailbox);
 		this.#ageTimer = setInterval(() => {
 			if (this.#hasFallbackLiveSessions) {
 				this.#refreshAggregate(true);
@@ -958,17 +991,29 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 	 */
 	#agentPickerItems(): readonly TspPickerItem[] {
 		const now = Date.now();
+		// Unread badges come from the live mailbox, so a generation change must
+		// break the cache even when the age window has not elapsed: a queued
+		// message may arrive with no roster/observer event at all.
+		const ircRevision = this.#irc.revision?.() ?? -1;
+		this.#lastIrcRevision = ircRevision;
 		const cached = this.#pickerItemsCache;
 		if (
 			cached &&
 			cached.version === this.#pickerDataVersion &&
 			cached.viewMode === this.#viewMode &&
+			cached.ircRevision === ircRevision &&
 			now - cached.at < AGE_TICK_MS
 		) {
 			return cached.items;
 		}
 		const items = this.#rows.map(ref => this.#pickerAgentItem(ref));
-		this.#pickerItemsCache = { version: this.#pickerDataVersion, viewMode: this.#viewMode, at: now, items };
+		this.#pickerItemsCache = {
+			version: this.#pickerDataVersion,
+			viewMode: this.#viewMode,
+			at: now,
+			ircRevision,
+			items,
+		};
 		return items;
 	}
 
@@ -1568,12 +1613,18 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 	// Live data plumbing
 	// ========================================================================
 
-	#scheduleDataChange(): void {
-		if (this.#dataChangeTimer) return;
+	#scheduleDataChange(immediate = false): void {
+		if (this.#dataChangeTimer) {
+			if (!immediate) return;
+			// A later status/message change supersedes a queued progress batch: render
+			// on the next tick instead of finishing the old window with stale data.
+			clearTimeout(this.#dataChangeTimer);
+			this.#dataChangeTimer = undefined;
+		}
 		this.#dataChangeTimer = setTimeout(() => {
 			this.#dataChangeTimer = undefined;
 			this.#onDataChange();
-		}, this.#dataChangeDelay());
+		}, immediate ? 0 : this.#dataChangeDelay());
 		this.#dataChangeTimer.unref?.();
 	}
 
@@ -1583,11 +1634,20 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 	}
 
 	/**
-	 * Data-change window: 100 ms for small rosters, widening with the row count
-	 * (1 s at 500+) because every batch re-sends the whole picker array.
+	 * Coalescing window for high-frequency progress batches: 100 ms for small
+	 * rosters, widening with the row count (1 s at 500+). Status, lifecycle and
+	 * unread changes bypass it through the immediate path above.
 	 */
 	#dataChangeDelay(): number {
 		return Math.min(1000, Math.max(DATA_CHANGE_RENDER_COALESCE_MS, this.#rows.length * 2));
+	}
+
+	/** Consume a mailbox-generation change; true when an unread badge may have moved. */
+	#takeIrcRevision(): boolean {
+		const next = this.#irc.revision?.() ?? -1;
+		if (next === this.#lastIrcRevision) return false;
+		this.#lastIrcRevision = next;
+		return true;
 	}
 
 	/** A parked or killed agent with no live session and an unknown id, seen while the saved-agent scan runs, is one the scan found. */
