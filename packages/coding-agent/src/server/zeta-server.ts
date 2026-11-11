@@ -1196,6 +1196,8 @@ export class ZetaServer {
 			router,
 			instanceId,
 			peer,
+			...(context.threadId ? { threadId: context.threadId } : {}),
+			...(context.userId ? { userId: context.userId } : {}),
 			sendText: text => runtime.sendText(instanceId, peer, text),
 			planRequest: (title, workflow) => this.#startRemotePlanRequest(instanceId, peer, title, runtime, workflow),
 			fallback: async () => {},

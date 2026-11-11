@@ -7,6 +7,8 @@
  * `remote.sessionMappings` form once and removes it.
  */
 
+import { createHash } from "node:crypto";
+
 export type ChannelPlatform = "wechat" | "feishu" | "telegram" | "discord" | "qq";
 
 export interface WeChatCredentials {
@@ -458,6 +460,16 @@ export function validateImBindings(
 
 export function bindingKey(binding: Pick<ImBinding, "instanceId" | "chatId" | "threadId" | "userId">): string {
 	return [binding.instanceId, binding.chatId, binding.threadId ?? "", binding.userId ?? ""].join("\u0000");
+}
+
+/**
+ * Runtime identity suffix for one binding+target. The persisted binding id is
+ * stable across target switches; the target-scoped id keeps session, memory
+ * namespace, and storage home distinct so switching workspaces never moves
+ * another target's history.
+ */
+export function targetScopedBindingId(binding: Pick<ImBinding, "id" | "target">): string {
+	return `${binding.id}:${createHash("sha1").update(targetKey(binding.target)).digest("hex").slice(0, 8)}`;
 }
 
 /** A target that cannot be resolved must fail, never fall back to relay. */

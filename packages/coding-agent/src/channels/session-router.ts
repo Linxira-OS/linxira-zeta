@@ -20,7 +20,7 @@
  * stays unavailable (isToolAllowed rejects it).
  */
 
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { type ChannelInstanceId, ReplyCorrelator } from "@linxiraos/pi-channels";
@@ -43,7 +43,7 @@ import type { AgentSessionEvent } from "../session/agent-session-events";
 import { SessionManager } from "../session/session-manager";
 import { isImSession, sameSessionOrigin, type SessionOrigin } from "../session/session-origin";
 import type { ImControlParams, ImControlResult } from "./im-control";
-import { targetKey } from "./im-config";
+import { targetKey, targetScopedBindingId } from "./im-config";
 import { type AgentProfileOptions, loadImAgentProfilePersona, resolveImAgentProfileRuntime } from "../agent-profile";
 
 /** Upper bound for a delegated `workspace_run` turn (no reply → timeout error). */
@@ -211,6 +211,8 @@ export class SessionRouter {
 	readonly #runtimeBindings = new Map<string, string>();
 	/** Runtime per-chat agent override from `@agent use` / `@team` (highest precedence). */
 	readonly #agentBindings = new Map<string, string>();
+	/** Pending workspace switch, keyed by instance+chat+thread+user. */
+	readonly #pendingWorkspaceSwitch = new Map<string, { target: import("./im-config").ImTarget; at: number }>();
 	/** Cross-process agent roster; defaults to the mesh node plus this process's registry. */
 	readonly #listAgentTargets?: () => Promise<AgentTargetInfo[]> | AgentTargetInfo[];
 	/** Team plugin seam: team name → the address of its host agent. */
@@ -620,10 +622,7 @@ export class SessionRouter {
 		// inherits another target's history or memory.
 		const current = this.#webConfig.getBotSession(binding.sessionId);
 		if (current && current.cwd === resolved.cwd) return { ok: true, id: current.id };
-		const targetSessionId = `im-${binding.id.slice(2, 18)}-${createHash("sha1")
-			.update(targetKey(binding.target))
-			.digest("hex")
-			.slice(0, 8)}`;
+		const targetSessionId = `im-${targetScopedBindingId(binding).replace(/[^a-z0-9-]+/gi, "-")}`;
 		const existing = this.#webConfig.getBotSession(targetSessionId);
 		if (existing) {
 			if (binding.sessionId !== targetSessionId) {
@@ -656,7 +655,7 @@ export class SessionRouter {
 			cwd: resolved.cwd,
 			...(resolved.alias !== undefined ? { workspaceAlias: resolved.alias } : {}),
 			instanceId: binding.instanceId,
-			bindingId: binding.id,
+			bindingId: targetScopedBindingId(binding),
 			agentProfileId: binding.agentProfileId,
 			target: binding.target,
 			...(binding.model ? { model: binding.model } : {}),
@@ -667,6 +666,61 @@ export class SessionRouter {
 		};
 		await this.#webConfig.upsertBotSession(entry);
 		return { ok: true, id: entry.id };
+	}
+
+	#workspaceSwitchKey(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string },
+	): string {
+		return [instanceId, peer, context.threadId ?? "", context.userId ?? ""].join("\u0000");
+	}
+
+	/** Stage a workspace change; nothing persists until confirm from the same entry. */
+	async requestWorkspaceSwitch(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		target: import("./im-config").ImTarget,
+		context: { threadId?: string; userId?: string } = {},
+	): Promise<{ current: string; next: string; same: boolean }> {
+		const key = this.#workspaceSwitchKey(instanceId, peer, context);
+		const binding = this.#webConfig.findImBinding(instanceId, peer, context);
+		const currentTarget = binding?.target ?? (this.#webConfig.getImAgent(this.#webConfig.getChannelInstance(instanceId)?.agentProfile ?? "")?.location);
+		const current = currentTarget ? targetKey(currentTarget) : "unbound";
+		const next = targetKey(target);
+		if (current === next) {
+			this.#pendingWorkspaceSwitch.delete(key);
+			return { current, next, same: true };
+		}
+		// One pending request per entry; a new request replaces the old one.
+		this.#pendingWorkspaceSwitch.set(key, { target, at: Date.now() });
+		return { current, next, same: false };
+	}
+
+	/** Apply the pending workspace change atomically; only the same entry may confirm. */
+	async confirmWorkspaceSwitch(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string } = {},
+	): Promise<{ ok: true; target: import("./im-config").ImTarget } | { ok: false; error: string }> {
+		const key = this.#workspaceSwitchKey(instanceId, peer, context);
+		const pending = this.#pendingWorkspaceSwitch.get(key);
+		if (!pending) return { ok: false, error: "No pending workspace change for this chat/thread/user." };
+		this.#pendingWorkspaceSwitch.delete(key);
+		try {
+			await this.#webConfig.patchImBinding(instanceId, peer, { target: pending.target }, context);
+		} catch (error) {
+			return { ok: false, error: error instanceof Error ? error.message : String(error) };
+		}
+		return { ok: true, target: pending.target };
+	}
+
+	cancelWorkspaceSwitch(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string } = {},
+	): boolean {
+		return this.#pendingWorkspaceSwitch.delete(this.#workspaceSwitchKey(instanceId, peer, context));
 	}
 
 	async resolveChatTarget(

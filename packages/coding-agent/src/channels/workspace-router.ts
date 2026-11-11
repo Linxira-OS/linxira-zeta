@@ -36,6 +36,9 @@ export interface WorkspaceRouterDeps {
 	channelId: string;
 	/** Peer (chat id) of the current inbound. */
 	peer: string;
+	/** Thread/topic and sender identity; a pending switch is scoped to these. */
+	threadId?: string;
+	userId?: string;
 	sendText(text: string): Promise<void>;
 	/** Called when the message is NOT a control command. */
 	fallback(body: string, peer: string): Promise<void>;
@@ -378,6 +381,36 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			return true;
 		}
 
+		case "confirm": {
+			if (!router) {
+				await deps.sendText("No workspace router in this mode.");
+				return true;
+			}
+			const result = await router.confirmWorkspaceSwitch(
+				deps.channelId as never,
+				deps.peer,
+				{ ...(deps.threadId ? { threadId: deps.threadId } : {}), ...(deps.userId ? { userId: deps.userId } : {}) },
+			);
+			await deps.sendText(
+				result.ok ? `Workspace switch applied: ${targetLabel(result.target)}.` : result.error,
+			);
+			return true;
+		}
+
+		case "cancel": {
+			if (!router) {
+				await deps.sendText("No workspace router in this mode.");
+				return true;
+			}
+			const cancelled = router.cancelWorkspaceSwitch(
+				deps.channelId as never,
+				deps.peer,
+				{ ...(deps.threadId ? { threadId: deps.threadId } : {}), ...(deps.userId ? { userId: deps.userId } : {}) },
+			);
+			await deps.sendText(cancelled ? "Workspace switch cancelled; this chat keeps its current target." : "No pending workspace switch.");
+			return true;
+		}
+
 		case "use": {
 			const alias = parts[1];
 			if (!alias) {
@@ -562,34 +595,53 @@ async function switchToWorkspace(deps: WorkspaceRouterDeps, alias: string): Prom
 		await deps.sendText("No workspace router in this mode.");
 		return;
 	}
-	if (alias === COORDINATOR_ALIAS) {
-		await useRelay(deps);
-		return;
-	}
 	if (!deps.router.resolveDir(alias)) {
 		await deps.sendText(`Unknown workspace [${alias}]. Use @workspace list to see available workspaces.`);
 		return;
 	}
-	const result = await deps.router.setRuntimeBinding(deps.channelId as never, deps.peer, alias);
-	if (result.ok) {
-		// Direct workspace mode supersedes any default-space bot session pointer.
-		await deps.router.clearActiveBotSession(deps.channelId as never, deps.peer);
-		await deps.sendText(
-			`Direct mode: this chat now talks to [${alias}]. Send @workspace relay (or *relay) to switch back.`,
-		);
-	} else {
-		await deps.sendText(result.error);
+	const preview = await deps.router.requestWorkspaceSwitch(
+		deps.channelId as never,
+		deps.peer,
+		{ kind: "workspace", workspace: alias },
+		{ ...(deps.threadId ? { threadId: deps.threadId } : {}), ...(deps.userId ? { userId: deps.userId } : {}) },
+	);
+	if (preview.same) {
+		await deps.sendText(`This chat is already on ${preview.current}; nothing changed.`);
+		return;
 	}
+	await deps.sendText(
+		[
+			`Switch this chat from ${preview.current} to ${preview.next}?`,
+			"History and memory are not moved between targets.",
+			"Reply @workspace confirm to apply, or @workspace cancel to keep the current target.",
+		].join("\n"),
+	);
 }
 
-/** Switch this chat back to the relay coordinator. */
+/** Switch this chat back to the relay coordinator (also confirm-gated). */
 async function useRelay(deps: WorkspaceRouterDeps): Promise<void> {
 	if (!deps.router) return;
-	await deps.router.setRuntimeBinding(deps.channelId as never, deps.peer, COORDINATOR_ALIAS);
-	// Relay means the coordinator, so an active default-space bot session must
-	// not keep capturing this chat's next message.
-	await deps.router.clearActiveBotSession(deps.channelId as never, deps.peer);
-	await deps.sendText("Relay mode: messages now go through the coordinator (main).");
+	const preview = await deps.router.requestWorkspaceSwitch(
+		deps.channelId as never,
+		deps.peer,
+		{ kind: "workspace", workspace: COORDINATOR_ALIAS },
+		{ ...(deps.threadId ? { threadId: deps.threadId } : {}), ...(deps.userId ? { userId: deps.userId } : {}) },
+	);
+	if (preview.same) {
+		await deps.sendText(`This chat is already on ${preview.current}; nothing changed.`);
+		return;
+	}
+	await deps.sendText(
+		`Switch this chat from ${preview.current} to ${preview.next}? Reply @workspace confirm or @workspace cancel.`,
+	);
+}
+
+function targetLabel(target: import("./im-config").ImTarget): string {
+	return target.kind === "workspace"
+		? `[${target.workspace}]`
+		: target.kind === "team-pm"
+			? `Team ${target.team} / PM ${target.pm}`
+			: `Team ${target.team} / PM ${target.pm} / engineer ${target.engineer}`;
 }
 
 /** One-line summary of this chat's current routing target. */

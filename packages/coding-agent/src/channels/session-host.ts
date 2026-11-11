@@ -20,6 +20,7 @@ import type { WebConfig } from "../config/web-config";
 import { resolveChannelHosting } from "./channel-status";
 import { acquireChannelLock, channelLockPath, type ChannelLockHandle } from "./instance-lock";
 import type { SessionRouter } from "./session-router";
+import { routeWorkspaceCommand } from "./workspace-router";
 
 export interface SessionChannelHost {
 	readonly runtime: ChannelRuntime;
@@ -149,6 +150,17 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 					context?: { threadId?: string; userId?: string },
 				): Promise<void> => {
 					const router = options.router!;
+					const consumed = await routeWorkspaceCommand(body, peer, {
+						router,
+						instanceId,
+						peer,
+						...(context?.threadId ? { threadId: context.threadId } : {}),
+						...(context?.userId ? { userId: context.userId } : {}),
+						sendText: text => runtime.sendText(instanceId, peer, text),
+						fallback: async () => {},
+						planRequest: async () => {},
+					});
+					if (consumed) return;
 					const route = await router.resolveChatTarget(instanceId, peer, context);
 					if (route.kind === "agent") {
 						const result = await router.deliverToAgent(route.target, instanceId, peer, body);

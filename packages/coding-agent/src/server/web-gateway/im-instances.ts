@@ -15,7 +15,7 @@ import {
 	triggerWechatUnbind,
 } from "../../channels";
 import type { ChannelInstanceConfig, ImAgentProfile, ImBinding, ImTarget } from "../../channels/im-config";
-import { bindingKey, credentialFields, targetKey } from "../../channels/im-config";
+import { bindingKey, credentialFields, targetKey, targetScopedBindingId } from "../../channels/im-config";
 import { runCredentialLogin } from "../../channels/credential-login";
 import { WebConfig } from "../../config/web-config";
 import { resolveTeamDbPath, TeamDb } from "../../team/db";
@@ -282,7 +282,7 @@ export async function handleImCommands(req: Request): Promise<Response> {
 	const session = binding ? webConfig.getBotSession(binding.sessionId) : undefined;
 	return json({
 		bot: { instanceId: instance.id, label: instance.label, platform: instance.platform },
-		...(binding ? { binding: { id: binding.id, role: binding.role, agentRuntimeId: imAgentRuntimeId(instance.id, binding.agentProfileId, binding.id) } } : {}),
+		...(binding ? { binding: { id: binding.id, role: binding.role, agentRuntimeId: imAgentRuntimeId(instance.id, binding.agentProfileId, targetScopedBindingId(binding)) } } : {}),
 		...(session ? { session: { id: session.id, display: session.name } } : {}),
 		...(binding?.model ? { model: { ...binding.model, display: `${binding.model.provider}/${binding.model.model}` } } : {}),
 		voice: { supported: false, reason: "IM voice delivery is not implemented; the tts tool writes a file" },
