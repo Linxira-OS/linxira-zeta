@@ -123,6 +123,7 @@ function bindingView(webConfig: WebConfig, binding: ImBinding): Record<string, u
 	return {
 		...binding,
 		agentProfileLabel: profile?.label ?? binding.agentProfileId,
+		agentRuntimeId: imAgentRuntimeId(binding.instanceId, binding.agentProfileId, targetScopedBindingId(binding)),
 		targetDisplay: target.display,
 		targetAvailable: target.available,
 		...(target.reason ? { targetReason: target.reason } : {}),
