@@ -12,6 +12,7 @@ import type { ExtensionUIContext } from "../extensions/types";
 import type { ExecOptions, ExecResult, HookCommandContext } from "../../extensibility/hooks/types";
 import type { AutocompleteItem } from "@linxiraos/pi-tui";
 import type * as PiCodingAgent from "../../index";
+import type { CommandExecutionMetadata } from "../../capability/slash-command";
 
 // Re-export for custom commands to use
 export type { ExecOptions, ExecResult, HookCommandContext };
@@ -82,7 +83,7 @@ export interface CustomCommandAPI {
  * });
  * ```
  */
-export interface CustomCommand {
+export interface CustomCommand extends CommandExecutionMetadata {
 	/** Command name (can include namespace like "git:commit") */
 	name: string;
 	/**
@@ -94,6 +95,8 @@ export interface CustomCommand {
 	 * translation; consumers must resolve it with `resolveCommandDescription`.
 	 */
 	description: string | (() => string);
+	/** Prompt template used when no execute handler is supplied; supports Markdown command arguments. */
+	template?: string;
 	/**
 	 * Optional argument completions shown in the slash-command autocomplete UI.
 	 * @param cwd - Live session working directory (follows /move and /wt)
@@ -109,7 +112,7 @@ export interface CustomCommand {
 	 * @param rawArgs - Exact unparsed argument remainder after the command name, including whitespace, quotes, and newlines
 	 * @returns String to send as prompt, or void for fire-and-forget
 	 */
-	execute(
+	execute?(
 		args: string[],
 		ctx: CustomCommandContext,
 		rawArgs?: string,

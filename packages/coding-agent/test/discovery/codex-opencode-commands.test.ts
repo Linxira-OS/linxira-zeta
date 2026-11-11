@@ -183,6 +183,34 @@ describe("Codex and OpenCode slash-command frontmatter", () => {
 		}
 	});
 
+	test("Codex and OpenCode preserve agent, model and template through execution materialization", async () => {
+		const selectorFile = `---
+description: Review the diff
+agent: reviewer
+model: anthropic/claude-sonnet-4-5
+template: Review $ARGUMENTS and report only blocking findings.
+---
+Frontmatter prose that must not be the executed prompt.
+`;
+		for (const [dir, prefix] of [
+			[".codex", "codex"],
+			[".opencode", "opencode"],
+		] as const) {
+			const commandsDir = path.join(project, dir, "commands");
+			await fs.mkdir(commandsDir, { recursive: true });
+			await fs.writeFile(path.join(commandsDir, `${prefix}-review.md`), selectorFile);
+		}
+
+		const commands = await loadSlashCommands({ cwd: project });
+		for (const prefix of ["codex", "opencode"]) {
+			const review = commands.find(command => command.name === `${prefix}-review`);
+			expect(review?.agent).toBe("reviewer");
+			expect(review?.model).toBe("anthropic/claude-sonnet-4-5");
+			expect(review?.content).toBe("Review $ARGUMENTS and report only blocking findings.");
+			expect(review?.content).not.toContain("Frontmatter prose");
+		}
+	});
+
 	test("frontmatter-only command preview keeps an empty body", () => {
 		const preview = commandPreview(`---
 description: Deploy a service

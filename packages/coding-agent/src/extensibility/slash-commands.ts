@@ -1,5 +1,9 @@
 import { parseFrontmatter, prompt } from "@linxiraos/pi-utils";
-import { slashCommandCapability } from "../capability/slash-command";
+import {
+	commandFrontmatterExecution,
+	type CommandExecutionMetadata,
+	slashCommandCapability,
+} from "../capability/slash-command";
 import { slashCommandFrontmatterDisplay } from "@linxiraos/pi-tui/overlays/extensions/inspector-model";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { appendInlineArgsFallback, templateUsesInlineArgPlaceholders } from "../config/prompt-templates";
@@ -25,7 +29,7 @@ export type { BuiltinSlashCommand, SubcommandDef } from "../slash-commands/types
 /**
  * Represents a custom slash command loaded from a file
  */
-export interface FileSlashCommand {
+export interface FileSlashCommand extends CommandExecutionMetadata {
 	name: string;
 	description: string;
 	/** Argument hint from `argument-hint`/`argumentHint` frontmatter, shown as inline ghost text. */
@@ -46,9 +50,10 @@ const EMBEDDED_SLASH_COMMANDS = EMBEDDED_COMMANDS;
 function parseCommandTemplate(
 	content: string,
 	options: { source: string; level?: "off" | "warn" | "fatal" },
-): { description: string; body: string; argumentHint?: string; side: boolean } {
+): { description: string; body: string; argumentHint?: string; side: boolean } & CommandExecutionMetadata {
 	const { frontmatter, body } = parseFrontmatter(content, options);
 	const { description: frontmatterDesc, argumentHint } = slashCommandFrontmatterDisplay(frontmatter);
+	const { template, ...execution } = commandFrontmatterExecution(frontmatter);
 
 	// Get description from frontmatter or first non-empty line
 	let description = frontmatterDesc ?? "";
@@ -60,7 +65,7 @@ function parseCommandTemplate(
 		}
 	}
 
-	return { description, body, argumentHint, side: frontmatter.side === true };
+	return { description, body: template ?? body, argumentHint, side: frontmatter.side === true, ...execution };
 }
 
 export interface LoadSlashCommandsOptions {
@@ -81,7 +86,7 @@ export async function loadSlashCommands(options: LoadSlashCommandsOptions = {}):
 	});
 
 	const fileCommands: FileSlashCommand[] = result.items.map(cmd => {
-		const { description, body, argumentHint, side } = parseCommandTemplate(cmd.content, {
+		const { description, body, argumentHint, side, agent, model } = parseCommandTemplate(cmd.content, {
 			source: cmd.path ?? `slash-command:${cmd.name}`,
 			level: cmd.level === "native" ? "fatal" : "warn",
 		});
@@ -92,9 +97,11 @@ export async function loadSlashCommands(options: LoadSlashCommandsOptions = {}):
 
 		return {
 			name: cmd.name,
-			description,
+			description: cmd.description ?? description,
 			argumentHint: cmd.argumentHint ?? argumentHint,
-			content: body,
+			content: cmd.template ?? body,
+			agent: cmd.agent ?? agent,
+			model: cmd.model ?? model,
 			source: sourceStr,
 			...(side || cmd.side === true ? { side: true } : {}),
 			_source: { providerName: cmd._source.providerName, level: cmd.level },

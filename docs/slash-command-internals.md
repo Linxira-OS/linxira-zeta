@@ -144,8 +144,31 @@ For each command:
 4. compute a display source string like `via Claude Code Project`
 5. preserve `argumentHint` from discovery, or parse `argumentHint`/`argument-hint` frontmatter for autocomplete ghost text and ACP input hints
 6. set `side` when the frontmatter has the boolean `side: true` (a quoted `"true"` does not count)
+7. carry `agent`, `model` and `template` execution metadata unchanged; `template` replaces the body, while `agent` and `model` are resolved at execution time
 
-Codex/OpenCode providers strip frontmatter before this stage. Their discovered argument hints and `side` flags survive, but the runtime description currently falls back to the body rather than using the separately discovered description.
+Codex/OpenCode providers strip frontmatter before this stage. Their discovered description, argument hint, `side`, `agent`, `model` and `template` fields survive instead of falling back to the body.
+
+### Execution selectors
+
+A Markdown command may name an agent, a model, or both:
+
+```markdown
+---
+description: Review the pending diff
+argument-hint: "[path]"
+agent: reviewer
+model: anthropic/claude-sonnet-4-5
+template: Review $ARGUMENTS and report blocking findings only.
+---
+```
+
+- `agent` must name a discovered agent (project `.zeta/agents`, user roots, extension roots, then bundled). The command turn runs with that agent's system prompt appended to the session prompt and its tool list intersected with the tools this session may already use; `task` survives only when the agent declares `spawns`.
+- `model` resolves through the same selector path as `--model` (roles, aliases, scoped models, match preferences). Without `model`, the selected agent's `model` list is tried in order.
+- `template` replaces the Markdown body so a command can keep prose frontmatter and execution fields while shipping a different executable prompt.
+- Unknown agent names and unresolved model selectors fail explicitly before the command handler or the model request runs.
+- Precedence inside one turn: command `model` > selected agent's model list > the session's current model. The prior model, thinking level, persona and tool presentation are restored when the command turn settles, including handler and dispatch failures.
+- Selector commands require an idle session outside plan, goal, vibe and lead modes; those modes already own the execution policy and do not merge implicitly.
+- TypeScript custom commands accept the same `agent`, `model` and `template` fields. A command with a `template` and no `execute` handler runs the template through the normal argument substitution path.
 
 Frontmatter parse severity is level-dependent:
 
@@ -218,6 +241,8 @@ After that boundary, `AgentSession.prompt(...)` processes slash input in this or
    - streaming: prompt is queued according to `streamingBehavior` (`steer`, `followUp`, or `aside`)
 
 `runCommands: false` skips extension/custom handlers but still expands file commands and prompt templates. `expandPromptTemplates: false` bypasses all four expansion stages. Normal user prompts then undergo model-mention expansion and magic-keyword matching; synthetic prompts do not trigger magic notices.
+
+When the winning custom or file command carries `agent`/`model`, the whole command turn — handler, expansion and the model request it starts — runs under that execution policy. Extension commands keep their precedence and have no selectors. The policy is rejected before any mutation while the session streams or a plan/goal/vibe/lead mode is active, and is restored when the turn settles.
 
 This is why built-ins reserve their names before file commands are considered, slash command expansion sits before prompt-template expansion, and custom commands can transform away the leading slash before file-command matching.
 

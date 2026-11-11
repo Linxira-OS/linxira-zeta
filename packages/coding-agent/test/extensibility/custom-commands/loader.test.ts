@@ -46,6 +46,40 @@ describe("custom command loader", () => {
 		expect(Object.prototype.propertyIsEnumerable.call(type, "type")).toBeFalse();
 	});
 
+	it("accepts a template-only command and rejects a command with neither execute nor template", async () => {
+		tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-custom-command-template-"));
+		const validDir = path.join(tempRoot, "commands", "template-only");
+		const invalidDir = path.join(tempRoot, "commands", "inert");
+		await fs.mkdir(validDir, { recursive: true });
+		await fs.mkdir(invalidDir, { recursive: true });
+		const validPath = path.join(validDir, "index.js");
+		const invalidPath = path.join(invalidDir, "index.js");
+		await Bun.write(
+			validPath,
+			[
+				"export default () => ({",
+				'\tname: "template-only",',
+				'\tdescription: "Runs a template",',
+				'\tagent: "reviewer",',
+				'\tmodel: "anthropic/claude-sonnet-4-5",',
+				'\ttemplate: "Review $ARGUMENTS",',
+				"});",
+			].join("\n"),
+		);
+		await Bun.write(
+			invalidPath,
+			['export default () => ({', '\tname: "inert",', '\tdescription: "No handler",', "});"].join("\n"),
+		);
+
+		const result = await loadCustomCommands({ cwd: tempRoot, agentDir: tempRoot });
+
+		const valid = result.commands.find(({ command }) => command.name === "template-only");
+		expect(valid?.command.template).toBe("Review $ARGUMENTS");
+		expect(valid?.command.agent).toBe("reviewer");
+		expect(valid?.command.model).toBe("anthropic/claude-sonnet-4-5");
+		expect(result.errors.find(error => error.path === invalidPath)?.error).toContain("execute function or template");
+	});
+
 	it("re-evaluates an edited command module on the next load", async () => {
 		tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-custom-command-reload-"));
 		const commandDir = path.join(tempRoot, "commands", "live-edit");

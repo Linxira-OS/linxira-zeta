@@ -224,7 +224,16 @@ import {
 	type SkillRediscoveryHost,
 	type SkillWarning,
 } from "../extensibility/skills";
-import { expandSlashCommand, type FileSlashCommand, loadSlashCommands } from "../extensibility/slash-commands";
+import {
+	expandSlashCommand,
+	type FileSlashCommand,
+	loadSlashCommands,
+	parseFileSlashInvocation,
+	renderFileSlashCommand,
+} from "../extensibility/slash-commands";
+import type { CommandExecutionMetadata } from "../capability/slash-command";
+import { discoverAgents } from "../task/discovery";
+import type { AgentDefinition } from "../task/types";
 import { normalizeToolEventInput, resolveToolEventInput } from "../extensibility/tool-event-input";
 import { normalizeGoalObjective } from "../goals/plan-objective";
 import { cfgGoalEnabled } from "../goals/settings";
@@ -1146,6 +1155,8 @@ function commandMetadataSignature(commands: readonly LoadedCustomCommand[]): str
 }
 
 export class AgentSession implements SettingsScope, AgentViewSession {
+	/** True while a command's agent/model override owns this session's execution policy. */
+	#commandPolicyActive = false;
 	/**
 	 * Cross-thread identity token (`${homeThreadId}:${snowflake}`), unique per
 	 * session object across threads. Thread bridges encode a session by this key
@@ -9772,6 +9783,133 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		submittedAt: number,
 		outcome: PromptDispatchOutcome,
 	): Promise<boolean> {
+		if (this.#commandPolicyActive) {
+			throw new Error("A command with an agent or model override is still running");
+		}
+		const invocation =
+			(options?.expandPromptTemplates ?? true) ? parseFileSlashInvocation(text) : undefined;
+		if (!invocation) return this.#dispatchPromptBody(text, options, submittedAt, outcome);
+		// An extension command runs before custom and file commands and owns no selectors.
+		if (options?.runCommands !== false && this.#extensionRunner?.getCommand(invocation.name)) {
+			return this.#dispatchPromptBody(text, options, submittedAt, outcome);
+		}
+		const custom =
+			options?.runCommands !== false
+				? this.customCommands.find(entry => entry.command.name === invocation.name)?.command
+				: undefined;
+		const metadata: CommandExecutionMetadata | undefined =
+			custom ?? this.#slashCommands.find(entry => entry.name === invocation.name);
+		if (!metadata?.agent && !metadata?.model) {
+			return this.#dispatchPromptBody(text, options, submittedAt, outcome);
+		}
+		return this.#withCommandPolicy(metadata, () => this.#dispatchPromptBody(text, options, submittedAt, outcome));
+	}
+
+	/**
+	 * Runs one command turn under its `agent`/`model` selectors: persona and tool
+	 * policy from the named discovered agent, then the command's model (or the
+	 * agent's model list) and thinking level. Every mutation is restored before
+	 * the turn returns, including command-handler and dispatch failures.
+	 */
+	async #withCommandPolicy(
+		metadata: CommandExecutionMetadata,
+		run: () => Promise<boolean>,
+	): Promise<boolean> {
+		if (
+			this.isStreaming ||
+			this.getPlanModeState()?.enabled ||
+			this.getGoalModeState()?.enabled ||
+			this.getVibeModeState()?.enabled ||
+			this.getLeadModeState()?.enabled
+		) {
+			throw new Error(
+				"Command agent/model overrides require an idle session outside plan, goal, vibe and lead modes",
+			);
+		}
+		const previousModel = this.model;
+		const previousThinking = this.configuredThinkingLevel();
+		const previousEnabled = this.getEnabledToolNames();
+		const previousMounted = this.getMountedXdevToolNames();
+		let definition: AgentDefinition | undefined;
+		let selected: Prewalk | undefined;
+		let toolsChanged = false;
+		this.#commandPolicyActive = true;
+		try {
+			if (metadata.agent) {
+				const { agents } = await discoverAgents(
+					this.sessionManager.getCwd(),
+					undefined,
+					this.effectiveExtensionRoots,
+				);
+				definition = agents.find(agent => agent.name === metadata.agent);
+				if (!definition) throw new Error(`Unknown command agent "${metadata.agent}"`);
+			}
+			const selectors = metadata.model ? [metadata.model] : (definition?.model ?? []);
+			if (selectors.length > 0) {
+				const errors: string[] = [];
+				for (const selector of selectors) {
+					const resolved = this.#resolvePrewalkTarget(selector);
+					if (typeof resolved === "string") {
+						errors.push(resolved);
+						continue;
+					}
+					selected = resolved;
+					break;
+				}
+				if (!selected) {
+					throw new Error(
+						`Unknown or unavailable command model ${selectors.join(", ")}: ${errors[0] ?? "not found"}`,
+					);
+				}
+				await this.setModelTemporary(selected.target, selected.thinkingLevel ?? definition?.thinkingLevel, {
+					ephemeral: true,
+				});
+			}
+			if (definition) {
+				const agent = definition;
+				const canSpawn = agent.spawns === "*" || (agent.spawns?.length ?? 0) > 0;
+				const allowed = previousEnabled.filter(
+					name => (!agent.tools || agent.tools.includes(name)) && (name !== "task" || canSpawn),
+				);
+				await this.setActiveToolPresentation(
+					allowed,
+					previousMounted.filter(name => allowed.includes(name)),
+					true,
+				);
+				this.#tools.setTurnSystemPromptOverride(
+					[...this.#tools.baseSystemPrompt, agent.systemPrompt],
+					this.#tools.baseSystemPrompt,
+				);
+				toolsChanged = true;
+			}
+			return await run();
+		} finally {
+			try {
+				if (toolsChanged) {
+					this.#tools.clearTurnSystemPromptOverride();
+					this.agent.setSystemPrompt(this.#tools.baseSystemPrompt);
+					await this.setActiveToolPresentation(previousEnabled, previousMounted, true);
+				}
+			} catch (error) {
+				logger.warn("Failed to restore command tool policy", { error: String(error) });
+			}
+			try {
+				if (selected && previousModel) {
+					await this.setModelTemporary(previousModel, previousThinking, { ephemeral: true });
+				}
+			} catch (error) {
+				logger.warn("Failed to restore command model", { error: String(error) });
+			}
+			this.#commandPolicyActive = false;
+		}
+	}
+
+	async #dispatchPromptBody(
+		text: string,
+		options: PromptOptions | undefined,
+		submittedAt: number,
+		outcome: PromptDispatchOutcome,
+	): Promise<boolean> {
 		const expandPromptTemplates = options?.expandPromptTemplates ?? true;
 		// Slash/custom-command handling below rewrites `text`; keep the original
 		// so a dropped prompt is handed back exactly as the user typed it.
@@ -10837,7 +10975,23 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			const args = parseCommandArgs(argsString);
 			// Commands that consult findScopedSettings, including /review, must see this
 			// session's cache kill switch instead of the default enabled cache.
-			const result = await withActiveSettings(this.settings, () => loaded.command.execute(args, ctx, argsString));
+			const execute = loaded.command.execute;
+			const result = await withActiveSettings(this.settings, () =>
+				execute
+					? execute(args, ctx, argsString)
+					: renderFileSlashCommand(
+							{
+								name: commandName,
+								description:
+									typeof loaded.command.description === "string"
+										? loaded.command.description
+										: loaded.command.description(),
+								content: loaded.command.template ?? "",
+								source: loaded.source,
+							},
+							argsString,
+						),
+			);
 			// If result is a string, it's a prompt to send to LLM
 			// If void/undefined, command handled everything
 			return result ?? "";

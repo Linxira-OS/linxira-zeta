@@ -45,6 +45,9 @@
 - **doctor**：修复 `room.member` 对已登记 Secretary 的误报；新增任务 PM/assignee/owner/lease/event actor 校验，过期租约只告警。
 - **设计**：`document/team-task-queue.md` 记录 `/initzetateam` 的 plan/apply/journal/回滚/doctor 预检依赖顺序；Vibe worker 自动认领与 IM 每 Agent 绑定均未在本版实现。
 
+### 自定义命令执行策略（未发布）
+- **命令级 agent/model/template（REQ-052）**：Markdown 与 TypeScript 自定义命令都接受 `agent`、`model`、`template`。执行时按名称解析已发现 agent，把其 persona 追加到本轮提示、把工具面收窄为「会话已有工具 ∩ agent 工具」（`task` 仅在 agent 声明 `spawns` 时保留）；`model` 走与 `--model` 相同的选择器解析，缺省时按 agent 的 model 列表依次尝试。未知 agent、无法解析的 model 在 handler 与模型请求之前明确报错；`template` 取代 Markdown 正文，TypeScript 命令可只给 template 不给 `execute`。优先级是命令 `model` > agent model 列表 > 当前会话 model，命令轮结束（含异常）恢复原 model、思考等级、persona 与工具面。流式运行及 plan/goal/vibe/lead 模式内拒绝带选择器的命令，不做隐式叠加。Codex/OpenCode 发现路径不再在剥离 frontmatter 后丢失这些字段。
+
 ### 1.5.1
 - **Work Studio 浏览器终端（#282）**：Studio 界面通过网关 PTY 在浏览器里跑真实终端（xterm.js），支持选择/创建 shell profile（shell、参数、工作目录、环境变量）、实时调整 PTY 尺寸、导航后保留会话列表，并在断线后重连回放而不是留下死面板；profile 由服务端校验，不能越出工作区根。
 - **TUI `/channels` 与安全配对锁（#283）**：列出已配置 IM 渠道及其实时健康（状态、详情、最后错误、起始时间、最后入站），执行 `login`/`status`/`logout`/`unbind`，并按渠道加配对锁，避免两个进程同时配对同一账号；后端 attach 的客户端会拒绝该命令，把配对留给持有进程。
