@@ -1940,6 +1940,20 @@ export interface Messages {
 	cmdTrackingDisabledHint: string;
 	cmdTrackingNoticeOn: string;
 	cmdTrackingNoticeOff: string;
+	cmdTrackingStartFmt: string;
+	cmdTrackingStartSeededExistsFmt: string;
+	cmdTrackingStartSeededCreatedFmt: string;
+	cmdTrackingEmptyHint: string;
+	cmdTrackingStatusReportFmt: string;
+	cmdTrackingUnset: string;
+	cmdTrackingNone: string;
+	cmdTrackingMissingStatusFmt: string;
+	cmdTrackingMissingIndexFmt: string;
+	cmdTrackingEmptyLogFmt: string;
+	cmdTrackingRecentActionsFmt: string;
+	cmdTrackingNoPlansFmt: string;
+	cmdTrackingPlansFmt: string;
+	cmdTrackingUsage: string;
 
 	cmdAdvisor: string;
 	cmdAdvisorOn: string;

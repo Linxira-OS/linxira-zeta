@@ -697,6 +697,25 @@ export function getStatsByFolder(cutoff: number | null = null, limit = Number.MA
 	).map(row => ({ folder: row.folder, ...toAggregatedStats(row) }));
 }
 
+/** Distinct project folders the stats registry knows, most recently active first. */
+export function getProjectFolders(limit = Number.MAX_SAFE_INTEGER): string[] {
+	return queryMessages<{ folder: string }>(
+		{ cutoff: null },
+		"f.folder AS folder, MAX(f.last_ts) AS last_ts",
+		`GROUP BY f.folder ORDER BY last_ts DESC LIMIT ${Math.max(0, Math.floor(limit))}`,
+	).map(row => row.folder);
+}
+
+/** Newest session file registered for a project folder, used to resolve its real cwd. */
+export function getProjectSessionFile(folder: string): string | null {
+	const database = currentDb();
+	if (!database) return null;
+	const row = database
+		.query("SELECT session_file FROM messages WHERE folder = ? ORDER BY timestamp DESC LIMIT 1")
+		.get(folder) as { session_file: string } | null;
+	return row?.session_file ?? null;
+}
+
 /** Token usage per agent type (main, subagent, advisor). */
 export function getStatsByAgentType(cutoff: number | null = null): AgentTypeStats[] {
 	return queryMessages<{

@@ -16,6 +16,7 @@ import {
 	RequestsRoute,
 	SpotlightRoute,
 	ToolsRoute,
+	TrackingRoute,
 	TracesRoute,
 } from "./routes";
 import { RequestDrawer } from "./ui/RequestDrawer";
@@ -65,6 +66,8 @@ function Dashboard() {
 				return <FrustrationRoute active={active} range={range} />;
 			case "projects":
 				return <ProjectsRoute active={active} range={range} />;
+			case "tracking":
+				return <TrackingRoute active={active} />;
 			case "gain":
 				return <GainRoute active={active} range={range} />;
 			case "spotlight":

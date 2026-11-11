@@ -1926,6 +1926,21 @@ export const en = {
 		"Project tracking is on: maintain the tracking documents via tracking_update (status, index, log, plan); they survive compaction.",
 	cmdTrackingNoticeOff:
 		"Project tracking is off: stop calling tracking_update; phase nudges no longer fire and existing documents stay on disk untouched.",
+	cmdTrackingStartFmt:
+		"Maintaining project tracking documents. After milestones, important decisions, phase completion or a cleared blocker I call tracking_update and write status (status.json), the index (INDEX.md), actions (actions.<day>.jsonl.log, rotated 5 MB × 3), todo phases (sync_todo) and plans (sessions/) under %s.\nTracking is opt-in: enable it with /tracking on, or /settings → tools → Project Tracking (tracking.enabled). Tracking holds process state (phase, progress, blockers, plan mirror); learned facts and preferences belong to memory, not tracking. Documents persist across sessions and are readable in the stats dashboard Tracking page.\n%s",
+	cmdTrackingStartSeededExistsFmt: "Index already exists: %s",
+	cmdTrackingStartSeededCreatedFmt: "Seeded the three-reader index from the template: %s (people / agent / collaborators)",
+	cmdTrackingEmptyHint: "No tracking data. Run /tracking start to begin maintaining the project tracking documents.",
+	cmdTrackingStatusReportFmt: "Phase: %s\nProgress: %s\nBlockers: %s\nDecisions: %s\nUpdated: %s",
+	cmdTrackingUnset: "(not set)",
+	cmdTrackingNone: "None",
+	cmdTrackingMissingStatusFmt: "Status file does not exist: %s\n%s",
+	cmdTrackingMissingIndexFmt: "Index file does not exist: %s\n%s",
+	cmdTrackingEmptyLogFmt: "Action log is empty: %s\n%s",
+	cmdTrackingRecentActionsFmt: "Last %s actions (%s total):\n%s",
+	cmdTrackingNoPlansFmt: "No tracked plans (%s)",
+	cmdTrackingPlansFmt: "Tracked plans (%s):\n%s",
+	cmdTrackingUsage: "Usage: /tracking <status|plan|log|index|start>",
 
 	cmdAdvisor: "Toggle the advisor (a second model that reviews each turn and injects notes)",
 	cmdAdvisorOn: "Enable the advisor",

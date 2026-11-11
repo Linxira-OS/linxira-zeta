@@ -45,8 +45,9 @@ memory by topic instead.
 file lease with an atomic replace, so a second session writing at the same time
 cannot drop the first one's update. The action log is bounded by size rotation
 (5 MB per file, 3 files); readers take its newest rows through a bounded tail
-read. A pre-rotation `actions.jsonl` is left on disk untouched but no longer
-read — the rotated family under the names above is the live log.
+read. A pre-rotation `actions.jsonl` is left on disk untouched and is no longer read
+by the agent's own log readers — the rotated family under the names above is
+the live log. The stats snapshot also includes it, for compatibility.
 
 ### INDEX.md template
 
@@ -151,6 +152,10 @@ The agent prompt instructs the model to:
 - Call `sync_todo` when a todo phase completes (stage + phases mirror)
 
 `/tracking start` prints the guidance and seeds `INDEX.md` from the template.
+The guidance states the boundary explicitly: tracking holds process state
+(phase, progress, blockers, plan mirror), while learned facts and preferences
+belong to memory; it also names the opt-in switch (`/tracking on`, or
+`/settings` → tools → Project Tracking (`tracking.enabled`)).
 
 ## Web UI Integration
 
@@ -170,6 +175,37 @@ so polling an unchanged project reports a stable instant. The dock tracking
 entry itself is gated on `tracking.enabled`: the web shell reads
 `GET /api/settings` and only then renders the entry
 (`web-ui/components/AppShell.tsx`).
+
+## Stats dashboard (read-only)
+
+`zetacode stats` serves a read-only tracking page at `#/tracking` and the JSON
+behind it at `GET /api/tracking?project=<folder>`; `GET /api/tracking/projects`
+lists the registry folders for the page's selector. The project must be an exact
+label from the stats registry (the encoded session-folder names stored on
+ingested messages); the route accepts no `cwd`, relative path or other
+caller-supplied path. Because those labels are not filesystem paths, the route
+resolves the newest session header's `cwd` for that label and requires it to be
+absolute before reading; an unresolvable label returns `409` rather than a
+guessed path.
+
+The payload is an independent `TrackingSnapshot` keyed by the registry label
+(the stats package does not import coding-agent tracking types): `status`
+(parsed `status.json`), `index`
+(`INDEX.md`), `actions` (legacy `actions.jsonl` plus the rotated
+`actions.<day>.jsonl.log` family), `sessions/*.md`, `trackingDir`, `updatedAt`
+and the per-file state. Reads are bounded (`status` 256 KiB, index 512 KiB,
+each session 256 KiB up to 50 files, action log a 1 MiB tail) and report what
+they found:
+
+- `present` — read successfully;
+- `missing` — the file/directory is absent (never rendered as zero progress);
+- `partial` — the read hit its bound or the action log mixed valid and
+  malformed rows;
+- `corrupt` — `status.json` is not a JSON object, or no action row parses;
+- `error` — an I/O or non-regular-file failure.
+
+The page never creates, repairs or rewrites tracking files; it only reads them.
+Language and number formatting follow the existing stats dashboard rules.
 
 ## Design Principles
 

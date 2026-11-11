@@ -1,6 +1,7 @@
 import {
 	Activity,
 	CircleAlert,
+	ClipboardList,
 	Coins,
 	Cpu,
 	FolderGit2,
@@ -26,6 +27,7 @@ export type DashboardSection =
 	| "tools"
 	| "frustration"
 	| "projects"
+	| "tracking"
 	| "gain"
 	| "spotlight";
 
@@ -69,6 +71,7 @@ export const NAV: readonly NavGroup[] = [
 			{ id: "tools", labelKey: "nav.tools", icon: Wrench, hotkey: "l" },
 			{ id: "frustration", labelKey: "nav.frustration", icon: Frown, hotkey: "f" },
 			{ id: "projects", labelKey: "nav.projects", icon: FolderGit2, hotkey: "j" },
+			{ id: "tracking", labelKey: "nav.tracking", icon: ClipboardList, hotkey: "k" },
 			{ id: "gain", labelKey: "nav.gain", icon: Sparkles, hotkey: "g" },
 			{ id: "spotlight", labelKey: "nav.spotlight", icon: ScanSearch, hotkey: "s" },
 		],

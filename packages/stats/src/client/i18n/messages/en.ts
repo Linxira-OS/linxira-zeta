@@ -10,6 +10,7 @@ import { traces } from "./traces";
 import { tools } from "./tools";
 import { frustration } from "./frustration";
 import { projects } from "./projects";
+import { tracking } from "./tracking";
 import { gain } from "./gain";
 import { ui } from "./ui";
 import { charts } from "./charts";
@@ -28,6 +29,7 @@ export const enMessages = {
 	...tools.en,
 	...frustration.en,
 	...projects.en,
+	...tracking.en,
 	...gain.en,
 	...ui.en,
 	...charts.en,

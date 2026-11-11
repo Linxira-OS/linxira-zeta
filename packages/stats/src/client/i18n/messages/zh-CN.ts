@@ -11,6 +11,7 @@ import { traces } from "./traces";
 import { tools } from "./tools";
 import { frustration } from "./frustration";
 import { projects } from "./projects";
+import { tracking } from "./tracking";
 import { gain } from "./gain";
 import { ui } from "./ui";
 import { charts } from "./charts";
@@ -34,6 +35,7 @@ export const zhCNMessages: Partial<Record<MessageKey, string>> = {
 	...tools["zh-CN"],
 	...frustration["zh-CN"],
 	...projects["zh-CN"],
+	...tracking["zh-CN"],
 	...gain["zh-CN"],
 	...ui["zh-CN"],
 	...charts["zh-CN"],

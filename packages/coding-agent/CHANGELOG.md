@@ -80,6 +80,9 @@
 ### Changed (unreleased draft)
 
 - The Studio capability manifest now advertises the `rooms` family and the four agent controls because their handlers exist; unimplemented operations stay unadvertised.
+### Changed
+
+- `/tracking start` now explains the tracking/memory boundary (process state versus learned facts and preferences) and how to enable the opt-in `tracking.enabled` setting; the whole `/tracking` report is localized and its tests no longer pin exact wording.
 
 ## [1.5.1] - 2026-11-10
 

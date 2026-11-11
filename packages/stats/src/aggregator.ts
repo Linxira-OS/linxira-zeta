@@ -31,6 +31,7 @@ import {
 	getOverallStats,
 	getProviderHourlyBurn,
 	getProviderTimeSeries,
+	getProjectFolders,
 	getStatsByAgentType,
 	getStatsByFolder,
 	getStatsByModel,
@@ -576,6 +577,15 @@ export async function getCostDashboardStats(range?: string | null): Promise<Pick
 export async function getFolderStats(range?: string | null): Promise<FolderStats[]> {
 	await initDb();
 	return getStatsByFolder(getTimeRangeConfig(range).cutoff, FOLDER_LIMIT);
+}
+
+/**
+ * Project folders known to the stats registry. Tracking reads are scoped to
+ * this exact set: a caller cannot point the dashboard at an arbitrary path.
+ */
+export async function getKnownProjectFolders(): Promise<string[]> {
+	await initDb();
+	return getProjectFolders();
 }
 
 export async function getRecentRequests(limit?: number): Promise<MessageStats[]> {

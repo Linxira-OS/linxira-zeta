@@ -7,6 +7,7 @@ import {
 	getCostDashboardStats,
 	getDashboardStats,
 	getFolderStats,
+	getKnownProjectFolders,
 	getModelDashboardStats,
 	getOverviewStats,
 	getProviderDashboardStats,
@@ -39,11 +40,13 @@ import {
 	STATS_DASHBOARD_HOSTNAME_HEADER,
 	STATS_DASHBOARD_SECURITY_VERSION,
 } from "./port-conflict";
-import { getStatsByModel, getTimeSeries } from "./rollup";
+import { getProjectSessionFile, getStatsByModel, getTimeSeries } from "./rollup";
 import { getSpotlightDashboardStats, getSpotlightSessionContext } from "./spotlight-aggregator";
+import { isTrackableProject, readTrackingSnapshot } from "./tracking";
 import {
 	buildSessionTrace,
 	getTraceEntry,
+	readSessionMetadata,
 	listSessionSummaries,
 	TRACE_ETAG_VERSION,
 	type TraceFingerprint,
@@ -218,6 +221,29 @@ export async function handleApi(req: Request): Promise<Response> {
 
 	// Stats reads are DB-only; ingest runs in the background (see `live.ts`).
 	const range = url.searchParams.get("range");
+
+	// Read-only project tracking snapshot. The project must be an exact label
+	// from the stats registry: there is no arbitrary `cwd`/path input to escape.
+	if (path === "/api/tracking/projects") {
+		if (req.method !== "GET") return Response.json({ error: "GET required" }, { status: 405 });
+		return Response.json({ projects: await getKnownProjectFolders() });
+	}
+
+	if (path === "/api/tracking") {
+		if (req.method !== "GET") return Response.json({ error: "GET required" }, { status: 405 });
+		const project = url.searchParams.get("project")?.trim();
+		if (!project) return Response.json({ error: "project required" }, { status: 400 });
+		const known = await getKnownProjectFolders();
+		if (!isTrackableProject(project, known)) return Response.json({ error: "unknown project" }, { status: 404 });
+		// Registry labels are encoded session-folder names, not paths; the newest
+		// session header carries the real cwd. Never derive a path from the label.
+		const sessionFile = getProjectSessionFile(project);
+		const cwd = sessionFile ? (await readSessionMetadata(sessionFile)).cwd : null;
+		if (!cwd || !path.isAbsolute(cwd)) {
+			return Response.json({ error: "project path unavailable" }, { status: 409 });
+		}
+		return Response.json(await readTrackingSnapshot(cwd, project));
+	}
 
 	if (path === "/api/status") {
 		return Response.json(statsLive().status());

@@ -19,6 +19,7 @@ import type {
 	SpotlightSessionContext,
 	TimeRange,
 	ToolDashboardStats,
+	TrackingSnapshot,
 } from "./types";
 
 const API_BASE = "/api";
@@ -175,6 +176,16 @@ export async function cancelFrustrationRun(): Promise<FrustrationJobStatus> {
 
 export async function getFolderStats(range: TimeRange = "24h", signal?: AbortSignal): Promise<FolderStats[]> {
 	return fetchJson<FolderStats[]>(`${API_BASE}/stats/folders?range=${encodeURIComponent(range)}`, { signal });
+}
+
+/** Project folders in the stats registry, most recently active first. */
+export async function getTrackingProjects(signal?: AbortSignal): Promise<{ projects: string[] }> {
+	return fetchJson<{ projects: string[] }>(`${API_BASE}/tracking/projects`, { signal });
+}
+
+/** Read-only tracking snapshot for one project folder from the stats registry. */
+export async function getTrackingSnapshot(project: string, signal?: AbortSignal): Promise<TrackingSnapshot> {
+	return fetchJson<TrackingSnapshot>(`${API_BASE}/tracking?project=${encodeURIComponent(project)}`, { signal });
 }
 
 export async function getGainDashboardStats(

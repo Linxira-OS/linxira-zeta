@@ -1,0 +1,94 @@
+.tracking-toolbar {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 14px 16px;
+}
+
+.tracking-project {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.tracking-select {
+	min-width: min(560px, 100%);
+	max-width: 100%;
+	background: var(--raised);
+	color: var(--ink-1);
+	border: 1px solid var(--line-1);
+	border-radius: 8px;
+	padding: 7px 10px;
+	font: inherit;
+}
+
+.tracking-note {
+	margin: 0;
+	color: var(--ink-3);
+	font-size: 12px;
+}
+
+.tracking-panel {
+	padding: 14px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.tracking-meta {
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+	font-size: 12px;
+}
+
+.tracking-error {
+	margin: 0;
+	color: var(--bad);
+	font-size: 12px;
+}
+
+.tracking-doc {
+	margin: 0;
+	padding: 10px 12px;
+	max-height: 420px;
+	overflow: auto;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	background: var(--raised);
+	border: 1px solid var(--line-1);
+	border-radius: 8px;
+	font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+	font-size: 12px;
+	line-height: 1.55;
+}
+
+.tracking-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-height: 420px;
+	overflow: auto;
+}
+
+.tracking-list-row {
+	display: flex;
+	gap: 10px;
+	align-items: baseline;
+	flex-wrap: wrap;
+	font-size: 12px;
+}
+
+.tracking-session summary {
+	cursor: pointer;
+	gap: 8px;
+	font-size: 12px;
+}
+
+.tracking-session[open] summary {
+	margin-bottom: 8px;
+}
