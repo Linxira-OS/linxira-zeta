@@ -1023,8 +1023,8 @@ function spawnMainWindow(prefs: TrayPrefs, hidden: boolean): BrowserWindow {
 		}
 		return { action: "deny" };
 	});
-	win.webContents.on("console-message", (_event, level, message, line, sourceId) => {
-		writeDesktopLog(`Renderer console [${level}] ${sourceId}:${line} ${message}`);
+	win.webContents.on("console-message", details => {
+		writeDesktopLog(`Renderer console [${details.level}] ${details.sourceId}:${details.lineNumber} ${details.message}`);
 	});
 	win.webContents.once("did-finish-load", () => {
 		writeDesktopLog("Renderer finished loading the Web UI.");
@@ -1288,13 +1288,16 @@ function createTray(labels: DesktopLabels): void {
  * web.yml toggle driven from the settings panel.
  */
 function applyAutostart(enabled: boolean): void {
-	app.setLoginItemSettings({
-		openAtLogin: enabled,
-		// Login launches stay in the tray. Windows login items accept args and
-		// macOS still honors `openAsHidden`; Linux uses the autostart entry below.
-		...(enabled && process.platform === "win32" ? { args: ["--hidden"] } : {}),
-		...(enabled && process.platform === "darwin" ? { openAsHidden: true } : {}),
-	});
+	// Electron 44 removed the pre-macOS 13 `openAsHidden` attribute, and
+	// `setLoginItemSettings` is a Windows/macOS API; Linux is driven entirely by
+	// the XDG autostart entry below.
+	if (process.platform !== "linux") {
+		app.setLoginItemSettings({
+			openAtLogin: enabled,
+			// Login launches stay in the tray; Windows login items accept args.
+			...(enabled && process.platform === "win32" ? { args: ["--hidden"] } : {}),
+		});
+	}
 	if (process.platform === "linux") {
 		const autostartDir = path.join(app.getPath("home"), ".config", "autostart");
 		const entryPath = path.join(autostartDir, "zeta.desktop");
