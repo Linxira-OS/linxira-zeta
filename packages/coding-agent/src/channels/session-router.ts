@@ -1302,7 +1302,11 @@ export class SessionRouter {
 		if (!ensured.ok) return ensured;
 		// The selected session owns its project: a stale workspace binding must
 		// not keep routing this chat to a different repository.
-		await this.#webConfig.patchImBinding(channelId, peer, { sessionId: id });
+		await this.#webConfig.patchImBinding(channelId, peer, {
+			sessionId: id,
+			...(entry.agentProfileId ? { agentProfileId: entry.agentProfileId } : {}),
+			...(entry.target ? { target: entry.target } : {}),
+		});
 		this.#runtimeBindings.delete(`${channelId}:${peer}`);
 		await this.#rememberBotChat(id, channelId, peer);
 		const lang = (await this.languageFor(channelId, peer)) ?? entry.lang;
