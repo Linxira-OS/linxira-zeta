@@ -11,6 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
 import { getProjectDir, setProjectDir, TempDir } from "@linxiraos/pi-utils";
+import { reset as resetCapabilities } from "../../src/capability";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
@@ -173,12 +174,16 @@ describe("late-discovered system prompt files", () => {
 				fs.mkdirSync(path.dirname(systemPath), { recursive: true });
 				fs.writeFileSync(systemPath, "LATE-SYSTEM-OVERRIDE\n", "utf8");
 
+				// The capability directory cache is process-global; the context-reload
+				// turn boundary clears it before the rebuild reads the changed tree.
+				resetCapabilities();
 				await session.refreshBaseSystemPrompt();
 				const rebuilt = session.agent.state.systemPrompt.join("\n");
 				expect(rebuilt).toContain("LATE-SYSTEM-OVERRIDE");
 				expect(rebuilt).not.toBe(initialPrompt);
 
 				fs.rmSync(systemPath);
+				resetCapabilities();
 				await session.refreshBaseSystemPrompt();
 				expect(session.agent.state.systemPrompt.join("\n")).not.toContain("LATE-SYSTEM-OVERRIDE");
 			} finally {
