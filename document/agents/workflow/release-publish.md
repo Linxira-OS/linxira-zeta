@@ -30,3 +30,22 @@
 - **产品渲染器不单独发 npm**：`web-app`（`@linxiraos/zeta-web-app`，`private`）
   随 `zeta serve` / 安装包分发；它的构建门禁在 CI `check` job，不在发布链。
 
+## GitHub Packages（结论：不启用）
+
+**不启用 `npm.pkg.github.com`，也不新增第二发布源。** 结论依据：
+
+- 公开安装面已经是 **npmjs 的 `@linxiraos/*`**，发布走 OIDC trusted publishing；
+  仓库里没有 `.npmrc`、`publishConfig.registry` 或 `npm.pkg.github.com` 引用。
+- `Linxira-OS/packages` 是 Arch Linux 的 PKGBUILD 构建仓，`Linxira-OS/linxira-packages`
+  是签名的 `[linxira]` pacman 仓库（GitHub Pages）；两者都不是 JavaScript registry，
+  不能替代 npm。
+- 同组织的 LKB 只发布 GitHub Release 资产与 GHCR 镜像
+  （`ghcr.io/linxira-os/linxira-knowledge-base`），没有 npm / crates.io 发布腿；
+  当前没有被要求镜像到 GitHub Packages 的包。
+- GitHub Packages 的 npm registry 即使对 public 包也要求认证，会给
+  `npm i -g @linxiraos/zeta` 增加 token / `.npmrc` 门槛，同时复制一套 provenance
+  与发布链，收益为零。
+
+只有在出现**已证实的**需求时再评估：npm 侧无法承载的内部私有包，或 npm 发布被
+阻断且 GitHub Packages 能解决。届时先记录证据与迁移成本，不预先接线。
+
