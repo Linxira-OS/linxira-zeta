@@ -50,6 +50,50 @@ Build time belongs in the changelog and the git tag, not the version.
   `__piNativesV1_1_20_rc_2`) — was removed upstream in v18.3.3, so there is no
   derived name for the checker and the setter to disagree on.
 
+### Release freeze: 1.5 internal build line (ADR 0006)
+
+The 1.5 line is an **internal high-speed iteration line**. The policy lives in
+one place — `scripts/release-policy.ts` — and CI/job gating, the tag driver,
+and the npm publisher all consult it.
+
+| Version | Tag | npm publish | GitHub Release assets / installers / binaries |
+| --- | --- | --- | --- |
+| `1.5.1` | no (already public) | no | no |
+| `1.5.2`–`1.5.10` | **yes, annotated and code-only** | no | no |
+| `1.5.11`+ / retired lines | no | no | no |
+| `1.6.0`+ | only with owner override | only with owner override | only with owner override |
+
+- **Internal build tags are code-only.** `scripts/release-v2.ts` creates an
+  annotated tag whose message carries `高速迭代 / 内部构建 / 不发布资产` and
+  states that no npm packages, installers, binaries, or GitHub Release assets
+  are produced. CI still builds, packages, and tests artifacts (Actions
+  artifacts only); the tag annotation is the release note. Public users stay on
+  **1.5.1** until the owner-approved 1.6.0 release.
+- **Default is fail-closed.** `release_metadata` evaluates the policy for the
+  tag at HEAD and exposes `publish-allowed` / `assets-allowed` outputs. Every
+  publish job (`release_npm`, `release_native_leaves`, editor/ide/web-ui/main/
+  plugin legs) requires `publish-allowed == 'true'`; `release_github` requires
+  `assets-allowed == 'true'`. A 1.5.x tag therefore runs the build/package
+  chain and skips publishing.
+- **Standalone republish workflows** (`main-publish.yml`, `ide-publish.yml`,
+  `editor-publish.yml`) declare empty `override_version` / `override_reason`
+  inputs and run a freeze-guard step before publishing;
+  `scripts/ci-release-publish.ts` re-checks the policy before touching npm, so
+  a local or manual invocation cannot bypass it.
+- **Owner override (auditable).** For the approved public release (or an
+  emergency release) set `release_override_version` /
+  `release_override_reason` on a dispatch, or the repository variables
+  `RELEASE_FREEZE_OVERRIDE_VERSION` / `RELEASE_FREEZE_OVERRIDE_REASON`; locally
+  `scripts/release-v2.ts` reads `ZETA_RELEASE_OVERRIDE_VERSION` /
+  `ZETA_RELEASE_OVERRIDE_REASON`. The override must name exactly the release
+  version, needs a reason, and applies to **1.6.0 and later only** — it can
+  never unlock a 1.5.x build. 1.6.0 is not published until the owner records
+  that approval.
+- **Guard test.** `scripts/release-freeze.test.ts` pins the version table and
+  fails if any publish job loses its policy condition, if an override input
+  stops defaulting to empty, or if a 1.5.x path becomes publishable. It runs in
+  the `check` job on GitHub and in the Gitea `local-ci` mirror.
+
 ## CI and Release
 
 - GitHub CI is tiered: PR and non-main dispatch runs take the fast path (no
@@ -284,11 +328,15 @@ watch` on the headSha+`event=push` run, poll ≥60 s, max 90 min) and aborts
   gated on `release_gate` (release-state validation: the `check` guard job —
   brand/sentinel/CI-surface/scope guards — plus lockfile freshness, native
   addons and install methods) plus `release_binary` / `desktop_*`
-  artifacts and `!inputs.skip_npm`. The web-ui leg (`release_web_ui_packages`,
-  damage class 12) is gated on the same `release_gate` + `!inputs.skip_npm` but
-  waits on no artifact: it installs and builds web-ui in-job and publishes
-  `@linxiraos/zeta-web` from `ci.yml` itself (no dispatch, no separate
-  workflow file — the npm trusted-publisher binding must name `ci.yml`).
+  artifacts and `!inputs.skip_npm`. They also require the release-freeze
+  outputs from `release_metadata`: `assets-allowed == 'true'` for
+  `release_github`, `publish-allowed == 'true'` for every npm leg (see
+  [Release freeze](#release-freeze-15-internal-build-line-adr-0006)). The web-ui
+  leg (`release_web_ui_packages`, damage class 12) is gated on the same
+  `release_gate` + `publish-allowed` + `!inputs.skip_npm` but waits on no
+  artifact: it installs and builds web-ui in-job and publishes
+  `@linxiraos/zeta-web` from `ci.yml` itself (no dispatch, no separate workflow
+  file — the npm trusted-publisher binding must name `ci.yml`).
 - `check:ts` (and the rest of the local pre-commit gates) remain mandatory
   before every merge/release regardless of mode — the dual-mode skip only
   removes the _duplicated CI_ run, never the local gate. On a release run the

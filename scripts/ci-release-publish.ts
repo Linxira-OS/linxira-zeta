@@ -51,6 +51,7 @@ import * as path from "node:path";
 import { $ } from "bun";
 import { generateNpmPackages, SHIPPED_LEAF_TAGS } from "../packages/natives/scripts/gen-npm-packages.ts";
 import { fixEmitExtensions } from "./fix-emit-extensions.ts";
+import { assertPublishAllowed } from "./release-policy.ts";
 
 export interface PublishPackage {
 	dir: string;
@@ -907,6 +908,35 @@ async function publishWorkspacePackages(): Promise<string[]> {
 }
 
 if (import.meta.main) {
+	// Release freeze (ADR 0006, scripts/release-policy.ts): every entry point —
+	// including the standalone `*-publish.yml` workflows — fails closed before
+	// npm is touched. A `--dry-run` rehearsal never publishes, so it is exempt.
+	if (!isDryRun) {
+		const manifestDir = publishEditor
+			? "editor/npm/editor"
+			: publishIde
+				? "termide/npm/ide"
+				: publishMain
+					? "main/npm/main"
+					: publishWebUi
+						? "web-ui"
+						: publishPluginDir
+							? publishPluginDir
+							: nativeLeafTag
+								? "packages/natives"
+								: "packages/coding-agent";
+		const manifest = (await Bun.file(path.join(repoRoot, manifestDir, "package.json")).json()) as PackageManifest;
+		if (typeof manifest.version !== "string") {
+			console.error(`Release freeze guard: no version in ${manifestDir}/package.json; refusing to publish.`);
+			process.exit(1);
+		}
+		try {
+			assertPublishAllowed(manifest.version);
+		} catch (err) {
+			console.error(err instanceof Error ? err.message : String(err));
+			process.exit(1);
+		}
+	}
 	const failed = nativeLeafTag
 		? await publishNativeLeafPackage(nativeLeafTag)
 		: publishEditor

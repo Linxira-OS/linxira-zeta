@@ -557,6 +557,9 @@ jobs:
          # other gate unit tests.
          - name: Unit-test the release chain
            run: bun test scripts/release-chain.test.ts
+         # 同 GitHub：冻结策略的单元测试 + 对 ci.yml / 独立发布 workflow 的静态断言。
+         - name: Unit-test the release freeze policy
+           run: bun test scripts/release-freeze.test.ts
          - name: Unit-test the package linkage contract
            run: bun test scripts/check-package-linkage.test.ts
          # 镜像 GitHub `check` job：pi-messenger 的 vitest 套件在 bun workspace 之外

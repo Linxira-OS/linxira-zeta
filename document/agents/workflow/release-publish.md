@@ -5,6 +5,26 @@
 > 硬约束：仓库里不存在 npm token，一律 OIDC trusted publishing。
 > 发布链 job 清单与 tag 流程：`document/release.md`。
 
+## 发布冻结（ADR 0006，2026-11-11）
+
+- **1.5 是内部高速迭代线。** 1.5.1 是当前公开版本，用户停留在这里；
+  1.5.2–1.5.10 允许正常打**注解 tag**，但 tag 只代表代码，注解固定带
+  `高速迭代 / 内部构建 / 不发布资产`，明确说明不发布 npm 包、安装包、二进制或
+  GitHub Release 资产。CI 仍可构建/打包/测试（仅 Actions artifacts）。
+- **默认 fail-closed。** `release_metadata` 输出 `publish-allowed` /
+  `assets-allowed`；所有 npm 发布 job 与独立发布 workflow 都必须等到
+  `publish-allowed == 'true'`，`release_github` 必须等到
+  `assets-allowed == 'true'`。1.5.x tag 因此只跑构建链，不发布。
+  `scripts/ci-release-publish.ts` 在触碰 npm 前再断言一次策略。
+- **1.6.0 才是下一个公开版本**，且需要所有者显式批准：dispatch 输入
+  `release_override_version` / `release_override_reason`，或仓库变量
+  `RELEASE_FREEZE_OVERRIDE_VERSION` / `RELEASE_FREEZE_OVERRIDE_REASON`
+  （本地脚本读 `ZETA_RELEASE_OVERRIDE_VERSION` / `..._REASON`）。
+  版本必须精确匹配、原因必填，且只对 1.6.0+ 生效——override 永远不能解锁
+  1.5.x 发布。未批准前不发布 1.6.0 资产。
+- 策略单一来源：`scripts/release-policy.ts`；回归门禁：
+  `scripts/release-freeze.test.ts`（CI `check` job + Gitea `local-ci` 镜像）。
+
 ## npm 发布（2026-10-19 裁定：无 token）
 
 - **仓库里不存在 npm token。** `NPM_TOKEN` / `NODE_AUTH_TOKEN` 一律不得写进

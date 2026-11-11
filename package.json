@@ -94,7 +94,7 @@
     "check:nix-bun": "bun scripts/check-nix-bun-freshness.ts",
     "check:relay-assets": "bun scripts/check-extension-assets-freshness.ts",
     "check:adr": "bun scripts/check-adr-index.ts",
-    "check:reqs": "bun scripts/check-requirements-ledger.ts",
+    "check:release-freeze": "bun test scripts/release-freeze.test.ts",
     "lint": "bun run --parallel lint:ts lint:rs",
     "lint:ts": "bun run --parallel lint:tools && bun run --workspaces --if-present lint",
     "lint:tools": "oxlint .",
@@ -176,7 +176,8 @@
     "gen:brand-art": "bun scripts/brand/generate-logo-art.ts",
     "check-spoofed-versions": "bun scripts/check-spoofed-versions.ts",
     "gen:export-viewer": "bun --cwd=packages/export-web run gen:export-viewer",
-    "check:no-upstream-agent-compat": "bun scripts/check-no-upstream-agent-compat.ts"
+    "check:no-upstream-agent-compat": "bun scripts/check-no-upstream-agent-compat.ts",
+    "check:reqs": "bun scripts/check-requirements-ledger.ts"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
