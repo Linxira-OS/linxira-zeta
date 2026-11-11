@@ -349,12 +349,27 @@ describe("team rooms", () => {
 		const agentSkillsTable = verify.query("SELECT name FROM sqlite_master WHERE name = 'agent_skills'").get();
 		const tasksTable = verify.query("SELECT name FROM sqlite_master WHERE name = 'tasks'").get();
 		const taskEventsTable = verify.query("SELECT name FROM sqlite_master WHERE name = 'task_events'").get();
+		const bootstrapRunsTable = verify
+			.query("SELECT name FROM sqlite_master WHERE name = 'team_bootstrap_runs'")
+			.get();
+		const bootstrapStepsTable = verify
+			.query("SELECT name FROM sqlite_master WHERE name = 'team_bootstrap_steps'")
+			.get();
+		const subscriptionsTable = verify.query("SELECT name FROM sqlite_master WHERE name = 'room_subscriptions'").get();
+		const subscriptionColumns = verify
+			.query<{ name: string }, []>("PRAGMA table_info(room_subscriptions)")
+			.all()
+			.map(row => row.name);
 		verify.close();
-		expect(version?.user_version).toBe(5);
+		expect(version?.user_version).toBe(6);
 		expect(agentsTable).not.toBeNull();
 		expect(agentSkillsTable).not.toBeNull();
 		expect(tasksTable).not.toBeNull();
 		expect(taskEventsTable).not.toBeNull();
+		expect(bootstrapRunsTable).not.toBeNull();
+		expect(bootstrapStepsTable).not.toBeNull();
+		expect(subscriptionsTable).not.toBeNull();
+		expect(subscriptionColumns).toEqual(expect.arrayContaining(["accepted_through", "read_through"]));
 	}, 30_000);
 
 	test("doctor accepts a registered Secretary as a PM-room member", async () => {

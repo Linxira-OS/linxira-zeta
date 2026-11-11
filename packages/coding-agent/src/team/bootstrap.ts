@@ -907,6 +907,20 @@ function removeEmptyDir(dir: string): boolean {
 	}
 }
 
+/** Remove only empty directories below `dir`, then `dir` itself. */
+function removeEmptyTreeDirs(dir: string): boolean {
+	let entries: fs.Dirent[];
+	try {
+		entries = fs.readdirSync(dir, { withFileTypes: true });
+	} catch {
+		return true;
+	}
+	for (const entry of entries) {
+		if (entry.isDirectory() && !entry.isSymbolicLink()) removeEmptyTreeDirs(path.join(dir, entry.name));
+	}
+	return removeEmptyDir(dir);
+}
+
 /** Remove a tree without following junctions/symlinks into user data. */
 function removeTreeNoFollow(root: string): void {
 	for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
@@ -1090,7 +1104,7 @@ async function compensateStep(step: BootstrapStepRecord, plan: BootstrapPlan, db
 					preserve(`team root ${plan.teamRoot} contains files created after bootstrap: ${unexpected.join(", ")}`);
 				}
 				for (const dir of [pmsRoot(plan.teamRoot), reposRoot(plan.teamRoot), worktreesRoot(plan.teamRoot)]) {
-					if (!removeEmptyDir(dir)) preserve(`${dir} is not empty; child steps did not roll back cleanly`);
+					if (!removeEmptyTreeDirs(dir)) preserve(`${dir} is not empty; child steps did not roll back cleanly`);
 				}
 				fs.rmSync(teamMarkerPath(plan.teamRoot), { force: true });
 				removeEmptyDir(path.dirname(teamMarkerPath(plan.teamRoot)));

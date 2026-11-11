@@ -262,10 +262,31 @@ function requireRoom(ctx: TeamContext, name: string): RoomRecord {
 function requireDeliveryAgent(ctx: TeamContext, room: RoomRecord, agent: string): string {
 	const normalized = agent.trim();
 	if (!normalized) throw new TeamError("Missing delivery agent");
-	const member = ctx.db.getRoomMember(room.id, normalized);
-	if (member) return member.agentId;
+	const direct = ctx.db.getRoomMember(room.id, normalized);
+	if (direct) return direct.agentId;
+	const pm = ctx.db.getPm(ctx.team.id, normalized) ?? ctx.db.getPmById(normalized);
+	if (pm) {
+		const member = ctx.db.getRoomMember(room.id, pm.id);
+		if (member) return member.agentId;
+	}
+	const engineers = ctx.db.listEngineers(ctx.team.id).filter(row => row.name === normalized);
+	for (const engineer of engineers) {
+		const member = ctx.db.getRoomMember(room.id, engineer.id);
+		if (member) return member.agentId;
+	}
+	if (normalized.includes("/")) {
+		const [pmName, engineerName] = normalized.split("/");
+		if (pmName && engineerName) {
+			const engineer = ctx.db.getEngineer(ctx.team.id, pmName, engineerName);
+			const member = engineer ? ctx.db.getRoomMember(room.id, engineer.id) : null;
+			if (member) return member.agentId;
+		}
+	}
+	const agentRecord = ctx.db.getAgentById(normalized);
+	const agentMember = agentRecord ? ctx.db.getRoomMember(room.id, agentRecord.id) : null;
+	if (agentMember) return agentMember.agentId;
 	if (AgentRegistry.global().get(normalized)) return normalized;
-	throw new TeamError(`Agent "${agent}" is not a member of room "${room.name}" and has no live registry entry`);
+	throw new TeamError(`Agent "${normalized}" is not a member of room "${room.name}" and has no live registry entry`);
 }
 
 export async function subscribeRoom(options: SubscribeRoomOptions): Promise<RoomSubscriptionRecord> {

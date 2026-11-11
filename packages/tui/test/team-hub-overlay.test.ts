@@ -158,6 +158,10 @@ describe("Team Hub overlay", () => {
 					actions.push(`member:${input.member}`);
 					return { message: "member ok" };
 				},
+				removeRoomMember: async input => {
+					actions.push(`unmember:${input.member}`);
+					return { message: "unmember ok" };
+				},
 				setRoomKind: async input => {
 					actions.push(`kind:${input.kind}`);
 					return { message: "kind ok" };

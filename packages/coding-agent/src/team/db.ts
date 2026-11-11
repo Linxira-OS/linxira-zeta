@@ -220,11 +220,12 @@ CREATE INDEX IF NOT EXISTS idx_bootstrap_runs_root ON team_bootstrap_runs(root_p
 CREATE INDEX IF NOT EXISTS idx_bootstrap_steps_run ON team_bootstrap_steps(run_id, seq);
 
 CREATE TABLE IF NOT EXISTS room_subscriptions (
-	room_id        TEXT NOT NULL REFERENCES rooms(room_id) ON DELETE CASCADE,
-	agent_id       TEXT NOT NULL,
-	last_seq       INTEGER NOT NULL DEFAULT 0,
-	subscribed_at  INTEGER NOT NULL,
-	updated_at     INTEGER NOT NULL,
+	room_id           TEXT NOT NULL REFERENCES rooms(room_id) ON DELETE CASCADE,
+	agent_id          TEXT NOT NULL,
+	accepted_through  INTEGER NOT NULL DEFAULT 0,
+	read_through      INTEGER NOT NULL DEFAULT 0,
+	subscribed_at     INTEGER NOT NULL,
+	updated_at        INTEGER NOT NULL,
 	PRIMARY KEY (room_id, agent_id)
 );
 

@@ -150,13 +150,14 @@ describe("team bootstrap", () => {
 		// The repo is not registered in this existing team; the plan must fail.
 		expect(plan.preflight.ok).toBe(false);
 
+		const existingRepo = makeFixtureRepo(scratch, "existing-api");
 		const db = new TeamDb(existingDb);
 		try {
 			db.insertRepo({
 				id: "existing:api",
 				teamId: "existing",
 				name: "api",
-				basePath: fixtureRepo,
+				basePath: existingRepo,
 				remoteUrl: null,
 				defaultBranch: "main",
 				createdAt: 1,

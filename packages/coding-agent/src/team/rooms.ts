@@ -61,13 +61,13 @@ export function parseRoomMemberTokens(value: string | readonly string[] | undefi
 	return result;
 }
 
-interface ResolvedMember {
+export interface ResolvedMember {
 	agentId: string;
 	role: string;
 }
 
 /** Resolve a member token to a registered PM or engineer row. */
-function resolveMember(ctx: TeamContext, token: string): ResolvedMember {
+export function resolveMember(ctx: TeamContext, token: string): ResolvedMember {
 	const pmById = ctx.db.getPmById(token);
 	if (pmById && pmById.teamId === ctx.team.id) return { agentId: pmById.id, role: ROLE_PM };
 	const engineerById = ctx.db.getEngineerById(token);

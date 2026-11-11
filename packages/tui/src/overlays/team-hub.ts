@@ -768,7 +768,7 @@ export class TeamHubOverlayComponent implements Component {
 			this.#setNotice("Select a room first, then press m/M.");
 			return;
 		}
-		if (!this.#deps.source.addRoomMember || !this.#deps.source.removeRoomMember) {
+		if (mode === "add" ? !this.#deps.source.addRoomMember : !this.#deps.source.removeRoomMember) {
 			this.#setNotice("This Hub source cannot manage room members.");
 			return;
 		}
