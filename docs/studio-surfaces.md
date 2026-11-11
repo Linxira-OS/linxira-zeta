@@ -125,7 +125,8 @@ Full audio transport remains a separate change.
 ## Plugin pages and remote step-up (2026-11-11)
 
 A plugin page is a real top-level renderer route,
-`/plugins/view/<plugin>/<page>`. The static server already falls back to
+`/plugins/view/<plugin>/<page entry>` (for example
+`/plugins/view/notes/ui/board.html`). The static server already falls back to
 `index.html` for extensionless deep links; `App.tsx` parses that path and
 renders the exported `PluginPageHost` with the selected/live session id instead
 of mounting the project shell. `onBack` replaces the URL with `/` and returns to
