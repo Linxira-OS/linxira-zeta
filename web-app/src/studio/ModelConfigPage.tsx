@@ -80,7 +80,6 @@ import {
   categoryChain,
   awaitWithTimeout,
   categoryModelFacts,
-  formatRoleAlias,
   isChatCategoryModel,
   purposeCategoryCards,
 } from "./models/purposeCategories";
@@ -1873,7 +1872,7 @@ function PurposeCategoryCards({
         <div className="role-issue-banner err">
           <Icon name="alert" extra="sm" />
           <div>
-            <div className="rib-title">{t("modelConfig.roleReferencedTitle", { role: formatRoleAlias(blocked.roleId), agents: blocked.agents.join(", ") })}</div>
+            <div className="rib-title">{t("modelConfig.roleReferencedTitle", { role: blocked.roleId, agents: blocked.agents.join(", ") })}</div>
             <div className="rib-text">{t("modelConfig.roleReferencedDesc")}</div>
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <button type="button" className="btn small danger" disabled={busy} onClick={onResolveBlocked}>{t("modelConfig.roleInheritAndDelete")}</button>
