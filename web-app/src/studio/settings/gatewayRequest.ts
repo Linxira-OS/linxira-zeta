@@ -7,10 +7,17 @@
  * keeps the response-shape tests free of a live server.
  */
 import { isRecord } from "../typeGuards";
+import { authFetch } from "../../host/authFetch";
 
 export type GatewayFetch = (input: string, init?: RequestInit) => Promise<Response>;
 
-export const defaultGatewayFetch: GatewayFetch = (input, init) => fetch(input, init);
+/**
+ * Default fetcher: the host's authenticated fetch, which carries the
+ * device-bound cookie and (for a native shell) an in-memory bearer token.
+ * Imported directly rather than injected through a global, so there is exactly
+ * one fetcher type and no aliasing.
+ */
+export const defaultGatewayFetch: GatewayFetch = (input, init) => authFetch(input, init);
 
 async function readPayload(response: Response): Promise<unknown> {
 	try {

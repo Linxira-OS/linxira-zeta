@@ -64,7 +64,7 @@ The renderer speaks the Studio host contract on the same origin:
 | Route | Auth | Purpose |
 |---|---|---|
 | `GET /health` | none | `{ok:true, protocolVersion:1}` — "is this a Studio host" |
-| `POST /api/v1/pair` | remote-access gate + pairing code | Sets the `studio_session` cookie, returns `{csrf, expiresAt, device: {id, token, …}}`; the device token is shown once |
+| `POST /api/v1/pair` | pairing code (no token needed on this route) | Sets the `studio_session` cookie, returns `{csrf, expiresAt, device: {id, …}}`; `device.token` only when the client asked for a native token (`device.issueToken: true`) |
 | `POST /api/v1/session/revoke` | remote-access gate + cookie + `X-Studio-CSRF` | Drops the session |
 | `GET /api/v1/bootstrap` | remote-access gate + cookie | Identity, runtime status, surfaces, capability manifest |
 | `POST /api/v1/query` | remote-access gate + cookie | `ClientQueryRequest` → `ClientQueryResponse` |
@@ -99,8 +99,11 @@ is protected by file permissions only, so 2FA defends against a stolen token,
 not a compromised local account. A corrupt/missing file reads as "2FA off" and
 the local operator can re-enroll.
 
-`zetacode serve` prints the single-use pairing code (60 s TTL); set
-`ZETA_STUDIO_PAIRING_CODE` to pin it for scripted runs. Bodies are capped at
+`zetacode serve` prints the single-use pairing code (60 s TTL) and Settings
+shows the same code beside its QR (`#zeta-pair=<code>`); set
+`ZETA_STUDIO_PAIRING_CODE` to pin it for scripted runs.
+`GET /api/remote/pairing` returns `{url, code, expiresAt, payload, svg}` and
+never the machine token. Bodies are capped at
 1 MiB, one session may hold eight commands in flight, and a genuinely local
 peer must send a loopback `Origin` (a peer that already presented a token or
 device token proved possession of a secret, so the loopback-only Origin

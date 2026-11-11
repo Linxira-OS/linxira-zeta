@@ -36,13 +36,21 @@ import type {
 	RuntimeConnection,
 	SubscriptionScope,
 } from "./contract/index.js";
-import { isAllowedOrigin } from "../web-gateway/origin";
+import { isAllowedRequestOrigin } from "../web-gateway/origin";
 import {
 	checkBrowserAccess,
+	credentialAllows,
 	getRemoteAuthLimiter,
+	isGenuinelyLocalRequest,
 	isRemoteModeActive,
 	rateLimitedRemoteResponse,
+	readCookie,
+	type RemoteCredential,
 } from "../web-gateway/remote-access";
+import { bindingAllows, type DeviceBinding, type RequestTarget } from "../auth/binding";
+import { workspaceOfSessionResolver } from "../web-gateway/binding-guard";
+import { classifyOperation, scopeSatisfies } from "../web-gateway/scope";
+import { sessionStore, type LiveSession } from "../auth/session-store";
 import { WebConfig } from "../../config/web-config";
 import { logger } from "@linxiraos/pi-utils";
 import { deviceRegistry, inferPlatform, type PublicDevice } from "../auth/device-registry";
@@ -63,18 +71,23 @@ export const STUDIO_CSRF_HEADER = "x-studio-csrf";
 const MAX_BODY_BYTES = 1_048_576;
 const MAX_OUTSTANDING_COMMANDS = 8;
 const PAIRING_TTL_MS = 60_000;
-const SESSION_TTL_MS = 3_600_000;
 
+/**
+ * Per-request view of an authenticated caller.
+ *
+ * `deviceId` is absent only for the implicit local session, which is trusted by
+ * socket rather than by a device record. `stateless` marks a request
+ * authenticated by a token header: it has no cookie to revoke, but it is still
+ * subject to scope and binding.
+ */
 interface StudioSession {
 	csrf: string;
 	expiresAt: number;
 	scope: SubscriptionScope;
 	outstanding: number;
-	/**
-	 * Device this session was paired for. Present when pairing issued a device
-	 * token, so revoking that device can drop the session and its sockets.
-	 */
 	deviceId?: string;
+	binding?: DeviceBinding;
+	stateless?: boolean;
 }
 
 /** Per-connection state for the event socket. */
@@ -108,14 +121,6 @@ function json(data: unknown, status = 200, headers: Record<string, string> = {})
 	});
 }
 
-function cookies(header: string | null): Record<string, string> {
-	const out: Record<string, string> = {};
-	for (const part of (header ?? "").split(";")) {
-		const index = part.indexOf("=");
-		if (index > 0) out[part.slice(0, index).trim()] = decodeURIComponent(part.slice(index + 1).trim());
-	}
-	return out;
-}
 
 /**
  * Namespace for pairing attempts in the shared failure limiter: a wrong code
@@ -147,7 +152,10 @@ export interface StudioWsServer {
  */
 export class StudioHost {
 	readonly #operations: StudioOperations;
-	readonly #sessions = new Map<string, StudioSession>();
+	/** In-flight command counters and forced subscription scopes, per session id. */
+	readonly #counters = new Map<string, { outstanding: number; scope: SubscriptionScope }>();
+	/** sessionId → deviceId, so a revocation can close the right sockets. */
+	readonly #sessionDevices = new Map<string, string>();
 	readonly #sockets = new Map<string, Set<StudioSocket>>();
 	#pairing: { code: string; expiresAt: number; used: boolean };
 	/**
@@ -182,25 +190,87 @@ export class StudioHost {
 		return this.#pairing.code;
 	}
 
+	/** When the current code stops working (`null` for a pinned dev code). */
+	get pairingExpiresAt(): number | null {
+		return Number.isFinite(this.#pairing.expiresAt) ? this.#pairing.expiresAt : null;
+	}
+
 	#now(): number {
 		return Date.now();
 	}
 
-	#session(req: Request): [string, StudioSession] | undefined {
-		const id = cookies(req.headers.get("cookie"))[STUDIO_SESSION_COOKIE];
-		if (!id) return undefined;
-		const session = this.#sessions.get(id);
-		if (!session || session.expiresAt <= this.#now()) return undefined;
-		return [id, session];
+	/**
+	 * Resolve the caller.
+	 *
+	 * A cookie is authoritative when present: the persisted session is looked up
+	 * and bound to its device, and an invalid cookie fails rather than falling
+	 * back to a token header (a revoked session must not be resurrected by a
+	 * machine token the browser also carries). Without a cookie, a device or
+	 * machine token authenticated by the gateway is accepted as a stateless
+	 * caller — scope and binding still apply, CSRF does not (no ambient
+	 * authority).
+	 */
+	async #authorize(
+		req: Request,
+		remoteAddr: string | undefined,
+		mutate = false,
+	): Promise<[string, StudioSession] | undefined> {
+		const cookie = readCookie(req, STUDIO_SESSION_COOKIE);
+		if (cookie !== undefined) {
+			const live = await sessionStore().get(cookie);
+			if (live === undefined) return undefined;
+			const counters = this.#counters.get(cookie) ?? { outstanding: 0, scope: { scope: "all" } };
+			if (mutate && req.headers.get(STUDIO_CSRF_HEADER) !== live.csrf) return undefined;
+			this.#sessionDevices.set(cookie, live.deviceId);
+			return [
+				cookie,
+				{
+					csrf: live.csrf,
+					expiresAt: live.expiresAt,
+					scope: counters.scope,
+					outstanding: counters.outstanding,
+					deviceId: live.deviceId,
+					...(live.binding !== undefined ? { binding: live.binding } : {}),
+				},
+			];
+		}
+		const local = isGenuinelyLocalRequest(req, remoteAddr);
+		const access = local
+			? ({ denial: null, credential: { kind: "local" } } as const)
+			: await checkBrowserAccess(req, remoteAddr);
+		if (access.denial !== null || access.credential === null) return undefined;
+		const credential: RemoteCredential = access.credential;
+		if (credential.kind === "local") {
+			// Implicit local caller: trusted by socket, no device record.
+			return ["", { csrf: "", expiresAt: this.#now(), scope: { scope: "all" }, outstanding: 0, stateless: true }];
+		}
+		if (credential.kind === "machine") {
+			return ["", { csrf: "", expiresAt: this.#now(), scope: { scope: "all" }, outstanding: 0, stateless: true }];
+		}
+		if (!credentialAllows(credential, "write") && mutate) return undefined;
+		return [
+			"",
+			{
+				csrf: "",
+				expiresAt: this.#now(),
+				scope: { scope: "all" },
+				outstanding: 0,
+				deviceId: credential.device.id,
+				...(credential.device.binding !== undefined ? { binding: credential.device.binding } : {}),
+				stateless: true,
+			},
+		];
 	}
 
-	/** Origin + session (+ CSRF when mutating); `undefined` when unauthorised. */
-	#authorize(req: Request, mutate = false): [string, StudioSession] | undefined {
-		if (!isAllowedOrigin(req.headers.get("origin"))) return undefined;
-		const session = this.#session(req);
-		if (!session) return undefined;
-		if (mutate && req.headers.get(STUDIO_CSRF_HEADER) !== session[1].csrf) return undefined;
-		return session;
+	/**
+	 * Whether the payload's target lies inside a bound credential's scope.
+	 *
+	 * Uses the same semantics as the REST dispatch: a target may carry an extra
+	 * id, but every field the binding fixes must match, and a workspace binding
+	 * resolves the session through the Host registry.
+	 */
+	async #bindingAllows(session: StudioSession, target: RequestTarget | undefined): Promise<boolean> {
+		return bindingAllows(session.binding, target, workspaceOfSessionResolver());
 	}
 
 	async #body(req: Request): Promise<unknown> {
@@ -219,23 +289,34 @@ export class StudioHost {
 			if (req.method !== "GET") return json({ error: "method_not_allowed" }, 405);
 			return json({ ok: true, protocolVersion: 1 });
 		}
-		// Same remote-access gate as every other remote surface: only a genuine
-		// local socket skips `remote.token`. A reverse proxy/tunnel makes every
-		// peer look like loopback, so forwarding headers force the token path —
-		// `isAllowedOrigin` + implicit pairing alone must never authorize `/api/v1`.
-		const access = await checkBrowserAccess(req, remoteAddr);
-		if (access.denial) return access.denial;
-		// The Origin allowlist is a CSRF guard for *ambient* authority: a local
-		// browser whose cookie the page carries implicitly. A peer that already
-		// presented a token (or device token) proved possession of a secret, and a
-		// phone's own origin is never loopback — enforcing the allowlist there
-		// made every remote, correctly authenticated Studio 403.
-		if (access.genuinelyLocal && !isAllowedOrigin(req.headers.get("origin"))) {
-			return json({ error: "forbidden" }, 403);
+		const local = isGenuinelyLocalRequest(req, remoteAddr);
+		const isPair = url.pathname === "/api/v1/pair" && req.method === "POST";
+		// Pairing is the one route reachable with a pairing code alone: the code is
+		// a single-use, 60-second, rate-limited presence credential, and the code
+		// path cannot mint anything wider than a normal device. Every other route
+		// goes through the credential gate.
+		if (isPair) {
+			if (!isAllowedRequestOrigin(req.headers.get("origin"), req.url, local)) {
+				return json({ error: "forbidden" }, 403);
+			}
+		} else {
+			const access = await checkBrowserAccess(req, remoteAddr);
+			if (access.denial !== null) return access.denial;
+			if (!isAllowedRequestOrigin(req.headers.get("origin"), req.url, access.genuinelyLocal)) {
+				return json({ error: "forbidden" }, 403);
+			}
+			const credential = access.credential;
+			if (credential !== null) {
+				const operation = classifyOperation(url.pathname, req.method);
+				const scopes = credential.kind === "local" || credential.kind === "machine"
+					? ["read", "write"]
+					: credential.device.scopes;
+				if (!scopeSatisfies(scopes, operation)) return json({ error: "insufficient_scope" }, 403);
+			}
 		}
-		// 2FA gates exactly two surfaces here: adding a device (pairing) needs a
-		// ten-minute step-up, and `/api/v1/command` needs the twelve-hour write
-		// window. Queries and bootstrap stay readable so the UI can ask for a code.
+		// 2FA gates `/api/v1/command` (the twelve-hour write window). Pairing is
+		// deliberately not gated here: the code is the presence proof, and a fresh
+		// device still has to pass 2FA for every write afterwards.
 		const twoFactorDenial = await guardStudioTwoFactor(req, remoteAddr, url.pathname);
 		if (twoFactorDenial) return twoFactorDenial;
 		const context: StudioHostContext = {
@@ -243,12 +324,12 @@ export class StudioHost {
 			capabilities: this.#operations.capabilities().manifest,
 		};
 		try {
-			if (url.pathname === "/api/v1/pair" && req.method === "POST") return await this.#pair(req, remoteAddr);
-			if (url.pathname === "/api/v1/session/revoke" && req.method === "POST") return this.#revoke(req);
+			if (isPair) return await this.#pair(req, remoteAddr);
+			if (url.pathname === "/api/v1/session/revoke" && req.method === "POST") return await this.#revoke(req, remoteAddr);
 			if (url.pathname === "/api/v1/bootstrap" && req.method === "GET")
-				return await this.#bootstrap(req, access.genuinelyLocal);
-			if (url.pathname === "/api/v1/query" && req.method === "POST") return await this.#query(req, context);
-			if (url.pathname === "/api/v1/command" && req.method === "POST") return await this.#command(req, context);
+				return await this.#bootstrap(req, remoteAddr, local);
+			if (url.pathname === "/api/v1/query" && req.method === "POST") return await this.#query(req, remoteAddr, context);
+			if (url.pathname === "/api/v1/command" && req.method === "POST") return await this.#command(req, remoteAddr, context);
 			return json({ error: "not_found" }, 404);
 		} catch (error) {
 			const tooLarge = error instanceof Error && error.message === "body_too_large";
@@ -268,7 +349,11 @@ export class StudioHost {
 		const rawCode = body !== null && typeof body === "object" && "code" in body ? body.code : undefined;
 		const code = typeof rawCode === "string" ? rawCode : "";
 		const expected = this.#pairing.code;
+		// A pairing code is required. A token header alone must never mint a
+		// device: the machine token is a bootstrap secret, and an empty-code pair
+		// would let a read-only holder upgrade itself.
 		const matches =
+			code !== "" &&
 			!this.#pairing.used &&
 			this.#pairing.expiresAt > this.#now() &&
 			code.length === expected.length &&
@@ -292,11 +377,19 @@ export class StudioHost {
 			});
 			return json({ error: "device_registry_unavailable" }, 500);
 		}
-		const [sessionId, session] = this.#createSession(issued.device.id);
+		const [sessionId, session] = await this.#createSession(issued.device.id);
+		// The device token is for native clients only (Keystore / header auth).
+		// A browser keeps the HttpOnly cookie and never sees the token, so an XSS
+		// cannot lift a long-lived bearer credential out of page JS.
+		const wantsToken = wantsDeviceToken(body);
 		return json(
-			{ csrf: session.csrf, expiresAt: session.expiresAt, device: { ...issued.device, token: issued.token } },
+			{
+				csrf: session.csrf,
+				expiresAt: new Date(session.expiresAt).toISOString(),
+				device: { ...issued.device, ...(wantsToken ? { token: issued.token } : {}) },
+			},
 			200,
-			{ "set-cookie": this.#sessionCookie(sessionId) },
+			{ "set-cookie": this.#sessionCookie(req, sessionId) },
 		);
 	}
 
@@ -322,33 +415,41 @@ export class StudioHost {
 		};
 	}
 
-	#createSession(deviceId?: string): [string, StudioSession] {
-		const sessionId = token(32);
-		const session: StudioSession = {
-			csrf: token(24),
-			expiresAt: this.#now() + SESSION_TTL_MS,
-			scope: { scope: "all" },
-			outstanding: 0,
-			...(deviceId !== undefined ? { deviceId } : {}),
-		};
-		this.#sessions.set(sessionId, session);
-		return [sessionId, session];
+	async #createSession(deviceId?: string, binding?: DeviceBinding): Promise<[string, LiveSession]> {
+		const live = await sessionStore().create({
+			...(deviceId !== undefined ? { deviceId } : { deviceId: "local" }),
+			...(binding !== undefined ? { binding } : {}),
+		});
+		this.#counters.set(live.id, { outstanding: 0, scope: { scope: "all" } });
+		if (deviceId !== undefined) this.#sessionDevices.set(live.id, deviceId);
+		return [live.id, live];
 	}
 
-	#sessionCookie(sessionId: string): string {
-		return `${STUDIO_SESSION_COOKIE}=${encodeURIComponent(sessionId)}; HttpOnly; SameSite=Strict; Path=/`;
+	#sessionCookie(req: Request, sessionId: string): string {
+		const secure = isSecureRequest(req) ? "; Secure" : "";
+		return `${STUDIO_SESSION_COOKIE}=${encodeURIComponent(sessionId)}; HttpOnly; SameSite=Strict; Path=/${secure}`;
 	}
 
-	#revoke(req: Request): Response {
-		const authorized = this.#authorize(req, true);
-		if (!authorized) return json({ error: "unauthenticated" }, 401);
-		this.#sessions.delete(authorized[0]);
+	async #revoke(req: Request, remoteAddr?: string): Promise<Response> {
+		const authorized = await this.#authorize(req, remoteAddr, true);
+		if (authorized === undefined) return json({ error: "unauthenticated" }, 401);
+		const [sessionId] = authorized;
+		if (sessionId !== "") {
+			await sessionStore().delete(sessionId);
+			this.#counters.delete(sessionId);
+			this.#sessionDevices.delete(sessionId);
+			this.#closeSockets(sessionId);
+		}
 		return json({ ok: true });
 	}
 
-	async #bootstrap(req: Request, genuinelyLocal: boolean): Promise<Response> {
+	async #bootstrap(req: Request, remoteAddr: string | undefined, genuinelyLocal: boolean): Promise<Response> {
 		const bootstrap: ClientBootstrap = buildBootstrap(this.#operations);
-		if (this.#authorize(req)) return json(bootstrap);
+		const hasCookie = readCookie(req, STUDIO_SESSION_COOKIE) !== undefined;
+		const authorized = await this.#authorize(req, remoteAddr);
+		// A cookie already proves a live session; a stateless token caller is
+		// authorized for reads but gets no cookie here (it pairs explicitly).
+		if (authorized !== undefined && hasCookie) return json(bootstrap);
 		// The same-origin renderer is served on a direct loopback socket by
 		// `zeta serve` and the desktop shell, so it may establish its own session
 		// on the bootstrap read. A proxied peer was already rejected by the
@@ -357,35 +458,51 @@ export class StudioHost {
 		if (genuinelyLocal) {
 			const config = await WebConfig.load();
 			if (!isRemoteModeActive(config.getData().remote)) {
-				const [sessionId, session] = this.#createSession();
+				const [sessionId, session] = await this.#createSession();
 				return json(bootstrap, 200, {
-					"set-cookie": this.#sessionCookie(sessionId),
+					"set-cookie": this.#sessionCookie(req, sessionId),
 					[STUDIO_CSRF_HEADER]: session.csrf,
 				});
 			}
+			// Remote access is configured: even a local peer pairs with the code so
+			// its authority is device-bound and revocable. A token-authenticated
+			// caller is handled below (the desktop shell never pairs for reads).
+			if (authorized === undefined || isGenuinelyLocalRequest(req, remoteAddr) && !hasCookie) {
+				return json({ error: "unauthenticated" }, 401);
+			}
 		}
+		if (authorized !== undefined) return json(bootstrap);
 		return json({ error: "unauthenticated" }, 401);
 	}
 
-	async #query(req: Request, context: StudioHostContext): Promise<Response> {
-		if (!this.#authorize(req)) return json({ error: "unauthenticated" }, 401);
+	async #query(req: Request, remoteAddr: string | undefined, context: StudioHostContext): Promise<Response> {
+		const authorized = await this.#authorize(req, remoteAddr);
+		if (authorized === undefined) return json({ error: "unauthenticated" }, 401);
 		const body = (await this.#body(req)) as ClientQueryRequest;
 		if (body === null || typeof body !== "object" || typeof body.queryName !== "string") {
 			return json({ error: "bad_request" }, 400);
 		}
+		if (!(await this.#bindingAllows(authorized[1], payloadTarget(body)))) {
+			return json({ error: "binding_scope" }, 403);
+		}
 		return json(await this.#operations.query(body, context));
 	}
 
-	async #command(req: Request, context: StudioHostContext): Promise<Response> {
-		const authorized = this.#authorize(req, true);
-		if (!authorized) return json({ error: "unauthenticated" }, 401);
-		const [, session] = authorized;
+	async #command(req: Request, remoteAddr: string | undefined, context: StudioHostContext): Promise<Response> {
+		const authorized = await this.#authorize(req, remoteAddr, true);
+		if (authorized === undefined) return json({ error: "unauthenticated" }, 401);
+		const [sessionId, session] = authorized;
 		const body = (await this.#body(req)) as ClientCommandRequest;
 		if (body === null || typeof body !== "object" || typeof body.commandName !== "string") {
 			return json({ error: "bad_request" }, 400);
 		}
-		if (session.outstanding >= MAX_OUTSTANDING_COMMANDS) return json({ error: "rate_limited" }, 429);
-		session.outstanding += 1;
+		if (!(await this.#bindingAllows(session, payloadTarget(body)))) {
+			return json({ error: "binding_scope" }, 403);
+		}
+		const counter = sessionId === "" ? undefined : this.#counters.get(sessionId);
+		const outstanding = counter?.outstanding ?? 0;
+		if (outstanding >= MAX_OUTSTANDING_COMMANDS) return json({ error: "rate_limited" }, 429);
+		if (counter !== undefined) counter.outstanding += 1;
 		try {
 			const { accepted, result } = await this.#operations.command(body, context);
 			// The work already ran, so the terminal outcome is known before the
@@ -434,7 +551,7 @@ export class StudioHost {
 				202,
 			);
 		} finally {
-			session.outstanding -= 1;
+			if (counter !== undefined) counter.outstanding -= 1;
 		}
 	}
 
@@ -446,13 +563,29 @@ export class StudioHost {
 	 */
 	async upgrade(req: Request, server: StudioWsServer, remoteAddr?: string): Promise<Response | null> {
 		// The event stream belongs to `/api/v1`, so it sits behind the same gate
-		// as the REST routes: a proxied socket needs `remote.token`, not just a
-		// session cookie.
+		// and credential rules as the REST routes; the cookie is the only
+		// credential a browser can attach to a WebSocket.
 		const access = await checkBrowserAccess(req, remoteAddr);
-		if (access.denial) return access.denial;
-		const authorized = this.#authorize(req);
-		if (!authorized) return json({ error: "unauthenticated" }, 401);
-		const upgraded = server.upgrade(req, { data: { kind: "studio", sessionId: authorized[0] } });
+		if (access.denial !== null) return access.denial;
+		if (!isAllowedRequestOrigin(req.headers.get("origin"), req.url, access.genuinelyLocal)) {
+			return json({ error: "forbidden" }, 403);
+		}
+		const credential = access.credential;
+		if (credential !== null) {
+			const scopes = credential.kind === "local" || credential.kind === "machine"
+				? ["read", "write"]
+				: credential.device.scopes;
+			// A socket carries events; it is a read surface, but a terminal-class
+			// write scope is not needed here. Read is the honest requirement.
+			if (!scopeSatisfies(scopes, "read")) return json({ error: "insufficient_scope" }, 403);
+		}
+		const authorized = await this.#authorize(req, remoteAddr);
+		if (authorized === undefined) return json({ error: "unauthenticated" }, 401);
+		const [sessionId] = authorized;
+		// Event delivery is keyed by the *authenticated* session id (`#emit`), not
+		// by a conversation, so a bound device only ever receives its own receipts
+		// and runtime notices; no extra binding filter applies here.
+		const upgraded = server.upgrade(req, { data: { kind: "studio", sessionId } });
 		return upgraded ? null : json({ error: "websocket_upgrade_failed" }, 500);
 	}
 
@@ -481,22 +614,28 @@ export class StudioHost {
 	 */
 	dropDeviceSessions(deviceId: string): number {
 		let dropped = 0;
-		for (const [sessionId, session] of this.#sessions) {
-			if (session.deviceId !== deviceId) continue;
-			this.#sessions.delete(sessionId);
+		for (const [sessionId, boundDeviceId] of this.#sessionDevices) {
+			if (boundDeviceId !== deviceId) continue;
+			this.#sessionDevices.delete(sessionId);
+			this.#counters.delete(sessionId);
+			this.#closeSockets(sessionId);
 			dropped += 1;
-			const sockets = this.#sockets.get(sessionId);
-			if (sockets === undefined) continue;
-			this.#sockets.delete(sessionId);
-			for (const socket of sockets) {
-				try {
-					socket.close?.();
-				} catch {
-					// A socket that already failed to close must not block revocation.
-				}
-			}
 		}
 		return dropped;
+	}
+
+	/** Close every live event socket of one session. */
+	#closeSockets(sessionId: string): void {
+		const sockets = this.#sockets.get(sessionId);
+		if (sockets === undefined) return;
+		this.#sockets.delete(sessionId);
+		for (const socket of sockets) {
+			try {
+				socket.close?.();
+			} catch {
+				// A socket that already failed to close must not block revocation.
+			}
+		}
 	}
 
 	/** Deliver one event to every live socket of one session. */
@@ -545,6 +684,43 @@ export class StudioHost {
 		});
 		return events;
 	}
+}
+
+/** Whether the request arrived over TLS (cookie `Secure` scoping only, not identity). */
+function isSecureRequest(req: Request): boolean {
+	try {
+		if (new URL(req.url).protocol === "https:") return true;
+	} catch {
+		// A malformed URL cannot claim TLS.
+	}
+	const origin = req.headers.get("origin");
+	return origin !== null && origin.startsWith("https:");
+}
+
+/** Whether the pairing client asked for a native device token. */
+function wantsDeviceToken(body: unknown): boolean {
+	if (body === null || typeof body !== "object" || !("device" in body)) return false;
+	const device = body.device;
+	return device !== null && typeof device === "object" && "issueToken" in device && device.issueToken === true;
+}
+
+/**
+ * Resource a Studio payload targets for binding purposes.
+ *
+ * Only string ids are read; a payload that names nothing is treated as global,
+ * which a bound credential cannot reach.
+ */
+function payloadTarget(body: unknown): RequestTarget | undefined {
+	if (body === null || typeof body !== "object" || !("input" in body)) return undefined;
+	const input = body.input;
+	if (input === null || typeof input !== "object") return undefined;
+	const sessionId = "sessionId" in input && typeof input.sessionId === "string" ? input.sessionId : undefined;
+	const workspaceId = "workspaceId" in input && typeof input.workspaceId === "string" ? input.workspaceId : undefined;
+	if (sessionId === undefined && workspaceId === undefined) return undefined;
+	return {
+		...(sessionId !== undefined ? { sessionId } : {}),
+		...(workspaceId !== undefined ? { workspaceId } : {}),
+	};
 }
 
 let host: StudioHost | undefined;

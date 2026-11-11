@@ -146,6 +146,7 @@ function panelProps(overrides: Partial<TotpPanelProps> = {}): TotpPanelProps {
 		onPolicy: () => undefined,
 		onDisable: () => undefined,
 		onRegenerate: () => undefined,
+		onVerify: () => undefined,
 		t,
 		...overrides,
 	};

@@ -260,15 +260,16 @@ It is never used for binding.
 
 ### Pairing a phone
 
-Settings → Web → **Remote Access** → **Show QR**. The gateway builds
-`https://<reachable host>:<port>/#zeta-token=<token>` and renders it with the
-dependency-free QR encoder. Scanning it opens a browser surface for the
+Settings → 身份与设备 → **配对** prints a **one-time pairing code** (60 s,
+single-use) and a QR that carries it: `https://<reachable host>:<port>/#zeta-pair=<code>`.
+The QR is rendered with the dependency-free encoder. The machine token never
+appears in a URL, a QR, or a response. Scanning it opens a browser surface for the
 gateway; while the Web UI's development is deferred, the web port answers the
 placeholder page, and the token flow applies once a Web UI build is present.
 The token is stored in `localStorage` and removed from the address bar before
 the first API call.
-The QR is only shown to an authenticated caller (loopback or a valid token)
-and the response is `no-store`.
+The QR is only shown to a genuinely local caller, or to a `write` credential
+with a verification from the last ten minutes; the response is `no-store`.
 
 - **Rotate token** mints a new 32-byte token, writes it to `web.yml`, and
   records the old one's SHA-256 in `remote.revokedTokens`. The old token is
@@ -279,6 +280,31 @@ and the response is `no-store`.
 
 Token checks are hash-compared against the revoked list as well as the active
 token, so a config file that still shows an old value cannot re-enable it.
+
+### Sessions, scopes and pairing
+
+Pairing exchanges the code for a **device-bound `studio_session` cookie**
+(`HttpOnly; SameSite=Strict; Path=/`, plus `Secure` over HTTPS). The cookie is
+the browser's credential: a phone never holds the machine token in page JS, and
+the WebSocket event stream can authenticate with the same cookie (browsers
+cannot attach headers to a WebSocket). Sessions live in
+`<agentDir>/auth/sessions.json`, store only `sha256(sessionId)`, slide on
+activity, and expire after one hour idle — persistence exists so a restart does
+not force every device to re-pair, not to lengthen the credential.
+
+A credential is a session cookie, a device token (`zdt_…`), or the machine
+token. Scope is enforced per operation, not per verb:
+
+- `read` — bootstrap, `query`, the event stream, 2FA status/verify, the device list.
+- `write` — commands, terminal creation/tickets, file/git/workspace writes,
+  channel writes, and every device/token/2FA mutation.
+
+A device may also carry a **binding** (`sessionId` and/or `workspaceId`, the
+Host's canonical workspace identity). A bound device reaches only that
+conversation/workspace; requests that name nothing (global lists) are refused
+with `403 binding_scope` rather than silently filtered. A session's binding may
+only narrow the device's; contradictory or malformed bindings invalidate the
+credential.
 
 ### Device tokens (per-device revocation)
 

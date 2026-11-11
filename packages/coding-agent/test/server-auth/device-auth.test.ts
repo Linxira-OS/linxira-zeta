@@ -292,7 +292,7 @@ describe("pairing issues a device", () => {
 					"content-type": "application/json",
 					"user-agent": "Mozilla/5.0 (Linux; Android 15)",
 				},
-				body: JSON.stringify({ code: "424242", device: { label: "Pixel 8" } }),
+				body: JSON.stringify({ code: "424242", device: { label: "Pixel 8", issueToken: true } }),
 			}),
 			"127.0.0.1",
 		);
@@ -313,7 +313,7 @@ describe("pairing issues a device", () => {
 			new Request("http://127.0.0.1/api/v1/pair", {
 				method: "POST",
 				headers: { origin: "http://127.0.0.1:43141", "content-type": "application/json" },
-				body: JSON.stringify({ code: "424242" }),
+				body: JSON.stringify({ code: "424242", device: { issueToken: true } }),
 			}),
 			"127.0.0.1",
 		);
@@ -321,7 +321,7 @@ describe("pairing issues a device", () => {
 			new Request("http://127.0.0.1/api/v1/pair", {
 				method: "POST",
 				headers: { origin: "http://127.0.0.1:43141", "content-type": "application/json" },
-				body: JSON.stringify({ code: "424242" }),
+				body: JSON.stringify({ code: "424242", device: { issueToken: true } }),
 			}),
 			"127.0.0.1",
 		);
@@ -332,14 +332,21 @@ describe("pairing issues a device", () => {
 		expect(await registry.activeCount()).toBe(2);
 	});
 
-	test("a token-authenticated remote origin is not rejected as CSRF", async () => {
-		// Regression: the Origin allowlist only knows loopback origins, so a phone
-		// behind a real host name used to get 403 even with a valid credential.
+	test("a remote pairing request from the site's own origin is accepted", async () => {
+		// Regression: the Origin allowlist only knew loopback origins, so a phone
+		// behind a real host name got 403 even with a valid credential. The guard
+		// now compares against the request's own origin.
 		await setup("remote:\n  token: legacy-secret\n");
-		const response = await pair(
+		const response = await new StudioHost(operations(), { pairingCode: "424242" }).handle(
+			new Request("https://zeta.example.com/api/v1/pair", {
+				method: "POST",
+				headers: {
+					origin: "https://zeta.example.com",
+					"content-type": "application/json",
+				},
+				body: JSON.stringify({ code: "424242" }),
+			}),
 			REMOTE_PEER,
-			{ authorization: "Bearer legacy-secret", origin: "https://zeta.example.com" },
-			{ code: "424242" },
 		);
 		expect(response.status).toBe(200);
 	});

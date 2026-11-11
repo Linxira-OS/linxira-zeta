@@ -34,3 +34,34 @@ export function hostIsLoopback(_req: Request, remoteAddr?: string): boolean {
 	if (addr === "") return false;
 	return addr === "127.0.0.1" || addr === "::1" || addr === "localhost";
 }
+
+/**
+ * Whether `origin` is the origin of the request itself.
+ *
+ * This is the CSRF test for a remote credential: a hostile page sends its own
+ * origin, which never equals the target's. A missing `Origin` is allowed
+ * because non-browser clients (curl, native apps) send none.
+ */
+export function isSameOrigin(origin: string | null, requestUrl: string): boolean {
+	if (origin === null) return true;
+	try {
+		return new URL(origin).origin === new URL(requestUrl).origin;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Origin guard for one request.
+ *
+ * - no `Origin` → allowed (non-browser client);
+ * - `Origin` equals the request's own origin → allowed;
+ * - a loopback origin is allowed **only** when the request itself is genuinely
+ *   local (a local dev proxy or the desktop shell), never for a remote cookie
+ *   session — a malicious local page must not drive a remote authority.
+ */
+export function isAllowedRequestOrigin(origin: string | null, requestUrl: string, genuinelyLocal: boolean): boolean {
+	if (origin === null) return true;
+	if (isSameOrigin(origin, requestUrl)) return true;
+	return genuinelyLocal && isAllowedOrigin(origin);
+}

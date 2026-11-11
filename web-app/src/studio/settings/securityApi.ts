@@ -39,10 +39,18 @@ export interface DeviceInventory {
 	legacyTokenActive: boolean;
 }
 
-/** The pairing response minus the token: a surface shows the symbol, never the secret. */
+/**
+ * The pairing response: a one-time code plus its QR payload.
+ *
+ * There is deliberately no token field — the server stopped returning the
+ * machine token, and a surface should only ever show the short-lived code.
+ */
 export interface PairingQr {
 	url: string;
 	svg: string;
+	code: string;
+	/** ISO timestamp, or `null` for a pinned development code. */
+	expiresAt: string | null;
 }
 
 /** `remote.*` facts from `GET /api/web-config`; the token itself stays masked. */
@@ -103,13 +111,23 @@ export async function fetchPairedDevices(fetcher: SecurityFetch = defaultFetch):
 	};
 }
 
-/** `GET /api/remote/pairing` — the QR a new device scans; the token is intentionally dropped. */
+/** `GET /api/remote/pairing` — the one-time code and QR a new device scans. */
 export async function fetchPairingQr(fetcher: SecurityFetch = defaultFetch): Promise<PairingQr> {
 	const payload = await gatewayJson(fetcher, "/api/remote/pairing");
-	if (!isRecord(payload) || typeof payload.url !== "string" || typeof payload.svg !== "string") {
+	if (
+		!isRecord(payload) ||
+		typeof payload.url !== "string" ||
+		typeof payload.svg !== "string" ||
+		typeof payload.code !== "string"
+	) {
 		throw new Error("Pairing response is malformed");
 	}
-	return { url: payload.url, svg: payload.svg };
+	return {
+		url: payload.url,
+		svg: payload.svg,
+		code: payload.code,
+		expiresAt: typeof payload.expiresAt === "string" ? payload.expiresAt : null,
+	};
 }
 
 /** `DELETE /api/remote/devices/:id`. */

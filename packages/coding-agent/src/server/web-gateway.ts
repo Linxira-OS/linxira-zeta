@@ -24,7 +24,6 @@ import {
 	triggerWechatReconnect,
 	triggerWechatUnbind,
 } from "../channels";
-import { WebConfig } from "../config/web-config";
 import { scheduleTrashSweep } from "../session/session-trash";
 import {
 	handleAgentCommand,
@@ -62,9 +61,14 @@ import {
 	handleBoardMove,
 	handleBoardUpdate,
 } from "./web-gateway/board";
-import { checkRemoteAccess } from "./web-gateway/remote-access";
-import { isRemoteTokenAccepted } from "../utils/remote-token";
-import { deviceRegistry } from "./auth/device-registry";
+import {
+	authenticateRemote,
+	credentialScopes,
+	isGenuinelyLocalRequest,
+	type RemoteCredential,
+	resolveCredential,
+} from "./web-gateway/remote-access";
+import { sessionStore } from "./auth/session-store";
 import { handleDeviceDelete, handleDevicesGet, handleDevicesRevokeAllPost } from "./auth/device-auth";
 import {
 	forgetAllVerifications,
@@ -204,7 +208,9 @@ import {
 	type TerminalWsData,
 } from "./web-gateway/terminal";
 import { handleRpcWsUpgrade, isRpcWsUpgradeRequest, rpcWebSocketHandler, type RpcWsData } from "./web-gateway/rpc-ws";
-import { hostIsLoopback, isAllowedOrigin } from "./web-gateway/origin";
+import { hostIsLoopback, isAllowedOrigin, isAllowedRequestOrigin } from "./web-gateway/origin";
+import { bindingDecision, bindingScopeResponse } from "./web-gateway/binding-guard";
+import { classifyOperation, scopeSatisfies } from "./web-gateway/scope";
 import { isStudioRequest, isStudioWsUpgradeRequest, studioHost } from "./studio-host";
 
 /** Both data planes share one listener; `kind` routes a socket to its handler. */
@@ -394,11 +400,8 @@ export { hostIsLoopback, isAllowedOrigin };
  * credential-only check used where a boolean answer is enough (the stats route).
  */
 export async function authorizedForAccess(req: Request, remoteAddr?: string): Promise<boolean> {
-	if (hostIsLoopback(req, remoteAddr)) return true;
-	const config = await WebConfig.load();
-	const provided = req.headers.get("authorization") ?? req.headers.get("x-zeta-token");
-	if (isRemoteTokenAccepted(config.getData().remote, provided)) return true;
-	return (await deviceRegistry().resolve(provided ?? "")) !== undefined;
+	if (isGenuinelyLocalRequest(req, remoteAddr)) return true;
+	return (await resolveCredential(req)) !== null;
 }
 
 /** In-process fetch handler; ZetaServer dispatches to this directly. */
@@ -408,22 +411,39 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	// timers are unref'd and the guard keeps it once-per-process).
 	scheduleTrashSweep();
 
-	// Access control: non-loopback clients need the remote token. The gate adds
-	// rate limiting and revocation on top (see web-gateway/remote-access.ts).
-	const loopback = hostIsLoopback(req, remoteAddr);
-	if (!loopback) {
-		const denied = await checkRemoteAccess(req, remoteAddr ?? "unknown");
-		if (denied) return denied;
+	// Access control: a genuine loopback socket passes; everything else needs a
+	// credential (device-bound session cookie, device token, or machine token).
+	// Forwarding headers make a loopback socket remote — a reverse proxy must
+	// never turn the control plane into an unauthenticated surface.
+	const local = isGenuinelyLocalRequest(req, remoteAddr);
+	let credential: RemoteCredential = { kind: "local" };
+	if (!local) {
+		const result = await authenticateRemote(req, remoteAddr ?? "unknown");
+		if (result.denial !== null) return result.denial;
+		credential = result.credential;
 	}
 
-	// CSRF: reject cross-site browser requests before any side effect. A valid
-	// remote token already authenticates the caller (an attacker's page cannot
-	// read or send it), so the Origin guard only guards unauthenticated
-	// loopback browsers.
-	if (loopback && !isAllowedOrigin(req.headers.get("origin"))) {
+	// CSRF: the request's own origin (or no origin) only. A loopback origin is
+	// accepted only for a genuinely local caller, never for a remote cookie.
+	if (!isAllowedRequestOrigin(req.headers.get("origin"), req.url, local)) {
 		return json({ error: "Forbidden origin" }, 403);
 	}
-	const pathname = new URL(req.url).pathname;
+
+	const url = new URL(req.url);
+	const pathname = url.pathname;
+
+	// Operation scope: decided by what the route does, not by its verb, so a
+	// read-only device cannot mutate through a POST that merely looks like a
+	// query and cannot open a terminal through a ticket.
+	const operation = classifyOperation(pathname, req.method);
+	if (!scopeSatisfies(credentialScopes(credential), operation)) {
+		return json({ error: "insufficient_scope" }, 403);
+	}
+
+	// Binding scope: a device bound to one conversation/workspace reaches only
+	// that resource; a request that names nothing is refused rather than allowed.
+	const binding = await bindingDecision(credential, pathname, url);
+	if (!binding.allowed) return bindingScopeResponse();
 
 	// 2FA step-up for device/token mutations. Reads and unrelated writes pass;
 	// a genuinely local caller is never challenged (see auth/two-factor-auth.ts).
@@ -1043,7 +1063,7 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	}
 
 	if (REMOTE_PAIRING_RE.test(pathname)) {
-		if (req.method === "GET") return handleRemotePairingGet(req);
+		if (req.method === "GET") return await handleRemotePairingGet(req, remoteAddr, credential);
 		return json({ error: "Method not allowed" }, 405);
 	}
 
@@ -1058,7 +1078,14 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (REMOTE_DEVICES_REVOKE_ALL_RE.test(pathname)) {
 		if (req.method === "POST") {
 			const response = await handleDevicesRevokeAllPost(req);
-			if (response.ok) forgetAllVerifications();
+			if (response.ok) {
+				// Revoking a device must also destroy the authority already granted
+				// to it: its persisted sessions, its live Studio sockets, and its
+				// 2FA grants. Otherwise an upgraded WebSocket keeps receiving events.
+				const dropped = await sessionStore().deleteAll();
+				forgetAllVerifications();
+				for (const deviceId of dropped.deviceIds) studioHost().dropDeviceSessions(deviceId);
+			}
 			return response;
 		}
 		return json({ error: "Method not allowed" }, 405);
@@ -1073,6 +1100,7 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 			// essential when it was active: the gate stops its token, and this stops
 			// an already-upgraded socket from receiving more events.
 			if (response.ok) {
+				await sessionStore().deleteByDevice(deviceId[0]);
 				studioHost().dropDeviceSessions(deviceId[0]);
 				forgetDeviceVerification(deviceId[0]);
 			}

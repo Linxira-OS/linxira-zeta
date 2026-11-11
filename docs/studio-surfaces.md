@@ -41,7 +41,7 @@ the reason.
 | IM channels (status, QR, default workspace) | pass-through | pass-through | pass-through | hidden | pass-through |
 | IM credentials | pass-through | pass-through | pass-through | hidden | pass-through |
 | Paired devices (list / revoke) | show | pass-through | pass-through | hidden | unavailable³ |
-| TOTP | show | pass-through | read-only⁴ | hidden | unavailable³ |
+| TOTP | show | pass-through | read-only⁴ | read-only⁶ | unavailable³ |
 | Remote pairing QR | show | pass-through | pass-through | hidden | pass-through |
 | Remote token rotate / revoke | show | pass-through | pass-through | hidden | pass-through |
 | SSH execution targets | unavailable⁵ | unavailable⁵ | unavailable⁵ | hidden | pass-through |
@@ -56,6 +56,9 @@ the reason.
    would 403.
 5. The desktop SSH bridge (`window.zetaStudioRemote`) has not shipped; the picker
    already says so.
+6. A phone may **verify** a code (a remote write answers `totp_required`), but
+   enrollment, policy and disable stay on the machine; the pane hides them and
+   names why.
 
 ## Where the matrix is used
 

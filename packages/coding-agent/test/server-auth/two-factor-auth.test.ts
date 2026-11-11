@@ -268,30 +268,37 @@ describe("remote write gate", () => {
 		expect(denied.status).toBe(403);
 		expect(await denied.json()).toMatchObject({ error: "totp_required" });
 
-		// A query reaches ordinary session auth instead of the 2FA gate.
+		// A query is readable with the same credential: 2FA gates writes only.
 		const query = await post("/api/v1/query", { queryName: "environment.get" });
-		expect(query.status).toBe(401);
-		expect(await query.json()).toEqual({ error: "unauthenticated" });
+		expect(query.status).toBe(200);
 	});
 
-	test("pairing a new device needs a fresh step-up", async () => {
+	test("pairing needs the presence code, not a step-up or a bare token", async () => {
 		await setup();
 		await enableTwoFactor();
 		const issued = await registry.issue({ platform: "android" });
-		const response = await new StudioHost(operations(), { pairingCode: "424242" }).handle(
-			new Request("http://127.0.0.1/api/v1/pair", {
-				method: "POST",
-				headers: {
-					origin: "https://zeta.example.com",
-					"content-type": "application/json",
-					authorization: `Bearer ${issued.token}`,
-				},
-				body: JSON.stringify({ code: "424242" }),
-			}),
-			REMOTE_PEER,
-		);
-		expect(response.status).toBe(403);
-		expect(await response.json()).toMatchObject({ error: "totp_required", stepUp: true });
+		const host = new StudioHost(operations(), { pairingCode: "424242" });
+		const pair = (body: unknown) =>
+			host.handle(
+				new Request("http://127.0.0.1/api/v1/pair", {
+					method: "POST",
+					headers: {
+						origin: "http://127.0.0.1",
+						"content-type": "application/json",
+						authorization: `Bearer ${issued.token}`,
+					},
+					body: JSON.stringify(body),
+				}),
+				REMOTE_PEER,
+			);
+
+		// The code is the physical-presence proof; an authenticated device still
+		// cannot mint another device without one.
+		const withoutCode = await pair({});
+		expect(withoutCode.status).toBe(401);
+
+		const withCode = await pair({ code: "424242" });
+		expect(withCode.status).toBe(200);
 	});
 });
 

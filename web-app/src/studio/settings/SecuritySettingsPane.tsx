@@ -104,14 +104,17 @@ export interface TotpPanelProps {
 	code: string;
 	error: string | null;
 	pending: string | null;
-	/** Remote surfaces show status only; mutations stay on the machine. */
+	/** Enrollment/disable/policy stay on the machine; verification is allowed anywhere. */
 	readOnly: boolean;
+	/** Whether a verification input is offered (enrolled + policy required). */
+	canVerify?: boolean;
 	onCode: (value: string) => void;
 	onEnroll: () => void;
 	onConfirm: () => void;
 	onPolicy: (required: boolean) => void;
 	onDisable: () => void;
 	onRegenerate: () => void;
+	onVerify: () => void;
 	t: (key: string, params?: Record<string, string | number>) => string;
 }
 
@@ -134,6 +137,8 @@ export function TotpPanel({
 	onDisable,
 	onRegenerate,
 	onEnroll,
+	onVerify,
+	canVerify = false,
 	t,
 }: TotpPanelProps) {
 	const state = status === null ? "loading" : !status.enrolled ? "off" : status.required ? "required" : "enrolled";
@@ -168,6 +173,27 @@ export function TotpPanel({
 					<p className="sec-hint" data-totp-remaining>
 						{t("settings.security.totp.remaining", { count: status.recoveryCodesRemaining })}
 					</p>
+					{canVerify ? (
+						<div className="sec-actions sec-totp-verify">
+							<input
+								className="input"
+								inputMode="numeric"
+								autoComplete="one-time-code"
+								aria-label={t("settings.security.totp.code")}
+								placeholder={t("settings.security.totp.codePlaceholder")}
+								value={code}
+								onChange={event => onCode(event.target.value)}
+							/>
+							<button
+								type="button"
+								className="btn small"
+								disabled={pending !== null || code.trim() === ""}
+								onClick={onVerify}
+							>
+								{t("settings.security.totp.verify")}
+							</button>
+						</div>
+					) : null}
 					{!readOnly ? (
 						<div className="sec-actions">
 							<button type="button" className="btn small danger" disabled={pending !== null} onClick={onDisable}>
@@ -266,7 +292,9 @@ export function SecuritySettingsPane({
 	const { preview } = usePreviewMode();
 	const surface = detectSurface();
 	const totpAccess = accessFor(surface, "totp");
-	const totpReadOnly = totpAccess.access === "read-only";
+	// "read-only" now means enrollment/disable/policy are local; verification is
+	// still offered because a remote user must be able to answer `totp_required`.
+	const totpReadOnly = totpAccess.access === "read-only" || surface === "mobile";
 	const [hostDesktop, setHostDesktop] = useState<boolean | null>(null);
 	const [remoteAccess, setRemoteAccess] = useState<RemoteAccessView | null>(null);
 	const [remoteError, setRemoteError] = useState<string | null>(null);
@@ -463,6 +491,17 @@ export function SecuritySettingsPane({
 		});
 	};
 
+	const verifyTotp = (): void => {
+		void run("totp-verify", async () => {
+			const result = await verifyTwoFactor(fetch, { code: totpCode.trim() });
+			setTotpCode("");
+			await loadTwoFactor();
+			return result.method === "recovery"
+				? t("settings.security.totp.verifiedRecovery")
+				: t("settings.security.totp.verified");
+		});
+	};
+
 	const applyTotpPolicy = (required: boolean): void => {
 		void run("totp-policy", async () => {
 			await putTwoFactorPolicy(fetch, required);
@@ -595,6 +634,14 @@ export function SecuritySettingsPane({
 								<div className="sec-qr-svg" dangerouslySetInnerHTML={{ __html: pairing.svg }} />
 								<div className="sec-qr-copy">
 									<p className="sec-qr-state">{t("settings.security.remote.pairingDesc")}</p>
+									<p className="sec-pair-code" data-pair-code>
+										<code className="sec-mono">{pairing.code}</code>
+										{pairing.expiresAt !== null ? (
+											<span className="sec-hint">
+												{new Date(pairing.expiresAt).toLocaleTimeString()}
+											</span>
+										) : null}
+									</p>
 									<code className="sec-mono">{pairing.url}</code>
 								</div>
 							</div>
@@ -739,12 +786,14 @@ export function SecuritySettingsPane({
 					error={totpError}
 					pending={pending}
 					readOnly={totpReadOnly}
+					canVerify={totp?.enrolled === true && totp.required}
 					onCode={setTotpCode}
 					onEnroll={enrollTotp}
 					onConfirm={confirmTotp}
 					onPolicy={applyTotpPolicy}
 					onDisable={disableTotp}
 					onRegenerate={regenerateTotp}
+					onVerify={verifyTotp}
 					t={t}
 				/>
 			</SettingSection>

@@ -1707,6 +1707,8 @@ export const en: LocaleDictionary = {
         "stepUpDesc": "Enter a code from your authenticator (or a recovery code) to continue.",
         "stepUpNeeded": "This action needs a 2FA code.",
         "verify": "Verify",
+        "verified": "Code accepted. Remote writes are unlocked for the current window.",
+        "verifiedRecovery": "Recovery code accepted and consumed. Issue new codes when you can.",
         "cancel": "Cancel"
       }
     },

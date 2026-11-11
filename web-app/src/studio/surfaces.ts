@@ -114,8 +114,12 @@ export function detectSurface(scope?: SurfaceScope): SurfaceId {
 	return classifySurface(detectSurfaceFacts(scope));
 }
 
-/** Settings groups a mobile surface may open; everything else redirects to chat. */
-const MOBILE_ROUTES: Record<string, true> = { workbench: true, history: true };
+/**
+ * Routes a mobile surface may open. Settings is included so a phone can answer
+ * a 2FA challenge and inspect its own paired device; the individual actions
+ * inside it are still decided by the matrix below.
+ */
+const MOBILE_ROUTES: Record<string, true> = { workbench: true, history: true, settings: true };
 
 export function navAllowedOnSurface(surface: SurfaceId, route: string): boolean {
 	if (surface !== "mobile") return true;
@@ -256,7 +260,9 @@ const MATRIX: Record<SurfaceId, Record<SurfaceAction, SurfaceDecision>> = {
 		"im-credentials": HIDDEN,
 		"device-list": HIDDEN,
 		"device-revoke": HIDDEN,
-		totp: HIDDEN,
+		// Verification is allowed (a phone must answer `totp_required`);
+		// enrollment/disable/policy stay local-only, which the pane enforces.
+		totp: { access: "read-only", reason: "totpLocalEnroll" },
 		"remote-pairing": HIDDEN,
 		"remote-token": HIDDEN,
 		"ssh-targets": HIDDEN,

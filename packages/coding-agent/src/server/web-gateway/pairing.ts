@@ -10,22 +10,48 @@
 
 import { WebConfig } from "../../config/web-config";
 import { deviceRegistry } from "../auth/device-registry";
-import { buildPairingPayload, parsePairingPayload, renderPairingQrSvg, resolvePairingBaseUrl } from "../pairing";
+import { twoFactorStepUpDenial } from "../auth/two-factor-auth";
+import { studioHost } from "../studio-host/server";
+import {
+	buildPairPayload,
+	parsePairingPayload,
+	renderPairingQrSvg,
+	resolvePairingBaseUrl,
+} from "../pairing";
+import { credentialAllows, type RemoteCredential } from "./remote-access";
 
 function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
 	return Response.json(data, { status, headers: { "cache-control": "no-store", ...headers } });
 }
 
 /**
- * GET /api/remote/pairing[?url=https://…] — `{ url, token, payload, svg }`
- * for the settings panel, which renders the QR and can show the URL.
+ * `GET /api/remote/pairing` — the one-time code a settings panel renders.
+ *
+ * The response carries the **pairing code** (60 s, single-use) and a QR payload
+ * that embeds it. It never carries the machine token: a `read` device must not
+ * be able to trade its narrow credential for the machine-wide one, and a token
+ * in a URL leaks through screenshots and proxy logs.
+ *
+ * Access: genuinely local, or a `write` credential with a fresh step-up. A
+ * device allowed to mint another device is already privileged; requiring both
+ * scope and a recent verification keeps a stolen read credential from printing
+ * a QR.
  */
-export async function handleRemotePairingGet(req: Request): Promise<Response> {
-	const config = await WebConfig.load();
-	const token = config.getRemoteToken();
-	if (!token) {
-		return json({ error: "No remote token is configured; set one under Remote Access first" }, 409);
+export async function handleRemotePairingGet(
+	req: Request,
+	remoteAddr?: string,
+	credential: RemoteCredential = { kind: "local" },
+): Promise<Response> {
+	if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+	if (credential.kind !== "local") {
+		if (!credentialAllows(credential, "write")) return json({ error: "insufficient_scope" }, 403);
+		const denial = await twoFactorStepUpDenial(req, remoteAddr);
+		if (denial) return denial;
 	}
+	const config = await WebConfig.load();
+	const host = studioHost();
+	const code = host.pairingCode;
+	const expiresAtMs = host.pairingExpiresAt;
 	const requestUrl = new URL(req.url);
 	const explicit = requestUrl.searchParams.get("url");
 	const url = resolvePairingBaseUrl({
@@ -35,12 +61,18 @@ export async function handleRemotePairingGet(req: Request): Promise<Response> {
 	});
 	let payload: string;
 	try {
-		payload = buildPairingPayload({ url, token });
+		payload = buildPairPayload({ url, code });
 	} catch (error) {
 		return json({ error: error instanceof Error ? error.message : String(error) }, 400);
 	}
 	const parsed = parsePairingPayload(payload);
-	return json({ url: parsed?.url ?? url, token, payload, svg: renderPairingQrSvg(payload) });
+	return json({
+		url: parsed?.url ?? url,
+		code,
+		expiresAt: expiresAtMs === null ? null : new Date(expiresAtMs).toISOString(),
+		payload,
+		svg: renderPairingQrSvg(payload),
+	});
 }
 
 /** POST /api/remote/token/rotate — mint a new token, revoke the old one. */

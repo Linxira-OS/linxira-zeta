@@ -23,10 +23,12 @@ describe("surface matrix table", () => {
 		expect(html).toContain('data-action="ssh-targets" data-access="unavailable"');
 	});
 
-	test("a mobile matrix offers no local action", () => {
+	test("a mobile matrix hides local actions but keeps 2FA verification", () => {
 		const html = renderToStaticMarkup(<SurfaceMatrixTable surface="mobile" />);
 		expect(html).toContain('data-action="im-credentials" data-access="hidden"');
-		expect(html).toContain('data-action="totp" data-access="hidden"');
+		// Verification is allowed on a phone (enrollment stays local); the pane
+		// hides enroll/disable via the read-only reason.
+		expect(html).toContain('data-action="totp" data-access="read-only"');
 		expect(html).toContain('data-action="runtime-install" data-access="hidden"');
 	});
 });

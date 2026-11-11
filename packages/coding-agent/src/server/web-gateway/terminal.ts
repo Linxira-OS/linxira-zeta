@@ -61,7 +61,8 @@ import {
 	ZETA_BIN_DIR_ENV,
 	type OpenProbeContext,
 } from "../../utils/bin-discovery";
-import { hostIsLoopback, isAllowedOrigin } from "../web-gateway";
+import { hostIsLoopback } from "../web-gateway";
+import { isAllowedRequestOrigin } from "./origin";
 import { ZETA_IDE_BINS, resolveTerminal, type ResolvedTerminal } from "./open";
 import {
 	findShellProfile,
@@ -1318,7 +1319,7 @@ export async function handleTerminalWsUpgrade(
 	if (loopback) {
 		// CSRF parity with the REST gate: an unauthenticated loopback upgrade
 		// must not carry a cross-site Origin (a hostile page driving a WS).
-		authorized = isAllowedOrigin(req.headers.get("origin"));
+		authorized = isAllowedRequestOrigin(req.headers.get("origin"), req.url, true);
 	} else {
 		// Remote browsers cannot attach auth headers to a WebSocket; the
 		// one-time connect ticket from the authorized control plane vouches

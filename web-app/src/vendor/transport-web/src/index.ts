@@ -16,6 +16,8 @@
 export type { OmpStudioWebApi } from "./web-transport.js";
 export { WebClientTransport, createWebTransport } from "./web-transport.js";
 export { WebTransportError } from "./errors.js";
+export { StudioHttpError } from "./browser-client.js";
+export type { FetchLike } from "./browser-client.js";
 export { LoopbackWebAdapter, createLoopbackHttpServer } from "./server.js";
 export type { WebAdapterHost, WebAdapterOptions } from "./server.js";
 export { BrowserWebClientTransport } from "./browser-client.js";

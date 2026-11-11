@@ -1707,6 +1707,8 @@ const zhRaw = {
         "stepUpDesc": "输入验证器中的验证码（或恢复码）以继续。",
         "stepUpNeeded": "该操作需要二次验证码。",
         "verify": "验证",
+        "verified": "验证码已接受，当前窗口内可执行远端写操作。",
+        "verifiedRecovery": "恢复码已接受并作废；方便时请重签恢复码。",
         "cancel": "取消"
       }
     },

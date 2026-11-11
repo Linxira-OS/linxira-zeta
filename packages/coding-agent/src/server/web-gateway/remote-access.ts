@@ -18,7 +18,9 @@
 
 import { WebConfig } from "../../config/web-config";
 import { isRemoteTokenAccepted, MASKED_TOKEN } from "../../utils/remote-token";
-import { deviceRegistry } from "../auth/device-registry";
+import { deviceRegistry, type DeviceRecord, type DeviceScope } from "../auth/device-registry";
+import { effectiveBinding, type DeviceBinding } from "../auth/binding";
+import { sessionStore } from "../auth/session-store";
 import { hostIsLoopback } from "./origin";
 
 export interface AuthLimiterOptions {
@@ -177,54 +179,152 @@ export interface BrowserAccessDecision {
 	denial: Response | null;
 	/** Whether the peer is a genuine local socket (trusted, may auto-pair). */
 	genuinelyLocal: boolean;
+	/** Resolved credential; `null` only when `denial` is set. */
+	credential: RemoteCredential | null;
 }
 
 /**
- * Gate for browser-facing session surfaces (Studio `/api/v1`): a genuine local
- * socket passes, everything else — including loopback sockets that carry proxy
- * forwarding headers — goes through {@link checkRemoteAccess}, so it needs the
- * configured `remote.token` and shares the same failure limiter.
+ * What authenticated a request.
+ *
+ * `local` is a genuine loopback socket; `machine` is the machine-wide
+ * `remote.token`; `device` is a per-device `zdt_…` header; `session` is the
+ * device-bound `studio_session` cookie. Cookies are checked **first** and never
+ * fall back to a stronger credential: a revoked cookie must not silently regain
+ * access through a still-valid machine token.
+ */
+export type RemoteCredential =
+	| { readonly kind: "local" }
+	| { readonly kind: "machine" }
+	| { readonly kind: "device"; readonly device: DeviceRecord }
+	| {
+			readonly kind: "session";
+			readonly sessionId: string;
+			readonly device: DeviceRecord;
+			readonly binding?: DeviceBinding;
+	  };
+
+/** Read one cookie value from a request (no dependency on the host's parser). */
+export function readCookie(req: Request, name: string): string | undefined {
+	for (const part of (req.headers.get("cookie") ?? "").split(";")) {
+		const index = part.indexOf("=");
+		if (index <= 0) continue;
+		if (part.slice(0, index).trim() !== name) continue;
+		const value = decodeURIComponent(part.slice(index + 1).trim());
+		return value === "" ? undefined : value;
+	}
+	return undefined;
+}
+
+/** Scopes attached to a credential. Local and machine credentials are unrestricted. */
+export function credentialScopes(credential: RemoteCredential): readonly DeviceScope[] {
+	if (credential.kind === "local" || credential.kind === "machine") return ["read", "write"];
+	return credential.device.scopes;
+}
+
+export function credentialAllows(credential: RemoteCredential, scope: DeviceScope): boolean {
+	return credentialScopes(credential).includes(scope);
+}
+
+/**
+ * Binding carried by the credential.
+ *
+ * `null` means the device and session bindings contradict each other; callers
+ * must refuse the request (a contradictory binding is narrower than either, and
+ * treating it as "unbound" would widen the grant).
+ */
+export function credentialBinding(credential: RemoteCredential): DeviceBinding | undefined | null {
+	if (credential.kind === "device") return credential.device.binding;
+	if (credential.kind === "session") return effectiveBinding(credential.device.binding, credential.binding);
+	return undefined;
+}
+
+/**
+ * Resolve the credential a request presents, without rate limiting.
+ *
+ * Order is deliberate: cookie → header. A present-but-invalid cookie is a
+ * hard failure (no silent fallback), because a revoked session must not be
+ * resurrected by a machine token the browser also happens to carry.
+ * Device `lastSeenAt` is refreshed on header use (throttled inside the registry).
+ */
+export async function resolveCredential(req: Request): Promise<RemoteCredential | null> {
+	const cookie = readCookie(req, "studio_session");
+	if (cookie !== undefined) {
+		const session = await sessionStore().get(cookie);
+		if (session === undefined) return null;
+		const device = await deviceRegistry().get(session.deviceId);
+		if (device === undefined || device.revokedAt !== null) {
+			// Revoked underneath a live session: drop it so the next request is clean.
+			await sessionStore().delete(cookie);
+			return null;
+		}
+		await sessionStore().touch(cookie);
+		return {
+			kind: "session",
+			sessionId: cookie,
+			device,
+			...(session.binding !== undefined ? { binding: session.binding } : {}),
+		};
+	}
+	const provided = req.headers.get("authorization") ?? req.headers.get("x-zeta-token");
+	const config = await WebConfig.load();
+	if (isRemoteTokenAccepted(config.getData().remote, provided)) return { kind: "machine" };
+	const device = await deviceRegistry().resolve(provided ?? "");
+	return device !== undefined ? { kind: "device", device } : null;
+}
+
+/**
+ * Gate for browser-facing session surfaces: a genuine local socket passes,
+ * everything else resolves a credential (session cookie, device token, or the
+ * machine token) under the shared failure limiter.
  */
 export async function checkBrowserAccess(
 	req: Request,
 	remoteAddr: string | undefined,
 	limiter: AuthFailureLimiter = getRemoteAuthLimiter(),
 ): Promise<BrowserAccessDecision> {
-	if (isGenuinelyLocalRequest(req, remoteAddr)) return { denial: null, genuinelyLocal: true };
-	const denial = await checkRemoteAccess(req, remoteAddr ?? "unknown", limiter);
-	return { denial, genuinelyLocal: false };
+	if (isGenuinelyLocalRequest(req, remoteAddr)) {
+		return { denial: null, genuinelyLocal: true, credential: { kind: "local" } };
+	}
+	const result = await authenticateRemote(req, remoteAddr ?? "unknown", limiter);
+	if (result.denial !== null) return { denial: result.denial, genuinelyLocal: false, credential: null };
+	return { denial: null, genuinelyLocal: false, credential: result.credential };
 }
+
+export type AccessResult =
+	| { readonly denial: Response; readonly credential?: undefined }
+	| { readonly denial: null; readonly credential: RemoteCredential };
 
 /**
  * Full gate for one non-loopback request: rate limit, then credential
- * verification. A request passes with either the machine-wide `remote.token`
- * (the pairing QR's bootstrap secret) or an active per-device token, so one
- * phone can be revoked without invalidating every other client.
+ * verification. A request passes with a device-bound session cookie, a
+ * per-device token, or the machine-wide `remote.token`.
  *
  * A successful check clears the peer's failure history; a failure is recorded
  * before the 401 (and a request that trips the limit is itself answered 429).
  */
+export async function authenticateRemote(
+	req: Request,
+	peerKey: string,
+	limiter: AuthFailureLimiter = getRemoteAuthLimiter(),
+): Promise<AccessResult> {
+	const blocked = limiter.status(peerKey);
+	if (blocked.blocked) return { denial: rateLimitedRemoteResponse(blocked.retryAfterSeconds) };
+
+	const credential = await resolveCredential(req);
+	if (credential !== null) {
+		limiter.clear(peerKey);
+		return { denial: null, credential };
+	}
+	const afterFailure = limiter.recordFailure(peerKey);
+	if (afterFailure.blocked) return { denial: rateLimitedRemoteResponse(afterFailure.retryAfterSeconds) };
+	return { denial: unauthorizedRemoteResponse() };
+}
+
+/** Boolean/response form kept for callers that only need pass/fail (stats). */
 export async function checkRemoteAccess(
 	req: Request,
 	peerKey: string,
 	limiter: AuthFailureLimiter = getRemoteAuthLimiter(),
 ): Promise<Response | null> {
-	const blocked = limiter.status(peerKey);
-	if (blocked.blocked) return rateLimitedRemoteResponse(blocked.retryAfterSeconds);
-
-	const config = await WebConfig.load();
-	const provided = req.headers.get("authorization") ?? req.headers.get("x-zeta-token");
-	if (isRemoteTokenAccepted(config.getData().remote, provided)) {
-		limiter.clear(peerKey);
-		return null;
-	}
-	// Per-device credential: resolving it also refreshes `lastSeenAt` (throttled),
-	// so the device list can show when a phone was last heard from.
-	if ((await deviceRegistry().resolve(provided ?? "")) !== undefined) {
-		limiter.clear(peerKey);
-		return null;
-	}
-	const afterFailure = limiter.recordFailure(peerKey);
-	if (afterFailure.blocked) return rateLimitedRemoteResponse(afterFailure.retryAfterSeconds);
-	return unauthorizedRemoteResponse();
+	return (await authenticateRemote(req, peerKey, limiter)).denial ?? null;
 }

@@ -15,7 +15,19 @@ import { networkInterfaces } from "node:os";
 import { QrCode } from "@linxiraos/pi-tui/chrome/qrcode";
 import type { WebConfigData } from "../config/web-config";
 
-/** Fragment parameter carrying the remote token. */
+/**
+ * Fragment parameter carrying the one-time pairing **code**.
+ *
+ * The code (not the machine token) is what a scanned link carries: it is
+ * single-use, expires in 60 s, and only mints the device that scans it. The
+ * machine token never appears in a URL.
+ */
+export const PAIRING_CODE_FRAGMENT_KEY = "zeta-pair";
+
+/**
+ * Legacy fragment key that carried the machine token. It is still **parsed** so
+ * an operator can tell an old link apart, but nothing builds or consumes it.
+ */
 export const PAIRING_FRAGMENT_KEY = "zeta-token";
 
 export interface PairingPayloadOptions {
@@ -45,7 +57,33 @@ export function buildPairingPayload({ url, token }: PairingPayloadOptions): stri
 export interface ParsedPairingPayload {
 	/** Origin (plus any base path) the phone should load. */
 	url: string;
-	token: string;
+	/** Machine token from a legacy link, when one was supplied. */
+	token?: string;
+	/** One-time pairing code from a current link. */
+	code?: string;
+}
+
+/**
+ * Build the payload a phone scans: origin + one-time code in the fragment.
+ *
+ * The fragment is never sent to the server and never lands in proxy logs. A
+ * folded/normalized code is rejected because the code is compared verbatim.
+ */
+export function buildPairPayload({ url, code }: { url: string; code: string }): string {
+	const trimmed = code.trim();
+	if (trimmed === "") throw new Error("Cannot build a pairing payload without a pairing code");
+	let base: URL;
+	try {
+		base = new URL(url.trim());
+	} catch {
+		throw new Error(`Invalid pairing URL: ${url}`);
+	}
+	if (base.protocol !== "http:" && base.protocol !== "https:") {
+		throw new Error(`Pairing URL must be http(s): ${url}`);
+	}
+	base.hash = "";
+	base.search = "";
+	return `${base.origin}${base.pathname.replace(/\/+$/, "")}/#${PAIRING_CODE_FRAGMENT_KEY}=${encodeURIComponent(trimmed)}`;
 }
 
 /** Inverse of {@link buildPairingPayload}; `null` for anything else. */
@@ -58,10 +96,15 @@ export function parsePairingPayload(payload: string): ParsedPairingPayload | nul
 	}
 	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
 	const fragment = new URLSearchParams(parsed.hash.replace(/^#/, ""));
+	const code = fragment.get(PAIRING_CODE_FRAGMENT_KEY)?.trim() ?? "";
 	const token = fragment.get(PAIRING_FRAGMENT_KEY)?.trim() ?? "";
-	if (token === "") return null;
+	if (code === "" && token === "") return null;
 	const url = `${parsed.origin}${parsed.pathname.replace(/\/+$/, "")}`;
-	return { url, token };
+	return {
+		url,
+		...(code !== "" ? { code } : {}),
+		...(token !== "" ? { token } : {}),
+	};
 }
 
 /**
@@ -88,7 +131,7 @@ export function renderQrSvg(payload: string, options: { margin?: number; label?:
 	].join("");
 }
 
-/** The pairing code's QR, with the label the settings panel shows. */
+/** QR for a pairing payload (code), with the label the settings panel shows. */
 export function renderPairingQrSvg(payload: string, options: { margin?: number } = {}): string {
 	return renderQrSvg(payload, { ...options, label: "Zeta pairing code" });
 }
