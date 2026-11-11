@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "check:naming": "bun scripts/check-studio-naming.ts",
+    "check:first-load": "bun scripts/check-first-load.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
