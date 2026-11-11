@@ -129,12 +129,18 @@ flowchart LR
   `v18.16.0` 有 18 个文件的差异，主要是品牌/CLI 适配：`zetacode --mode rpc`、
   `~/.zeta/agent/models.container.yml`、`ROBOMP_OMP_COMMAND` 取值，以及
   `scripts/check-robomp-cli-contract.ts` 机器守卫。
+- **离线回放已实现（REQ060）**：`triage` / `replay` / `status` 支持
+  `--offline`；`triage` / `replay` 接受本地 fixture，走真实 SQLite 队列 →
+  真实 git worktree → `artifacts/offline-result.json`，不启动 `zetacode`、不访问
+  GitHub、不发评论/PR。宿主数据根为 `ROBOMP_DATA_DIR`，否则 Windows
+  `%LOCALAPPDATA%\Zeta\robomp`、`$XDG_STATE_HOME/zeta/robomp`、`~/.zeta/robomp`。
+- **工作区 XDG 已改为 `zeta`**：`$XDG_*_HOME/zeta` 是产品可识别目录；
+  `.omp-xdg`/`.omp-tmp`/`.omp-session` 仍是 robomp 自用 scratch 名（改名是单独迁移）。
 - **未证明已部署**：仓库里没有“生产已启用”的证据；`ROBOMP_RELEASE_SENTINEL_ENABLED`
-  仍默认 `false`，release sentinel 不应被当成现状。
-- **已知契约缺口**（roadmap 的 robomp 容器条目）：沙箱 XDG 目录仍预建
-  `$XDG_*_HOME/omp` 而产品只认 `$XDG_*_HOME/zeta`；`PI_ROOT`/`OMP_*` 环境变量族
-  改名暂缓；工作区内部 `.omp-*` scratch 目录属于 robomp 自用。启用前必须先做
-  容器内验证，不能只在 Windows 上看源码。
+  仍默认 `false`，release sentinel 不应被当成现状；离线回放也不启用生产 bot。
+- **已知契约缺口**：`PI_ROOT`/`OMP_*` 环境变量族改名暂缓；工作区内部
+  `.omp-*` scratch 目录属于 robomp 自用。启用生产 bot 前仍必须先做容器内验证，
+  不能只在 Windows 上看源码。
 - **因此**：当前工作不是“实现一个 bot”，而是“决定是否/何时启用已有 bot”，并把
   Zeta 的发布门禁、品牌面、权限模型接上；下面的阶段表是启用顺序，不是从零建设。
 

@@ -376,9 +376,12 @@ def create_app(settings: Settings | None = None, *, pool_factory: _PoolFactory =
     ) -> JSONResponse:
         bag = request.app.state.bag
         cfg: Settings = bag["settings"]
+        secret = cfg.github_webhook_secret
+        if secret is None:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "webhook secret is not configured")
         body = await request.body()
         if not github_events.verify_signature(
-            cfg.github_webhook_secret.get_secret_value(),
+            secret.get_secret_value(),
             body,
             x_hub_signature_256,
         ):

@@ -34,6 +34,11 @@
 - **桌面音频桥**：Electron preload 新增 `attachLiveAudio`/`appendLiveAudio`/`detachLiveAudio` 与 macOS 麦克风权限方法；Main 逐帧串行 POST 到 loopback `/api/dictation/audio*`，Worklet 16 kHz mono Float32 帧（1280 B / 20 ms）在 Host 转为采样并送入现有流式/云端转写。`stop` 先排空队列再转写，`cancel`/`detach` 丢弃输入且不产出文本。
 - **能力门禁**：只有 Host 能力清单同时声明 `dictation.status/prepare/start/stop/cancel` 且 Desktop preload 提供完整 `attachLiveAudio`/`appendLiveAudio`/`detachLiveAudio` + `getUserMedia` 时才挂载听写控件；否则不渲染、不轮询、不伪造浏览器回退。`stt.enabled=false` 时显示设置提示而非死按钮。
 - **测试**：Host 边界测试（能力清单注册、乱序/越界/错误会话/stop flush/cancel 无输出/start 被拒/未 start 的 stop 报错）、桌面 relay 测试（attach/detach 幂等、帧校验、串行 POST、Host 错误传播）与 composer 门控测试（桥缺失/部分桥/能力缺失/远端）均不下载模型、不依赖麦克风。ADR 0027（草稿）记录 Host/Desktop 边界。
+
+### robomp 离线回放与宿主路径（未发布）
+- **`robomp triage/replay/status --offline`**：本地 fixture 走真实 SQLite 队列 → 真实 git worktree → `artifacts/offline-result.json`；不启动 `zetacode`、不访问 GitHub、不发评论/PR、不启用 release sentinel。`triage`/`replay` 接受 `--fixture`，终态回放需 `--force`；崩溃后 `running` 行可在下次回放恢复，重复 delivery id 按主键去重。
+- **宿主数据根**：默认 `ROBOMP_DATA_DIR`，否则 Windows `%LOCALAPPDATA%\Zeta\robomp`、`$XDG_STATE_HOME/zeta/robomp`、`~/.zeta/robomp`；Compose 继续显式使用 `/data`。工作区 XDG 产品子目录改为 `zeta`（`.omp-*` scratch 名保留）。
+- **明确未启用生产 bot**：本轮只交付离线可回放契约；webhook、自动评论、PR、release sentinel 均未开启。
 ### Work Studio 诊断（未发布）
 - **系统 Runtime 不再被误报为未安装**：当 Host 自身就是运行中的 `compatible-system` Runtime（源码/开发构建）时，诊断页显示「系统 Runtime 运行正常（未托管）」、托管卡片「系统 Runtime（未托管）」、签名「不适用（无托管制品）」、上游「本机 Runtime · 无上游记录」；`runtime.install` 与 `runtime.ensure` 能力分开渲染，不再给出必败的 Install 按钮，也不再弹「无法确认 Runtime 工件通道」。运行中的托管 Runtime 缺少安装记录改为黄色提示，launch/handshake/断连失败保留自身错误文案。
 

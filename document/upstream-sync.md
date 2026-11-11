@@ -1,11 +1,11 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.18.2
+## Integrated through: v18.18.3
 
-_(`v18.16.0` was the header until 2026-11-08; the v18.18.0 round below is
-merged onto `sync/omp-release/v18.18.0`, and post-PR-#245 `main` is merged in
-on top. Previous headers: `v18.15.0` until 2026-11-05, `v18.16.0` until this
-round.)_
+_(`v18.18.2` was the header until 2026-11-09; the v18.18.3 round is PR #272 on
+`sync/omp-release/v18.18.3`. Previous headers: `v18.16.0` until 2026-11-08,
+`v18.18.0` until the v18.18.2 round. `v18.18.8` is a later official upstream
+release and is NOT integrated; see the probe below.)_
 
 ## Sync cadence: on demand (2026-10-21 ruling)
 
@@ -2985,6 +2985,33 @@ observation points moved onto the state each assertion actually depends on.
   from the main checkout (damage class 5); `out-replies.test.ts` fails its temp
   cleanup with `EBUSY` on Windows only; the four `judgment-chain` cache tests time
   out on `main` as well.
+
+## v18.18.3 integration (2026-11-09)
+
+- **Merge**: PR **#272** `91d36c798785bb84f7771157b7beac20fc78b267`
+  (`Merge pull request #272 from Linxira-OS/sync/omp-release/v18.18.3`) has
+  first parent `b24a09b0d5a54b7c6f67b9b85acfc7d5e2ad9c37` (`main`) and second
+  parent `bdcc8274717307ad9529610aeaa2493332e1143b`
+  (`sync/omp-release/v18.18.3`).
+- **Source tag**: `v18.18.3` = `21f1188cf88b2f534c092181968cd5a4d1a9c296`.
+  Both `git merge-base --is-ancestor v18.18.3 91d36c79878` and
+  `git merge-base --is-ancestor v18.18.3 main` are true; tag-to-tag from the
+  `v18.18.2` baseline (`cb4801a7d6db`) is 55 commits. True merge, no
+  squash/rebase/cherry-pick.
+- **Status**: integrated on `main`; this corrects the earlier header that
+  stopped at `v18.18.2`. `v18.18.8` is **not** integrated.
+
+### Probe 2026-11-11 (read-only, no sync)
+
+- Latest official upstream release: `v18.18.8`
+  (`679691a78141de0dd6ba1b7a5d5c1b1d7d967a63`, published
+  2026-11-11T03:31:40Z), verified with `git ls-remote --tags omp-upstream`
+  and `gh release view`.
+- **Not integrated**: `v18.18.8` is a candidate for a future user-named tag
+  sync, not a baseline. No merge/cherry-pick was performed for this probe.
+- Agent-policy delta: `AGENTS.md` and `CONTRIBUTING.md` are byte-identical from
+  `v18.18.2` through `v18.18.8`; the window's changes are runtime code/docs,
+  not agent rules.
 
 ## v18.18.2 integration (2026-11-09)
 

@@ -29,6 +29,7 @@
 
 | 分支 | 类别 | 内容 | 负责人 | 建立 | 何时删 |
 |---|---|---|---|---|---|
+| `fix/report-automation` | fix | REQ060 roboomp 离线回放/XDG/CLI + REQ022 v18.18.3 台账纠正；worktree `temp/report-automation`（sparse） | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
 | `park/session-fork-diff` | park | 会话 fork 结构差异：`forkDiff(a,b)` 按 entry id 分出 added/removed/changed 与共同祖先；含 `session fork --diff` 接线与 8 个测试。**原 `feat/superagent-runtime`**，2026-11-01 已 commit（`2e542337c1d`） | user | 2026-10-31 | 决定是否把 diff 暴露给 `session fork` 之后再动 |
 | `feat/pet-rust` | park | 桌宠 Rust crate（未提交，9 files，`main/crates/zetapet/`） | user | 2026-10-21 | P1 暂缓；保持 park，不动 |
 | `feat/pet-packaging` | park | 桌宠 npm 打包（未提交，5 files，`main/npm/pet/`） | user | 2026-10-21 | 同上 |

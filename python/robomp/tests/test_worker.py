@@ -370,7 +370,7 @@ async def test_run_rpc_uses_workspace_xdg_dirs_without_slot(tmp_path: Path, sett
     for key in ("XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"):
         path = Path(env[key])
         assert path.is_relative_to(xdg_root)
-        assert (path / "omp").is_dir()
+        assert (path / "zeta").is_dir()
     tmpdir = inputs.workspace.root / ".omp-tmp"
     assert env["TMPDIR"] == str(tmpdir)
     assert env["TMP"] == str(tmpdir)
@@ -412,7 +412,7 @@ async def test_run_rpc_uses_workspace_xdg_dirs_for_slot_without_chown(
     for key in ("XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"):
         base = Path(env[key])
         assert base.is_dir()
-        assert (base / "omp").is_dir()
+        assert (base / "zeta").is_dir()
     assert Path(env["BUN_INSTALL_CACHE_DIR"]).is_dir()
     assert chown_calls == []
 

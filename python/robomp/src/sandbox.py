@@ -566,7 +566,7 @@ def _prepare_slot_runtime_env(workspace: Workspace, slot_uid: int | None) -> dic
 
     for base in (xdg_data, xdg_state, xdg_cache):
         base.mkdir(parents=True, exist_ok=True)
-        (base / "omp").mkdir(parents=True, exist_ok=True)
+        (base / "zeta").mkdir(parents=True, exist_ok=True)
     bun_cache.mkdir(parents=True, exist_ok=True)
 
     return {
@@ -605,7 +605,7 @@ def _provision_runtime_dirs(ws_root: Path) -> None:
     for sub in ("data", "state", "cache"):
         base = xdg_root / sub
         base.mkdir(parents=True, exist_ok=True)
-        (base / "omp").mkdir(parents=True, exist_ok=True)
+        (base / "zeta").mkdir(parents=True, exist_ok=True)
     (xdg_root / "cache" / "bun-install").mkdir(parents=True, exist_ok=True)
 
 

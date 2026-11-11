@@ -450,6 +450,42 @@ class Database:
                 last_error=row["last_error"],
             )
 
+    def claim_event(self, delivery_id: str) -> EventRow | None:
+        """Atomically claim one specific queued event into running state.
+
+        Offline replay uses this instead of `claim_next_event()` so it cannot
+        execute an unrelated queued delivery when the database has more than
+        one row.
+        """
+        with self._txn() as conn:
+            now = _utcnow()
+            row = conn.execute(
+                """
+                SELECT delivery_id, event_type, repo, issue_key, payload_json, received_at,
+                       state, attempts, last_error
+                FROM events
+                WHERE delivery_id = ? AND state = 'queued'
+                """,
+                (delivery_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            conn.execute(
+                "UPDATE events SET state='running', attempts=attempts+1, started_at=? WHERE delivery_id=?",
+                (now, delivery_id),
+            )
+            return EventRow(
+                delivery_id=row["delivery_id"],
+                event_type=row["event_type"],
+                repo=row["repo"],
+                issue_key=row["issue_key"],
+                payload=json.loads(row["payload_json"]),
+                received_at=row["received_at"],
+                state="running",
+                attempts=int(row["attempts"]) + 1,
+                last_error=row["last_error"],
+            )
+
     def mark_event(self, delivery_id: str, state: EventState, *, error: str | None = None) -> None:
         with self._lock:
             self._conn.execute(

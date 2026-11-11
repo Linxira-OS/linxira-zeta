@@ -759,7 +759,7 @@ def test_provision_runtime_dirs_replaces_tmpdir_symlink_and_creates_xdg_tree(tmp
     assert stat.S_IMODE(tmpdir.stat().st_mode) == 0o700
     for base in (tmp_path / ".omp-xdg" / "data", tmp_path / ".omp-xdg" / "state", tmp_path / ".omp-xdg" / "cache"):
         assert base.is_dir()
-        assert (base / "omp").is_dir()
+        assert (base / "zeta").is_dir()
     assert (tmp_path / ".omp-xdg" / "cache" / "bun-install").is_dir()
 
 
@@ -828,7 +828,7 @@ def test_prepare_slot_runtime_env_returns_workspace_private_paths_without_chown(
     assert env["BUN_INSTALL_CACHE_DIR"] == str(bun_cache)
     for base in (ws.root / ".omp-xdg" / "data", ws.root / ".omp-xdg" / "state", ws.root / ".omp-xdg" / "cache"):
         assert base.is_dir()
-        assert (base / "omp").is_dir()
+        assert (base / "zeta").is_dir()
     assert bun_cache.is_dir()
     assert chowns == []
     assert calls == []
@@ -1071,11 +1071,11 @@ def test_ensure_workspace_provisions_and_slot_owns_runtime_dirs(
         paths = [
             ws_root / ".omp-tmp",
             ws_root / ".omp-xdg" / "data",
-            ws_root / ".omp-xdg" / "data" / "omp",
+            ws_root / ".omp-xdg" / "data" / "zeta",
             ws_root / ".omp-xdg" / "state",
-            ws_root / ".omp-xdg" / "state" / "omp",
+            ws_root / ".omp-xdg" / "state" / "zeta",
             ws_root / ".omp-xdg" / "cache",
-            ws_root / ".omp-xdg" / "cache" / "omp",
+            ws_root / ".omp-xdg" / "cache" / "zeta",
             ws_root / ".omp-xdg" / "cache" / "bun-install",
         ]
         runtime_paths.extend(paths)
@@ -1105,11 +1105,11 @@ def test_ensure_workspace_provisions_and_slot_owns_runtime_dirs(
     assert set(runtime_paths) == {
         ws.root / ".omp-tmp",
         ws.root / ".omp-xdg" / "data",
-        ws.root / ".omp-xdg" / "data" / "omp",
+        ws.root / ".omp-xdg" / "data" / "zeta",
         ws.root / ".omp-xdg" / "state",
-        ws.root / ".omp-xdg" / "state" / "omp",
+        ws.root / ".omp-xdg" / "state" / "zeta",
         ws.root / ".omp-xdg" / "cache",
-        ws.root / ".omp-xdg" / "cache" / "omp",
+        ws.root / ".omp-xdg" / "cache" / "zeta",
         ws.root / ".omp-xdg" / "cache" / "bun-install",
     }
     assert set(owned.values()) == {(2001, 2001)}
@@ -2420,7 +2420,7 @@ def _seed_reclaimable_workspace(mgr: SandboxManager, repo: str, number: int) -> 
         "repo/src",
         ".omp-session",
         ".omp-xdg/cache/bun-install",
-        ".omp-xdg/state/omp",
+        ".omp-xdg/state/zeta",
         ".omp-tmp",
         "artifacts",
     ):
@@ -2430,7 +2430,7 @@ def _seed_reclaimable_workspace(mgr: SandboxManager, repo: str, number: int) -> 
     (ws_root / "repo/src/keep.ts").write_text("keep", encoding="utf-8")
     (ws_root / ".omp-session/session.jsonl").write_text("{}", encoding="utf-8")
     (ws_root / ".omp-xdg/cache/bun-install/pkg.tgz").write_text("x", encoding="utf-8")
-    (ws_root / ".omp-xdg/state/omp/state.json").write_text("{}", encoding="utf-8")
+    (ws_root / ".omp-xdg/state/zeta/state.json").write_text("{}", encoding="utf-8")
     (ws_root / ".omp-tmp/scratch").write_text("x", encoding="utf-8")
     (ws_root / "artifacts/run.log").write_text("x", encoding="utf-8")
     return ws_root
@@ -2451,7 +2451,7 @@ def test_reclaim_workspace_caches_strips_dep_caches_and_preserves_state(tmp_path
     assert not (ws_root / ".omp-tmp").exists()
     assert (ws_root / "repo/src/keep.ts").read_text(encoding="utf-8") == "keep"
     assert (ws_root / ".omp-session/session.jsonl").exists()
-    assert (ws_root / ".omp-xdg/state/omp/state.json").exists()
+    assert (ws_root / ".omp-xdg/state/zeta/state.json").exists()
     assert (ws_root / "artifacts/run.log").exists()
     assert not list(ws_root.glob(".trash-*"))
 
