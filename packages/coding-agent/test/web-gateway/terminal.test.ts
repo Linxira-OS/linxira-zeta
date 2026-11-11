@@ -56,6 +56,9 @@ import type { ResolvedTerminal } from "../../src/server/web-gateway/open";
 import { CUSTOM_PROFILES_ENV, resetShellProfileCacheForTests } from "../../src/server/web-gateway/terminal-profiles";
 import { DeviceRegistry, setDeviceRegistryForTest } from "../../src/server/auth/device-registry";
 import { setResourceOwnership } from "../../src/server/web-gateway/binding-guard";
+import { webGatewayFetch } from "../../src/server/web-gateway";
+import { setStudioHostForTest } from "../../src/server/studio-host/index.js";
+import { WebConfig } from "../../src/config/web-config";
 
 const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", CUSTOM_PROFILES_ENV];
 const savedEnv = new Map<string, string | undefined>();
@@ -88,6 +91,8 @@ afterEach(async () => {
 	dropDeviceTerminalSockets();
 	setDeviceRegistryForTest(undefined);
 	setResourceOwnership(undefined);
+	setStudioHostForTest(undefined);
+	WebConfig.resetShared();
 	resetShellProfileCacheForTests();
 });
 
@@ -854,6 +859,89 @@ describe("terminal WS upgrade gate", () => {
 		expect(closed).toEqual([{ code: 4001, reason: "device revoked" }]);
 		terminalWebSocketHandler.message?.(ws, "after revoke");
 		expect(fakePtys.at(-1)?.written).toEqual(["hello"]);
+	});
+
+	test("DELETE device closes its real terminal WS and blocks further input", async () => {
+		const agentDir = await setup("machine-secret");
+		WebConfig.resetShared();
+		const registry = new DeviceRegistry(join(agentDir, "auth", "devices.json"));
+		setDeviceRegistryForTest(registry);
+		const device = await registry.issue({ scopes: ["write"] });
+		installFakePty();
+		const server = Bun.serve<TerminalWsData>({
+			port: 0,
+			async fetch(req, srv) {
+				const remoteAddr = srv.requestIP(req)?.address;
+				if (isTerminalWsUpgradeRequest(req)) {
+					const response = await handleTerminalWsUpgrade(req, srv, remoteAddr);
+					return response ?? undefined;
+				}
+				return webGatewayFetch(req, remoteAddr);
+			},
+			websocket: {
+				open(ws) {
+					void terminalWebSocketHandler.open?.(ws);
+				},
+				message(ws, message) {
+					terminalWebSocketHandler.message?.(ws, message);
+				},
+				close(ws) {
+					terminalWebSocketHandler.close?.(ws);
+				},
+			},
+		});
+		const base = `http://127.0.0.1:${server.port}`;
+		const peer = { "x-forwarded-for": "203.0.113.9" } as const;
+		try {
+			const createdResponse = await fetch(`${base}/api/terminal`, {
+				method: "POST",
+				headers: { ...peer, authorization: `Bearer ${device.token}`, "content-type": "application/json" },
+				body: JSON.stringify({ cwd: process.cwd() }),
+			});
+			expect(createdResponse.status).toBe(200);
+			const created = (await createdResponse.json()) as { id: string; ticket: string };
+			const opened = Promise.withResolvers<void>();
+			const closed = Promise.withResolvers<{ code: number; reason: string }>();
+			const connect = globalThis.WebSocket as unknown as new (
+				url: string,
+				options: { headers: Record<string, string> },
+			) => WebSocket;
+			const ws = new connect(
+				`ws://127.0.0.1:${server.port}/api/terminal/${created.id}/ws?ticket=${encodeURIComponent(created.ticket)}`,
+				{ headers: { ...peer, authorization: `Bearer ${device.token}` } },
+			);
+			ws.onopen = () => opened.resolve();
+			ws.onclose = event => {
+				opened.reject(new Error(`closed before open: ${event.code} ${event.reason}`));
+				closed.resolve({ code: event.code, reason: event.reason });
+			};
+			ws.onerror = () => opened.reject(new Error("terminal websocket error"));
+			await opened.promise;
+
+			const revoke = await fetch(`${base}/api/remote/devices/${device.device.id}`, {
+				method: "DELETE",
+				headers: { ...peer, authorization: "Bearer machine-secret" },
+			});
+			expect(revoke.status).toBe(200);
+			const closeEvent = await closed.promise;
+			expect(closeEvent.code).toBe(4001);
+			expect(closeEvent.reason).toBe("device revoked");
+
+			// The device cannot write through the closed socket or mint a fresh ticket.
+			try {
+				ws.send("after revoke");
+			} catch {
+				// The socket is already closed; this is the expected state.
+			}
+			expect(fakePtys.at(-1)?.written).toEqual([]);
+			const ticketAfter = await fetch(`${base}/api/terminal/${created.id}/ticket`, {
+				method: "POST",
+				headers: { ...peer, authorization: `Bearer ${device.token}` },
+			});
+			expect(ticketAfter.status).toBe(401);
+		} finally {
+			server.stop(true);
+		}
 	});
 
 	test("isTerminalWsUpgradeRequest matches only terminal WS paths", () => {
