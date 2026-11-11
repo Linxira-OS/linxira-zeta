@@ -111,10 +111,11 @@ describe("DirectoryPickerOverlay", () => {
 		expect(overlay.current).toBe("/home/me/project");
 	});
 
-	it("selects the current folder from the first row", () => {
+	it("reports the current folder instead of switching to it", () => {
 		const { overlay, options } = build();
 		overlay.handleInput("\r");
-		expect(options.onSelect).toHaveBeenCalledWith("/home/me/project");
+		expect(options.onSelect).not.toHaveBeenCalled();
+		expect(overlay.renderContent(80).join("\n")).toContain("Already in");
 	});
 
 	it("switches immediately on a pin — it does not descend into it", () => {

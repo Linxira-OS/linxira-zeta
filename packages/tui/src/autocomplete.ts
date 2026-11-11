@@ -256,6 +256,8 @@ export interface SlashCommand {
 	argumentHint?: string;
 	/** Whether the command consumes argument text after the command name. False means the full input stays normal prompt text once args are present. */
 	allowArgs?: boolean;
+	/** Argument completion is directory-only; never fall through to file completion. */
+	argumentCompletionOnly?: boolean;
 	/** Dynamic display-only description for slash-command autocomplete. Must be synchronous and side-effect free. */
 	getAutocompleteDescription?: () => string | undefined;
 	// Function to get argument completions for this command
@@ -762,6 +764,9 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 							prefix: argumentText,
 						};
 					}
+					// Directory-only commands must not receive the generic file
+					// fallback below; accepting a file there always fails `/cd`.
+					if (command.argumentCompletionOnly === true) return null;
 				}
 			}
 		}
@@ -1304,6 +1309,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		if (textBeforeCursor.trim().startsWith("/") && !textBeforeCursor.trim().includes(" ")) {
 			return null;
 		}
+		if (this.#isArgumentOnlyCommand(textBeforeCursor)) return null;
 
 		// Force extract path prefix - this will always return something
 		const pathMatch = this.#extractPathPrefix(textBeforeCursor, true);
@@ -1329,8 +1335,21 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		if (textBeforeCursor.trim().startsWith("/") && !textBeforeCursor.trim().includes(" ")) {
 			return false;
 		}
+		if (this.#isArgumentOnlyCommand(textBeforeCursor)) return false;
 
 		return true;
+	}
+
+	/** Whether the caret is in the argument text of a directory-only command. */
+	#isArgumentOnlyCommand(textBeforeCursor: string): boolean {
+		const trimmed = textBeforeCursor.trimStart();
+		if (!trimmed.startsWith("/")) return false;
+		const spaceIndex = trimmed.indexOf(" ");
+		if (spaceIndex === -1) return false;
+		const commandName = trimmed.slice(1, spaceIndex);
+		return this.#commands.some(
+			command => commandMatchesNameOrAlias(command, commandName) && command.argumentCompletionOnly === true,
+		);
 	}
 
 	/** Get inline hint text for slash commands with subcommand hints */

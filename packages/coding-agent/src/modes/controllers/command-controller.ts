@@ -91,7 +91,7 @@ import {
 import { formatProviderName } from "@linxiraos/pi-tui/chrome/format";
 import { formatCompactQuota } from "@linxiraos/pi-tui/overlays/advisor-config";
 import { outputMeta } from "../../tools/output-meta";
-import { resolveToCwd, stripOuterDoubleQuotes } from "../../tools/path-utils";
+import { resolveShellDirectory, stripOuterDoubleQuotes } from "../../tools/path-utils";
 import { replaceTabs, shortenEmbeddedPaths, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
 import {
 	getChangelogPath,
@@ -1528,11 +1528,15 @@ export class CommandController {
 	 * it. The active session file and artifacts are moved into the target
 	 * directory's session bucket so `/resume` from that directory can find it.
 	 */
-	async handleMoveCommand(targetPath?: string): Promise<void> {
+	async handleMoveCommand(
+		targetPath?: string,
+		options: { allowCreate?: boolean } = {},
+	): Promise<void> {
 		if (this.ctx.session.isStreaming) {
 			this.ctx.showWarning("Wait for the current response to finish or abort it before moving.");
 			return;
 		}
+		const allowCreate = options.allowCreate !== false;
 
 		let input: string | undefined = targetPath?.trim() || undefined;
 
@@ -1554,17 +1558,39 @@ export class CommandController {
 		}
 
 		const cwd = this.ctx.sessionManager.getCwd();
-		const resolvedPath = resolveToCwd(unquoted, cwd);
+		// A shell `cd` target: a bare `/` is the filesystem root, not the
+		// workspace-root alias used for read/write tool paths.
+		const resolvedPath = resolveShellDirectory(unquoted, cwd);
+		const targetKey = process.platform === "win32" ? resolvedPath.toLowerCase() : resolvedPath;
+		const cwdKey = process.platform === "win32" ? path.resolve(cwd).toLowerCase() : path.resolve(cwd);
+		if (targetKey === cwdKey) {
+			this.ctx.showStatus(`Already in ${resolvedPath}`);
+			return;
+		}
 
-		// If the directory doesn't exist, offer to create it.
-		let isDirectory: boolean;
+		// If the directory doesn't exist, offer to create it only where the
+		// command allows it; /cd is existing-directory-only in every host.
+		let isDirectory = false;
+		let exists = false;
 		try {
-			isDirectory = (await fs.stat(resolvedPath)).isDirectory();
+			const stat = await fs.stat(resolvedPath);
+			exists = true;
+			isDirectory = stat.isDirectory();
 		} catch {
 			isDirectory = false;
 		}
 
 		if (!isDirectory) {
+			if (!allowCreate) {
+				this.ctx.showError(
+					exists ? `Not a directory: ${resolvedPath}` : `Directory does not exist: ${resolvedPath}`,
+				);
+				return;
+			}
+			if (exists) {
+				this.ctx.showError(`Not a directory: ${resolvedPath}`);
+				return;
+			}
 			const parentDir = path.dirname(resolvedPath);
 			let parentExists = false;
 			try {
@@ -1642,7 +1668,7 @@ export class CommandController {
 			return;
 		}
 		if (!picked) return;
-		await this.handleMoveCommand(picked);
+		await this.handleMoveCommand(picked, { allowCreate: false });
 	}
 
 	/**

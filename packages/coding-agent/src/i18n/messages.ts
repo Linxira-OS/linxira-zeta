@@ -1995,6 +1995,16 @@ export interface Messages {
 	cdPickerPinned: string;
 	cdPickerPinnedFmt: string;
 	cdPickerUnpinnedFmt: string;
+	cdPickerEmptyFolder: string;
+	cdPickerUnreadableFmt: string;
+	cdPickerRootsLoading: string;
+	cdPickerRootsEmpty: string;
+	cdPickerRootsErrorFmt: string;
+	cdPickerRefreshing: string;
+	cdPickerRefreshed: string;
+	cdPickerRetryHint: string;
+	cdPickerUnavailableFmt: string;
+	cdPickerAlreadyHereFmt: string;
 	startupHomeTempNotice: string;
 	cmdMove: string;
 	cmdAddDir: string;

@@ -82,7 +82,7 @@ describe("/cd", () => {
 	it("moves directly when a path is given", async () => {
 		const { ctx, showDirectoryPicker, handleMoveCommand } = runtime();
 		expect(await executeBuiltinSlashCommand("/cd /work/project", { ctx })).toBe(true);
-		expect(handleMoveCommand).toHaveBeenCalledWith("/work/project");
+		expect(handleMoveCommand).toHaveBeenCalledWith("/work/project", { allowCreate: false });
 		expect(showDirectoryPicker).not.toHaveBeenCalled();
 	});
 
