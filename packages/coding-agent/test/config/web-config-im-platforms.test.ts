@@ -73,7 +73,9 @@ describe("web.yml — Discord/QQ as explicit instances", () => {
 		const discord = reloaded.getChannelInstance("discord");
 		expect(discord?.platform).toBe("discord");
 		expect(discord?.allow).toEqual({ peers: ["c1", "guild:g1"] });
-		expect(reloaded.getMasked().channels.instances.find(entry => entry.id === "discord")?.credentials.botToken).not.toBe("discord-token");
+		expect(
+			reloaded.getMasked().channels.instances.find(entry => entry.id === "discord")?.credentials.botToken,
+		).not.toBe("discord-token");
 		const qq = reloaded.getChannelInstance("qq");
 		expect(qq?.credentials).toMatchObject({ mode: "forward", port: 8082 });
 		expect(qq?.allow).toEqual({ peers: ["group:42"], users: ["900"] });

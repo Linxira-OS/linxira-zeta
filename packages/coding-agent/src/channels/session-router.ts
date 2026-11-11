@@ -247,7 +247,9 @@ export class SessionRouter {
 	constructor(options: {
 		coordinator: AgentSession;
 		webConfig: WebConfig;
-		getLastInbound: () => ({ channelId: ChannelInstanceId; peer: string } | { instanceId: string; peer: string }) | null;
+		getLastInbound: () =>
+			| ({ channelId: ChannelInstanceId; peer: string } | { instanceId: string; peer: string })
+			| null;
 		sendText: (channelId: ChannelInstanceId, to: string, text: string) => Promise<void>;
 		/** Default cwd for newly created bot sessions (defaults to process.cwd()). */
 		defaultCwd?: string;

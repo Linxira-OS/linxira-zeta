@@ -84,7 +84,23 @@ describe("checkAdrIndex", () => {
 
 	it("accepts the integrated ADR set 0001-0009, 0011, 0015, 0020, 0025, 0026, 0027", () => {
 		const fixture = makeFixture();
-		const ids = ["0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0011", "0015", "0020", "0025", "0026", "0027"];
+		const ids = [
+			"0001",
+			"0002",
+			"0003",
+			"0004",
+			"0005",
+			"0006",
+			"0007",
+			"0008",
+			"0009",
+			"0011",
+			"0015",
+			"0020",
+			"0025",
+			"0026",
+			"0027",
+		];
 		for (const id of ids) addAdr(fixture, id, `decision-${id}`);
 		writeIndex(fixture);
 
@@ -123,7 +139,9 @@ describe("checkAdrIndex", () => {
 		const problems = messagesFor(fixture);
 		expect(problems.some(problem => /1-not-padded\.md: expected NNNN-kebab-slug\.md/.test(problem))).toBe(true);
 		expect(problems.some(problem => /0001-Bad_Slug\.md: expected NNNN-kebab-slug\.md/.test(problem))).toBe(true);
-		expect(problems.some(problem => /0000-reserved-id\.md: ADR ID 0000 is not a legal identifier/.test(problem))).toBe(true);
+		expect(
+			problems.some(problem => /0000-reserved-id\.md: ADR ID 0000 is not a legal identifier/.test(problem)),
+		).toBe(true);
 	});
 
 	it("rejects an empty placeholder ADR", () => {
