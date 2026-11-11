@@ -144,6 +144,8 @@ interface SessionRow {
 	readonly client?: SessionClient;
 	/** Client that initiated the latest durable run; absent when none was recorded. */
 	readonly runClient?: SessionClient;
+	/** Deterministic latest-task projection. */
+	readonly taskSummary?: SessionTaskSummary;
 }
 
 /** Validate one `SessionInfo` row; a row without identity or timestamps is dropped. */
@@ -161,6 +163,7 @@ function sessionRow(value: unknown): SessionRow | undefined {
 	const origin = normalizeSessionOrigin(value.origin);
 	const client = normalizeSessionClient(value.client);
 	const runClient = normalizeSessionClient(value.runClient);
+	const taskSummary = normalizeSessionTaskSummary(value.taskSummary);
 	return {
 		id,
 		cwd,
@@ -172,6 +175,7 @@ function sessionRow(value: unknown): SessionRow | undefined {
 		...(origin === undefined ? {} : { origin }),
 		...(client === undefined ? {} : { client }),
 		...(runClient === undefined ? {} : { runClient }),
+		...(taskSummary === undefined ? {} : { taskSummary }),
 	};
 }
 
@@ -215,6 +219,7 @@ function historyEntry(
 		...(row.origin === undefined ? {} : { origin: row.origin }),
 		...(row.client === undefined ? {} : { client: row.client }),
 		...(row.runClient === undefined ? {} : { runClient: row.runClient }),
+		...(row.taskSummary === undefined ? {} : { taskSummary: row.taskSummary }),
 	};
 }
 

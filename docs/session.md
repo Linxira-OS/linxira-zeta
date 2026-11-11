@@ -448,6 +448,28 @@ An IM inbound message is persisted as the real `role: "user"` entry (never re-wr
 - `!workspace` handshakes are `type: "im_control"` entries with `metadata.action` = `switch_request` | `switch_confirm` | `switch_cancel`, `requestId`, and `from`/`to` route snapshots. They are not user prompts and must be skipped by LLM context builders; a transcript viewer may render them. Pending request state and its per-chat key isolation belong to the IM channel layer, not the transcript.
 - Visibility: an IM-bound session (origin `kind: "im"`) is hidden from ordinary home/recent/history lists by default and exposed through the explicit IM/Bot filter. Ordinary Agent sessions, including a Team-origin session, are unaffected. Looking at the transcript never rewrites it.
 
+### Task summary projection
+
+A session row may carry `taskSummary` from the same bounded window the listing already reads (4 KB prefix + 32 KB tail); it is never a full-file scan and never an LLM call:
+
+```jsonc
+{
+	"status": "completed",           // completed | incomplete | unknown
+	"intent": "latest task user intent, single-line plain excerpt",
+	"result": "last assistant result of that completed turn",
+	"at": "2026-07-01T09:01:30.000Z",
+	"source": "completed_turn"       // completed_turn | open_turn | none
+}
+```
+
+- `completed_turn` requires the bounded window's final turn to be cleanly finished; `intent`/`result` are short single-line excerpts.
+- An open/interrupted/aborted/errored turn is `incomplete` with `intent` only (`open_turn`); it never borrows a previous turn's result and never presents `firstMessage`, a branch summary, or the latest IM inbound as a completed summary.
+- No reliable window/messages means the field is absent (or `status: "unknown"`); viewers show “no summary” rather than a fake one. Rows written before this projection existed have no field.
+- The projection lives in the existing scan cache, which invalidates on the file's mtime/size, so a normal session append updates it; no second store or authority.
+- Display name stays `sessionDisplayName(info)`: explicit title, else the short first-prompt rule, else `Untitled · <time>`; the raw session id is never used.
+
+Source APIs: `listSessions`/`listAllSessions` (`SessionInfo.taskSummary`), `GET /api/sessions`, `history.list` (`SessionHistoryEntry.taskSummary`), and `sessionDisplayName` for the name.
+
 ### `run_init`
 
 Durable provenance of one run of an existing session (resume/attach), appended by the process that starts that run. It carries the same `client` field name as the header, so there is no parallel `initiatedBy` authority; the header keeps the creator and the newest `run_init` names the current run.

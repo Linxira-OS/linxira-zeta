@@ -13,6 +13,12 @@ import { EVAL_STATE_CONTEXT_TYPE } from "../eval/state";
 import { recoverBackendReplicas } from "./backend-replica-recovery";
 import { visitEntriesFromFile } from "./session-loader";
 import { computeDefaultSessionDir } from "./session-paths";
+import {
+	excerptTaskText,
+	SESSION_TASK_INTENT_MAX_CHARS,
+	SESSION_TASK_RESULT_MAX_CHARS,
+	type SessionTaskSummary,
+} from "./session-task-summary";
 import { isImSession, isTeamSession, normalizeSessionOrigin, type SessionOrigin } from "./session-origin";
 import { FileSessionStorage, type SessionStorage, type SessionStorageStat } from "./session-storage";
 import { listSessionTitles, lookupSessionTitle, recordSessionTitle, recordSessionTitles } from "./session-index";
@@ -55,6 +61,12 @@ export interface SessionInfo {
 	 * scan window contained one. Absent means no recorded run or a legacy file.
 	 */
 	runClient?: SessionClient;
+	/**
+	 * Deterministic latest-task projection from the same bounded window as
+	 * {@link status}. Absent when no reliable window or no message scaling.
+	 * Never an LLM-generated summary and never a borrowed first message.
+	 */
+	taskSummary?: SessionTaskSummary;
 	title?: string;
 	/** Path to the parent session (if this session was forked or spawned as a subagent). */
 	parentSessionPath?: string;
@@ -352,6 +364,74 @@ function parseTurnLine(line: string): Message | undefined {
 	return role === "user" || role === "assistant" ? record.message : undefined;
 }
 
+/** Last message role/status in a bounded window, for a summary when `status` was unknown. */
+function statusFromBoundedEntries(entries: readonly Record<string, unknown>[]): SessionStatus | undefined {
+	for (let index = entries.length - 1; index >= 0; index--) {
+		const entry = entries[index] as { type?: unknown; message?: TailMessage } | undefined;
+		if (entry?.type === "message" && entry.message) return statusFromTailMessage(entry.message);
+	}
+	return undefined;
+}
+
+function timestampOf(entry: unknown): string | undefined {
+	if (typeof entry !== "object" || entry === null) return undefined;
+	const timestamp = (entry as { timestamp?: unknown }).timestamp;
+	return typeof timestamp === "string" && timestamp ? timestamp : undefined;
+}
+
+/**
+ * Latest-task projection from the scan's bounded entries. A clean final turn
+ * yields intent + result; an open/interrupted turn yields intent only; an
+ * unknown window yields nothing. No full-file scan and no LLM call.
+ */
+function buildSessionTaskSummary(
+	entries: readonly Record<string, unknown>[],
+	status: SessionStatus | undefined,
+): SessionTaskSummary | undefined {
+	const effective = status !== undefined && status !== "unknown" ? status : statusFromBoundedEntries(entries);
+	if (effective === undefined || effective === "unknown") return undefined;
+
+	if (effective !== "complete") {
+		let intent: string | undefined;
+		let at: string | undefined;
+		for (let index = entries.length - 1; index >= 0; index--) {
+			const entry = entries[index] as { type?: unknown; message?: { role?: string; content?: Message["content"] } } | undefined;
+			at ??= timestampOf(entry);
+			if (intent !== undefined || entry?.type !== "message" || entry.message?.role !== "user") continue;
+			intent = excerptTaskText(textContent(entry.message.content, " "), SESSION_TASK_INTENT_MAX_CHARS);
+		}
+		return { status: "incomplete", ...(intent === undefined ? {} : { intent }), ...(at === undefined ? {} : { at }), source: "open_turn" };
+	}
+
+	// Complete: the last assistant record is the result; its preceding user
+	// record is the intent of the task that just finished.
+	let assistantIndex = -1;
+	let result: string | undefined;
+	let at: string | undefined;
+	for (let index = entries.length - 1; index >= 0; index--) {
+		const entry = entries[index] as { type?: unknown; message?: { role?: string; content?: Message["content"] } } | undefined;
+		if (entry?.type !== "message" || entry.message?.role !== "assistant") continue;
+		assistantIndex = index;
+		at = timestampOf(entry);
+		result = excerptTaskText(textContent(entry.message.content, " "), SESSION_TASK_RESULT_MAX_CHARS);
+		break;
+	}
+	let intent: string | undefined;
+	for (let index = (assistantIndex >= 0 ? assistantIndex : entries.length) - 1; index >= 0; index--) {
+		const entry = entries[index] as { type?: unknown; message?: { role?: string; content?: Message["content"] } } | undefined;
+		if (entry?.type !== "message" || entry.message?.role !== "user") continue;
+		intent = excerptTaskText(textContent(entry.message.content, " "), SESSION_TASK_INTENT_MAX_CHARS);
+		break;
+	}
+	return {
+		status: "completed",
+		...(intent === undefined ? {} : { intent }),
+		...(result === undefined ? {} : { result }),
+		...(at === undefined ? {} : { at }),
+		source: "completed_turn",
+	};
+}
+
 /** The newest durable `run_init` record's initiating client in `entries`, if any. */
 function latestRunClient(entries: readonly Record<string, unknown>[]): SessionClient | undefined {
 	for (let index = entries.length - 1; index >= 0; index--) {
@@ -629,6 +709,10 @@ async function scanSessionFile(
 		const tailEntries = withStatus ? parseJsonlLenient<Record<string, unknown>>(suffix) : undefined;
 		const model = (tailEntries ? latestModelName(tailEntries) : undefined) ?? latestModelName(entries);
 		const runClient = (tailEntries ? latestRunClient(tailEntries) : undefined) ?? latestRunClient(entries);
+		const status = withStatus ? deriveSessionStatus(suffix) : undefined;
+		const taskSummary = withStatus
+			? buildSessionTaskSummary(tailEntries && tailEntries.length > 0 ? tailEntries : entries, status)
+			: undefined;
 		const messageCount = Math.max(parsedMessageCount, countMessageMarkers(content));
 		const info: SessionInfo = {
 			path: file,
@@ -638,6 +722,7 @@ async function scanSessionFile(
 			...(header.origin ? { origin: header.origin } : {}),
 			...(header.client ? { client: header.client } : {}),
 			...(runClient ? { runClient } : {}),
+			...(taskSummary ? { taskSummary } : {}),
 			title: header.title ?? shortSummary,
 			parentSessionPath: header.parentSession,
 			...(agent ? { agent } : {}),
@@ -650,7 +735,7 @@ async function scanSessionFile(
 			size,
 			firstMessage: firstMessage || "(no messages)",
 			allMessagesText: allMessages.length > 0 ? allMessages.join(" ") : firstMessage,
-			status: withStatus ? deriveSessionStatus(suffix) : undefined,
+			status,
 		};
 		// The cache keeps its own shallow copy; hits also hand out copies, so
 		// callers can never mutate the shared cached object.

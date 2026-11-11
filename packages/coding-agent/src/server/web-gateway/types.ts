@@ -10,6 +10,7 @@
 import type { SessionClient } from "../../session/session-client";
 import type { ImMessageMetadata, ImSwitchControlMetadata } from "../../session/session-im";
 import type { SessionOrigin } from "../../session/session-origin";
+import type { SessionTaskSummary } from "../../session/session-task-summary";
 
 export interface SessionHeader {
 	type: "session";
@@ -230,6 +231,8 @@ export interface SessionInfo {
 	client?: SessionClient;
 	/** Client that initiated the latest durable run; absent when none was recorded. */
 	runClient?: SessionClient;
+	/** Deterministic latest-task projection from the bounded session window. */
+	taskSummary?: SessionTaskSummary;
 	/** True when the session's cwd resolves inside the OS temp dir (scratch sessions). */
 	temp?: boolean;
 }

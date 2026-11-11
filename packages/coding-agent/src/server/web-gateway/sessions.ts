@@ -251,6 +251,7 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
 			...(origin ? { origin } : {}),
 			...(s.client ? { client: s.client } : {}),
 			...(s.runClient ? { runClient: s.runClient } : {}),
+			...(s.taskSummary ? { taskSummary: s.taskSummary } : {}),
 			...(s.cwd && isTempCwd(s.cwd) ? { temp: true } : {}),
 		} satisfies SessionInfo;
 	});
