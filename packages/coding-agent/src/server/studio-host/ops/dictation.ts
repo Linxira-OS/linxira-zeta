@@ -32,7 +32,7 @@ import { getRpcSession } from "../../web-gateway/agents.js";
 import type { CommandInput } from "../contract/index.js";
 import type { DictationState } from "../protocol/index.js";
 import type { StudioFamily } from "../registry.js";
-import { invalid } from "../gateway.js";
+import { invalid } from "../errors.js";
 import {
 	DictationAudioReject,
 	registerDictationAudioSink,
