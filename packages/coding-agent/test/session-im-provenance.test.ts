@@ -16,7 +16,7 @@ import {
 	normalizeImSwitchControlMetadata,
 } from "@linxiraos/zeta/session/session-im";
 import { isImSession } from "@linxiraos/zeta/session/session-origin";
-import { buildWebSessionContext } from "../../src/server/web-gateway/sessions";
+import { buildWebSessionContext } from "../src/server/web-gateway/sessions";
 
 const TS = "2026-07-01T09:00:00.000Z";
 
@@ -37,11 +37,11 @@ function identity(messageId: string, overrides: Record<string, unknown> = {}): R
 	};
 }
 
-function userEntry(metadata: Record<string, unknown>): Record<string, unknown> {
+function userEntry(metadata: Record<string, unknown>, parentId: string | null = null): Record<string, unknown> {
 	return {
 		type: "message",
 		id: `user-${metadata.messageId as string}`,
-		parentId: null,
+		parentId,
 		timestamp: TS,
 		message: { role: "user", content: "hello", timestamp: 0 },
 		metadata,
@@ -90,19 +90,15 @@ function transcript(): string {
 		},
 	};
 	const inboundB = { source: "im", ...identity("m3"), route: ROUTE_B };
-	return [
-		header,
-		userEntry(inboundA),
-		assistantEntry(replyA),
-		control,
-		userEntry(inboundB),
-	].map(entry => JSON.stringify(entry)).join("\n");
+	return [header, userEntry(inboundA), assistantEntry(replyA), control, userEntry(inboundB, "control-1")]
+		.map(entry => JSON.stringify(entry))
+		.join("\n");
 }
 
 describe("IM transcript provenance", () => {
 	test("the real inbound user row keeps sender/chat/route and its reply links back", () => {
 		const entries = parseSessionContent(transcript()).entries;
-		const context = buildWebSessionContext(entries as never, null);
+		const context = buildWebSessionContext(entries as never, undefined);
 
 		// Control handshakes are not LLM messages.
 		expect(context.messages.map(message => message.role)).toEqual(["user", "assistant", "user"]);
@@ -140,7 +136,7 @@ describe("IM transcript provenance", () => {
 		};
 		const context = buildWebSessionContext(
 			parseSessionContent(`${JSON.stringify(header)}\n${JSON.stringify(plain)}`).entries as never,
-			null,
+			undefined,
 		);
 		expect(context.messages).toHaveLength(1);
 		expect(context.messageMetadata).toBeUndefined();

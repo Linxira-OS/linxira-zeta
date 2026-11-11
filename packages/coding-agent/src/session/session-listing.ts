@@ -11,6 +11,7 @@ import { parseJsonlLenient } from "@linxiraos/pi-utils/stream";
 import { toError } from "@linxiraos/pi-utils/type-guards";
 import { EVAL_STATE_CONTEXT_TYPE } from "../eval/state";
 import { recoverBackendReplicas } from "./backend-replica-recovery";
+import { normalizeSessionClient, type SessionClient } from "./session-client";
 import { visitEntriesFromFile } from "./session-loader";
 import { computeDefaultSessionDir } from "./session-paths";
 import {
