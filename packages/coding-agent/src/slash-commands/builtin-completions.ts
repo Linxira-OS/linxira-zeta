@@ -391,7 +391,7 @@ export function buildDirectoryArgumentCompletions(
 					roots = [];
 				}
 			}
-			for (const root of roots) {
+			for (const root of roots ?? []) {
 				const value = absoluteDirectoryValue(root);
 				addAbsolute(root, value, value);
 			}
