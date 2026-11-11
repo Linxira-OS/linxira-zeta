@@ -9,12 +9,25 @@
  * Selecting a candidate reads the canonical persisted transcript from the
  * gateway (`GET /api/sessions/:id`); bubbles render the IM ingress's immutable
  * per-message route metadata, and switch handshakes render from the transcript
- * control events. There is no second transcript store and no second approval
- * system: pending binding controls are supplied by the IM integration.
+ * control events. There is no second transcript store.
+ *
+ * A candidate whose `bindingId` maps to a chat binding also gets the IM
+ * router's real confirm-gated switch: `GET /api/im/switch` reads the pending
+ * handshake and `POST /api/im/switch/{confirm,cancel}` applies/discards it.
+ * This pane keeps no pending state of its own and never switches optimistically.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { hostErrorMessage } from "./hostError";
 import { useI18n } from "./i18n";
+import {
+  cancelImChatSwitch,
+  confirmImChatSwitch,
+  loadImChatBindings,
+  loadImChatSwitch,
+  type ImChatBindingRef,
+  type ImChatSwitchState,
+  type ImChatSwitchTarget,
+} from "./teamImBindingGateway";
 import {
   loadImChatTranscript,
   type ImChatBubble,
@@ -26,29 +39,6 @@ import {
 import type { GatewayFetch } from "./settings/gatewayRequest";
 import "./TeamImChatPane.css";
 
-export interface ImChatTargetLabel {
-  readonly workspaceAlias?: string;
-  readonly agentId?: string;
-  readonly label: string;
-}
-
-export interface ImChatPendingBinding {
-  readonly pendingId: string;
-  readonly current: ImChatTargetLabel;
-  readonly next: ImChatTargetLabel;
-  /** IM owner's control record; displayed verbatim, never regenerated here. */
-  readonly controlRecord: string;
-  readonly requestedAt: string;
-}
-
-/** The IM/provenance owner supplies confirmation; this pane never invents one. */
-export interface ImChatBindingControl {
-  readonly current?: ImChatTargetLabel;
-  readonly pending?: ImChatPendingBinding;
-  confirm(pendingId: string): Promise<void>;
-  cancel(pendingId: string): Promise<void>;
-}
-
 function originLabel(origin: ImChatOrigin | undefined): string | undefined {
   if (!origin) return undefined;
   const parts = [
@@ -57,6 +47,15 @@ function originLabel(origin: ImChatOrigin | undefined): string | undefined {
     origin.bindingId === undefined ? undefined : `binding ${origin.bindingId}`,
   ].filter((part): part is string => part !== undefined && part !== "");
   return parts.length === 0 ? undefined : parts.join(" · ");
+}
+
+function targetLabel(target: ImChatSwitchTarget | undefined): string | undefined {
+  if (!target) return undefined;
+  const parts = [
+    target.workspaceAlias,
+    target.agentId === undefined ? undefined : `agent ${target.agentId}`,
+  ].filter((part): part is string => part !== undefined && part !== "");
+  return parts.length > 0 ? parts.join(" · ") : target.targetKey;
 }
 
 function Bubble({ bubble }: { bubble: ImChatBubble }) {
@@ -110,17 +109,14 @@ function ControlEvent({ event, zh }: { event: ImChatControlEvent; zh: boolean })
 export function TeamImChatPane({
   candidates,
   loading,
-  binding,
   fetcher,
 }: {
   /** IM backend selector rows; an empty array is an honest empty list. */
-  candidates?: readonly ImChatCandidate[];
+  candidates?: readonly ImChatCandidate[] | undefined;
   /** True while the IM selector read is in flight. */
-  loading?: boolean;
-  /** Supplied by the IM integration; absent means no binding controls are shown. */
-  binding?: ImChatBindingControl;
+  loading?: boolean | undefined;
   /** Test seam; production uses the same-origin gateway `fetch`. */
-  fetcher?: GatewayFetch;
+  fetcher?: GatewayFetch | undefined;
 }) {
   const { resolvedLanguage } = useI18n();
   const zh = resolvedLanguage.startsWith("zh");
@@ -128,11 +124,34 @@ export function TeamImChatPane({
   const [selectedSessionId, setSelectedSessionId] = useState<string | undefined>();
   const [transcript, setTranscript] = useState<ImChatTranscript | undefined>();
   const [chatLoading, setChatLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [transcriptError, setTranscriptError] = useState("");
+  const [bindings, setBindings] = useState<ImChatBindingRef[] | undefined>();
+  const [switchState, setSwitchState] = useState<ImChatSwitchState | undefined>();
+  const [switchLoading, setSwitchLoading] = useState(false);
+  const [controlError, setControlError] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [controlBusy, setControlBusy] = useState(false);
 
   const selected = rows.find(row => row.canonicalSessionId === selectedSessionId) ?? rows[0];
+  const selectedBindingId = selected?.bindingId;
+  const selectedBinding = useMemo(
+    () => (selectedBindingId ? bindings?.find(binding => binding.id === selectedBindingId) : undefined),
+    [selectedBindingId, bindings],
+  );
+
+  useEffect(() => {
+    let active = true;
+    void loadImChatBindings(fetcher)
+      .then(rows => {
+        if (active) setBindings(rows);
+      })
+      .catch(cause => {
+        if (active) setControlError(hostErrorMessage(cause, zh ? "无法读取 IM 绑定" : "Failed to read IM bindings"));
+      });
+    return () => {
+      active = false;
+    };
+  }, [fetcher, zh]);
 
   useEffect(() => {
     if (!selected) {
@@ -142,14 +161,16 @@ export function TeamImChatPane({
     let active = true;
     setTranscript(undefined);
     setChatLoading(true);
-    setError("");
+    setTranscriptError("");
     void (async () => {
       try {
         const result = await loadImChatTranscript(selected.canonicalSessionId, fetcher);
         if (!active) return;
         setTranscript(result);
       } catch (cause) {
-        if (active) setError(hostErrorMessage(cause, zh ? "读取会话内容失败" : "Failed to read transcript"));
+        if (active) {
+          setTranscriptError(hostErrorMessage(cause, zh ? "读取会话内容失败" : "Failed to read transcript"));
+        }
       } finally {
         if (active) setChatLoading(false);
       }
@@ -159,37 +180,83 @@ export function TeamImChatPane({
     };
   }, [selected, zh, fetcher]);
 
-  const cancel = useCallback(async () => {
-    if (!binding?.pending) return;
-    setControlBusy(true);
-    try {
-      await binding.cancel(binding.pending.pendingId);
-      setConfirming(false);
-    } finally {
-      setControlBusy(false);
+  useEffect(() => {
+    if (!selectedBinding) {
+      setSwitchState(undefined);
+      setSwitchLoading(false);
+      return;
     }
-  }, [binding]);
+    let active = true;
+    setSwitchLoading(true);
+    setControlError("");
+    void loadImChatSwitch(selectedBinding, fetcher)
+      .then(state => {
+        if (active) setSwitchState(state);
+      })
+      .catch(cause => {
+        if (active) {
+          setControlError(hostErrorMessage(cause, zh ? "读取切换状态失败" : "Failed to read switch state"));
+        }
+      })
+      .finally(() => {
+        if (active) setSwitchLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedBinding, fetcher, zh]);
 
-  const confirm = useCallback(async () => {
-    if (!binding?.pending) return;
+  const refreshSwitch = async () => {
+    if (!selectedBinding) return;
+    const state = await loadImChatSwitch(selectedBinding, fetcher);
+    setSwitchState(state);
+  };
+
+  const confirm = async () => {
+    if (!selectedBinding || !switchState?.pending) return;
     if (!confirming) {
       setConfirming(true);
       return;
     }
     setControlBusy(true);
+    setControlError("");
     try {
-      await binding.confirm(binding.pending.pendingId);
+      await confirmImChatSwitch(selectedBinding, switchState.pending.requestId, fetcher);
+      await refreshSwitch();
       setConfirming(false);
+    } catch (cause) {
+      setControlError(hostErrorMessage(cause, zh ? "确认切换失败" : "Failed to confirm switch"));
     } finally {
       setControlBusy(false);
     }
-  }, [binding, confirming]);
+  };
+
+  const cancel = async () => {
+    if (!selectedBinding || !switchState?.pending) return;
+    setControlBusy(true);
+    setControlError("");
+    try {
+      await cancelImChatSwitch(selectedBinding, switchState.pending.requestId, fetcher);
+      await refreshSwitch();
+      setConfirming(false);
+    } catch (cause) {
+      setControlError(hostErrorMessage(cause, zh ? "取消切换失败" : "Failed to cancel switch"));
+    } finally {
+      setControlBusy(false);
+    }
+  };
 
   const summaryText = (row: ImChatCandidate): string => {
     if (row.latestTaskSummary) return row.latestTaskSummary;
     if (row.summaryState === "incomplete") return zh ? "进行中" : "in progress";
     return "";
   };
+
+  const pending = switchState?.pending;
+  const currentTarget = targetLabel(switchState?.current);
+  const currentFallback = selected?.workspaceAlias ?? (selected?.bindingId ? selected.bindingId : undefined);
+  const pendingFrom = targetLabel(pending?.from) ?? (selected?.workspaceAlias ?? (zh ? "未知来源" : "unknown"));
+  const pendingTo = targetLabel(pending?.to) ?? (zh ? "未知目标" : "unknown");
 
   return (
     <div className="tic-root">
@@ -209,8 +276,8 @@ export function TeamImChatPane({
                   ? "IM 选择器尚未连接。"
                   : "IM selector is not connected."
                 : zh
-                  ? "最近 3 天没有 IM 会话。更早的会话请在 desktop 或 remote Studio 历史中打开。"
-                  : "No IM chats in the last 3 days. Open earlier chats in desktop or remote Studio history."}
+                  ? "最近 3 天没有 IM 会话。更早的会话请在 desktop 或 remote 的 Z Work Studio 历史中打开。"
+                  : "No IM chats in the last 3 days. Open earlier chats in desktop or remote Z Work Studio history."}
           </p>
         ) : (
           <ul>
@@ -256,14 +323,22 @@ export function TeamImChatPane({
               </div>
             </header>
 
-            {binding?.pending ? (
+            {pending ? (
               <div className="tic-pending">
                 <div>
-                  <strong>{zh ? "待确认绑定" : "Pending binding"}</strong>
+                  <strong>
+                    {pending.operation === "unbind"
+                      ? zh
+                        ? "待确认解绑"
+                        : "Pending unbind"
+                      : zh
+                        ? "待确认绑定"
+                        : "Pending binding"}
+                  </strong>
                   <span>
-                    {binding.pending.current.label} → {binding.pending.next.label}
+                    {pendingFrom} → {pendingTo}
                   </span>
-                  <code>{binding.pending.controlRecord}</code>
+                  <code>{pending.controlRecord ?? pending.requestId}</code>
                   <small>
                     {zh
                       ? "确认前普通消息仍发旧目标；确认后直达新目标。上下文不搬。"
@@ -279,14 +354,16 @@ export function TeamImChatPane({
                   </button>
                 </div>
               </div>
-            ) : binding?.current ? (
+            ) : currentTarget || currentFallback ? (
               <div className="tic-current">
                 <span>{zh ? "当前目标" : "Current target"}</span>
-                <strong>{binding.current.label}</strong>
+                <strong>{currentTarget ?? currentFallback}</strong>
+                {switchLoading ? <small>{zh ? "正在读取…" : "Reading…"}</small> : null}
               </div>
             ) : null}
 
-            {error ? <div className="tic-error">{error}</div> : null}
+            {controlError ? <div className="tic-error">{controlError}</div> : null}
+            {transcriptError ? <div className="tic-error">{transcriptError}</div> : null}
             <div className="tic-transcript">
               {chatLoading ? <div className="tic-empty">{zh ? "正在读取…" : "Loading…"}</div> : null}
               {(transcript?.bubbles ?? []).map(bubble => (
@@ -301,8 +378,8 @@ export function TeamImChatPane({
             </div>
             <p className="tic-boundary">
               {zh
-                ? "编号/名称/摘要来自 IM 后端选择器；气泡只读 canonical transcript 及其每消息来源，原始 ID 仅作后台 key。"
-                : "Numbers/names/summaries come from the IM backend selector; bubbles read the canonical transcript and its per-message origin, and raw ids stay background keys."}
+                ? "编号/名称/摘要来自 IM 后端选择器；气泡只读 canonical transcript 及其每消息来源，原始 ID 仅作后台 key。切换确认直接调用 IM router，不在本页保存 pending。"
+                : "Numbers/names/summaries come from the IM backend selector; bubbles read the canonical transcript and its per-message origin, and raw ids stay background keys. Switch confirmation calls the IM router; this page keeps no pending state."}
             </p>
           </>
         ) : (

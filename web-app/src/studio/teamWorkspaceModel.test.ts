@@ -129,7 +129,15 @@ describe("onboarding input", () => {
         engineers: "alice:core:api",
         rooms: "standup=shared",
       }),
-    ).toMatchObject({ name: "acme", root: "/work/acme", displayName: "Acme" });
+    ).toEqual({
+      name: "acme",
+      root: "/work/acme",
+      displayName: "Acme",
+      pms: [{ name: "core" }],
+      repos: [{ name: "api", link: "/work/api" }],
+      engineers: [{ name: "alice", pm: "core", repo: "api" }],
+      rooms: [{ name: "standup", shared: true, kind: "coordination" }],
+    });
   });
 
   test("a missing name or root is rejected before any plan call", () => {

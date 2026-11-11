@@ -24,7 +24,7 @@ import type {
   TeamWorkspaceTask,
 } from "@linxiraos/studio-contract";
 import { TeamPage } from "./TeamPage";
-import { TeamImChatPane, type ImChatBindingControl } from "./TeamImChatPane";
+import { TeamImChatPane } from "./TeamImChatPane";
 import { loadImChatCandidates, type ImChatCandidate } from "./teamImChatGateway";
 import { hostErrorMessage, waitReceipt } from "./hostError";
 import { useI18n } from "./i18n";
@@ -275,7 +275,6 @@ export function TeamWorkspacePage({
   client,
   initialTeamId,
   imChat,
-  imBinding,
   imCandidates,
 }: {
   client: StudioClient;
@@ -287,8 +286,6 @@ export function TeamWorkspacePage({
    * transcript.
    */
   imChat?: ReactNode;
-  /** IM-owner confirmation actions; absent hides the binding controls. */
-  imBinding?: ImChatBindingControl;
   /** Injected IM selector rows; when omitted the pane reads `/api/im/sessions`. */
   imCandidates?: readonly ImChatCandidate[];
 }) {
@@ -316,7 +313,7 @@ export function TeamWorkspacePage({
       try {
         const result = await client.query("team.list", {});
         if (!active) return;
-        setTeams(result.teams);
+        setTeams([...result.teams]);
         setTeamId(current => current || initialTeamId || result.teams[0]?.id || "");
         if (result.teams.length === 0) setTab("onboarding");
         setError("");
@@ -489,7 +486,6 @@ export function TeamWorkspacePage({
             <TeamImChatPane
               candidates={imCandidates ?? fetchedCandidates}
               loading={imLoading}
-              binding={imBinding}
             />
           )}
         </div>
@@ -519,7 +515,7 @@ export function TeamWorkspacePage({
               client={client}
               copy={copy}
               workspace={workspace}
-              doctor={doctor}
+              {...(doctor === undefined ? {} : { doctor })}
               busy={busy}
               perform={perform}
             />

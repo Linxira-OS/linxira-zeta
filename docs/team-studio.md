@@ -104,18 +104,28 @@ it was delivered to; messages without metadata render without an origin label.
 `controlEvents` render the `switch_request` / `switch_confirm` / `switch_cancel`
 handshakes recorded in the transcript. No second transcript store exists.
 
-Binding confirmation is supplied by the IM integration. The tab displays the
-current and pending target and the owner's control record; a real switch needs
-a second confirmation, and cancel is separate. Before confirmation ordinary
-messages still go to the old target; after it they go direct to the new target.
-Context is not moved. This pane does not add a second approval system, copy a
-transcript, or decide private/group capability — the IM owner does.
+Binding/source display and switch confirmation call the IM router directly. The
+pane resolves the selected candidate's `bindingId` through
+`GET /api/im/bindings`, reads the live pending handshake from
+`GET /api/im/switch` (router memory or the persisted `im_control` restore path),
+and sends `POST /api/im/switch/confirm` / `POST /api/im/switch/cancel` with the
+same chat identity and the router's `requestId`. It keeps no pending store of
+its own and applies nothing optimistically: a confirmation is only shown
+pending after a real switch request, and a failed confirm/cancel shows the
+router's error. The tab displays the current and pending target plus the owner's
+control-record id; a real switch needs a second confirmation, and cancel is
+separate. Before confirmation ordinary messages still go to the old target;
+after it they go direct to the new target. Context is not moved. This pane does
+not add a second approval system, copy a transcript, or decide private/group
+capability — the IM owner does.
 
-Integration dependency: the candidate route and the per-message
-`messageMetadata`/`controlEvents` transcript fields are owned by the IM
-integration. Until they are merged, the Team tab reports the selector as not
-connected and never falls back to a locally derived number. The candidate row
-shape currently has no `channel`; when the selector adds it, the pane shows it.
+Integration dependency: the candidate route, the per-message
+`messageMetadata`/`controlEvents` transcript fields, and the
+bindings/switch routes are owned by the IM integration. Until they are merged,
+the Team tab reports the selector as not connected, hides binding controls it
+cannot source, and never falls back to a locally derived number or a local
+pending state. The candidate row shape currently has no `channel`; when the
+selector adds it, the pane shows it.
 
 ## Boundary
 

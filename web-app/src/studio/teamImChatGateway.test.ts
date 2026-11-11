@@ -22,10 +22,20 @@ function fakeFetch(payload: unknown, calls: string[] = [], status = 200): Gatewa
 	};
 }
 
+async function rejectsWith(promise: Promise<unknown>, message: string): Promise<void> {
+	try {
+		await promise;
+	} catch (error) {
+		expect(String(error instanceof Error ? error.message : error)).toContain(message);
+		return;
+	}
+	throw new Error(`expected rejection containing ${message}`);
+}
+
 const SESSION = "sess-1" as SessionId;
 
 describe("IM candidate selector", () => {
-	test("passes the backend number, label, summary and source through unchanged", () => {
+	test("passes the backend number, label, summary and source through unchanged", async () => {
 		const calls: string[] = [];
 		const fetcher = fakeFetch(
 			{
@@ -60,29 +70,25 @@ describe("IM candidate selector", () => {
 		);
 		const rows = await loadImChatCandidates(fetcher);
 		expect(calls).toEqual(["/api/im/sessions"]);
-		expect(rows).toHaveLength(2);
-		expect(rows[0]).toMatchObject({
-			selector: "02-00009",
-			canonicalSessionId: "sess-a",
-			label: "Ops release",
-			latestTaskSummary: "Released 1.5 build",
-			summaryState: "completed",
-			bindingId: "bind-2",
-			workspaceAlias: "ops",
-			isPm: false,
-		});
-		expect(rows[1]).toMatchObject({
-			selector: "01-00003",
-			canonicalSessionId: "sess-b",
-			label: "Core prompt",
-			summaryState: "incomplete",
-			workspaceAlias: "core",
-			isPm: true,
-		});
+		expect(rows.length).toBe(2);
+		expect(rows[0]?.selector).toBe("02-00009");
+		expect(rows[0]?.canonicalSessionId).toBe("sess-a");
+		expect(rows[0]?.label).toBe("Ops release");
+		expect(rows[0]?.latestTaskSummary).toBe("Released 1.5 build");
+		expect(rows[0]?.summaryState).toBe("completed");
+		expect(rows[0]?.bindingId).toBe("bind-2");
+		expect(rows[0]?.workspaceAlias).toBe("ops");
+		expect(rows[0]?.isPm).toBe(false);
+		expect(rows[1]?.selector).toBe("01-00003");
+		expect(rows[1]?.canonicalSessionId).toBe("sess-b");
+		expect(rows[1]?.label).toBe("Core prompt");
+		expect(rows[1]?.summaryState).toBe("incomplete");
+		expect(rows[1]?.workspaceAlias).toBe("core");
+		expect(rows[1]?.isPm).toBe(true);
 		expect(rows[1]?.latestTaskSummary).toBeUndefined();
 	});
 
-	test("skips a malformed row instead of inventing a number or label", () => {
+	test("skips a malformed row instead of inventing a number or label", async () => {
 		const rows = await loadImChatCandidates(
 			fakeFetch({ sessions: [{ canonicalSessionId: "sess-x" }, { selector: "01-00001", canonicalSessionId: "sess-y", label: "Real" }] }),
 		);
@@ -90,12 +96,12 @@ describe("IM candidate selector", () => {
 	});
 
 	test("an empty selector is an empty list, not an error", async () => {
-		await expect(loadImChatCandidates(fakeFetch({ sessions: [], generatedAt: null }))).resolves.toEqual([]);
+		expect(await loadImChatCandidates(fakeFetch({ sessions: [], generatedAt: null }))).toEqual([]);
 	});
 
 	test("an unmerged or malformed route is reported, never replaced locally", async () => {
-		await expect(loadImChatCandidates(fakeFetch({ error: "Unknown route" }, [], 404))).rejects.toThrow("Unknown route");
-		await expect(loadImChatCandidates(fakeFetch({ sessions: "not-a-list" }))).rejects.toThrow("IM selector response is malformed");
+		await rejectsWith(loadImChatCandidates(fakeFetch({ error: "Unknown route" }, [], 404)), "Unknown route");
+		await rejectsWith(loadImChatCandidates(fakeFetch({ sessions: "not-a-list" })), "IM selector response is malformed");
 	});
 });
 
@@ -189,8 +195,6 @@ describe("IM canonical transcript", () => {
 	});
 
 	test("a malformed transcript response is an error, not an empty conversation", async () => {
-		await expect(loadImChatTranscript(SESSION, fakeFetch({ sessionId: "sess-1" }))).rejects.toThrow(
-			"Session transcript response is malformed",
-		);
+		await rejectsWith(loadImChatTranscript(SESSION, fakeFetch({ sessionId: "sess-1" })), "Session transcript response is malformed");
 	});
 });
