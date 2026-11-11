@@ -135,7 +135,7 @@ export async function startWindowLearning(options: WindowLearningOptions): Promi
 								await checkpoint();
 							}
 							if (window.taste && !window.tasteDone) {
-								if (cfgTasteEnabled.get(settings) && cfgTasteExtractionMode.get(settings) === "window") {
+								if (cfgMemoryBackend.get(settings) !== "off" && cfgTasteEnabled.get(settings) && cfgTasteExtractionMode.get(settings) === "window") {
 									await extractTasteWindow({
 										window,
 										settings,
