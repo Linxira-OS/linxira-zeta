@@ -58,12 +58,13 @@
 | `perf/tui-subagent-load` | fix | 多子代理 fan-out 下 TUI 响应性：`task` 批次进度更新按 100 ms 合并（leading + trailing，终态立即 flush），消除每 spawn 每 150 ms 的全卡重建/深清洗；含合并正确性与 fan-out 预算测试。worktree `temp/tui-load-perf` | agent | 2026-11-10 | 合入 `main` 后删（删前记 SHA） |
 
 | `feat/team-core` | feat | Team path/DB foundation（第一纵切）：`.zeta/team.json` / `.zeta/pm.json` 解析与上行 resolver、单库 `~/.zeta/data/zeta.db`（teams/team_pms/repos/repo_bindings/engineers/worktrees）、`zetacode team` 的 init/pm/repo/engineer/worktree/doctor（真实 `git worktree add`）；无 UI/房间/graph。worktree `temp/team-core` | agent | 2026-11-09 | 合入 `main` 后删（删前记 SHA） |
-| `docs/jcode-evaluation` | docs | jcode 只读评估结论（`document/jcode-evaluation.md`：事实/功能矩阵结论/结构性 vs 可移植性能/13 个候选全部 `Deferred — not implementation`/不借鉴清单/度量边界/复审条件）+ `roadmap.md` Deferred Queue 登记；无代码、无行为改动。worktree `temp/jcode-doc` | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
+| `chore/retire-jcode-evaluation` | chore | 退役 `docs/jcode-evaluation`（登记退役表 + 记 SHA）；顺带把评估文档里一处「Zeta 现无此机制」改为「本次未发现等价机制」，与文档自身的「未发现≠不存在」口径一致；无代码、无行为改动。worktree `temp/jcode-retire` | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
 
 ## 已退役（删除前登记）
 
 | 分支 | SHA | 退役日期 | 原因 |
 |---|---|---|---|
+| `docs/jcode-evaluation` | `b0a4f36fe80` | 2026-11-11 | 已合并（`006484a5818c038b1e50cec706387d36bec1f159`，PR #313）：`document/jcode-evaluation.md` + `roadmap.md` Deferred Queue 登记 + AGENTS §11 索引行；PR CI `42969576865`、main CI `42970403085` 均绿；worktree `temp/jcode-doc` 已删除 |
 | `docs/lkb-linkage` | `b2aa267b8a6` | 2026-11-11 | 已合并（`b2aa267b8a68d684d9146611c4b31d4bf0322d43`，PR #309）：LKB 客户端边界 + README 相关仓库链接 + GitHub Packages 不启用结论；PR CI `42960381396`、main CI `42961524864` 均绿；worktree `temp/lkb-linkage` 已删除 |
 | `feat/web-ui-studio-migration` | `b197d271a61` | 2026-11-05 | 已合并（`1d2fb36f731`，PR #233）：渲染器切到 `web-app`、Studio 宿主 `/api/v1/*`、命名归一、四项性能成本；CI run `42062805101` 33 job 全绿 |
 | `feat/ship-webapp` | `3885645f3ef` | 2026-11-06 | 已合并（`45dd66729e6`，PR #237）：渲染器随包出货、zetawork 资产退役、渲染器类型债清零、滚动布局读修复 |
