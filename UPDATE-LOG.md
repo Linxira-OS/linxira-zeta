@@ -13,6 +13,12 @@
 - **Bot 状态**：读取当前绑定/会话/模型/answer-observe/语音能力与命令示例，实例级发送测试（409 ambiguous 待后端给候选实例）。
 - **TUI `/channels`**：新增只读管理页（instances/targets/bindings、needs-review/unknown-target、legacy 合成提示）与 `enable-instance`/`disable-instance`；任何 token/secret 不进入快照或 transcript。
 - **边界**：schema/API 已在本地集成分支，运行时隔离接线与新版 UI 适配仍按各自提交合入；App/Settings 路由与真实浏览器交互需独立验证，不把后端或导出页当作完整可用能力。
+### 模型可见性与三级 Fallback（未发布，本地草稿）
+- **共享 `hiddenModels`**：WebUI 模型配置新增「模型可见性」页签，按模型/Provider 搜索，按 catalog kind（chat/tiny/image/tts/stt/search/judge/embedding/rerank/video）与角色 tag 过滤；支持逐模型隐藏、按 Provider 批量隐藏，以及当前 kind/tag 筛选结果的批量隐藏/显示。隐藏只作用于 composer 与模型选择器，不删除模型，不改 `modelRoles` / `retry.fallbackChains`；设置页始终显示全部模型，TUI alt+p、`/models` 与 `@role` 读取同一份配置。
+- **固定三级 Fallback**：WebUI 与 TUI Roles 视图统一为 Primary → Fallback 1 → Fallback 2 三个槽；Fallback 2 可空，两槽都空时写入 `[]`（明确无 fallback）。`retry.fallbackChains` 中 Fallback 2 之后的既有条目会显示并保留，只有显式「清除额外 Fallback」才会删除，不会静默截断旧配置。
+- **Host 补齐**：Studio Host `models.get` 已实现（`/api/models` + `/api/models-config` + `/api/settings/values`），并补 `models.roles.create` / `models.roles.delete` / `models.roleStorage.set`；`models.get` 接受 `workspaceId` 并透传 `x-zeta-cwd`。`/api/models` 暴露 `kind`、`roles[]` 与展示能力字段。
+- **测试**：固定槽位组合（F2 可空、`[]`、保留 extras、显式清除）、隐藏模型与角色标签、以及 Host 角色创建/删除/存储往返。真实 Host + Web Settings 的浏览器场景与 100+ 候选搜索留给父窗口统一验证。
+
 ### Work Studio 诊断（未发布）
 - **系统 Runtime 不再被误报为未安装**：当 Host 自身就是运行中的 `compatible-system` Runtime（源码/开发构建）时，诊断页显示「系统 Runtime 运行正常（未托管）」、托管卡片「系统 Runtime（未托管）」、签名「不适用（无托管制品）」、上游「本机 Runtime · 无上游记录」；`runtime.install` 与 `runtime.ensure` 能力分开渲染，不再给出必败的 Install 按钮，也不再弹「无法确认 Runtime 工件通道」。运行中的托管 Runtime 缺少安装记录改为黄色提示，launch/handshake/断连失败保留自身错误文案。
 

@@ -167,6 +167,17 @@ export function ModelVisibilityPane({
 			.map(([providerId, providerModels]) => ({ providerId, models: providerModels }));
 	}, [models, draft, query, showHidden, kindFilter, tagFilter]);
 
+	const filterMatched = useMemo(
+		() =>
+			models.filter(
+				model =>
+					(kindFilter === "all" || model.kind === kindFilter) &&
+					(tagFilter === "all" || model.roles.includes(tagFilter)),
+			),
+		[models, kindFilter, tagFilter],
+	);
+	const filterActive = kindFilter !== "all" || tagFilter !== "all";
+
 	const knownSelectors = useMemo(() => new Set(models.map(model => model.selector)), [models]);
 	const extraRules = draft.filter(rule => {
 		if (rule.endsWith("/*") || rule === "*") return false;
@@ -222,6 +233,20 @@ export function ModelVisibilityPane({
 		void persist(next);
 	};
 
+	const hideMatching = () => {
+		if (!filterActive) return;
+		const next = [...draft];
+		for (const model of filterMatched) if (!next.includes(model.selector)) next.push(model.selector);
+		void persist(next);
+	};
+
+	const showMatching = () => {
+		if (!filterActive) return;
+		let next: ReadonlyArray<string> = draft;
+		for (const model of filterMatched) next = revealModel(next, model);
+		void persist(next);
+	};
+
 	return (
 		<div className="mc-view mv-root">
 			<div className="mp-sec">
@@ -269,6 +294,22 @@ export function ModelVisibilityPane({
 					<span className="chip gray xs">
 						{t("modelConfig.visibilityHiddenCount", { hidden: hiddenCount, total: models.length })}
 					</span>
+					<button
+						type="button"
+						className="btn small outline"
+						disabled={busy || !filterActive || filterMatched.length === 0}
+						onClick={hideMatching}
+					>
+						{t("modelConfig.visibilityHideMatching", { count: filterMatched.length })}
+					</button>
+					<button
+						type="button"
+						className="btn small outline"
+						disabled={busy || !filterActive || filterMatched.length === 0}
+						onClick={showMatching}
+					>
+						{t("modelConfig.visibilityShowMatching", { count: filterMatched.length })}
+					</button>
 				</div>
 				{error ? <div className="mv-error">{error}</div> : null}
 				{gatewayError ? <div className="mv-error">{gatewayError}</div> : null}
@@ -281,8 +322,8 @@ export function ModelVisibilityPane({
 			) : (
 				groups.map(group => {
 					const providerModels = models.filter(model => model.provider === group.providerId);
-					const allHidden =
-						providerModels.length > 0 && providerModels.every(model => isModelHidden(model, draft));
+					const providerHidden = providerModels.filter(model => isModelHidden(model, draft)).length;
+					const allHidden = providerModels.length > 0 && providerHidden === providerModels.length;
 					return (
 						<section className="mp-sec mv-provider" key={group.providerId}>
 							<div className="mv-provider-head">
@@ -301,7 +342,7 @@ export function ModelVisibilityPane({
 								<button
 									type="button"
 									className="btn small outline"
-									disabled={busy || hiddenCount === 0}
+									disabled={busy || providerHidden === 0}
 									onClick={() => showProvider(group.providerId)}
 								>
 									{t("modelConfig.visibilityShowProvider")}

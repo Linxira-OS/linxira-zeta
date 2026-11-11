@@ -23,6 +23,7 @@ export const BUILTIN_MODEL_ROLES = [
   { id: "dictation", name: "Dictation", desc: "录音与音频转写" },
   { id: "judge", name: "Judge", desc: "结构化判断与批量评估" },
   { id: "widget", name: "Job widgets", desc: "后台任务实时小组件（未设置时用 Fast）" },
+  { id: "taste", name: "Taste", desc: "品味层分类与校准" },
 ] as const;
 
 /** Mirrors native roleCandidatePool; model capabilities are facts, not guesses from names. */
@@ -34,7 +35,7 @@ export function modelAcceptsRole(role: string, model: { readonly kind?: ModelKin
     case "speech": return kind === "tts";
     case "dictation": return kind === "stt";
     case "web": return kind === "search" || (kind === "chat" && model.webSearch !== undefined);
-    case "judge": return kind === "judge" || kind === "tiny" || kind === "chat";
+    case "judge": case "taste": return kind === "judge" || kind === "tiny" || kind === "chat";
     default: return kind === "chat";
   }
 }

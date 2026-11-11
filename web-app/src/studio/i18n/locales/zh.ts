@@ -1025,6 +1025,8 @@ const zhRaw = {
     "visibilitySearch": "搜索模型或供应商",
     "visibilityShowHidden": "显示已隐藏模型",
     "visibilityHiddenCount": "已隐藏 {{hidden}} / {{total}}",
+    "visibilityHideMatching": "隐藏匹配项（{{count}}）",
+    "visibilityShowMatching": "显示匹配项（{{count}}）",
     "visibilityKindFilter": "按类型筛选",
     "visibilityTagFilter": "按标签筛选",
     "visibilityAllKinds": "全部类型",

@@ -1025,6 +1025,8 @@ export const en: LocaleDictionary = {
     "visibilitySearch": "Search models or providers",
     "visibilityShowHidden": "Show hidden models",
     "visibilityHiddenCount": "{{hidden}} / {{total}} hidden",
+    "visibilityHideMatching": "Hide matching ({{count}})",
+    "visibilityShowMatching": "Show matching ({{count}})",
     "visibilityKindFilter": "Filter by kind",
     "visibilityTagFilter": "Filter by tag",
     "visibilityAllKinds": "All kinds",
