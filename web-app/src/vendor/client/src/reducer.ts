@@ -500,6 +500,19 @@ const SENSITIVE_COMMANDS: Readonly<Record<CommandName, boolean>> = {
   "team.bootstrap.apply": true,
   "team.bootstrap.resume": true,
   "team.bootstrap.rollback": true,
+  "room.create": true,
+  "room.member.add": true,
+  "room.member.remove": true,
+  "room.post": true,
+  "room.proposal.create": true,
+  "room.proposal.respond": true,
+  "room.reply": true,
+  "room.resident.park": true,
+  "room.resident.promote": true,
+  "room.resident.revive": true,
+  "room.round.stop": true,
+  "plugins.callTool": true,
+  "room.markRead": true,
 };
 
 export function isSensitiveCommand(name: CommandName): boolean {

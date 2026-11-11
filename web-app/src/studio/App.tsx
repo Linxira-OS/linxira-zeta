@@ -3560,7 +3560,7 @@ const PROMPT_SEND_PHASE_LABEL: Record<PromptSendPhase, string> = {
   initiating: "Initiating",
 };
 
-function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, selectedSessionId, viewedAgents, selectedThreadId, viewIdentity, previewProjectId, previewThreadId, sessionCreating, freshWorkspaceView, waitForNewSession, ensureNewSession, onSelectProject, onSelectPreviewProject, onSelectPreviewThread, onSelectThread, onBranchedSession, hiddenPreviewThreads, onPreviewDeckWait, sideOpen, onCloseSide, sideTab, onSideTabChange, panelWidth, onResizePanel, bottomOpen, onBottomOpenChange, bottomVisible, onBottomVisibleChange, bottomHeight, onResizeBottom, bottomTab, onBottomTabChange, onRoute, onOpenChanges, onOpenGit, composerRef, workspaceId, workspaceName, onSlashUi, onDraftSkillsChange, onUsedSkillsChange, onSessionTitleMaybeChanged, onProvisionalSessionChange, onPinCompleted, btwWindow, btwSession, btwSideHeadRect, onBtwDemoNext, onBtwPreviewAsk, createProjectNonce, compactPending, onCompactPending, onViewedTelemetryRefresh, composerDraft, onComposerDraftChange }: {
+function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, selectedSessionId, viewedAgents, selectedThreadId, viewIdentity, previewProjectId, previewThreadId, sessionCreating, freshWorkspaceView, waitForNewSession, ensureNewSession, onSelectProject, onWorkspacesChange, onSelectPreviewProject, onSelectPreviewThread, onSelectThread, onBranchedSession, hiddenPreviewThreads, onPreviewDeckWait, sideOpen, onCloseSide, sideTab, onSideTabChange, panelWidth, onResizePanel, bottomOpen, onBottomOpenChange, bottomVisible, onBottomVisibleChange, bottomHeight, onResizeBottom, bottomTab, onBottomTabChange, onRoute, onOpenChanges, onOpenGit, composerRef, workspaceId, workspaceName, onSlashUi, onDraftSkillsChange, onUsedSkillsChange, onSessionTitleMaybeChanged, onProvisionalSessionChange, onPinCompleted, btwWindow, btwSession, btwSideHeadRect, onBtwDemoNext, onBtwPreviewAsk, createProjectNonce, compactPending, onCompactPending, onViewedTelemetryRefresh, composerDraft, onComposerDraftChange }: {
   state: ViewState;
   client: ClientStateSource;
   onOpenWorktree?: ((workspaceId: string) => Promise<void>) | undefined;
@@ -3579,6 +3579,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
   previewThreadId?: string;
   onPreviewDeckWait?: (kind: ThreadWaitKind | undefined) => void;
   onSelectProject: (project: SelectedProject) => void;
+  onWorkspacesChange: (workspaces: WorkspaceListReadModel) => void;
   onSelectPreviewProject: (id: string) => void;
   onSelectPreviewThread?: (id: string) => void;
   onSelectThread?: (entry: SessionHistoryEntry) => void;
@@ -9243,6 +9244,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
             freshWorkspaceView={freshWorkspaceView}
             {...(previewMode.preview ? { previewProjectId: chrome.previewProjectId, previewThreadId: chrome.previewThreadId, onPreviewDeckWait: setPreviewDeckWait } : {})}
             onSelectProject={chrome.onSelectProject}
+            onWorkspacesChange={onWorkspacesChange}
             onSelectPreviewProject={chrome.onSelectPreviewProject}
             onSelectPreviewThread={chrome.onSelectPreviewThread}
             onSelectThread={openHistoryEntry}

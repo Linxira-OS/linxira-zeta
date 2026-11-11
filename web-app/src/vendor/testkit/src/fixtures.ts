@@ -318,6 +318,11 @@ const QUERY_INPUTS = {
   "github.pr.list": { workspaceId: WORKSPACE_ID, state: "open" },
   "github.pr.get": { workspaceId: WORKSPACE_ID, number: 1 },
   "github.pr.checks": { workspaceId: WORKSPACE_ID, number: 1 },
+  "rooms.list": {},
+  "room.get": { roomId: "room-fixture" },
+  "room.log.read": { roomId: "room-fixture", limit: 50 },
+  "room.contacts.list": { roomId: "room-fixture" },
+  "plugins.pages": {},
 } satisfies { readonly [K in QueryName]: QueryInput<K> };
 
 const QUERY_RESPONSES = {
@@ -697,6 +702,25 @@ const QUERY_RESPONSES = {
     queryName: "github.pr.checks",
     result: { workspaceId: WORKSPACE_ID, pullRequestNumber: 1, checks: [], overall: "neutral" },
   },
+  "rooms.list": { ok: true, queryName: "rooms.list", result: { rooms: [] } },
+  "room.get": {
+    ok: true,
+    queryName: "room.get",
+    result: {
+      room: { roomId: "room-fixture", kind: "repo", name: "Room", createdAt: T0, updatedAt: T0 },
+      members: [],
+      events: [],
+      rounds: [],
+      lastSeq: 0,
+    },
+  },
+  "room.log.read": { ok: true, queryName: "room.log.read", result: { roomId: "room-fixture", events: [], lastSeq: 0 } },
+  "room.contacts.list": {
+    ok: true,
+    queryName: "room.contacts.list",
+    result: { roomId: "room-fixture", contacts: [], generatedAt: T0 },
+  },
+  "plugins.pages": { ok: true, queryName: "plugins.pages", result: { plugins: [] } },
 } satisfies { readonly [K in QueryName]: ClientQueryResponse<K> };
 
 const COMMAND_RUNTIME_INSTALL: ClientCommandRequest<"runtime.install"> = {
