@@ -1479,6 +1479,7 @@ export const en: LocaleDictionary = {
       "files": "Files & Terminal",
       "tasks": "Tasks & Execution",
       "channels": "IM Channels",
+      "imRuntime": "IM runtime",
       "security": "Identity & devices",
       "advanced": "Advanced"
     },
@@ -2939,6 +2940,7 @@ export const en: LocaleDictionary = {
     "settingsFiles": "Files & Terminal Settings",
     "settingsTasks": "Tasks & Execution Settings",
     "settingsSecurity": "Identity & Device Settings",
+    "settingsImRuntime": "IM Runtime",
     "settingsChannels": "IM Channel Settings",
     "settingsAdvanced": "Advanced Settings",
     "settingsBackground": "Background Settings",

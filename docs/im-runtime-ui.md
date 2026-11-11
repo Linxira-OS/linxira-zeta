@@ -1,111 +1,67 @@
-# IM runtime UI (Studio + TUI)
+# IM 运行时（Work Studio / TUI）
 
-> Status 2026-11-11. Consumes the frozen IM runtime contract
-> **ADR-IM-0007 / INT-IM-01** (`local://im-runtime-contract.md`). The backend
-> routes are landing separately; this page never falls back to
-> `channels.<platform>` or `remote.sessionMappings`, so a half-migrated backend
-> shows its error instead of a stale second truth.
+> 状态：UI 已有本地集成分支，**尚未做真实浏览器验证**；后端实例契约见
+> `document/adr/` 中的 IM ADR（0008）。本页是使用说明，不记录临时分支、
+> 会话内契约或不存在的产品行为。
 
-## Studio page
+## 打开
 
-`web-app/src/studio/settings/ImRuntimePage.tsx` is exported for the Studio
-shell to mount (App routing is owned by the Studio lane; this slice does not
-edit `App.tsx`). The page reads and writes:
+- **Work Studio**：设置 → **IM 运行时**（也可用命令面板搜索“IM 运行时”）。
+- **桌面应用**：同一个 Work Studio 设置页，没有第二套界面。
+- **TUI**：`/channels` 打开只读管理页；`/channels enable-instance <id>` /
+  `/channels disable-instance <id>` 切换实例。凭据配对请在 Work Studio 或
+  `zetacode channels login <instance-id>` 完成 —— TUI 不接受、不打印任何密钥。
 
-| Surface | Route |
-| --- | --- |
-| Instances | `GET/PUT /api/channels/instances` |
-| Runtime state | `GET /api/channels/status` (`instances[]`) |
-| Credential validation | `POST /api/channels/instances/:id/validate` |
-| Enable / disable | `POST /api/channels/instances/:id/{enable,disable}` |
-| WeChat | `POST /api/channels/instances/:id/wechat/{qrcode,reconnect,unbind}` |
-| Bindings | `GET/PUT /api/im/bindings` |
-| Profiles + targets | `GET /api/im/agents`, `PUT /api/im/agents` (write route requested from the backend) |
-| Bot state/commands | `GET /api/im/commands?instanceId=&chatId=` |
-| One message | `POST /api/channels/send` `{ instanceId, to, text }` |
+## 实例
 
-### Instances
+同一平台可以有多个实例（例如两个飞书机器人、一个工作号一个角色号）。每个
+实例有：
 
-- One row per instance; several instances may share a platform. The instance id
-  is the runtime namespace and immutable after creation.
-- Status words come from `instances[].running/state/detail/lastError` plus
-  `configured`; an instance that is enabled but absent stays "not started".
-- Credentials are masked (`••••`) on read. The editor sends:
-  **empty → keep** (field omitted), **explicit clear → `null`**, **value →
-  replace**. The mask is never sent back as a value.
-- WeChat QR is per instance and rendered from the server's `svg`; image payloads
-  fall back to an `<img>`. Reconnect/unbind act on that instance only.
-- Validate calls the platform without writing; success reports the identity, a
-  rejection shows the gateway's redacted error.
+- 不可变的实例 ID（运行时命名空间，创建后不能改名）、显示名、备注；
+- 允许的聊天（`peers`，必填，默认拒绝）与可选用户；
+- Agent Profile、启用开关、默认目标；
+- 平台凭据：留空表示保留已保存值，勾选清除才会删除，填入新值则替换。页面上
+  已保存的密钥只显示 `••••`，不会回传明文。
+- 每实例独立的微信登录二维码、重新连接、解绑。
 
-### Bindings
+平台校验会先在平台侧验证凭据（不写盘），成功显示机器人身份，失败显示脱敏
+错误。启用一个实例只影响该实例；同一平台的另一个实例不受影响。
 
-- A row shows instance, chat/thread/user, target display, agent profile,
-  session, model and role. `needsReview` and unavailable targets are visible and
-  block a save until a usable target is selected; an unknown target is never
-  silently treated as valid.
-- At most one `answer` binding per chat; additional rows must be `observe`
-  (client-side pre-check, backend enforces).
-- The write projection strips UI-only display facts (`targetDisplay`,
-  `targetAvailable`, `needsReviewReason`) so they cannot be mistaken for caller
-  input. `sessionId` must reference an existing bot session.
+## 绑定
 
-### Agent profiles
+一条绑定把一个聊天的流量交给一个 Agent Profile 和一个目标：
 
-- Persona (`inline` / `file` / `workspace`), model, location (`workspace` /
-  `team-pm` / `engineer`), memory backend/namespace/workspace context.
-- Tool allowlists: **builtin, extensions, MCP servers, custom tools, skills,
-  commands**, plus preset and approval mode. Each list is one-per-line and
-  literal: an empty list means *none*. New profiles start with empty lists —
-  ambient tools are never inherited and `customTools` defaults to empty.
-- `capabilities` is backend-enforced metadata, not a UI permission toggle. The
-  editor does not render or change it; when present it is preserved verbatim so
-  the UI never claims a permission it does not execute.
-- The runtime identity includes `bindingId` and is computed by the backend;
-  Studio displays `agentRuntimeId` from `/api/im/commands` and never composes it.
+- 目标可以是工作区别名、Team PM 或 Engineer（由后端解析，目标不可用时不能保存）；
+- 会话必须是已存在的 Bot 会话；
+- 角色：
+  - `answer`：自动回复该聊天（每个 platform + chatId 只允许一个）；
+  - `mention`：只在本实例的机器人被 @ 时回复，**不自动回复**，同一聊天可有多条；
+  - `observe`：只记录，从不发送。
+- 显示目标、Profile、会话、模型，以及 `needsReview` / 目标不可用的原因；处于
+  这些状态的绑定不会被当成可用目标。
 
-### Bot state / commands
+## Agent Profile
 
-`GET /api/im/commands` returns the current bot, binding (role), session, model,
-voice capability and command examples. Voice reports `{supported:false,reason}`
-today and the page says so; examples are rendered verbatim. A test message goes
-through the instance-scoped send route; a 409 ambiguous response must name
-candidate instances (requested contract field).
+Profile 决定机器人如何回复：
 
-### Empty / error / loading states
+- persona（inline 文本 / 文件 / 工作区）与模型；
+- 位置：工作区、Team PM 或 Engineer；
+- 工具白名单（每行一个）：builtin、extensions、MCP servers、custom tools、
+  skills、commands，另有工具预设与审批模式。**空列表表示没有**，不会继承环境
+  里的工具；custom tools 默认空。`capabilities` 已从 schema 删除，本页不提供
+  权限开关，也不会标示未建模的权限；
+- 记忆后端、命名空间与是否携带工作区上下文；
+- 运行时身份（含 bindingId）由后端计算，页面只展示、不自拼。
 
-Every section renders loading, empty, and the gateway's own error text. There is
-no fabricated success: a missing route (e.g. `PUT /api/im/agents` before the
-backend lands) shows the 404/405 message and leaves the editor open.
+## Bot 状态
 
-## TUI `/channels`
+选择实例与聊天后，可查看后端解析出的绑定、会话、模型、answer/mention/observe、
+语音能力与命令示例，并从该实例发送一条测试消息。语音当前不支持时会显示原因。
 
-`/channels` now renders a redacted admin page (`packages/coding-agent/src/channels/admin-view.ts`):
+## 错误与限制
 
-```
-/channels status | instances | targets | bindings
-/channels enable-instance <id>
-/channels disable-instance <id>
-/channels login wechat [timeout]        (unchanged terminal QR)
-/channels enable|disable <platform>     (legacy platform rows)
-```
-
-- Instances show enabled/running/configured/state/last-error and the resolved
-  target; bindings show role, profile, session, target and `needs-review` /
-  `target-unavailable` marks; targets list availability and reasons.
-- No token, app secret or peer token ever enters the snapshot or the
-  transcript; credential login stays in Studio or the CLI.
-- If `web.yml` still has the legacy platform shape, instances are synthesized
-  with `id = platform` and the page says migration is pending. The TUI
-  `enable-instance` write uses `channels.instances` and therefore starts working
-  once the backend adds that path; until then it reports the write error
-  verbatim rather than pretending it toggled something.
-
-## Gaps
-
-- The backend routes and `imAgents` write route are not on `main` yet; this
-  branch is a local integration slice with tests against the frozen shapes.
-- Studio routing must mount `ImRuntimePage`; browser interaction is verified
-  through the real Settings page in a build window, not an isolated demo.
-- Binding creation needs an existing bot session; the contract's session
-  creation flow is not exposed by this page.
+- 加载中、空列表、网关错误分别显示；没有后端成功的操作不会显示成功。
+- 缺平台账号时，实例显示未配置/平台错误；真实机器人回复需要真实平台账号，
+  本页不会伪造在线状态。
+- 每个绑定的运行时会话/命令预览仍待 SDK 落地；在此之前只展示后端能给出的字段。
+- 浏览器交互验证尚未进行；验证不会要求生产凭据，配置/网络错误会如实显示。

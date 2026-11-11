@@ -27,7 +27,6 @@ import {
 	startSessionChannels,
 	stopActiveSessionChannels,
 } from "../../src/channels/session-host";
-import { formatChannelStatus } from "../../src/slash-commands/builtin-channels";
 import {
 	buildTuiBuiltinSlashCommands,
 	executeBuiltinSlashCommand,
@@ -176,56 +175,7 @@ describe("/channels command", () => {
 		expect(listed.some(command => command.name === "channels")).toBe(false);
 	});
 
-	test("status text names every channel and its login mode", () => {
-		const text = formatChannelStatus({
-			configPath: "/tmp/web.yml",
-			runtime: {
-				hosting: true,
-				pid: 42,
-				host: "cli",
-				startedAt: "2026-01-01T00:00:00.000Z",
-				sessionId: "s1",
-				channels: ["telegram"],
-				stale: false,
-			},
-			channels: [
-				{
-					id: "wechat",
-					enabled: true,
-					configured: false,
-					running: false,
-					boundPeers: 0,
-					workspaceRoute: { workspaceRoot: null, alias: null, source: "default" },
-					login: "qr",
-				},
-				{
-					id: "feishu",
-					enabled: false,
-					configured: false,
-					running: false,
-					boundPeers: 0,
-					workspaceRoute: { workspaceRoot: null, alias: null, source: "default" },
-					login: "credentials",
-				},
-				{
-					id: "telegram",
-					enabled: true,
-					configured: true,
-					running: true,
-					boundPeers: 2,
-					workspaceRoute: { workspaceRoot: null, alias: null, source: "default" },
-					login: "credentials",
-				},
-			],
-		});
-		expect(text).toContain("hosted by pid 42 (cli");
-		expect(text).toContain("wechat    enabled, stopped, not configured");
-		expect(text).toContain("login=qr");
-		expect(text).toContain("telegram  enabled, running, configured  peers=2");
-		expect(text).toContain("/channels login wechat");
-	});
-
-	test("help and credential guidance render in the transcript without a secret prompt", async () => {
+	test("help names the instance commands and never prompts for a secret", async () => {
 		const output: string[] = [];
 		const runtime = {
 			ctx: {
@@ -234,16 +184,39 @@ describe("/channels command", () => {
 			} as unknown as InteractiveModeContext,
 		};
 		expect(await executeBuiltinSlashCommand("/channels help", runtime)).toBe(true);
-		expect(output.at(-1)).toContain("/channels login wechat");
-
-		expect(await executeBuiltinSlashCommand("/channels login feishu", runtime)).toBe(true);
-		expect(output.at(-1)).toContain("zetacode channels login feishu");
-		expect(output.at(-1)).toContain("not entered into the TUI transcript");
+		expect(output.at(-1)).toContain("enable-instance");
+		expect(output.at(-1)).toContain("never accepts a secret");
 	});
 
-	test("/channels status reads web.yml through the command path", async () => {
+	test("/channels status renders the v2 instances and bindings", async () => {
 		const { dir } = await makeConfig({
-			channels: { wechat: { enabled: true, botToken: "tok" } },
+			channels: {
+				instances: [
+					{
+						id: "wechat-work",
+						platform: "wechat",
+						label: "Work",
+						enabled: true,
+						agentProfile: "pm-work",
+						allow: { peers: ["wx-1"] },
+						credentials: {},
+					},
+				],
+			},
+			remote: {
+				imBindings: [
+					{
+						id: "b_0123456789abcdef",
+						instanceId: "wechat-work",
+						platform: "wechat",
+						chatId: "wx-1",
+						agentProfileId: "pm-work",
+						sessionId: "s1",
+						role: "mention",
+						target: { kind: "workspace", display: "alpha" },
+					},
+				],
+			},
 		});
 		const previous = process.env.ZETA_CODING_AGENT_DIR;
 		process.env.ZETA_CODING_AGENT_DIR = dir;
@@ -258,15 +231,15 @@ describe("/channels command", () => {
 			};
 			expect(await executeBuiltinSlashCommand("/channels status", runtime)).toBe(true);
 			expect(output.at(-1)).toContain(`IM runtime — ${path.join(dir, "web.yml")}`);
-			expect(output.at(-1)).toContain("wechat");
-			expect(output.at(-1)).toContain("on,stop");
+			expect(output.at(-1)).toContain("wechat-work");
+			expect(output.at(-1)).toContain("mention");
+			expect(output.at(-1)).toContain("alpha");
 			expect(output.at(-1)).toContain("no live host");
-			// Legacy config is shown as synthesized instances, not as migrated truth.
-			expect(output.at(-1)).toContain("channels.<platform>");
 		} finally {
 			if (previous === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
 			else process.env.ZETA_CODING_AGENT_DIR = previous;
 			refreshDirsFromEnv();
 		}
 	});
+
 });

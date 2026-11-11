@@ -45,12 +45,16 @@ export interface ChannelStatus {
 	lastError?: string;
 	since?: number;
 	lastInboundAt?: number;
-	/** UI extensions requested from the backend (optional during rollout). */
+	/** Runtime facts reported by the instances status route. */
+	enabled?: boolean;
 	configured?: boolean;
 	agentProfileId?: string;
+	agentProfileLabel?: string;
 	targetDisplay?: string | null;
 	targetAvailable?: boolean;
 	targetReason?: string | null;
+	qrPending?: boolean;
+	boundPeers?: number;
 }
 
 export interface StatusEnvelope {
@@ -81,6 +85,8 @@ export interface ChannelInstance {
 export interface ImTarget {
 	kind: "workspace" | "team-pm" | "engineer" | string;
 	key?: string;
+	/** Backend target key (`targetKey` on `/api/im/agents`). */
+	targetKey?: string;
 	display?: string;
 	available?: boolean;
 	reason?: string;
@@ -111,8 +117,6 @@ export interface ImAgentTools {
 	skills: string[];
 	commands: string[];
 	approvalMode?: ImApprovalMode;
-	/** Present only when the backend truly enforces it; the editor never writes it. */
-	capabilities?: unknown;
 }
 
 export interface ImAgentProfile {
@@ -133,13 +137,21 @@ export interface ImBinding {
 	threadId?: string;
 	userId?: string;
 	agentProfileId: ImAgentProfileId;
+	/** Backend-resolved label, so the table does not have to join profiles. */
+	agentProfileLabel?: string;
 	sessionId: string;
 	target?: ImTarget;
 	/** Backend-projected display facts; optional during rollout. */
 	targetDisplay?: string;
 	targetAvailable?: boolean;
 	targetReason?: string | null;
-	role: "answer" | "observe";
+	/**
+	 * answer: replies to every allowed message in the chat.
+	 * mention: replies only when this instance's bot identity is @mentioned
+	 *          (multi-role groups) and never auto-replies.
+	 * observe: never sends; it only records.
+	 */
+	role: "answer" | "mention" | "observe";
 	lang?: "zh" | "en";
 	model?: { provider: string; model: string };
 	createdAt: string;
@@ -149,7 +161,7 @@ export interface ImBinding {
 
 export interface BotCommands {
 	bot?: { instanceId: ChannelInstanceId; label: string; platform: ChannelPlatform };
-	binding?: { id: ImBindingId; role: "answer" | "observe" };
+	binding?: { id: ImBindingId; role: "answer" | "mention" | "observe" };
 	session?: { id: string; display?: string };
 	model?: { provider: string; model: string; display?: string };
 	voice: { supported: boolean; reason?: string };
@@ -200,8 +212,12 @@ function statusOf(value: Record<string, unknown>): ChannelStatus | null {
 	if (typeof value.lastError === "string") status.lastError = value.lastError;
 	if (typeof value.since === "number") status.since = value.since;
 	if (typeof value.lastInboundAt === "number") status.lastInboundAt = value.lastInboundAt;
+	if (typeof value.enabled === "boolean") status.enabled = value.enabled;
 	if (typeof value.configured === "boolean") status.configured = value.configured;
 	if (typeof value.agentProfileId === "string") status.agentProfileId = value.agentProfileId;
+	if (typeof value.agentProfileLabel === "string") status.agentProfileLabel = value.agentProfileLabel;
+	if (typeof value.qrPending === "boolean") status.qrPending = value.qrPending;
+	if (typeof value.boundPeers === "number") status.boundPeers = value.boundPeers;
 	if (typeof value.targetDisplay === "string" || value.targetDisplay === null) {
 		status.targetDisplay = value.targetDisplay as string | null;
 	}
@@ -237,6 +253,10 @@ function targetOf(value: unknown): ImTarget | undefined {
 	if (!isRecord(value) || typeof value.kind !== "string") return undefined;
 	const target: ImTarget = { kind: value.kind };
 	if (typeof value.key === "string") target.key = value.key;
+	if (typeof value.targetKey === "string") {
+		target.targetKey = value.targetKey;
+		if (target.key === undefined) target.key = value.targetKey;
+	}
 	if (typeof value.display === "string") target.display = value.display;
 	if (typeof value.available === "boolean") target.available = value.available;
 	if (typeof value.reason === "string") target.reason = value.reason;
@@ -268,7 +288,6 @@ function toolsOf(value: unknown): ImAgentTools {
 	if (record.approvalMode === "always-ask" || record.approvalMode === "write" || record.approvalMode === "yolo") {
 		tools.approvalMode = record.approvalMode;
 	}
-	if (record.capabilities !== undefined) tools.capabilities = record.capabilities;
 	return tools;
 }
 
@@ -328,9 +347,10 @@ function bindingOf(value: Record<string, unknown>): ImBinding | null {
 		chatId: value.chatId,
 		agentProfileId: value.agentProfileId,
 		sessionId: value.sessionId,
-		role: value.role === "observe" ? "observe" : "answer",
+		role: value.role === "observe" ? "observe" : value.role === "mention" ? "mention" : "answer",
 		createdAt: typeof value.createdAt === "string" ? value.createdAt : "",
 	};
+	if (typeof value.agentProfileLabel === "string") binding.agentProfileLabel = value.agentProfileLabel;
 	if (typeof value.threadId === "string") binding.threadId = value.threadId;
 	if (typeof value.userId === "string") binding.userId = value.userId;
 	if (typeof value.lang === "string") binding.lang = value.lang === "en" ? "en" : "zh";
@@ -365,7 +385,10 @@ function commandsOf(value: unknown): BotCommands {
 		if (platform !== null) commands.bot = { instanceId: record.bot.instanceId, label: record.bot.label, platform };
 	}
 	if (isRecord(record.binding) && typeof record.binding.id === "string") {
-		commands.binding = { id: record.binding.id, role: record.binding.role === "observe" ? "observe" : "answer" };
+		commands.binding = {
+			id: record.binding.id,
+			role: record.binding.role === "observe" ? "observe" : record.binding.role === "mention" ? "mention" : "answer",
+		};
 	}
 	if (isRecord(record.session) && typeof record.session.id === "string") {
 		commands.session = {
@@ -470,6 +493,15 @@ export async function putImAgents(fetcher: ImFetch, profiles: readonly ImAgentPr
  * `needsReviewReason`) are read-only facts and must not be sent back as if they
  * were caller input.
  */
+/** The backend rejects control characters in chat/thread/user ids. */
+export function hasControlChars(value: string): boolean {
+	return /[\u0000-\u001f\u007f]/.test(value);
+}
+
+export function isValidBindingId(value: string): boolean {
+	return /^b_[0-9a-f]{16}$/.test(value);
+}
+
 export function bindingWire(binding: ImBinding): Record<string, unknown> {
 	return {
 		id: binding.id,
@@ -484,7 +516,7 @@ export function bindingWire(binding: ImBinding): Record<string, unknown> {
 		role: binding.role,
 		...(binding.lang !== undefined ? { lang: binding.lang } : {}),
 		...(binding.model !== undefined ? { model: binding.model } : {}),
-		createdAt: binding.createdAt,
+		...(binding.createdAt !== "" ? { createdAt: binding.createdAt } : {}),
 		...(binding.needsReview === true ? { needsReview: true } : {}),
 	};
 }
@@ -521,9 +553,7 @@ export async function validateInstance(
 }
 
 export async function fetchInstanceQr(fetcher: ImFetch, id: string): Promise<Record<string, unknown>> {
-	const payload = await gatewayJson(fetcher, `/api/channels/instances/${encodeURIComponent(id)}/wechat/qrcode`, {
-		method: "POST",
-	});
+	const payload = await gatewayJson(fetcher, `/api/channels/instances/${encodeURIComponent(id)}/wechat/qrcode`);
 	if (!isRecord(payload)) throw new Error("WeChat QR response is malformed");
 	return payload;
 }
@@ -680,6 +710,11 @@ export function bindingKey(binding: Pick<ImBinding, "instanceId" | "chatId" | "t
 }
 
 /** Target availability for a row; unknown targets are never silently valid. */
+/** Whether this role replies without an explicit mention. Mention never does. */
+export function roleRepliesAutomatically(role: ImBinding["role"]): boolean {
+	return role === "answer";
+}
+
 export function targetState(binding: Pick<ImBinding, "targetAvailable" | "targetReason" | "needsReview">): {
 	available: boolean;
 	reason: string | null;

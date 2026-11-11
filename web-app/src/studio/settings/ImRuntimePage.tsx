@@ -30,7 +30,9 @@ import {
 	fetchImBindings,
 	fetchInstanceQr,
 	isValidInstanceId,
+	isValidBindingId,
 	isValidProfileId,
+	hasControlChars,
 	joinedLines,
 	putChannelInstances,
 	putImAgents,
@@ -270,7 +272,6 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 			type="button"
 			className={`btn small imr-tab${tab === id ? " primary" : ""}`}
 			aria-pressed={tab === id}
-			data-tab={id}
 			onClick={() => setTab(id)}
 		>
 			{label}
@@ -278,7 +279,7 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 	);
 
 	return (
-		<section className="imr" aria-label={t("IM 运行时", "IM runtime")} data-page="im-runtime">
+		<section className="imr" aria-label={t("IM 运行时", "IM runtime")}>
 			<header className="imr-head">
 				<div>
 					<h3>{t("IM 运行时", "IM runtime")}</h3>
@@ -354,7 +355,7 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 																<div className="imr-error">{live.targetReason ?? t("目标不可用", "target unavailable")}</div>
 															) : null}
 														</td>
-														<td>{profileLabel(instance.agentProfile)}</td>
+														<td>{live?.agentProfileLabel ?? profileLabel(instance.agentProfile)}</td>
 														<td>
 															<Switch
 																checked={instance.enabled}
@@ -458,10 +459,15 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 														{binding.targetDisplay ?? binding.target?.display ?? t("未知目标", "unknown target")}
 														{!target.available ? <div className="imr-error">{target.reason === "needsReview" ? t("待复核", "needs review") : target.reason}</div> : null}
 													</td>
-													<td>{profileLabel(binding.agentProfileId)}</td>
+													<td>{binding.agentProfileLabel ?? profileLabel(binding.agentProfileId)}</td>
 													<td className="imr-mono">{binding.sessionId}</td>
 													<td>{binding.model ? `${binding.model.provider} / ${binding.model.model}` : t("继承", "inherit")}</td>
-													<td><span className={`chip sm ${binding.role === "answer" ? "green" : "gray"}`}>{binding.role}</span></td>
+													<td>
+														<span className={`chip sm ${binding.role === "answer" ? "green" : binding.role === "mention" ? "blue" : "gray"}`}>
+															{binding.role}
+														</span>
+														{binding.role === "mention" ? <div className="imr-hint">{t("仅 @ 时回复", "replies only when mentioned")}</div> : null}
+													</td>
 													<td className="imr-row-actions">
 														<button type="button" className="btn small" onClick={() => setEditingBinding(binding)}>{t("编辑", "Edit")}</button>
 														<button type="button" className="btn small danger" onClick={() => removeBinding(binding)}>{t("删除", "Delete")}</button>
@@ -596,7 +602,10 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 						<div className="imr-bot">
 							<div className="imr-facts">
 								<span className="chip sm blue">{botCommands.bot?.label ?? botInstance}</span>
-								<span className={`chip sm ${botCommands.binding?.role === "answer" ? "green" : "gray"}`}>{botCommands.binding?.role ?? t("未绑定", "unbound")}</span>
+								<span className={`chip sm ${botCommands.binding?.role === "answer" ? "green" : botCommands.binding?.role === "mention" ? "blue" : "gray"}`}>
+								{botCommands.binding?.role ?? t("未绑定", "unbound")}
+							</span>
+							{botCommands.binding?.role === "mention" ? <span className="chip sm gray">{t("不自动回复", "no auto-reply")}</span> : null}
 								<span className="chip sm gray">{botCommands.voice.supported ? t("语音可用", "voice supported") : t("语音不可用", "voice unsupported")}</span>
 							</div>
 							{!botCommands.voice.supported && botCommands.voice.reason !== undefined ? <p className="imr-hint">{botCommands.voice.reason}</p> : null}
@@ -898,7 +907,7 @@ interface BindingFormState {
 	agentProfileId: string;
 	targetKey: string;
 	sessionId: string;
-	role: "answer" | "observe";
+	role: "answer" | "mention" | "observe";
 	lang: "" | "zh" | "en";
 	provider: string;
 	model: string;
@@ -948,12 +957,25 @@ function BindingEditor({
 		binding.chatId === form.chatId.trim() &&
 		(binding.threadId ?? "") === form.threadId.trim() &&
 		(binding.userId ?? "") === form.userId.trim());
+	const duplicateId = bindings.some(binding => binding.id === form.id && binding.id !== initial?.id) || !isValidBindingId(form.id);
+	const controlChar = hasControlChars(form.chatId) || hasControlChars(form.threadId) || hasControlChars(form.userId);
+	const partialModel = (form.provider.trim() === "") !== (form.model.trim() === "");
 	const answerConflict = form.role === "answer" && bindings.some(binding =>
 		binding.id !== form.id &&
 		binding.role === "answer" &&
 		binding.platform === instances.find(instance => instance.id === form.instanceId)?.platform &&
 		binding.chatId === form.chatId.trim());
-	const canSave = form.instanceId !== "" && form.chatId.trim() !== "" && form.agentProfileId !== "" && targetUsable && form.sessionId.trim() !== "" && !duplicate && !answerConflict;
+	const canSave =
+		form.instanceId !== "" &&
+		form.chatId.trim() !== "" &&
+		form.agentProfileId !== "" &&
+		targetUsable &&
+		form.sessionId.trim() !== "" &&
+		!duplicate &&
+		!duplicateId &&
+		!controlChar &&
+		!partialModel &&
+		!answerConflict;
 	return (
 		<SettingSection title={initial === null ? t("新增绑定", "New binding") : t("编辑绑定", "Edit binding")} desc={t("目标必须是后端解析出的可用 target；needsReview 的旧绑定要重新选择目标才能保存。", "The target must be a backend-resolved available target; a needs-review row must pick a target before it can be saved.")}>
 			<form
@@ -976,7 +998,8 @@ function BindingEditor({
 						...(form.provider.trim() !== "" && form.model.trim() !== ""
 							? { model: { provider: form.provider.trim(), model: form.model.trim() } }
 							: {}),
-						createdAt: initial?.createdAt ?? new Date().toISOString(),
+						// Omitted on create: the server stamps createdAt once.
+		createdAt: initial?.createdAt ?? "",
 					});
 				}}
 			>
@@ -1022,10 +1045,24 @@ function BindingEditor({
 				</label>
 				<label className="imr-field">
 					<span>{t("角色", "Role")}</span>
-					<select className="select" value={form.role} onChange={event => setForm({ ...form, role: event.target.value === "observe" ? "observe" : "answer" })}>
+					<select
+						className="select"
+						value={form.role}
+						onChange={event => setForm({
+							...form,
+							role: event.target.value === "observe" ? "observe" : event.target.value === "mention" ? "mention" : "answer",
+						})}
+					>
 						<option value="answer">answer</option>
+						<option value="mention">mention</option>
 						<option value="observe">observe</option>
 					</select>
+					<small className="imr-hint">
+						{t(
+							"answer 自动回复该聊天；mention 只在本实例被 @ 时回复（多角色群）；observe 从不发送。",
+							"answer replies to the chat automatically; mention replies only when this instance is @mentioned (multi-role groups); observe never sends.",
+						)}
+					</small>
 				</label>
 				<label className="imr-field">
 					<span>{t("语言", "Language")}</span>
@@ -1048,7 +1085,10 @@ function BindingEditor({
 					<button type="button" className="btn small" onClick={onCancel} disabled={busy}>{t("取消", "Cancel")}</button>
 				</div>
 				{duplicate ? <p className="imr-error">{t("同一实例/聊天/线程/用户已有绑定。", "A binding with this instance/chat/thread/user already exists.")}</p> : null}
-				{answerConflict ? <p className="imr-error">{t("该聊天已有一个 answer 绑定；另一个必须是 observe。", "This chat already has an answer binding; another must be observe.")}</p> : null}
+				{duplicateId ? <p className="imr-error">{t("绑定 ID 必须是 b_ + 16 位小写十六进制，且全局唯一。", "Binding id must be b_ + 16 lowercase hex and globally unique.")}</p> : null}
+				{controlChar ? <p className="imr-error">{t("聊天/线程/用户 ID 不能包含控制字符。", "Chat/thread/user ids must not contain control characters.")}</p> : null}
+				{partialModel ? <p className="imr-error">{t("模型必须同时填写 provider 与 model。", "A model override needs both provider and model.")}</p> : null}
+				{answerConflict ? <p className="imr-error">{t("该聊天已有一个 answer 绑定；其他行只能是 mention 或 observe。", "This chat already has an answer binding; other rows must be mention or observe.")}</p> : null}
 				{initial?.needsReview === true ? <p className="imr-hint">{t("旧绑定待复核：保存时会用所选 target 重建。", "Old binding needs review: saving rebuilds it with the selected target.")}</p> : null}
 			</form>
 		</SettingSection>
@@ -1155,7 +1195,6 @@ function ProfileEditor({
 									? { kind: "team-pm", team: form.team.trim(), pm: form.pm.trim() }
 									: { kind: "engineer", team: form.team.trim(), pm: form.pm.trim(), engineer: form.engineer.trim(), ...(form.repo.trim() !== "" ? { repo: form.repo.trim() } : {}) },
 						tools: {
-							...(initial?.tools.capabilities !== undefined ? { capabilities: initial.tools.capabilities } : {}),
 							...(form.preset !== "" ? { preset: form.preset as NonNullable<ImAgentProfile["tools"]["preset"]> } : {}),
 							builtin: splitLines(form.tools.builtin ?? ""),
 							extensions: splitLines(form.tools.extensions ?? ""),
@@ -1285,8 +1324,8 @@ function ProfileEditor({
 				</label>
 				<p className="imr-note imr-field-wide">
 					{t(
-						"capabilities 由后端执行并校验；本页不提供权限开关，也不会把未执行的权限标成已开启。custom tools 默认为空，不继承环境工具。",
-						"capabilities are enforced and validated by the backend; this editor offers no permission toggles and never claims a permission it does not execute. Custom tools default to empty and do not inherit ambient tools.",
+						"capabilities 已从 schema 删除，本页不提供权限开关，也不会宣称任何未建模的权限。custom tools 默认为空，不继承环境工具。",
+						"capabilities were removed from the schema; this editor offers no permission toggles and never claims a permission that is not modelled. Custom tools default to empty and do not inherit ambient tools.",
 					)}
 				</p>
 				<div className="imr-actions imr-field-wide">

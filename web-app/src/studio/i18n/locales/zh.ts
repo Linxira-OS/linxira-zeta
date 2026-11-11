@@ -1479,6 +1479,7 @@ const zhRaw = {
       "files": "文件与终端",
       "tasks": "任务与执行",
       "channels": "IM 渠道",
+      "imRuntime": "IM 运行时",
       "security": "身份与设备",
       "advanced": "高级"
     },
@@ -2939,6 +2940,7 @@ const zhRaw = {
     "settingsFiles": "文件与终端设置",
     "settingsTasks": "任务与执行设置",
     "settingsSecurity": "身份与设备设置",
+    "settingsImRuntime": "IM 运行时",
     "settingsChannels": "IM 渠道设置",
     "settingsAdvanced": "高级配置",
     "settingsBackground": "背景设置",

@@ -7,6 +7,7 @@ import { NativePreferencesPane, type NativePreferencesContext } from "./settings
 import { ArtifactStorageSettings } from "./media/ArtifactLibraryPane";
 import { ImChannelsPane } from "./settings/ImChannelsPane";
 import { SecuritySettingsPane } from "./settings/SecuritySettingsPane";
+import { ImRuntimePage } from "./settings/ImRuntimePage";
 /**
  * 设置页（Phase 1 IA 重构）：十个标签的壳。
  *
@@ -54,7 +55,7 @@ import type {
 
 export const SETTINGS_INTENT_KEY = "zeta.settingsIntent";
 
-export type SettingsGroupId = "general" | "background" | "interaction" | "permissions" | "context" | "files" | "tasks" | "channels" | "security" | "advanced" | "native";
+export type SettingsGroupId = "general" | "background" | "interaction" | "permissions" | "context" | "files" | "tasks" | "channels" | "imRuntime" | "security" | "advanced" | "native";
 
 type GroupId = SettingsGroupId;
 
@@ -68,7 +69,7 @@ export interface RuntimeSettingsApi {
   readonly onSet?: (key: StudioRuntimeSettingKey, value: StudioRuntimeSettingValue, persist?: boolean) => void | Promise<void>;
 }
 
-const GROUP_IDS: ReadonlyArray<SettingsGroupId> = ["general", "background", "interaction", "permissions", "context", "files", "tasks", "channels", "security", "advanced", "native"];
+const GROUP_IDS: ReadonlyArray<SettingsGroupId> = ["general", "background", "interaction", "permissions", "context", "files", "tasks", "channels", "imRuntime", "security", "advanced", "native"];
 
 export function setSettingsIntent(group: SettingsGroupId): void {
   try {
@@ -136,6 +137,7 @@ function SettingsPageContent({
     ["files", "terminal", t("settings.tabs.files")],
     ["tasks", "play", t("settings.tabs.tasks")],
     ["channels", "plug", t("settings.tabs.channels")],
+    ["imRuntime", "message", t("settings.tabs.imRuntime")],
     ["security", "shield", t("settings.tabs.security")],
     ["advanced", "wrench", t("settings.tabs.advanced")],
     ["native", "settings", resolvedLanguage === "zh" ? "运行偏好" : "Runtime preferences"],
@@ -318,6 +320,9 @@ function SettingsPageContent({
           </div>
           <div {...pane("channels")} id="set-channels" role="tabpanel" aria-labelledby="setTab-channels" tabIndex={0}>
             <ImChannelsPane visible={group === "channels"} />
+          </div>
+          <div {...pane("imRuntime")} id="set-imRuntime" role="tabpanel" aria-labelledby="setTab-imRuntime" tabIndex={0}>
+            <ImRuntimePage visible={group === "imRuntime"} />
           </div>
           <div {...pane("security")} id="set-security" role="tabpanel" aria-labelledby="setTab-security" tabIndex={0}>
             <SecuritySettingsPane visible={group === "security"} runtimeConnected={nativeContext?.available === true} />

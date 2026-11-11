@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
 	formatChannelsAdmin,
-	legacyAdminBindings,
-	legacyAdminInstances,
 	mergeAdminStatus,
 	parseAdminBindings,
 	parseAdminInstances,
@@ -38,16 +36,6 @@ describe("instance parsing", () => {
 		expect(parseAdminInstances({ channels: { wechat: { enabled: true } } })).toBeNull();
 		expect(parseAdminInstances(null)).toBeNull();
 		expect(parseAdminInstances({})).toBeNull();
-	});
-
-	test("legacy platform rows are synthesized with id = platform", () => {
-		const rows = legacyAdminInstances({
-			channels: { wechat: { enabled: true }, telegram: { enabled: false }, gitter: { enabled: true } },
-		});
-		expect(rows.map(row => [row.id, row.enabled])).toEqual([
-			["wechat", true],
-			["telegram", false],
-		]);
 	});
 
 	test("live runtime membership is merged by instance id", () => {
@@ -96,17 +84,6 @@ describe("binding and target parsing", () => {
 		});
 	});
 
-	test("legacy mappings become bindings with the workspace alias as target", () => {
-		const rows = legacyAdminBindings({
-			remote: {
-				sessionMappings: [{ platform: "feishu", chatId: "oc_1", workspaceAlias: "alpha", sessionId: "s1" }],
-			},
-		});
-		expect(rows).toEqual([
-			{ instanceId: "feishu", chatId: "oc_1", sessionId: "s1", role: "answer", targetDisplay: "alpha" },
-		]);
-	});
-
 	test("targets keep unavailable reasons and fall back to the key for display", () => {
 		const rows = parseAdminTargets({
 			targets: [
@@ -128,7 +105,6 @@ describe("admin page rendering", () => {
 	const snapshot: ChannelsAdminSnapshot = {
 		configPath: "/home/me/.zeta/agent/web.yml",
 		host: "hosted by pid 42 (serve, started 2026-11-11)",
-		legacyNote: "web.yml is still on channels.<platform>; instances are synthesized (id = platform) until migration.",
 		instances: [
 			{
 				id: "wechat-work",
@@ -170,7 +146,6 @@ describe("admin page rendering", () => {
 		expect(page).toContain("alpha · zeta");
 		expect(page).toContain("needs-review");
 		expect(page).toContain("target-unavailable");
-		expect(page).toContain("channels.<platform>");
 		expect(page).toContain("Secrets are write-only");
 	});
 

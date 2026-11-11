@@ -4,9 +4,9 @@
  * The frozen ADR-IM-0007 contract makes `channels.instances`, `imAgents` and
  * `remote.imBindings` the runtime truth. The TUI reads the same `web.yml`, so
  * this module builds a redacted snapshot from the file and the live runtime
- * and renders one page. When the file still has the legacy platform shape the
- * snapshot synthesizes instances with `id = platform` (the documented
- * migration), and says so instead of pretending the file was migrated.
+ * and renders one page. Legacy `channels.<platform>` is deliberately NOT
+ * synthesized: migration is a one-time backend step, and a UI second truth
+ * would defeat the clean cutover; the backend migration runs once on load.
  *
  * No secret (bot token, app secret, peer token) is ever put in the snapshot or
  * the transcript. This module performs no writes of its own.
@@ -39,7 +39,7 @@ export interface AdminBinding {
 	userId?: string;
 	agentProfileId?: string;
 	sessionId: string;
-	role: "answer" | "observe";
+	role: "answer" | "mention" | "observe";
 	targetDisplay?: string;
 	needsReview?: boolean;
 	targetAvailable?: boolean;
@@ -58,8 +58,6 @@ export interface ChannelsAdminSnapshot {
 	configPath: string;
 	/** Human line for the hosting lock; empty when no host. */
 	host: string;
-	/** Set when the config is still legacy and the instances are synthesized. */
-	legacyNote?: string;
 	instances: readonly AdminInstance[];
 	bindings: readonly AdminBinding[];
 	targets: readonly AdminTarget[];
@@ -108,25 +106,6 @@ export function parseAdminInstances(config: unknown): AdminInstance[] | null {
 	return rows;
 }
 
-/** Legacy `channels.<platform>` rows synthesized as instances (migration view). */
-export function legacyAdminInstances(config: unknown): AdminInstance[] {
-	const channels = field(config, "channels");
-	if (!isRecord(channels)) return [];
-	const rows: AdminInstance[] = [];
-	for (const platform of ["wechat", "feishu", "telegram", "discord", "qq"] as const) {
-		const entry = channels[platform];
-		if (!isRecord(entry)) continue;
-		rows.push({
-			id: platform,
-			platform,
-			label: platform,
-			enabled: entry.enabled === true,
-			running: false,
-		});
-	}
-	return rows;
-}
-
 export function parseAdminBindings(config: unknown): AdminBinding[] | null {
 	const bindings = field(field(config, "remote"), "imBindings");
 	if (!Array.isArray(bindings)) return null;
@@ -150,33 +129,11 @@ export function parseAdminBindings(config: unknown): AdminBinding[] | null {
 			...(userId !== undefined ? { userId } : {}),
 			...(agentProfileId !== undefined ? { agentProfileId } : {}),
 			sessionId,
-			role: entry.role === "observe" ? "observe" : "answer",
+			role: entry.role === "observe" ? "observe" : entry.role === "mention" ? "mention" : "answer",
 			...(display !== undefined ? { targetDisplay: display } : {}),
 			...(entry.needsReview === true ? { needsReview: true } : {}),
 			...(typeof target?.available === "boolean" ? { targetAvailable: target.available } : {}),
 			...(reason !== undefined ? { targetReason: reason } : {}),
-		});
-	}
-	return rows;
-}
-
-/** Legacy `remote.sessionMappings`, shown as bindings with an explicit note. */
-export function legacyAdminBindings(config: unknown): AdminBinding[] {
-	const mappings = field(field(config, "remote"), "sessionMappings");
-	if (!Array.isArray(mappings)) return [];
-	const rows: AdminBinding[] = [];
-	for (const entry of mappings) {
-		if (!isRecord(entry)) continue;
-		const platform = text(entry.platform);
-		const chatId = text(entry.chatId);
-		if (platform === undefined || chatId === undefined) continue;
-		const targetDisplay = text(entry.workspaceAlias);
-		rows.push({
-			instanceId: platform,
-			chatId,
-			sessionId: text(entry.sessionId) ?? "—",
-			role: "answer",
-			...(targetDisplay !== undefined ? { targetDisplay } : {}),
 		});
 	}
 	return rows;
@@ -228,7 +185,6 @@ export function formatChannelsAdmin(snapshot: ChannelsAdminSnapshot, zh = false)
 		"",
 		`${zh ? "IM 运行时" : "IM runtime"} — ${snapshot.configPath}`,
 		`  ${snapshot.host}`,
-		...(snapshot.legacyNote === undefined ? [] : [`  ! ${snapshot.legacyNote}`]),
 		"",
 		zh ? "实例" : "INSTANCES",
 		`  ${pad("id", 14)}${pad("platform", 10)}${pad("state", 14)}${pad("label", 20)}${zh ? "目标" : "target"}`,
