@@ -112,12 +112,13 @@ The `zeta-official` provider ships the pack in `skills/official/`, one directory
 | `creator` | Creating, inspecting, installing, enabling, or disabling Zeta plugins, and reporting the restart they need |
 | `docx` | Reading and writing Word (`.docx`) documents |
 | `grill-me` | Interviewing the user one question at a time about an under-specified plan, with a recommended answer per question |
+| `html-report` | Building a self-contained visual report (audit, roadmap, status, architecture comparison) as one HTML file with metrics, a heatmap, inline SVG diagrams, evidence-cited findings, risks, and decisions |
 | `pdf` | Reading, extracting, and producing PDF files |
 | `pptx` | Reading and producing PowerPoint (`.pptx`) presentations |
 | `prd` | Writing a Product Requirements Document at project or feature kickoff; runs the `grill-me` interview and routes architecture decisions to `adr` |
 | `xlsx` | Reading, computing on, and producing Excel (`.xlsx`) spreadsheets |
 
-The `adr` and `prd` skills are companions: `prd` fixes product intent before implementation planning, and `adr` records the technical commitments (APIs, data model, migrations, dependencies) that the requirements imply. Neither replaces the other, and `grill-me` stays the shared interview discipline.
+The `adr` and `prd` skills are companions: `prd` fixes product intent before implementation planning, and `adr` records the technical commitments (APIs, data model, migrations, dependencies) that the requirements imply. Neither replaces the other, and `grill-me` stays the shared interview discipline. `html-report` summarizes audits and roadmaps into one self-contained visual file; it cites the evidence and does not replace the ADR or PRD it references.
 
 The `skillshare` provider resolves packages against `skills.registryUrl`. No skill registry ships with Zeta and the default is empty, so `zetacode skill install`, `zetacode skill search`, and `zetacode skill publish` need a compatible registry you configure first.
 
