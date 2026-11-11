@@ -6,6 +6,7 @@
  * session. The query cases pin the contract shape and the honest empty state.
  */
 import { afterEach, describe, expect, test } from "bun:test";
+import { holdTeamDbEnv } from "./test-db-env";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -463,7 +464,7 @@ afterEach(() => {
 describe("team.graph.get", () => {
 	test("is advertised and answers the empty state from an empty registry", async () => {
 		expect(operations.queries).toContain("team.graph.get");
-		process.env.ZETA_TEAM_DB = path.join(os.tmpdir(), `zeta-empty-team-${Date.now()}.db`);
+		const releaseEnv = await holdTeamDbEnv(path.join(os.tmpdir(), `zeta-empty-team-${Date.now()}.db`));
 		try {
 			const response = await operations.query({ queryName: "team.graph.get", input: {} }, context());
 			expect(response.ok).toBe(true);
@@ -472,13 +473,13 @@ describe("team.graph.get", () => {
 			expect(response.result.clusters).toEqual([]);
 			expect(response.result.gaps).toEqual([]);
 		} finally {
-			delete process.env.ZETA_TEAM_DB;
+			releaseEnv();
 		}
 	});
 
 	test("reads the global Team DB through the environment override", async () => {
 		const seed = seedTeamDb();
-		process.env.ZETA_TEAM_DB = seed.dbPath;
+		const releaseEnv = await holdTeamDbEnv(seed.dbPath);
 		try {
 			const response = await operations.query({ queryName: "team.graph.get", input: {} }, context());
 			expect(response.ok).toBe(true);
@@ -494,7 +495,7 @@ describe("team.graph.get", () => {
 			expect(response.result.nodes.map(node => node.kind)).toContain("db-room");
 			expect(response.result.gaps).toEqual([]);
 		} finally {
-			delete process.env.ZETA_TEAM_DB;
+			releaseEnv();
 			fs.rmSync(seed.scratch, { recursive: true, force: true });
 		}
 	});

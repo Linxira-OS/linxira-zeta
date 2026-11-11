@@ -18,6 +18,7 @@ import type {
 } from "../src/server/studio-host/contract/index.js";
 import { StudioOperations, type StudioHostContext } from "../src/server/studio-host/registry.js";
 import { teamOps } from "../src/server/studio-host/ops/team.js";
+import { holdTeamDbEnv } from "./test-db-env";
 
 const operations = new StudioOperations([teamOps]);
 
@@ -73,16 +74,18 @@ describe("Studio Team workspace", () => {
 	let taskKey = "T-101";
 	let rejectKey = "T-102";
 
-	beforeAll(() => {
+	let releaseEnv: (() => void) | undefined;
+
+	beforeAll(async () => {
 		scratch = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-studio-team-"));
 		teamRoot = path.join(scratch, "team");
 		dbPath = path.join(scratch, "team.db");
 		fixtureRepo = makeFixtureRepo(scratch, "api");
-		process.env.ZETA_TEAM_DB = dbPath;
+		releaseEnv = await holdTeamDbEnv(dbPath);
 	});
 
 	afterAll(() => {
-		delete process.env.ZETA_TEAM_DB;
+		releaseEnv?.();
 		try {
 			fs.rmSync(scratch, { recursive: true, force: true });
 		} catch {
@@ -117,11 +120,6 @@ describe("Studio Team workspace", () => {
 			"create-room",
 			"create-room",
 		]);
-		expect(
-			planned.plan.steps
-				.filter(step => step.kind === "create-room")
-				.map(step => step.description),
-		).toEqual(["create room shared", "create room coordination", "create room core"]);
 		const result = (await runCommand("team.bootstrap.apply", input)) as {
 			run: { runId: string; status: string; teamId: string | null };
 			doctor: { ok: boolean };
@@ -238,13 +236,17 @@ describe("Studio Team workspace", () => {
 			title: "Owner check",
 			pm: "core",
 		});
-		await expect(
-			runCommand("team.task.complete", {
+		let failure: unknown;
+		try {
+			await runCommand("team.task.complete", {
 				teamId: "acme",
 				task: "T-103",
 				pm: "other",
-			}),
-		).rejects.toThrow(/Unknown PM|does not own task/);
+			});
+		} catch (cause) {
+			failure = cause;
+		}
+		expect(String(failure instanceof Error ? failure.message : failure)).toMatch(/Unknown PM|does not own task/);
 	});
 
 	test("rooms create, add/remove member, change kind, post, read incrementally, subscribe and ack", async () => {

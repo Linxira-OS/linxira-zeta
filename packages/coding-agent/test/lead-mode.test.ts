@@ -10,6 +10,7 @@
  * 5. A saved `lead` mode rehydrates when the session is reopened.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
+import { holdTeamDbEnv } from "./test-db-env";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -79,18 +80,19 @@ interface Fixture {
 	teamRoot: string;
 	pmRoot: string;
 	dbPath: string;
+	releaseEnv: () => void;
 }
 
 async function makeFixture(prefix: string): Promise<Fixture> {
 	const scratch = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 	const teamRoot = path.join(scratch, "acme-team");
 	const dbPath = path.join(scratch, "team.db");
-	process.env.ZETA_TEAM_DB = dbPath;
+	const releaseEnv = await holdTeamDbEnv(dbPath);
 	await initTeam({ name: "Acme", root: teamRoot, dbPath });
 	await addPm({ pm: "core", teamRoot, dbPath });
 	await createRoom({ name: "core", pm: "core", teamRoot, dbPath });
 	await createRoom({ name: "empty", kind: "room", teamRoot, dbPath });
-	return { scratch, teamRoot, pmRoot: path.join(teamRoot, "pms", "core"), dbPath };
+	return { scratch, teamRoot, pmRoot: path.join(teamRoot, "pms", "core"), dbPath, releaseEnv };
 }
 
 describe("Lead (PM) mode", () => {
@@ -137,7 +139,7 @@ describe("Lead (PM) mode", () => {
 	afterEach(async () => {
 		mode?.stop();
 		await session?.dispose();
-		delete process.env.ZETA_TEAM_DB;
+		fixture.releaseEnv();
 		vi.restoreAllMocks();
 		resetSettingsForTest();
 		try {
