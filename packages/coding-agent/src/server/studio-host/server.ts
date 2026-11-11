@@ -504,7 +504,16 @@ export class StudioHost {
 		if (body === null || typeof body !== "object" || typeof body.queryName !== "string") {
 			return json({ error: "bad_request" }, 400);
 		}
-		if (!(await this.#bindingAllows(authorized[1], payloadTarget(body)))) {
+		const queryTarget = payloadTarget(body);
+		if (authorized[1].binding !== undefined) {
+			// A bound device may read only its own conversation. The few ambient
+			// queries that carry no session content (boot facts) stay readable so
+			// the client can render; anything else must name the bound resource.
+			if (queryTarget === undefined && !AMBIENT_QUERY_NAMES[body.queryName]) {
+				return json({ error: "binding_scope" }, 403);
+			}
+		}
+		if (!(await this.#bindingAllows(authorized[1], queryTarget))) {
 			return json({ error: "binding_scope" }, 403);
 		}
 		return json(await this.#operations.query(body, context));
@@ -707,6 +716,11 @@ export class StudioHost {
 		return events;
 	}
 }
+
+/** Queries that carry no conversation content and are readable to a bound device. */
+const AMBIENT_QUERY_NAMES: Readonly<Record<string, true>> = {
+	"environment.get": true,
+};
 
 /** Pairing input the client got wrong (answered 400, never a silent default). */
 class PairingInputError extends Error {}

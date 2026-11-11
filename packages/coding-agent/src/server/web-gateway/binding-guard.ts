@@ -32,6 +32,24 @@ const WORKSPACE_ROUTE =
 	/^\/(?:api\/(?:files|file-index|git|git-actions|workspace|projects|terminal|board|tracking|plan)(?:\/|$))/u;
 
 /**
+ * Identity/bootstrap routes a bound device still needs.
+ *
+ * A bound credential must be able to boot and answer a verification challenge;
+ * refusing `bootstrap` outright would deadlock it. None of these carry another
+ * conversation's content: the payload-scoped check for `query`/`command` runs
+ * inside the host, and the device list is the account's own inventory.
+ */
+const BOUND_IDENTITY_ROUTES: Readonly<Record<string, true>> = {
+	"/api/v1/bootstrap": true,
+	"/api/v1/query": true,
+	"/api/v1/events": true,
+	"/api/v1/session/revoke": true,
+	"/api/auth/2fa": true,
+	"/api/auth/2fa/verify": true,
+	"/api/remote/devices": true,
+};
+
+/**
  * Real ownership lookup supplied by the Studio lane.
  *
  * `workspaceOfSession` maps a conversation/session id to the canonical
@@ -110,6 +128,7 @@ export async function bindingDecision(
 	// Contradictory device/session bindings: narrower than either one, so refuse.
 	if (binding === null) return { allowed: false, target: undefined };
 	if (binding === undefined) return { allowed: true, target: undefined };
+	if (BOUND_IDENTITY_ROUTES[pathname]) return { allowed: true, target: undefined };
 	const target = requestTarget(pathname, url);
 	if (target === undefined) return { allowed: false, target: undefined };
 	return { allowed: await bindingAllows(binding, target, workspaceOfSessionResolver()), target };

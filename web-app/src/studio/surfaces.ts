@@ -258,12 +258,14 @@ const MATRIX: Record<SurfaceId, Record<SurfaceAction, SurfaceDecision>> = {
 		"file-reveal": HIDDEN,
 		"im-channels": HIDDEN,
 		"im-credentials": HIDDEN,
-		"device-list": HIDDEN,
+		// A phone can see its own paired devices and print a pairing code; revoke
+		// stays a machine-side action.
+		"device-list": PASS,
 		"device-revoke": HIDDEN,
-		// Verification is allowed (a phone must answer `totp_required`);
+		// Verification is required (a phone must answer `totp_required`);
 		// enrollment/disable/policy stay local-only, which the pane enforces.
 		totp: { access: "read-only", reason: "totpLocalEnroll" },
-		"remote-pairing": HIDDEN,
+		"remote-pairing": PASS,
 		"remote-token": HIDDEN,
 		"ssh-targets": HIDDEN,
 	},

@@ -63,6 +63,7 @@ import {
 } from "../../utils/bin-discovery";
 import { hostIsLoopback } from "../web-gateway";
 import { isAllowedRequestOrigin } from "./origin";
+import { credentialAllows, resolveCredential } from "./remote-access";
 import { ZETA_IDE_BINS, resolveTerminal, type ResolvedTerminal } from "./open";
 import {
 	findShellProfile,
@@ -1321,9 +1322,14 @@ export async function handleTerminalWsUpgrade(
 		// must not carry a cross-site Origin (a hostile page driving a WS).
 		authorized = isAllowedRequestOrigin(req.headers.get("origin"), req.url, true);
 	} else {
-		// Remote browsers cannot attach auth headers to a WebSocket; the
-		// one-time connect ticket from the authorized control plane vouches
-		// for them instead.
+		// A terminal is a shell: the upgrade is a write-grade surface even though
+		// it arrives as a GET. A credential that is present but read-only is
+		// refused, and a remote browser additionally needs the one-time connect
+		// ticket issued by the write-gated control plane.
+		const credential = await resolveCredential(req);
+		if (credential !== null && !credentialAllows(credential, "write")) {
+			return json({ error: "insufficient_scope" }, 403);
+		}
 		const ticket = url.searchParams.get("ticket") ?? "";
 		authorized = ticket.length > 0 && manager.consumeTicket(ticket, terminalId);
 	}

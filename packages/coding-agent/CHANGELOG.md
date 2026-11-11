@@ -1,5 +1,21 @@
 ## [Unreleased]
 
+### Added
+
+- **Device-bound remote sessions** — pairing a phone now exchanges a one-time 60-second code for an `HttpOnly` `studio_session` cookie bound to one device record (`<agentDir>/auth/sessions.json`, hashes only, one hour sliding). Remote Work Studio bootstraps, queries, commands, event sockets and terminal tickets all authenticate with that cookie or a device token; the machine token is no longer required in a URL and never appears in a QR or a response.
+- **Pairing without the machine token** — the QR carries `#zeta-pair=<code>` and Settings prints the same code beside it, so scanning (or typing) completes pairing. `POST /api/v1/pair` returns `device.token` only when a native client asks (`device.issueToken`), and accepts a narrowing `device.binding`.
+- **Operation scope and binding scope** — `read`/`write` are enforced per route (a `POST query` is a read; a terminal upgrade is a write), and a device can be bound to one conversation or the Host's canonical workspace id. Bound devices reach only their binding; global lists are refused with `binding_scope`, session bindings only narrow the device's, and malformed bindings invalidate the credential.
+- **Mobile security surface** — the mobile layout may open Settings and see the device list, the pairing code and 2FA verification (enrollment, policy, disable and revocation stay machine-side).
+
+### Fixed
+
+- Remote pairing, `query`/`command`, event WebSockets and terminal tickets work behind a real host name: the Origin guard compares the request's own origin, a forwarded request is treated as remote, and a revoked device's sessions and sockets are dropped immediately (`revoke-all` included).
+- `GET /api/remote/pairing` no longer returns the machine token and requires a local caller or a write credential with a fresh step-up, so a read-only device cannot escalate.
+
+### Breaking
+
+- A legacy `https://host/#zeta-token=…` link no longer pairs a browser. Reprint the pairing code from Settings → 身份与设备 and scan it again.
+
 ## [1.5.1] - 2026-11-10
 
 ### Added

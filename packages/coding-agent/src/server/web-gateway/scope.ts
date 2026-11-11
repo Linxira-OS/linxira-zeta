@@ -15,27 +15,33 @@ const READ_POST_ROUTES: Readonly<Record<string, true>> = {
 };
 
 /**
- * Routes that manage the caller's own identity and are therefore available to
- * any authenticated credential (they cannot act on other resources).
+ * Routes that manage the caller's **own** identity and cannot touch another
+ * resource. They are matched with a method: `GET /api/auth/2fa` is a status
+ * read, while enroll/confirm/disable/recovery/policy are credential mutations
+ * and must not ride in on a "self" exemption.
  */
-const SELF_ROUTES: Readonly<Record<string, true>> = {
-	"/api/v1/pair": true,
-	"/api/v1/session/revoke": true,
-	"/api/auth/2fa": true,
-	"/api/auth/2fa/verify": true,
-};
+function isSelfRoute(pathname: string, method: string): boolean {
+	if (pathname === "/api/v1/pair" || pathname === "/api/v1/session/revoke") return true;
+	if (pathname === "/api/auth/2fa") return method === "GET" || method === "HEAD";
+	if (pathname === "/api/auth/2fa/verify") return method === "POST";
+	return false;
+}
 
 /** Classify one request. Unknown mutations are writes. */
 export function classifyOperation(pathname: string, method: string): OperationScope {
 	if (method === "GET" || method === "HEAD") return "read";
 	if (pathname in READ_POST_ROUTES) return "read";
-	if (pathname in SELF_ROUTES) return "self";
+	if (isSelfRoute(pathname, method)) return "self";
 	return "write";
 }
 
-/** Whether a credential's scope set satisfies the operation. */
+/**
+ * Whether a credential's scope set satisfies the operation.
+ *
+ * `self` still needs a read grant: a credential with no scopes must not reach
+ * even its own identity routes, and `write` alone is not a read grant either.
+ */
 export function scopeSatisfies(scopes: readonly string[], operation: OperationScope): boolean {
-	if (operation === "self") return true;
-	if (operation === "read") return true;
-	return scopes.includes("write");
+	if (operation === "write") return scopes.includes("write");
+	return scopes.includes("read") || scopes.includes("write");
 }

@@ -40,9 +40,9 @@ the reason.
 | Open in editor / reveal file | show | hidden | hidden | hidden | pass-through |
 | IM channels (status, QR, default workspace) | pass-through | pass-through | pass-through | hidden | pass-through |
 | IM credentials | pass-through | pass-through | pass-through | hidden | pass-through |
-| Paired devices (list / revoke) | show | pass-through | pass-through | hidden | unavailable³ |
+| Paired devices (list / revoke) | show | pass-through | pass-through | list only⁶ | unavailable³ |
 | TOTP | show | pass-through | read-only⁴ | read-only⁶ | unavailable³ |
-| Remote pairing QR | show | pass-through | pass-through | hidden | pass-through |
+| Remote pairing QR | show | pass-through | pass-through | show⁶ | pass-through |
 | Remote token rotate / revoke | show | pass-through | pass-through | hidden | pass-through |
 | SSH execution targets | unavailable⁵ | unavailable⁵ | unavailable⁵ | hidden | pass-through |
 
@@ -71,9 +71,10 @@ the reason.
   gates the sensitive mutations.
 - **Diagnostics**: the import-local-update, restart and log rows are disabled
   with the matrix reason outside the desktop app.
-- **Navigation**: a mobile surface may open `workbench` and `history` only. Any
-  other route (deep link or restored session) lands on chat with a notice.
-  Settings entries are not rendered in the mobile menus.
+- **Navigation**: a mobile surface may open `workbench`, `history` and
+  `settings`. Settings is what lets a phone pair another device and answer a
+  2FA challenge; actions inside it are still decided by the matrix, so only the
+  device list, pairing card and TOTP verification render there.
 
 ## Discoverability (2026-11-11)
 

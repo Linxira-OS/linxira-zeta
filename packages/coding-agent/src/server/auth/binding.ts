@@ -143,13 +143,22 @@ export async function bindingAllows(
 	}
 
 	if (binding.workspaceId !== undefined) {
-		if (namesWorkspace) {
-			if (target.workspaceId !== binding.workspaceId) return false;
-		} else {
-			// Session-only target: ask the Host which workspace really owns it.
-			const owner = await resolveWorkspace?.(target.sessionId as string);
-			if (owner === undefined || owner !== binding.workspaceId) return false;
-		}
+		if (namesWorkspace && target.workspaceId !== binding.workspaceId) return false;
+	}
+
+	// A request may name both ids. The workspace id is caller-supplied, so it is
+	// not an authorization claim on its own: the Host must confirm that the named
+	// session really belongs to the named workspace. Without a resolver this
+	// combination is refused (fail closed).
+	if (namesSession && namesWorkspace) {
+		const owner = await resolveWorkspace?.(target.sessionId as string);
+		return owner !== undefined && owner === target.workspaceId;
+	}
+
+	if (binding.workspaceId !== undefined && namesSession) {
+		// Session-only target under a workspace binding: verify real ownership.
+		const owner = await resolveWorkspace?.(target.sessionId as string);
+		return owner !== undefined && owner === binding.workspaceId;
 	}
 	return true;
 }

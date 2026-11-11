@@ -545,6 +545,9 @@ export function SecuritySettingsPane({
 	const remoteTokenAccess = accessFor(surface, "remote-token");
 	const pairingAccess = accessFor(surface, "remote-pairing");
 	const deviceAccess = accessFor(surface, "device-list");
+	// Listing and revoking are separate decisions: a phone sees its own paired
+	// devices but cannot drop one (revocation stays a machine-side action).
+	const revokeAccess = accessFor(surface, "device-revoke");
 
 	return (
 		<>
@@ -661,16 +664,18 @@ export function SecuritySettingsPane({
 						: t("settings.security.devices.desc")
 				}
 			>
-				<div className="sec-actions">
-					<button
-						type="button"
-						className="btn small danger"
-						disabled={pending === "revoke-all" || devices === null}
-						onClick={revokeAllDevices}
-					>
-						{t("settings.security.devices.revokeAll")}
-					</button>
-				</div>
+				{revokeAccess.access !== "hidden" ? (
+					<div className="sec-actions">
+						<button
+							type="button"
+							className="btn small danger"
+							disabled={pending === "revoke-all" || devices === null}
+							onClick={revokeAllDevices}
+						>
+							{t("settings.security.devices.revokeAll")}
+						</button>
+					</div>
+				) : null}
 				{deviceError !== null ? (
 					<p className="sec-error" role="alert">
 						{t("settings.security.devices.failed")}
@@ -713,14 +718,16 @@ export function SecuritySettingsPane({
 													: t("settings.security.devices.never")}
 										</td>
 										<td className="sec-row-actions">
-											<button
-												type="button"
-												className="btn small danger"
-												disabled={device.revokedAt !== null || pending === `revoke:${device.id}`}
-												onClick={() => revokeDevice(device.id, device.label !== "" ? device.label : device.id)}
-											>
-												{t("settings.security.devices.revoke")}
-											</button>
+											{revokeAccess.access !== "hidden" ? (
+												<button
+													type="button"
+													className="btn small danger"
+													disabled={device.revokedAt !== null || pending === `revoke:${device.id}`}
+													onClick={() => revokeDevice(device.id, device.label !== "" ? device.label : device.id)}
+												>
+													{t("settings.security.devices.revoke")}
+												</button>
+											) : null}
 										</td>
 									</tr>
 								))}
