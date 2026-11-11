@@ -113,7 +113,7 @@ const SYNC_OUTPUT_END = "\x1b[?2026l";
 const SYNC_OUTPUT_RENEW_BYTES = 16 * 1024;
 const DISABLE_AUTOWRAP = "\x1b[?7l";
 const ENABLE_AUTOWRAP = "\x1b[?7h";
-const PAINT_BEGIN = `${HIDE_CURSOR}${SYNC_OUTPUT_BEGIN}${DISABLE_AUTOWRAP}`;
+const PAINT_BEGIN = `${SYNC_OUTPUT_BEGIN}${HIDE_CURSOR}${DISABLE_AUTOWRAP}`;
 const PAINT_END = `${ENABLE_AUTOWRAP}${SYNC_OUTPUT_END}`;
 const PAINT_BEGIN_NO_SYNC = `${HIDE_CURSOR}${DISABLE_AUTOWRAP}`;
 const PAINT_END_NO_SYNC = ENABLE_AUTOWRAP;
@@ -3113,8 +3113,16 @@ export class TUI extends Container {
 		const adaptiveDelay = Math.max(0, adaptiveFloor - elapsed);
 		const inputGraceDelay = Math.max(0, this.#inputRenderGraceUntilMs - now);
 		// Native frames are paced by the terminal's acknowledgements (credits),
-		// not by the row renderer's cadence.
-		const delay = this.#nativeLive ? 0 : Math.max(cadenceDelay, adaptiveDelay, inputGraceDelay);
+		// not by the row renderer's cadence. A keystroke-waiting frame skips the
+		// adaptive floor too: that floor exists to trade animation CPU for
+		// smoothness, but charging it to input lets one slow frame add up to
+		// 200 ms of typing latency. The output-backlog gate still protects a
+		// terminal that is not draining.
+		const delay = this.#nativeLive
+			? 0
+			: this.#inputRenderPending
+				? Math.max(cadenceDelay, inputGraceDelay)
+				: Math.max(cadenceDelay, adaptiveDelay, inputGraceDelay);
 		this.#renderTimer = this.#renderScheduler.scheduleRender(this.#runScheduledRender, delay);
 	}
 
@@ -3149,6 +3157,17 @@ export class TUI extends Container {
 	}
 
 	#handleInput(data: string): void {
+		// Focus reports (DECSET 1004) are terminal reports, never keystrokes.
+		// A focus-in re-asserts raw/console input modes (a Windows terminal can
+		// lose them across Alt-Tab) and repaints so the hardware cursor returns
+		// to the composer, which is the IME candidate anchor.
+		if (data === "\x1b[I" || data === "\x1b[O") {
+			if (data === "\x1b[I") {
+				this.terminal.reassertInputModes?.();
+				this.requestRender(true);
+			}
+			return;
+		}
 		// Tern Surface Protocol events (acks, pointer actions, resize, theme)
 		// are terminal reports, never keystrokes.
 		if (data.startsWith(TSP_PREFIX)) {

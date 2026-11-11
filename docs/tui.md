@@ -76,7 +76,7 @@ export interface Focusable {
 }
 ```
 
-Cursor behavior uses `CURSOR_MARKER` (not `getCursorPosition`). Focused components emit the marker in rendered text; `TUI` extracts it and positions the hardware cursor.
+Cursor behavior uses `CURSOR_MARKER` (not `getCursorPosition`). Focused components emit the marker in rendered text; `TUI` extracts it and positions the hardware cursor. Cursor position and visibility are written inside the frame's synchronized-output block, so terminals never see an intermediate hidden cursor. Focus reports (DECSET 1004) are consumed by `TUI`: focus-in re-asserts raw/console input modes, bracketed paste and an active win32-input-mode, then repaints so the hardware cursor returns to the focused input (the IME candidate anchor); a leaked win32-input-mode from a previous process is reset on attach and decoded pass-through. Extensions never need to handle these reports.
 
 Fullscreen overlays opt into the shared hardware cursor only when the user's hardware-cursor preference is enabled and the focused component implements `setUseTerminalCursor`. The focus target must be the top overlay itself or a child it owns via `OverlayFocusOwner.ownsOverlayFocusTarget`; wrappers must forward focus and cursor mode to their input. Emit `CURSOR_MARKER` at the caret without replacing the underlying glyph. With the preference disabled, keep the software cursor; losing focus or removing the marker hides the hardware cursor.
 

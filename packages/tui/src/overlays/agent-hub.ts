@@ -488,6 +488,12 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 	#nativeVariant = "";
 	/** Preview recent-activity rows by node key, for their pointer actions. */
 	#recentByKey = new Map<string, AgentActivityRow>();
+	/** Bumped whenever the roster rows change; the picker items rebuild once per generation. */
+	#pickerDataVersion = 0;
+	/** Last agent picker items; repaints for selection, hover or age ticks reuse the array. */
+	#pickerItemsCache:
+		| { version: number; viewMode: HubViewMode; at: number; items: readonly TspPickerItem[] }
+		| undefined;
 
 	constructor(deps: AgentHubDeps<TRecord>) {
 		super();
@@ -934,7 +940,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			...pickerQuery(this.#agentFilterEditing || this.#agentFilter.getValue() ? this.#agentFilter : null),
 			placeholder: "Filter agents…",
 			columns: AGENT_COLUMNS,
-			items: this.#rows.map(ref => this.#pickerAgentItem(ref)),
+			items: this.#agentPickerItems(),
 			selected: selected?.id ?? null,
 			total: this.#sessionRefs().length,
 			state: this.#rows.length === 0 && this.#loadingPersistedSubagents ? "loading" : "ready",
@@ -942,6 +948,28 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			actions,
 			focus: "list",
 		};
+	}
+
+	/**
+	 * Picker rows for this roster generation. The picker ships `items` whole, so
+	 * rebuilding/allocating every row on a selection move, hover or age tick
+	 * becomes O(agents) per repaint (and a large roster repaints often). Reuse
+	 * the array until `#refreshRows` or the clock tick invalidates it.
+	 */
+	#agentPickerItems(): readonly TspPickerItem[] {
+		const now = Date.now();
+		const cached = this.#pickerItemsCache;
+		if (
+			cached &&
+			cached.version === this.#pickerDataVersion &&
+			cached.viewMode === this.#viewMode &&
+			now - cached.at < AGE_TICK_MS
+		) {
+			return cached.items;
+		}
+		const items = this.#rows.map(ref => this.#pickerAgentItem(ref));
+		this.#pickerItemsCache = { version: this.#pickerDataVersion, viewMode: this.#viewMode, at: now, items };
+		return items;
 	}
 
 	#pickerAgentItem(ref: TRecord): TspPickerItem {
@@ -1545,13 +1573,21 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		this.#dataChangeTimer = setTimeout(() => {
 			this.#dataChangeTimer = undefined;
 			this.#onDataChange();
-		}, DATA_CHANGE_RENDER_COALESCE_MS);
+		}, this.#dataChangeDelay());
 		this.#dataChangeTimer.unref?.();
 	}
 
 	#onDataChange(): void {
 		this.#refreshRows();
 		this.#requestRender();
+	}
+
+	/**
+	 * Data-change window: 100 ms for small rosters, widening with the row count
+	 * (1 s at 500+) because every batch re-sends the whole picker array.
+	 */
+	#dataChangeDelay(): number {
+		return Math.min(1000, Math.max(DATA_CHANGE_RENDER_COALESCE_MS, this.#rows.length * 2));
 	}
 
 	/** A parked or killed agent with no live session and an unknown id, seen while the saved-agent scan runs, is one the scan found. */
@@ -1631,6 +1667,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		this.#refreshActivityData(rosterRows);
 		// The 2,000-row activity query only feeds the Activity tab; switching to it refreshes.
 		if (this.#section === "activity") this.#refreshActivityRows();
+		this.#pickerDataVersion++;
 	}
 
 	#refreshActivityData(refs: readonly TRecord[]): void {

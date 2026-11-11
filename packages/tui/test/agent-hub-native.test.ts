@@ -150,7 +150,27 @@ test("the By parent action and the t key both switch the picker to the parent tr
 	}
 });
 
-/** An observer registry fed by a fake bus, with one running `Worker` progress frame of `durationMs` at t=1_000_000. */
+test("repaints without roster changes reuse the picker items array", () => {
+	const agents = Array.from({ length: 120 }, (_, index) => agent(`agent-${index}`, 1_000 + index));
+	const hub = createHub(agents);
+	try {
+		const first = pickerProps(hub).items;
+		const second = pickerProps(hub).items;
+		expect(second).toBe(first);
+
+		// Selection moves do not rebuild rows; the terminal only changes the
+		// selected id, not the whole list.
+		hub.handleNativeEvent({ type: "select", key: "", item: "agent-7" });
+		expect(pickerProps(hub).items).toBe(first);
+
+		// A roster generation change rebuilds once.
+		hub.handleNativeEvent({ type: "action", key: "", act: "view", mods: [] });
+		expect(pickerProps(hub).items).not.toBe(first);
+	} finally {
+		hub.dispose();
+	}
+});
+
 function observedWorker(durationMs: number) {
 	const listeners = new Map<string, (data: unknown) => void>();
 	const bus: EventBusLike = {
