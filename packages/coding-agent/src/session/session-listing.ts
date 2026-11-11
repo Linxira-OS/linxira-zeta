@@ -21,7 +21,6 @@ import {
 	type SessionTaskSummary,
 } from "./session-task-summary";
 import { isImSession, isTeamSession, normalizeSessionOrigin, type SessionOrigin } from "./session-origin";
-import { normalizeSessionClient, type SessionClient } from "./session-client";
 import { FileSessionStorage, type SessionStorage, type SessionStorageStat } from "./session-storage";
 import { listSessionTitles, lookupSessionTitle, recordSessionTitle, recordSessionTitles } from "./session-index";
 
@@ -397,12 +396,19 @@ function buildSessionTaskSummary(
 		let intent: string | undefined;
 		let at: string | undefined;
 		for (let index = entries.length - 1; index >= 0; index--) {
-			const entry = entries[index] as { type?: unknown; message?: { role?: string; content?: Message["content"] } } | undefined;
+			const entry = entries[index] as
+				| { type?: unknown; message?: { role?: string; content?: Message["content"] } }
+				| undefined;
 			at ??= timestampOf(entry);
 			if (intent !== undefined || entry?.type !== "message" || entry.message?.role !== "user") continue;
 			intent = excerptTaskText(textContent(entry.message.content, " "), SESSION_TASK_INTENT_MAX_CHARS);
 		}
-		return { status: "incomplete", ...(intent === undefined ? {} : { intent }), ...(at === undefined ? {} : { at }), source: "open_turn" };
+		return {
+			status: "incomplete",
+			...(intent === undefined ? {} : { intent }),
+			...(at === undefined ? {} : { at }),
+			source: "open_turn",
+		};
 	}
 
 	// Complete: the last assistant record is the result; its preceding user
@@ -411,7 +417,9 @@ function buildSessionTaskSummary(
 	let result: string | undefined;
 	let at: string | undefined;
 	for (let index = entries.length - 1; index >= 0; index--) {
-		const entry = entries[index] as { type?: unknown; message?: { role?: string; content?: Message["content"] } } | undefined;
+		const entry = entries[index] as
+			| { type?: unknown; message?: { role?: string; content?: Message["content"] } }
+			| undefined;
 		if (entry?.type !== "message" || entry.message?.role !== "assistant") continue;
 		assistantIndex = index;
 		at = timestampOf(entry);
@@ -420,7 +428,9 @@ function buildSessionTaskSummary(
 	}
 	let intent: string | undefined;
 	for (let index = (assistantIndex >= 0 ? assistantIndex : entries.length) - 1; index >= 0; index--) {
-		const entry = entries[index] as { type?: unknown; message?: { role?: string; content?: Message["content"] } } | undefined;
+		const entry = entries[index] as
+			| { type?: unknown; message?: { role?: string; content?: Message["content"] } }
+			| undefined;
 		if (entry?.type !== "message" || entry.message?.role !== "user") continue;
 		intent = excerptTaskText(textContent(entry.message.content, " "), SESSION_TASK_INTENT_MAX_CHARS);
 		break;

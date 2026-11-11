@@ -254,7 +254,10 @@ describe("compaction service integration through SessionMaintenance", () => {
 		sessionManager.appendMessage(userMessage(text));
 		sessionManager.appendMessage(assistantMessage("response ".repeat(8_000), model));
 		sessionManager.appendMessage(
-			userMessage("Keep packages/coding-agent/src/session/compaction/service.ts exact for REQ-051. MUST NOT rewrite.", Date.now()),
+			userMessage(
+				"Keep packages/coding-agent/src/session/compaction/service.ts exact for REQ-051. MUST NOT rewrite.",
+				Date.now(),
+			),
 		);
 		sessionManager.appendMessage(assistantMessage("TODO: run the narrow test.", model));
 	}

@@ -807,7 +807,8 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 	}
 
 	async maybeRetainOnAgentEnd(_messages: AgentMessage[]): Promise<void> {
-		if (!this.config.autoRetain || this.aliasOf || cfgMemoryExtractionMode.get(this.session.settings) !== "auto") return;
+		if (!this.config.autoRetain || this.aliasOf || cfgMemoryExtractionMode.get(this.session.settings) !== "auto")
+			return;
 		const userTurns = withLoopPhase("mnemopi.retain", () => {
 			this.#restoreRetainedTurnCursor();
 			// Cheap gate first: most agent_end events are not retain turns, so skip text extraction.
@@ -852,7 +853,9 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 			LIMIT 1
 		`);
 		if (existing.get(sourceId, sourceId)) return;
-		const { transcript, messageCount } = prepareRetentionTranscript(input.messages, true, { includeTimestamps: true });
+		const { transcript, messageCount } = prepareRetentionTranscript(input.messages, true, {
+			includeTimestamps: true,
+		});
 		if (!transcript) return;
 		const { transcript: extractText } = prepareUserRetentionTranscript(input.messages);
 		const { transcript: embedText } = prepareEmbeddableRetentionTranscript(input.messages);
@@ -1010,7 +1013,12 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 	 * error cannot make the backend inert.
 	 */
 	promoteEligibleWorkingMemory(): void {
-		if (this.aliasOf || this.config.llmMode === "none" || cfgMemoryExtractionMode.get(this.session.settings) !== "auto") return;
+		if (
+			this.aliasOf ||
+			this.config.llmMode === "none" ||
+			cfgMemoryExtractionMode.get(this.session.settings) !== "auto"
+		)
+			return;
 		const scoped = this.#local();
 		for (const memory of scoped.owned) {
 			try {
@@ -1129,7 +1137,10 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 			full: false,
 			extract: false,
 			sleep: false,
-			retain: this.config.autoRetain && options.retain !== false && cfgMemoryExtractionMode.get(this.session.settings) === "auto",
+			retain:
+				this.config.autoRetain &&
+				options.retain !== false &&
+				cfgMemoryExtractionMode.get(this.session.settings) === "auto",
 		}).catch((error: unknown) => {
 			logger.warn("Mnemopi: consolidation on dispose failed.", { error: String(error) });
 		});

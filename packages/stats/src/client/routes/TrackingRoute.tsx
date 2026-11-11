@@ -4,17 +4,7 @@ import { t } from "../i18n";
 import { formatInteger, formatRelativeTime, formatTimestamp } from "../data/formatters";
 import { useQuery } from "../data/query";
 import type { TrackingSnapshotState, TrackingStatusValue } from "../types";
-import {
-	Badge,
-	Card,
-	EmptyState,
-	KeyValues,
-	PageHeader,
-	QueryView,
-	Skeleton,
-	TableSkeleton,
-	type Tone,
-} from "../ui";
+import { Badge, Card, EmptyState, KeyValues, PageHeader, QueryView, Skeleton, TableSkeleton, type Tone } from "../ui";
 import "./tracking.css";
 
 export interface TrackingRouteProps {
@@ -37,11 +27,7 @@ function stateTone(state: TrackingSnapshotState): Tone {
 
 function StateBadge({ state, truncated }: { state: TrackingSnapshotState; truncated?: boolean }) {
 	if (state === "present" && !truncated) return null;
-	return (
-		<Badge tone={stateTone(state)}>
-			{state === "present" ? t("tracking.truncated") : t(STATE_KEY[state])}
-		</Badge>
-	);
+	return <Badge tone={stateTone(state)}>{state === "present" ? t("tracking.truncated") : t(STATE_KEY[state])}</Badge>;
 }
 
 function statusItems(status: TrackingStatusValue) {
@@ -61,7 +47,13 @@ function statusItems(status: TrackingStatusValue) {
 		},
 		{ key: "updated", label: t("tracking.last-updated"), value: status.lastUpdated || t("tracking.none") },
 		...(status.lastSessionId
-			? [{ key: "session", label: t("tracking.last-session"), value: <span className="mono">{status.lastSessionId}</span> }]
+			? [
+					{
+						key: "session",
+						label: t("tracking.last-session"),
+						value: <span className="mono">{status.lastSessionId}</span>,
+					},
+				]
 			: []),
 		...(status.phases?.length
 			? [
@@ -90,11 +82,9 @@ export function TrackingRoute({ active }: TrackingRouteProps) {
 	const projects = folders.data?.projects ?? [];
 	const [selected, setSelected] = useState<string | null>(null);
 	const project = selected !== null && projects.includes(selected) ? selected : (projects[0] ?? null);
-	const snapshot = useQuery(
-		["tracking", project],
-		({ signal }) => getTrackingSnapshot(project ?? "", signal),
-		{ enabled: active && project !== null },
-	);
+	const snapshot = useQuery(["tracking", project], ({ signal }) => getTrackingSnapshot(project ?? "", signal), {
+		enabled: active && project !== null,
+	});
 
 	return (
 		<div className="page">
@@ -151,8 +141,7 @@ export function TrackingRoute({ active }: TrackingRouteProps) {
 										<span className="row">
 											{data.updatedAt && (
 												<span className="dim" title={formatTimestamp(Date.parse(data.updatedAt))}>
-													{t("tracking.updated")}:{" "}
-													{formatRelativeTime(Date.parse(data.updatedAt))}
+													{t("tracking.updated")}: {formatRelativeTime(Date.parse(data.updatedAt))}
 												</span>
 											)}
 											<StateBadge state={data.status.state} truncated={data.status.truncated} />

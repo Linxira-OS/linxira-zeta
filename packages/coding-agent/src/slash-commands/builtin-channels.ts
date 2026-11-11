@@ -117,7 +117,6 @@ async function setInstanceEnabledById(
 	);
 }
 
-
 export const BUILTIN_CHANNELS_SLASH_COMMAND: SlashCommandSpec = {
 	name: "channels",
 	icon: "broadcast",

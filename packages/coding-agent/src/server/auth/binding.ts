@@ -92,10 +92,10 @@ export function effectiveBinding(
 		return null;
 	}
 	return {
-		...(deviceBinding.sessionId ?? sessionBinding.sessionId
+		...((deviceBinding.sessionId ?? sessionBinding.sessionId)
 			? { sessionId: deviceBinding.sessionId ?? sessionBinding.sessionId }
 			: {}),
-		...(deviceBinding.workspaceId ?? sessionBinding.workspaceId
+		...((deviceBinding.workspaceId ?? sessionBinding.workspaceId)
 			? { workspaceId: deviceBinding.workspaceId ?? sessionBinding.workspaceId }
 			: {}),
 	};

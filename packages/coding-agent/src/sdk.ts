@@ -117,10 +117,7 @@ import {
 	type ToolPathWithSource,
 } from "./extensibility/custom-tools";
 import { filterExtensionPathsByAllowlist } from "./extensibility/plugins/loader";
-import {
-	type AgentProfileOptions,
-	createAgentToolAdmission,
-} from "./agent-profile";
+import { type AgentProfileOptions, createAgentToolAdmission } from "./agent-profile";
 import type { CustomTool, CustomToolContext, CustomToolSessionEvent } from "./extensibility/custom-tools/types";
 import {
 	bindPreparedExtensions,
@@ -2668,7 +2665,8 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	// session owns one that follows its session file. Read it per request, so a request
 	// lands on the gate of the session file it was sent for.
 	const currentCostGate = (): CostGateApi | undefined => session?.costGate ?? options.costGate;
-	const enableLsp = options.enableLsp ?? (admission.hasPolicy ? effectiveToolNames!.includes("lsp") : !restrictToolNames);
+	const enableLsp =
+		options.enableLsp ?? (admission.hasPolicy ? effectiveToolNames!.includes("lsp") : !restrictToolNames);
 	const lspReadOnly = options.lspReadOnly ?? (admission.hasPolicy ? true : restrictToolNames);
 	// Every root owns its jobs and delivery sinks, even when another root is live.
 	// Children use the exact manager passed by their parent; the singleton remains
@@ -2811,12 +2809,8 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 						skillFilter: (name: string) => admission.allowsSkill(name),
 					}
 				: {}),
-			...(agentProfile?.approvalCacheDir === undefined
-				? {}
-				: { approvalCacheDir: agentProfile.approvalCacheDir }),
-			...(agentProfile?.memoryNamespace === undefined
-				? {}
-				: { memoryNamespace: agentProfile.memoryNamespace }),
+			...(agentProfile?.approvalCacheDir === undefined ? {} : { approvalCacheDir: agentProfile.approvalCacheDir }),
+			...(agentProfile?.memoryNamespace === undefined ? {} : { memoryNamespace: agentProfile.memoryNamespace }),
 			get seanceSourceArtifactsDir() {
 				return sessionManager.getSeanceSourceArtifactsDir() ?? undefined;
 			},
@@ -4200,7 +4194,9 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				? []
 				: extensionRunner
 						.getAllRegisteredTools()
-						.filter(tool => !admission.hasPolicy || admitsRegisteredTool(tool.definition.name, tool.extensionPath));
+						.filter(
+							tool => !admission.hasPolicy || admitsRegisteredTool(tool.definition.name, tool.extensionPath),
+						);
 		const initialRegisteredTools = new WeakSet(registeredTools);
 		// Manager-owned proxies register like SDK custom tools but are classified
 		// as manager tools via their origins. An explicitly supplied custom tool
@@ -4795,9 +4791,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				(options.appendSystemPrompt === undefined ? discoverAppendSystemPromptPath() : undefined);
 			const appendText =
 				options.appendSystemPrompt ??
-				(appendSource === undefined
-					? undefined
-					: await resolvePromptInput(appendSource, "append system prompt"));
+				(appendSource === undefined ? undefined : await resolvePromptInput(appendSource, "append system prompt"));
 			const appendPrompt = composeAppendPrompt(
 				personaAppend ? [...appendParts, personaAppend] : appendParts,
 				appendText,
@@ -4962,13 +4956,14 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 
 		// Custom tools and extension-registered tools are always included
 		// unless the effective registry winner is hidden / defaultInactive. Restricted callers own the list.
-		const alwaysInclude: string[] = restrictToolNames && !admission.hasPolicy
-			? []
-			: [
-					...sdkCustomTools.map(t => t.name),
-					...registeredTools.map(t => t.definition.name),
-					...settingsGatedCustomEntries.keys(),
-				].filter(name => !defaultInactiveToolNames.has(name));
+		const alwaysInclude: string[] =
+			restrictToolNames && !admission.hasPolicy
+				? []
+				: [
+						...sdkCustomTools.map(t => t.name),
+						...registeredTools.map(t => t.definition.name),
+						...settingsGatedCustomEntries.keys(),
+					].filter(name => !defaultInactiveToolNames.has(name));
 		for (const name of alwaysInclude) {
 			if (toolRegistry.has(name) && !initialToolNames.includes(name)) {
 				initialToolNames.push(name);
@@ -5515,9 +5510,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			serviceTierByFamily: initialServiceTierByFamily,
 			sessionManager,
 			settings,
-			...(agentProfile?.approvalCacheDir === undefined
-				? {}
-				: { approvalCacheDir: agentProfile.approvalCacheDir }),
+			...(agentProfile?.approvalCacheDir === undefined ? {} : { approvalCacheDir: agentProfile.approvalCacheDir }),
 			...(admission.hasPolicy
 				? {
 						mcpToolFilter: (tool: { name: string; mcpServerName?: string }) =>
@@ -6352,11 +6345,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				await ownedMCPManager.reconcileProjectConfig(enabled);
 				if (owningSession.isDisposed) return;
 				const tools = ownedMCPManager.getTools();
-				const analysis = await buildMcpRefreshAnalysis(
-					ownedMCPManager,
-					tools,
-					owningSession.getActiveToolNames(),
-				);
+				const analysis = await buildMcpRefreshAnalysis(ownedMCPManager, tools, owningSession.getActiveToolNames());
 				await owningSession.refreshMCPTools(tools, analysis);
 			});
 		}

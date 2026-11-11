@@ -9631,10 +9631,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		await this.#commandController.handleForkCommand(placement);
 	}
 
-	async handleMoveCommand(
-		targetPath?: string,
-		options?: { allowCreate?: boolean },
-	): Promise<void> {
+	async handleMoveCommand(targetPath?: string, options?: { allowCreate?: boolean }): Promise<void> {
 		if (this.#vibeSessionTransitionBlocked()) return;
 		await this.#commandController.handleMoveCommand(targetPath, options);
 	}

@@ -19,24 +19,45 @@ afterEach(async () => {
 function setup(mode: "manual" | "window") {
 	const dir = TempDir.createSync("@hindsight-window-");
 	dirs.push(dir);
-	const settings = Settings.isolated({ "memory.backend": "hindsight", "memory.extractionMode": mode,
-		"hindsight.apiUrl": "http://localhost:8888", "hindsight.autoRetain": true });
+	const settings = Settings.isolated({
+		"memory.backend": "hindsight",
+		"memory.extractionMode": mode,
+		"hindsight.apiUrl": "http://localhost:8888",
+		"hindsight.autoRetain": true,
+	});
 	const retainBatch = vi.fn(async (_bank: string, _items: unknown[]) => ({}));
 	const client = { retainBatch } as unknown as HindsightClientApi;
-	let state: HindsightSessionState;
-	const session = { settings, sessionId: "window-session", getHindsightSessionState: () => state,
-		emitNotice: vi.fn(), sessionManager: { getEntries: () => { throw new Error("must not scan history"); } },
+	const session = {
+		settings,
+		sessionId: "window-session",
+		getHindsightSessionState: () => state,
+		emitNotice: vi.fn(),
+		sessionManager: {
+			getEntries: () => {
+				throw new Error("must not scan history");
+			},
+		},
 	} as unknown as AgentSession;
-	state = new HindsightSessionState({ agentDir: dir.path(), session, sessionId: session.sessionId, client,
-		bankId: "resolved-project-bank", retainTags: ["project:resolved"], config: loadHindsightConfig(settings),
-		banksSet: new Set(["resolved-project-bank"]) });
+	const state = new HindsightSessionState({
+		agentDir: dir.path(),
+		session,
+		sessionId: session.sessionId,
+		client,
+		bankId: "resolved-project-bank",
+		retainTags: ["project:resolved"],
+		config: loadHindsightConfig(settings),
+		banksSet: new Set(["resolved-project-bank"]),
+	});
 	states.push(state);
 	return { state, retainBatch, context: { session, agentDir: dir.path(), cwd: "/wrong-context" } };
 }
-const input = { id: "stable-window", messages: [
-	{ role: "user" as const, content: "Always retain user evidence in bounded queues." },
-	{ role: "assistant" as const, content: "ASSISTANT_CANNOT_ESTABLISH_FACTS" },
-] };
+const input = {
+	id: "stable-window",
+	messages: [
+		{ role: "user" as const, content: "Always retain user evidence in bounded queues." },
+		{ role: "assistant" as const, content: "ASSISTANT_CANNOT_ESTABLISH_FACTS" },
+	],
+};
 
 describe("hindsight window consumer", () => {
 	it("gates cadence outside auto and delivers user evidence through the resolved durable queue", async () => {
@@ -47,7 +68,10 @@ describe("hindsight window consumer", () => {
 			await hindsightBackend.learnWindow!(context, input);
 			await state.flushRetainQueue();
 			expect(retainBatch).toHaveBeenCalledTimes(1);
-			const [bank, items] = retainBatch.mock.calls[0] as unknown as [string, Array<{ content: string; tags: string[] }>];
+			const [bank, items] = retainBatch.mock.calls[0] as unknown as [
+				string,
+				Array<{ content: string; tags: string[] }>,
+			];
 			expect(bank).toBe("resolved-project-bank");
 			expect(items).toHaveLength(1);
 			expect(items[0]?.tags).toEqual(["project:resolved"]);
@@ -63,13 +87,17 @@ describe("hindsight window consumer", () => {
 		await state.flushRetainQueue();
 		const root = path.join(context.agentDir, "hindsight-outbox");
 		const [destination] = (await fs.readdir(root)).filter(name => name !== "quarantine");
-		expect(await fs.readdir(path.join(root, destination!))).toContainEqual(expect.stringMatching(/^zeta-retain-.*\.json$/));
+		expect(await fs.readdir(path.join(root, destination!))).toContainEqual(
+			expect.stringMatching(/^zeta-retain-.*\.json$/),
+		);
 		await state.flushRetainQueue();
 		expect(retainBatch).toHaveBeenCalledTimes(2);
 		expect(retainBatch.mock.calls[0]?.[1]).toEqual(retainBatch.mock.calls[1]?.[1]);
 	});
 
 	it("rejects unavailable backend state instead of reporting success", async () => {
-		await expect(hindsightBackend.learnWindow!({ agentDir: "unused", cwd: "unused" }, input)).rejects.toThrow("primary");
+		await expect(hindsightBackend.learnWindow!({ agentDir: "unused", cwd: "unused" }, input)).rejects.toThrow(
+			"primary",
+		);
 	});
 });

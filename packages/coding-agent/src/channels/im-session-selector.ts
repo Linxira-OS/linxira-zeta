@@ -94,7 +94,9 @@ function candidateLabel(entry: BotSessionEntry, info: SessionInfo | undefined, a
 	const name = entry.name?.replace(/\s+/g, " ").trim();
 	if (name && name !== entry.id && name !== info?.id) return name;
 	const platform = entry.platform ?? "im";
-	const display = { wechat: "WeChat", feishu: "Feishu", telegram: "Telegram", discord: "Discord", qq: "QQ", im: "IM" }[platform] ?? "IM";
+	const display =
+		{ wechat: "WeChat", feishu: "Feishu", telegram: "Telegram", discord: "Discord", qq: "QQ", im: "IM" }[platform] ??
+		"IM";
 	return `${alias} · ${display} 会话`;
 }
 
@@ -108,7 +110,13 @@ export async function buildImSessionList(
 	const now = options.now ?? Date.now();
 	const maxAge = options.maxAgeMs ?? 3 * 24 * 60 * 60_000;
 	const includePm = options.includePm === true;
-	const rows: Array<{ entry: BotSessionEntry; info?: SessionInfo; workspaceAlias: string; modifiedAt: number; isPm: boolean }> = [];
+	const rows: Array<{
+		entry: BotSessionEntry;
+		info?: SessionInfo;
+		workspaceAlias: string;
+		modifiedAt: number;
+		isPm: boolean;
+	}> = [];
 	for (const entry of router.listBotSessions()) {
 		const isPm = isPmEntry(entry, webConfig);
 		const info = await readSessionInfo(entry.sessionFile).catch(() => undefined);
@@ -130,7 +138,8 @@ export async function buildImSessionList(
 	// window is applied. A session that slides out keeps its number; a new one
 	// takes the next number.
 	rows.sort((a, b) => {
-		const byWorkspace = (state.workspaceBase.get(a.workspaceAlias) ?? 0) - (state.workspaceBase.get(b.workspaceAlias) ?? 0);
+		const byWorkspace =
+			(state.workspaceBase.get(a.workspaceAlias) ?? 0) - (state.workspaceBase.get(b.workspaceAlias) ?? 0);
 		if (byWorkspace !== 0) return byWorkspace;
 		const byCreated = Date.parse(a.entry.createdAt) - Date.parse(b.entry.createdAt);
 		return byCreated !== 0 ? byCreated : a.entry.id.localeCompare(b.entry.id);

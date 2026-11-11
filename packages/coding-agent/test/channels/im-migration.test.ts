@@ -113,9 +113,7 @@ describe("binding validation", () => {
 
 	test("rejects malformed/duplicate ids, unknown roles and incomplete models", () => {
 		expect(() => validateImBindings([{ ...base, id: "nope" }], [instance], [profile])).toThrow();
-		expect(() =>
-			validateImBindings([base, { ...base, sessionId: "s2" }], [instance], [profile]),
-		).toThrow();
+		expect(() => validateImBindings([base, { ...base, sessionId: "s2" }], [instance], [profile])).toThrow();
 		expect(() => validateImBindings([{ ...base, role: "broadcast" }], [instance], [profile])).toThrow();
 		expect(() => validateImBindings([{ ...base, model: { provider: "x" } }], [instance], [profile])).toThrow();
 		expect(() => validateImBindings([{ ...base, chatId: "c\u0000evil" }], [instance], [profile])).toThrow();
@@ -129,9 +127,7 @@ describe("binding validation", () => {
 			role: "mention" as const,
 		};
 		expect(validateImBindings([base, mention], [instance], [profile])).toHaveLength(2);
-		expect(() =>
-			validateImBindings([base, { ...mention, role: "answer" }], [instance], [profile]),
-		).toThrow();
+		expect(() => validateImBindings([base, { ...mention, role: "answer" }], [instance], [profile])).toThrow();
 	});
 });
 

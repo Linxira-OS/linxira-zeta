@@ -203,7 +203,10 @@ describe("TUI channel host lock", () => {
 			imConfig([instance("telegram", "telegram", { enabled: true, credentials: { botToken: "tg" } })]),
 		);
 		const start = (async (_session: ChannelSession, _webConfig: unknown) => {
-			const ids = config.getData().channels.instances.filter(entry => entry.enabled).map(entry => entry.id);
+			const ids = config
+				.getData()
+				.channels.instances.filter(entry => entry.enabled)
+				.map(entry => entry.id);
 			return fakeRuntime(ids);
 		}) as unknown as typeof startChannels;
 		const first = await startSessionChannels({
@@ -304,5 +307,4 @@ describe("/channels command", () => {
 			refreshDirsFromEnv();
 		}
 	});
-
 });

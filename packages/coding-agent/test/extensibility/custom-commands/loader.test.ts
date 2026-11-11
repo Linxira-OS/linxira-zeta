@@ -68,7 +68,7 @@ describe("custom command loader", () => {
 		);
 		await Bun.write(
 			invalidPath,
-			['export default () => ({', '\tname: "inert",', '\tdescription: "No handler",', "});"].join("\n"),
+			["export default () => ({", '\tname: "inert",', '\tdescription: "No handler",', "});"].join("\n"),
 		);
 
 		const result = await loadCustomCommands({ cwd: tempRoot, agentDir: tempRoot });

@@ -37,8 +37,13 @@ export class WindowLearningQueue {
 
 	async #read(): Promise<LearningJournal> {
 		try {
-			const value = await Bun.file(this.file).json() as LearningJournal;
-			if (value.version !== 1 || !Array.isArray(value.pending) || !Array.isArray(value.entries) || !Array.isArray(value.processed)) {
+			const value = (await Bun.file(this.file).json()) as LearningJournal;
+			if (
+				value.version !== 1 ||
+				!Array.isArray(value.pending) ||
+				!Array.isArray(value.entries) ||
+				!Array.isArray(value.processed)
+			) {
 				throw new Error(`Invalid window learning journal: ${this.file}`);
 			}
 			return value;
@@ -78,25 +83,30 @@ export class WindowLearningQueue {
 	/** Serial across processes as well as lifecycle retries; never called inside a commit listener. */
 	async process(run: (window: QueuedLearningWindow, checkpoint: () => Promise<void>) => Promise<void>): Promise<void> {
 		await fs.mkdir(path.dirname(this.file), { recursive: true, mode: 0o700 });
-		await withFileLock(`${this.file}.processing`, async () => {
-			for (const window of await this.pending()) {
-				const checkpoint = () => this.#mutate(state => {
-					const index = state.pending.findIndex(item => item.id === window.id);
-					if (index >= 0) state.pending[index] = window;
-				});
-				window.attempts++;
-				try {
-					await run(window, checkpoint);
-					await this.#mutate(state => {
-						state.pending = state.pending.filter(item => item.id !== window.id);
-						state.processed.push(window.id);
-					});
-				} catch (error) {
-					window.error = error instanceof Error ? error.message : String(error);
-					await checkpoint();
-					throw error;
+		await withFileLock(
+			`${this.file}.processing`,
+			async () => {
+				for (const window of await this.pending()) {
+					const checkpoint = () =>
+						this.#mutate(state => {
+							const index = state.pending.findIndex(item => item.id === window.id);
+							if (index >= 0) state.pending[index] = window;
+						});
+					window.attempts++;
+					try {
+						await run(window, checkpoint);
+						await this.#mutate(state => {
+							state.pending = state.pending.filter(item => item.id !== window.id);
+							state.processed.push(window.id);
+						});
+					} catch (error) {
+						window.error = error instanceof Error ? error.message : String(error);
+						await checkpoint();
+						throw error;
+					}
 				}
-			}
-		}, { retries: 1, retryDelayMs: 1 });
+			},
+			{ retries: 1, retryDelayMs: 1 },
+		);
 	}
 }

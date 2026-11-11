@@ -265,7 +265,8 @@ export interface RenderFidelityOptions {
  * empty extraction for a successful retention.
  */
 export function renderFidelityLedger(fidelity: CompactionFidelity, options: RenderFidelityOptions): string {
-	const list = (values: readonly string[]): string => (values.length > 0 ? values.map(v => `- ${v}`).join("\n") : "- (none)");
+	const list = (values: readonly string[]): string =>
+		values.length > 0 ? values.map(v => `- ${v}`).join("\n") : "- (none)";
 	const qa =
 		fidelity.qa.length > 0
 			? fidelity.qa
@@ -327,7 +328,9 @@ function isCompactionFidelity(value: unknown): value is CompactionFidelity {
 }
 
 /** Read the artifact previously stored on an entry's preserveData. */
-export function readCompactionFidelity(preserveData: Record<string, unknown> | undefined): CompactionFidelity | undefined {
+export function readCompactionFidelity(
+	preserveData: Record<string, unknown> | undefined,
+): CompactionFidelity | undefined {
 	const value = preserveData?.[COMPACTION_FIDELITY_PRESERVE_KEY];
 	return isCompactionFidelity(value) ? value : undefined;
 }

@@ -413,7 +413,8 @@ function healUnpersistableImBindings(data: WebConfigData): boolean {
 /** Legacy `channels.<platform>` block, kept only inside the one-shot migrator. */
 function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; data: Record<string, unknown> } {
 	const channels = raw.channels;
-	if (typeof channels !== "object" || channels === null || Array.isArray(channels)) return { changed: false, data: raw };
+	if (typeof channels !== "object" || channels === null || Array.isArray(channels))
+		return { changed: false, data: raw };
 	const legacy = channels as Record<string, unknown>;
 	const platforms = ["wechat", "feishu", "telegram", "discord", "qq"] as const;
 	if (!platforms.some(platform => typeof legacy[platform] === "object" && legacy[platform] !== null)) {
@@ -424,9 +425,10 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 	const legacyGlobalPeers = Array.isArray(legacy.allowedPeers)
 		? (legacy.allowedPeers as unknown[]).filter((peer): peer is string => typeof peer === "string")
 		: [];
-	const remote = typeof raw.remote === "object" && raw.remote !== null && !Array.isArray(raw.remote)
-		? (raw.remote as Record<string, unknown>)
-		: {};
+	const remote =
+		typeof raw.remote === "object" && raw.remote !== null && !Array.isArray(raw.remote)
+			? (raw.remote as Record<string, unknown>)
+			: {};
 	const legacyMappings = Array.isArray(remote.sessionMappings) ? (remote.sessionMappings as unknown[]) : [];
 	const bindings: ImBinding[] = [];
 	const legacyWorkspaces: RemoteWorkspace[] = [];
@@ -437,7 +439,8 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 		if (typeof block !== "object" || block === null || Array.isArray(block)) continue;
 		const rec = block as Record<string, unknown>;
 		const profileId = `legacy-${platform}`;
-		const workspaceRoot = typeof rec.workspaceRoot === "string" && rec.workspaceRoot !== "" ? rec.workspaceRoot : undefined;
+		const workspaceRoot =
+			typeof rec.workspaceRoot === "string" && rec.workspaceRoot !== "" ? rec.workspaceRoot : undefined;
 		const workspaceAlias = workspaceRoot ? `legacy-${platform}` : "main";
 		if (workspaceRoot) legacyWorkspaces.push({ alias: workspaceAlias, path: workspaceRoot });
 		const peers = Array.isArray(rec.allowedChannels)
@@ -466,12 +469,26 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 			memory: { backend: "mnemopi", workspaceContext: true },
 		});
 		const credentials: Record<string, unknown> = {};
-		for (const key of ["botToken", "ilinkBotId", "ilinkUserId", "baseUrl", "endpoint", "appId", "appSecret", "domain", "token", "mode", "port", "selfId"]) {
+		for (const key of [
+			"botToken",
+			"ilinkBotId",
+			"ilinkUserId",
+			"baseUrl",
+			"endpoint",
+			"appId",
+			"appSecret",
+			"domain",
+			"token",
+			"mode",
+			"port",
+			"selfId",
+		]) {
 			if (rec[key] !== undefined) credentials[key] = rec[key];
 		}
-		const peerTokens = typeof rec.peerTokens === "object" && rec.peerTokens !== null && !Array.isArray(rec.peerTokens)
-			? (rec.peerTokens as Record<string, string>)
-			: undefined;
+		const peerTokens =
+			typeof rec.peerTokens === "object" && rec.peerTokens !== null && !Array.isArray(rec.peerTokens)
+				? (rec.peerTokens as Record<string, string>)
+				: undefined;
 		instances.push({
 			id: platform,
 			platform,
@@ -490,24 +507,29 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 	for (const [index, entry] of legacyMappings.entries()) {
 		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
 		const rec = entry as Record<string, unknown>;
-		const platform = typeof rec.platform === "string" && (platforms as readonly string[]).includes(rec.platform)
-			? (rec.platform as ChannelInstanceConfig["platform"])
-			: undefined;
+		const platform =
+			typeof rec.platform === "string" && (platforms as readonly string[]).includes(rec.platform)
+				? (rec.platform as ChannelInstanceConfig["platform"])
+				: undefined;
 		if (!platform) continue;
 		const connectionId = typeof rec.connectionId === "string" ? rec.connectionId : undefined;
-		const instanceId = connectionId && instances.some(instance => instance.id === connectionId) ? connectionId : platform;
+		const instanceId =
+			connectionId && instances.some(instance => instance.id === connectionId) ? connectionId : platform;
 		const chatId = typeof rec.chatId === "string" ? rec.chatId : "";
 		if (!chatId || !isPersistableKeyText(chatId)) continue;
-		const workspaceAlias = typeof rec.workspaceAlias === "string" && rec.workspaceAlias !== "" ? rec.workspaceAlias : undefined;
+		const workspaceAlias =
+			typeof rec.workspaceAlias === "string" && rec.workspaceAlias !== "" ? rec.workspaceAlias : undefined;
 		const target: ImBinding["target"] = {
 			kind: "workspace",
 			workspace:
 				workspaceAlias ??
 				(profiles.find(profile => profile.id === `legacy-${platform}`)?.location.kind === "workspace"
-					? (profiles.find(profile => profile.id === `legacy-${platform}`)!.location as { workspace: string }).workspace
+					? (profiles.find(profile => profile.id === `legacy-${platform}`)!.location as { workspace: string })
+							.workspace
 					: "main"),
 		};
-		const originalSessionId = typeof rec.sessionId === "string" && rec.sessionId !== "" ? rec.sessionId : `legacy-${index}`;
+		const originalSessionId =
+			typeof rec.sessionId === "string" && rec.sessionId !== "" ? rec.sessionId : `legacy-${index}`;
 		const duplicateSession = legacySessionIds.has(originalSessionId);
 		const sessionId = duplicateSession ? `legacy-${index}` : originalSessionId;
 		legacySessionIds.add(sessionId);
@@ -516,7 +538,9 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 		if (!duplicateAnswer) legacyAnswerKeys.add(answerKey);
 		const needsReview =
 			!connectionId ||
-			(connectionId !== undefined && instanceId === platform && !instances.some(instance => instance.id === connectionId)) ||
+			(connectionId !== undefined &&
+				instanceId === platform &&
+				!instances.some(instance => instance.id === connectionId)) ||
 			duplicateAnswer ||
 			duplicateSession;
 		bindings.push({
@@ -558,7 +582,9 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 			bindings.find(candidate => candidate.instanceId === instance.id && candidate.chatId === chatId) ??
 			bindings.find(candidate => candidate.platform === platform && candidate.chatId === chatId);
 		if (!binding) {
-			const hasAnswer = bindings.some(candidate => candidate.platform === platform && candidate.chatId === chatId && candidate.role === "answer");
+			const hasAnswer = bindings.some(
+				candidate => candidate.platform === platform && candidate.chatId === chatId && candidate.role === "answer",
+			);
 			binding = {
 				id: `b_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
 				instanceId: instance.id,
@@ -587,7 +613,12 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 			...remote,
 			...(bindings.length > 0 ? { imBindings: bindings } : {}),
 			...(legacyWorkspaces.length > 0
-				? { workspaces: [...(Array.isArray(remote.workspaces) ? (remote.workspaces as unknown[]) : []), ...legacyWorkspaces] }
+				? {
+						workspaces: [
+							...(Array.isArray(remote.workspaces) ? (remote.workspaces as unknown[]) : []),
+							...legacyWorkspaces,
+						],
+					}
 				: {}),
 		};
 		if (bindings.length > 0) delete (next.remote as Record<string, unknown>).sessionMappings;
@@ -829,7 +860,9 @@ export class WebConfig {
 		const referenced = new Set(this.#data.channels.instances.map(instance => instance.agentProfile));
 		for (const profile of this.#data.imAgents) {
 			if (referenced.has(profile.id) && !profiles.some(candidate => candidate.id === profile.id)) {
-				throw new ImConfigError([{ path: "imAgents", message: `profile ${profile.id} is referenced by an instance` }]);
+				throw new ImConfigError([
+					{ path: "imAgents", message: `profile ${profile.id} is referenced by an instance` },
+				]);
 			}
 		}
 		await this.#mutate(data => {
@@ -843,7 +876,11 @@ export class WebConfig {
 		return structuredClone(this.#data.remote.imBindings ?? []);
 	}
 
-	findImBinding(instanceId: string, chatId: string, opts: { threadId?: string; userId?: string } = {}): ImBinding | undefined {
+	findImBinding(
+		instanceId: string,
+		chatId: string,
+		opts: { threadId?: string; userId?: string } = {},
+	): ImBinding | undefined {
 		const key = [instanceId, chatId, opts.threadId ?? "", opts.userId ?? ""].join("\u0000");
 		return (this.#data.remote.imBindings ?? []).find(binding => bindingKey(binding) === key);
 	}
@@ -858,7 +895,12 @@ export class WebConfig {
 	}
 
 	async upsertImBinding(binding: ImBinding): Promise<ImBinding> {
-		const next = [...(this.#data.remote.imBindings ?? []).filter(entry => entry.id !== binding.id && bindingKey(entry) !== bindingKey(binding)), binding];
+		const next = [
+			...(this.#data.remote.imBindings ?? []).filter(
+				entry => entry.id !== binding.id && bindingKey(entry) !== bindingKey(binding),
+			),
+			binding,
+		];
 		await this.setImBindings(next);
 		return binding;
 	}

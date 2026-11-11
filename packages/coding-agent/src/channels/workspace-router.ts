@@ -387,14 +387,11 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 				await deps.sendText("No workspace router in this mode.");
 				return true;
 			}
-			const result = await router.confirmWorkspaceSwitch(
-				deps.channelId as never,
-				deps.peer,
-				{ ...(deps.threadId ? { threadId: deps.threadId } : {}), ...(deps.userId ? { userId: deps.userId } : {}) },
-			);
-			await deps.sendText(
-				result.ok ? `Workspace switch applied: ${targetLabel(result.target)}.` : result.error,
-			);
+			const result = await router.confirmWorkspaceSwitch(deps.channelId as never, deps.peer, {
+				...(deps.threadId ? { threadId: deps.threadId } : {}),
+				...(deps.userId ? { userId: deps.userId } : {}),
+			});
+			await deps.sendText(result.ok ? `Workspace switch applied: ${targetLabel(result.target)}.` : result.error);
 			return true;
 		}
 
@@ -403,12 +400,15 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 				await deps.sendText("No workspace router in this mode.");
 				return true;
 			}
-			const cancelled = await router.cancelWorkspaceSwitch(
-				deps.channelId as never,
-				deps.peer,
-				{ ...(deps.threadId ? { threadId: deps.threadId } : {}), ...(deps.userId ? { userId: deps.userId } : {}) },
+			const cancelled = await router.cancelWorkspaceSwitch(deps.channelId as never, deps.peer, {
+				...(deps.threadId ? { threadId: deps.threadId } : {}),
+				...(deps.userId ? { userId: deps.userId } : {}),
+			});
+			await deps.sendText(
+				cancelled
+					? "Workspace switch cancelled; this chat keeps its current target."
+					: "No pending workspace switch.",
 			);
-			await deps.sendText(cancelled ? "Workspace switch cancelled; this chat keeps its current target." : "No pending workspace switch.");
 			return true;
 		}
 
@@ -447,11 +447,10 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 				await deps.sendText("No workspace router in this mode.");
 				return true;
 			}
-			await router.requestWorkspaceUnbind(
-				deps.channelId as never,
-				deps.peer,
-				{ ...(deps.threadId ? { threadId: deps.threadId } : {}), ...(deps.userId ? { userId: deps.userId } : {}) },
-			);
+			await router.requestWorkspaceUnbind(deps.channelId as never, deps.peer, {
+				...(deps.threadId ? { threadId: deps.threadId } : {}),
+				...(deps.userId ? { userId: deps.userId } : {}),
+			});
 			await deps.sendText(
 				"Remove this chat's binding and return to the default target? Reply @workspace confirm or @workspace cancel.",
 			);
@@ -751,7 +750,9 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 				return `${candidate.selector} ${candidate.label}${summary} [${candidate.workspaceAlias}]${mark}`;
 			});
 			await deps.sendText(
-				["Bot 会话（近 3 天）:", ...lines, "回复 !session use 01-00001 切换；更早会话请在电脑 Studio 查看"].join("\n"),
+				["Bot 会话（近 3 天）:", ...lines, "回复 !session use 01-00001 切换；更早会话请在电脑 Studio 查看"].join(
+					"\n",
+				),
 			);
 			return;
 		}

@@ -435,7 +435,12 @@ export async function runCredentialLogin(
 					);
 				}
 				await options.webConfig.setInstance(options.instanceId, {
-					credentials: { ...storedCredentials(options.webConfig, options.instanceId), mode: "reverse", port: bound, token },
+					credentials: {
+						...storedCredentials(options.webConfig, options.instanceId),
+						mode: "reverse",
+						port: bound,
+						token,
+					},
 				});
 				return {
 					channel,

@@ -25,7 +25,6 @@ import * as crypto from "node:crypto";
 import { logger } from "@linxiraos/pi-utils";
 import type { ChannelCapabilities, ChatChannel, ChatImage, InboundMessage } from "./channel";
 
-
 export type WeChatInboundHandler = (message: InboundMessage) => void;
 
 /** QR login progress surfaced to the UI (web settings panel). */
@@ -303,8 +302,10 @@ export class WeChatChannel implements ChatChannel {
 					if (sink) {
 						await sink.setField("botToken", this.#botToken);
 						if (baseUrl !== "") await sink.setField("baseUrl", baseUrl);
-						if (typeof ilinkBotId === "string" && ilinkBotId !== "") await sink.setField("ilinkBotId", ilinkBotId);
-						if (typeof ilinkUserId === "string" && ilinkUserId !== "") await sink.setField("ilinkUserId", ilinkUserId);
+						if (typeof ilinkBotId === "string" && ilinkBotId !== "")
+							await sink.setField("ilinkBotId", ilinkBotId);
+						if (typeof ilinkUserId === "string" && ilinkUserId !== "")
+							await sink.setField("ilinkUserId", ilinkUserId);
 					}
 					this.#options.onQrCode?.({
 						qrcode: token,

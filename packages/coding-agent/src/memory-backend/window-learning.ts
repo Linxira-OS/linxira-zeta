@@ -40,10 +40,9 @@ function isLearningEnabled(settings: Settings, taskDepth: number): boolean {
  * the full contract, and this listener is registered through the real accessor.
  */
 interface WindowCompactionSession extends AgentSession {
-	onCompactionCommit(listener: (commit: {
-		entry: { id: string };
-		cutPoint: { discardedEntryIds: string[] };
-	}) => void | Promise<void>): () => void;
+	onCompactionCommit(
+		listener: (commit: { entry: { id: string }; cutPoint: { discardedEntryIds: string[] } }) => void | Promise<void>,
+	): () => void;
 }
 
 /** Only user/assistant text: tool traffic and compaction entries are not conversational evidence. */
@@ -67,7 +66,10 @@ function textOf(entry: SessionEntry): MemoryLearningWindow["messages"][number] |
 	return { role: message.role, content: text, timestamp: entry.timestamp };
 }
 
-function snapshot(entries: readonly SessionEntry[]): { messages: MemoryLearningWindow["messages"]; entryIds: string[] } {
+function snapshot(entries: readonly SessionEntry[]): {
+	messages: MemoryLearningWindow["messages"];
+	entryIds: string[];
+} {
 	const messages: MemoryLearningWindow["messages"] = [];
 	const entryIds: string[] = [];
 	for (const entry of entries) {
@@ -135,7 +137,11 @@ export async function startWindowLearning(options: WindowLearningOptions): Promi
 								await checkpoint();
 							}
 							if (window.taste && !window.tasteDone) {
-								if (cfgMemoryBackend.get(settings) !== "off" && cfgTasteEnabled.get(settings) && cfgTasteExtractionMode.get(settings) === "window") {
+								if (
+									cfgMemoryBackend.get(settings) !== "off" &&
+									cfgTasteEnabled.get(settings) &&
+									cfgTasteExtractionMode.get(settings) === "window"
+								) {
 									await extractTasteWindow({
 										window,
 										settings,

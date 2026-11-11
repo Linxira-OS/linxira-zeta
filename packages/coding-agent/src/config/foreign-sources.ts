@@ -135,7 +135,10 @@ function envAllows(providerId: string): boolean {
 	const raw = process.env.ZETA_FOREIGN_PROJECT_SOURCES?.trim().toLowerCase();
 	if (!raw) return false;
 	if (raw === "all" || raw === "*") return true;
-	return raw.split(",").map(value => value.trim()).includes(providerId);
+	return raw
+		.split(",")
+		.map(value => value.trim())
+		.includes(providerId);
 }
 
 /**

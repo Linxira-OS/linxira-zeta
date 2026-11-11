@@ -82,9 +82,10 @@ function startServer(): void {
 			},
 			message(ws, message) {
 				const parsed: unknown = JSON.parse(String(message));
-				const scope = parsed !== null && typeof parsed === "object" && "scope" in parsed
-					? (parsed.scope as { scope: "all" })
-					: { scope: "all" as const };
+				const scope =
+					parsed !== null && typeof parsed === "object" && "scope" in parsed
+						? (parsed.scope as { scope: "all" })
+						: { scope: "all" as const };
 				for (const event of host.openEvent(scope)) ws.send(JSON.stringify(event));
 			},
 			close(ws) {
@@ -227,8 +228,24 @@ describe("origin and forwarded peers", () => {
 	test("a read-only device cannot mint, verify-write, or read the pairing code", async () => {
 		const reader = await registry.issue({ label: "tablet", scopes: ["read"] });
 		const auth = { authorization: `Bearer ${reader.token}` };
-		expect((await remote("/api/v1/query", { method: "POST", headers: { ...auth, "content-type": "application/json" }, body: JSON.stringify({ queryName: "environment.get", input: {} }) })).status).toBe(200);
-		expect((await remote("/api/v1/command", { method: "POST", headers: { ...auth, "content-type": "application/json" }, body: JSON.stringify({ commandName: "core.abort", input: {}, idempotencyKey: "k1", requestId: "r1" }) })).status).toBe(403);
+		expect(
+			(
+				await remote("/api/v1/query", {
+					method: "POST",
+					headers: { ...auth, "content-type": "application/json" },
+					body: JSON.stringify({ queryName: "environment.get", input: {} }),
+				})
+			).status,
+		).toBe(200);
+		expect(
+			(
+				await remote("/api/v1/command", {
+					method: "POST",
+					headers: { ...auth, "content-type": "application/json" },
+					body: JSON.stringify({ commandName: "core.abort", input: {}, idempotencyKey: "k1", requestId: "r1" }),
+				})
+			).status,
+		).toBe(403);
 		expect((await remote("/api/remote/pairing", { headers: auth })).status).toBe(403);
 		expect((await remote("/api/terminal", { method: "POST", headers: auth })).status).toBe(403);
 	});
@@ -288,11 +305,15 @@ describe("scope", () => {
 	test("write scope is required for a command and allowed for a query", async () => {
 		const device = await pair();
 		const auth = { authorization: `Bearer ${device.token}` };
-		expect((await remote("/api/v1/command", {
-			method: "POST",
-			headers: { ...auth, "content-type": "application/json" },
-			body: JSON.stringify({ commandName: "core.abort", input: {}, idempotencyKey: "k", requestId: "r" }),
-		})).status).toBe(202);
+		expect(
+			(
+				await remote("/api/v1/command", {
+					method: "POST",
+					headers: { ...auth, "content-type": "application/json" },
+					body: JSON.stringify({ commandName: "core.abort", input: {}, idempotencyKey: "k", requestId: "r" }),
+				})
+			).status,
+		).toBe(202);
 	});
 
 	test("binding refuses a global list and the wrong session, allows the bound one", async () => {
@@ -344,10 +365,15 @@ describe("scope", () => {
 		const bound = await registry.issue({ label: "bound", binding: { sessionId: "sess-a" } });
 		await writeFile(
 			join(agentDir, "auth", "devices.json"),
-			JSON.stringify({ version: 1, devices: [{ id: bound.device.id, tokenHash: "0".repeat(64), binding: "not-an-object" }] }),
+			JSON.stringify({
+				version: 1,
+				devices: [{ id: bound.device.id, tokenHash: "0".repeat(64), binding: "not-an-object" }],
+			}),
 			"utf8",
 		);
-		expect((await remote("/api/remote/devices", { headers: { authorization: `Bearer ${bound.token}` } })).status).toBe(401);
+		expect(
+			(await remote("/api/remote/devices", { headers: { authorization: `Bearer ${bound.token}` } })).status,
+		).toBe(401);
 	});
 });
 

@@ -146,6 +146,7 @@ export function runRemote(
 	if (!helper.available) throw new Error("密码认证在 Windows 上不可用；请使用 SSH 密钥或 ssh-agent。");
 	const { promise, resolve, reject } = Promise.withResolvers<string>();
 	let settled = false;
+	// eslint-disable-next-line prefer-const -- assigned once after the child exists; finish() can run earlier.
 	let timer: NodeJS.Timeout | undefined;
 	const finish = (error: Error | null, value = ""): void => {
 		if (settled) return;
@@ -302,6 +303,7 @@ export async function uploadRuntime(
 	const port = normalizePort(profile.port);
 	const { promise, resolve, reject } = Promise.withResolvers<void>();
 	let settled = false;
+	// eslint-disable-next-line prefer-const -- assigned once after the child exists; finish() can run earlier.
 	let timer: NodeJS.Timeout | undefined;
 	const finish = (error?: Error): void => {
 		if (settled) return;

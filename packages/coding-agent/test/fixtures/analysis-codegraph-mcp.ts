@@ -59,14 +59,10 @@ rl.on("line", line => {
 		return;
 	}
 	if (message.method === "notifications/initialized") {
-		process.stdout.write(
-			`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/tools/list_changed" })}\n`,
-		);
+		process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/tools/list_changed" })}\n`);
 		return;
 	}
 	if (message.id === undefined || message.id === null) return;
-	process.stdout.write(
-		`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result: resultFor(message.method) })}\n`,
-	);
+	process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result: resultFor(message.method) })}\n`);
 });
 rl.on("close", () => process.exit(0));

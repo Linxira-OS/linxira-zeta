@@ -164,17 +164,32 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 					const route = await router.resolveChatTarget(instanceId, peer, context);
 					if (route.kind === "agent") {
 						const result = await router.deliverToAgent(route.target, instanceId, peer, body);
-						if (!result.ok) await runtime.sendText(instanceId, peer, `Failed to reach agent ${route.target}: ${result.error ?? "unknown error"}`);
+						if (!result.ok)
+							await runtime.sendText(
+								instanceId,
+								peer,
+								`Failed to reach agent ${route.target}: ${result.error ?? "unknown error"}`,
+							);
 						return;
 					}
 					if (route.kind === "bot") {
 						const result = await router.deliverToBotSession(route.id, instanceId, peer, body, context);
-						if (!result.ok) await runtime.sendText(instanceId, peer, `无法投递到 Bot 会话 ${route.id}：${result.error ?? "unknown error"}`);
+						if (!result.ok)
+							await runtime.sendText(
+								instanceId,
+								peer,
+								`无法投递到 Bot 会话 ${route.id}：${result.error ?? "unknown error"}`,
+							);
 						return;
 					}
 					if (route.kind === "workspace") {
 						const result = await router.deliverDirect(route.alias, instanceId, peer, body);
-						if (!result.ok) await runtime.sendText(instanceId, peer, `无法连接到工作区 [${route.alias}]：${result.error ?? "unknown error"}`);
+						if (!result.ok)
+							await runtime.sendText(
+								instanceId,
+								peer,
+								`无法连接到工作区 [${route.alias}]：${result.error ?? "unknown error"}`,
+							);
 						return;
 					}
 					if (route.kind === "unavailable") {
@@ -244,7 +259,8 @@ export async function sendFromSessionChannel(opts: {
 	if (!instanceId && opts.channel) {
 		const matches = [...host.runtime.channels.values()].filter(channel => channel.platform === opts.channel);
 		if (matches.length === 1) instanceId = matches[0]!.id;
-		else if (matches.length > 1) throw new Error(`Ambiguous platform "${opts.channel}"; name one with instance=<id>.`);
+		else if (matches.length > 1)
+			throw new Error(`Ambiguous platform "${opts.channel}"; name one with instance=<id>.`);
 	}
 	instanceId ??= last?.instanceId;
 	const to = opts.to ?? (instanceId === last?.instanceId ? last?.peer : undefined);

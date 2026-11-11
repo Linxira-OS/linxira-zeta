@@ -79,9 +79,7 @@ export function resolveTasteScopes(ctx: TasteScopeContext, settings: Settings): 
 	const bank = projectBankSegment(ctx.cwd);
 	// `namespace` is already per-binding; encode it to a slug-safe segment so a
 	// colon or slash cannot collapse two identities into one directory.
-	const identity = ctx.namespace?.trim()
-		? encodeTasteSegment(ctx.namespace.trim())
-		: ctx.agentId;
+	const identity = ctx.namespace?.trim() ? encodeTasteSegment(ctx.namespace.trim()) : ctx.agentId;
 	if (identity) scopes.push({ domain: "agents", segments: [bank, identity] });
 	switch (cfgTasteScoping.get(settings)) {
 		case "global":

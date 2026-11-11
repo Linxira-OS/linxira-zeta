@@ -18,7 +18,11 @@ import {
 export default class Sources extends Command {
 	static description = "List, approve, or revoke foreign project sources";
 	static args = {
-		action: Args.string({ description: "list | approve | revoke", required: false, options: ["list", "approve", "revoke"] }),
+		action: Args.string({
+			description: "list | approve | revoke",
+			required: false,
+			options: ["list", "approve", "revoke"],
+		}),
 		provider: Args.string({ description: "Provider id (e.g. claude, codex, cursor)", required: false }),
 	};
 	static flags = {

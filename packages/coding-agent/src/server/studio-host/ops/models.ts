@@ -848,10 +848,7 @@ async function putSetting(path: string, value: unknown): Promise<void> {
  * by path. `GET /api/settings` is a UI document and omits hidden rows, so a
  * handler that composes state must ask here instead.
  */
-async function readSettingValues(
-	paths: readonly string[],
-	cwd?: string,
-): Promise<Readonly<Record<string, unknown>>> {
+async function readSettingValues(paths: readonly string[], cwd?: string): Promise<Readonly<Record<string, unknown>>> {
 	const query = paths.map(path => `path=${encodeURIComponent(path)}`).join("&");
 	const body = await gatewayJson<unknown>(SETTINGS_VALUES_ROUTE, cwd === undefined ? { query } : { query, cwd });
 	if (!isRecord(body) || !isRecord(body.values)) {
@@ -1343,30 +1340,33 @@ function providerRecord(
 /** Build `models.get` from the gateway's model listing, filter limits, and settings. */
 async function getModelConfig(input: QueryInput<"models.get">): Promise<ModelConfigReadModel> {
 	const cwd = await resolveWorkspaceCwd(input.workspaceId);
-	const settings = await readSettingValues([
-		"modelRoles",
-		"modelTags",
-		"cycleOrder",
-		"modelProviderOrder",
-		"retry.fallbackChains",
-		"retry.fallbackRevertPolicy",
-		"modelRoleStorage",
-		"hiddenModels",
-		"disabledProviders",
-		"web_search.enabled",
-		"providers.webSearchOrder",
-		"providers.webSearchExclude",
-		"providers.webSearchTimeoutSeconds",
-		"providers.webSearchGeminiModel",
-		"searxng.endpoint",
-		"searxng.basicUsername",
-		"searxng.categories",
-		"searxng.engines",
-		"searxng.language",
-		"searxng.safesearch",
-		"exa.enabled",
-		"exa.searchDelayMs",
-	], cwd);
+	const settings = await readSettingValues(
+		[
+			"modelRoles",
+			"modelTags",
+			"cycleOrder",
+			"modelProviderOrder",
+			"retry.fallbackChains",
+			"retry.fallbackRevertPolicy",
+			"modelRoleStorage",
+			"hiddenModels",
+			"disabledProviders",
+			"web_search.enabled",
+			"providers.webSearchOrder",
+			"providers.webSearchExclude",
+			"providers.webSearchTimeoutSeconds",
+			"providers.webSearchGeminiModel",
+			"searxng.endpoint",
+			"searxng.basicUsername",
+			"searxng.categories",
+			"searxng.engines",
+			"searxng.language",
+			"searxng.safesearch",
+			"exa.enabled",
+			"exa.searchDelayMs",
+		],
+		cwd,
+	);
 	const [modelBody, configBody] = await Promise.all([
 		gatewayJson<unknown>(MODELS_ROUTE, cwd === undefined ? {} : { cwd }),
 		gatewayJson<unknown>(MODELS_CONFIG_ROUTE, cwd === undefined ? {} : { cwd }),

@@ -20,7 +20,11 @@ import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
 import { redactMemorySecrets as redactSecrets } from "../memory-backend/redact";
-import type { MemoryBackendOperationContext, MemoryBackendSaveInput, MemoryBackendSaveResult } from "../memory-backend/types";
+import type {
+	MemoryBackendOperationContext,
+	MemoryBackendSaveInput,
+	MemoryBackendSaveResult,
+} from "../memory-backend/types";
 import type { MemoryLearningWindow } from "../memory-backend/window-types";
 import consolidationTemplate from "../prompts/memories/consolidation.md" with { type: "text" };
 import consolidationSystemTemplate from "../prompts/memories/consolidation_system.md" with { type: "text" };
@@ -131,10 +135,14 @@ interface ConsolidationOutputSchema {
 const localMemoryScopes = new WeakMap<AgentSession, string>();
 
 /** Run bounded stage-1 extraction and the existing project consolidation queue. */
-export async function learnMemoryWindow(context: MemoryBackendOperationContext, input: MemoryLearningWindow): Promise<void> {
+export async function learnMemoryWindow(
+	context: MemoryBackendOperationContext,
+	input: MemoryLearningWindow,
+): Promise<void> {
 	const { session, agentDir } = context;
 	const cwd = session && localMemoryScopes.get(session);
-	if (!session || !cwd || session.isDisposed) throw new Error("Local memory backend is not initialised for window learning.");
+	if (!session || !cwd || session.isDisposed)
+		throw new Error("Local memory backend is not initialised for window learning.");
 	if (!input.messages.some(message => message.role === "user" && message.content.trim())) return;
 	const config = loadMemoryConfig(session.settings);
 	const id = `window-${new Bun.CryptoHasher("sha256").update(input.id).digest("hex")}`;
@@ -143,34 +151,62 @@ export async function learnMemoryWindow(context: MemoryBackendOperationContext, 
 		const claim = claimWindowStage1(db, id, cwd, unixNow(), config.stage1LeaseSeconds);
 		if (claim) {
 			try {
-				const model = await resolveMemoryModel({ modelRegistry: session.modelRegistry, session, fallbackRole: "default" });
+				const model = await resolveMemoryModel({
+					modelRegistry: session.modelRegistry,
+					session,
+					fallbackRole: "default",
+				});
 				if (!model) throw new Error("No model available for local window extraction.");
-				if (!(await session.modelRegistry.getApiKey(model, session.sessionId))) throw new Error("No API key for local window extraction.");
+				if (!(await session.modelRegistry.getApiKey(model, session.sessionId)))
+					throw new Error("No API key for local window extraction.");
 				const result = await runStage1Job({
-					claim, model, apiKey: session.modelRegistry.resolver(model, session.sessionId), sessionId: session.sessionId,
-					modelMaxTokens: computeModelTokenBudget(model, config), config,
+					claim,
+					model,
+					apiKey: session.modelRegistry.resolver(model, session.sessionId),
+					sessionId: session.sessionId,
+					modelMaxTokens: computeModelTokenBudget(model, config),
+					config,
 					// Only user-authored evidence can establish durable memory.
-					responseItems: JSON.stringify(input.messages.filter(message => message.role === "user").map(message => ({
-						role: message.role, content: redactSecrets(message.content), ...(message.timestamp ? { timestamp: message.timestamp } : {}),
-					}))),
+					responseItems: JSON.stringify(
+						input.messages
+							.filter(message => message.role === "user")
+							.map(message => ({
+								role: message.role,
+								content: redactSecrets(message.content),
+								...(message.timestamp ? { timestamp: message.timestamp } : {}),
+							})),
+					),
 					metadata: session.agent?.metadataForProvider(model.provider),
 				});
 				if (result.kind === "failed") throw new Error(result.reason);
-				const marked = result.kind === "output"
-					? markStage1SucceededWithOutput(db, { ...claim, ...result.output, nowSec: unixNow() })
-					: markStage1SucceededNoOutput(db, { ...claim, nowSec: unixNow() });
+				const marked =
+					result.kind === "output"
+						? markStage1SucceededWithOutput(db, { ...claim, ...result.output, nowSec: unixNow() })
+						: markStage1SucceededNoOutput(db, { ...claim, nowSec: unixNow() });
 				if (!marked) throw new Error("Local window extraction lost its queue lease.");
 			} catch (error) {
-				markStage1Failed(db, { threadId: id, ownershipToken: claim.ownershipToken,
-					retryDelaySeconds: config.stage1RetryDelaySeconds, reason: String(error), nowSec: unixNow() });
+				markStage1Failed(db, {
+					threadId: id,
+					ownershipToken: claim.ownershipToken,
+					retryDelaySeconds: config.stage1RetryDelaySeconds,
+					reason: String(error),
+					nowSec: unixNow(),
+				});
 				throw error;
 			}
 		}
 	} finally {
 		closeMemoryDb(db);
 	}
-	await runPhase2({ session, settings: session.settings, modelRegistry: session.modelRegistry, agentDir,
-		config, signal: new AbortController().signal, windowCwd: cwd });
+	await runPhase2({
+		session,
+		settings: session.settings,
+		modelRegistry: session.modelRegistry,
+		agentDir,
+		config,
+		signal: new AbortController().signal,
+		windowCwd: cwd,
+	});
 }
 
 /**
@@ -416,11 +452,18 @@ export function enqueueMemoryConsolidation(agentDir: string, cwd: string, source
 
 /** Explicit enqueue drains consolidation even when automatic rollout scans are disabled. */
 export async function enqueueLocalMemory(agentDir: string, cwd: string, session?: AgentSession): Promise<void> {
-	const scope = session ? localMemoryScopes.get(session) ?? cwd : cwd;
+	const scope = session ? (localMemoryScopes.get(session) ?? cwd) : cwd;
 	enqueueMemoryConsolidation(agentDir, scope);
 	if (!session) return;
-	await runPhase2({ session, settings: session.settings, modelRegistry: session.modelRegistry, agentDir,
-		config: loadMemoryConfig(session.settings), signal: new AbortController().signal, windowCwd: scope });
+	await runPhase2({
+		session,
+		settings: session.settings,
+		modelRegistry: session.modelRegistry,
+		agentDir,
+		config: loadMemoryConfig(session.settings),
+		signal: new AbortController().signal,
+		windowCwd: scope,
+	});
 }
 
 interface MemoryStartupOptions {
@@ -435,8 +478,12 @@ interface MemoryStartupOptions {
 }
 
 function isMemoryStartupActive(options: MemoryStartupOptions): boolean {
-	return !options.signal.aborted && !options.session.isDisposed && cfgMemoryBackend.get(options.settings) === "local"
-		&& (options.windowCwd !== undefined || cfgMemoryExtractionMode.get(options.settings) === "auto");
+	return (
+		!options.signal.aborted &&
+		!options.session.isDisposed &&
+		cfgMemoryBackend.get(options.settings) === "local" &&
+		(options.windowCwd !== undefined || cfgMemoryExtractionMode.get(options.settings) === "auto")
+	);
 }
 
 async function runMemoryStartup(options: MemoryStartupOptions): Promise<void> {
@@ -606,7 +653,8 @@ async function runPhase2(options: MemoryStartupOptions): Promise<void> {
 			windowDelivery: options.windowCwd !== undefined,
 		});
 		if (claimResult.kind !== "claimed") {
-			if (options.windowCwd !== undefined && claimResult.kind === "skipped_running") throw new Error("Local memory consolidation is already running.");
+			if (options.windowCwd !== undefined && claimResult.kind === "skipped_running")
+				throw new Error("Local memory consolidation is already running.");
 			return;
 		}
 
@@ -980,7 +1028,7 @@ async function runStage1Job(options: {
 			config.phase1InputTokenLimit,
 			Math.floor(modelMaxTokens * config.rolloutPayloadPercent),
 		);
-		const truncatedItems = options.responseItems ?? await buildStage1RolloutItems(claim.rolloutPath, budgetTokens);
+		const truncatedItems = options.responseItems ?? (await buildStage1RolloutItems(claim.rolloutPath, budgetTokens));
 		const inputPrompt = prompt.render(stageOneInputTemplate, {
 			thread_id: claim.threadId,
 			response_items_json: truncatedItems,

@@ -1529,10 +1529,7 @@ export class CommandController {
 	 * it. The active session file and artifacts are moved into the target
 	 * directory's session bucket so `/resume` from that directory can find it.
 	 */
-	async handleMoveCommand(
-		targetPath?: string,
-		options: { allowCreate?: boolean } = {},
-	): Promise<void> {
+	async handleMoveCommand(targetPath?: string, options: { allowCreate?: boolean } = {}): Promise<void> {
 		if (this.ctx.session.isStreaming) {
 			this.ctx.showWarning("Wait for the current response to finish or abort it before moving.");
 			return;

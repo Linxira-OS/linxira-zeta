@@ -452,7 +452,8 @@ export class HindsightSessionState implements HindsightSessionStateApi {
 	}
 
 	async maybeRetainOnAgentEnd(): Promise<void> {
-		if (!this.config.autoRetain || this.aliasOf || cfgMemoryExtractionMode.get(this.session.settings) !== "auto") return;
+		if (!this.config.autoRetain || this.aliasOf || cfgMemoryExtractionMode.get(this.session.settings) !== "auto")
+			return;
 		// Cheap gate first: most agent_end events are not retain turns, so skip text extraction.
 		const userTurns = countUserTurns(this.session.sessionManager);
 		if (userTurns - this.lastRetainedTurn < this.config.retainEveryNTurns) return;

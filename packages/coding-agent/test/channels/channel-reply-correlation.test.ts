@@ -281,7 +281,9 @@ describe("SessionRouter reply correlation", () => {
 
 		await webConfig.patchImBinding("telegram", "peer-a", {});
 		await router.deliverToBotSession(id, "telegram", "peer-a", "question");
-		expect(await router.requestWorkspaceSwitch("telegram", "peer-a", { kind: "workspace", workspace: "other" })).toMatchObject({
+		expect(
+			await router.requestWorkspaceSwitch("telegram", "peer-a", { kind: "workspace", workspace: "other" }),
+		).toMatchObject({
 			same: false,
 		});
 		expect(await router.confirmWorkspaceSwitch("telegram", "peer-a")).toMatchObject({ ok: true });

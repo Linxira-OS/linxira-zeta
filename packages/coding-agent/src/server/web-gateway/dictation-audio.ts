@@ -29,9 +29,7 @@ function json(data: unknown, status = 200): Response {
 }
 
 function bodyObject(value: unknown): JsonObject | undefined {
-	return value !== null && typeof value === "object" && !Array.isArray(value)
-		? (value as JsonObject)
-		: undefined;
+	return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : undefined;
 }
 
 function stringField(body: JsonObject | undefined, field: string): string | undefined {

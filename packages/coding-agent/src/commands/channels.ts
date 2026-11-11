@@ -10,7 +10,12 @@ import chalk from "@linxiraos/pi-utils/chalk";
 import { Args, CliUsageError, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
 import { channelsHelp } from "../cli/command-help";
-import { collectChannelStatus, isChannelInstanceId, logoutChannel, setChannelEnabled } from "../channels/channel-status";
+import {
+	collectChannelStatus,
+	isChannelInstanceId,
+	logoutChannel,
+	setChannelEnabled,
+} from "../channels/channel-status";
 import {
 	acquireChannelLock,
 	channelLockPath,
@@ -279,7 +284,9 @@ export default class Channels extends Command {
 							columns: process.stdout.columns,
 							color: Boolean(process.stdout.isTTY) && !process.env.NO_COLOR,
 						});
-						process.stdout.write(`\nScan this QR code with WeChat (${instanceId}):\n\n${qr.lines.join("\n")}\n\n`);
+						process.stdout.write(
+							`\nScan this QR code with WeChat (${instanceId}):\n\n${qr.lines.join("\n")}\n\n`,
+						);
 					}
 				},
 				onState: state => {
@@ -327,17 +334,23 @@ export default class Channels extends Command {
 	): Promise<void> {
 		const instance = webConfig.getChannelInstance(instanceId);
 		if (!instance) throw new CliUsageError(`Unknown channel instance "${instanceId}".`);
-		const label = platform === "feishu" ? "Feishu" : platform === "discord" ? "Discord" : platform === "qq" ? "QQ" : "Telegram";
+		const label =
+			platform === "feishu" ? "Feishu" : platform === "discord" ? "Discord" : platform === "qq" ? "QQ" : "Telegram";
 		const stored = instance.credentials;
 		const field = (key: string): string => (typeof stored[key] === "string" ? (stored[key] as string) : "");
 		let result: CredentialLoginResult;
 
 		if (platform === "feishu") {
-			const appId = options.appId?.trim() || field("appId") || (options.json ? "" : await promptFor("Feishu App ID: ", false));
+			const appId =
+				options.appId?.trim() || field("appId") || (options.json ? "" : await promptFor("Feishu App ID: ", false));
 			const appSecret =
-				options.appSecret?.trim() || field("appSecret") || (options.json ? "" : await promptFor("Feishu App Secret: ", true));
+				options.appSecret?.trim() ||
+				field("appSecret") ||
+				(options.json ? "" : await promptFor("Feishu App Secret: ", true));
 			if (!appId || !appSecret) {
-				throw new CliUsageError(`Missing Feishu credentials. Usage: ${CLI_BIN_NAME} channels login ${instanceId} --app-id <id> --app-secret <secret>`);
+				throw new CliUsageError(
+					`Missing Feishu credentials. Usage: ${CLI_BIN_NAME} channels login ${instanceId} --app-id <id> --app-secret <secret>`,
+				);
 			}
 			if (!options.json) process.stdout.write(chalk.dim("Validating with Feishu…\n"));
 			result = await runCredentialLogin(platform, {
@@ -348,8 +361,14 @@ export default class Channels extends Command {
 				domain: options.domain ?? (field("domain") as "feishu" | "lark") ?? "feishu",
 			});
 		} else if (platform === "discord") {
-			const token = options.token?.trim() || field("botToken") || (options.json ? "" : await promptFor("Discord bot token: ", true));
-			if (!token) throw new CliUsageError(`Missing Discord bot token. Usage: ${CLI_BIN_NAME} channels login ${instanceId} --token <token>`);
+			const token =
+				options.token?.trim() ||
+				field("botToken") ||
+				(options.json ? "" : await promptFor("Discord bot token: ", true));
+			if (!token)
+				throw new CliUsageError(
+					`Missing Discord bot token. Usage: ${CLI_BIN_NAME} channels login ${instanceId} --token <token>`,
+				);
 			if (!options.json) process.stdout.write(chalk.dim("Validating with Discord (/users/@me)…\n"));
 			result = await runCredentialLogin(platform, { webConfig, instanceId, botToken: token });
 		} else if (platform === "qq") {
@@ -358,10 +377,14 @@ export default class Channels extends Command {
 			const endpoint =
 				options.endpoint?.trim() ||
 				field("endpoint") ||
-				(mode === "forward" && !options.json ? await promptFor("OneBot endpoint (ws://127.0.0.1:3001): ", false) : "");
+				(mode === "forward" && !options.json
+					? await promptFor("OneBot endpoint (ws://127.0.0.1:3001): ", false)
+					: "");
 			const port = options.port ?? (typeof stored.port === "number" ? stored.port : 8082);
 			if (mode === "forward" && !endpoint) {
-				throw new CliUsageError(`Missing OneBot endpoint. Usage: ${CLI_BIN_NAME} channels login ${instanceId} --endpoint ws://…`);
+				throw new CliUsageError(
+					`Missing OneBot endpoint. Usage: ${CLI_BIN_NAME} channels login ${instanceId} --endpoint ws://…`,
+				);
 			}
 			if (!options.json) process.stdout.write(chalk.dim(`Validating OneBot (${mode})…\n`));
 			result = await runCredentialLogin(platform, {
@@ -373,8 +396,14 @@ export default class Channels extends Command {
 				port,
 			});
 		} else {
-			const token = options.token?.trim() || field("botToken") || (options.json ? "" : await promptFor("Telegram bot token: ", true));
-			if (!token) throw new CliUsageError(`Missing Telegram bot token. Usage: ${CLI_BIN_NAME} channels login ${instanceId} --token <token>`);
+			const token =
+				options.token?.trim() ||
+				field("botToken") ||
+				(options.json ? "" : await promptFor("Telegram bot token: ", true));
+			if (!token)
+				throw new CliUsageError(
+					`Missing Telegram bot token. Usage: ${CLI_BIN_NAME} channels login ${instanceId} --token <token>`,
+				);
 			if (!options.json) process.stdout.write(chalk.dim("Validating with Telegram (getMe)…\n"));
 			result = await runCredentialLogin(platform, { webConfig, instanceId, botToken: token });
 		}
@@ -392,7 +421,9 @@ export default class Channels extends Command {
 			const who = formatCredentialIdentity(result.identity);
 			console.log(chalk.green(`\n${label} instance ${instanceId} connected${who ? ` as ${who}` : ""}.`));
 		} else {
-			process.stderr.write(chalk.red(`\n${label} login ${result.state === "timeout" ? "timed out" : "failed"}: ${result.error}\n`));
+			process.stderr.write(
+				chalk.red(`\n${label} login ${result.state === "timeout" ? "timed out" : "failed"}: ${result.error}\n`),
+			);
 		}
 		if (result.state !== "connected") process.exitCode = 1;
 	}

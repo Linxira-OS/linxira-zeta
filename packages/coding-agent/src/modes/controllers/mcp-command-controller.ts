@@ -1367,7 +1367,9 @@ export class MCPCommandController {
 								: state === "connecting"
 									? theme.fg("muted", " ◌ connecting")
 									: theme.fg("muted", " ○ not connected");
-					lines.push(`  ${theme.fg("accent", name)}${status} ${theme.fg("dim", `[${type}]`)}${shadowSuffix(name)}`);
+					lines.push(
+						`  ${theme.fg("accent", name)}${status} ${theme.fg("dim", `[${type}]`)}${shadowSuffix(name)}`,
+					);
 				}
 				lines.push("");
 			}
@@ -1390,7 +1392,9 @@ export class MCPCommandController {
 								: state === "connecting"
 									? theme.fg("muted", " ◌ connecting")
 									: theme.fg("muted", " ○ not connected");
-					lines.push(`  ${theme.fg("accent", name)}${status} ${theme.fg("dim", `[${type}]`)}${shadowSuffix(name)}`);
+					lines.push(
+						`  ${theme.fg("accent", name)}${status} ${theme.fg("dim", `[${type}]`)}${shadowSuffix(name)}`,
+					);
 				}
 				lines.push("");
 			}

@@ -158,8 +158,7 @@ describe("context-reload service", () => {
 		const file = path.join(dir, "AGENTS.md");
 		fs.writeFileSync(file, "v1\n");
 		let committed = 0;
-		let service: ContextReloadService;
-		service = createContextReloadService({
+		const service = createContextReloadService({
 			readWatchPaths: () => [file],
 			watch: false,
 			refresh: async isCurrent => {

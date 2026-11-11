@@ -113,7 +113,15 @@ async function makeConfig(workspaceDir: string): Promise<WebConfig> {
 					label: "PM",
 					persona: { mode: "workspace" },
 					location: { kind: "team-pm", team: "t", pm: "p" },
-					tools: { preset: "team-pm", builtin: [], extensions: [], customTools: [], mcpServers: [], skills: [], commands: [] },
+					tools: {
+						preset: "team-pm",
+						builtin: [],
+						extensions: [],
+						customTools: [],
+						mcpServers: [],
+						skills: [],
+						commands: [],
+					},
 					memory: {},
 				},
 				{
@@ -160,7 +168,11 @@ describe("IM session selector read model", () => {
 			}),
 		];
 		for (const item of entries) {
-			await writeSession(item.sessionFile, { id: item.id, title: item.name, messages: [{ role: "user", text: "hi" }] });
+			await writeSession(item.sessionFile, {
+				id: item.id,
+				title: item.name,
+				messages: [{ role: "user", text: "hi" }],
+			});
 		}
 		await setAge(entries[0]!.sessionFile, 5 * 60 * 60_000);
 		await setAge(entries[1]!.sessionFile, 3 * 60 * 60_000);
@@ -207,7 +219,11 @@ describe("IM session selector read model", () => {
 			}),
 		];
 		for (const item of entries) {
-			await writeSession(item.sessionFile, { id: item.id, title: item.name, messages: [{ role: "user", text: "hi" }] });
+			await writeSession(item.sessionFile, {
+				id: item.id,
+				title: item.name,
+				messages: [{ role: "user", text: "hi" }],
+			});
 			await setAge(item.sessionFile, 60 * 60_000);
 		}
 
@@ -285,7 +301,11 @@ describe("IM session selector read model", () => {
 		expect(open?.label).toBe("Named open task");
 		expect(open?.status).toBe("incomplete");
 		expect(open?.latestTaskSummary).toBeUndefined();
-		expect(open?.taskSummary).toMatchObject({ status: "incomplete", source: "open_turn", intent: "still working on this" });
+		expect(open?.taskSummary).toMatchObject({
+			status: "incomplete",
+			source: "open_turn",
+			intent: "still working on this",
+		});
 
 		const unnamed = byId(snapshot, "unnamed");
 		expect(unnamed?.label).toBe("main · Telegram 会话");

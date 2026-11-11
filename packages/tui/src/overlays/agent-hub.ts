@@ -1621,10 +1621,13 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			clearTimeout(this.#dataChangeTimer);
 			this.#dataChangeTimer = undefined;
 		}
-		this.#dataChangeTimer = setTimeout(() => {
-			this.#dataChangeTimer = undefined;
-			this.#onDataChange();
-		}, immediate ? 0 : this.#dataChangeDelay());
+		this.#dataChangeTimer = setTimeout(
+			() => {
+				this.#dataChangeTimer = undefined;
+				this.#onDataChange();
+			},
+			immediate ? 0 : this.#dataChangeDelay(),
+		);
 		this.#dataChangeTimer.unref?.();
 	}
 

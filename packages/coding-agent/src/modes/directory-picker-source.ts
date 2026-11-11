@@ -27,12 +27,7 @@ import {
 	refreshWindowsDrives,
 	volumeKindLabel,
 } from "../utils/directory-listing";
-import {
-	canonicalDirectoryPin,
-	directoryPinKey,
-	loadDirectoryPins,
-	toggleDirectoryPin,
-} from "./directory-pins";
+import { canonicalDirectoryPin, directoryPinKey, loadDirectoryPins, toggleDirectoryPin } from "./directory-pins";
 
 export interface DirectoryPickerSourceOptions {
 	/** Platform to build the roots screen for; defaults to the process platform. */

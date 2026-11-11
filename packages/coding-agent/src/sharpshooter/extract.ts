@@ -195,7 +195,12 @@ export function maybeStartSharpshooterExtraction(options: {
 }): void {
 	try {
 		const { session } = options;
-		if (session.isDisposed || cfgMemoryExtractionMode.get(options.settings) !== "auto" || (session as ExtractionHost)[kExtractionInFlight]) return;
+		if (
+			session.isDisposed ||
+			cfgMemoryExtractionMode.get(options.settings) !== "auto" ||
+			(session as ExtractionHost)[kExtractionInFlight]
+		)
+			return;
 		const envelope = buildSharpshooterEnvelope(session.messages, options.message);
 		if (!envelope) return;
 		const trimmedPrompt = envelope.prompt.trim();
@@ -225,20 +230,27 @@ export function maybeStartSharpshooterExtraction(options: {
 }
 
 /** One batch per window; admission requires evidence within one individual user message. */
-export async function learnSharpshooterWindow(options: {
-	session: AgentSession;
-	settings: Settings;
-	modelRegistry: ModelRegistry;
-	agentDir: string;
-	cwd: string;
-}, input: MemoryLearningWindow): Promise<void> {
+export async function learnSharpshooterWindow(
+	options: {
+		session: AgentSession;
+		settings: Settings;
+		modelRegistry: ModelRegistry;
+		agentDir: string;
+		cwd: string;
+	},
+	input: MemoryLearningWindow,
+): Promise<void> {
 	const userEvidence = input.messages.filter(message => message.role === "user").map(message => message.content);
 	if (!userEvidence.some(content => content.trim())) return;
-	await runSharpshooterExtraction(options, { prompt: JSON.stringify(input.messages) }, {
-		cwd: options.cwd,
-		sourceId: `window:${input.id}`,
-		userEvidence,
-	});
+	await runSharpshooterExtraction(
+		options,
+		{ prompt: JSON.stringify(input.messages) },
+		{
+			cwd: options.cwd,
+			sourceId: `window:${input.id}`,
+			userEvidence,
+		},
+	);
 }
 
 async function runSharpshooterExtraction(
@@ -295,7 +307,8 @@ async function runSharpshooterExtraction(
 		recorded = true;
 		for (const candidate of args.deltas) {
 			const index = deltaIndex++;
-			const evidence = candidate && typeof candidate === "object" ? (candidate as DeltaCandidate).evidence : undefined;
+			const evidence =
+				candidate && typeof candidate === "object" ? (candidate as DeltaCandidate).evidence : undefined;
 			const userPrompt = delivery
 				? delivery.userEvidence.find(content => typeof evidence === "string" && content.includes(evidence))
 				: envelope.prompt;
@@ -305,8 +318,12 @@ async function runSharpshooterExtraction(
 				if (delivery) throw new Error("Sharpshooter session disposed before window delivery.");
 				return;
 			}
-			await appendSharpshooterDelta(agentDir, delivery?.cwd ?? session.sessionManager.getCwd(), delta,
-				delivery ? `${delivery.sourceId}:${index}` : undefined);
+			await appendSharpshooterDelta(
+				agentDir,
+				delivery?.cwd ?? session.sessionManager.getCwd(),
+				delta,
+				delivery ? `${delivery.sourceId}:${index}` : undefined,
+			);
 		}
 	}
 	if (delivery && !recorded) throw new Error("Sharpshooter window extraction did not return record_deltas.");

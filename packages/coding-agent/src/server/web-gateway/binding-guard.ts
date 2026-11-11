@@ -23,14 +23,10 @@ import type { RemoteCredential } from "./remote-access";
 import { credentialBinding } from "./remote-access";
 import { terminalCwd } from "./terminal";
 
-const SESSION_PATTERNS: readonly RegExp[] = [
-	/^\/api\/sessions\/([^/]+)(?:\/|$)/u,
-	/^\/api\/agent\/([^/]+)(?:\/|$)/u,
-];
+const SESSION_PATTERNS: readonly RegExp[] = [/^\/api\/sessions\/([^/]+)(?:\/|$)/u, /^\/api\/agent\/([^/]+)(?:\/|$)/u];
 
 /** Routes whose resource is the project cwd the request carries. */
-const CWD_ROUTE =
-	/^\/api\/(?:files|file-index|git|git-actions|board|tracking|plan|settings|models|terminal)(?:\/|$)/u;
+const CWD_ROUTE = /^\/api\/(?:files|file-index|git|git-actions|board|tracking|plan|settings|models|terminal)(?:\/|$)/u;
 
 const TERMINAL_ID_PATTERN = /^\/api\/terminal\/([A-Za-z0-9-]{8,64})(?:\/|$)/u;
 
@@ -92,11 +88,7 @@ export interface BindingDecision {
  * terminals are attributed by cwd, sessions by path), so a forged query id can
  * never widen a binding.
  */
-export async function requestTarget(
-	pathname: string,
-	url: URL,
-	req: Request,
-): Promise<RequestTarget | undefined> {
+export async function requestTarget(pathname: string, url: URL, req: Request): Promise<RequestTarget | undefined> {
 	for (const pattern of SESSION_PATTERNS) {
 		const match = pattern.exec(pathname);
 		if (match?.[1] !== undefined) return { sessionId: decodeURIComponent(match[1]) };

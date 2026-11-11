@@ -19,12 +19,7 @@ import type { ModelRegistry } from "../../../config/model-registry.js";
 import { resolveRoleChain } from "../../../config/model-resolver.js";
 import { roleCandidatePool } from "../../../config/model-roles.js";
 import type { Settings } from "../../../config/settings.js";
-import {
-	STTController,
-	type SttCallbacks,
-	type SttTarget,
-	type SttState,
-} from "../../../stt/index.js";
+import { STTController, type SttCallbacks, type SttTarget, type SttState } from "../../../stt/index.js";
 import { isSttModelCached } from "../../../stt/downloader.js";
 import { resolveSttModelSpec } from "../../../stt/models.js";
 import { cfgSttEnabled, cfgSttLanguage } from "../../../stt/settings.js";
@@ -33,11 +28,7 @@ import type { CommandInput } from "../contract/index.js";
 import type { DictationState } from "../protocol/index.js";
 import type { StudioFamily } from "../registry.js";
 import { invalid } from "../errors.js";
-import {
-	DictationAudioReject,
-	registerDictationAudioSink,
-	type DictationAudioSink,
-} from "../dictation-audio.js";
+import { DictationAudioReject, registerDictationAudioSink, type DictationAudioSink } from "../dictation-audio.js";
 
 /** The slice of a live session dictation needs; injectable for tests. */
 export interface HostDictationSession {
@@ -175,10 +166,7 @@ async function defaultDescribeModel(session: HostDictationSession): Promise<Mode
 	};
 }
 
-function defaultController(
-	session: HostDictationSession,
-	hooks: HostDictationHooks,
-): HostDictationController {
+function defaultController(session: HostDictationSession, hooks: HostDictationHooks): HostDictationController {
 	return new STTController(
 		// The controller's capture boundary reports `(error, samples)`; Host frames
 		// are already validated 16 kHz mono samples, so the error arm is unused.
@@ -563,11 +551,8 @@ export const dictationOps: StudioFamily = {
 	commands: {
 		"dictation.status": async input => dictationHost.status(requireSession(input)),
 		"dictation.prepare": async input => dictationHost.prepare(requireSession(input)),
-		"dictation.start": async input =>
-			dictationHost.start(sessionIdOf(input), audioIdOf(input)),
-		"dictation.stop": async input =>
-			dictationHost.stop(sessionIdOf(input), audioIdOf(input)),
-		"dictation.cancel": async input =>
-			dictationHost.cancel(sessionIdOf(input), audioIdOf(input)),
+		"dictation.start": async input => dictationHost.start(sessionIdOf(input), audioIdOf(input)),
+		"dictation.stop": async input => dictationHost.stop(sessionIdOf(input), audioIdOf(input)),
+		"dictation.cancel": async input => dictationHost.cancel(sessionIdOf(input), audioIdOf(input)),
 	},
 };

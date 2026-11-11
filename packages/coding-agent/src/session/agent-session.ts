@@ -350,7 +350,6 @@ import { registerLocalSession } from "../thread/session-directory";
 import { prewarmSubagentWorker } from "../thread/subagent-worker";
 import { SubagentSpawnSignal } from "../thread/subagent-spawn-signal";
 import type { WorkPoolYieldItem } from "../task/workpool-yield";
-import type { AgentDefinition } from "../task/types";
 import type { ModelMention } from "@linxiraos/pi-tui/prompt/model-mention-syntax";
 import { ModelMentionRegistry, type ResolvedModelMention } from "./model-mentions";
 import { parseCommandArgs } from "../utils/command-args";
@@ -9836,8 +9835,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (this.#commandPolicyActive) {
 			throw new Error("A command with an agent or model override is still running");
 		}
-		const invocation =
-			(options?.expandPromptTemplates ?? true) ? parseFileSlashInvocation(text) : undefined;
+		const invocation = (options?.expandPromptTemplates ?? true) ? parseFileSlashInvocation(text) : undefined;
 		if (!invocation) return this.#dispatchPromptBody(text, options, submittedAt, outcome);
 		// An extension command runs before custom and file commands and owns no selectors.
 		if (options?.runCommands !== false && this.#extensionRunner?.getCommand(invocation.name)) {
@@ -9861,10 +9859,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 * agent's model list) and thinking level. Every mutation is restored before
 	 * the turn returns, including command-handler and dispatch failures.
 	 */
-	async #withCommandPolicy(
-		metadata: CommandExecutionMetadata,
-		run: () => Promise<boolean>,
-	): Promise<boolean> {
+	async #withCommandPolicy(metadata: CommandExecutionMetadata, run: () => Promise<boolean>): Promise<boolean> {
 		if (
 			this.isStreaming ||
 			this.getPlanModeState()?.enabled ||
@@ -10579,9 +10574,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					} else {
 						this.#tools.clearTurnSystemPromptOverride();
 						this.agent.setSystemPrompt(
-							commandPersona
-								? [...this.#tools.baseSystemPrompt, commandPersona]
-								: this.#tools.baseSystemPrompt,
+							commandPersona ? [...this.#tools.baseSystemPrompt, commandPersona] : this.#tools.baseSystemPrompt,
 						);
 					}
 					return messages;
@@ -17494,7 +17487,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 	/** Remembered `always-ask-cached` grants this session's tool calls are checked against. */
 	getApprovalGrants(): ApprovalGrantStore {
-		return getApprovalGrants(this.#approvalCacheDir ?? this.settings.getAgentDir(), this.sessionManager.getSessionId());
+		return getApprovalGrants(
+			this.#approvalCacheDir ?? this.settings.getAgentDir(),
+			this.sessionManager.getSessionId(),
+		);
 	}
 
 	/**

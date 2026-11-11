@@ -171,8 +171,12 @@ describe("tracking snapshot reader", () => {
 	it("keeps two projects' snapshots independent", async () => {
 		const a = project("a");
 		const b = project("b");
-		writeTracking(a, { "status.json": JSON.stringify({ phase: "alpha", progress: "1", blockers: [], decisions: [], lastUpdated: "" }) });
-		writeTracking(b, { "status.json": JSON.stringify({ phase: "beta", progress: "2", blockers: [], decisions: [], lastUpdated: "" }) });
+		writeTracking(a, {
+			"status.json": JSON.stringify({ phase: "alpha", progress: "1", blockers: [], decisions: [], lastUpdated: "" }),
+		});
+		writeTracking(b, {
+			"status.json": JSON.stringify({ phase: "beta", progress: "2", blockers: [], decisions: [], lastUpdated: "" }),
+		});
 		expect((await readTrackingSnapshot(a)).status.value?.phase).toBe("alpha");
 		expect((await readTrackingSnapshot(b)).status.value?.phase).toBe("beta");
 	});
@@ -197,7 +201,13 @@ describe("GET /api/tracking", () => {
 		const sessionFile = path.join(known, "session.jsonl");
 		fs.writeFileSync(sessionFile, `${JSON.stringify({ type: "session", cwd: known })}\n`);
 		writeTracking(known, {
-			"status.json": JSON.stringify({ phase: "api-phase", progress: "9", blockers: [], decisions: [], lastUpdated: "" }),
+			"status.json": JSON.stringify({
+				phase: "api-phase",
+				progress: "9",
+				blockers: [],
+				decisions: [],
+				lastUpdated: "",
+			}),
 			"INDEX.md": "# API Index\n",
 		});
 		insertMessageStats([message(label, sessionFile, "known-1")]);
@@ -209,7 +219,11 @@ describe("GET /api/tracking", () => {
 
 		const ok = await handleApi(new Request(`http://127.0.0.1/api/tracking?project=${encodeURIComponent(label)}`));
 		expect(ok.status).toBe(200);
-		const snapshot = (await ok.json()) as { project: string; trackingDir: string; status: { value: { phase: string } } };
+		const snapshot = (await ok.json()) as {
+			project: string;
+			trackingDir: string;
+			status: { value: { phase: string } };
+		};
 		expect(snapshot.project).toBe(label);
 		expect(snapshot.trackingDir).toBe(getProjectTrackingDir(known));
 		expect(snapshot.status.value.phase).toBe("api-phase");

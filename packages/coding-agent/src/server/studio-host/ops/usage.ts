@@ -209,7 +209,9 @@ function historyEntry(
 		threadId: row.id as ThreadId,
 		environmentId,
 		sessionId: row.id as SessionId,
-		...(workspace === undefined ? {} : { workspaceId: workspace.workspaceId, workspaceName: workspace.workspaceName }),
+		...(workspace === undefined
+			? {}
+			: { workspaceId: workspace.workspaceId, workspaceName: workspace.workspaceName }),
 		...(row.name === undefined ? {} : { title: row.name }),
 		...(summary === undefined ? {} : { summary }),
 		startedAt: row.created,
@@ -371,7 +373,15 @@ async function readRecentWorkspaces(context: StudioHostContext): Promise<readonl
 		return undefined;
 	}
 	return [...inventory.workspaces]
-		.sort((a, b) => a.lastOpenedAt === b.lastOpenedAt ? 0 : a.lastOpenedAt === null ? 1 : b.lastOpenedAt === null ? -1 : b.lastOpenedAt.localeCompare(a.lastOpenedAt))
+		.sort((a, b) =>
+			a.lastOpenedAt === b.lastOpenedAt
+				? 0
+				: a.lastOpenedAt === null
+					? 1
+					: b.lastOpenedAt === null
+						? -1
+						: b.lastOpenedAt.localeCompare(a.lastOpenedAt),
+		)
 		.slice(0, RECENT_WORKSPACES_LIMIT);
 }
 

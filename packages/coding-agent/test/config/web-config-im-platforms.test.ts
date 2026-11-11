@@ -99,10 +99,7 @@ describe("web.yml — Discord/QQ as explicit instances", () => {
 	test("instances are keyed by id, so two accounts may share a platform", async () => {
 		const config = await makeConfig();
 		await config.setImAgents([PROFILE]);
-		await config.setChannelInstances([
-			instance("discord-main", "discord"),
-			instance("discord-roleplay", "discord"),
-		]);
+		await config.setChannelInstances([instance("discord-main", "discord"), instance("discord-roleplay", "discord")]);
 		expect(config.getChannelInstances().map(entry => entry.id)).toEqual(["discord-main", "discord-roleplay"]);
 		expect(config.getChannelInstances().map(entry => entry.platform)).toEqual(["discord", "discord"]);
 	});

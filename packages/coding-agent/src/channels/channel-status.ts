@@ -96,7 +96,9 @@ function configuredFor(instance: ChannelInstanceConfig): boolean {
 		case "discord":
 			return Boolean(cred(instance, "botToken"));
 		case "qq":
-			return cred(instance, "mode") === "reverse" ? Boolean(cred(instance, "token")) : Boolean(cred(instance, "endpoint"));
+			return cred(instance, "mode") === "reverse"
+				? Boolean(cred(instance, "token"))
+				: Boolean(cred(instance, "endpoint"));
 	}
 }
 
@@ -126,21 +128,49 @@ async function targetDisplay(
 		if (target.kind === "team-pm") return { display: `Team ${team.name} · PM ${pm.name}`, available: true };
 		const engineer = db
 			.listEngineers(team.id)
-			.find(candidate => candidate.pmId === pm.id && (candidate.name === target.engineer || candidate.id === target.engineer));
+			.find(
+				candidate =>
+					candidate.pmId === pm.id && (candidate.name === target.engineer || candidate.id === target.engineer),
+			);
 		if (!engineer) {
-			return { display: `Team ${team.name} · PM ${pm.name} · engineer ${target.engineer}`, available: false, reason: "unknown-engineer" };
+			return {
+				display: `Team ${team.name} · PM ${pm.name} · engineer ${target.engineer}`,
+				available: false,
+				reason: "unknown-engineer",
+			};
 		}
-		let worktrees = db.listWorktrees(team.id).filter(candidate => candidate.engineerId === engineer.id && candidate.kind === "home");
+		let worktrees = db
+			.listWorktrees(team.id)
+			.filter(candidate => candidate.engineerId === engineer.id && candidate.kind === "home");
 		if (target.repo) {
 			const repo = db.getRepo(team.id, target.repo) ?? db.getRepoById(target.repo);
-			if (!repo) return { display: `Team ${team.name} · engineer ${engineer.name}`, available: false, reason: "unknown-repo" };
+			if (!repo)
+				return {
+					display: `Team ${team.name} · engineer ${engineer.name}`,
+					available: false,
+					reason: "unknown-repo",
+				};
 			worktrees = worktrees.filter(candidate => candidate.repoId === repo.id);
 		}
-		if (worktrees.length === 0) return { display: `Team ${team.name} · engineer ${engineer.name}`, available: false, reason: "no-home-worktree" };
-		if (worktrees.length > 1) return { display: `Team ${team.name} · engineer ${engineer.name}`, available: false, reason: "ambiguous-repo" };
+		if (worktrees.length === 0)
+			return {
+				display: `Team ${team.name} · engineer ${engineer.name}`,
+				available: false,
+				reason: "no-home-worktree",
+			};
+		if (worktrees.length > 1)
+			return {
+				display: `Team ${team.name} · engineer ${engineer.name}`,
+				available: false,
+				reason: "ambiguous-repo",
+			};
 		return { display: `Team ${team.name} · PM ${pm.name} · engineer ${engineer.name}`, available: true };
 	} catch (error) {
-		return { display: `Team ${target.team}`, available: false, reason: `team-db-unavailable: ${error instanceof Error ? error.message : String(error)}` };
+		return {
+			display: `Team ${target.team}`,
+			available: false,
+			reason: `team-db-unavailable: ${error instanceof Error ? error.message : String(error)}`,
+		};
 	} finally {
 		db?.close();
 	}
@@ -236,7 +266,10 @@ export async function logoutChannel(
 				await webConfig.setInstance(instanceId, { options: { ...instance.options, peerTokens } });
 			},
 			clear: async () => {
-				await webConfig.setInstance(instanceId, { credentials: {}, options: { ...instance.options, peerTokens: {} } });
+				await webConfig.setInstance(instanceId, {
+					credentials: {},
+					options: { ...instance.options, peerTokens: {} },
+				});
 			},
 		};
 		const create =

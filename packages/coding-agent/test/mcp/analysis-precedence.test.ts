@@ -80,10 +80,7 @@ describe("analysis MCP recognition", () => {
 	test("inspection reads declarations, installed package metadata, and markers without executing anything", async () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-analysis-inspect-"));
 		try {
-			fs.writeFileSync(
-				path.join(root, "package.json"),
-				JSON.stringify({ dependencies: { [CODEGRAPH]: "^1.0.0" } }),
-			);
+			fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ dependencies: { [CODEGRAPH]: "^1.0.0" } }));
 			fs.mkdirSync(path.join(root, ".codegraph"));
 			fs.mkdirSync(path.join(root, "node_modules", ...CODEGRAPH.split("/")), { recursive: true });
 			fs.writeFileSync(
@@ -248,10 +245,7 @@ describe("analysis tool filtering", () => {
 			{ name: "mcp__other_search", mcpServerName: "other", mcpToolName: "search" },
 		];
 
-		expect(filterAnalysisMcpTools(tools, decisions).map(tool => tool.name)).toEqual([
-			"grep",
-			"mcp__other_search",
-		]);
+		expect(filterAnalysisMcpTools(tools, decisions).map(tool => tool.name)).toEqual(["grep", "mcp__other_search"]);
 		expect(analysisMcpReasons(decisions).codegraph).toContain("shadowed");
 	});
 

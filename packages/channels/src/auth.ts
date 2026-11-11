@@ -50,7 +50,10 @@ export function isPeerAllowedFor(
 	if (platform === "qq") {
 		if (identity.peer.startsWith("group:")) return true;
 		if (identity.peer.startsWith("user:")) {
-			return users.includes(identity.peer.slice("user:".length)) || (identity.senderId !== undefined && users.includes(identity.senderId));
+			return (
+				users.includes(identity.peer.slice("user:".length)) ||
+				(identity.senderId !== undefined && users.includes(identity.senderId))
+			);
 		}
 	}
 	if (!identity.senderId) return false;

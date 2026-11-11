@@ -84,9 +84,7 @@ export interface BuildAnalysisMcpRefreshInputOptions {
  * Build the session input from the manager/tools snapshot. Callers should pass
  * the tools they are about to bind, not a separately loaded config list.
  */
-export function buildAnalysisMcpRefreshInput(
-	options: BuildAnalysisMcpRefreshInputOptions,
-): AnalysisMcpRefreshInput {
+export function buildAnalysisMcpRefreshInput(options: BuildAnalysisMcpRefreshInputOptions): AnalysisMcpRefreshInput {
 	const configs: Record<string, MCPServerConfig> = {};
 	const serverTools: Record<string, string[]> = {};
 	// Every configured/discovered server, including one whose tools have not
@@ -213,13 +211,17 @@ export function createAnalysisMcpPrecedenceHook(input: AnalysisMcpResolveInput):
 	// Keep this object stable: the session publishes it before awaiting approval.
 	const shadowReasons = analysisMcpReasons(decisions);
 	return {
-		get decisions() { return decisions; },
+		get decisions() {
+			return decisions;
+		},
 		filterTools: <T extends AnalysisMcpToolLike>(tools: readonly T[]): T[] =>
 			filterAnalysisMcpTools(tools, decisions),
 		shadowReasons,
-		get nativeToolsToSuppress() { return analysisMcpNativeToolsToSuppress(decisions); },
+		get nativeToolsToSuppress() {
+			return analysisMcpNativeToolsToSuppress(decisions);
+		},
 		get approvalRequests() {
-			return decisions.flatMap(decision => decision.approval ? [decision.approval] : []);
+			return decisions.flatMap(decision => (decision.approval ? [decision.approval] : []));
 		},
 		approve(serverName) {
 			if (!decisions.some(decision => decision.serverName === serverName && decision.state === "ask")) return;

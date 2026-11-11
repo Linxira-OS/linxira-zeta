@@ -176,9 +176,7 @@ export interface ConfigFileResult<T> {
  */
 /** Discover APPEND_SYSTEM.md (project first, then user); the rebuild re-reads it. */
 export function discoverAppendSystemPromptPath(): string | undefined {
-	return (
-		findConfigFile("APPEND_SYSTEM.md", { user: false }) ?? findConfigFile("APPEND_SYSTEM.md", { user: true })
-	);
+	return findConfigFile("APPEND_SYSTEM.md", { user: false }) ?? findConfigFile("APPEND_SYSTEM.md", { user: true });
 }
 
 export function findConfigFile(subpath: string, options: GetConfigDirsOptions = {}): string | undefined {

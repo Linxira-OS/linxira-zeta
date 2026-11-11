@@ -836,10 +836,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 					parentExists = false;
 				}
 				if (!parentExists) {
-					return usage(
-						`Cannot create "${path.basename(resolvedPath)}": parent directory does not exist`,
-						runtime,
-					);
+					return usage(`Cannot create "${path.basename(resolvedPath)}": parent directory does not exist`, runtime);
 				}
 				try {
 					await fs.mkdir(resolvedPath, { recursive: true });

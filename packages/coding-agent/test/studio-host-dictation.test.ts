@@ -263,13 +263,56 @@ describe("Studio host dictation", () => {
 			handleDictationAudio(
 				new Request(`http://127.0.0.1${path}`, { method: "POST", headers: { "content-type": contentType }, body }),
 			);
-		expect((await post("/api/dictation/audio/attach", JSON.stringify({ audioId, sessionId: "other-session" }), "application/json")).status).toBe(409);
-		expect((await post("/api/dictation/audio/attach", JSON.stringify({ audioId, sessionId: SESSION.id }), "application/json")).status).toBe(200);
-		expect((await post(`/api/dictation/audio?audioId=${audioId}&sequence=1`, frame(0.1), "application/octet-stream")).status).toBe(409);
-		expect((await post(`/api/dictation/audio?audioId=${audioId}&sequence=0`, new Uint8Array(3), "application/octet-stream")).status).toBe(400);
-		expect((await post(`/api/dictation/audio?audioId=${audioId}&sequence=0`, frame(0.1), "application/octet-stream")).status).toBe(204);
-		expect((await post("/api/dictation/audio/detach", JSON.stringify({ audioId }), "application/json")).status).toBe(200);
-		expect((await post(`/api/dictation/audio?audioId=${audioId}&sequence=1`, frame(0.1), "application/octet-stream")).status).toBe(404);
-		expect((await post("/api/dictation/audio/attach", JSON.stringify({ audioId: "bad", sessionId: SESSION.id }), "application/json")).status).toBe(400);
+		expect(
+			(
+				await post(
+					"/api/dictation/audio/attach",
+					JSON.stringify({ audioId, sessionId: "other-session" }),
+					"application/json",
+				)
+			).status,
+		).toBe(409);
+		expect(
+			(
+				await post(
+					"/api/dictation/audio/attach",
+					JSON.stringify({ audioId, sessionId: SESSION.id }),
+					"application/json",
+				)
+			).status,
+		).toBe(200);
+		expect(
+			(await post(`/api/dictation/audio?audioId=${audioId}&sequence=1`, frame(0.1), "application/octet-stream"))
+				.status,
+		).toBe(409);
+		expect(
+			(
+				await post(
+					`/api/dictation/audio?audioId=${audioId}&sequence=0`,
+					new Uint8Array(3),
+					"application/octet-stream",
+				)
+			).status,
+		).toBe(400);
+		expect(
+			(await post(`/api/dictation/audio?audioId=${audioId}&sequence=0`, frame(0.1), "application/octet-stream"))
+				.status,
+		).toBe(204);
+		expect((await post("/api/dictation/audio/detach", JSON.stringify({ audioId }), "application/json")).status).toBe(
+			200,
+		);
+		expect(
+			(await post(`/api/dictation/audio?audioId=${audioId}&sequence=1`, frame(0.1), "application/octet-stream"))
+				.status,
+		).toBe(404);
+		expect(
+			(
+				await post(
+					"/api/dictation/audio/attach",
+					JSON.stringify({ audioId: "bad", sessionId: SESSION.id }),
+					"application/json",
+				)
+			).status,
+		).toBe(400);
 	});
 });

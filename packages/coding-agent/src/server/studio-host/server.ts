@@ -121,7 +121,6 @@ function json(data: unknown, status = 200, headers: Record<string, string> = {})
 	});
 }
 
-
 /**
  * Namespace for pairing attempts in the shared failure limiter: a wrong code
  * is an auth failure like a wrong token, but it must not consume the token
@@ -308,9 +307,10 @@ export class StudioHost {
 			const credential = access.credential;
 			if (credential !== null) {
 				const operation = classifyOperation(url.pathname, req.method);
-				const scopes = credential.kind === "local" || credential.kind === "machine"
-					? ["read", "write"]
-					: credential.device.scopes;
+				const scopes =
+					credential.kind === "local" || credential.kind === "machine"
+						? ["read", "write"]
+						: credential.device.scopes;
 				if (!scopeSatisfies(scopes, operation)) return json({ error: "insufficient_scope" }, 403);
 			}
 		}
@@ -325,11 +325,14 @@ export class StudioHost {
 		};
 		try {
 			if (isPair) return await this.#pair(req, remoteAddr);
-			if (url.pathname === "/api/v1/session/revoke" && req.method === "POST") return await this.#revoke(req, remoteAddr);
+			if (url.pathname === "/api/v1/session/revoke" && req.method === "POST")
+				return await this.#revoke(req, remoteAddr);
 			if (url.pathname === "/api/v1/bootstrap" && req.method === "GET")
 				return await this.#bootstrap(req, remoteAddr, local);
-			if (url.pathname === "/api/v1/query" && req.method === "POST") return await this.#query(req, remoteAddr, context);
-			if (url.pathname === "/api/v1/command" && req.method === "POST") return await this.#command(req, remoteAddr, context);
+			if (url.pathname === "/api/v1/query" && req.method === "POST")
+				return await this.#query(req, remoteAddr, context);
+			if (url.pathname === "/api/v1/command" && req.method === "POST")
+				return await this.#command(req, remoteAddr, context);
 			return json({ error: "not_found" }, 404);
 		} catch (error) {
 			if (error instanceof PairingInputError) return json({ error: error.message }, 400);
@@ -403,7 +406,10 @@ export class StudioHost {
 	 * The label is a display string; the platform is normalized by the registry
 	 * and defaults to what the User-Agent implies.
 	 */
-	#deviceRequest(body: unknown, req: Request): {
+	#deviceRequest(
+		body: unknown,
+		req: Request,
+	): {
 		label?: string;
 		platform?: string;
 		machineId?: string;
@@ -492,7 +498,7 @@ export class StudioHost {
 			// Remote access is configured: even a local peer pairs with the code so
 			// its authority is device-bound and revocable. A token-authenticated
 			// caller is handled below (the desktop shell never pairs for reads).
-			if (authorized === undefined || isGenuinelyLocalRequest(req, remoteAddr) && !hasCookie) {
+			if (authorized === undefined || (isGenuinelyLocalRequest(req, remoteAddr) && !hasCookie)) {
 				return json({ error: "unauthenticated" }, 401);
 			}
 		}
@@ -606,9 +612,8 @@ export class StudioHost {
 		}
 		const credential = access.credential;
 		if (credential !== null) {
-			const scopes = credential.kind === "local" || credential.kind === "machine"
-				? ["read", "write"]
-				: credential.device.scopes;
+			const scopes =
+				credential.kind === "local" || credential.kind === "machine" ? ["read", "write"] : credential.device.scopes;
 			// A socket carries events; it is a read surface, but a terminal-class
 			// write scope is not needed here. Read is the honest requirement.
 			if (!scopeSatisfies(scopes, "read")) return json({ error: "insufficient_scope" }, 403);

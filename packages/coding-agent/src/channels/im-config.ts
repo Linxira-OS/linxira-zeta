@@ -165,7 +165,12 @@ function keyText(value: unknown, pathName: string, issues: ConfigIssue[]): strin
 	}
 	return parsed;
 }
-function strings(value: unknown, pathName: string, issues: ConfigIssue[], options: { optional?: boolean } = {}): string[] {
+function strings(
+	value: unknown,
+	pathName: string,
+	issues: ConfigIssue[],
+	options: { optional?: boolean } = {},
+): string[] {
 	if (value === undefined && options.optional) return [];
 	if (!Array.isArray(value) || value.some(item => typeof item !== "string")) {
 		issues.push({ path: pathName, message: "expected an array of strings" });
@@ -210,7 +215,13 @@ function validateTarget(value: unknown, pathName: string, issues: ConfigIssue[])
 		if (prefix === "workspace" && parts[0]) return { kind: "workspace", workspace: parts[0] };
 		if (prefix === "team-pm" && parts[0] && parts[1]) return { kind: "team-pm", team: parts[0], pm: parts[1] };
 		if (prefix === "engineer" && parts[0] && parts[1] && parts[2]) {
-			return { kind: "engineer", team: parts[0], pm: parts[1], engineer: parts[2], ...(parts[3] ? { repo: parts.slice(3).join("/") } : {}) };
+			return {
+				kind: "engineer",
+				team: parts[0],
+				pm: parts[1],
+				engineer: parts[2],
+				...(parts[3] ? { repo: parts.slice(3).join("/") } : {}),
+			};
 		}
 		issues.push({ path: pathName, message: "unrecognized targetKey" });
 		return undefined;
@@ -272,7 +283,8 @@ export function validateImAgentProfiles(value: unknown): ImAgentProfile[] {
 		const location = validateTarget(rec.location, `${p}.location`, issues);
 		const toolsRec = record(rec.tools) ?? {};
 		const preset = toolsRec.preset;
-		if (preset !== undefined && !isPreset(preset)) issues.push({ path: `${p}.tools.preset`, message: "unknown preset" });
+		if (preset !== undefined && !isPreset(preset))
+			issues.push({ path: `${p}.tools.preset`, message: "unknown preset" });
 		const tools: ImAgentTools = {
 			...(preset !== undefined ? { preset: preset as ImAgentPreset } : {}),
 			builtin: strings(toolsRec.builtin, `${p}.tools.builtin`, issues, { optional: true }),
@@ -289,10 +301,7 @@ export function validateImAgentProfiles(value: unknown): ImAgentProfile[] {
 		};
 		const memRec = record(rec.memory) ?? {};
 		const backend = text(memRec.backend);
-		if (
-			backend !== null &&
-			!["off", "local", "hindsight", "mnemopi", "sharpshooter"].includes(backend)
-		) {
+		if (backend !== null && !["off", "local", "hindsight", "mnemopi", "sharpshooter"].includes(backend)) {
 			issues.push({ path: `${p}.memory.backend`, message: "unknown backend" });
 		}
 		const profileModel = record(rec.model);
@@ -306,15 +315,15 @@ export function validateImAgentProfiles(value: unknown): ImAgentProfile[] {
 				id,
 				label,
 				persona,
-				...(profileProvider && profileModelId ? { model: { provider: profileProvider, model: profileModelId } } : {}),
+				...(profileProvider && profileModelId
+					? { model: { provider: profileProvider, model: profileModelId } }
+					: {}),
 				location,
 				tools,
 				memory: {
 					...(backend ? { backend: backend as ImAgentProfile["memory"]["backend"] } : {}),
 					...(text(memRec.namespace) ? { namespace: text(memRec.namespace)! } : {}),
-					...(typeof memRec.workspaceContext === "boolean"
-						? { workspaceContext: memRec.workspaceContext }
-						: {}),
+					...(typeof memRec.workspaceContext === "boolean" ? { workspaceContext: memRec.workspaceContext } : {}),
 				},
 			});
 		}
@@ -408,7 +417,8 @@ export function validateImBindings(
 		const threadId = keyText(rec.threadId, `${p}.threadId`, issues);
 		const userId = keyText(rec.userId, `${p}.userId`, issues);
 		const profileId = text(rec.agentProfileId);
-		if (!profileId || !profileIds.has(profileId)) issues.push({ path: `${p}.agentProfileId`, message: "unknown profile" });
+		if (!profileId || !profileIds.has(profileId))
+			issues.push({ path: `${p}.agentProfileId`, message: "unknown profile" });
 		const sessionId = text(rec.sessionId);
 		if (!sessionId) issues.push({ path: `${p}.sessionId`, message: "sessionId is required" });
 		else if (sessions.has(sessionId)) issues.push({ path: `${p}.sessionId`, message: "sessionId must be unique" });
@@ -427,7 +437,10 @@ export function validateImBindings(
 			if (role === "answer") {
 				const answerKey = `${instance.platform}\u0000${chatId}`;
 				if (answers.has(answerKey)) {
-					issues.push({ path: `${p}.role`, message: "another instance already answers this chat; use mention/observe" });
+					issues.push({
+						path: `${p}.role`,
+						message: "another instance already answers this chat; use mention/observe",
+					});
 				}
 				answers.add(answerKey);
 			}

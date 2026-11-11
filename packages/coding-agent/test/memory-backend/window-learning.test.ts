@@ -21,7 +21,11 @@ function root(): TempDir {
 	return temp;
 }
 
-function window(id: string, messages: MemoryLearningWindow["messages"], entryIds: string[]): Omit<Parameters<WindowLearningQueue["capture"]>[0], "memory" | "taste"> {
+function window(
+	id: string,
+	messages: MemoryLearningWindow["messages"],
+	entryIds: string[],
+): Omit<Parameters<WindowLearningQueue["capture"]>[0], "memory" | "taste"> {
 	return { id, messages, entryIds };
 }
 
@@ -44,7 +48,14 @@ describe("durable window journal", () => {
 		// A later window containing an already processed entry learns only the new tail.
 		let observed: MemoryLearningWindow["messages"] = [];
 		await queue.capture({
-			...window("compact-2", [{ role: "user", content: "Use explicit return types" }, { role: "user", content: "New rule" }], ["e1", "e2"]),
+			...window(
+				"compact-2",
+				[
+					{ role: "user", content: "Use explicit return types" },
+					{ role: "user", content: "New rule" },
+				],
+				["e1", "e2"],
+			),
 			memory: true,
 			taste: false,
 		});
@@ -57,14 +68,24 @@ describe("durable window journal", () => {
 	it("replays pending work after restart and keeps completed ids completed", async () => {
 		const dir = root().path();
 		const first = new WindowLearningQueue(dir, "repo:example", "session-a");
-		await first.capture({ ...window("compact-1", [{ role: "user", content: "Keep evidence verbatim" }], ["e1"]), memory: true, taste: false });
-		await first.capture({ ...window("compact-2", [{ role: "user", content: "Prefer narrow exports" }], ["e2"]), memory: true, taste: false });
+		await first.capture({
+			...window("compact-1", [{ role: "user", content: "Keep evidence verbatim" }], ["e1"]),
+			memory: true,
+			taste: false,
+		});
+		await first.capture({
+			...window("compact-2", [{ role: "user", content: "Prefer narrow exports" }], ["e2"]),
+			memory: true,
+			taste: false,
+		});
 
 		let runs = 0;
-		await first.process(async () => {
-			runs++;
-			throw new Error("provider unavailable");
-		}).catch(() => {});
+		await first
+			.process(async () => {
+				runs++;
+				throw new Error("provider unavailable");
+			})
+			.catch(() => {});
 		expect(runs).toBe(1);
 		expect((await first.pending()).length).toBe(2);
 
@@ -74,7 +95,11 @@ describe("durable window journal", () => {
 			ids.push(item.id);
 		});
 		expect(ids).toEqual(["compact-1", "compact-2"]);
-		await restarted.capture({ ...window("compact-1", [{ role: "user", content: "Keep evidence verbatim" }], ["e1"]), memory: true, taste: false });
+		await restarted.capture({
+			...window("compact-1", [{ role: "user", content: "Keep evidence verbatim" }], ["e1"]),
+			memory: true,
+			taste: false,
+		});
 		expect((await restarted.pending()).length).toBe(0);
 	});
 
@@ -168,20 +193,44 @@ describe("window candidate host rules", () => {
 		};
 		const candidates = admitWindowCandidates(
 			[
-				{ category: "typescript", statement: "Avoids barrel files", polarity: "avoid", evidenceText: "avoid barrel files" },
-				{ category: "typescript", statement: "Avoids barrel files", polarity: "avoid", evidenceText: "avoid barrel files" },
-				{ category: "typescript", statement: "Avoids barrel files", polarity: "avoid", evidenceText: "barrel files in src" },
+				{
+					category: "typescript",
+					statement: "Avoids barrel files",
+					polarity: "avoid",
+					evidenceText: "avoid barrel files",
+				},
+				{
+					category: "typescript",
+					statement: "Avoids barrel files",
+					polarity: "avoid",
+					evidenceText: "avoid barrel files",
+				},
+				{
+					category: "typescript",
+					statement: "Avoids barrel files",
+					polarity: "avoid",
+					evidenceText: "barrel files in src",
+				},
 			],
 			source,
 			"session-a",
 		);
 		expect(candidates.length).toBe(1);
 		expect(candidates[0]?.sourceId).toMatch(/^[a-f0-9]{64}$/);
-		expect(admitWindowCandidates(
-			[{ category: "style", statement: "Avoids barrel files", polarity: "avoid", evidenceText: "barrel files in src" }],
-			{ id: "compact-2", messages: [{ role: "assistant", content: "barrel files in src" }] },
-			"session-a",
-		)).toEqual([]);
+		expect(
+			admitWindowCandidates(
+				[
+					{
+						category: "style",
+						statement: "Avoids barrel files",
+						polarity: "avoid",
+						evidenceText: "barrel files in src",
+					},
+				],
+				{ id: "compact-2", messages: [{ role: "assistant", content: "barrel files in src" }] },
+				"session-a",
+			),
+		).toEqual([]);
 	});
 
 	it("does not count the same window source twice after a replay", async () => {
@@ -199,7 +248,14 @@ describe("window candidate host rules", () => {
 			sourceId: "a".repeat(64),
 		};
 		const modelRegistry = { getAvailable: () => [], resolver: () => undefined };
-		const options = { agentDir: dir, cwd: dir, settings, modelRegistry: modelRegistry as never, sessionId: "session-a", force: true };
+		const options = {
+			agentDir: dir,
+			cwd: dir,
+			settings,
+			modelRegistry: modelRegistry as never,
+			sessionId: "session-a",
+			force: true,
+		};
 		await appendTasteCandidate(dir, scope, candidate);
 		await runTasteConsolidation(options);
 		const first = await readTasteScope(dir, scope);

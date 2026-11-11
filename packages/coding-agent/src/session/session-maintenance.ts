@@ -90,11 +90,7 @@ import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import type { AgentSessionEvent } from "./agent-session-events";
 import { CompactionAgent } from "./compaction/agent";
 import { fidelityCounts, readCompactionFidelity, type FidelityTracking } from "./compaction/fidelity";
-import {
-	CompactionService,
-	type CompactionCommitListener,
-	type CompactionPass,
-} from "./compaction/service";
+import { CompactionService, type CompactionCommitListener, type CompactionPass } from "./compaction/service";
 import type { ContextUsageBreakdown, HandoffResult, SessionHandoffOptions } from "./agent-session-types";
 import { findCompactMode } from "./compact-modes";
 import {
@@ -1791,8 +1787,7 @@ export class SessionMaintenance {
 			if (ownsCompactionController) {
 				// Cancellation is the only `aborted`; every other non-commit is `failed`.
 				const cancelled =
-					manualCompactionError instanceof CompactionCancelledError ||
-					compactionAbortController.signal.aborted;
+					manualCompactionError instanceof CompactionCancelledError || compactionAbortController.signal.aborted;
 				await pass?.settle(cancelled ? "aborted" : "failed", {
 					...(cancelled
 						? {}

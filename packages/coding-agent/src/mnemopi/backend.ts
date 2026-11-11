@@ -187,7 +187,9 @@ export const mnemopiBackend: MemoryBackend = {
 		await previous?.dispose({ consolidate: false });
 		const config =
 			previous?.config ??
-			(session ? loadMnemopiConfig(session.settings, agentDir, session.sessionManager.getMemoryNamespace()) : undefined);
+			(session
+				? loadMnemopiConfig(session.settings, agentDir, session.sessionManager.getMemoryNamespace())
+				: undefined);
 		if (!config) return;
 		await loadMnemopiCore();
 		// Close the cached default Mnemopi instance so its SQLite handle doesn't
@@ -246,7 +248,9 @@ export const mnemopiBackend: MemoryBackend = {
 		const state = getMnemopiSessionState(session);
 		const config =
 			state?.config ??
-			(session ? loadMnemopiConfig(session.settings, agentDir, session.sessionManager.getMemoryNamespace()) : undefined);
+			(session
+				? loadMnemopiConfig(session.settings, agentDir, session.sessionManager.getMemoryNamespace())
+				: undefined);
 		if (!config) return undefined;
 		const [{ inspectDatabase }] = await Promise.all([loadMnemopiDiagnose(), loadMnemopiCore()]);
 		const banks = getMnemopiScopedBanks(config);

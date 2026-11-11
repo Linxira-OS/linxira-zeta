@@ -303,9 +303,7 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 	for (const [key, preference] of Object.entries(preferences.projects)) {
 		// The key is the case-folded comparison identity; the stored path is the
 		// user's spelling. A preference-only row must not lowercase the folder.
-		const directory = preference.path !== undefined && resumePathKey(preference.path) === key
-			? preference.path
-			: key;
+		const directory = preference.path !== undefined && resumePathKey(preference.path) === key ? preference.path : key;
 		const bucket = ensureProject(directory);
 		if (preference.registered === true) ensureWorkspace(bucket, directory);
 	}

@@ -324,27 +324,18 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 			push({ kind: "dir", entry: directory }, { label: `${directory.name}/`, description: directory.detail });
 		}
 		const pushNote = (label: string, description: string) =>
-			push(
-				{ kind: "note", entry: { name: label, path: "" } },
-				{ label, description, disabled: true },
-			);
+			push({ kind: "note", entry: { name: label, path: "" } }, { label, description, disabled: true });
 		const retry = tuiText("cdPickerRetryHint", "press r to retry");
 		if (this.#current === null) {
 			if (this.#listing.rootsLoading) {
 				pushNote(tuiText("cdPickerRootsLoading", "Loading volumes…"), retry);
 			} else if (this.#listing.rootsError) {
-				pushNote(
-					tuiTextFmt("cdPickerRootsErrorFmt", "Cannot list volumes: %s", this.#listing.rootsError),
-					retry,
-				);
+				pushNote(tuiTextFmt("cdPickerRootsErrorFmt", "Cannot list volumes: %s", this.#listing.rootsError), retry);
 			} else if (this.#listing.roots.length === 0 && this.#listing.pins.length === 0) {
 				pushNote(tuiText("cdPickerRootsEmpty", "No volumes found"), retry);
 			}
 		} else if (this.#listing.error) {
-			pushNote(
-				tuiTextFmt("cdPickerUnreadableFmt", "Cannot read this folder: %s", this.#listing.error),
-				retry,
-			);
+			pushNote(tuiTextFmt("cdPickerUnreadableFmt", "Cannot read this folder: %s", this.#listing.error), retry);
 		} else if (this.#listing.directories.length === 0) {
 			pushNote(tuiText("cdPickerEmptyFolder", "This folder is empty"), retry);
 		}
@@ -371,11 +362,7 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 					this.#statusText.setText(
 						theme.fg(
 							"error",
-							tuiTextFmt(
-								"cdPickerUnavailableFmt",
-								"Unavailable: %s · Ctrl+P to unpin",
-								row.entry.path,
-							),
+							tuiTextFmt("cdPickerUnavailableFmt", "Unavailable: %s · Ctrl+P to unpin", row.entry.path),
 						),
 					);
 					this.invalidate();

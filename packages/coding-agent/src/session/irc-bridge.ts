@@ -294,14 +294,16 @@ export class IrcBridge {
 		const record: CustomMessage = {
 			role: "custom",
 			customType: "irc:incoming",
-			content: isImUserTurn ? "" : prompt.render(ircIncomingTemplate, {
-				from: msg.from,
-				message: envelopeBody,
-				replyTo: msg.replyTo ?? "",
-				progress: msg.progress === true,
-				interrupting: streaming && !quiet,
-				relayOnStop,
-			}),
+			content: isImUserTurn
+				? ""
+				: prompt.render(ircIncomingTemplate, {
+						from: msg.from,
+						message: envelopeBody,
+						replyTo: msg.replyTo ?? "",
+						progress: msg.progress === true,
+						interrupting: streaming && !quiet,
+						relayOnStop,
+					}),
 			// The parent steer becomes the transcript card when consumed; keep this
 			// observation available to listeners without also painting a live card.
 			display: !(streaming && fromParent && !peerMessage),

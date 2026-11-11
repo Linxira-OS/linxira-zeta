@@ -3894,7 +3894,12 @@ export class ModelHubComponent implements Component {
 			case "fallback": {
 				const resolved = this.#resolveFallbackEntry(row.role, row.chainIndex);
 				if (resolved) children.push(...this.#browser.modelPreview(resolved.item, "full", this.#currentSelector));
-				else children.push(text([span(row.selector || "Fallback slot (empty)", row.selector ? "mono" : "muted")], { role: "zeta.picker.title" }));
+				else
+					children.push(
+						text([span(row.selector || "Fallback slot (empty)", row.selector ? "mono" : "muted")], {
+							role: "zeta.picker.title",
+						}),
+					);
 				const chain = chainList(row.role);
 				if (chain) children.push(chain);
 				break;

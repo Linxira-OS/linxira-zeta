@@ -1929,7 +1929,8 @@ export const en = {
 	cmdTrackingStartFmt:
 		"Maintaining project tracking documents. After milestones, important decisions, phase completion or a cleared blocker I call tracking_update and write status (status.json), the index (INDEX.md), actions (actions.<day>.jsonl.log, rotated 5 MB × 3), todo phases (sync_todo) and plans (sessions/) under %s.\nTracking is opt-in: enable it with /tracking on, or /settings → tools → Project Tracking (tracking.enabled). Tracking holds process state (phase, progress, blockers, plan mirror); learned facts and preferences belong to memory, not tracking. Documents persist across sessions and are readable in the stats dashboard Tracking page.\n%s",
 	cmdTrackingStartSeededExistsFmt: "Index already exists: %s",
-	cmdTrackingStartSeededCreatedFmt: "Seeded the three-reader index from the template: %s (people / agent / collaborators)",
+	cmdTrackingStartSeededCreatedFmt:
+		"Seeded the three-reader index from the template: %s (people / agent / collaborators)",
 	cmdTrackingEmptyHint: "No tracking data. Run /tracking start to begin maintaining the project tracking documents.",
 	cmdTrackingStatusReportFmt: "Phase: %s\nProgress: %s\nBlockers: %s\nDecisions: %s\nUpdated: %s",
 	cmdTrackingUnset: "(not set)",
@@ -1989,8 +1990,7 @@ export const en = {
 	cmdMemoryMmDelete: "Delete a mental model from the bank (id required)",
 	cmdMemoryMmReload: "Re-pull the cached <mental_models> block",
 	cmdCd: "Change directory: open the folder picker, or switch to the path given",
-	cdPickerNavHint:
-		"j/k move · type or / to filter · Enter open · ⌫ up · r refresh · Ctrl+P pin · Ctrl+R resume",
+	cdPickerNavHint: "j/k move · type or / to filter · Enter open · ⌫ up · r refresh · Ctrl+P pin · Ctrl+R resume",
 	cdPickerFilterHint: "type to filter · Enter open · Esc clear filter",
 	cdPickerTitle: "Change directory",
 	cdPickerUseThisFolder: "Use this folder",

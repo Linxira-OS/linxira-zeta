@@ -48,10 +48,7 @@ describe("web-config workspace routing writes", () => {
 	beforeEach(() => {
 		dir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-web-config-"));
 		file = path.join(dir, "web.yml");
-		fs.writeFileSync(
-			file,
-			JSON.stringify({ channels: { instances: [INSTANCE] }, imAgents: [PROFILE], remote: {} }),
-		);
+		fs.writeFileSync(file, JSON.stringify({ channels: { instances: [INSTANCE] }, imAgents: [PROFILE], remote: {} }));
 	});
 
 	afterEach(() => {

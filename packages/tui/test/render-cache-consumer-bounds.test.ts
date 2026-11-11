@@ -1,9 +1,6 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { Markdown, clearRenderCache } from "@linxiraos/pi-tui/components/markdown";
-import {
-	TranscriptContainer,
-	type TranscriptStableRow,
-} from "@linxiraos/pi-tui/chrome/transcript-container";
+import { TranscriptContainer, type TranscriptStableRow } from "@linxiraos/pi-tui/chrome/transcript-container";
 import type { Component } from "@linxiraos/pi-tui/tui";
 import { defaultMarkdownTheme } from "./test-themes.js";
 
@@ -41,10 +38,7 @@ class FillBlock implements Component {
 	readonly #stable: TranscriptStableRow[];
 
 	constructor(index: number) {
-		this.#rows = Array.from(
-			{ length: 8 },
-			(_, row) => `${index}:${row} ${"consumer cap transcript row ".repeat(4)}`,
-		);
+		this.#rows = Array.from({ length: 8 }, (_, row) => `${index}:${row} ${"consumer cap transcript row ".repeat(4)}`);
 		this.#stable = this.#rows.map((_, row) => ({ key: `${index}:${row}` }));
 	}
 

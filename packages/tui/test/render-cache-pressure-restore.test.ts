@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { clearRenderCache, Markdown } from "@linxiraos/pi-tui/components/markdown";
-import {
-	TranscriptContainer,
-	type TranscriptStableRow,
-} from "@linxiraos/pi-tui/chrome/transcript-container";
+import { TranscriptContainer, type TranscriptStableRow } from "@linxiraos/pi-tui/chrome/transcript-container";
 import type { Component } from "@linxiraos/pi-tui/tui";
 import { defaultMarkdownTheme } from "./test-themes.js";
 
@@ -21,10 +18,7 @@ class ReleasableBlock implements Component {
 	#rendered: readonly string[] | undefined;
 
 	constructor(index: number) {
-		this.#rows = Array.from(
-			{ length: 6 },
-			(_, row) => `${index}:${row} ${"large tool output row ".repeat(4)}`,
-		);
+		this.#rows = Array.from({ length: 6 }, (_, row) => `${index}:${row} ${"large tool output row ".repeat(4)}`);
 		this.#stable = this.#rows.map((_, row) => ({ key: `${index}:${row}` }));
 	}
 

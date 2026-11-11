@@ -251,7 +251,16 @@ describe("Codex and OpenCode slash-command frontmatter", () => {
 		await fs.mkdir(path.dirname(file), { recursive: true });
 		await fs.writeFile(
 			file,
-			["---", "description: Review changes", "agent: reviewer", "model: anthropic/claude-sonnet-4-5", "template: Review $ARGUMENTS", "---", "Body", ""].join("\n"),
+			[
+				"---",
+				"description: Review changes",
+				"agent: reviewer",
+				"model: anthropic/claude-sonnet-4-5",
+				"template: Review $ARGUMENTS",
+				"---",
+				"Body",
+				"",
+			].join("\n"),
 		);
 
 		expect((await loadProviderCommands("codex")).find(item => item.name === "review")).toBeUndefined();

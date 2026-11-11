@@ -34,13 +34,7 @@ export {
 } from "./compaction/fidelity";
 
 /** Host-agnostic progress a consumer can render without re-deriving phase semantics. */
-export type CompactionProgressStage =
-	| "planning"
-	| "summarizing"
-	| "archiving"
-	| "committing"
-	| "failed"
-	| "aborted";
+export type CompactionProgressStage = "planning" | "summarizing" | "archiving" | "committing" | "failed" | "aborted";
 
 export interface CompactionProgress {
 	passId: string;

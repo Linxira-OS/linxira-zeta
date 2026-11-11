@@ -17,9 +17,7 @@
 import * as os from "node:os";
 import * as path from "node:path";
 import { refreshDirsFromEnv, ZETA_GATEWAY_PORT } from "@linxiraos/pi-utils";
-import {
-	getMainSessionId,
-} from "../channels";
+import { getMainSessionId } from "../channels";
 import { scheduleTrashSweep } from "../session/session-trash";
 import {
 	handleAgentCommand,
@@ -332,8 +330,10 @@ const DOCS_RE = /^\/api\/docs\/([A-Za-z0-9._/-]+)$/;
 const BLOB_RE = /^\/api\/blobs\/([^/]+)$/;
 const CHANNELS_INSTANCES_RE = /^\/api\/channels\/instances$/;
 const CHANNELS_INSTANCE_RE = /^\/api\/channels\/instances\/([a-z0-9][a-z0-9_-]{1,31})$/;
-const CHANNELS_INSTANCE_ACTION_RE = /^\/api\/channels\/instances\/([a-z0-9][a-z0-9_-]{1,31})\/(validate|enable|disable)$/;
-const CHANNELS_INSTANCE_WECHAT_RE = /^\/api\/channels\/instances\/([a-z0-9][a-z0-9_-]{1,31})\/wechat\/(qrcode|reconnect|unbind)$/;
+const CHANNELS_INSTANCE_ACTION_RE =
+	/^\/api\/channels\/instances\/([a-z0-9][a-z0-9_-]{1,31})\/(validate|enable|disable)$/;
+const CHANNELS_INSTANCE_WECHAT_RE =
+	/^\/api\/channels\/instances\/([a-z0-9][a-z0-9_-]{1,31})\/wechat\/(qrcode|reconnect|unbind)$/;
 const IM_AGENTS_RE = /^\/api\/im\/agents$/;
 const IM_BINDINGS_RE = /^\/api\/im\/bindings$/;
 const IM_COMMANDS_RE = /^\/api\/im\/commands$/;
@@ -1189,8 +1189,16 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		if (action === "qrcode") {
 			if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
 			const response = await handleWechatQr(instanceId!);
-			const payload = await response.clone().json().catch(() => null);
-			if (payload && typeof payload === "object" && payload.pending === true && typeof payload.qrcodeUrl === "string") {
+			const payload = await response
+				.clone()
+				.json()
+				.catch(() => null);
+			if (
+				payload &&
+				typeof payload === "object" &&
+				payload.pending === true &&
+				typeof payload.qrcodeUrl === "string"
+			) {
 				const svg = renderWechatLoginQrSvg(payload.qrcodeUrl);
 				return json({ ...payload, ...(svg === undefined ? {} : { svg }) });
 			}
@@ -1232,7 +1240,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return handleChannelCredentials(req);
 	}
 
-	if (CHANNELS_WECHAT_QR_RE.test(pathname) || CHANNELS_WECHAT_RECONNECT_RE.test(pathname) || CHANNELS_WECHAT_UNBIND_RE.test(pathname)) {
+	if (
+		CHANNELS_WECHAT_QR_RE.test(pathname) ||
+		CHANNELS_WECHAT_RECONNECT_RE.test(pathname) ||
+		CHANNELS_WECHAT_UNBIND_RE.test(pathname)
+	) {
 		return json({ error: "Use /api/channels/instances/:id/wechat/{qrcode,reconnect,unbind}" }, 410);
 	}
 

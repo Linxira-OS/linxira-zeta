@@ -51,7 +51,10 @@ export async function buildTasteInstructions(options: TasteInjectOptions): Promi
 	if (cfgTasteEnabled.get(options.settings) !== true) return undefined;
 	const agentId = options.agentId ?? options.session?.getAgentId();
 	const namespace = options.session?.sessionManager.getMemoryNamespace();
-	const scopes = resolveTasteScopes({ cwd: options.cwd, agentId, ...(namespace ? { namespace } : {}) }, options.settings);
+	const scopes = resolveTasteScopes(
+		{ cwd: options.cwd, agentId, ...(namespace ? { namespace } : {}) },
+		options.settings,
+	);
 	return renderTasteBlock({ ...options, scopes });
 }
 

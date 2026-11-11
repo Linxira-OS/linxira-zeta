@@ -12,8 +12,7 @@ export const eventDefs = {
 	AutoCompactionReason: "'threshold' | 'overflow' | 'idle' | 'incomplete'",
 	CompactionTriggerType: "'manual' | 'auto' | 'speculation'",
 	CompactionPhaseName: "'plan' | 'summarize' | 'archive' | 'commit' | 'failed' | 'aborted'",
-	CompactionPhaseMethod:
-		"'remote' | 'snapcompact' | 'handoff' | 'shake' | 'soft' | 'experimental' | 'extension'",
+	CompactionPhaseMethod: "'remote' | 'snapcompact' | 'handoff' | 'shake' | 'soft' | 'experimental' | 'extension'",
 	CompactionFidelityCounts: {
 		qa: "number.integer",
 		paths: "number.integer",

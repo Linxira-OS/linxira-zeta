@@ -180,10 +180,7 @@ function allowedSetOf(allowedTools: AnalysisMcpResolveInput["allowedTools"]): Re
 	return Array.isArray(allowedTools) ? new Set(allowedTools) : allowedTools;
 }
 
-function detectedBy(
-	manifest: AnalysisMcpManifest,
-	project: AnalysisMcpProjectSignals | undefined,
-): readonly string[] {
+function detectedBy(manifest: AnalysisMcpManifest, project: AnalysisMcpProjectSignals | undefined): readonly string[] {
 	if (!project) return [];
 	const found: string[] = [];
 	for (const packageName of manifest.packageNames) {
@@ -250,7 +247,8 @@ export function resolveAnalysisMcp(input: AnalysisMcpResolveInput): AnalysisMcpD
 			const expectedTools = input.serverTools?.[serverName] ?? manifest.tools;
 			const serverAllowed = input.allowedServerTools?.[serverName];
 			const visibleTools = expectedTools.filter(
-				tool => (allowed === undefined || allowed.has(tool)) &&
+				tool =>
+					(allowed === undefined || allowed.has(tool)) &&
 					(input.allowedServerTools === undefined || serverAllowed?.includes(tool) === true),
 			);
 			const base = {
@@ -356,9 +354,9 @@ export function filterAnalysisMcpTools<T extends { name: string; mcpServerName?:
 	decisions: readonly AnalysisMcpDecision[],
 ): T[] {
 	const byServer = new Map(
-		decisions.filter((decision): decision is AnalysisMcpDecision & { serverName: string } =>
-			Boolean(decision.serverName),
-		).map(decision => [decision.serverName, decision]),
+		decisions
+			.filter((decision): decision is AnalysisMcpDecision & { serverName: string } => Boolean(decision.serverName))
+			.map(decision => [decision.serverName, decision]),
 	);
 	return tools.filter(tool => {
 		if (!tool.mcpServerName) return true;

@@ -600,7 +600,8 @@ export class SessionRouter {
 		target: ImTarget,
 	): Promise<{ ok: true; cwd: string; alias?: string } | { ok: false; error: string }> {
 		if (target.kind === "workspace") {
-			if (target.workspace === COORDINATOR_ALIAS) return { ok: true, cwd: this.#defaultCwd, alias: COORDINATOR_ALIAS };
+			if (target.workspace === COORDINATOR_ALIAS)
+				return { ok: true, cwd: this.#defaultCwd, alias: COORDINATOR_ALIAS };
 			const dir = this.resolveDir(target.workspace);
 			if (!dir) return { ok: false, error: `Unknown workspace "${target.workspace}"` };
 			const stat = await fs.stat(dir).catch(() => null);
@@ -617,9 +618,14 @@ export class SessionRouter {
 			if (target.kind === "team-pm") return { ok: true, cwd: pm.workspacePath };
 			const engineer = db
 				.listEngineers(team.id)
-				.find(candidate => candidate.pmId === pm.id && (candidate.name === target.engineer || candidate.id === target.engineer));
+				.find(
+					candidate =>
+						candidate.pmId === pm.id && (candidate.name === target.engineer || candidate.id === target.engineer),
+				);
 			if (!engineer) return { ok: false, error: `Unknown engineer "${target.engineer}" under PM "${pm.name}"` };
-			let worktrees = db.listWorktrees(team.id).filter(candidate => candidate.engineerId === engineer.id && candidate.kind === "home");
+			let worktrees = db
+				.listWorktrees(team.id)
+				.filter(candidate => candidate.engineerId === engineer.id && candidate.kind === "home");
 			if (target.repo !== undefined) {
 				const repo = db.getRepo(team.id, target.repo) ?? db.getRepoById(target.repo);
 				if (!repo) return { ok: false, error: `Unknown repo "${target.repo}" in Team "${team.name}"` };
@@ -627,11 +633,17 @@ export class SessionRouter {
 			}
 			if (worktrees.length === 0) return { ok: false, error: `Engineer "${engineer.name}" has no home worktree` };
 			if (worktrees.length > 1) {
-				return { ok: false, error: `Engineer "${engineer.name}" has several home worktrees; set target.repo explicitly` };
+				return {
+					ok: false,
+					error: `Engineer "${engineer.name}" has several home worktrees; set target.repo explicitly`,
+				};
 			}
 			return { ok: true, cwd: worktrees[0]!.path };
 		} catch (error) {
-			return { ok: false, error: `Team target lookup failed: ${error instanceof Error ? error.message : String(error)}` };
+			return {
+				ok: false,
+				error: `Team target lookup failed: ${error instanceof Error ? error.message : String(error)}`,
+			};
 		} finally {
 			db?.close();
 		}
@@ -643,9 +655,7 @@ export class SessionRouter {
 	 * lives under the target cwd so a Team PM/engineer never shares a
 	 * transcript or memory home with another binding.
 	 */
-	async ensureImBindingSession(
-		binding: ImBinding,
-	): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+	async ensureImBindingSession(binding: ImBinding): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
 		if (binding.sessionId === "relay") return { ok: true, id: "relay" };
 		const resolved = await this.resolveImTargetCwd(binding.target);
 		if (!resolved.ok) return resolved;
@@ -653,9 +663,12 @@ export class SessionRouter {
 		// back resumes the same conversation, while a different workspace never
 		// inherits another target's history or memory.
 		const current = this.#webConfig.getBotSession(binding.sessionId);
-		if (current && current.cwd === resolved.cwd &&
+		if (
+			current &&
+			current.cwd === resolved.cwd &&
 			(!current.target || targetKey(current.target) === targetKey(binding.target)) &&
-			(!current.agentProfileId || current.agentProfileId === binding.agentProfileId)) {
+			(!current.agentProfileId || current.agentProfileId === binding.agentProfileId)
+		) {
 			return { ok: true, id: current.id };
 		}
 		const targetSessionId = `im-${targetScopedBindingId(binding).replace(/[^a-z0-9-]+/gi, "-")}`;
@@ -666,7 +679,10 @@ export class SessionRouter {
 					binding.instanceId,
 					binding.chatId,
 					{ sessionId: targetSessionId },
-					{ ...(binding.threadId ? { threadId: binding.threadId } : {}), ...(binding.userId ? { userId: binding.userId } : {}) },
+					{
+						...(binding.threadId ? { threadId: binding.threadId } : {}),
+						...(binding.userId ? { userId: binding.userId } : {}),
+					},
 				);
 			}
 			return { ok: true, id: existing.id };
@@ -676,7 +692,10 @@ export class SessionRouter {
 				binding.instanceId,
 				binding.chatId,
 				{ sessionId: targetSessionId },
-				{ ...(binding.threadId ? { threadId: binding.threadId } : {}), ...(binding.userId ? { userId: binding.userId } : {}) },
+				{
+					...(binding.threadId ? { threadId: binding.threadId } : {}),
+					...(binding.userId ? { userId: binding.userId } : {}),
+				},
 			);
 			binding = { ...binding, sessionId: targetSessionId };
 		}
@@ -705,14 +724,19 @@ export class SessionRouter {
 	}
 
 	/** Refresh and pin the short-selector snapshot for this entry. */
-	async listSessionCandidates(options: { includePm?: boolean; now?: number; maxAgeMs?: number } = {}): Promise<ImSessionListSnapshot> {
+	async listSessionCandidates(
+		options: { includePm?: boolean; now?: number; maxAgeMs?: number } = {},
+	): Promise<ImSessionListSnapshot> {
 		this.#sessionListSnapshot = await buildImSessionList(this, this.#webConfig, this.#sessionSelectorState, options);
 		return this.#sessionListSnapshot;
 	}
 
 	/** Resolve a short selector against the list the user saw; never renumber mid-use. */
 	resolveSessionSelector(selector: string): string | null {
-		const cleaned = selector.trim().replace(/^\{|\}$/g, "").replace(/^\[|\]$/g, "");
+		const cleaned = selector
+			.trim()
+			.replace(/^\{|\}$/g, "")
+			.replace(/^\[|\]$/g, "");
 		if (!cleaned) return null;
 		const fromSnapshot = this.#sessionListSnapshot?.bySelector.get(cleaned)?.canonicalSessionId;
 		if (fromSnapshot) return fromSnapshot;
@@ -741,7 +765,9 @@ export class SessionRouter {
 	): Promise<{ current: string; next: string; same: boolean }> {
 		const key = this.#workspaceSwitchKey(instanceId, peer, context);
 		const binding = this.#webConfig.findImBinding(instanceId, peer, context);
-		const currentTarget = binding?.target ?? (this.#webConfig.getImAgent(this.#webConfig.getChannelInstance(instanceId)?.agentProfile ?? "")?.location);
+		const currentTarget =
+			binding?.target ??
+			this.#webConfig.getImAgent(this.#webConfig.getChannelInstance(instanceId)?.agentProfile ?? "")?.location;
 		const current = this.agentTargetFor(instanceId, peer) ?? (currentTarget ? targetKey(currentTarget) : "unbound");
 		const next = targetKey(target);
 		if (current === next) {
@@ -811,17 +837,34 @@ export class SessionRouter {
 			const current = this.#webConfig.findImBinding(instanceId, peer, context);
 			// Choose the target's existing session before the single atomic binding
 			// write. In particular, leaving relay must not retain its sentinel id.
-			const previous = current && this.#webConfig.getBotSessions().find(entry =>
-				entry.instanceId === instanceId && entry.chatId === peer &&
-				entry.agentProfileId === current.agentProfileId && entry.target &&
-				targetKey(entry.target) === targetKey(pending.target) &&
-				entry.bindingId === targetScopedBindingId({ id: current.id, target: pending.target }));
-			await this.#webConfig.patchImBinding(instanceId, peer, {
-				target: pending.target,
-				...(previous ? { sessionId: previous.id } : current ? {
-					sessionId: `im-${targetScopedBindingId({ id: current.id, target: pending.target }).replace(/[^a-z0-9-]+/gi, "-")}`,
-				} : {}),
-			}, context);
+			const previous =
+				current &&
+				this.#webConfig
+					.getBotSessions()
+					.find(
+						entry =>
+							entry.instanceId === instanceId &&
+							entry.chatId === peer &&
+							entry.agentProfileId === current.agentProfileId &&
+							entry.target &&
+							targetKey(entry.target) === targetKey(pending.target) &&
+							entry.bindingId === targetScopedBindingId({ id: current.id, target: pending.target }),
+					);
+			await this.#webConfig.patchImBinding(
+				instanceId,
+				peer,
+				{
+					target: pending.target,
+					...(previous
+						? { sessionId: previous.id }
+						: current
+							? {
+									sessionId: `im-${targetScopedBindingId({ id: current.id, target: pending.target }).replace(/[^a-z0-9-]+/gi, "-")}`,
+								}
+							: {}),
+				},
+				context,
+			);
 			this.#agentBindings.delete(`${instanceId}:${peer}`);
 			this.#runtimeBindings.delete(`${instanceId}:${peer}`);
 			return { ok: true, target: pending.target };
@@ -897,7 +940,9 @@ export class SessionRouter {
 		const entry = binding ? this.#webConfig.getBotSession(binding.sessionId) : undefined;
 		if (!live && entry?.sessionFile) {
 			try {
-				const manager = await SessionManager.open(entry.sessionFile, undefined, undefined, { throwIfMissing: false });
+				const manager = await SessionManager.open(entry.sessionFile, undefined, undefined, {
+					throwIfMissing: false,
+				});
 				managers.push(manager);
 			} catch {
 				// A missing/unreadable transcript leaves no resumable handshake.
@@ -954,7 +999,9 @@ export class SessionRouter {
 	): Promise<void> {
 		const instance = this.#webConfig.getChannelInstance(instanceId);
 		const binding = this.#webConfig.findImBinding(instanceId, peer, context);
-		const manager = (binding ? this.#botSessions.get(binding.sessionId)?.session.sessionManager : undefined) ?? this.#coordinator.sessionManager;
+		const manager =
+			(binding ? this.#botSessions.get(binding.sessionId)?.session.sessionManager : undefined) ??
+			this.#coordinator.sessionManager;
 		if (!manager) return;
 		const fromTarget = binding?.target;
 		const route = (target: ImTarget | undefined) => ({
@@ -1002,9 +1049,7 @@ export class SessionRouter {
 					.getImBindings()
 					.some(
 						binding =>
-							binding.platform === instance?.platform &&
-							binding.chatId === peer &&
-							binding.role === "answer",
+							binding.platform === instance?.platform && binding.chatId === peer && binding.role === "answer",
 					);
 				imBinding = await this.#webConfig.patchImBinding(
 					channelId,
@@ -1630,9 +1675,9 @@ export class SessionRouter {
 			// Relay means the coordinator: drop the session pointer and any
 			// persisted project/direct binding that would keep answering for a repo.
 			await this.#webConfig.patchImBinding(channelId, peer, {
-			sessionId: "relay",
-			target: { kind: "workspace", workspace: COORDINATOR_ALIAS },
-		});
+				sessionId: "relay",
+				target: { kind: "workspace", workspace: COORDINATOR_ALIAS },
+			});
 			this.#runtimeBindings.delete(`${channelId}:${peer}`);
 			return { ok: true, id: "relay" };
 		}
@@ -1694,7 +1739,8 @@ export class SessionRouter {
 		const reply = this.#botLastChat.get(sessionKey);
 		if (reply) return { channelId: reply.channelId, peer: reply.peer };
 		const entry = this.#webConfig.getBotSession(sessionKey);
-		if (entry?.platform && entry.chatId) return { channelId: entry.platform as ChannelInstanceId, peer: entry.chatId };
+		if (entry?.platform && entry.chatId)
+			return { channelId: entry.platform as ChannelInstanceId, peer: entry.chatId };
 		return this.#getLastInbound();
 	}
 
@@ -1995,7 +2041,8 @@ export class SessionRouter {
 	): { channelId: ChannelInstanceId; to: string } | null {
 		const inbound = this.#getLastInbound();
 		const scoped = this.#chatForContext(caller);
-		const channelId = (opts.channel as ChannelInstanceId | undefined) ?? scoped?.channelId ?? inbound?.channelId ?? null;
+		const channelId =
+			(opts.channel as ChannelInstanceId | undefined) ?? scoped?.channelId ?? inbound?.channelId ?? null;
 		const to =
 			opts.to ??
 			(channelId !== null && scoped?.channelId === channelId ? scoped.peer : undefined) ??
@@ -2027,7 +2074,8 @@ export class SessionRouter {
 		const last = this.#botLastChat.get(caller.sessionKey);
 		if (last) return { channelId: last.channelId, peer: last.peer };
 		const entry = this.#webConfig.getBotSession(caller.sessionKey);
-		if (entry?.platform && entry.chatId) return { channelId: entry.platform as ChannelInstanceId, peer: entry.chatId };
+		if (entry?.platform && entry.chatId)
+			return { channelId: entry.platform as ChannelInstanceId, peer: entry.chatId };
 		return null;
 	}
 

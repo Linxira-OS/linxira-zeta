@@ -421,7 +421,12 @@ async function buildTrackingReport(command: ParsedSlashCommand, cwd: string): Pr
 					return line;
 				}
 			});
-			return formatMessage(M.cmdTrackingRecentActionsFmt, String(rows.length), String(lines.length), rows.join("\n"));
+			return formatMessage(
+				M.cmdTrackingRecentActionsFmt,
+				String(rows.length),
+				String(lines.length),
+				rows.join("\n"),
+			);
 		}
 		case "plan": {
 			try {

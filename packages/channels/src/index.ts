@@ -213,7 +213,10 @@ export interface StartChannelsOptions {
 	stateDir?: string;
 	seenStore?: ChannelSeenStore;
 	/** Test seam: build an adapter around the runtime's inbound handler. */
-	createAdapter?: (instance: ChannelInstanceConfig, onMessage: (message: InboundMessage) => void) => ChatChannel | undefined;
+	createAdapter?: (
+		instance: ChannelInstanceConfig,
+		onMessage: (message: InboundMessage) => void,
+	) => ChatChannel | undefined;
 }
 
 /** Flatten an inbound platform message into the text the agent sees. */
@@ -228,7 +231,10 @@ export function inboundBody(message: InboundMessage): string {
 			const size = attachment.size === undefined ? "" : ` (${attachment.size} bytes)`;
 			if (attachment.path) lines.push(`- ${attachment.kind}: ${attachment.path}${size} — ${label}`);
 			else if (attachment.url) lines.push(`- ${attachment.kind}: ${attachment.url}${size} — ${label}`);
-			else lines.push(`- ${attachment.kind}: ${label}${attachment.error ? ` (unavailable: ${attachment.error})` : ""}`);
+			else
+				lines.push(
+					`- ${attachment.kind}: ${label}${attachment.error ? ` (unavailable: ${attachment.error})` : ""}`,
+				);
 		}
 	}
 	return lines.join("\n").trim();

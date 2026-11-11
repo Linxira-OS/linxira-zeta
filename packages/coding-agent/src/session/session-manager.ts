@@ -3626,7 +3626,12 @@ export class SessionManager {
 			| FileMentionMessage,
 		metadata?: ImMessageMetadata,
 	): string {
-		const entry: SessionMessageEntry = { type: "message", ...this.#freshEntryFields(), message, ...(metadata ? { metadata } : {}) };
+		const entry: SessionMessageEntry = {
+			type: "message",
+			...this.#freshEntryFields(),
+			message,
+			...(metadata ? { metadata } : {}),
+		};
 		this.#recordEntry(entry);
 		return entry.id;
 	}

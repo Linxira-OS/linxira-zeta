@@ -12,10 +12,7 @@ import type { MnemopiSessionState } from "../mnemopi/state";
 import { releaseSharpshooterSession } from "../sharpshooter/backend";
 import { releaseTasteSession, startTasteSession } from "../taste/lifecycle";
 import { canonicalMemoryNamespace } from "../memories";
-import {
-	startWindowLearning,
-	type WindowLearningHandle,
-} from "../memory-backend/window-learning";
+import { startWindowLearning, type WindowLearningHandle } from "../memory-backend/window-learning";
 
 import { cfgMemoryBackend } from "../memory-backend/settings";
 

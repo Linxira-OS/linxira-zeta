@@ -1347,9 +1347,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 	}
 
 	/** Directory-only command and its argument text when the caret is in one. */
-	#argumentOnlyCommand(
-		textBeforeCursor: string,
-	): { command: SlashCommand; argumentText: string } | undefined {
+	#argumentOnlyCommand(textBeforeCursor: string): { command: SlashCommand; argumentText: string } | undefined {
 		const trimmed = textBeforeCursor.trimStart();
 		if (!trimmed.startsWith("/")) return undefined;
 		const spaceIndex = trimmed.indexOf(" ");

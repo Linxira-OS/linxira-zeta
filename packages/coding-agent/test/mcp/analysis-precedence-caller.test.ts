@@ -30,8 +30,12 @@ const tool = (server: string): AnalysisMcpToolLike => ({
 
 describe("analysis MCP caller snapshots", () => {
 	let cwd: string;
-	beforeEach(() => { cwd = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mcp-caller-")); });
-	afterEach(() => { fs.rmSync(cwd, { recursive: true, force: true }); });
+	beforeEach(() => {
+		cwd = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-mcp-caller-"));
+	});
+	afterEach(() => {
+		fs.rmSync(cwd, { recursive: true, force: true });
+	});
 
 	async function snapshot(precedence: McpPrecedence, activeNativeTools: readonly string[] = ["ast_grep"]) {
 		const tools = [tool("graph")];
@@ -67,7 +71,11 @@ describe("analysis MCP caller snapshots", () => {
 	test("a denied alias sharing a raw name cannot win the duplicate capability", async () => {
 		const tools = [tool("denied"), tool("allowed")];
 		const input = await buildAnalysisMcpRefreshInputFromRuntime({
-			manager: { getTools: () => tools, getServerConfig: () => config, getAllServerNames: () => ["denied", "allowed"] },
+			manager: {
+				getTools: () => tools,
+				getServerConfig: () => config,
+				getAllServerNames: () => ["denied", "allowed"],
+			},
 			settings: Settings.isolated({ "mcp.precedence": "mcp" }),
 			cwd,
 			activeNativeTools: [],
@@ -85,8 +93,16 @@ describe("analysis MCP caller snapshots", () => {
 	test("only one allowed provider of a capability mounts", async () => {
 		const tools = [tool("first"), tool("second")];
 		const input = await buildAnalysisMcpRefreshInputFromRuntime({
-			manager: { getTools: () => tools, getServerConfig: () => config, getAllServerNames: () => ["first", "second"] },
-			settings: Settings.isolated(), cwd, activeNativeTools: [], deniedServers: [], manifests: [manifest],
+			manager: {
+				getTools: () => tools,
+				getServerConfig: () => config,
+				getAllServerNames: () => ["first", "second"],
+			},
+			settings: Settings.isolated(),
+			cwd,
+			activeNativeTools: [],
+			deniedServers: [],
+			manifests: [manifest],
 		});
 		const hook = createAnalysisMcpPrecedenceHook(input);
 		expect(hook.filterTools(tools)).toEqual([tool("first")]);
@@ -141,7 +157,10 @@ describe("analysis MCP caller snapshots", () => {
 		let denied: readonly string[] = [];
 		const options = {
 			manager: { getTools: () => tools, getServerConfig: () => config, getAllServerNames: () => ["graph"] },
-			settings: Settings.isolated(), cwd, activeNativeTools: [], manifests: [manifest],
+			settings: Settings.isolated(),
+			cwd,
+			activeNativeTools: [],
+			manifests: [manifest],
 			readDeniedServers: async () => denied,
 		};
 		const first = createAnalysisMcpPrecedenceHook(await buildAnalysisMcpRefreshInputFromRuntime(options));

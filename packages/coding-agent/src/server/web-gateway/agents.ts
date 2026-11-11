@@ -47,7 +47,6 @@ import type { GoalModeState } from "../../goals/state";
 import type { LocalProtocolOptions } from "../../internal-urls";
 import type { PlanModeState } from "../../plan-mode/state";
 import { createAgentSession } from "../../sdk";
-import type { AgentProfileOptions } from "../../agent-profile";
 import { type AgentSession, type ModeId } from "../../session/agent-session";
 import type { AgentSessionEvent } from "../../session/agent-session-events";
 import type { SessionClient } from "../../session/session-entries";
@@ -1593,14 +1592,7 @@ export async function handleAgentNew(req: Request): Promise<Response> {
 		};
 
 		const tempKey = `__new__${randomUUID()}`;
-		const { session, realSessionId } = await startRpcSession(
-			tempKey,
-			"",
-			cwd,
-			toolNames,
-			undefined,
-			runClient,
-		);
+		const { session, realSessionId } = await startRpcSession(tempKey, "", cwd, toolNames, undefined, runClient);
 
 		if (provider && modelId) {
 			await session.send({ type: "set_model", provider, modelId });

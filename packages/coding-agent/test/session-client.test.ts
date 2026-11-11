@@ -73,7 +73,13 @@ describe("durable session provenance", () => {
 	test("legacy transcripts report unknown rather than guessing a client", async () => {
 		const storage = new MemorySessionStorage();
 		writeSession(storage, "legacy.jsonl", header(), [
-			{ type: "message", id: "m1", parentId: null, timestamp: "2026-06-27T00:00:02.000Z", message: { role: "user", content: "hi" } },
+			{
+				type: "message",
+				id: "m1",
+				parentId: null,
+				timestamp: "2026-06-27T00:00:02.000Z",
+				message: { role: "user", content: "hi" },
+			},
 		]);
 
 		const [session] = await listSessions(DIR, storage);

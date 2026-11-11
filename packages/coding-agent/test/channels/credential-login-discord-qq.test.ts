@@ -170,9 +170,9 @@ describe("Discord credential validation", () => {
 		});
 		expect(ok.state).toBe("connected");
 		expect(credentialsOf(config, "discord").botToken).toBe(DISCORD_TOKEN);
-		expect(config.getMasked().channels.instances.find(entry => entry.id === "discord")?.credentials.botToken).not.toBe(
-			DISCORD_TOKEN,
-		);
+		expect(
+			config.getMasked().channels.instances.find(entry => entry.id === "discord")?.credentials.botToken,
+		).not.toBe(DISCORD_TOKEN);
 		// The other instance is not touched by a Discord credential write.
 		expect(credentialsOf(config, "qq")).toEqual({});
 

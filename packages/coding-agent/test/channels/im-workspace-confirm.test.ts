@@ -91,14 +91,22 @@ async function setup(): Promise<{ router: SessionRouter; config: WebConfig; dir:
 describe("confirm-gated workspace switch", () => {
 	test("preview does not persist; another sender cannot confirm", async () => {
 		const { router, config } = await setup();
-		const preview = await router.requestWorkspaceSwitch("tg", "c1", { kind: "workspace", workspace: "other" }, { userId: "u1" });
+		const preview = await router.requestWorkspaceSwitch(
+			"tg",
+			"c1",
+			{ kind: "workspace", workspace: "other" },
+			{ userId: "u1" },
+		);
 		expect(preview.same).toBe(false);
 		expect(config.findImBinding("tg", "c1", { userId: "u1" })).toBeUndefined();
 		const denied = await router.confirmWorkspaceSwitch("tg", "c1", { userId: "u2" });
 		expect(denied.ok).toBe(false);
 		const applied = await router.confirmWorkspaceSwitch("tg", "c1", { userId: "u1" });
 		expect(applied.ok).toBe(true);
-		expect(config.findImBinding("tg", "c1", { userId: "u1" })?.target).toEqual({ kind: "workspace", workspace: "other" });
+		expect(config.findImBinding("tg", "c1", { userId: "u1" })?.target).toEqual({
+			kind: "workspace",
+			workspace: "other",
+		});
 	});
 
 	test("same target is a noop; cancel keeps the old target; a new request replaces the pending one", async () => {

@@ -18,10 +18,8 @@ function makeRouterStub(overrides: Partial<SessionRouter> = {}): SessionRouter {
 		other: "/repo/other",
 	};
 	let appliedAlias = "main";
-	let pending:
-		| { action: "target"; target: { kind: "workspace"; workspace: string } }
-		| { action: "unbind" }
-		| null = null;
+	let pending: { action: "target"; target: { kind: "workspace"; workspace: string } } | { action: "unbind" } | null =
+		null;
 	const preview = (target: { kind: "workspace"; workspace: string }) => {
 		const next = `workspace:${target.workspace}`;
 		const current = `workspace:${appliedAlias}`;
@@ -40,7 +38,7 @@ function makeRouterStub(overrides: Partial<SessionRouter> = {}): SessionRouter {
 		rename: async () => ({ ok: true, alias: "frontend" }),
 		bindingFor: async () => (appliedAlias === "main" ? null : appliedAlias),
 		setRuntimeBinding: async () => ({ ok: true }),
-			bindChat: async (_c: string, _p: string, alias: string) => ({ ok: true, alias }),
+		bindChat: async (_c: string, _p: string, alias: string) => ({ ok: true, alias }),
 		unbindChat: async () => true,
 		bindingsForPlatform: () => [],
 		requestWorkspaceSwitch: async (_c: string, _p: string, target: ImTarget) => {
@@ -75,7 +73,7 @@ function makeRouterStub(overrides: Partial<SessionRouter> = {}): SessionRouter {
 			candidates: [],
 			bySelector: new Map(),
 		}),
-		resolveSessionSelector: (selector: string) => (selector ? aliases[selector] ?? selector : null),
+		resolveSessionSelector: (selector: string) => (selector ? (aliases[selector] ?? selector) : null),
 		botSession: () => undefined,
 		activeBotSessionIdFor: async () => null,
 		setActiveBotSession: async (_c: string, _p: string, id: string) => ({ ok: true, id }),
@@ -414,10 +412,24 @@ describe("routeWorkspaceCommand", () => {
 				resolveSessionSelector: (selector: string) =>
 					({ "01-00001": "relay", "01-00002": "abc123", relay: "relay", abc123: "abc123" })[selector] ?? null,
 				botSession: (id: string) =>
-					({
-						relay: { id: "relay", name: "Zeta Bot (Relay)", tag: "relay", sessionFile: "/tmp/zeta-bot.jsonl", createdAt: "2026-01-01" },
-						abc123: { id: "abc123", name: "Test", tag: "draft", sessionFile: "/tmp/test-abc123.jsonl", createdAt: "2026-01-01" },
-					} as Record<string, unknown>)[id] as never,
+					(
+						({
+							relay: {
+								id: "relay",
+								name: "Zeta Bot (Relay)",
+								tag: "relay",
+								sessionFile: "/tmp/zeta-bot.jsonl",
+								createdAt: "2026-01-01",
+							},
+							abc123: {
+								id: "abc123",
+								name: "Test",
+								tag: "draft",
+								sessionFile: "/tmp/test-abc123.jsonl",
+								createdAt: "2026-01-01",
+							},
+						}) as Record<string, unknown>
+					)[id] as never,
 				createBotSession: async (name: string) => {
 					created.push(name);
 					return {

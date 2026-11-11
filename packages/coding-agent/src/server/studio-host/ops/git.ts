@@ -168,7 +168,6 @@ function unsupported(reason: string): StudioOpError {
 // showed without either side carrying a path.
 // ---------------------------------------------------------------------------
 
-
 /**
  * Resolve one opaque workspace id to the directory the gateway takes as `cwd`.
  *

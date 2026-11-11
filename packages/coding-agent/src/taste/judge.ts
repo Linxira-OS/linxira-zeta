@@ -119,7 +119,8 @@ export interface TasteJudgeDeps {
  * resolves, or when the call fails — callers treat all three identically.
  */
 export async function scoreWithJudge(input: TasteJudgeInput, deps: TasteJudgeDeps): Promise<TasteJudgment | undefined> {
-	if (cfgMemoryBackend.get(deps.settings) === "mnemopi" && cfgMnemopiLlmMode.get(deps.settings) === "none") return undefined;
+	if (cfgMemoryBackend.get(deps.settings) === "mnemopi" && cfgMnemopiLlmMode.get(deps.settings) === "none")
+		return undefined;
 	for (const role of TASTE_ROLE_CHAIN) {
 		const selection = resolveRoleSelection([role], deps.settings, deps.modelRegistry.getAvailable("all"));
 		if (!selection) continue;

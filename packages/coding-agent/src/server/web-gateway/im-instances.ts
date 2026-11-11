@@ -49,13 +49,20 @@ function maskedInstances(instances: readonly ChannelInstanceConfig[]): unknown[]
 			]),
 		),
 		...(instance.options?.peerTokens
-			? { options: { peerTokens: Object.fromEntries(Object.keys(instance.options.peerTokens).map(peer => [peer, "••••"])) } }
+			? {
+					options: {
+						peerTokens: Object.fromEntries(Object.keys(instance.options.peerTokens).map(peer => [peer, "••••"])),
+					},
+				}
 			: {}),
 		credentialFields: credentialFields(instance.platform),
 	}));
 }
 
-function targetAvailability(webConfig: WebConfig, target: ImTarget): { display: string; available: boolean; reason?: string } {
+function targetAvailability(
+	webConfig: WebConfig,
+	target: ImTarget,
+): { display: string; available: boolean; reason?: string } {
 	if (target.kind === "workspace") {
 		if (target.workspace === "main") return { display: "默认工作区", available: true };
 		const workspace = webConfig.findWorkspace(target.workspace);
@@ -73,8 +80,16 @@ function targetAvailability(webConfig: WebConfig, target: ImTarget): { display: 
 		if (target.kind === "team-pm") return { display: `Team ${team.name} · PM ${pm.name}`, available: true };
 		const engineer = db
 			.listEngineers(team.id)
-			.find(candidate => candidate.pmId === pm.id && (candidate.name === target.engineer || candidate.id === target.engineer));
-		if (!engineer) return { display: `Team ${team.name} · PM ${pm.name} · engineer ${target.engineer}`, available: false, reason: "unknown-engineer" };
+			.find(
+				candidate =>
+					candidate.pmId === pm.id && (candidate.name === target.engineer || candidate.id === target.engineer),
+			);
+		if (!engineer)
+			return {
+				display: `Team ${team.name} · PM ${pm.name} · engineer ${target.engineer}`,
+				available: false,
+				reason: "unknown-engineer",
+			};
 		const worktrees = db
 			.listWorktrees(team.id)
 			.filter(
@@ -84,14 +99,27 @@ function targetAvailability(webConfig: WebConfig, target: ImTarget): { display: 
 					(target.repo === undefined || candidate.repoId === target.repo),
 			);
 		if (worktrees.length === 0) {
-			return { display: `Team ${team.name} · PM ${pm.name} · engineer ${engineer.name}`, available: false, reason: "no-home-worktree" };
+			return {
+				display: `Team ${team.name} · PM ${pm.name} · engineer ${engineer.name}`,
+				available: false,
+				reason: "no-home-worktree",
+			};
 		}
 		if (worktrees.length > 1 && target.repo === undefined) {
-			return { display: `Team ${team.name} · PM ${pm.name} · engineer ${engineer.name}`, available: false, reason: "ambiguous-repo" };
+			return {
+				display: `Team ${team.name} · PM ${pm.name} · engineer ${engineer.name}`,
+				available: false,
+				reason: "ambiguous-repo",
+			};
 		}
-		return { display: `Team ${team.name} · PM ${pm.name} · engineer ${engineer.name} · ${worktrees[0]!.name}`, available: true };
+		return {
+			display: `Team ${team.name} · PM ${pm.name} · engineer ${engineer.name} · ${worktrees[0]!.name}`,
+			available: true,
+		};
 	} catch (error) {
-		logger.warn("IM target availability check failed", { error: error instanceof Error ? error.message : String(error) });
+		logger.warn("IM target availability check failed", {
+			error: error instanceof Error ? error.message : String(error),
+		});
 		return { display: targetKey(target), available: false, reason: "team-db-unavailable" };
 	} finally {
 		db?.close();
@@ -138,7 +166,9 @@ export async function handleChannelsStatus(): Promise<Response> {
 	const instances = data.channels.instances.map(instance => {
 		const status = runtime.get(instance.id);
 		const profile = webConfig.getImAgent(instance.agentProfile);
-		const target = profile ? targetAvailability(webConfig, profile.location) : { display: "missing profile", available: false, reason: "unknown-profile" };
+		const target = profile
+			? targetAvailability(webConfig, profile.location)
+			: { display: "missing profile", available: false, reason: "unknown-profile" };
 		const qr = getPendingWechatQr(instance.id);
 		return {
 			id: instance.id,
@@ -164,7 +194,10 @@ export async function handleChannelsStatus(): Promise<Response> {
 	});
 	return json({
 		instances,
-		runtime: { hosting: getChannelStatus().some(status => status.running), instances: getChannelStatus().map(status => status.id) },
+		runtime: {
+			hosting: getChannelStatus().some(status => status.running),
+			instances: getChannelStatus().map(status => status.id),
+		},
 	});
 }
 
@@ -208,7 +241,14 @@ export async function handleChannelInstancesPut(req: Request): Promise<Response>
 	if (!body || !Array.isArray(body.instances)) return json({ ok: false, error: "Missing instances array" }, 400);
 	const webConfig = await WebConfig.shared();
 	const stored = new Map(webConfig.getChannelInstances().map(instance => [instance.id, instance]));
-	const merged = body.instances.map(entry => mergeSecrets(entry, typeof entry === "object" && entry !== null ? stored.get(String((entry as Record<string, unknown>).id)) : undefined));
+	const merged = body.instances.map(entry =>
+		mergeSecrets(
+			entry,
+			typeof entry === "object" && entry !== null
+				? stored.get(String((entry as Record<string, unknown>).id))
+				: undefined,
+		),
+	);
 	try {
 		await webConfig.setChannelInstances(merged);
 	} catch (error) {
@@ -291,9 +331,19 @@ export async function handleImCommands(req: Request): Promise<Response> {
 	const session = binding ? webConfig.getBotSession(binding.sessionId) : undefined;
 	return json({
 		bot: { instanceId: instance.id, label: instance.label, platform: instance.platform },
-		...(binding ? { binding: { id: binding.id, role: binding.role, agentRuntimeId: imAgentRuntimeId(instance.id, binding.agentProfileId, targetScopedBindingId(binding)) } } : {}),
+		...(binding
+			? {
+					binding: {
+						id: binding.id,
+						role: binding.role,
+						agentRuntimeId: imAgentRuntimeId(instance.id, binding.agentProfileId, targetScopedBindingId(binding)),
+					},
+				}
+			: {}),
 		...(session ? { session: { id: session.id, display: session.name } } : {}),
-		...(binding?.model ? { model: { ...binding.model, display: `${binding.model.provider}/${binding.model.model}` } } : {}),
+		...(binding?.model
+			? { model: { ...binding.model, display: `${binding.model.provider}/${binding.model.model}` } }
+			: {}),
 		voice: { supported: false, reason: "IM voice delivery is not implemented; the tts tool writes a file" },
 		examples: ["!status", "!session list", "!session use {1}", "!model", "!lang zh", "!workspace list"],
 	});
@@ -303,7 +353,8 @@ export async function handleChannelValidate(req: Request, instanceId: string): P
 	const webConfig = await WebConfig.shared();
 	const instance = webConfig.getChannelInstance(instanceId);
 	if (!instance) return json({ error: "Unknown instance" }, 404);
-	if (instance.platform === "wechat") return json({ state: "error", error: "WeChat validates by QR, not credentials" }, 400);
+	if (instance.platform === "wechat")
+		return json({ state: "error", error: "WeChat validates by QR, not credentials" }, 400);
 	const body = (await readBody(req)) ?? {};
 	const field = (key: string): string | undefined =>
 		typeof body[key] === "string" && (body[key] as string).trim() !== "" ? (body[key] as string).trim() : undefined;
@@ -320,7 +371,10 @@ export async function handleChannelValidate(req: Request, instanceId: string): P
 		port: typeof body.port === "number" ? body.port : undefined,
 	});
 	if (result.state !== "connected") {
-		return json({ state: result.state, error: result.error ?? "validation failed" }, result.state === "timeout" ? 504 : 400);
+		return json(
+			{ state: result.state, error: result.error ?? "validation failed" },
+			result.state === "timeout" ? 504 : 400,
+		);
 	}
 	return json({ state: "connected", identity: result.identity, credentialsPersisted: result.credentialsPersisted });
 }

@@ -157,13 +157,16 @@ export const sharpshooterBackend: MemoryBackend = {
 	async learnWindow({ agentDir, session }, input): Promise<void> {
 		const resources = (session as SharpshooterAgentSession | undefined)?.[kSharpshooterSessionResources];
 		if (!session || !resources) throw new Error("Sharpshooter backend is not initialised for window learning.");
-		await learnSharpshooterWindow({
-			session,
-			settings: session.settings,
-			modelRegistry: session.modelRegistry,
-			agentDir,
-			cwd: resources.cwd,
-		}, input);
+		await learnSharpshooterWindow(
+			{
+				session,
+				settings: session.settings,
+				modelRegistry: session.modelRegistry,
+				agentDir,
+				cwd: resources.cwd,
+			},
+			input,
+		);
 	},
 
 	async status({ agentDir, cwd }): Promise<MemoryBackendStatus> {

@@ -1568,8 +1568,8 @@ export async function rollbackBootstrapRun(
 ): Promise<BootstrapRollbackResult> {
 	const dbPath = options.dbPath ?? resolveTeamDbPath();
 	const db = new TeamDb(dbPath);
-	let run = db.getBootstrapRun(runId);
-	let steps = db.listBootstrapSteps(runId);
+	const run = db.getBootstrapRun(runId);
+	const steps = db.listBootstrapSteps(runId);
 	db.close();
 	if (!run) throw new TeamError(`Unknown bootstrap run "${runId}"`);
 	const plan: BootstrapPlan = {

@@ -191,7 +191,11 @@ export class CompactionPass {
 	async commit(detail: CompactionPhaseDetail = {}): Promise<void> {
 		if (this.#committed || this.#settled) return;
 		this.#committed = true;
-		await this.#send("commit", { tokensBefore: this.#tokensBefore, durationMs: Date.now() - this.#startedAt, ...detail });
+		await this.#send("commit", {
+			tokensBefore: this.#tokensBefore,
+			durationMs: Date.now() - this.#startedAt,
+			...detail,
+		});
 	}
 
 	/**

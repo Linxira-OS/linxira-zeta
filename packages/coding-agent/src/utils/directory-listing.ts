@@ -427,14 +427,16 @@ export async function refreshLinuxMounts(
 		const cached = freshLinuxMounts();
 		if (cached) return cached;
 	}
-	const text = await (options.read ??
+	const text = await (
+		options.read ??
 		(async () => {
 			try {
 				return await fs.promises.readFile("/proc/mounts", "utf8");
 			} catch {
 				return null;
 			}
-		}))();
+		})
+	)();
 	let mounts = text ? parseLinuxMounts(text) : [];
 	if (options.validate !== false && mounts.length > 0) {
 		const checked = await Promise.all(

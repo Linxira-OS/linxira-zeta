@@ -31,12 +31,7 @@ function header(overrides: Record<string, unknown> = {}): Record<string, unknown
 	};
 }
 
-function message(
-	id: string,
-	role: "user" | "assistant",
-	text: string,
-	timestamp = T1,
-): Record<string, unknown> {
+function message(id: string, role: "user" | "assistant", text: string, timestamp = T1): Record<string, unknown> {
 	return {
 		type: "message",
 		id,
@@ -196,7 +191,9 @@ describe("latest task summary", () => {
 	test("a malformed persisted projection reads as absent", () => {
 		expect(normalizeSessionTaskSummary({ status: "completed" })).toBeUndefined();
 		expect(normalizeSessionTaskSummary({ status: "done", source: "completed_turn" })).toBeUndefined();
-		expect(normalizeSessionTaskSummary({ status: "completed", source: "completed_turn", intent: "x", result: "y" })).toEqual({
+		expect(
+			normalizeSessionTaskSummary({ status: "completed", source: "completed_turn", intent: "x", result: "y" }),
+		).toEqual({
 			status: "completed",
 			source: "completed_turn",
 			intent: "x",

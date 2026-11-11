@@ -44,7 +44,9 @@ export async function loadMainAgentProfile(
 ): Promise<ImAgentProfileRuntimeOptions> {
 	const profile = discoverAgentProfiles(options).get(id);
 	if (!profile) {
-		throw new Error(`Unknown agent profile "${id}". Available: ${[...discoverAgentProfiles(options).keys()].join(", ") || "none"}`);
+		throw new Error(
+			`Unknown agent profile "${id}". Available: ${[...discoverAgentProfiles(options).keys()].join(", ") || "none"}`,
+		);
 	}
 	const personaText = await loadImAgentProfilePersona(profile, { cwd: options.cwd });
 	return resolveImAgentProfileRuntime(profile, {

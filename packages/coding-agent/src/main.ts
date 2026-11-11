@@ -151,11 +151,7 @@ import { shouldShowStartupSplash } from "./startup-splash";
 import { AgentRegistry } from "./registry/agent-registry";
 import { deliverPendingRoomEvents } from "./team/room-delivery";
 import { isTeamHubEntry, resolveTeamEntry } from "./team/entry";
-import {
-	discoverTitleSystemPromptFile,
-	loadSystemPromptTemplateFile,
-	resolvePromptInput,
-} from "./system-prompt";
+import { discoverTitleSystemPromptFile, loadSystemPromptTemplateFile, resolvePromptInput } from "./system-prompt";
 import { createPersistedSubagentReviverFactory } from "./task/persisted-revive";
 import { type RestoreOutcome, restoreSession } from "./task/restore";
 import { createTelemetryExportConfig, initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
@@ -1543,7 +1539,8 @@ export async function buildSessionOptions(
 	// it re-reads the source on every prompt rebuild. Only explicit CLI inputs
 	// are frozen into options here (an explicit flag is a one-shot value).
 	const explicitTemplatePath = parsed.systemPromptTemplate;
-	const discoveredAppendSource = parsed.appendSystemPrompt === undefined ? discoverAppendSystemPromptPath() : undefined;
+	const discoveredAppendSource =
+		parsed.appendSystemPrompt === undefined ? discoverAppendSystemPromptPath() : undefined;
 	const titleSystemPromptSource = discoverTitleSystemPromptFile(cwd);
 	const [resolvedSystemPrompt, resolvedAppendPrompt, titleSystemPrompt, resolvedSystemPromptTemplate] =
 		await Promise.all([

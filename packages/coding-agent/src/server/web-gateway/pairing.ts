@@ -12,12 +12,7 @@ import { WebConfig } from "../../config/web-config";
 import { deviceRegistry } from "../auth/device-registry";
 import { twoFactorStepUpDenial } from "../auth/two-factor-auth";
 import { studioHost } from "../studio-host/server";
-import {
-	buildPairPayload,
-	parsePairingPayload,
-	renderPairingQrSvg,
-	resolvePairingBaseUrl,
-} from "../pairing";
+import { buildPairPayload, parsePairingPayload, renderPairingQrSvg, resolvePairingBaseUrl } from "../pairing";
 import { credentialAllows, type RemoteCredential } from "./remote-access";
 
 function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {

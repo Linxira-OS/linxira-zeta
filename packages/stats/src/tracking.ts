@@ -70,7 +70,13 @@ function readHead(filePath: string, maxBytes: number): HeadRead {
 				fs.closeSync(fd);
 			}
 		}
-		return { text: buffer.toString("utf8"), size: stat.size, mtimeMs: stat.mtimeMs, truncated: stat.size > maxBytes, error: null };
+		return {
+			text: buffer.toString("utf8"),
+			size: stat.size,
+			mtimeMs: stat.mtimeMs,
+			truncated: stat.size > maxBytes,
+			error: null,
+		};
 	} catch (error) {
 		return { text: null, size: 0, mtimeMs: 0, truncated: false, error: error as NodeJS.ErrnoException };
 	}
@@ -235,7 +241,11 @@ async function readActions(trackingDir: string): Promise<TrackingActionsSnapshot
 
 	const rows: TrackingActionRow[] = [];
 	let invalidRows = 0;
-	for (const line of segments.join("").split("\n").map(value => value.trim()).filter(Boolean)) {
+	for (const line of segments
+		.join("")
+		.split("\n")
+		.map(value => value.trim())
+		.filter(Boolean)) {
 		try {
 			const parsed = JSON.parse(line) as Partial<TrackingActionRow> | null;
 			if (!parsed || typeof parsed !== "object" || typeof parsed.action !== "string") {
@@ -355,12 +365,7 @@ export async function readTrackingSnapshot(cwd: string, project = cwd): Promise<
 	const index = readIndex(trackingDir);
 	const actions = await readActions(trackingDir);
 	const sessions = readSessions(trackingDir);
-	const newest = Math.max(
-		status.mtimeMs,
-		index.mtimeMs,
-		newestActionMtime(trackingDir),
-		sessions.mtimeMs,
-	);
+	const newest = Math.max(status.mtimeMs, index.mtimeMs, newestActionMtime(trackingDir), sessions.mtimeMs);
 	return {
 		project,
 		trackingDir,

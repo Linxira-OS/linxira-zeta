@@ -288,9 +288,7 @@ export function isMemoryPressureShedInstalled(): boolean {
  *
  * Tests inject the source/level: registration is not proof of native OS delivery.
  */
-export function installMemoryPressureShed(
-	options: InstallMemoryPressureShedOptions = {},
-): (() => void) | undefined {
+export function installMemoryPressureShed(options: InstallMemoryPressureShedOptions = {}): (() => void) | undefined {
 	if (!supportsMemoryPressureEvent(options.platform)) return undefined;
 	const source: MemoryPressureEventSource = options.source ?? process;
 	const owner = options.owner ?? {};

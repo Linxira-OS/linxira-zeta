@@ -111,7 +111,9 @@ function fakeRuntime(ids: string[]): ChannelRuntime {
 
 describe("channel config/flag resolution", () => {
 	test("web.yml enabled", async () => {
-		const { config } = await makeConfig(imConfig([instance("wechat", "wechat", { enabled: true, credentials: { botToken: "tok" } })]));
+		const { config } = await makeConfig(
+			imConfig([instance("wechat", "wechat", { enabled: true, credentials: { botToken: "tok" } })]),
+		);
 		expect(resolveChannelHosting(config, false)).toEqual({
 			shouldStart: true,
 			source: "web.yml",
@@ -120,7 +122,9 @@ describe("channel config/flag resolution", () => {
 	});
 
 	test("--channels with and without an enabled channel", async () => {
-		const { config } = await makeConfig(imConfig([instance("wechat", "wechat", { enabled: true, credentials: { botToken: "tok" } })]));
+		const { config } = await makeConfig(
+			imConfig([instance("wechat", "wechat", { enabled: true, credentials: { botToken: "tok" } })]),
+		);
 		expect(resolveChannelHosting(config, true)).toEqual({
 			shouldStart: true,
 			source: "flag+web.yml",
@@ -391,13 +395,11 @@ describe("logout and enable/disable", () => {
 		const { config } = await makeConfig(imConfig([instance("wechat", "wechat")]));
 		await setChannelEnabled(config, "wechat", true);
 		expect(
-			(await WebConfig.load(config.path)).getData().channels.instances.find(entry => entry.id === "wechat")
-				?.enabled,
+			(await WebConfig.load(config.path)).getData().channels.instances.find(entry => entry.id === "wechat")?.enabled,
 		).toBe(true);
 		await setChannelEnabled(config, "wechat", false);
 		expect(
-			(await WebConfig.load(config.path)).getData().channels.instances.find(entry => entry.id === "wechat")
-				?.enabled,
+			(await WebConfig.load(config.path)).getData().channels.instances.find(entry => entry.id === "wechat")?.enabled,
 		).toBe(false);
 		expect(isChannelPlatform("wechat")).toBe(true);
 		expect(isChannelPlatform("slack")).toBe(false);

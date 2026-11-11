@@ -104,7 +104,6 @@ function epochField(record: Readonly<Record<string, unknown>>, field: string): s
 	return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
-
 /** Absolute path with forward slashes and no trailing separator. */
 function slashPath(value: string): string {
 	return value.replace(/\\/g, "/").replace(/\/+$/, "");
@@ -145,7 +144,9 @@ function parseProjectDirectory(payload: unknown): ProjectDirectory {
 
 /** `GET /api/projects` → the workspace inventory, narrowed from untrusted JSON. */
 async function loadProjectDirectory(includeHidden = false): Promise<ProjectDirectory> {
-	return parseProjectDirectory(await gatewayJson<unknown>(PROJECTS_ROUTE, includeHidden ? { query: "includeHidden=true" } : {}));
+	return parseProjectDirectory(
+		await gatewayJson<unknown>(PROJECTS_ROUTE, includeHidden ? { query: "includeHidden=true" } : {}),
+	);
 }
 
 /** The inventory entry one opaque workspace id names, or a client error. */
@@ -163,17 +164,19 @@ function toWorkspaceList(directory: ProjectDirectory): WorkspaceListReadModel {
 		lastOpenedAt: entry.lastOpenedAt ?? null,
 		active: entry.key === directory.defaultKey,
 	}));
-	workspaces.sort((left, right) =>
-		(right.lastOpenedAt === null ? -Infinity : Date.parse(right.lastOpenedAt))
-		- (left.lastOpenedAt === null ? -Infinity : Date.parse(left.lastOpenedAt))
-		|| left.name.localeCompare(right.name),
+	workspaces.sort(
+		(left, right) =>
+			(right.lastOpenedAt === null ? -Infinity : Date.parse(right.lastOpenedAt)) -
+				(left.lastOpenedAt === null ? -Infinity : Date.parse(left.lastOpenedAt)) ||
+			left.name.localeCompare(right.name),
 	);
 	const defaultWorkspaceId = directory.defaultKey === undefined ? undefined : workspaceIdFor(directory.defaultKey);
 	return {
 		workspaces,
 		...(defaultWorkspaceId === undefined ? {} : { defaultWorkspaceId }),
 		...(workspaces.some(workspace => workspace.active) && defaultWorkspaceId !== undefined
-			? { activeWorkspaceId: defaultWorkspaceId } : {}),
+			? { activeWorkspaceId: defaultWorkspaceId }
+			: {}),
 	};
 }
 
@@ -254,11 +257,19 @@ export async function readWorkspaceNames(): Promise<ReadonlyMap<WorkspaceId, str
 }
 
 /** Resolve a canonical session cwd to its real gateway workspace row. */
-export async function readWorkspaceIdentities(cwds: readonly string[] = []): Promise<ReadonlyMap<string, { workspaceId: WorkspaceId; workspaceName: string }>> {
+export async function readWorkspaceIdentities(
+	cwds: readonly string[] = [],
+): Promise<ReadonlyMap<string, { workspaceId: WorkspaceId; workspaceName: string }>> {
 	const directory = await loadProjectDirectory(true);
-	const identities = new Map(directory.entries.map(entry => [resumePathKey(entry.path), {
-		workspaceId: workspaceIdFor(entry.key), workspaceName: entry.name,
-	}]));
+	const identities = new Map(
+		directory.entries.map(entry => [
+			resumePathKey(entry.path),
+			{
+				workspaceId: workspaceIdFor(entry.key),
+				workspaceName: entry.name,
+			},
+		]),
+	);
 	// Archived-only cwds are not in the live inventory. Reuse the gateway's
 	// workspace identity rule (not its project-root grouping) for those rows.
 	for (const cwd of cwds) {
