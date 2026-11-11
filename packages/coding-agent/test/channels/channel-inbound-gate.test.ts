@@ -1,5 +1,5 @@
 /**
- * Inbound channel gate: `channels.allowedPeers` runs before any routing, and
+ * Inbound channel gate: the instance allowlist runs before any routing, and
  * platform message-id dedupe (including across a restart) drops retried
  * updates before they can start a second turn.
  *
@@ -125,11 +125,43 @@ function makeSessionStub(): { session: ChannelSession; deliveries: IrcMessage[] 
 }
 
 async function makeTelegramConfig(agentDir: string, allowedPeers: string[]): Promise<WebConfig> {
-	const webConfig = await WebConfig.load(join(agentDir, "web.yml"));
-	await webConfig.set("channels.telegram.enabled", true);
-	await webConfig.set("channels.telegram.botToken", "tok");
-	await webConfig.set("channels.allowedPeers", allowedPeers);
-	return webConfig;
+	await Bun.write(
+		join(agentDir, "web.yml"),
+		JSON.stringify({
+			channels: {
+				instances: [
+					{
+						id: "telegram",
+						platform: "telegram",
+						label: "Telegram",
+						enabled: true,
+						agentProfile: "companion",
+						allow: { peers: allowedPeers },
+						credentials: { botToken: "tok" },
+					},
+				],
+			},
+			imAgents: [
+				{
+					id: "companion",
+					label: "Companion",
+					persona: { mode: "workspace" },
+					location: { kind: "workspace", workspace: "main" },
+					tools: {
+						builtin: [],
+						extensions: [],
+						customTools: [],
+						mcpServers: [],
+						skills: [],
+						commands: [],
+					},
+					memory: {},
+				},
+			],
+			remote: {},
+		}),
+	);
+	return WebConfig.load(join(agentDir, "web.yml"));
 }
 
 describe("channel inbound authorization gate", () => {

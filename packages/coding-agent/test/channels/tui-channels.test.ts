@@ -1,9 +1,9 @@
 /**
- * `/channels` is the TUI-only operator entry for pairing/toggling IM channels.
+ * `/channels` is the TUI-only operator entry for pairing/toggling IM instance.
  *
  * This suite pins the two things that made the TUI path unusable before:
  * a live session must not hold `channels.lock` when WeChat is merely
- * unpaired, and a host that only owns another channel must not block a
+ * unpaired, and a host that only owns another instance must not block a
  * WeChat QR login. The command itself is hidden from the everyday palette but
  * still resolves explicitly.
  */
@@ -25,7 +25,7 @@ import {
 import {
 	restartSessionChannels,
 	startSessionChannels,
-	stopActiveSessionChannels,
+	suspendActiveSessionChannels,
 } from "../../src/channels/session-host";
 import {
 	buildTuiBuiltinSlashCommands,
@@ -36,8 +36,34 @@ import type { InteractiveModeContext } from "../../src/modes/types";
 
 const tempDirs: string[] = [];
 
+const PROFILE = {
+	id: "companion",
+	label: "Companion",
+	persona: { mode: "workspace" },
+	location: { kind: "workspace", workspace: "main" },
+	tools: { builtin: [], extensions: [], customTools: [], mcpServers: [], skills: [], commands: [] },
+	memory: {},
+};
+
+function instance(id: string, platform: string, overrides: Record<string, unknown> = {}): Record<string, unknown> {
+	return {
+		id,
+		platform,
+		label: id,
+		enabled: false,
+		agentProfile: PROFILE.id,
+		allow: { peers: [`${id}-peer`] },
+		credentials: {},
+		...overrides,
+	};
+}
+
+function imConfig(instances: Array<Record<string, unknown>>): Record<string, unknown> {
+	return { channels: { instances }, imAgents: [PROFILE] };
+}
+
 afterEach(async () => {
-	await stopActiveSessionChannels();
+	await suspendActiveSessionChannels();
 	while (tempDirs.length > 0) {
 		const dir = tempDirs.pop();
 		if (dir) await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
@@ -61,12 +87,13 @@ function fakeSession(): ChannelSession {
 	};
 }
 
-function fakeRuntime(ids: Array<"wechat" | "feishu" | "telegram">): ChannelRuntime {
+function fakeRuntime(ids: string[]): ChannelRuntime {
 	const channels = new Map(
 		ids.map(id => [
 			id,
 			{
 				id,
+				platform: id,
 				start: async () => {},
 				stop: async () => {},
 				sendText: async () => {},
@@ -85,7 +112,7 @@ function fakeRuntime(ids: Array<"wechat" | "feishu" | "telegram">): ChannelRunti
 
 describe("TUI channel host lock", () => {
 	test("an enabled-but-unpaired WeChat takes no host lock", async () => {
-		const { dir, config } = await makeConfig({ channels: { wechat: { enabled: true } } });
+		const { dir, config } = await makeConfig(imConfig([instance("wechat", "wechat", { enabled: true })]));
 		let started = false;
 		const result = await startSessionChannels({
 			session: fakeSession(),
@@ -111,7 +138,12 @@ describe("TUI channel host lock", () => {
 		const lockPath = channelLockPath(dir);
 		const held = await acquireChannelLock({
 			lockPath,
-			metadata: { pid: process.pid, host: "cli", cwd: dir, channels: ["telegram"] },
+			metadata: {
+				pid: process.pid,
+				host: "cli",
+				cwd: dir,
+				instances: [{ id: "telegram", platform: "telegram" }],
+			},
 		});
 		expect(held.ok).toBe(true);
 		try {
@@ -119,12 +151,12 @@ describe("TUI channel host lock", () => {
 				ok: true,
 				holder: expect.objectContaining({ alive: true }),
 			});
-			if (held.ok) await held.lock.update({ channels: ["wechat"] });
+			if (held.ok) await held.lock.update({ instances: [{ id: "wechat", platform: "wechat" }] });
 			const owned = await wechatPairingBlockedByHost(lockPath);
 			expect(owned.ok).toBe(false);
 			if (!owned.ok) expect(owned.reason).toBe("wechat-hosted");
 
-			if (held.ok) await held.lock.update({ channels: [] });
+			if (held.ok) await held.lock.update({ instances: [] });
 			const starting = await wechatPairingBlockedByHost(lockPath);
 			expect(starting.ok).toBe(false);
 			if (!starting.ok) expect(starting.reason).toBe("starting");
@@ -134,18 +166,18 @@ describe("TUI channel host lock", () => {
 	});
 
 	test("restart applies an enable/disable change to the live host", async () => {
-		const { dir, config } = await makeConfig({
-			channels: {
-				telegram: { enabled: true, botToken: "tg" },
-				feishu: { enabled: false },
-			},
-		});
+		const { dir, config } = await makeConfig(
+			imConfig([
+				instance("telegram", "telegram", { enabled: true, credentials: { botToken: "tg" } }),
+				instance("feishu", "feishu"),
+			]),
+		);
 		const started: string[][] = [];
 		const start = (async (_session: ChannelSession, _webConfig: unknown) => {
 			const data = config.getData();
-			const ids = (["wechat", "feishu", "telegram"] as const).filter(id => data.channels[id].enabled);
-			started.push([...ids]);
-			return fakeRuntime([...ids]);
+			const ids = data.channels.instances.filter(entry => entry.enabled).map(entry => entry.id);
+			started.push(ids);
+			return fakeRuntime(ids);
 		}) as unknown as typeof startChannels;
 
 		const first = await startSessionChannels({
@@ -155,13 +187,13 @@ describe("TUI channel host lock", () => {
 			startChannels: start,
 		});
 		expect(first.started).toBe(true);
-		if (first.started) expect(first.host.channels).toEqual(["telegram"]);
+		if (first.started) expect(first.host.instances).toEqual(["telegram"]);
 
-		await config.set("channels.telegram.enabled", false);
-		await config.set("channels.feishu.enabled", true);
+		await config.setInstance("telegram", { enabled: false });
+		await config.setInstance("feishu", { enabled: true });
 		const second = await restartSessionChannels();
 		expect(second?.started).toBe(true);
-		if (second?.started) expect(second.host.channels).toEqual(["feishu"]);
+		if (second?.started) expect(second.host.instances).toEqual(["feishu"]);
 		expect(started).toEqual([["telegram"], ["feishu"]]);
 	});
 });

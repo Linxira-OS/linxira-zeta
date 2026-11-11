@@ -27,6 +27,28 @@ afterEach(async () => {
 	}
 });
 
+const PROFILE = {
+	id: "companion",
+	label: "Companion",
+	persona: { mode: "workspace" },
+	location: { kind: "workspace", workspace: "main" },
+	tools: { builtin: [], extensions: [], customTools: [], mcpServers: [], skills: [], commands: [] },
+	memory: {},
+};
+
+function instance(id: string, platform: string, overrides: Record<string, unknown> = {}): Record<string, unknown> {
+	return {
+		id,
+		platform,
+		label: id,
+		enabled: false,
+		agentProfile: PROFILE.id,
+		allow: { peers: [`${id}-peer`] },
+		credentials: {},
+		...overrides,
+	};
+}
+
 async function makeConfig(): Promise<WebConfig> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-credentials-"));
 	tempDirs.push(dir);
@@ -36,14 +58,24 @@ async function makeConfig(): Promise<WebConfig> {
 		JSON.stringify({
 			tray: { minimizeToTray: true, autostart: false },
 			channels: {
-				wechat: { enabled: false },
-				feishu: { enabled: true },
-				telegram: { enabled: false },
+				instances: [
+					instance("wechat", "wechat"),
+					instance("feishu", "feishu", { enabled: true }),
+					instance("telegram", "telegram"),
+				],
 			},
+			imAgents: [PROFILE],
 			remote: {},
 		}),
 	);
 	return await WebConfig.load(file);
+}
+
+/** One instance's stored credentials, by instance id. */
+function credentialsOf(config: WebConfig, instanceId: string): Record<string, unknown> {
+	const found = config.getData().channels.instances.find(entry => entry.id === instanceId);
+	if (!found) throw new Error(`missing instance ${instanceId}`);
+	return found.credentials;
 }
 
 /** The error a promise rejected with (a rejected validation's reason). */
@@ -194,6 +226,7 @@ describe("login state words and persistence", () => {
 		]);
 		const result = await runCredentialLogin("feishu", {
 			webConfig,
+			instanceId: "feishu",
 			appId: "cli_1",
 			appSecret: SECRET,
 			domain: "lark",
@@ -203,7 +236,7 @@ describe("login state words and persistence", () => {
 		expect(result.state).toBe("connected");
 		expect(result.credentialsPersisted).toBe(true);
 		expect(result.identity).toEqual({ id: "ou_1", name: "Zeta" });
-		const saved = webConfig.getData().channels.feishu;
+		const saved = credentialsOf(webConfig, "feishu");
 		expect(saved.appId).toBe("cli_1");
 		expect(saved.appSecret).toBe(SECRET);
 		expect(saved.domain).toBe("lark");
@@ -216,6 +249,7 @@ describe("login state words and persistence", () => {
 		]);
 		const result = await runCredentialLogin("feishu", {
 			webConfig,
+			instanceId: "feishu",
 			appId: "cli_1",
 			appSecret: SECRET,
 			customFetch: stub.fetch,
@@ -225,7 +259,7 @@ describe("login state words and persistence", () => {
 		expect(result.identity).toBeNull();
 		expect(result.error).toContain("invalid app credentials");
 		expect(result.error).not.toContain(SECRET);
-		const saved = webConfig.getData().channels.feishu;
+		const saved = credentialsOf(webConfig, "feishu");
 		expect(saved.appId ?? "").toBe("");
 		expect(saved.appSecret ?? "").toBe("");
 	});
@@ -235,35 +269,49 @@ describe("login state words and persistence", () => {
 		const okStub = stubFetch([{ match: "/getMe", body: { ok: true, result: { id: 42, first_name: "Zeta" } } }]);
 		const connected = await runCredentialLogin("telegram", {
 			webConfig: okConfig,
+			instanceId: "telegram",
 			botToken: TOKEN,
 			customFetch: okStub.fetch,
 		});
 		expect(connected.state).toBe("connected");
-		expect(okConfig.getData().channels.telegram.botToken).toBe(TOKEN);
+		expect(credentialsOf(okConfig, "telegram").botToken).toBe(TOKEN);
 
 		const badConfig = await makeConfig();
 		const badStub = stubFetch([{ match: "/getMe", status: 401, body: { ok: false, description: "Unauthorized" } }]);
 		const failed = await runCredentialLogin("telegram", {
 			webConfig: badConfig,
+			instanceId: "telegram",
 			botToken: TOKEN,
 			customFetch: badStub.fetch,
 		});
 		expect(failed.state).toBe("error");
 		expect(failed.error).not.toContain(TOKEN);
-		expect(badConfig.getData().channels.telegram.botToken ?? "").toBe("");
+		expect(credentialsOf(badConfig, "telegram").botToken ?? "").toBe("");
+
+		// The credential is scoped to its instance: another instance is untouched.
+		expect(credentialsOf(okConfig, "feishu")).toEqual({});
 	});
 
 	test("stored credentials are validated when no new value is pasted", async () => {
 		const webConfig = await makeConfig();
-		await webConfig.set("channels.feishu.appId", "cli_stored");
-		await webConfig.set("channels.feishu.appSecret", SECRET);
+		await webConfig.setInstance("feishu", {
+			credentials: { appId: "cli_stored", appSecret: SECRET },
+		});
 		const stub = stubFetch([
 			{ match: "/tenant_access_token/internal", body: { code: 0, tenant_access_token: "t-abc" } },
 			{ match: "/bot/v3/info", body: { code: 0, bot: { open_id: "ou_1", app_name: "Zeta" } } },
 		]);
-		const result = await runCredentialLogin("feishu", { webConfig, customFetch: stub.fetch });
+		const result = await runCredentialLogin("feishu", { webConfig, instanceId: "feishu", customFetch: stub.fetch });
 		expect(result.state).toBe("connected");
 		expect(String(stub.calls[0]?.init?.body)).toContain("cli_stored");
+	});
+
+	test("an unknown instance is rejected before validation runs", async () => {
+		const webConfig = await makeConfig();
+		await expect(
+			runCredentialLogin("telegram", { webConfig, instanceId: "missing", botToken: TOKEN }),
+		).rejects.toThrow(/Unknown channel instance/);
+		expect(credentialsOf(webConfig, "telegram")).toEqual({});
 	});
 
 	test("a timeout is its own state and a missing credential is an error", async () => {
@@ -275,13 +323,14 @@ describe("login state words and persistence", () => {
 		}) as unknown as typeof globalThis.fetch;
 		const timedOut = await runCredentialLogin("telegram", {
 			webConfig,
+			instanceId: "telegram",
 			botToken: TOKEN,
 			customFetch: timeout,
 		});
 		expect(timedOut.state).toBe("timeout");
 		expect(timedOut.error).not.toContain(TOKEN);
 
-		const missing = await runCredentialLogin("telegram", { webConfig });
+		const missing = await runCredentialLogin("telegram", { webConfig, instanceId: "telegram" });
 		expect(missing.state).toBe("error");
 		expect(missing.error).toContain("bot token");
 	});

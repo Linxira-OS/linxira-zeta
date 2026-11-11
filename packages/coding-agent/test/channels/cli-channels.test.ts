@@ -12,7 +12,8 @@ import * as path from "node:path";
 import { type ChannelRuntime, type ChannelSession, startChannels } from "@linxiraos/pi-channels";
 import {
 	collectChannelStatus,
-	isChannelId,
+	isChannelInstanceId,
+	isChannelPlatform,
 	logoutChannel,
 	resolveChannelHosting,
 	setChannelEnabled,
@@ -24,6 +25,42 @@ import { runWechatLogin, WechatLoginTracker } from "../../src/channels/wechat-lo
 import { WebConfig } from "../../src/config/web-config";
 
 const tempDirs: string[] = [];
+
+/** Minimal agent profile every instance may reference. */
+const PROFILE = {
+	id: "companion",
+	label: "Companion",
+	persona: { mode: "workspace" },
+	location: { kind: "workspace", workspace: "main" },
+	tools: {
+		builtin: [],
+		extensions: [],
+		customTools: [],
+		mcpServers: [],
+		skills: [],
+		commands: [],
+	},
+	memory: {},
+};
+
+/** One instance per platform account; `id` defaults to the platform name. */
+function instance(id: string, platform: string, overrides: Record<string, unknown> = {}): Record<string, unknown> {
+	return {
+		id,
+		platform,
+		label: id,
+		enabled: false,
+		agentProfile: PROFILE.id,
+		allow: { peers: [`${id}-peer`] },
+		credentials: {},
+		...overrides,
+	};
+}
+
+/** A `web.yml` body with the given explicit instances. */
+function imConfig(instances: Array<Record<string, unknown>>, extra: Record<string, unknown> = {}) {
+	return { channels: { instances }, imAgents: [PROFILE], ...extra };
+}
 
 afterEach(async () => {
 	while (tempDirs.length > 0) {
@@ -49,12 +86,13 @@ function fakeSession(): ChannelSession {
 	};
 }
 
-function fakeRuntime(ids: Array<"wechat" | "feishu" | "telegram">): ChannelRuntime {
+function fakeRuntime(ids: string[]): ChannelRuntime {
 	const channels = new Map(
 		ids.map(id => [
 			id,
 			{
 				id,
+				platform: id,
 				start: async () => {},
 				stop: async () => {},
 				sendText: async () => {},
@@ -73,7 +111,7 @@ function fakeRuntime(ids: Array<"wechat" | "feishu" | "telegram">): ChannelRunti
 
 describe("channel config/flag resolution", () => {
 	test("web.yml enabled", async () => {
-		const { config } = await makeConfig({ channels: { wechat: { enabled: true, botToken: "tok" } } });
+		const { config } = await makeConfig(imConfig([instance("wechat", "wechat", { enabled: true, credentials: { botToken: "tok" } })]));
 		expect(resolveChannelHosting(config, false)).toEqual({
 			shouldStart: true,
 			source: "web.yml",
@@ -82,7 +120,7 @@ describe("channel config/flag resolution", () => {
 	});
 
 	test("--channels with and without an enabled channel", async () => {
-		const { config } = await makeConfig({ channels: { wechat: { enabled: true, botToken: "tok" } } });
+		const { config } = await makeConfig(imConfig([instance("wechat", "wechat", { enabled: true, credentials: { botToken: "tok" } })]));
 		expect(resolveChannelHosting(config, true)).toEqual({
 			shouldStart: true,
 			source: "flag+web.yml",
@@ -114,13 +152,18 @@ describe("single-instance guard", () => {
 		const lockPath = channelLockPath(dir);
 		const first = await acquireChannelLock({
 			lockPath,
-			metadata: { pid: process.pid, host: "cli", cwd: dir, channels: ["wechat"] },
+			metadata: {
+				pid: process.pid,
+				host: "cli",
+				cwd: dir,
+				instances: [{ id: "wechat", platform: "wechat" }],
+			},
 		});
 		expect(first.ok).toBe(true);
 
 		const second = await acquireChannelLock({
 			lockPath,
-			metadata: { pid: process.pid, host: "serve", cwd: dir, channels: [] },
+			metadata: { pid: process.pid, host: "serve", cwd: dir, instances: [] },
 		});
 		expect(second.ok).toBe(false);
 		if (!second.ok) {
@@ -137,18 +180,23 @@ describe("single-instance guard", () => {
 		const lockPath = channelLockPath(dir);
 		const stale = await acquireChannelLock({
 			lockPath,
-			metadata: { pid: 424242, host: "cli", cwd: dir, channels: [] },
+			metadata: { pid: 424242, host: "cli", cwd: dir, instances: [] },
 		});
 		expect(stale.ok).toBe(true);
 
 		const replacement = await acquireChannelLock({
 			lockPath,
 			isAlive: () => false,
-			metadata: { pid: process.pid, host: "cli", cwd: dir, channels: ["telegram"] },
+			metadata: {
+				pid: process.pid,
+				host: "cli",
+				cwd: dir,
+				instances: [{ id: "telegram", platform: "telegram" }],
+			},
 		});
 		expect(replacement.ok).toBe(true);
 		if (replacement.ok) {
-			expect(replacement.lock.metadata.channels).toEqual(["telegram"]);
+			expect(replacement.lock.metadata.instances).toEqual([{ id: "telegram", platform: "telegram" }]);
 			await replacement.lock.release();
 		}
 	});
@@ -156,9 +204,9 @@ describe("single-instance guard", () => {
 	// Bun's module graph for the full session host is large on Windows; the
 	// lock assertions themselves are fast, so give this integration case room.
 	test("a second session in one process refuses with a clear message", async () => {
-		const { dir, config } = await makeConfig({
-			channels: { telegram: { enabled: true, botToken: "tok" } },
-		});
+		const { dir, config } = await makeConfig(
+			imConfig([instance("telegram", "telegram", { enabled: true, credentials: { botToken: "tok" } })]),
+		);
 		const lockPath = channelLockPath(dir);
 		const session = fakeSession();
 		const first = await startSessionChannels({
@@ -187,7 +235,7 @@ describe("single-instance guard", () => {
 		// Cross-process holder: the same path acquired by a live pid refuses too.
 		const external = await acquireChannelLock({
 			lockPath,
-			metadata: { pid: process.pid, host: "serve", cwd: dir, channels: [] },
+			metadata: { pid: process.pid, host: "serve", cwd: dir, instances: [] },
 		});
 		expect(external.ok).toBe(true);
 		const third = await startSessionChannels({
@@ -258,10 +306,11 @@ describe("WeChat login state machine", () => {
 	});
 
 	test("runWechatLogin returns connected and persists via the adapter seam", async () => {
-		const { config } = await makeConfig({ channels: { wechat: { enabled: true } } });
+		const { config } = await makeConfig(imConfig([instance("wechat", "wechat", { enabled: true })]));
 		const states: string[] = [];
 		const result = await runWechatLogin({
 			webConfig: config,
+			instanceId: "wechat",
 			timeoutMs: 1_000,
 			onState: state => states.push(state),
 			createChannel: options => ({
@@ -291,9 +340,10 @@ describe("WeChat login state machine", () => {
 	});
 
 	test("runWechatLogin times out", async () => {
-		const { config } = await makeConfig({ channels: { wechat: { enabled: true } } });
+		const { config } = await makeConfig(imConfig([instance("wechat", "wechat", { enabled: true })]));
 		const result = await runWechatLogin({
 			webConfig: config,
+			instanceId: "wechat",
 			timeoutMs: 20,
 			createChannel: () => ({ start: async () => {}, stop: async () => {} }),
 		});
@@ -304,79 +354,91 @@ describe("WeChat login state machine", () => {
 
 describe("logout and enable/disable", () => {
 	test("logout clears WeChat credentials and peer tokens through the adapter", async () => {
-		const { config } = await makeConfig({
-			channels: {
-				wechat: {
+		const { config } = await makeConfig(
+			imConfig([
+				instance("wechat", "wechat", {
 					enabled: true,
-					botToken: "tok",
-					ilinkBotId: "bot-1",
-					ilinkUserId: "user-1",
-					peerTokens: { "u1@im.wechat": "ctx" },
-				},
-			},
-		});
+					credentials: { botToken: "tok", ilinkBotId: "bot-1", ilinkUserId: "user-1" },
+					options: { peerTokens: { "u1@im.wechat": "ctx" } },
+				}),
+			]),
+		);
 		const failingFetch = (async () => new Response("nope", { status: 500 })) as unknown as typeof globalThis.fetch;
 		await logoutChannel(config, "wechat", { customFetch: failingFetch });
 		const data = (await WebConfig.load(config.path)).getData();
-		expect(data.channels.wechat.botToken).toBe("");
-		expect(data.channels.wechat.ilinkBotId).toBe("");
-		expect(data.channels.wechat.ilinkUserId).toBe("");
-		expect(data.channels.wechat.peerTokens).toEqual({});
+		const wechat = data.channels.instances.find(entry => entry.id === "wechat");
+		expect(wechat?.credentials).toEqual({});
+		expect(wechat?.options?.peerTokens).toEqual({});
 	});
 
 	test("logout clears Telegram/Feishu secrets", async () => {
-		const { config } = await makeConfig({
-			channels: {
-				telegram: { enabled: true, botToken: "tg" },
-				feishu: { enabled: true, appId: "app", appSecret: "secret" },
-			},
-		});
+		const { config } = await makeConfig(
+			imConfig([
+				instance("telegram", "telegram", { enabled: true, credentials: { botToken: "tg" } }),
+				instance("feishu", "feishu", { enabled: true, credentials: { appId: "app", appSecret: "secret" } }),
+			]),
+		);
 		await logoutChannel(config, "telegram");
 		await logoutChannel(config, "feishu");
 		const data = (await WebConfig.load(config.path)).getData();
-		expect(data.channels.telegram.botToken).toBe("");
-		expect(data.channels.feishu.appId).toBe("");
-		expect(data.channels.feishu.appSecret).toBe("");
+		const telegram = data.channels.instances.find(entry => entry.id === "telegram");
+		const feishu = data.channels.instances.find(entry => entry.id === "feishu");
+		expect(telegram?.credentials).toEqual({});
+		expect(feishu?.credentials).toEqual({});
 	});
 
 	test("enable/disable persists the flag", async () => {
-		const { config } = await makeConfig({});
+		const { config } = await makeConfig(imConfig([instance("wechat", "wechat")]));
 		await setChannelEnabled(config, "wechat", true);
-		expect((await WebConfig.load(config.path)).getData().channels.wechat.enabled).toBe(true);
+		expect(
+			(await WebConfig.load(config.path)).getData().channels.instances.find(entry => entry.id === "wechat")
+				?.enabled,
+		).toBe(true);
 		await setChannelEnabled(config, "wechat", false);
-		expect((await WebConfig.load(config.path)).getData().channels.wechat.enabled).toBe(false);
-		expect(isChannelId("wechat")).toBe(true);
-		expect(isChannelId("slack")).toBe(false);
+		expect(
+			(await WebConfig.load(config.path)).getData().channels.instances.find(entry => entry.id === "wechat")
+				?.enabled,
+		).toBe(false);
+		expect(isChannelPlatform("wechat")).toBe(true);
+		expect(isChannelPlatform("slack")).toBe(false);
+		expect(isChannelInstanceId("wechat")).toBe(true);
 	});
 });
 
 describe("status --json shape", () => {
 	test("reports enabled/running/peers/route from web.yml and the lock", async () => {
 		const workspace = path.join(os.tmpdir(), "zeta-workspace-demo");
-		const { dir, config } = await makeConfig({
-			channels: {
-				wechat: {
-					enabled: true,
-					botToken: "tok",
-					workspaceRoot: workspace,
-					peerTokens: { "u2@im.wechat": "ctx" },
+		const { dir, config } = await makeConfig(
+			imConfig(
+				[
+					instance("wechat", "wechat", {
+						enabled: true,
+						label: "WeChat",
+						credentials: { botToken: "tok" },
+						options: { peerTokens: { "u2@im.wechat": "ctx" } },
+					}),
+					instance("feishu", "feishu"),
+					instance("telegram", "telegram"),
+					instance("discord", "discord"),
+					instance("qq", "qq"),
+				],
+				{
+					remote: {
+						workspaces: [{ alias: "proj", path: workspace }],
+					},
 				},
-			},
-			remote: {
-				workspaces: [{ alias: "proj", path: workspace }],
-				sessionMappings: [{ platform: "wechat", chatId: "u1@im.wechat", workspaceAlias: "proj" }],
-			},
-		});
+			),
+		);
 		const lock = {
 			metadata: {
-				version: 1 as const,
+				version: 2 as const,
 				instanceId: "instance-1",
 				pid: process.pid,
 				host: "cli" as const,
 				startedAt: "2026-10-20T00:00:00.000Z",
 				cwd: dir,
 				sessionId: "session-1",
-				channels: ["wechat" as const],
+				instances: [{ id: "wechat", platform: "wechat" as const }],
 			},
 			alive: true,
 		};
@@ -389,53 +451,78 @@ describe("status --json shape", () => {
 				host: "cli",
 				startedAt: "2026-10-20T00:00:00.000Z",
 				sessionId: "session-1",
-				channels: ["wechat"],
+				instances: ["wechat"],
 				stale: false,
 			},
-			channels: [
+			instances: [
 				{
 					id: "wechat",
+					platform: "wechat",
+					label: "WeChat",
 					enabled: true,
 					configured: true,
 					running: true,
-					boundPeers: 2,
-					workspaceRoute: { workspaceRoot: workspace, alias: "proj", source: "config" },
+					boundPeers: 1,
+					agentProfileId: "companion",
+					agentProfileLabel: "Companion",
+					targetDisplay: "workspace:main",
+					targetAvailable: true,
 					login: "qr",
 				},
 				{
 					id: "feishu",
+					platform: "feishu",
+					label: "feishu",
 					enabled: false,
 					configured: false,
 					running: false,
 					boundPeers: 0,
-					workspaceRoute: { workspaceRoot: null, alias: null, source: "default" },
+					agentProfileId: "companion",
+					agentProfileLabel: "Companion",
+					targetDisplay: "workspace:main",
+					targetAvailable: true,
 					login: "credentials",
 				},
 				{
 					id: "telegram",
+					platform: "telegram",
+					label: "telegram",
 					enabled: false,
 					configured: false,
 					running: false,
 					boundPeers: 0,
-					workspaceRoute: { workspaceRoot: null, alias: null, source: "default" },
+					agentProfileId: "companion",
+					agentProfileLabel: "Companion",
+					targetDisplay: "workspace:main",
+					targetAvailable: true,
 					login: "credentials",
 				},
 				{
 					id: "discord",
+					platform: "discord",
+					label: "discord",
 					enabled: false,
 					configured: false,
 					running: false,
 					boundPeers: 0,
-					workspaceRoute: { workspaceRoot: null, alias: null, source: "default" },
+					agentProfileId: "companion",
+					agentProfileLabel: "Companion",
+					targetDisplay: "workspace:main",
+					targetAvailable: true,
 					login: "credentials",
 				},
 				{
 					id: "qq",
+					platform: "qq",
+					label: "qq",
 					enabled: false,
 					configured: false,
 					running: false,
 					boundPeers: 0,
-					workspaceRoute: { workspaceRoot: null, alias: null, source: "default" },
+					agentProfileId: "companion",
+					agentProfileLabel: "Companion",
+					targetDisplay: "workspace:main",
+					targetAvailable: true,
 					login: "endpoint",
 				},
 			],
@@ -443,17 +530,24 @@ describe("status --json shape", () => {
 	});
 
 	test("reads the host state from the lock file when none is injected", async () => {
-		const { dir, config } = await makeConfig({ channels: { telegram: { enabled: true, botToken: "tok" } } });
+		const { dir, config } = await makeConfig(
+			imConfig([instance("telegram", "telegram", { enabled: true, credentials: { botToken: "tok" } })]),
+		);
 		const lock = await acquireChannelLock({
 			lockPath: channelLockPath(dir),
-			metadata: { pid: process.pid, host: "serve", cwd: dir, channels: ["telegram"] },
+			metadata: {
+				pid: process.pid,
+				host: "serve",
+				cwd: dir,
+				instances: [{ id: "telegram", platform: "telegram" }],
+			},
 		});
 		expect(lock.ok).toBe(true);
 		try {
 			const status = await collectChannelStatus(config);
 			expect(status.runtime.hosting).toBe(true);
 			expect(status.runtime.host).toBe("serve");
-			expect(status.channels.find(entry => entry.id === "telegram")?.running).toBe(true);
+			expect(status.instances.find(instance => instance.id === "telegram")?.running).toBe(true);
 		} finally {
 			if (lock.ok) await lock.lock.release();
 		}

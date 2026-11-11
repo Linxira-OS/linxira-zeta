@@ -3,9 +3,9 @@
  * `!lang` leave in web.yml, and whether the GUI can still round-trip it.
  *
  * `@workspace use` is a runtime override; `!lang` (and `!session use`) persist
- * session-only rows that carry no `workspaceAlias`. Those rows must validate,
- * because the GUI writes the whole `remote.sessionMappings` array back through
- * `PUT /api/web-config` — a row the router wrote must never 400 that PUT.
+ * the chat's `remote.imBindings` row. Those rows must validate, because the
+ * GUI writes the whole bindings array back through `PUT /api/im/bindings` — a
+ * binding the router wrote must never 400 that PUT.
  */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
@@ -20,7 +20,16 @@ import type { LoadExtensionsResult } from "../../src/extensibility/extensions/ty
 import * as sdk from "../../src/sdk";
 import type { AgentSession } from "../../src/session/agent-session";
 import { EventBus } from "../../src/utils/event-bus";
-import { handleWebConfigPut } from "../../src/server/web-gateway/web-config";
+import { handleImBindingsPut } from "../../src/server/web-gateway/im-instances";
+
+const PROFILE = {
+	id: "companion",
+	label: "Companion",
+	persona: { mode: "workspace" },
+	location: { kind: "workspace", workspace: "main" },
+	tools: { builtin: [], extensions: [], customTools: [], mcpServers: [], skills: [], commands: [] },
+	memory: {},
+};
 
 describe("workspace routing persistence", () => {
 	let agentDir: string;
@@ -37,6 +46,26 @@ describe("workspace routing persistence", () => {
 		process.env.ZETA_CODING_AGENT_DIR = agentDir;
 		refreshDirsFromEnv();
 		WebConfig.resetShared();
+		fs.writeFileSync(
+			path.join(agentDir, "web.yml"),
+			JSON.stringify({
+				channels: {
+					instances: [
+						{
+							id: "feishu",
+							platform: "feishu",
+							label: "Feishu",
+							enabled: true,
+							agentProfile: PROFILE.id,
+							allow: { peers: ["peer-1"] },
+							credentials: {},
+						},
+					],
+				},
+				imAgents: [PROFILE],
+				remote: {},
+			}),
+		);
 		webConfig = await WebConfig.load(path.join(agentDir, "web.yml"));
 		sent = [];
 		router = new SessionRouter({
@@ -88,11 +117,12 @@ describe("workspace routing persistence", () => {
 
 	test("@workspace relay drops the bot-session pointer so inbound goes to the coordinator", async () => {
 		// A chat that was pointed at a default-space bot session.
-		await webConfig.updateChatMapping("feishu", "peer-1", { sessionId: "abc123" });
+		await webConfig.patchImBinding("feishu", "peer-1", { sessionId: "abc123" });
 		expect(await router.activeBotSessionIdFor("feishu", "peer-1")).toBe("abc123");
 
 		expect(await routeWorkspaceCommand("@workspace relay", "peer-1", deps())).toBe(true);
-		expect(await router.activeBotSessionIdFor("feishu", "peer-1")).toBeNull();
+		// Relay is an explicit sentinel, never a silent fallback to a bot session.
+		expect(await router.activeBotSessionIdFor("feishu", "peer-1")).toBe("relay");
 		// The inbound bridge's two decisions after a relay switch.
 		expect(await router.resolveChatTarget("feishu", "peer-1")).toEqual({ kind: "relay" });
 		expect(await router.resolveRoute("feishu", "peer-1")).toBe("relay");
@@ -108,28 +138,39 @@ describe("workspace routing persistence", () => {
 		expect(await routeWorkspaceCommand("!lang zh", "peer-1", deps())).toBe(true);
 		expect(await router.languageFor("feishu", "peer-1")).toBe("zh");
 
-		// The router wrote a session-only row; the GUI reads the array and PUTs
-		// it back whole. Nothing the router persisted may be rejected.
-		const rows = (await WebConfig.load(path.join(agentDir, "web.yml"))).getSessionMappings();
-		expect(rows).toEqual([{ platform: "feishu", chatId: "peer-1", lang: "zh" }]);
-		const response = await handleWebConfigPut(
-			new Request("http://gateway/api/web-config", {
+		// The router wrote a binding; the GUI reads the array and PUTs it back
+		// whole. Nothing the router persisted may be rejected.
+		const rows = (await WebConfig.load(path.join(agentDir, "web.yml"))).getImBindings();
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({
+			instanceId: "feishu",
+			platform: "feishu",
+			chatId: "peer-1",
+			sessionId: "relay",
+			lang: "zh",
+			role: "answer",
+			agentProfileId: PROFILE.id,
+		});
+		const response = await handleImBindingsPut(
+			new Request("http://gateway/api/im/bindings", {
 				method: "PUT",
 				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ path: "remote.sessionMappings", value: rows }),
+				body: JSON.stringify({ bindings: rows }),
 			}),
 		);
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({ ok: true });
 
-		// `@workspace use` still wins over the persisted row on the next message.
+		// `@workspace use` still wins over the persisted binding on the next message.
 		expect(await routeWorkspaceCommand("@workspace use repo", "peer-1", deps())).toBe(true);
 		expect(await router.resolveChatTarget("feishu", "peer-1")).toEqual({ kind: "workspace", alias: "repo" });
 	});
 
-	test("clearing a chat's last session field does not leave an empty row", async () => {
-		await webConfig.updateChatMapping("feishu", "peer-1", { sessionId: "abc123" });
-		await webConfig.updateChatMapping("feishu", "peer-1", { sessionId: null });
-		expect((await WebConfig.load(path.join(agentDir, "web.yml"))).getSessionMappings()).toEqual([]);
+	test("clearing a chat's binding removes the row instead of leaving an empty one", async () => {
+		await webConfig.patchImBinding("feishu", "peer-1", { sessionId: "abc123" });
+		expect((await WebConfig.load(path.join(agentDir, "web.yml"))).getImBindings()).toHaveLength(1);
+
+		await webConfig.removeImBindingByChat("feishu", "peer-1");
+		expect((await WebConfig.load(path.join(agentDir, "web.yml"))).getImBindings()).toEqual([]);
 	});
 });

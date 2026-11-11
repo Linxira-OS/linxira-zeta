@@ -3,7 +3,35 @@
  */
 import { afterEach, describe, expect, test, vi } from "bun:test";
 import { WeChatChannel } from "../../src/channels";
-import type { WebConfig } from "../../src/config/web-config";
+import type { WeChatCredentialSink } from "@linxiraos/pi-channels";
+
+/** Records the adapter's instance-scoped credential writes (no global path). */
+function credentialSink(): {
+	sink: WeChatCredentialSink;
+	fields: Array<[field: string, value: string]>;
+	peerTokens: Array<Record<string, string>>;
+	cleared: () => number;
+} {
+	const fields: Array<[string, string]> = [];
+	const peerTokens: Array<Record<string, string>> = [];
+	let clears = 0;
+	return {
+		sink: {
+			setField: async (field, value) => {
+				fields.push([field, value]);
+			},
+			setPeerTokens: async tokens => {
+				peerTokens.push(tokens);
+			},
+			clear: async () => {
+				clears++;
+			},
+		},
+		fields,
+		peerTokens,
+		cleared: () => clears,
+	};
+}
 
 function j(body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -206,22 +234,29 @@ describe("WeChatChannel", () => {
 		expect(pollCalls.length).toBeGreaterThanOrEqual(2);
 	});
 
-	test("persists a confirmed login to the web config", async () => {
-		const webConfig = { set: vi.fn(async () => {}) } as unknown as WebConfig;
+	test("persists a confirmed login through the instance credential sink", async () => {
+		const credentials = credentialSink();
+		const { promise: loggedIn, resolve: resolveLogin } = Promise.withResolvers<void>();
+		const setField = credentials.sink.setField;
+		credentials.sink.setField = async (field, value) => {
+			await setField(field, value);
+			if (field === "ilinkBotId") resolveLogin();
+		};
 		const { impl } = buildLoginMock();
 
 		const ch = new WeChatChannel({
+			instanceId: "wechat",
 			config: { baseUrl: "https://ilinkai.weixin.qq.com" },
-			webConfig,
+			credentialSink: credentials.sink,
 			customFetch: impl as unknown as typeof globalThis.fetch,
 			onMessage: () => {},
 		});
 		await ch.start();
-		await Bun.sleep(3_500);
+		await loggedIn;
 		await ch.stop();
 
-		expect(webConfig.set).toHaveBeenCalledWith("channels.wechat.botToken", "tok2");
-		expect(webConfig.set).toHaveBeenCalledWith("channels.wechat.ilinkBotId", "bot-9");
+		expect(credentials.fields).toContainEqual(["botToken", "tok2"]);
+		expect(credentials.fields).toContainEqual(["ilinkBotId", "bot-9"]);
 	});
 });
 
@@ -277,12 +312,13 @@ describe("WeChatChannel v1 API", () => {
 	afterEach(() => vi.restoreAllMocks());
 
 	test("logs in through /api/v1/wechat and persists credentials", async () => {
-		const webConfig = { set: vi.fn(async () => {}) } as unknown as WebConfig;
+		const credentials = credentialSink();
 		const { impl, calls } = buildV1LoginMock();
 
 		const ch = new WeChatChannel({
+			instanceId: "wechat",
 			config: { baseUrl: "https://ilinkai.weixin.qq.com" },
-			webConfig,
+			credentialSink: credentials.sink,
 			customFetch: impl as unknown as typeof globalThis.fetch,
 			onMessage: () => {},
 		});
@@ -294,7 +330,7 @@ describe("WeChatChannel v1 API", () => {
 		const deadline = Date.now() + 15_000;
 		while (Date.now() < deadline) {
 			const settled =
-				(webConfig.set as ReturnType<typeof vi.fn>).mock.calls.some(c => c[0] === "channels.wechat.botToken") ||
+				credentials.fields.some(([field]) => field === "botToken") ||
 				calls.some(c => c.url.includes("/get_bot_qrcode"));
 			if (settled) break;
 			await Bun.sleep(100);
@@ -305,9 +341,9 @@ describe("WeChatChannel v1 API", () => {
 		expect(calls.some(c => c.url.includes("/api/v1/wechat/qrcode/status"))).toBe(true);
 		// Never fell back to the legacy iLink endpoints.
 		expect(calls.some(c => c.url.includes("/get_bot_qrcode"))).toBe(false);
-		expect(webConfig.set).toHaveBeenCalledWith("channels.wechat.botToken", "tok-v1");
-		expect(webConfig.set).toHaveBeenCalledWith("channels.wechat.ilinkBotId", "bot-v1");
-		expect(webConfig.set).toHaveBeenCalledWith("channels.wechat.ilinkUserId", "user-v1");
+		expect(credentials.fields).toContainEqual(["botToken", "tok-v1"]);
+		expect(credentials.fields).toContainEqual(["ilinkBotId", "bot-v1"]);
+		expect(credentials.fields).toContainEqual(["ilinkUserId", "user-v1"]);
 	});
 
 	test("logs in through the documented /api/v1/wechat data shape and polls with { qrcode }", async () => {
@@ -365,16 +401,17 @@ describe("WeChatChannel v1 API", () => {
 			return j({ ret: 0 });
 		};
 
-		let resolveLogin!: () => void;
-		const loginDone = new Promise<void>(resolve => {
-			resolveLogin = resolve;
-		});
-		const set = vi.fn(async (path: string) => {
-			if (path === "channels.wechat.ilinkUserId") resolveLogin();
-		});
+		const { promise: loginDone, resolve: resolveLogin } = Promise.withResolvers<void>();
+		const credentials = credentialSink();
+		const setField = credentials.sink.setField;
+		credentials.sink.setField = async (field, value) => {
+			await setField(field, value);
+			if (field === "ilinkUserId") resolveLogin();
+		};
 		const ch = new WeChatChannel({
+			instanceId: "wechat",
 			config: { baseUrl: "https://ilinkai.weixin.qq.com" },
-			webConfig: { set } as unknown as WebConfig,
+			credentialSink: credentials.sink,
 			customFetch: impl as unknown as typeof globalThis.fetch,
 			onMessage: () => {},
 		});
@@ -385,26 +422,31 @@ describe("WeChatChannel v1 API", () => {
 		// The QR the UI renders comes from the documented `data.qrcode_url`.
 		expect(requests.some(r => r.url.includes("/api/v1/wechat/qrcode"))).toBe(true);
 		expect(requests.some(r => r.url.includes("/get_bot_qrcode"))).toBe(false);
-		expect(set).toHaveBeenCalledWith("channels.wechat.botToken", "tok-doc");
-		expect(set).toHaveBeenCalledWith("channels.wechat.ilinkBotId", "bot-doc");
-		expect(set).toHaveBeenCalledWith("channels.wechat.ilinkUserId", "user-doc");
+		expect(credentials.fields).toContainEqual(["botToken", "tok-doc"]);
+		expect(credentials.fields).toContainEqual(["ilinkBotId", "bot-doc"]);
+		expect(credentials.fields).toContainEqual(["ilinkUserId", "user-doc"]);
 	});
 
 	test("persists peer context tokens and restores them on a new instance", async () => {
-		const webConfig = { set: vi.fn(async () => {}) } as unknown as WebConfig;
+		const credentials = credentialSink();
+		const { promise: persisted, resolve: resolvePersisted } = Promise.withResolvers<void>();
+		credentials.sink.setPeerTokens = async tokens => {
+			credentials.peerTokens.push(tokens);
+			if (Object.keys(tokens).length >= 2) resolvePersisted();
+		};
 		const { impl } = buildMock();
 		const first = new WeChatChannel({
+			instanceId: "wechat",
 			config: { botToken: "tok", baseUrl: "https://ilinkai.weixin.qq.com" },
-			webConfig,
+			credentialSink: credentials.sink,
 			customFetch: impl as unknown as typeof globalThis.fetch,
 			onMessage: () => {},
 		});
 		await first.start();
-		await Bun.sleep(5);
+		await persisted;
 		await first.stop();
 
-		expect(webConfig.set).toHaveBeenCalledWith(
-			"channels.wechat.peerTokens",
+		expect(credentials.peerTokens.at(-1)).toEqual(
 			expect.objectContaining({ "u1@im.wechat": "ctx-1", "u2@im.wechat": "ctx-2" }),
 		);
 
@@ -433,21 +475,20 @@ describe("WeChatChannel v1 API", () => {
 	});
 
 	test("unbind resets the channel and clears persisted credentials", async () => {
-		const webConfig = { set: vi.fn(async () => {}) } as unknown as WebConfig;
+		const credentials = credentialSink();
 		const { impl, calls } = buildV1LoginMock();
 
 		const ch = new WeChatChannel({
+			instanceId: "wechat",
 			config: { botToken: "tok", baseUrl: "https://ilinkai.weixin.qq.com" },
-			webConfig,
+			credentialSink: credentials.sink,
 			customFetch: impl as unknown as typeof globalThis.fetch,
 			onMessage: () => {},
 		});
 		await ch.unbind();
 
 		expect(calls.some(c => c.url.includes("/api/v1/wechat/channel_reset"))).toBe(true);
-		expect(webConfig.set).toHaveBeenCalledWith("channels.wechat.peerTokens", {});
-		expect(webConfig.set).toHaveBeenCalledWith("channels.wechat.botToken", "");
-		expect(webConfig.set).toHaveBeenCalledWith("channels.wechat.ilinkBotId", "");
-		expect(webConfig.set).toHaveBeenCalledWith("channels.wechat.ilinkUserId", "");
+		// One sink call empties this instance's credentials and peer tokens.
+		expect(credentials.cleared()).toBe(1);
 	});
 });

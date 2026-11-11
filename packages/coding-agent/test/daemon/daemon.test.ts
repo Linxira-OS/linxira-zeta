@@ -174,7 +174,7 @@ describe("daemon start", () => {
 		await writeDaemonState(paths.state, stateFor(1111));
 		await acquireChannelLock({
 			lockPath: paths.lock,
-			metadata: { pid: 1111, host: "serve", cwd: "C:/work", channels: [] },
+			metadata: { pid: 1111, host: "serve", cwd: "C:/work", instances: [] },
 		});
 
 		const alive = new Set<number>();
@@ -308,7 +308,7 @@ describe("daemon stop", () => {
 		await writeDaemonState(paths.state, stateFor(1111));
 		await acquireChannelLock({
 			lockPath: paths.lock,
-			metadata: { pid: 1111, host: "serve", cwd: "C:/work", channels: [] },
+			metadata: { pid: 1111, host: "serve", cwd: "C:/work", instances: [] },
 		});
 		const killed: Array<[number, string]> = [];
 		const result = await stopDaemon({ paths, runtime: makeRuntime({ killed }) });
@@ -336,7 +336,7 @@ describe("daemon stop", () => {
 		await writeDaemonState(paths.state, stateFor(4242));
 		await acquireChannelLock({
 			lockPath: paths.lock,
-			metadata: { pid: 4242, host: "serve", cwd: "C:/work", channels: [] },
+			metadata: { pid: 4242, host: "serve", cwd: "C:/work", instances: [] },
 		});
 		const alive = new Set([4242]);
 		const killed: Array<[number, string]> = [];
@@ -357,7 +357,7 @@ describe("daemon stop", () => {
 		await writeDaemonState(paths.state, stateFor(4242));
 		await acquireChannelLock({
 			lockPath: paths.lock,
-			metadata: { pid: 4242, host: "serve", cwd: "C:/work", channels: [] },
+			metadata: { pid: 4242, host: "serve", cwd: "C:/work", instances: [] },
 		});
 		const alive = new Set([4242]);
 		const killed: Array<[number, string]> = [];
@@ -382,7 +382,7 @@ describe("daemon stop", () => {
 		await writeDaemonState(paths.state, stateFor(4242));
 		await acquireChannelLock({
 			lockPath: paths.lock,
-			metadata: { pid: 4242, host: "serve", cwd: "C:/work", channels: [] },
+			metadata: { pid: 4242, host: "serve", cwd: "C:/work", instances: [] },
 		});
 		const killed: Array<[number, string]> = [];
 		let checks = 0;
@@ -405,7 +405,7 @@ describe("daemon stop", () => {
 		await writeDaemonState(paths.state, stateFor(4242));
 		await acquireChannelLock({
 			lockPath: paths.lock,
-			metadata: { pid: 4242, host: "serve", cwd: "C:/work", channels: [] },
+			metadata: { pid: 4242, host: "serve", cwd: "C:/work", instances: [] },
 		});
 		const alive = new Set([4242]);
 		const killed: Array<[number, string]> = [];
