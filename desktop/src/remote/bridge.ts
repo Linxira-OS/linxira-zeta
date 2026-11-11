@@ -19,7 +19,7 @@ import {
 	type RemoteInventory,
 } from "./protocol";
 import { freeLoopbackPort, StudioHttp, type StudioEventSocket } from "./http";
-import { openTunnel, probeRemote, runRemote, uploadRuntime, type Tunnel } from "./ssh";
+import { openTunnel, probeRemote, remoteShellPath, runRemote, shellQuote, uploadRuntime, type Tunnel } from "./ssh";
 import { RemoteProfileStore } from "./store";
 
 interface Session {
@@ -130,7 +130,7 @@ export class RemoteBridge {
 						: "SSH 已连接，但远端没有运行中的 Zeta Studio 服务；请先安装并启动 Runtime。",
 				);
 			}
-			await http.bootstrap();
+			await http.ensureSession();
 			socket = http.events();
 			socket.onMessage = text => {
 				const session = this.#sessions.get(profile.id);
@@ -262,9 +262,15 @@ export class RemoteBridge {
 		const installRoot = profile.installRoot ?? (target === "win32" ? "C:/ProgramData/Zeta/remote" : "~/.local/share/zeta/remote");
 		const current = this.#statuses.get(id) ?? { id, state: "connected" as const, generation: 0 };
 		this.#setStatus({ ...current, operation: "installing-runtime", stage: "upload" });
-		await runRemote(profile, {}, this.#deps.userData, `mkdir -p ${installRoot.replace(/^~(?=\/|$)/, "$HOME")}`);
+		await runRemote(profile, {}, this.#deps.userData, `mkdir -p ${remoteShellPath(installRoot)}`);
 		await uploadRuntime(profile, {}, this.#deps.userData, artifact, installRoot);
-		await runRemote(profile, {}, this.#deps.userData, `cd ${installRoot.replace(/ /g, "\\ ")} && ./${path.basename(artifact)} --version`, 30_000);
+		await runRemote(
+			profile,
+			{},
+			this.#deps.userData,
+			`cd ${remoteShellPath(installRoot)} && ./${shellQuote(path.basename(artifact))} --version`,
+			30_000,
+		);
 		this.#setStatus({ id, state: "connected", generation: session.generation, stage: "verify", message: "Remote Runtime 已上传并验证" });
 		return { installed: true };
 	}

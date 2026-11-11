@@ -50,6 +50,7 @@ export class StudioHttp {
 	readonly base: string;
 	#cookie: string | undefined;
 	#csrf: string | undefined;
+	#bearer: string | undefined;
 
 	constructor(base: string) {
 		this.base = base.replace(/\/$/, "");
@@ -62,6 +63,52 @@ export class StudioHttp {
 		} catch {
 			return false;
 		}
+	}
+
+	/**
+	 * Bootstrap, then fall back to the host's existing pairing surface when
+	 * remote mode makes implicit loopback pairing unavailable. The code comes
+	 * from `GET /api/remote/pairing`; a legacy token-only answer is used as a
+	 * bearer header but cannot mint a session, so it gets a clear message.
+	 */
+	async ensureSession(): Promise<void> {
+		try {
+			await this.bootstrap();
+			return;
+		} catch (error) {
+			if (!(error instanceof StudioHttpError) || error.status !== 401) throw error;
+		}
+		const pairing = await this.gateway<{ code?: string; token?: string }>("/api/remote/pairing");
+		if (typeof pairing.code === "string" && pairing.code.length > 0) {
+			await this.pair(pairing.code);
+			await this.bootstrap();
+			return;
+		}
+		if (typeof pairing.token === "string" && pairing.token.length > 0) {
+			this.#bearer = pairing.token;
+			await this.bootstrap().catch(() => {
+				throw new Error("远端 Studio 需要配对码；当前 host 只返回机器令牌，请升级 host 或从 serve 日志输入配对码。");
+			});
+			return;
+		}
+		throw new Error("远端 Studio 需要配对码，host 没有返回可用的配对码。");
+	}
+
+	/** `POST /api/v1/pair` with the code the host already issued. */
+	async pair(code: string): Promise<void> {
+		const response = await fetch(`${this.base}/api/v1/pair`, {
+			method: "POST",
+			headers: { accept: "application/json", "content-type": "application/json" },
+			body: JSON.stringify({ code, device: { label: "Zeta Desktop", platform: process.platform } }),
+			signal: AbortSignal.timeout(15_000),
+		});
+		this.#remember(response);
+		if (!response.ok) {
+			const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+			throw new StudioHttpError(payload?.error || `Studio pairing failed (${response.status})`, response.status);
+		}
+		const body = (await response.json().catch(() => null)) as { device?: { token?: string } } | null;
+		if (typeof body?.device?.token === "string") this.#bearer = body.device.token;
 	}
 
 	async bootstrap<T = unknown>(): Promise<T> {
@@ -114,6 +161,7 @@ export class StudioHttp {
 	#headers(mutate = false): Record<string, string> {
 		return {
 			accept: "application/json",
+			...(this.#bearer ? { authorization: `Bearer ${this.#bearer}` } : {}),
 			...(this.#cookie ? { cookie: this.#cookie } : {}),
 			...(mutate && this.#csrf ? { [STUDIO_CSRF_HEADER]: this.#csrf } : {}),
 		};
@@ -140,6 +188,9 @@ export class StudioEventSocket {
 	#closed = false;
 	#handshakeDone = false;
 	#ready = false;
+	#rejectOpened: ((error: Error) => void) | undefined;
+	#fragments: Buffer[] = [];
+	#fragmentOpcode = 0;
 	readonly #pending: string[] = [];
 	readonly opened: Promise<void>;
 	onMessage: (text: string) => void = () => {};
@@ -152,10 +203,15 @@ export class StudioEventSocket {
 	) {
 		const { promise, resolve, reject } = Promise.withResolvers<void>();
 		this.opened = promise;
+		this.#rejectOpened = reject;
 		const parsed = new URL(url);
 		const socket = net.connect({ host: parsed.hostname.replace(/^\[|\]$/g, ""), port: Number(parsed.port || 80) });
 		this.#socket = socket;
 		const key = crypto.randomBytes(16).toString("base64");
+		const expectedAccept = crypto
+			.createHash("sha1")
+			.update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+			.digest("base64");
 		let handshake = "";
 		socket.once("connect", () => {
 			socket.write(
@@ -168,19 +224,24 @@ export class StudioEventSocket {
 			);
 		});
 		socket.on("data", chunk => {
-			this.#buffer = Buffer.concat([this.#buffer, chunk]);
+			this.#buffer = Buffer.concat([this.#buffer, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
 			if (!this.#handshakeDone) {
 				const end = this.#buffer.indexOf("\r\n\r\n");
 				if (end < 0) return;
 				handshake = this.#buffer.subarray(0, end).toString("latin1");
 				this.#buffer = this.#buffer.subarray(end + 4);
-				if (!/^HTTP\/1\.1 101/.test(handshake)) {
-					reject(new Error(`Studio event socket rejected: ${handshake.split("\r\n")[0]}`));
+				const accept = /^sec-websocket-accept:\s*(\S+)/im.exec(handshake)?.[1];
+				if (!/^HTTP\/1\.1 101/.test(handshake) || accept !== expectedAccept) {
+					const reason = !/^HTTP\/1\.1 101/.test(handshake)
+						? handshake.split("\r\n")[0]
+						: "Sec-WebSocket-Accept mismatch";
+					reject(new Error(`Studio event socket rejected: ${reason}`));
 					socket.destroy();
 					return;
 				}
 				this.#handshakeDone = true;
 				this.#ready = true;
+				this.#rejectOpened = undefined;
 				for (const text of this.#pending.splice(0)) this.#send(0x1, Buffer.from(text, "utf8"));
 				resolve();
 			}
@@ -196,6 +257,8 @@ export class StudioEventSocket {
 	#finish(reason: string): void {
 		if (this.#closed) return;
 		this.#closed = true;
+		if (!this.#handshakeDone) this.#rejectOpened?.(new Error(`Studio event socket closed before handshake: ${reason}`));
+		this.#rejectOpened = undefined;
 		this.onClose(reason);
 	}
 
@@ -203,6 +266,7 @@ export class StudioEventSocket {
 		for (;;) {
 			const buffer = this.#buffer;
 			if (buffer.length < 2) return;
+			const fin = (buffer[0] & 0x80) !== 0;
 			const opcode = buffer[0] & 0x0f;
 			const masked = (buffer[1] & 0x80) !== 0;
 			let length = buffer[1] & 0x7f;
@@ -227,13 +291,31 @@ export class StudioEventSocket {
 			const payload = Buffer.from(buffer.subarray(offset + maskOffset, offset + maskOffset + length));
 			if (mask) for (let index = 0; index < payload.length; index++) payload[index]! ^= mask[index % 4]!;
 			this.#buffer = buffer.subarray(offset + maskOffset + length);
-			if (opcode === 0x1) this.onMessage(payload.toString("utf8"));
-			else if (opcode === 0x2) this.onBinary(payload);
-			else if (opcode === 0x8) {
+			if (opcode === 0x0) {
+				if (this.#fragmentOpcode === 0) continue;
+				this.#fragments.push(payload);
+				if (!fin) continue;
+				const complete = Buffer.concat(this.#fragments);
+				const kind = this.#fragmentOpcode;
+				this.#fragments = [];
+				this.#fragmentOpcode = 0;
+				this.#emit(kind, complete);
+			} else if (opcode === 0x1 || opcode === 0x2) {
+				if (fin) this.#emit(opcode, payload);
+				else {
+					this.#fragmentOpcode = opcode;
+					this.#fragments = [payload];
+				}
+			} else if (opcode === 0x8) {
 				this.close("server closed");
 				return;
 			} else if (opcode === 0x9) this.#send(0xa, payload);
 		}
+	}
+
+	#emit(opcode: number, payload: Buffer): void {
+		if (opcode === 0x1) this.onMessage(payload.toString("utf8"));
+		else if (opcode === 0x2) this.onBinary(payload);
 	}
 
 	#send(opcode: number, payload: Buffer): void {

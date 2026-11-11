@@ -72,11 +72,26 @@ function commonOptions(profile: RemoteConnectionProfile): string[] {
 	return options;
 }
 
-function askpass(userData: string, password: string | undefined): { env: NodeJS.ProcessEnv; cleanup(): void } {
-	if (!password) return { env: {}, cleanup() {} };
-	const helper = path.join(userData, `ssh-askpass-${process.pid}-${Date.now()}.cjs`);
+interface Askpass {
+	readonly env: NodeJS.ProcessEnv;
+	readonly available: boolean;
+	cleanup(): void;
+}
+
+/**
+ * SSH_ASKPASS is exec'd directly, so the helper must be an executable with a
+ * shebang on POSIX. The secret is never written: it arrives through the child
+ * environment and the helper only prints it. Windows OpenSSH cannot exec a
+ * script helper reliably, so password mode fails closed there and key/agent
+ * auth stays the supported path.
+ */
+function askpass(userData: string, password: string | undefined): Askpass {
+	if (!password) return { env: {}, available: true, cleanup() {} };
+	if (process.platform === "win32") return { env: {}, available: false, cleanup() {} };
+	const helper = path.join(userData, `ssh-askpass-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.sh`);
 	fs.mkdirSync(userData, { recursive: true, mode: 0o700 });
-	fs.writeFileSync(helper, 'process.stdout.write(process.env.ZETA_SSH_ASKPASS_SECRET ?? "");\n', { encoding: "utf8", mode: 0o700 });
+	fs.writeFileSync(helper, '#!/bin/sh\nprintf %s "$ZETA_SSH_ASKPASS_SECRET"\n', { encoding: "utf8", mode: 0o700 });
+	fs.chmodSync(helper, 0o700);
 	return {
 		env: {
 			SSH_ASKPASS: helper,
@@ -84,6 +99,7 @@ function askpass(userData: string, password: string | undefined): { env: NodeJS.
 			DISPLAY: process.env.DISPLAY || "zeta-desktop",
 			ZETA_SSH_ASKPASS_SECRET: password,
 		},
+		available: true,
 		cleanup() {
 			try {
 				fs.unlinkSync(helper);
@@ -92,6 +108,19 @@ function askpass(userData: string, password: string | undefined): { env: NodeJS.
 			}
 		},
 	};
+}
+
+/** POSIX shell single-quote; used for every remote path we build. */
+export function shellQuote(value: string): string {
+	return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/** `~` expands outside quotes; the rest stays literal. */
+export function remoteShellPath(directory: string, child?: string): string {
+	const suffix = child ? `/${shellQuote(child)}` : "";
+	const home = directory.match(/^~(?=\/|$)/);
+	if (home) return `"$HOME"${shellQuote(directory.slice(1))}${suffix}`;
+	return `${shellQuote(directory)}${suffix}`;
 }
 
 function exitMessage(stderr: string, code: number | null): string {
@@ -114,32 +143,40 @@ export function runRemote(
 ): Promise<string> {
 	const auth = profile.authMode === "password" ? credentials.password : undefined;
 	const helper = askpass(userData, auth);
-	return new Promise<string>((resolve, reject) => {
-		const child = spawn(sshBinary(), [...commonOptions(profile), ...(auth ? [] : ["-o", "BatchMode=yes"]), "--", target(profile), command], {
+	if (!helper.available) throw new Error("密码认证在 Windows 上不可用；请使用 SSH 密钥或 ssh-agent。");
+	const { promise, resolve, reject } = Promise.withResolvers<string>();
+	let settled = false;
+	let timer: NodeJS.Timeout | undefined;
+	const finish = (error: Error | null, value = ""): void => {
+		if (settled) return;
+		settled = true;
+		clearTimeout(timer);
+		helper.cleanup();
+		if (error) reject(error);
+		else resolve(value);
+	};
+	let child: ChildProcess;
+	try {
+		child = spawn(sshBinary(), [...commonOptions(profile), ...(auth ? [] : ["-o", "BatchMode=yes"]), "--", target(profile), command], {
 			stdio: ["ignore", "pipe", "pipe"],
 			windowsHide: true,
 			env: { ...process.env, ...helper.env },
 		});
-		let stdout = "";
-		let stderr = "";
-		const timer = setTimeout(() => {
-			child.kill();
-			reject(new Error(`SSH command timed out after ${Math.round(timeoutMs / 1000)}s`));
-		}, timeoutMs);
-		child.stdout?.on("data", chunk => (stdout += chunk.toString()));
-		child.stderr?.on("data", chunk => (stderr += chunk.toString()));
-		child.once("error", error => {
-			clearTimeout(timer);
-			helper.cleanup();
-			reject(error);
-		});
-		child.once("exit", code => {
-			clearTimeout(timer);
-			helper.cleanup();
-			if (code === 0) resolve(stdout);
-			else reject(new Error(exitMessage(stderr, code)));
-		});
-	});
+	} catch (error) {
+		finish(error instanceof Error ? error : new Error(String(error)));
+		return promise;
+	}
+	let stdout = "";
+	let stderr = "";
+	timer = setTimeout(() => {
+		child.kill();
+		finish(new Error(`SSH command timed out after ${Math.round(timeoutMs / 1000)}s`));
+	}, timeoutMs);
+	child.stdout?.on("data", chunk => (stdout += chunk.toString()));
+	child.stderr?.on("data", chunk => (stderr += chunk.toString()));
+	child.once("error", error => finish(error));
+	child.once("exit", code => finish(code === 0 ? null : new Error(exitMessage(stderr, code)), stdout));
+	return promise;
 }
 
 /** Probe OS/arch and whether a `zeta` binary is reachable on PATH. */
@@ -199,32 +236,55 @@ export async function openTunnel(
 ): Promise<Tunnel> {
 	const auth = profile.authMode === "password" ? credentials.password : undefined;
 	const helper = askpass(userData, auth);
-	const child = spawn(
-		sshBinary(),
-		[
-			...commonOptions(profile),
-			"-o",
-			"ExitOnForwardFailure=yes",
-			...(auth ? [] : ["-o", "BatchMode=yes"]),
-			"-N",
-			"-L",
-			`127.0.0.1:${localPort}:127.0.0.1:${remotePort}`,
-			"--",
-			target(profile),
-		],
-		{ stdio: ["ignore", "ignore", "pipe"], windowsHide: true, env: { ...process.env, ...helper.env } },
-	);
+	if (!helper.available) throw new Error("密码认证在 Windows 上不可用；请使用 SSH 密钥或 ssh-agent。");
+	let child: ChildProcess;
+	try {
+		child = spawn(
+			sshBinary(),
+			[
+				...commonOptions(profile),
+				"-o",
+				"ExitOnForwardFailure=yes",
+				...(auth ? [] : ["-o", "BatchMode=yes"]),
+				"-N",
+				"-L",
+				`127.0.0.1:${localPort}:127.0.0.1:${remotePort}`,
+				"--",
+				target(profile),
+			],
+			{ stdio: ["ignore", "ignore", "pipe"], windowsHide: true, env: { ...process.env, ...helper.env } },
+		);
+	} catch (error) {
+		helper.cleanup();
+		throw error;
+	}
 	let stderr = "";
 	child.stderr?.on("data", chunk => (stderr += chunk.toString()));
-	const closed = new Promise<void>(resolve => child.once("exit", () => resolve()));
+	const closed = Promise.withResolvers<void>();
+	child.once("exit", () => closed.resolve());
+	child.once("error", () => closed.resolve());
+	const failed = Promise.withResolvers<void>();
+	let spawnError: Error | undefined;
+	child.once("error", error => {
+		spawnError = error;
+		failed.resolve();
+	});
+	const portWait = waitForPort(localPort, child);
+	// If the spawn fails first, `portWait` will reject later; observe it so the
+	// race loser cannot surface as an unhandled rejection.
+	portWait.catch(() => undefined);
 	try {
-		await waitForPort(localPort, child);
+		await Promise.race([portWait, failed.promise]);
+		if (spawnError) throw spawnError;
+		// Authentication and forwarding are established; the password helper is
+		// no longer needed even though the tunnel stays alive.
+		helper.cleanup();
 	} catch (error) {
 		child.kill();
 		helper.cleanup();
 		throw new Error(stderr.trim() ? exitMessage(stderr, child.exitCode) : error instanceof Error ? error.message : String(error));
 	}
-	return { localPort, remotePort, child, closed };
+	return { localPort, remotePort, child, closed: closed.promise };
 }
 
 /** Upload a runtime artifact, then mark it executable. */
@@ -238,10 +298,22 @@ export async function uploadRuntime(
 	if (!fs.existsSync(localFile)) throw new Error(`Remote runtime artifact not found: ${localFile}`);
 	const auth = profile.authMode === "password" ? credentials.password : undefined;
 	const helper = askpass(userData, auth);
+	if (!helper.available) throw new Error("密码认证在 Windows 上不可用；请使用 SSH 密钥或 ssh-agent。");
 	const port = normalizePort(profile.port);
-	await new Promise<void>((resolve, reject) => {
-		// scp resolves only on exit; the helper must outlive the child.
-		const child = spawn(
+	const { promise, resolve, reject } = Promise.withResolvers<void>();
+	let settled = false;
+	let timer: NodeJS.Timeout | undefined;
+	const finish = (error?: Error): void => {
+		if (settled) return;
+		settled = true;
+		clearTimeout(timer);
+		helper.cleanup();
+		if (error) reject(error);
+		else resolve();
+	};
+	let child: ChildProcess;
+	try {
+		child = spawn(
 			scpBinary(),
 			[
 				"-o",
@@ -256,19 +328,18 @@ export async function uploadRuntime(
 			],
 			{ stdio: ["ignore", "ignore", "pipe"], windowsHide: true, env: { ...process.env, ...helper.env } },
 		);
-		let stderr = "";
-		child.stderr?.on("data", chunk => (stderr += chunk.toString()));
-		child.once("error", error => {
-			helper.cleanup();
-			reject(error);
-		});
-		child.once("exit", code => {
-			helper.cleanup();
-			if (code === 0) resolve();
-			else reject(new Error(exitMessage(stderr, code)));
-		});
-	});
-	const name = path.basename(localFile);
-	const expanded = remoteDirectory.replace(/^~(?=\/|$)/, "$HOME").replace(/'/g, `'\\''`);
-	await runRemote(profile, credentials, userData, `chmod 700 '${expanded}/${name.replace(/'/g, `'\\''`)}'`);
+	} catch (error) {
+		finish(error instanceof Error ? error : new Error(String(error)));
+		return promise;
+	}
+	let stderr = "";
+	child.stderr?.on("data", chunk => (stderr += chunk.toString()));
+	timer = setTimeout(() => {
+		child.kill();
+		finish(new Error("Runtime upload timed out after 120s"));
+	}, 120_000);
+	child.once("error", error => finish(error));
+	child.once("exit", code => finish(code === 0 ? undefined : new Error(exitMessage(stderr, code))));
+	await promise;
+	await runRemote(profile, credentials, userData, `chmod 700 ${remoteShellPath(remoteDirectory, path.basename(localFile))}`);
 }
