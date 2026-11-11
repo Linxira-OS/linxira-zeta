@@ -131,8 +131,10 @@ A plugin page is a real top-level renderer route,
 renders the exported `PluginPageHost` with the selected/live session id instead
 of mounting the project shell. `onBack` replaces the URL with `/` and returns to
 the remembered app route, so a plugin page is not a second navigation surface.
-The Host advertises the page through `plugins.pages`; the Capabilities plugin
-view links to it, and no extra tray/harness entry is created.
+The page entry comes from the plugin's declared html panel and is addressed with
+the same `pluginViewHref` helper that builds this URL; `plugins.callTool` is the
+only bridge back to the Host. The Capabilities plugin view links to the page,
+and no extra tray/harness entry is created.
 
 `AuthStepUpBoundary` is mounted once around the routed content. A bound remote
 device that receives `403 totp_required` answers the challenge in place and the

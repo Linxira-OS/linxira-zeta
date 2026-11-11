@@ -19,6 +19,10 @@
   top-level renderer route backed by the Host's `plugins.pages` inventory and
   `plugins.callTool`. The selected session id travels with the page; no second
   navigation surface or harness is created.
+- **Plugin pages in Work Studio** — `/plugins/view/<plugin>/<page entry>` is a
+  real top-level renderer route backed by the exported plugin page host and its
+  `plugins.callTool` bridge. The selected session id travels with the page; no
+  second navigation surface or harness is created.
 - **App-wide 2FA step-up** — the renderer mounts one AuthStepUpBoundary around
   routed content, so a remote device that receives `totp_required` answers the
   challenge in place and the original request is replayed once.
