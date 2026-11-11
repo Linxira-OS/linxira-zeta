@@ -1,9 +1,9 @@
 /**
  * Studio Team workspace: onboarding, overview, tasks, rooms, and the real
- * relationship graph. It exports one page component; App.tsx composition is
- * owned by the Studio integration slice. Every action names a registered
- * `teamId`; the Host resolves the root. Only a brand-new bootstrap carries a
- * root path, because a Team has to be created somewhere.
+ * relationship graph. This is the page the **Team** navigation route opens; its
+ * Graph tab embeds the existing relationship graph. Every action names a
+ * registered `teamId`; the Host resolves the root. Only a brand-new bootstrap
+ * carries a root path, because a Team has to be created somewhere.
  *
  * Local single-user collaboration: there are no accounts, passwords, tokens,
  * or auth checks here. A member id is a Team row, not a credential.
@@ -25,6 +25,7 @@ import type {
 } from "@linxiraos/studio-contract";
 import { TeamPage } from "./TeamPage";
 import { TeamImChatPane, type ImChatBindingControl } from "./TeamImChatPane";
+import { loadImChatCandidates, type ImChatCandidate } from "./teamImChatGateway";
 import { hostErrorMessage, waitReceipt } from "./hostError";
 import { useI18n } from "./i18n";
 import {
@@ -62,7 +63,7 @@ const COPY = {
     graph: "Graph",
     im: "IM chat",
     imBoundary:
-      "Reads canonical session history and existing IM bindings; no second transcript store. Local single-user boundary.",
+      "Reads the IM backend selector and the canonical gateway transcript; no second transcript store. Local single-user boundary.",
     team: "Team",
     pms: "PMs",
     engineers: "Engineers",
@@ -148,7 +149,7 @@ const COPY = {
     rooms: "房间",
     graph: "关系图",
     im: "IM 聊天",
-    imBoundary: "读取规范会话历史与既有 IM 绑定，不新建 transcript store；本地单用户边界。",
+    imBoundary: "读取 IM 后端选择器与 canonical 网关 transcript，不新建 transcript store；本地单用户边界。",
     team: "团队",
     pms: "PM",
     engineers: "工程师",
@@ -275,17 +276,21 @@ export function TeamWorkspacePage({
   initialTeamId,
   imChat,
   imBinding,
+  imCandidates,
 }: {
   client: StudioClient;
   /** Existing Team selected by the host route; omit to use the first registered Team. */
   initialTeamId?: string;
   /**
-   * Optional IM Chat subpage override. The default pane reads canonical
-   * session history/transcripts; it never copies a transcript.
+   * Optional IM Chat subpage override. The default pane reads the IM selector
+   * candidates and the canonical gateway transcript; it never copies a
+   * transcript.
    */
   imChat?: ReactNode;
   /** IM-owner confirmation actions; absent hides the binding controls. */
   imBinding?: ImChatBindingControl;
+  /** Injected IM selector rows; when omitted the pane reads `/api/im/sessions`. */
+  imCandidates?: readonly ImChatCandidate[];
 }) {
   const { resolvedLanguage } = useI18n();
   const copy: Copy = resolvedLanguage.startsWith("zh") ? COPY.zh : COPY.en;
@@ -299,6 +304,9 @@ export function TeamWorkspacePage({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [nonce, setNonce] = useState(0);
+  const [fetchedCandidates, setFetchedCandidates] = useState<ImChatCandidate[] | undefined>();
+  const [imLoading, setImLoading] = useState(false);
+  const [imError, setImError] = useState("");
 
   const reload = useCallback(() => setNonce(value => value + 1), []);
 
@@ -351,6 +359,31 @@ export function TeamWorkspacePage({
       active = false;
     };
   }, [client, teamId, nonce, copy.error]);
+
+  // The IM tab reads the IM backend selector only while it is open. An
+  // injected list (tests/integration) wins; an absent route is reported, not
+  // replaced with a locally derived selector.
+  useEffect(() => {
+    if (tab !== "im" || imChat !== undefined || imCandidates !== undefined) return;
+    let active = true;
+    setImLoading(true);
+    setImError("");
+    void loadImChatCandidates()
+      .then(rows => {
+        if (active) setFetchedCandidates(rows);
+      })
+      .catch(cause => {
+        if (!active) return;
+        setFetchedCandidates(undefined);
+        setImError(hostErrorMessage(cause, copy.error));
+      })
+      .finally(() => {
+        if (active) setImLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [tab, imChat, imCandidates, nonce, copy.error]);
 
   const perform = useCallback(
     async (action: () => Promise<unknown>, ok: string) => {
@@ -451,7 +484,14 @@ export function TeamWorkspacePage({
       ) : tab === "im" ? (
         <div className="tw-body">
           <p className="tw-hint">{copy.imBoundary}</p>
-          {imChat ?? <TeamImChatPane client={client} binding={imBinding} />}
+          {imError ? <div className="tw-banner error">{imError}</div> : null}
+          {imChat ?? (
+            <TeamImChatPane
+              candidates={imCandidates ?? fetchedCandidates}
+              loading={imLoading}
+              binding={imBinding}
+            />
+          )}
         </div>
       ) : !workspace ? (
         teams.length === 0 ? (

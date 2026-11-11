@@ -1,27 +1,29 @@
 /**
- * IM Chat subpage inside the Team workspace.
+ * IM chat subpage inside the Team workspace.
  *
- * It reads the canonical session history and transcript APIs; it keeps no
- * second transcript and writes no message store. Rows are IM-origin sessions
- * only, limited to the last three days. The visible number is derived from the
- * current list (workspace 2 digits + session 5 digits), never persisted as a
- * short id; the session id stays a background key.
+ * The candidate list and every visible fact about a chat come from the IM
+ * backend selector (`GET /api/im/sessions`): the stable `NN-NNNNN` number, the
+ * display label, and the latest completed-task summary. This pane never
+ * re-derives a number, sorts by activity to renumber, or shows a raw session id.
  *
- * The latest completed-turn summary is a provenance-owner read model. Until
- * that field is present, a row says "no summary" or "in progress" and never
- * substitutes the first user message for a completed task summary.
+ * Selecting a candidate reads the canonical persisted transcript from the
+ * gateway (`GET /api/sessions/:id`); bubbles render the IM ingress's immutable
+ * per-message route metadata, and switch handshakes render from the transcript
+ * control events. There is no second transcript store and no second approval
+ * system: pending binding controls are supplied by the IM integration.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type {
-  ConversationItem,
-  ConversationMessageItem,
-  SessionHistoryEntry,
-  SessionHistoryReadModel,
-  StudioClient,
-} from "@linxiraos/studio-contract";
 import { hostErrorMessage } from "./hostError";
-import { buildRecentImRows } from "./teamImChatModel";
 import { useI18n } from "./i18n";
+import {
+  loadImChatTranscript,
+  type ImChatBubble,
+  type ImChatCandidate,
+  type ImChatControlEvent,
+  type ImChatOrigin,
+  type ImChatTranscript,
+} from "./teamImChatGateway";
+import type { GatewayFetch } from "./settings/gatewayRequest";
 import "./TeamImChatPane.css";
 
 export interface ImChatTargetLabel {
@@ -47,106 +49,105 @@ export interface ImChatBindingControl {
   cancel(pendingId: string): Promise<void>;
 }
 
-function textOf(item: ConversationMessageItem): string {
-  return item.content
-    .filter((block): block is { type: "text"; text: string } => block.type === "text")
-    .map(block => block.text)
-    .join("\n")
-    .trim();
+function originLabel(origin: ImChatOrigin | undefined): string | undefined {
+  if (!origin) return undefined;
+  const parts = [
+    origin.workspaceAlias,
+    origin.agentId === undefined ? undefined : `agent ${origin.agentId}`,
+    origin.bindingId === undefined ? undefined : `binding ${origin.bindingId}`,
+  ].filter((part): part is string => part !== undefined && part !== "");
+  return parts.length === 0 ? undefined : parts.join(" · ");
 }
 
-function MessageItem({ item, source }: { item: ConversationMessageItem; source?: string }) {
-  const text = textOf(item);
-  if (!text) {
-    const tool = item.content.find(block => block.type === "toolCall" || block.type === "toolResult");
-    if (!tool || (tool.type !== "toolCall" && tool.type !== "toolResult")) return null;
+function Bubble({ bubble }: { bubble: ImChatBubble }) {
+  const source = originLabel(bubble.origin);
+  if (bubble.text === "") {
     return (
-      <div className={`tic-tool role-${item.role}`}>
-        <code>{tool.toolName ?? "tool"}</code>
+      <div className={`tic-tool role-${bubble.role}`}>
+        <code>{bubble.toolName ?? "tool"}</code>
       </div>
     );
   }
   return (
-    <div className={`tic-bubble role-${item.role}`}>
+    <div className={`tic-bubble role-${bubble.role}`}>
       <div className="tic-meta">
-        <span>{item.role === "user" ? "user" : item.role === "assistant" ? "agent" : item.role}</span>
-        {source ? <span className="tic-source">{source}</span> : null}
-        <time>{new Date(item.createdAt).toLocaleString()}</time>
+        <span>{bubble.role === "user" ? "user" : bubble.role === "assistant" ? "agent" : bubble.role}</span>
+        {source ? <span className="tic-source" title={source}>{source}</span> : null}
+        {bubble.replyToMessageId ? <span className="tic-reply" title={bubble.replyToMessageId}>↩</span> : null}
+        {bubble.createdAt ? <time>{new Date(bubble.createdAt).toLocaleString()}</time> : null}
       </div>
-      <p>{text}</p>
+      <p>{bubble.text}</p>
     </div>
   );
 }
 
-function TranscriptItem({ item }: { item: ConversationItem }) {
-  if (item.kind === "message") return <MessageItem item={item} />;
-  if (item.kind === "compaction") {
-    return (
-      <div className="tic-compaction">
-        <span>{item.shortSummary ?? item.summary}</span>
-      </div>
-    );
-  }
-  return <div className="tic-reset">context reset</div>;
+function ControlEvent({ event, zh }: { event: ImChatControlEvent; zh: boolean }) {
+  const action =
+    event.action === "switch_request"
+      ? zh
+        ? "切换请求"
+        : "switch requested"
+      : event.action === "switch_confirm"
+        ? zh
+          ? "切换已确认"
+          : "switch confirmed"
+        : zh
+          ? "切换已取消"
+          : "switch cancelled";
+  const from = originLabel(event.from) ?? (zh ? "未知来源" : "unknown");
+  const to = originLabel(event.to) ?? (zh ? "未知目标" : "unknown");
+  return (
+    <div className={`tic-control action-${event.action}`}>
+      <strong>{action}</strong>
+      <span>
+        {from} → {to}
+      </span>
+      <code>{event.requestId}</code>
+    </div>
+  );
 }
 
 export function TeamImChatPane({
-  client,
+  candidates,
+  loading,
   binding,
+  fetcher,
 }: {
-  client: StudioClient;
+  /** IM backend selector rows; an empty array is an honest empty list. */
+  candidates?: readonly ImChatCandidate[];
+  /** True while the IM selector read is in flight. */
+  loading?: boolean;
   /** Supplied by the IM integration; absent means no binding controls are shown. */
   binding?: ImChatBindingControl;
+  /** Test seam; production uses the same-origin gateway `fetch`. */
+  fetcher?: GatewayFetch;
 }) {
   const { resolvedLanguage } = useI18n();
   const zh = resolvedLanguage.startsWith("zh");
-  const [entries, setEntries] = useState<SessionHistoryEntry[]>([]);
-  const [selected, setSelected] = useState<string | undefined>();
-  const [items, setItems] = useState<ConversationItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const rows = useMemo(() => candidates ?? [], [candidates]);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | undefined>();
+  const [transcript, setTranscript] = useState<ImChatTranscript | undefined>();
   const [chatLoading, setChatLoading] = useState(false);
   const [error, setError] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [controlBusy, setControlBusy] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      try {
-        const result = (await client.query("history.list", { includeIm: true })) as SessionHistoryReadModel;
-        if (!active) return;
-        setEntries(result.entries);
-        setError("");
-      } catch (cause) {
-        if (active) setError(hostErrorMessage(cause, zh ? "读取会话失败" : "Failed to read sessions"));
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [client, zh]);
-
-  const rows = useMemo(() => buildRecentImRows(entries, Date.now()), [entries]);
-  const selectedRow = rows.find(row => row.entry.sessionId === selected) ?? rows[0];
-  const selectedSessionId = selectedRow?.entry.sessionId;
+  const selected = rows.find(row => row.canonicalSessionId === selectedSessionId) ?? rows[0];
 
   useEffect(() => {
-    if (!selectedSessionId) {
-      setItems([]);
+    if (!selected) {
+      setTranscript(undefined);
       return;
     }
     let active = true;
+    setTranscript(undefined);
     setChatLoading(true);
+    setError("");
     void (async () => {
       try {
-        const result = await client.query("conversation.open", {
-          target: { kind: "session", sessionId: selectedSessionId },
-        });
+        const result = await loadImChatTranscript(selected.canonicalSessionId, fetcher);
         if (!active) return;
-        setItems([...result.page.items]);
-        setError("");
+        setTranscript(result);
       } catch (cause) {
         if (active) setError(hostErrorMessage(cause, zh ? "读取会话内容失败" : "Failed to read transcript"));
       } finally {
@@ -156,7 +157,7 @@ export function TeamImChatPane({
     return () => {
       active = false;
     };
-  }, [client, selectedSessionId, zh]);
+  }, [selected, zh, fetcher]);
 
   const cancel = useCallback(async () => {
     if (!binding?.pending) return;
@@ -184,7 +185,11 @@ export function TeamImChatPane({
     }
   }, [binding, confirming]);
 
-  if (loading) return <div className="tic-empty">{zh ? "正在读取…" : "Loading…"}</div>;
+  const summaryText = (row: ImChatCandidate): string => {
+    if (row.latestTaskSummary) return row.latestTaskSummary;
+    if (row.summaryState === "incomplete") return zh ? "进行中" : "in progress";
+    return "";
+  };
 
   return (
     <div className="tic-root">
@@ -194,24 +199,37 @@ export function TeamImChatPane({
           <span>{zh ? "最近 3 天" : "last 3 days"}</span>
         </header>
         {rows.length === 0 ? (
-          <p className="tic-empty">{zh ? "最近 3 天没有 IM 会话。" : "No IM chats in the last 3 days."}</p>
+          <p className="tic-empty">
+            {loading
+              ? zh
+                ? "正在读取 IM 选择器…"
+                : "Reading the IM selector…"
+              : candidates === undefined
+                ? zh
+                  ? "IM 选择器尚未连接。"
+                  : "IM selector is not connected."
+                : zh
+                  ? "最近 3 天没有 IM 会话。更早的会话请在 desktop 或 remote Studio 历史中打开。"
+                  : "No IM chats in the last 3 days. Open earlier chats in desktop or remote Studio history."}
+          </p>
         ) : (
           <ul>
             {rows.map(row => (
-              <li key={row.entry.historyId}>
+              <li key={row.canonicalSessionId}>
                 <button
                   type="button"
-                  className={`tic-row${selectedRow?.entry.historyId === row.entry.historyId ? " active" : ""}`}
-                  onClick={() => setSelected(row.entry.sessionId)}
+                  className={`tic-row${selected?.canonicalSessionId === row.canonicalSessionId ? " active" : ""}`}
+                  onClick={() => setSelectedSessionId(row.canonicalSessionId)}
                 >
-                  <span className="tic-number">{row.number}</span>
+                  <span className="tic-number">{row.selector}</span>
                   <span className="tic-main">
                     <span className="tic-name">{row.label}</span>
-                    <span className={`tic-summary ${row.status}`}>
-                      {row.summary || (row.status === "in-progress" ? (zh ? "进行中 · 暂无摘要" : "in progress · no summary") : zh ? "暂无摘要" : "no summary")}
-                    </span>
+                    <span className={`tic-summary ${row.summaryState}`}>{summaryText(row)}</span>
                   </span>
-                  <span className="tic-channel">{row.channel ?? "IM"}</span>
+                  <span className="tic-channel">
+                    {row.isPm ? "PM · " : ""}
+                    {row.channel ?? row.tag ?? "IM"}
+                  </span>
                 </button>
               </li>
             ))}
@@ -220,17 +238,21 @@ export function TeamImChatPane({
       </section>
 
       <section className="tic-chat">
-        {selectedRow ? (
+        {selected ? (
           <>
             <header className="tic-chat-head">
               <div>
-                <strong>{selectedRow.label}</strong>
-                <span className="tic-number">{selectedRow.number}</span>
+                <strong>{selected.label}</strong>
+                <span className="tic-number">{selected.selector}</span>
               </div>
               <div className="tic-source-line">
-                <span>{selectedRow.channel ?? "IM"}</span>
-                {selectedRow.workspaceAlias ? <span>{selectedRow.workspaceAlias}</span> : null}
-                <span>{selectedRow.entry.status}</span>
+                <span>{selected.channel ?? selected.tag ?? "IM"}</span>
+                {selected.workspaceAlias ? <span>{selected.workspaceAlias}</span> : null}
+                {selected.bindingId ? (
+                  <span className="tic-binding" title={selected.bindingId}>
+                    binding · {selected.bindingId}
+                  </span>
+                ) : null}
               </div>
             </header>
 
@@ -267,17 +289,20 @@ export function TeamImChatPane({
             {error ? <div className="tic-error">{error}</div> : null}
             <div className="tic-transcript">
               {chatLoading ? <div className="tic-empty">{zh ? "正在读取…" : "Loading…"}</div> : null}
-              {items.map(item => (
-                <TranscriptItem key={item.itemId} item={item} />
+              {(transcript?.bubbles ?? []).map(bubble => (
+                <Bubble key={bubble.itemId} bubble={bubble} />
               ))}
-              {!chatLoading && items.length === 0 ? (
+              {(transcript?.controls ?? []).map(event => (
+                <ControlEvent key={event.entryId} event={event} zh={zh} />
+              ))}
+              {!chatLoading && (transcript?.bubbles.length ?? 0) === 0 ? (
                 <div className="tic-empty">{zh ? "暂无消息。" : "No messages."}</div>
               ) : null}
             </div>
             <p className="tic-boundary">
               {zh
-                ? "每条消息只读 canonical transcript；原始 ID 仅作后台 key。"
-                : "Bubbles read the canonical transcript only; raw ids stay background keys."}
+                ? "编号/名称/摘要来自 IM 后端选择器；气泡只读 canonical transcript 及其每消息来源，原始 ID 仅作后台 key。"
+                : "Numbers/names/summaries come from the IM backend selector; bubbles read the canonical transcript and its per-message origin, and raw ids stay background keys."}
             </p>
           </>
         ) : (

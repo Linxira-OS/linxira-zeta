@@ -7,6 +7,9 @@ state, rooms, events, tasks, leases, bootstrap runs, and doctor checks are real
 
 ## Entry
 
+Work Studio's **Team** navigation route opens this workspace page; its Graph tab
+is the existing `team.graph.get` view. There is no second Team page.
+
 - The pane lists every registered Team by id/name. Selecting one loads
   `team.read` and `team.doctor`; no Team root is guessed from the browser's cwd.
 - With no registered Team, the pane opens the onboarding form.
@@ -77,13 +80,29 @@ character, persona, or emotion node.
 
 ## IM chat
 
-The IM chat tab reads canonical `history.list`/`conversation.open` rows; it
-keeps no second transcript. It shows IM-origin sessions from the last three
-days, with a display number derived from the current list (`workspace` two
-digits, session five digits) — never a persisted short id. The session id is a
-background key, not a label. A latest completed-turn summary comes from the
-provenance read model; until it exists the row says "no summary" or "in
-progress" instead of borrowing the first user message.
+The IM chat tab reads the IM backend selector's candidate rows
+(`GET /api/im/sessions`) while the tab is open; that selector is the single
+authority for the stable `NN-NNNNN` number, the display name, and the latest
+completed-task summary (so `!session list` and this tab cannot drift). The pane
+does not re-derive a number from last activity, renumber after the three-day
+window changes, scan transcripts per render, or show a raw session id. A
+missing latest completed-task summary stays empty (an incomplete candidate
+may say "in progress"); the first user message is never substituted. PM
+candidates are hidden from the ordinary list by the selector; an explicit PM
+binding stays a valid target because the pane renders whatever the backend
+sent, including the `isPm` flag, and never filters by its own rule.
+
+The selector already limits the list to the last three days. An empty list
+says so and points earlier chats to desktop or remote Studio history; there is
+no in-pane paging into older sessions.
+
+Selecting a candidate reads its canonical persisted transcript
+(`GET /api/sessions/:id`). Bubbles render the IM ingress's immutable
+per-message route snapshot from `messageMetadata` (workspace, agent, binding),
+so a reply that arrives after a `!workspace` switch still names the repo/agent
+it was delivered to; messages without metadata render without an origin label.
+`controlEvents` render the `switch_request` / `switch_confirm` / `switch_cancel`
+handshakes recorded in the transcript. No second transcript store exists.
 
 Binding confirmation is supplied by the IM integration. The tab displays the
 current and pending target and the owner's control record; a real switch needs
@@ -91,6 +110,12 @@ a second confirmation, and cancel is separate. Before confirmation ordinary
 messages still go to the old target; after it they go direct to the new target.
 Context is not moved. This pane does not add a second approval system, copy a
 transcript, or decide private/group capability — the IM owner does.
+
+Integration dependency: the candidate route and the per-message
+`messageMetadata`/`controlEvents` transcript fields are owned by the IM
+integration. Until they are merged, the Team tab reports the selector as not
+connected and never falls back to a locally derived number. The candidate row
+shape currently has no `channel`; when the selector adds it, the pane shows it.
 
 ## Boundary
 

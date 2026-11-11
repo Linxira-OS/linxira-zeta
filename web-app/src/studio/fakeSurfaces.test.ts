@@ -12,21 +12,13 @@ import { join } from "node:path";
 
 const HERE = import.meta.dir;
 const APP = readFileSync(join(HERE, "App.tsx"), "utf8");
-const HOME = readFileSync(join(HERE, "HomePage.tsx"), "utf8");
 const PREVIEW_CONTEXT = readFileSync(join(HERE, "preview", "PreviewContext.tsx"), "utf8");
 const EN = readFileSync(join(HERE, "i18n", "locales", "en.ts"), "utf8");
 const ZH = readFileSync(join(HERE, "i18n", "locales", "zh.ts"), "utf8");
 
 describe("removed prototype surfaces", () => {
-	test("Team route, page and menu entries are gone", () => {
-		expect(existsSync(join(HERE, "team", "TeamPage.tsx"))).toBe(false);
-		expect(existsSync(join(HERE, "team", "team.css"))).toBe(false);
-		expect(APP.includes("TeamPage")).toBe(false);
-		expect(APP.includes("setTeamIntent")).toBe(false);
-		expect(APP.includes('"team"')).toBe(false);
-		expect(HOME.includes("nav.team")).toBe(false);
-		expect(EN.includes('"team": "Team"')).toBe(false);
-		expect(ZH.includes('"team": "团队"')).toBe(false);
+	test("the static prototype Team directory is gone", () => {
+		expect(existsSync(join(HERE, "team"))).toBe(false);
 	});
 
 	test("the mock messaging adapter block is gone", () => {

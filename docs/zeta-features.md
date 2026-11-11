@@ -183,8 +183,8 @@ Secretary subagent, and no coding tools. Work Studio adds the Team pane:
 dry-run bootstrap/apply/resume/rollback, doctor, PM/repo/engineer setup, the
 task queue with leases and review, room member/kind management, incremental
 room events with subscription/ack cursors, and the real relationship graph. Its
-IM chat tab reads canonical session history/transcripts for recent IM-origin
-chats; it keeps no second transcript. See
+IM chat tab consumes the IM backend selector candidates and the canonical
+gateway transcript; it keeps no second transcript or local numbering. See
 [team.md](./team.md) and [team-studio.md](./team-studio.md). Board rows, channel
 bindings, and Vibe auto-start are not included.
 

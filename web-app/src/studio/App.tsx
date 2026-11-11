@@ -87,7 +87,7 @@ import { WindowControls } from "./windowControls";
 import { HomePage, ProfileEditDialog, SecondaryPage } from "./HomePage";
 import { HistoryPage } from "./HistoryPage";
 import { AgentHubPage, setHubIntent } from "./AgentHub";
-import { TeamPage } from "./TeamPage";
+import { TeamWorkspacePage } from "./TeamWorkspacePage";
 import { RoomsPage } from "./RoomsPage";
 import { CapabilitiesPage, setCapIntent, type CapTab } from "./CapabilitiesPage";
 import { ModelConfigPage, modelConfigHasUnsavedChanges, setModelConfigIntent } from "./ModelConfigPage";
@@ -9142,7 +9142,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               onOpenMain={() => go("workbench")}
             />
           ) : pageRoute === "team" ? (
-            <TeamPage client={client} />
+            <TeamWorkspacePage client={client} />
           ) : pageRoute === "rooms" ? (
             <RoomsPage client={client} />
           ) : pageRoute === "media" ? (
