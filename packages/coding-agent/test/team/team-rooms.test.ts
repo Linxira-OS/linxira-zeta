@@ -347,10 +347,44 @@ describe("team rooms", () => {
 		const version = verify.query<{ user_version: number }, []>("PRAGMA user_version").get();
 		const agentsTable = verify.query("SELECT name FROM sqlite_master WHERE name = 'agents'").get();
 		const agentSkillsTable = verify.query("SELECT name FROM sqlite_master WHERE name = 'agent_skills'").get();
+		const tasksTable = verify.query("SELECT name FROM sqlite_master WHERE name = 'tasks'").get();
+		const taskEventsTable = verify.query("SELECT name FROM sqlite_master WHERE name = 'task_events'").get();
 		verify.close();
-		expect(version?.user_version).toBe(4);
+		expect(version?.user_version).toBe(5);
 		expect(agentsTable).not.toBeNull();
 		expect(agentSkillsTable).not.toBeNull();
+		expect(tasksTable).not.toBeNull();
+		expect(taskEventsTable).not.toBeNull();
+	}, 30_000);
+
+	test("doctor accepts a registered Secretary as a PM-room member", async () => {
+		const db = new TeamDb(dbPath);
+		try {
+			db.insertAgent({
+				id: "secretary-acme-core",
+				teamId: "acme",
+				pmId: "acme:core",
+				role: "secretary",
+				persistence: "persistent",
+				parentAgentId: "acme:core",
+				sessionId: null,
+				sessionFile: null,
+				state: "idle",
+				createdAt: 1,
+				updatedAt: 1,
+			});
+		} finally {
+			db.close();
+		}
+
+		const created = await createRoom({ name: "secretary-room", pm: "core", teamRoot, dbPath });
+		expect(created.members.map(member => member.agentId)).toContain("secretary-acme-core");
+
+		const report = await diagnoseTeam({ teamRoot, dbPath });
+		const member = report.checks.find(check => check.id === "room.member:secretary-room/secretary-acme-core");
+		expect(member).toMatchObject({ ok: true, detail: 'role "secretary"' });
+		expect(report.checks.some(check => check.id.startsWith("room.member:") && !check.ok)).toBe(false);
+		expect(report.ok).toBe(true);
 	}, 30_000);
 
 	test("CLI creates, lists, posts, and shows a room", () => {
