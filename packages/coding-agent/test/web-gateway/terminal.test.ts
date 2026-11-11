@@ -889,7 +889,7 @@ describe("terminal WS upgrade gate", () => {
 					terminalWebSocketHandler.message?.(ws, message);
 				},
 				close(ws) {
-					terminalWebSocketHandler.close?.(ws);
+					terminalWebSocketHandler.close?.(ws, 1000, "test");
 				},
 			},
 		});

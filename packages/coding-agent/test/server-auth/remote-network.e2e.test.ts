@@ -62,7 +62,7 @@ function operations(): StudioOperations {
 }
 
 /** A real server over one host, mirroring `zeta serve`'s dispatch. */
-function serveHost(host: StudioHost): { server: Server; base: string } {
+function serveHost(host: StudioHost): { server: Server<{ kind: "studio"; sessionId: string }>; base: string } {
 	const started = Bun.serve<{ kind: "studio"; sessionId: string }>({
 		port: 0,
 		async fetch(req, srv) {

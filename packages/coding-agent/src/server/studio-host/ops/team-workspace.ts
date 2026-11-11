@@ -309,9 +309,20 @@ function bootstrapInput(input: TeamBootstrapInput): BootstrapInput {
 		root: path.resolve(root),
 		...(input.displayName ? { displayName: input.displayName } : {}),
 		pms: [...(input.pms ?? [])],
-		repos: [...(input.repos ?? [])],
-		engineers: [...(input.engineers ?? [])],
-		rooms: [...(input.rooms ?? [])],
+		repos: (input.repos ?? []).map(repo => ({
+			name: repo.name,
+			...(repo.clone === undefined ? {} : { clone: repo.clone }),
+			...(repo.link === undefined ? {} : { link: repo.link }),
+			...(repo.bindPms === undefined ? {} : { bindPms: [...repo.bindPms] }),
+		})),
+		engineers: (input.engineers ?? []).map(engineer => ({ ...engineer })),
+		rooms: (input.rooms ?? []).map(room => ({
+			name: room.name,
+			...(room.kind === undefined ? {} : { kind: room.kind }),
+			...(room.pm === undefined ? {} : { pm: room.pm }),
+			...(room.shared === undefined ? {} : { shared: room.shared }),
+			...(room.members === undefined ? {} : { members: [...room.members] }),
+		})),
 		...(input.engineerOnly ? { engineerOnly: true } : {}),
 	};
 }

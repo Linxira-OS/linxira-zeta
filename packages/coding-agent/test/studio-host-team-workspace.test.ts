@@ -343,7 +343,7 @@ describe("Studio Team workspace", () => {
 	test("bootstrap rollback compensates only this run", async () => {
 		const rolled = (await runCommand("team.bootstrap.rollback", { runId: bootstrapRunId })) as {
 			run: { status: string };
-			errors: string[];
+			errors: readonly string[];
 		};
 		expect(rolled.run.status).toBe("compensated");
 		expect(rolled.errors).toEqual([]);

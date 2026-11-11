@@ -177,6 +177,7 @@ describe("served IM provenance", () => {
 			attachments: [{ name: "note.txt", mimeType: "text/plain", size: 3 }],
 			route: { workspaceAlias: "main", agentId: "mainp" },
 		});
+		if (!("content" in userRow.message)) throw new Error("user row has no content");
 		expect(userRow.message.content).toEqual([{ type: "text", text: "hello" }]);
 		expect(deliveries[0]?.metadata?.messageId).toBe("platform-42");
 		const initialRoute = metadata?.route;
