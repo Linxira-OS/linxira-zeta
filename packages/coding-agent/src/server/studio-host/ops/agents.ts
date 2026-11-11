@@ -1,7 +1,7 @@
 /**
  * Studio operations — the task-agent definition inventory.
  *
- * Owned operations: `agents.definitions.get`.
+ * Owned operations: `agents.definitions.get`, `agents.definition.configure`.
  *
  * A handler takes the contract input and returns the contract result; it
  * reaches Zeta state only through `../gateway.js` (`gatewayJson`, `unavailable`)
@@ -17,12 +17,12 @@
  *   loaded Agent Hub.
  * - the `task.*` overlay fields (`disabled`, `overrideModel`, `prewalkOverride`,
  *   `advisorOverride`) → `GET /api/settings/values`, which reports registered
- *   settings even when the settings panel hides them.
+ *   settings even when the settings panel hides them; `configure` writes those
+ *   same paths through `PUT /api/settings` after validating the discovered name.
  *
- * `editable` / `canDelete` / `canFork` are `false` for every row: this host
- * advertises no `agents.definition.*` write, so offering the Renderer an edit
- * affordance would promise a mutation the host cannot perform. Populate them
- * together with those handlers, not before.
+ * `editable` / `canDelete` / `canFork` are still `false` for every row: this
+ * host writes per-agent overlays only, not definition files. The per-agent model
+ * dropdown is an overlay selection, so it does not require definition CRUD.
  *
  * No path leaves this module: `AgentDefinition.filePath` is used only to decide
  * whether a definition is file-backed, and warnings keep only path-free text.
@@ -295,12 +295,12 @@ async function configureAgent(input: CommandInput<"agents.definition.configure">
 
 	if (has("disabled")) {
 		if (typeof input.disabled !== "boolean") throw invalid("disabled must be a boolean");
-		const next = new Set(disabled);
-		if (input.disabled) next.add(name);
-		else next.delete(name);
-		const list = [...next].sort((left, right) => left.localeCompare(right));
-		if (list.length !== disabled.length || list.some((entry, index) => entry !== disabled[index])) {
-			await putSetting("task.disabledAgents", list);
+		const wasDisabled = disabled.includes(name);
+		if (wasDisabled !== input.disabled) {
+			const next = new Set(disabled);
+			if (input.disabled) next.add(name);
+			else next.delete(name);
+			await putSetting("task.disabledAgents", [...next].sort((left, right) => left.localeCompare(right)));
 			wrote = true;
 		}
 	}
