@@ -573,6 +573,8 @@ interface CoreCommandInputMap {
   "models.providerOrder.set": { readonly order: ReadonlyArray<string> };
   /** Enable/disable a provider via `disabledProviders` only. */
   "models.provider.setEnabled": ModelProviderSetEnabledInput;
+  /** Persist the hiddenModels selector list (pickers/selectors only; catalog and config untouched). */
+  "models.hidden.set": { readonly selectors: ReadonlyArray<string> };
   /** Replace models.yml from the source editor. Redacted apiKey values keep the previous secret. */
   "models.yml.write": {
     readonly text: string;
@@ -715,6 +717,7 @@ interface CoreCommandResultMap {
   "models.provider.upsert": ConfigWriteResult;
   "models.provider.delete": ConfigWriteResult;
   "models.provider.setEnabled": ConfigWriteResult;
+  "models.hidden.set": ConfigWriteResult;
   "models.roles.set": ConfigWriteResult;
   "models.roles.write": ConfigWriteResult;
   "models.roles.create": ConfigWriteResult;

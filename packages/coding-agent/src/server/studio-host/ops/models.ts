@@ -18,6 +18,8 @@
  *   `retry.fallbackRevertPolicy`.
  * - `models.provider.setEnabled` → `GET /api/settings/values` (current
  *   `disabledProviders`) + `PUT /api/settings` with the whole array.
+ * - `models.hidden.set` → `PUT /api/settings` (`hiddenModels`); pickers hide
+ *   those selectors while the catalog and role resolution keep them.
  * - `models.providerOrder.set` / `models.cycleOrder.set` → `PUT /api/settings`
  *   for `modelProviderOrder` / `cycleOrder` (the input carries the whole list).
  * - `models.yml.write` → `GET /api/models-config` (current secrets + staleness
@@ -55,15 +57,26 @@ import { createHash } from "node:crypto";
 import { YAML } from "bun";
 import { isRecord } from "@linxiraos/pi-utils";
 import type {
+	AvailableModelRecord,
 	CommandInput,
 	ConfigWriteResult,
+	ModelCatalogEntry,
+	ModelConfigReadModel,
 	ModelDiscoveryModel,
 	ModelDiscoveryResult,
+	ModelProviderRecord,
 	ModelProviderTestResult,
 	ModelProviderUpsertInput,
+	ModelRoleRecord,
 	ProviderYamlDraft,
+	WebSearchConfigReadModel,
 } from "../contract/index.js";
-import { draftProviderYamlNode, isModelEnvConfigName, providerModelYamlNode } from "../contract/index.js";
+import {
+	draftProviderYamlNode,
+	isModelEnvConfigName,
+	parseModelKind,
+	providerModelYamlNode,
+} from "../contract/index.js";
 import {
 	type GatewayReply,
 	StudioOpError,
@@ -76,6 +89,7 @@ import {
 	unavailable,
 } from "../gateway.js";
 import type { StudioFamily } from "../registry.js";
+import { MODEL_ROLE_IDS, MODEL_ROLES } from "../../../config/model-roles.js";
 
 const MODELS_CONFIG_ROUTE = "/api/models-config";
 const MODELS_CONFIG_TEST_ROUTE = "/api/models-config/test";
@@ -1002,6 +1016,38 @@ async function setProviderEnabled(input: CommandInput<"models.provider.setEnable
 	return { applied: true, runtimeEffect: "immediate", message: `Provider ${id} ${state}.` };
 }
 
+/**
+ * `models.hidden.set` handler → `PUT /api/settings` (`hiddenModels`).
+ *
+ * Replaces the whole selector list. Hidden models are filtered from pickers
+ * and selectors only: the catalog, `modelRoles`, and `retry.fallbackChains`
+ * keep resolving them, so a hidden model stays assignable and remains visible
+ * in the model-config page.
+ */
+async function setHiddenModels(input: CommandInput<"models.hidden.set">): Promise<ConfigWriteResult> {
+	if (!Array.isArray(input.selectors)) throw invalid("selectors must be an array");
+	const selectors: string[] = [];
+	const seen = new Set<string>();
+	for (const entry of input.selectors) {
+		if (typeof entry !== "string" || entry.trim() === "") {
+			throw invalid("selectors must contain non-empty strings");
+		}
+		const selector = entry.trim();
+		if (seen.has(selector)) continue;
+		seen.add(selector);
+		selectors.push(selector);
+	}
+	await putSetting("hiddenModels", selectors);
+	return {
+		applied: true,
+		runtimeEffect: "immediate",
+		message:
+			selectors.length === 0
+				? "All models are visible in pickers."
+				: `${selectors.length} hidden model selectors written.`,
+	};
+}
+
 /** `models.providerOrder.set` handler → `PUT /api/settings` (`modelProviderOrder`). */
 async function setProviderOrder(input: CommandInput<"models.providerOrder.set">): Promise<ConfigWriteResult> {
 	const order = precedenceOrder(input.order, "order");
@@ -1020,16 +1066,335 @@ async function setCycleOrder(input: CommandInput<"models.cycleOrder.set">): Prom
 	return { applied: true, runtimeEffect: "new-session", message: `${order.length} rotation roles written.` };
 }
 
+// ---------------------------------------------------------------------------
+// `models.get` — the model-config page read model
+// ---------------------------------------------------------------------------
+
+/** Built-in role metadata indexed by the contract's string role ids. */
+const BUILTIN_ROLE_INFO: Readonly<Record<string, { readonly name: string }>> = MODEL_ROLES;
+
+/** Thinking suffixes accepted on a role's primary selector. */
+const ROLE_THINKING_SUFFIXES: Record<string, true> = {
+	off: true,
+	minimal: true,
+	low: true,
+	medium: true,
+	high: true,
+	xhigh: true,
+	max: true,
+	auto: true,
+	inherit: true,
+};
+
+/** Split a configured role value into its primary selector and thinking suffix. */
+function splitRoleValue(value: string): { primary: string; thinking?: string } {
+	const trimmed = value.trim();
+	const colon = trimmed.lastIndexOf(":");
+	if (colon <= 0) return { primary: trimmed };
+	const suffix = trimmed.slice(colon + 1);
+	if (ROLE_THINKING_SUFFIXES[suffix] !== true) return { primary: trimmed };
+	return { primary: trimmed.slice(0, colon), thinking: suffix };
+}
+
+/** String array from an untrusted setting or gateway field. */
+function stringList(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	return value.filter((entry): entry is string => typeof entry === "string" && entry.trim() !== "");
+}
+
+/** Finite number from an untrusted setting or gateway field. */
+function numberValue(value: unknown): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/** Untrusted `retry.fallbackChains` mapping with malformed rows dropped. */
+function fallbackChainsValue(value: unknown): Record<string, string[]> {
+	if (!isRecord(value)) return {};
+	const chains: Record<string, string[]> = {};
+	for (const [key, chain] of Object.entries(value)) {
+		if (!Array.isArray(chain)) continue;
+		chains[key] = stringList(chain);
+	}
+	return chains;
+}
+
+/** One `/api/models` row as the gateway's ModelsData emits it. */
+interface GatewayModelRow {
+	readonly provider: string;
+	readonly id: string;
+	readonly name: string;
+	readonly contextWindow?: number;
+	readonly maxTokens?: number;
+	readonly kind?: string;
+	readonly reasoning?: boolean;
+	readonly image?: boolean;
+	readonly tools?: boolean;
+	readonly api?: string;
+	readonly webSearch?: string;
+	readonly thinking?: string[];
+}
+
+function readGatewayModels(body: unknown): GatewayModelRow[] {
+	if (!isRecord(body) || !Array.isArray(body.modelList)) return [];
+	const rows: GatewayModelRow[] = [];
+	const seen = new Set<string>();
+	for (const entry of body.modelList) {
+		if (!isRecord(entry)) continue;
+		const provider = stringField(entry, "provider");
+		const id = stringField(entry, "id");
+		if (!provider || !id) continue;
+		const selector = `${provider}/${id}`;
+		if (seen.has(selector)) continue;
+		seen.add(selector);
+		rows.push({
+			provider,
+			id,
+			name: stringField(entry, "name") ?? id,
+			...(numberField(entry, "contextWindow") === undefined
+				? {}
+				: { contextWindow: numberField(entry, "contextWindow") }),
+			...(numberField(entry, "maxTokens") === undefined ? {} : { maxTokens: numberField(entry, "maxTokens") }),
+			...(stringField(entry, "kind") === undefined ? {} : { kind: stringField(entry, "kind") }),
+			...(typeof entry.reasoning === "boolean" ? { reasoning: entry.reasoning } : {}),
+			...(typeof entry.image === "boolean" ? { image: entry.image } : {}),
+			...(typeof entry.tools === "boolean" ? { tools: entry.tools } : {}),
+			...(stringField(entry, "api") === undefined ? {} : { api: stringField(entry, "api") }),
+			...(stringField(entry, "webSearch") === undefined ? {} : { webSearch: stringField(entry, "webSearch") }),
+			...(Array.isArray(entry.thinking) ? { thinking: stringList(entry.thinking) } : {}),
+		});
+	}
+	return rows;
+}
+
+function availableModel(row: GatewayModelRow): AvailableModelRecord {
+	const kind = parseModelKind(row.kind);
+	return {
+		provider: row.provider,
+		id: row.id,
+		selector: `${row.provider}/${row.id}`,
+		name: row.name,
+		reasoning: row.reasoning === true,
+		...(kind === undefined ? {} : { kind }),
+		...(row.image === undefined ? {} : { image: row.image }),
+		...(row.tools === undefined ? {} : { tools: row.tools }),
+		...(row.contextWindow === undefined ? {} : { contextWindow: row.contextWindow }),
+		...(row.maxTokens === undefined ? {} : { maxTokens: row.maxTokens }),
+		...(row.api === undefined ? {} : { api: row.api }),
+		...(row.webSearch === undefined ? {} : { webSearch: row.webSearch }),
+		...(row.thinking === undefined || row.thinking.length === 0 ? {} : { thinking: row.thinking }),
+	};
+}
+
+function catalogEntry(row: GatewayModelRow): ModelCatalogEntry {
+	return {
+		...availableModel(row),
+		image: row.image === true,
+		tools: row.tools !== false,
+		status: "available",
+		source: "catalog",
+	};
+}
+
+/** Redact credential values before a provider document reaches the Renderer. */
+function redactedProviderNode(node: Readonly<Record<string, unknown>>): Record<string, unknown> {
+	const copy: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(node)) {
+		if (key === "origin") continue;
+		if (key === "apiKey" && typeof value === "string" && value !== "") {
+			copy[key] = "********";
+			continue;
+		}
+		copy[key] = value;
+	}
+	return copy;
+}
+
+/** One provider row from the merged models document and its available models. */
+function providerRecord(
+	id: string,
+	node: Readonly<Record<string, unknown>> | undefined,
+	models: readonly GatewayModelRow[],
+	disabledProviders: readonly string[],
+): ModelProviderRecord {
+	const apiKey = node ? stringField(node, "apiKey") : undefined;
+	const envName = apiKey && isModelEnvConfigName(apiKey) ? apiKey : undefined;
+	const disabled = disabledProviders.includes(id);
+	const status: ModelProviderRecord["status"] =
+		models.length > 0 ? "available" : disabled ? "disabled" : "not-authenticated";
+	return {
+		id,
+		name: (node && stringField(node, "name")) ?? id,
+		source: node ? "custom" : "runtime",
+		status,
+		statusDetail: "",
+		api: (node && stringField(node, "api")) ?? "openai-completions",
+		...(node && (stringField(node, "baseUrl") ?? stringField(node, "endpoint"))
+			? { endpointUrl: stringField(node, "baseUrl") ?? stringField(node, "endpoint") }
+			: {}),
+		local: node?.local === true,
+		enabled: !disabled,
+		auth: apiKey
+			? { type: envName ? "env" : "api-key", hasSecret: true, ...(envName ? { envName } : {}) }
+			: { type: "none", hasSecret: false },
+		models: models.map(catalogEntry),
+	};
+}
+
+/** Build `models.get` from the gateway's model listing, filter limits, and settings. */
+async function getModelConfig(): Promise<ModelConfigReadModel> {
+	const settings = await readSettingValues([
+		"modelRoles",
+		"modelTags",
+		"cycleOrder",
+		"modelProviderOrder",
+		"retry.fallbackChains",
+		"retry.fallbackRevertPolicy",
+		"modelRoleStorage",
+		"hiddenModels",
+		"disabledProviders",
+		"web_search.enabled",
+		"providers.webSearchOrder",
+		"providers.webSearchExclude",
+		"providers.webSearchTimeoutSeconds",
+		"providers.webSearchGeminiModel",
+		"searxng.endpoint",
+		"searxng.basicUsername",
+		"searxng.categories",
+		"searxng.engines",
+		"searxng.language",
+		"searxng.safesearch",
+		"exa.enabled",
+		"exa.searchDelayMs",
+	]);
+	const [modelBody, configBody] = await Promise.all([
+		gatewayJson<unknown>(MODELS_ROUTE),
+		gatewayJson<unknown>(MODELS_CONFIG_ROUTE),
+	]);
+	const modelRows = readGatewayModels(modelBody);
+	const configuredProviders = isRecord(configBody) && isRecord(configBody.providers) ? configBody.providers : {};
+	const disabledProviders = stringList(settings.disabledProviders);
+
+	const providerIds = new Set<string>([...Object.keys(configuredProviders), ...modelRows.map(row => row.provider)]);
+	const providers = [...providerIds].sort().map(id => {
+		const node = isRecord(configuredProviders[id]) ? configuredProviders[id] : undefined;
+		return providerRecord(
+			id,
+			node,
+			modelRows.filter(row => row.provider === id),
+			disabledProviders,
+		);
+	});
+
+	const configuredRoles = isRecord(settings.modelRoles) ? settings.modelRoles : {};
+	const configuredTags = isRecord(settings.modelTags) ? settings.modelTags : {};
+	const storage = settings.modelRoleStorage === "project" ? "project" : "global";
+	const roleIds = new Set<string>([
+		...MODEL_ROLE_IDS,
+		...Object.keys(configuredRoles),
+		...Object.keys(configuredTags),
+		...stringList(settings.cycleOrder),
+	]);
+	const roles: ModelRoleRecord[] = [...roleIds].map(id => {
+		const raw = typeof configuredRoles[id] === "string" ? configuredRoles[id] : "";
+		const { primary, thinking } = splitRoleValue(raw);
+		const tag = isRecord(configuredTags[id]) ? configuredTags[id] : undefined;
+		const builtin = MODEL_ROLE_IDS.some(role => role === id);
+		return {
+			id,
+			alias: `@${id}`,
+			name: (tag && stringField(tag, "name")) ?? BUILTIN_ROLE_INFO[id]?.name ?? id,
+			desc: "",
+			builtin,
+			primary,
+			...(thinking === undefined ? {} : { thinking }),
+			scope: storage,
+		};
+	});
+
+	const webSearchEnabled = settings["web_search.enabled"] === true;
+	const searxng: {
+		endpoint?: string;
+		basicUsername?: string;
+		categories?: string;
+		engines?: string;
+		language?: string;
+		safesearch?: number;
+	} = {};
+	const endpoint = settings["searxng.endpoint"];
+	if (typeof endpoint === "string" && endpoint !== "") searxng.endpoint = endpoint;
+	const basicUsername = settings["searxng.basicUsername"];
+	if (typeof basicUsername === "string" && basicUsername !== "") searxng.basicUsername = basicUsername;
+	const categories = settings["searxng.categories"];
+	if (typeof categories === "string" && categories !== "") searxng.categories = categories;
+	const engines = settings["searxng.engines"];
+	if (typeof engines === "string" && engines !== "") searxng.engines = engines;
+	const language = settings["searxng.language"];
+	if (typeof language === "string" && language !== "") searxng.language = language;
+	const safeSearch = numberValue(settings["searxng.safesearch"]);
+	if (safeSearch !== undefined) searxng.safesearch = safeSearch;
+	const exa: { enabled?: boolean; searchDelayMs?: number } = {};
+	const exaEnabled = settings["exa.enabled"];
+	if (typeof exaEnabled === "boolean") exa.enabled = exaEnabled;
+	const exaDelay = numberValue(settings["exa.searchDelayMs"]);
+	if (exaDelay !== undefined) exa.searchDelayMs = exaDelay;
+	const webSearch: WebSearchConfigReadModel = {
+		enabled: webSearchEnabled,
+		order: stringList(settings["providers.webSearchOrder"]),
+		exclude: stringList(settings["providers.webSearchExclude"]),
+		timeoutSeconds: numberValue(settings["providers.webSearchTimeoutSeconds"]) ?? 60,
+		geminiModel:
+			typeof settings["providers.webSearchGeminiModel"] === "string"
+				? settings["providers.webSearchGeminiModel"]
+				: "",
+		providers: [],
+		advanced: {
+			...(Object.keys(searxng).length > 0 ? { searxng } : {}),
+			...(Object.keys(exa).length > 0 ? { exa } : {}),
+		},
+	};
+
+	const providersYaml: Record<string, unknown> = {};
+	for (const [id, node] of Object.entries(configuredProviders)) {
+		if (isRecord(node)) providersYaml[id] = redactedProviderNode(node);
+	}
+
+	return {
+		providers,
+		presets: [],
+		roles,
+		cycleOrder: stringList(settings.cycleOrder),
+		availableModels: modelRows.map(availableModel),
+		hiddenModels: stringList(settings.hiddenModels),
+		loginProviders: [],
+		generatedModelsYml: YAML.stringify({ providers: providersYaml }),
+		generatedConfigYml: YAML.stringify({ modelRoles: configuredRoles }),
+		runtimeEffectHint:
+			"Model role changes apply to new sessions; visibility and provider switches apply immediately.",
+		loginAvailable: false,
+		ompAvailable: true,
+		modelRoleStorage: storage,
+		projectScopeAvailable: true,
+		modelProviderOrder: stringList(settings.modelProviderOrder),
+		fallbackChains: fallbackChainsValue(settings["retry.fallbackChains"]),
+		fallbackRevertPolicy: settings["retry.fallbackRevertPolicy"] === "never" ? "never" : "cooldown-expiry",
+		webSearch,
+	};
+}
+
 /**
  * Models family: provider file and YAML writes, connectivity tests, roles,
  * fallback chains, provider enablement and precedence order, logout.
  */
 export const modelsOps: StudioFamily = {
 	id: "models",
+	queries: {
+		"models.get": getModelConfig,
+	},
 	commands: {
 		"models.provider.upsert": upsertProvider,
 		"models.provider.delete": deleteProvider,
 		"models.provider.setEnabled": setProviderEnabled,
+		"models.hidden.set": setHiddenModels,
 		"models.provider.test": testProvider,
 		"models.provider.probe": probeProvider,
 		"models.providerOrder.set": setProviderOrder,

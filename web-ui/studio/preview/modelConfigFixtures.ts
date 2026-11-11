@@ -258,6 +258,7 @@ export function createPreviewModelConfig(): ModelConfigReadModel {
       "anthropic/claude-sonnet-4.5": ["openai/gpt-5.2", "openai/gpt-5-mini"],
     },
     fallbackRevertPolicy: "cooldown-expiry",
+    hiddenModels: [],
     webSearch: {
       routing: { primary: "web/perplexity", fallbacks: ["web/exa", "google/gemini-2.5-flash"], defaultCandidates: ["web/parallel", "web/perplexity", "google/gemini-2.5-flash"], migratedLegacy: false },
       enabled: true,

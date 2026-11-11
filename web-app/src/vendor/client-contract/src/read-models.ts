@@ -962,6 +962,8 @@ export interface ModelConfigReadModel {
   readonly roles: ReadonlyArray<ModelRoleRecord>;
   readonly cycleOrder: ReadonlyArray<string>;
   readonly availableModels: ReadonlyArray<AvailableModelRecord>;
+  /** Selectors excluded from model pickers/selectors only (never deleted). */
+  readonly hiddenModels: ReadonlyArray<string>;
   readonly loginProviders: ReadonlyArray<ModelLoginProviderRecord>;
   readonly generatedModelsYml: string;
   readonly generatedConfigYml: string;
