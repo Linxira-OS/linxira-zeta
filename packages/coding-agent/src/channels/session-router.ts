@@ -20,7 +20,7 @@
  * stays unavailable (isToolAllowed rejects it).
  */
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { type ChannelInstanceId, ReplyCorrelator } from "@linxiraos/pi-channels";
@@ -43,6 +43,7 @@ import type { AgentSessionEvent } from "../session/agent-session-events";
 import { SessionManager } from "../session/session-manager";
 import { isImSession, sameSessionOrigin, type SessionOrigin } from "../session/session-origin";
 import type { ImControlParams, ImControlResult } from "./im-control";
+import { targetKey } from "./im-config";
 import { type AgentProfileOptions, loadImAgentProfilePersona, resolveImAgentProfileRuntime } from "../agent-profile";
 
 /** Upper bound for a delegated `workspace_run` turn (no reply → timeout error). */
@@ -612,15 +613,43 @@ export class SessionRouter {
 		binding: import("./im-config").ImBinding,
 	): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
 		if (binding.sessionId === "relay") return { ok: true, id: "relay" };
-		const existing = this.#webConfig.getBotSession(binding.sessionId);
-		if (existing) return { ok: true, id: existing.id };
 		const resolved = await this.resolveImTargetCwd(binding.target);
 		if (!resolved.ok) return resolved;
+		// One deterministic transcript per binding+target: switching away and
+		// back resumes the same conversation, while a different workspace never
+		// inherits another target's history or memory.
+		const current = this.#webConfig.getBotSession(binding.sessionId);
+		if (current && current.cwd === resolved.cwd) return { ok: true, id: current.id };
+		const targetSessionId = `im-${binding.id.slice(2, 18)}-${createHash("sha1")
+			.update(targetKey(binding.target))
+			.digest("hex")
+			.slice(0, 8)}`;
+		const existing = this.#webConfig.getBotSession(targetSessionId);
+		if (existing) {
+			if (binding.sessionId !== targetSessionId) {
+				await this.#webConfig.patchImBinding(
+					binding.instanceId,
+					binding.chatId,
+					{ sessionId: targetSessionId },
+					{ ...(binding.threadId ? { threadId: binding.threadId } : {}), ...(binding.userId ? { userId: binding.userId } : {}) },
+				);
+			}
+			return { ok: true, id: existing.id };
+		}
+		if (binding.sessionId !== targetSessionId) {
+			await this.#webConfig.patchImBinding(
+				binding.instanceId,
+				binding.chatId,
+				{ sessionId: targetSessionId },
+				{ ...(binding.threadId ? { threadId: binding.threadId } : {}), ...(binding.userId ? { userId: binding.userId } : {}) },
+			);
+			binding = { ...binding, sessionId: targetSessionId };
+		}
 		const profile = this.#webConfig.getImAgent(binding.agentProfileId);
 		if (!profile) return { ok: false, error: `Unknown agent profile "${binding.agentProfileId}"` };
 		const safeName = `${profile.label}-${binding.id}`.replace(/[^\w\u4e00-\u9fff-]+/g, "-").slice(0, 60);
 		const entry: BotSessionEntry = {
-			id: binding.sessionId,
+			id: targetSessionId,
 			name: `${profile.label} · ${binding.chatId}`,
 			tag: "bot",
 			sessionFile: path.join(SessionManager.getDefaultSessionDir(resolved.cwd), `${safeName}.jsonl`),
