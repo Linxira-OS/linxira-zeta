@@ -212,7 +212,10 @@ export class SessionRouter {
 	/** Runtime per-chat agent override from `@agent use` / `@team` (highest precedence). */
 	readonly #agentBindings = new Map<string, string>();
 	/** Pending workspace switch, keyed by instance+chat+thread+user. */
-	readonly #pendingWorkspaceSwitch = new Map<string, { target: import("./im-config").ImTarget; at: number }>();
+	readonly #pendingWorkspaceSwitch = new Map<
+		string,
+		{ action: "target"; target: import("./im-config").ImTarget; at: number } | { action: "unbind"; at: number }
+	>();
 	/** Cross-process agent roster; defaults to the mesh node plus this process's registry. */
 	readonly #listAgentTargets?: () => Promise<AgentTargetInfo[]> | AgentTargetInfo[];
 	/** Team plugin seam: team name → the address of its host agent. */
@@ -698,7 +701,7 @@ export class SessionRouter {
 			return { current, next, same: true };
 		}
 		// One pending request per entry; a new request replaces the old one.
-		this.#pendingWorkspaceSwitch.set(key, { target, at: Date.now() });
+		this.#pendingWorkspaceSwitch.set(key, { action: "target", target, at: Date.now() });
 		return { current, next, same: false };
 	}
 
@@ -713,11 +716,26 @@ export class SessionRouter {
 		if (!pending) return { ok: false, error: "No pending workspace change for this chat/thread/user." };
 		this.#pendingWorkspaceSwitch.delete(key);
 		try {
+			if (pending.action === "unbind") {
+				await this.#webConfig.removeImBindingByChat(instanceId, peer);
+				return { ok: true, target: { kind: "workspace", workspace: COORDINATOR_ALIAS } };
+			}
 			await this.#webConfig.patchImBinding(instanceId, peer, { target: pending.target }, context);
+			return { ok: true, target: pending.target };
 		} catch (error) {
 			return { ok: false, error: error instanceof Error ? error.message : String(error) };
 		}
-		return { ok: true, target: pending.target };
+	}
+
+	/** Stage removal of this entry's binding (confirm-gated). */
+	requestWorkspaceUnbind(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string } = {},
+	): boolean {
+		const key = this.#workspaceSwitchKey(instanceId, peer, context);
+		this.#pendingWorkspaceSwitch.set(key, { action: "unbind", at: Date.now() });
+		return true;
 	}
 
 	cancelWorkspaceSwitch(

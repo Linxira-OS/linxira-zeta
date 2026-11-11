@@ -438,14 +438,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 				await deps.sendText("Usage: @workspace bind <alias>");
 				return true;
 			}
-			const result = await router.bindChat(deps.channelId as never, deps.peer, alias);
-			if (result.ok) {
-				await deps.sendText(
-					`This chat is now bound to [${alias}] (direct mode). Use @workspace relay to switch back.`,
-				);
-			} else {
-				await deps.sendText(result.error);
-			}
+			await switchToWorkspace(deps, alias);
 			return true;
 		}
 
@@ -454,11 +447,13 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 				await deps.sendText("No workspace router in this mode.");
 				return true;
 			}
-			const removed = await router.unbindChat(deps.channelId as never, deps.peer);
+			router.requestWorkspaceUnbind(
+				deps.channelId as never,
+				deps.peer,
+				{ ...(deps.threadId ? { threadId: deps.threadId } : {}), ...(deps.userId ? { userId: deps.userId } : {}) },
+			);
 			await deps.sendText(
-				removed
-					? "Binding removed; this chat now goes through the relay coordinator."
-					: "No binding for this chat.",
+				"Remove this chat's binding and return to the default target? Reply @workspace confirm or @workspace cancel.",
 			);
 			return true;
 		}

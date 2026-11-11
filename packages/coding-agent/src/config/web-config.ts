@@ -812,9 +812,11 @@ export class WebConfig {
 	}
 
 	async removeImBindingByChat(instanceId: string, chatId: string): Promise<boolean> {
-		const existing = this.findImBinding(instanceId, chatId);
-		if (!existing) return false;
-		return this.removeImBinding(existing.id);
+		const current = this.#data.remote.imBindings ?? [];
+		const next = current.filter(binding => !(binding.instanceId === instanceId && binding.chatId === chatId));
+		if (next.length === current.length) return false;
+		await this.setImBindings(next);
+		return true;
 	}
 
 	async removeImBinding(id: string): Promise<boolean> {
