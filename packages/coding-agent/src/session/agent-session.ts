@@ -208,6 +208,7 @@ import { type BashResult, releaseShellSessions } from "../exec/bash-executor";
 import type { TtsrManager } from "../export/ttsr";
 import type { CustomCommandsLoadResult, LoadedCustomCommand } from "../extensibility/custom-commands";
 import type { CustomTool } from "../extensibility/custom-tools/types";
+import type { AnalysisMcpRefreshInput } from "../mcp/analysis-precedence-hook";
 import { UNAVAILABLE_ANNOTATIONS } from "../extensibility/extensions";
 import { extensionEventFromSessionEvent } from "../extensibility/extensions/lifecycle-mirror";
 import { ManagedTimers } from "../extensibility/extensions/managed-timers";
@@ -8657,8 +8658,16 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	}
 
 	/** Replaces connected MCP tools and enables them immediately. */
-	refreshMCPTools(mcpTools: CustomTool[]): Promise<void> {
-		return this.#tools.refreshMCPTools(mcpTools);
+	refreshMCPTools(mcpTools: CustomTool[], analysis?: AnalysisMcpRefreshInput): Promise<void> {
+		return this.#tools.refreshMCPTools(mcpTools, analysis);
+	}
+
+	/**
+	 * Analysis-MCP precedence decisions from the last `refreshMCPTools` (REQ053).
+	 * `/mcp list` prints these instead of inferring shadowing from connection state.
+	 */
+	getAnalysisMcpShadowReasons(): Readonly<Record<string, string>> {
+		return this.#tools.getAnalysisMcpShadowReasons();
 	}
 
 	/**

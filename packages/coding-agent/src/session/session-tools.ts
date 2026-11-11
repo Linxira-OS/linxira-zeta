@@ -44,6 +44,7 @@ import type { MemoryBackendStartOptions, MemoryPromptPreparation } from "../memo
 import type { AgentDefinition } from "../task/types";
 import { discoverSystemPromptOverride } from "../system-prompt";
 import { createContextReloadService, type ContextReloadService } from "./context-reload";
+import { createAnalysisMcpPrecedenceHook, type AnalysisMcpRefreshInput } from "../mcp/analysis-precedence-hook";
 import evalPreludeNoticePrompt from "../prompts/system/eval-prelude-notice.md" with { type: "text" };
 import sessionAgentNoticePrompt from "../prompts/system/session-agent-notice.md" with { type: "text" };
 import skillNoticePrompt from "../prompts/system/skill-notice.md" with { type: "text" };
@@ -590,6 +591,8 @@ export class SessionTools {
 	#contextWatchPaths: readonly string[];
 	/** Resolved custom-prompt files (`SYSTEM.md`/`SYSTEM_TEMPLATE.md`, `APPEND_SYSTEM.md`, `PERSONALITY.md`). */
 	#promptSourcePaths: readonly string[] = [];
+	/** Last analysis-MCP precedence snapshot; `/mcp list` reads it, never recomputes. */
+	#analysisMcpShadowReasons: Readonly<Record<string, string>> = {};
 
 	constructor(host: SessionToolsHost, options: SessionToolsOptions) {
 		this.#host = host;
@@ -2973,15 +2976,20 @@ export class SessionTools {
 	 * (mounted under `xd://` when that transport is active, else top-level);
 	 * while vibe mode is active, activation waits for vibe exit.
 	 */
-	refreshMCPTools(mcpTools: CustomTool[]): Promise<void> {
+	refreshMCPTools(mcpTools: CustomTool[], analysis?: AnalysisMcpRefreshInput): Promise<void> {
 		const filter = this.#host.mcpToolFilter;
 		const snapshot = filter ? mcpTools.filter(filter) : [...mcpTools];
 		return this.runToolRegistryMutation(() =>
-			this.#host.isDisposed() ? Promise.resolve() : this.#applyMCPToolRefresh(snapshot),
+			this.#host.isDisposed() ? Promise.resolve() : this.#applyMCPToolRefresh(snapshot, analysis),
 		);
 	}
 
-	async #applyMCPToolRefresh(mcpTools: CustomTool[]): Promise<void> {
+	/** Last analysis-MCP precedence decisions (server -> reason), or `{}` when none ran. */
+	getAnalysisMcpShadowReasons(): Readonly<Record<string, string>> {
+		return this.#analysisMcpShadowReasons;
+	}
+
+	async #applyMCPToolRefresh(mcpTools: CustomTool[], analysis?: AnalysisMcpRefreshInput): Promise<void> {
 		const previousMcpTools = new Map<string, AgentTool>();
 		for (const [name, tool] of this.#toolRegistry) {
 			if (isMCPToolName(name)) previousMcpTools.set(name, tool);
@@ -2997,7 +3005,30 @@ export class SessionTools {
 		};
 
 		const extensionRunner = this.#host.extensionRunner();
-		const managerTools = deduplicateMCPToolsByName(mcpTools).map(customTool => {
+		// Analysis MCP precedence (REQ053): resolved once per refresh from the manager's
+		// own snapshot, after dedup and before anything is bound to the session. The hook
+		// is never cached, so a reconnect or `tools/list_changed` recomputes a denied or
+		// shadowed server instead of resurrecting an earlier decision.
+		const dedupedMcpTools = deduplicateMCPToolsByName(mcpTools);
+		const analysisHook = analysis ? createAnalysisMcpPrecedenceHook(analysis) : undefined;
+		if (analysisHook && analysis) {
+			this.#analysisMcpShadowReasons = analysisHook.shadowReasons;
+			// `ask` is a descriptor only: hand it to the host's existing approval path. No
+			// adapter means the server stays unmounted (it is already filtered out).
+			if (analysis.approve) {
+				for (const request of analysisHook.approvalRequests) {
+					// A refused or failed approval must not roll back the tool set: the
+					// server simply stays unmounted.
+					try {
+						await analysis.approve(request);
+					} catch (error) {
+						logger.debug("analysis-MCP approval request failed", { error: String(error) });
+					}
+				}
+			}
+		}
+		const acceptedMcpTools = analysisHook ? analysisHook.filterTools(dedupedMcpTools) : dedupedMcpTools;
+		const managerTools = acceptedMcpTools.map(customTool => {
 			const wrapped = wrapToolWithMetaNotice(
 				CustomToolAdapter.wrap(customTool, this.#getCustomToolContext) as AgentTool,
 			);
@@ -3023,9 +3054,13 @@ export class SessionTools {
 		const retainedActiveMcpToolNames = previousActiveMcpToolNames.filter(
 			name => (vibeActive || this.#extensionMcpTools.has(name)) && this.#toolRegistry.has(name),
 		);
+		// A same-capability native tool the MCP server won is kept in the registry but
+		// dropped from the active set; the next refresh re-derives this from the then-current
+		// snapshot, so disabling and re-enabling the native tool is never stale.
+		const suppressedNativeTools = new Set(analysisHook?.nativeToolsToSuppress ?? []);
 		const nextActive = [
 			...new Set([
-				...this.#getActiveNonMCPToolNames(),
+				...this.#getActiveNonMCPToolNames().filter(name => !suppressedNativeTools.has(name)),
 				...(vibeActive ? [] : this.#mcpManagerToolNames),
 				...retainedActiveMcpToolNames,
 			]),
