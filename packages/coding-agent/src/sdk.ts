@@ -347,6 +347,7 @@ import {
 } from "./job-widgets";
 import { createBrowserPrelude } from "./tools/browser";
 import { isBuiltinToolName, isMCPToolName, normalizeToolNames } from "./tools/builtin-names";
+import { isToolDisabledBySettings } from "./tools/tool-policy";
 import { createComputerPrelude } from "./tools/computer";
 import { createRatchetPrelude } from "./ratchet/prelude-definition";
 import { createArchivePrelude } from "./archive/prelude-definition";
@@ -898,6 +899,13 @@ export interface CreateAgentSessionOptions {
 	 * tool registration and MCP refreshes; no agent surface can widen it.
 	 */
 	agentProfile?: AgentProfileOptions;
+
+	/**
+	 * Host hook after this session is registered and marked running. The
+	 * returned cleanup runs on dispose, so a host can start/stop a Team room
+	 * delivery listener or task worker with the session lifetime.
+	 */
+	onSessionAttached?: (info: { agentId: string; cwd: string; session: AgentSession }) => (() => void) | void;
 
 	/** Output schema for structured completion (subagents). */
 	outputSchema?: unknown;
@@ -2062,6 +2070,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		: undefined;
 	const agentProfile = options.agentProfile;
 	const admission = createAgentToolAdmission(agentProfile?.toolPolicy);
+	const toolDisabledBySettings = (name: string): boolean => isToolDisabledBySettings(name, settings);
 	const profileNoContext = agentProfile !== undefined && agentProfile.workspaceContext !== true;
 	const effectiveModelPattern = agentProfile?.model ?? options.modelPattern;
 	const effectiveThinkingLevelOption =
@@ -2763,7 +2772,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			...(admission.hasPolicy
 				? {
 						mcpToolFilter: (tool: { name: string; mcpServerName?: string }) =>
-							admission.allowsMcpTool(tool.name, tool.mcpServerName),
+							!toolDisabledBySettings(tool.name) && admission.allowsMcpTool(tool.name, tool.mcpServerName),
 						skillFilter: (name: string) => admission.allowsSkill(name),
 					}
 				: {}),
@@ -3132,7 +3141,11 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				// retaining their origins for initial registry ownership.
 				const loadedMcpTools = mcpResult.tools
 					.map(loaded => loaded.tool)
-					.filter(tool => !admission.hasPolicy || admission.allowsMcpTool(tool.name, tool.mcpServerName));
+					.filter(
+						tool =>
+							!toolDisabledBySettings(tool.name) &&
+							(!admission.hasPolicy || admission.allowsMcpTool(tool.name, tool.mcpServerName)),
+					);
 				customTools.push(...loadedMcpTools);
 				initialMcpManagerTools.push(...loadedMcpTools);
 			}
@@ -4131,6 +4144,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 
 		const allowedExtensionSources = new Set(extensionPaths);
 		const admitsRegisteredTool = (name: string, extensionPath: string): boolean => {
+			if (toolDisabledBySettings(name)) return false;
 			if (isBuiltinToolName(name)) return admission.allowsBuiltin(name);
 			return allowedExtensionSources.has(extensionPath) || admission.allowsCustomTool(name);
 		};
@@ -4149,7 +4163,9 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			restrictToolNames && !admission.hasPolicy && options.allowRestrictedCustomTools !== true
 				? []
 				: (options.customTools?.filter(tool => !isLegacyBuiltinToolDefinition(tool)) ?? []).filter(
-						tool => !admission.hasPolicy || admission.allowsCustomTool(tool.name),
+						tool =>
+							!toolDisabledBySettings(tool.name) &&
+							(!admission.hasPolicy || admission.allowsCustomTool(tool.name)),
 					);
 		const explicitCustomToolNames = new Set(explicitCustomTools.map(tool => tool.name));
 		const sdkMcpTools =
@@ -4158,6 +4174,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				: (options.mcpTools ?? []).filter(
 						tool =>
 							!explicitCustomToolNames.has(tool.name) &&
+							!toolDisabledBySettings(tool.name) &&
 							(!admission.hasPolicy || admission.allowsMcpTool(tool.name, tool.mcpServerName)),
 					);
 		initialMcpManagerTools.push(...sdkMcpTools);
@@ -4244,18 +4261,23 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			// Image generation also honors an explicit tool whitelist: custom tools are
 			// force-activated, so `--no-tools` or a list without `generate_image` must
 			// keep it out (issue #5305).
-			const imageGenRequested = !effectiveToolNames || effectiveToolNames.includes("generate_image");
+			const imageGenRequested =
+				(!effectiveToolNames || effectiveToolNames.includes("generate_image")) &&
+				!toolDisabledBySettings("generate_image");
 			if (cfgGenerateImageEnabled.get(settings) && imageGenRequested) {
 				wanted.push(imageGenTool as unknown as CustomTool);
 			}
 			// The design bridge is a workspace opt-in, not a user-level setting.
 			// Without `.zeta/design.yml` it stays unregistered, so other repos keep
 			// the standard tool surface and pay no MCP/CLI startup cost.
-			const designRequested = !effectiveToolNames || effectiveToolNames.includes("design");
+			const designRequested =
+				(!effectiveToolNames || effectiveToolNames.includes("design")) && !toolDisabledBySettings("design");
 			if (designRequested && (await isDesignEnabled(cwd))) {
 				wanted.push(designTool as unknown as CustomTool);
 			}
-			if (cfgSpeechgenEnabled.get(settings)) wanted.push(ttsTool as unknown as CustomTool);
+			if (cfgSpeechgenEnabled.get(settings) && !toolDisabledBySettings(ttsTool.name)) {
+				wanted.push(ttsTool as unknown as CustomTool);
+			}
 			const wantedNames = new Set(wanted.map(tool => tool.name));
 			for (const [name, entry] of settingsGatedCustomEntries) {
 				if (wantedNames.has(name)) continue;
@@ -5442,7 +5464,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			...(admission.hasPolicy
 				? {
 						mcpToolFilter: (tool: { name: string; mcpServerName?: string }) =>
-							admission.allowsMcpTool(tool.name, tool.mcpServerName),
+							!toolDisabledBySettings(tool.name) && admission.allowsMcpTool(tool.name, tool.mcpServerName),
 						skillFilter: (name: string) => admission.allowsSkill(name),
 					}
 				: {}),
@@ -5569,6 +5591,17 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			autoTitle: options.autoTitle === true && !isSubagentSession,
 		});
 		hasSession = true;
+		toolSession.enableToolByName = async name => {
+			if (toolDisabledBySettings(name)) return { enabled: false, reason: "disabled by tools.disabled" };
+			if (!toolRegistry.has(name)) return { enabled: false, reason: "not registered in this session" };
+			if (isBuiltinToolName(name) && !admission.allowsBuiltin(name)) {
+				return { enabled: false, reason: "not in this agent's built-in allowlist" };
+			}
+			const active = session.getActiveToolNames();
+			if (active.includes(name)) return { enabled: true };
+			await session.setActiveToolsByName([...active, name]);
+			return { enabled: true };
+		};
 		// The session now owns its cost gate; the interactive TUI starts compression after its first frame.
 		if (options.deferSkillDescriptionCompression !== true) skillDescriptions.startCompression();
 		credentialNoticeSession = session;
@@ -5882,6 +5915,14 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			throw new Error(`Agent "${resolvedAgentId}" was replaced during session initialization.`);
 		}
 		hasRegistered = true;
+		if (options.onSessionAttached !== undefined) {
+			try {
+				const cleanup = options.onSessionAttached({ agentId: resolvedAgentId, cwd, session });
+				if (typeof cleanup === "function") disposeCallbacks.add(cleanup);
+			} catch (error) {
+				logger.warn("onSessionAttached failed", { error: String(error) });
+			}
+		}
 		// MCP notification bridge cleanup — assigned when the bridge is wired below,
 		// invoked from the dispose wrapper AND registered as a postmortem so both
 		// explicit-dispose (SDK embedders that reuse the process across sessions) and

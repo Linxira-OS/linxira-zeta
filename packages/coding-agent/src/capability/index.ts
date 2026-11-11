@@ -7,6 +7,7 @@
  * - Loading items for a capability across all providers
  */
 import * as os from "node:os";
+import { isForeignProjectProvider, isForeignProjectSourceAllowed } from "../config/foreign-sources";
 import * as path from "node:path";
 import { getProjectDir, logger } from "@linxiraos/pi-utils";
 
@@ -242,6 +243,17 @@ async function loadImpl<T>(
 			const itemWithSource = item as T & { _source: SourceMeta };
 			if (!itemWithSource._source) {
 				allWarnings.push(`[${provider.displayName}] Item missing _source metadata, skipping`);
+				continue;
+			}
+
+			const foreignProjectSource =
+				itemWithSource._source.level === "project" &&
+				isForeignProjectProvider(provider.id) &&
+				!isForeignProjectSourceAllowed(provider.id, ctx.cwd, ctx.agentDir);
+			// A foreign SYSTEM.md never replaces the native prompt, consented or not.
+			const foreignSystemPrompt = capability.id === "system-prompt" && isForeignProjectProvider(provider.id);
+			if (foreignProjectSource || foreignSystemPrompt) {
+				if (options.includeDisabled === true) disabledItems.add(itemWithSource);
 				continue;
 			}
 

@@ -60,6 +60,7 @@ import { BoardTool } from "./board";
 import { CalendarTool } from "./calendar";
 import { RoomReadTool } from "./room";
 import { type BuiltinToolName, type HiddenToolName, normalizeToolNames } from "./builtin-names";
+import { isBuiltinAllowedByToolProfile } from "./tool-policy";
 import { ChannelSendTool } from "./channel-send";
 import { type CheckpointState, CheckpointTool, type CompletedRewindState, RewindTool } from "./checkpoint";
 import { ContextNotesTool, NewContextTool } from "./context-notes";
@@ -381,6 +382,12 @@ export interface ToolSession {
 	approvalCacheDir?: string;
 	/** Per-session memory namespace; persisted on the session header by the SDK. */
 	memoryNamespace?: string;
+	/**
+	 * Enable one registered tool through `write xd://enable`. The write tool's
+	 * approval gate has already run before the handler calls this; the SDK
+	 * re-checks `tools.disabled` and the profile/extension admission.
+	 */
+	enableToolByName?: (name: string) => Promise<{ enabled: boolean; reason?: string }>;
 	/** Seance forks: the consulted session's artifacts dir, read in place by history://, artifact://, agent://. */
 	readonly seanceSourceArtifactsDir?: string;
 	/** Task recursion depth (0 = top-level, 1 = first child, etc.) */
@@ -846,6 +853,7 @@ export async function resolveBuiltinToolPlan(session: ToolSession, toolNames?: s
 	}
 	const editDisabled = cfgEditMode.get(session.settings) === "none";
 	const isToolAllowed = (name: string) => {
+		if (!isBuiltinAllowedByToolProfile(name, session.settings)) return false;
 		// Never in the default set. Explicitly activatable while goal.enabled and
 		// no goal record exists yet — /guided-goal enables it so the agent can
 		// finish the interview with `goal create`, which turns goal mode on. Once

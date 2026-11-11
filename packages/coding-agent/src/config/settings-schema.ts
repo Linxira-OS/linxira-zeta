@@ -4124,6 +4124,44 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	// Tool exposure tier. `full` preserves the historical surface.
+	"tools.profile": {
+		type: "enum",
+		values: ["super-minimal", "minimal", "standard", "full"] as const,
+		default: "full",
+		ui: {
+			tab: "tools",
+			group: "Exposure",
+			label: "Tool Profile",
+			description:
+				"Which built-in tools this agent may use. Super minimal: read/write/edit/bash (4). Minimal adds web_search (5). Standard adds glob/grep/find/task/wait/todo/ask (12). Full exposes every enabled tool.",
+			options: [
+				{ value: "super-minimal", label: "Super minimal (4)", description: "read, write, edit, bash" },
+				{ value: "minimal", label: "Minimal (5)", description: "Super minimal + web_search" },
+				{
+					value: "standard",
+					label: "Standard (12)",
+					description: "Minimal + glob, grep, find, task, wait, todo, ask",
+				},
+				{ value: "full", label: "Full", description: "Every enabled built-in (current default)" },
+			],
+		},
+	},
+
+	// Names subtracted from every tool surface after the profile expands.
+	"tools.disabled": {
+		type: "array",
+		default: EMPTY_STRING_ARRAY,
+		ui: {
+			tab: "tools",
+			group: "Exposure",
+			label: "Disabled Tools",
+			editor: "json",
+			description:
+				'Tool names that are never registered, e.g. ["bash","plugin_manager"]. Applies to built-ins, extension/custom/MCP tools; denied tools are absent from the schema and xd:// catalog.',
+		},
+	},
+
 	// Default tool approval mode (interaction tab, but governs the tool wrapper).
 	//   "always-ask" — auto-approves read-tier tools only; prompts for write/exec.
 	//   "write"      — auto-approves read and write-tier tools; prompts for exec.

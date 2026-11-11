@@ -14,6 +14,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { isForeignProjectSourceAllowed } from "./foreign-sources";
 import { roleDefaultModels } from "@linxiraos/pi-catalog/compat/behavior";
 import { type GeneratedProvider, getBundledModels } from "@linxiraos/pi-catalog/models";
 import { type Api, type Model, modelKind } from "@linxiraos/pi-catalog/types";
@@ -1407,7 +1408,11 @@ export class Settings {
 		const projectConfigDir = getProjectAgentDir(projectCwd);
 		addFile(path.join(projectConfigDir, "config.yml"));
 		addFile(path.join(projectConfigDir, "settings.json"));
-		addFile(path.join(projectCwd, ".claude", "settings.json"));
+		// Foreign project settings are native-only by default; the consent store
+		// is hash-bound to the file tree, never written into the repository.
+		if (isForeignProjectSourceAllowed("claude", projectCwd)) {
+			addFile(path.join(projectCwd, ".claude", "settings.json"));
+		}
 		for (const file of this.#projectSourcePaths) addFile(file);
 		for (const file of this.#configFiles) addFile(file);
 		return targets;
