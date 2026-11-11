@@ -24,7 +24,7 @@ import {
 	type EditorId,
 	type OpenTargetId,
 } from "./open-bridge";
-import { classifyDroppedPath, findWorkspace, firstEditorTarget, isPathWithin, resolveWorkspaceFile, type WorkspaceLocation } from "./workspace-actions";
+import { classifyDroppedPath, findWorkspace, firstEditorTarget, isPathWithin, resolveWorkspaceFile, workspaceIdFor, type WorkspaceLocation } from "./workspace-actions";
 import { fieldOf } from "./json";
 import { mapUpdateCheck } from "./update-check";
 import { WINDOW_CONTROL_CHANNELS, runWindowControl, windowState } from "./window-controls";
@@ -180,18 +180,42 @@ ipcMain.handle("pi:select-directory", async (_event, startPath?: unknown): Promi
  * project with the gateway (`PUT /api/projects`), which is the same registry
  * the CLI resume picker reads. The renderer then re-reads `projects.list`.
  */
-ipcMain.handle("pi:pick-workspace", async (_event, input: unknown): Promise<{ cancelled: boolean; name?: string }> => {
+ipcMain.handle("pi:pick-workspace", async (_event, input: unknown): Promise<{ cancelled: boolean; workspaceId?: string; name?: string }> => {
 	const picked = await showDirectoryDialog(fieldOf(input, "startPath"));
 	if (picked === null) return { cancelled: true };
 	const alias = fieldOf(input, "alias");
 	const body: { path: string; alias?: string } = { path: picked };
 	if (typeof alias === "string" && alias.trim() !== "") body.alias = alias.trim();
-	await gatewayJson("/api/projects", {
+	const inventory = await gatewayJson("/api/projects", {
 		method: "PUT",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(body),
 	});
-	return { cancelled: false, name: path.basename(picked) };
+	const canonicalPath = (value: string): string => {
+		const real = fs.realpathSync.native(value);
+		return process.platform === "win32" ? real.toLowerCase() : real;
+	};
+	const pickedKey = canonicalPath(picked);
+	const projects = fieldOf(inventory, "projects");
+	if (Array.isArray(projects)) {
+		for (const project of projects) {
+			const workspaces = fieldOf(project, "workspaces");
+			if (!Array.isArray(workspaces)) continue;
+			for (const row of workspaces) {
+				const key = fieldOf(row, "key");
+				const directory = fieldOf(row, "path");
+				if (typeof key !== "string" || typeof directory !== "string") continue;
+				try {
+					if (canonicalPath(directory) !== pickedKey) continue;
+				} catch {
+					continue;
+				}
+				const workspace = findWorkspace(inventory, workspaceIdFor(key));
+				if (workspace !== null) return { cancelled: false, workspaceId: workspace.workspaceId, ...(workspace.name === undefined ? {} : { name: workspace.name }) };
+			}
+		}
+	}
+	throw new Error("Selected directory was not registered as a workspace");
 });
 let mainWindow: BrowserWindow | null = null;
 /** Launch preferences kept for recreating the window after a real close. */

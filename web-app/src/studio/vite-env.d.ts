@@ -89,7 +89,7 @@ declare global {
         /** Native OS directory picker (desktop preload only). */
         selectDirectory?(startPath?: string): Promise<string | null>;
         /** Pick a directory and register it as a project (desktop preload only). */
-        pickWorkspace?(input?: { startPath?: string; alias?: string }): Promise<{ cancelled: boolean; name?: string }>;
+        pickWorkspace?(input?: { startPath?: string; alias?: string }): Promise<{ cancelled: boolean; workspaceId?: string; name?: string }>;
         /** Fixed by the preload; read it through `src/platform.ts`. Absent on older installs. */
         readonly platform?: "win32" | "darwin" | "linux";
         /** macOS menu bar commands (allowlisted ids from Main). */

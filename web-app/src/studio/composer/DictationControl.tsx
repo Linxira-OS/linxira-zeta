@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CommandInput, StudioClient } from "@linxiraos/studio-contract";
-import type { DictationResultMap, DictationState } from "@linxiraos/studio-protocol";
+import type { CapabilityManifest, DictationResultMap, DictationState } from "@linxiraos/studio-protocol";
 import { usePreviewMode } from "../preview/PreviewContext";
 import { useI18n } from "../i18n";
 import { useExecutionTarget } from "../workspaces/ExecutionTargets";
@@ -8,11 +8,26 @@ import { openLiveCapture, type LiveCapture } from "../media/liveCapture";
 import { ensureMicrophoneAccess, MicrophoneDeniedError, MicrophoneSettingsButton } from "../media/microphoneAccess";
 import { hostErrorMessage, waitReceipt } from "../hostError";
 import { Icon } from "../icons";
+import { supportsCapability } from "../deck/capabilitySupport";
 
 const DEMO: DictationState = { available: true, enabled: true, phase: "off", text: "", model: "local/nemotron-streaming-en-0.6b", language: "zh", cloud: false, downloadRequired: false };
 
-/** Capture has its own temporary text. Only an explicit stop merges it into the owner's draft. */
-export function DictationControl({ client, sessionId, available, onText }: { client: StudioClient; sessionId?: string | undefined; available: boolean; onText(text: string): void }) {
+type DictationControlProps = { client: StudioClient; capabilities?: CapabilityManifest | undefined; sessionId?: string | undefined; available: boolean; onText(text: string): void };
+
+/** Mount the channel only when both the Host and this local surface provide it. */
+export function DictationControl(props: DictationControlProps) {
+  const { preview } = usePreviewMode();
+  const target = useExecutionTarget();
+  const bridge = globalThis.zetaStudioChrome;
+  const transportAvailable = !!bridge?.attachLiveAudio && !!bridge.appendLiveAudio && !!bridge.detachLiveAudio
+    && typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+  if (!preview && (!props.available || !props.sessionId || target.id || !transportAvailable
+    || !["dictation.status", "dictation.prepare", "dictation.start", "dictation.stop", "dictation.cancel"].every(kind => supportsCapability(props.capabilities, kind)))) return null;
+  return <AvailableDictationControl {...props} />;
+}
+
+/** Capture text is merged only by an explicit stop, never sent as a prompt. */
+function AvailableDictationControl({ client, sessionId, available, onText }: DictationControlProps) {
   const { preview } = usePreviewMode(); const { resolvedLanguage } = useI18n(); const zh = resolvedLanguage === "zh";
   const target = useExecutionTarget();
   const [state, setState] = useState<DictationState>(); const [review, setReview] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [denied, setDenied] = useState(false);
@@ -28,12 +43,18 @@ export function DictationControl({ client, sessionId, available, onText }: { cli
     setBusy(false); setReview(false); setState(previous => previous ? { ...previous, phase: "off", text: "" } : previous);
   }, [invoke, sessionId, preview]);
   useEffect(() => {
-    const epoch = ++generation.current; setState(preview ? DEMO : undefined); setError(""); setReview(false);
+    generation.current++; setState(preview ? DEMO : undefined); setError(""); setReview(false);
     let alive = true; let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
-      try { if (!document.hidden && !locked.current) { const next = await invoke("dictation.status", { sessionId: sessionId! }); if (alive && !locked.current) setState(next); } }
-      catch (cause) { if (alive) setError(hostErrorMessage(cause, "Dictation unavailable")); }
-      finally { if (alive) timer = setTimeout(() => void poll(), id.current ? 300 : 3000); }
+      try {
+        if (!document.hidden && !locked.current) {
+          const next = await invoke("dictation.status", { sessionId: sessionId! });
+          if (!alive) return;
+          if (!locked.current) setState(next);
+          if (!next.available || !next.enabled) return;
+        }
+        if (alive) timer = setTimeout(() => void poll(), id.current ? 300 : 3000);
+      } catch (cause) { if (alive) setError(hostErrorMessage(cause, "Dictation unavailable")); }
     };
     if (!preview && enabled) void poll();
     const hide = () => { if (document.hidden && !preview) cancel(); }; document.addEventListener("visibilitychange", hide);
@@ -72,10 +93,10 @@ export function DictationControl({ client, sessionId, available, onText }: { cli
     finally { capture.current?.stop(); capture.current = undefined; id.current = undefined; finishing.current = false; if (epoch === generation.current) { locked.current = false; setBusy(false); } }
   };
   const active = state && ["starting", "recording", "transcribing"].includes(state.phase);
+  if (!preview && (!state?.available || !state.enabled)) return null;
   return <section className="composer-dictation" aria-label={zh ? "草稿听写" : "Draft dictation"}>
     <button type="button" className="btn small ghost" disabled={!enabled || busy || active || !state?.enabled} onClick={() => setReview(true)} data-tip={target.id ? "远端目标未提供本机麦克风转发" : "听写只填草稿"}><Icon name="mic" extra="sm" />{zh ? "听写" : "Dictate"}</button>
     {active ? <><span role="status">{state.phase} · {preview ? "演示" : state.model}</span><button type="button" className="btn small outline" disabled={busy} onClick={() => void stop()}>{zh ? "停止并填入草稿" : "Stop and fill draft"}</button><button type="button" className="btn small ghost" onClick={cancel}>{zh ? "取消" : "Cancel"}</button><p aria-live="polite">{state.text}</p></> : null}
-    {!enabled ? <span className="tiny muted">{zh ? target.id ? "远端目标没有本机音频转发" : "需要桌面麦克风通道" : "Desktop microphone transport is unavailable"}</span> : !state?.enabled ? <span className="tiny muted">{zh ? "在原生语音设置中开启" : "Enable in voice settings"}</span> : null}
     {error ? <p role="alert">{error}</p> : null}{denied ? <MicrophoneSettingsButton zh={zh} /> : null}
     {review ? <div className="media-review"><h4>{zh ? "开始草稿听写" : "Start draft dictation"}</h4><p>{state?.model} · {state?.language}</p><p>{state?.cloud ? zh ? "音频会发送到配置的转写服务，可能计费。" : "Audio is sent to the configured transcription service; charges may apply." : state?.downloadRequired ? `${zh ? "将下载本地模型" : "Downloads a local model"} ${state.downloadSize ?? ""}` : zh ? "使用已缓存的本地语音模型。" : "Uses the cached local speech model."} {zh ? "只填草稿、不发起 Agent 回合；与 Live 互斥。" : "Fills the draft only, never starts an agent turn; cannot run with Live."}</p><button type="button" className="btn small primary" disabled={busy} onClick={() => void start()}>{zh ? "确认打开麦克风" : "Open microphone"}</button><button type="button" className="btn small ghost" onClick={() => setReview(false)}>{zh ? "返回" : "Back"}</button></div> : null}
   </section>;

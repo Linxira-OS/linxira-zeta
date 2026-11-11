@@ -1,4 +1,4 @@
-import type { SessionHistoryEntry } from "@linxiraos/studio-contract";
+import type { SessionHistoryEntry, WorkspaceListReadModel } from "@linxiraos/studio-contract";
 import { PREVIEW_PROJECTS, type PreviewThread } from "../preview/fixtures";
 
 export type EmptyRecentStatus = "running" | "approval" | "idle";
@@ -76,7 +76,7 @@ export function relativeTime(iso: string, now = Date.now(), lang: "zh" | "en" = 
 
 export function collectHistoryRecents(input: {
   readonly entries: readonly SessionHistoryEntry[];
-  readonly projectName: string;
+  readonly workspaces?: WorkspaceListReadModel | undefined;
   readonly runningSessionId?: string;
   readonly waitingSessionId?: string;
   readonly now?: number;
@@ -85,6 +85,10 @@ export function collectHistoryRecents(input: {
   const lang = input.lang ?? "zh";
   return input.entries
     .filter((entry) => entry.status !== "archived")
+    // IM/bot conversations are not personal recent chats, even if a caller
+    // supplied a list that included them. Provenance metadata is canonical;
+    // display names never decide this.
+    .filter((entry) => entry.origin?.kind !== "im")
     .slice()
     .sort((left, right) => Date.parse(right.lastActiveAt) - Date.parse(left.lastActiveAt))
     .slice(0, RECENT_LIMIT)
@@ -100,7 +104,9 @@ export function collectHistoryRecents(input: {
       return {
         id: entry.historyId,
         title: entry.title ?? (lang === "en" ? "Untitled session" : "未命名会话"),
-        project: input.projectName,
+        project: entry.workspaceId !== undefined && entry.workspaceId === (input.workspaces?.defaultWorkspaceId ?? input.workspaces?.activeWorkspaceId)
+          ? (lang === "en" ? "Default workspace" : "默认工作区")
+          : input.workspaces?.workspaces.find(workspace => workspace.workspaceId === entry.workspaceId)?.name ?? entry.workspaceName ?? "",
         time: relativeTime(entry.lastActiveAt, input.now, lang),
         status,
         statusLabel,

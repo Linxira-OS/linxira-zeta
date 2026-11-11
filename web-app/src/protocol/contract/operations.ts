@@ -514,8 +514,8 @@ interface CoreCommandInputMap {
    * `force: true` stops the live process and launches a new one.
    */
   "runtime.ensure": { readonly force?: boolean };
-  /** Start a fresh Runtime session in the active workspace. */
-  "session.create": { readonly noContextFiles?: boolean };
+  /** Start a fresh session in this registered workspace; never infer another cwd. */
+  "session.create": { readonly workspaceId: WorkspaceId; readonly noContextFiles?: boolean };
   /** Resume a thread from history or the home page. */
   "session.resume": { readonly threadId: ThreadId; readonly model?: string };
   /** Drop a thread. Destructive: the Host issues a one-time confirmation. */

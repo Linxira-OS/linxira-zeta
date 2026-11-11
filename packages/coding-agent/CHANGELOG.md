@@ -15,6 +15,36 @@
 ### Breaking
 
 - A legacy `https://host/#zeta-token=…` link no longer pairs a browser. Reprint the pairing code from Settings → 身份与设备 and scan it again.
+- **Work Studio workspace/session identity** — the Host publishes
+  `defaultWorkspaceId`, keeps empty or never-opened workspaces listed
+  (`lastOpenedAt: null`), and attaches canonical `workspaceId` / basename-only
+  `workspaceName` to history rows and home recents. Hidden workspaces stay
+  resolvable for an already viewed session and for file/Git operations.
+  ADR-0011 records the selection model.
+
+### Changed
+
+- **`session.create` requires an explicit workspace** — the Host resolves the
+  opaque id through the hidden-inclusive inventory to the canonical cwd instead
+  of using a sticky default cwd. The renderer migrates every creation path
+  (new chat, new chat in a project, worktree) and waits for that creation before
+  the first prompt of a fresh project draft.
+- **Work Studio project context follows the viewed session** — header, sidebar,
+  context strip, branch/Git panel and explorer share one selection, which no
+  longer resets to `active` on inventory refresh. Cold history opens its own
+  workspace; a workspace switch discards stale Git/branch/diff state.
+
+### Fixed
+
+- **Home and recent chats no longer borrow another project's name** — each row
+  uses its own workspace identity; older Hosts omit the label instead of copying
+  the current project.
+- **Long project names no longer break layout** — sidebar, recent rows, menus
+  and the context strip ellipsize with full-name tooltips while data and search
+  keep the complete name.
+- **Unsupported dictation is hidden and silent** — the control mounts only with
+  all `dictation.*` host operations and a complete desktop microphone transport;
+  otherwise it renders nothing and does not poll.
 
 ## [1.5.1] - 2026-11-10
 

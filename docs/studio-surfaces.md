@@ -85,6 +85,43 @@ entry (`set-security`) and a desktop tray item (**Identity & Devices** →
 `app.settings:security`). IM channels kept its own group and palette entry
 (`set-channels`) and tray item (**IM Channels**).
 
+## Workspace and session identity (2026-11-11)
+
+Work Studio keeps three separate facts; conflating them was the source of the
+wrong-project header, Git and Explorer views:
+
+- **Host default/runtime** — `active` / `activeWorkspaceId` names the
+  coordinator workspace the gateway runs on. Opening a folder records a registry
+  preference; it does not move that runtime.
+- **Inventory order** — `projects.list` order is display order only. Every row
+  keeps its own `lastOpenedAt`; an empty or never-opened row stays listed with
+  `lastOpenedAt: null` and sorts after dated rows. `defaultWorkspaceId` names the
+  default even when its row is hidden.
+- **Viewer selection** — the renderer follows the viewed history session first,
+  then an explicit folder selection, then the default. A refresh updates the
+  selected row's name without replacing the identity; a hidden workspace keeps
+  its identity while it is being viewed.
+
+Session history rows and home recents carry the canonical `workspaceId` derived
+from the session cwd hash, plus a basename-only `workspaceName`. Recent chats
+label each row by its own workspace; a row from an older Host with no workspace
+facts shows no project label instead of the current project's name. Cold history
+opens the entry's workspace, not the default.
+
+`session.create` takes a mandatory `workspaceId`. The Host resolves it through
+the hidden-inclusive gateway inventory to the canonical cwd; there is no
+process/default fallback. The first prompt of a fresh project draft waits for
+that creation instead of being filed against the session the operator just left.
+File-tree and Git operations resolve the same opaque id, including hidden
+workspaces, and a workspace switch clears stale repository/branch/diff state.
+
+Long project names stay complete in data, DOM text, search and accessible names;
+CSS ellipsis constrains the sidebar, recent rows, menus and context strip, and
+`data-tip` exposes the full value. Dictation is only mounted when the Host
+advertises every `dictation.*` operation and the desktop provides the complete
+microphone transport; unsupported surfaces render nothing and do not poll.
+Full audio transport remains a separate change.
+
 ## Gaps
 
 - **Mobile binding scope** is enforced only by navigation today: the renderer

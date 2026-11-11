@@ -82,6 +82,7 @@ import type {
 } from "../contract/index.js";
 import type { StudioFamily } from "../registry.js";
 import { StudioOpError, gatewayJson, invalid, optionalString, requiredString, unavailable } from "../gateway.js";
+import { resolveWorkspacePath } from "./workspace.js";
 
 // ---------------------------------------------------------------------------
 // Wire-shape guards
@@ -167,15 +168,6 @@ function unsupported(reason: string): StudioOpError {
 // showed without either side carrying a path.
 // ---------------------------------------------------------------------------
 
-const PROJECTS_ROUTE = "/api/projects";
-
-/** Stable, path-free `WorkspaceId` for a canonical workspace key. */
-function workspaceIdOf(key: string): string {
-	const digest = createHash("sha256")
-		.update(`zeta-workspace\u0000${resumePathKey(key)}`)
-		.digest("hex");
-	return `ws-${digest.slice(0, 16)}`;
-}
 
 /**
  * Resolve one opaque workspace id to the directory the gateway takes as `cwd`.
@@ -192,21 +184,7 @@ export async function resolveWorkspaceCwd(workspaceId: unknown): Promise<string 
 	if (typeof workspaceId !== "string" || workspaceId === "") {
 		throw invalid("workspaceId must be a non-empty workspace id");
 	}
-	const payload = await gatewayJson<unknown>(PROJECTS_ROUTE);
-	if (!isRecord(payload) || !Array.isArray(payload.projects)) {
-		throw unavailable(`${PROJECTS_ROUTE} returned an unexpected payload`);
-	}
-	for (const project of payload.projects) {
-		if (!isRecord(project) || !Array.isArray(project.workspaces)) continue;
-		for (const workspace of project.workspaces) {
-			if (!isRecord(workspace)) continue;
-			const key = workspace.key;
-			const path = workspace.path;
-			if (typeof key !== "string" || key === "" || typeof path !== "string" || path === "") continue;
-			if (workspaceIdOf(key) === workspaceId) return path;
-		}
-	}
-	throw invalid("unknown workspace");
+	return await resolveWorkspacePath(workspaceId);
 }
 
 /** Attach the resolved directory to a gateway body; absent id → gateway default. */

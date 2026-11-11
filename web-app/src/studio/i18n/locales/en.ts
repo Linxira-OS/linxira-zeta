@@ -610,6 +610,8 @@ export const en: LocaleDictionary = {
     "newChat": "New Chat",
     "untitledSession": "Untitled session",
     "noProjectSelected": "No project selected",
+    "defaultWorkspace": "Default workspace",
+    "localWorkspace": "Local workspace",
     "recentConversations": "Recent Chats",
     "allHistory": "All History",
     "noRecentConversations": "No recent conversations",

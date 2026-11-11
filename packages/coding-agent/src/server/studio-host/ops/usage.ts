@@ -68,10 +68,9 @@ import type {
 import type { AgentId, ConversationOpenResult, ConversationTarget, OperatorStateSnapshot } from "../protocol/index.js";
 import { openPath } from "../../../utils/open.js";
 import { readAgentConversationPage, readTranscriptPage, sessionOps } from "./session.js";
-import { workspaceIdFor } from "./workspace-id.js";
 import { loadResumePreferences, resumePathKey } from "../../../resume/index.js";
 import { loadHiddenSessionIds } from "../../../session/session-visibility.js";
-import { workspaceOps } from "./workspace.js";
+import { readWorkspaceIdentities, workspaceOps } from "./workspace.js";
 
 /** Session listing cap the Renderer mirrors (`PROJECT_HISTORY_QUERY_MAX`). */
 const HISTORY_MAX_LIMIT = 200;
@@ -186,6 +185,7 @@ function historyEntry(
 	row: SessionRow,
 	status: SessionHistoryStatus,
 	environmentId: EnvironmentId,
+	workspace?: { workspaceId: WorkspaceId; workspaceName: string },
 ): SessionHistoryEntry {
 	const firstMessage = row.firstMessage;
 	const summary =
@@ -197,6 +197,7 @@ function historyEntry(
 		threadId: row.id as ThreadId,
 		environmentId,
 		sessionId: row.id as SessionId,
+		...(workspace === undefined ? {} : { workspaceId: workspace.workspaceId, workspaceName: workspace.workspaceName }),
 		...(row.name === undefined ? {} : { title: row.name }),
 		...(summary === undefined ? {} : { summary }),
 		startedAt: row.created,
@@ -288,6 +289,9 @@ async function listHistory(input: {
 	};
 	const environmentId = environmentIdFor(identity.version);
 
+	const activeRows = activeBody === undefined ? [] : sessionRows(activeBody, "/api/sessions");
+	const archivedRows = archivedBody === undefined ? [] : sessionRows(archivedBody, "/api/sessions/archived");
+	const workspaceIdentities = await readWorkspaceIdentities([...activeRows, ...archivedRows].map(row => row.cwd));
 	const seen = new Set<string>();
 	const entries: SessionHistoryEntry[] = [];
 	const append = (rows: readonly SessionRow[], rowStatus: SessionHistoryStatus) => {
@@ -297,13 +301,14 @@ async function listHistory(input: {
 			if (!includeTeam && isTeamSession(row.origin)) continue;
 			if (!includeHidden && hiddenSessions?.has(row.id)) continue;
 			if (!includeHidden && hiddenPaths.length > 0 && pathHidden(row.cwd)) continue;
-			if (workspaceId !== undefined && workspaceIdFor(row.cwd) !== workspaceId) continue;
+			const workspace = workspaceIdentities.get(resumePathKey(row.cwd));
+			if (workspaceId !== undefined && workspace?.workspaceId !== workspaceId) continue;
 			seen.add(row.id);
-			entries.push(historyEntry(row, rowStatus, environmentId));
+			entries.push(historyEntry(row, rowStatus, environmentId, workspace));
 		}
 	};
-	if (activeBody !== undefined) append(sessionRows(activeBody, "/api/sessions"), "active");
-	if (archivedBody !== undefined) append(sessionRows(archivedBody, "/api/sessions/archived"), "archived");
+	append(activeRows, "active");
+	append(archivedRows, "archived");
 
 	entries.sort((a, b) => (a.lastActiveAt < b.lastActiveAt ? 1 : a.lastActiveAt > b.lastActiveAt ? -1 : 0));
 	return { entries: entries.slice(0, limit), total: entries.length };
@@ -351,7 +356,7 @@ async function readRecentWorkspaces(context: StudioHostContext): Promise<readonl
 		return undefined;
 	}
 	return [...inventory.workspaces]
-		.sort((a, b) => (a.lastOpenedAt < b.lastOpenedAt ? 1 : a.lastOpenedAt > b.lastOpenedAt ? -1 : 0))
+		.sort((a, b) => a.lastOpenedAt === b.lastOpenedAt ? 0 : a.lastOpenedAt === null ? 1 : b.lastOpenedAt === null ? -1 : b.lastOpenedAt.localeCompare(a.lastOpenedAt))
 		.slice(0, RECENT_WORKSPACES_LIMIT);
 }
 
@@ -369,6 +374,8 @@ async function homeReadModel(context: StudioHostContext): Promise<HomeReadModel>
 		recentThreads: history.entries.map(entry => ({
 			threadId: entry.threadId,
 			...(entry.title === undefined ? {} : { title: entry.title }),
+			...(entry.workspaceId === undefined ? {} : { workspaceId: entry.workspaceId }),
+			...(entry.workspaceName === undefined ? {} : { workspaceName: entry.workspaceName }),
 			lastActiveAt: entry.lastActiveAt,
 		})),
 		...(recentWorkspaces === undefined ? {} : { recentWorkspaces }),

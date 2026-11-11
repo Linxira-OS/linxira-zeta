@@ -610,6 +610,8 @@ const zhRaw = {
     "newChat": "新建对话",
     "untitledSession": "未命名会话",
     "noProjectSelected": "未选择项目",
+    "defaultWorkspace": "默认工作区",
+    "localWorkspace": "本地工作区",
     "recentConversations": "最近对话",
     "allHistory": "全部历史",
     "noRecentConversations": "暂无最近对话",

@@ -226,6 +226,10 @@ export interface SessionHistoryEntry {
   readonly threadId: ThreadId;
   readonly environmentId: EnvironmentId;
   readonly sessionId?: SessionId;
+  /** Canonical cwd identity; optional for older Hosts. Never a path. */
+  readonly workspaceId?: WorkspaceId;
+  /** Full directory basename; never an absolute cwd or session path. */
+  readonly workspaceName?: string;
   /** Safe persisted title; absent while native OMP still considers the session untitled. */
   readonly title?: string;
   /** Safe summary snippet; never a path. */
@@ -273,6 +277,8 @@ export interface RecentThread {
   readonly threadId: ThreadId;
   /** Absent until native OMP persists a session title. */
   readonly title?: string;
+  readonly workspaceId?: WorkspaceId;
+  readonly workspaceName?: string;
   readonly lastActiveAt: string;
 }
 
@@ -285,7 +291,7 @@ export interface WorkspaceRecord {
   readonly workspaceId: WorkspaceId;
   /** Basename only. Never a path. */
   readonly name: string;
-  readonly lastOpenedAt: string;
+  readonly lastOpenedAt: string | null;
   readonly active: boolean;
 }
 
@@ -293,6 +299,8 @@ export interface WorkspaceRecord {
 export interface WorkspaceListReadModel {
   readonly workspaces: ReadonlyArray<WorkspaceRecord>;
   readonly activeWorkspaceId?: WorkspaceId;
+  /** Coordinator/default workspace, independent of renderer selection. */
+  readonly defaultWorkspaceId?: WorkspaceId;
 }
 
 /** A workspace-relative Explorer node. Absolute paths never cross the Host boundary. */

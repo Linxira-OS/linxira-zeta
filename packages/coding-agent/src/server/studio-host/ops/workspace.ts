@@ -44,7 +44,6 @@
  * basename (the contract pins the field to a basename), so the user alias in
  * `displayName` is not used here.
  */
-import { createHash } from "node:crypto";
 import type {
 	WorkspaceFileMutationResult,
 	WorkspaceFileNode,
@@ -55,6 +54,9 @@ import type {
 } from "../contract/index.js";
 import { callGateway, gatewayJson, invalid, optionalString, requiredString, segment, unavailable } from "../gateway.js";
 import type { StudioFamily } from "../registry.js";
+import { resumePathKey } from "../../../resume/paths.js";
+import { resumeWorkspaceIdentity } from "../../../resume/directory.js";
+import { workspaceIdFor } from "./workspace-id.js";
 
 const PROJECTS_ROUTE = "/api/projects";
 const VALIDATE_CWD_ROUTE = "/api/cwd/validate";
@@ -102,11 +104,6 @@ function epochField(record: Readonly<Record<string, unknown>>, field: string): s
 	return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
-/** Stable, path-free `WorkspaceId` for a canonical workspace key. */
-function workspaceIdOf(key: string): WorkspaceId {
-	const digest = createHash("sha256").update(`zeta-workspace\u0000${key}`).digest("hex");
-	return `ws-${digest.slice(0, 16)}` as WorkspaceId;
-}
 
 /** Absolute path with forward slashes and no trailing separator. */
 function slashPath(value: string): string {
@@ -147,42 +144,37 @@ function parseProjectDirectory(payload: unknown): ProjectDirectory {
 }
 
 /** `GET /api/projects` → the workspace inventory, narrowed from untrusted JSON. */
-async function loadProjectDirectory(): Promise<ProjectDirectory> {
-	return parseProjectDirectory(await gatewayJson<unknown>(PROJECTS_ROUTE));
+async function loadProjectDirectory(includeHidden = false): Promise<ProjectDirectory> {
+	return parseProjectDirectory(await gatewayJson<unknown>(PROJECTS_ROUTE, includeHidden ? { query: "includeHidden=true" } : {}));
 }
 
 /** The inventory entry one opaque workspace id names, or a client error. */
 function requireWorkspace(directory: ProjectDirectory, workspaceId: string): WorkspaceEntry {
-	const entry = directory.entries.find(candidate => workspaceIdOf(candidate.key) === workspaceId);
+	const entry = directory.entries.find(candidate => workspaceIdFor(candidate.key) === workspaceId);
 	if (entry === undefined) throw invalid(`unknown workspace: ${workspaceId}`);
 	return entry;
 }
 
-/**
- * Build the inventory: most recently opened first (the order the Renderer's
- * sidebar documents), with Zeta's one always-open workspace flagged active.
- * An entry the gateway could not date is left out rather than dated with an
- * invented timestamp, so `activeWorkspaceId` appears only when that row
- * survived.
- */
+/** Keep undated workspaces; `active` continues to name the Host default. */
 function toWorkspaceList(directory: ProjectDirectory): WorkspaceListReadModel {
-	const workspaces: WorkspaceRecord[] = directory.entries.flatMap(entry => {
-		if (entry.lastOpenedAt === undefined) return [];
-		return [
-			{
-				workspaceId: workspaceIdOf(entry.key),
-				name: entry.name,
-				lastOpenedAt: entry.lastOpenedAt,
-				active: entry.key === directory.defaultKey,
-			},
-		];
-	});
-	workspaces.sort(
-		(left, right) =>
-			Date.parse(right.lastOpenedAt) - Date.parse(left.lastOpenedAt) || left.name.localeCompare(right.name),
+	const workspaces: WorkspaceRecord[] = directory.entries.map(entry => ({
+		workspaceId: workspaceIdFor(entry.key),
+		name: entry.name,
+		lastOpenedAt: entry.lastOpenedAt ?? null,
+		active: entry.key === directory.defaultKey,
+	}));
+	workspaces.sort((left, right) =>
+		(right.lastOpenedAt === null ? -Infinity : Date.parse(right.lastOpenedAt))
+		- (left.lastOpenedAt === null ? -Infinity : Date.parse(left.lastOpenedAt))
+		|| left.name.localeCompare(right.name),
 	);
-	const active = workspaces.find(workspace => workspace.active);
-	return active === undefined ? { workspaces } : { workspaces, activeWorkspaceId: active.workspaceId };
+	const defaultWorkspaceId = directory.defaultKey === undefined ? undefined : workspaceIdFor(directory.defaultKey);
+	return {
+		workspaces,
+		...(defaultWorkspaceId === undefined ? {} : { defaultWorkspaceId }),
+		...(workspaces.some(workspace => workspace.active) && defaultWorkspaceId !== undefined
+			? { activeWorkspaceId: defaultWorkspaceId } : {}),
+	};
 }
 
 /**
@@ -257,8 +249,28 @@ async function listProjects(): Promise<WorkspaceListReadModel> {
  * by workspace without exposing the inventory itself.
  */
 export async function readWorkspaceNames(): Promise<ReadonlyMap<WorkspaceId, string>> {
-	const directory = await loadProjectDirectory();
-	return new Map(directory.entries.map(entry => [workspaceIdOf(entry.key), entry.name]));
+	const directory = await loadProjectDirectory(true);
+	return new Map(directory.entries.map(entry => [workspaceIdFor(entry.key), entry.name]));
+}
+
+/** Resolve a canonical session cwd to its real gateway workspace row. */
+export async function readWorkspaceIdentities(cwds: readonly string[] = []): Promise<ReadonlyMap<string, { workspaceId: WorkspaceId; workspaceName: string }>> {
+	const directory = await loadProjectDirectory(true);
+	const identities = new Map(directory.entries.map(entry => [resumePathKey(entry.path), {
+		workspaceId: workspaceIdFor(entry.key), workspaceName: entry.name,
+	}]));
+	// Archived-only cwds are not in the live inventory. Reuse the gateway's
+	// workspace identity rule (not its project-root grouping) for those rows.
+	for (const cwd of cwds) {
+		const { key, name } = resumeWorkspaceIdentity(cwd);
+		if (key && !identities.has(key)) identities.set(key, { workspaceId: workspaceIdFor(key), workspaceName: name });
+	}
+	return identities;
+}
+
+/** Hidden folders can still own an open session; paths never cross the wire. */
+export async function resolveWorkspacePath(workspaceId: string): Promise<string> {
+	return requireWorkspace(await loadProjectDirectory(true), workspaceId).path;
 }
 
 /**
@@ -276,8 +288,8 @@ async function listFileTree(input: unknown): Promise<WorkspaceFileTreeReadModel>
 	// Validated at runtime, then branded: the transport hands the input over as JSON.
 	const workspaceId = requiredString(input, "workspaceId") as WorkspaceId;
 	const segments = workspaceRelativeSegments(optionalString(input, "path"));
-	const directory = await loadProjectDirectory();
-	const entry = directory.entries.find(candidate => workspaceIdOf(candidate.key) === workspaceId);
+	const directory = await loadProjectDirectory(true);
+	const entry = directory.entries.find(candidate => workspaceIdFor(candidate.key) === workspaceId);
 	if (entry === undefined) throw invalid(`unknown workspace: ${workspaceId}`);
 
 	if (segments.length === 0) {
@@ -314,7 +326,7 @@ async function listFileTree(input: unknown): Promise<WorkspaceFileTreeReadModel>
  */
 async function openWorkspace(input: unknown): Promise<WorkspaceListReadModel> {
 	const workspaceId = requiredString(input, "workspaceId");
-	const entry = requireWorkspace(await loadProjectDirectory(), workspaceId);
+	const entry = requireWorkspace(await loadProjectDirectory(true), workspaceId);
 	const reply = await callGateway(PROJECTS_ROUTE, { method: "PUT", body: { path: entry.path } });
 	if (reply.status === 400 || reply.status === 404) {
 		throw invalid(`cannot open workspace ${workspaceId}: the gateway rejected its directory`);
@@ -336,7 +348,7 @@ async function hideWorkspace(input: unknown): Promise<WorkspaceListReadModel> {
 	const workspaceId = requiredString(input, "workspaceId");
 	const hidden =
 		typeof (input as { hidden?: unknown }).hidden === "boolean" ? (input as { hidden: boolean }).hidden : true;
-	const entry = requireWorkspace(await loadProjectDirectory(), workspaceId);
+	const entry = requireWorkspace(await loadProjectDirectory(true), workspaceId);
 	const reply = await callGateway(PROJECTS_ROUTE, { method: "PUT", body: { path: entry.path, hidden } });
 	if (reply.status === 400 || reply.status === 404) {
 		throw invalid(`cannot hide workspace ${workspaceId}: the gateway rejected its directory`);
@@ -363,7 +375,7 @@ async function createFile(input: unknown): Promise<WorkspaceFileMutationResult> 
 	const name = segments[segments.length - 1] as string;
 	const parentSegments = segments.slice(0, -1);
 	const relative = segments.join("/");
-	const entry = requireWorkspace(await loadProjectDirectory(), workspaceId);
+	const entry = requireWorkspace(await loadProjectDirectory(true), workspaceId);
 
 	const registered = await callGateway(VALIDATE_CWD_ROUTE, { method: "POST", body: { cwd: entry.path } });
 	if (registered.status < 200 || registered.status >= 300) {

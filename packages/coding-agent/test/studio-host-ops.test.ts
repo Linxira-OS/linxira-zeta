@@ -27,6 +27,7 @@ import type {
 	WorkspaceId,
 } from "../src/server/studio-host/contract/index.js";
 import { countText } from "../src/server/studio-host/ops/text-count.js";
+import { workspaceIdFor } from "../src/server/studio-host/ops/workspace-id.js";
 import { StudioOperations, type StudioHostContext } from "../src/server/studio-host/registry.js";
 
 const operations = new StudioOperations();
@@ -347,6 +348,44 @@ describe("workspace commands", () => {
 		if (row === undefined) throw new Error(`projects.list did not list ${path.basename(workspaceDir)}`);
 		return { workspaceId: row.workspaceId };
 	}
+
+	test("an empty default workspace is listed without a fabricated open date", async () => {
+		const list = await queryResult("projects.list", {});
+		const row = list.workspaces.find(workspace => workspace.name === path.basename(workspaceDir));
+		expect(row).toBeDefined();
+		expect(row?.workspaceId).toBe(workspaceIdFor(workspaceDir));
+		expect(row?.lastOpenedAt).toBeNull();
+		expect(row?.active).toBe(true);
+		expect(list.defaultWorkspaceId).toBe(row?.workspaceId);
+	});
+
+	test("a hidden workspace stays resolvable by id for file operations", async () => {
+		const { workspaceId } = await registerWorkspace();
+		const hidden = await handleProjectsPut(
+			new Request("http://127.0.0.1/api/projects", {
+				method: "PUT",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ path: workspaceDir, hidden: true }),
+			}),
+		);
+		expect(hidden.status).toBe(200);
+		const visible = await queryResult("projects.list", {});
+		expect(visible.workspaces.some(workspace => workspace.workspaceId === workspaceId)).toBe(false);
+		expect(visible.defaultWorkspaceId).toBeDefined();
+
+		const created = await runCommand("workspace.file.create", { workspaceId, path: "hidden.txt" });
+		expect(created.result).toEqual({ applied: true, kind: "file", path: "hidden.txt" });
+		expect(fs.existsSync(path.join(workspaceDir, "hidden.txt"))).toBe(true);
+	});
+
+	test("session.create requires a registered workspace id", async () => {
+		await expect(runCommand("session.create", {} as never)).rejects.toMatchObject({
+			code: "INVALID_ARGUMENT",
+		});
+		await expect(
+			runCommand("session.create", { workspaceId: "ws-0000000000000000" as WorkspaceId }),
+		).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+	});
 
 	test("workspace.open stamps the registry preference and reports the real inventory", async () => {
 		const { workspaceId } = await registerWorkspace();

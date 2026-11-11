@@ -5,7 +5,7 @@
  *
  * | operation | gateway |
  * |---|---|
- * | `session.create` | `POST /api/agent/new` (`ensure_session`, cwd of the active/default workspace) |
+ * | `session.create` | `POST /api/agent/new` (`ensure_session`, cwd of the explicit workspace) |
  * | `session.resume` | `POST /api/agent/:id` `{type:"get_state"}` (attach a dormant thread) then `session.state` |
  * | `session.delete` | `DELETE /api/sessions/:id` |
  * | `session.archive` / `session.unarchive` | `POST /api/sessions/:id/archive` / `POST /api/sessions/:id/unarchive` |
@@ -37,6 +37,7 @@
  * and never invents one.
  */
 import { serveIdentity } from "../../web-gateway/identity.js";
+import { getRpcSession } from "../../web-gateway/agents.js";
 import type { GatewayReply } from "../gateway.js";
 import {
 	StudioOpError,
@@ -80,6 +81,8 @@ import type {
 } from "../protocol/contracts/state.js";
 import { SESSION_THINKING_LEVELS } from "../protocol/contracts/state.js";
 import { truncateUtf8, utf8ByteLength } from "../protocol/conversation-text.js";
+import { readWorkspaceIdentities, resolveWorkspacePath } from "./workspace.js";
+import { resumePathKey } from "../../../resume/paths.js";
 
 /**
  * The host authority epoch; the same constant `bootstrap.ts` publishes. Zeta
@@ -165,13 +168,6 @@ function confirmMutation(reply: GatewayReply, method: string, path: string, notF
  * session (`/api/agent/current`) is the fallback until one is created.
  */
 let activeSessionId: string | undefined;
-
-/**
- * Workspace the client's sessions live in, remembered from the last
- * `session.create` (a brand-new session has no persisted header to read it
- * from).
- */
-let sessionCwd: string | undefined;
 
 /**
  * The session the sessionless `session.*` / `core.*` commands act on. Zeta has
@@ -1159,35 +1155,17 @@ function rejectTreeRefineOptions(input: {
 	if (input.reanswer !== undefined) throw invalid("session.tree.navigate does not support reanswer here");
 }
 
-/**
- * Workspace for a new session: the workspace this host last created a session
- * in, then the active session's persisted cwd, then the gateway's default
- * workspace.
- */
-async function createCwd(): Promise<string> {
-	if (sessionCwd !== undefined) return sessionCwd;
-	if (activeSessionId !== undefined) {
-		const reply = await callGateway(`/api/sessions/${segment(activeSessionId)}`);
-		const info =
-			reply.status === 200 && isRecord(reply.body) && isRecord(reply.body.info) ? reply.body.info : undefined;
-		const cwd = info === undefined ? undefined : stringField(info, "cwd");
-		if (cwd !== undefined && cwd !== "") return cwd;
+/** Session ownership uses the same canonical cwd/key mapping as history. */
+export async function sessionWorkspaceId(sessionId: string): Promise<string | undefined> {
+	const live = getRpcSession(sessionId);
+	let cwd = live?.isAlive() ? live.getSession().sessionManager.getCwd() : undefined;
+	if (cwd === undefined) {
+		const reply = await callGateway(`/api/sessions/${segment(sessionId)}`, { query: "window=tail&limit=1" });
+		if (reply.status !== 200 || !isRecord(reply.body) || !isRecord(reply.body.info)) return undefined;
+		cwd = stringField(reply.body.info, "cwd");
 	}
-	const body = await gatewayJson<unknown>("/api/projects");
-	if (!isRecord(body) || !Array.isArray(body.projects)) {
-		throw unavailable("the gateway returned no project registry");
-	}
-	const defaultWorkspaceKey = stringField(body, "defaultWorkspaceKey");
-	for (const project of body.projects) {
-		if (!isRecord(project) || !Array.isArray(project.workspaces)) continue;
-		for (const workspace of project.workspaces) {
-			if (!isRecord(workspace)) continue;
-			if (defaultWorkspaceKey !== undefined && stringField(workspace, "key") !== defaultWorkspaceKey) continue;
-			const path = stringField(workspace, "path");
-			if (path !== undefined && path !== "") return path;
-		}
-	}
-	throw unavailable("the gateway reports no default workspace to start a session in");
+	if (cwd === undefined) return undefined;
+	return (await readWorkspaceIdentities([cwd])).get(resumePathKey(cwd))?.workspaceId;
 }
 
 /** Entry id of the last user message on the active branch (Zeta's only fork target). */
@@ -1296,12 +1274,12 @@ export const sessionOps: StudioFamily = {
 		},
 	},
 	commands: {
-		/** `POST /api/agent/new` (`ensure_session`) in the active/default workspace. */
+		/** Create only in the explicitly named, registered workspace. */
 		"session.create": async input => {
 			if (input.noContextFiles === true) {
 				throw invalid("session.create does not support noContextFiles on the Zeta host");
 			}
-			const cwd = await createCwd();
+			const cwd = await resolveWorkspacePath(requiredString(input, "workspaceId"));
 			const body = await gatewayJson<unknown>("/api/agent/new", {
 				method: "POST",
 				body: { cwd, type: "ensure_session" },
@@ -1311,7 +1289,6 @@ export const sessionOps: StudioFamily = {
 			if (sessionId === undefined || sessionId === "") {
 				throw unavailable("agent/new did not report a new session id");
 			}
-			sessionCwd = cwd;
 			activeSessionId = sessionId;
 			return await snapshotFor(sessionId);
 		},

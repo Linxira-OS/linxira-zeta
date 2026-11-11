@@ -214,9 +214,7 @@
 .project-head .p-name {
   font-weight: var(--fw-semibold);
   font-size: var(--fs-12);
-  display: flex;
-  align-items: center;
-  gap: var(--sp-6);
+  display: block;
   min-width: 0;
   flex: 1;
 }

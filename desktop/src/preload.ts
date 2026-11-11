@@ -93,7 +93,7 @@ const bridge = {
 	/** Open the OS directory picker; resolves to the chosen path or null on cancel. */
 	selectDirectory: (startPath?: string): Promise<string | null> => ipcRenderer.invoke("pi:select-directory", startPath),
 	/** Pick a directory and register it as a project (native "Open Folder"). */
-	pickWorkspace: (input?: { startPath?: string; alias?: string }): Promise<{ cancelled: boolean; name?: string }> =>
+	pickWorkspace: (input?: { startPath?: string; alias?: string }): Promise<{ cancelled: boolean; workspaceId?: string; name?: string }> =>
 		ipcRenderer.invoke("pi:pick-workspace", input),
 	/** Host-defined open targets; IDs are opaque to the renderer. */
 	getOpenTargets: (): Promise<DesktopOpenTarget[]> => ipcRenderer.invoke("pi:open-targets"),
