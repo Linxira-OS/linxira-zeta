@@ -59,23 +59,26 @@ All structure is written to one SQLite database: `~/.zeta/data/zeta.db`
 disk are discovery hints; `team doctor` reports drift between them and the
 database.
 
-Schema (`PRAGMA user_version` = 5):
+Schema (`PRAGMA user_version` = 6):
 
-| Table | Columns |
-| --- | --- |
-| `teams` | `id`, `name`, `root_path`, `created_at` |
-| `team_pms` | `id`, `team_id`, `name`, `workspace_path`, `created_at` |
-| `repos` | `id`, `team_id`, `name`, `base_path`, `remote_url`, `default_branch`, `created_at` |
-| `repo_bindings` | `repo_id`, `pm_id`, `created_at` |
-| `engineers` | `id`, `team_id`, `pm_id`, `name`, `execution`, `created_at` |
-| `worktrees` | `id`, `team_id`, `repo_id`, `pm_id`, `engineer_id`, `kind`, `name`, `path`, `branch`, `base_branch`, `created_at` |
-| `rooms` | `room_id`, `team_id`, `pm_id` (nullable), `name`, `kind`, `created_at` |
-| `room_members` | `room_id`, `agent_id`, `role`, `created_at` |
-| `room_events` | `seq`, `room_id`, `sent_at`, `sender_agent_id`, `kind`, `body`, `reply_to`, `mentions_json` |
-| `agents` | `agent_id`, `team_id`, `pm_id`, `role`, `persistence`, `parent_agent_id`, `session_id`, `session_file`, `state`, `created_at`, `updated_at` |
-| `agent_skills` | `team_id`, `pm_id`, `engineer_id`, `skill_name`, `source`, `qualified_name`, `assigned_by`, `created_at` (unique per engineer+qualified name and engineer+skill name) |
-| `tasks` | `id`, `team_id`, `task_key`, `title`, `body`, `status`, `assigned_pm_id`, `assignee_agent_id` (nullable), `owner_agent_id` (nullable), `owner_role`, `lease_expires_at`, `req_ids_json`, `revision`, `created_at`, `updated_at` |
-| `task_events` | `seq`, `task_id`, `at`, `actor_agent_id`, `kind`, `body`, `from_status`, `to_status`, `req_ids_json`, `lease_expires_at` |
+| Table                  | Columns                                                                                                                                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `teams`                | `id`, `name`, `root_path`, `created_at`                                                                                                                                                                                         |
+| `team_pms`             | `id`, `team_id`, `name`, `workspace_path`, `created_at`                                                                                                                                                                         |
+| `repos`                | `id`, `team_id`, `name`, `base_path`, `remote_url`, `default_branch`, `created_at`                                                                                                                                              |
+| `repo_bindings`        | `repo_id`, `pm_id`, `created_at`                                                                                                                                                                                                |
+| `engineers`            | `id`, `team_id`, `pm_id`, `name`, `execution`, `created_at`                                                                                                                                                                     |
+| `worktrees`            | `id`, `team_id`, `repo_id`, `pm_id`, `engineer_id`, `kind`, `name`, `path`, `branch`, `base_branch`, `created_at`                                                                                                               |
+| `rooms`                | `room_id`, `team_id`, `pm_id` (nullable), `name`, `kind`, `created_at`                                                                                                                                                          |
+| `room_members`         | `room_id`, `agent_id`, `role`, `created_at`                                                                                                                                                                                     |
+| `room_events`          | `seq`, `room_id`, `sent_at`, `sender_agent_id`, `kind`, `body`, `reply_to`, `mentions_json`                                                                                                                                     |
+| `agents`               | `agent_id`, `team_id`, `pm_id`, `role`, `persistence`, `parent_agent_id`, `session_id`, `session_file`, `state`, `created_at`, `updated_at`                                                                                     |
+| `agent_skills`         | `team_id`, `pm_id`, `engineer_id`, `skill_name`, `source`, `qualified_name`, `assigned_by`, `created_at` (unique per engineer+qualified name and engineer+skill name)                                                           |
+| `tasks`                | `id`, `team_id`, `task_key`, `title`, `body`, `status`, `assigned_pm_id`, `assignee_agent_id` (nullable), `owner_agent_id` (nullable), `owner_role`, `lease_expires_at`, `req_ids_json`, `revision`, `created_at`, `updated_at` |
+| `task_events`          | `seq`, `task_id`, `at`, `actor_agent_id`, `kind`, `body`, `from_status`, `to_status`, `req_ids_json`, `lease_expires_at`                                                                                                        |
+| `team_bootstrap_runs`  | `run_id`, `team_id`, `root_path`, `mode`, `status`, `plan_json`, `created_at`, `updated_at`, `error`                                                                                                                            |
+| `team_bootstrap_steps` | `run_id`, `step_id`, `seq`, `kind`, `status`, `payload_json`, `created_at`, `updated_at`, `error`                                                                                                                               |
+| `room_subscriptions`   | `room_id`, `agent_id`, `accepted_through`, `read_through`, `subscribed_at`, `updated_at`                                                                                                                                        |
 
 Worktree `kind` is `home` or `task`; engineer `execution` is `normal` or `vibe`;
 task `status` is `pending`, `claimed`, `review`, `done`, or `cancelled`.
@@ -90,11 +93,11 @@ append-only `room_events` log. It is never a folder, Git repository, workspace,
 or session, so posting never writes a transcript and room events cannot enter
 session JSONL.
 
-| Room kind | `pm_id` | Default members |
-| --- | --- | --- |
-| `pm` | the owning PM row id | that PM, its engineers, and its Secretary when one is registered |
-| `coordination` (`--shared`) | `NULL` | every PM, engineer, and PM-owned agent in the team |
-| `room` (arbitrary) | `NULL` | empty until `--members` supplies agents |
+| Room kind                   | `pm_id`              | Default members                                                  |
+| --------------------------- | -------------------- | ---------------------------------------------------------------- |
+| `pm`                        | the owning PM row id | that PM, its engineers, and its Secretary when one is registered |
+| `coordination` (`--shared`) | `NULL`               | every PM, engineer, and PM-owned agent in the team               |
+| `room` (arbitrary)          | `NULL`               | empty until `--members` supplies agents                          |
 
 - Members resolve to real database rows. A token may be a PM name, an engineer
   name, `<pm>/<engineer>`, a PM-owned agent id, `secretary`, `<pm>/secretary`, or
@@ -120,13 +123,13 @@ A task is a `tasks` row plus an ordered `task_events` log in the same global
 database. It survives restart and is independent of rooms: the queue records
 who owns the work, while rooms remain the conversation log.
 
-| Status | Owner | Lease | Transition |
-| --- | --- | --- | --- |
-| `pending` | none | none | PM creates/assigns; an eligible engineer claims |
-| `claimed` | one engineer row id | required | owner renews, releases, or submits |
-| `review` | the author engineer | none | owning PM completes or rejects |
-| `done` | author retained for audit | none | terminal |
-| `cancelled` | none | none | terminal |
+| Status      | Owner                     | Lease    | Transition                                      |
+| ----------- | ------------------------- | -------- | ----------------------------------------------- |
+| `pending`   | none                      | none     | PM creates/assigns; an eligible engineer claims |
+| `claimed`   | one engineer row id       | required | owner renews, releases, or submits              |
+| `review`    | the author engineer       | none     | owning PM completes or rejects                  |
+| `done`      | author retained for audit | none     | terminal                                        |
+| `cancelled` | none                      | none     | terminal                                        |
 
 - Claims use a compare-and-set on `tasks.revision`, so two workers cannot own
   the same task. A claim outside the task's PM is rejected; when
@@ -140,17 +143,68 @@ who owns the work, while rooms remain the conversation log.
 - `REQ-*` repository-ledger ids are extracted from task titles/bodies and
   `--req`, stored on the task, and recorded per event. They are metadata; the
   ledger remains authoritative for their content.
-- Listing is available through `zetacode team task list`; the Team Hub remains a
-  room/roster view. The detailed design, `/initzetateam` dependency order, and
+- Listing is available through `zetacode team task list` and the Team Hub's
+  `TASKS` section (claim `c`, renew `n`, submit `u`, complete `x`, reject
+  `X`, cancel `C`). The detailed design, `/initzetateam` dependency order, and
   Vibe worker integration are in
   [document/team-task-queue.md](../document/team-task-queue.md).
 - The queue writes no session transcript. IM per-agent binding stays out of
   scope; see `local://im-multi-account-design.md`.
 
+## Bootstrap and runtime
+
+`/initzetateam` and `zetacode team bootstrap` share one service
+(`src/team/bootstrap.ts`, `bootstrap-command.ts`):
+
+1. **Plan** validates the ownerless root (not Git, no `AGENTS.md`, no nested
+   Git), empty `pms/`/`repos/`/`worktrees/`, name/path/branch collisions, repo
+   link/clone targets, and DB registration before any write.
+2. **Apply** re-runs preflight immediately before writing, then records every
+   step in `team_bootstrap_runs`/`team_bootstrap_steps` and calls the existing
+   service. A running step whose service call finished before the journal
+   `done` write is adopted on resume by matching persisted rows/markers.
+3. **Default resources**: coordination room, one PM room per PM, bindings for
+   each repo (or explicit `--bind`), and specified engineers.
+4. **Rollback** walks completed steps in reverse and removes only objects the
+   run created. It never uses force: a worktree with user changes or a moved
+   HEAD, or a clone with extra files, is preserved with the DB row and a
+   `rollback_failed` error. Rollback stops at the first failure.
+5. **Resume** re-runs preflight for remaining steps, skips `done`, and never
+   deletes pre-existing rows/folders. Success ends with `team doctor`.
+
+`--engineer-only` uses the same journal against an existing Team to add one or
+more engineers; it does not recreate the root, PMs, repos, or bindings.
+`--no-rollback` leaves a failed run resumable; `--rollback <runId>` compensates
+explicitly.
+
+### Room delivery and ack
+
+`postRoomEvent` writes the durable event and fans it out to subscribed members
+through the existing `IrcBus`/mesh transport; no daemon or polling is added.
+`room_subscriptions.accepted_through` advances only for a real session/host
+receipt, oldest-first and without skipping a failed seq. `read_through` is the
+consumer's explicit ack and never moves with delivery. Offline/failed members
+keep their cursor and are drained by `deliverPendingRoomEvents` when their
+session starts. `queued` is not treated as accepted because the local mailbox is
+in-memory.
+
+### Engineer task worker
+
+`/teamworker on|off|status [normal|vibe]` is valid only in an engineer worktree
+session. The mode must match the engineer's recorded `execution`. The loop
+claims only while the session is idle, renews the lease, queues a real
+follow-up turn, waits for its terminal `agent_end`, then submits for review. It
+never completes its own review, never starts Vibe, and never spawns an agent or
+daemon. `off` aborts and releases an owned claim; a lost lease aborts execution
+and cannot submit or release a new owner's task.
+
 ## Commands
 
 ```bash
 zetacode team init <name> --root <path> [--name <display>]
+zetacode team bootstrap [--name <team>] --root <path> [--pm ...] [--repo ...]
+  [--bind ...] [--engineer ...] [--room ...] [--engineer-only]
+  [--resume <runId>] [--rollback <runId>] [--no-rollback]
 zetacode team pm add <pm> [--root <path>]
 zetacode team repo add <repo> --clone <url> [--root <path>]
 zetacode team repo link <repo> <path> [--root <path>]
@@ -220,14 +274,14 @@ zetacode team doctor [--root <path>] [--json]
 
 `zetacode` classifies the launch directory before creating a session:
 
-| cwd | Opens | Notes |
-| --- | --- | --- |
-| exactly the Team root (`.zeta/team.json`) | **Team Hub** | A UI surface, never an Agent. No team-root session, no `AGENTS.md`, no model request. |
-| exactly a PM workspace (`.zeta/pm.json`) | **Team Hub**, focused on that PM | A bare launch opens the Hub (no fake PM agent). An explicit session launch stays in coding; `/lead` (alias `/pm`) then runs the PM main agent — see [Lead (PM) mode](#lead-pm-mode). |
-| `repos/<repo>` (including nested dirs) | normal coding TUI + warning | The base repository is not an agent cwd and keeps its default branch. |
-| `worktrees/<repo>/<pm>/<engineer>/home` or `/<task>` | normal coding TUI + breadcrumb | Breadcrumb reads `Team / PM / repo / engineer / worktree`; Vibe stays off unless `/vibe`. |
-| any other directory below the Team root | normal coding TUI + warning | No sibling guessing; `/team hub` is available. |
-| outside every Team | normal coding TUI | No Team UI or warning. |
+| cwd                                                  | Opens                            | Notes                                                                                                                                                                                |
+| ---------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| exactly the Team root (`.zeta/team.json`)            | **Team Hub**                     | A UI surface, never an Agent. No team-root session, no `AGENTS.md`, no model request.                                                                                                |
+| exactly a PM workspace (`.zeta/pm.json`)             | **Team Hub**, focused on that PM | A bare launch opens the Hub (no fake PM agent). An explicit session launch stays in coding; `/lead` (alias `/pm`) then runs the PM main agent — see [Lead (PM) mode](#lead-pm-mode). |
+| `repos/<repo>` (including nested dirs)               | normal coding TUI + warning      | The base repository is not an agent cwd and keeps its default branch.                                                                                                                |
+| `worktrees/<repo>/<pm>/<engineer>/home` or `/<task>` | normal coding TUI + breadcrumb   | Breadcrumb reads `Team / PM / repo / engineer / worktree`; Vibe stays off unless `/vibe`.                                                                                            |
+| any other directory below the Team root              | normal coding TUI + warning      | No sibling guessing; `/team hub` is available.                                                                                                                                       |
+| outside every Team                                   | normal coding TUI                | No Team UI or warning.                                                                                                                                                               |
 
 A malformed or unsupported marker never blocks a coding launch: the ordinary
 session opens with a warning instead. Explicit launches that already choose work
@@ -250,18 +304,21 @@ statuses:
   host `sentAt`, resolved sender, and reply target. An empty room says so.
 - Selecting an engineer shows the real worktree rows (kind, branch, path).
 
-| Key | Behavior |
-| --- | --- |
-| `j` / `k` | Move in the roster, or scroll events when the event pane has focus. |
-| `h` / `l`, `Tab` | Switch between roster and events. |
-| `Enter` | Open the selected room's events, or the selected engineer's worktrees. |
-| `g` | Jump to the shared coordination room. |
-| `p` | Cycle the focused PM's rooms. |
-| `s` | Compose a room event. `Tab`-cycles a real room member as sender; `Enter` posts through the room service; `Esc` cancels. |
-| `a` | Close the Hub and open Agent Hub (subagent control stays there). A standalone Hub says it needs a coding session. |
-| `r` | Reload roster and events from the database. |
-| `/` | Filter rooms, people, and events. `Esc` clears the filter first. |
-| `Esc` | Return from events to the roster, clear the filter, then close the Hub. |
+| Key                               | Behavior                                                                                                                |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `j` / `k`                         | Move in the roster, or scroll events when the event pane has focus.                                                     |
+| `h` / `l`, `Tab`                  | Switch between roster and events.                                                                                       |
+| `Enter`                           | Open the selected room's events, or the selected engineer's worktrees.                                                  |
+| `g`                               | Jump to the shared coordination room.                                                                                   |
+| `p`                               | Cycle the focused PM's rooms.                                                                                           |
+| `s`                               | Compose a room event. `Tab`-cycles a real room member as sender; `Enter` posts through the room service; `Esc` cancels. |
+| `m` / `M`                         | Add/remove a room member by token; `M` removes (PM room keeps its owner).                                               |
+| `K`                               | Cycle room kind (`room` → `coordination` → `pm` when an owner exists).                                                  |
+| `c` / `n` / `u` / `x` / `X` / `C` | On a selected task: claim, renew, submit for review, complete, reject, cancel.                                          |
+| `a`                               | Close the Hub and open Agent Hub (subagent control stays there). A standalone Hub says it needs a coding session.       |
+| `r`                               | Reload roster and events from the database.                                                                             |
+| `/`                               | Filter rooms, people, and events. `Esc` clears the filter first.                                                        |
+| `Esc`                             | Return from events to the roster, clear the filter, then close the Hub.                                                 |
 
 Posting is a `room_events` insert only. A shared room needs an explicit member
 sender (the composer requires one); a PM room defaults to its owning PM in the
@@ -320,7 +377,7 @@ reference a discovered skill by name/source and never by filesystem path.
   `<pm>/<engineer>`, or the full row id, plus a discovered skill name or
   `<provider>:<name>`. There is no path input, so the tool cannot inject a file
   the engineer could not already discover; hidden/manual-only skills (`hide:
-  true`) are rejected.
+true`) are rejected.
 - Ownership is enforced: another PM's engineer is rejected, and a PM name
   (including the caller's) is rejected as “not an engineer”. `assigned_by` is
   the PM row id and `created_at` records the time.
@@ -432,10 +489,10 @@ not an error.
 
 ## Not in this slice
 
-`/initzetateam`, automatic work dispatch, Vibe auto-start, IM per-agent
-binding, and a Team Hub task pane remain unimplemented. The durable queue is
-usable only through `zetacode team task …`; an engineer or Vibe worker must
-claim explicitly, and no Team entry starts a worker. Lead (PM) mode covers the
+Automatic Vibe start, IM per-agent binding, and a background daemon remain
+unimplemented. The durable queue is usable through `zetacode team task …`, the
+Team Hub task pane, and the opt-in `/teamworker` engineer-session loop. No Team
+entry starts Vibe or a worker without that explicit command. Lead (PM) mode covers the
 PM main agent's coordination surface; the Secretary is reachable only from that
 mode, and there is still no Team-root session. The Hub is a UI without an Agent
 and shows only rooms and the PM/engineer roster; subagent control remains in

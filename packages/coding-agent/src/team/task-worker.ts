@@ -32,6 +32,8 @@ export interface TaskWorkerOptions extends TeamContextOptions {
 	pollMs?: number;
 	/** Stop after this many submitted tasks; default unlimited. */
 	maxTasks?: number;
+	/** Return false while the caller's session is busy; no task is claimed then. */
+	canClaim?: () => boolean;
 	signal?: AbortSignal;
 	execute: (task: TaskRecord, signal: AbortSignal) => Promise<TaskWorkerExecution>;
 }
@@ -147,6 +149,10 @@ export function startTaskWorker(options: TaskWorkerOptions): TaskWorkerHandle {
 		running = true;
 		try {
 			while (!controller.signal.aborted && submitted < maxTasks) {
+				if (options.canClaim && !options.canClaim()) {
+					await sleep(options.pollMs ?? DEFAULT_POLL_MS, controller.signal);
+					continue;
+				}
 				const tasks = await listTasks({ ...options, status: "pending" });
 				const next = tasks.find(task => claimable(task, worker));
 				if (!next) {

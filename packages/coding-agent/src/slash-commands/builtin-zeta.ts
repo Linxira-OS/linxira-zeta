@@ -4,6 +4,7 @@ import { getProjectTrackingDir } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { handleDesignCommand } from "../design/command";
 import { parseInitTeamArgs, runInitTeamCommand } from "../team/bootstrap-command";
+import { runTeamWorkerCommand } from "../team/engineer-worker";
 import { cfgLanguage } from "../zeta-settings";
 import { cfgSessionTimeInjectEvery, cfgTrackingEnabled } from "../tools/settings";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
@@ -66,6 +67,36 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			try {
 				const result = await runInitTeamCommand(parseInitTeamArgs(command.args));
 				runtime.ctx.showStatus(result.text);
+			} catch (error) {
+				runtime.ctx.showWarning(error instanceof Error ? error.message : String(error));
+			}
+			runtime.ctx.editor.setText("");
+		},
+	},
+	{
+		name: "teamworker",
+		description: "Start/stop the opt-in Team task worker for this engineer worktree session",
+		icon: "agents",
+		allowArgs: true,
+		inlineHint: "[on|off|status] [normal|vibe]",
+		handle: async (command, runtime) => {
+			try {
+				await runtime.output(await runTeamWorkerCommand(runtime.session, runtime.cwd, command.args));
+			} catch (error) {
+				await runtime.output(error instanceof Error ? error.message : String(error));
+				return { consumed: true, failed: true };
+			}
+			return commandConsumed();
+		},
+		handleTui: async (command, runtime) => {
+			try {
+				runtime.ctx.showStatus(
+					await runTeamWorkerCommand(
+						runtime.ctx.session,
+						runtime.ctx.session.sessionManager.getCwd(),
+						command.args,
+					),
+				);
 			} catch (error) {
 				runtime.ctx.showWarning(error instanceof Error ? error.message : String(error));
 			}

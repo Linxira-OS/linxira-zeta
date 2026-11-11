@@ -45,11 +45,18 @@
 - **PM → 工程师技能分配**：Team 数据库新增 `agent_skills` 表（schema v4；`team_id`/`pm_id`/`engineer_id`/`skill_name`/`source`/`qualified_name`/`assigned_by`/`created_at`，按工程师+技能唯一）。Lead 模式新增 `engineer_skills` 工具（`list|assign|remove`），PM 只能操作自己名下的工程师，拒绝 PM 自身与其他 PM；只接受已发现技能名，无路径参数。分配在工程师会话启动/恢复时以隐藏 autoload 提示注入，每次转写只注入一次；运行中的工程师需 `/reload-skills` 或重启，不做热重载。插件/注册表来源（可带 hooks/tools）为高风险，需操作员在 `team.skillAllowlist` 放行；官方/自写技能默认允许。删除只停止后续注入，不回收已加载内容。
 
 ### Team 工作队列（未发布）
-- **持久任务队列**：Team 数据库升级到 schema v5，新增 `tasks` / `task_events`。PM 创建并指派任务，工程师（含 `execution = vibe`）用租约认领；`pending → claimed → review → done`，另有 `rejected → pending` 与 `cancelled`。认领以 `revision` 比较并交换，同一任务只能有一个 owner；租约过期可被同 PM 的其他工程师回收。任务与事件在同一 SQLite 事务提交，进程重启后状态、owner、租约与事件全部保留。
+- **持久任务队列**：Team 数据库升级到 schema v5（随后 v6 增加 bootstrap journal / room subscriptions），新增 `tasks` / `task_events`。PM 创建并指派任务，工程师（含 `execution = vibe`）用租约认领；`pending → claimed → review → done`，另有 `rejected → pending` 与 `cancelled`。认领以 `revision` 比较并交换，同一任务只能有一个 owner；租约过期可被同 PM 的其他工程师回收。任务与事件在同一 SQLite 事务提交，进程重启后状态、owner、租约与事件全部保留。
 - **REQ 关联**：任务标题/正文与 `--req` 中的 `REQ-*` 仓库台账 id 会合并到任务并在每个事件留存；`task comment` 可追加只读审计备注。
 - **CLI**：新增 `zetacode team task create|list|show|assign|claim|renew|release|submit|complete|reject|cancel|comment`；`task list` 显示状态、owner、租约与 REQ id。Lead 工具面与 Team Hub 本版不变（最小完整切片走 CLI）。
 - **doctor**：修复 `room.member` 对已登记 Secretary 的误报；新增任务 PM/assignee/owner/lease/event actor 校验，过期租约只告警。
-- **设计**：`document/team-task-queue.md` 记录 `/initzetateam` 的 plan/apply/journal/回滚/doctor 预检依赖顺序；Vibe worker 自动认领与 IM 每 Agent 绑定均未在本版实现。
+- **设计**：`document/team-task-queue.md` 记录 `/initzetateam` 的 plan/apply/journal/回滚/doctor 预检依赖顺序；IM 每 Agent 绑定未在本版实现。
+
+### Team 引导、实时房间与任务 worker（未发布）
+- **事务化 `/initzetateam`**：新增 schema v6 `team_bootstrap_runs`/`team_bootstrap_steps`。plan 在任何写入前校验无主根（非 Git、无 `AGENTS.md`、无嵌套 Git）、目录空、名称/路径/branch 冲突与 DB 冲突；apply 写前重新 preflight，每步写 journal，崩溃后以持久行/marker adopt；失败可 resume 或 rollback。只删除本 run 创建对象：dirty worktree、移动的 HEAD、增加文件的 clone 保留 DB 行并报 `rollback_failed`，不使用 force，不跨 junction。默认创建 coordination、PM 房间、binding 与指定工程师；`--engineer-only` 在既有 Team 上走同一流程。
+- **房间实时投递**：新增 `room_subscriptions(accepted_through, read_through)`。`room post` 通过既有 `IrcBus`/mesh 投递给已订阅的在线成员；按 seq 最旧优先、失败 seq 不跳过，accepted 用 CAS 单调推进；`read` 只由显式 ack 推进，`queued` 不当作 accepted。离线成员在会话启动时由 `deliverPendingRoomEvents` 补投。
+- **Team Hub**：新增 `TASKS` 列表/详情与 claim/renew/submit/complete/reject/cancel；房间 `m/M` 增删成员、`K` 切换 kind（pm/coordination/room）。
+- **任务 worker**：新增 `/teamworker on|off|status [normal|vibe]`，仅限 engineer worktree 会话；mode 必须与 DB `execution` 一致。会话忙时不认领；只在本会话 idle 后排队一次真实 follow-up turn，等 `agent_end` 终态后才 submit；租约丢失 aborts execution，不能 submit/release 新 owner；review 不自动 complete。无 Vibe 自动启动、无后台 daemon。
+- **文档**：`docs/team.md` 记录 runtime init/rollback、room accepted/read ack、task worker 与 Hub 动作；ADR 草稿 `local://team-adr-bootstrap-live-delivery.md` 由集成编号。
 
 ### 自定义命令执行策略（未发布）
 - **命令级 agent/model/template（REQ-052）**：Markdown 与 TypeScript 自定义命令都接受 `agent`、`model`、`template`。执行时按名称解析已发现 agent，把其 persona 追加到本轮提示、把工具面收窄为「会话已有工具 ∩ agent 工具」（`task` 仅在 agent 声明 `spawns` 时保留）；`model` 走与 `--model` 相同的选择器解析，缺省时按 agent 的 model 列表依次尝试。未知 agent、无法解析的 model 在 handler 与模型请求之前明确报错；`template` 取代 Markdown 正文，TypeScript 命令可只给 template 不给 `execute`。优先级是命令 `model` > agent model 列表 > 当前会话 model，命令轮结束（含异常）恢复原 model、思考等级、persona 与工具面。流式运行及 plan/goal/vibe/lead 模式内拒绝带选择器的命令，不做隐式叠加。Codex/OpenCode 发现路径不再在剥离 frontmatter 后丢失这些字段。
