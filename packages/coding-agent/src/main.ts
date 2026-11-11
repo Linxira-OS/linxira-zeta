@@ -53,7 +53,7 @@ import { applyStartupCwd } from "./cli/startup-cwd";
 import { M } from "./i18n";
 import { runAutoUpdate } from "./cli/auto-update";
 import { getLatestRelease, isSourceCheckout, managedInstallName } from "./cli/update-cli";
-import { findConfigFile } from "./config";
+import { discoverAppendSystemPromptPath } from "./config";
 import { resolveChannelHosting } from "./channels/channel-status";
 import {
 	activeSessionChannelHost,
@@ -1491,19 +1491,6 @@ export async function createSessionManager(
 	return undefined;
 }
 
-/** Discover APPEND_SYSTEM.md file if no CLI append system prompt was provided */
-function discoverAppendSystemPromptFile(): string | undefined {
-	const projectPath = findConfigFile("APPEND_SYSTEM.md", { user: false });
-	if (projectPath) {
-		return projectPath;
-	}
-	const globalPath = findConfigFile("APPEND_SYSTEM.md", { user: true });
-	if (globalPath) {
-		return globalPath;
-	}
-	return undefined;
-}
-
 /** Apply resolved CLI/discovered prompt files without bypassing system prompt templates. */
 export function applyResolvedSystemPromptInputs(
 	options: CreateAgentSessionOptions,
@@ -1556,7 +1543,7 @@ export async function buildSessionOptions(
 	// it re-reads the source on every prompt rebuild. Only explicit CLI inputs
 	// are frozen into options here (an explicit flag is a one-shot value).
 	const explicitTemplatePath = parsed.systemPromptTemplate;
-	const discoveredAppendSource = parsed.appendSystemPrompt === undefined ? discoverAppendSystemPromptFile() : undefined;
+	const discoveredAppendSource = parsed.appendSystemPrompt === undefined ? discoverAppendSystemPromptPath() : undefined;
 	const titleSystemPromptSource = discoverTitleSystemPromptFile(cwd);
 	const [resolvedSystemPrompt, resolvedAppendPrompt, titleSystemPrompt, resolvedSystemPromptTemplate] =
 		await Promise.all([
