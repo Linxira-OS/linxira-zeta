@@ -24,6 +24,7 @@ import type {
   TeamWorkspaceTask,
 } from "@linxiraos/studio-contract";
 import { TeamPage } from "./TeamPage";
+import { TeamImChatPane, type ImChatBindingControl } from "./TeamImChatPane";
 import { hostErrorMessage, waitReceipt } from "./hostError";
 import { useI18n } from "./i18n";
 import {
@@ -273,16 +274,18 @@ export function TeamWorkspacePage({
   client,
   initialTeamId,
   imChat,
+  imBinding,
 }: {
   client: StudioClient;
   /** Existing Team selected by the host route; omit to use the first registered Team. */
   initialTeamId?: string;
   /**
-   * IM Chat subpage composed by the IM/integration owner. It must read the
-   * canonical session history and existing bindings; this page never copies a
-   * transcript or invents a target.
+   * Optional IM Chat subpage override. The default pane reads canonical
+   * session history/transcripts; it never copies a transcript.
    */
   imChat?: ReactNode;
+  /** IM-owner confirmation actions; absent hides the binding controls. */
+  imBinding?: ImChatBindingControl;
 }) {
   const { resolvedLanguage } = useI18n();
   const copy: Copy = resolvedLanguage.startsWith("zh") ? COPY.zh : COPY.en;
@@ -434,23 +437,21 @@ export function TeamWorkspacePage({
             {copy[id === "overview" ? "overview" : id === "onboarding" ? "onboarding" : id]}
           </button>
         ))}
-        {imChat ? (
-          <button
-            type="button"
-            className={`tw-tab${tab === "im" ? " active" : ""}`}
-            onClick={() => setTab("im")}
-          >
-            {copy.im}
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className={`tw-tab${tab === "im" ? " active" : ""}`}
+          onClick={() => setTab("im")}
+        >
+          {copy.im}
+        </button>
       </nav>
 
       {tab === "graph" ? (
         <TeamPage client={client} />
-      ) : tab === "im" && imChat ? (
+      ) : tab === "im" ? (
         <div className="tw-body">
           <p className="tw-hint">{copy.imBoundary}</p>
-          {imChat}
+          {imChat ?? <TeamImChatPane client={client} binding={imBinding} />}
         </div>
       ) : !workspace ? (
         teams.length === 0 ? (

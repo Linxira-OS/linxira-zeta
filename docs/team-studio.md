@@ -75,6 +75,23 @@ boundary; PM workspaces, repos, bindings, engineers, worktrees, DB rooms,
 membership edges, and Secretary spawn edges are real producers. There is no
 character, persona, or emotion node.
 
+## IM chat
+
+The IM chat tab reads canonical `history.list`/`conversation.open` rows; it
+keeps no second transcript. It shows IM-origin sessions from the last three
+days, with a display number derived from the current list (`workspace` two
+digits, session five digits) — never a persisted short id. The session id is a
+background key, not a label. A latest completed-turn summary comes from the
+provenance read model; until it exists the row says "no summary" or "in
+progress" instead of borrowing the first user message.
+
+Binding confirmation is supplied by the IM integration. The tab displays the
+current and pending target and the owner's control record; a real switch needs
+a second confirmation, and cancel is separate. Before confirmation ordinary
+messages still go to the old target; after it they go direct to the new target.
+Context is not moved. This pane does not add a second approval system, copy a
+transcript, or decide private/group capability — the IM owner does.
+
 ## Boundary
 
 This is local single-user collaboration. There are no accounts, passwords,
