@@ -356,6 +356,24 @@ Rules:
   `push` on `refs/heads/main`), so even a mistaken second push keeps both
   verdicts. Branch dispatches still supersede each other.
 
+### ADR and requirements gate (pre-tag)
+
+Before tagging, run `bun run check:adr` and `bun run check:reqs`, then verify by
+hand:
+
+- every REQ in the release scope is `VERIFIED` or `RELEASED` in
+  `document/requirements-ledger.md`;
+- every item not shipping is `DEFERRED` with an approval record and a re-entry
+  trigger;
+- every contract, architecture, data-model, security, migration, dependency, or
+  release-scope change has an **Accepted** ADR, an index row, and links to its
+  PR/tests/assets;
+- release notes cite the ADR IDs and the completed REQ IDs.
+
+A missing ADR, an unverified REQ, or an unapproved deferral is a release blocker,
+not follow-up work. The operating contract is
+`document/agents/workflow/execution-contract.md`.
+
 ### Release tags require an update log
 
 - Every Zeta release tag (`v*`) MUST update the root `UPDATE-LOG.md` in the

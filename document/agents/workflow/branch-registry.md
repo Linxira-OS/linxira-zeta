@@ -59,6 +59,7 @@
 
 | `feat/team-core` | feat | Team path/DB foundation（第一纵切）：`.zeta/team.json` / `.zeta/pm.json` 解析与上行 resolver、单库 `~/.zeta/data/zeta.db`（teams/team_pms/repos/repo_bindings/engineers/worktrees）、`zetacode team` 的 init/pm/repo/engineer/worktree/doctor（真实 `git worktree add`）；无 UI/房间/graph。worktree `temp/team-core` | agent | 2026-11-09 | 合入 `main` 后删（删前记 SHA） |
 | `docs/jcode-citation-fix` | docs | 去掉评估文档与 roadmap 里对已删除的临时稀疏克隆路径的引用，改为公共仓库 URL + 固定 commit `e5bfa5b8…` 并声明克隆为一次性产物（已用 `bun scripts/safe-remove-tree.ts` 删除并核验无残留引用）；顺带在登记簿退役 `chore/retire-jcode-evaluation`；无代码、无行为改动。worktree `temp/jcode-cite` | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
+| `docs/execution-system` | docs | 需求台账 + 执行契约 + ADR 规范性规则：`document/requirements-ledger.md`（25 条 seeded REQ）、`document/agents/workflow/execution-contract.md`、`scripts/check-requirements-ledger.ts`、`check:adr`/`check:reqs` 接入 `bun check`、`document/release.md` 预打 tag 清单；无产品代码。worktree `temp/execution-system` | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
 
 ## 已退役（删除前登记）
 
