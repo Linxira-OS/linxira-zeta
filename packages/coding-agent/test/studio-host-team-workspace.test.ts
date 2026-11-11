@@ -114,7 +114,14 @@ describe("Studio Team workspace", () => {
 			"bind-repo",
 			"add-engineer",
 			"create-room",
+			"create-room",
+			"create-room",
 		]);
+		expect(
+			planned.plan.steps
+				.filter(step => step.kind === "create-room")
+				.map(step => step.description),
+		).toEqual(["create room shared", "create room coordination", "create room core"]);
 		const result = (await runCommand("team.bootstrap.apply", input)) as {
 			run: { runId: string; status: string; teamId: string | null };
 			doctor: { ok: boolean };
@@ -133,8 +140,9 @@ describe("Studio Team workspace", () => {
 		expect(read.repos.map(repo => repo.name)).toEqual(["api"]);
 		expect(read.bindings).toHaveLength(1);
 		expect(read.worktrees.map(worktree => worktree.kind)).toEqual(["home"]);
-		expect(read.rooms.map(room => room.kind)).toEqual(["coordination"]);
-		expect(read.roomMembers[read.rooms[0]?.id ?? ""]?.map(member => member.role).sort()).toEqual([
+		expect(read.rooms.map(room => room.name).sort()).toEqual(["coordination", "core", "shared"]);
+		const coordination = read.rooms.find(room => room.name === "coordination");
+		expect(read.roomMembers[coordination?.id ?? ""]?.map(member => member.role).sort()).toEqual([
 			"engineer",
 			"pm",
 		]);
@@ -236,7 +244,7 @@ describe("Studio Team workspace", () => {
 				task: "T-103",
 				pm: "other",
 			}),
-		).rejects.toMatchObject({ message: /Unknown PM|does not own task/ });
+		).rejects.toThrow(/Unknown PM|does not own task/);
 	});
 
 	test("rooms create, add/remove member, change kind, post, read incrementally, subscribe and ack", async () => {
