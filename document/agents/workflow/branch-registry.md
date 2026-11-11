@@ -81,8 +81,8 @@
 | 分支 | SHA | 退役日期 | 原因 |
 |---|---|---|---|
 | `chore/electron-latest-stable` | `625e1d1538ddab34033227e7c87103ffd076c896` | 2026-11-11 | PR #318 已合并；cache-cleanup 确认 `temp/electron-latest` worktree/registration 与本地分支均已删除；不删除远端分支 |
-| `feat/compat-cleanup` | `b2aa276c8962bd1bf44924f0cc161de688e6e467` | 2026-11-11 | 用户已授权退役已合并且干净的分支/worktree；当前 `temp/compat-cleanup` 与本地分支仍保留，仅依赖/桌面临时产物已清；`.zeta` 已原路恢复；由唯一 cleanup owner 确认干净后删除并回报实际状态 |
-| `feat/release-114` | `07db32f217d783a43c6f2b988075014df0466398` | 2026-11-11 | 用户已授权退役已合并且干净的分支/worktree；当前 `temp/release-114` 与本地分支仍保留，仅依赖已清；`.zeta` 已原路恢复；`temp/prbody.md` 保存在 `~/.zeta/parked-evidence/2026-11-11/release-114/prbody.md`；由唯一 cleanup owner 确认干净后删除并回报实际状态 |
+| `feat/compat-cleanup` | `b2aa276c8962bd1bf44924f0cc161de688e6e467` | 2026-11-11 | 已在 `5a2ef25974a` 登记后由 cache-cleanup 删除 `temp/compat-cleanup` worktree 与本地分支；最终 links=0；`.zeta` 工具源码与 `serve.out.log` / `serve.err.log` 保存在 `~/.zeta/parked-evidence/2026-11-11/compat-cleanup/`；不删除远端分支 |
+| `feat/release-114` | `07db32f217d783a43c6f2b988075014df0466398` | 2026-11-11 | 已在 `5a2ef25974a` 登记后由 cache-cleanup 删除 `temp/release-114` worktree 与本地分支；最终 links=0；`.zeta` 工具源码与 `prbody.md` 保存在 `~/.zeta/parked-evidence/2026-11-11/release-114/`；不删除远端分支 |
 | `chore/retire-jcode-evaluation` | `408b5f91785` | 2026-11-11 | 已合并（`f0f99b296ee`，PR #314）：登记簿退役 `docs/jcode-evaluation` + 一处「未发现≠不存在」措辞收紧；PR CI `42972661696`、main CI `42973476613` 均绿；worktree `temp/jcode-retire` 已删除 |
 | `docs/jcode-evaluation` | `b0a4f36fe80` | 2026-11-11 | 已合并（`006484a5818c038b1e50cec706387d36bec1f159`，PR #313）：`document/jcode-evaluation.md` + `roadmap.md` Deferred Queue 登记 + AGENTS §11 索引行；PR CI `42969576865`、main CI `42970403085` 均绿；worktree `temp/jcode-doc` 已删除 |
 | `docs/lkb-linkage` | `b2aa267b8a6` | 2026-11-11 | 已合并（`b2aa267b8a68d684d9146611c4b31d4bf0322d43`，PR #309）：LKB 客户端边界 + README 相关仓库链接 + GitHub Packages 不启用结论；PR CI `42960381396`、main CI `42961524864` 均绿；worktree `temp/lkb-linkage` 已删除 |

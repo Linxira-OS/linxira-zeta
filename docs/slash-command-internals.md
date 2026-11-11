@@ -307,6 +307,28 @@ TUI and ACP/RPC dispatch the shared built-in registry before `session.prompt(...
    - discovered user/project commands (including the native Zeta provider): warning + fallback key/value parse
 - Extension/custom command handler exceptions are caught and reported via extension error channel (or logger fallback for custom commands without extension runner), and treated as handled (no unintended fallback execution).
 
+### Directory switching: `/cd` and `/move`
+
+`/cd` is a normal, visible command for frequent directory changes. With no
+argument it opens the TUI folder picker; `/cd <path>` switches this session to
+an existing directory. `/cd /` selects the real POSIX filesystem root, and
+Windows drive roots use the shell's directory rules rather than tool path
+aliases. Missing paths and files are rejected. `/move <path>` retains its
+existing option to create a missing destination; headless/ACP `/cd <path>` uses
+the same existing-directory check as TUI.
+
+The picker lists directories, pinned folders and available roots/volumes.
+Roots load asynchronously, refresh after a 30-second cache lifetime, and can be
+refreshed explicitly with `r`. `Ctrl+P` pins/unpins and `Ctrl+R` opens resume in
+the selected directory. Unavailable pins remain visible so they can be removed.
+Empty, unreadable and already-current directories give explicit feedback.
+Tab completion for `/cd` and `/move` suggests directories, roots and pins;
+an empty directory match never falls back to files.
+
+Directory changes keep the existing session relocation and project resource
+reload behavior. Starting from the home directory still uses the temporary
+workspace and tells the operator to use `/cd`; this startup policy is unchanged.
+
 ## 10) Built-in command note: `/pause`
 
 `/pause` (host interactive sessions only) holds agents at safe boundaries; in-flight calls finish. The screen counts draining turns and running jobs; parked or finished turns stop counting. When both counts reach zero, it hides the rows and signals readiness.

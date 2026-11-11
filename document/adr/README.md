@@ -44,29 +44,6 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0005](0005-adr-and-release-traceability.md) | Record contract decisions as ADRs and trace them through release | Accepted | 2026-11-11 | — | [release process](../release.md), [index guard](../../scripts/check-adr-index.ts) |
 | [0006](0006-release-freeze-internal-line.md) | Freeze publishing on the 1.5 internal build line; 1.6.0 is the next public release | Accepted | 2026-11-11 | — | [release process](../release.md), [policy](../../scripts/release-policy.ts), [guard test](../../scripts/release-freeze.test.ts) |
 
-### Report completion reservations
-
-These numbers are reserved for one integration owner. They are allocations, not
-ADR records or Accepted decisions. Add a linked index row only with its real
-decision file; do not fill sequence gaps with placeholder decisions.
-
-| Reserved ID | Decision scope | Draft owner |
-| --- | --- | --- |
-| 0007 | Team bootstrap journal and room live delivery | team-vibe-hardening |
-| 0008 | IM instances, Agent Profiles and binding isolation | im-platform-expansion |
-| 0009 | Model visibility and fixed three-level fallback | model-visibility-audit |
-| 0010 | Remote credentials, device sessions, 2FA and SSH trust | device-account-ux |
-| 0011 | Studio workspace-selection read-model contract | jcode-cite-finish |
-| 0012 | Electron runtime and desktop host boundary | electron-upgrade-audit |
-| 0013 | Android Tier 1 security and distribution boundary | android-research |
-| 0014 | TUI input hardening, IME and relay lifecycle | tui-shake-research |
-| 0015 | Local Super agent Rooms | queued |
-| 0016 | Compaction service and fidelity | runtime-strategy |
-| 0017 | Official/custom command metadata | report-commands |
-| 0018 | Context and prompt reload | startup-latency2 |
-| 0019 | Offline automation and replay | automation lane |
-
-
 ## File and numbering rules
 
 - One decision per file: `NNNN-<lowercase-kebab-slug>.md`, zero-padded to four digits.
