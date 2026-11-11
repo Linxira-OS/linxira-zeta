@@ -10,6 +10,24 @@ This page is the CLI/hosting surface. Binding and routing vocabulary is
 defined in [agent-modes.md](./agent-modes.md); the chat command grammar is in
 [remote-workspaces.md](./remote-workspaces.md).
 
+## Local configuration and credentials
+
+Each account is a separate `channels.instances` entry with its own note,
+credentials, allowlist and reconnect tokens. Instance and chat-binding patches
+read the latest file while holding the configuration lock; concurrent writers
+patching different accounts or fields preserve each other's changes. Whole-array
+replacements remain replacements. Masked form saves resolve unchanged secrets
+against the latest stored values under that same lock.
+
+IM credentials and reconnect tokens are **plaintext on disk** in `web.yml`.
+Atomic writes and legacy-migration backups use POSIX mode `0600`. On Windows,
+protection depends on inherited directory ACLs; this does not establish an
+exclusive per-file ACL or encryption. API configuration/status reads mask
+credential values and reconnect tokens, but anyone able to read the file or
+its backups can read the secrets. Protect the agent directory and backups with
+OS access controls, and rotate platform credentials after suspected disclosure.
+There is no automatic migration into the provider credential vault.
+
 ## Status
 
 | Area                                 | Status                        | Where it stands                                                                                                                                                                                                                                                                                                                                                          |

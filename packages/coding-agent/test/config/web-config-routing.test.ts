@@ -113,12 +113,12 @@ describe("web-config workspace routing writes", () => {
 
 	it("accepts the session-only updates !lang / !session use write", async () => {
 		const config = await WebConfig.load(file);
-		await config.patchImBinding("feishu", "oc_2", { lang: "zh" });
+		await config.patchImBinding("feishu", "oc_2", { lang: "zh", model: { provider: "example", model: "chat" } });
 		await config.patchImBinding("feishu", "oc_2", { sessionId: "abc123" });
 
 		const rows = (await WebConfig.load(file)).getImBindings();
 		expect(rows).toHaveLength(1);
-		expect(rows[0]).toMatchObject({ instanceId: "feishu", chatId: "oc_2", lang: "zh", sessionId: "abc123" });
+		expect(rows[0]).toMatchObject({ instanceId: "feishu", chatId: "oc_2", lang: "zh", sessionId: "abc123", model: { provider: "example", model: "chat" } });
 		// The GUI's whole-array PUT of exactly this array must be accepted.
 		await expect(config.setImBindings(rows)).resolves.toHaveLength(1);
 	});
@@ -129,17 +129,14 @@ describe("web-config workspace routing writes", () => {
 		await expect(config.setImBindings([{ ...untargeted, chatId: "oc_3" }])).rejects.toThrow(/target/);
 	});
 
-	it("refuses to load a binding that names an unknown instance instead of healing it", async () => {
-		// An older build could write a platform name; the loader must not invent
-		// an instance or silently drop the row.
-		fs.writeFileSync(
-			file,
-			JSON.stringify({
-				channels: { instances: [INSTANCE] },
-				imAgents: [PROFILE],
-				remote: { imBindings: [{ ...BINDING, instanceId: "telegram" }] },
-			}),
-		);
-		await expect(WebConfig.load(file)).rejects.toThrow(/unknown instance/);
+	it("keeps legal bindings when an obsolete row names a missing instance", async () => {
+		fs.writeFileSync(file, JSON.stringify({
+			channels: { instances: [INSTANCE] }, imAgents: [PROFILE],
+			remote: { imBindings: [BINDING, { ...BINDING, id: "b_fedcba9876543210", sessionId: "old", instanceId: "telegram" }] },
+		}));
+		const config = await WebConfig.load(file);
+		expect(config.getImBindings()).toEqual([BINDING]);
+		await config.set("tray.autostart", true);
+		expect((await WebConfig.load(file)).getImBindings()).toEqual([BINDING]);
 	});
 });

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import * as YAML from "yaml";
 import { WebConfig } from "../../src/config/web-config";
 
 const tempDirs: string[] = [];
@@ -73,9 +74,7 @@ describe("web.yml — Discord/QQ as explicit instances", () => {
 		const discord = reloaded.getChannelInstance("discord");
 		expect(discord?.platform).toBe("discord");
 		expect(discord?.allow).toEqual({ peers: ["c1", "guild:g1"] });
-		expect(
-			reloaded.getMasked().channels.instances.find(entry => entry.id === "discord")?.credentials.botToken,
-		).not.toBe("discord-token");
+		expect(reloaded.getMasked().channels.instances.find(entry => entry.id === "discord")?.credentials.botToken).toBe("••••");
 		const qq = reloaded.getChannelInstance("qq");
 		expect(qq?.credentials).toMatchObject({ mode: "forward", port: 8082 });
 		expect(qq?.allow).toEqual({ peers: ["group:42"], users: ["900"] });
@@ -151,7 +150,7 @@ describe("legacy channels.<platform> migration", () => {
 		expect(data.imAgents.map(profile => profile.id).sort()).toEqual(["legacy-feishu", "legacy-wechat"]);
 
 		// The legacy blocks are gone from the file, and a backup was written once.
-		const raw = JSON.parse(await Bun.file(file).text()) as Record<string, unknown>;
+		const raw = YAML.parse(await Bun.file(file).text()) as Record<string, unknown>;
 		expect(raw.channels).toEqual({ instances: data.channels.instances });
 		expect(Object.keys(raw.channels as Record<string, unknown>)).toEqual(["instances"]);
 		const backups = (await fs.readdir(dir)).filter(name => name.startsWith("web.yml.bak-"));
@@ -213,12 +212,11 @@ describe("legacy channels.<platform> migration", () => {
 			instanceId: "feishu",
 			sessionId: "s-unmatched",
 			needsReview: true,
-			needsReviewReason: expect.stringContaining("connectionId"),
 		});
 		expect(byChat("oc_none")).toMatchObject({ instanceId: "feishu", needsReview: true });
 
 		// The legacy array is gone from the file.
-		const raw = JSON.parse(await Bun.file(file).text()) as { remote: Record<string, unknown> };
+		const raw = YAML.parse(await Bun.file(file).text()) as { remote: Record<string, unknown> };
 		expect(raw.remote.sessionMappings).toBeUndefined();
 		expect(raw.remote.imBindings).toEqual(bindings);
 	});

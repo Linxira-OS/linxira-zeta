@@ -629,8 +629,12 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 	return { changed: true, data: next };
 }
 
-/** One-shot migration with an on-disk backup; exported for migration tests. */
+/** One-shot migration serialized with runtime writers, with an owner-only backup. */
 export async function migrateLegacyWebConfigFile(filePath: string): Promise<boolean> {
+	return withFileLock(filePath, () => migrateLegacyWebConfigFileUnlocked(filePath));
+}
+
+async function migrateLegacyWebConfigFileUnlocked(filePath: string): Promise<boolean> {
 	let raw: unknown = {};
 	try {
 		raw = YAML.parse(await Bun.file(filePath).text()) as unknown;
@@ -642,8 +646,14 @@ export async function migrateLegacyWebConfigFile(filePath: string): Promise<bool
 	const migrated = migrateLegacyConfig(raw as Record<string, unknown>);
 	if (!migrated.changed) return false;
 	const backup = `${filePath}.bak-${new Date().toISOString().replace(/[:.]/g, "-")}`;
-	await Bun.write(backup, YAML.stringify(raw));
-	await Bun.write(filePath, YAML.stringify(migrated.data));
+	await fs.promises.writeFile(backup, YAML.stringify(raw), { flag: "wx", mode: 0o600 });
+	const temp = `${filePath}.${randomUUID()}.tmp`;
+	try {
+		await fs.promises.writeFile(temp, YAML.stringify(migrated.data), { flag: "wx", mode: 0o600 });
+		await fs.promises.rename(temp, filePath);
+	} finally {
+		await fs.promises.rm(temp, { force: true });
+	}
 	return true;
 }
 
@@ -677,7 +687,7 @@ export class WebConfig {
 
 	/** Load from disk, deep-merging defaults; a missing/corrupt file falls back to defaults. */
 	static async load(filePath = WebConfig.defaultPath()): Promise<WebConfig> {
-		const { data } = await WebConfig.#read(filePath);
+		const { data } = await withFileLock(filePath, () => WebConfig.#read(filePath));
 		return new WebConfig(filePath, data);
 	}
 
@@ -700,7 +710,7 @@ export class WebConfig {
 	}
 
 	static async #read(filePath: string): Promise<{ data: WebConfigData; healed: boolean }> {
-		await migrateLegacyWebConfigFile(filePath).catch(error => {
+		await migrateLegacyWebConfigFileUnlocked(filePath).catch(error => {
 			logger.warn("web.yml legacy migration failed; continuing without migration", {
 				filePath,
 				error: error instanceof Error ? error.message : String(error),
@@ -815,39 +825,58 @@ export class WebConfig {
 		return this.#data.channels.instances.find(instance => instance.id === id);
 	}
 
-	/** Whole-array write; validates against the current profiles. */
-	async setChannelInstances(value: unknown): Promise<ChannelInstanceConfig[]> {
-		const instances = validateChannelInstances(value, this.#data.imAgents);
-		await this.#mutate(data => {
+	/** Whole-array replacement; masked gateway secrets are resolved under the same lock. */
+	async setChannelInstances(value: unknown, options: { preserveSecrets?: boolean } = {}): Promise<ChannelInstanceConfig[]> {
+		return this.#mutate(data => {
+			let incoming = value;
+			if (options.preserveSecrets && Array.isArray(value)) {
+				incoming = value.map(entry => {
+					if (!entry || typeof entry !== "object" || Array.isArray(entry)) return entry;
+					const stored = data.channels.instances.find(instance => instance.id === entry.id);
+					const merge = (next: Record<string, unknown>, previous: Record<string, unknown> = {}) => {
+						const merged = { ...previous, ...next };
+						for (const key of Object.keys(merged)) {
+							if (merged[key] === MASKED_TOKEN) merged[key] = previous[key];
+							if (merged[key] === null || merged[key] === undefined) delete merged[key];
+						}
+						return merged;
+					};
+					return {
+						...entry,
+						credentials: merge(entry.credentials ?? {}, stored?.credentials),
+						...(entry.options?.peerTokens ? {
+							options: { ...entry.options, peerTokens: merge(entry.options.peerTokens, stored?.options?.peerTokens) },
+						} : entry.options === undefined && stored?.options ? { options: stored.options } : {}),
+					};
+				});
+			}
+			const instances = validateChannelInstances(incoming, data.imAgents);
 			data.channels.instances = instances;
-			return { changed: true, value: instances };
+			return { changed: true, value: structuredClone(instances) };
 		});
-		return instances;
 	}
 
-	/** Update one instance's non-secret fields and/or credentials. */
+	/** Patch one instance against the latest committed snapshot. */
 	async setInstance(id: string, patch: Partial<ChannelInstanceConfig>): Promise<ChannelInstanceConfig> {
-		const current = this.getChannelInstance(id);
-		if (!current) throw new Error(`Unknown channel instance: ${id}`);
-		const next = { ...current, ...patch, id: current.id, platform: current.platform };
-		const instances = this.#data.channels.instances.map(instance => (instance.id === id ? next : instance));
-		const validated = validateChannelInstances(instances, this.#data.imAgents);
-		await this.#mutate(data => {
-			data.channels.instances = validated;
-			return { changed: true, value: undefined };
+		return this.#mutate(data => {
+			const current = data.channels.instances.find(instance => instance.id === id);
+			if (!current) throw new Error(`Unknown channel instance: ${id}`);
+			const next = { ...current, ...patch, id: current.id, platform: current.platform };
+			data.channels.instances = validateChannelInstances(
+				data.channels.instances.map(instance => instance.id === id ? next : instance), data.imAgents,
+			);
+			return { changed: true, value: structuredClone(data.channels.instances.find(instance => instance.id === id)!) };
 		});
-		return next;
 	}
 
 	/** Remove one instance and every binding that referenced it. */
 	async removeChannelInstance(id: string): Promise<boolean> {
-		if (!this.getChannelInstance(id)) return false;
-		await this.#mutate(data => {
+		return this.#mutate(data => {
+			if (!data.channels.instances.some(instance => instance.id === id)) return { changed: false, value: false };
 			data.channels.instances = data.channels.instances.filter(instance => instance.id !== id);
 			data.remote.imBindings = (data.remote.imBindings ?? []).filter(binding => binding.instanceId !== id);
 			return { changed: true, value: true };
 		});
-		return true;
 	}
 
 	getImAgents(): ImAgentProfile[] {
@@ -859,20 +888,20 @@ export class WebConfig {
 	}
 
 	async setImAgents(value: unknown): Promise<ImAgentProfile[]> {
-		const profiles = validateImAgentProfiles(value);
-		const referenced = new Set(this.#data.channels.instances.map(instance => instance.agentProfile));
-		for (const profile of this.#data.imAgents) {
-			if (referenced.has(profile.id) && !profiles.some(candidate => candidate.id === profile.id)) {
-				throw new ImConfigError([
-					{ path: "imAgents", message: `profile ${profile.id} is referenced by an instance` },
-				]);
+		return this.#mutate(data => {
+			const profiles = validateImAgentProfiles(value);
+			const referenced = new Set([
+				...data.channels.instances.map(instance => instance.agentProfile),
+				...(data.remote.imBindings ?? []).map(binding => binding.agentProfileId),
+			]);
+			for (const id of referenced) {
+				if (!profiles.some(profile => profile.id === id)) {
+					throw new ImConfigError([{ path: "imAgents", message: `profile ${id} is referenced by an instance or binding` }]);
+				}
 			}
-		}
-		await this.#mutate(data => {
 			data.imAgents = profiles;
-			return { changed: true, value: profiles };
+			return { changed: true, value: structuredClone(profiles) };
 		});
-		return profiles;
 	}
 
 	getImBindings(): ImBinding[] {
@@ -889,23 +918,19 @@ export class WebConfig {
 	}
 
 	async setImBindings(value: unknown): Promise<ImBinding[]> {
-		const bindings = validateImBindings(value, this.#data.channels.instances, this.#data.imAgents);
-		await this.#mutate(data => {
+		return this.#mutate(data => {
+			const bindings = validateImBindings(value, data.channels.instances, data.imAgents);
 			data.remote.imBindings = bindings;
-			return { changed: true, value: bindings };
+			return { changed: true, value: structuredClone(bindings) };
 		});
-		return bindings;
 	}
 
 	async upsertImBinding(binding: ImBinding): Promise<ImBinding> {
-		const next = [
-			...(this.#data.remote.imBindings ?? []).filter(
-				entry => entry.id !== binding.id && bindingKey(entry) !== bindingKey(binding),
-			),
-			binding,
-		];
-		await this.setImBindings(next);
-		return binding;
+		return this.#mutate(data => {
+			const next = [...(data.remote.imBindings ?? []).filter(entry => entry.id !== binding.id && bindingKey(entry) !== bindingKey(binding)), binding];
+			data.remote.imBindings = validateImBindings(next, data.channels.instances, data.imAgents);
+			return { changed: true, value: structuredClone(data.remote.imBindings.at(-1)!) };
+		});
 	}
 
 	/** Merge fields into one chat binding; creates it from the instance default when absent. */
@@ -915,44 +940,53 @@ export class WebConfig {
 		patch: Partial<Pick<ImBinding, "target" | "agentProfileId" | "sessionId" | "lang" | "model" | "role">>,
 		opts: { threadId?: string; userId?: string } = {},
 	): Promise<ImBinding> {
-		const instance = this.getChannelInstance(instanceId);
-		if (!instance) throw new Error(`Unknown channel instance: ${instanceId}`);
-		const existing = this.findImBinding(instanceId, chatId, opts);
-		const profileId = patch.agentProfileId ?? existing?.agentProfileId ?? instance.agentProfile;
-		const profile = this.getImAgent(profileId);
-		if (!profile) throw new Error(`Unknown agent profile: ${profileId}`);
-		const next: ImBinding = existing
-			? { ...existing, ...patch }
-			: {
-					id: `b_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
-					instanceId,
-					platform: instance.platform,
-					chatId,
-					...(opts.threadId ? { threadId: opts.threadId } : {}),
-					...(opts.userId ? { userId: opts.userId } : {}),
-					agentProfileId: profileId,
-					sessionId: patch.sessionId ?? randomUUID().slice(0, 8),
-					target: patch.target ?? profile.location,
-					role: patch.role ?? "answer",
-					createdAt: new Date().toISOString(),
-				};
-		await this.upsertImBinding(next);
-		return next;
+		return this.#mutate(data => {
+			const instance = data.channels.instances.find(instance => instance.id === instanceId);
+			if (!instance) throw new Error(`Unknown channel instance: ${instanceId}`);
+			const key = [instanceId, chatId, opts.threadId ?? "", opts.userId ?? ""].join("\u0000");
+			const current = data.remote.imBindings ?? [];
+			const existing = current.find(binding => bindingKey(binding) === key);
+			const profileId = patch.agentProfileId ?? existing?.agentProfileId ?? instance.agentProfile;
+			const profile = data.imAgents.find(profile => profile.id === profileId);
+			if (!profile) throw new Error(`Unknown agent profile: ${profileId}`);
+			const next: ImBinding = existing ? { ...existing, ...patch } : {
+				id: `b_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
+				instanceId,
+				platform: instance.platform,
+				chatId,
+				...(opts.threadId ? { threadId: opts.threadId } : {}),
+				...(opts.userId ? { userId: opts.userId } : {}),
+				agentProfileId: profileId,
+				sessionId: randomUUID().slice(0, 8),
+				target: profile.location,
+				role: "answer",
+				createdAt: new Date().toISOString(),
+				...patch,
+			};
+			data.remote.imBindings = validateImBindings(
+				[...current.filter(entry => entry.id !== next.id && bindingKey(entry) !== key), next],
+				data.channels.instances, data.imAgents,
+			);
+			return { changed: true, value: structuredClone(data.remote.imBindings.at(-1)!) };
+		});
 	}
 
 	async removeImBindingByChat(instanceId: string, chatId: string): Promise<boolean> {
-		const current = this.#data.remote.imBindings ?? [];
-		const next = current.filter(binding => !(binding.instanceId === instanceId && binding.chatId === chatId));
-		if (next.length === current.length) return false;
-		await this.setImBindings(next);
-		return true;
+		return this.#mutate(data => {
+			const current = data.remote.imBindings ?? [];
+			const next = current.filter(binding => !(binding.instanceId === instanceId && binding.chatId === chatId));
+			data.remote.imBindings = next;
+			return { changed: next.length !== current.length, value: next.length !== current.length };
+		});
 	}
 
 	async removeImBinding(id: string): Promise<boolean> {
-		const current = this.#data.remote.imBindings ?? [];
-		if (!current.some(binding => binding.id === id)) return false;
-		await this.setImBindings(current.filter(binding => binding.id !== id));
-		return true;
+		return this.#mutate(data => {
+			const current = data.remote.imBindings ?? [];
+			const next = current.filter(binding => binding.id !== id);
+			data.remote.imBindings = next;
+			return { changed: next.length !== current.length, value: next.length !== current.length };
+		});
 	}
 
 	/** The live remote-access token, or `undefined` when none is configured. */

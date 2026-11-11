@@ -206,51 +206,14 @@ export async function handleChannelInstancesGet(): Promise<Response> {
 	return json({ instances: maskedInstances(webConfig.getChannelInstances()) });
 }
 
-function mergeSecrets(incoming: unknown, stored: ChannelInstanceConfig | undefined): ChannelInstanceConfig {
-	const record = incoming as ChannelInstanceConfig;
-	const credentials: Record<string, unknown> = {
-		...(stored?.credentials ?? {}),
-		...(record.credentials ?? {}),
-	};
-	for (const key of Object.keys(credentials)) {
-		if (credentials[key] === "••••") {
-			credentials[key] = stored?.credentials[key];
-		}
-		if (credentials[key] === null) delete credentials[key];
-	}
-	const options =
-		record.options === undefined
-			? stored?.options
-			: {
-					...(stored?.options ?? {}),
-					...record.options,
-					...(record.options?.peerTokens
-						? {
-								peerTokens: {
-									...(stored?.options?.peerTokens ?? {}),
-									...record.options.peerTokens,
-								},
-							}
-						: {}),
-				};
-	return { ...record, credentials, ...(options === undefined ? {} : { options }) };
-}
 
 export async function handleChannelInstancesPut(req: Request): Promise<Response> {
 	const body = await readBody(req);
 	if (!body || !Array.isArray(body.instances)) return json({ ok: false, error: "Missing instances array" }, 400);
 	const webConfig = await WebConfig.shared();
-	const stored = new Map(webConfig.getChannelInstances().map(instance => [instance.id, instance]));
-	const merged = body.instances.map(entry =>
-		mergeSecrets(
-			entry,
-			typeof entry === "object" && entry !== null
-				? stored.get(String((entry as Record<string, unknown>).id))
-				: undefined,
-		),
-	);
+
 	try {
-		await webConfig.setChannelInstances(merged);
+		await webConfig.setChannelInstances(body.instances, { preserveSecrets: true });
 	} catch (error) {
 		return json({ ok: false, error: error instanceof Error ? error.message : String(error) }, 400);
 	}

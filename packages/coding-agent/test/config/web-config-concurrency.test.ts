@@ -146,6 +146,45 @@ describe("web.yml concurrent writers", () => {
 		expect(reloaded.getData().tray.autostart).toBe(true);
 	});
 
+	test("stale writers patch distinct fields and bindings without losing responder roles", async () => {
+		const first = await WebConfig.load(file);
+		const second = await WebConfig.load(file);
+		await Promise.all([
+			first.setInstance("wechat", { note: "personal bot" }),
+			second.setInstance("wechat", { enabled: true }),
+		]);
+		await Promise.all([
+			first.patchImBinding("wechat", "room", { lang: "zh", role: "answer" }),
+			second.patchImBinding("telegram", "room", { role: "observe", model: { provider: "example", model: "chat" } }),
+		]);
+		await second.patchImBinding("wechat", "room", { sessionId: "persisted-session" });
+		const reloaded = await WebConfig.load(file);
+		expect(reloaded.getChannelInstance("wechat")).toMatchObject({ note: "personal bot", enabled: true });
+		expect(reloaded.findImBinding("wechat", "room")).toMatchObject({ lang: "zh", sessionId: "persisted-session", role: "answer" });
+		expect(reloaded.findImBinding("telegram", "room")).toMatchObject({ role: "observe", model: { provider: "example", model: "chat" } });
+	});
+
+	test("masked form saves preserve freshly rotated credentials and reconnect tokens", async () => {
+		const form = await WebConfig.load(file);
+		await form.setInstance("wechat", { credentials: { botToken: "old" }, options: { peerTokens: { peer: "old-context" } } });
+		const masked = form.getMasked().channels.instances;
+		await (await WebConfig.load(file)).setInstance("wechat", { credentials: { botToken: "rotated" }, options: { peerTokens: { peer: "new-context" } } });
+		await form.setChannelInstances(masked, { preserveSecrets: true });
+		const reloaded = await WebConfig.load(file);
+		expect(reloaded.getChannelInstance("wechat")).toMatchObject({ credentials: { botToken: "rotated" }, options: { peerTokens: { peer: "new-context" } } });
+		expect(JSON.stringify(reloaded.getMasked())).not.toContain("rotated");
+		expect(JSON.stringify(reloaded.getMasked())).not.toContain("new-context");
+	});
+
+	test("profile deletion checks bindings and instances committed by another writer", async () => {
+		const stale = await WebConfig.load(file);
+		const writer = await WebConfig.load(file);
+		await writer.setImAgents([PROFILE, { ...PROFILE, id: "observer" }]);
+		await writer.patchImBinding("wechat", "room", { agentProfileId: "observer", role: "observe" });
+		await expect(stale.setImAgents([PROFILE])).rejects.toThrow();
+		expect((await WebConfig.load(file)).getImAgent("observer")).toBeDefined();
+	});
+
 	test("interleaved bursts lose nothing", async () => {
 		const adapter = await WebConfig.load(file);
 		const gateway = await WebConfig.load(file);
