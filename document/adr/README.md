@@ -1,9 +1,9 @@
 # Architecture Decision Records
 
-`document/adr/` is Zeta's durable decision record. An ADR explains **why** a
-contract-level choice was made and what it costs. It is not a changelog, a
-plan, or a design doc: code, schemas, and the linked docs remain the source of
-truth for current behavior.
+`document/adr/` is Zeta's durable decision record and the long-term tracking
+surface for contract-level choices. An ADR explains **why** a choice was made
+and what it costs. It is not a changelog, a plan, or a design doc: code, schemas,
+and the linked docs remain the source of truth for current behavior.
 
 ## Statuses
 
