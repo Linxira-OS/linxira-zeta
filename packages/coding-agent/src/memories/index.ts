@@ -1428,6 +1428,11 @@ function loadMemoryConfig(settings: Settings): MemoryRuntimeConfig {
 	};
 }
 
+/** Stable fallback namespace for a personal/repo session (matches the project memory key). */
+export function canonicalMemoryNamespace(cwd: string): string {
+	return `repo:${encodeProjectPath(normalizeScopeCwd(cwd))}`;
+}
+
 export function getMemoryRoot(agentDir: string, cwd: string, namespace?: string): string {
 	if (namespace !== undefined && namespace.trim().length > 0) {
 		return path.join(getMemoriesDir(agentDir), "agents", encodeMemoryNamespace(namespace));
