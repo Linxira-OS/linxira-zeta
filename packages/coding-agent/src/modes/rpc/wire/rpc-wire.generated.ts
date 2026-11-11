@@ -846,6 +846,30 @@ export interface PromptAck {
 
 export type AutoCompactionReason = "threshold" | "overflow" | "idle" | "incomplete";
 
+export type CompactionTriggerType = "manual" | "auto" | "speculation";
+
+export type CompactionPhaseName = "plan" | "summarize" | "archive" | "commit" | "failed" | "aborted";
+
+export type CompactionPhaseMethod = "remote" | "snapcompact" | "handoff" | "shake" | "soft" | "experimental" | "extension";
+
+export interface CompactionFidelityCounts {
+	qa: number;
+	paths: number;
+	ids: number;
+	constraints: number;
+	unfinished: number;
+}
+
+export interface CompactionPhaseDetail {
+	tokensBefore?: number;
+	tokensAfter?: number;
+	entryId?: string;
+	durationMs?: number;
+	summaryChars?: number;
+	errorMessage?: string;
+	fidelity?: CompactionFidelityCounts;
+}
+
 export type AutoCompactionAction = "context-full" | "remote" | "handoff" | "shake" | "snapcompact";
 
 export type CacheWarmingPhase = "streaming" | "idle";
@@ -943,6 +967,21 @@ export interface AutoCompactionStartEvent {
 	type: "auto_compaction_start";
 	reason: AutoCompactionReason;
 	action: AutoCompactionAction;
+}
+
+/** Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`. */
+export interface CompactionPhaseEvent {
+	type: "compaction_phase";
+	/** Stable per compaction pass; constant across method fallbacks. */
+	passId: string;
+	trigger: CompactionTriggerType;
+	/** `plan` may repeat in one pass when a method fallback begins; `aborted` means cancellation only. */
+	phase: CompactionPhaseName;
+	/** Emission time (epoch ms). */
+	at: number;
+	method?: CompactionPhaseMethod;
+	reason?: string;
+	detail?: CompactionPhaseDetail;
 }
 
 export interface AutoCompactionEndEvent {

@@ -8742,6 +8742,18 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	get compactionSpeculation(): "idle" | "running" | "armed" {
 		return this.#maintenance.speculationState;
 	}
+
+	/**
+	 * Subscribe to committed compactions — the stable consumer hook for durable
+	 * indexes and window learning (`@linxiraos/zeta/session/compaction-contract`).
+	 * Fires exactly once per appended compaction entry, after the entry and the
+	 * tracking mirror are durable and before the `session_compact` extension emit.
+	 * The listener is awaited: it MUST snapshot/enqueue and return, never run a
+	 * model or long work. Returns an unsubscribe function.
+	 */
+	onCompactionCommit(listener: CompactionCommitListener): () => void {
+		return this.#maintenance.onCommit(listener);
+	}
 	/** Strip image content from the current branch and persist the rewrite. */
 	dropImages(): Promise<{ removed: number; tokensFreed: number }> {
 		return this.#maintenance.dropImages();

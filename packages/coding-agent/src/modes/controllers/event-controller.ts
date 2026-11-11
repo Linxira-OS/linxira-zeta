@@ -43,6 +43,7 @@ import { getSymbolTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "../../modes/types";
 import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import type { AgentSessionEvent } from "../../session/agent-session";
+import type { CompactionPhaseEvent } from "../../session/compaction/service";
 import {
 	isSilentAbort,
 	isUserInvokedSkillPrompt,
@@ -84,6 +85,7 @@ import { ComposerPredictionController } from "./composer-prediction-controller";
 import { StreamingRevealController } from "./streaming-reveal";
 import { streamingStringKeysForTool, ToolArgsRevealController } from "./tool-args-reveal";
 import { createToolCallBlock } from "./tool-call-block";
+import { compactionPhaseSuffix, formatCompactionPhase, setCompactionPhaseLabel } from "./compaction-progress";
 
 import {
 	cfgCompletionNotify,
@@ -424,6 +426,7 @@ export class EventController {
 			tool_execution_end: e => this.#handleToolExecutionEnd(e),
 			auto_compaction_start: e => this.#handleAutoCompactionStart(e),
 			auto_compaction_end: e => this.#handleAutoCompactionEnd(e),
+			compaction_phase: e => this.#handleCompactionPhase(e),
 			// `/compact` drives its own loader (command-controller); these exist for RPC hosts.
 			manual_compaction_start: async () => {},
 			manual_compaction_end: async () => {},
@@ -2741,6 +2744,7 @@ export class EventController {
 						: event.action === "snapcompact"
 							? "Auto-snapcompact"
 							: "Auto context-full maintenance";
+		setCompactionPhaseLabel(undefined);
 		this.ctx.autoCompactionLoader = new Loader(
 			this.ctx.ui,
 			spinner => theme.fg("accent", spinner),
@@ -2751,7 +2755,7 @@ export class EventController {
 		const compactionStartMs = Date.now();
 		this.ctx.autoCompactionLoader.setWorkingRow(
 			() => ({
-				label: `${reasonText}${actionLabel}…`,
+				label: `${reasonText}${actionLabel}${compactionPhaseSuffix()}…`,
 				startedAt: compactionStartMs,
 				variant: { kind: "compaction" },
 				interruptKey: this.ctx.maintenanceInterruptKey(),
@@ -2764,7 +2768,17 @@ export class EventController {
 		this.ctx.ui.requestRender();
 	}
 
+	/** Live phase label for whichever compaction loader is on screen. */
+	async #handleCompactionPhase(event: CompactionPhaseEvent): Promise<void> {
+		const label = formatCompactionPhase(event);
+		setCompactionPhaseLabel(label);
+		if (label !== undefined && (this.ctx.autoCompactionLoader || this.#maintenanceActive)) {
+			this.ctx.ui.requestRender();
+		}
+	}
+
 	async #handleAutoCompactionEnd(event: Extract<AgentSessionEvent, { type: "auto_compaction_end" }>): Promise<void> {
+		setCompactionPhaseLabel(undefined);
 		if (this.#compactionOwnsProgress) {
 			this.#compactionOwnsProgress = false;
 			this.#setTerminalProgress(false);

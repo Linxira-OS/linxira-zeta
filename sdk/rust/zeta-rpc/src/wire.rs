@@ -3711,6 +3711,117 @@ impl AutoCompactionReason {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompactionTriggerType {
+	#[serde(rename = "manual")]
+	Manual,
+	#[serde(rename = "auto")]
+	Auto,
+	#[serde(rename = "speculation")]
+	Speculation,
+}
+
+impl CompactionTriggerType {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Manual => "manual",
+			Self::Auto => "auto",
+			Self::Speculation => "speculation",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompactionPhaseName {
+	#[serde(rename = "plan")]
+	Plan,
+	#[serde(rename = "summarize")]
+	Summarize,
+	#[serde(rename = "archive")]
+	Archive,
+	#[serde(rename = "commit")]
+	Commit,
+	#[serde(rename = "failed")]
+	Failed,
+	#[serde(rename = "aborted")]
+	Aborted,
+}
+
+impl CompactionPhaseName {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Plan => "plan",
+			Self::Summarize => "summarize",
+			Self::Archive => "archive",
+			Self::Commit => "commit",
+			Self::Failed => "failed",
+			Self::Aborted => "aborted",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompactionPhaseMethod {
+	#[serde(rename = "remote")]
+	Remote,
+	#[serde(rename = "snapcompact")]
+	Snapcompact,
+	#[serde(rename = "handoff")]
+	Handoff,
+	#[serde(rename = "shake")]
+	Shake,
+	#[serde(rename = "soft")]
+	Soft,
+	#[serde(rename = "experimental")]
+	Experimental,
+	#[serde(rename = "extension")]
+	Extension,
+}
+
+impl CompactionPhaseMethod {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Remote => "remote",
+			Self::Snapcompact => "snapcompact",
+			Self::Handoff => "handoff",
+			Self::Shake => "shake",
+			Self::Soft => "soft",
+			Self::Experimental => "experimental",
+			Self::Extension => "extension",
+		}
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CompactionFidelityCounts {
+	pub qa: i64,
+	pub paths: i64,
+	pub ids: i64,
+	pub constraints: i64,
+	pub unfinished: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CompactionPhaseDetail {
+	#[serde(rename = "tokensBefore", default, skip_serializing_if = "Option::is_none")]
+	pub tokens_before: Option<i64>,
+	#[serde(rename = "tokensAfter", default, skip_serializing_if = "Option::is_none")]
+	pub tokens_after: Option<i64>,
+	#[serde(rename = "entryId", default, skip_serializing_if = "Option::is_none")]
+	pub entry_id: Option<String>,
+	#[serde(rename = "durationMs", default, skip_serializing_if = "Option::is_none")]
+	pub duration_ms: Option<i64>,
+	#[serde(rename = "summaryChars", default, skip_serializing_if = "Option::is_none")]
+	pub summary_chars: Option<i64>,
+	#[serde(rename = "errorMessage", default, skip_serializing_if = "Option::is_none")]
+	pub error_message: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub fidelity: Option<CompactionFidelityCounts>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AutoCompactionAction {
 	#[serde(rename = "context-full")]
 	ContextFull,
@@ -3915,6 +4026,26 @@ pub struct ToolExecutionEndEvent {
 pub struct AutoCompactionStartEvent {
 	pub reason: AutoCompactionReason,
 	pub action: AutoCompactionAction,
+}
+
+/// Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CompactionPhaseEvent {
+	pub r#type: LitCompactionPhase,
+	/// Stable per compaction pass; constant across method fallbacks.
+	#[serde(rename = "passId")]
+	pub pass_id: String,
+	pub trigger: CompactionTriggerType,
+	/// `plan` may repeat in one pass when a method fallback begins; `aborted` means cancellation only.
+	pub phase: CompactionPhaseName,
+	/// Emission time (epoch ms).
+	pub at: i64,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub method: Option<CompactionPhaseMethod>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub reason: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub detail: Option<CompactionPhaseDetail>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6218,6 +6349,27 @@ impl LogoutAccountType {
 		match self {
 			Self::ApiKey => "api_key",
 			Self::Oauth => "oauth",
+		}
+	}
+}
+
+/// The constant `"compaction_phase"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct LitCompactionPhase;
+
+impl Serialize for LitCompactionPhase {
+	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+		serializer.serialize_str("compaction_phase")
+	}
+}
+
+impl<'de> Deserialize<'de> for LitCompactionPhase {
+	fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+		let value = Value::deserialize(deserializer)?;
+		if value.as_str() == Some("compaction_phase") {
+			Ok(Self)
+		} else {
+			Err(D::Error::custom(format!("expected \"compaction_phase\", got {value}")))
 		}
 	}
 }

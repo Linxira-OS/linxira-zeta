@@ -3927,6 +3927,90 @@
 			],
 			"type": "string"
 		},
+		"CompactionTriggerType": {
+			"enum": [
+				"manual",
+				"auto",
+				"speculation"
+			],
+			"type": "string"
+		},
+		"CompactionPhaseName": {
+			"enum": [
+				"plan",
+				"summarize",
+				"archive",
+				"commit",
+				"failed",
+				"aborted"
+			],
+			"type": "string"
+		},
+		"CompactionPhaseMethod": {
+			"enum": [
+				"remote",
+				"snapcompact",
+				"handoff",
+				"shake",
+				"soft",
+				"experimental",
+				"extension"
+			],
+			"type": "string"
+		},
+		"CompactionFidelityCounts": {
+			"type": "object",
+			"properties": {
+				"qa": {
+					"type": "integer"
+				},
+				"paths": {
+					"type": "integer"
+				},
+				"ids": {
+					"type": "integer"
+				},
+				"constraints": {
+					"type": "integer"
+				},
+				"unfinished": {
+					"type": "integer"
+				}
+			},
+			"required": [
+				"qa",
+				"paths",
+				"ids",
+				"constraints",
+				"unfinished"
+			]
+		},
+		"CompactionPhaseDetail": {
+			"type": "object",
+			"properties": {
+				"tokensBefore": {
+					"type": "integer"
+				},
+				"tokensAfter": {
+					"type": "integer"
+				},
+				"entryId": {
+					"type": "string"
+				},
+				"durationMs": {
+					"type": "integer"
+				},
+				"summaryChars": {
+					"type": "integer"
+				},
+				"errorMessage": {
+					"type": "string"
+				},
+				"fidelity": {
+					"$ref": "#/$defs/CompactionFidelityCounts"
+				}
+			}
+		},
 		"AutoCompactionAction": {
 			"enum": [
 				"context-full",
@@ -4223,6 +4307,46 @@
 				"reason",
 				"action"
 			]
+		},
+		"CompactionPhaseEvent": {
+			"type": "object",
+			"properties": {
+				"type": {
+					"const": "compaction_phase"
+				},
+				"passId": {
+					"type": "string",
+					"description": "Stable per compaction pass; constant across method fallbacks."
+				},
+				"trigger": {
+					"$ref": "#/$defs/CompactionTriggerType"
+				},
+				"phase": {
+					"$ref": "#/$defs/CompactionPhaseName",
+					"description": "`plan` may repeat in one pass when a method fallback begins; `aborted` means cancellation only."
+				},
+				"at": {
+					"type": "integer",
+					"description": "Emission time (epoch ms)."
+				},
+				"method": {
+					"$ref": "#/$defs/CompactionPhaseMethod"
+				},
+				"reason": {
+					"type": "string"
+				},
+				"detail": {
+					"$ref": "#/$defs/CompactionPhaseDetail"
+				}
+			},
+			"required": [
+				"type",
+				"passId",
+				"trigger",
+				"phase",
+				"at"
+			],
+			"description": "Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`."
 		},
 		"AutoCompactionEndEvent": {
 			"type": "object",

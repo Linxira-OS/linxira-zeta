@@ -67,6 +67,7 @@ import type { AsyncJobSnapshotItem } from "../../session/agent-session";
 import { buildJobTree, jobTreeGuide, jobTreeIndent } from "@linxiraos/pi-tui/overlays/job-tree";
 import type { AuthStorage, OAuthAccountIdentity } from "../../session/auth-storage";
 import type { CompactMode } from "../../session/compact-modes";
+import { compactionPhaseSuffix, setCompactionPhaseLabel } from "./compaction-progress";
 import {
 	currentRuntimeIdentity,
 	formatRuntimeIdentity,
@@ -2170,6 +2171,7 @@ export class CommandController {
 
 		const cancelHint = `(${appKey(this.ctx.keybindings, "app.interrupt")} to cancel)`;
 		const label = isAuto ? `Auto-compacting context... ${cancelHint}` : `Compacting context... ${cancelHint}`;
+		setCompactionPhaseLabel(undefined);
 		const compactingLoader = new Loader(
 			this.ctx.ui,
 			spinner => theme.fg("accent", spinner),
@@ -2180,7 +2182,7 @@ export class CommandController {
 		const compactionStartMs = Date.now();
 		compactingLoader.setWorkingRow(
 			() => ({
-				label: isAuto ? "Auto-compacting context…" : "Compacting context…",
+				label: `${isAuto ? "Auto-compacting context" : "Compacting context"}${compactionPhaseSuffix()}…`,
 				startedAt: compactionStartMs,
 				variant: { kind: "compaction" },
 				interruptKey: this.ctx.maintenanceInterruptKey(),
@@ -2209,6 +2211,7 @@ export class CommandController {
 						}
 					: undefined;
 			await this.ctx.session.compact(instructions, options);
+			setCompactionPhaseLabel(undefined);
 
 			compactingLoader.stop();
 			this.ctx.statusContainer.disposeChildren();
