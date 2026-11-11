@@ -101,7 +101,7 @@ export class StudioHttp {
 		const response = await fetch(`${this.base}/api/v1/pair`, {
 			method: "POST",
 			headers: { accept: "application/json", "content-type": "application/json" },
-			body: JSON.stringify({ code, device: { label: "Zeta Desktop", platform: process.platform } }),
+			body: JSON.stringify({ code, device: { label: "Zeta Desktop", platform: "desktop" } }),
 			signal: AbortSignal.timeout(15_000),
 		});
 		this.#remember(response);
@@ -138,11 +138,27 @@ export class StudioHttp {
 	}
 
 	async query<T = unknown>(request: unknown): Promise<T> {
-		return this.#studio<T>("/api/v1/query", request, false);
+		return this.#withSession(() => this.#studio<T>("/api/v1/query", request, false));
 	}
 
 	async command<T = unknown>(request: unknown): Promise<T> {
-		return this.#studio<T>("/api/v1/command", request, true);
+		return this.#withSession(() => this.#studio<T>("/api/v1/command", request, true));
+	}
+
+	/**
+	 * A 1 h idle cookie expires independently of the tunnel. On a 401, drop the
+	 * stale cookie/CSRF, run the pairing flow again, and retry this one request.
+	 */
+	async #withSession<T>(action: () => Promise<T>): Promise<T> {
+		try {
+			return await action();
+		} catch (error) {
+			if (!(error instanceof StudioHttpError) || error.status !== 401) throw error;
+			this.#cookie = undefined;
+			this.#csrf = undefined;
+			await this.ensureSession();
+			return action();
+		}
 	}
 
 	async #studio<T>(path: string, body: unknown, mutate: boolean): Promise<T> {
