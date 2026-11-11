@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="zeta_background">#101014</color>
+    <color name="zeta_surface">#18181F</color>
+    <color name="zeta_primary">#14B8A6</color>
+    <color name="zeta_accent">#F97362</color>
+    <color name="zeta_text">#E8E8EE</color>
+    <color name="zeta_muted">#9A9AA8</color>
+</resources>

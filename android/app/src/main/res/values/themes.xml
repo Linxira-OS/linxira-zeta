@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Zeta" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/zeta_primary</item>
+        <item name="colorPrimaryDark">@color/zeta_background</item>
+        <item name="colorAccent">@color/zeta_accent</item>
+        <item name="android:windowBackground">@color/zeta_background</item>
+        <item name="android:statusBarColor">@color/zeta_background</item>
+        <item name="android:navigationBarColor">@color/zeta_background</item>
+        <item name="android:textColorPrimary">@color/zeta_text</item>
+        <item name="android:textColorSecondary">@color/zeta_muted</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+</resources>
