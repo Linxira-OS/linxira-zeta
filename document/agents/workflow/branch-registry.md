@@ -69,6 +69,9 @@
 | `fix/report-tui` | fix | TUI Windows 9001/IME 帧序/relay/focus/Hub；无上游 merge。worktree 由 worker 建。 | agent | 2026-11-11 | 合入集成分支后删 |
 | `fix/report-cd` | fix | `/cd` 根路径/卷挂载缓存/补全/pins/headless；macOS C3 保持排除。worktree 由 worker 建。 | agent | 2026-11-11 | 合入集成分支后删 |
 | `feat/report-im-ui` | feat | Studio IM Discord/QQ 凭据、allowlist、多实例 UI；不改 IM 后端。worktree 由 worker 建。 | agent | 2026-11-11 | 合入集成分支后删 |
+| `feat/report-commands` | feat | 命令 lane：REQ-052 official command migration + custom command `agent`/model metadata；只源码，不跑大 build。worktree `temp/report-commands` | agent | 2026-11-11 | 合入集成分支后删 |
+| `feat/report-context-reload` | feat | Context/prompt hot reload lane：REQ-057；SDK hook 由 tools owner 接。worktree `temp/report-context-reload` | agent | 2026-11-11 | 合入集成分支后删 |
+| `fix/report-automation` | fix | Robomp/automation lane：REQ-060 + REQ-022 只读评估、ledger 事实纠正；不 merge/tag upstream。worktree `temp/report-automation` | agent | 2026-11-11 | 合入集成分支后删 |
 
 ## 已退役（删除前登记）
 
