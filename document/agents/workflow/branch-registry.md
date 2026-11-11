@@ -58,12 +58,13 @@
 | `perf/tui-subagent-load` | fix | 多子代理 fan-out 下 TUI 响应性：`task` 批次进度更新按 100 ms 合并（leading + trailing，终态立即 flush），消除每 spawn 每 150 ms 的全卡重建/深清洗；含合并正确性与 fan-out 预算测试。worktree `temp/tui-load-perf` | agent | 2026-11-10 | 合入 `main` 后删（删前记 SHA） |
 
 | `feat/team-core` | feat | Team path/DB foundation（第一纵切）：`.zeta/team.json` / `.zeta/pm.json` 解析与上行 resolver、单库 `~/.zeta/data/zeta.db`（teams/team_pms/repos/repo_bindings/engineers/worktrees）、`zetacode team` 的 init/pm/repo/engineer/worktree/doctor（真实 `git worktree add`）；无 UI/房间/graph。worktree `temp/team-core` | agent | 2026-11-09 | 合入 `main` 后删（删前记 SHA） |
-| `chore/retire-jcode-evaluation` | chore | 退役 `docs/jcode-evaluation`（登记退役表 + 记 SHA）；顺带把评估文档里一处「Zeta 现无此机制」改为「本次未发现等价机制」，与文档自身的「未发现≠不存在」口径一致；无代码、无行为改动。worktree `temp/jcode-retire` | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
+| `docs/jcode-citation-fix` | docs | 去掉评估文档与 roadmap 里对已删除的临时稀疏克隆路径的引用，改为公共仓库 URL + 固定 commit `e5bfa5b8…` 并声明克隆为一次性产物（已用 `bun scripts/safe-remove-tree.ts` 删除并核验无残留引用）；顺带在登记簿退役 `chore/retire-jcode-evaluation`；无代码、无行为改动。worktree `temp/jcode-cite` | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
 
 ## 已退役（删除前登记）
 
 | 分支 | SHA | 退役日期 | 原因 |
 |---|---|---|---|
+| `chore/retire-jcode-evaluation` | `408b5f91785` | 2026-11-11 | 已合并（`f0f99b296ee`，PR #314）：登记簿退役 `docs/jcode-evaluation` + 一处「未发现≠不存在」措辞收紧；PR CI `42972661696`、main CI `42973476613` 均绿；worktree `temp/jcode-retire` 已删除 |
 | `docs/jcode-evaluation` | `b0a4f36fe80` | 2026-11-11 | 已合并（`006484a5818c038b1e50cec706387d36bec1f159`，PR #313）：`document/jcode-evaluation.md` + `roadmap.md` Deferred Queue 登记 + AGENTS §11 索引行；PR CI `42969576865`、main CI `42970403085` 均绿；worktree `temp/jcode-doc` 已删除 |
 | `docs/lkb-linkage` | `b2aa267b8a6` | 2026-11-11 | 已合并（`b2aa267b8a68d684d9146611c4b31d4bf0322d43`，PR #309）：LKB 客户端边界 + README 相关仓库链接 + GitHub Packages 不启用结论；PR CI `42960381396`、main CI `42961524864` 均绿；worktree `temp/lkb-linkage` 已删除 |
 | `feat/web-ui-studio-migration` | `b197d271a61` | 2026-11-05 | 已合并（`1d2fb36f731`，PR #233）：渲染器切到 `web-app`、Studio 宿主 `/api/v1/*`、命名归一、四项性能成本；CI run `42062805101` 33 job 全绿 |

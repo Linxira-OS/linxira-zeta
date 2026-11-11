@@ -92,7 +92,8 @@ builds faster by shrinking the root crate's recompilation surface"*，并记录�
 
 | 项 | 状态 |
 |---|---|
-| 克隆 | **部分克隆**（`--depth 1 --filter=blob:none --sparse`，52MB，只取 `docs/ crates/*/src src/ scripts/ *.md *.toml`）在 `temp/jcode-eval`；完整浅克隆与 tarball 均因带宽限速超时（460MB 仓库，约 0.15–0.5MB/min） |
+| 取证来源 | 公共仓库 <https://github.com/1jehuang/jcode>，固定 commit **`e5bfa5b8307a14f0a44801bedba48ba9ed378e11`**；本文所有引用路径都是该 commit 下的仓库相对路径，可用 GitHub 的 tree/blob 视图直接核对 |
+| 克隆 | 评估期间做过一次**临时稀疏克隆**（`--depth 1 --filter=blob:none --sparse`，52MB，只取 `docs/ crates/*/src src/ scripts/ *.md *.toml`）到本地 gitignore 的 scratch 目录；**该克隆是一次性中间产物，事后已删除、未保留**（因此本文不引用任何本地路径）。完整浅克隆与 tarball 均因带宽限速超时（460MB 仓库，约 0.15–0.5MB/min）。复现方式：`git clone --depth 1 --filter=blob:none --sparse <URL> <dir>` 后 `git -C <dir> sparse-checkout set --no-cone '/docs/*' '/crates/*/src/**' '/scripts/**' '/src/**' '/*.md' '/*.toml'` |
 | 未检出 | `tests/ vendor/ changelog/ sdk/ .github/` —— **`.github/workflows/*.yml` 未读原文**，发布结论来自 `RELEASING.md` / `docs/PUBLIC_RELEASE_BUILDS.md` / `docs/UPDATE_CHANNELS.md` |
 | 二进制 | **未运行** jcode，未复现其 benchmark |
 | 数字来源 | 其文档/脚本自述，或本次从源码推导；推导处标 `[推断]` |
