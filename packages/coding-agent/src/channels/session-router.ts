@@ -1417,7 +1417,10 @@ export class SessionRouter {
 		if (id === "relay") {
 			// Relay means the coordinator: drop the session pointer and any
 			// persisted project/direct binding that would keep answering for a repo.
-			await this.#webConfig.patchImBinding(channelId, peer, { sessionId: "relay" });
+			await this.#webConfig.patchImBinding(channelId, peer, {
+			sessionId: "relay",
+			target: { kind: "workspace", workspace: COORDINATOR_ALIAS },
+		});
 			this.#runtimeBindings.delete(`${channelId}:${peer}`);
 			return { ok: true, id: "relay" };
 		}
@@ -1485,7 +1488,10 @@ export class SessionRouter {
 
 	/** Drop a chat's bot-session pointer (falls back to the relay). */
 	async clearActiveBotSession(channelId: ChannelInstanceId, peer: string): Promise<void> {
-		await this.#webConfig.patchImBinding(channelId, peer, { sessionId: "relay" });
+		await this.#webConfig.patchImBinding(channelId, peer, {
+			sessionId: "relay",
+			target: { kind: "workspace", workspace: COORDINATOR_ALIAS },
+		});
 	}
 
 	/** Persist the chat's model so a restarted binding resumes the same model. */

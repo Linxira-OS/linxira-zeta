@@ -93,10 +93,13 @@ export async function buildImSessionList(
 		const next = (sequence.get(row.workspaceAlias) ?? 0) + 1;
 		sequence.set(row.workspaceAlias, next);
 		const selector = `${String(base.get(row.workspaceAlias) ?? 1).padStart(2, "0")}-${String(next).padStart(5, "0")}`;
+		const projected = row.info as (SessionInfo & { latestTaskSummary?: string; lastTaskSummary?: string }) | undefined;
+		const summary = projected?.latestTaskSummary?.trim() || projected?.lastTaskSummary?.trim();
 		return {
 			selector,
 			canonicalId: row.entry.id,
 			name: row.entry.name,
+			...(summary ? { summary } : {}),
 			workspaceAlias: row.workspaceAlias,
 			modifiedAt: row.modifiedAt,
 			isPm: row.isPm,
