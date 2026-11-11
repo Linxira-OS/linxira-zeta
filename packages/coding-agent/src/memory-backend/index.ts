@@ -13,3 +13,4 @@ export * from "./off-backend";
 export * from "./resolve";
 export * from "./runtime";
 export * from "./types";
+export * from "./window-types";

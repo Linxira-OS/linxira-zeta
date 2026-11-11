@@ -145,6 +145,7 @@ If the requested memory role is not configured, memory model resolution falls ba
 | Setting                               | Default | Description                                                                                                                              |
 | ------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `memory.backend`                      | `off`   | Select `local` for this pipeline; legacy `memories.enabled: true` is migrated to `memory.backend: local` when no explicit backend is set |
+| `memory.extractionMode`               | `auto`  | `auto` keeps backend cadence, `window` learns only committed discarded regions, `manual` leaves explicit tools and `/memory enqueue` as the only triggers |
 | `memories.maxRolloutAgeDays`          | `30`    | Sessions older than this are not processed                                                                                               |
 | `memories.minRolloutIdleHours`        | `12`    | Sessions active more recently than this are skipped                                                                                      |
 | `memories.maxRolloutsPerStartup`      | `64`    | Cap on sessions processed in a single startup                                                                                            |
@@ -265,6 +266,7 @@ The precedence line matters because a compacted history keeps quoting preference
 | Setting                      | Default | Description                                                                                              |
 | ---------------------------- | ------- | -------------------------------------------------------------------------------------------------------- |
 | `taste.enabled`              | `false` | Master flag: no extraction, consolidation, tool, or injection while off                                 |
+| `taste.extractionMode`       | `prompt` | `prompt` extracts per user prompt, `window` batches committed discarded regions, `off` stops extraction |
 | `taste.scoping`              | `per-project` | `global`, `per-project`, or `per-project-tagged`                                                   |
 | `taste.minPromptLength`      | `16`    | Prompts shorter than this many characters are not extracted                                             |
 | `taste.intervalMinutes`      | `5`     | Minimum minutes between consolidation runs                                                              |
@@ -274,11 +276,34 @@ The precedence line matters because a compacted history keeps quoting preference
 
 The `/memory` command covers backend stores only; inspect and edit taste with the `super_memory` tool (`query`, `stats`, `resolve`, `forget`) or the file itself.
 
+## Window learning
+
+Compaction is the only automatic learning boundary in window mode. When a compaction commits, the discarded region — session entries strictly before the retained tail — is snapshotted once into a durable journal. The retained recent messages are not learned again, and the active window's tail is never read before it is discarded.
+
+```yaml
+taste:
+   extractionMode: window   # prompt | window | off (default prompt)
+memory:
+   extractionMode: window   # auto | window | manual (default auto)
+```
+
+| Setting                   | Modes                        | Behavior                                                                                                      |
+| ------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `taste.extractionMode`    | `prompt` / `window` / `off`  | `prompt` extracts per user prompt as before; `window` stops per-prompt extraction and batches after commits; `off` stops extraction entirely, while existing preferences stay injectable |
+| `memory.extractionMode`   | `auto` / `window` / `manual` | `auto` keeps each backend's cadence; `window` learns only committed discarded regions plus one session-stop flush; `manual` leaves explicit tools and `/memory enqueue` as the only triggers |
+
+The journal lives under `<agentDir>/memories/window-learning/<namespace>/<session>.json` and holds pending windows, processed window ids, processed entry ids, attempts, and the last error. The namespace is the SDK-resolved memory namespace: an `im:` binding scope or the canonical repository scope, never a cwd concatenation. A restart replays pending windows without re-extracting completed ones; a compaction commit listener only copies the discarded entries and advances the cursor, so it never runs a model or delays compaction.
+
+A short session that ends without a compaction flushes once at stop. Backends implement this through their existing retention/queue paths with the window id as the deterministic source id; failed work remains visible in the journal and retries on the next agent end, session stop, or restart — no extra daemon or timer is created.
+
+Model cost depends on the backend. A window batch is one larger request per committed region instead of many per-prompt calls, but it is a separate context with no cached main-conversation prefix. `mnemopi.llmMode: none` still makes no extra LLM requests: window memory retention stays host-only and taste window extraction is skipped. Tracking remains operational process state (tasks, status, plans); window learning does not turn tracking state into personal facts, and it reads only the current repository's tracking and stores.
+
 ## Key files
 
 - `packages/coding-agent/src/memories/index.ts` — pipeline orchestration, injection, clear/enqueue entry points (the `/memory` command routes here via `packages/coding-agent/src/memory-backend/local-backend.ts`)
 - `packages/coding-agent/src/memories/storage.ts` — SQLite-backed job queue and thread registry
 - `packages/coding-agent/src/prompts/memories/` — memory prompt templates
 - `packages/coding-agent/src/internal-urls/memory-protocol.ts` — `memory://` URL handler
-- `packages/coding-agent/src/taste/` — taste layer: `store.ts` (Command Code format, state, tombstones), `extract.ts` + `queue.ts` (candidates), `consolidate.ts` (evidence, conflicts, deletion), `score.ts` (Beta posterior, retention, injection score), `judge.ts` (T0/T1/T2), `inject.ts` (prompt block), `scheduler.ts` + `lifecycle.ts`
+- `packages/coding-agent/src/taste/` — taste layer: `store.ts` (Command Code format, state, tombstones), `extract.ts` + `queue.ts` (candidates), `window-extract.ts` (committed-window batches), `consolidate.ts` (evidence, conflicts, deletion), `score.ts` (Beta posterior, retention, injection score), `judge.ts` (T0/T1/T2), `inject.ts` (prompt block), `scheduler.ts` + `lifecycle.ts`
+- `packages/coding-agent/src/memory-backend/window-learning.ts` + `window-queue.ts` — commit-boundary capture, durable processed cursor, and the serial retry drain (no daemon)
 - `packages/coding-agent/src/tools/super-memory.ts` — the `super_memory` tool (see [Tools](./tools/super_memory.md))

@@ -3,6 +3,7 @@ import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
 import { findPersistedRecall, persistRecall } from "../memory-backend/recall-entry";
 import type { MemoryPromptPreparation } from "../memory-backend/types";
+import { cfgMemoryExtractionMode } from "../memory-backend/settings";
 import type { AgentSession } from "../session/agent-session";
 import { type BankScope, ensureBankExists, type HindsightBankSet } from "./bank";
 import type { HindsightClientApi } from "./client";
@@ -451,7 +452,7 @@ export class HindsightSessionState implements HindsightSessionStateApi {
 	}
 
 	async maybeRetainOnAgentEnd(): Promise<void> {
-		if (!this.config.autoRetain) return;
+		if (!this.config.autoRetain || this.aliasOf || cfgMemoryExtractionMode.get(this.session.settings) !== "auto") return;
 		// Cheap gate first: most agent_end events are not retain turns, so skip text extraction.
 		const userTurns = countUserTurns(this.session.sessionManager);
 		if (userTurns - this.lastRetainedTurn < this.config.retainEveryNTurns) return;

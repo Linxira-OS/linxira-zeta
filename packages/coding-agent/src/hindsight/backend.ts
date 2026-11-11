@@ -17,7 +17,7 @@ import type { AgentSession } from "../session/agent-session";
 import { type BankScope, computeBankScope, type HindsightBankSet } from "./bank";
 import { createHindsightClient } from "./client";
 import { type HindsightConfig, isHindsightConfigured, loadHindsightConfig } from "./config";
-import { type HindsightMessage, hasSubstantiveContent } from "./content";
+import { type HindsightMessage, hasSubstantiveContent, prepareUserRetentionTranscript } from "./content";
 import { HindsightSessionState } from "./state";
 
 import { cfgMemoryBackend } from "../memory-backend/settings";
@@ -132,6 +132,15 @@ export const hindsightBackend: MemoryBackend = {
 		if (!primary) return;
 		await primary.flushRetainQueue();
 		await primary.forceRetainCurrentSession();
+	},
+
+	async learnWindow({ session }, input): Promise<void> {
+		const state = session?.getHindsightSessionState();
+		if (!state || state.aliasOf) throw new Error("Hindsight window learning requires the primary session state.");
+		// Server extraction receives user evidence only; assistant replies cannot establish facts.
+		const { transcript } = prepareUserRetentionTranscript(input.messages);
+		if (!transcript) return;
+		await state.enqueueRetain(`window:${input.id}`, [{ content: transcript }]);
 	},
 
 	async preCompactionContext(

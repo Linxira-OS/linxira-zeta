@@ -121,7 +121,9 @@ async function consolidateLocked(
 
 	// Group by topic so "repeat" counts distinct sessions, not files.
 	const groups = new Map<string, QueuedTasteCandidate[]>();
+	const processedSources = new Set(state.processedSources ?? []);
 	for (const item of queued) {
+		if (item.candidate.sourceId && processedSources.has(item.candidate.sourceId)) continue;
 		const topic = topicKey(item.candidate.statement);
 		const group = groups.get(topic);
 		if (group) group.push(item);
@@ -164,6 +166,7 @@ async function consolidateLocked(
 			...(prior?.conflict && { conflict: prior.conflict }),
 			...(prior?.conflictSince && { conflictSince: prior.conflictSince }),
 		});
+		for (const item of items) if (item.candidate.sourceId) processedSources.add(item.candidate.sourceId);
 	}
 
 	// Conflicts: same topic family, opposite polarity. Both sides stay stored
@@ -206,6 +209,7 @@ async function consolidateLocked(
 		entries: {},
 		tombstones,
 		lastConsolidatedAt: now.getTime(),
+		processedSources: [...processedSources],
 	});
 	await consumeTasteCandidates(queued.map(item => item.file));
 	return { ran: true, scope: key.domain, candidates: queued.length, entries: capped.length, removed };

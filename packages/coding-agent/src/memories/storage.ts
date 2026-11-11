@@ -280,6 +280,27 @@ WHERE kind = ? AND job_key = ?
 	return claims;
 }
 
+/** Claim one bounded window without scanning or opening any session rollout. */
+export function claimWindowStage1(db: Database, id: string, cwd: string, nowSec: number, leaseSeconds: number): Stage1Claim | undefined {
+	return db.transaction(() => {
+		const existing = db.prepare("SELECT cwd, updated_at FROM threads WHERE id = ?").get(id) as
+			{ cwd: string; updated_at: number } | null;
+		if (existing && existing.cwd !== normalizeScopeCwd(cwd)) throw new Error("Memory window belongs to another project.");
+		const sourceUpdatedAt = existing?.updated_at ?? nowSec;
+		if (!existing) upsertThreads(db, [{ id, updatedAt: sourceUpdatedAt, rolloutPath: "", cwd, sourceKind: "window" }]);
+		ensureStage1Job(db, id);
+		const job = db.prepare("SELECT status, lease_until FROM jobs WHERE kind = ? AND job_key = ?")
+			.get(STAGE1_KIND, id) as { status: string; lease_until: number | null };
+		if (job.status === "done") return undefined;
+		if (job.status === "running" && (job.lease_until ?? 0) > nowSec) throw new Error("Memory window extraction is already running.");
+		const ownershipToken = crypto.randomUUID();
+		db.prepare(`UPDATE jobs SET status = 'running', ownership_token = ?, started_at = ?, lease_until = ?,
+			input_watermark = ?, finished_at = NULL, retry_at = NULL, last_error = NULL WHERE kind = ? AND job_key = ?`)
+			.run(ownershipToken, nowSec, nowSec + leaseSeconds, sourceUpdatedAt, STAGE1_KIND, id);
+		return { threadId: id, ownershipToken, inputWatermark: sourceUpdatedAt, sourceUpdatedAt, rolloutPath: "", cwd };
+	})();
+}
+
 export function enqueueGlobalWatermark(
 	db: Database,
 	sourceUpdatedAt: number,
@@ -424,7 +445,7 @@ WHERE kind = ? AND job_key = ? AND status = 'running' AND ownership_token = ?
 
 export function tryClaimGlobalPhase2Job(
 	db: Database,
-	params: { workerId: string; leaseSeconds: number; nowSec: number; cwd: string },
+	params: { workerId: string; leaseSeconds: number; nowSec: number; cwd: string; windowDelivery?: boolean },
 ): { kind: "claimed"; claim: GlobalClaim } | { kind: "skipped_not_dirty" } | { kind: "skipped_running" } {
 	const { workerId, leaseSeconds, nowSec, cwd } = params;
 	const jobKey = globalJobKey(cwd);
@@ -453,10 +474,11 @@ SET status = 'running', worker_id = ?, ownership_token = ?, started_at = ?, fini
 WHERE kind = ? AND job_key = ?
 	AND NOT (status = 'running' AND lease_until IS NOT NULL AND lease_until > ?)
 	AND (input_watermark IS NOT NULL AND (last_success_watermark IS NULL OR input_watermark > last_success_watermark))
-	AND retry_remaining > 0
-	AND (retry_at IS NULL OR retry_at <= ?)
+	AND (? = 1 OR retry_remaining > 0)
+	AND (? = 1 OR retry_at IS NULL OR retry_at <= ?)
 `)
-		.run(workerId, ownershipToken, nowSec, nowSec + leaseSeconds, GLOBAL_KIND, jobKey, nowSec, nowSec);
+		.run(workerId, ownershipToken, nowSec, nowSec + leaseSeconds, GLOBAL_KIND, jobKey, nowSec,
+			params.windowDelivery ? 1 : 0, params.windowDelivery ? 1 : 0, nowSec);
 	if (Number(claimed.changes ?? 0) > 0) {
 		const row = db
 			.prepare("SELECT input_watermark FROM jobs WHERE kind = ? AND job_key = ? AND ownership_token = ?")

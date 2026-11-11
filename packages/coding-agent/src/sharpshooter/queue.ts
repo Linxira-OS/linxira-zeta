@@ -14,6 +14,7 @@ import * as path from "node:path";
 import { isEnoent } from "@linxiraos/pi-utils";
 import { sharpshooterQueueDir } from "./paths";
 import type { SharpshooterDelta } from "./types";
+import { writeFileAtomically } from "../utils/atomic-file";
 
 /** One queued delta plus the file backing it (consume token). */
 export interface QueuedSharpshooterDelta {
@@ -37,9 +38,18 @@ function queueFileName(ts: number): string {
 }
 
 /** Persist one delta into the session's queue directory. */
-export async function appendSharpshooterDelta(agentDir: string, cwd: string, delta: SharpshooterDelta): Promise<void> {
+export async function appendSharpshooterDelta(
+	agentDir: string,
+	cwd: string,
+	delta: SharpshooterDelta,
+	sourceId?: string,
+): Promise<void> {
 	const dir = path.join(sharpshooterQueueDir(agentDir, cwd), sanitizeSessionId(delta.sessionId));
-	await Bun.write(path.join(dir, queueFileName(delta.ts)), JSON.stringify(delta));
+	const name = sourceId
+		? `window-${new Bun.CryptoHasher("sha256").update(sourceId).digest("hex")}.json`
+		: queueFileName(delta.ts);
+	await fs.mkdir(dir, { recursive: true });
+	await writeFileAtomically(path.join(dir, name), JSON.stringify(delta));
 }
 
 /**

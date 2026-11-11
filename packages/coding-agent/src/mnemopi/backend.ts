@@ -229,6 +229,12 @@ export const mnemopiBackend: MemoryBackend = {
 		}
 	},
 
+	async learnWindow({ session }, input): Promise<void> {
+		const state = getMnemopiSessionState(session);
+		if (!state) throw new Error("Mnemopi backend is not initialised for window learning.");
+		await state.learnWindow(input);
+	},
+
 	async stats(agentDir, _cwd, session): Promise<string | undefined> {
 		await Promise.all([loadMnemopi(), loadMnemopiCore()]);
 		const banks = collectBankStats(agentDir, session);
