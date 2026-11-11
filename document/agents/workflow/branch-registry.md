@@ -60,6 +60,15 @@
 | `feat/team-core` | feat | Team path/DB foundation（第一纵切）：`.zeta/team.json` / `.zeta/pm.json` 解析与上行 resolver、单库 `~/.zeta/data/zeta.db`（teams/team_pms/repos/repo_bindings/engineers/worktrees）、`zetacode team` 的 init/pm/repo/engineer/worktree/doctor（真实 `git worktree add`）；无 UI/房间/graph。worktree `temp/team-core` | agent | 2026-11-09 | 合入 `main` 后删（删前记 SHA） |
 | `docs/jcode-citation-fix` | docs | 去掉评估文档与 roadmap 里对已删除的临时稀疏克隆路径的引用，改为公共仓库 URL + 固定 commit `e5bfa5b8…` 并声明克隆为一次性产物（已用 `bun scripts/safe-remove-tree.ts` 删除并核验无残留引用）；顺带在登记簿退役 `chore/retire-jcode-evaluation`；无代码、无行为改动。worktree `temp/jcode-cite` | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
 | `docs/execution-system` | docs | 需求台账 + 执行契约 + ADR 规范性规则：`document/requirements-ledger.md`（25 条 seeded REQ）、`document/agents/workflow/execution-contract.md`、`scripts/check-requirements-ledger.ts`、`check:adr`/`check:reqs` 接入 `bun check`、`document/release.md` 预打 tag 清单；无产品代码。worktree `temp/execution-system` | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
+| `feat/report-completion` | feat | 报告完成列车集成分支；ledger delta + matrix/owner seams + ADR reservations；不 push/PR，本地小 lane 合入。worktree `temp/report-completion` | agent | 2026-11-11 | 全部小 lane 合入并独立验收后删（删前记 SHA） |
+| `fix/report-studio` | fix | Studio A0–A4：workspace read-model 契约、顶栏/上下文/最近对话/长名/听写门控；独占 App.tsx。worktree `temp/report-studio` | agent | 2026-11-11 | 合入 `feat/report-completion` 后删 |
+| `feat/report-team` | feat | Team service：doctor、bootstrap、task queue、room live delivery、read model；不改 Studio/IM/SDK。worktree `temp/report-team` | agent | 2026-11-11 | 合入集成分支后删 |
+| `feat/report-im` | feat | IM 多实例/Agent Profile/上下文隔离后端；独占 `server/zeta-server.ts`。worktree `temp/report-im` | agent | 2026-11-11 | 合入集成分支后删 |
+| `feat/report-agent-profiles` | feat | SDK/tool profile：真正 per-agent 工具白名单、profile/persona 接线；独占 `sdk.ts`。worktree `temp/report-agent-profiles` | agent | 2026-11-11 | 合入集成分支后删 |
+| `fix/report-remote` | fix | 远端 token 注入/#authorize/2FA step-up/pairing/scope/SSH bridge 契约；独占 auth 模块。worktree `temp/report-remote` | agent | 2026-11-11 | 合入集成分支后删 |
+| `fix/report-tui` | fix | TUI Windows 9001/IME 帧序/relay/focus/Hub；无上游 merge。worktree 由 worker 建。 | agent | 2026-11-11 | 合入集成分支后删 |
+| `fix/report-cd` | fix | `/cd` 根路径/卷挂载缓存/补全/pins/headless；macOS C3 保持排除。worktree 由 worker 建。 | agent | 2026-11-11 | 合入集成分支后删 |
+| `feat/report-im-ui` | feat | Studio IM Discord/QQ 凭据、allowlist、多实例 UI；不改 IM 后端。worktree 由 worker 建。 | agent | 2026-11-11 | 合入集成分支后删 |
 
 ## 已退役（删除前登记）
 
