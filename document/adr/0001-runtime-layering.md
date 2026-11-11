@@ -58,8 +58,8 @@ imports `packages/coding-agent/**`.
   the renderer is not an option.
 - Contract tests live in `desktop/scripts/*.test.mjs` (for example
   `serve-resolution.test.mjs`, `preload-bridge.test.mjs`); the backend contract
-  is covered by `packages/coding-agent/test/studio-host-team.test.ts` and the
-  studio-host suites.
+  is covered by the `packages/coding-agent/test/studio-host-ops.test.ts`,
+  `studio-host-loopback-auth.test.ts`, and `studio-host-team.test.ts` suites.
 
 ## Alternatives
 

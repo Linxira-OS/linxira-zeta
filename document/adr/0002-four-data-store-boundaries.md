@@ -39,7 +39,8 @@ four modes of one Zeta database.
    with maintenance, and retrieves context. Zeta does not own or migrate the
    schema and does not keep a second authoritative copy.
 3. **LKB enterprise instance — organization-owned.** The organization owns the
-   database and the access policy. Zeta acts as a user or organization member.
+   database, schema, and access policy. Zeta acts as a user or organization
+   member and has no schema ownership, migration, or storage responsibility.
    Admin-level operations happen only with an explicit grant from the
    organization; the default is least privilege. Zeta is not the enterprise
    database owner or operator.
