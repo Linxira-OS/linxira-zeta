@@ -194,3 +194,5 @@ export * from "./git.js";
 export type { ContextViewIndex, ContextViewResultMap, ContextViewOperation, ContextCategoryId, ContextEntrySummary } from "@linxiraos/studio-protocol";
 export type { UpgradeOperation, UpgradeResultMap, BtwTopicSummary, BtwHistoryTurn, ForeignSessionSummary, ForeignSource, RuntimeAuthProvider, ModelMentionInfo } from "@linxiraos/studio-protocol";
 export * from "./model-adaptation.js";
+
+export * from "./team.js";

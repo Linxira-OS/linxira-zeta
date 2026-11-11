@@ -29,6 +29,7 @@ import { readSessionAgents } from "./session.js";
 import { emptyTeamDbFacts, readTeamDbFacts } from "./team-db.js";
 import { LIFETIMES, TEAM_STATUS, projectTeamGraph, type TeamGraphQuery, type TeamMainFact } from "./team-projection.js";
 import { readWorkspaceNames } from "./workspace.js";
+import { teamWorkspaceCommands, teamWorkspaceQueries } from "./team-workspace.js";
 
 const AGENTS_ROUTE = "/api/agents";
 
@@ -143,10 +144,14 @@ async function readTeamGraph(input: unknown): Promise<TeamGraphReadModel> {
 	return incompleteMainIds.length === 0 ? graph : { ...graph, incompleteMainIds };
 }
 
-/** Team family: the relationship graph read model. */
+/** Team family: graph plus the workspace operations used by the Studio pane. */
 export const teamOps: StudioFamily = {
 	id: "team",
 	queries: {
 		"team.graph.get": readTeamGraph,
+		...teamWorkspaceQueries,
+	},
+	commands: {
+		...teamWorkspaceCommands,
 	},
 };

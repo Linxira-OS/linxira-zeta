@@ -102,12 +102,18 @@ import type {
   WorkspaceFileTreeReadModel,
   WorkspaceFileMutationResult,
 } from "./read-models.js";
+import type {
+	TeamCommandInputMap,
+	TeamCommandResultMap,
+	TeamQueryInputMap,
+	TeamQueryResultMap,
+} from "./team.js";
 
 /** Empty input shape for queries that take no arguments. */
 export type EmptyInput = Readonly<Record<string, never>>;
 
 type ContextViewQueryMap = { [K in ContextViewOperation["kind"]]: Omit<Extract<ContextViewOperation, { kind: K }>, "kind"> };
-export interface QueryInputMap extends ContextViewQueryMap {
+export interface QueryInputMap extends ContextViewQueryMap, TeamQueryInputMap {
   "prediction.query": PredictionQuery;
   "artifacts.text.read": { readonly artifactId: string };
   "artifacts.list": import("@linxiraos/studio-protocol").ArtifactListInput;
@@ -191,7 +197,7 @@ export interface QueryInputMap extends ContextViewQueryMap {
   "github.pr.checks": { readonly workspaceId: WorkspaceId; readonly number: number };
 }
 
-export interface QueryResultMap extends ContextViewResultMap {
+export interface QueryResultMap extends ContextViewResultMap, TeamQueryResultMap {
   "prediction.query": PredictionResult;
   "artifacts.text.read": import("@linxiraos/studio-protocol").ArtifactTextResult;
   "artifacts.list": import("@linxiraos/studio-protocol").ArtifactPage;
@@ -799,7 +805,7 @@ interface CoreCommandInputMap {
   // public Runtime snapshot.
 }
 
-export type CommandInputMap = CoreCommandInputMap & RuntimeCommandInputMap;
+export type CommandInputMap = CoreCommandInputMap & RuntimeCommandInputMap & TeamCommandInputMap;
 
 interface CoreCommandResultMap {
   "artifacts.saveText": import("@linxiraos/studio-protocol").ArtifactRecord;
@@ -972,7 +978,7 @@ export type CommandResultMap = CoreCommandResultMap & {
   "runtime.settings.set": StudioRuntimeSettingsSetResult;
   "mode.plan.review.saveAndQuit": StudioPlanSaveAndQuitResult;
   "core.continue": ContinueTurnOutcome;
-};
+} & TeamCommandResultMap;
 
 export type EvaluationCommandOutcome = { readonly snapshot: OperatorStateSnapshot; readonly result: unknown };
 

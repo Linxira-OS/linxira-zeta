@@ -179,8 +179,12 @@ Structure lives in one SQLite database (`~/.zeta/data/zeta.db`); markers are
 discovery hints and `team doctor` reports drift. The TUI adds path entry, the
 Team Hub, and database-only rooms; `/lead` (alias `/pm`) runs a PM main agent in
 a PM workspace with `room_read`/`room_post` and one PM-owned persistent
-Secretary subagent, and no coding tools. Board rows, channel bindings, the graph
-UI, and Vibe auto-start are not included. See [team.md](./team.md).
+Secretary subagent, and no coding tools. Work Studio adds the Team pane:
+dry-run bootstrap/apply/resume/rollback, doctor, PM/repo/engineer setup, the
+task queue with leases and review, room member/kind management, incremental
+room events with subscription/ack cursors, and the real relationship graph. See
+[team.md](./team.md) and [team-studio.md](./team-studio.md). Board rows, channel
+bindings, and Vibe auto-start are not included.
 
 ## Plugin registry
 

@@ -198,3 +198,5 @@ export type {
 	ModelMentionInfo,
 } from "../protocol/index.js";
 export * from "./model-adaptation.js";
+
+export * from "./team.js";

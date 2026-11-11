@@ -487,6 +487,14 @@ serializes hashed workspace ids and basenames, never filesystem paths. There are
 no remaining producer gaps; an empty or missing database is an empty inventory,
 not an error.
 
+## Studio Team pane
+
+Work Studio's Team pane is a browser surface over the same database: onboarding
+plan/apply/resume/rollback and doctor, PM/repo/engineer setup, the durable task
+queue with lease/review actions, room member/kind management, incremental room
+events with subscription/ack cursors, and the relationship graph. See
+[team-studio.md](./team-studio.md).
+
 ## Not in this slice
 
 Automatic Vibe start, IM per-agent binding, and a background daemon remain
