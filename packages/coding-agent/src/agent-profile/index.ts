@@ -5,6 +5,7 @@ export {
 	loadImAgentProfilePersona,
 	resolveImAgentProfileRuntime,
 } from "./resolve";
+export { discoverAgentProfiles, loadMainAgentProfile } from "./load";
 export type {
 	AgentProfileApprovalMode,
 	AgentProfileMemoryBackend,

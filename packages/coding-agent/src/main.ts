@@ -26,6 +26,7 @@ import * as postmortem from "@linxiraos/pi-utils/postmortem";
 import { fuzzyFilter } from "@linxiraos/pi-tui/fuzzy";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { reset as resetCapabilities } from "./capability";
+import { loadMainAgentProfile } from "./agent-profile";
 import {
 	type Args,
 	reportInvalidFlagValues,
@@ -1847,6 +1848,12 @@ export async function buildSessionOptions(
 		options.toolNames = parsed.tools && parsed.tools.length > 0 ? parsed.tools : [];
 	} else if (parsed.tools) {
 		options.toolNames = parsed.tools;
+	}
+	if (parsed.agentProfile) {
+		options.agentProfile = await loadMainAgentProfile(parsed.agentProfile, {
+			cwd: options.cwd ?? getProjectDir(),
+			agentDir: getAgentDir(),
+		});
 	}
 
 	if (parsed.noLsp) {

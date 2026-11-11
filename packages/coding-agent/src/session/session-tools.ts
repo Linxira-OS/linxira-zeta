@@ -171,7 +171,12 @@ export type SystemPromptRebuilder = (
 	toolNames: string[],
 	tools: Map<string, AgentTool>,
 	xdev: XdevState | undefined,
-) => Promise<{ systemPrompt: string[]; xdevCatalogNames?: readonly string[] }>;
+) => Promise<{
+	systemPrompt: string[];
+	xdevCatalogNames?: readonly string[];
+	/** Context files this rebuild actually used; the reload service watches exactly these. */
+	contextWatchPaths?: readonly string[];
+}>;
 
 interface SessionToolsOptions {
 	autoApprove?: boolean;

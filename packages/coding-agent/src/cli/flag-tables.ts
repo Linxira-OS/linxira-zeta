@@ -241,6 +241,9 @@ export const STRING_SETTERS: Record<string, StringSetter> = {
 	"--models": (result, value) => {
 		result.models = value.split(",").map(s => s.trim());
 	},
+	"--agent-profile": (result, value) => {
+		result.agentProfile = value.trim();
+	},
 	"--tools": (result, value, deps) => {
 		const names = deps.normalizeToolNames(
 			value

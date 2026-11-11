@@ -4828,12 +4828,14 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				activeRepoContext,
 			});
 
+			const contextWatchPaths = contextFiles.map(file => file.path);
 			if (typeof options.systemPrompt !== "function") {
-				return defaultPrompt;
+				return { ...defaultPrompt, contextWatchPaths };
 			}
 			const customPrompt = options.systemPrompt(defaultPrompt.systemPrompt);
 			return {
 				systemPrompt: typeof customPrompt === "string" ? [customPrompt] : customPrompt,
+				contextWatchPaths,
 			};
 		};
 
