@@ -163,8 +163,11 @@ form of this gate.
 
 - Run `bun run check:reqs` and `bun run check:adr` after editing either register.
 - The guards are structural. They catch duplicate IDs, unknown statuses, missing
-  evidence on done states, missing index rows, and sequence gaps. They do not
-  judge whether the evidence is honest; review does that.
+  evidence on done states, missing/orphan index rows, illegal filenames, reserved
+  0000 IDs, and empty placeholder records. ADR IDs must be monotonically
+  increasing but may leave gaps: IDs are stable identifiers, not a dense sequence,
+  and gaps are never backfilled with placeholders. The guards do not judge whether
+  the evidence is honest; review does that.
 - Keep the requirement text stable. Correct a typo, but do not rewrite a
   requirement to match what was implemented.
 - If a REQ is split, keep the original ID and add child REQs with new IDs; record
