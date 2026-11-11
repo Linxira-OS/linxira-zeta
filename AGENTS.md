@@ -254,3 +254,4 @@ PR 只承担评审与 CI，**合并由用户点**——agent 不自行 merge 自
 | agent 自创插件 / 页面宿主协议 | `document/agent-authored-plugins.md` |
 | super agent / Room / 联系人式群聊 / resident agent | `document/super-agent-rooms.md` |
 | 滑动窗口压缩 / memory / taste / tracking 频率与窗口批处理 | `document/context-learning-modes.md` |
+| 外部 agent 实现（jcode）评估结论 / 候选工程实践（全部 Deferred） | `document/jcode-evaluation.md` |

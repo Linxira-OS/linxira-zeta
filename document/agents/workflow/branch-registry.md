@@ -58,6 +58,7 @@
 | `perf/tui-subagent-load` | fix | 多子代理 fan-out 下 TUI 响应性：`task` 批次进度更新按 100 ms 合并（leading + trailing，终态立即 flush），消除每 spawn 每 150 ms 的全卡重建/深清洗；含合并正确性与 fan-out 预算测试。worktree `temp/tui-load-perf` | agent | 2026-11-10 | 合入 `main` 后删（删前记 SHA） |
 
 | `feat/team-core` | feat | Team path/DB foundation（第一纵切）：`.zeta/team.json` / `.zeta/pm.json` 解析与上行 resolver、单库 `~/.zeta/data/zeta.db`（teams/team_pms/repos/repo_bindings/engineers/worktrees）、`zetacode team` 的 init/pm/repo/engineer/worktree/doctor（真实 `git worktree add`）；无 UI/房间/graph。worktree `temp/team-core` | agent | 2026-11-09 | 合入 `main` 后删（删前记 SHA） |
+| `docs/jcode-evaluation` | docs | jcode 只读评估结论（`document/jcode-evaluation.md`：事实/功能矩阵结论/结构性 vs 可移植性能/13 个候选全部 `Deferred — not implementation`/不借鉴清单/度量边界/复审条件）+ `roadmap.md` Deferred Queue 登记；无代码、无行为改动。worktree `temp/jcode-doc` | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
 
 ## 已退役（删除前登记）
 
