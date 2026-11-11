@@ -122,6 +122,25 @@ advertises every `dictation.*` operation and the desktop provides the complete
 microphone transport; unsupported surfaces render nothing and do not poll.
 Full audio transport remains a separate change.
 
+## Plugin pages and remote step-up (2026-11-11)
+
+A plugin page is a real top-level renderer route,
+`/plugins/view/<plugin>/<page>`. The static server already falls back to
+`index.html` for extensionless deep links; `App.tsx` parses that path and
+renders the exported `PluginPageHost` with the selected/live session id instead
+of mounting the project shell. `onBack` replaces the URL with `/` and returns to
+the remembered app route, so a plugin page is not a second navigation surface.
+The Host advertises the page through `plugins.pages`; the Capabilities plugin
+view links to it, and no extra tray/harness entry is created.
+
+`AuthStepUpBoundary` is mounted once around the routed content. A bound remote
+device that receives `403 totp_required` answers the challenge in place and the
+transport replays the request exactly once; page-driven commands no longer dead
+end in Settings. The production ownership adapter registered by the session
+operations resolves both `workspaceOfSession` and `workspaceOfCwd` through the
+hidden-inclusive canonical workspace registry and denies unattributable
+resources.
+
 ## Gaps
 
 - **Mobile binding scope** is enforced only by navigation today: the renderer

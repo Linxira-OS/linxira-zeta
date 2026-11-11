@@ -279,6 +279,9 @@ import {
 import { createResumeGenerationGate, ensureSelectedSessionActive, type NewSessionWaitResult } from "./sessionLifecycle";
 import { createSerialTaskQueue } from "./workspaceActionQueue";
 import { historyWorkspaceId, reconcileWorkspaceSelection, workspaceLabel } from "./workspaces/workspaceSelection";
+import { AuthStepUpBoundary } from "./settings/AuthStepUpBoundary";
+import { PluginPageHost } from "./plugins/PluginPageHost";
+import { parsePluginViewRoute, type PluginViewRoute } from "./plugins/pluginRoute";
 import { isNewConversationSurface, shouldShowConversationWelcome } from "./conversation/welcomeGate";
 import { GitStatusPanel, useGitRepository } from "./git/GitStatusPanel";
 import { buildGitStatusLookup, GIT_STATUS_META, type TreeGitStatus } from "./git/treeStatus";
@@ -9476,6 +9479,20 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
   const [state, dispatch] = useReducer(reduce, { loading: true, model: {}, events: [], route: "workbench" });
   const [route, setRoute] = useTargetMemory<Route>("route", initialRouteFromSettings);
   const [selectedHistoryId, setSelectedHistoryId] = useTargetMemory<string | null>("selected-history", () => null);
+  const [pluginView, setPluginView] = useState<PluginViewRoute | undefined>(() => parsePluginViewRoute(window.location.pathname));
+  useEffect(() => {
+    const onPopState = () => setPluginView(parsePluginViewRoute(window.location.pathname));
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+  /** The plugin host is a real top-level route; return to the remembered app route. */
+  const closePluginView = useCallback(() => {
+    window.history.replaceState(null, "", "/");
+    setPluginView(undefined);
+  }, []);
+  const pluginSessionId = selectedHistoryId === null
+    ? state.clientState?.entities.snapshot?.sessionId
+    : state.model.history?.entries.find(entry => entry.historyId === selectedHistoryId)?.sessionId;
 
   useEffect(() => {
     let cancelled = false;
@@ -9597,6 +9614,14 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
         </div>
       </div>
     </div>
+  ) : pluginView !== undefined ? (
+    <PluginPageHost
+      client={client}
+      plugin={pluginView.plugin}
+      page={pluginView.page}
+      {...(pluginSessionId === undefined ? {} : { sessionId: String(pluginSessionId) })}
+      onBack={closePluginView}
+    />
   ) : (
     <AppShell
       state={routedState}
@@ -9615,7 +9640,7 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
       <ConversationWidthProvider>
       <I18nProvider>
         <RemoteScopeNotice />
-        {body}
+        <AuthStepUpBoundary>{body}</AuthStepUpBoundary>
         {initialModelCommitted && !state.loading ? <WorkbenchHealth /> : null}
         {onboardingOpen ? (
           <ProfileEditDialog

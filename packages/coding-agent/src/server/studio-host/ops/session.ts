@@ -83,6 +83,7 @@ import { SESSION_THINKING_LEVELS } from "../protocol/contracts/state.js";
 import { truncateUtf8, utf8ByteLength } from "../protocol/conversation-text.js";
 import { readWorkspaceIdentities, resolveWorkspacePath } from "./workspace.js";
 import { resumePathKey } from "../../../resume/paths.js";
+import { setResourceOwnership } from "../../web-gateway/binding-guard.js";
 
 /**
  * The host authority epoch; the same constant `bootstrap.ts` publishes. Zeta
@@ -1167,6 +1168,21 @@ export async function sessionWorkspaceId(sessionId: string): Promise<string | un
 	if (cwd === undefined) return undefined;
 	return (await readWorkspaceIdentities([cwd])).get(resumePathKey(cwd))?.workspaceId;
 }
+
+/**
+ * File and terminal routes are attributed by their real cwd. Use the same
+ * canonical identity rule as history/session ownership: hidden-inclusive
+ * gateway rows first, then the canonical cwd hash for an archived-only folder.
+ * A basename or caller-declared workspace id never stands in for this.
+ */
+async function workspaceForCwd(cwd: string): Promise<string | undefined> {
+	const key = resumePathKey(cwd);
+	if (key === "") return undefined;
+	return (await readWorkspaceIdentities([cwd])).get(key)?.workspaceId;
+}
+
+/** Register the binding guard's real ownership lookups with this family. */
+setResourceOwnership({ workspaceOfSession: sessionWorkspaceId, workspaceOfCwd: workspaceForCwd });
 
 /** Entry id of the last user message on the active branch (Zeta's only fork target). */
 async function lastUserEntryId(sessionId: string): Promise<string> {

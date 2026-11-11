@@ -36,6 +36,8 @@ History entries omitted the cwd-derived identity that the Host already knows.
 - Hidden folders remain resolvable for an already open session and for file/Git
   operations addressed by their opaque id; hiding is visibility metadata, not an
   ownership boundary.
+- Bound-device ownership reuses the same canonical identity for both a session
+  id and a real cwd; hidden rows resolve, and an unattributable resource denies.
 - Git reads and branch state are scoped to the viewed workspace id; switching
   projects drops stale repository/branch/diff state instead of showing A under B.
 - Recent chats resolve the project per row. Older Hosts without workspace facts

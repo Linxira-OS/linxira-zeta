@@ -15,6 +15,16 @@
 ### Breaking
 
 - A legacy `https://host/#zeta-token=…` link no longer pairs a browser. Reprint the pairing code from Settings → 身份与设备 and scan it again.
+- **Plugin pages in Work Studio** — `/plugins/view/<plugin>/<page>` is a real
+  top-level renderer route backed by the Host's `plugins.pages` inventory and
+  `plugins.callTool`. The selected session id travels with the page; no second
+  navigation surface or harness is created.
+- **App-wide 2FA step-up** — the renderer mounts one AuthStepUpBoundary around
+  routed content, so a remote device that receives `totp_required` answers the
+  challenge in place and the original request is replayed once.
+- **Binding ownership for sessions and cwds** — the Studio session operations
+  register canonical `workspaceOfSession` and `workspaceOfCwd` lookups with the
+  binding guard; hidden workspaces resolve, unattributable resources fail closed.
 - **Work Studio workspace/session identity** — the Host publishes
   `defaultWorkspaceId`, keeps empty or never-opened workspaces listed
   (`lastOpenedAt: null`), and attaches canonical `workspaceId` / basename-only
