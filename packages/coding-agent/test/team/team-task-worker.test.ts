@@ -89,6 +89,34 @@ describe("team task worker", () => {
 		expect(view.events.map(event => event.kind)).toEqual(["created", "claimed", "submitted"]);
 	}, 30_000);
 
+	test("does not claim while the engineer session is busy", async () => {
+		AgentRegistry.installGlobal(new AgentRegistry());
+		AgentRegistry.global().register({
+			id: "busy-session",
+			displayName: "alice",
+			kind: "main",
+			session: {} as never,
+			status: "idle",
+		});
+		await createTask({ taskKey: "T-2", title: "Busy task", pm: "core", teamRoot, dbPath });
+		const handle = startTaskWorker({
+			teamRoot,
+			dbPath,
+			engineer: "alice",
+			agentId: "busy-session",
+			canClaim: () => false,
+			pollMs: 5,
+			execute: async () => {
+				throw new Error("must not execute while busy");
+			},
+		});
+		await Bun.sleep(20);
+		await handle.stop();
+		const view = await showTask({ task: "T-2", teamRoot, dbPath });
+		expect(view.task.status).toBe("pending");
+		expect(view.events.map(event => event.kind)).toEqual(["created"]);
+	}, 30_000);
+
 	test("rejects a worker without a live registered session", async () => {
 		const handle = startTaskWorker({
 			teamRoot,
