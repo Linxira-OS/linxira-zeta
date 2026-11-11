@@ -71,7 +71,7 @@ describe("readWindowsCommitBytes", () => {
 describe("summarizeSamples", () => {
 	test("reports peaks, growth, and no verdict in report-only runs", () => {
 		const summary = summarizeSamples([
-			snapshot(0, 100, 20),
+			snapshot(0, 100, 20, 1900),
 			snapshot(1000, 150, 35, 2000),
 			snapshot(2000, 140, 30, 2100),
 		]);
@@ -81,7 +81,7 @@ describe("summarizeSamples", () => {
 		expect(summary.rssPeakMiB).toBe(150);
 		expect(summary.rssGrowthMiB).toBe(50);
 		expect(summary.heapPeakMiB).toBe(35);
-		expect(summary.systemCommitStartMiB).toBe(2000);
+		expect(summary.systemCommitStartMiB).toBe(1900);
 		expect(summary.systemCommitPeakMiB).toBe(2100);
 		expect(summary.maxRssGrowthMiB).toBeNull();
 		expect(summary.exceeded).toBeNull();
