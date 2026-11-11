@@ -165,7 +165,7 @@ sessions (`--no-extensions` / `disableExtensionDiscovery`) also omit the setting
 disable list entirely.
 
 `/extensions` lists every module this filter governs — native modules, installed-plugin
-entries, and entries expanded from configured directories (under OMP Extension
+entries, and entries expanded from configured directories (under Zeta Extension
 Packages) — and toggles the same ids. Configured file paths have no row because
 the list cannot disable them.
 

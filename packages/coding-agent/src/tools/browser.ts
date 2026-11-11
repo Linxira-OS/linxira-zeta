@@ -133,7 +133,7 @@ const browserSchema = type({
 	"all?": type("boolean").describe("release every managed tab this agent opened"),
 	"kill?": type("boolean").describe("also kill spawned-app browsers"),
 	"persist?": type("boolean").describe(
-		"keep tab live across turn settle and idle close; on a relay tab omp opened, keep it open after the session ends",
+		"keep tab live across turn settle and idle close; on a relay tab Zeta opened, keep it open after the session ends",
 	),
 });
 
@@ -374,13 +374,13 @@ async function openOnKind(
 	// Chrome's extension debugger API exposes no Security domain, so the relay cannot honor the override.
 	if (params.ignore_https_errors && kind.kind === "relay") {
 		throw new ToolError(
-			"ignore_https_errors is not supported through the Chrome relay: the extension debugger API does not expose the CDP Security domain. Pass app.relay:false to use omp's Chromium instead.",
+			"ignore_https_errors is not supported through the Chrome relay: the extension debugger API does not expose the CDP Security domain. Pass app.relay:false to use Zeta's Chromium instead.",
 		);
 	}
 	// Chrome never lets an extension choose where downloads go. Refused here, before an existing tab is closed to reopen.
 	if (params.downloads !== undefined && kind.kind === "relay") {
 		throw new ToolError(
-			"The omp browser relay cannot choose where Chrome saves downloads: open the tab without `downloads`, and tab.waitForDownload() and tab.downloads() report where Chrome saved each file.",
+			"The Zeta browser relay cannot choose where Chrome saves downloads: open the tab without `downloads`, and tab.waitForDownload() and tab.downloads() report where Chrome saved each file.",
 		);
 	}
 
@@ -537,7 +537,7 @@ async function listTargets(
 	const kind = resolveBrowserKind(params, session);
 	if (kind.kind !== "relay") {
 		throw new ToolError(
-			`No pages to adopt here (the browser would be ${describeKind(kind)}): targets exist only with the omp relay (app.relay: true or the browser.relay setting).`,
+			`No pages to adopt here (the browser would be ${describeKind(kind)}): targets exist only with the Zeta relay (app.relay: true or the browser.relay setting).`,
 		);
 	}
 	details.browser = kind.kind;

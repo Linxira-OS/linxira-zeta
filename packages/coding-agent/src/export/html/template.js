@@ -1330,7 +1330,7 @@
 
       function renderHeader() {
         const title = header?.title || (activeSessionKey ? subSessions[activeSessionKey].agentId : 'Session transcript');
-        document.title = `${title} · omp`;
+        document.title = `${title} · zeta`;
         const totalCost = globalStats.cost.input + globalStats.cost.output + globalStats.cost.cacheRead + globalStats.cost.cacheWrite;
 
         const tokenParts = [];

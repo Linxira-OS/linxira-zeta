@@ -333,7 +333,7 @@ function ProfileEditDialog({
               autoFocus
               value={draftName}
               maxLength={DISPLAY_NAME_MAX}
-              placeholder="Studio"
+              placeholder="Z Work Studio"
               onChange={(event) => setDraftName(event.target.value)}
             />
           </div>

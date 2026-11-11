@@ -92,10 +92,14 @@ function scanSource(path: string): Hit[] {
     const trimmed = line.trim();
     if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return;
     // Class names and selectors are plumbing; visible attributes/text still scan.
-    if (/className=|closest\(|querySelector|classList|localStorage|sessionStorage|indexedDB/.test(line)) return;
-    for (const match of line.matchAll(QUOTED)) {
-      const reason = checkText(match[2] ?? "");
-      if (reason) hits.push({ file: relative(ROOT, path), line: index + 1, text: match[2]!, reason });
+    // Only the quoted-literal pass is skipped: JSX text on the same line is copy
+    // (a demo label next to `className` was invisible to the guard that missed it).
+    const plumbing = /className=|closest\(|querySelector|classList|localStorage|sessionStorage|indexedDB/.test(line);
+    if (!plumbing) {
+      for (const match of line.matchAll(QUOTED)) {
+        const reason = checkText(match[2] ?? "");
+        if (reason) hits.push({ file: relative(ROOT, path), line: index + 1, text: match[2]!, reason });
+      }
     }
     for (const match of line.matchAll(JSX_TEXT)) {
       const reason = checkText(match[1] ?? "");

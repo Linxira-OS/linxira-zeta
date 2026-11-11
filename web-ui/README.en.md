@@ -3,7 +3,7 @@
 [中文文档](./README.md)
 
 A browser-based UI for Zeta. It is based on the OMP Web snapshot and keeps the
-existing OMP runtime and configuration compatibility layer.
+existing runtime and configuration compatibility layer.
 
 > **Origin**: Zeta Web incorporates the OMP Web snapshot and
 > [Pi Web](https://github.com/agegr/pi-web). The core architecture, session

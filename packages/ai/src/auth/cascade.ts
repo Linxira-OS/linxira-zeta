@@ -624,7 +624,7 @@ export class KeyCascade implements KeysApi {
 			credential => credential.type !== "api_key" || credential.source !== "login",
 		);
 		if (apiKeySource) return apiKeySource;
-		if (this.#deps.overrides.mirrorKey(provider) !== undefined) return "OMP compatibility mirror (upstream agent.db)";
+		if (this.#deps.overrides.mirrorKey(provider) !== undefined) return "Upstream compatibility mirror (agent.db)";
 		return undefined;
 	}
 

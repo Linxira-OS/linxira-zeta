@@ -20,6 +20,10 @@
 ### Work Studio 默认头像（未发布）
 - **默认 Zeta/AI 头像改用产品标记**：对话消息头（原 18px `π` 角色徽标）与 Agent Hub 主对话横幅（原 message 图标）改用概念 04 Cluster 标记；≥32px 用双块簇，16/24 用单块 LZ 回退（`zeta-mark-16.svg`），带细描边、无障碍名称与资源缺失时的内联回退。PM/工程师/子代理等角色图标、项目/文件夹图标和操作员本人头像不变。
 
+### 品牌文案清理（未发布）
+- **Work Studio / `zeta-web` 文案去上游名（#306）**：诊断「会话与维护」此前仍显示「执行 OMP 原生导出与清理」「范围为本机 OMP 数据目录」——渲染器切换只清理了 `web-app/`。本版把 `web-ui/` 两套 Studio 文案（各 42 条，保持两份逐字节一致）与 shell 目录统一为 `Z Work Studio`（产品）/ `Zeta`（运行时），批准卡、历史、设置、技能分享、技能与预览 fixture 同步；文案里的 `~/.omp`、`.omp/` 路径改为 `~/.zeta`（配置根即 `CONFIG_DIR_NAME`），`omp login` / `omp models refresh` / `omp agents unpack` 改为 `zetacode …`（产品没有 `omp` 二进制），助手徽标 `π` 改 `ζ`，演示项目名 `omp-web`/`omp-studio` 改 `zeta-web`/`zeta`，演示仓库与更新 URL 指向本仓库，技能注册表 fixture 改 `skills.sh`。CLI/TUI 侧同步修正 MCP 向导、setup、设置、`ps`、更新/changelog 提示、浏览器与会话迁移报错、凭据来源标签与 catalog 的 GitLab 登录说明（`rules.json` 重新生成）。
+- **文案守卫**：新增 `web-ui/scripts/check-studio-naming.ts`（两条 CI 工作流都跑），扫描 locale 值与 JSX/字符串文案，冻结项（协议名、`OMP.*` 中继方法、`omp:` scheme、IndexedDB/CSS/事件名等）逐条列入允许表；`web-app` 守卫补上 `className` 行上的 JSX 文本（此前漏掉一个 `omp-web` 演示标签）；i18n 品牌测试同时禁止小写 `omp` 与上游项目名。上游出处注释与 MIT 归属保留原名。
+
 ### Team 技能分配（未发布）
 - **PM → 工程师技能分配**：Team 数据库新增 `agent_skills` 表（schema v4；`team_id`/`pm_id`/`engineer_id`/`skill_name`/`source`/`qualified_name`/`assigned_by`/`created_at`，按工程师+技能唯一）。Lead 模式新增 `engineer_skills` 工具（`list|assign|remove`），PM 只能操作自己名下的工程师，拒绝 PM 自身与其他 PM；只接受已发现技能名，无路径参数。分配在工程师会话启动/恢复时以隐藏 autoload 提示注入，每次转写只注入一次；运行中的工程师需 `/reload-skills` 或重启，不做热重载。插件/注册表来源（可带 hooks/tools）为高风险，需操作员在 `team.skillAllowlist` 放行；官方/自写技能默认允许。删除只停止后续注入，不回收已加载内容。
 

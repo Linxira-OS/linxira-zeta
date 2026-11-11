@@ -1779,7 +1779,7 @@ function formatRoleDesc(role: { id: string; desc: string; builtin?: boolean }, t
 
 
 const PROVIDER_STATUS_DETAIL_KEYS: Record<string, string> = {
-  "OMP 已解析到可用模型": "modelConfig.statusOmpResolved",
+  "Zeta 已解析到可用模型": "modelConfig.statusOmpResolved",
   "已从 models.yml 读取": "modelConfig.statusReadFromModelsYml",
   "已在 disabledProviders 中禁用": "modelConfig.statusDisabledInConfig",
   "已禁用": "modelConfig.statusDisabled",
@@ -3480,7 +3480,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                 <p className="sec-desc">{t("modelConfig.modelsSectionDesc", { prefix: editor.id || "provider-id" })}</p>
                 <div className="mc-models-bar">
                   <div className="seg" role="tablist" aria-label={t("modelConfig.modelsSourceAria")}>
-                    <button type="button" role="tab" aria-selected={modelsTab === "catalog"} className={modelsTab === "catalog" ? "active" : undefined} onClick={() => setModelsTab("catalog")}>OMP Catalog</button>
+                    <button type="button" role="tab" aria-selected={modelsTab === "catalog"} className={modelsTab === "catalog" ? "active" : undefined} onClick={() => setModelsTab("catalog")}>Zeta Catalog</button>
                     {editor.discoveryType ? (
                       <button type="button" role="tab" aria-selected={modelsTab === "discovery"} className={modelsTab === "discovery" ? "active" : undefined} onClick={() => setModelsTab("discovery")}>Runtime Discovery</button>
                     ) : null}

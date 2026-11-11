@@ -49,7 +49,7 @@ describe("AuthStorage OMP mirror-tier keys", () => {
 			await expect(authStorage!.keys.get("deepseek")).resolves.toBe("omp-upstream-key");
 			await expect(authStorage!.keys.peek("deepseek")).resolves.toBe("omp-upstream-key");
 			expect(authStorage!.keys.source("deepseek")).toEqual({ kind: "config", concrete: true });
-			expect(authStorage!.keys.describe("deepseek")).toBe("OMP compatibility mirror (upstream agent.db)");
+			expect(authStorage!.keys.describe("deepseek")).toBe("Upstream compatibility mirror (agent.db)");
 		});
 	});
 

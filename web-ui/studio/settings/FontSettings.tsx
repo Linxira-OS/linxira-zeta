@@ -64,7 +64,7 @@ function FontGroupSettings({ group, app, families, update, reset }: {
         if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); commitFamily(); }
       }} /> : null}
       <div className={`font-sample font-sample-${group.id}`} aria-label={t("settings.fonts.sampleAria", { group: label })}>
-        <p>你好，OMP Studio · The quick brown fox 0123456789</p>
+        <p>你好，Z Work Studio · The quick brown fox 0123456789</p>
         {group.id !== "ui" ? <pre><code>{'const message = "字体预览 / Font preview";\n$ echo "Hello, 世界"'}</code></pre> : <span>{t("settings.fonts.uiSample")}</span>}
       </div>
     </div>

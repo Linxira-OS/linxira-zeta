@@ -121,9 +121,9 @@ function receiveUnifiedUpdate(snapshot: import("@omp-studio/runtime-installer").
     updateInfo: {
       component: current.component,
       available: Boolean(current.version), currentVersion: current.currentVersion ?? "",
-      version: current.version, name: current.component === "runtime" ? `OMP Runtime ${current.version ?? ""}` : `OMP Studio ${current.version ?? ""}`,
+      version: current.version, name: current.component === "runtime" ? `Zeta Runtime ${current.version ?? ""}` : `Z Work Studio ${current.version ?? ""}`,
       reason: "restart-update", blockedReason: current.blockedReason, htmlUrl: snapshot.releaseNotesUrl,
-      releaseNotes: parts.filter(p => p.version).map(p => `${p.component === "app" ? "OMP Studio" : "Runtime"}: ${p.currentVersion ?? "—"} → ${p.version}${p.method === "differential" ? ` · ${updateCopy("appUpdate.downloadDifferential")}` : p.method === "reuse" ? ` · ${updateCopy("appUpdate.downloadReuse")}` : p.method === "full" ? ` · ${updateCopy("appUpdate.downloadFull")}` : ""}${p.message ? `\n${p.message}` : ""}`).join("\n\n"),
+      releaseNotes: parts.filter(p => p.version).map(p => `${p.component === "app" ? "Z Work Studio" : "Runtime"}: ${p.currentVersion ?? "—"} → ${p.version}${p.method === "differential" ? ` · ${updateCopy("appUpdate.downloadDifferential")}` : p.method === "reuse" ? ` · ${updateCopy("appUpdate.downloadReuse")}` : p.method === "full" ? ` · ${updateCopy("appUpdate.downloadFull")}` : ""}${p.message ? `\n${p.message}` : ""}`).join("\n\n"),
     },
   });
 }

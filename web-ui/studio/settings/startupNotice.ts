@@ -7,16 +7,16 @@
 
 export const STARTUP_NOTICE_ID = "incomplete-v1";
 export const STARTUP_NOTICE_STORAGE_KEY = "omp.startupNotice.dismissed";
-export const PROJECT_GITHUB_URL = "https://github.com/the-snowpear/omp-studio";
-export const PROJECT_GITHUB_HOST = "github.com/the-snowpear/omp-studio";
+export const PROJECT_GITHUB_URL = "https://github.com/Linxira-OS/linxira-zeta";
+export const PROJECT_GITHUB_HOST = "github.com/Linxira-OS/linxira-zeta";
 
 export const STARTUP_NOTICE_COPY = {
   kicker: "开发预览",
   title: "应用尚未完成",
-  body: "OMP Studio 目前仍在开发中，部分功能尚未完成。使用过程中可能遇到不稳定、缺失或与最终形态不一致的能力。欢迎提交 bug、提 issue，也欢迎提供 idea。",
+  body: "Z Work Studio 目前仍在开发中，部分功能尚未完成。使用过程中可能遇到不稳定、缺失或与最终形态不一致的能力。欢迎提交 bug、提 issue，也欢迎提供 idea。",
   hint: "可在 GitHub 仓库查看进度，或直接开 issue 参与讨论。",
   repoLabel: "项目地址",
-  thanks: "感谢使用 OMP Studio。",
+  thanks: "感谢使用 Z Work Studio。",
 } as const;
 
 function readStorage(key: string): string | null {

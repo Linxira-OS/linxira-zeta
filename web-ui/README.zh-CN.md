@@ -2,7 +2,7 @@
 
 [English](./README.en.md)
 
-Zeta 的浏览器界面，基于 OMP Web 快照，并保留现有 OMP 运行时和配置兼容层。
+Zeta 的浏览器界面，基于 OMP Web 快照，并保留现有的运行时与配置兼容层。
 
 > **来源说明**：Zeta Web 包含 OMP Web 快照和 [Pi Web](https://github.com/agegr/pi-web) 的历史。核心架构、会话浏览、实时对话和文件预览仍保留其上游作者归属。
 

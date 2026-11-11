@@ -8,7 +8,7 @@ export function previewArchiveSessions(): NativeArchiveSession[] {
     {
       id: "demo-archive-queue",
       title: "完善消息队列的图片恢复",
-      project: "omp-studio",
+      project: "zeta",
       created: "2026-10-07T08:30:00.000Z",
       modified: "2026-10-08T00:40:00.000Z",
       messages: 36,
@@ -19,7 +19,7 @@ export function previewArchiveSessions(): NativeArchiveSession[] {
     {
       id: "demo-archive-browser",
       title: "检查浏览器观察与人工接管",
-      project: "omp-studio",
+      project: "zeta",
       created: "2026-10-07T09:00:00.000Z",
       modified: "2026-10-07T12:00:00.000Z",
       messages: 18,
@@ -40,7 +40,7 @@ export function previewArchiveTexts(
           : "请检查消息队列恢复后是否保留图片。",
       at: "2026-10-08T00:40:00.000Z",
       sessionId: "demo-archive-queue",
-      project: "omp-studio",
+      project: "zeta",
       ...(view === "prompts" ? { uses: 2 } : {}),
       truncated: false,
     },
@@ -51,7 +51,7 @@ export function previewArchiveTexts(
           : "检查浏览器人工接管和租约释放。",
       at: "2026-10-07T12:00:00.000Z",
       sessionId: "demo-archive-browser",
-      project: "omp-studio",
+      project: "zeta",
       truncated: false,
     },
   ];

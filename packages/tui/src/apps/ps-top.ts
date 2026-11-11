@@ -527,7 +527,7 @@ export class PsTopComponent implements Component {
 					[
 						text("No broker scopes", { role: "zeta.app.empty-title" }),
 						text([
-							span("No omp process broker runs here. ", "muted"),
+							span("No Zeta process broker runs here. ", "muted"),
 							span(this.#all ? "Nothing runs anywhere." : "Show every scope with ", "muted"),
 							...(this.#all ? [] : [span("a", "key"), span(".", "muted")]),
 						]),

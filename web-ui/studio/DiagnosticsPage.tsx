@@ -146,7 +146,7 @@ function previewRuntime(scenario: PreviewDiagScenario): RuntimeConnection {
       classification: "unavailable",
       runtimeVersion: mock.version,
       unavailableCode: "launch-failed",
-      unavailableReason: "Studio Bridge handshake timed out",
+      unavailableReason: "Z Work Studio Bridge handshake timed out",
     };
   }
   return {
@@ -189,8 +189,8 @@ function previewDiagnostics(scenario: PreviewDiagScenario): DiagnosticReadModel 
     entryId: "prev-runtime-down" as DiagnosticReadModel["entries"][number]["entryId"],
     scope: "host",
     level: "warning",
-    message: "Runtime failed to start: Studio Bridge handshake timed out",
-    detail: { code: "launch-failed", reason: "Studio Bridge handshake timed out" },
+    message: "Runtime failed to start: Z Work Studio Bridge handshake timed out",
+    detail: { code: "launch-failed", reason: "Z Work Studio Bridge handshake timed out" },
     occurredAt: now,
   };
   const extras = mock.errors.map((error, index) => ({

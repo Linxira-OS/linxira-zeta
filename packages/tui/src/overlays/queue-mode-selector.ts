@@ -53,7 +53,7 @@ export class QueueModeSelectorComponent extends OverlayPanel {
 		this.addChild(this.#selectList);
 		this.#sheet = new SelectListSheet(this.#selectList, {
 			title: "Queue mode",
-			subtitle: "How messages you send while omp works are delivered",
+			subtitle: "How messages you send while Zeta works are delivered",
 			icon: "list",
 			noun: "modes",
 			current: [currentMode],

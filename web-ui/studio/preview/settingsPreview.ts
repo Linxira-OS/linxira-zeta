@@ -75,7 +75,7 @@ export const PREVIEW_RUNTIME_SETTINGS: Readonly<Record<string, string | boolean>
   "compaction.methodOrder": "remote,snapcompact,handoff,shake,soft",
   "providers.openai-codex.codeMode": "off",
   "plan.autosave": true,
-  "plan.autosaveDir": ".omp/plans/",
+  "plan.autosaveDir": ".zeta/plans/",
   "retry.waitForUsageReset": false,
   "compaction.experimentalContextManagement": false,
   "task.enableEffort": false,

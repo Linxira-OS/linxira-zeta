@@ -636,7 +636,7 @@ export class SecurityCoordinator {
 			try {
 				if (signal.aborted) throw signal.reason ?? new Error("Security scan cancelled");
 				this.#update(record, "reviewing");
-				await reportProgress?.("Reviewing repository with OMP security workers");
+				await reportProgress?.("Reviewing repository with Zeta security workers");
 				await session.prompt(requestText(plan, executionTarget.cwd, executionTarget.diffText), {
 					expandPromptTemplates: false,
 					synthetic: true,

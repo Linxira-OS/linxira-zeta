@@ -194,7 +194,7 @@ export const PREVIEW_MEDIA_DETAILS: MediaDetail[] = [
     request: {
       type: "speech",
       model: "demo/speech",
-      text: "Studio audio preview",
+      text: "Z Work Studio audio preview",
       format: "wav",
     },
     outputs: [

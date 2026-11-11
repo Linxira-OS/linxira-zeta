@@ -284,7 +284,7 @@ function RuntimePlanDirectoryRow({ runtime, demo }: { runtime?: RuntimeSettingsC
   const disabled = !available || runtime?.set === undefined || runtime.pendingKey !== undefined;
   return (
     <SettingRow label={t("settings.runtime.planAutosaveDir")} desc={t("settings.runtime.planAutosaveDirDesc")} source={runtimeSource(available)}>
-      <input className="input" aria-label={t("settings.runtime.planAutosaveDir")} value={draft} disabled={disabled} maxLength={4096} placeholder=".omp/plans/" onChange={event => setDraft(event.target.value)} />
+      <input className="input" aria-label={t("settings.runtime.planAutosaveDir")} value={draft} disabled={disabled} maxLength={4096} placeholder=".zeta/plans/" onChange={event => setDraft(event.target.value)} />
       <button type="button" className="btn small outline" disabled={disabled || draft === value} onClick={() => runtime?.set?.("plan.autosaveDir", draft.trim())}>{t("settings.runtime.saveDirectory")}</button>
       <RuntimePending runtime={runtime} />
     </SettingRow>

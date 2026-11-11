@@ -354,7 +354,7 @@ export function formatRuntimeDisconnectCopy(
     case "pipe-closed":
       return {
         title: t("diagnostics.disconnectPipeClosedTitle"),
-        detail: cannedOrReason(reason, ["Studio Bridge pipe closed"], t("diagnostics.disconnectPipeClosedDetail")),
+        detail: cannedOrReason(reason, ["Z Work Studio Bridge pipe closed"], t("diagnostics.disconnectPipeClosedDetail")),
         problem: t("diagnostics.disconnectPipeClosedProblem"),
       };
     case "lease-lost":

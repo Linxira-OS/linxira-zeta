@@ -406,8 +406,8 @@ export function IdaPane({
                             ? "已请求取消"
                             : "Cancellation requested"
                           : zh
-                            ? "没有属于 Studio 的活动请求"
-                            : "No active request owned by Studio",
+                            ? "没有属于 Z Work Studio 的活动请求"
+                            : "No active request owned by Z Work Studio",
                       ),
                     )
                     .catch((cause) =>
