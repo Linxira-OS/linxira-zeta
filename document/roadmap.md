@@ -1112,8 +1112,9 @@ protocols and auth flows.
   **边界**：不重写、不替换运行时、不引入 Rust、不改同步树、不新增第二条调度器。
   **复审**：随 release sync 检查上游是否已补等价能力；连续两个 sync 周期上游无动作且 Zeta
   仍有可测痛点（`PI_TIMING` 的「可键入」阶段、多窗口 RSS、resume 关键路径解析耗时），
-  才把对应条目移入执行计划。**取证**：`document/jcode-evaluation.md`、
-  `temp/jcode-eval`（部分克隆：`--depth 1 --filter=blob:none --sparse`）。
+  才把对应条目移入执行计划。**取证**：`document/jcode-evaluation.md`；上游公共仓库
+  <https://github.com/1jehuang/jcode>，固定 commit
+  `e5bfa5b8307a14f0a44801bedba48ba9ed378e11`（评估用的稀疏克隆为一次性临时产物，已删除未保留）。
 
 ## Notes
 
