@@ -1,9 +1,9 @@
-# ADR 0029 — IM switch handshake gateway wire
+# 0029. IM switch handshake gateway wire
 
-- Status: Draft (for team-studio2/integration registration)
-- Date: 2026-11-12
-- Owners: IM line (session/router/TUI host/gateway); Team renderer consumer: team-studio2
-- Related: ADR-IM-0007, REQ-080, REQ-084
+- **Status:** Proposed
+- **Date:** 2026-11-12
+- **Deciders:** IM line (session/router/TUI host/gateway); Team renderer consumer: team-studio2
+- **Links:** [Team Studio](../../docs/team-studio.md), [session router](../../packages/coding-agent/src/channels/session-router.ts), [IM gateway](../../packages/coding-agent/src/server/web-gateway/im-instances.ts), ADR-IM-0007, REQ-080, REQ-084
 
 ## Context
 
@@ -55,3 +55,23 @@ existing binding key.
   system.
 - Capabilities remain on the existing read-only `GET /api/im/commands`
   payload (`capabilities`), not a new route.
+
+## Alternatives
+
+- **Local renderer pending state with a direct binding PUT.** Rejected: it would
+  create a second approval path and could apply a switch the router never
+  previewed.
+- **Reuse `!session use` command text only.** Rejected: it applies immediately
+  and has no confirm step, so it cannot represent a pending preview.
+- **A separate switch store or token.** Rejected: the router already owns the
+  only pending map, TTL and restore path; a second store would diverge.
+
+## Links
+
+- [Team Studio docs](../../docs/team-studio.md)
+- [Session router](../../packages/coding-agent/src/channels/session-router.ts)
+- [IM gateway handlers](../../packages/coding-agent/src/server/web-gateway/im-instances.ts)
+- Consumers: `web-app/src/studio/TeamImChatPane.tsx`,
+  `web-app/src/studio/teamImBindingGateway.ts`
+- Tests: `web-app/src/studio/teamImBindingGateway.test.ts`,
+  `packages/coding-agent/test/im-switch-gateway.test.ts`

@@ -53,6 +53,8 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0026](0026-agent-authored-plugins.md) | Session-scoped agent-authored plugins and a versioned page host | Proposed | 2026-11-12 | — | [design](../agent-authored-plugins.md), [plugins docs](../../docs/plugins.md) |
 | [0027](0027-dictation-audio-bridge.md) | Host-owned draft dictation over a desktop-only ordered audio bridge | Proposed | 2026-11-12 | — | [REQ-075](../requirements-ledger.md), [Studio surfaces](../../docs/studio-surfaces.md), [desktop](../../docs/desktop-app.md) |
 | [0028](0028-release-preconditions.md) | Release preconditions are mechanical: scope, evidence, ADRs, and CI verdict | Proposed | 2026-11-11 | — | [release process](../release.md), [scope gate](../../scripts/release-scope.ts) |
+| [0029](0029-im-switch-gateway.md) | IM switch handshake gateway wire | Proposed | 2026-11-12 | — | [Team Studio](../../docs/team-studio.md), [session router](../../packages/coding-agent/src/channels/session-router.ts), [IM gateway](../../packages/coding-agent/src/server/web-gateway/im-instances.ts) |
+| [0030](0030-im-secret-storage.md) | IM credentials use the local web.yml permission boundary | Accepted | 2026-11-12 | — | [IM runtime UI](../../docs/im-runtime-ui.md), [channels docs](../../docs/channels.md) |
 
 ## File and numbering rules
 
