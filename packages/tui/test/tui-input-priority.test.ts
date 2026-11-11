@@ -54,16 +54,6 @@ function step(scheduler: DeferredScheduler): number | null {
 	return timer.delayMs;
 }
 
-/** Resolve with the next ANSI frame this TUI writes, without waiting on wall-clock time. */
-function nextFrame(tui: TUI): Promise<string> {
-	const { promise, resolve } = Promise.withResolvers<string>();
-	const unsubscribe = tui.addFrameWriteListener(frame => {
-		unsubscribe();
-		resolve(frame);
-	});
-	return promise;
-}
-
 class Recorder implements Component {
 	readonly received: string[] = [];
 	focused = false;
@@ -109,31 +99,39 @@ describe("TUI input priority", () => {
 
 	it("keeps cursor position and visibility inside the synchronized-output block", async () => {
 		await initTheme();
+		const previousForce = Bun.env.PI_FORCE_SYNC_OUTPUT;
+		Bun.env.PI_FORCE_SYNC_OUTPUT = "1";
+		const scheduler = new DeferredScheduler();
 		const term = new VirtualTerminal(40, 10);
-		const tui = new TUI(term, true);
+		const tui = new TUI(term, true, { renderScheduler: scheduler });
 		const input = new Input();
 		tui.addChild(input);
 		tui.setFocus(input);
+		const frames: string[] = [];
+		const unsubscribe = tui.addFrameWriteListener(frame => frames.push(frame));
 		try {
 			tui.start();
-			// The first frame only establishes the visible cursor anchor; the row
-			// rewrite contract applies to a later frame that actually rewrites it.
-			await nextFrame(tui);
+			// Establish the visible cursor anchor before asserting the row rewrite.
+			step(scheduler);
+			frames.length = 0;
 			input.handleInput("a");
-			const typed = nextFrame(tui);
 			tui.requestRender();
-			const frame = await typed;
-			const begin = frame.indexOf("\x1b[?2026h");
-			const hide = frame.indexOf("\x1b[?25l");
-			const show = frame.indexOf("\x1b[?25h");
-			const end = frame.indexOf("\x1b[?2026l");
-			if (begin !== -1) {
-				expect(hide).toBeGreaterThan(begin);
-				expect(show).toBeGreaterThan(hide);
-				expect(end).toBeGreaterThan(show);
-			}
+			step(scheduler);
+			const frame = frames.at(-1);
+			expect(frame).toBeDefined();
+			const begin = frame!.indexOf("\x1b[?2026h");
+			const hide = frame!.indexOf("\x1b[?25l");
+			const show = frame!.indexOf("\x1b[?25h");
+			const end = frame!.indexOf("\x1b[?2026l");
+			expect(begin).toBeGreaterThan(-1);
+			expect(hide).toBeGreaterThan(begin);
+			expect(show).toBeGreaterThan(hide);
+			expect(end).toBeGreaterThan(show);
 		} finally {
+			unsubscribe();
 			tui.stop();
+			if (previousForce === undefined) delete Bun.env.PI_FORCE_SYNC_OUTPUT;
+			else Bun.env.PI_FORCE_SYNC_OUTPUT = previousForce;
 		}
 	});
 
@@ -162,40 +160,44 @@ describe("TUI input priority", () => {
 
 	it("does not hide a visible cursor on a quiet repaint, with or without sync output", async () => {
 		await initTheme();
-		for (const [name, value] of [
-			["PI_FORCE_SYNC_OUTPUT", "1"],
-			["PI_NO_SYNC_OUTPUT", "1"],
-		] as const) {
-			const previous = Bun.env[name];
-			Bun.env[name] = value;
-			const term = new VirtualTerminal(40, 10);
-			const tui = new TUI(term, true);
-			const input = new Input();
-			tui.addChild(input);
-			tui.setFocus(input);
-			try {
-				tui.start();
-				// The typing frame rewrites the caret row and may hide/show the cursor.
-				const typed = nextFrame(tui);
-				input.handleInput("a");
-				tui.requestRender();
-				await typed;
-				// The next frame changes nothing, so it must not touch cursor visibility.
-				// A no-sync quiet frame may write nothing at all, so `nextFrame` would
-				// never settle: collect any writes for one render window instead.
-				const quietFrames: string[] = [];
-				const unsubscribeQuiet = tui.addFrameWriteListener(frame => quietFrames.push(frame));
-				tui.requestRender();
-				await Bun.sleep(60);
-				unsubscribeQuiet();
-				const frame = quietFrames.join("\n");
-				expect(frame, name).not.toContain("\x1b[?25l");
-				expect(frame, name).not.toContain("\x1b[?25h");
-			} finally {
-				tui.stop();
-				if (previous === undefined) delete Bun.env[name];
-				else Bun.env[name] = previous;
+		const previousForce = Bun.env.PI_FORCE_SYNC_OUTPUT;
+		const previousNo = Bun.env.PI_NO_SYNC_OUTPUT;
+		try {
+			for (const [name, value] of [
+				["PI_FORCE_SYNC_OUTPUT", "1"],
+				["PI_NO_SYNC_OUTPUT", "1"],
+			] as const) {
+				delete Bun.env.PI_FORCE_SYNC_OUTPUT;
+				delete Bun.env.PI_NO_SYNC_OUTPUT;
+				Bun.env[name] = value;
+				const scheduler = new DeferredScheduler();
+				const term = new VirtualTerminal(40, 10);
+				const tui = new TUI(term, true, { renderScheduler: scheduler });
+				const input = new Input();
+				tui.addChild(input);
+				tui.setFocus(input);
+				const frames: string[] = [];
+				const unsubscribe = tui.addFrameWriteListener(frame => frames.push(frame));
+				try {
+					tui.start();
+					// Establish the visible cursor anchor, then flush exactly one quiet frame.
+					step(scheduler);
+					frames.length = 0;
+					tui.requestRender();
+					step(scheduler);
+					const frame = frames.join("\n");
+					expect(frame, name).not.toContain("\x1b[?25l");
+					expect(frame, name).not.toContain("\x1b[?25h");
+				} finally {
+					unsubscribe();
+					tui.stop();
+				}
 			}
+		} finally {
+			if (previousForce === undefined) delete Bun.env.PI_FORCE_SYNC_OUTPUT;
+			else Bun.env.PI_FORCE_SYNC_OUTPUT = previousForce;
+			if (previousNo === undefined) delete Bun.env.PI_NO_SYNC_OUTPUT;
+			else Bun.env.PI_NO_SYNC_OUTPUT = previousNo;
 		}
 	});
 });
