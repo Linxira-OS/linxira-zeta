@@ -630,6 +630,7 @@ export class SessionRouter {
 			bindingId: binding.id,
 			agentProfileId: binding.agentProfileId,
 			target: binding.target,
+			...(binding.model ? { model: binding.model } : {}),
 			platform: binding.platform,
 			chatId: binding.chatId,
 			...(binding.lang ? { lang: binding.lang } : {}),
@@ -639,7 +640,11 @@ export class SessionRouter {
 		return { ok: true, id: entry.id };
 	}
 
-	async resolveChatTarget(channelId: ChannelInstanceId, peer: string): Promise<ChatRouteTarget> {
+	async resolveChatTarget(
+		channelId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string } = {},
+	): Promise<ChatRouteTarget> {
 		const agent = this.agentTargetFor(channelId, peer);
 		if (agent) return { kind: "agent", target: agent, local: !agent.includes("/") };
 		// A manual `@workspace use` wins: the operator explicitly switched this
@@ -649,7 +654,7 @@ export class SessionRouter {
 		if (runtime) return this.#workspaceTarget(runtime);
 		// Every instance has a default profile; the first message creates the
 		// persistent binding, so a chat never borrows another chat's session.
-		let imBinding = this.#webConfig.findImBinding(channelId, peer);
+		let imBinding = this.#webConfig.findImBinding(channelId, peer, context);
 		if (!imBinding) {
 			try {
 				const instance = this.#webConfig.getChannelInstance(channelId);
@@ -661,9 +666,12 @@ export class SessionRouter {
 							binding.chatId === peer &&
 							binding.role === "answer",
 					);
-				imBinding = await this.#webConfig.patchImBinding(channelId, peer, {
-					role: hasAnswer ? "mention" : "answer",
-				});
+				imBinding = await this.#webConfig.patchImBinding(
+					channelId,
+					peer,
+					{ role: hasAnswer ? "mention" : "answer" },
+					context,
+				);
 			} catch (error) {
 				return {
 					kind: "unavailable",
@@ -1193,7 +1201,7 @@ export class SessionRouter {
 		if (!profile) throw new Error(`Unknown agent profile "${entry.agentProfileId}"`);
 		const cwd = entry.cwd ?? this.#defaultCwd;
 		const personaText = await loadImAgentProfilePersona(profile, { cwd });
-		return resolveImAgentProfileRuntime(profile, {
+		const options = resolveImAgentProfileRuntime(profile, {
 			instanceId: entry.instanceId,
 			profileId: entry.agentProfileId,
 			bindingId: entry.bindingId,
@@ -1201,6 +1209,7 @@ export class SessionRouter {
 			cwd,
 			...(personaText === undefined ? {} : { personaText }),
 		});
+		return entry.model ? { ...options, model: `${entry.model.provider}/${entry.model.model}` } : options;
 	}
 
 	/** Get (or lazily create) the live session for a registered bot session. */
@@ -1305,10 +1314,11 @@ export class SessionRouter {
 	async resolveChatTargetSession(
 		channelId: ChannelInstanceId,
 		peer: string,
+		context: { threadId?: string; userId?: string } = {},
 	): Promise<{ ok: true; session: AgentSession; id: string } | { ok: false; error: string }> {
 		// Same precedence as inbound routing: the chat's bot session or bound
 		// workspace, never a silent jump to the default workspace.
-		const target = await this.resolveChatTarget(channelId, peer);
+		const target = await this.resolveChatTarget(channelId, peer, context);
 		if (target.kind === "bot") {
 			const entry = this.#webConfig.getBotSession(target.id);
 			if (entry) {
@@ -1346,9 +1356,25 @@ export class SessionRouter {
 		await this.#webConfig.patchImBinding(channelId, peer, { sessionId: "relay" });
 	}
 
+	/** Persist the chat's model so a restarted binding resumes the same model. */
+	async setChatModel(
+		channelId: ChannelInstanceId,
+		peer: string,
+		model: { provider: string; model: string },
+	): Promise<void> {
+		await this.#webConfig.patchImBinding(channelId, peer, { model });
+		const binding = this.#webConfig.findImBinding(channelId, peer);
+		const entry = binding ? this.#webConfig.getBotSession(binding.sessionId) : undefined;
+		if (entry) await this.#webConfig.upsertBotSession({ ...entry, model });
+	}
+
 	/** The reply language configured for one chat ("" → unset). */
-	async languageFor(channelId: ChannelInstanceId, peer: string): Promise<"zh" | "en" | undefined> {
-		return this.#webConfig.findImBinding(channelId, peer)?.lang;
+	async languageFor(
+		channelId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string } = {},
+	): Promise<"zh" | "en" | undefined> {
+		return this.#webConfig.findImBinding(channelId, peer, context)?.lang;
 	}
 
 	/** Set a chat's reply language and apply it to its active bot session. */
@@ -1374,6 +1400,7 @@ export class SessionRouter {
 		channelId: ChannelInstanceId,
 		peer: string,
 		body: string,
+		context: { threadId?: string; userId?: string } = {},
 	): Promise<{ ok: true } | { ok: false; error: string }> {
 		let handle = this.#botSessions.get(id);
 		if (!handle) {
@@ -1384,8 +1411,8 @@ export class SessionRouter {
 			handle = this.#botSessions.get(id);
 			if (!handle) return { ok: false, error: `Bot session "${id}" did not start` };
 		}
-		const binding = this.#webConfig.findImBinding(channelId, peer);
-		const lang = (await this.languageFor(channelId, peer)) ?? handle.entry.lang;
+		const binding = this.#webConfig.findImBinding(channelId, peer, context);
+		const lang = (await this.languageFor(channelId, peer, context)) ?? handle.entry.lang;
 		if (lang) this.#applyLanguageToSession(handle.session, lang);
 		this.#botLastChat.set(id, { channelId, peer });
 		await this.#rememberBotChat(id, channelId, peer);

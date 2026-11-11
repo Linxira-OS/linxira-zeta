@@ -51,6 +51,8 @@ export interface InboundMessage {
 	chatType: "dm" | "group" | "channel" | "thread";
 	/** Platform user id of the sender, when known. */
 	senderId?: string;
+	/** Thread/topic id when the platform separates one chat into threads. */
+	threadId?: string;
 	/** Display name, when the platform provides one. */
 	senderName?: string;
 	/** Text the user sent, with mentions and reply markers removed. */
@@ -68,6 +70,10 @@ export interface InboundMessage {
 	ts?: number;
 }
 
+export interface InboundContext {
+	threadId?: string;
+	userId?: string;
+}
 export type ChannelInboundHandler = (message: InboundMessage) => void;
 
 export interface ChannelCapabilities {

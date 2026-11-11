@@ -954,7 +954,7 @@ export class ZetaServer {
 			runtime = await startChannels(
 				coordinator,
 				webConfig,
-				(instanceId, peer, body) => {
+				(instanceId, peer, body, _messageId, context) => {
 					const runtime = this.#channelRuntimeRef;
 					if (!runtime) return;
 
@@ -987,7 +987,7 @@ export class ZetaServer {
 
 					void (async () => {
 						try {
-							await this.#routeInboundMessage(instanceId, peer, body, runtime);
+							await this.#routeInboundMessage(instanceId, peer, body, runtime, context);
 						} catch (error) {
 							// Never drop a message silently: log the failure so a broken
 							// route (workspace session, bot session, relay) is visible in
@@ -1189,6 +1189,7 @@ export class ZetaServer {
 		peer: string,
 		body: string,
 		runtime: ChannelRuntime,
+		context: { threadId?: string; userId?: string } = {},
 	): Promise<void> {
 		const router = this.#router;
 		const consumed = await routeWorkspaceCommand(body, peer, {
@@ -1209,7 +1210,7 @@ export class ZetaServer {
 		// default — and finally the relay coordinator. A binding that cannot be
 		// opened reports an error; it never silently falls back to the default
 		// workspace, which would answer for a repository it does not own.
-		const route = router ? await router.resolveChatTarget(instanceId, peer) : ({ kind: "relay" } as const);
+		const route = router ? await router.resolveChatTarget(instanceId, peer, context) : ({ kind: "relay" } as const);
 		if (route.kind === "agent" && router) {
 			const result = await router.deliverToAgent(route.target, instanceId, peer, body);
 			if (!result.ok) {
@@ -1223,7 +1224,7 @@ export class ZetaServer {
 			return;
 		}
 		if (route.kind === "bot" && router) {
-			const result = await router.deliverToBotSession(route.id, instanceId, peer, body);
+			const result = await router.deliverToBotSession(route.id, instanceId, peer, body, context);
 			if (!result.ok) {
 				logger.warn("Bot session injection failed", { channel: instanceId, id: route.id, error: result.error });
 				await runtime.sendText(
@@ -1309,6 +1310,7 @@ export class ZetaServer {
 		const model = registry.getAvailable().find(m => m.provider === provider && m.id === modelId);
 		if (!model) return { ok: false, error: `Model ${provider}/${modelId} is not available` };
 		await target.session.setModel(model);
+		await this.#router?.setChatModel(channelId, peer, { provider, model: modelId });
 		return { ok: true, provider, modelId };
 	}
 

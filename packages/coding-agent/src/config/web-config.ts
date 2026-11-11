@@ -85,6 +85,8 @@ export interface BotSessionEntry {
 	agentProfileId?: string;
 	/** Resolved target snapshot (new model). */
 	target?: import("../channels/im-config").ImTarget;
+	/** Binding-level model override (new model). */
+	model?: { provider: string; model: string };
 	createdAt: string;
 }
 
@@ -730,10 +732,11 @@ export class WebConfig {
 		instanceId: string,
 		chatId: string,
 		patch: Partial<Pick<ImBinding, "target" | "agentProfileId" | "sessionId" | "lang" | "model" | "role">>,
+		opts: { threadId?: string; userId?: string } = {},
 	): Promise<ImBinding> {
 		const instance = this.getChannelInstance(instanceId);
 		if (!instance) throw new Error(`Unknown channel instance: ${instanceId}`);
-		const existing = this.findImBinding(instanceId, chatId);
+		const existing = this.findImBinding(instanceId, chatId, opts);
 		const profileId = patch.agentProfileId ?? existing?.agentProfileId ?? instance.agentProfile;
 		const profile = this.getImAgent(profileId);
 		if (!profile) throw new Error(`Unknown agent profile: ${profileId}`);
@@ -744,6 +747,8 @@ export class WebConfig {
 					instanceId,
 					platform: instance.platform,
 					chatId,
+					...(opts.threadId ? { threadId: opts.threadId } : {}),
+					...(opts.userId ? { userId: opts.userId } : {}),
 					agentProfileId: profileId,
 					sessionId: patch.sessionId ?? randomUUID().slice(0, 8),
 					target: patch.target ?? profile.location,

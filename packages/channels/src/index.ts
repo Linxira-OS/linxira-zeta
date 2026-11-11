@@ -206,6 +206,7 @@ export type ChannelInboundHandler = (
 	peer: string,
 	body: string,
 	messageId?: string,
+	context?: { threadId?: string; userId?: string },
 ) => void;
 
 export interface StartChannelsOptions {
@@ -419,7 +420,10 @@ export async function startChannels(
 		const body = inboundBody(message);
 		if (body === "") return;
 		if (onInbound) {
-			onInbound(instanceId, message.peer, body, message.messageId);
+			onInbound(instanceId, message.peer, body, message.messageId, {
+				...(message.threadId ? { threadId: message.threadId } : {}),
+				...(message.senderId ? { userId: message.senderId } : {}),
+			});
 			return;
 		}
 		void host.deliver(instanceId, message.peer, body, message.messageId, identity).catch(error => {
