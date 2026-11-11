@@ -38,10 +38,12 @@ export function classifyOperation(pathname: string, method: string): OperationSc
 /**
  * Whether a credential's scope set satisfies the operation.
  *
- * `self` still needs a read grant: a credential with no scopes must not reach
- * even its own identity routes, and `write` alone is not a read grant either.
+ * Scopes are explicit grants, the same way `device-registry` stores them: a
+ * device is issued `["read", "write"]` unless an operator narrows it, `write`
+ * does **not** imply `read`, and an empty set reaches nothing — not even its
+ * own identity routes.
  */
 export function scopeSatisfies(scopes: readonly string[], operation: OperationScope): boolean {
 	if (operation === "write") return scopes.includes("write");
-	return scopes.includes("read") || scopes.includes("write");
+	return scopes.includes("read");
 }

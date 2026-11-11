@@ -1232,6 +1232,16 @@ export async function handleTerminalEnsure(req: Request): Promise<Response> {
 	return json(sessionPayload(result.session, result.ticket, { reused: result.reused, injected: result.injected }));
 }
 
+/**
+ * Real cwd of a live terminal, for binding attribution.
+ *
+ * A terminal is a shell on the host, so the only honest way to place it is the
+ * cwd it was actually created with — never a caller-declared workspace id.
+ */
+export function terminalCwd(id: string): string | undefined {
+	return manager.get(id)?.cwd;
+}
+
 export function handleTerminalList(): Response {
 	return json({ terminals: manager.list() });
 }

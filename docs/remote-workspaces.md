@@ -299,11 +299,21 @@ token. Scope is enforced per operation, not per verb:
 - `write` — commands, terminal creation/tickets, file/git/workspace writes,
   channel writes, and every device/token/2FA mutation.
 
+Scopes are **explicit grants**, exactly as the registry stores them: a device is
+issued `["read", "write"]` unless an operator narrows it, `write` does not imply
+`read`, and an empty set reaches nothing (not even its own identity routes).
+A terminal WebSocket is a write-grade surface even though the upgrade is a GET.
+
 A device may also carry a **binding** (`sessionId` and/or `workspaceId`, the
 Host's canonical workspace identity). A bound device reaches only that
-conversation/workspace; requests that name nothing (global lists) are refused
-with `403 binding_scope` rather than silently filtered. A session's binding may
-only narrow the device's; contradictory or malformed bindings invalidate the
+conversation/workspace. The target is resolved from the resource a route really
+operates on — a session id in the path, a live terminal's actual cwd, or the
+project `x-zeta-cwd` a file/git/board request carries — and mapped to a
+canonical workspace id through the Host registry; a caller-declared
+`?workspaceId=` is never accepted as authority. Requests that cannot be
+attributed (global lists, blobs, artifacts) are refused with
+`403 binding_scope` rather than silently filtered. A session's binding may only
+narrow the device's; contradictory or malformed bindings invalidate the
 credential.
 
 ### Device tokens (per-device revocation)

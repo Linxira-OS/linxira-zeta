@@ -2,40 +2,42 @@
  * Binding-scope enforcement for bound device credentials.
  *
  * A device paired for one conversation/workspace must not reach anything else.
- * The plan is resolved from the request line only (path + query): REST bodies
- * are consumed by their handlers and must not be read twice here. Two route
- * families are therefore handled where the body is available:
+ * The target is resolved from the **real resource** a route operates on, never
+ * from a caller-declared id that could simply be forged:
  *
- * - `/api/v1/query|command` — checked inside `StudioHost`, which owns the body;
- * - `/api/v1/events` — delivery is already keyed by the authenticated session.
+ * - a session id in the path, or a live terminal's actual cwd;
+ * - the project cwd a request carries in `x-zeta-cwd` (or `cwd`), which is what
+ *   the file/git/board/settings handlers themselves use;
+ * - canonical workspace ids come from the Host registry through
+ *   {@link ResourceOwnership}, so an alias, a path, or a `?workspaceId=` lie
+ *   cannot stand in for one.
  *
- * Everything else either names a session/workspace (allowed only when it is the
- * bound one) or names nothing global (refused). A global list is refused rather
- * than silently filtered: a bound device is a narrow surface, and an empty
- * request must never widen it.
- *
- * `workspaceId` means the Host registry's canonical workspace identity — the
- * same key `history.workspaceId` and the gateway workspace rows use — never a
- * path or an alias.
+ * Anything that cannot be attributed (blobs, artifacts, global lists, a request
+ * with no cwd) is refused for a bound credential instead of being allowed or
+ * silently filtered. Identity/bootstrap routes are exempt so a bound client can
+ * boot and answer a 2FA challenge instead of deadlocking.
  */
 
 import { bindingAllows, type RequestTarget } from "../auth/binding";
 import type { RemoteCredential } from "./remote-access";
 import { credentialBinding } from "./remote-access";
+import { terminalCwd } from "./terminal";
 
 const SESSION_PATTERNS: readonly RegExp[] = [
 	/^\/api\/sessions\/([^/]+)(?:\/|$)/u,
 	/^\/api\/agent\/([^/]+)(?:\/|$)/u,
 ];
 
-const WORKSPACE_ROUTE =
-	/^\/(?:api\/(?:files|file-index|git|git-actions|workspace|projects|terminal|board|tracking|plan)(?:\/|$))/u;
+/** Routes whose resource is the project cwd the request carries. */
+const CWD_ROUTE =
+	/^\/api\/(?:files|file-index|git|git-actions|board|tracking|plan|settings|models|terminal)(?:\/|$)/u;
+
+const TERMINAL_ID_PATTERN = /^\/api\/terminal\/([A-Za-z0-9-]{8,64})(?:\/|$)/u;
 
 /**
  * Identity/bootstrap routes a bound device still needs.
  *
- * A bound credential must be able to boot and answer a verification challenge;
- * refusing `bootstrap` outright would deadlock it. None of these carry another
+ * Refusing `bootstrap` outright would deadlock it. None of these carry another
  * conversation's content: the payload-scoped check for `query`/`command` runs
  * inside the host, and the device list is the account's own inventory.
  */
@@ -50,15 +52,15 @@ const BOUND_IDENTITY_ROUTES: Readonly<Record<string, true>> = {
 };
 
 /**
- * Real ownership lookup supplied by the Studio lane.
+ * Real ownership lookups supplied by the Studio lane.
  *
  * `workspaceOfSession` maps a conversation/session id to the canonical
- * workspace id from the Host registry. Without it a workspace-bound device that
- * asks for a session is refused (fail closed); registering it is what unlocks
- * that case.
+ * workspace id; `workspaceOfCwd` maps a project directory to the same id. Both
+ * return `undefined` when they cannot attribute the resource, which denies.
  */
 export interface ResourceOwnership {
 	workspaceOfSession(sessionId: string): Promise<string | undefined>;
+	workspaceOfCwd(cwd: string): Promise<string | undefined>;
 }
 
 let ownership: ResourceOwnership | undefined;
@@ -68,7 +70,7 @@ export function setResourceOwnership(next: ResourceOwnership | undefined): void 
 	ownership = next;
 }
 
-/** The registered lookup, bound to its owner (or `undefined` when unset). */
+/** The registered lookup bound to its owner (or `undefined` when unset). */
 export function workspaceOfSessionResolver(): ((sessionId: string) => Promise<string | undefined>) | undefined {
 	const current = ownership;
 	if (current === undefined) return undefined;
@@ -77,59 +79,68 @@ export function workspaceOfSessionResolver(): ((sessionId: string) => Promise<st
 
 export interface BindingDecision {
 	readonly allowed: boolean;
-	/** Resource the request names, for diagnostics and tests. */
+	/** Resource the request was attributed to, for diagnostics and tests. */
 	readonly target: RequestTarget | undefined;
 }
 
 /**
- * Resolve what a REST request targets. `undefined` means "no identifiable
- * resource" — a global list or a machine-wide route.
+ * Resolve what a request really targets.
+ *
+ * `undefined` means "cannot be attributed" — a global list, a blob, or a cwd/
+ * workspace the registry does not know. Declared `?workspaceId=` is only used
+ * for routes that legitimately take it as their resource (none here: files and
+ * terminals are attributed by cwd, sessions by path), so a forged query id can
+ * never widen a binding.
  */
-export function requestTarget(pathname: string, url: URL): RequestTarget | undefined {
-	// Both sources contribute: a path id and a query id describe the same
-	// request, and dropping either would let a mismatching one slip through.
-	let pathSession: string | undefined;
+export async function requestTarget(
+	pathname: string,
+	url: URL,
+	req: Request,
+): Promise<RequestTarget | undefined> {
 	for (const pattern of SESSION_PATTERNS) {
 		const match = pattern.exec(pathname);
-		if (match?.[1] !== undefined) {
-			pathSession = decodeURIComponent(match[1]);
-			break;
-		}
+		if (match?.[1] !== undefined) return { sessionId: decodeURIComponent(match[1]) };
 	}
-	const querySession = url.searchParams.get("sessionId") ?? url.searchParams.get("session") ?? "";
-	const sessionId = pathSession ?? (querySession !== "" ? querySession : undefined);
-	const workspaceId = url.searchParams.get("workspaceId") ?? url.searchParams.get("workspace") ?? "";
-	if (sessionId !== undefined || workspaceId !== "") {
-		return {
-			...(sessionId !== undefined ? { sessionId } : {}),
-			...(workspaceId !== "" ? { workspaceId } : {}),
-		};
+
+	const terminalId = TERMINAL_ID_PATTERN.exec(pathname);
+	if (terminalId?.[1] !== undefined) {
+		const cwd = terminalCwd(terminalId[1]);
+		return cwd === undefined ? undefined : workspaceTarget(cwd);
 	}
-	// A workspace-scoped family with no id in the request cannot be attributed to
-	// one workspace, so it is treated as global and refused for a bound device.
-	if (WORKSPACE_ROUTE.test(pathname)) return undefined;
+
+	if (CWD_ROUTE.test(pathname)) {
+		const cwd = req.headers.get("x-zeta-cwd")?.trim() || url.searchParams.get("cwd")?.trim() || "";
+		return cwd === "" ? undefined : workspaceTarget(cwd);
+	}
+
 	return undefined;
+}
+
+/** Map a project cwd to the canonical workspace id through the Host registry. */
+async function workspaceTarget(cwd: string): Promise<RequestTarget | undefined> {
+	const workspaceId = await ownership?.workspaceOfCwd(cwd);
+	return workspaceId === undefined || workspaceId === "" ? undefined : { workspaceId };
 }
 
 /**
  * Decide one request for a bound credential (`allowed` for unbound).
  *
- * Field-by-field matching lives in {@link bindingAllows}: a target may carry an
- * extra id the binding does not fix (for example `session.create` always names
- * a workspace), as long as the bound ids match and the extra one is consistent
- * with them through the Host's real ownership lookup.
+ * Contradictory device/session bindings are narrower than either one, so they
+ * refuse. A target that names both a session and a workspace is confirmed by
+ * the resolver inside {@link bindingAllows}; a resolver that cannot confirm
+ * denies.
  */
 export async function bindingDecision(
 	credential: RemoteCredential,
 	pathname: string,
 	url: URL,
+	req: Request,
 ): Promise<BindingDecision> {
 	const binding = credentialBinding(credential);
-	// Contradictory device/session bindings: narrower than either one, so refuse.
 	if (binding === null) return { allowed: false, target: undefined };
 	if (binding === undefined) return { allowed: true, target: undefined };
 	if (BOUND_IDENTITY_ROUTES[pathname]) return { allowed: true, target: undefined };
-	const target = requestTarget(pathname, url);
+	const target = await requestTarget(pathname, url, req);
 	if (target === undefined) return { allowed: false, target: undefined };
 	return { allowed: await bindingAllows(binding, target, workspaceOfSessionResolver()), target };
 }

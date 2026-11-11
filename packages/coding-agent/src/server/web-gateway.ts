@@ -442,7 +442,7 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	// Binding scope: a device bound to one conversation/workspace reaches only
 	// that resource; a request that names nothing is refused rather than allowed.
-	const binding = await bindingDecision(credential, pathname, url);
+	const binding = await bindingDecision(credential, pathname, url, req);
 	if (!binding.allowed) return bindingScopeResponse();
 
 	// 2FA step-up for device/token mutations. Reads and unrelated writes pass;
