@@ -50,7 +50,6 @@ export class StudioHttp {
 	readonly base: string;
 	#cookie: string | undefined;
 	#csrf: string | undefined;
-	#bearer: string | undefined;
 
 	constructor(base: string) {
 		this.base = base.replace(/\/$/, "");
@@ -66,10 +65,11 @@ export class StudioHttp {
 	}
 
 	/**
-	 * Bootstrap, then fall back to the host's existing pairing surface when
-	 * remote mode makes implicit loopback pairing unavailable. The code comes
-	 * from `GET /api/remote/pairing`; a legacy token-only answer is used as a
-	 * bearer header but cannot mint a session, so it gets a clear message.
+	 * Bootstrap, then use the host's final pairing contract when remote mode
+	 * makes implicit loopback pairing unavailable. `GET /api/remote/pairing`
+	 * returns a live 60s single-use `code` (never a token); the code is fetched
+	 * immediately before each POST, and an expired-code 401 gets one fresh
+	 * fetch+retry. SSH loopback is genuinely local, so no 2FA is involved.
 	 */
 	async ensureSession(): Promise<void> {
 		try {
@@ -78,20 +78,22 @@ export class StudioHttp {
 		} catch (error) {
 			if (!(error instanceof StudioHttpError) || error.status !== 401) throw error;
 		}
-		const pairing = await this.gateway<{ code?: string; token?: string }>("/api/remote/pairing");
-		if (typeof pairing.code === "string" && pairing.code.length > 0) {
-			await this.pair(pairing.code);
-			await this.bootstrap();
-			return;
+		for (let attempt = 0; attempt < 2; attempt += 1) {
+			const pairing = await this.gateway<{ code?: string }>("/api/remote/pairing");
+			if (typeof pairing.code !== "string" || pairing.code.length === 0) {
+				throw new Error("远端 Studio 要求配对，但 host 没有返回配对码；请检查 serve 的配对配置。");
+			}
+			try {
+				await this.pair(pairing.code);
+				await this.bootstrap();
+				return;
+			} catch (error) {
+				// A single-use code can expire between GET and POST; refetch once.
+				if (attempt === 0 && error instanceof StudioHttpError && error.status === 401) continue;
+				throw error;
+			}
 		}
-		if (typeof pairing.token === "string" && pairing.token.length > 0) {
-			this.#bearer = pairing.token;
-			await this.bootstrap().catch(() => {
-				throw new Error("远端 Studio 需要配对码；当前 host 只返回机器令牌，请升级 host 或从 serve 日志输入配对码。");
-			});
-			return;
-		}
-		throw new Error("远端 Studio 需要配对码，host 没有返回可用的配对码。");
+		throw new Error("远端 Studio 配对码重复失效；请检查 host 时间或重新连接。");
 	}
 
 	/** `POST /api/v1/pair` with the code the host already issued. */
@@ -107,8 +109,8 @@ export class StudioHttp {
 			const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 			throw new StudioHttpError(payload?.error || `Studio pairing failed (${response.status})`, response.status);
 		}
-		const body = (await response.json().catch(() => null)) as { device?: { token?: string } } | null;
-		if (typeof body?.device?.token === "string") this.#bearer = body.device.token;
+		// Cookie is the primary credential; do not request or retain `device.token`.
+		await response.json().catch(() => null);
 	}
 
 	async bootstrap<T = unknown>(): Promise<T> {
@@ -161,7 +163,6 @@ export class StudioHttp {
 	#headers(mutate = false): Record<string, string> {
 		return {
 			accept: "application/json",
-			...(this.#bearer ? { authorization: `Bearer ${this.#bearer}` } : {}),
 			...(this.#cookie ? { cookie: this.#cookie } : {}),
 			...(mutate && this.#csrf ? { [STUDIO_CSRF_HEADER]: this.#csrf } : {}),
 		};
