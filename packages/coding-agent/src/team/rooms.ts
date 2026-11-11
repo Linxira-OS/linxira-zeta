@@ -22,6 +22,7 @@ import {
 	type RoomSummaryRecord,
 } from "./db";
 import { TeamError } from "./errors";
+import { deliverRoomEvent } from "./room-delivery";
 import { loadContext, validateSegment, type TeamContext, type TeamContextOptions } from "./service";
 
 /** Newest N events are returned by default; pass `limit` to read more or fewer. */
@@ -370,6 +371,9 @@ export async function postRoomEvent(options: PostRoomEventOptions): Promise<Post
 			replyTo,
 			mentions: extractMentions(body),
 		});
+		// Delivery is best-effort: the durable event is already committed and
+		// offline subscribers keep their cursor for the next session start.
+		await deliverRoomEvent(event, options.dbPath).catch(() => []);
 		return { event, room };
 	} finally {
 		ctx.db.close();

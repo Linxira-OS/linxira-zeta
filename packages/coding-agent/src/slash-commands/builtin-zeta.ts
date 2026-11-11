@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { getProjectTrackingDir } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { handleDesignCommand } from "../design/command";
+import { parseInitTeamArgs, runInitTeamCommand } from "../team/bootstrap-command";
 import { cfgLanguage } from "../zeta-settings";
 import { cfgSessionTimeInjectEvery, cfgTrackingEnabled } from "../tools/settings";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
@@ -45,6 +46,31 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		subcommandOptional: true,
 		allowArgs: true,
 		handle: handleDesignCommand,
+	},
+	{
+		name: "initzetateam",
+		description: "Initialize a complete Team with a plan, journal, rollback, and doctor check",
+		icon: "agents",
+		allowArgs: true,
+		handle: async (command, runtime) => {
+			try {
+				const result = await runInitTeamCommand(parseInitTeamArgs(command.args));
+				await runtime.output(result.text);
+			} catch (error) {
+				await runtime.output(error instanceof Error ? error.message : String(error));
+				return { consumed: true, failed: true };
+			}
+			return commandConsumed();
+		},
+		handleTui: async (command, runtime) => {
+			try {
+				const result = await runInitTeamCommand(parseInitTeamArgs(command.args));
+				runtime.ctx.showStatus(result.text);
+			} catch (error) {
+				runtime.ctx.showWarning(error instanceof Error ? error.message : String(error));
+			}
+			runtime.ctx.editor.setText("");
+		},
 	},
 	{
 		name: "team",

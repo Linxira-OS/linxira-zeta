@@ -7,7 +7,7 @@ import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { teamHelp as commandHelp } from "../cli/command-help";
 import { runTeamCommand } from "../cli/team-cli";
 
-const ACTIONS = ["init", "pm", "repo", "engineer", "worktree", "room", "task", "doctor"] as const;
+const ACTIONS = ["init", "bootstrap", "pm", "repo", "engineer", "worktree", "room", "task", "doctor"] as const;
 
 export default class Team extends Command {
 	static description = commandHelp.description;
@@ -29,20 +29,22 @@ export default class Team extends Command {
 		root: Flags.string({
 			description: "Team root (default: walk up from the current directory)",
 		}),
+		cwd: Flags.string({
+			description: "Session cwd for room delivery (room deliver)",
+		}),
 		name: Flags.string({
 			description: "Display name (init/pm)",
 		}),
 		clone: Flags.string({
 			description: "Clone URL (repo add)",
 		}),
-		pm: Flags.string({
-			description: "PM id (repo bind, engineer add, worktree add, room create)",
-		}),
 		repo: Flags.string({
-			description: "Base repository name (engineer add, worktree add)",
+			description: "Base repository; repeatable bootstrap <name>=clone:<url>|link:<path>",
+			multiple: true,
 		}),
 		engineer: Flags.string({
-			description: "Engineer name (worktree add)",
+			description: "Engineer name (worktree add) or repeatable bootstrap <name>:<pm>:<repo>[:mode]",
+			multiple: true,
 		}),
 		execution: Flags.string({
 			description: "Engineer execution mode: normal or vibe (default normal; never auto-starts Vibe)",
@@ -58,6 +60,14 @@ export default class Team extends Command {
 		}),
 		members: Flags.string({
 			description: "Comma-separated room members: PM, engineer, <pm>/<engineer>, or agent id (room create)",
+		}),
+		bind: Flags.string({
+			description: "Bootstrap binding <repo>:<pm>; repeatable",
+			multiple: true,
+		}),
+		room: Flags.string({
+			description: "Bootstrap room <name>[=shared|pm:<pm>]; repeatable",
+			multiple: true,
 		}),
 		body: Flags.string({
 			description: "Event body (room post)",
@@ -89,6 +99,33 @@ export default class Team extends Command {
 		status: Flags.string({
 			description: "Task status filter: pending, claimed, review, done, or cancelled (task list)",
 			options: ["pending", "claimed", "review", "done", "cancelled"],
+		}),
+		"from-seq": Flags.string({
+			description: "First unread room sequence (room subscribe)",
+		}),
+		seq: Flags.string({
+			description: "Sequence to acknowledge (room ack)",
+		}),
+		"display-name": Flags.string({
+			description: "Display name (bootstrap)",
+		}),
+		"engineer-only": Flags.boolean({
+			description: "Add one/more engineers to an existing Team (bootstrap)",
+			default: false,
+		}),
+		"no-rollback": Flags.boolean({
+			description: "Leave a failed bootstrap run resumable instead of compensating it",
+			default: false,
+		}),
+		resume: Flags.string({
+			description: "Resume a bootstrap run id (bootstrap)",
+		}),
+		rollback: Flags.string({
+			description: "Roll back a bootstrap run id (bootstrap)",
+		}),
+		pm: Flags.string({
+			description: "PM id; repeatable for bootstrap, single for other commands",
+			multiple: true,
 		}),
 		json: Flags.boolean({ char: "j", description: "Emit machine-readable JSON", default: false }),
 	};
@@ -123,11 +160,15 @@ export default class Team extends Command {
 			action: args.action,
 			rest,
 			root: flags.root,
+			cwd: flags.cwd,
 			name: flags.name,
 			clone: flags.clone,
-			pm: flags.pm,
-			repo: flags.repo,
-			engineer: flags.engineer,
+			pm: Array.isArray(flags.pm) ? flags.pm[0] : flags.pm,
+			pms: flags.pm,
+			repo: Array.isArray(flags.repo) ? flags.repo[0] : flags.repo,
+			repos: flags.repo,
+			engineer: Array.isArray(flags.engineer) ? flags.engineer[0] : flags.engineer,
+			engineers: flags.engineer,
 			execution: flags.execution,
 			shared: flags.shared ?? false,
 			kind: flags.kind,
@@ -142,6 +183,15 @@ export default class Team extends Command {
 			lease: flags.lease,
 			req: flags.req,
 			status: flags.status,
+			fromSeq: flags["from-seq"],
+			seq: flags.seq,
+			displayName: flags["display-name"],
+			engineerOnly: flags["engineer-only"] ?? false,
+			noRollback: flags["no-rollback"] ?? false,
+			resume: flags.resume,
+			rollback: flags.rollback,
+			binds: flags.bind,
+			rooms: flags.room,
 			json: flags.json ?? false,
 		});
 	}

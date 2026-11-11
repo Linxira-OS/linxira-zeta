@@ -7,10 +7,18 @@
 
 import { CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
 import { CliUsageError } from "@linxiraos/pi-utils/cli";
+import { runInitTeamCommand } from "../team/bootstrap-command";
 import { diagnoseTeam, type DoctorReport } from "../team/doctor";
 import type { TaskEventRecord, TaskRecord } from "../team/db";
 import { formatTeamError, TeamError } from "../team/errors";
 import { createRoom, listRooms, postRoomEvent, showRoom, type RoomView } from "../team/rooms";
+import {
+	ackRoom,
+	deliverPendingRoomEvents,
+	listRoomSubscriptions,
+	pendingRoomEvents,
+	subscribeRoom,
+} from "../team/room-delivery";
 import { addEngineer, addPm, addRepoClone, addRepoLink, addTaskWorktree, bindRepo, initTeam } from "../team/service";
 import {
 	assignTask,
@@ -33,6 +41,7 @@ export interface TeamCliOptions {
 	rest?: string[];
 	root?: string;
 	name?: string;
+	cwd?: string;
 	clone?: string;
 	pm?: string;
 	repo?: string;
@@ -51,6 +60,18 @@ export interface TeamCliOptions {
 	lease?: string;
 	req?: string;
 	status?: string;
+	fromSeq?: string;
+	seq?: string;
+	pms?: string[];
+	repos?: string[];
+	engineers?: string[];
+	rooms?: string[];
+	binds?: string[];
+	displayName?: string;
+	engineerOnly?: boolean;
+	noRollback?: boolean;
+	resume?: string;
+	rollback?: string;
 	json?: boolean;
 }
 
@@ -71,6 +92,11 @@ Commands:
   room show <room> [--limit <n>]                              Show members and ordered events
   room post <room> --body <text> [--sender <id>] [--reply-to <seq>]
                                                               Append one room event
+  room subscribe <room> --agent <id> [--from-seq <n>]         Subscribe (default starts at latest)
+  room ack <room> --agent <id> --seq <n>                      Acknowledge read through seq
+  room pending <room> --agent <id> [--limit <n>]              Events not yet accepted for delivery
+  room deliver --agent <id> [--cwd <path>]                    Drain this session's pending rooms
+  room subscriptions <room>                                   List delivery cursors
   task create <key> --pm <pm> --title <title> [--body <text>] Durable work item (status: pending)
               [--assignee <engineer>] [--req REQ-1,REQ-2]
   task list [--status pending|claimed|review|done|cancelled] List tasks with owner, lease, and REQ ids
@@ -84,6 +110,12 @@ Commands:
   task reject <key> --pm <pm> --body <reason>                 Reject review -> pending
   task cancel <key> --pm <pm> [--body <text>]                 Cancel a non-done task
   task comment <key> --agent <actor> --body <text>            Append an audit note carrying REQ-* ids
+  bootstrap [--name <team>] --root <path> [--pm <name>...]    Plan/apply a full team (journaled)
+              [--repo <name>=clone:<url>|link:<path>...]
+              [--bind <repo>:<pm>...]
+              [--engineer <name>:<pm>:<repo>[:normal|vibe]...]
+              [--room <name>[=shared|pm:<pm>]...]
+              [--engineer-only] [--resume <runId>] [--rollback <runId>]
   doctor [--root <path>] [--json]                             Validate root, PMs, repos, worktrees, rooms, tasks
 
 Global flags: --json prints machine-readable results. ZETA_TEAM_DB overrides
@@ -98,6 +130,18 @@ function requireRest(rest: string[], index: number, label: string, usage: string
 function requireFlag(value: string | undefined, flag: string, usage: string): string {
 	if (!value?.trim()) throw new CliUsageError(`Missing ${flag}. Usage: ${usage}`);
 	return value;
+}
+
+function parseNonNegativeInt(value: string | undefined, flag: string): number | undefined {
+	if (value === undefined) return undefined;
+	if (!/^[0-9]+$/.test(value.trim())) {
+		throw new CliUsageError(`${flag} must be a non-negative integer; got "${value}"`);
+	}
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed < 0) {
+		throw new CliUsageError(`${flag} must be a non-negative integer; got "${value}"`);
+	}
+	return parsed;
 }
 
 function parsePositiveInt(value: string | undefined, flag: string): number | undefined {
@@ -257,7 +301,14 @@ function printRoomView(view: RoomView): void {
 }
 
 async function runRoom(options: TeamCliOptions, rest: string[]): Promise<void> {
-	const verb = requireRest(rest, 0, "room action", `${CLI_BIN_NAME} team room create|list|show|post`);
+	const verb = requireRest(
+		rest,
+		0,
+		"room action",
+		`${CLI_BIN_NAME} team room create|list|show|post|subscribe|ack|pending|deliver`,
+	);
+	const agent = (): string =>
+		requireFlag(options.agent, "--agent <id>", `${CLI_BIN_NAME} team room ${verb} <room> --agent <id>`);
 	if (verb === "create") {
 		const name = requireRest(rest, 1, "room name", `${CLI_BIN_NAME} team room create <name> --pm <pm>`);
 		const result = await createRoom({
@@ -291,6 +342,76 @@ async function runRoom(options: TeamCliOptions, rest: string[]): Promise<void> {
 		else printRoomView(view);
 		return;
 	}
+	if (verb === "subscribe") {
+		const room = requireRest(rest, 1, "room name", `${CLI_BIN_NAME} team room subscribe <room> --agent <id>`);
+		const subscription = await subscribeRoom({
+			room,
+			agent: agent(),
+			fromSeq: parseNonNegativeInt(options.fromSeq, "--from-seq"),
+			teamRoot: options.root,
+		});
+		if (options.json) writeJson(subscription);
+		else
+			process.stdout.write(`Subscribed ${subscription.agentId} to ${room} from #${subscription.acceptedThrough}\n`);
+		return;
+	}
+	if (verb === "ack") {
+		const room = requireRest(rest, 1, "room name", `${CLI_BIN_NAME} team room ack <room> --agent <id> --seq <n>`);
+		const seq = requireFlag(options.seq, "--seq <n>", `${CLI_BIN_NAME} team room ack <room> --agent <id> --seq <n>`);
+		const subscription = await ackRoom({
+			room,
+			agent: agent(),
+			throughSeq: parseNonNegativeInt(seq, "--seq") ?? 0,
+			teamRoot: options.root,
+		});
+		if (options.json) writeJson(subscription);
+		else
+			process.stdout.write(
+				`Acked ${room} through #${subscription.readThrough} (accepted #${subscription.acceptedThrough})\n`,
+			);
+		return;
+	}
+	if (verb === "pending") {
+		const room = requireRest(rest, 1, "room name", `${CLI_BIN_NAME} team room pending <room> --agent <id>`);
+		const events = await pendingRoomEvents({
+			room,
+			agent: agent(),
+			limit: parsePositiveInt(options.limit, "--limit"),
+			teamRoot: options.root,
+		});
+		if (options.json) writeJson(events);
+		else if (events.length === 0) process.stdout.write("No pending events.\n");
+		else for (const event of events) process.stdout.write(`#${event.seq} ${event.senderAgentId} ${event.body}\n`);
+		return;
+	}
+	if (verb === "deliver") {
+		const results = await deliverPendingRoomEvents({
+			agentId: agent(),
+			cwd: options.cwd,
+			teamRoot: options.root,
+			limit: parsePositiveInt(options.limit, "--limit"),
+		});
+		if (options.json) writeJson(results);
+		else if (results.length === 0) process.stdout.write("No pending room deliveries.\n");
+		else
+			for (const result of results)
+				process.stdout.write(
+					`#${result.seq} ${result.roomId} ${result.agentId} ${result.outcome}${result.error ? ` — ${result.error}` : ""}\n`,
+				);
+		return;
+	}
+	if (verb === "subscriptions") {
+		const room = requireRest(rest, 1, "room name", `${CLI_BIN_NAME} team room subscriptions <room>`);
+		const subscriptions = listRoomSubscriptions(room);
+		if (options.json) writeJson(subscriptions);
+		else if (subscriptions.length === 0) process.stdout.write("No subscriptions.\n");
+		else
+			for (const subscription of subscriptions)
+				process.stdout.write(
+					`${subscription.agentId} accepted=#${subscription.acceptedThrough} read=#${subscription.readThrough}\n`,
+				);
+		return;
+	}
 	if (verb === "post") {
 		const room = requireRest(rest, 1, "room name", `${CLI_BIN_NAME} team room post <room> --body <text>`);
 		const body = requireFlag(options.body, "--body <text>", `${CLI_BIN_NAME} team room post <room> --body <text>`);
@@ -309,7 +430,9 @@ async function runRoom(options: TeamCliOptions, rest: string[]): Promise<void> {
 		}
 		return;
 	}
-	throw new CliUsageError(`Unknown room action "${verb}". Expected: create, list, show, post`);
+	throw new CliUsageError(
+		`Unknown room action "${verb}". Expected: create, list, show, post, subscribe, ack, pending, deliver, subscriptions`,
+	);
 }
 
 function formatTaskLease(task: TaskRecord): string {
@@ -506,6 +629,26 @@ async function runTask(options: TeamCliOptions, rest: string[]): Promise<void> {
 	);
 }
 
+async function runBootstrap(options: TeamCliOptions): Promise<void> {
+	const result = await runInitTeamCommand({
+		name: options.name,
+		root: options.root,
+		displayName: options.displayName,
+		pms: options.pms,
+		repos: options.repos,
+		engineers: options.engineers,
+		rooms: options.rooms,
+		binds: options.binds,
+		engineerOnly: options.engineerOnly,
+		noRollback: options.noRollback,
+		resume: options.resume,
+		rollback: options.rollback,
+		json: options.json,
+	});
+	if (options.json) writeJson(result.result ?? { text: result.text });
+	else process.stdout.write(`${result.text}\n`);
+}
+
 async function runDoctor(options: TeamCliOptions): Promise<void> {
 	const report = await diagnoseTeam({ teamRoot: options.root });
 	if (options.json) {
@@ -542,6 +685,9 @@ export async function runTeamCommand(options: TeamCliOptions): Promise<void> {
 				return;
 			case "task":
 				await runTask(options, rest);
+				return;
+			case "bootstrap":
+				await runBootstrap(options);
 				return;
 			case "doctor":
 				await runDoctor(options);

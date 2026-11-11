@@ -82,6 +82,18 @@ export interface TeamHubEngineer {
 	worktrees: TeamHubWorktree[];
 }
 
+export interface TeamHubTask {
+	id: string;
+	taskKey: string;
+	title: string;
+	status: "pending" | "claimed" | "review" | "done" | "cancelled";
+	assignedPmId: string;
+	assigneeAgentId: string | null;
+	ownerAgentId: string | null;
+	leaseExpiresAt: number | null;
+	reqIds: string[];
+}
+
 export interface TeamHubSnapshot {
 	teamId: string;
 	teamName: string;
@@ -92,6 +104,8 @@ export interface TeamHubSnapshot {
 	pms: TeamHubPm[];
 	engineers: TeamHubEngineer[];
 	rooms: TeamHubRoom[];
+	/** Durable work queue rows; absent on older sources. */
+	tasks?: TeamHubTask[];
 	selectedRoom: TeamHubRoomView | null;
 }
 
@@ -115,12 +129,13 @@ export interface TeamHubDeps {
 
 // ── Pure helpers (tested directly, no terminal) ─────────────────────────────
 
-export type TeamHubEntryKind = "separator" | "label" | "room" | "pm" | "engineer";
+export type TeamHubEntryKind = "separator" | "label" | "room" | "task" | "pm" | "engineer";
 
 export interface TeamHubSidebarEntry extends SidebarEntry<TeamHubEntryKind> {
 	roomName?: string;
 	agentId?: string;
 	pmId?: string;
+	taskId?: string;
 }
 
 const ROOM_KIND_LABEL: Record<TeamHubRoomKind, string> = {
@@ -165,6 +180,12 @@ function engineerAnnotation(engineer: TeamHubEngineer): string {
 	return `${engineer.execution} · ${wt}`;
 }
 
+function taskAnnotation(task: TeamHubTask): string {
+	const owner = task.ownerAgentId ?? task.assigneeAgentId ?? "unassigned";
+	const reqs = task.reqIds.length > 0 ? ` · ${task.reqIds.join(",")}` : "";
+	return `${task.status} · ${owner}${reqs}`;
+}
+
 /**
  * Flatten the snapshot into sidebar rows. A filter matches room/agent labels and
  * annotations; section labels disappear while filtering so only matches remain.
@@ -207,6 +228,23 @@ export function buildTeamHubEntries(
 				engineers.some(engineer => matches(engineer.name, engineerAnnotation(engineer)))
 			);
 		});
+	const tasks = (snapshot.tasks ?? [])
+		.slice()
+		.sort((left, right) => left.taskKey.localeCompare(right.taskKey))
+		.filter(task => matches(`task ${task.taskKey}`, taskAnnotation(task)));
+	if (tasks.length > 0) {
+		if (!query) entries.push({ id: "label:tasks", kind: "label", label: "TASKS" });
+		for (const task of tasks) {
+			entries.push({
+				id: `task:${task.taskKey}`,
+				kind: "task",
+				label: task.taskKey,
+				annotation: taskAnnotation(task),
+				taskId: task.taskKey,
+			});
+		}
+	}
+
 	if (pms.length > 0) {
 		if (!query) entries.push({ id: "label:people", kind: "label", label: "PMS & ENGINEERS" });
 		for (const pm of pms) {
@@ -359,6 +397,7 @@ export class TeamHubOverlayComponent implements Component {
 	#composerRoom: string | undefined;
 	#senderIndex = 0;
 	#detailAgentId: string | undefined;
+	#detailTaskId: string | undefined;
 	#focusedPmId: string | undefined;
 	#baseline = new Map<string, number>();
 	#eventScroll = 0;
@@ -480,16 +519,22 @@ export class TeamHubOverlayComponent implements Component {
 		this.#eventScroll = 0;
 		if (entry?.kind === "room") {
 			this.#detailAgentId = undefined;
+			this.#detailTaskId = undefined;
 			if (entry.roomName && entry.roomName !== this.#currentRoomName()) {
 				void this.#reload(entry.roomName);
 			} else {
 				this.#markSelectedRoomSeen();
 			}
+		} else if (entry?.kind === "task") {
+			this.#detailAgentId = undefined;
+			this.#detailTaskId = entry.taskId;
 		} else if (entry?.kind === "engineer") {
 			this.#detailAgentId = entry.agentId;
+			this.#detailTaskId = undefined;
 			if (entry.pmId) this.#focusedPmId = entry.pmId;
 		} else if (entry?.kind === "pm") {
 			this.#detailAgentId = undefined;
+			this.#detailTaskId = undefined;
 			this.#focusedPmId = entry.pmId;
 		}
 		this.#requestRender();
@@ -759,6 +804,8 @@ export class TeamHubOverlayComponent implements Component {
 				return { icon: "", annotation: "", muted: true };
 			case "room":
 				return { icon: "", annotation: entry.annotation ?? "" };
+			case "task":
+				return { icon: "◇", annotation: entry.annotation ?? "" };
 			case "pm":
 				return { icon: "◆", annotation: entry.annotation ?? "" };
 			case "engineer":
@@ -789,8 +836,11 @@ export class TeamHubOverlayComponent implements Component {
 
 		const reserved = this.#composer ? 3 : 0;
 		const available = Math.max(1, rows - lines.length - reserved);
+		const task = this.#detailTask();
 		const agent = this.#detailAgent();
-		if (agent) {
+		if (task) {
+			for (const line of this.#renderTask(task, width)) push(line);
+		} else if (agent) {
 			for (const line of this.#renderEngineer(agent, width)) push(line);
 		} else if (this.#snapshot?.selectedRoom) {
 			for (const line of this.#renderRoom(this.#snapshot.selectedRoom, width, available)) push(line);
@@ -818,6 +868,28 @@ export class TeamHubOverlayComponent implements Component {
 	#detailAgent(): TeamHubEngineer | undefined {
 		if (!this.#detailAgentId) return undefined;
 		return this.#snapshot?.engineers.find(engineer => engineer.id === this.#detailAgentId);
+	}
+
+	#detailTask(): TeamHubTask | undefined {
+		if (!this.#detailTaskId) return undefined;
+		return this.#snapshot?.tasks?.find(task => task.taskKey === this.#detailTaskId);
+	}
+
+	#renderTask(task: TeamHubTask, width: number): string[] {
+		const lines: string[] = [];
+		lines.push(`${theme.bold(theme.fg("accent", task.taskKey))}  ${theme.fg("dim", task.status)}`);
+		lines.push(`${theme.bold("Task")} ${truncateToWidth(task.title, width)}`);
+		lines.push(
+			`${theme.fg("dim", "PM:")} ${task.assignedPmId}  ${theme.fg("dim", "assignee:")} ${task.assigneeAgentId ?? "—"}`,
+		);
+		lines.push(
+			`${theme.fg("dim", "owner:")} ${task.ownerAgentId ?? "—"}  ${theme.fg("dim", "lease:")} ${
+				task.leaseExpiresAt ? new Date(task.leaseExpiresAt * 1000).toISOString() : "—"
+			}`,
+		);
+		lines.push(`${theme.fg("dim", "REQ:")} ${task.reqIds.length > 0 ? task.reqIds.join(", ") : "—"}`);
+		lines.push(theme.fg("dim", "Claim with `zetacode team task claim`, submit for review, PM completes."));
+		return lines;
 	}
 
 	#renderEngineer(engineer: TeamHubEngineer, width: number): string[] {

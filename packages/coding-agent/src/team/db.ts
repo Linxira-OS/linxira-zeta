@@ -190,6 +190,46 @@ CREATE INDEX IF NOT EXISTS idx_tasks_team_status ON tasks(team_id, status);
 CREATE INDEX IF NOT EXISTS idx_tasks_owner ON tasks(owner_agent_id);
 CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, seq);
 `,
+	`
+CREATE TABLE IF NOT EXISTS team_bootstrap_runs (
+	run_id       TEXT PRIMARY KEY,
+	team_id      TEXT,
+	root_path    TEXT NOT NULL,
+	mode         TEXT NOT NULL CHECK (mode IN ('team', 'engineer')),
+	status       TEXT NOT NULL CHECK (status IN ('planned', 'running', 'done', 'failed', 'compensated', 'rolled_back')),
+	plan_json    TEXT NOT NULL,
+	created_at   INTEGER NOT NULL,
+	updated_at   INTEGER NOT NULL,
+	error        TEXT
+);
+
+CREATE TABLE IF NOT EXISTS team_bootstrap_steps (
+	run_id       TEXT NOT NULL REFERENCES team_bootstrap_runs(run_id) ON DELETE CASCADE,
+	step_id      TEXT NOT NULL,
+	seq          INTEGER NOT NULL,
+	kind         TEXT NOT NULL,
+	status       TEXT NOT NULL CHECK (status IN ('planned', 'running', 'done', 'failed', 'compensated')),
+	payload_json TEXT NOT NULL,
+	created_at   INTEGER NOT NULL,
+	updated_at   INTEGER NOT NULL,
+	error        TEXT,
+	PRIMARY KEY (run_id, step_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bootstrap_runs_root ON team_bootstrap_runs(root_path, created_at);
+CREATE INDEX IF NOT EXISTS idx_bootstrap_steps_run ON team_bootstrap_steps(run_id, seq);
+
+CREATE TABLE IF NOT EXISTS room_subscriptions (
+	room_id        TEXT NOT NULL REFERENCES rooms(room_id) ON DELETE CASCADE,
+	agent_id       TEXT NOT NULL,
+	last_seq       INTEGER NOT NULL DEFAULT 0,
+	subscribed_at  INTEGER NOT NULL,
+	updated_at     INTEGER NOT NULL,
+	PRIMARY KEY (room_id, agent_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_room_subscriptions_agent ON room_subscriptions(agent_id);
+`,
 ];
 
 /** Room kinds. A PM room names its owning PM; the other kinds have no PM. */
@@ -385,6 +425,49 @@ export interface TaskEventRecord {
 	leaseExpiresAt: number | null;
 }
 
+export type BootstrapMode = "team" | "engineer";
+
+export type BootstrapRunStatus = "planned" | "running" | "done" | "failed" | "compensated" | "rolled_back";
+
+/** One durable `/initzetateam` run. `plan_json` is the exact confirmed plan. */
+export interface BootstrapRunRecord {
+	runId: string;
+	teamId: string | null;
+	rootPath: string;
+	mode: BootstrapMode;
+	status: BootstrapRunStatus;
+	plan: unknown;
+	createdAt: number;
+	updatedAt: number;
+	error: string | null;
+}
+
+export type BootstrapStepStatus = "planned" | "running" | "done" | "failed" | "compensated";
+
+export interface BootstrapStepRecord {
+	runId: string;
+	stepId: string;
+	seq: number;
+	kind: string;
+	status: BootstrapStepStatus;
+	payload: unknown;
+	createdAt: number;
+	updatedAt: number;
+	error: string | null;
+}
+
+/** Per-room delivery cursor for one Team member or registered agent id. */
+export interface RoomSubscriptionRecord {
+	roomId: string;
+	agentId: string;
+	/** Highest seq whose delivery was accepted by a real transport/host. */
+	acceptedThrough: number;
+	/** Highest seq the consumer explicitly acknowledged as read. */
+	readThrough: number;
+	subscribedAt: number;
+	updatedAt: number;
+}
+
 interface DbTeamRow {
 	id: string;
 	name: string;
@@ -520,6 +603,39 @@ interface DbTaskEventRow {
 	to_status: TaskStatus | null;
 	req_ids_json: string | null;
 	lease_expires_at: number | null;
+}
+
+interface DbBootstrapRunRow {
+	run_id: string;
+	team_id: string | null;
+	root_path: string;
+	mode: BootstrapMode;
+	status: BootstrapRunStatus;
+	plan_json: string;
+	created_at: number;
+	updated_at: number;
+	error: string | null;
+}
+
+interface DbBootstrapStepRow {
+	run_id: string;
+	step_id: string;
+	seq: number;
+	kind: string;
+	status: BootstrapStepStatus;
+	payload_json: string;
+	created_at: number;
+	updated_at: number;
+	error: string | null;
+}
+
+interface DbRoomSubscriptionRow {
+	room_id: string;
+	agent_id: string;
+	accepted_through: number;
+	read_through: number;
+	subscribed_at: number;
+	updated_at: number;
 }
 
 function toTeam(row: DbTeamRow): TeamRecord {
@@ -688,6 +804,53 @@ function toTaskEvent(row: DbTaskEventRow): TaskEventRecord {
 		toStatus: row.to_status,
 		reqIds: parseStringArray(row.req_ids_json),
 		leaseExpiresAt: row.lease_expires_at,
+	};
+}
+
+function parseJson(raw: string): unknown {
+	try {
+		return JSON.parse(raw) as unknown;
+	} catch {
+		return null;
+	}
+}
+
+function toBootstrapRun(row: DbBootstrapRunRow): BootstrapRunRecord {
+	return {
+		runId: row.run_id,
+		teamId: row.team_id,
+		rootPath: row.root_path,
+		mode: row.mode,
+		status: row.status,
+		plan: parseJson(row.plan_json),
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
+		error: row.error,
+	};
+}
+
+function toBootstrapStep(row: DbBootstrapStepRow): BootstrapStepRecord {
+	return {
+		runId: row.run_id,
+		stepId: row.step_id,
+		seq: row.seq,
+		kind: row.kind,
+		status: row.status,
+		payload: parseJson(row.payload_json),
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
+		error: row.error,
+	};
+}
+
+function toRoomSubscription(row: DbRoomSubscriptionRow): RoomSubscriptionRecord {
+	return {
+		roomId: row.room_id,
+		agentId: row.agent_id,
+		acceptedThrough: row.accepted_through,
+		readThrough: row.read_through,
+		subscribedAt: row.subscribed_at,
+		updatedAt: row.updated_at,
 	};
 }
 
@@ -1424,5 +1587,218 @@ export class TeamDb {
 			);
 		if (!row) throw new Error("task_events insert returned no sequence");
 		return { ...record, seq: row.seq };
+	}
+
+	// ── bootstrap journal ────────────────────────────────────────────────
+
+	insertBootstrapRun(record: BootstrapRunRecord): void {
+		const now = nowSeconds();
+		this.#db
+			.query(
+				`INSERT INTO team_bootstrap_runs
+				 (run_id, team_id, root_path, mode, status, plan_json, created_at, updated_at, error)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				record.runId,
+				record.teamId,
+				record.rootPath,
+				record.mode,
+				record.status,
+				JSON.stringify(record.plan),
+				record.createdAt || now,
+				record.updatedAt || now,
+				record.error,
+			);
+	}
+
+	getBootstrapRun(runId: string): BootstrapRunRecord | null {
+		const row = this.#db
+			.query<DbBootstrapRunRow, [string]>("SELECT * FROM team_bootstrap_runs WHERE run_id = ?")
+			.get(runId);
+		return row ? toBootstrapRun(row) : null;
+	}
+
+	listBootstrapRuns(rootPath: string, limit = 20): BootstrapRunRecord[] {
+		return this.#db
+			.query<DbBootstrapRunRow, [string, number]>(
+				"SELECT * FROM team_bootstrap_runs WHERE root_path = ? ORDER BY created_at DESC LIMIT ?",
+			)
+			.all(rootPath, limit)
+			.map(toBootstrapRun);
+	}
+
+	updateBootstrapRun(
+		runId: string,
+		fields: Partial<Pick<BootstrapRunRecord, "teamId" | "status" | "plan" | "error">>,
+	): boolean {
+		const assignments: string[] = [];
+		const values: (string | number | null)[] = [];
+		if (fields.teamId !== undefined) {
+			assignments.push("team_id = ?");
+			values.push(fields.teamId);
+		}
+		if (fields.status !== undefined) {
+			assignments.push("status = ?");
+			values.push(fields.status);
+		}
+		if (fields.plan !== undefined) {
+			assignments.push("plan_json = ?");
+			values.push(JSON.stringify(fields.plan));
+		}
+		if (fields.error !== undefined) {
+			assignments.push("error = ?");
+			values.push(fields.error);
+		}
+		if (assignments.length === 0) return false;
+		assignments.push("updated_at = ?");
+		values.push(nowSeconds());
+		return (
+			this.#db
+				.query(`UPDATE team_bootstrap_runs SET ${assignments.join(", ")} WHERE run_id = ?`)
+				.run(...values, runId).changes === 1
+		);
+	}
+
+	insertBootstrapStep(record: BootstrapStepRecord): void {
+		const now = nowSeconds();
+		this.#db
+			.query(
+				`INSERT INTO team_bootstrap_steps
+				 (run_id, step_id, seq, kind, status, payload_json, created_at, updated_at, error)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				record.runId,
+				record.stepId,
+				record.seq,
+				record.kind,
+				record.status,
+				JSON.stringify(record.payload),
+				record.createdAt || now,
+				record.updatedAt || now,
+				record.error,
+			);
+	}
+
+	updateBootstrapStep(
+		runId: string,
+		stepId: string,
+		fields: Partial<Pick<BootstrapStepRecord, "status" | "payload" | "error">>,
+	): boolean {
+		const assignments: string[] = [];
+		const values: (string | number | null)[] = [];
+		if (fields.status !== undefined) {
+			assignments.push("status = ?");
+			values.push(fields.status);
+		}
+		if (fields.payload !== undefined) {
+			assignments.push("payload_json = ?");
+			values.push(JSON.stringify(fields.payload));
+		}
+		if (fields.error !== undefined) {
+			assignments.push("error = ?");
+			values.push(fields.error);
+		}
+		if (assignments.length === 0) return false;
+		assignments.push("updated_at = ?");
+		values.push(nowSeconds());
+		return (
+			this.#db
+				.query(`UPDATE team_bootstrap_steps SET ${assignments.join(", ")} WHERE run_id = ? AND step_id = ?`)
+				.run(...values, runId, stepId).changes === 1
+		);
+	}
+
+	listBootstrapSteps(runId: string): BootstrapStepRecord[] {
+		return this.#db
+			.query<DbBootstrapStepRow, [string]>("SELECT * FROM team_bootstrap_steps WHERE run_id = ? ORDER BY seq")
+			.all(runId)
+			.map(toBootstrapStep);
+	}
+
+	// ── room subscriptions / delivery cursors ─────────────────────────────
+
+	getRoomSubscription(roomId: string, agentId: string): RoomSubscriptionRecord | null {
+		const row = this.#db
+			.query<DbRoomSubscriptionRow, [string, string]>(
+				"SELECT * FROM room_subscriptions WHERE room_id = ? AND agent_id = ?",
+			)
+			.get(roomId, agentId);
+		return row ? toRoomSubscription(row) : null;
+	}
+
+	listRoomSubscriptions(roomId: string): RoomSubscriptionRecord[] {
+		return this.#db
+			.query<DbRoomSubscriptionRow, [string]>("SELECT * FROM room_subscriptions WHERE room_id = ? ORDER BY agent_id")
+			.all(roomId)
+			.map(toRoomSubscription);
+	}
+
+	listRoomSubscriptionsForAgent(teamId: string, agentId: string): RoomSubscriptionRecord[] {
+		return this.#db
+			.query<DbRoomSubscriptionRow, [string, string]>(
+				`SELECT s.* FROM room_subscriptions s
+				 JOIN rooms r ON r.room_id = s.room_id
+				 WHERE r.team_id = ? AND s.agent_id = ?
+				 ORDER BY r.name`,
+			)
+			.all(teamId, agentId)
+			.map(toRoomSubscription);
+	}
+
+	/** Subscribe or advance cursors; neither cursor ever moves backwards. */
+	upsertRoomSubscription(record: RoomSubscriptionRecord): void {
+		const now = nowSeconds();
+		this.#db
+			.query(
+				`INSERT INTO room_subscriptions
+				 (room_id, agent_id, accepted_through, read_through, subscribed_at, updated_at)
+				 VALUES (?, ?, ?, ?, ?, ?)
+				 ON CONFLICT(room_id, agent_id) DO UPDATE SET
+				   accepted_through = MAX(room_subscriptions.accepted_through, excluded.accepted_through),
+				   read_through = MAX(room_subscriptions.read_through, excluded.read_through),
+				   updated_at = excluded.updated_at`,
+			)
+			.run(
+				record.roomId,
+				record.agentId,
+				record.acceptedThrough,
+				record.readThrough,
+				record.subscribedAt || now,
+				record.updatedAt || now,
+			);
+	}
+
+	/**
+	 * Monotonic compare-and-set for the accepted cursor. Returns false when a
+	 * concurrent delivery already advanced it; callers must not skip a gap.
+	 */
+	advanceRoomAccepted(roomId: string, agentId: string, throughSeq: number): boolean {
+		const result = this.#db
+			.query(
+				`UPDATE room_subscriptions
+				 SET accepted_through = ?, updated_at = ?
+				 WHERE room_id = ? AND agent_id = ? AND accepted_through < ?`,
+			)
+			.run(throughSeq, nowSeconds(), roomId, agentId, throughSeq);
+		return result.changes === 1;
+	}
+
+	/** Consumer ack; cannot pass the accepted cursor. */
+	advanceRoomRead(roomId: string, agentId: string, throughSeq: number): boolean {
+		const result = this.#db
+			.query(
+				`UPDATE room_subscriptions
+				 SET read_through = ?, updated_at = ?
+				 WHERE room_id = ? AND agent_id = ?
+				   AND read_through < ? AND accepted_through >= ?`,
+			)
+			.run(throughSeq, nowSeconds(), roomId, agentId, throughSeq, throughSeq);
+		return result.changes === 1;
+	}
+
+	deleteRoomSubscription(roomId: string, agentId: string): void {
+		this.#db.query("DELETE FROM room_subscriptions WHERE room_id = ? AND agent_id = ?").run(roomId, agentId);
 	}
 }

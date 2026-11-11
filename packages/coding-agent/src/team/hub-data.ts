@@ -147,6 +147,17 @@ export function createTeamHubDataSource(options: TeamHubDataSourceOptions): Team
 					selectedRoom = { room: preferredRoom, members, events };
 				}
 
+				const tasksView = (team ? db.listTasks(options.teamId) : []).map(task => ({
+					id: task.id,
+					taskKey: task.taskKey,
+					title: task.title,
+					status: task.status,
+					assignedPmId: task.assignedPmId,
+					assigneeAgentId: task.assigneeAgentId,
+					ownerAgentId: task.ownerAgentId,
+					leaseExpiresAt: task.leaseExpiresAt,
+					reqIds: task.reqIds,
+				}));
 				const pmsView: TeamHubPm[] = pms.map(pm => ({
 					id: pm.id,
 					name: pm.name,
@@ -182,6 +193,7 @@ export function createTeamHubDataSource(options: TeamHubDataSourceOptions): Team
 					pms: pmsView,
 					engineers: engineersView,
 					rooms,
+					tasks: tasksView,
 					selectedRoom,
 				} satisfies TeamHubSnapshot;
 			} finally {
