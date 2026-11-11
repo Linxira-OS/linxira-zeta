@@ -292,13 +292,30 @@ describe("scope", () => {
 	test("a workspace binding resolves the session through the host's ownership lookup", async () => {
 		setResourceOwnership({
 			workspaceOfSession: async sessionId => (sessionId === "sess-a" ? "ws-1" : undefined),
+			workspaceOfCwd: async cwd => (cwd === "/ws/one" ? "ws-1" : undefined),
 		});
 		const bound = await registry.issue({ label: "bound", binding: { workspaceId: "ws-1" } });
 		const auth = { authorization: `Bearer ${bound.token}` };
 
 		expect((await remote("/api/sessions/sess-a", { headers: auth })).status).not.toBe(403);
 		expect((await remote("/api/sessions/sess-b", { headers: auth })).status).toBe(403);
-		expect((await remote("/api/sessions/sess-a?workspaceId=ws-2", { headers: auth })).status).toBe(403);
+		// A declared workspaceId is not authority: it cannot smuggle in a session
+		// the registry attributes elsewhere.
+		expect((await remote("/api/sessions/sess-b?workspaceId=ws-1", { headers: auth })).status).toBe(403);
+	});
+
+	test("file routes are attributed by the real cwd, not a declared workspace", async () => {
+		setResourceOwnership({
+			workspaceOfSession: async () => undefined,
+			workspaceOfCwd: async cwd => (cwd === "/ws/one" ? "ws-1" : undefined),
+		});
+		const bound = await registry.issue({ label: "bound", binding: { workspaceId: "ws-1" } });
+		const auth = { authorization: `Bearer ${bound.token}` };
+
+		expect((await remote("/api/files/a.txt?cwd=/ws/one", { headers: auth })).status).not.toBe(403);
+		// The forged workspaceId does not help when the cwd belongs to ws-2.
+		expect((await remote("/api/files/a.txt?workspaceId=ws-1", { headers: { ...auth, "x-zeta-cwd": "/ws/two" } })).status).toBe(403);
+		expect((await remote("/api/files/a.txt?workspaceId=ws-1", { headers: auth })).status).toBe(403);
 	});
 
 	test("a tampered binding on disk drops the device instead of widening it", async () => {
