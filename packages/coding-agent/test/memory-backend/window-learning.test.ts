@@ -135,18 +135,25 @@ describe("short session boundary", () => {
 			namespace: "repo:example",
 			taskDepth: 0,
 		});
+		const commit = { entry: { id: "compact-1" }, cutPoint: { discardedEntryIds: ["e1"] } };
+		for (const listener of listeners) {
+			await listener(commit as never);
+			await listener(commit as never);
+		}
+		const before = new WindowLearningQueue(dir, "repo:example", "session-short");
+		expect((await before.pending()).length).toBe(1);
 		await handle.stop();
 		const queue = new WindowLearningQueue(dir, "repo:example", "session-short");
 		expect((await queue.pending()).length).toBe(0);
 		expect(retained).toBe(1);
 		const journal = (await Bun.file(queue.file).json()) as { processed: string[]; entries: string[] };
 		expect(journal.entries).toEqual(["e1"]);
-		expect(journal.processed).toEqual(["stop:session-short:e1"]);
+		expect(journal.processed).toEqual(["compact-1", "stop:session-short:e1"]);
 
 		// A second stop with the same branch is not a new window.
 		await handle.stop();
 		const after = (await Bun.file(queue.file).json()) as { processed: string[] };
-		expect(after.processed.length).toBe(1);
+		expect(after.processed.length).toBe(2);
 	});
 });
 
