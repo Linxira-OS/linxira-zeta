@@ -10,6 +10,7 @@ import { describeModelCompactionPoint } from "../session/model-compaction-thresh
 import {
 	cfgCycleOrder,
 	cfgDisabledProviders,
+	cfgHiddenModels,
 	cfgModelProviderOrder,
 	cfgModelRoleStorage,
 } from "../config/model-settings";
@@ -44,6 +45,9 @@ export function createModelBrowserSource(
 		},
 		get knownRoleIds() {
 			return getKnownRoleIds(settings);
+		},
+		get hiddenModels() {
+			return cfgHiddenModels.get(settings);
 		},
 		get mruOrder() {
 			return settings.getStorage()?.getModelUsageOrder() ?? [];

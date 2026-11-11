@@ -17,8 +17,9 @@
 import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { type AssistantMessage, completeSimple } from "@linxiraos/pi-ai";
+import { type AssistantMessage, completeSimple, type Model } from "@linxiraos/pi-ai";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { modelKind } from "@linxiraos/pi-catalog/types";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { ModelRegistry } from "../../config/model-registry";
 import { cfgEnabledModels, cfgModelRoles } from "../../config/model-settings";
@@ -42,7 +43,23 @@ function json(data: unknown, status = 200): Response {
 
 export interface ModelsData {
 	models: Record<string, string>;
-	modelList: { id: string; name: string; provider: string; contextWindow?: number }[];
+	modelList: {
+		id: string;
+		name: string;
+		provider: string;
+		contextWindow?: number;
+		/** Catalog kind; absent means `chat`. */
+		kind?: string;
+		/** Role ids this model's `modelRoles` assignments name. */
+		roles?: string[];
+		reasoning?: boolean;
+		image?: boolean;
+		tools?: boolean;
+		maxTokens?: number;
+		api?: string;
+		webSearch?: string;
+		thinking?: string[];
+	}[];
 	defaultModel: { provider: string; modelId: string } | null;
 	thinkingLevels: Record<string, string[]>;
 	thinkingLevelMaps: Record<string, Record<string, string | null>>;
@@ -95,6 +112,28 @@ function parseDefaultModel(
 	return null;
 }
 
+/** Safe display fields the model-config read model needs from one catalog model. */
+function describeModel(model: Model): {
+	reasoning: boolean;
+	image: boolean;
+	tools: boolean;
+	maxTokens?: number;
+	api?: string;
+	webSearch?: string;
+	thinking?: string[];
+} {
+	const efforts = [...getSupportedEfforts(model)];
+	return {
+		reasoning: model.reasoning === true,
+		image: model.input.includes("image"),
+		tools: true,
+		...(model.maxTokens == null ? {} : { maxTokens: model.maxTokens }),
+		...(model.api === undefined ? {} : { api: model.api }),
+		...(model.webSearch === undefined ? {} : { webSearch: model.webSearch }),
+		...(efforts.length > 0 ? { thinking: efforts } : {}),
+	};
+}
+
 async function loadModels(cwd: string): Promise<ModelsData> {
 	const nameMap = new Map<string, string>();
 	const thinkingLevels: Record<string, string[]> = {};
@@ -107,8 +146,17 @@ async function loadModels(cwd: string): Promise<ModelsData> {
 	const enabledModels = cfgEnabledModels.get(settings);
 	const roles = cfgModelRoles.get(settings);
 
-	// 1. Build role-model entries from the configured modelRoles.
-	const roleModelEntries: { id: string; name: string; provider: string; contextWindow?: number }[] = [];
+	// 1. Build role-model entries from the configured modelRoles, collecting
+	//    role tags per selector so settings can group/filter by tag.
+	const rolesByModel = new Map<string, string[]>();
+	const roleModelEntries: {
+		id: string;
+		name: string;
+		provider: string;
+		contextWindow?: number;
+		kind?: string;
+		roles: string[];
+	}[] = [];
 	for (const [role, ref] of Object.entries(roles)) {
 		if (typeof ref !== "string" || !ref.trim()) continue;
 		const cleanRef = ref.trim();
@@ -130,11 +178,17 @@ async function loadModels(cwd: string): Promise<ModelsData> {
 		const mObj = available.find(
 			model => model.provider === provider && (model.id === pureModelId || pureModelId.includes(model.id)),
 		);
+		const selector = `${provider}/${pureModelId}`;
+		const tagged = rolesByModel.get(selector);
+		if (tagged) tagged.push(role);
+		else rolesByModel.set(selector, [role]);
 		roleModelEntries.push({
 			id: pureModelId,
 			name: `${pureModelId} (${role})`,
 			provider,
 			contextWindow: mObj?.contextWindow ?? undefined,
+			...(mObj ? { kind: modelKind(mObj), ...describeModel(mObj) } : {}),
+			roles: [role],
 		});
 	}
 
@@ -143,21 +197,40 @@ async function loadModels(cwd: string): Promise<ModelsData> {
 	const visible = filterByExactEnabledModels(available, enabledModels);
 
 	// 3. Merge role entries first (deduplicated), then the available models.
-	const combinedList: { id: string; name: string; provider: string; contextWindow?: number }[] = [];
+	const combinedList: {
+		id: string;
+		name: string;
+		provider: string;
+		contextWindow?: number;
+		kind?: string;
+		roles: string[];
+	}[] = [];
 	for (const entry of roleModelEntries) {
-		if (!combinedList.some(x => x.provider === entry.provider && x.id === entry.id)) {
-			combinedList.push({ ...entry });
+		const existing = combinedList.find(x => x.provider === entry.provider && x.id === entry.id);
+		if (existing) {
+			for (const role of rolesByModel.get(`${entry.provider}/${entry.id}`) ?? []) {
+				if (!existing.roles.includes(role)) existing.roles.push(role);
+			}
+			continue;
 		}
+		combinedList.push({ ...entry, roles: [...(rolesByModel.get(`${entry.provider}/${entry.id}`) ?? [])] });
 	}
 	for (const model of visible) {
-		if (!combinedList.some(x => x.provider === model.provider && x.id === model.id)) {
-			combinedList.push({
-				id: model.id,
-				name: model.name || model.id,
-				provider: model.provider,
-				contextWindow: model.contextWindow ?? undefined,
-			});
+		const roles = rolesByModel.get(`${model.provider}/${model.id}`) ?? [];
+		const existing = combinedList.find(x => x.provider === model.provider && x.id === model.id);
+		if (existing) {
+			for (const role of roles) if (!existing.roles.includes(role)) existing.roles.push(role);
+			continue;
 		}
+		combinedList.push({
+			id: model.id,
+			name: model.name || model.id,
+			provider: model.provider,
+			contextWindow: model.contextWindow ?? undefined,
+			kind: modelKind(model),
+			...describeModel(model),
+			roles: [...roles],
+		});
 	}
 
 	for (const entry of combinedList) {

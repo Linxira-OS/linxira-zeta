@@ -76,13 +76,13 @@ describe("capability manifest", () => {
 		] as const) {
 			expect(operations.commands).toContain(id);
 		}
-		for (const id of ["diagnostics.get", "agents.definitions.get"] as const) {
+		for (const id of ["diagnostics.get", "agents.definitions.get", "models.get"] as const) {
 			expect(operations.queries).toContain(id);
 		}
 	});
 
 	test("does not advertise an operation the host cannot answer", () => {
-		for (const id of ["models.get", "commands.getManifest", "session.telemetry.read"] as const) {
+		for (const id of ["commands.getManifest", "session.telemetry.read"] as const) {
 			expect(operations.queries).not.toContain(id);
 		}
 		expect(operations.commands).not.toContain("workspace.pick");
@@ -99,9 +99,19 @@ describe("capability manifest", () => {
 
 describe("unsupported fallback", () => {
 	test("a query with no handler answers unsupported", async () => {
-		const response = await runQuery("models.get", {});
+		const response = await runQuery("commands.getManifest", {});
 		expect(response.ok).toBe(false);
 		if (!response.ok) expect(response.error.code as string).toBe("unsupported");
+	});
+
+	test("models.get returns the model-config read model", async () => {
+		const result = await queryResult("models.get", {});
+		expect(Array.isArray(result.providers)).toBe(true);
+		expect(Array.isArray(result.roles)).toBe(true);
+		expect(Array.isArray(result.availableModels)).toBe(true);
+		expect(Array.isArray(result.hiddenModels)).toBe(true);
+		expect(result.roles.some(role => role.id === "default")).toBe(true);
+		expect(typeof result.webSearch.enabled).toBe("boolean");
 	});
 
 	test("a command with no handler throws unsupported", async () => {
@@ -371,5 +381,37 @@ describe("workspace commands", () => {
 		await expect(
 			runCommand("workspace.file.create", { workspaceId, path: "missing/notes.txt" }),
 		).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+	});
+});
+
+describe("model visibility settings", () => {
+	let agentDir: TempDir;
+	let previousAgentDir: string | undefined;
+
+	beforeEach(() => {
+		agentDir = TempDir.createSync("@zeta-model-visibility-");
+		previousAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+		process.env.ZETA_CODING_AGENT_DIR = agentDir.path();
+		refreshDirsFromEnv();
+		resetSettingsForTest();
+	});
+
+	afterEach(() => {
+		if (previousAgentDir === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
+		else process.env.ZETA_CODING_AGENT_DIR = previousAgentDir;
+		refreshDirsFromEnv();
+		resetSettingsForTest();
+	});
+
+	test("models.hidden.set persists into models.get", async () => {
+		await runCommand("models.hidden.set", { selectors: ["openai/*", "anthropic/claude-sonnet-4-5"] });
+		const result = await queryResult("models.get", {});
+		expect(result.hiddenModels).toEqual(["openai/*", "anthropic/claude-sonnet-4-5"]);
+	});
+
+	test("rejects empty selectors", async () => {
+		await expect(runCommand("models.hidden.set", { selectors: [""] })).rejects.toMatchObject({
+			code: "INVALID_ARGUMENT",
+		});
 	});
 });

@@ -71,6 +71,7 @@ import {
 import { draftProviderYamlNode, nestedProviderYamlNode, serializeModelsYmlNode } from "./models/providerYaml";
 import { SubagentsPanel } from "./SubagentsPanel";
 import { WebSearchPanel } from "./models/WebSearchPanel";
+import { ModelVisibilityPane } from "./models/ModelVisibilityPane";
 import { createPreviewAgentDefinitions } from "./preview/subagentsPreview";
 
 export const MC_INTENT_KEY = "zeta.modelConfigIntent";
@@ -78,12 +79,13 @@ const PROVIDER_ORDER_KEY = "zeta.providerDisplayOrder";
 
 type I18nT = ReturnType<typeof useI18n>["t"];
 
-export type McTab = "providers" | "roles" | "subagents" | "websearch" | "presets" | "accounts" | "benchmark";
+export type McTab = "providers" | "visibility" | "roles" | "subagents" | "websearch" | "presets" | "accounts" | "benchmark";
 
 type McIntent = { tab?: McTab; edit?: string; role?: string; assign?: string; agent?: string };
 
 const TAB_BUTTON_ID: Record<McTab, string> = {
   providers: "mcTabProviders",
+  visibility: "mcTabVisibility",
   roles: "mcTabRoles",
   subagents: "mcTabSubagents",
   websearch: "mcTabWebSearch",
@@ -1990,6 +1992,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     const intent = takeIntent();
     if (!intent) return;
     if (intent.tab === "roles" || intent.role || intent.assign) setTab("roles");
+    if (intent.tab === "visibility") setTab("visibility");
     if (intent.tab === "subagents" || intent.agent) setTab("subagents");
     if (intent.tab === "websearch") setTab("websearch");
     if (intent.tab === "benchmark") setTab("benchmark");
@@ -2064,6 +2067,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   });
   const availCount = providers.filter((item) => item.enabled && item.status === "available").length;
   const roleIssues = roles.filter((role) => role.issue).length;
+  const hiddenModelCount = (data?.hiddenModels ?? []).length;
 
   // 把滑动选中气泡对准当前激活的 tab 按钮：窗口盖在其上，镜像反向位移保持
   // 克隆与基础层对齐（与 SecondaryPage 的 page-nav 同一套算法）。
@@ -2110,7 +2114,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   };
 
   const onTabKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    const keys: McTab[] = ["providers", "roles", "subagents", "websearch", "presets", "accounts", "benchmark"];
+    const keys: McTab[] = ["providers", "visibility", "roles", "subagents", "websearch", "presets", "accounts", "benchmark"];
     const index = keys.indexOf(tab);
     let next: McTab | null = null;
     if (event.key === "ArrowRight") next = keys[(index + 1) % keys.length] ?? "providers";
@@ -3224,6 +3228,10 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
             <Icon name="server" extra="sm" /><span>{t("modelConfig.providersTab")}</span>
             <span className={`chip ${availCount === 0 && providers.length > 0 ? "amber" : "gray"} xs`}>{providers.length}<span className="sr-only"> {t("modelConfig.providersCountAria", { count: providers.length })}</span></span>
           </button>
+          <button role="tab" id="mcTabVisibility" aria-controls="mcPanelVisibility" aria-selected={tab === "visibility"} tabIndex={tab === "visibility" ? 0 : -1} className={tab === "visibility" ? "active" : undefined} onClick={() => activate("visibility")}>
+            <Icon name="eye" extra="sm" /><span>{t("modelConfig.visibilityTab")}</span>
+            {hiddenModelCount > 0 ? <span className="chip amber xs">{hiddenModelCount}</span> : null}
+          </button>
           <button role="tab" id="mcTabRoles" aria-controls="mcPanelRoles" aria-selected={tab === "roles"} tabIndex={tab === "roles" ? 0 : -1} className={tab === "roles" ? "active" : undefined} onClick={() => activate("roles")}>
             <Icon name="steering" extra="sm" /><span>{t("modelConfig.rolesTab")}</span>
             <span className={`chip ${roleIssues ? "red" : "gray"} xs`}>{roles.length}<span className="sr-only"> {t("modelConfig.rolesCountAria", { count: roles.length })}</span></span>
@@ -3242,6 +3250,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
           <span className="mc-tab-window" ref={tabWinRef} aria-hidden="true">
             <span className="mc-tab-mirror" ref={tabMirrorRef}>
               <button type="button" tabIndex={-1}><Icon name="server" extra="sm" /><span>{t("modelConfig.providersTab")}</span><span className={`chip ${availCount === 0 && providers.length > 0 ? "amber" : "gray"} xs`}>{providers.length}<span className="sr-only"> {t("modelConfig.providersCountAria", { count: providers.length })}</span></span></button>
+              <button type="button" tabIndex={-1}><Icon name="eye" extra="sm" /><span>{t("modelConfig.visibilityTab")}</span>{hiddenModelCount > 0 ? <span className="chip amber xs">{hiddenModelCount}</span> : null}</button>
               <button type="button" tabIndex={-1}><Icon name="steering" extra="sm" /><span>{t("modelConfig.rolesTab")}</span><span className={`chip ${roleIssues ? "red" : "gray"} xs`}>{roles.length}<span className="sr-only"> {t("modelConfig.rolesCountAria", { count: roles.length })}</span></span></button>
               <button type="button" tabIndex={-1}><Icon name="bot" extra="sm" /><span>{t("modelConfig.subagentsTab")}</span>{agentCount === undefined ? null : <span className="chip gray xs">{agentCount}<span className="sr-only"> {t("modelConfig.subagentsCountAria", { count: agentCount })}</span></span>}</button>
               <button type="button" tabIndex={-1}><Icon name="globe" extra="sm" /><span>{t("modelConfig.webSearchTab")}</span><span className="chip gray xs">{webSearchReadyCount}<span className="sr-only"> {t("modelConfig.webSearchCountAria", { count: webSearchReadyCount })}</span></span></button>
@@ -3275,6 +3284,14 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
           <RuntimeCredentials client={client} preview={preview} />
         </section>
         <section id="mcPanelBenchmark" role="tabpanel" aria-labelledby="mcTabBenchmark" hidden={shownTab !== "benchmark"} className={tabPanelClass("benchmark")}>{shownTab === "benchmark" ? <div className="workspace-empty"><Icon name="pulse" /><strong>{t("nav.evaluation")}</strong><p>{resolvedLanguage === "zh" ? "模型基准与判断批次已整合到评测工作区。" : "Model benchmarks and judgment batches are now in Evaluation."}</p><button className="btn primary" type="button" disabled={!onOpenEvaluation} onClick={onOpenEvaluation}>{t("nav.evaluation")} <Icon name="arrow-r" /></button></div> : null}</section>
+        <section id="mcPanelVisibility" role="tabpanel" aria-labelledby="mcTabVisibility" hidden={shownTab !== "visibility"} className={tabPanelClass("visibility")}>
+          <ModelVisibilityPane
+            client={client}
+            data={data}
+            preview={preview}
+            onSaved={(hiddenModels) => setData((current) => (current ? { ...current, hiddenModels } : current))}
+          />
+        </section>
         <section id="mcPanelProviders" role="tabpanel" aria-labelledby="mcTabProviders" hidden={shownTab !== "providers"} className={tabPanelClass("providers")}>
           <div className={editorLive ? `mc-view ${pagePhaseClass(editorPhase)}` : "mc-view"}>
           {editor ? (

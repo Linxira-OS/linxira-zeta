@@ -23,6 +23,7 @@ import type {
 import type { KeysApi, Model } from "@linxiraos/pi-ai";
 import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
 import { getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
+import { isModelHiddenBySelectors } from "@linxiraos/pi-catalog/models";
 import { providerEntry } from "@linxiraos/pi-catalog/compat/providers";
 import { MODEL_KINDS, modelKind, type ModelKind } from "@linxiraos/pi-catalog/types";
 import type { Component, TUI } from "../tui";
@@ -636,11 +637,19 @@ export class ModelHubComponent implements Component {
 			}
 		}
 
-		this.#reloadRoles(availableModels);
+		const hiddenModels = this.#settings.hiddenModels ?? [];
+		// Sidebar/provider counts keep the unfiltered catalogue so an
+		// authenticated provider whose models are all hidden stays unlocked
+		// instead of flipping to a login prompt. Only the browse rows drop them.
+		const visibleModels =
+			hiddenModels.length === 0
+				? availableModels
+				: availableModels.filter(model => !isModelHiddenBySelectors(model, hiddenModels));
+		this.#reloadRoles(visibleModels);
 		this.#buildRolesRows();
 
 		const mruOrder = this.#settings.mruOrder;
-		this.#availableItems = buildBrowserItems(availableModels);
+		this.#availableItems = buildBrowserItems(visibleModels);
 		sortModelItems(this.#availableItems, { roles: this.#roles, mruOrder });
 		this.#browser.setRoles(this.#roles);
 		this.#browser.setMruOrder(mruOrder);

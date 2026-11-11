@@ -418,3 +418,35 @@ describe("retry fallback kind-role validation", () => {
 		expect(warnings).toEqual([]);
 	});
 });
+
+describe("three-level retry fallback", () => {
+	const primary = "google/gemini-3.5-flash";
+	const fallback1 = "openai/gpt-4o-mini";
+	const fallback2 = "xai-oauth/grok-4.7";
+
+	it("walks primary -> fallback 1 -> fallback 2 in configured order", () => {
+		const context = createContext({ default: [fallback1, fallback2] }, { default: primary });
+
+		expect(findRetryFallbackCandidates(context, "default", primary).map(candidate => candidate.raw)).toEqual([
+			fallback1,
+			fallback2,
+		]);
+
+		// After the first hop the runtime re-enters with the fallback as current;
+		// only the remaining entries are candidates, so the walk advances.
+		expect(findRetryFallbackCandidates(context, "default", fallback1).map(candidate => candidate.raw)).toEqual([
+			fallback2,
+		]);
+
+		expect(findRetryFallbackCandidates(context, "default", fallback2)).toEqual([]);
+	});
+
+	it("keeps a third level reachable through the default chain when a role has none", () => {
+		const context = createContext({ default: [fallback1, fallback2] }, { default: primary, slow: primary });
+		const expanded = expandDefaultRetryFallbackChains(context.chains, ["default", "slow"]);
+		expect(expanded.slow).toEqual([fallback1, fallback2]);
+		expect(
+			findRetryFallbackCandidates({ ...context, chains: expanded }, "slow", primary).map(candidate => candidate.raw),
+		).toEqual([fallback1, fallback2]);
+	});
+});

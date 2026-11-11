@@ -14,6 +14,7 @@ import {
 	getEffectiveTokenCost,
 	getFactoryDroidCreditRate,
 	getModelPricingStatus,
+	isModelHiddenBySelectors,
 	modelsAreEqual,
 } from "@linxiraos/pi-catalog/models";
 import { modelKind, type ModelKind, type ModelPricingStatus } from "@linxiraos/pi-catalog/types";
@@ -159,6 +160,11 @@ export interface ModelBrowserSource extends ModelRoleLookup {
 	 * except the storage-backed `mruOrder` and `modelPerf`. Keys derived-scope caches.
 	 */
 	readonly revision: number;
+	/**
+	 * Selectors hidden from pickers and selectors only (`hiddenModels` setting).
+	 * Configured role assignments and fallback chains still resolve them.
+	 */
+	readonly hiddenModels?: readonly string[];
 	readonly defaultThinkingLevel: string;
 	readonly modelProviderOrder: readonly string[];
 	readonly knownRoleIds: readonly string[];
@@ -437,23 +443,27 @@ interface SessionModelScopeInputs {
 function readSessionModelScopeInputs(
 	registry: ModelBrowserRegistry,
 	scopedModels: ReadonlyArray<Model>,
+	hiddenModels: readonly string[] = [],
 ): SessionModelScopeInputs {
+	const visible = (models: ReadonlyArray<Model>) =>
+		hiddenModels.length === 0 ? models : models.filter(model => !isModelHiddenBySelectors(model, hiddenModels));
 	if (scopedModels.length > 0) {
-		let roleModels: ReadonlyArray<Model>;
+		let allModels: ReadonlyArray<Model>;
 		let error: string | undefined;
 		try {
-			roleModels = scopedRolePool(scopedModels, registry);
+			allModels = scopedRolePool(scopedModels, registry);
 		} catch (cause) {
 			error = cause instanceof Error ? cause.message : String(cause);
-			roleModels = scopedModels;
+			allModels = scopedModels;
 		}
-		return { models: scopedModels, allModels: roleModels, roleModels, error };
+		const roleModels = visible(allModels);
+		return { models: visible(scopedModels), allModels, roleModels, error };
 	}
 	const loadError = registry.getError();
 	let error = loadError ? String(loadError) : undefined;
 	let roleModels: ReadonlyArray<Model>;
 	try {
-		roleModels = registry.getAvailable("all");
+		roleModels = visible(registry.getAvailable("all"));
 	} catch (cause) {
 		error = cause instanceof Error ? cause.message : String(cause);
 		roleModels = [];
@@ -476,7 +486,7 @@ export function buildSessionModelScope(
 	registry: ModelBrowserRegistry,
 	scopedModels: ReadonlyArray<Model>,
 ): SessionModelScope {
-	return scopeFromInputs(settings, readSessionModelScopeInputs(registry, scopedModels));
+	return scopeFromInputs(settings, readSessionModelScopeInputs(registry, scopedModels, settings.hiddenModels));
 }
 
 /**
@@ -488,6 +498,7 @@ export class SessionModelScopeCache {
 	#settings: ModelBrowserSource;
 	#registry: ModelBrowserRegistry;
 	#revision = 0;
+	#hiddenModels: readonly string[] = [];
 	#inputs: SessionModelScopeInputs | undefined;
 	#scope: SessionModelScope | undefined;
 
@@ -498,13 +509,15 @@ export class SessionModelScopeCache {
 
 	get(scopedModels: ReadonlyArray<Model>): SessionModelScope {
 		const revision = this.#settings.revision;
-		const inputs = readSessionModelScopeInputs(this.#registry, scopedModels);
+		const hiddenModels = this.#settings.hiddenModels ?? [];
+		const inputs = readSessionModelScopeInputs(this.#registry, scopedModels, hiddenModels);
 		const cachedInputs = this.#inputs;
 		const cached = this.#scope;
 		if (
 			cached &&
 			cachedInputs &&
 			revision === this.#revision &&
+			sameItems(hiddenModels, this.#hiddenModels) &&
 			inputs.error === cachedInputs.error &&
 			sameItems(inputs.models, cachedInputs.models) &&
 			sameItems(inputs.allModels, cachedInputs.allModels) &&
@@ -515,6 +528,7 @@ export class SessionModelScopeCache {
 		}
 		const scope = scopeFromInputs(this.#settings, inputs);
 		this.#revision = revision;
+		this.#hiddenModels = hiddenModels;
 		this.#inputs = inputs;
 		this.#scope = scope;
 		return scope;

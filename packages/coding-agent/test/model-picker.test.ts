@@ -104,6 +104,19 @@ describe("ModelPicker", () => {
 		expect(normalize(picker.render(220))).toContain("● image");
 	});
 
+	test("drops hiddenModels from the session picker while leaving other models", () => {
+		const visible = makeModel("test", "visible-model");
+		const hidden = makeModel("test", "hidden-model");
+		const settings = Settings.isolated({ hiddenModels: ["test/hidden-model"] });
+		const { picker } = createPicker({ models: [visible, hidden], scoped: true, settings });
+
+		expect(normalize(picker.render(220))).toContain("visible-model");
+		expect(normalize(picker.render(220))).not.toContain("hidden-model");
+
+		picker.handleInput("hidden-model");
+		expect(normalize(picker.render(220))).toContain("No matching models");
+	});
+
 	test("flags over-context models but keeps them selectable, reporting overContext on pick", () => {
 		const small = makeModel("test", "a-small", 4096);
 		const large = makeModel("test", "b-large", 128_000);

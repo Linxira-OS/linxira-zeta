@@ -248,6 +248,70 @@ function cacheWriteCost(rates: TokenCost, usage: Usage): number {
 }
 
 /**
+ * Whether `model` is hidden by the `hiddenModels` setting.
+ *
+ * Hidden models stay in the catalog and remain configurable (roles, fallbacks,
+ * model config pages); only model pickers and selectors drop them. Patterns,
+ * lowest effort first:
+ *
+ * - `provider/model-id` — one exact selector (a trailing `:thinking` suffix is
+ *   ignored, so a pattern copied from a role assignment still matches);
+ * - `provider/*` — every model of that provider;
+ * - `provider/vendor/*` — models whose id starts with `vendor/`;
+ * - `model-id` — that bare id under any provider;
+ * - `*` — every model.
+ *
+ * Blank entries and duplicates are harmless.
+ */
+export function isModelHiddenBySelectors(
+	model: { readonly provider: string; readonly id: string },
+	hiddenModels: readonly string[] | undefined,
+): boolean {
+	if (!hiddenModels || hiddenModels.length === 0) return false;
+	for (const raw of hiddenModels) {
+		if (typeof raw !== "string") continue;
+		const pattern = raw.trim();
+		if (!pattern) continue;
+		if (pattern === "*") return true;
+		const base = stripHiddenThinkingSuffix(pattern);
+		if (base === `${model.provider}/${model.id}`) return true;
+		if (!base.includes("/") && base === model.id) return true;
+		if (base.endsWith("/*")) {
+			const scope = base.slice(0, -2);
+			const slash = scope.indexOf("/");
+			if (slash < 0) {
+				if (scope === model.provider) return true;
+				continue;
+			}
+			const provider = scope.slice(0, slash);
+			const idPrefix = scope.slice(slash + 1);
+			if (provider === model.provider && model.id.startsWith(`${idPrefix}/`)) return true;
+		}
+	}
+	return false;
+}
+
+/** Thinking suffixes a copied role selector may carry before the model id. */
+const HIDDEN_SELECTOR_THINKING_SUFFIXES: Record<string, true> = {
+	off: true,
+	minimal: true,
+	low: true,
+	medium: true,
+	high: true,
+	xhigh: true,
+	max: true,
+	auto: true,
+	inherit: true,
+};
+
+/** Strip one trailing `:<thinking>` suffix so copied selectors match. */
+function stripHiddenThinkingSuffix(selector: string): string {
+	const colon = selector.lastIndexOf(":");
+	if (colon < 0) return selector;
+	return HIDDEN_SELECTOR_THINKING_SUFFIXES[selector.slice(colon + 1)] === true ? selector.slice(0, colon) : selector;
+}
+
+/**
  * Check if two models are equal by comparing both their id and provider.
  * Returns false if either model is null or undefined.
  */

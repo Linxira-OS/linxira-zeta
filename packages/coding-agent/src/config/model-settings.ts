@@ -67,6 +67,20 @@ export const cfgEnabledModels = register({
 	pathScoped: { valuesKey: "models" },
 });
 
+/**
+ * Model selectors excluded from pickers and selectors only. Hidden models stay
+ * in the catalog and remain assignable through config (`modelRoles`,
+ * `retry.fallbackChains`) and visible in model-config settings.
+ *
+ * Entries: `provider/model-id`, `provider/*`, `provider/vendor/*`, a bare model
+ * id, or `*` (everything). A trailing `:thinking` suffix is ignored.
+ */
+export const cfgHiddenModels = register({
+	id: "hiddenModels",
+	type: "array",
+	default: EMPTY_STRING_ARRAY,
+});
+
 export const cfgEnabledProviders = register({
 	id: "enabledProviders",
 	type: "array",

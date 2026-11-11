@@ -354,6 +354,7 @@ const QUERY_RESPONSES = {
       projectScopeAvailable: false,
       modelProviderOrder: [],
       fallbackChains: {},
+      hiddenModels: [],
       fallbackRevertPolicy: "cooldown-expiry",
       webSearch: {
         enabled: true,

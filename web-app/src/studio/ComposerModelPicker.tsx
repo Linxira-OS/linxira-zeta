@@ -30,6 +30,7 @@ import { useI18n } from "./i18n";
 import { hostErrorMessage } from "./hostError";
 import { MODEL_THINKING, createPreviewModelConfig } from "./preview/modelConfigFixtures";
 import { ModelPickCaps, ProviderGlyph, ROLE_ICONS, ROLE_TINTS, groupModelsByProvider } from "./ModelConfigPage";
+import { isModelHidden, visibleModels } from "./models/modelVisibility";
 
 type MenuKind = "none" | "model" | "thinking";
 
@@ -73,6 +74,13 @@ function asThinkingSelector(value: string | undefined): SessionThinkingSelector 
 function modelShortName(selector: string): string {
   const tail = selector.split("/").pop() ?? selector;
   return tail.split(":")[0] || selector;
+}
+
+/** A role's primary is `provider/model`; aliases and multi-candidate strings are never hidden here. */
+function roleTargetHidden(selector: string, hiddenModels: ReadonlyArray<string> | undefined): boolean {
+  const slash = selector.indexOf("/");
+  if (slash <= 0) return false;
+  return isModelHidden({ provider: selector.slice(0, slash), id: selector.slice(slash + 1) }, hiddenModels);
 }
 
 /** Composer / 子代理编辑共用的模型菜单（角色列表 + 「更多模型」飞出层）。 */
@@ -137,12 +145,12 @@ export function ComposerModelMenu({
   );
   const rolesWithModel = useMemo(
     () => (data?.roles ?? []).filter(
-      (role) => Boolean(role.primary) && !role.issue && bySelector.has(role.primary),
+      (role) => Boolean(role.primary) && !role.issue && bySelector.has(role.primary) && !roleTargetHidden(role.primary, data?.hiddenModels),
     ),
     [data, bySelector],
   );
   const groups = useMemo(
-    () => (data ? groupModelsByProvider(data.availableModels, data.providers) : []),
+    () => (data ? groupModelsByProvider(visibleModels(data.availableModels, data.hiddenModels), data.providers) : []),
     [data],
   );
 

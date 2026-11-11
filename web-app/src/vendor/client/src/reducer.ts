@@ -357,6 +357,7 @@ const SENSITIVE_COMMANDS: Readonly<Record<CommandName, boolean>> = {
   "models.provider.delete": true,
   "models.provider.setEnabled": true,
   "models.roles.set": true,
+  "models.hidden.set": true,
   "models.roles.write": true,
   "models.roles.create": true,
   "models.roles.delete": true,

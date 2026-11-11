@@ -5,6 +5,7 @@
  * exposes the configured ctrl+p quick roles.
  */
 import type { Model } from "@linxiraos/pi-ai";
+import { isModelHiddenBySelectors } from "@linxiraos/pi-catalog/models";
 import { addKeyAliases, canonicalKeyId } from "../keybindings";
 import { type KeyId, parseKey } from "../keys";
 import type { Component, TUI } from "../tui";
@@ -240,18 +241,20 @@ export class ModelPickerComponent implements Component {
 	): ModelBrowserItem[] {
 		const order = quickRoleOrder.length > 0 ? quickRoleOrder : quickRoles.map(entry => entry.role);
 		const palette = resolveSegmentPalette(order.length);
-		return quickRoles.map((entry, index) => {
-			const selector = `@${entry.role}`;
-			this.#quickRoles.set(selector, entry);
-			const orderIndex = order.indexOf(entry.role);
-			return {
-				provider: "",
-				id: selector,
-				model: entry.model,
-				selector,
-				labelColor: palette[(orderIndex >= 0 ? orderIndex : index) % palette.length],
-			};
-		});
+		return quickRoles
+			.filter(entry => !isModelHiddenBySelectors(entry.model, this.#settings.hiddenModels))
+			.map((entry, index) => {
+				const selector = `@${entry.role}`;
+				this.#quickRoles.set(selector, entry);
+				const orderIndex = order.indexOf(entry.role);
+				return {
+					provider: "",
+					id: selector,
+					model: entry.model,
+					selector,
+					labelColor: palette[(orderIndex >= 0 ? orderIndex : index) % palette.length],
+				};
+			});
 	}
 
 	/** Switch browser content only when a leading `@` changes the search mode. */

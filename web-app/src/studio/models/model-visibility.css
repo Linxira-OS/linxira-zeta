@@ -1,0 +1,101 @@
+/* Model visibility settings — picker-only hide/show. */
+
+.mv-root {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.mv-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.mv-toolbar .input {
+	min-width: 240px;
+	flex: 1 1 240px;
+}
+
+.mv-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	white-space: nowrap;
+	color: var(--text-2);
+	font-size: var(--fs-12);
+}
+
+.mv-error {
+	margin-top: 8px;
+	color: var(--red, #d64545);
+	font-size: var(--fs-12);
+}
+
+.mv-provider-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.mv-provider-head .mono {
+	font-size: var(--fs-11);
+}
+
+.mv-provider-head .spacer {
+	flex: 1;
+}
+
+.mv-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	border: 1px solid var(--border-1, rgba(128, 128, 128, 0.18));
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.mv-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 7px 10px;
+	border-top: 1px solid var(--border-1, rgba(128, 128, 128, 0.12));
+}
+
+.mv-row:first-child {
+	border-top: 0;
+}
+
+.mv-row.is-hidden {
+	background: color-mix(in srgb, var(--amber, #d9a441) 7%, transparent);
+}
+
+.mv-row-copy {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	flex: 1;
+}
+
+.mv-row-copy .mono {
+	font-size: var(--fs-11);
+	color: var(--text-3);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.mv-hint {
+	font-size: var(--fs-11);
+	color: var(--text-3);
+}
+
+.mv-tags {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	flex-wrap: wrap;
+}
