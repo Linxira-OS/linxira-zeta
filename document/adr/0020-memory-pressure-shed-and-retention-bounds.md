@@ -43,13 +43,16 @@ are facts this ADR relies on.
 
 1. `packages/coding-agent/src/task/memory-shed.ts` owns a Windows-only push
    adapter. `supportsMemoryPressureEvent(platform)` returns true only for
-   `win32`; elsewhere `installMemoryPressureShed` returns `undefined` instead of
-   registering a listener that no OS path delivers.
-2. `InteractiveMode.init()` installs the adapter and `stop()` removes it. The
-   adapter is installed once per process and has no session context, so an event
-   clears derived render caches only: Markdown L2 and mermaid L1. It does not
-   touch the transcript, the append-only emission ledger, image ownership,
-   expansion state, browser tabs, or memory backends.
+   `win32`; elsewhere `installMemoryPressureShed` returns `undefined` because
+   this adapter claims only the Windows path. Native OS delivery is unverified.
+2. `InteractiveMode.init()` acquires a lease keyed by its stable instance identity;
+   `stop()` releases that lease. Repeated init is idempotent. Owners share one
+   listener per source, and stopping one cannot detach another. The last stop
+   removes the listener, restart attaches a fresh one, and repeated or stale
+   releases do nothing. The event clears process-wide derived caches once,
+   regardless of owner count: Markdown L2 and mermaid L1. It does not touch the
+   transcript, append-only emission ledger, image ownership, expansion state,
+   browser tabs, or memory backends.
 3. Clearing is safe because the consumers are lazy: the next frame re-renders
    from semantic content, and the L2 refills on demand. The contract test fills
    a cache, performs the same release, and asserts byte-identical rows

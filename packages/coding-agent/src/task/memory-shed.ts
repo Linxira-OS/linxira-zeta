@@ -261,44 +261,74 @@ export interface InstallMemoryPressureShedOptions {
 	/** Defaults to `process`; tests pass an isolated emitter. */
 	source?: MemoryPressureEventSource;
 	effects?: MemoryPressureEventEffects;
+	/** Stable lifecycle identity; repeated installs by the same owner share one lease. */
+	owner?: object;
 }
 
-let uninstallMemoryPressureShed: (() => void) | undefined;
+interface MemoryPressureRegistration {
+	owners: Map<object, { release: () => void; effects: MemoryPressureEventEffects }>;
+	listener: (level: MemoryPressureEventLevel) => void;
+}
 
-/** Whether this process currently owns the event listener. */
+const memoryPressureRegistrations = new Map<MemoryPressureEventSource, MemoryPressureRegistration>();
+
+/** Whether any interactive owner currently holds a memory-pressure listener. */
 export function isMemoryPressureShedInstalled(): boolean {
-	return uninstallMemoryPressureShed !== undefined;
+	return memoryPressureRegistrations.size > 0;
 }
 
 /**
- * Register the Windows memory-pressure shed once per process.
+ * Acquire a Windows memory-pressure subscription for one interactive owner.
  *
- * Returns the uninstall function for the interactive lifecycle's `stop()`, or
- * `undefined` when the platform is not claimed — callers never register a
- * fictional event. Installation is idempotent: the second call returns the
- * existing uninstall.
+ * A source has one listener regardless of its owner count. A stable `owner`
+ * makes repeated init idempotent; its release is also idempotent. Stopping one
+ * owner leaves the others subscribed, and the last release detaches the
+ * listener. A later init acquires a fresh subscription. Without an explicit
+ * owner each call acquires an independent lease.
+ *
+ * Tests inject the source/level: registration is not proof of native OS delivery.
  */
 export function installMemoryPressureShed(
 	options: InstallMemoryPressureShedOptions = {},
 ): (() => void) | undefined {
 	if (!supportsMemoryPressureEvent(options.platform)) return undefined;
-	if (uninstallMemoryPressureShed !== undefined) return uninstallMemoryPressureShed;
 	const source: MemoryPressureEventSource = options.source ?? process;
-	const effects = options.effects ?? DEFAULT_MEMORY_SHED_EFFECTS;
-	const listener = (level: MemoryPressureEventLevel): void => {
-		try {
-			handleMemoryPressureEvent(level, effects);
-		} catch (error) {
-			logger.warn("memory-shed: memoryPressure event handler failed", {
-				error: error instanceof Error ? error.message : String(error),
-			});
+	const owner = options.owner ?? {};
+	let registration = memoryPressureRegistrations.get(source);
+	const existing = registration?.owners.get(owner);
+	if (existing) return existing.release;
+	if (!registration) {
+		const owners: MemoryPressureRegistration["owners"] = new Map();
+		const listener = (level: MemoryPressureEventLevel): void => {
+			const current = owners.values().next().value;
+			if (!current) return;
+			try {
+				// The caches are process-wide: release once, not once per owner.
+				handleMemoryPressureEvent(level, current.effects);
+			} catch (error) {
+				logger.warn("memory-shed: memoryPressure event handler failed", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		};
+		source.on("memoryPressure", listener);
+		registration = { owners, listener };
+		memoryPressureRegistrations.set(source, registration);
+	}
+	const ownedRegistration = registration;
+	let released = false;
+	const release = (): void => {
+		if (released) return;
+		released = true;
+		ownedRegistration.owners.delete(owner);
+		if (ownedRegistration.owners.size === 0) {
+			source.off("memoryPressure", ownedRegistration.listener);
+			memoryPressureRegistrations.delete(source);
 		}
 	};
-	source.on("memoryPressure", listener);
-	const uninstall = (): void => {
-		source.off("memoryPressure", listener);
-		if (uninstallMemoryPressureShed === uninstall) uninstallMemoryPressureShed = undefined;
-	};
-	uninstallMemoryPressureShed = uninstall;
-	return uninstall;
+	ownedRegistration.owners.set(owner, {
+		release,
+		effects: options.effects ?? DEFAULT_MEMORY_SHED_EFFECTS,
+	});
+	return release;
 }

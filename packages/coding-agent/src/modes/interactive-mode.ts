@@ -2797,7 +2797,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		// Windows-only push shed: an OS memory-pressure event drops derived render
 		// caches (markdown/mermaid); the next frame re-renders them. Off Windows
 		// the installer returns undefined rather than registering a fictional event.
-		this.#uninstallMemoryPressureShed = installMemoryPressureShed();
+		this.#uninstallMemoryPressureShed = installMemoryPressureShed({ owner: this });
 		this.isInitialized = true;
 		// The startup composer is already visible. Commit the complete runtime
 		// tree before session_start hooks/reconciliation continue; renderNow keeps

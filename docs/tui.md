@@ -303,12 +303,14 @@ state when they retire into native scrollback (`releaseRenderCaches`). Neither
 path drops the semantic transcript, the append-only emission ledger already
 written to scrollback, image ownership, or expansion state.
 
-On Windows the interactive TUI registers Bun's documented
-`process.on("memoryPressure")` event in `InteractiveMode.init()` and removes it
-in `stop()` (`packages/coding-agent/src/task/memory-shed.ts`). A `warning` maps to
-the tight shed and `critical` to the critical shed; the event path clears only
-the Markdown L2 and mermaid L1 caches. The next frame re-renders from semantic
-content, so the UI degrades to a smaller cache, not to a lost conversation.
+On Windows the interactive TUI acquires a subscription to Bun's documented
+`process.on("memoryPressure")` event in `InteractiveMode.init()` and releases
+it in `stop()` (`packages/coding-agent/src/task/memory-shed.ts`). Each UI has a
+stable owner identity: repeated init acquires no extra lease, one UI stopping
+does not unsubscribe another, and the last stop removes the shared listener.
+Restart acquires a fresh lease; stale or repeated stops do nothing. Each event
+clears the process-wide Markdown L2 and mermaid L1 caches once, regardless of
+the number of owners. The next frame re-renders from semantic content.
 
 Scope of the claim: Bun's type definitions document the event and its levels,
 but this repository has not observed a native OS signal. Tests inject the level

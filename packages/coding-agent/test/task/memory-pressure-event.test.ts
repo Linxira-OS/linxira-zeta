@@ -92,24 +92,92 @@ describe("memoryPressure event adapter", () => {
 		expect(calls).toEqual(["caches", "caches"]);
 	});
 
-	test("installs once and removes its listener on uninstall", () => {
+	test("repeated init for one owner needs only one stop", () => {
 		const source = testSource();
+		const owner = {};
 		const { calls, effects } = recorder();
-		const first = track(installMemoryPressureShed({ platform: "win32", source, effects }));
-		expect(first).toBeDefined();
+		const first = track(installMemoryPressureShed({ platform: "win32", source, effects, owner }));
+		for (let init = 0; init < 10; init++) {
+			expect(installMemoryPressureShed({ platform: "win32", source, effects, owner })).toBe(first);
+		}
+		source.emit("critical");
+		expect(calls).toEqual(["caches"]);
 		expect(source.listeners.size).toBe(1);
-		expect(isMemoryPressureShedInstalled()).toBe(true);
-
-		const second = installMemoryPressureShed({ platform: "win32", source, effects });
-		expect(second).toBe(first);
-		expect(source.listeners.size).toBe(1);
-
+		first!();
 		first!();
 		expect(source.listeners.size).toBe(0);
 		expect(isMemoryPressureShedInstalled()).toBe(false);
-
 		source.emit("critical");
-		expect(calls).toEqual([]);
+		expect(calls).toEqual(["caches"]);
+	});
+
+	test("stopping one owner leaves the other subscribed until its last stop", () => {
+		const source = testSource();
+		const firstEffects = recorder();
+		const secondEffects = recorder();
+		const first = track(
+			installMemoryPressureShed({
+				platform: "win32",
+				source,
+				owner: {},
+				effects: firstEffects.effects,
+			}),
+		);
+		const second = track(
+			installMemoryPressureShed({
+				platform: "win32",
+				source,
+				owner: {},
+				effects: secondEffects.effects,
+			}),
+		);
+		expect(source.listeners.size).toBe(1);
+		source.emit("critical");
+		expect(firstEffects.calls.length + secondEffects.calls.length).toBe(1);
+
+		first!();
+		first!();
+		expect(isMemoryPressureShedInstalled()).toBe(true);
+		expect(source.listeners.size).toBe(1);
+		source.emit("warning");
+		expect(firstEffects.calls).toEqual(["caches"]);
+		expect(secondEffects.calls).toEqual(["caches"]);
+
+		second!();
+		expect(source.listeners.size).toBe(0);
+		expect(isMemoryPressureShedInstalled()).toBe(false);
+		source.emit("critical");
+		expect(secondEffects.calls).toEqual(["caches"]);
+	});
+
+	test("restart after the last stop installs a fresh lease immune to old stops", () => {
+		const source = testSource();
+		const owner = {};
+		const { calls, effects } = recorder();
+		const previous = track(installMemoryPressureShed({ platform: "win32", source, effects, owner }));
+		previous!();
+		const restarted = track(installMemoryPressureShed({ platform: "win32", source, effects, owner }));
+		expect(restarted).not.toBe(previous);
+		previous!();
+		expect(source.listeners.size).toBe(1);
+		source.emit("critical");
+		expect(calls).toEqual(["caches"]);
+		restarted!();
+		expect(source.listeners.size).toBe(0);
+	});
+
+	test("anonymous callers acquire independent leases too", () => {
+		const source = testSource();
+		const { calls, effects } = recorder();
+		const first = track(installMemoryPressureShed({ platform: "win32", source, effects }));
+		const second = track(installMemoryPressureShed({ platform: "win32", source, effects }));
+		expect(second).not.toBe(first);
+		first!();
+		source.emit("critical");
+		expect(calls).toEqual(["caches"]);
+		second!();
+		source.emit("critical");
+		expect(calls).toEqual(["caches"]);
 	});
 
 	test("a throwing cache release is contained and keeps the listener installed", () => {
