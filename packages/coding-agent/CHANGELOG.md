@@ -97,6 +97,9 @@
 ### Changed
 
 - **Release-note errata (1.5.1)** — the published `[1.5.1]` section is immutable and stays as written, including #297's logo entry. Changes merged after the 1.5.1 tag (#304, #307, #318, #319, #320, #321) were **not** part of the published 1.5.1 release and must not be read as shipped there; they ride later internal builds (1.5.2–1.5.10 are code-only tags) and the owner-gated 1.6.0 release.
+### Fixed
+
+- Picker-only model hiding now matches a literal model id that itself ends in `:high`, `:low`, `:medium`, or `:thinking:*` before normalizing a copied role suffix. A per-provider bulk hide no longer leaves those real catalog rows visible, and "show model" clears the exact or bare rule again.
 
 ## [1.5.1] - 2026-11-10
 
