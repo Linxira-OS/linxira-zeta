@@ -68,19 +68,23 @@ export function parseWindowsCommitBytes(stdout: string): number | undefined {
  */
 export function readWindowsCommitBytes(
 	platform: NodeJS.Platform = process.platform,
-	run: SpawnSyncRunner = command => Bun.spawnSync(command),
+	run: SpawnSyncRunner = command => Bun.spawnSync(command, { timeout: 2000 }),
 ): number | undefined {
 	if (platform !== "win32") return undefined;
-	const result = run([
-		"powershell.exe",
-		"-NoProfile",
-		"-NonInteractive",
-		"-Command",
-		"(Get-Counter '\\Memory\\Committed Bytes').CounterSamples[0].CookedValue",
-	]);
-	if (result.exitCode !== 0) return undefined;
-	const stdout = typeof result.stdout === "string" ? result.stdout : new TextDecoder().decode(result.stdout);
-	return parseWindowsCommitBytes(stdout);
+	try {
+		const result = run([
+			"powershell.exe",
+			"-NoProfile",
+			"-NonInteractive",
+			"-Command",
+			"(Get-Counter '\\Memory\\Committed Bytes').CounterSamples[0].CookedValue",
+		]);
+		if (result.exitCode !== 0) return undefined;
+		const stdout = typeof result.stdout === "string" ? result.stdout : new TextDecoder().decode(result.stdout);
+		return parseWindowsCommitBytes(stdout);
+	} catch {
+		return undefined;
+	}
 }
 
 /** One process-memory reading; commit charge is passed through when sampled. */

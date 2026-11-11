@@ -65,6 +65,11 @@ describe("readWindowsCommitBytes", () => {
 		expect(readWindowsCommitBytes("win32", failed)).toBeUndefined();
 		const malformed = (): SpawnSyncResult => ({ exitCode: 0, stdout: "not a number" });
 		expect(readWindowsCommitBytes("win32", malformed)).toBeUndefined();
+		expect(
+			readWindowsCommitBytes("win32", () => {
+				throw new Error("spawn unavailable");
+			}),
+		).toBeUndefined();
 	});
 });
 

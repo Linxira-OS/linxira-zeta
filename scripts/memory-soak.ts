@@ -106,8 +106,8 @@ function parseStringFlag(argv: readonly string[], name: string): string | undefi
 }
 
 /**
- * Run the scripted workload until `durationMs` or `maxBlocks`. Returns the
- * samples plus workload counters; the caller owns threshold enforcement.
+ * Run for `durationMs`, admitting at most `maxBlocks` semantic blocks while
+ * continuing resize/render passes after that cap. Returns samples and counters.
  */
 export async function runSoak(options: SoakOptions): Promise<SoakResult> {
 	setThemeInstance(await loadTheme("dark"));
@@ -132,14 +132,14 @@ export async function runSoak(options: SoakOptions): Promise<SoakResult> {
 			const commit = readWindowsCommitBytes(platform);
 			if (commit !== undefined) systemCommitBytes = commit;
 		}
-		samples.push(sampleProcessMemory(elapsed, systemCommitBytes));
+		samples.push(sampleProcessMemory((Bun.nanoseconds() - startedAt) / 1_000_000, systemCommitBytes));
 	};
 
 	maybeSample(true);
 	for (;;) {
 		const elapsed = (Bun.nanoseconds() - startedAt) / 1_000_000;
-		if (elapsed >= options.durationMs || blocks >= options.maxBlocks) break;
-		const width = options.widths[blocks % options.widths.length]!;
+		if (elapsed >= options.durationMs) break;
+		const width = options.widths[(renders / 2) % options.widths.length]!;
 		const document = Array.from(
 			{ length: 40 },
 			(_, paragraph) => `## Block ${blocks} paragraph ${paragraph}\n\n${"soak markdown payload ".repeat(60)}`,
@@ -148,7 +148,10 @@ export async function runSoak(options: SoakOptions): Promise<SoakResult> {
 		void new Markdown(document, 0, 0, theme).render(width);
 		renders++;
 
-		container.addChild(new SoakBlock(blocks, 8));
+		if (blocks < options.maxBlocks) {
+			container.addChild(new SoakBlock(blocks, 8));
+			blocks++;
+		}
 		container.render(width);
 		renders++;
 
@@ -157,7 +160,6 @@ export async function runSoak(options: SoakOptions): Promise<SoakResult> {
 			const batch = container.peekFlushBatch(width);
 			if (batch) container.acknowledgeFinalizedBatch(batch.id);
 		}
-		blocks++;
 		if (options.forceGc) Bun.gc(true);
 		maybeSample();
 	}
@@ -192,6 +194,7 @@ if (import.meta.main) {
 		workload,
 		summary,
 		peakSample,
+		samples,
 	};
 	const json = JSON.stringify(output, null, 2);
 	const out = parseStringFlag(argv, "out");

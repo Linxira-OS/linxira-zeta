@@ -117,12 +117,14 @@ describe("consumer retained-byte caps", () => {
 		const afterFourWidths = heapAfterFullGc();
 
 		const oneWidthBytes = afterOneWidth - baseline;
-		const extraBytes = afterFourWidths - afterOneWidth;
+		const fourWidthsBytes = afterFourWidths - afterOneWidth;
+		const extraBytes = fourWidthsBytes - oneWidthBytes;
 		console.log(
 			`[retained] committed transcript: ${(oneWidthBytes / MIB).toFixed(2)} MiB (1 width), ` +
-				`+${(extraBytes / MIB).toFixed(2)} MiB with 4 width epochs`,
+				`${(fourWidthsBytes / MIB).toFixed(2)} MiB (4 widths), delta ${(extraBytes / MIB).toFixed(2)} MiB`,
 		);
 
+		expect(oneWidth.blockStates().every(state => state === "committed")).toBe(true);
 		expect(fourWidths.blockStates().every(state => state === "committed")).toBe(true);
 		// Both containers retain the same semantic blocks; only the extra width
 		// epochs differ. Released caches make that difference near zero, while
