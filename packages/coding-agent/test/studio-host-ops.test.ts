@@ -475,4 +475,27 @@ describe("model visibility settings", () => {
 			code: "INVALID_ARGUMENT",
 		});
 	});
+
+	test("advertises per-agent configure but not definition-file CRUD", () => {
+		expect(operations.commands).toContain("agents.definition.configure");
+		expect(operations.commands).not.toContain("agents.definition.upsert");
+		expect(operations.commands).not.toContain("agents.definition.delete");
+	});
+
+	test("configure persists the per-agent model override and clears it", async () => {
+		await runCommand("agents.definition.configure", { name: "scout", overrideModel: "@research" });
+		let definitions = await queryResult("agents.definitions.get", {});
+		const scout = definitions.agents.find(agent => agent.name === "scout");
+		expect(scout?.overrideModel).toBe("@research");
+
+		await runCommand("agents.definition.configure", { name: "scout", overrideModel: null });
+		definitions = await queryResult("agents.definitions.get", {});
+		expect(definitions.agents.find(agent => agent.name === "scout")?.overrideModel).toBeUndefined();
+	});
+
+	test("configure refuses an unknown agent before writing", async () => {
+		await expect(
+			runCommand("agents.definition.configure", { name: "not-a-real-agent", overrideModel: "@task" }),
+		).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+	});
 });

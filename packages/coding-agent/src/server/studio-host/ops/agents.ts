@@ -37,6 +37,8 @@ import type {
 	AgentDefinitionsReadModel,
 	AgentDefinitionSource,
 	AgentThinkingLevel,
+	CommandInput,
+	ConfigWriteResult,
 	EmptyInput,
 } from "../contract/index.js";
 import { gatewayJson, invalid, StudioOpError, unavailable } from "../gateway.js";
@@ -44,6 +46,7 @@ import type { StudioFamily } from "../registry.js";
 import { AgentLifecycleManager } from "../../../registry/agent-lifecycle.js";
 import { AgentRegistry, type AgentRef } from "../../../registry/agent-registry.js";
 
+const SETTINGS_ROUTE = "/api/settings";
 const SETTINGS_VALUES_ROUTE = "/api/settings/values";
 
 /** Overlay settings the record carries, in the order the query asks for them. */
@@ -222,6 +225,109 @@ async function liveHandle(ref: AgentRef) {
  * commands Agent Hub already advertises. Each handler acts on the live
  * registry/lifecycle; there is no second control path.
  */
+
+
+/** `PUT /api/settings` for one registered path. */
+async function putSetting(path: string, value: unknown): Promise<void> {
+	const body = await gatewayJson<unknown>(SETTINGS_ROUTE, { method: "PUT", body: { path, value } });
+	if (!isRecord(body) || body.ok !== true) throw unavailable(`PUT /api/settings did not apply ${path}`);
+}
+
+/** Current values of registered settings, keyed by path. */
+async function readSettingValues(paths: readonly string[]): Promise<Readonly<Record<string, unknown>>> {
+	const query = paths.map(path => `path=${encodeURIComponent(path)}`).join("&");
+	const body = await gatewayJson<unknown>(SETTINGS_VALUES_ROUTE, { query });
+	if (!isRecord(body) || !isRecord(body.values)) {
+		throw unavailable("GET /api/settings/values returned no value map");
+	}
+	return body.values;
+}
+
+function overlay(value: unknown, path: string): Record<string, unknown> {
+	if (value === null || value === undefined) return {};
+	if (!isRecord(value)) throw unavailable(`GET /api/settings/values returned malformed ${path}`);
+	return { ...value };
+}
+
+function requiredName(input: CommandInput<"agents.definition.configure">): string {
+	if (typeof input.name !== "string" || input.name.trim() === "") {
+		throw invalid("name must be a non-empty string");
+	}
+	return input.name.trim();
+}
+
+function overrideValue(value: unknown, field: string): string | null {
+	if (value === null || value === undefined) return null;
+	if (typeof value !== "string") throw invalid(`${field} must be a string or null`);
+	const trimmed = value.trim();
+	return trimmed === "" ? null : trimmed;
+}
+
+/**
+ * `agents.definition.configure` → the four `task.*` overlays in config.yml.
+ *
+ * This is the real write behind the per-agent model dropdown: the agent
+ * definition file is not rewritten (that remains the dedicated definition
+ * editor), only its persisted per-agent selection/disable/prewalk/advisor layer.
+ * A stale or unknown agent name is refused against the same discovery roster
+ * `agents.definitions.get` reports.
+ */
+async function configureAgent(input: CommandInput<"agents.definition.configure">): Promise<ConfigWriteResult> {
+	const name = requiredName(input);
+	const discovered = await discoverAgents(getProjectDir());
+	if (!discovered.agents.some(agent => agent.name === name)) {
+		throw invalid(`${name} is not a discovered agent`);
+	}
+	const has = (key: keyof CommandInput<"agents.definition.configure">): boolean => Object.hasOwn(input, key);
+	if (!has("disabled") && !has("overrideModel") && !has("prewalkOverride") && !has("advisorOverride")) {
+		throw invalid("configure requires at least one overlay field");
+	}
+
+	const values = await readSettingValues(OVERLAY_PATHS);
+	const disabledValue = values["task.disabledAgents"];
+	const disabled = Array.isArray(disabledValue)
+		? disabledValue.filter((entry): entry is string => typeof entry === "string")
+		: [];
+	const modelOverrides = overlay(values["task.agentModelOverrides"], "task.agentModelOverrides");
+	const prewalkOverrides = overlay(values["task.agentPrewalk"], "task.agentPrewalk");
+	const advisorOverrides = overlay(values["task.agentAdvisor"], "task.agentAdvisor");
+	let wrote = false;
+
+	if (has("disabled")) {
+		if (typeof input.disabled !== "boolean") throw invalid("disabled must be a boolean");
+		const next = new Set(disabled);
+		if (input.disabled) next.add(name);
+		else next.delete(name);
+		const list = [...next].sort((left, right) => left.localeCompare(right));
+		if (list.length !== disabled.length || list.some((entry, index) => entry !== disabled[index])) {
+			await putSetting("task.disabledAgents", list);
+			wrote = true;
+		}
+	}
+	const applyOverride = async (
+		key: "overrideModel" | "prewalkOverride" | "advisorOverride",
+		map: Record<string, unknown>,
+		path: string,
+	): Promise<void> => {
+		if (!has(key)) return;
+		const value = overrideValue(input[key], key);
+		if (value === null) delete map[name];
+		else map[name] = value;
+		await putSetting(path, map);
+		wrote = true;
+	};
+	await applyOverride("overrideModel", modelOverrides, "task.agentModelOverrides");
+	await applyOverride("prewalkOverride", prewalkOverrides, "task.agentPrewalk");
+	await applyOverride("advisorOverride", advisorOverrides, "task.agentAdvisor");
+
+	return {
+		applied: true,
+		runtimeEffect: "new-session",
+		message: wrote ? `Per-agent settings updated for ${name}.` : `Per-agent settings unchanged for ${name}.`,
+	};
+}
+
+/** Agents family: the task-agent definition inventory. */
 export const agentsOps: StudioFamily = {
 	id: "agents",
 	queries: {
@@ -264,5 +370,6 @@ export const agentsOps: StudioFamily = {
 			if (!released) throw new StudioOpError("STATE_VERSION_CONFLICT", `Agent "${ref.id}" was not released`);
 			return undefined;
 		},
+		"agents.definition.configure": configureAgent,
 	},
 };
