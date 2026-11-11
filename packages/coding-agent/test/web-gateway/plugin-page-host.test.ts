@@ -98,7 +98,7 @@ describe("plugin pages inventory", () => {
 					id: "main",
 					title: "Main",
 					entry: "pages/index.html",
-					url: "/api/plugin-assets/demo-page/pages/index.html",
+					url: `/api/plugin-assets/demo-page/pages/index.html?cwd=${encodeURIComponent(project)}`,
 				},
 			],
 		});

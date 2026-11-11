@@ -73,6 +73,12 @@ export interface PluginPageHostProps {
 	 * session already selected in the client bootstrap; it never invents one.
 	 */
 	readonly sessionId?: string;
+	/**
+	 * Project root for the page's package lookup. Studio App passes the
+	 * selected workspace here; without it the host falls back to the client's
+	 * `cwd`, which an iframe asset request cannot forward as a header.
+	 */
+	readonly cwd?: string;
 }
 
 type Notice = { readonly level: "info" | "warning" | "error"; readonly message: string };
@@ -80,7 +86,7 @@ type Notice = { readonly level: "info" | "warning" | "error"; readonly message: 
 /**
  * The browser transport carries the project cwd as `client.cwd` (the same
  * property `RawConfigEditor` reads). The semantic bootstrap deliberately has
- * no absolute paths, so this is the only cwd source available to the host.
+ * no absolute paths, so this is the fallback when the route does not pass `cwd`.
  */
 function readClientCwd(client: StudioClient | null): string {
 	if (client === null || !("cwd" in client)) return "";
@@ -88,9 +94,10 @@ function readClientCwd(client: StudioClient | null): string {
 	return typeof value === "string" ? value : "";
 }
 
-export function PluginPageHost({ client, plugin, page, title, onBack, sessionId }: PluginPageHostProps) {
+export function PluginPageHost({ client, plugin, page, title, onBack, sessionId, cwd }: PluginPageHostProps) {
 	const { resolvedLanguage } = useI18n();
 	const zh = resolvedLanguage === "zh";
+	const projectCwd = cwd ?? readClientCwd(client);
 	const frameRef = useRef<HTMLIFrameElement | null>(null);
 	const [frameHeight, setFrameHeight] = useState<number | null>(null);
 	const [notice, setNotice] = useState<Notice | null>(null);
@@ -101,7 +108,7 @@ export function PluginPageHost({ client, plugin, page, title, onBack, sessionId 
 	const sessionIdRef = useRef(sessionId);
 	sessionIdRef.current = sessionId;
 
-	const src = pluginPageSrc(plugin, page);
+	const src = pluginPageSrc(plugin, page, projectCwd);
 
 	const ensureBootstrap = useCallback((): Promise<ClientBootstrap | null> => {
 		if (client === null) return Promise.resolve(null);
@@ -125,10 +132,10 @@ export function PluginPageHost({ client, plugin, page, title, onBack, sessionId 
 		return {
 			theme,
 			language: resolvedLanguage,
-			cwd: readClientCwd(client),
+			cwd: projectCwd,
 			plugin,
 		};
-	}, [client, plugin, resolvedLanguage]);
+	}, [plugin, projectCwd, resolvedLanguage]);
 
 	const callTool = useCallback(
 		async (request: PluginToolRequest): Promise<PluginToolOutcome> => {

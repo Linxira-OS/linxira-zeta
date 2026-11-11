@@ -321,6 +321,9 @@ describe("page URLs", () => {
 	test("builds asset and route URLs from safe segments", () => {
 		expect(pluginPageSrc("board", "ui/board.html")).toBe("/api/plugin-assets/board/ui/board.html");
 		expect(pluginPageSrc("board", "ui/a b.html")).toBe("/api/plugin-assets/board/ui/a%20b.html");
+		expect(pluginPageSrc("board", "ui/board.html", "/work/zeta")).toBe(
+			"/api/plugin-assets/board/ui/board.html?cwd=%2Fwork%2Fzeta",
+		);
 		expect(pluginViewHref("board", "ui/board.html")).toBe("/plugins/view/board/ui/board.html");
 	});
 

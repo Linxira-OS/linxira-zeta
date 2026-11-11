@@ -159,12 +159,16 @@ the manifest entry, not every HTML file in the package:
 
 - host page: `/plugins/view/<plugin-id>/<entry>` (Studio route; `<entry>` is the
   package-relative HTML path, URL-encoded per segment)
-- the file itself: `/api/plugin-assets/<plugin-id>/pages/tasks.html`
+- the file itself: `/api/plugin-assets/<plugin-id>/pages/tasks.html?cwd=<project>`
 
 `plugin.json#id` is the catalogue id used by both URLs; without it the package
-name basename is used. The file is served same-origin inside a sandboxed iframe
-(`allow-scripts allow-same-origin`), so it can load sibling CSS/JS/images but
-cannot navigate the top window, open popups, or submit forms.
+name basename is used. Asset URLs produced by `plugins.pages` carry
+`?cwd=<project>` when a project root is known: iframe navigation cannot
+forward the Studio client's `x-zeta-cwd` header, so the query keeps
+project-scoped plugin roots resolvable at asset time. The file is served
+same-origin inside a sandboxed iframe (`allow-scripts allow-same-origin`), so it
+can load sibling CSS/JS/images but cannot navigate the top window, open popups,
+or submit forms.
 
 ### Page host bridge
 

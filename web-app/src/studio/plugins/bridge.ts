@@ -558,9 +558,11 @@ function encodedPagePath(plugin: string, page: string): string | null {
 }
 
 /** Same-origin asset URL for a plugin page; `null` when a segment is unsafe. */
-export function pluginPageSrc(plugin: string, page: string): string | null {
+export function pluginPageSrc(plugin: string, page: string, projectCwd?: string): string | null {
 	const path = encodedPagePath(plugin, page);
-	return path === null ? null : `/api/plugin-assets/${path}`;
+	if (path === null) return null;
+	const base = `/api/plugin-assets/${path}`;
+	return projectCwd === undefined || projectCwd === "" ? base : `${base}?cwd=${encodeURIComponent(projectCwd)}`;
 }
 
 /** In-app route for a plugin page; `null` when a segment is unsafe. */

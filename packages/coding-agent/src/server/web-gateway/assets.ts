@@ -266,12 +266,15 @@ function isAddressablePluginId(id: string): boolean {
 	return id !== "" && id !== "." && id !== ".." && !/[\\/:\0]/.test(id);
 }
 
-function pageUrl(pluginId: string, entry: string): string {
+function pageUrl(pluginId: string, entry: string, cwd: string): string {
 	const segments = entry.split("/").map(segment => encodeURIComponent(segment));
-	return `/api/plugin-assets/${encodeURIComponent(pluginId)}/${segments.join("/")}`;
+	const base = `/api/plugin-assets/${encodeURIComponent(pluginId)}/${segments.join("/")}`;
+	// An iframe navigation cannot carry the Studio client's `x-zeta-cwd` header.
+	// The project query keeps project-scoped plugin roots resolvable at asset time.
+	return `${base}?cwd=${encodeURIComponent(cwd)}`;
 }
 
-function htmlPages(root: string, pluginId: string): PluginPageEntry[] {
+function htmlPages(root: string, pluginId: string, cwd: string): PluginPageEntry[] {
 	const declaration = readDeclaredPanels(root);
 	if (!declaration.ok) return [];
 	const pages: PluginPageEntry[] = [];
@@ -279,7 +282,7 @@ function htmlPages(root: string, pluginId: string): PluginPageEntry[] {
 		if (panel.kind !== "html") continue;
 		const entry = pageEntryPath(panel.entry);
 		if (entry === undefined) continue;
-		pages.push({ id: panel.id, title: panel.title, entry, url: pageUrl(pluginId, entry) });
+		pages.push({ id: panel.id, title: panel.title, entry, url: pageUrl(pluginId, entry, cwd) });
 	}
 	return pages;
 }
@@ -296,7 +299,7 @@ export async function listPluginPages(cwd: string): Promise<PluginPageGroup[]> {
 		if (!isDirectory(root)) continue;
 		const catalogue = readCatalogue(root);
 		if (!isAddressablePluginId(catalogue.id)) continue;
-		const pages = htmlPages(root, catalogue.id);
+		const pages = htmlPages(root, catalogue.id, cwd);
 		if (pages.length === 0 || seenIds.has(catalogue.id)) continue;
 		seenIds.add(catalogue.id);
 		plugins.push({ id: catalogue.id, name: catalogue.name?.trim() || catalogue.id, pages });
