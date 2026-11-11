@@ -350,6 +350,7 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 		: {};
 	const legacyMappings = Array.isArray(remote.sessionMappings) ? (remote.sessionMappings as unknown[]) : [];
 	const bindings: ImBinding[] = [];
+	const legacyWorkspaces: RemoteWorkspace[] = [];
 	const now = new Date().toISOString();
 
 	for (const platform of platforms) {
@@ -358,6 +359,8 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 		const rec = block as Record<string, unknown>;
 		const profileId = `legacy-${platform}`;
 		const workspaceRoot = typeof rec.workspaceRoot === "string" && rec.workspaceRoot !== "" ? rec.workspaceRoot : undefined;
+		const workspaceAlias = workspaceRoot ? `legacy-${platform}` : "main";
+		if (workspaceRoot) legacyWorkspaces.push({ alias: workspaceAlias, path: workspaceRoot });
 		const peers = Array.isArray(rec.allowedChannels)
 			? (rec.allowedChannels as unknown[]).filter((peer): peer is string => typeof peer === "string")
 			: Array.isArray(rec.allowedGroups)
@@ -370,7 +373,7 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 			id: profileId,
 			label: `${platform} (migrated)`,
 			persona: { mode: "workspace" },
-			location: { kind: "workspace", workspace: "main" },
+			location: { kind: "workspace", workspace: workspaceAlias },
 			tools: {
 				preset: "companion",
 				builtin: [...LEGACY_BUILTIN_TOOLS],
@@ -417,7 +420,14 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 		const chatId = typeof rec.chatId === "string" ? rec.chatId : "";
 		if (!chatId) continue;
 		const workspaceAlias = typeof rec.workspaceAlias === "string" && rec.workspaceAlias !== "" ? rec.workspaceAlias : undefined;
-		const target: ImBinding["target"] = { kind: "workspace", workspace: workspaceAlias ?? "main" };
+		const target: ImBinding["target"] = {
+			kind: "workspace",
+			workspace:
+				workspaceAlias ??
+				(profiles.find(profile => profile.id === `legacy-${platform}`)?.location.kind === "workspace"
+					? (profiles.find(profile => profile.id === `legacy-${platform}`)!.location as { workspace: string }).workspace
+					: "main"),
+		};
 		const originalSessionId = typeof rec.sessionId === "string" && rec.sessionId !== "" ? rec.sessionId : `legacy-${index}`;
 		const duplicateSession = legacySessionIds.has(originalSessionId);
 		const sessionId = duplicateSession ? `legacy-${index}` : originalSessionId;
@@ -493,9 +503,15 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 	const next = structuredClone(raw);
 	next.channels = { instances };
 	next.imAgents = profiles;
-	if (bindings.length > 0) {
-		next.remote = { ...remote, imBindings: bindings };
-		delete (next.remote as Record<string, unknown>).sessionMappings;
+	if (bindings.length > 0 || legacyWorkspaces.length > 0) {
+		next.remote = {
+			...remote,
+			...(bindings.length > 0 ? { imBindings: bindings } : {}),
+			...(legacyWorkspaces.length > 0
+				? { workspaces: [...(Array.isArray(remote.workspaces) ? (remote.workspaces as unknown[]) : []), ...legacyWorkspaces] }
+				: {}),
+		};
+		if (bindings.length > 0) delete (next.remote as Record<string, unknown>).sessionMappings;
 	}
 	return { changed: true, data: next };
 }
