@@ -1217,13 +1217,19 @@ export class SessionRouter {
 		// persistent binding, so a chat never borrows another chat's session.
 		let imBinding = this.#webConfig.findImBinding(channelId, peer, context);
 		if (!imBinding) {
+			// No configured instance means there is no per-chat profile to
+			// materialize; the default-workspace relay coordinator is the only
+			// safe target. Never invent a repository agent for an unknown entry.
+			const instance = this.#webConfig.getChannelInstance(channelId);
+			if (!instance) return { kind: "relay" };
 			try {
-				const instance = this.#webConfig.getChannelInstance(channelId);
 				const hasAnswer = this.#webConfig
 					.getImBindings()
 					.some(
 						binding =>
-							binding.platform === instance?.platform && binding.chatId === peer && binding.role === "answer",
+							binding.platform === instance.platform &&
+							binding.chatId === peer &&
+							binding.role === "answer",
 					);
 				imBinding = await this.#webConfig.patchImBinding(
 					channelId,
