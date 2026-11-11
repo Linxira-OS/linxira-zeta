@@ -403,7 +403,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 				await deps.sendText("No workspace router in this mode.");
 				return true;
 			}
-			const cancelled = router.cancelWorkspaceSwitch(
+			const cancelled = await router.cancelWorkspaceSwitch(
 				deps.channelId as never,
 				deps.peer,
 				{ ...(deps.threadId ? { threadId: deps.threadId } : {}), ...(deps.userId ? { userId: deps.userId } : {}) },

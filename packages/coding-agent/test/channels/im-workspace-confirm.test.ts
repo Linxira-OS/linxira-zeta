@@ -93,7 +93,7 @@ describe("confirm-gated workspace switch", () => {
 		expect(same.same).toBe(true);
 		expect(config.findImBinding("tg", "c1")).toBeUndefined();
 		await router.requestWorkspaceSwitch("tg", "c1", { kind: "workspace", workspace: "other" });
-		expect(router.cancelWorkspaceSwitch("tg", "c1")).toBe(true);
+		expect(await router.cancelWorkspaceSwitch("tg", "c1")).toBe(true);
 		expect(await router.confirmWorkspaceSwitch("tg", "c1")).toMatchObject({ ok: false });
 		await router.requestWorkspaceSwitch("tg", "c1", { kind: "workspace", workspace: "other" });
 		await router.requestWorkspaceSwitch("tg", "c1", { kind: "workspace", workspace: "main" });

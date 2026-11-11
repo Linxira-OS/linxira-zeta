@@ -216,7 +216,8 @@ export class SessionRouter {
 	#sessionListSnapshot: ImSessionListSnapshot | null = null;
 	readonly #pendingWorkspaceSwitch = new Map<
 		string,
-		{ action: "target"; target: import("./im-config").ImTarget; at: number } | { action: "unbind"; at: number }
+		| { action: "target"; target: import("./im-config").ImTarget; at: number; requestId: string }
+		| { action: "unbind"; at: number; requestId: string }
 	>();
 	/** Cross-process agent roster; defaults to the mesh node plus this process's registry. */
 	readonly #listAgentTargets?: () => Promise<AgentTargetInfo[]> | AgentTargetInfo[];
@@ -723,7 +724,9 @@ export class SessionRouter {
 			return { current, next, same: true };
 		}
 		// One pending request per entry; a new request replaces the old one.
-		this.#pendingWorkspaceSwitch.set(key, { action: "target", target, at: Date.now() });
+		const requestId = randomUUID().slice(0, 8);
+		this.#pendingWorkspaceSwitch.set(key, { action: "target", target, at: Date.now(), requestId });
+		await this.#recordImControl(instanceId, peer, context, "switch_request", requestId, target);
 		return { current, next, same: false };
 	}
 
@@ -737,6 +740,14 @@ export class SessionRouter {
 		const pending = this.#pendingWorkspaceSwitch.get(key);
 		if (!pending) return { ok: false, error: "No pending workspace change for this chat/thread/user." };
 		this.#pendingWorkspaceSwitch.delete(key);
+		await this.#recordImControl(
+			instanceId,
+			peer,
+			context,
+			"switch_confirm",
+			pending.requestId,
+			pending.action === "target" ? pending.target : { kind: "workspace", workspace: COORDINATOR_ALIAS },
+		);
 		try {
 			if (pending.action === "unbind") {
 				await this.#webConfig.removeImBindingByChat(instanceId, peer);
@@ -756,16 +767,65 @@ export class SessionRouter {
 		context: { threadId?: string; userId?: string } = {},
 	): boolean {
 		const key = this.#workspaceSwitchKey(instanceId, peer, context);
-		this.#pendingWorkspaceSwitch.set(key, { action: "unbind", at: Date.now() });
+		const requestId = randomUUID().slice(0, 8);
+		this.#pendingWorkspaceSwitch.set(key, { action: "unbind", at: Date.now(), requestId });
 		return true;
 	}
 
-	cancelWorkspaceSwitch(
+	async cancelWorkspaceSwitch(
 		instanceId: ChannelInstanceId,
 		peer: string,
 		context: { threadId?: string; userId?: string } = {},
-	): boolean {
-		return this.#pendingWorkspaceSwitch.delete(this.#workspaceSwitchKey(instanceId, peer, context));
+	): Promise<boolean> {
+		const key = this.#workspaceSwitchKey(instanceId, peer, context);
+		const pending = this.#pendingWorkspaceSwitch.get(key);
+		if (!pending) return false;
+		this.#pendingWorkspaceSwitch.delete(key);
+		await this.#recordImControl(
+			instanceId,
+			peer,
+			context,
+			"switch_cancel",
+			pending.requestId,
+			pending.action === "target" ? pending.target : { kind: "workspace", workspace: COORDINATOR_ALIAS },
+		);
+		return true;
+	}
+
+	/** Persist an im_control handshake on the target session (never an LLM prompt). */
+	async #recordImControl(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string },
+		action: "switch_request" | "switch_confirm" | "switch_cancel",
+		requestId: string,
+		to: import("./im-config").ImTarget,
+	): Promise<void> {
+		const instance = this.#webConfig.getChannelInstance(instanceId);
+		const binding = this.#webConfig.findImBinding(instanceId, peer, context);
+		const manager = (binding ? this.#botSessions.get(binding.sessionId)?.session.sessionManager : undefined) ?? this.#coordinator.sessionManager;
+		if (!manager) return;
+		const fromTarget = binding?.target;
+		const route = (target: import("./im-config").ImTarget | undefined) => ({
+			...(target?.kind === "workspace" ? { workspaceAlias: target.workspace } : {}),
+			...(binding?.agentProfileId ? { agentId: binding.agentProfileId } : {}),
+			...(binding?.sessionId ? { sessionId: binding.sessionId, botSessionId: binding.sessionId } : {}),
+			...(binding?.id ? { bindingId: binding.id } : {}),
+		});
+		manager.appendImControl({
+			source: "im_control",
+			platform: instance?.platform ?? "unknown",
+			instance: instanceId,
+			chatId: peer,
+			...(context.threadId ? { threadId: context.threadId } : {}),
+			...(context.userId ? { senderId: context.userId } : {}),
+			messageId: `control-${requestId}`,
+			sentAt: new Date().toISOString(),
+			action,
+			requestId,
+			from: route(fromTarget),
+			to: route(to),
+		});
 	}
 
 	async resolveChatTarget(

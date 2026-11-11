@@ -83,6 +83,7 @@ import {
 	type TtsrInjectionEntry,
 	type UsageStatistics,
 } from "./session-entries";
+import type { ImMessageMetadata, ImSwitchControlMetadata } from "./session-im";
 import { currentRuntimeIdentity, type RuntimeIdentity } from "./runtime-identity";
 import {
 	findMostRecentNonEmptySession,
@@ -3617,8 +3618,20 @@ export class SessionManager {
 			| BashExecutionMessage
 			| PythonExecutionMessage
 			| FileMentionMessage,
+		metadata?: ImMessageMetadata,
 	): string {
-		const entry: SessionMessageEntry = { type: "message", ...this.#freshEntryFields(), message };
+		const entry: SessionMessageEntry = { type: "message", ...this.#freshEntryFields(), message, ...(metadata ? { metadata } : {}) };
+		this.#recordEntry(entry);
+		return entry.id;
+	}
+
+	/** Append an IM control handshake entry; context builders must skip it. */
+	appendImControl(metadata: ImSwitchControlMetadata): string {
+		const entry: import("./session-entries").ImControlEntry = {
+			type: "im_control",
+			...this.#freshEntryFields(),
+			metadata,
+		};
 		this.#recordEntry(entry);
 		return entry.id;
 	}
