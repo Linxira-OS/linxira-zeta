@@ -109,9 +109,10 @@ session JSONL.
   PM; other rooms require `--sender`.
 - `@name` tokens are stored in `mentions_json` as a JSON array. Readers still see
   the original body.
-- Read API for a future TUI/Studio: `showRoom`, `readRoomEvents` (including
+- Read API for the Hub and Studio: `showRoom`, `readRoomEvents` (including
   `afterSeq` incremental reads), `listRooms` with member/event markers, and
-  `TeamDb.listRoomsForAgent`. No UI is provided yet.
+  `TeamDb.listRoomsForAgent`. The Team Hub uses these reads; a task pane is not
+  shipped in this slice.
 
 ## Work queue
 
