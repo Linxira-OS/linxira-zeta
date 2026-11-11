@@ -1097,7 +1097,7 @@ export class TUI extends Container {
 	#paintBeginSequence = this.#synchronizedOutputEnabled ? PAINT_BEGIN : PAINT_BEGIN_NO_SYNC;
 	#paintEndSequence = this.#synchronizedOutputEnabled ? PAINT_END : PAINT_END_NO_SYNC;
 	/** `Date.now()` of the last real keystroke; decorative animation pauses briefly after it. */
-	#lastInputAtMs = 0;
+	#lastInputAtMs = Number.NEGATIVE_INFINITY;
 	#decorativeDeferredTimer?: NodeJS.Timeout;
 
 	#fullRedrawCount = 0;
@@ -4062,7 +4062,9 @@ export class TUI extends Container {
 			out += this.#eraseBelowRow(r, height);
 			break;
 		}
-		return out;
+		// No move/rewrite means a quiet repaint: report it as such, so the caller
+		// does not hide/show a visible cursor for a frame that writes no row.
+		return out === "" ? undefined : out;
 	}
 
 	/**

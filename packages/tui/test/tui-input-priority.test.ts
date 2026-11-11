@@ -114,26 +114,25 @@ describe("TUI input priority", () => {
 		const input = new Input();
 		tui.addChild(input);
 		tui.setFocus(input);
-		const frames: string[] = [];
-		const unsubscribe = tui.addFrameWriteListener(frame => frames.push(frame));
 		try {
 			tui.start();
+			// The first frame only establishes the visible cursor anchor; the row
+			// rewrite contract applies to a later frame that actually rewrites it.
+			await nextFrame(tui);
 			input.handleInput("a");
+			const typed = nextFrame(tui);
 			tui.requestRender();
-			await Bun.sleep(90);
-			const frame = frames.at(-1);
-			expect(frame).toBeDefined();
-			const begin = frame!.indexOf("\x1b[?2026h");
-			const hide = frame!.indexOf("\x1b[?25l");
-			const show = frame!.indexOf("\x1b[?25h");
-			const end = frame!.indexOf("\x1b[?2026l");
+			const frame = await typed;
+			const begin = frame.indexOf("\x1b[?2026h");
+			const hide = frame.indexOf("\x1b[?25l");
+			const show = frame.indexOf("\x1b[?25h");
+			const end = frame.indexOf("\x1b[?2026l");
 			if (begin !== -1) {
 				expect(hide).toBeGreaterThan(begin);
 				expect(show).toBeGreaterThan(hide);
 				expect(end).toBeGreaterThan(show);
 			}
 		} finally {
-			unsubscribe();
 			tui.stop();
 		}
 	});
@@ -182,9 +181,14 @@ describe("TUI input priority", () => {
 				tui.requestRender();
 				await typed;
 				// The next frame changes nothing, so it must not touch cursor visibility.
-				const quiet = nextFrame(tui);
+				// A no-sync quiet frame may write nothing at all, so `nextFrame` would
+				// never settle: collect any writes for one render window instead.
+				const quietFrames: string[] = [];
+				const unsubscribeQuiet = tui.addFrameWriteListener(frame => quietFrames.push(frame));
 				tui.requestRender();
-				const frame = await quiet;
+				await Bun.sleep(60);
+				unsubscribeQuiet();
+				const frame = quietFrames.join("\n");
 				expect(frame, name).not.toContain("\x1b[?25l");
 				expect(frame, name).not.toContain("\x1b[?25h");
 			} finally {

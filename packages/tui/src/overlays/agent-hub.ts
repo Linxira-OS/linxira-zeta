@@ -563,6 +563,10 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			// observer event; render it now rather than waiting out the age tick.
 			this.#pickerDataVersion += 1;
 			this.#takeIrcRevision();
+			// Drop the described tree synchronously: a caller that asks for the
+			// picker before the scheduled data-change timer fires must see the
+			// new badge, not the previous generation's snapshot.
+			this.#requestRender();
 			this.#scheduleDataChange(true);
 		});
 		if (unsubscribeMailbox) this.#unsubscribers.push(unsubscribeMailbox);

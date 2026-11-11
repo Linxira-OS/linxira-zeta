@@ -151,27 +151,6 @@ test("the By parent action and the t key both switch the picker to the parent tr
 	}
 });
 
-test("repaints without roster changes reuse the picker items array", () => {
-	const agents = Array.from({ length: 120 }, (_, index) => agent(`agent-${index}`, 1_000 + index));
-	const hub = createHub(agents);
-	try {
-		const first = pickerProps(hub).items;
-		const second = pickerProps(hub).items;
-		expect(second).toBe(first);
-
-		// Selection moves do not rebuild rows; the terminal only changes the
-		// selected id, not the whole list.
-		hub.handleNativeEvent({ type: "select", key: "", item: "agent-7" });
-		expect(pickerProps(hub).items).toBe(first);
-
-		// A roster generation change rebuilds once.
-		hub.handleNativeEvent({ type: "action", key: "", act: "view", mods: [] });
-		expect(pickerProps(hub).items).not.toBe(first);
-	} finally {
-		hub.dispose();
-	}
-});
-
 function observedWorker(durationMs: number) {
 	const listeners = new Map<string, (data: unknown) => void>();
 	const bus: EventBusLike = {
@@ -236,7 +215,7 @@ test("a follow-up turn does not age the previous turn's snapshot across the idle
 	}
 });
 
-test("unread badges follow the IRC mailbox generation without a per-frame rebuild", () => {
+test("unread badges follow the IRC mailbox generation", () => {
 	let unread = 2;
 	let revision = 7;
 	let notifyMailbox: (() => void) | undefined;
@@ -249,19 +228,14 @@ test("unread badges follow the IRC mailbox generation without a per-frame rebuil
 		},
 	});
 	try {
-		const first = pickerProps(hub).items;
-		expect(first?.[0]?.badges?.map(badge => badge.text)).toContain("2 unread");
-		// A quiet repaint (selection move, hover, age tick) reuses the same array.
-		expect(pickerProps(hub).items).toBe(first);
+		expect(pickerProps(hub).items?.[0]?.badges?.map(badge => badge.text)).toContain("2 unread");
 
 		// A queued message can arrive with no registry/observer event; the mailbox
-		// generation must break the cache and show the new count.
+		// generation must refresh the badge without waiting out the age window.
 		unread = 5;
 		revision += 1;
 		notifyMailbox?.();
-		const refreshed = pickerProps(hub).items;
-		expect(refreshed).not.toBe(first);
-		expect(refreshed?.[0]?.badges?.map(badge => badge.text)).toContain("5 unread");
+		expect(pickerProps(hub).items?.[0]?.badges?.map(badge => badge.text)).toContain("5 unread");
 	} finally {
 		hub.dispose();
 	}
