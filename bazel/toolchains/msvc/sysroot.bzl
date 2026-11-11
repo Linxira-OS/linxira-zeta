@@ -21,20 +21,34 @@ Microsoft advances the channel's payload over time, so the splat is stable
 day-to-day, not bit-reproducible forever — same property the cargo-xwin
 pipeline had.
 
-xwin release binaries stop shipping darwin builds after 0.6.5; 0.6.5 is the
-newest version covering linux-musl + darwin hosts, which is why it is pinned.
+xwin 0.6.5 cannot parse the VS package manifests Microsoft serves for SDK
+10.0.26100: those payloads now use forward slashes
+("Installers/Windows SDK Desktop Headers x64-x86_en-us.msi") while 0.6.5
+hard-codes backslashes, so it fails with "unable to find x86_64 headers for
+Win11SDK_10.0.26100" (Jake-Shadle/xwin#178). 0.10.0 accepts both separators
+(PR #179) and is the pin for linux-arm64/linux-x64.
+
+0.10.0 ships no darwin binaries (macOS release assets stopped after 0.6.5),
+so macOS exec hosts stay on 0.6.5 and pin the last SDK whose manifest keeps
+backslash payload names (10.0.22621); the rule selects that automatically.
 """
 
-_XWIN_VERSION = "0.6.5"
+_XWIN_VERSION = "0.10.0"
+_XWIN_DARWIN_VERSION = "0.6.5"
+_XWIN_SDK_VERSION_LEGACY = "10.0.22621"
 _XWIN_MANIFEST_VERSION = "17"
 
 # host key -> (release triple, sha256), from the published .sha256 assets.
 _XWIN_DISTS = {
-    "linux-arm64": ("aarch64-unknown-linux-musl", "5e131007fad7c5f30d2f41090b49937fb8f16a787e5a95b4b3140e88d174dab2"),
-    "linux-x64": ("x86_64-unknown-linux-musl", "9fd53950b064d067f42428a69453b927656cae68dbd7f8d3f86dcb81c80dd22d"),
+    "linux-arm64": ("aarch64-unknown-linux-musl", "6d56d28537a86f37aa3d041318898f25ee3100c6b6ec332ad873c28faf37be23"),
+    "linux-x64": ("x86_64-unknown-linux-musl", "d870eb4b2f390878af6da1ccd3cf321d22fcb72720984853b4be732ae597fc88"),
     "macos-arm64": ("aarch64-apple-darwin", "21acd1e35d23b72efc8c47cbeda5028989f98089174b8c87074f892b65adbc01"),
     "macos-x64": ("x86_64-apple-darwin", "ecb2b19b30fa3786749fae600ad60b034b0c1c6a604ecf9f35f682c23a40e54b"),
 }
+
+def _xwin_version(host_key):
+    """0.10.0 has no darwin build; macOS stays on the last release that does."""
+    return _XWIN_DARWIN_VERSION if host_key.startswith("macos-") else _XWIN_VERSION
 
 def _host_key(rctx):
     os_name = rctx.os.name.lower()
@@ -96,9 +110,15 @@ def _xwin_sysroot_impl(rctx):
     if key not in _XWIN_DISTS:
         fail("bazel/toolchains/msvc: no pinned xwin release binary for host " + key)
     triple, sha256 = _XWIN_DISTS[key]
-    prefix = "xwin-{}-{}".format(_XWIN_VERSION, triple)
+    version = _xwin_version(key)
+    # 0.6.5 predates the forward-slash manifest payloads, so macOS hosts pin
+    # the last SDK whose payload names still use backslashes.
+    sdk_version = rctx.attr.sdk_version
+    if not sdk_version and version == _XWIN_DARWIN_VERSION:
+        sdk_version = _XWIN_SDK_VERSION_LEGACY
+    prefix = "xwin-{}-{}".format(version, triple)
     rctx.download_and_extract(
-        url = "https://github.com/Jake-Shadle/xwin/releases/download/{}/{}.tar.gz".format(_XWIN_VERSION, prefix),
+        url = "https://github.com/Jake-Shadle/xwin/releases/download/{}/{}.tar.gz".format(version, prefix),
         sha256 = sha256,
         stripPrefix = prefix,
     )
@@ -123,7 +143,7 @@ def _xwin_sysroot_impl(rctx):
             "desktop",
             "--manifest-version",
             _XWIN_MANIFEST_VERSION,
-        ] + (["--sdk-version", rctx.attr.sdk_version] if rctx.attr.sdk_version else []) + [
+        ] + (["--sdk-version", sdk_version] if sdk_version else []) + [
             "--cache-dir",
             cache_dir,
             "splat",
@@ -162,7 +182,7 @@ def _xwin_sysroot_impl(rctx):
 
     rctx.file(
         "BUILD.bazel",
-        _BUILD.format(version = _XWIN_VERSION, manifest = _XWIN_MANIFEST_VERSION),
+        _BUILD.format(version = version, manifest = _XWIN_MANIFEST_VERSION),
         executable = False,
     )
 
@@ -185,9 +205,11 @@ xwin_sysroot_repository = repository_rule(
             values = ["x86_64", "aarch64"],
             doc = "xwin --arch: target CRT/SDK library architecture.",
         ),
-        # The newest SDK's arm64 MSIs reference no cab files, which xwin 0.6.5
-        # rejects ("no cab files were referenced by the MSI", Jake-Shadle/xwin#126);
-        # the arm64 splat pins an older SDK. Empty = xwin's default (latest).
+        # The newest SDK's arm64 MSIs reference no cab files, which the macOS
+        # 0.6.5 binary rejects ("no cab files were referenced by the MSI",
+        # Jake-Shadle/xwin#126), so the arm64 splat pins an older SDK. Empty =
+        # xwin's default (latest), except on macOS hosts running 0.6.5, which
+        # fall back to _XWIN_SDK_VERSION_LEGACY (see _xwin_version).
         "sdk_version": attr.string(
             default = "",
             doc = "xwin --sdk-version override (e.g. 10.0.22621).",
