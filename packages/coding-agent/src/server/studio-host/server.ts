@@ -347,6 +347,10 @@ export class StudioHost {
 		const blocked = limiter.status(limiterKey);
 		if (blocked.blocked) return rateLimitedRemoteResponse(blocked.retryAfterSeconds);
 		const body = await this.#body(req);
+		// Parse the device block **before** the code is reserved: a malformed
+		// binding must be a 400 that leaves the one-time code usable, not a
+		// silent burn of the operator's code.
+		const deviceRequest = this.#deviceRequest(body, req);
 		const rawCode = body !== null && typeof body === "object" && "code" in body ? body.code : undefined;
 		const code = typeof rawCode === "string" ? rawCode : "";
 		const expected = this.#pairing.code;
@@ -369,7 +373,6 @@ export class StudioHost {
 		// Pairing is what turns "this phone knows the QR secret" into "this phone
 		// has its own revocable credential". The plaintext token leaves only in
 		// this response; the registry keeps its hash.
-		const deviceRequest = this.#deviceRequest(body, req);
 		let issued: { device: PublicDevice; token: string };
 		try {
 			issued = await deviceRegistry().issue(deviceRequest);

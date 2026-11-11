@@ -113,6 +113,21 @@ function cookiesFrom(response: Response): string {
 	return raw.map(entry => entry.split(";")[0]).join("; ");
 }
 
+/**
+ * Whether a response was refused by the **binding** gate, rather than by the
+ * route's own policy (the file handler has its own 403 for a cwd it does not
+ * know, which is not what this suite is testing).
+ */
+async function isBindingDenied(response: Response): Promise<boolean> {
+	if (response.status !== 403) return false;
+	try {
+		const body: unknown = await response.clone().json();
+		return body !== null && typeof body === "object" && "error" in body && body.error === "binding_scope";
+	} catch {
+		return false;
+	}
+}
+
 interface PairedDevice {
 	cookie: string;
 	deviceId: string;
@@ -312,10 +327,17 @@ describe("scope", () => {
 		const bound = await registry.issue({ label: "bound", binding: { workspaceId: "ws-1" } });
 		const auth = { authorization: `Bearer ${bound.token}` };
 
-		expect((await remote("/api/files/a.txt?cwd=/ws/one", { headers: auth })).status).not.toBe(403);
+		// The binding gate must not be the reason this is refused: the file route
+		// may still answer with its own policy error.
+		expect(await isBindingDenied(await remote("/api/files/a.txt?cwd=/ws/one", { headers: auth }))).toBe(false);
 		// The forged workspaceId does not help when the cwd belongs to ws-2.
-		expect((await remote("/api/files/a.txt?workspaceId=ws-1", { headers: { ...auth, "x-zeta-cwd": "/ws/two" } })).status).toBe(403);
-		expect((await remote("/api/files/a.txt?workspaceId=ws-1", { headers: auth })).status).toBe(403);
+		expect(
+			await isBindingDenied(
+				await remote("/api/files/a.txt?workspaceId=ws-1", { headers: { ...auth, "x-zeta-cwd": "/ws/two" } }),
+			),
+		).toBe(true);
+		// Nor when the request carries no cwd at all: unattributable is refused.
+		expect(await isBindingDenied(await remote("/api/files/a.txt?workspaceId=ws-1", { headers: auth }))).toBe(true);
 	});
 
 	test("a tampered binding on disk drops the device instead of widening it", async () => {
