@@ -386,6 +386,7 @@ const SENSITIVE_COMMANDS: Readonly<Record<CommandName, boolean>> = {
   "agents.definition.delete": true,
   "agents.definition.configure": true,
   "workspace.open": true,
+  "workspace.hide": true,
   "workspace.pick": true,
   "workspace.file.create": true,
   "workspace.directory.create": true,

@@ -24,6 +24,8 @@ export interface ResumeConversation {
 	modified: Date;
 	status?: SessionStatus;
 	pinned: boolean;
+	/** Hidden from default lists; metadata only, the transcript is untouched. */
+	hidden: boolean;
 	current: boolean;
 	/** True when this conversation was forked from another session. */
 	fork: boolean;
@@ -55,6 +57,8 @@ export interface ResumeWorkspace {
 	isWorktree: boolean;
 	/** Pinned when any conversation inside it is pinned. */
 	pinned: boolean;
+	/** Hidden folder; every surface may reveal it through Show hidden. */
+	hidden: boolean;
 	lastActivity: Date | null;
 	conversations: ResumeConversation[];
 	counts: {
@@ -77,6 +81,7 @@ export interface ResumeProject {
 	isDefault: boolean;
 	pinned: boolean;
 	removable: boolean;
+	hidden: boolean;
 	collapsed: boolean;
 	lastActivity: Date | null;
 	workspaces: ResumeWorkspace[];
@@ -96,6 +101,13 @@ export interface ResumeDirectoryCounts {
 	pinnedConversations: number;
 }
 
+/** Items excluded from the default view, counted before Show hidden expands it. */
+export interface ResumeHiddenCounts {
+	projects: number;
+	workspaces: number;
+	conversations: number;
+}
+
 /** The complete local directory model consumed by picker renderers. */
 export interface ResumeDirectory {
 	projects: ResumeProject[];
@@ -104,6 +116,7 @@ export interface ResumeDirectory {
 	defaultProjectKey: string;
 	defaultWorkspaceKey: string;
 	counts: ResumeDirectoryCounts;
+	hiddenCounts: ResumeHiddenCounts;
 }
 
 /**
@@ -113,6 +126,8 @@ export interface ResumeDirectory {
  */
 export interface ResumeProjectPreferences {
 	pinned?: boolean;
+	/** Keep the project out of default lists without removing its registry entry. */
+	hidden?: boolean;
 	alias?: string;
 	collapsed?: boolean;
 	/** Registry flag: keep this project in the directory with zero sessions. */
@@ -126,6 +141,8 @@ export interface ResumeWorkspacePreferences {
 	/** Display alias; the directory name never changes. */
 	alias?: string;
 	pinned?: boolean;
+	/** Hidden folder; metadata only, sessions and the checkout stay untouched. */
+	hidden?: boolean;
 }
 
 export interface ResumePreferences {

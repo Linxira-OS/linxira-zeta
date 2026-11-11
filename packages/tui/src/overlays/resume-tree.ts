@@ -55,6 +55,8 @@ export interface ResumeTreeConversation {
 	modified: Date;
 	status?: ResumeTreeStatus;
 	pinned: boolean;
+	/** Hidden by shared metadata; only visible with Show hidden. */
+	hidden?: boolean;
 	current: boolean;
 	fork: boolean;
 	/** Subagent marker from `session_init.agent`; forks never set it. */
@@ -77,6 +79,8 @@ export interface ResumeTreeWorkspace {
 	projectKey: string;
 	branch: string | null;
 	pinned: boolean;
+	/** Hidden folder; metadata only. */
+	hidden?: boolean;
 	lastActivity: Date | null;
 	counts: { conversations: number; pinnedConversations: number };
 }
@@ -89,6 +93,7 @@ export interface ResumeTreeProject {
 	displayName: string;
 	isDefault: boolean;
 	pinned: boolean;
+	hidden?: boolean;
 	collapsed: boolean;
 	lastActivity: Date | null;
 	counts: { conversations: number; workspaces: number; pinnedConversations: number };
@@ -191,6 +196,14 @@ export interface ResumeTreeSource {
 	/** Scopes without a project header (workspace/project) resolve the project here. */
 	projectByKey?(key: string): ResumeTreeProject | undefined;
 	deleteConversation?(conversation: ResumeTreeConversation): Promise<boolean>;
+	/** Hide/unhide shared metadata; never deletes the transcript. */
+	hideConversation?(conversation: ResumeTreeConversation, hidden: boolean): Promise<void>;
+	hideWorkspace?(workspace: ResumeTreeWorkspace, hidden: boolean): Promise<void>;
+	/** True when hidden rows are currently revealed. */
+	readonly showHidden?: boolean;
+	setShowHidden?(showHidden: boolean): void;
+	/** Rows hidden by shared metadata (conversations + folders + projects). */
+	hiddenCount?(): number;
 	deleteMode: ResumeTreeDeleteMode;
 }
 
@@ -700,7 +713,7 @@ export interface ResumeTreeState {
 }
 
 type ResumeTreeMenuKind = "workspace" | "conversation";
-type ResumeTreeMenuAction = "rename" | "toggle" | "open" | "pin" | "delete";
+type ResumeTreeMenuAction = "rename" | "toggle" | "open" | "pin" | "hide" | "delete";
 
 interface ResumeTreeMenuItem {
 	id: ResumeTreeMenuAction;
@@ -1148,6 +1161,13 @@ export class ResumeTreeComponent implements Component {
 				label: row.workspace.pinned ? tuiText("resumeUnpinAction", "Unpin") : tuiText("resumePinAction", "Pin"),
 				disabled: !this.#source.pinWorkspace,
 			});
+			items.push({
+				id: "hide",
+				label: row.workspace.hidden
+					? tuiText("resumeUnhideAction", "Unhide")
+					: tuiText("resumeHideFolderAction", "Hide folder"),
+				disabled: !this.#source.hideWorkspace,
+			});
 		} else {
 			items.push({
 				id: "rename",
@@ -1159,6 +1179,13 @@ export class ResumeTreeComponent implements Component {
 				id: "pin",
 				label: row.pinned ? tuiText("resumeUnpinAction", "Unpin") : tuiText("resumePinAction", "Pin"),
 				disabled: !this.#source.pinConversation,
+			});
+			items.push({
+				id: "hide",
+				label: row.conversation.hidden
+					? tuiText("resumeUnhideAction", "Unhide")
+					: tuiText("resumeHideAction", "Hide"),
+				disabled: !this.#source.hideConversation,
 			});
 			items.push({
 				id: "delete",
@@ -1229,6 +1256,10 @@ export class ResumeTreeComponent implements Component {
 			await this.#pinRow(menu);
 			return;
 		}
+		if (item.id === "hide") {
+			await this.#hideRow(menu);
+			return;
+		}
 		if (item.id === "delete" && row?.type === "conversation") {
 			this.#deleteTarget = row;
 			this.onRequestRender?.();
@@ -1240,6 +1271,15 @@ export class ResumeTreeComponent implements Component {
 			await this.#source.pinWorkspace?.(menu.workspace, !menu.workspace.pinned);
 		} else if (menu.conversation) {
 			await this.#source.pinConversation?.(menu.conversation, !menu.conversation.pinned);
+		}
+		await this.#refreshAfterMutation();
+	}
+
+	async #hideRow(menu: ResumeTreeMenu): Promise<void> {
+		if (menu.kind === "workspace" && menu.workspace) {
+			await this.#source.hideWorkspace?.(menu.workspace, menu.workspace.hidden !== true);
+		} else if (menu.conversation) {
+			await this.#source.hideConversation?.(menu.conversation, menu.conversation.hidden !== true);
 		}
 		await this.#refreshAfterMutation();
 	}
@@ -1475,6 +1515,37 @@ export class ResumeTreeComponent implements Component {
 		}
 	}
 
+	/** Hide/unhide the selected conversation or folder (never deletes files). */
+	async hideSelected(): Promise<void> {
+		const flat = this.#visibleRows();
+		const row = flat[this.#selectedIndex(flat)]?.row;
+		if (!row) return;
+		this.#busy = true;
+		try {
+			if (row.type === "workspace") {
+				await this.#source.hideWorkspace?.(row.workspace, row.workspace.hidden !== true);
+			} else if (row.type === "conversation") {
+				await this.#source.hideConversation?.(row.conversation, row.conversation.hidden !== true);
+			}
+			await this.#source.refresh?.();
+			this.invalidate();
+			this.#rebuild();
+		} finally {
+			this.#busy = false;
+			this.onRequestRender?.();
+		}
+	}
+
+	/** Reveal or hide shared-hidden rows without rescanning the directory. */
+	toggleShowHidden(): void {
+		const source = this.#source;
+		if (!source.setShowHidden) return;
+		source.setShowHidden(source.showHidden !== true);
+		this.invalidate();
+		this.#rebuild();
+		this.onRequestRender?.();
+	}
+
 	/**
 	 * Hit-test an SGR mouse report against the rows the last render recorded.
 	 * The fullscreen picker paints from screen row 0, so callers pass the
@@ -1666,6 +1737,14 @@ export class ResumeTreeComponent implements Component {
 			void this.pinSelected(keyData === "P");
 			return;
 		}
+		if (!this.#searchFocused && keyData === "h") {
+			void this.hideSelected();
+			return;
+		}
+		if (!this.#searchFocused && keyData === "v") {
+			this.toggleShowHidden();
+			return;
+		}
 		if (matchesAppInterrupt(keyData)) {
 			this.#clearSearch();
 			return;
@@ -1747,6 +1826,22 @@ export class ResumeTreeComponent implements Component {
 					theme.fg(
 						"muted",
 						`  ${tuiTextFmt("resumeHiddenByFilterFmt", "%d conversations hidden by filter", hidden)}`,
+					),
+					width,
+				),
+			);
+		}
+		const hiddenTotal = this.#source.hiddenCount?.() ?? 0;
+		if (hiddenTotal > 0 || this.#source.showHidden === true) {
+			lines.push(
+				truncateToWidth(
+					theme.fg(
+						"muted",
+						`  ${
+							this.#source.showHidden === true
+								? tuiText("resumeHiddenRowsShown", "Hidden rows shown · v hides them")
+								: tuiTextFmt("resumeHiddenRowsHintFmt", "%d hidden · v shows them", hiddenTotal)
+						}`,
 					),
 					width,
 				),

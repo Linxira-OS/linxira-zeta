@@ -75,6 +75,8 @@ export interface ResumeConversationLike {
 	readonly modified: Date;
 	readonly status?: SessionSelectorStatus;
 	readonly pinned: boolean;
+	/** Hidden by shared metadata; only listed when Show hidden is on. */
+	readonly hidden?: boolean;
 	readonly current: boolean;
 	readonly fork: boolean;
 	/** Subagent marker from `session_init.agent`; forks never set it. */
@@ -95,6 +97,8 @@ export interface ResumeWorkspaceLike {
 	readonly branch: string | null;
 	readonly isWorktree?: boolean;
 	readonly pinned: boolean;
+	/** Hidden folder; Show hidden reveals it without touching the checkout. */
+	readonly hidden?: boolean;
 	readonly lastActivity: Date | null;
 	/** Flat conversation list; the core model keeps conversations on the directory only. */
 	readonly conversations?: readonly ResumeConversationLike[];
@@ -110,6 +114,7 @@ export interface ResumeProjectLike {
 	readonly isDefault: boolean;
 	readonly pinned: boolean;
 	readonly removable?: boolean;
+	readonly hidden?: boolean;
 	readonly collapsed: boolean;
 	readonly lastActivity: Date | null;
 	readonly workspaces?: readonly ResumeWorkspaceLike[];
@@ -217,12 +222,20 @@ export interface ResumeSourceLike {
 	readonly directory: ResumeDirectoryLike | null;
 	readonly initialScope?: ResumeScopeKindLike;
 	readonly deleteMode?: "trash" | "permanent";
+	/** True when hidden metadata is currently revealed. */
+	readonly showHidden?: boolean;
 	buildView(options: ResumeViewOptionsLike): ResumeViewLike | null;
 	scopeSummary?(): ResumeScopeSummaryLike;
 	persistScope?(scope: ResumeScopeKindLike): void | Promise<void>;
 	refresh?(): Promise<void>;
 	pinConversation?(conversation: ResumeConversationLike, pinned: boolean): void | Promise<void>;
 	deleteConversation?(conversation: ResumeConversationLike): boolean | Promise<boolean>;
+	/** Hide/unhide a conversation (shared metadata, never the transcript). */
+	hideConversation?(conversation: ResumeConversationLike, hidden: boolean): void | Promise<void>;
+	/** Reveal or hide shared-hidden rows without reloading the directory. */
+	setShowHidden?(showHidden: boolean): void;
+	/** Number of conversations/folders/projects hidden by shared metadata. */
+	hiddenCount?(): number;
 	isLoading?(): boolean;
 	loadError?(): string | undefined;
 }
@@ -528,6 +541,10 @@ export interface ResumePickerModel {
 	readonly total: number;
 	/** Conversations the filter hides (the ANSI tree stays on screen while filtering). */
 	readonly hidden: number;
+	/** Conversations/folders/projects hidden by shared metadata. */
+	readonly hiddenTotal: number;
+	/** True when the source is currently revealing hidden rows. */
+	readonly showHidden: boolean;
 	readonly empty: string;
 	readonly placeholder: string;
 }
@@ -537,6 +554,8 @@ export interface ResumePickerModelOptions {
 	readonly query: string;
 	readonly currentSessionPath?: string;
 	readonly hidden?: ReadonlySet<string>;
+	readonly showHidden?: boolean;
+	readonly hiddenTotal?: number;
 	readonly showCwd?: boolean;
 	readonly now?: number;
 	/** Selection to keep when it survives the query; the first row otherwise. */
@@ -585,6 +604,8 @@ export function buildResumePickerModel(
 		current: conversations.filter(row => row.conversation.current || row.current).map(row => row.conversation.path),
 		total: conversations.length,
 		hidden: Math.max(0, conversations.length - viewConversations(view).length),
+		hiddenTotal: options.hiddenTotal ?? 0,
+		showHidden: options.showHidden === true,
 		empty: resumeEmptyText(view),
 		placeholder: resumePlaceholder(source, options.scope),
 	};

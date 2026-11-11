@@ -633,6 +633,13 @@ export interface Messages {
 	resumeNoMatchFmt: string; // No conversations match “%s”
 	resumeClearSearchHint: string; // Esc clears the search
 	resumeSwitchScopeHint: string; // Tab switches scope
+	resumeHideAction: string;
+	resumeUnhideAction: string;
+	resumeHideFolderAction: string;
+	resumeShowHiddenFmt: string; // Show hidden (%d)
+	resumeHideHiddenAction: string;
+	resumeHiddenRowsShown: string;
+	resumeHiddenRowsHintFmt: string; // %d hidden · v show
 	resumeHiddenByFilterFmt: string; // %d conversations hidden by filter
 	resumeLoading: string; // Loading conversations…
 	resumeCurrentLabel: string; // current

@@ -13,10 +13,12 @@ import {
 	type ResumeDirectory,
 	type ResumeProject,
 	type ResumeWorkspace,
+	filterHiddenResumeDirectory,
 	loadResumeDirectory,
 	loadResumePreferences,
 	registerProject,
 	setProjectPreference,
+	setWorkspaceHidden,
 	unregisterProject,
 } from "../../resume";
 // Upstream v18.0.9 deleted src/utils/git.ts — git discovery now lives in the
@@ -214,7 +216,10 @@ function toProjectsResponse(directory: ResumeDirectory): WebProjectsResponse {
 }
 
 async function loadResponse(): Promise<WebProjectsResponse> {
-	const response = toProjectsResponse(await loadResumeDirectory({ filterSubagents: true }));
+	// Work Studio hides shared-hidden projects/folders/conversations by default;
+	// the TUI reveals them with Show hidden. Metadata only: nothing is deleted.
+	const directory = filterHiddenResumeDirectory(await loadResumeDirectory({ filterSubagents: true }), false);
+	const response = toProjectsResponse(directory);
 	// `lastOpened` lives in the preferences file, not in the directory scan; a
 	// registered workspace with zero conversations is dated only by it.
 	const preferences = await loadResumePreferences();
@@ -238,9 +243,11 @@ export async function handleProjectsGet(_req: Request): Promise<Response> {
  * PUT /api/projects — register/update one project.
  *
  * Body: `{ path: string, alias?: string | null, pinned?: boolean,
- * collapsed?: boolean, registered?: boolean }`. A `null` alias clears it; an
- * absent field is left untouched. `registered: false` removes the project from
- * the registry.
+ * collapsed?: boolean, registered?: boolean, hidden?: boolean }`. A `null`
+ * alias clears it; an absent field is left untouched. `registered: false`
+ * removes the project from the registry. `hidden` sets the folder-level
+ * visibility flag for `path` itself (a workspace directory) and never touches
+ * sessions or the checkout; the shared TUI picker reads the same preference.
  */
 export async function handleProjectsPut(req: Request): Promise<Response> {
 	const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
@@ -250,6 +257,15 @@ export async function handleProjectsPut(req: Request): Promise<Response> {
 	const projectPath = resolve(rawPath);
 	if (typeof body.alias === "string" && body.alias.length > 200) {
 		return json({ error: "alias is too long" }, 400);
+	}
+	if (typeof body.hidden === "boolean") {
+		try {
+			await setWorkspaceHidden(projectPath, body.hidden);
+		} catch (error) {
+			return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+		}
+		invalidateProjectCache();
+		return json(await loadResponse());
 	}
 	if (body.registered === false) {
 		try {

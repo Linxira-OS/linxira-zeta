@@ -32,6 +32,7 @@
  * up data.
  */
 import { createHash } from "node:crypto";
+import * as path from "node:path";
 import { isRecord, stringProperty } from "@linxiraos/pi-utils";
 import { STATS_DASHBOARD_HEADER, STATS_DASHBOARD_SECURITY_VERSION } from "@linxiraos/pi-stats/port-conflict";
 import { buildBootstrap } from "../bootstrap.js";
@@ -68,6 +69,8 @@ import type { AgentId, ConversationOpenResult, ConversationTarget, OperatorState
 import { openPath } from "../../../utils/open.js";
 import { readAgentConversationPage, readTranscriptPage, sessionOps } from "./session.js";
 import { workspaceIdFor } from "./workspace-id.js";
+import { loadResumePreferences, resumePathKey } from "../../../resume/index.js";
+import { loadHiddenSessionIds } from "../../../session/session-visibility.js";
 import { workspaceOps } from "./workspace.js";
 
 /** Session listing cap the Renderer mirrors (`PROJECT_HISTORY_QUERY_MAX`). */
@@ -238,6 +241,8 @@ async function listHistory(input: {
 	readonly workspaceId?: WorkspaceId;
 	readonly includeIm?: boolean;
 	readonly includeTeam?: boolean;
+	/** Include conversations/folders hidden by shared visibility metadata. */
+	readonly includeHidden?: boolean;
 }): Promise<SessionHistoryReadModel> {
 	if (!isRecord(input)) throw invalid("input must be an object");
 	const status = historyStatus(input.status);
@@ -248,17 +253,39 @@ async function listHistory(input: {
 		throw invalid("includeIm must be a boolean");
 	if (input.includeTeam !== undefined && typeof input.includeTeam !== "boolean")
 		throw invalid("includeTeam must be a boolean");
+	if (input.includeHidden !== undefined && typeof input.includeHidden !== "boolean")
+		throw invalid("includeHidden must be a boolean");
 	// IM/bot/relay and Team conversations are personal-agent surfaces too, but
 	// they are not personal coding sessions: a history/home list leaves them out
 	// unless asked.
 	const includeIm = input.includeIm === true;
 	const includeTeam = input.includeTeam === true;
+	const includeHidden = input.includeHidden === true;
 
-	const [activeBody, archivedBody, identity] = await Promise.all([
+	const [activeBody, archivedBody, identity, hiddenSessions, preferences] = await Promise.all([
 		status === "archived" ? Promise.resolve(undefined) : gatewayJson<unknown>("/api/sessions"),
 		status === "active" ? Promise.resolve(undefined) : gatewayJson<unknown>("/api/sessions/archived"),
 		readIdentity(),
+		includeHidden ? Promise.resolve(undefined) : loadHiddenSessionIds(),
+		includeHidden ? Promise.resolve(undefined) : loadResumePreferences(),
 	]);
+	// Shared hide metadata filters the default list; Show hidden / includeHidden
+	// restores it. Hiding never touches the transcript.
+	const hiddenPaths = [
+		...Object.entries(preferences?.projects ?? {})
+			.filter(([, preference]) => preference.hidden === true)
+			.map(([key]) => key),
+		...Object.entries(preferences?.workspaces ?? {})
+			.filter(([, preference]) => preference.hidden === true)
+			.map(([key]) => key),
+	];
+	const pathHidden = (cwd: string): boolean => {
+		const key = resumePathKey(cwd);
+		return hiddenPaths.some(root => {
+			const relative = path.relative(root, key);
+			return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+		});
+	};
 	const environmentId = environmentIdFor(identity.version);
 
 	const seen = new Set<string>();
@@ -268,6 +295,8 @@ async function listHistory(input: {
 			if (seen.has(row.id)) continue;
 			if (!includeIm && isImSession(row.origin)) continue;
 			if (!includeTeam && isTeamSession(row.origin)) continue;
+			if (!includeHidden && hiddenSessions?.has(row.id)) continue;
+			if (!includeHidden && hiddenPaths.length > 0 && pathHidden(row.cwd)) continue;
 			if (workspaceId !== undefined && workspaceIdFor(row.cwd) !== workspaceId) continue;
 			seen.add(row.id);
 			entries.push(historyEntry(row, rowStatus, environmentId));

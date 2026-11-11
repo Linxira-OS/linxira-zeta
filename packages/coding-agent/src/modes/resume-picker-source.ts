@@ -29,6 +29,7 @@ import type {
 
 import {
 	buildResumeView,
+	filterHiddenResumeDirectory,
 	loadResumeDirectory,
 	resolveResumeScope,
 	sameResumePath,
@@ -36,11 +37,18 @@ import {
 	type ResumeScopeKind,
 } from "../resume";
 import type { ResumeSourceLike } from "@linxiraos/pi-tui/overlays/resume-picker";
-import { setWorkspaceAlias, toggleProjectPin, toggleWorkspacePin } from "../resume/preferences";
+import {
+	setProjectHidden,
+	setWorkspaceAlias,
+	setWorkspaceHidden,
+	toggleProjectPin,
+	toggleWorkspacePin,
+} from "../resume/preferences";
 import type { SessionInfo } from "../session/session-listing";
 import { SessionManager } from "../session/session-manager";
 import { FileSessionStorage, type SessionStorage } from "../session/session-storage";
 import { toggleSessionPin } from "../session/session-pins";
+import { setSessionHidden } from "../session/session-visibility";
 import { replaceFileAtomically } from "../utils/atomic-file";
 import { openPath } from "../utils/open";
 
@@ -190,6 +198,8 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 	directory: ResumeDirectory | null = null;
 
 	readonly #options: LiveResumePickerSourceOptions;
+	/** Reveal hidden conversations, folders and projects without a rescan. */
+	showHidden = false;
 	#loading = true;
 	#loadError: string | undefined;
 	#scanWarningNames: string[] = [];
@@ -234,6 +244,20 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 	 * The structural method both renderers call. Accepts a bare scope kind (the
 	 * ANSI tree) or the model's `ResumeScope` object (native/web callers).
 	 */
+	#visibleDirectory(): ResumeDirectory | null {
+		return this.directory === null ? null : filterHiddenResumeDirectory(this.directory, this.showHidden);
+	}
+
+	/** Conversations, folders and projects currently hidden by metadata. */
+	hiddenCount(): number {
+		const counts = this.directory?.hiddenCounts;
+		return counts ? counts.conversations + counts.projects + counts.workspaces : 0;
+	}
+
+	setShowHidden(showHidden: boolean): void {
+		this.showHidden = showHidden;
+	}
+
 	buildView(input: {
 		scope:
 			| ResumeTreeScope
@@ -246,9 +270,10 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 		query: string;
 		currentSessionPath?: string;
 	}): ResumeTreeView | null {
-		if (!this.directory) return null;
+		const directory = this.#visibleDirectory();
+		if (!directory) return null;
 		const scope: ResumeScopeKind | typeof input.scope = input.scope;
-		return buildResumeView(this.directory, {
+		return buildResumeView(directory, {
 			scope,
 			query: input.query,
 			currentSessionPath: input.currentSessionPath ?? this.currentSessionPath(),
@@ -256,7 +281,7 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 	}
 
 	scopeSummary(): ResumeTreeScopeSummary {
-		const directory = this.directory;
+		const directory = this.#visibleDirectory();
 		if (!directory) {
 			return { workspaceName: "", projectName: "", counts: { workspace: 0, project: 0, all: 0 } };
 		}
@@ -338,6 +363,20 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 
 	async deleteConversation(conversation: ResumeTreeConversation): Promise<boolean> {
 		return this.#options.deleteConversation(conversation);
+	}
+
+	async hideConversation(conversation: ResumeTreeConversation, hidden: boolean): Promise<void> {
+		if (!conversation.id) return;
+		await setSessionHidden(conversation.id, hidden, this.#options.agentDir);
+	}
+
+	async hideWorkspace(workspace: ResumeTreeWorkspace, hidden: boolean): Promise<void> {
+		await setWorkspaceHidden(workspace.key, hidden, this.#options.agentDir);
+	}
+
+	async hideProject(project: ResumeTreeProject, hidden: boolean): Promise<void> {
+		if (project.isDefault) return;
+		await setProjectHidden(project.key, hidden, this.#options.agentDir);
 	}
 
 	async renameWorkspace(workspace: ResumeTreeWorkspace, alias: string | null): Promise<string | null> {

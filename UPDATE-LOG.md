@@ -10,6 +10,12 @@
 - **Electron 语言包收敛**：`electron-builder.yml` 新增 `electronLanguages: [en-US, zh-CN]`，不再随包 55 个 `.pak`（安装后 42 MiB、安装包约 10 MiB）。
 - **实测**：1.5.1 安装树 744 MiB（约 780 MB）、NSIS 安装包 250 MiB；同配置重建后 572 MiB（本机内核，比发布内核小 6.8 MB）、安装包 192 MiB；换回 1.5.1 发布内核约 579 MiB / 195 MiB。
 - **回归防护**：新增 `desktop/scripts/packaging-budget.mjs`（`package-desktop.mjs` 打包后校验：`resources/zeta` 不得出现 `.node`，`locales/` 只能有 `en-US`/`zh-CN`），附 4 个单测；违反即打包失败。
+### 会话可见性与删除（未发布）
+- **统一隐藏 / 移除 / 删除语义**：隐藏对话只写共享元数据（`session-visibility.json`，按会话 id），转写与产物不动；隐藏文件夹写 `resume-projects.json` 的 `hidden` 标志，从 Work Studio 默认项目列表与 TUI 目录默认视图消失，但不删除 checkout 或会话；移除项目只删注册/分组记录（`registered: false` / `unregisterProject`），不碰转写；删除对话由 TUI 选择器与 `DELETE /api/sessions/:id` 共用 `session-delete.ts`，默认移入 `<agentDir>/trash/sessions` 回收站，并清除该会话的隐藏/固定元数据。
+- **TUI**：resume 选择器默认显示全部，新增 `h` 隐藏/取消隐藏、`v` 显示已隐藏项（不重新扫描目录），项目/文件夹菜单同样支持隐藏。
+- **Work Studio**：侧栏与历史默认隐藏共享隐藏项；项目行 `⋯` 只保留「隐藏文件夹」，会话行 `⋯` 只保留 Fork 与「删除对话」（确认后走同一 `session.delete`），删除 `更多（暂未实现）` 占位按钮。
+- **API**：新增 `workspace.hide`（`{ workspaceId, hidden? }` → 共享注册表）和 `history.list` 的 `includeHidden` 开关；`projects.list` / `history.list` 默认过滤隐藏项。
+- **文档/测试**：`docs/session.md` 记录四种操作的边界与两端显示策略；新增共享可见性、目录过滤、隐藏偏好和共享删除的聚焦测试。
 
 ### Work Studio 默认头像（未发布）
 - **默认 Zeta/AI 头像改用产品标记**：对话消息头（原 18px `π` 角色徽标）与 Agent Hub 主对话横幅（原 message 图标）改用概念 04 Cluster 标记；≥32px 用双块簇，16/24 用单块 LZ 回退（`zeta-mark-16.svg`），带细描边、无障碍名称与资源缺失时的内联回退。PM/工程师/子代理等角色图标、项目/文件夹图标和操作员本人头像不变。

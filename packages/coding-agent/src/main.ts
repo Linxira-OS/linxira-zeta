@@ -236,13 +236,19 @@ type SessionPicker = (
 
 /** Resume/import-only graph boundary; ordinary launches never construct a picker. */
 async function loadSessionPicker(init?: { foreign?: boolean }): Promise<SessionPicker> {
-	const [{ selectSession }, { HistoryStorage }, { loadPinnedSessionIds, setSessionPinned }, { FileSessionStorage }] =
-		await Promise.all([
-			import("@linxiraos/pi-tui/apps/session-picker"),
-			import("./session/history-storage"),
-			import("./session/session-pins"),
-			import("./session/session-storage"),
-		]);
+	const [
+		{ selectSession },
+		{ HistoryStorage },
+		{ loadPinnedSessionIds, setSessionPinned },
+		{ FileSessionStorage },
+		{ deleteSessionFiles },
+	] = await Promise.all([
+		import("@linxiraos/pi-tui/apps/session-picker"),
+		import("./session/history-storage"),
+		import("./session/session-pins"),
+		import("./session/session-storage"),
+		import("./session/session-delete"),
+	]);
 	return (sessions, options) => {
 		const storage = new FileSessionStorage();
 		// The picker runs before interactive mode loads the user's keymap, and its pin keys are remappable.
@@ -254,7 +260,9 @@ async function loadSessionPicker(init?: { foreign?: boolean }): Promise<SessionP
 				return query => history.matchingSessionIds(query);
 			},
 			deleteSession: async session => {
-				await storage.deleteSessionWithArtifacts(session.path);
+				// The standalone `--resume` picker deletes permanently; the
+				// in-session picker below shares the trash path with Work Studio.
+				await deleteSessionFiles(session.path, { mode: "permanent", storage });
 				return true;
 			},
 			// Foreign import pickers list source-owned sessions, so rename and
@@ -276,7 +284,7 @@ async function loadSessionPicker(init?: { foreign?: boolean }): Promise<SessionP
 					workspacePath,
 					deleteMode,
 					deleteConversation: async conversation => {
-						await storage.deleteSessionWithArtifacts(conversation.session.path);
+						await deleteSessionFiles(conversation.session.path, { mode: deleteMode, storage });
 						return true;
 					},
 				});
