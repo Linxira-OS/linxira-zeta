@@ -470,6 +470,15 @@ A session row may carry `taskSummary` from the same bounded window the listing a
 
 Source APIs: `listSessions`/`listAllSessions` (`SessionInfo.taskSummary`), `GET /api/sessions`, `history.list` (`SessionHistoryEntry.taskSummary`), and `sessionDisplayName` for the name.
 
+### Read-model field names (Team IM / selector)
+
+- `SessionInfo` (and the gateway `SessionInfo` DTO): `client`, `runClient`, `taskSummary`, `origin`, plus the existing `title`/`firstMessage`/`status`.
+- `SessionHistoryEntry` (`history.list`): the same `client`, `runClient`, `taskSummary`, `origin`.
+- `SessionContext` (session/context and conversation reads): `messageMetadata` is parallel to `messages` (`null` for a row without IM metadata) and `controlEvents` is `Array<{ entryId, metadata }>` in transcript order. Control events are never in `messages`.
+- `sessionDisplayName(info)` is the only name rule: explicit title, else the short first-prompt fallback, else `Untitled · <time>`; raw ids are never a fallback.
+
+These fields are projections over the one durable transcript; the Team UI/selector must not create a second store or a parallel authority.
+
 ### `run_init`
 
 Durable provenance of one run of an existing session (resume/attach), appended by the process that starts that run. It carries the same `client` field name as the header, so there is no parallel `initiatedBy` authority; the header keeps the creator and the newest `run_init` names the current run.

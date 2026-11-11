@@ -148,6 +148,51 @@ describe("latest task summary", () => {
 		expect(excerptTaskText("   ", 10)).toBeUndefined();
 	});
 
+	test("a message-less window reads as no summary (unknown), never the header", async () => {
+		const storage = new MemorySessionStorage();
+		write(storage, "control-only.jsonl", [
+			{ type: "run_init", id: "r1", parentId: null, timestamp: T1, client: "web" },
+		]);
+
+		const [session] = await listSessions(DIR, storage);
+		// No message in the bounded window → no projection; viewers show “no summary”.
+		expect(session?.taskSummary).toBeUndefined();
+		// `unknown` is a valid persisted/DTO state for older/partial rows.
+		expect(normalizeSessionTaskSummary({ status: "unknown", source: "none" })).toEqual({
+			status: "unknown",
+			source: "none",
+		});
+	});
+
+	test("firstMessage is a name fallback, never a completed summary", async () => {
+		const storage = new MemorySessionStorage();
+		write(storage, "open-first.jsonl", [message("u1", "user", "the only prompt")]);
+
+		const [session] = await listSessions(DIR, storage);
+		expect(session?.firstMessage).toBe("the only prompt");
+		// The name may use it; the task summary may not claim completion.
+		expect(sessionDisplayName(session!)).toBe("the only prompt");
+		expect(session?.taskSummary?.status).toBe("incomplete");
+		expect(session?.taskSummary?.result).toBeUndefined();
+	});
+
+	test("a later append invalidates the cached window and updates the summary", async () => {
+		const storage = new MemorySessionStorage();
+		write(storage, "growing.jsonl", [message("u1", "user", "finish the change")]);
+		const before = (await listSessions(DIR, storage))[0];
+		expect(before?.taskSummary?.status).toBe("incomplete");
+
+		// Same file grows: the scan cache is keyed by mtime/size, so a re-list
+		// must recompute instead of serving the stale projection.
+		write(storage, "growing.jsonl", [
+			message("u1", "user", "finish the change"),
+			message("a1", "assistant", "Change finished."),
+		]);
+		const after = (await listSessions(DIR, storage))[0];
+		expect(after?.taskSummary?.status).toBe("completed");
+		expect(after?.taskSummary?.result).toBe("Change finished.");
+	});
+
 	test("a malformed persisted projection reads as absent", () => {
 		expect(normalizeSessionTaskSummary({ status: "completed" })).toBeUndefined();
 		expect(normalizeSessionTaskSummary({ status: "done", source: "completed_turn" })).toBeUndefined();
