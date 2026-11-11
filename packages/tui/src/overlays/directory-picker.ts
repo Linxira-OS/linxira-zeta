@@ -227,8 +227,8 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 			return;
 		}
 		if (extractPrintableText(data) !== undefined) this.#filtering = true;
-		this.#hint();
 		this.#selectList.handleInput(data);
+		this.#hint();
 		this.invalidate();
 	}
 

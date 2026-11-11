@@ -102,6 +102,16 @@ describe("directory picker source", () => {
 		]);
 	});
 
+	it("keeps a Windows drive pin canonical on win32", () => {
+		if (process.platform !== "win32") return;
+		const source = createDirectoryPickerSource({
+			platform: "win32",
+			mounts: [],
+			pins: [String.raw`C:\srv\work`],
+		});
+		expect(source.list(null).pins.map(entry => entry.path)).toEqual([path.resolve(String.raw`C:\srv\work`)]);
+	});
+
 	it("keeps the pin store out of the home directory", async () => {
 		const workspace = path.join(tempDir, "workspace");
 		fs.mkdirSync(workspace);
