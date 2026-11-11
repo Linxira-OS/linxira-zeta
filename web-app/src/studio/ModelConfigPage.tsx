@@ -35,6 +35,7 @@ import type {
   ModelRoleRecord,
   ModelRoleStorage,
   StudioClient,
+  WorkspaceId,
 } from "@linxiraos/studio-contract";
 import {
   modelAcceptsRole,
@@ -72,6 +73,7 @@ import { draftProviderYamlNode, nestedProviderYamlNode, serializeModelsYmlNode }
 import { SubagentsPanel } from "./SubagentsPanel";
 import { WebSearchPanel } from "./models/WebSearchPanel";
 import { ModelVisibilityPane } from "./models/ModelVisibilityPane";
+import { composeFallbackSlots, readFallbackSlots } from "./models/fallbackSlots";
 import { createPreviewAgentDefinitions } from "./preview/subagentsPreview";
 
 export const MC_INTENT_KEY = "zeta.modelConfigIntent";
@@ -1799,7 +1801,7 @@ function formatProviderStatusDetail(detail: string | undefined, t: (k: string) =
   return detail;
 }
 
-export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailable = false, onOpenEvaluation, capabilities }: { capabilities?: ClientBootstrap["capabilityManifest"] | undefined; onOpenEvaluation?: () => void; client: StudioClient; sessionId?: string | undefined; workspaceId?: string | undefined; runtimeAvailable?: boolean }) {
+export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailable = false, onOpenEvaluation, capabilities }: { capabilities?: ClientBootstrap["capabilityManifest"] | undefined; onOpenEvaluation?: () => void; client: StudioClient; sessionId?: string | undefined; workspaceId?: WorkspaceId | undefined; runtimeAvailable?: boolean }) {
   const { resolvedLanguage } = useI18n();
   const [, updatePricingClock] = useState(0);
   useEffect(() => {
@@ -1893,7 +1895,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     }
     try {
       const [next, defs] = await Promise.all([
-        client.query("models.get", {}),
+        client.query("models.get", workspaceId === undefined ? {} : { workspaceId }),
         client.query("agents.definitions.get", {}).catch(() => null),
       ]);
       setData(next);
@@ -1903,7 +1905,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       setLoadError(hostErrorMessage(error, "models.get failed"));
       setData(null);
     }
-  }, [client, preview]);
+  }, [client, preview, workspaceId]);
 
   useEffect(() => {
     void refresh();
@@ -3088,7 +3090,13 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
 
   const saveFallback = async (role: string, primary: string) => {
     const chains = { ...(data?.fallbackChains ?? {}) };
-    const nextChain = [...(fallbackDraft ?? chains[role] ?? chains[primary] ?? [])];
+    const slots = readFallbackSlots(fallbackDraft ?? chains[role] ?? chains[primary]);
+    const composed = composeFallbackSlots(slots.fallback1, slots.fallback2, slots.extras);
+    if (!composed.ok) {
+      toast(t(composed.reason === "fallback2-without-fallback1" ? "modelConfig.fallbackSlot2Needs1" : "modelConfig.fallbackExtraLocked"));
+      return;
+    }
+    const nextChain = composed.chain;
     chains[role] = nextChain;
     const revertPolicy = revertPolicyDraft ?? data?.fallbackRevertPolicy ?? "cooldown-expiry";
     if (preview) {
@@ -4265,27 +4273,64 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                     </span>
                   </div>
                 </div>
-                <div className="cycle-pool" style={{ marginTop: 8 }}>
-                  {(fallbackDraft ?? data?.fallbackChains[roleDraft.id] ?? data?.fallbackChains[roleDraft.primary] ?? []).map((selector, index, chain) => (
-                    <span key={selector} className="cycle-chip">
-                      <span className="mono">{selector}</span>
-                      <button type="button" className="icon-btn small" aria-label={t("modelConfig.moveUp")} disabled={index === 0} onClick={() => { const next = [...chain]; [next[index - 1], next[index]] = [next[index]!, next[index - 1]!]; setFallbackDraft(next); }}><Icon name="chevron-u" extra="sm" /></button>
-                      <button type="button" className="icon-btn small" aria-label={t("modelConfig.moveDown")} disabled={index === chain.length - 1} onClick={() => { const next = [...chain]; [next[index + 1], next[index]] = [next[index]!, next[index + 1]!]; setFallbackDraft(next); }}><Icon name="chevron-d" extra="sm" /></button>
-                      <span className="chip-remove" role="button" tabIndex={0} onClick={() => {
-                        const current = fallbackDraft ?? data?.fallbackChains[roleDraft.id] ?? data?.fallbackChains[roleDraft.primary] ?? [];
-                        setFallbackDraft(current.filter((item) => item !== selector));
-                      }}><Icon name="x" /></span>
-                    </span>
-                  ))}
-                </div>
-                <div className="cycle-pool">
-                  <span className="cycle-pool-label">{t("modelConfig.addToFallback")}</span>
-                  <RoleModelPicker ariaLabel={t("modelConfig.addToFallback")} value="" groups={groupModelsByProvider(usable.filter(model => modelAcceptsRole(roleDraft.id, model) && model.selector !== roleDraft.primary && !(fallbackDraft ?? data?.fallbackChains[roleDraft.id] ?? data?.fallbackChains[roleDraft.primary] ?? []).includes(model.selector)), orderedProviders)} onChange={selector => { if (selector) setFallbackDraft([...(fallbackDraft ?? data?.fallbackChains[roleDraft.id] ?? data?.fallbackChains[roleDraft.primary] ?? []), selector]); }} />
-
-                </div>
-                <div style={{ marginTop: 10 }}>
-                  <button type="button" className="btn small outline" disabled={busy || !roleDraft.primary} onClick={() => void saveFallback(roleDraft.id, roleDraft.primary)}>{t("modelConfig.saveFallback")}</button>
-                </div>
+                {(() => {
+                  const chain = fallbackDraft ?? data?.fallbackChains[roleDraft.id] ?? data?.fallbackChains[roleDraft.primary] ?? [];
+                  const slots = readFallbackSlots(chain);
+                  const extrasLocked = slots.extras.length > 0;
+                  const setSlot = (slot: 1 | 2, selector: string) => {
+                    if (extrasLocked) return;
+                    const first = slot === 1 ? selector : slots.fallback1;
+                    const second = slot === 2 ? selector : slots.fallback2;
+                    const composed = composeFallbackSlots(first, second, slots.extras);
+                    if (composed.ok) setFallbackDraft(composed.chain);
+                  };
+                  const clearAll = () => {
+                    if (!window.confirm(t("modelConfig.fallbackClearConfirm"))) return;
+                    setFallbackDraft([]);
+                  };
+                  const clearExtras = () => {
+                    if (!window.confirm(t("modelConfig.fallbackClearExtrasConfirm", { count: slots.extras.length }))) return;
+                    const composed = composeFallbackSlots(slots.fallback1, slots.fallback2, slots.extras, { clearExtras: true });
+                    if (composed.ok) setFallbackDraft(composed.chain);
+                  };
+                  const modelGroups = (excluded: ReadonlyArray<string | undefined>) => groupModelsByProvider(usable.filter(model => modelAcceptsRole(roleDraft.id, model) && model.selector !== roleDraft.primary && !excluded.includes(model.selector)), orderedProviders);
+                  return (
+                    <>
+                      <div className="kv-list" style={{ marginTop: 8 }}>
+                        <div className="kv-row">
+                          <span className="k">{t("modelConfig.fallbackSlot1")}</span>
+                          <span className="v">
+                            <RoleModelPicker ariaLabel={t("modelConfig.fallbackSlot1")} value={slots.fallback1 ?? ""} groups={modelGroups([slots.fallback2, ...slots.extras])} disabled={extrasLocked} onChange={selector => setSlot(1, selector)} />
+                            {slots.fallback1 ? <button type="button" className="icon-btn small" aria-label={t("modelConfig.fallbackClearSlot")} disabled={extrasLocked} onClick={() => { if (window.confirm(t("modelConfig.fallbackClearConfirm"))) setFallbackDraft([]); }}><Icon name="x" extra="sm" /></button> : null}
+                          </span>
+                        </div>
+                        <div className="kv-row">
+                          <span className="k">{t("modelConfig.fallbackSlot2")}</span>
+                          <span className="v">
+                            <RoleModelPicker ariaLabel={t("modelConfig.fallbackSlot2")} value={slots.fallback2 ?? ""} groups={modelGroups([slots.fallback1, ...slots.extras])} disabled={extrasLocked || !slots.fallback1} onChange={selector => setSlot(2, selector)} />
+                            {slots.fallback2 ? <button type="button" className="icon-btn small" aria-label={t("modelConfig.fallbackClearSlot")} disabled={extrasLocked} onClick={() => { setFallbackDraft(slots.fallback1 ? [slots.fallback1] : []); }}><Icon name="x" extra="sm" /></button> : null}
+                          </span>
+                        </div>
+                        {!slots.fallback1 ? <span className="desc">{t("modelConfig.fallbackSlot2Needs1")}</span> : null}
+                        {!slots.fallback1 && !slots.fallback2 ? <span className="desc">{t("modelConfig.fallbackEmptyHint")}</span> : null}
+                        {slots.extras.length > 0 ? (
+                          <div className="role-issue-banner" style={{ marginTop: 8 }}>
+                            <Icon name="alert" extra="sm" />
+                            <div>
+                              <div className="rib-title">{t("modelConfig.fallbackExtraTitle", { count: slots.extras.length })}</div>
+                              <div className="rib-text mono">{slots.extras.join(" · ")}</div>
+                              <button type="button" className="btn small outline" onClick={clearExtras}>{t("modelConfig.fallbackClearExtras")}</button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                      <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+                        <button type="button" className="btn small outline" disabled={busy || !roleDraft.primary} onClick={() => void saveFallback(roleDraft.id, roleDraft.primary)}>{t("modelConfig.saveFallback")}</button>
+                        <button type="button" className="btn small danger" disabled={busy || chain.length === 0} onClick={clearAll}>{t("modelConfig.fallbackClearAll")}</button>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
               <StructuredEditor
                 language="yaml"

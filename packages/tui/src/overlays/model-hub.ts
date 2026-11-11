@@ -87,7 +87,7 @@ const MODEL_HUB_BODY_MIN_WIDTH = 28;
 type RolesRow =
 	| { kind: "role"; role: string }
 	| { kind: "chainKey"; role: string }
-	| { kind: "fallback"; role: string; chainIndex: number; selector: string }
+	| { kind: "fallback"; role: string; chainIndex: number; selector: string; missing?: boolean }
 	| { kind: "separator" }
 	| { kind: "newFallback" }
 	| { kind: "newRole" };
@@ -942,13 +942,27 @@ export class ModelHubComponent implements Component {
 	#buildRolesRows(): void {
 		const rows: RolesRow[] = [];
 		const chains = this.#fallbackChains();
+		const appendChainRows = (role: string, chain: ReadonlyArray<string>): void => {
+			// Fixed three-level editor: always render Fallback 1 and Fallback 2,
+			// even when unset. Entries past index 1 stay visible as extras and are
+			// never dropped by a slot edit.
+			for (const slot of [0, 1] as const) {
+				rows.push({
+					kind: "fallback",
+					role,
+					chainIndex: slot,
+					selector: chain[slot] ?? "",
+					...(chain[slot] === undefined ? { missing: true } : {}),
+				});
+			}
+			for (let i = 2; i < chain.length; i++) {
+				rows.push({ kind: "fallback", role, chainIndex: i, selector: chain[i] });
+			}
+		};
 		const appendRoles = (roles: ReadonlyArray<string>): void => {
 			for (const role of roles) {
 				rows.push({ kind: "role", role });
-				const chain = chains[role] ?? [];
-				for (let i = 0; i < chain.length; i++) {
-					rows.push({ kind: "fallback", role, chainIndex: i, selector: chain[i] });
-				}
+				appendChainRows(role, chains[role] ?? []);
 			}
 		};
 		const visibleRoles = this.#visibleRoleIds();
@@ -967,11 +981,8 @@ export class ModelHubComponent implements Component {
 			.filter(key => key.includes("/"))
 			.sort();
 		for (const key of modelKeys) {
-			const chain = chains[key] ?? [];
 			rows.push({ kind: "chainKey", role: key });
-			for (let i = 0; i < chain.length; i++) {
-				rows.push({ kind: "fallback", role: key, chainIndex: i, selector: chain[i] });
-			}
+			appendChainRows(key, chains[key] ?? []);
 		}
 		rows.push({ kind: "newFallback" });
 		this.#rolesRows = rows;
@@ -985,8 +996,8 @@ export class ModelHubComponent implements Component {
 		const chains = this.#fallbackChains();
 		// "New role…" and "New fallback chain…", then each role and model chain with its fallback entries.
 		let count = 2;
-		for (const role of this.#visibleRoleIds()) count += 1 + (chains[role]?.length ?? 0);
-		for (const key in chains) if (key.includes("/")) count += 1 + chains[key].length;
+		for (const role of this.#visibleRoleIds()) count += 1 + Math.max(2, chains[role]?.length ?? 0);
+		for (const key in chains) if (key.includes("/")) count += 1 + Math.max(2, chains[key].length);
 		return count;
 	}
 
@@ -1739,6 +1750,12 @@ export class ModelHubComponent implements Component {
 		const chain = [...(this.#fallbackChains()[target.role] ?? [])];
 		// New picks are stored bare, i.e. inherit-the-primary; `t` on the row specializes the effort.
 		const selector = item.selector;
+		if (target.index === 1 && chain.length === 0) {
+			// Fallback 2 cannot exist without Fallback 1.
+			this.#browser.setQuery("");
+			this.#requestRender();
+			return;
+		}
 		if (target.index !== null && target.index < chain.length) {
 			chain[target.index] = selector;
 			for (let i = chain.length - 1; i >= 0; i--) {
@@ -3188,8 +3205,20 @@ export class ModelHubComponent implements Component {
 					key,
 				);
 			}
-			case "fallback":
-				return node("item", { label: [span("  ↳ ", "dim"), span(rowDef.selector, "muted")] }, undefined, key);
+			case "fallback": {
+				const slot = rowDef.chainIndex < 2 ? `Fallback ${rowDef.chainIndex + 1}` : `Extra ${rowDef.chainIndex - 1}`;
+				return node(
+					"item",
+					{
+						label: [
+							span(`  ↳ ${slot}: `, "dim"),
+							span(rowDef.missing ? "(empty)" : rowDef.selector, rowDef.missing ? "dim" : "muted"),
+						],
+					},
+					undefined,
+					key,
+				);
+			}
 			case "role":
 				break;
 		}
@@ -3736,7 +3765,13 @@ export class ModelHubComponent implements Component {
 					items.push({ id, label: row.role, mono: true, icon: "git-branch", detail: "fallback chain" });
 					return;
 				case "fallback":
-					items.push({ id, label: row.selector, mono: true, depth: 1, detail: `fallback ${row.chainIndex + 1}` });
+					items.push({
+						id,
+						label: row.selector || "(empty)",
+						mono: true,
+						depth: 1,
+						detail: row.chainIndex < 2 ? `fallback ${row.chainIndex + 1}` : "extra fallback",
+					});
 					return;
 				case "role":
 					break;
@@ -3859,7 +3894,7 @@ export class ModelHubComponent implements Component {
 			case "fallback": {
 				const resolved = this.#resolveFallbackEntry(row.role, row.chainIndex);
 				if (resolved) children.push(...this.#browser.modelPreview(resolved.item, "full", this.#currentSelector));
-				else children.push(text([span(row.selector, "mono")], { role: "zeta.picker.title" }));
+				else children.push(text([span(row.selector || "Fallback slot (empty)", row.selector ? "mono" : "muted")], { role: "zeta.picker.title" }));
 				const chain = chainList(row.role);
 				if (chain) children.push(chain);
 				break;

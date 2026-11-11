@@ -187,7 +187,7 @@ function workspaceIdOf(key: string): string {
  * whatever directory the gateway happens to sit in would silently act on the
  * wrong repository.
  */
-async function resolveWorkspaceCwd(workspaceId: unknown): Promise<string | undefined> {
+export async function resolveWorkspaceCwd(workspaceId: unknown): Promise<string | undefined> {
 	if (workspaceId === undefined) return undefined;
 	if (typeof workspaceId !== "string" || workspaceId === "") {
 		throw invalid("workspaceId must be a non-empty workspace id");

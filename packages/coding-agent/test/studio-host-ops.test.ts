@@ -414,4 +414,26 @@ describe("model visibility settings", () => {
 			code: "INVALID_ARGUMENT",
 		});
 	});
+
+	test("creates and deletes a custom role through models.get", async () => {
+		await runCommand("models.roles.create", { id: "reviewer", name: "Reviewer", selector: "openai/*" });
+		let result = await queryResult("models.get", {});
+		const created = result.roles.find(role => role.id === "reviewer");
+		expect(created?.builtin).toBe(false);
+		expect(created?.primary).toBe("openai/*");
+
+		await runCommand("models.roleStorage.set", { storage: "project" });
+		result = await queryResult("models.get", {});
+		expect(result.modelRoleStorage).toBe("project");
+
+		await runCommand("models.roles.delete", { roleId: "reviewer" });
+		result = await queryResult("models.get", {});
+		expect(result.roles.some(role => role.id === "reviewer")).toBe(false);
+	});
+
+	test("refuses to delete a built-in role", async () => {
+		await expect(runCommand("models.roles.delete", { roleId: "default" })).rejects.toMatchObject({
+			code: "INVALID_ARGUMENT",
+		});
+	});
 });

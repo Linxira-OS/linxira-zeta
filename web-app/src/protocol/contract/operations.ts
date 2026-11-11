@@ -114,7 +114,7 @@ export interface QueryInputMap extends ContextViewQueryMap {
   "residents.list": EmptyInput;
   "session.state": EmptyInput;
   "home.get": EmptyInput;
-  "models.get": EmptyInput;
+  "models.get": { readonly workspaceId?: WorkspaceId };
   "models.adaptation.resolve": ModelAdaptationInput;
   "skills.get": EmptyInput;
   "mcp.get": EmptyInput;
