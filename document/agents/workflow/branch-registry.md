@@ -52,7 +52,6 @@
 | `feat/UsageData` | feat | 用量数据：`packages/stats` 的日/时聚合读 API + `GET /api/usage/daily` + `usage.get` 填充 + deep link/`usage.openDashboard`；worktree `temp/UsageData` | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
 | `feat/session-window` | feat | 会话转写窗口分页（已并入 `main` 的 `952b3c0`）；worktree `temp/session-window` | agent | 2026-11-06 | 删分支/worktree 前登记退役 |
 | `docs/update-log-1.4.11` | docs | 1.4.11 的 `UPDATE-LOG.md` 条目；worktree `temp/update-log-114` | agent | 2026-11-06 | 合入后删 |
-| `feat/release-114` | feat | 1.4.11 集成分支：四个并行流合并 + 渲染端依赖升级；worktree `temp/release-114` | agent | 2026-11-06 | 发布并合并后删（删前记 SHA） |
 | `feat/ci-buckets` | feat | 把真浏览器/Chromium 测试从每次 push 的 CI 挪进独立 `browser` bucket：`ci-test-ts.ts` 第五个 bucket + `coding-agent-browser` 模式、`ci.yml` 夜间 schedule/`browser_tests` dispatch/release 专属 job 与 `release_gate` 断言、Gitea 镜像、CI surface/parity/文档同步；顺带补上本地 `check` job 缺失的 web-app 构建 | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
 | `fix/board-tool` | fix | 把 `.zeta/board/` 从仅有 API/UI 提升为内置 `board` 工具：共享 store、list/get/create/update/move/assign/delete、项目根绑定、子代理显式 `tools: board` 门禁与测试；worktree `temp/board-tool` | agent | 2026-11-09 | 合入 `main` 后删（删前记 SHA） |
 | `perf/tui-subagent-load` | fix | 多子代理 fan-out 下 TUI 响应性：`task` 批次进度更新按 100 ms 合并（leading + trailing，终态立即 flush），消除每 spawn 每 150 ms 的全卡重建/深清洗；含合并正确性与 fan-out 预算测试。worktree `temp/tui-load-perf` | agent | 2026-11-10 | 合入 `main` 后删（删前记 SHA） |
@@ -72,11 +71,18 @@
 | `feat/report-commands` | feat | 命令 lane：REQ-052 official command migration + custom command `agent`/model metadata；只源码，不跑大 build。worktree `temp/report-commands` | agent | 2026-11-11 | 合入集成分支后删 |
 | `feat/report-context-reload` | feat | Context/prompt hot reload lane：REQ-057；SDK hook 由 tools owner 接。worktree `temp/report-context-reload` | agent | 2026-11-11 | 合入集成分支后删 |
 | `fix/report-automation` | fix | Robomp/automation lane：REQ-060 + REQ-022 只读评估、ledger 事实纠正；不 merge/tag upstream。worktree `temp/report-automation` | agent | 2026-11-11 | 合入集成分支后删 |
+| `feat/report-ide` | feat | zetaide Git center/inline diff/JSON/TODO：REQ-069；只编辑。worktree `temp/report-ide` | agent | 2026-11-11 | 合入集成分支后删 |
+| `feat/report-learning` | feat | Context learning window extraction：REQ-056；与 compaction service hook 协调。worktree `temp/report-learning` | agent | 2026-11-11 | 合入集成分支后删 |
+| `feat/report-mcp` | feat | Embedded MCP recognition：REQ-053；SDK/manager 只交 tool-scope hook，不 race 工具白名单。worktree `temp/report-mcp` | agent | 2026-11-11 | 合入集成分支后删 |
+| `feat/report-memory` | feat | Memory H3：REQ-061–REQ-065；large-session-perf 试发，dead 由父 recover；REQ-066 仍 desktop owner。worktree `temp/report-memory` | agent | 2026-11-11 | 合入集成分支后删 |
 
 ## 已退役（删除前登记）
 
 | 分支 | SHA | 退役日期 | 原因 |
 |---|---|---|---|
+| `chore/electron-latest-stable` | `625e1d1538ddab34033227e7c87103ffd076c896` | 2026-11-11 | PR #318 已合并；cache-cleanup 确认 `temp/electron-latest` worktree/registration 与本地分支均已删除；不删除远端分支 |
+| `feat/compat-cleanup` | `b2aa276c8962bd1bf44924f0cc161de688e6e467` | 2026-11-11 | 用户已授权退役已合并且干净的分支/worktree；当前 `temp/compat-cleanup` 与本地分支仍保留，仅依赖/桌面临时产物已清；`.zeta` 已原路恢复；由唯一 cleanup owner 确认干净后删除并回报实际状态 |
+| `feat/release-114` | `07db32f217d783a43c6f2b988075014df0466398` | 2026-11-11 | 用户已授权退役已合并且干净的分支/worktree；当前 `temp/release-114` 与本地分支仍保留，仅依赖已清；`.zeta` 已原路恢复；`temp/prbody.md` 保存在 `~/.zeta/parked-evidence/2026-11-11/release-114/prbody.md`；由唯一 cleanup owner 确认干净后删除并回报实际状态 |
 | `chore/retire-jcode-evaluation` | `408b5f91785` | 2026-11-11 | 已合并（`f0f99b296ee`，PR #314）：登记簿退役 `docs/jcode-evaluation` + 一处「未发现≠不存在」措辞收紧；PR CI `42972661696`、main CI `42973476613` 均绿；worktree `temp/jcode-retire` 已删除 |
 | `docs/jcode-evaluation` | `b0a4f36fe80` | 2026-11-11 | 已合并（`006484a5818c038b1e50cec706387d36bec1f159`，PR #313）：`document/jcode-evaluation.md` + `roadmap.md` Deferred Queue 登记 + AGENTS §11 索引行；PR CI `42969576865`、main CI `42970403085` 均绿；worktree `temp/jcode-doc` 已删除 |
 | `docs/lkb-linkage` | `b2aa267b8a6` | 2026-11-11 | 已合并（`b2aa267b8a68d684d9146611c4b31d4bf0322d43`，PR #309）：LKB 客户端边界 + README 相关仓库链接 + GitHub Packages 不启用结论；PR CI `42960381396`、main CI `42961524864` 均绿；worktree `temp/lkb-linkage` 已删除 |
