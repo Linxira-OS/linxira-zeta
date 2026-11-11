@@ -261,6 +261,9 @@ impl App {
         }
 
         let panel = match (&commit_hash, &file_path) {
+            (Some(hash), Some(file)) => {
+                GitDiffPanel::new_for_commit_file(repo_path, hash.clone(), file.clone())
+            }
             (_, Some(file)) => GitDiffPanel::new_with_file_filter(repo_path, file.clone()),
             (Some(hash), None) => GitDiffPanel::new_for_commit(repo_path, hash.clone()),
             (None, None) => GitDiffPanel::new(repo_path),

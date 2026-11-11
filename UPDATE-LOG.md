@@ -2,10 +2,15 @@
 
 ## 下一版本（Unreleased）
 
-40: @ours
 ### 发布勘误（未发布）
 - **已发布的 1.5.1 段落不可改写**：`### 1.5.1` 及其条目保持原样（包括 #297 的 logo 归属），不回填、不搬迁历史；勘误只写在本 Unreleased 段落。
 - **以下变更合并在 1.5.1 tag 之后，并未随 1.5.1 发布**：#304（Studio capability matrix）、#307（desktop window controls）、#318（Electron 45）、#319（html-report 技能）、#320（release freeze）、#321（model visibility）。它们只在后续内部构建/1.6.0 中生效；1.5.2–1.5.10 是 code-only 内部 tag，不发布资产或 npm 包，1.6.0 仍需 owner 明确批准后才公开发布。
+
+### zetaide 工具（未发布）
+- **Git 中心逐文件闭环**：History 在切换标签页/关闭标签页/点击标签页时重新指向当前文件（此前只在首次打开历史时设置过滤）；新增 `L` 键按需读取下一批（标题在仍有历史时显示 `L older`），已读行只追加不重建；`panel-git-log` 的 `d` 现在把文件过滤一起交给 diff；新增 `GitDiffPanel::new_for_commit_file`，app 事件按「提交 + 文件」优先匹配，不再退化成工作区 diff。IDE 内的 `OpenGitDiff` 改为在编辑区以预览面板内联渲染，`Esc` 回到文件。二进制 diff 显示 `binary file — no textual diff`，重命名沿用 `rename to` 的新路径，空结果画 `no changes to show`。
+- **JSON Viewer（只读）**：`panel-ide` 新增自包含 JSON 解析器，数字按源码文本保存（大数/指数不经过 `f64`），字符串保留原始转义；树可折叠、语法错误显示行/列，`c` 复制值、`p` 复制 JSON Pointer，绝不写回文件。`Ctrl+J` 打开当前文件。
+- **TODO Scanner**：复用 `termide-walk` 的 git-ignore walker 与 `termide-core::util::is_binary_file`，跳过二进制与超过 1 MiB 的文件，结果上限 2000，支持取消；`Enter` 通过 `OpenFileAt` 跳到真实编辑器行列。`Ctrl+D` 打开。
+- **未验证**：本次仅完成源码编辑与静态检查，未在本机运行 `cargo`/nextest 或真实启动 zetaide（磁盘与构建窗口受限）；窄 Rust check 由父级在独立窗口执行。
 ### Work Studio 诊断（未发布）
 - **系统 Runtime 不再被误报为未安装**：当 Host 自身就是运行中的 `compatible-system` Runtime（源码/开发构建）时，诊断页显示「系统 Runtime 运行正常（未托管）」、托管卡片「系统 Runtime（未托管）」、签名「不适用（无托管制品）」、上游「本机 Runtime · 无上游记录」；`runtime.install` 与 `runtime.ensure` 能力分开渲染，不再给出必败的 Install 按钮，也不再弹「无法确认 Runtime 工件通道」。运行中的托管 Runtime 缺少安装记录改为黄色提示，launch/handshake/断连失败保留自身错误文案。
 

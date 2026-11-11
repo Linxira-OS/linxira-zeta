@@ -197,6 +197,31 @@ and the Work Studio Plugins page toggles the same store. See
 today's hourly series, and deep links (`range=all`) from Work Studio. Reading
 `GET /api/usage/daily` covers the same 400-day window.
 
+## zetaide
+
+`zetaide` is the terminal IDE (TermIDE): one fixed page with a file-tab strip, a
+file tree over the git pane, an editor, and a status line. The left column
+switches between Changes, History, Board and Ports; the editor area can host a
+read-only preview instead of the file.
+
+- `Ctrl+I` — History. Pages stream in as you move toward the end and `L` reads
+  the next batch on demand (`L older` in the title while history remains); already-loaded
+  commits stay, and a refresh keeps the selected commit. The view follows the
+  active file, so each tab answers "what changed in *this* file". `d` opens the
+  selected commit's diff inline in the editor area, narrowed to that file; `Esc`
+  returns to the file. Binary files say `binary file — no textual diff`, a rename
+  shows its new path, and an empty result says `no changes to show`.
+- Changes keeps the commit box and stages/unstages only the selected paths.
+- `Ctrl+D` — TODO/FIXME/HACK/XXX list for the workspace. It honours
+  `.gitignore`, skips binary and large files, can be cancelled, and `Enter`
+  opens the hit in the editor at its line and column.
+- `Ctrl+J` — read-only JSON tree for the active file. Nodes fold, numbers keep
+  their exact source text (no float rounding), syntax errors name the line and
+  column, `c` copies the value and `p` the JSON Pointer; the file is never
+  written.
+- `Ctrl+O` ports, `Ctrl+T` board, `Ctrl+M` format the active file, `Ctrl+B`
+  spell-check it.
+
 ## Companions and config
 
 - Commands are `zetacode` (agent), `zetawork` (workbench) and `zetaide`

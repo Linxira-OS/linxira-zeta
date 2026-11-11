@@ -5848,15 +5848,18 @@ dependencies = [
  "anyhow",
  "crossterm",
  "ratatui",
+ "regex",
  "tempfile",
  "termide-clipboard",
  "termide-config",
  "termide-core",
  "termide-panel-editor",
  "termide-panel-file-manager",
+ "termide-panel-git-diff",
  "termide-panel-git-log",
  "termide-panel-git-status",
  "termide-theme",
+ "termide-walk",
 ]
 
 [[package]]

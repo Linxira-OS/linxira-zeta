@@ -31,15 +31,19 @@
 pub mod board;
 mod colors;
 mod formatters;
+mod json_view;
 mod notepad;
 mod ports;
 mod spell;
+mod todo;
 
 pub use board::BoardPanel;
 pub use colors::ColorPickerPanel;
+pub use json_view::{JsonPanel, JsonValue};
 pub use notepad::NotepadPanel;
 pub use ports::PortsPanel;
 pub use spell::SpellPanel;
+pub use todo::{TodoItem, TodoPanel};
 
 use std::any::Any;
 use std::path::PathBuf;
@@ -54,6 +58,7 @@ use termide_core::event::PanelEvent;
 use termide_core::key_chord::KeyChord;
 use termide_core::panel::{Panel, RenderContext, SegmentKind, StatusSegment};
 use termide_panel_editor::{Editor, EditorConfig};
+use termide_panel_git_diff::GitDiffPanel;
 use termide_panel_git_log::GitLogPanel;
 use termide_panel_git_status::GitStatusPanel;
 use termide_theme::Theme;
@@ -209,6 +214,16 @@ pub enum Focus {
     Left,
     /// The left column's git pane.
     Git,
+    /// A preview panel drawn over the editor area (diff, JSON, TODO).
+    Preview,
+}
+
+/// A panel drawn in the editor area instead of the active file: the inline git
+/// diff, the JSON viewer and the TODO list all use it, so none of them needs a
+/// separate top-level panel and `Esc` returns to the file.
+struct Preview {
+    panel: Box<dyn Panel>,
+    hint: String,
 }
 
 /// The IDE page.
@@ -234,6 +249,8 @@ pub struct IdePage {
     /// The file the history view was narrowed to (the active tab's file).
     history_filter: Option<PathBuf>,
     focus: Focus,
+    /// A diff/JSON/TODO panel drawn over the editor area; `Esc` returns.
+    preview: Option<Preview>,
     /// The last load failure, drawn in the status line.
     message: Option<String>,
     /// The repository the git pane shows; the commit box's target.
@@ -262,6 +279,7 @@ impl IdePage {
             ports: None,
             history_filter: None,
             focus: Focus::Editor,
+            preview: None,
             message: None,
             repo: std::env::current_dir().ok(),
             commit: CommitBox::default(),
@@ -373,8 +391,10 @@ impl IdePage {
 
     /// Open (or focus) `path` as a tab.
     pub fn open(&mut self, path: PathBuf) {
+        self.close_preview();
         if let Some(index) = self.tabs.iter().position(|entry| entry.tab.path == path) {
             self.active = Some(index);
+            self.sync_history_filter();
             return;
         }
         self.tabs.push(TabEntry {
@@ -382,6 +402,30 @@ impl IdePage {
             editor: None,
         });
         self.active = Some(self.tabs.len() - 1);
+        self.sync_history_filter();
+    }
+
+    /// Point the history view at the active file, so switching tabs answers
+    /// "what changed in *this* file" instead of keeping the previous file's
+    /// history. A no-op unless the history view is showing.
+    fn sync_history_filter(&mut self) {
+        if self.view != LeftView::History {
+            return;
+        }
+        let filter = self
+            .active
+            .and_then(|index| self.tabs.get(index))
+            .map(|entry| entry.tab.path.clone())
+            .filter(|path| path.is_file());
+        if filter == self.history_filter {
+            return;
+        }
+        self.history_filter = filter.clone();
+        if let Some(log) = self.git_log.as_mut() {
+            if let Some(panel) = log.as_any_mut().downcast_mut::<GitLogPanel>() {
+                panel.set_file_filter(filter);
+            }
+        }
     }
 
     /// The tab strip's titles, in order (the renderer and the tests both read
@@ -402,6 +446,7 @@ impl IdePage {
 
     /// Close the active tab; the neighbour to the left becomes active.
     pub fn close_active(&mut self) -> bool {
+        self.close_preview();
         let Some(index) = self.active else {
             return false;
         };
@@ -411,6 +456,7 @@ impl IdePage {
         } else {
             Some(index.min(self.tabs.len() - 1))
         };
+        self.sync_history_filter();
         true
     }
 
@@ -420,9 +466,56 @@ impl IdePage {
         if count == 0 {
             return;
         }
+        self.close_preview();
         let current = self.active.unwrap_or(0) as isize;
         let next = (current + step).rem_euclid(count as isize) as usize;
         self.active = Some(next);
+        self.sync_history_filter();
+    }
+
+    /// Show `panel` over the editor area and give it the keyboard.
+    fn open_preview(&mut self, panel: Box<dyn Panel>, hint: impl Into<String>) {
+        self.preview = Some(Preview {
+            panel,
+            hint: hint.into(),
+        });
+        self.focus = Focus::Preview;
+        self.message = None;
+    }
+
+    /// Return from a preview to the editor.
+    fn close_preview(&mut self) {
+        self.preview = None;
+        self.focus = Focus::Editor;
+    }
+
+    /// `Ctrl+J`: the active file as a read-only JSON tree.
+    fn open_json_preview(&mut self) {
+        let Some(path) = self
+            .active
+            .and_then(|index| self.tabs.get(index))
+            .map(|entry| entry.tab.path.clone())
+        else {
+            self.message = Some("JSON viewer: open a file first".to_owned());
+            return;
+        };
+        self.open_preview(
+            Box::new(JsonPanel::from_path(path)),
+            "JSON · readonly · Esc back",
+        );
+    }
+
+    /// `Ctrl+D`: TODO/FIXME hits for the repository root (or the working
+    /// directory when no repository is known).
+    fn open_todo_preview(&mut self) {
+        let root = self
+            .repo
+            .clone()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+        self.open_preview(
+            Box::new(TodoPanel::new(root)),
+            "TODO · Enter opens · Esc back",
+        );
     }
 
     /// Whether the active tab's editor is mounted (loaded on demand).
@@ -490,13 +583,44 @@ impl IdePage {
         let mut rest = Vec::with_capacity(events.len());
         for event in events {
             match event {
-                PanelEvent::OpenFile(path) => self.open(path),
+                PanelEvent::OpenFile(path) => {
+                    self.preview = None;
+                    self.focus = Focus::Editor;
+                    self.open(path);
+                }
                 PanelEvent::OpenFileAt { path, line, column } => {
+                    self.preview = None;
+                    self.focus = Focus::Editor;
                     self.open(path);
                     self.ensure_editor();
                     if let Some(editor) = self.active_editor_mut() {
                         editor.goto_position(line, column);
                     }
+                }
+                // The history view asks for a commit diff: show it in the
+                // editor area (inline in the IDE) instead of opening another
+                // top-level panel. The per-file history passes its filter
+                // along, so the diff answers the same question the list does.
+                PanelEvent::OpenGitDiff {
+                    repo_path,
+                    commit_hash,
+                    file_path,
+                } => {
+                    let file = file_path.or_else(|| self.history_filter.clone());
+                    let panel: Box<dyn Panel> = match (commit_hash, file) {
+                        (Some(hash), Some(file)) => {
+                            Box::new(GitDiffPanel::new_for_commit_file(repo_path, hash, file))
+                        }
+                        (Some(hash), None) => {
+                            Box::new(GitDiffPanel::new_for_commit(repo_path, hash))
+                        }
+                        (None, Some(file)) => {
+                            Box::new(GitDiffPanel::new_with_file_filter(repo_path, file))
+                        }
+                        (None, None) => Box::new(GitDiffPanel::new(repo_path)),
+                    };
+                    self.open_preview(panel, "diff · Esc back to the editor");
+                    rest.push(PanelEvent::NeedsRedraw);
                 }
                 other => rest.push(other),
             }
@@ -551,6 +675,9 @@ impl Panel for IdePage {
     fn prepare_render(&mut self, theme: &Theme, config: &Arc<Config>) {
         self.left.prepare_render(theme, config);
         self.git.prepare_render(theme, config);
+        if let Some(preview) = self.preview.as_mut() {
+            preview.panel.prepare_render(theme, config);
+        }
         if let Some(log) = self.git_log.as_mut() {
             log.prepare_render(theme, config);
         }
@@ -614,16 +741,20 @@ impl Panel for IdePage {
             }
         }
 
-        // The active tab's editor, or the empty-page hint.
+        // The active tab's editor, or the preview that took its place, or the
+        // empty-page hint.
         let mut editor_drawn = false;
-        if let Some(index) = self.active {
+        if let Some(preview) = self.preview.as_mut() {
+            preview.panel.render(layout.editor, buf, ctx);
+            editor_drawn = true;
+        } else if let Some(index) = self.active {
             if let Some(editor) = self.tabs[index].editor.as_mut() {
                 editor.render(layout.editor, buf, ctx);
                 editor_drawn = true;
             }
         }
         if self.tabs.is_empty() && !editor_drawn {
-            let hint = "回车打开文件 · Ctrl+I 历史 · Ctrl+T 任务 · Ctrl+O 端口";
+            let hint = "回车打开文件 · Ctrl+I 历史 · Ctrl+D TODO · Ctrl+O 端口";
             let x = layout.editor.x
                 + layout
                     .editor
@@ -750,10 +881,31 @@ impl Panel for IdePage {
                 _ => return Vec::new(),
             }
         }
+        if self.focus == Focus::Preview {
+            if code == KeyCode::Esc {
+                self.close_preview();
+                return vec![PanelEvent::NeedsRedraw];
+            }
+            let events = match self.preview.as_mut() {
+                Some(preview) => preview.panel.handle_key(chord),
+                None => Vec::new(),
+            };
+            return self.absorb(events);
+        }
         let ctrl = chord.raw.modifiers.contains(KeyModifiers::CONTROL);
         let shift = chord.raw.modifiers.contains(KeyModifiers::SHIFT);
         match (code, ctrl) {
             (KeyCode::Char('w'), true) if self.close_active() => vec![PanelEvent::NeedsRedraw],
+            // Read-only JSON tree for the active file, and the workspace TODO
+            // list. Both take the editor area; Esc returns to the file.
+            (KeyCode::Char('j'), true) => {
+                self.open_json_preview();
+                vec![PanelEvent::NeedsRedraw]
+            }
+            (KeyCode::Char('d'), true) => {
+                self.open_todo_preview();
+                vec![PanelEvent::NeedsRedraw]
+            }
             // Spell-check the active tab. The event carries the path so the app
             // can open the panel; the page has no panel-open channel of its own.
             (KeyCode::Char('b'), true) => self
@@ -805,7 +957,35 @@ impl Panel for IdePage {
         }
     }
 
+    fn context_menu_items(&self) -> Vec<(String, String)> {
+        vec![
+            ("JSON viewer".to_owned(), "ide-json".to_owned()),
+            ("TODO scanner".to_owned(), "ide-todo".to_owned()),
+        ]
+    }
+
+    fn handle_status_action(&mut self, action: &str) -> Vec<PanelEvent> {
+        match action {
+            "ide-json" => {
+                self.open_json_preview();
+                vec![PanelEvent::NeedsRedraw]
+            }
+            "ide-todo" => {
+                self.open_todo_preview();
+                vec![PanelEvent::NeedsRedraw]
+            }
+            _ => Vec::new(),
+        }
+    }
+
     fn status_segments(&self) -> Vec<StatusSegment> {
+        if let Some(preview) = self.preview.as_ref() {
+            return vec![StatusSegment {
+                text: preview.hint.clone(),
+                kind: SegmentKind::Label,
+                action: None,
+            }];
+        }
         // The editor owns the real numbers (Ln/Col, indentation, encoding, EOL);
         // the page only supplies the empty-page placeholder.
         if let Some(index) = self.active {
@@ -826,6 +1006,9 @@ impl Panel for IdePage {
     fn tick(&mut self) -> Vec<PanelEvent> {
         let mut events = self.left.tick();
         events.extend(self.git.tick());
+        if let Some(preview) = self.preview.as_mut() {
+            events.extend(preview.panel.tick());
+        }
         if let Some(log) = self.git_log.as_mut() {
             events.extend(log.tick());
         }
@@ -847,6 +1030,17 @@ impl Panel for IdePage {
         let layout = layout(panel_area, self.left_width, self.git_height);
         let column = event.column;
         let row = event.row;
+        if self.preview.is_some()
+            && layout.editor.width > 0
+            && layout.editor.contains((column, row).into())
+        {
+            self.focus = Focus::Preview;
+            let events = match self.preview.as_mut() {
+                Some(preview) => preview.panel.handle_mouse(event, layout.editor),
+                None => Vec::new(),
+            };
+            return self.absorb(events);
+        }
         match event.kind {
             MouseEventKind::Down(_) => {
                 let tree = layout.tree();
@@ -876,6 +1070,8 @@ impl Panel for IdePage {
                 if row == layout.tabs.y && column < layout.tabs.x + layout.tabs.width {
                     if let Some(index) = self.tab_at(column.saturating_sub(layout.tabs.x)) {
                         self.active = Some(index);
+                        self.close_preview();
+                        self.sync_history_filter();
                         return vec![PanelEvent::NeedsRedraw];
                     }
                 }
@@ -911,6 +1107,13 @@ impl Panel for IdePage {
 
     fn handle_scroll(&mut self, delta: i32, panel_area: Rect) -> Vec<PanelEvent> {
         let layout = layout(panel_area, self.left_width, self.git_height);
+        if self.focus == Focus::Preview {
+            let events = match self.preview.as_mut() {
+                Some(preview) => preview.panel.handle_scroll(delta, layout.editor),
+                None => Vec::new(),
+            };
+            return self.absorb(events);
+        }
         if self.focus == Focus::Left {
             let events = self.left.handle_scroll(delta, layout.tree());
             return self.absorb(events);
@@ -1292,5 +1495,37 @@ mod tests {
         let (start, end) = page.tab_span(1);
         assert_eq!(page.tab_at(start + 1), Some(1));
         assert_eq!(page.tab_at(end + 1), None);
+    }
+
+    #[test]
+    fn the_history_filter_follows_the_active_tab() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let first = dir.path().join("a.rs");
+        let second = dir.path().join("b.rs");
+        std::fs::write(&first, "fn a() {}\n").expect("write a");
+        std::fs::write(&second, "fn b() {}\n").expect("write b");
+
+        let mut page = IdePage::new();
+        page.set_repo(dir.path().to_path_buf());
+        page.open(first.clone());
+        page.toggle_git_view();
+        assert_eq!(
+            page.history_filter().map(PathBuf::as_path),
+            Some(first.as_path())
+        );
+
+        page.open(second.clone());
+        assert_eq!(
+            page.history_filter().map(PathBuf::as_path),
+            Some(second.as_path()),
+            "opening another tab re-points the per-file history"
+        );
+
+        page.cycle(-1);
+        assert_eq!(
+            page.history_filter().map(PathBuf::as_path),
+            Some(first.as_path()),
+            "cycling tabs re-points it too"
+        );
     }
 }

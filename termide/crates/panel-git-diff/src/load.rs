@@ -215,8 +215,15 @@ fn load_commit_diff(repo: &Path, hash: &str, is_stash: bool) -> Vec<FileDiff> {
                 file.status = FileStatus::Deleted;
             }
         } else if line.starts_with("rename from") || line.starts_with("rename to") {
-            if let Some(ref mut file) = current_file {
+            if let Some(file) = &mut current_file {
                 file.status = FileStatus::Renamed;
+                if let Some(new_path) = line.strip_prefix("rename to ") {
+                    file.path = new_path.trim().to_owned();
+                }
+            }
+        } else if line.starts_with("Binary files") || line.starts_with("GIT binary patch") {
+            if let Some(file) = &mut current_file {
+                file.hunks.push(binary_hunk());
             }
         } else if line.starts_with("@@") {
             // Save previous hunk if exists
@@ -307,9 +314,31 @@ fn load_file_diff(repo: &Path, path: &Path, staged: bool, status_char: char) -> 
     })
 }
 
+/// A one-line pseudo-hunk so a binary file says so instead of rendering as an
+/// empty file header with no reason.
+fn binary_hunk() -> DiffHunk {
+    DiffHunk {
+        header: "@@ binary file @@".to_owned(),
+        lines: vec![DiffLine {
+            kind: LineKind::Context,
+            content: "binary file — no textual diff".to_owned(),
+            old_line: None,
+            new_line: None,
+        }],
+    }
+}
+
 /// Parse unified diff output into hunks
 fn parse_diff(diff_text: &str) -> Vec<DiffHunk> {
     let mut hunks = Vec::new();
+    if diff_text.starts_with("Binary files") || diff_text.contains("\nBinary files") {
+        hunks.push(binary_hunk());
+        return hunks;
+    }
+    if diff_text.contains("GIT binary patch") {
+        hunks.push(binary_hunk());
+        return hunks;
+    }
     let mut current_hunk: Option<DiffHunk> = None;
     let mut old_line = 0usize;
     let mut new_line = 0usize;
@@ -391,4 +420,24 @@ fn parse_hunk_header(header: &str) -> (usize, usize) {
         return (old_start, new_start);
     }
     (1, 1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_binary_diff_is_named_instead_of_empty() {
+        let hunks = parse_diff("Binary files a/logo.png and b/logo.png differ\n");
+        assert_eq!(hunks.len(), 1);
+        assert!(hunks[0].lines[0].content.contains("binary"));
+        let staged = parse_diff("GIT binary patch\nliteral 12\n");
+        assert_eq!(staged.len(), 1);
+        assert!(staged[0].lines[0].content.contains("binary"));
+    }
+
+    #[test]
+    fn an_empty_diff_has_no_hunks() {
+        assert!(parse_diff("").is_empty());
+    }
 }

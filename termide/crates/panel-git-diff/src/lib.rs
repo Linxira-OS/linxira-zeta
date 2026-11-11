@@ -173,6 +173,20 @@ impl GitDiffPanel {
         let file_filter = file_path.to_string_lossy().to_string();
         Self::for_target(repo_path, None, Some(file_filter), false, None)
     }
+
+    /// Create a new Git Diff panel for a specific commit, narrowed to one file.
+    ///
+    /// The per-file history asks for exactly this: the diff of the selected
+    /// commit for the file the list is filtered to. Without the file the panel
+    /// would show the whole commit, which answers a different question.
+    pub fn new_for_commit_file(
+        repo_path: PathBuf,
+        commit_hash: String,
+        file_path: PathBuf,
+    ) -> Self {
+        let file_filter = file_path.to_string_lossy().to_string();
+        Self::for_target(repo_path, Some(commit_hash), Some(file_filter), false, None)
+    }
 }
 
 impl Panel for GitDiffPanel {

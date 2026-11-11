@@ -302,7 +302,12 @@ impl Panel for GitLogPanel {
             .as_deref()
             .or(self.branch.as_deref())
             .unwrap_or(t.git_branch_detached());
-        t.git_log_title_fmt(&repo_name, branch)
+        let title = t.git_log_title_fmt(&repo_name, branch);
+        if self.has_more() {
+            format!("{title} · L older")
+        } else {
+            title
+        }
     }
 
     fn prepare_render(&mut self, theme: &Theme, config: &std::sync::Arc<Config>) {
@@ -654,6 +659,13 @@ impl GitLogPanel {
             }
             KeyCode::Char('d') => {
                 return self.view_diff();
+            }
+            // Read the next batch without waiting to scroll near the end.
+            // Existing rows stay; the stream appends.
+            KeyCode::Char('L') => {
+                if self.load_older() {
+                    return vec![PanelEvent::NeedsRedraw];
+                }
             }
             KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 // The reloaded log is self-evident; no lingering status note.

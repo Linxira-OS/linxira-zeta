@@ -236,6 +236,20 @@ impl GitLogPanel {
         }
     }
 
+    /// Read the next batch on demand (`L` in the history list), keeping every
+    /// row already read. Returns false when the stream is busy or finished.
+    pub(crate) fn load_older(&mut self) -> bool {
+        if self.log_done || self.log_waiting || self.reload.is_some() {
+            return false;
+        }
+        let Some(stream) = &self.log else {
+            return false;
+        };
+        stream.request(PAGE);
+        self.log_waiting = true;
+        true
+    }
+
     /// Ask the stream for more when fewer than [`AHEAD_SCREENS`] screens are
     /// left below the view, when a thumb drag went past the rows read, or
     /// while `End` reads to the end.
@@ -388,6 +402,18 @@ mod tests {
     }
 
     #[test]
+    fn load_older_appends_without_dropping_rows() {
+        let dir = repo(1200);
+        let mut panel = panel(dir.path());
+        settle(&mut panel, |p| idle(p) && p.log.is_some());
+        let first = panel.commits[0].message.clone();
+        assert!(panel.load_older());
+        settle(&mut panel, idle);
+        assert!(panel.loaded_commits > PAGE, "a full page arrived");
+        assert_eq!(panel.commits[0].message, first, "the first row stays");
+    }
+
+    #[test]
     fn end_reads_the_whole_history() {
         let dir = repo(1200);
         let mut panel = panel(dir.path());
@@ -397,6 +423,27 @@ mod tests {
         assert_eq!(panel.commits.len(), 1200);
         assert_eq!(panel.selected, 1199);
         assert_eq!(panel.commits[1199].message, "commit 0");
+    }
+    #[test]
+    fn the_per_file_history_passes_its_filter_to_the_diff() {
+        let dir = repo(3);
+        let mut panel = panel(dir.path());
+        settle(&mut panel, |p| idle(p) && p.log.is_some());
+        panel.file_filter = Some(std::path::PathBuf::from("src/main.rs"));
+        let events = panel.view_diff();
+        let termide_core::event::PanelEvent::OpenGitDiff {
+            commit_hash,
+            file_path,
+            ..
+        } = &events[0]
+        else {
+            panic!("a diff request expected");
+        };
+        assert!(commit_hash.is_some());
+        assert_eq!(
+            file_path.as_deref(),
+            Some(std::path::Path::new("src/main.rs"))
+        );
     }
 
     #[test]
