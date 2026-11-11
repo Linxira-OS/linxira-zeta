@@ -78,8 +78,11 @@ import {
   PURPOSE_CATEGORY_IDS,
   agentRoleReferences,
   categoryChain,
+  awaitWithTimeout,
   categoryModelFacts,
+  formatRoleAlias,
   isChatCategoryModel,
+  purposeCategoryCards,
 } from "./models/purposeCategories";
 import { createPreviewAgentDefinitions } from "./preview/subagentsPreview";
 
@@ -1841,11 +1844,7 @@ function PurposeCategoryCards({
   onClearBlocked: () => void;
   onResolveBlocked: () => void;
 }) {
-  const presetIds = new Set<string>(PURPOSE_CATEGORY_IDS);
-  const categories = [
-    ...PURPOSE_CATEGORY_IDS.map(id => roles.find(role => role.id === id)),
-    ...roles.filter(role => !presetIds.has(role.id) && !role.builtin),
-  ];
+  const categories = purposeCategoryCards(roles, PURPOSE_CATEGORY_IDS);
   const chatGroups = (role: ModelRoleRecord, excluded: ReadonlyArray<string | undefined> = []) =>
     groupModelsByProvider(
       usable.filter(
@@ -1863,7 +1862,7 @@ function PurposeCategoryCards({
     <div className="mp-sec" style={{ marginBottom: 18 }}>
       <div className="mr-toolbar">
         <b style={{ fontSize: "var(--fs-13)" }}>{t("modelConfig.purposeCategories")}</b>
-        <span className="mr-count">{categories.filter(Boolean).length}</span>
+        <span className="mr-count">{categories.length}</span>
         <span className="spacer" />
         <button type="button" className="btn small outline" onClick={onAdd} disabled={busy}>
           <Icon name="plus" extra="sm" />{t("modelConfig.addPurpose")}
@@ -1874,7 +1873,7 @@ function PurposeCategoryCards({
         <div className="role-issue-banner err">
           <Icon name="alert" extra="sm" />
           <div>
-            <div className="rib-title">{t("modelConfig.roleReferencedTitle", { role: `@${blocked.roleId}`, agents: blocked.agents.join(", ") })}</div>
+            <div className="rib-title">{t("modelConfig.roleReferencedTitle", { role: formatRoleAlias(blocked.roleId), agents: blocked.agents.join(", ") })}</div>
             <div className="rib-text">{t("modelConfig.roleReferencedDesc")}</div>
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <button type="button" className="btn small danger" disabled={busy} onClick={onResolveBlocked}>{t("modelConfig.roleInheritAndDelete")}</button>
@@ -1884,10 +1883,11 @@ function PurposeCategoryCards({
         </div>
       ) : null}
       <div className="purpose-category-grid" style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
-        {categories.map(role => {
+        {categories.map(card => {
+          const role = card.role;
           if (!role) {
             return (
-              <div className="role-row" key="purpose-research-missing" data-tint="accent">
+              <div className="role-row" key={card.key} data-tint="accent">
                 <div className="role-name-section" style={{ padding: 12 }}>
                   <div className="role-header"><span className="r-name">{t("modelConfig.purposeResearch")}<span className="alias">{t("modelConfig.purposeResearchMissing")}</span></span></div>
                   <span className="r-desc">{t("modelConfig.purposeResearchDesc")}</span>
@@ -1917,7 +1917,7 @@ function PurposeCategoryCards({
             if (composed.ok) onSlots(role, composed.chain);
           };
           return (
-            <div className="role-row" key={role.id} data-tint={ROLE_TINTS[role.id] ?? "purple"} style={{ display: "block", padding: 12 }}>
+            <div className="role-row" key={card.key} data-tint={ROLE_TINTS[role.id] ?? "purple"} style={{ display: "block", padding: 12 }}>
               <div className="role-header" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span className="r-name">{role.name}<span className="alias">{role.alias}</span></span>
                 {role.builtin ? null : <span className="chip purple xs">{t("modelConfig.customRole")}</span>}
@@ -2064,13 +2064,14 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       return;
     }
     try {
-      const [next, defs] = await Promise.all([
-        client.query("models.get", workspaceId === undefined ? {} : { workspaceId }),
-        client.query("agents.definitions.get", {}).catch(() => null),
-      ]);
+      const next = await client.query("models.get", workspaceId === undefined ? {} : { workspaceId });
       setData(next);
       setLoadError(next.unavailableReason ?? null);
-      setAgentCount(defs === null ? undefined : defs.agents.length);
+      // The agent count is decoration: a slow/failed definitions read must not
+      // hold the model page or its write receipts open on an empty workspace.
+      void client.query("agents.definitions.get", {})
+        .then(defs => setAgentCount(defs.agents.length))
+        .catch(() => setAgentCount(undefined));
     } catch (error) {
       setLoadError(hostErrorMessage(error, "models.get failed"));
       setData(null);
@@ -2080,6 +2081,10 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   useEffect(() => {
     void refresh();
   }, [refresh]);
+  /** A write receipt must not leave busy latched when the read-back stalls. */
+  const refreshAfterWrite = async (): Promise<void> => {
+    await awaitWithTimeout(refresh(), 8_000);
+  };
   useEffect(() => {
     const generation = ++nativeLoad.current;
     setRuntimeModels([]);
@@ -2536,7 +2541,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       if (overlayForm && draft) setProviderBaseline(draft);
       mergeContentHash(result.contentHash);
       if (close) setEditor(null);
-      await refresh();
+      await refreshAfterWrite();
       return true;
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
@@ -2606,7 +2611,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
         setRoleDraft(null);
         setRoleId(null);
       }
-      await refresh();
+      await refreshAfterWrite();
       return true;
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
@@ -2671,7 +2676,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       mergeContentHash(result.contentHash);
       toast(roleUpdates.length > 0 ? t("modelConfig.savedAndRolesUpdated", { message: result.message ?? t("modelConfig.saved"), count: roleUpdates.length }) : (result.message ?? t("modelConfig.saved")));
       setEditor(null);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
     } finally {
@@ -2701,7 +2706,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       const result = await runWrite(client, "models.provider.upsert", providerUpsertFromDraft(draft, data?.contentHash));
       mergeContentHash(result.contentHash);
       toast(result.message ?? okMessage);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
     } finally {
@@ -2720,7 +2725,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       await runWrite(client, "models.provider.delete", { id, ...(data?.contentHash ? { expectedHash: data.contentHash } : {}) });
       toast(t("modelConfig.deletedFromModelsYml"));
       setEditor(null);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.deleteFailed")));
     } finally {
@@ -2781,7 +2786,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       });
     }
     if (opts?.announce !== false) toast(last?.message ?? t("modelConfig.assignedRoles", { count: updates.length }));
-    if (opts?.refreshAfter !== false) await refresh();
+    if (opts?.refreshAfter !== false) await refreshAfterWrite();
   };
 
   const assignModelToRoles = async (selector: string, roleIds: ReadonlyArray<string>) => {
@@ -2866,7 +2871,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       const refs = await findRoleReferences(baseline.id);
       if (refs.length > 0) {
         setRoleDeleteBlocked({ roleId: baseline.id, agents: refs });
-        toast(t("modelConfig.roleReferencedToast", { role: `@${baseline.id}`, agents: refs.join(", ") }));
+        toast(t("modelConfig.roleReferencedToast", { role: baseline.id, agents: refs.join(", ") }));
         return;
       }
     }
@@ -2909,7 +2914,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       toast((next.thinkingAdjustment ? `${next.thinkingAdjustment} · ` : "") + t("modelConfig.savedToConfigToast"));
       setRoleId(null);
       setRoleDraft(null);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
     } finally {
@@ -2957,7 +2962,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     try {
       const result = await runWrite(client, "models.login.start", { providerId });
       toast(result.message ?? t("modelConfig.toastLoginCompleted"));
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastLoginFailed", { providerId })));
     } finally {
@@ -2983,7 +2988,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     try {
       const result = await runWrite(client, "models.login.logout", { providerId });
       toast(result.message ?? t("modelConfig.toastLogoutNamed", { providerId }));
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastLogoutFailed")));
     } finally {
@@ -3171,7 +3176,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     try {
       const result = await runWrite(client, "models.discovery.refresh", {});
       toast(result.message ?? t("modelConfig.toastRescannedDiscovery"));
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastRefreshFailed")));
     } finally {
@@ -3193,7 +3198,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     try {
       const result = await runWrite(client, "models.roleStorage.set", { storage });
       toast(result.message ?? t("modelConfig.toastScopeUpdated"));
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastScopeUpdateFailed")));
     } finally {
@@ -3236,7 +3241,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       toast(result.message ?? t("modelConfig.toastRoleCreatedNamed", { id }));
       setCreateRoleOpen(false);
       setNewRole({ id: "", name: "", desc: "" });
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastRoleCreateFailed")));
     } finally {
@@ -3268,7 +3273,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     try {
       const result = await runWrite(client, "models.fallback.set", { chains, revertPolicy });
       toast(result.message ?? t("modelConfig.toastFallbackSaved"));
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastFallbackSaveFailed")));
     } finally {
@@ -3287,7 +3292,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     const refs = await findRoleReferences(roleId);
     if (refs.length > 0) {
       setRoleDeleteBlocked({ roleId, agents: refs });
-      toast(t("modelConfig.roleReferencedToast", { role: `@${roleId}`, agents: refs.join(", ") }));
+      toast(t("modelConfig.roleReferencedToast", { role: roleId, agents: refs.join(", ") }));
       return;
     }
     setBusy(true);
@@ -3296,7 +3301,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       toast(result.message ?? t("modelConfig.toastRoleDeletedNamed", { roleId }));
       setRoleDraft(null);
       setRoleId(null);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastRoleDeleteFailed")));
     } finally {
@@ -3328,7 +3333,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       toast(result.message ?? t("modelConfig.toastFallbackSaved"));
       setFallbackDraft(nextChain);
       setRevertPolicyDraft(revertPolicy);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastFallbackSaveFailed")));
     } finally {
@@ -3348,7 +3353,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       const result = await runWrite(client, "models.providerOrder.set", { order: orderDraft.slice() });
       toast(result.message ?? t("modelConfig.toastModelProviderOrderSaved"));
       setOrderEdit(false);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
     } finally {
@@ -3379,7 +3384,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       const result = await runWrite(client, "models.cycleOrder.set", { order: cycleDraft.slice() });
       toast(result.message ?? t("modelConfig.toastOrderSaved"));
       setCycleEdit(false);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
     } finally {

@@ -205,7 +205,8 @@ const zhRaw = {
     "update": "更新",
     "view": "查看",
     "notSet": "未设",
-    "current": "当前"
+    "current": "当前",
+    "edit": "编辑",
   },
   "menu": {
     "file": "文件",
@@ -3040,9 +3041,11 @@ const zhRaw = {
     "modelExactLabel": "自定义模型选择器",
     "modelResolved": "最终：{model}（来源：{source}）",
     "modelUnresolved": "最终：无法解析（显式错误，不猜默认）",
-    "modelSource.inherit": "继承定义",
-    "modelSource.category": "用途类目",
-    "modelSource.exact": "显式覆盖",
+    "modelSource": {
+      "inherit": "继承定义",
+      "category": "用途类目",
+      "exact": "显式覆盖",
+    },
     "overrideModelPlaceholder": "留空 = 使用定义",
     "overridePrewalk": "Prewalk 覆盖",
     "overrideAdvisor": "Advisor 覆盖",

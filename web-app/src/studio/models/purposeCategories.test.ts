@@ -3,12 +3,15 @@ import { describe, expect, it } from "bun:test";
 import type { AvailableModelRecord, ModelRoleRecord } from "@linxiraos/studio-contract";
 import { composeFallbackSlots } from "./fallbackSlots";
 import {
+	awaitWithTimeout,
 	agentModelOverrideFor,
 	agentRoleReferences,
 	categoryChain,
 	categoryModelFacts,
 	classifyAgentModelOverride,
+	formatRoleAlias,
 	isChatCategoryModel,
+	purposeCategoryCards,
 	resolveAgentModel,
 	selectorNamesRole,
 } from "./purposeCategories";
@@ -119,5 +122,47 @@ describe("category facts", () => {
 		expect(isChatCategoryModel({ kind: "image" })).toBe(false);
 		expect(categoryModelFacts(model("a/b", 32_000))).toEqual({ contextWindow: 32_000, costLabel: undefined });
 		expect(categoryModelFacts(model("a/b", 32_000, { input: 1, output: 2 })).costLabel).toBe("1/2");
+	});
+});
+
+describe("purpose category cards", () => {
+	it("emits exactly one Research placeholder with stable unique keys", () => {
+		const cards = purposeCategoryCards([], ["default", "task", "research"]);
+		expect(cards.length).toBe(1);
+		expect(cards[0]).toEqual({ key: "purpose-research-missing", id: "research", missingPreset: "research" });
+		const keys = cards.map(card => card.key);
+		expect(new Set(keys).size).toBe(keys.length);
+	});
+
+	it("keeps default/custom cards and never duplicates a preset", () => {
+		const audit = { ...role("audit", "e/f"), builtin: false };
+		const roles = [role("default", "a/b"), role("task", "c/d"), audit];
+		const cards = purposeCategoryCards(roles, ["default", "task", "research"]);
+		expect(cards.map(card => card.key)).toEqual([
+			"purpose-default",
+			"purpose-task",
+			"purpose-research-missing",
+			"purpose-audit",
+		]);
+		expect(cards.find(card => card.id === "audit")?.role?.id).toBe("audit");
+		expect(cards.filter(card => card.id === "research").length).toBe(1);
+	});
+
+	it("formats a role alias once, never @@audit", () => {
+		expect(formatRoleAlias("audit")).toBe("@audit");
+		expect(formatRoleAlias("@audit")).toBe("@audit");
+		expect(formatRoleAlias("pi/audit")).toBe("@audit");
+	});
+});
+
+describe("write busy failure", () => {
+	it("returns from a stalled refresh so finally can clear busy", async () => {
+		let busy = true;
+		try {
+			await awaitWithTimeout(new Promise<void>(() => {}), 10);
+		} finally {
+			busy = false;
+		}
+		expect(busy).toBe(false);
 	});
 });

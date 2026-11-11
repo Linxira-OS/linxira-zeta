@@ -205,7 +205,8 @@ export const en: LocaleDictionary = {
     "update": "Update",
     "view": "View",
     "notSet": "Not set",
-    "current": "Current"
+    "current": "Current",
+    "edit": "Edit",
   },
   "menu": {
     "file": "File",
@@ -3040,9 +3041,11 @@ export const en: LocaleDictionary = {
     "modelExactLabel": "Custom model selector",
     "modelResolved": "Resolved: {model} (source: {source})",
     "modelUnresolved": "Resolved: not available (explicit error, no default guess)",
-    "modelSource.inherit": "inherited definition",
-    "modelSource.category": "category",
-    "modelSource.exact": "explicit override",
+    "modelSource": {
+      "inherit": "inherited definition",
+      "category": "category",
+      "exact": "explicit override",
+    },
     "overrideModelPlaceholder": "Leave blank = use definition",
     "overridePrewalk": "Prewalk Override",
     "overrideAdvisor": "Advisor Override",

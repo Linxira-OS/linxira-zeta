@@ -47,6 +47,58 @@ export function categoryChain(
 	return { chain: [], source: "none" };
 }
 
+
+/** Canonical role display alias; tolerates a leading `@` or legacy `pi/` once. */
+export function formatRoleAlias(roleId: string): string {
+	const raw = roleId.trim();
+	const bare = raw.startsWith("@") ? raw.slice(1) : raw.startsWith("pi/") ? raw.slice(3) : raw;
+	return `@${bare}`;
+}
+
+
+/** Resolve with the promise, or `undefined` once `timeoutMs` elapses. */
+export function awaitWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | undefined> {
+	return Promise.race([
+		promise,
+		new Promise<undefined>(resolve => setTimeout(() => resolve(undefined), timeoutMs)),
+	]);
+}
+
+export interface PurposeCategoryCard {
+	readonly key: string;
+	readonly id: string;
+	readonly role?: ModelRoleRecord;
+	readonly missingPreset?: "research";
+}
+
+/**
+ * Cards for the default presets plus every custom role. Exactly one Research
+ * placeholder (only when that preset has no role); deduplicated keys ensure
+ * React never receives repeated nodes.
+ */
+export function purposeCategoryCards(
+	roles: ReadonlyArray<ModelRoleRecord>,
+	presetIds: ReadonlyArray<string>,
+): PurposeCategoryCard[] {
+	const presetCards = presetIds.map(id => {
+		const role = roles.find(item => item.id === id);
+		return role
+			? { key: `purpose-${id}`, id, role }
+			: id === "research"
+				? { key: "purpose-research-missing", id, missingPreset: "research" as const }
+				: undefined;
+	});
+	const customCards = roles
+		.filter(role => !presetIds.includes(role.id) && !role.builtin)
+		.map(role => ({ key: `purpose-${role.id}`, id: role.id, role }));
+	const seen = new Set<string>();
+	return [...presetCards, ...customCards].flatMap(card => {
+		if (!card || seen.has(card.key)) return [];
+		seen.add(card.key);
+		return [card];
+	});
+}
+
 /** Category names whose agent definitions or per-agent overrides still reference `roleId`. */
 export function agentRoleReferences(
 	agents: ReadonlyArray<{
