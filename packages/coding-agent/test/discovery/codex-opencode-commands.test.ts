@@ -275,6 +275,22 @@ describe("Codex and OpenCode slash-command frontmatter", () => {
 		expect(command?.level).toBe("project");
 	});
 
+	test("native .zeta project commands keep agent/model/template through loadSlashCommands", async () => {
+		const file = path.join(project, ".zeta", "commands", "native-review.md");
+		await fs.mkdir(path.dirname(file), { recursive: true });
+		await fs.writeFile(
+			file,
+			["---", "description: Native review", "agent: reviewer", "model: anthropic/claude-sonnet-4-5", "template: Review $ARGUMENTS", "---", "Body", ""].join("\n"),
+		);
+
+		const command = (await loadSlashCommands({ cwd: project })).find(item => item.name === "native-review");
+		expect(command).toBeDefined();
+		expect(command?.agent).toBe("reviewer");
+		expect(command?.model).toBe("anthropic/claude-sonnet-4-5");
+		expect(command?.content).toBe("Review $ARGUMENTS");
+		expect(command?._source?.level).toBe("project");
+	});
+
 	test("frontmatter-only command preview keeps an empty body", () => {
 		const preview = commandPreview(`---
 description: Deploy a service

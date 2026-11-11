@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
@@ -112,7 +112,39 @@ describe("command agent/model execution policy", () => {
 
 		expect(active.model && `${active.model.provider}/${active.model.id}`).toBe("anthropic/claude-sonnet-4-5");
 		expect(active.getEnabledToolNames()).toEqual(["read", "bash", "edit"]);
+		expect(active.getCommandSpawns()).toBeNull();
 		expect(active.systemPrompt.join("\n")).not.toContain(REVIEWER_PERSONA);
+	});
+
+	it("blocks further prompts when command policy restore fails", async () => {
+		const captured: CapturedRequest[] = [];
+		const active = await createSession(captured);
+		active.setSlashCommands([
+			{
+				name: "review",
+				description: "Review",
+				content: "Review $ARGUMENTS",
+				source: "test",
+				agent: "reviewer",
+				model: "anthropic/claude-haiku-4-5",
+			},
+		]);
+
+		const originalSetModelTemporary = active.setModelTemporary.bind(active);
+		let calls = 0;
+		vi.spyOn(active, "setModelTemporary").mockImplementation(async (model, thinkingLevel, options) => {
+			calls += 1;
+			if (calls === 2) throw new Error("simulated restore failure");
+			return originalSetModelTemporary(model, thinkingLevel, options);
+		});
+
+		await expect(active.prompt("/review the diff")).rejects.toThrow(/Command policy restore failed/);
+		await active.waitForIdle();
+		expect(captured).toHaveLength(1);
+		expect(calls).toBe(2);
+
+		await expect(active.prompt("plain prompt after failed restore")).rejects.toThrow(/policy is uncertain/);
+		expect(captured).toHaveLength(1);
 	});
 
 	it("rejects an unknown command agent before any model request", async () => {
