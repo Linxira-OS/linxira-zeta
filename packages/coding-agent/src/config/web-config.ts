@@ -454,6 +454,42 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 		});
 	}
 
+	// Existing bot sessions keep their transcript, but gain the binding identity
+	// so the runtime never treats them as unowned/legacy.
+	const legacyBotSessions = Array.isArray(remote.botSessions) ? (remote.botSessions as unknown[]) : [];
+	for (const entry of legacyBotSessions) {
+		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
+		const rec = entry as Record<string, unknown>;
+		if (typeof rec.instanceId === "string" && typeof rec.bindingId === "string") continue;
+		const platform = typeof rec.platform === "string" ? rec.platform : undefined;
+		const chatId = typeof rec.chatId === "string" ? rec.chatId : undefined;
+		const instance = platform ? instances.find(candidate => candidate.platform === platform) : undefined;
+		if (!instance || !chatId) continue;
+		let binding =
+			bindings.find(candidate => candidate.instanceId === instance.id && candidate.chatId === chatId) ??
+			bindings.find(candidate => candidate.platform === platform && candidate.chatId === chatId);
+		if (!binding) {
+			const hasAnswer = bindings.some(candidate => candidate.platform === platform && candidate.chatId === chatId && candidate.role === "answer");
+			binding = {
+				id: `b_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
+				instanceId: instance.id,
+				platform: instance.platform,
+				chatId,
+				agentProfileId: instance.agentProfile,
+				sessionId: typeof rec.id === "string" && rec.id !== "" ? rec.id : `legacy-${randomUUID().slice(0, 8)}`,
+				target: { kind: "workspace", workspace: "main" },
+				role: hasAnswer ? "mention" : "answer",
+				createdAt: now,
+				needsReview: true,
+				needsReviewReason: "legacy bot session had no persisted binding; target defaults to the main workspace",
+			};
+			bindings.push(binding);
+		}
+		rec.instanceId = instance.id;
+		rec.bindingId = binding.id;
+		rec.agentProfileId = binding.agentProfileId;
+		rec.target = binding.target;
+	}
 	const next = structuredClone(raw);
 	next.channels = { instances };
 	next.imAgents = profiles;
