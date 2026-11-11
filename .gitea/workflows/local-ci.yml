@@ -935,6 +935,12 @@ jobs:
               # 不跑 `test:scripts`：scripts/musl-release.test.ts 在 main 上就是红的
               #（install.sh 冒烟会执行假二进制），与本 job 无关。与 GitHub 同款拆分。
               bun test scripts/ci-test-ts.test.ts scripts/release.test.ts
+         # 镜像 GitHub `test_workspace` 的 REQ-065 内存守卫：消费层 retained-byte
+         # 测试是真正的门禁；180s soak 只出报告，不在未实测的 runner 上设 RSS 预算。
+         - name: Test memory retention caps
+           run: bun test packages/tui/test/render-cache-consumer-bounds.test.ts packages/tui/test/render-cache-pressure-restore.test.ts
+         - name: Run bounded memory soak (report-only)
+           run: bun scripts/memory-soak.ts --seconds=180 --sample-ms=500 --commit-ms=5000 --out=temp/memory-soak.json
          # 镜像 GitHub `test_workspace`：`packages/stats` 不属于任何 ci-test-ts bucket，
          # 此前 CI 与本地 `bun run test:ts` 都没跑过它。放在这个 job（而非 `check`）是
          # 因为它的用例经 `@linxiraos/pi-utils` → `@linxiraos/pi-natives` 在 import

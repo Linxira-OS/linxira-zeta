@@ -9,6 +9,7 @@
 - A frame a keystroke is waiting on skips the adaptive render floor; one slow animation frame no longer adds up to 200 ms to typing latency. The output-backlog gate still protects a terminal that is not draining.
 - The Agent Hub picker refreshes on registry, lifecycle, message and IRC mailbox-generation changes immediately (only streaming progress keeps a row-scaled coalescing window); a queued message updates the unread badge without polling every agent.
 - The resume picker draws a full-width, muted rule between project groups in the all-projects scope, so a long list no longer runs one repository's conversations into the next project's header. The dim rule under each project header and every workspace row stay as they were.
+- The memory soak's Windows commit-charge probe now runs asynchronously with at most one probe in flight and a 10 s budget, so profiling keeps rendering while the counter starts; an unavailable reading stays absent instead of zero. CI runs the consumer retained-byte caps plus a bounded report-only soak.
 
 ## [1.5.1] - 2026-11-10
 

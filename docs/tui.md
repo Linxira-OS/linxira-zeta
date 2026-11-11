@@ -326,7 +326,11 @@ after a full GC, and `packages/tui/test/render-cache-pressure-restore.test.ts`
 checks restore-safe output. For profiling, `bun scripts/memory-soak.ts` runs a
 bounded scripted session (large Markdown output, transcript commits, width
 cycles) and samples RSS/heap plus the Windows commit charge
-(`Get-Counter '\Memory\Committed Bytes'`). It is report-only unless given
+(`Get-Counter '\Memory\Committed Bytes'`). Each commit query runs
+asynchronously with at most one probe in flight, so the render workload keeps
+running while PowerShell starts; the last received value is carried into later
+samples. The query has a 10 s budget, and a timeout or unusable output records
+no commit value rather than a fabricated zero. It is report-only unless given
 `--max-rss-growth-mib=<measured + headroom>`; do not commit a threshold that was
 not measured on the runner it gates.
 

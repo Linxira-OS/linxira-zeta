@@ -31,15 +31,23 @@ export interface SoakSummary {
 	exceeded: boolean | null;
 }
 
-export type SpawnSyncResult = {
+export type SpawnResult = {
 	exitCode: number | null;
-	success?: boolean;
 	stdout?: Uint8Array | string;
 };
 
-export type SpawnSyncRunner = (command: string[]) => SpawnSyncResult;
+export type SpawnRunner = (command: string[], options: { timeout: number }) => Promise<SpawnResult>;
 
 const MIB = 1024 ** 2;
+
+/**
+ * Windows PowerShell cold start plus `Get-Counter` measured 8.1 s on a loaded
+ * host, so the former 2 s cap killed the query before it printed anything and
+ * system-commit sampling silently degraded to "unavailable" on every sample.
+ * Ten seconds bounds a hung shell; the caller launches the probe
+ * asynchronously so the render loop keeps producing workload while it runs.
+ */
+export const WINDOWS_COMMIT_TIMEOUT_MS = 10_000;
 
 export function toMiB(bytes: number): number {
 	return Number((bytes / MIB).toFixed(2));
@@ -62,28 +70,94 @@ export function parseWindowsCommitBytes(stdout: string): number | undefined {
 }
 
 /**
- * Read the system commit charge on Windows. Returns `undefined` off Windows,
- * when PowerShell cannot be spawned, or when its output is not a byte count —
- * the caller must never report a fabricated number.
+ * Read the system commit charge on Windows without blocking the caller. Returns
+ * `undefined` off Windows, when PowerShell cannot be spawned, or when its
+ * output is not a byte count — the caller must never report a fabricated number.
  */
-export function readWindowsCommitBytes(
+export async function readWindowsCommitBytes(
 	platform: NodeJS.Platform = process.platform,
-	run: SpawnSyncRunner = command => Bun.spawnSync(command, { timeout: 2000 }),
-): number | undefined {
+	run: SpawnRunner = runWithTimeout,
+	timeoutMs: number = WINDOWS_COMMIT_TIMEOUT_MS,
+): Promise<number | undefined> {
 	if (platform !== "win32") return undefined;
 	try {
-		const result = run([
-			"powershell.exe",
-			"-NoProfile",
-			"-NonInteractive",
-			"-Command",
-			"(Get-Counter '\\Memory\\Committed Bytes').CounterSamples[0].CookedValue",
-		]);
+		const result = await run(
+			[
+				"powershell.exe",
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				"(Get-Counter '\\Memory\\Committed Bytes').CounterSamples[0].CookedValue",
+			],
+			{ timeout: timeoutMs },
+		);
 		if (result.exitCode !== 0) return undefined;
 		const stdout = typeof result.stdout === "string" ? result.stdout : new TextDecoder().decode(result.stdout);
 		return parseWindowsCommitBytes(stdout);
 	} catch {
 		return undefined;
+	}
+}
+
+async function runWithTimeout(command: string[], options: { timeout: number }): Promise<SpawnResult> {
+	const proc = Bun.spawn(command, { stdout: "pipe", stderr: "ignore" });
+	const timer = setTimeout(() => {
+		try {
+			proc.kill();
+		} catch {
+			// already exited
+		}
+	}, options.timeout);
+	try {
+		const exitCode = await proc.exited;
+		const stdout = await proc.stdout.text();
+		return { exitCode, stdout };
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+/**
+ * One Windows commit probe in flight at a time. `sample()` returns the last
+ * known value immediately and, when idle, starts a background query; a second
+ * call while one is pending neither spawns again nor blocks the caller.
+ */
+export class CommitChargeSampler {
+	readonly #query: () => Promise<number | undefined>;
+	#pending: Promise<void> | null = null;
+	#bytes: number | undefined;
+
+	constructor(query: () => Promise<number | undefined>) {
+		this.#query = query;
+	}
+
+	get bytes(): number | undefined {
+		return this.#bytes;
+	}
+
+	get pending(): boolean {
+		return this.#pending !== null;
+	}
+
+	/** Resolves when no probe is in flight (immediately when idle). */
+	whenIdle(): Promise<void> {
+		return this.#pending ?? Promise.resolve();
+	}
+
+	sample(): number | undefined {
+		if (this.#pending === null) {
+			this.#pending = this.#query()
+				.then(
+					value => {
+						if (value !== undefined) this.#bytes = value;
+					},
+					() => {},
+				)
+				.finally(() => {
+					this.#pending = null;
+				});
+		}
+		return this.#bytes;
 	}
 }
 
@@ -118,6 +192,7 @@ export function summarizeSamples(
 		}
 	}
 	const rssGrowth = rssPeak - (first?.rssBytes ?? 0);
+	const firstCommit = samples.find(sample => sample.systemCommitBytes !== undefined)?.systemCommitBytes;
 	const cap = options.maxRssGrowthMiB;
 	return {
 		samples: samples.length,
@@ -127,7 +202,7 @@ export function summarizeSamples(
 		rssGrowthMiB: toMiB(rssGrowth),
 		heapStartMiB: toMiB(first?.heapUsedBytes ?? 0),
 		heapPeakMiB: toMiB(heapPeak),
-		systemCommitStartMiB: first?.systemCommitBytes !== undefined ? toMiB(first.systemCommitBytes) : undefined,
+		systemCommitStartMiB: firstCommit !== undefined ? toMiB(firstCommit) : undefined,
 		systemCommitPeakMiB: commitPeak !== undefined ? toMiB(commitPeak) : undefined,
 		maxRssGrowthMiB: cap ?? null,
 		exceeded: cap === undefined ? null : rssGrowth > cap * MIB,

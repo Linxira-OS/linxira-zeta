@@ -20,6 +20,11 @@
  * Windows commit sampling shells out once per commit interval (default 5 s):
  *   (Get-Counter '\Memory\Committed Bytes').CounterSamples[0].CookedValue
  * It is skipped on every other platform and when PowerShell is unavailable.
+ * The query runs asynchronously with at most one probe in flight, so rendering
+ * and sampling continue while PowerShell starts. It has a 10 s budget:
+ * PowerShell cold start plus Get-Counter measured 8.1 s on a loaded host, while
+ * a timeout or unusable output is recorded as "no commit value" rather than
+ * zero.
  *
  * This is not a unit test: it allocates tens of MB and runs for minutes.
  * `scripts/memory-soak.test.ts` covers only the pure helpers in
@@ -33,6 +38,7 @@ import { setThemeInstance } from "../packages/tui/src/theme/theme";
 import { getMarkdownTheme } from "../packages/tui/src/theme/tui-adapters";
 import type { Component } from "../packages/tui/src/tui";
 import {
+	CommitChargeSampler,
 	type MemorySampleSnapshot,
 	type SoakSummary,
 	readWindowsCommitBytes,
@@ -121,18 +127,19 @@ export async function runSoak(options: SoakOptions): Promise<SoakResult> {
 	let renders = 0;
 	let nextSampleAt = 0;
 	let nextCommitAt = 0;
-	let systemCommitBytes: number | undefined;
+	let nextYieldAt = 0;
+	const commitSampler =
+		platform === "win32" ? new CommitChargeSampler(() => readWindowsCommitBytes(platform)) : undefined;
 
 	const maybeSample = (force = false): void => {
 		const elapsed = (Bun.nanoseconds() - startedAt) / 1_000_000;
 		if (!force && elapsed < nextSampleAt) return;
 		nextSampleAt = elapsed + options.sampleIntervalMs;
-		if (platform === "win32" && (force || elapsed >= nextCommitAt)) {
+		if (commitSampler && (force || elapsed >= nextCommitAt)) {
 			nextCommitAt = elapsed + options.commitIntervalMs;
-			const commit = readWindowsCommitBytes(platform);
-			if (commit !== undefined) systemCommitBytes = commit;
+			commitSampler.sample();
 		}
-		samples.push(sampleProcessMemory((Bun.nanoseconds() - startedAt) / 1_000_000, systemCommitBytes));
+		samples.push(sampleProcessMemory((Bun.nanoseconds() - startedAt) / 1_000_000, commitSampler?.bytes));
 	};
 
 	maybeSample(true);
@@ -162,6 +169,14 @@ export async function runSoak(options: SoakOptions): Promise<SoakResult> {
 		}
 		if (options.forceGc) Bun.gc(true);
 		maybeSample();
+
+		// Yield only while a commit probe is pending so its IO can finish without
+		// stalling the render loop; text rendering and samples keep running.
+		const afterRender = (Bun.nanoseconds() - startedAt) / 1_000_000;
+		if (commitSampler?.pending && afterRender >= nextYieldAt) {
+			nextYieldAt = afterRender + 100;
+			await Bun.sleep(0);
+		}
 	}
 
 	Bun.gc(true);

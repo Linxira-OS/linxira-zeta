@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
+	CommitChargeSampler,
 	type MemorySampleSnapshot,
-	type SpawnSyncResult,
+	type SpawnResult,
 	parseWindowsCommitBytes,
 	readWindowsCommitBytes,
 	sampleProcessMemory,
 	summarizeSamples,
+	WINDOWS_COMMIT_TIMEOUT_MS,
 } from "./memory-soak-core";
 
 const MIB = 1024 ** 2;
@@ -38,9 +40,9 @@ describe("parseWindowsCommitBytes", () => {
 });
 
 describe("readWindowsCommitBytes", () => {
-	test("does not spawn anything off Windows", () => {
+	test("does not spawn anything off Windows", async () => {
 		let calls = 0;
-		const result = readWindowsCommitBytes("linux", () => {
+		const result = await readWindowsCommitBytes("linux", async () => {
 			calls++;
 			return { exitCode: 0, stdout: "1" };
 		});
@@ -48,28 +50,73 @@ describe("readWindowsCommitBytes", () => {
 		expect(calls).toBe(0);
 	});
 
-	test("runs the fixed PowerShell query on Windows and decodes its stdout", () => {
+	test("runs the fixed PowerShell query on Windows and decodes its stdout", async () => {
 		const commands: string[][] = [];
-		const result = readWindowsCommitBytes("win32", command => {
+		const timeouts: number[] = [];
+		const result = await readWindowsCommitBytes("win32", async (command, options) => {
 			commands.push(command);
+			timeouts.push(options.timeout);
 			return { exitCode: 0, stdout: new TextEncoder().encode("987654321\n") };
 		});
 		expect(result).toBe(987654321);
 		expect(commands).toHaveLength(1);
 		expect(commands[0]![0]).toBe("powershell.exe");
 		expect(commands[0]!.join(" ")).toContain("Committed Bytes");
+		expect(timeouts).toEqual([WINDOWS_COMMIT_TIMEOUT_MS]);
+		expect(WINDOWS_COMMIT_TIMEOUT_MS).toBeGreaterThan(2000);
 	});
 
-	test("reports nothing when the query fails or output is unusable", () => {
-		const failed = (): SpawnSyncResult => ({ exitCode: 1, stdout: "123" });
-		expect(readWindowsCommitBytes("win32", failed)).toBeUndefined();
-		const malformed = (): SpawnSyncResult => ({ exitCode: 0, stdout: "not a number" });
-		expect(readWindowsCommitBytes("win32", malformed)).toBeUndefined();
+	test("reports nothing when the query fails or output is unusable", async () => {
+		const failed = async (): Promise<SpawnResult> => ({ exitCode: 1, stdout: "123" });
+		expect(await readWindowsCommitBytes("win32", failed)).toBeUndefined();
+		const malformed = async (): Promise<SpawnResult> => ({ exitCode: 0, stdout: "not a number" });
+		expect(await readWindowsCommitBytes("win32", malformed)).toBeUndefined();
+		const timedOut = async (): Promise<SpawnResult> => ({ exitCode: null, stdout: "" });
+		expect(await readWindowsCommitBytes("win32", timedOut)).toBeUndefined();
 		expect(
-			readWindowsCommitBytes("win32", () => {
+			await readWindowsCommitBytes("win32", async () => {
 				throw new Error("spawn unavailable");
 			}),
 		).toBeUndefined();
+	});
+});
+
+describe("CommitChargeSampler", () => {
+	test("keeps one probe in flight and serves the last known value", async () => {
+		let calls = 0;
+		const { promise, resolve } = Promise.withResolvers<number | undefined>();
+		const sampler = new CommitChargeSampler(() => {
+			calls++;
+			return promise;
+		});
+
+		expect(sampler.sample()).toBeUndefined();
+		expect(sampler.pending).toBe(true);
+		expect(sampler.sample()).toBeUndefined();
+		expect(calls).toBe(1);
+		const idle = sampler.whenIdle();
+		resolve(42);
+		await idle;
+		expect(sampler.bytes).toBe(42);
+		expect(sampler.pending).toBe(false);
+	});
+
+	test("leaves the value unavailable when the probe yields no reading", async () => {
+		const sampler = new CommitChargeSampler(async () => undefined);
+		expect(sampler.sample()).toBeUndefined();
+		await sampler.whenIdle();
+		expect(sampler.bytes).toBeUndefined();
+		expect(sampler.pending).toBe(false);
+	});
+
+	test("does not keep a failed probe pending", async () => {
+		const sampler = new CommitChargeSampler(async () => {
+			throw new Error("spawn unavailable");
+		});
+		sampler.sample();
+		await sampler.whenIdle();
+		expect(sampler.bytes).toBeUndefined();
+		expect(sampler.pending).toBe(false);
 	});
 });
 
@@ -92,6 +139,12 @@ describe("summarizeSamples", () => {
 		expect(summary.exceeded).toBeNull();
 	});
 
+	test("reports the first real commit reading when early probes are still pending", () => {
+		const summary = summarizeSamples([snapshot(0, 100, 20), snapshot(1000, 150, 35, 2000), snapshot(2000, 140, 30, 2100)]);
+		expect(summary.systemCommitStartMiB).toBe(2000);
+		expect(summary.systemCommitPeakMiB).toBe(2100);
+	});
+
 	test("applies a supplied measured cap at the boundary", () => {
 		const samples = [snapshot(0, 100, 20), snapshot(1000, 150, 20)];
 		expect(summarizeSamples(samples, { maxRssGrowthMiB: 51 }).exceeded).toBe(false);
@@ -110,6 +163,8 @@ describe("summarizeSamples", () => {
 			maxRssGrowthMiB: 10,
 			exceeded: false,
 		});
+		expect(summary.systemCommitStartMiB).toBeUndefined();
+		expect(summary.systemCommitPeakMiB).toBeUndefined();
 	});
 });
 

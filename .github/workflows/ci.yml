@@ -1198,6 +1198,21 @@ jobs:
               # (its install.sh smoke-check executes a fake binary), so running
               # the whole group here would red this job on an unrelated break.
               bun test scripts/ci-test-ts.test.ts scripts/release.test.ts scripts/run-rs-task.test.ts
+         # REQ-065 memory guardrails. The consumer retained-byte tests are the
+         # real gate; the bounded soak is report-only until a threshold is
+         # measured on this runner, so it asserts no RSS budget.
+         - name: Test memory retention caps
+           run: bun test packages/tui/test/render-cache-consumer-bounds.test.ts packages/tui/test/render-cache-pressure-restore.test.ts
+         - name: Run bounded memory soak (report-only)
+           run: bun scripts/memory-soak.ts --seconds=180 --sample-ms=500 --commit-ms=5000 --out=temp/memory-soak.json
+         - name: Upload memory soak report
+           if: always()
+           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+           with:
+              name: memory-soak
+              path: temp/memory-soak.json
+              if-no-files-found: warn
+              retention-days: 7
          # Orphan suite: `packages/stats` is a workspace package that sits in no
          # `ci-test-ts.ts` bucket (neither `fastWorkspacePackages` nor
          # `nativeAndIntegrationPackages`), so neither CI nor the local
