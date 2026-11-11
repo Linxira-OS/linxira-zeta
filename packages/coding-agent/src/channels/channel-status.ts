@@ -110,15 +110,40 @@ function boundPeers(data: WebConfigData, instanceId: string): number {
 	return peers.size;
 }
 
-function targetDisplay(profile: ImAgentProfile | undefined): { display: string; available: boolean; reason?: string } {
+async function targetDisplay(
+	profile: ImAgentProfile | undefined,
+): Promise<{ display: string; available: boolean; reason?: string }> {
 	if (!profile) return { display: "missing agent profile", available: false, reason: "unknown-profile" };
 	const target = profile.location;
 	if (target.kind === "workspace") return { display: `workspace:${target.workspace}`, available: true };
-	if (target.kind === "team-pm") return { display: `Team ${target.team} · PM ${target.pm}`, available: true };
-	return {
-		display: `Team ${target.team} · PM ${target.pm} · engineer ${target.engineer}${target.repo ? ` · ${target.repo}` : ""}`,
-		available: true,
-	};
+	let db: TeamDb | null = null;
+	try {
+		db = new TeamDb(resolveTeamDbPath());
+		const team = db.listTeams().find(candidate => candidate.name === target.team || candidate.id === target.team);
+		if (!team) return { display: `Team ${target.team}`, available: false, reason: "unknown-team" };
+		const pm = db.listPms(team.id).find(candidate => candidate.name === target.pm || candidate.id === target.pm);
+		if (!pm) return { display: `Team ${team.name} · PM ${target.pm}`, available: false, reason: "unknown-pm" };
+		if (target.kind === "team-pm") return { display: `Team ${team.name} · PM ${pm.name}`, available: true };
+		const engineer = db
+			.listEngineers(team.id)
+			.find(candidate => candidate.pmId === pm.id && (candidate.name === target.engineer || candidate.id === target.engineer));
+		if (!engineer) {
+			return { display: `Team ${team.name} · PM ${pm.name} · engineer ${target.engineer}`, available: false, reason: "unknown-engineer" };
+		}
+		let worktrees = db.listWorktrees(team.id).filter(candidate => candidate.engineerId === engineer.id && candidate.kind === "home");
+		if (target.repo) {
+			const repo = db.getRepo(team.id, target.repo) ?? db.getRepoById(target.repo);
+			if (!repo) return { display: `Team ${team.name} · engineer ${engineer.name}`, available: false, reason: "unknown-repo" };
+			worktrees = worktrees.filter(candidate => candidate.repoId === repo.id);
+		}
+		if (worktrees.length === 0) return { display: `Team ${team.name} · engineer ${engineer.name}`, available: false, reason: "no-home-worktree" };
+		if (worktrees.length > 1) return { display: `Team ${team.name} · engineer ${engineer.name}`, available: false, reason: "ambiguous-repo" };
+		return { display: `Team ${team.name} · PM ${pm.name} · engineer ${engineer.name}`, available: true };
+	} catch (error) {
+		return { display: `Team ${target.team}`, available: false, reason: `team-db-unavailable: ${error instanceof Error ? error.message : String(error)}` };
+	} finally {
+		db?.close();
+	}
 }
 
 function runtimeFromLock(lock: ChannelLockSnapshot | null): ChannelRuntimeStatus {
@@ -145,10 +170,11 @@ export async function collectChannelStatus(
 	const lock =
 		options.lock !== undefined ? options.lock : await readChannelLock(channelLockPath(path.dirname(webConfig.path)));
 	const runtime = runtimeFromLock(lock);
-	const instances = data.channels.instances.map((instance): ChannelStatusEntry => {
+	const instances: ChannelStatusEntry[] = [];
+	for (const instance of data.channels.instances) {
 		const profile = data.imAgents.find(candidate => candidate.id === instance.agentProfile);
-		const target = targetDisplay(profile);
-		return {
+		const target = await targetDisplay(profile);
+		instances.push({
 			id: instance.id,
 			platform: instance.platform,
 			label: instance.label,
@@ -162,8 +188,8 @@ export async function collectChannelStatus(
 			targetAvailable: target.available,
 			...(target.reason ? { targetReason: target.reason } : {}),
 			login: instance.platform === "wechat" ? "qr" : instance.platform === "qq" ? "endpoint" : "credentials",
-		};
-	});
+		});
+	}
 	return { configPath: webConfig.path, runtime, instances };
 }
 

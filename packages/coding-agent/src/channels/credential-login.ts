@@ -395,7 +395,7 @@ export async function runCredentialLogin(
 				...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
 			});
 			await options.webConfig.setInstance(options.instanceId, {
-				credentials: { appId, appSecret, domain },
+				credentials: { ...storedCredentials(options.webConfig, options.instanceId), appId, appSecret, domain },
 			});
 			return { channel, state: "connected", identity, credentialsPersisted: true };
 		}

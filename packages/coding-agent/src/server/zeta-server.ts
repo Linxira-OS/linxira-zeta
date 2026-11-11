@@ -762,6 +762,7 @@ export class ZetaServer {
 					projectDir: cwd,
 					...(entry.workspaceAlias !== undefined && { workspaceAlias: entry.workspaceAlias }),
 				};
+				const agentProfile = await this.#router!.agentProfileForEntry(entry);
 				const { session } = await startRpcSession(
 					`__zeta_serve_bot__${entry.id}`,
 					entry.sessionFile,
@@ -780,6 +781,7 @@ export class ZetaServer {
 						...(entry.chatId ? { chatId: entry.chatId } : {}),
 						...(entry.workspaceAlias ? { workspaceAlias: entry.workspaceAlias } : {}),
 					},
+					agentProfile,
 				);
 				return session.getSession();
 			},

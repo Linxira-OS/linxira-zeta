@@ -20,6 +20,7 @@ import type { ImageContent } from "@linxiraos/pi-ai";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
+import type { AgentProfileOptions } from "../../agent-profile";
 import type { ImControlParams, ImControlResult } from "../../channels/im-control";
 import { approveRemotePlan } from "../../channels/plan-approval";
 import type { BashResult } from "../../exec/bash-executor";
@@ -1476,6 +1477,7 @@ export async function startRpcSession(
 	channelHooks?: SessionChannelHooks,
 	client: SessionClient = "web",
 	origin?: SessionOrigin,
+	agentProfile?: AgentProfileOptions,
 ): Promise<{ session: AgentSessionWrapper; realSessionId: string }> {
 	const existingLock = startLocks.get(key);
 	if (existingLock) return existingLock;
@@ -1510,6 +1512,7 @@ export async function startRpcSession(
 			channelSend: channelHooks?.channelSend,
 			workspaceRun: channelHooks?.workspaceRun,
 			imControl: channelHooks?.imControl,
+			...(agentProfile === undefined ? {} : { agentProfile }),
 			// Serve-hosted sessions own a real UI backend: createGatewayUiContext
 			// below routes select/editor over SSE (`extension_ui_request`) and
 			// resolves them via the `extension_ui_response` command. Declaring

@@ -25,7 +25,9 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { type ChannelInstanceId, ReplyCorrelator } from "@linxiraos/pi-channels";
 import { isEnoent, logger, Snowflake } from "@linxiraos/pi-utils";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import type { BotSessionEntry, WebConfig } from "../config/web-config";
+import { resolveTeamDbPath, TeamDb } from "../team/db";
 import { Settings, type SettingProvenance } from "../config/settings";
 import { hasWorkspacePersona } from "../default-workspace";
 import { cfgChannelsReportPolicy } from "../tools/settings";
@@ -41,6 +43,7 @@ import type { AgentSessionEvent } from "../session/agent-session-events";
 import { SessionManager } from "../session/session-manager";
 import { isImSession, sameSessionOrigin, type SessionOrigin } from "../session/session-origin";
 import type { ImControlParams, ImControlResult } from "./im-control";
+import { type AgentProfileOptions, loadImAgentProfilePersona, resolveImAgentProfileRuntime } from "../agent-profile";
 
 /** Upper bound for a delegated `workspace_run` turn (no reply → timeout error). */
 const RUN_TIMEOUT_MS = 10 * 60_000;
@@ -552,6 +555,90 @@ export class SessionRouter {
 	 * then {@link resolveRoute} — the documented decision point, which also
 	 * materializes a direct workspace session — then the relay coordinator.
 	 */
+	/**
+	 * Resolve an agent profile target to a real working directory. Team targets
+	 * come from TeamDb: a PM runs in `team_pms.workspace_path`, an engineer in
+	 * its home worktree (an explicit repo disambiguates several). Missing rows
+	 * are errors, never a fallback to the default workspace.
+	 */
+	async resolveImTargetCwd(
+		target: import("./im-config").ImTarget,
+	): Promise<{ ok: true; cwd: string; alias?: string } | { ok: false; error: string }> {
+		if (target.kind === "workspace") {
+			if (target.workspace === COORDINATOR_ALIAS) return { ok: true, cwd: this.#defaultCwd, alias: COORDINATOR_ALIAS };
+			const dir = this.resolveDir(target.workspace);
+			if (!dir) return { ok: false, error: `Unknown workspace "${target.workspace}"` };
+			const stat = await fs.stat(dir).catch(() => null);
+			if (!stat?.isDirectory()) return { ok: false, error: `Workspace directory does not exist: ${dir}` };
+			return { ok: true, cwd: dir, alias: target.workspace };
+		}
+		let db: TeamDb | null = null;
+		try {
+			db = new TeamDb(resolveTeamDbPath());
+			const team = db.listTeams().find(candidate => candidate.name === target.team || candidate.id === target.team);
+			if (!team) return { ok: false, error: `Unknown Team "${target.team}"` };
+			const pm = db.listPms(team.id).find(candidate => candidate.name === target.pm || candidate.id === target.pm);
+			if (!pm) return { ok: false, error: `Unknown PM "${target.pm}" in Team "${team.name}"` };
+			if (target.kind === "team-pm") return { ok: true, cwd: pm.workspacePath };
+			const engineer = db
+				.listEngineers(team.id)
+				.find(candidate => candidate.pmId === pm.id && (candidate.name === target.engineer || candidate.id === target.engineer));
+			if (!engineer) return { ok: false, error: `Unknown engineer "${target.engineer}" under PM "${pm.name}"` };
+			let worktrees = db.listWorktrees(team.id).filter(candidate => candidate.engineerId === engineer.id && candidate.kind === "home");
+			if (target.repo !== undefined) {
+				const repo = db.getRepo(team.id, target.repo) ?? db.getRepoById(target.repo);
+				if (!repo) return { ok: false, error: `Unknown repo "${target.repo}" in Team "${team.name}"` };
+				worktrees = worktrees.filter(candidate => candidate.repoId === repo.id);
+			}
+			if (worktrees.length === 0) return { ok: false, error: `Engineer "${engineer.name}" has no home worktree` };
+			if (worktrees.length > 1) {
+				return { ok: false, error: `Engineer "${engineer.name}" has several home worktrees; set target.repo explicitly` };
+			}
+			return { ok: true, cwd: worktrees[0]!.path };
+		} catch (error) {
+			return { ok: false, error: `Team target lookup failed: ${error instanceof Error ? error.message : String(error)}` };
+		} finally {
+			db?.close();
+		}
+	}
+
+	/**
+	 * Materialize the BotSessionEntry that owns one binding. The binding id is
+	 * the stable identity; the entry records the profile/target snapshot and
+	 * lives under the target cwd so a Team PM/engineer never shares a
+	 * transcript or memory home with another binding.
+	 */
+	async ensureImBindingSession(
+		binding: import("./im-config").ImBinding,
+	): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+		if (binding.sessionId === "relay") return { ok: true, id: "relay" };
+		const existing = this.#webConfig.getBotSession(binding.sessionId);
+		if (existing) return { ok: true, id: existing.id };
+		const resolved = await this.resolveImTargetCwd(binding.target);
+		if (!resolved.ok) return resolved;
+		const profile = this.#webConfig.getImAgent(binding.agentProfileId);
+		if (!profile) return { ok: false, error: `Unknown agent profile "${binding.agentProfileId}"` };
+		const safeName = `${profile.label}-${binding.id}`.replace(/[^\w\u4e00-\u9fff-]+/g, "-").slice(0, 60);
+		const entry: BotSessionEntry = {
+			id: binding.sessionId,
+			name: `${profile.label} · ${binding.chatId}`,
+			tag: "bot",
+			sessionFile: path.join(SessionManager.getDefaultSessionDir(resolved.cwd), `${safeName}.jsonl`),
+			cwd: resolved.cwd,
+			...(resolved.alias !== undefined ? { workspaceAlias: resolved.alias } : {}),
+			instanceId: binding.instanceId,
+			bindingId: binding.id,
+			agentProfileId: binding.agentProfileId,
+			target: binding.target,
+			platform: binding.platform,
+			chatId: binding.chatId,
+			...(binding.lang ? { lang: binding.lang } : {}),
+			createdAt: new Date().toISOString(),
+		};
+		await this.#webConfig.upsertBotSession(entry);
+		return { ok: true, id: entry.id };
+	}
+
 	async resolveChatTarget(channelId: ChannelInstanceId, peer: string): Promise<ChatRouteTarget> {
 		const agent = this.agentTargetFor(channelId, peer);
 		if (agent) return { kind: "agent", target: agent, local: !agent.includes("/") };
@@ -560,27 +647,35 @@ export class SessionRouter {
 		const runtime = this.#runtimeBindings.get(`${channelId}:${peer}`);
 		if (runtime === COORDINATOR_ALIAS) return { kind: "relay" };
 		if (runtime) return this.#workspaceTarget(runtime);
-		// The chat's selected bot session owns its project: route by that
-		// project, never by the global default workspace.
-		const botId = await this.activeBotSessionIdFor(channelId, peer);
-		if (botId && botId !== "relay") {
-			const entry = this.#webConfig.getBotSession(botId);
-			if (entry) return { kind: "bot", id: botId };
+		// Every instance has a default profile; the first message creates the
+		// persistent binding, so a chat never borrows another chat's session.
+		let imBinding = this.#webConfig.findImBinding(channelId, peer);
+		if (!imBinding) {
+			try {
+				const instance = this.#webConfig.getChannelInstance(channelId);
+				const hasAnswer = this.#webConfig
+					.getImBindings()
+					.some(
+						binding =>
+							binding.platform === instance?.platform &&
+							binding.chatId === peer &&
+							binding.role === "answer",
+					);
+				imBinding = await this.#webConfig.patchImBinding(channelId, peer, {
+					role: hasAnswer ? "mention" : "answer",
+				});
+			} catch (error) {
+				return {
+					kind: "unavailable",
+					alias: channelId,
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
 		}
-		// Persisted binding: workspace targets route directly; Team targets
-		// must resolve through the Team DB (explicit error until wired, never relay).
-		const imBinding = this.#webConfig.findImBinding(channelId, peer);
-		if (imBinding) {
-			if (imBinding.target.kind === "workspace") return this.#workspaceTarget(imBinding.target.workspace);
-			return {
-				kind: "unavailable",
-				alias: imBinding.target.kind,
-				error: `Team target ${imBinding.target.kind} is not wired in this runtime; configure a workspace target or update the binding.`,
-			};
-		}
-		const binding = await this.bindingFor(channelId, peer);
-		if (!binding || binding === COORDINATOR_ALIAS) return { kind: "relay" };
-		return this.#workspaceTarget(binding);
+		if (imBinding.sessionId === "relay") return { kind: "relay" };
+		const ensured = await this.ensureImBindingSession(imBinding);
+		if (!ensured.ok) return { kind: "unavailable", alias: imBinding.agentProfileId, error: ensured.error };
+		return { kind: "bot", id: ensured.id };
 	}
 
 	/**
@@ -1085,6 +1180,29 @@ export class SessionRouter {
 		return { ok: true };
 	}
 
+	/**
+	 * Compile the entry's agent profile into the SDK admission policy. Every
+	 * binding owns its runtime id/memory namespace/home; a profile is only a
+	 * template. A missing profile or persona is an explicit error.
+	 */
+	async agentProfileForEntry(entry: BotSessionEntry): Promise<AgentProfileOptions | undefined> {
+		// Studio/legacy bot sessions predate profiles; they keep the product
+		// default. An IM binding always carries the full identity.
+		if (!entry.agentProfileId || !entry.bindingId || !entry.instanceId) return undefined;
+		const profile = this.#webConfig.getImAgent(entry.agentProfileId);
+		if (!profile) throw new Error(`Unknown agent profile "${entry.agentProfileId}"`);
+		const cwd = entry.cwd ?? this.#defaultCwd;
+		const personaText = await loadImAgentProfilePersona(profile, { cwd });
+		return resolveImAgentProfileRuntime(profile, {
+			instanceId: entry.instanceId,
+			profileId: entry.agentProfileId,
+			bindingId: entry.bindingId,
+			agentDir: getAgentDir(),
+			cwd,
+			...(personaText === undefined ? {} : { personaText }),
+		});
+	}
+
 	/** Get (or lazily create) the live session for a registered bot session. */
 	async ensureBotSession(
 		entry: BotSessionEntry,
@@ -1126,9 +1244,11 @@ export class SessionRouter {
 			origin: this.#botOrigin(entry),
 		});
 		const caller = this.#contextForBot(entry);
+		const agentProfile = await this.agentProfileForEntry(entry);
 		const { session } = await createAgentSession({
 			cwd: manager.getCwd(),
 			sessionManager: manager,
+			...(agentProfile === undefined ? {} : { agentProfile }),
 			channelSend: this.#channelSend ? opts => this.#channelSend!(opts, caller) : undefined,
 			workspaceRun: this.#workspaceRun ? opts => this.#workspaceRun!(opts, caller) : undefined,
 			imControl: this.#imControl ? params => this.#imControl!(entry.id, params) : undefined,
@@ -1255,8 +1375,16 @@ export class SessionRouter {
 		peer: string,
 		body: string,
 	): Promise<{ ok: true } | { ok: false; error: string }> {
-		const handle = this.#botSessions.get(id);
-		if (!handle) return { ok: false, error: `Bot session "${id}" has no runtime session` };
+		let handle = this.#botSessions.get(id);
+		if (!handle) {
+			const entry = this.#webConfig.getBotSession(id);
+			if (!entry) return { ok: false, error: `Bot session "${id}" is not registered` };
+			const ensured = await this.ensureBotSession(entry);
+			if (!ensured.ok) return ensured;
+			handle = this.#botSessions.get(id);
+			if (!handle) return { ok: false, error: `Bot session "${id}" did not start` };
+		}
+		const binding = this.#webConfig.findImBinding(channelId, peer);
 		const lang = (await this.languageFor(channelId, peer)) ?? handle.entry.lang;
 		if (lang) this.#applyLanguageToSession(handle.session, lang);
 		this.#botLastChat.set(id, { channelId, peer });
@@ -1269,7 +1397,14 @@ export class SessionRouter {
 			body,
 			ts: Date.now(),
 		};
-		bridge.expect(msg.id, { kind: "chat", channelId, peer });
+		// `observe` consumes the conversation for memory/context but never sends:
+		// its turn is correlated to a sink that drops the reply.
+		bridge.expect(
+			msg.id,
+			binding?.role === "observe"
+				? { kind: "sink", deliver: () => {} }
+				: { kind: "chat", channelId, peer },
+		);
 		try {
 			await handle.session.deliverIrcMessage(msg);
 		} catch (error) {

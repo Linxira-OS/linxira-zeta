@@ -18,11 +18,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { refreshDirsFromEnv, ZETA_GATEWAY_PORT } from "@linxiraos/pi-utils";
 import {
-	getChannelStatus,
 	getMainSessionId,
-	getPendingWechatQr,
-	triggerWechatReconnect,
-	triggerWechatUnbind,
 } from "../channels";
 import { scheduleTrashSweep } from "../session/session-trash";
 import {
@@ -1194,39 +1190,8 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return handleChannelCredentials(req);
 	}
 
-	if (CHANNELS_WECHAT_QR_RE.test(pathname)) {
-		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
-		const qr = getPendingWechatQr();
-		if (!qr) return json({ pending: false });
-		// `svg` is the same payload the terminal renders as block characters, so a
-		// browser surface needs no QR library (and never sends the login URL to an
-		// external image service). Image payloads leave it out.
-		const svg = renderWechatLoginQrSvg(qr.qrcodeUrl);
-		return json({ pending: true, qrcodeUrl: qr.qrcodeUrl, status: qr.status, ...(svg === undefined ? {} : { svg }) });
-	}
-
-	if (CHANNELS_WECHAT_RECONNECT_RE.test(pathname)) {
-		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-		const trigger = triggerWechatReconnect();
-		if (!trigger) return json({ error: "WeChat channel is not running" }, 404);
-		try {
-			await trigger;
-			return json({ ok: true });
-		} catch (error) {
-			return json({ error: error instanceof Error ? error.message : String(error) }, 500);
-		}
-	}
-
-	if (CHANNELS_WECHAT_UNBIND_RE.test(pathname)) {
-		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-		const unbind = triggerWechatUnbind();
-		if (!unbind) return json({ error: "WeChat channel is not running" }, 404);
-		try {
-			await unbind;
-			return json({ ok: true });
-		} catch (error) {
-			return json({ error: error instanceof Error ? error.message : String(error) }, 500);
-		}
+	if (CHANNELS_WECHAT_QR_RE.test(pathname) || CHANNELS_WECHAT_RECONNECT_RE.test(pathname) || CHANNELS_WECHAT_UNBIND_RE.test(pathname)) {
+		return json({ error: "Use /api/channels/instances/:id/wechat/{qrcode,reconnect,unbind}" }, 410);
 	}
 
 	if (BOARD_RE.test(pathname)) {

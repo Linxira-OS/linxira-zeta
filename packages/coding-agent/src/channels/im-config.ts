@@ -7,8 +7,6 @@
  * `remote.sessionMappings` form once and removes it.
  */
 
-import * as path from "node:path";
-
 export type ChannelPlatform = "wechat" | "feishu" | "telegram" | "discord" | "qq";
 
 export interface WeChatCredentials {
@@ -121,6 +119,8 @@ export const IM_AGENT_PRESETS: readonly ImAgentPreset[] = [
 	"engineer",
 ];
 export const INSTANCE_ID_RE = /^[a-z0-9][a-z0-9_-]{1,31}$/;
+export const BINDING_ID_RE = /^b_[0-9a-f]{16}$/;
+const CONTROL_RE = /[\u0000-\u001f\u007f]/;
 
 export interface ConfigIssue {
 	path: string;
@@ -143,6 +143,16 @@ function record(value: unknown): Record<string, unknown> | null {
 }
 function text(value: unknown): string | null {
 	return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+/** A key component that can be joined without ambiguity. */
+function keyText(value: unknown, pathName: string, issues: ConfigIssue[]): string | null {
+	const parsed = text(value);
+	if (parsed === null) return null;
+	if (CONTROL_RE.test(parsed)) {
+		issues.push({ path: pathName, message: "must not contain control characters" });
+		return null;
+	}
+	return parsed;
 }
 function strings(value: unknown, pathName: string, issues: ConfigIssue[], options: { optional?: boolean } = {}): string[] {
 	if (value === undefined && options.optional) return [];
@@ -180,7 +190,20 @@ function validateTarget(value: unknown, pathName: string, issues: ConfigIssue[])
 		issues.push({ path: pathName, message: "expected a target object" });
 		return undefined;
 	}
-	const kind = text(rec.kind);
+	let kind = text(rec.kind);
+	const key = text(rec.targetKey) ?? text(rec.key);
+	if (key && kind === null) kind = key.split(":", 1)[0] ?? null;
+	if (key && !record(rec).workspace && !record(rec).team) {
+		const [prefix, rest] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)];
+		const parts = rest.split("/");
+		if (prefix === "workspace" && parts[0]) return { kind: "workspace", workspace: parts[0] };
+		if (prefix === "team-pm" && parts[0] && parts[1]) return { kind: "team-pm", team: parts[0], pm: parts[1] };
+		if (prefix === "engineer" && parts[0] && parts[1] && parts[2]) {
+			return { kind: "engineer", team: parts[0], pm: parts[1], engineer: parts[2], ...(parts[3] ? { repo: parts.slice(3).join("/") } : {}) };
+		}
+		issues.push({ path: pathName, message: "unrecognized targetKey" });
+		return undefined;
+	}
 	if (kind === "workspace") {
 		const workspace = text(rec.workspace);
 		if (!workspace) issues.push({ path: `${pathName}.workspace`, message: "workspace is required" });
@@ -261,12 +284,18 @@ export function validateImAgentProfiles(value: unknown): ImAgentProfile[] {
 		) {
 			issues.push({ path: `${p}.memory.backend`, message: "unknown backend" });
 		}
+		const profileModel = record(rec.model);
+		const profileProvider = profileModel ? text(profileModel.provider) : null;
+		const profileModelId = profileModel ? text(profileModel.model) : null;
+		if (profileModel && (!profileProvider || !profileModelId)) {
+			issues.push({ path: `${p}.model`, message: "provider and model are required" });
+		}
 		if (id && label && location) {
 			profiles.push({
 				id,
 				label,
 				persona,
-				...(record(rec.model) ? { model: rec.model as { provider: string; model: string } } : {}),
+				...(profileProvider && profileModelId ? { model: { provider: profileProvider, model: profileModelId } } : {}),
 				location,
 				tools,
 				memory: {
@@ -344,6 +373,7 @@ export function validateImBindings(
 	const instanceById = new Map(instances.map(instance => [instance.id, instance]));
 	const profileIds = new Set(profiles.map(profile => profile.id));
 	const keys = new Set<string>();
+	const bindingIds = new Set<string>();
 	const sessions = new Set<string>();
 	const answers = new Set<string>();
 	const bindings: ImBinding[] = [];
@@ -358,18 +388,29 @@ export function validateImBindings(
 		const instanceId = text(rec.instanceId);
 		const instance = instanceId ? instanceById.get(instanceId) : undefined;
 		if (!id) issues.push({ path: `${p}.id`, message: "id is required" });
+		else if (!BINDING_ID_RE.test(id)) issues.push({ path: `${p}.id`, message: 'expected "b_" + 16 hex' });
+		else if (bindingIds.has(id)) issues.push({ path: `${p}.id`, message: `duplicate id ${id}` });
+		else bindingIds.add(id);
 		if (!instance) issues.push({ path: `${p}.instanceId`, message: "unknown instance" });
-		const chatId = text(rec.chatId);
+		const chatId = keyText(rec.chatId, `${p}.chatId`, issues);
 		if (!chatId) issues.push({ path: `${p}.chatId`, message: "chatId is required" });
+		const threadId = keyText(rec.threadId, `${p}.threadId`, issues);
+		const userId = keyText(rec.userId, `${p}.userId`, issues);
 		const profileId = text(rec.agentProfileId);
 		if (!profileId || !profileIds.has(profileId)) issues.push({ path: `${p}.agentProfileId`, message: "unknown profile" });
 		const sessionId = text(rec.sessionId);
 		if (!sessionId) issues.push({ path: `${p}.sessionId`, message: "sessionId is required" });
 		else if (sessions.has(sessionId)) issues.push({ path: `${p}.sessionId`, message: "sessionId must be unique" });
 		else sessions.add(sessionId);
-		const role = rec.role === "mention" || rec.role === "observe" ? rec.role : "answer";
+		const role =
+			rec.role === undefined
+				? "answer"
+				: rec.role === "answer" || rec.role === "mention" || rec.role === "observe"
+					? rec.role
+					: null;
+		if (role === null) issues.push({ path: `${p}.role`, message: 'expected "answer", "mention" or "observe"' });
 		if (instance && chatId) {
-			const key = `${instanceId}\u0000${chatId}\u0000${text(rec.threadId) ?? ""}\u0000${text(rec.userId) ?? ""}`;
+			const key = `${instanceId}\u0000${chatId}\u0000${threadId ?? ""}\u0000${userId ?? ""}`;
 			if (keys.has(key)) issues.push({ path: p, message: "duplicate instance/chat binding" });
 			keys.add(key);
 			if (role === "answer") {
@@ -381,21 +422,31 @@ export function validateImBindings(
 			}
 		}
 		const target = validateTarget(rec.target, `${p}.target`, issues);
-		if (id && instance && chatId && profileId && sessionId && target) {
+		const modelRec = record(rec.model);
+		const modelProvider = modelRec ? text(modelRec.provider) : null;
+		const modelId = modelRec ? text(modelRec.model) : null;
+		if (modelRec && (!modelProvider || !modelId)) {
+			issues.push({ path: `${p}.model`, message: "provider and model are required" });
+		}
+		const createdAt = rec.createdAt === undefined ? new Date().toISOString() : text(rec.createdAt);
+		if (createdAt === null || (createdAt !== null && Number.isNaN(Date.parse(createdAt)))) {
+			issues.push({ path: `${p}.createdAt`, message: "expected an ISO timestamp" });
+		}
+		if (id && instance && chatId && profileId && sessionId && target && role !== null && createdAt) {
 			bindings.push({
 				id,
 				instanceId: instance.id,
 				platform: instance.platform,
 				chatId,
-				...(text(rec.threadId) ? { threadId: text(rec.threadId)! } : {}),
-				...(text(rec.userId) ? { userId: text(rec.userId)! } : {}),
+				...(threadId ? { threadId } : {}),
+				...(userId ? { userId } : {}),
 				agentProfileId: profileId,
 				sessionId,
 				target,
 				role,
 				...(rec.lang === "zh" || rec.lang === "en" ? { lang: rec.lang } : {}),
-				...(record(rec.model) ? { model: rec.model as { provider: string; model: string } } : {}),
-				createdAt: text(rec.createdAt) ?? new Date().toISOString(),
+				...(modelProvider && modelId ? { model: { provider: modelProvider, model: modelId } } : {}),
+				createdAt,
 				...(rec.needsReview === true ? { needsReview: true } : {}),
 				...(text(rec.needsReviewReason) ? { needsReviewReason: text(rec.needsReviewReason)! } : {}),
 			});
@@ -407,19 +458,6 @@ export function validateImBindings(
 
 export function bindingKey(binding: Pick<ImBinding, "instanceId" | "chatId" | "threadId" | "userId">): string {
 	return [binding.instanceId, binding.chatId, binding.threadId ?? "", binding.userId ?? ""].join("\u0000");
-}
-
-/** Default runtime id: binding-scoped, never shared between two chats. */
-export function imAgentRuntimeId(instanceId: string, profileId: string, bindingId: string): string {
-	return `im:${instanceId}:${profileId}:${bindingId}`;
-}
-
-export function defaultMemoryNamespace(instanceId: string, profileId: string, bindingId: string): string {
-	return imAgentRuntimeId(instanceId, profileId, bindingId);
-}
-
-export function defaultAgentHome(agentDir: string, runtimeId: string): string {
-	return path.join(agentDir, "im-agents", runtimeId.replace(/[:/\\]/g, "-"));
 }
 
 /** A target that cannot be resolved must fail, never fall back to relay. */

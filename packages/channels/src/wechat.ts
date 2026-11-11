@@ -38,9 +38,9 @@ export interface WeChatQrStatus {
 }
 
 export interface WeChatCredentialSink {
-	setField(field: "botToken" | "baseUrl" | "ilinkBotId" | "ilinkUserId", value: string): Promise<void>;
-	setPeerTokens(tokens: Record<string, string>): Promise<void>;
-	clear(): Promise<void>;
+	setField(field: "botToken" | "baseUrl" | "ilinkBotId" | "ilinkUserId", value: string): Promise<unknown>;
+	setPeerTokens(tokens: Record<string, string>): Promise<unknown>;
+	clear(): Promise<unknown>;
 }
 
 export interface WeChatChannelOptions {

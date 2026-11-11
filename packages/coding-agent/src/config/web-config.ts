@@ -401,6 +401,8 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 		});
 	}
 
+	const legacyAnswerKeys = new Set<string>();
+	const legacySessionIds = new Set<string>();
 	for (const [index, entry] of legacyMappings.entries()) {
 		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
 		const rec = entry as Record<string, unknown>;
@@ -414,21 +416,38 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 		if (!chatId) continue;
 		const workspaceAlias = typeof rec.workspaceAlias === "string" && rec.workspaceAlias !== "" ? rec.workspaceAlias : undefined;
 		const target: ImBinding["target"] = { kind: "workspace", workspace: workspaceAlias ?? "main" };
-		const sessionId = typeof rec.sessionId === "string" && rec.sessionId !== "" ? rec.sessionId : `legacy-${index}`;
-		const needsReview = !connectionId || (connectionId !== undefined && instanceId === platform && !instances.some(instance => instance.id === connectionId));
+		const originalSessionId = typeof rec.sessionId === "string" && rec.sessionId !== "" ? rec.sessionId : `legacy-${index}`;
+		const duplicateSession = legacySessionIds.has(originalSessionId);
+		const sessionId = duplicateSession ? `legacy-${index}` : originalSessionId;
+		legacySessionIds.add(sessionId);
+		const answerKey = `${platform}\u0000${chatId}`;
+		const duplicateAnswer = legacyAnswerKeys.has(answerKey);
+		if (!duplicateAnswer) legacyAnswerKeys.add(answerKey);
+		const needsReview =
+			!connectionId ||
+			(connectionId !== undefined && instanceId === platform && !instances.some(instance => instance.id === connectionId)) ||
+			duplicateAnswer ||
+			duplicateSession;
 		bindings.push({
-			id: `legacy-${index}`,
+			id: `b_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
 			instanceId,
 			platform,
 			chatId,
 			agentProfileId: `legacy-${platform}`,
 			sessionId,
 			target,
-			role: rec.mode === "relay" ? "observe" : "answer",
+			role: duplicateAnswer ? "mention" : "answer",
 			...(rec.lang === "zh" || rec.lang === "en" ? { lang: rec.lang } : {}),
 			createdAt: now,
 			...(needsReview
-				? { needsReview: true, needsReviewReason: "legacy connectionId/instance mapping needs review" }
+				? {
+						needsReview: true,
+						needsReviewReason: duplicateAnswer
+							? "another legacy mapping already answers this platform/chat; this binding is mention-only"
+							: duplicateSession
+								? "legacy mappings shared one session; this binding got its own"
+								: "legacy connectionId/instance mapping needs review",
+					}
 				: {}),
 		});
 	}

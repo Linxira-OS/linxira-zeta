@@ -362,6 +362,7 @@ export async function startChannels(
 		(await ChannelSeenStore.open(options?.stateDir ? { filePath: channelSeenStatePath(options.stateDir) } : {}));
 	const channels = new Map<ChannelInstanceId, ChatChannel>();
 	const refused: ChannelStatus[] = [];
+	const platformOf = new Map(instances.map(instance => [instance.id, instance.platform]));
 
 	const sendText = async (
 		instanceId: ChannelInstanceId,
@@ -400,7 +401,7 @@ export async function startChannels(
 			...(message.senderId ? { senderId: message.senderId } : {}),
 			...(message.allowKeys ? { allowKeys: message.allowKeys } : {}),
 		};
-		if (!isPeerAllowedFor(instanceId, identity, allow)) {
+		if (!isPeerAllowedFor(instanceId, identity, allow, platformOf.get(instanceId))) {
 			logger.warn("Channel message refused: peer not in instance allowlist", {
 				instance: instanceId,
 				peer: message.peer,

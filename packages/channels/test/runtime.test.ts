@@ -3,14 +3,15 @@ import { CHANNEL_PEER_REFUSED_TEXT } from "../src/auth";
 import type {
 	ChannelCapabilities,
 	ChannelHealth,
-	ChannelId,
+	ChannelInstanceId,
+	ChannelPlatform,
 	ChannelSendOptions,
 	ChatChannel,
 	ChatImage,
 	InboundMessage,
 } from "../src/channel";
 import { startChannels, type ChannelInboundHandler } from "../src/index";
-import type { ChannelSession, ChannelsWebConfig, IrcMessage } from "../src/types";
+import type { ChannelInstanceConfig, ChannelSession, ChannelsWebConfig, IrcMessage } from "../src/types";
 
 class FakeChannel implements ChatChannel {
 	readonly sent: Array<{ to: string; text: string; options?: ChannelSendOptions }> = [];
@@ -22,7 +23,8 @@ class FakeChannel implements ChatChannel {
 		supportsTyping: false,
 	};
 	constructor(
-		readonly id: ChannelId,
+		readonly id: ChannelInstanceId,
+		readonly platform: ChannelPlatform,
 		private readonly emit: (message: InboundMessage) => void,
 	) {}
 	async start(): Promise<void> {
@@ -52,31 +54,47 @@ function session(): ChannelSession {
 	};
 }
 
+function instance(platform: ChannelPlatform, overrides: Record<string, unknown> = {}): ChannelInstanceConfig {
+	const { enabled = false, allowedChannels, allowedGroups, allowedUsers, ...rest } = overrides;
+	const peers = Array.isArray(allowedChannels)
+		? allowedChannels
+		: Array.isArray(allowedGroups)
+			? allowedGroups.map(group => `group:${String(group)}`)
+			: [];
+	return {
+		id: platform,
+		platform,
+		label: platform,
+		enabled: Boolean(enabled),
+		agentProfile: `legacy-${platform}`,
+		allow: { peers: peers as string[], ...(Array.isArray(allowedUsers) ? { users: allowedUsers as string[] } : {}) },
+		credentials: rest as Record<string, unknown>,
+	};
+}
+
 function config(
 	overrides: { discord?: Record<string, unknown>; qq?: Record<string, unknown> } = {},
 ): ChannelsWebConfig {
 	const data = {
 		channels: {
-			wechat: { enabled: false },
-			feishu: { enabled: false },
-			telegram: { enabled: false },
-			discord: {
-				enabled: false,
-				botToken: "token",
-				allowedChannels: ["c1"],
-				allowedUsers: [],
-				...overrides.discord,
-			},
-			qq: {
-				enabled: false,
-				mode: "forward" as const,
-				endpoint: "ws://127.0.0.1:3001",
-				token: "t",
-				allowedGroups: ["42"],
-				allowedUsers: ["900"],
-				...overrides.qq,
-			},
-			allowedPeers: [],
+			instances: [
+				instance("discord", {
+					enabled: false,
+					botToken: "token",
+					allowedChannels: ["c1"],
+					allowedUsers: [],
+					...overrides.discord,
+				}),
+				instance("qq", {
+					enabled: false,
+					mode: "forward" as const,
+					endpoint: "ws://127.0.0.1:3001",
+					token: "t",
+					allowedGroups: ["42"],
+					allowedUsers: ["900"],
+					...overrides.qq,
+				}),
+			],
 		},
 	};
 	return {
@@ -86,11 +104,11 @@ function config(
 }
 
 /** Build adapters with the runtime's handler so tests can drive inbound. */
-function createAdapters(created: Map<ChannelId, FakeChannel>) {
-	return (id: ChannelId, onMessage: (message: InboundMessage) => void): ChatChannel | undefined => {
-		if (id === "discord" || id === "qq") {
-			const channel = new FakeChannel(id, onMessage);
-			created.set(id, channel);
+function createAdapters(created: Map<ChannelInstanceId, FakeChannel>) {
+	return (instance: ChannelInstanceConfig, onMessage: (message: InboundMessage) => void): ChatChannel | undefined => {
+		if (instance.platform === "discord" || instance.platform === "qq") {
+			const channel = new FakeChannel(instance.id, instance.platform, onMessage);
+			created.set(instance.id, channel);
 			return channel;
 		}
 		return undefined;
@@ -110,18 +128,18 @@ describe("channel runtime — new platforms", () => {
 				id: "discord",
 				running: false,
 				state: "auth-failed",
-				detail: expect.stringContaining("allowedChannels"),
+				detail: expect.stringContaining("allow.peers"),
 			}),
 		);
 		await runtime.stop();
 	});
 
 	test("routes an allowed Discord message, folds attachments into the body, and drops duplicates", async () => {
-		const received: Array<{ channelId: ChannelId; peer: string; body: string; messageId?: string }> = [];
+		const received: Array<{ channelId: ChannelInstanceId; peer: string; body: string; messageId?: string }> = [];
 		const onInbound: ChannelInboundHandler = (channelId, peer, body, messageId) => {
 			received.push({ channelId, peer, body, ...(messageId ? { messageId } : {}) });
 		};
-		const created = new Map<ChannelId, FakeChannel>();
+		const created = new Map<ChannelInstanceId, FakeChannel>();
 		const runtime = await startChannels(session(), config({ discord: { enabled: true } }), onInbound, undefined, {
 			createAdapter: createAdapters(created),
 		});
@@ -147,7 +165,7 @@ describe("channel runtime — new platforms", () => {
 
 	test("refuses a peer outside the Discord allowlist and sends the refusal once", async () => {
 		const received: string[] = [];
-		const created = new Map<ChannelId, FakeChannel>();
+		const created = new Map<ChannelInstanceId, FakeChannel>();
 		const runtime = await startChannels(
 			session(),
 			config({ discord: { enabled: true } }),
@@ -165,7 +183,7 @@ describe("channel runtime — new platforms", () => {
 
 	test("QQ allowlists hold bare numbers and match group:/user: peers", async () => {
 		const received: string[] = [];
-		const created = new Map<ChannelId, FakeChannel>();
+		const created = new Map<ChannelInstanceId, FakeChannel>();
 		const runtime = await startChannels(
 			session(),
 			config({ qq: { enabled: true } }),

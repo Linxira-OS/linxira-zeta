@@ -19,6 +19,7 @@ import { bindingKey, credentialFields, targetKey } from "../../channels/im-confi
 import { runCredentialLogin } from "../../channels/credential-login";
 import { WebConfig } from "../../config/web-config";
 import { resolveTeamDbPath, TeamDb } from "../../team/db";
+import { imAgentRuntimeId } from "../../agent-profile";
 
 function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });
@@ -96,6 +97,22 @@ function targetAvailability(webConfig: WebConfig, target: ImTarget): { display: 
 	}
 }
 
+function hasCredentials(instance: ChannelInstanceConfig): boolean {
+	const c = instance.credentials;
+	const has = (key: string) => typeof c[key] === "string" && (c[key] as string).trim() !== "";
+	switch (instance.platform) {
+		case "wechat":
+			return has("botToken");
+		case "feishu":
+			return has("appId") && has("appSecret");
+		case "telegram":
+		case "discord":
+			return has("botToken");
+		case "qq":
+			return has("endpoint");
+	}
+}
+
 function targetDisplayFor(webConfig: WebConfig, target: ImTarget): string {
 	return targetAvailability(webConfig, target).display;
 }
@@ -127,7 +144,7 @@ export async function handleChannelsStatus(): Promise<Response> {
 			label: instance.label,
 			note: instance.note,
 			enabled: instance.enabled,
-			configured: status?.configured ?? true,
+			configured: status?.configured ?? hasCredentials(instance),
 			running: status?.running ?? false,
 			state: status?.state ?? "stopped",
 			detail: status?.detail,
@@ -145,7 +162,7 @@ export async function handleChannelsStatus(): Promise<Response> {
 	});
 	return json({
 		instances,
-		runtime: { hosting: getChannelStatus().length > 0, instances: getChannelStatus().map(status => status.id) },
+		runtime: { hosting: getChannelStatus().some(status => status.running), instances: getChannelStatus().map(status => status.id) },
 	});
 }
 
@@ -156,14 +173,32 @@ export async function handleChannelInstancesGet(): Promise<Response> {
 
 function mergeSecrets(incoming: unknown, stored: ChannelInstanceConfig | undefined): ChannelInstanceConfig {
 	const record = incoming as ChannelInstanceConfig;
-	const credentials: Record<string, unknown> = { ...(record.credentials ?? {}) };
+	const credentials: Record<string, unknown> = {
+		...(stored?.credentials ?? {}),
+		...(record.credentials ?? {}),
+	};
 	for (const key of Object.keys(credentials)) {
 		if (credentials[key] === "••••") {
 			credentials[key] = stored?.credentials[key];
 		}
 		if (credentials[key] === null) delete credentials[key];
 	}
-	return { ...record, credentials };
+	const options =
+		record.options === undefined
+			? stored?.options
+			: {
+					...(stored?.options ?? {}),
+					...record.options,
+					...(record.options?.peerTokens
+						? {
+								peerTokens: {
+									...(stored?.options?.peerTokens ?? {}),
+									...record.options.peerTokens,
+								},
+							}
+						: {}),
+				};
+	return { ...record, credentials, ...(options === undefined ? {} : { options }) };
 }
 
 export async function handleChannelInstancesPut(req: Request): Promise<Response> {
@@ -189,6 +224,7 @@ export async function handleImAgentsGet(): Promise<Response> {
 			const target = targetAvailability(webConfig, profile.location);
 			return {
 				targetKey: targetKey(profile.location),
+				key: targetKey(profile.location),
 				display: target.display,
 				available: target.available,
 				...(target.reason ? { reason: target.reason } : {}),
@@ -246,7 +282,7 @@ export async function handleImCommands(req: Request): Promise<Response> {
 	const session = binding ? webConfig.getBotSession(binding.sessionId) : undefined;
 	return json({
 		bot: { instanceId: instance.id, label: instance.label, platform: instance.platform },
-		...(binding ? { binding: { id: binding.id, role: binding.role, agentRuntimeId: `im:${instance.id}:${binding.agentProfileId}:${binding.id}` } } : {}),
+		...(binding ? { binding: { id: binding.id, role: binding.role, agentRuntimeId: imAgentRuntimeId(instance.id, binding.agentProfileId, binding.id) } } : {}),
 		...(session ? { session: { id: session.id, display: session.name } } : {}),
 		...(binding?.model ? { model: { ...binding.model, display: `${binding.model.provider}/${binding.model.model}` } } : {}),
 		voice: { supported: false, reason: "IM voice delivery is not implemented; the tts tool writes a file" },
