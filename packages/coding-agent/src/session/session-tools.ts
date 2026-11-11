@@ -3019,7 +3019,7 @@ export class SessionTools {
 					// A refused or failed approval must not roll back the tool set: the
 					// server simply stays unmounted.
 					try {
-						await analysis.approve(request);
+						if (await analysis.approve(request)) analysisHook.approve(request.serverName);
 					} catch (error) {
 						logger.debug("analysis-MCP approval request failed", { error: String(error) });
 					}
