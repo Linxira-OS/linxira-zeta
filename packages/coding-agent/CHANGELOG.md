@@ -45,6 +45,7 @@
 - **Unsupported dictation is hidden and silent** — the control mounts only with
   all `dictation.*` host operations and a complete desktop microphone transport;
   otherwise it renders nothing and does not poll.
+- Context files and `SYSTEM.md` are hot-reloaded at the next turn boundary: an edited, replaced, renamed, deleted, or newly discovered file that this session actually rendered from rebuilds the base system prompt before the next provider request and re-keys the prompt cache once; an unchanged file changes nothing. The check is a bounded stat of the session's own discovered set plus depth-0 watchers on the directories those files live in (and the session cwd) — never a tree walk — and a streaming turn is never altered mid-request. Provenance is untouched: files discovery did not include stay out of the prompt.
 
 ## [1.5.1] - 2026-11-10
 

@@ -1,8 +1,18 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import * as path from "node:path";
 import type { Agent, AgentMessage, AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { resolveDelegationBias } from "@linxiraos/pi-catalog/compat/delegation";
-import { isRecord, logger, prompt, stringProperty, structuredCloneJSON, untilAborted } from "@linxiraos/pi-utils";
+import {
+	getAgentDir,
+	isRecord,
+	logger,
+	prompt,
+	stringProperty,
+	structuredCloneJSON,
+	untilAborted,
+} from "@linxiraos/pi-utils";
+import { getConfigDirPaths } from "../config";
 import { reset as resetCapabilities } from "../capability";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { shouldInlineToolDescriptors } from "../config/inline-tool-descriptors-mode";
@@ -32,6 +42,8 @@ import { MEMORY_BACKEND_TOOL_NAMES } from "../memory-backend/tool-names";
 import { invalidateToolSchemaMetadata } from "@linxiraos/pi-tui/status-line/context-usage";
 import type { MemoryBackendStartOptions, MemoryPromptPreparation } from "../memory-backend/types";
 import type { AgentDefinition } from "../task/types";
+import { discoverSystemPromptOverride } from "../system-prompt";
+import { createContextReloadService, type ContextReloadService } from "./context-reload";
 import evalPreludeNoticePrompt from "../prompts/system/eval-prelude-notice.md" with { type: "text" };
 import sessionAgentNoticePrompt from "../prompts/system/session-agent-notice.md" with { type: "text" };
 import skillNoticePrompt from "../prompts/system/skill-notice.md" with { type: "text" };
@@ -174,7 +186,12 @@ export type SystemPromptRebuilder = (
 ) => Promise<{
 	systemPrompt: string[];
 	xdevCatalogNames?: readonly string[];
-	/** Context files this rebuild actually used; the reload service watches exactly these. */
+	/**
+	 * The context files this rebuild actually rendered, after the owner's own
+	 * filtering (`noContextFiles`, `excludeAgentsMd`, explicit `contextFiles`).
+	 * The context-reload service watches exactly these paths, so provenance and
+	 * consent stay the discovery layer's decision.
+	 */
 	contextWatchPaths?: readonly string[];
 }>;
 
@@ -202,6 +219,12 @@ interface SessionToolsOptions {
 	 */
 	reconcileSettingsGatedTools?: (isBuiltIn: (name: string) => boolean) => Promise<SettingsGatedToolDelta>;
 	rebuildSystemPrompt?: SystemPromptRebuilder;
+	/**
+	 * Watch set for {@link SessionTools.refreshContextFilesIfChanged}: the files this
+	 * session's system prompt was rendered from. Prefer the rebuild result's
+	 * `contextWatchPaths`; this provider covers hosts that build the prompt elsewhere.
+	 */
+	contextWatchPaths?: () => readonly string[];
 	getMcpServerInstructions?: () => Map<string, string> | undefined;
 	xdev?: XdevState;
 	setActiveToolNames?: (names: Iterable<string>) => void;
@@ -561,6 +584,12 @@ export class SessionTools {
 	 */
 	#promptSurface: PromptSurface;
 	#acpPermissionDecisions = new Map<string, "allow_always" | "reject_always">();
+	/** Watches the files this session's prompt rendered from; refreshes at turn boundaries only. */
+	#contextReload: ContextReloadService;
+	/** Last watch set the rebuild reported (see {@link SystemPromptRebuilder}). */
+	#contextWatchPaths: readonly string[];
+	/** Resolved custom-prompt files (`SYSTEM.md`/`SYSTEM_TEMPLATE.md`, `APPEND_SYSTEM.md`, `PERSONALITY.md`). */
+	#promptSourcePaths: readonly string[] = [];
 
 	constructor(host: SessionToolsHost, options: SessionToolsOptions) {
 		this.#host = host;
@@ -590,6 +619,35 @@ export class SessionTools {
 		this.#ensureGoalRegistered = options.ensureGoalRegistered;
 		this.#reconcileSettingsGatedTools = options.reconcileSettingsGatedTools;
 		this.#rebuildSystemPrompt = options.rebuildSystemPrompt;
+		this.#contextWatchPaths = [];
+		void this.#adoptPromptSourcePaths();
+		this.#contextReload = createContextReloadService({
+			readWatchPaths: () => [
+				...(options.contextWatchPaths?.() ?? this.#contextWatchPaths),
+				...this.#promptSourcePaths,
+			],
+			// Watch the cwd's ancestor chain and the agent dir too: a context or custom-prompt
+			// file added (or removed) in a parent native directory is noticed without any
+			// tree walk, and the walk is bounded to the discovery roots.
+			watchRoots: () => {
+				const roots: string[] = [];
+				let directory = path.resolve(this.#host.sessionManager.getCwd());
+				for (let depth = 0; depth < 8; depth++) {
+					roots.push(directory);
+					const parent = path.dirname(directory);
+					if (parent === directory) break;
+					directory = parent;
+				}
+				roots.push(getAgentDir());
+				return roots;
+			},
+			refresh: async isCurrent => {
+				await this.refreshBaseSystemPrompt(isCurrent);
+				// The rebuild re-resolved the custom-prompt sources; follow them.
+				await this.#adoptPromptSourcePaths();
+			},
+			isDisposed: () => this.#host.isDisposed(),
+		});
 		this.#getMcpServerInstructions = options.getMcpServerInstructions;
 		this.#xdev = options.xdev;
 		if (this.#xdev && this.#xdev.tools !== this.#toolRegistry) {
@@ -670,6 +728,52 @@ export class SessionTools {
 	/** Drops the active per-turn override; later rebuilds fall back to the base prompt. */
 	clearTurnSystemPromptOverride(): void {
 		this.#turnSystemPromptOverride = undefined;
+	}
+
+	/**
+	 * Resolve the custom-prompt files the builder reads for this cwd, using the same
+	 * discovery the builder uses — no independent scan. Only paths are kept; the content is
+	 * read by the rebuild itself.
+	 */
+	async #adoptPromptSourcePaths(): Promise<void> {
+		const cwd = this.#host.sessionManager.getCwd();
+		// `findConfigFile` hides missing files; the *candidates* are what a hot update has to
+		// watch, so a newly created APPEND_SYSTEM.md is seen where discovery would look.
+		const candidates = [...getConfigDirPaths("APPEND_SYSTEM.md"), path.join(getAgentDir(), "PERSONALITY.md")];
+		try {
+			const override = await discoverSystemPromptOverride(cwd);
+			if (override?.path) candidates.push(override.path);
+		} catch (error) {
+			logger.debug("Could not resolve custom-prompt sources for context reload", { error: String(error) });
+		}
+		const seen = new Set<string>();
+		const paths: string[] = [];
+		for (const candidate of candidates) {
+			const resolved = path.resolve(candidate);
+			if (seen.has(resolved)) continue;
+			seen.add(resolved);
+			paths.push(resolved);
+		}
+		this.#promptSourcePaths = paths;
+	}
+
+	/** Replace the context-reload watch set (hosts that build the prompt outside the rebuilder). */
+	setContextWatchPaths(paths: readonly string[]): void {
+		this.#contextWatchPaths = [...paths];
+	}
+
+	/**
+	 * Refresh the base prompt when a watched context/custom-prompt file changed. Idle hosts
+	 * call this to apply an edit before the next turn; the turn boundary calls the same path.
+	 * Returns whether a rebuild ran.
+	 */
+	refreshContextFilesIfChanged(isCurrent?: () => boolean): Promise<boolean> {
+		return this.#contextReload.beforeRequest(isCurrent);
+	}
+
+	/** Close the context-reload watchers and timers. Safe to call twice. */
+	dispose(): void {
+		this.#contextReload.dispose();
 	}
 
 	/** The live skill registry: what `skill://` and `/skill:` resolve. */
@@ -2637,6 +2741,7 @@ export class SessionTools {
 				if (this.#baseSystemPrompt !== previousBaseSystemPrompt) return true;
 				const promptChanged = !samePromptBlocks(previousBaseSystemPrompt, built.systemPrompt);
 				this.#baseSystemPrompt = built.systemPrompt;
+				if (built.contextWatchPaths !== undefined) this.#contextWatchPaths = built.contextWatchPaths;
 				this.#promptSurface = candidate;
 				this.#setBasePromptXdevNames(built.xdevCatalogNames);
 				this.#host.clearMemoryPromotionSnapshot();
@@ -2710,6 +2815,10 @@ export class SessionTools {
 		isCurrent: () => boolean,
 		signal?: AbortSignal,
 	): Promise<SystemPromptPreparation> {
+		// Turn boundary: apply an edited context file / custom prompt before this request is
+		// assembled. A streaming turn never reaches here, and a stale reload is dropped by the
+		// generation guard inside the service.
+		await this.#contextReload.beforeRequest(isCurrent);
 		const backend = await resolveMemoryBackend(this.#host.settings);
 		if (!isCurrent() || !backend.beforeAgentStartPrompt) return { systemPrompt: this.#baseSystemPrompt };
 
