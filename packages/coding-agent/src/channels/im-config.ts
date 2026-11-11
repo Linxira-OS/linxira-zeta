@@ -412,7 +412,7 @@ export function validateImBindings(
 					: null;
 		if (role === null) issues.push({ path: `${p}.role`, message: 'expected "answer", "mention" or "observe"' });
 		if (instance && chatId) {
-			const key = `${instanceId}\u0000${chatId}\u0000${threadId ?? ""}\u0000${userId ?? ""}`;
+			const key = `${instanceId}\u0000${chatId}\u0000${threadId ?? ""}\u0000${userId ?? ""}\u0000${role ?? ""}`;
 			if (keys.has(key)) issues.push({ path: p, message: "duplicate instance/chat binding" });
 			keys.add(key);
 			if (role === "answer") {

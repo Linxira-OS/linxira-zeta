@@ -331,6 +331,17 @@ const LEGACY_BUILTIN_TOOLS = [
 	"im_control",
 ];
 
+/** Drop binding rows whose instance no longer exists; return true when healed. */
+function healUnpersistableImBindings(data: WebConfigData): boolean {
+	const bindings = data.remote.imBindings;
+	if (!bindings || bindings.length === 0) return false;
+	const instanceIds = new Set(data.channels.instances.map(instance => instance.id));
+	const kept = bindings.filter(binding => instanceIds.has(binding.instanceId));
+	if (kept.length === bindings.length) return false;
+	data.remote.imBindings = kept;
+	return true;
+}
+
 /** Legacy `channels.<platform>` block, kept only inside the one-shot migrator. */
 function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; data: Record<string, unknown> } {
 	const channels = raw.channels;
@@ -1007,7 +1018,7 @@ export class WebConfig {
 		return withFileLock(this.#filePath, async () => {
 			const data = await WebConfig.#read(this.#filePath);
 			const { changed, value } = mutation(data);
-			const healed = dropUnpersistableMappings(data);
+			const healed = healUnpersistableImBindings(data);
 			if (changed || healed) await this.#write(data);
 			this.#data = data;
 			return value;

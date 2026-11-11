@@ -20,6 +20,7 @@ import { runCredentialLogin } from "../../channels/credential-login";
 import { WebConfig } from "../../config/web-config";
 import { resolveTeamDbPath, TeamDb } from "../../team/db";
 import { imAgentRuntimeId } from "../../agent-profile";
+import { readImSessionCandidates } from "../../channels/session-router";
 
 function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });
@@ -269,6 +270,13 @@ export async function handleImBindingsPut(req: Request): Promise<Response> {
 		return json({ ok: false, error: error instanceof Error ? error.message : String(error) }, 400);
 	}
 	return json({ ok: true });
+}
+
+/** The same typed candidates `!session list` uses (selector/canonicalId/label/summary). */
+export async function handleImSessions(): Promise<Response> {
+	const snapshot = await readImSessionCandidates();
+	if (!snapshot) return json({ sessions: [], generatedAt: null });
+	return json({ sessions: snapshot.candidates, generatedAt: new Date(snapshot.generatedAt).toISOString() });
 }
 
 export async function handleImCommands(req: Request): Promise<Response> {

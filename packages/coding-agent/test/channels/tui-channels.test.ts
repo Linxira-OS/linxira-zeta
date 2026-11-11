@@ -23,8 +23,10 @@ import {
 	wechatPairingBlockedByHost,
 } from "../../src/channels/instance-lock";
 import {
+	hasActiveSessionChannels,
 	restartSessionChannels,
 	startSessionChannels,
+	stopActiveSessionChannels,
 	suspendActiveSessionChannels,
 } from "../../src/channels/session-host";
 import {
@@ -195,6 +197,35 @@ describe("TUI channel host lock", () => {
 		expect(second?.started).toBe(true);
 		if (second?.started) expect(second.host.instances).toEqual(["feishu"]);
 		expect(started).toEqual([["telegram"], ["feishu"]]);
+	});
+	test("stop releases the host and clears restart context; a later start is full", async () => {
+		const { dir, config } = await makeConfig(
+			imConfig([instance("telegram", "telegram", { enabled: true, credentials: { botToken: "tg" } })]),
+		);
+		const start = (async (_session: ChannelSession, _webConfig: unknown) => {
+			const ids = config.getData().channels.instances.filter(entry => entry.enabled).map(entry => entry.id);
+			return fakeRuntime(ids);
+		}) as unknown as typeof startChannels;
+		const first = await startSessionChannels({
+			session: fakeSession(),
+			webConfig: config,
+			lockPath: channelLockPath(dir),
+			startChannels: start,
+		});
+		expect(first.started).toBe(true);
+		expect(hasActiveSessionChannels()).toBe(true);
+		await stopActiveSessionChannels();
+		expect(hasActiveSessionChannels()).toBe(false);
+		// stop clears lastContext: restart cannot reuse the stopped host.
+		expect(await restartSessionChannels()).toBeNull();
+		const again = await startSessionChannels({
+			session: fakeSession(),
+			webConfig: config,
+			lockPath: channelLockPath(dir),
+			startChannels: start,
+		});
+		expect(again.started).toBe(true);
+		await stopActiveSessionChannels();
 	});
 });
 

@@ -39,7 +39,7 @@ export function isPeerAllowedFor(
 	allow: ChannelAllowlists | null | undefined,
 	platform?: ChannelPlatform,
 ): boolean {
-	const rule = allow?.perInstance[instanceId];
+	const rule = allow?.perInstance?.[instanceId];
 	if (!rule || rule.peers.length === 0) return false;
 	const keys = new Set<string>([identity.peer, ...(identity.allowKeys ?? [])]);
 	if (!rule.peers.some(peer => keys.has(peer))) return false;
