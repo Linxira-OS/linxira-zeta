@@ -1254,6 +1254,23 @@ export class TeamDb {
 		this.#db.query("DELETE FROM rooms WHERE room_id = ?").run(id);
 	}
 
+	updateRoom(id: string, fields: { kind?: RoomKind; pmId?: string | null }): boolean {
+		const assignments: string[] = [];
+		const values: (string | null)[] = [];
+		if (fields.kind !== undefined) {
+			assignments.push("kind = ?");
+			values.push(fields.kind);
+		}
+		if (fields.pmId !== undefined) {
+			assignments.push("pm_id = ?");
+			values.push(fields.pmId);
+		}
+		if (assignments.length === 0) return false;
+		return (
+			this.#db.query(`UPDATE rooms SET ${assignments.join(", ")} WHERE room_id = ?`).run(...values, id).changes === 1
+		);
+	}
+
 	// ── room membership ───────────────────────────────────────────────────
 
 	listRoomMembers(roomId: string): RoomMemberRecord[] {

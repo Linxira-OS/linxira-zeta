@@ -16,8 +16,9 @@ import type {
 	TeamHubSnapshot,
 	TeamHubWorktree,
 } from "@linxiraos/pi-tui/overlays/team-hub";
-import { postRoomEvent } from "./rooms";
-import { resolveTeamDbPath, TeamDb, type RoomSummaryRecord } from "./db";
+import { addRoomMember, createRoom, postRoomEvent, removeRoomMember, setRoomKind } from "./rooms";
+import { resolveTeamDbPath, TeamDb, type RoomSummaryRecord, type TaskRecord } from "./db";
+import { cancelTask, claimTask, completeTask, releaseTask, renewTaskLease, rejectTask, submitTask } from "./tasks";
 
 /** Events loaded per selected room. */
 export const TEAM_HUB_EVENT_LIMIT = 200;
@@ -34,6 +35,27 @@ export interface TeamHubDataSourceOptions {
 export interface TeamHubSource {
 	load(options?: { room?: string; preferPmId?: string }): Promise<TeamHubSnapshot>;
 	post(input: { room: string; body: string; sender?: string }): Promise<{ seq: number }>;
+	createRoom?(input: {
+		name: string;
+		kind?: "pm" | "coordination" | "room";
+		pm?: string;
+		shared?: boolean;
+		members?: string[];
+	}): Promise<{ message: string }>;
+	addRoomMember?(input: { room: string; member: string }): Promise<{ message: string }>;
+	removeRoomMember?(input: { room: string; member: string }): Promise<{ message: string }>;
+	setRoomKind?(input: {
+		room: string;
+		kind: "pm" | "coordination" | "room";
+		pm?: string;
+	}): Promise<{ message: string }>;
+	taskAction?(input: {
+		task: string;
+		action: "claim" | "renew" | "release" | "submit" | "complete" | "reject" | "cancel";
+		agent?: string;
+		pm?: string;
+		body?: string;
+	}): Promise<{ message: string }>;
 }
 
 const ROOM_KIND_RANK: Record<TeamHubRoomKind, number> = { coordination: 0, pm: 1, room: 2 };
@@ -210,6 +232,99 @@ export function createTeamHubDataSource(options: TeamHubDataSourceOptions): Team
 				sender: input.sender,
 			});
 			return { seq: result.event.seq };
+		},
+
+		async createRoom(input) {
+			const result = await createRoom({
+				teamRoot: options.teamRoot,
+				dbPath,
+				name: input.name,
+				kind: input.kind,
+				pm: input.pm,
+				shared: input.shared,
+				members: input.members,
+			});
+			return { message: `Created room "${result.room.name}" (${result.room.kind})` };
+		},
+
+		async addRoomMember(input) {
+			const member = await addRoomMember({
+				teamRoot: options.teamRoot,
+				dbPath,
+				room: input.room,
+				member: input.member,
+			});
+			return { message: `Added ${member.agentId} to ${input.room} (${member.role})` };
+		},
+
+		async removeRoomMember(input) {
+			await removeRoomMember({ teamRoot: options.teamRoot, dbPath, room: input.room, member: input.member });
+			return { message: `Removed ${input.member} from ${input.room}` };
+		},
+
+		async setRoomKind(input) {
+			const room = await setRoomKind({
+				teamRoot: options.teamRoot,
+				dbPath,
+				room: input.room,
+				kind: input.kind,
+				pm: input.pm,
+			});
+			return { message: `Room "${room.name}" is now ${room.kind}` };
+		},
+
+		async taskAction(input) {
+			const db = new TeamDb(dbPath);
+			let task: TaskRecord | null;
+			try {
+				const team = db.getTeam(options.teamId);
+				task = team ? db.getTask(team.id, input.task) : null;
+			} finally {
+				db.close();
+			}
+			if (!task) throw new Error(`Unknown task "${input.task}"`);
+			const actor =
+				input.agent ??
+				task.assigneeAgentId ??
+				(() => {
+					const connection = new TeamDb(dbPath);
+					try {
+						return connection.listEngineers(task.teamId).find(engineer => engineer.pmId === task.assignedPmId)
+							?.id;
+					} finally {
+						connection.close();
+					}
+				})();
+			const pm = input.pm ?? task.assignedPmId;
+			const base = { teamRoot: options.teamRoot, dbPath, task: task.taskKey };
+			switch (input.action) {
+				case "claim":
+					if (!actor) throw new Error("No engineer is available to claim this task");
+					return {
+						message: `Claimed ${task.taskKey} as ${(await claimTask({ ...base, agent: actor })).task.ownerAgentId}`,
+					};
+				case "renew":
+					if (!actor) throw new Error("No engineer owns this task");
+					await renewTaskLease({ ...base, agent: actor });
+					return { message: `Renewed ${task.taskKey}` };
+				case "release":
+					if (!actor) throw new Error("No engineer owns this task");
+					await releaseTask({ ...base, agent: actor });
+					return { message: `Released ${task.taskKey}` };
+				case "submit":
+					if (!actor) throw new Error("No engineer owns this task");
+					await submitTask({ ...base, agent: actor, body: input.body });
+					return { message: `Submitted ${task.taskKey} for review` };
+				case "complete":
+					await completeTask({ ...base, pm, body: input.body });
+					return { message: `Completed ${task.taskKey}` };
+				case "reject":
+					await rejectTask({ ...base, pm, body: input.body ?? "rejected from Team Hub" });
+					return { message: `Rejected ${task.taskKey} back to pending` };
+				case "cancel":
+					await cancelTask({ ...base, pm, body: input.body });
+					return { message: `Cancelled ${task.taskKey}` };
+			}
 		},
 	};
 }
