@@ -1343,6 +1343,34 @@ export class ExtensionRunner {
 	}
 
 	/**
+	 * Remove loaded extensions from the runner's load order and active set.
+	 *
+	 * Used by session-local replacements that have already acquired their new
+	 * extension (agent-authored dev plugin reload). The caller removes the
+	 * extension-owned tools through its own registry first; this method only
+	 * drops the runner's references so suspended objects do not accumulate
+	 * across repeated reloads. Presenter and suspension listeners are notified
+	 * exactly like {@link setSuspendedExtensions}.
+	 */
+	removeExtensions(shouldRemove: (extension: Extension) => boolean): Extension[] {
+		this.#loadOrder ??= [...this.extensions];
+		const removed = this.#loadOrder.filter(extension => shouldRemove(extension));
+		if (removed.length === 0) return removed;
+		for (const extension of removed) {
+			this.#suspendedExtensions.delete(extension);
+			this.#deliveryTails.delete(extension);
+		}
+		this.#loadOrder = this.#loadOrder.filter(extension => !removed.includes(extension));
+		const active = this.#loadOrder.filter(extension => !this.#suspendedExtensions.has(extension));
+		this.extensions.splice(0, this.extensions.length, ...active);
+		if (removed.some(extension => extension.transcriptPresenters.length > 0)) {
+			notifyTranscriptPresentersChanged();
+		}
+		for (const listener of this.#suspensionListeners) listener();
+		return removed;
+	}
+
+	/**
 	 * Suspend or resume loaded extensions in place (e.g. after a live `disabledExtensions`
 	 * edit). A suspended extension keeps its module state but stops contributing event
 	 * handlers, commands, tools, message renderers, link schemes, shortcuts, flags, and file

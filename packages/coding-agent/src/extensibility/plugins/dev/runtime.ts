@@ -174,10 +174,13 @@ export class DevPluginRuntime {
 			new Set(previous.extensionPaths),
 			new Set(previous.toolNames),
 		);
-		await runner.setSuspendedExtensions(
+		const removed = runner.removeExtensions(
 			extension =>
 				extension.resolvedPath === previous.entry || previous.extensionPaths.includes(extension.resolvedPath),
 		);
+		if (removed.length === 0) {
+			throw new Error(`Plugin "${name}" was already replaced; its previous extension could not be removed.`);
+		}
 		await this.#options.host.uninstallTools(previous.toolNames);
 		await runner.addExtensions(extensions);
 		const record = this.#record(name, validation, extensions);
@@ -208,7 +211,10 @@ export class DevPluginRuntime {
 		const loaded = this.#loaded.get(name);
 		if (loaded) {
 			const runner = this.#requireRunner();
-			await runner.setSuspendedExtensions(extension => loaded.extensionPaths.includes(extension.resolvedPath));
+			const removed = runner.removeExtensions(extension => loaded.extensionPaths.includes(extension.resolvedPath));
+			if (removed.length === 0) {
+				throw new Error(`Plugin "${name}" could not be removed from the session runner.`);
+			}
 			await this.#options.host.uninstallTools(loaded.toolNames);
 			this.#loaded.delete(name);
 		}

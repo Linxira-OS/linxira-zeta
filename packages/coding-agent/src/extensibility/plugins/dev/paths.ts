@@ -49,16 +49,48 @@ export function safeSegment(value: string, field: string): string {
 
 /**
  * Resolve a plugin name under its session directory and prove the result stays
- * inside that directory after resolving the session root. `realpath` is used
- * for the root (which exists after scaffolding) and the lexical join for the
- * candidate, so a not-yet-created plugin is still checked.
+ * inside that directory both lexically and after resolving links. A junction
+ * or symlink at the session root (or at the plugin directory) is rejected:
+ * `realpath` is used for every existing component and compared with the real
+ * agent/dev roots, so a linked path cannot redirect reads or writes elsewhere.
+ * A not-yet-created plugin is still checked lexically.
  */
 export function resolveDevPluginPath(agentDir: string, sessionId: string, name: string): string {
 	if (!isValidDevPluginName(name)) throw new Error(`Invalid plugin name "${name}".`);
 	const root = sessionDevRoot(agentDir, sessionId);
 	const candidate = path.join(root, name);
 	if (!isWithin(candidate, root)) throw new Error(`Plugin path escapes the session development directory.`);
+
+	const devRoot = devPluginsRoot(agentDir);
+	if (fs.existsSync(devRoot)) {
+		const realAgentDir = realPathOrSelf(agentDir);
+		const realDevRoot = realPathOrSelf(devRoot);
+		if (!isWithin(realDevRoot, realAgentDir)) {
+			throw new Error("The development plugin root resolves outside the agent directory.");
+		}
+		if (fs.existsSync(root)) {
+			const realRoot = realPathOrSelf(root);
+			if (!isWithin(realRoot, realDevRoot)) {
+				throw new Error("The session development directory resolves outside the development plugin root.");
+			}
+			if (fs.existsSync(candidate)) {
+				const realCandidate = realPathOrSelf(candidate);
+				if (!isWithin(realCandidate, realRoot)) {
+					throw new Error("Plugin path resolves outside the session development directory through a link.");
+				}
+			}
+		}
+	}
 	return candidate;
+}
+
+/** Real path when it exists, otherwise the lexical path (for roots not yet created). */
+function realPathOrSelf(target: string): string {
+	try {
+		return fs.realpathSync(target);
+	} catch {
+		return path.resolve(target);
+	}
 }
 
 /** Whether `candidate` is the same as, or below, `root` (case-insensitive on Windows). */

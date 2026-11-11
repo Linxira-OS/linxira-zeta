@@ -75,6 +75,53 @@ describe("dev plugin scaffold and validation", () => {
 		expect(validation.ok).toBe(false);
 		expect(validation.errors.join("\n")).toContain("inside the plugin");
 	});
+
+	test("refuses a session directory linked outside the dev root", async () => {
+		const agentDir = await tempAgentDir();
+		const outside = path.join(agentDir, "linked-session-target");
+		await fs.mkdir(outside, { recursive: true });
+		const devRoot = path.join(agentDir, "plugins-dev");
+		await fs.mkdir(devRoot, { recursive: true });
+		await fs.symlink(outside, path.join(devRoot, "linked-session"), "junction");
+		expect(() => scaffoldDevPlugin(agentDir, "linked-session", "probe")).toThrow(
+			/resolves outside the development plugin root/,
+		);
+	});
+
+	test("validation rejects an entry that escapes through a directory link", async () => {
+		const agentDir = await tempAgentDir();
+		const result = scaffoldDevPlugin(agentDir, "session-a", "linked-entry");
+		const outside = path.join(agentDir, "linked-outside");
+		await fs.mkdir(outside, { recursive: true });
+		await fs.writeFile(path.join(outside, "escape.ts"), "export default () => undefined;\n", "utf8");
+		await fs.symlink(outside, path.join(result.root, "escape"), "junction");
+		const pkgPath = path.join(result.root, "package.json");
+		const pkg = JSON.parse(await fs.readFile(pkgPath, "utf8")) as {
+			zeta: { extensions: string[] };
+		};
+		pkg.zeta.extensions = ["./escape/escape.ts"];
+		await fs.writeFile(pkgPath, JSON.stringify(pkg));
+		const validation = validateDevPluginDirectory(agentDir, "session-a", "linked-entry");
+		expect(validation.ok).toBe(false);
+		expect(validation.errors.join("\n")).toContain("escapes the plugin through a link");
+	});
+
+	test("validation refuses a tools/hooks-only manifest load_dev cannot bind", async () => {
+		const agentDir = await tempAgentDir();
+		const result = scaffoldDevPlugin(agentDir, "session-a", "tools-only");
+		const pkgPath = path.join(result.root, "package.json");
+		const pkg = JSON.parse(await fs.readFile(pkgPath, "utf8")) as {
+			zeta: { extensions?: string[]; tools?: string };
+		};
+		delete pkg.zeta.extensions;
+		pkg.zeta.tools = "./tools.ts";
+		await fs.writeFile(pkgPath, JSON.stringify(pkg));
+		await fs.writeFile(path.join(result.root, "tools.ts"), "export default () => undefined;\n", "utf8");
+		const validation = validateDevPluginDirectory(agentDir, "session-a", "tools-only");
+		expect(validation.ok).toBe(false);
+		expect(validation.errors.join("\n")).toContain('"extensions" entry');
+		expect(validation.warnings.join("\n")).toContain("only the extensions entries");
+	});
 });
 
 describe("promotion, export and cleanup", () => {
@@ -184,6 +231,7 @@ describe("session loading and reload", () => {
 		const loaded = await dev.loadDev("live-probe");
 		expect(loaded.plugin.toolNames).toEqual(["live_probe_hello"]);
 		expect(runner.getRegisteredTool("live_probe_hello")).toBeDefined();
+		const loadedCount = runner.getLoadedExtensions().length;
 
 		const entry = path.join(loaded.plugin.root, "index.ts");
 		const source = await fs.readFile(entry, "utf8");
@@ -199,6 +247,7 @@ describe("session loading and reload", () => {
 		expect(removed).toContain("live_probe_hello");
 		expect(runner.getRegisteredTool("live_probe_hello")).toBeUndefined();
 		expect(runner.getRegisteredTool("live_probe_v2")).toBeDefined();
+		expect(runner.getLoadedExtensions()).toHaveLength(loadedCount);
 	});
 
 	test("a broken reload keeps the previous registration live", async () => {
@@ -229,5 +278,22 @@ describe("session loading and reload", () => {
 		await expect(dev.loadDev("shadow")).rejects.toThrow(/already registered in this session/);
 		expect(runner.getRegisteredTool("read")).toBeUndefined();
 		expect(dev.list()).toEqual([]);
+	});
+
+	test("discard removes the runner extension, tools, and directory", async () => {
+		const agentDir = await tempAgentDir();
+		const { runner, removed, live } = liveRunner(agentDir);
+		const dev = devRuntime(agentDir, "session-live", runner, removed, live);
+		scaffoldDevPlugin(agentDir, "session-live", "discard-me");
+		const loaded = await dev.loadDev("discard-me");
+		const loadedCount = runner.getLoadedExtensions().length;
+		expect(runner.getRegisteredTool("discard_me_hello")).toBeDefined();
+
+		await dev.discard("discard-me");
+		expect(runner.getLoadedExtensions()).toHaveLength(loadedCount - 1);
+		expect(runner.getRegisteredTool("discard_me_hello")).toBeUndefined();
+		expect(removed).toContain("discard_me_hello");
+		expect(dev.list()).toEqual([]);
+		await expect(fs.stat(loaded.plugin.root)).rejects.toThrow();
 	});
 });

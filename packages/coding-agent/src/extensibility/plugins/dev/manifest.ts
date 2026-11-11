@@ -65,7 +65,13 @@ function resolveContainedEntry(root: string, entry: string): string | undefined 
 	return isWithin(candidate, root) ? candidate : undefined;
 }
 
-function checkExistingEntry(root: string, entry: string, field: string, errors: string[]): string | undefined {
+function checkExistingEntry(
+	root: string,
+	realRoot: string,
+	entry: string,
+	field: string,
+	errors: string[],
+): string | undefined {
 	const resolved = resolveContainedEntry(root, entry);
 	if (!resolved) {
 		errors.push(`${field} "${entry}" must be a relative path inside the plugin.`);
@@ -82,6 +88,17 @@ function checkExistingEntry(root: string, entry: string, field: string, errors: 
 		errors.push(`${field} "${entry}" is not a file.`);
 		return undefined;
 	}
+	let real: string;
+	try {
+		real = fs.realpathSync(resolved);
+	} catch {
+		errors.push(`${field} "${entry}" cannot be resolved.`);
+		return undefined;
+	}
+	if (!isWithin(real, realRoot)) {
+		errors.push(`${field} "${entry}" escapes the plugin through a link.`);
+		return undefined;
+	}
 	return resolved;
 }
 
@@ -90,7 +107,7 @@ function checkExistingEntry(root: string, entry: string, field: string, errors: 
  * resolve to a file or a directory index; bare specifiers are left to the
  * runtime because a plugin may legitimately rely on the host's package graph.
  */
-function scanImports(file: string, errors: string[]): void {
+function scanImports(file: string, realRoot: string, errors: string[]): void {
 	let source: string;
 	try {
 		source = fs.readFileSync(file, "utf8");
@@ -119,8 +136,20 @@ function scanImports(file: string, errors: string[]): void {
 			path.join(resolved, "index.ts"),
 			path.join(resolved, "index.js"),
 		];
-		if (!candidates.some(candidate => fs.existsSync(candidate))) {
+		const existing = candidates.find(candidate => fs.existsSync(candidate));
+		if (existing === undefined) {
 			errors.push(`Import "${specifier}" in ${path.basename(file)} does not resolve.`);
+			continue;
+		}
+		let real: string;
+		try {
+			real = fs.realpathSync(existing);
+		} catch {
+			errors.push(`Import "${specifier}" in ${path.basename(file)} cannot be resolved.`);
+			continue;
+		}
+		if (!isWithin(real, realRoot)) {
+			errors.push(`Import "${specifier}" in ${path.basename(file)} escapes the plugin through a link.`);
 		}
 	}
 }
@@ -134,6 +163,12 @@ export function validateDevPluginDirectory(agentDir: string, sessionId: string, 
 
 	if (!fs.existsSync(root)) {
 		return { ok: false, name, root, pages, errors: [`Plugin "${name}" does not exist.`], warnings };
+	}
+	let realRoot: string;
+	try {
+		realRoot = fs.realpathSync(root);
+	} catch {
+		return { ok: false, name, root, pages, errors: [`Plugin "${name}" cannot be resolved.`], warnings };
 	}
 
 	const pkg = readJsonFile(path.join(root, "package.json"));
@@ -161,6 +196,15 @@ export function validateDevPluginDirectory(agentDir: string, sessionId: string, 
 		...(typeof manifest.hooks === "string" ? ([["hooks", manifest.hooks]] as const) : []),
 	];
 	if (entries.length === 0) errors.push("The manifest declares no extensions, tools, or hooks.");
+	const hasExtensions = Array.isArray(manifest.extensions) && manifest.extensions.length > 0;
+	if (!hasExtensions && entries.length > 0) {
+		errors.push(
+			'Development plugins load through the extension runtime; declare at least one "extensions" entry (load_dev does not bind tools/hooks-only manifests).',
+		);
+	}
+	if (typeof manifest.tools === "string" || typeof manifest.hooks === "string") {
+		warnings.push("tools/hooks entries are installed-plugin providers; load_dev binds only the extensions entries.");
+	}
 
 	let firstEntry: string | undefined;
 	for (const [field, entry] of entries) {
@@ -168,10 +212,10 @@ export function validateDevPluginDirectory(agentDir: string, sessionId: string, 
 			errors.push(`${field} entries must be non-empty strings.`);
 			continue;
 		}
-		const resolved = checkExistingEntry(root, entry, `manifest ${field}`, errors);
+		const resolved = checkExistingEntry(root, realRoot, entry, `manifest ${field}`, errors);
 		if (resolved && field === "extensions") {
 			firstEntry ??= resolved;
-			scanImports(resolved, errors);
+			scanImports(resolved, realRoot, errors);
 		}
 	}
 
@@ -183,7 +227,7 @@ export function validateDevPluginDirectory(agentDir: string, sessionId: string, 
 		else if (declaration.ui?.panels) {
 			for (const panel of declaration.ui.panels) {
 				if (panel.kind !== "html") continue;
-				const resolved = checkExistingEntry(root, panel.entry, `page "${panel.id}"`, errors);
+				const resolved = checkExistingEntry(root, realRoot, panel.entry, `page "${panel.id}"`, errors);
 				if (resolved) pages.push({ id: panel.id, entry: panel.entry });
 			}
 		}
@@ -193,10 +237,10 @@ export function validateDevPluginDirectory(agentDir: string, sessionId: string, 
 
 	// Any other package paths (commands, locales) must still stay contained.
 	for (const command of manifest.commands ?? []) {
-		checkExistingEntry(root, command, "manifest command", errors);
+		checkExistingEntry(root, realRoot, command, "manifest command", errors);
 	}
 	for (const locale of Object.values(manifest.locales ?? {})) {
-		if (typeof locale === "string") checkExistingEntry(root, locale, "manifest locale", errors);
+		if (typeof locale === "string") checkExistingEntry(root, realRoot, locale, "manifest locale", errors);
 	}
 
 	return {

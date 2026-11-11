@@ -49,22 +49,27 @@ enforces.
 
 1. A dev plugin lives only under
    `<agentDir>/plugins-dev/<session-id>/<name>/`. Path segments are validated;
-   every read and write resolves inside that session root, and a name, manifest
-   entry, or exported page that escapes is rejected. Links are unlinked, never
-   followed, during removal.
+   every read and write resolves inside that session root after `realpath`, and
+   a name, manifest entry, or relative import that escapes through a junction or
+   symlink is rejected. Links are unlinked, never followed, during removal.
 2. The `plugin_manager` tool exposes `scaffold`, `validate`, `load_dev`,
    `reload`, `list_dev`, and `discard`. It does not expose `promote` or
    `export`. Dev actions require an interactive main session; print, RPC,
-   headless, and subagent sessions refuse.
+   headless, and subagent sessions refuse. A dev package must declare at least
+   one `extensions` entry; `tools`/`hooks` are installed-plugin providers and
+   are rejected by validation instead of being silently ignored by `load_dev`.
 3. `load_dev` imports the extension entry, binds it with the live session's
    `ExtensionRuntime`, and appends it through the existing `ExtensionRunner`.
    The SDK's late-tool subscriber therefore registers/activates the tools under
    the profile admission policy exactly like a startup extension. The
    lifecycle does not maintain a second tool registry.
-4. Reload imports and validates the replacement before suspending the previous
-   extension. A failure leaves the previous registrations live. A runtime-owned
-   `turn_end` hook compares a bounded content fingerprint and reloads changed
-   plugins; a `session_shutdown` hook expires old session directories.
+4. Reload imports and validates the replacement before removing the previous
+   extension's runner registration and tools. A failure leaves the previous
+   registrations live. Removal drops the old object from load order and the
+   suspended set, so repeated reloads do not accumulate suspended extensions.
+   A runtime-owned `turn_end` hook compares a bounded content fingerprint and
+   reloads changed plugins; a `session_shutdown` hook expires old session
+   directories.
 5. Dev plugins may not shadow a tool that another extension or the runtime
    already registered. Removal cannot restore an overwritten built-in, so the
    collision is refused before anything joins.
@@ -72,13 +77,18 @@ enforces.
    Promotion validates, copies through a staging directory, and lands in
    `~/.zeta/agent/plugins/<name>` — the dropped-in root a later session reads —
    and reports that a restart is required. The tool surface has no path to it.
+7. Declared dev pages are validated statically but the page host lists only
+   installed/promoted packages. Dev pages are promotion-preview only; REQ-055
+   does not add a live dev-page/TSP contract.
 
 ### Page host
 
 1. A plugin page is declared by `plugin.json` `ui.panels` with `kind: "html"`
    and a package-relative `entry`. The gateway `GET /api/plugin-pages` lists
    only declared pages; `GET /api/plugin-assets/<plugin>/<path>` serves the
-   package file with containment and an extension allowlist.
+   package file with containment and an extension allowlist. Asset URLs carry
+   `?cwd=<project>` so an iframe navigation can resolve project-scoped plugin
+   roots without the Studio header.
 2. The Studio renderer mounts `/plugins/view/<plugin>/<entry>` in a sandboxed
    same-origin iframe. A page gets no Node, no arbitrary HTTP server, and no
    second renderer.

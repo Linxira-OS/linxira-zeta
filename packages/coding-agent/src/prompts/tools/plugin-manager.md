@@ -8,9 +8,9 @@ Manage installed Zeta plugins and this session's agent-authored development plug
 - `set_enabled` — set `enabled` for `target`.
 - `list_dev` — this session's development plugins under `<agentDir>/plugins-dev/<session>/`, loaded or only scaffolded.
 - `scaffold` — create a minimal dev plugin package (`package.json`, `plugin.json`, `index.ts`) with a read-only example tool. Optional `description`.
-- `validate` — static check of manifest, contained entries, imports, and page declarations. Read-only.
+- `validate` — static check of manifest, realpath-contained entries/imports, and page declarations. The package must declare at least one `extensions` entry; tools/hooks-only manifests are rejected because `load_dev` does not bind them. Read-only.
 - `load_dev` — import and bind the plugin into this live session. Its tools/commands join the session immediately; a broken plugin leaves the session untouched.
-- `reload` — re-import `target` now. Edits also reload automatically at the end of the next turn; a broken edit keeps the previous version live.
+- `reload` — re-import `target` now and remove the previous runner registration. Edits also reload automatically at the end of the next turn; a broken edit keeps the previous version live.
 - `discard` — unload `target` and delete its directory. Only inside this session's dev root.
 
 Dev plugins only load in an interactive main session. They never change global settings or the repository. The agent cannot promote or export: only the user can run `zetacode plugin promote <name>` / `export <name> <dir>`; promotion copies into `~/.zeta/agent/plugins/<name>` and needs a restart.
