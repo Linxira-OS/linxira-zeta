@@ -393,7 +393,7 @@ describe("workspace commands", () => {
 		expect(result).toBeDefined();
 		const opened = result!.workspaces[0];
 		expect(opened?.workspaceId).toBe(workspaceId);
-		expect(Number.isFinite(Date.parse(opened!.lastOpenedAt))).toBe(true);
+		expect(Number.isFinite(Date.parse(opened!.lastOpenedAt!))).toBe(true);
 		// `active` names the gateway's own always-open workspace (the default one
 		// the test points at this tree) — the host must never relabel it.
 		expect(result!.activeWorkspaceId).toBe(workspaceId);

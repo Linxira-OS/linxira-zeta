@@ -512,7 +512,7 @@ function projectContextWindow(
 ): SessionContext {
 	const messages: AgentMessage[] = [];
 	const entryIds: string[] = [];
-	const messageMetadata: (ReturnType<typeof normalizeImMessageMetadata> | null)[] = [];
+	const messageMetadata: NonNullable<SessionContext["messageMetadata"]> = [];
 	const controlEvents: NonNullable<SessionContext["controlEvents"]> = [];
 	for (let index = start; index < end; index += 1) {
 		const entry = branch.contextEntries[index];

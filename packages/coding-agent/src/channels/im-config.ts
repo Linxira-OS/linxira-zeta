@@ -209,7 +209,7 @@ function validateTarget(value: unknown, pathName: string, issues: ConfigIssue[])
 	let kind = text(rec.kind);
 	const key = text(rec.targetKey) ?? text(rec.key);
 	if (key && kind === null) kind = key.split(":", 1)[0] ?? null;
-	if (key && !record(rec).workspace && !record(rec).team) {
+	if (key && !rec.workspace && !rec.team) {
 		const [prefix, rest] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)];
 		const parts = rest.split("/");
 		if (prefix === "workspace" && parts[0]) return { kind: "workspace", workspace: parts[0] };

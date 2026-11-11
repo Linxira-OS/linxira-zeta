@@ -189,7 +189,7 @@ describe("channel lock contention", () => {
 		await fs.writeFile(lockPath, "not json at all", "utf8");
 		const result = await acquireChannelLock({
 			lockPath,
-			metadata: { pid: process.pid, host: "cli", cwd: path.dirname(lockPath), channels: [] },
+			metadata: { pid: process.pid, host: "cli", cwd: path.dirname(lockPath), instances: [] },
 		});
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -202,7 +202,7 @@ describe("channel lock contention", () => {
 		const lockPath = await makeLockDir();
 		const acquired = await acquireChannelLock({
 			lockPath,
-			metadata: { pid: process.pid, host: "cli", cwd: path.dirname(lockPath), channels: [] },
+			metadata: { pid: process.pid, host: "cli", cwd: path.dirname(lockPath), instances: [] },
 		});
 		expect(acquired.ok).toBe(true);
 		if (!acquired.ok) return;

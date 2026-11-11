@@ -152,6 +152,7 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 					const router = options.router!;
 					const consumed = await routeWorkspaceCommand(body, peer, {
 						router,
+						channelId: instanceId,
 						instanceId,
 						peer,
 						...(context?.threadId ? { threadId: context.threadId } : {}),

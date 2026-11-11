@@ -1360,7 +1360,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 				commandMatchesNameOrAlias(candidate, commandName),
 		);
 		if (!command) return undefined;
-		return { command, argumentText: trimmed.slice(spaceIndex + 1) };
+		return { command: command as unknown as SlashCommand, argumentText: trimmed.slice(spaceIndex + 1) };
 	}
 
 	/** Get inline hint text for slash commands with subcommand hints */

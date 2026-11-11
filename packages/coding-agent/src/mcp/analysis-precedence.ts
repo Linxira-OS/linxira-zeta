@@ -177,7 +177,8 @@ function manifestForServer(
 
 function allowedSetOf(allowedTools: AnalysisMcpResolveInput["allowedTools"]): ReadonlySet<string> | undefined {
 	if (allowedTools === undefined) return undefined;
-	return Array.isArray(allowedTools) ? new Set(allowedTools) : allowedTools;
+	if (Array.isArray(allowedTools)) return new Set(allowedTools as readonly string[]);
+	return allowedTools as ReadonlySet<string>;
 }
 
 function detectedBy(manifest: AnalysisMcpManifest, project: AnalysisMcpProjectSignals | undefined): readonly string[] {

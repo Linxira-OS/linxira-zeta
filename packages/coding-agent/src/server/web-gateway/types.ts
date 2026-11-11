@@ -129,6 +129,8 @@ export type AgentMessage = UserMessage | AssistantMessage | ToolResultMessage | 
 export interface SessionMessageEntry extends SessionEntryBase {
 	type: "message";
 	message: AgentMessage;
+	/** IM provenance for this row; never part of the provider payload. */
+	metadata?: ImMessageMetadata;
 }
 
 export interface ThinkingLevelChangeEntry extends SessionEntryBase {
@@ -184,6 +186,12 @@ export interface SessionInfoEntry extends SessionEntryBase {
 	name?: string;
 }
 
+/** Workspace/agent switch handshake row; carries metadata only. */
+export interface ImControlEntry extends SessionEntryBase {
+	type: "im_control";
+	metadata: ImSwitchControlMetadata;
+}
+
 export type SessionEntry =
 	| SessionMessageEntry
 	| ThinkingLevelChangeEntry
@@ -193,6 +201,7 @@ export type SessionEntry =
 	| CustomEntry
 	| CustomMessageEntry
 	| LabelEntry
+	| ImControlEntry
 	| SessionInfoEntry;
 
 export interface SessionTreeNode {

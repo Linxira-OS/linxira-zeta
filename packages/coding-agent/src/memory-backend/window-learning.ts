@@ -39,7 +39,7 @@ function isLearningEnabled(settings: Settings, taskDepth: number): boolean {
  * keeps this consumer buildable against the current branch; the service owns
  * the full contract, and this listener is registered through the real accessor.
  */
-interface WindowCompactionSession extends AgentSession {
+interface WindowCompactionSession extends Omit<AgentSession, "onCompactionCommit"> {
 	onCompactionCommit(
 		listener: (commit: { entry: { id: string }; cutPoint: { discardedEntryIds: string[] } }) => void | Promise<void>,
 	): () => void;

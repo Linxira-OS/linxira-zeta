@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
-import { Agent, type AgentMessage, type AssistantMessage, type UserMessage } from "@linxiraos/pi-agent-core";
+import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
 import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
-import type { Context, Model } from "@linxiraos/pi-ai";
+import type { AssistantMessage, Context, Model, UserMessage } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";

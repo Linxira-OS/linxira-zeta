@@ -27,6 +27,7 @@ import type { ChatImage } from "../channels";
 type ChannelId = string;
 import {
 	type ChannelRuntime,
+	clearPendingWechatQr,
 	getChannelStatus,
 	registerChannelStatus,
 	registerMainSessionId,
@@ -902,8 +903,9 @@ export class ZetaServer {
 
 	/** Stop the current channel runtime (if any) and clear its registrations. */
 	async #stopChannelRuntime(): Promise<void> {
-		if (this.#channelRuntime) {
-			await this.#channelRuntime.stop().catch(() => {});
+		const stopping = this.#channelRuntime;
+		if (stopping) {
+			await stopping.stop().catch(() => {});
 			this.#channelRuntime = null;
 		}
 		if (this.#channelLock) {
@@ -912,7 +914,7 @@ export class ZetaServer {
 		}
 		this.#channelRuntimeRef = null;
 		clearPendingWechatQr();
-		for (const instanceId of this.#channelRuntime?.channels.keys() ?? []) {
+		for (const instanceId of stopping?.channels.keys() ?? []) {
 			registerWechatReconnect(instanceId, null);
 			registerWechatUnbind(instanceId, null);
 		}
@@ -1194,6 +1196,7 @@ export class ZetaServer {
 		const router = this.#router;
 		const consumed = await routeWorkspaceCommand(body, peer, {
 			router,
+			channelId: instanceId,
 			instanceId,
 			peer,
 			...(context.threadId ? { threadId: context.threadId } : {}),

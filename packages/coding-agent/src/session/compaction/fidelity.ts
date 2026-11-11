@@ -110,6 +110,7 @@ function isToolCallBlock(block: unknown): block is ToolCallBlock {
 }
 
 function textOf(message: AgentMessage): string | undefined {
+	if (!("content" in message)) return undefined;
 	if (typeof message.content === "string") return message.content;
 	if (!Array.isArray(message.content)) return undefined;
 	const parts: string[] = [];
@@ -321,8 +322,9 @@ export function withCompactionFidelity(
 function isCompactionFidelity(value: unknown): value is CompactionFidelity {
 	if (!value || typeof value !== "object") return false;
 	if (!("version" in value) || value.version !== 1) return false;
+	const record = value as Record<string, unknown>;
 	for (const bucket of ["qa", "paths", "ids", "constraints", "unfinished"] as const) {
-		if (!(bucket in value) || !Array.isArray(value[bucket])) return false;
+		if (!(bucket in record) || !Array.isArray(record[bucket])) return false;
 	}
 	return "generatedAt" in value && typeof value.generatedAt === "string";
 }

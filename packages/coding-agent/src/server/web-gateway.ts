@@ -509,7 +509,7 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		pathname === "/api/dictation/audio/attach" ||
 		pathname === "/api/dictation/audio/detach"
 	) {
-		if (!loopback) return json({ error: "Forbidden" }, 403);
+		if (!local) return json({ error: "Forbidden" }, 403);
 		return handleDictationAudio(req);
 	}
 
@@ -1196,7 +1196,9 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 			if (
 				payload &&
 				typeof payload === "object" &&
+				"pending" in payload &&
 				payload.pending === true &&
+				"qrcodeUrl" in payload &&
 				typeof payload.qrcodeUrl === "string"
 			) {
 				const svg = renderWechatLoginQrSvg(payload.qrcodeUrl);

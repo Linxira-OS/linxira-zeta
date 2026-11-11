@@ -112,7 +112,7 @@ async function setInstanceEnabledById(
 	const restart = await restartSessionChannels();
 	ctx.showStatus(
 		restart?.started
-			? `${id} ${enabled ? "enabled" : "disabled"}; runtime restarted (${restart.host.channels.join(", ") || "no channels"}).`
+			? `${id} ${enabled ? "enabled" : "disabled"}; runtime restarted (${restart.host.instances.join(", ") || "no channels"}).`
 			: `${id} ${enabled ? "enabled" : "disabled"} in ${webConfig.path}. The next session will start it.`,
 	);
 }

@@ -1,4 +1,5 @@
 import type { Agent, AgentMessage } from "@linxiraos/pi-agent-core";
+import type { Message } from "@linxiraos/pi-ai";
 import { isRecord, prompt } from "@linxiraos/pi-utils";
 import { type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import parentIrcSteerTemplate from "../prompts/steering/parent-irc.md" with { type: "text" };
@@ -287,7 +288,7 @@ export class IrcBridge {
 					role: "user",
 					content: [{ type: "text", text: msg.body }],
 					timestamp: msg.ts,
-				} as AgentMessage,
+				} as Message,
 				imMetadata,
 			);
 		}

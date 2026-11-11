@@ -176,7 +176,7 @@ export async function handleChannelsStatus(): Promise<Response> {
 			label: instance.label,
 			note: instance.note,
 			enabled: instance.enabled,
-			configured: status?.configured ?? hasCredentials(instance),
+			configured: hasCredentials(instance),
 			running: status?.running ?? false,
 			state: status?.state ?? "stopped",
 			detail: status?.detail,

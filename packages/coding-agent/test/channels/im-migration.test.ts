@@ -97,7 +97,7 @@ describe("binding validation", () => {
 		persona: { mode: "workspace" as const },
 		location: { kind: "workspace" as const, workspace: "main" },
 		tools: { builtin: [], extensions: [], customTools: [], mcpServers: [], skills: [], commands: [] },
-		memory: { backend: "mnemopi" },
+		memory: { backend: "mnemopi" as const },
 	};
 	const base = {
 		id: "b_0123456789abcdef",
@@ -147,7 +147,7 @@ describe("persisted chat-key healing", () => {
 		persona: { mode: "workspace" as const },
 		location: { kind: "workspace" as const, workspace: "main" },
 		tools: { builtin: [], extensions: [], customTools: [], mcpServers: [], skills: [], commands: [] },
-		memory: { backend: "mnemopi" },
+		memory: { backend: "mnemopi" as const },
 	};
 	const legal = {
 		id: "b_0123456789abcdef",

@@ -1,4 +1,4 @@
-import type { ImageContent, MessageAttribution, ServiceTierByFamily, TextContent } from "@linxiraos/pi-ai";
+import type { ImageContent, MessageAttribution, ServiceTierByFamily, StopReason, TextContent, Usage } from "@linxiraos/pi-ai";
 import type { AgentMessage } from "../types";
 
 export interface SessionEntryBase {
@@ -131,8 +131,44 @@ export interface ResetBoundaryEntry extends SessionEntryBase {
 
 export interface CustomCompactionSessionEntries {}
 
+/**
+ * Entries a coding-agent session can append that compaction already ignores.
+ * Declared here (rather than imported from the coding agent) so both packages
+ * agree on the durable transcript shape without a dependency cycle.
+ */
+export interface ImControlEntry extends SessionEntryBase {
+	type: "im_control";
+	metadata: unknown;
+}
+
+export interface ModelUsageEntry extends SessionEntryBase {
+	type: "model_usage";
+	purpose: string;
+	role?: string;
+	api: string;
+	provider: string;
+	model: string;
+	usage: Usage;
+	stopReason: StopReason;
+	errorMessage?: string;
+	cacheRefresh?: { sentAt: number; hit: boolean };
+}
+
+export interface SessionRunInitEntry extends SessionEntryBase {
+	type: "run_init";
+	client?: "cli" | "web" | "desktop" | "automation";
+}
+
+export interface CredentialPinEntry extends SessionEntryBase {
+	type: "credential_pin";
+	provider: string;
+	hash: string;
+}
+
 export type SessionEntry =
 	| SessionMessageEntry
+	| ImControlEntry
+	| ModelUsageEntry
 	| ThinkingLevelChangeEntry
 	| ModelChangeEntry
 	| ServiceTierChangeEntry
@@ -144,7 +180,9 @@ export type SessionEntry =
 	| TitleChangeEntry
 	| TtsrInjectionEntry
 	| SessionInitEntry
+	| SessionRunInitEntry
 	| ModeChangeEntry
+	| CredentialPinEntry
 	| ResetBoundaryEntry
 	| CustomCompactionSessionEntries[keyof CustomCompactionSessionEntries];
 

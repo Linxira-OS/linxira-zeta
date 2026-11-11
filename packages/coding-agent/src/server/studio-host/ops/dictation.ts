@@ -27,7 +27,8 @@ import { getRpcSession } from "../../web-gateway/agents.js";
 import type { CommandInput } from "../contract/index.js";
 import type { DictationState } from "../protocol/index.js";
 import type { StudioFamily } from "../registry.js";
-import { invalid } from "../errors.js";
+import { invalid, unavailable } from "../errors.js";
+import { sessionOps } from "./session.js";
 import { DictationAudioReject, registerDictationAudioSink, type DictationAudioSink } from "../dictation-audio.js";
 
 /** The slice of a live session dictation needs; injectable for tests. */
@@ -545,14 +546,21 @@ export const dictationHost = new DictationHost();
 
 const requireSession = (input: CommandInput<"dictation.status">): string => sessionIdOf(input);
 
+/** Workbench commands return the live operator snapshot with their result. */
+async function withSnapshot(state: DictationState) {
+	const read = sessionOps.queries?.["session.state"];
+	if (read === undefined) throw unavailable("session.state is not available");
+	return { snapshot: await read({} as never, {} as never), result: state };
+}
+
 /** Runtime family for the Studio composer's draft dictation. */
 export const dictationOps: StudioFamily = {
 	id: "dictation",
 	commands: {
-		"dictation.status": async input => dictationHost.status(requireSession(input)),
-		"dictation.prepare": async input => dictationHost.prepare(requireSession(input)),
-		"dictation.start": async input => dictationHost.start(sessionIdOf(input), audioIdOf(input)),
-		"dictation.stop": async input => dictationHost.stop(sessionIdOf(input), audioIdOf(input)),
-		"dictation.cancel": async input => dictationHost.cancel(sessionIdOf(input), audioIdOf(input)),
+		"dictation.status": async input => withSnapshot(await dictationHost.status(requireSession(input))),
+		"dictation.prepare": async input => withSnapshot(await dictationHost.prepare(requireSession(input))),
+		"dictation.start": async input => withSnapshot(await dictationHost.start(sessionIdOf(input), audioIdOf(input))),
+		"dictation.stop": async input => withSnapshot(await dictationHost.stop(sessionIdOf(input), audioIdOf(input))),
+		"dictation.cancel": async input => withSnapshot(await dictationHost.cancel(sessionIdOf(input), audioIdOf(input))),
 	},
 };

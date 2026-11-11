@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { ImBinding } from "../../src/channels/im-config";
 import { WebConfig } from "../../src/config/web-config";
 
 // The GUI's 工作区路由 writes the whole `remote.workspaces` / `remote.imBindings`
@@ -28,8 +29,8 @@ const INSTANCE = {
 	credentials: {},
 };
 
-const BINDING = {
-	id: "b1",
+const BINDING: ImBinding = {
+	id: "b_0123456789abcdef",
 	instanceId: "feishu",
 	platform: "feishu",
 	chatId: "oc_1",

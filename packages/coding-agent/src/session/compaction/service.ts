@@ -77,7 +77,8 @@ export interface CompactionCommitNotification {
 export type CompactionCommitListener = (commit: CompactionCommitNotification) => void | Promise<void>;
 
 export interface CompactionPassInput {
-	trigger: CompactionTrigger;
+	/** Absent for a pass resumed from an existing session (plan only). */
+	trigger?: CompactionTrigger;
 	method?: CompactionPhaseMethod;
 	reason?: string;
 	tokensBefore?: number;
@@ -119,7 +120,7 @@ export class CompactionService {
 	 * the service does not emit on construction so a pass never announces a plan
 	 * it cannot describe yet.
 	 */
-	beginPass(input: CompactionPassInput): CompactionPass {
+	beginPass(input: CompactionPassInput & { trigger: CompactionTrigger }): CompactionPass {
 		return new CompactionPass(nextPassId(), input, this.#emit);
 	}
 
@@ -153,7 +154,7 @@ export class CompactionPass {
 	#committed = false;
 	#settled = false;
 
-	constructor(id: string, input: CompactionPassInput, emit: CompactionPhaseEmitter) {
+	constructor(id: string, input: CompactionPassInput & { trigger: CompactionTrigger }, emit: CompactionPhaseEmitter) {
 		this.id = id;
 		this.#emit = emit;
 		this.#trigger = input.trigger;

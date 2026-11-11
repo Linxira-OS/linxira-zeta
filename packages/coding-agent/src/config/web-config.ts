@@ -136,6 +136,9 @@ export interface WebConfigData {
 		imBindings?: ImBinding[];
 		/** Default-space bot session registry (see `BotSessionEntry`). */
 		botSessions?: BotSessionEntry[];
+		/** Legacy pre-instance-schema chat rows, kept only so the delete cleanup
+		 *  can read/write a not-yet-migrated file; the loader migrates them. */
+		sessionMappings?: Array<{ chatId?: string; instanceId?: string; sessionId?: string }>;
 		/** Show relay/bot sessions in the web-ui sidebar (default false = hidden). */
 		showBotSessions?: boolean;
 	};

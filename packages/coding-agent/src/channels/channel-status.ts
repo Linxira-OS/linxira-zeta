@@ -11,6 +11,7 @@ import { INSTANCE_ID_RE, credentialFields } from "../channels/im-config";
 import { WeChatChannel, type WeChatCredentialSink } from "@linxiraos/pi-channels";
 import type { WebConfig, WebConfigData } from "../config/web-config";
 import { channelLockPath, type ChannelLockSnapshot, readChannelLock } from "./instance-lock";
+import { resolveTeamDbPath, TeamDb } from "../team/db";
 
 export const CHANNEL_PLATFORMS: readonly ChannelPlatform[] = ["wechat", "feishu", "telegram", "discord", "qq"];
 

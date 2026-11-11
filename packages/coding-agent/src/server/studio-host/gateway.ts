@@ -10,7 +10,7 @@
 import { webGatewayFetch } from "../web-gateway";
 import { getRpcSession } from "../web-gateway/agents";
 import type { ClientErrorCode } from "./contract/index.js";
-import { StudioOpError } from "./errors.js";
+import { StudioOpError, invalid, unavailable } from "./errors.js";
 
 /** The gateway's answer, with a parsed JSON body when it sent one. */
 export interface GatewayReply {

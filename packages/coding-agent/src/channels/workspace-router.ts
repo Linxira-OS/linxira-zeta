@@ -35,6 +35,8 @@ export interface WorkspaceRouterDeps {
 	router: SessionRouter | null;
 	/** Channel id of the current inbound (wechat | feishu | telegram). */
 	channelId: string;
+	/** Instance id owning the inbound when several accounts share a platform. */
+	instanceId?: string;
 	/** Peer (chat id) of the current inbound. */
 	peer: string;
 	/** Thread/topic and sender identity; a pending switch is scoped to these. */

@@ -42,7 +42,7 @@ const cleanups: Array<() => Promise<void>> = [];
 
 let agentDir = "";
 let registry: DeviceRegistry;
-let server: Server | undefined;
+let server: Server<unknown> | undefined;
 let base = "";
 
 function operations(): StudioOperations {

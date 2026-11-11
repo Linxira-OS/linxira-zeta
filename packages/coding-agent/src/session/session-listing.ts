@@ -401,7 +401,7 @@ function buildSessionTaskSummary(
 				| undefined;
 			at ??= timestampOf(entry);
 			if (intent !== undefined || entry?.type !== "message" || entry.message?.role !== "user") continue;
-			intent = excerptTaskText(textContent(entry.message.content, " "), SESSION_TASK_INTENT_MAX_CHARS);
+			intent = excerptTaskText(textContent(entry.message.content ?? "", " "), SESSION_TASK_INTENT_MAX_CHARS);
 		}
 		return {
 			status: "incomplete",
@@ -423,7 +423,7 @@ function buildSessionTaskSummary(
 		if (entry?.type !== "message" || entry.message?.role !== "assistant") continue;
 		assistantIndex = index;
 		at = timestampOf(entry);
-		result = excerptTaskText(textContent(entry.message.content, " "), SESSION_TASK_RESULT_MAX_CHARS);
+		result = excerptTaskText(textContent(entry.message.content ?? "", " "), SESSION_TASK_RESULT_MAX_CHARS);
 		break;
 	}
 	let intent: string | undefined;
@@ -432,7 +432,7 @@ function buildSessionTaskSummary(
 			| { type?: unknown; message?: { role?: string; content?: Message["content"] } }
 			| undefined;
 		if (entry?.type !== "message" || entry.message?.role !== "user") continue;
-		intent = excerptTaskText(textContent(entry.message.content, " "), SESSION_TASK_INTENT_MAX_CHARS);
+		intent = excerptTaskText(textContent(entry.message.content ?? "", " "), SESSION_TASK_INTENT_MAX_CHARS);
 		break;
 	}
 	return {

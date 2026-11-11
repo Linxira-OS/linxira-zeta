@@ -45,6 +45,8 @@ import {
 	normalizeSessionOrigin,
 	type SessionOrigin,
 } from "../../../session/session-origin.js";
+import { normalizeSessionClient, type SessionClient } from "../../../session/session-client.js";
+import { normalizeSessionTaskSummary, type SessionTaskSummary } from "../../../session/session-task-summary.js";
 import type {
 	ConfigWriteResult,
 	EnvironmentId,
