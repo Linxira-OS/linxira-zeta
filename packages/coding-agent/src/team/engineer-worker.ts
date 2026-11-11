@@ -22,6 +22,25 @@ interface ActiveWorker {
 }
 
 const workers = new Map<string, ActiveWorker>();
+const disposeWrapped = new WeakSet<AgentSession>();
+
+async function stopSessionWorker(session: AgentSession): Promise<void> {
+	const active = workers.get(sessionKey(session));
+	if (!active) return;
+	workers.delete(sessionKey(session));
+	await active.handle.stop();
+}
+
+/** Stop this session's worker when the session is disposed (real exit path). */
+function ensureDisposeStop(session: AgentSession): void {
+	if (disposeWrapped.has(session)) return;
+	disposeWrapped.add(session);
+	const original = session.dispose.bind(session);
+	session.dispose = async options => {
+		await stopSessionWorker(session).catch(() => undefined);
+		return original(options);
+	};
+}
 
 function sessionKey(session: AgentSession): string {
 	return session.sessionManager.getSessionId();
@@ -121,6 +140,7 @@ export async function runTeamWorkerCommand(
 		const task = active.handle.current();
 		return `Team task worker: on (${active.mode}) for ${active.engineer}; current task ${task?.taskKey ?? "none"}.`;
 	}
+	ensureDisposeStop(session);
 	if (verb !== "on" && verb !== "start") {
 		throw new TeamError("Usage: /teamworker on|off|status [normal|vibe]");
 	}
