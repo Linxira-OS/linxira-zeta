@@ -89,3 +89,10 @@ driven by external audio instead of the native microphone.
 - ADR number 0027 is provisional until the reservation table advances.
 - A signed audio fixture smoke run is only possible when the configured local
   model is already cached; this branch does not download weights.
+
+## Links
+
+- [REQ-075](../requirements-ledger.md)
+- [Studio surfaces](../../docs/studio-surfaces.md)
+- [Desktop app](../../docs/desktop-app.md)
+- [Host dictation ops](../../packages/coding-agent/src/server/studio-host/ops/dictation.ts)

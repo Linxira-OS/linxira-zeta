@@ -45,8 +45,13 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0007](0007-agent-profile-runtime.md) | Agent profile as the per-runtime tool/memory admission boundary | Accepted | 2026-11-11 | — | [agent-profile contract](../../packages/coding-agent/src/agent-profile) |
 | [0008](0008-native-only-foreign-sources.md) | Native-only foreign project sources and tool exposure tiers | Accepted | 2026-11-11 | — | [external sources](../../document/external-sources-and-tool-exposure.md) |
 | [0006](0006-release-freeze-internal-line.md) | Freeze publishing on the 1.5 internal build line; 1.6.0 is the next public release | Accepted | 2026-11-11 | — | [release process](../release.md), [policy](../../scripts/release-policy.ts), [guard test](../../scripts/release-freeze.test.ts) |
+| [0009](0009-team-bootstrap-live-delivery.md) | Team bootstrap journal, live room delivery, and task workers | Proposed | 2026-11-11 | — | [Team foundation](../../docs/team.md), [task queue](../team-task-queue.md) |
+| [0011](0011-studio-workspace-selection.md) | Studio workspace identity and selection | Accepted | 2026-11-11 | — | [Studio surfaces](../../docs/studio-surfaces.md) |
 | [0015](0015-local-super-repo-main-rooms.md) | Local Super/Repo/Main rooms are a durable log independent of Team DB rooms | Proposed | 2026-11-12 | — | [design](../super-agent-rooms.md), [runtime docs](../../docs/rooms.md) |
+| [0020](0020-memory-pressure-shed-and-retention-bounds.md) | Memory pressure sheds derived render caches only; retention is bounded by measured consumer bytes | Proposed | 2026-11-11 | — | [roadmap](../roadmap.md) |
 | [0025](0025-analysis-mcp-precedence.md) | Analysis MCP is recognized, never auto-installed; one capability mounts | Proposed | 2026-11-11 | — | [external sources §8](../external-sources-and-tool-exposure.md#8-mcp-与内置重复), [MCP config](../../docs/mcp-config.md), [MCP runtime](../../docs/mcp-runtime-lifecycle.md) |
+| [0026](0026-agent-authored-plugins.md) | Session-scoped agent-authored plugins and a versioned page host | Proposed | 2026-11-12 | — | [design](../agent-authored-plugins.md), [plugins docs](../../docs/plugins.md) |
+| [0027](0027-dictation-audio-bridge.md) | Host-owned draft dictation over a desktop-only ordered audio bridge | Proposed | 2026-11-12 | — | [REQ-075](../requirements-ledger.md), [Studio surfaces](../../docs/studio-surfaces.md), [desktop](../../docs/desktop-app.md) |
 
 ## File and numbering rules
 

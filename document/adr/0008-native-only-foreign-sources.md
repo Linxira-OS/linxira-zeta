@@ -1,9 +1,9 @@
-# 0008 — Native-only foreign project sources and tool exposure tiers
+# 0008. Native-only foreign project sources and tool exposure tiers
 
-- Status: Accepted
-- Date: 2026-11-11
-- Supersedes: —
-- Links: [external sources](../../document/external-sources-and-tool-exposure.md)
+- **Status:** Accepted
+- **Date:** 2026-11-11
+- **Deciders:** Zeta maintainers (REQ-054)
+- **Links:** [external sources](../../document/external-sources-and-tool-exposure.md)
 
 ## Context
 
@@ -31,3 +31,15 @@ trees were loaded without consent. Tool exposure also lacked a real
 
 - Cloning a repository no longer executes its foreign config on session start.
 - No new approval for native `.zeta` plugins, and YOLO remains the default.
+
+## Alternatives
+
+- Load foreign project config by default and document the risk. Rejected: it
+  executes an untrusted repository's configuration on session start.
+- A second approval layer for native `.zeta` plugins. Rejected: native sources
+  are the operator's own configuration, not a foreign trust boundary.
+
+## Links
+
+- [external sources](../../document/external-sources-and-tool-exposure.md)
+- [discovery consent](../../packages/coding-agent/src/config/foreign-sources.ts)

@@ -1,9 +1,9 @@
-# 0007 — Agent profile as the per-runtime tool/memory admission boundary
+# 0007. Agent profile as the per-runtime tool/memory admission boundary
 
-- Status: Accepted
-- Date: 2026-11-11
-- Supersedes: —
-- Links: [agent-profile contract](../../packages/coding-agent/src/agent-profile), [IM runtime contract](../../docs/agent-modes.md)
+- **Status:** Accepted
+- **Date:** 2026-11-11
+- **Deciders:** Zeta maintainers (REQ-024)
+- **Links:** [agent-profile contract](../../packages/coding-agent/src/agent-profile), [IM runtime contract](../../docs/agent-modes.md)
 
 ## Context
 
@@ -44,3 +44,16 @@ and memory was keyed by cwd only.
   contract; delegating with `task` remains an explicit profile grant.
 - No new approval layer, sandbox or plugin-manager ban is introduced; the
   product default stays `yolo`.
+
+## Alternatives
+
+- Keep `toolNames` as the only narrowing mechanism and leave MCP/extension tools
+  and memory scope additive. Rejected: it cannot isolate two agents in one
+  runtime process.
+- Reuse the profile id as the runtime identity. Rejected: state would follow a
+  later profile edit and cross conversations.
+
+## Links
+
+- [agent-profile contract](../../packages/coding-agent/src/agent-profile)
+- [IM runtime contract](../../docs/agent-modes.md)

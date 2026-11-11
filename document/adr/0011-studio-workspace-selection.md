@@ -1,4 +1,4 @@
-# ADR-0011: Studio workspace identity and selection
+# 0011. Studio workspace identity and selection
 
 - **Status:** Accepted
 - **Date:** 2026-11-11
