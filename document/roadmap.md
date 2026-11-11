@@ -1100,6 +1100,21 @@ protocols and auth flows.
   **取证**：`https://commandcode.ai/docs/taste`、`https://commandcode.ai/docs/acp`；本地
   `packages/coding-agent/src/prompts/memories/sharpshooter-{extract,consolidate}-system.md`。
 
+- **jcode 工程实践候选（2026-11-11 用户裁决：只发布调研，不实现；全部 `Deferred — not implementation`）**：
+  对外部实现 [`1jehuang/jcode`](https://github.com/1jehuang/jcode)（Rust，MIT，基线 commit
+  `e5bfa5b8307a14f0a44801bedba48ba9ed378e11`）做过一轮只读评估，结论与逐项候选见
+  [`jcode-evaluation.md`](./jcode-evaluation.md)。**功能面不借鉴**（工具 / 插件 / LSP+DAP / team
+  均弱于 OMP，且它是单车库单人主导、827 个 open issue）；只登记工程实践：
+  ① 首帧先行 + 会话异步水合；② 启动/恢复预算门禁进 CI；③ 空闲释放派生缓存（保留权威状态）；
+  ④ 大会话后台预热解析；⑤ 确定性危险命令闸门 + justification 反思（不引入第二个模型）；
+  P1 = 并发文件触碰通知 / 质量棘轮预算（文件 LOC·panic·吞异常）/ provider 预连接先于压缩 /
+  resume 选择器合并帧 / 每会话 compaction ceiling；P2 三项先测量再决定。
+  **边界**：不重写、不替换运行时、不引入 Rust、不改同步树、不新增第二条调度器。
+  **复审**：随 release sync 检查上游是否已补等价能力；连续两个 sync 周期上游无动作且 Zeta
+  仍有可测痛点（`PI_TIMING` 的「可键入」阶段、多窗口 RSS、resume 关键路径解析耗时），
+  才把对应条目移入执行计划。**取证**：`document/jcode-evaluation.md`、
+  `temp/jcode-eval`（部分克隆：`--depth 1 --filter=blob:none --sparse`）。
+
 ## Notes
 
 - Everything here must land as Zeta-branded overlay/brand commits after
