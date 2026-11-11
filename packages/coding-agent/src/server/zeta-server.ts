@@ -1366,7 +1366,14 @@ export class ZetaServer {
 			// (loopback / one-time ticket) lives in handleTerminalWsUpgrade.
 			websocket: {
 				open(ws) {
-					if (ws.data.kind === "studio") return;
+					// Studio sockets are registered with the Studio host here too:
+					// the main listener owns the renderer's same-origin `/api/v1`
+					// events upgrade, and only the gateway used to attach them, so
+					// every command.receipt was emitted into an empty socket map.
+					if (ws.data.kind === "studio") {
+						studioHost().attachSocket(ws.data.sessionId, ws);
+						return;
+					}
 					terminalWebSocketHandler.open?.(ws);
 				},
 				message(ws, message) {
@@ -1374,7 +1381,10 @@ export class ZetaServer {
 					terminalWebSocketHandler.message?.(ws, message);
 				},
 				close(ws) {
-					if (ws.data.kind === "studio") return;
+					if (ws.data.kind === "studio") {
+						studioHost().detachSocket(ws.data.sessionId, ws);
+						return;
+					}
 					terminalWebSocketHandler.close?.(ws, 1000, "");
 				},
 			},

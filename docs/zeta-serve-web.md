@@ -71,6 +71,13 @@ The renderer speaks the Studio host contract on the same origin:
 | `POST /api/v1/command` | remote-access gate + cookie + `X-Studio-CSRF` | `ClientCommandRequest` → 202 `ClientCommandAccepted` |
 | `WS /api/v1/events` | remote-access gate + cookie | Event subscription (`ClientEvent`) |
 
+Both same-origin listeners that accept that upgrade — the main `serve` listener
+and the Web Gateway — register the socket with the Studio host on open and
+detach it on close. Command outcomes (`command.receipt`, or `state.changed` when
+there is no result payload) are emitted to the session's registered sockets
+before the `202` acknowledgement returns. A socket whose upgrade succeeds but is
+never registered opens normally and then receives no events.
+
 Per-device credentials live on the gateway surface (see
 [Remote access](./remote-workspaces.md#device-tokens-per-device-revocation)):
 

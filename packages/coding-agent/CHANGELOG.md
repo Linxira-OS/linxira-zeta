@@ -52,6 +52,15 @@
 
 ### Fixed
 
+- **Same-origin Studio events receive command receipts** — `zetacode serve`'s
+  main listener now registers `/api/v1/events` sockets with the Studio host on
+  open and detaches them on close, as the gateway listener already did. Model/
+  role saves (and every other command) deliver the matching `command.receipt`
+  to the renderer, so the busy state clears without a reload; previously the WS
+  opened but was never in the host's socket map, so the receipt was dropped.
+- **Recent-session titles end in an ellipsis** — the sidebar title box and its
+  atomic title scroller both declare `text-overflow: ellipsis` (REQ-003); the
+  existing hover scroll still reveals the full title.
 - **Registered folders keep their original path spelling** — the registry stores
   the user's registered directory alongside its case-folded comparison key, so
   opening or registering a folder no longer lowercases its project/workspace
