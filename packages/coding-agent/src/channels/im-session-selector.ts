@@ -1,26 +1,39 @@
 /**
  * Short `!session` selectors for one IM entry.
  *
- * A list snapshot assigns `NN-00001` (workspace base + per-workspace sequence).
- * `!session use` must resolve against the snapshot the user actually saw, not
- * a freshly renumbered list. Canonical session ids stay in the registry; the
- * selector is only a short-lived display handle.
+ * A selector is `NN-00001`: a stable workspace base plus a stable per-workspace
+ * session number. Numbers are assigned in creation order and never reused or
+ * renumbered when the 3-day display window changes. The Team IM page and
+ * `!session list` consume this same candidate read model; neither duplicates
+ * the algorithm.
  */
 
-import { readSessionInfo, type SessionInfo } from "../session/session-listing";
+import { readSessionInfo, sessionDisplayName, type SessionInfo } from "../session/session-listing";
 import type { BotSessionEntry, WebConfig } from "../config/web-config";
 import type { SessionRouter } from "./session-router";
 
 export interface ImSessionCandidate {
-	/** `NN-00001`: workspace base + per-workspace sequence. */
+	/** `NN-00001`: stable workspace base + stable per-workspace sequence. */
 	selector: string;
-	/** Registry id; never renumbered. */
+	/** Canonical registry/session id; never a selector. */
+	canonicalSessionId: string;
+	/** Alias kept for existing consumers. */
 	canonicalId: string;
-	name: string;
-	/** Latest completed-task summary from the provenance projection, when present. */
-	summary?: string;
+	bindingId?: string;
 	workspaceAlias: string;
-	modifiedAt: number;
+	/** Alias of the canonical workspace id; display label, not an id. */
+	workspaceId: string;
+	/** Human label (never a raw session id). */
+	label: string;
+	/** Completed task result only; absent when there is none. */
+	latestTaskSummary?: string;
+	status?: "completed" | "incomplete" | "unknown";
+	/** ISO timestamp of the last activity used for display sorting. */
+	lastActiveAt: string;
+	/** Alias kept for existing consumers. */
+	name: string;
+	/** Alias kept for existing consumers. */
+	summary?: string;
 	isPm: boolean;
 	tag: BotSessionEntry["tag"];
 }
@@ -29,6 +42,23 @@ export interface ImSessionListSnapshot {
 	generatedAt: number;
 	candidates: ImSessionCandidate[];
 	bySelector: ReadonlyMap<string, ImSessionCandidate>;
+}
+
+/** In-memory stable numbering state owned by one SessionRouter. */
+export interface ImSessionSelectorState {
+	workspaceBase: Map<string, number>;
+	sessionNumber: Map<string, number>;
+	nextSessionNumber: Map<string, number>;
+	nextWorkspaceBase: number;
+}
+
+export function createImSessionSelectorState(): ImSessionSelectorState {
+	return {
+		workspaceBase: new Map(),
+		sessionNumber: new Map(),
+		nextSessionNumber: new Map(),
+		nextWorkspaceBase: 1,
+	};
 }
 
 export interface BuildSessionListOptions {
@@ -52,10 +82,19 @@ function entryTime(entry: BotSessionEntry, info: SessionInfo | undefined): numbe
 	return Number.isFinite(created) ? created : 0;
 }
 
+function workspaceBase(state: ImSessionSelectorState, alias: string): number {
+	const existing = state.workspaceBase.get(alias);
+	if (existing !== undefined) return existing;
+	const next = state.nextWorkspaceBase++;
+	state.workspaceBase.set(alias, next);
+	return next;
+}
+
 /** Build one immutable list snapshot for the current entry. */
 export async function buildImSessionList(
 	router: SessionRouter,
 	webConfig: WebConfig,
+	state: ImSessionSelectorState,
 	options: BuildSessionListOptions = {},
 ): Promise<ImSessionListSnapshot> {
 	const now = options.now ?? Date.now();
@@ -66,46 +105,62 @@ export async function buildImSessionList(
 		const isPm = isPmEntry(entry, webConfig);
 		if (isPm && !includePm) continue;
 		const info = await readSessionInfo(entry.sessionFile).catch(() => undefined);
-		const modifiedAt = entryTime(entry, info);
-		if (modifiedAt > 0 && now - modifiedAt > maxAge) continue;
 		rows.push({
 			entry,
 			...(info === undefined ? {} : { info }),
 			workspaceAlias: entry.workspaceAlias ?? "main",
-			modifiedAt,
+			modifiedAt: entryTime(entry, info),
 			isPm,
 		});
 	}
-	const aliases = [...new Set(rows.map(row => row.workspaceAlias))].sort((a, b) => {
-		if (a === "main") return -1;
-		if (b === "main") return 1;
-		return a.localeCompare(b);
+	// Workspace bases follow the canonical registry order (main first), never
+	// activity. The router state keeps them stable if a workspace disappears.
+	workspaceBase(state, "main");
+	for (const workspace of webConfig.getWorkspaces()) workspaceBase(state, workspace.alias);
+	for (const row of rows) workspaceBase(state, row.workspaceAlias);
+
+	// Assign stable session numbers in creation order, before the display
+	// window is applied. A session that slides out keeps its number; a new one
+	// takes the next number.
+	rows.sort((a, b) => {
+		const byWorkspace = (state.workspaceBase.get(a.workspaceAlias) ?? 0) - (state.workspaceBase.get(b.workspaceAlias) ?? 0);
+		if (byWorkspace !== 0) return byWorkspace;
+		const byCreated = Date.parse(a.entry.createdAt) - Date.parse(b.entry.createdAt);
+		return byCreated !== 0 ? byCreated : a.entry.id.localeCompare(b.entry.id);
 	});
-	const base = new Map(aliases.map((alias, index) => [alias, index + 1]));
-	rows.sort(
-		(a, b) =>
-			(base.get(a.workspaceAlias) ?? 0) - (base.get(b.workspaceAlias) ?? 0) ||
-			b.modifiedAt - a.modifiedAt ||
-			a.entry.id.localeCompare(b.entry.id),
-	);
-	const sequence = new Map<string, number>();
-	const candidates: ImSessionCandidate[] = rows.map(row => {
-		const next = (sequence.get(row.workspaceAlias) ?? 0) + 1;
-		sequence.set(row.workspaceAlias, next);
-		const selector = `${String(base.get(row.workspaceAlias) ?? 1).padStart(2, "0")}-${String(next).padStart(5, "0")}`;
-		const projected = row.info as (SessionInfo & { latestTaskSummary?: string; lastTaskSummary?: string }) | undefined;
-		const summary = projected?.latestTaskSummary?.trim() || projected?.lastTaskSummary?.trim();
-		return {
-			selector,
-			canonicalId: row.entry.id,
-			name: row.entry.name,
-			...(summary ? { summary } : {}),
-			workspaceAlias: row.workspaceAlias,
-			modifiedAt: row.modifiedAt,
-			isPm: row.isPm,
-			tag: row.entry.tag,
-		};
-	});
+	for (const row of rows) {
+		if (state.sessionNumber.has(row.entry.id)) continue;
+		const next = (state.nextSessionNumber.get(row.workspaceAlias) ?? 0) + 1;
+		state.nextSessionNumber.set(row.workspaceAlias, next);
+		state.sessionNumber.set(row.entry.id, next);
+	}
+
+	const candidates: ImSessionCandidate[] = rows
+		.filter(row => row.modifiedAt > 0 && now - row.modifiedAt <= maxAge)
+		.sort((a, b) => b.modifiedAt - a.modifiedAt || a.entry.id.localeCompare(b.entry.id))
+		.map(row => {
+			const taskSummary = row.info?.taskSummary;
+			const summary = taskSummary?.status === "completed" ? taskSummary.result?.trim() : undefined;
+			const base = state.workspaceBase.get(row.workspaceAlias) ?? 1;
+			const sequence = state.sessionNumber.get(row.entry.id) ?? 1;
+			const selector = `${String(base).padStart(2, "0")}-${String(sequence).padStart(5, "0")}`;
+			const label = row.info ? sessionDisplayName(row.info) : row.entry.name;
+			return {
+				selector,
+				canonicalSessionId: row.entry.id,
+				canonicalId: row.entry.id,
+				...(row.entry.bindingId ? { bindingId: row.entry.bindingId } : {}),
+				workspaceAlias: row.workspaceAlias,
+				workspaceId: row.workspaceAlias,
+				label,
+				name: label,
+				...(summary ? { latestTaskSummary: summary, summary } : {}),
+				...(taskSummary ? { status: taskSummary.status } : {}),
+				lastActiveAt: new Date(row.modifiedAt).toISOString(),
+				isPm: row.isPm,
+				tag: row.entry.tag,
+			};
+		});
 	return {
 		generatedAt: now,
 		candidates,

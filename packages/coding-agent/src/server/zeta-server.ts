@@ -39,6 +39,7 @@ import {
 } from "../channels";
 import { acquireChannelLock, channelLockPath, type ChannelLockHandle } from "../channels/instance-lock";
 import { type ImControlParams, type ImControlResult, runImControl } from "../channels/im-control";
+import { registerImSessionCandidateReader } from "../channels/session-router";
 import { approveRemotePlan, type PlanApproveMode } from "../channels/plan-approval";
 import { renderPlanToPng } from "../channels/plan-image";
 import { type ChannelToolContext, SessionRouter } from "../channels/session-router";
@@ -786,6 +787,7 @@ export class ZetaServer {
 				return session.getSession();
 			},
 		});
+		registerImSessionCandidateReader(() => this.#router!.listSessionCandidates());
 		// Default-space session registry: the relay entry is the coordinator's
 		// transcript and can never be deleted.
 		await this.#router.ensureRelaySession(coordinatorFile);

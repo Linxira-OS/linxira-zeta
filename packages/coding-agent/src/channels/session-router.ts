@@ -44,8 +44,20 @@ import { SessionManager } from "../session/session-manager";
 import { isImSession, sameSessionOrigin, type SessionOrigin } from "../session/session-origin";
 import type { ImControlParams, ImControlResult } from "./im-control";
 import { targetKey, targetScopedBindingId } from "./im-config";
-import { buildImSessionList, type ImSessionListSnapshot } from "./im-session-selector";
+import { buildImSessionList, createImSessionSelectorState, type ImSessionListSnapshot } from "./im-session-selector";
 import { type AgentProfileOptions, loadImAgentProfilePersona, resolveImAgentProfileRuntime } from "../agent-profile";
+
+let imSessionCandidateReader: (() => Promise<ImSessionListSnapshot>) | null = null;
+
+/** Register the live router's candidate reader for the Team IM page/gateway. */
+export function registerImSessionCandidateReader(reader: (() => Promise<ImSessionListSnapshot>) | null): void {
+	imSessionCandidateReader = reader;
+}
+
+/** The same typed candidates `!session list` uses; null before a router starts. */
+export async function readImSessionCandidates(): Promise<ImSessionListSnapshot | null> {
+	return imSessionCandidateReader ? await imSessionCandidateReader() : null;
+}
 
 /** Upper bound for a delegated `workspace_run` turn (no reply → timeout error). */
 const RUN_TIMEOUT_MS = 10 * 60_000;
@@ -214,6 +226,7 @@ export class SessionRouter {
 	readonly #agentBindings = new Map<string, string>();
 	/** Pending workspace switch, keyed by instance+chat+thread+user. */
 	#sessionListSnapshot: ImSessionListSnapshot | null = null;
+	readonly #sessionSelectorState = createImSessionSelectorState();
 	readonly #pendingWorkspaceSwitch = new Map<
 		string,
 		| { action: "target"; target: import("./im-config").ImTarget; at: number; requestId: string }
@@ -681,7 +694,7 @@ export class SessionRouter {
 
 	/** Refresh and pin the short-selector snapshot for this entry. */
 	async listSessionCandidates(options: { includePm?: boolean; now?: number; maxAgeMs?: number } = {}): Promise<ImSessionListSnapshot> {
-		this.#sessionListSnapshot = await buildImSessionList(this, this.#webConfig, options);
+		this.#sessionListSnapshot = await buildImSessionList(this, this.#webConfig, this.#sessionSelectorState, options);
 		return this.#sessionListSnapshot;
 	}
 
