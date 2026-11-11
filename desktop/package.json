@@ -17,13 +17,13 @@
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
-    "electron": "37.10.3",
-    "electron-builder": "^26.0.12",
+    "electron": "45.3.0",
+    "electron-builder": "^26.18.0",
     "sharp": "^0.34.5",
     "typescript": "^5.6.3"
   },
   "allowScripts": {
-    "electron@37.10.3": true,
+    "electron@45.3.0": true,
     "electron-winstaller@5.4.0": true
   }
 }

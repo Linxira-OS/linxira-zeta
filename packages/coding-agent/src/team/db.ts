@@ -153,6 +153,43 @@ CREATE TABLE IF NOT EXISTS agent_skills (
 CREATE INDEX IF NOT EXISTS idx_agent_skills_pm ON agent_skills(pm_id);
 CREATE INDEX IF NOT EXISTS idx_agent_skills_team ON agent_skills(team_id);
 `,
+	`
+CREATE TABLE IF NOT EXISTS tasks (
+	id                 TEXT PRIMARY KEY,
+	team_id            TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+	task_key           TEXT NOT NULL,
+	title              TEXT NOT NULL,
+	body               TEXT NOT NULL DEFAULT '',
+	status             TEXT NOT NULL CHECK (status IN ('pending', 'claimed', 'review', 'done', 'cancelled')),
+	assigned_pm_id     TEXT NOT NULL REFERENCES team_pms(id) ON DELETE CASCADE,
+	assignee_agent_id  TEXT REFERENCES engineers(id) ON DELETE SET NULL,
+	owner_agent_id     TEXT,
+	owner_role         TEXT,
+	lease_expires_at   INTEGER,
+	req_ids_json       TEXT,
+	revision           INTEGER NOT NULL DEFAULT 0,
+	created_at         INTEGER NOT NULL,
+	updated_at         INTEGER NOT NULL,
+	UNIQUE(team_id, task_key)
+);
+
+CREATE TABLE IF NOT EXISTS task_events (
+	seq              INTEGER PRIMARY KEY AUTOINCREMENT,
+	task_id          TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+	at               INTEGER NOT NULL,
+	actor_agent_id   TEXT NOT NULL,
+	kind             TEXT NOT NULL,
+	body             TEXT NOT NULL DEFAULT '',
+	from_status      TEXT,
+	to_status        TEXT,
+	req_ids_json     TEXT,
+	lease_expires_at INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_team_status ON tasks(team_id, status);
+CREATE INDEX IF NOT EXISTS idx_tasks_owner ON tasks(owner_agent_id);
+CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id, seq);
+`,
 ];
 
 /** Room kinds. A PM room names its owning PM; the other kinds have no PM. */
@@ -305,6 +342,49 @@ export interface RoomSummaryRecord extends RoomRecord {
 	lastSentAt: number | null;
 }
 
+/** Durable work-item statuses. `review` keeps the author as owner without a lease. */
+export type TaskStatus = "pending" | "claimed" | "review" | "done" | "cancelled";
+
+export const TASK_STATUSES: readonly TaskStatus[] = ["pending", "claimed", "review", "done", "cancelled"];
+
+/**
+ * One durable Team work item. `owner_agent_id` is an engineer row id while the
+ * task is claimed; a lease makes the claim reclaimable after a crash. PMs are
+ * recorded as `assignedPmId` (the dispatcher) and never as a worker owner.
+ */
+export interface TaskRecord {
+	id: string;
+	teamId: string;
+	taskKey: string;
+	title: string;
+	body: string;
+	status: TaskStatus;
+	assignedPmId: string;
+	assigneeAgentId: string | null;
+	ownerAgentId: string | null;
+	ownerRole: string | null;
+	leaseExpiresAt: number | null;
+	/** `REQ-*` repository-ledger ids collected from the task and its events. */
+	reqIds: string[];
+	/** Optimistic concurrency token; every successful mutation increments it. */
+	revision: number;
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface TaskEventRecord {
+	seq: number;
+	taskId: string;
+	at: number;
+	actorAgentId: string;
+	kind: string;
+	body: string;
+	fromStatus: TaskStatus | null;
+	toStatus: TaskStatus | null;
+	reqIds: string[];
+	leaseExpiresAt: number | null;
+}
+
 interface DbTeamRow {
 	id: string;
 	name: string;
@@ -411,6 +491,37 @@ interface DbRoomEventRow {
 	mentions_json: string | null;
 }
 
+interface DbTaskRow {
+	id: string;
+	team_id: string;
+	task_key: string;
+	title: string;
+	body: string;
+	status: TaskStatus;
+	assigned_pm_id: string;
+	assignee_agent_id: string | null;
+	owner_agent_id: string | null;
+	owner_role: string | null;
+	lease_expires_at: number | null;
+	req_ids_json: string | null;
+	revision: number;
+	created_at: number;
+	updated_at: number;
+}
+
+interface DbTaskEventRow {
+	seq: number;
+	task_id: string;
+	at: number;
+	actor_agent_id: string;
+	kind: string;
+	body: string;
+	from_status: TaskStatus | null;
+	to_status: TaskStatus | null;
+	req_ids_json: string | null;
+	lease_expires_at: number | null;
+}
+
 function toTeam(row: DbTeamRow): TeamRecord {
 	return { id: row.id, name: row.name, rootPath: row.root_path, createdAt: row.created_at };
 }
@@ -477,16 +588,6 @@ function toWorktree(row: DbWorktreeRow): WorktreeRecord {
 	};
 }
 
-function parseMentions(raw: string | null): string[] {
-	if (!raw) return [];
-	try {
-		const value: unknown = JSON.parse(raw);
-		return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
-	} catch {
-		return [];
-	}
-}
-
 function toAgent(row: DbAgentRow): AgentRecord {
 	return {
 		id: row.agent_id,
@@ -541,7 +642,52 @@ function toRoomEvent(row: DbRoomEventRow): RoomEventRecord {
 		kind: row.kind,
 		body: row.body,
 		replyTo: row.reply_to,
-		mentions: parseMentions(row.mentions_json),
+		mentions: parseStringArray(row.mentions_json),
+	};
+}
+
+function parseStringArray(raw: string | null): string[] {
+	if (!raw) return [];
+	try {
+		const value: unknown = JSON.parse(raw);
+		return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+	} catch {
+		return [];
+	}
+}
+
+function toTask(row: DbTaskRow): TaskRecord {
+	return {
+		id: row.id,
+		teamId: row.team_id,
+		taskKey: row.task_key,
+		title: row.title,
+		body: row.body,
+		status: row.status,
+		assignedPmId: row.assigned_pm_id,
+		assigneeAgentId: row.assignee_agent_id,
+		ownerAgentId: row.owner_agent_id,
+		ownerRole: row.owner_role,
+		leaseExpiresAt: row.lease_expires_at,
+		reqIds: parseStringArray(row.req_ids_json),
+		revision: row.revision,
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
+	};
+}
+
+function toTaskEvent(row: DbTaskEventRow): TaskEventRecord {
+	return {
+		seq: row.seq,
+		taskId: row.task_id,
+		at: row.at,
+		actorAgentId: row.actor_agent_id,
+		kind: row.kind,
+		body: row.body,
+		fromStatus: row.from_status,
+		toStatus: row.to_status,
+		reqIds: parseStringArray(row.req_ids_json),
+		leaseExpiresAt: row.lease_expires_at,
 	};
 }
 
@@ -576,6 +722,11 @@ export function worktreeRowId(
 /** Deterministic room id; room names are unique per team. */
 export function roomRowId(teamId: string, roomName: string): string {
 	return `${teamId}:${roomName}`;
+}
+
+/** Deterministic task id; task keys are unique per team. */
+export function taskRowId(teamId: string, taskKey: string): string {
+	return `${teamId}:task:${taskKey}`;
 }
 
 /** One open connection to the global team database. */
@@ -1121,6 +1272,157 @@ export class TeamDb {
 				mentionsJson,
 			);
 		if (!row) throw new Error("room_events insert returned no sequence");
+		return { ...record, seq: row.seq };
+	}
+
+	// ── tasks (durable work queue) ────────────────────────────────────────
+
+	/** Run several reads/writes atomically; nested calls reuse the SQLite savepoint. */
+	runTransaction<T>(work: () => T): T {
+		return this.#db.transaction(work)();
+	}
+
+	listTasks(teamId: string, status?: TaskStatus): TaskRecord[] {
+		if (status) {
+			return this.#db
+				.query<DbTaskRow, [string, TaskStatus]>(
+					"SELECT * FROM tasks WHERE team_id = ? AND status = ? ORDER BY task_key",
+				)
+				.all(teamId, status)
+				.map(toTask);
+		}
+		return this.#db
+			.query<DbTaskRow, [string]>("SELECT * FROM tasks WHERE team_id = ? ORDER BY task_key")
+			.all(teamId)
+			.map(toTask);
+	}
+
+	getTask(teamId: string, taskKey: string): TaskRecord | null {
+		const row = this.#db
+			.query<DbTaskRow, [string, string]>("SELECT * FROM tasks WHERE team_id = ? AND task_key = ?")
+			.get(teamId, taskKey);
+		return row ? toTask(row) : null;
+	}
+
+	getTaskById(id: string): TaskRecord | null {
+		const row = this.#db.query<DbTaskRow, [string]>("SELECT * FROM tasks WHERE id = ?").get(id);
+		return row ? toTask(row) : null;
+	}
+
+	insertTask(record: TaskRecord): void {
+		const now = nowSeconds();
+		this.#db
+			.query(
+				`INSERT INTO tasks
+				 (id, team_id, task_key, title, body, status, assigned_pm_id, assignee_agent_id,
+				  owner_agent_id, owner_role, lease_expires_at, req_ids_json, revision, created_at, updated_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				record.id,
+				record.teamId,
+				record.taskKey,
+				record.title,
+				record.body,
+				record.status,
+				record.assignedPmId,
+				record.assigneeAgentId,
+				record.ownerAgentId,
+				record.ownerRole,
+				record.leaseExpiresAt,
+				record.reqIds.length > 0 ? JSON.stringify(record.reqIds) : null,
+				record.revision,
+				record.createdAt || now,
+				record.updatedAt || now,
+			);
+	}
+
+	/**
+	 * Compare-and-set update. With `expectedRevision`, the write is rejected when
+	 * another process already changed the row. Every successful update bumps
+	 * `revision`, so callers can use the returned boolean as the claim outcome.
+	 */
+	updateTask(
+		id: string,
+		fields: Partial<
+			Pick<
+				TaskRecord,
+				| "title"
+				| "body"
+				| "status"
+				| "assignedPmId"
+				| "assigneeAgentId"
+				| "ownerAgentId"
+				| "ownerRole"
+				| "leaseExpiresAt"
+				| "reqIds"
+			>
+		>,
+		expectedRevision?: number,
+	): boolean {
+		const assignments: string[] = [];
+		const values: (string | number | null)[] = [];
+		const set = (column: string, value: string | number | null): void => {
+			assignments.push(`${column} = ?`);
+			values.push(value);
+		};
+		if (fields.title !== undefined) set("title", fields.title);
+		if (fields.body !== undefined) set("body", fields.body);
+		if (fields.status !== undefined) set("status", fields.status);
+		if (fields.assignedPmId !== undefined) set("assigned_pm_id", fields.assignedPmId);
+		if (fields.assigneeAgentId !== undefined) set("assignee_agent_id", fields.assigneeAgentId);
+		if (fields.ownerAgentId !== undefined) set("owner_agent_id", fields.ownerAgentId);
+		if (fields.ownerRole !== undefined) set("owner_role", fields.ownerRole);
+		if (fields.leaseExpiresAt !== undefined) set("lease_expires_at", fields.leaseExpiresAt);
+		if (fields.reqIds !== undefined) {
+			set("req_ids_json", fields.reqIds.length > 0 ? JSON.stringify(fields.reqIds) : null);
+		}
+		if (assignments.length === 0 && expectedRevision === undefined) return false;
+		assignments.push("updated_at = ?", "revision = revision + 1");
+		values.push(nowSeconds());
+		const where = expectedRevision === undefined ? "id = ?" : "id = ? AND revision = ?";
+		const result = this.#db
+			.query(`UPDATE tasks SET ${assignments.join(", ")} WHERE ${where}`)
+			.run(...values, id, ...(expectedRevision === undefined ? [] : [expectedRevision]));
+		return result.changes === 1;
+	}
+
+	deleteTask(id: string): void {
+		this.#db.query("DELETE FROM tasks WHERE id = ?").run(id);
+	}
+
+	listTaskEvents(taskId: string): TaskEventRecord[] {
+		return this.#db
+			.query<DbTaskEventRow, [string]>("SELECT * FROM task_events WHERE task_id = ? ORDER BY seq")
+			.all(taskId)
+			.map(toTaskEvent);
+	}
+
+	/** Host assigns `seq`; the caller supplies the rest. */
+	insertTaskEvent(record: Omit<TaskEventRecord, "seq">): TaskEventRecord {
+		const reqJson = record.reqIds.length > 0 ? JSON.stringify(record.reqIds) : null;
+		const row = this.#db
+			.query<
+				{ seq: number },
+				[string, number, string, string, string, TaskStatus | null, TaskStatus | null, string | null, number | null]
+			>(
+				`INSERT INTO task_events
+				 (task_id, at, actor_agent_id, kind, body, from_status, to_status, req_ids_json, lease_expires_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				 RETURNING seq`,
+			)
+			.get(
+				record.taskId,
+				record.at,
+				record.actorAgentId,
+				record.kind,
+				record.body,
+				record.fromStatus,
+				record.toStatus,
+				reqJson,
+				record.leaseExpiresAt,
+			);
+		if (!row) throw new Error("task_events insert returned no sequence");
 		return { ...record, seq: row.seq };
 	}
 }

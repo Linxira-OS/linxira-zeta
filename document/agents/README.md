@@ -20,7 +20,7 @@
 | `merge/` | 上游 tag 同步的逐阶段规程、损伤类别、非代码文件归属 | 品牌值（`brand/`）、日常分支流程（`workflow/`） |
 | `brand/` | 品牌面逐行注册表、待扫清单、合并后恢复规则 | 判定分类（`document/brand-surface-rules.md`） |
 | `surface/` | 产品面定义、代码/包落点、Studio 设计检查表、渲染性能测量协议 | 架构解释（`document/architecture-layers.md`） |
-| `workflow/` | 分支登记与推送纪律、GitHub 交互、npm 发布、robomp | 发布链完整 job 表（`document/release.md`） |
+| `workflow/` | 分支登记与推送纪律、GitHub 交互、npm 发布、robomp、执行契约 | 发布链完整 job 表（`document/release.md`） |
 
 新增/移动本目录文件时，必须同时更新本索引与根 `AGENTS.md` §11。
 
@@ -43,6 +43,7 @@
 | `workflow/release-publish.md` | 动发布面或新包引导 | npm trusted publishing 两步握手、新包手动首发顺序、冻结发布面的 dispatch 开关（`publish_web_ui` / `publish_zetawork`） |
 | `workflow/robomp.md` | 想复刻上游 issue→修复 PR→发布哨兵自动化 | robomp 的 webhook/队列/worktree/host tools、PR 前门禁、release sentinel 的真实职责与 Zeta 采纳边界 |
 | `workflow/github.md` | 要发评论 / 改 PR 描述 | PR 模板、贡献者原话要求、changelog 归属 |
+| `workflow/execution-contract.md` | 接新需求 / 派 worker / 验证 / 准备发布 | intake 与 WIP、worker brief 与回报、独立验证、scope creep、ADR 边界、发布门；需求正本在 `document/requirements-ledger.md` |
 
 ## 与其它文档的边界
 

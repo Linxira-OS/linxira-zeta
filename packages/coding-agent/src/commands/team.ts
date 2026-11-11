@@ -7,7 +7,7 @@ import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { teamHelp as commandHelp } from "../cli/command-help";
 import { runTeamCommand } from "../cli/team-cli";
 
-const ACTIONS = ["init", "pm", "repo", "engineer", "worktree", "room", "doctor"] as const;
+const ACTIONS = ["init", "pm", "repo", "engineer", "worktree", "room", "task", "doctor"] as const;
 
 export default class Team extends Command {
 	static description = commandHelp.description;
@@ -71,6 +71,25 @@ export default class Team extends Command {
 		limit: Flags.string({
 			description: "Maximum events to show, newest last (room show; default 50)",
 		}),
+		title: Flags.string({
+			description: "Task title (task create)",
+		}),
+		assignee: Flags.string({
+			description: "Engineer assigned to a task (task create/assign)",
+		}),
+		agent: Flags.string({
+			description: "Engineer claiming/renewing/releasing/submitting a task, or any team actor commenting",
+		}),
+		lease: Flags.string({
+			description: "Claim lease in seconds (task claim/renew; default 900)",
+		}),
+		req: Flags.string({
+			description: "Comma-separated REQ-* ledger ids (task create/submit/complete; body ids are also extracted)",
+		}),
+		status: Flags.string({
+			description: "Task status filter: pending, claimed, review, done, or cancelled (task list)",
+			options: ["pending", "claimed", "review", "done", "cancelled"],
+		}),
 		json: Flags.boolean({ char: "j", description: "Emit machine-readable JSON", default: false }),
 	};
 
@@ -83,6 +102,11 @@ export default class Team extends Command {
 		"zetacode team engineer add alice --pm core --repo api",
 		"zetacode team engineer add alice --pm core --repo api --execution vibe",
 		"zetacode team worktree add T-101 --repo api --pm core --engineer alice",
+		'zetacode team task create T-101 --pm core --title "Fix login" --req REQ-42',
+		"zetacode team task claim T-101 --agent alice --lease 900",
+		"zetacode team task submit T-101 --agent alice",
+		"zetacode team task complete T-101 --pm core",
+		"zetacode team task list --status claimed",
 		"zetacode team room create core --pm core",
 		"zetacode team room create shared --shared --members core,platform",
 		"zetacode team room list",
@@ -112,6 +136,12 @@ export default class Team extends Command {
 			sender: flags.sender,
 			replyTo: flags["reply-to"],
 			limit: flags.limit,
+			title: flags.title,
+			assignee: flags.assignee,
+			agent: flags.agent,
+			lease: flags.lease,
+			req: flags.req,
+			status: flags.status,
 			json: flags.json ?? false,
 		});
 	}

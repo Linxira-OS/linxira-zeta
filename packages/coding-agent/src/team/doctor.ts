@@ -484,11 +484,14 @@ export async function diagnoseTeam(options: DoctorOptions = {}): Promise<DoctorR
 			for (const member of members) {
 				const pm = db.getPmById(member.agentId);
 				const engineer = pm ? null : db.getEngineerById(member.agentId);
-				const resolved = pm?.teamId === team.id || engineer?.teamId === team.id;
+				const agent = pm || engineer ? null : db.getAgentById(member.agentId);
+				const resolved = pm?.teamId === team.id || engineer?.teamId === team.id || agent?.teamId === team.id;
 				doctor.add(
 					`room.member:${room.name}/${member.agentId}`,
 					resolved,
-					resolved ? `role "${member.role}"` : "Member does not resolve to this team's PM or engineer",
+					resolved
+						? `role "${member.role}"`
+						: "Member does not resolve to this team's PM, engineer, or PM-owned agent",
 				);
 			}
 			if (room.kind === "pm" && room.pmId && !members.some(member => member.agentId === room.pmId)) {
@@ -520,6 +523,71 @@ export async function diagnoseTeam(options: DoctorOptions = {}): Promise<DoctorR
 		}
 		for (const [name, count] of roomNameCounts) {
 			if (count > 1) doctor.fail(`room.duplicate:${name}`, `${count} rooms share the name "${name}"`);
+		}
+
+		for (const task of db.listTasks(team.id)) {
+			const label = task.taskKey;
+			const pm = db.getPmById(task.assignedPmId);
+			doctor.add(
+				`task.pm:${label}`,
+				pm !== null && pm.teamId === team.id,
+				pm ? `assigned to PM ${pm.name}` : "Task references a missing or foreign PM",
+			);
+			if (task.assigneeAgentId) {
+				const assignee = db.getEngineerById(task.assigneeAgentId);
+				const assigneeOk = assignee !== null && assignee.teamId === team.id && assignee.pmId === task.assignedPmId;
+				doctor.add(
+					`task.assignee:${label}`,
+					assigneeOk,
+					assigneeOk
+						? `assigned to engineer ${assignee?.name}`
+						: "Task assignee is missing, foreign, or owned by another PM",
+				);
+			}
+			if (task.ownerAgentId) {
+				const ownerPm = db.getPmById(task.ownerAgentId);
+				const ownerEngineer = ownerPm ? null : db.getEngineerById(task.ownerAgentId);
+				const ownerAgent = ownerPm || ownerEngineer ? null : db.getAgentById(task.ownerAgentId);
+				const ownerOk =
+					ownerPm?.teamId === team.id || ownerEngineer?.teamId === team.id || ownerAgent?.teamId === team.id;
+				doctor.add(
+					`task.owner:${label}`,
+					ownerOk,
+					ownerOk ? `owner ${task.ownerAgentId}` : "Task owner does not resolve to this team",
+				);
+			}
+			const leaseConsistent =
+				task.status === "claimed"
+					? task.ownerAgentId !== null && task.leaseExpiresAt !== null
+					: task.leaseExpiresAt === null;
+			doctor.add(
+				`task.lease:${label}`,
+				leaseConsistent,
+				leaseConsistent
+					? task.leaseExpiresAt === null
+						? "no lease"
+						: `lease until ${new Date(task.leaseExpiresAt * 1000).toISOString()}`
+					: "Claimed tasks need an owner and lease; other statuses must not keep a lease",
+			);
+			if (
+				task.status === "claimed" &&
+				task.leaseExpiresAt !== null &&
+				task.leaseExpiresAt <= Math.floor(Date.now() / 1000)
+			) {
+				doctor.add(`task.lease-expired:${label}`, false, "Lease expired; the task is reclaimable", "warning");
+			}
+			for (const event of db.listTaskEvents(task.id)) {
+				const actor = db.getPmById(event.actorAgentId);
+				const actorEngineer = actor ? null : db.getEngineerById(event.actorAgentId);
+				const actorAgent = actor || actorEngineer ? null : db.getAgentById(event.actorAgentId);
+				const actorOk =
+					actor?.teamId === team.id || actorEngineer?.teamId === team.id || actorAgent?.teamId === team.id;
+				doctor.add(
+					`task.event.actor:${label}#${event.seq}`,
+					actorOk,
+					actorOk ? `actor ${event.actorAgentId}` : "Task event actor does not resolve to this team",
+				);
+			}
 		}
 
 		return { teamRoot, teamId: team.id, ok: doctor.ok, checks: doctor.checks };

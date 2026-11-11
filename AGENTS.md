@@ -201,6 +201,12 @@ Risks 之类填充是噪声。计划文件写进会话 artifacts（`local://` �
 - 合并 PR 的 commit message：`Merge PR #<number>: <conventional PR subject> (@<author>)`。
 - npm 发布面**不存在 token**：一律 GitHub OIDC trusted publishing（无 `NPM_TOKEN`）。
   细节：`document/agents/workflow/release-publish.md`。
+- **契约决策先写 ADR。** 改架构分层、公共 API/工具/CLI/wire 契约、数据模型、
+  安全边界、依赖/许可承诺、不可逆迁移或发布范围的决策，必须先写 ADR
+  （`document/adr/README.md`）并在同一改动补索引行；发布说明引用 ADR ID，
+  tag 前核对 ADR → PR → 测试/资产。需求、状态与证据进
+  `document/requirements-ledger.md`；intake/WIP/brief/verify/release 规则见
+  `document/agents/workflow/execution-contract.md`。
 - **发布源提交**：代码提交必须有一次完整 CI 绿；其后若只改文档/CHANGELOG 等
   元数据，可复用该绿提交并用 `release-v2 --no-ci-wait` 直接打 tag 发布，规则与
   允许路径见 `document/release.md` §Release source commits。任何代码/测试/配置/
@@ -246,6 +252,8 @@ PR 只承担评审与 CI，**合并由用户点**——agent 不自行 merge 自
 | 插件体系 | `document/plugin-system.md` |
 | 架构（分层、natives、gateway、TUI） | `document/architecture-layers.md`、`document/web-gateway.md` |
 | 架构/契约决策为什么这样定（ADR） | `document/adr/README.md` |
+| 需求台账：哪些还没做、证据到哪、谁负责 | `document/requirements-ledger.md` |
+| 主代理 / worker 执行纪律（intake、WIP、brief、验证、发布门） | `document/agents/workflow/execution-contract.md` |
 | 上游移植指南 | `document/porting-from-pi-mono.md` |
 | 同步台账 / 历史决策 | `document/upstream-sync.md` |
 | CI 问题台账（只记录、批量修） | `document/ci-issue-log.md` |
