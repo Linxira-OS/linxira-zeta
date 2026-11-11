@@ -88,6 +88,8 @@ const ID_PATTERNS: readonly RegExp[] = [
 ];
 /** Keys whose string value is an exact path in common tool argument shapes. */
 const PATH_ARG_KEYS = ["path", "file_path", "filePath", "directory", "cwd", "target", "source", "destination"];
+/** A user message made only of ≤2-char tokens ("hi", "ok") carries no durable ask. */
+const RETAINABLE_USER_TEXT_PATTERN = /\S{3}/u;
 
 interface TextBlock {
 	readonly type: string;
@@ -171,6 +173,12 @@ export function extractCompactionFidelity(input: CompactionFidelityInput): Compa
 	const ids: string[] = [];
 	const constraints: string[] = [];
 	const unfinished: string[] = [];
+	const collectTextFacts = (text: string): void => {
+		collectPaths(text, paths);
+		collectIds(text, ids);
+		collectLines(text, CONSTRAINT_PATTERN, constraints, MAX_CONSTRAINTS);
+		collectLines(text, UNFINISHED_PATTERN, unfinished, MAX_UNFINISHED);
+	};
 
 	let pendingQuestion: FidelityQaPair | undefined;
 	for (const message of input.messages) {
@@ -179,7 +187,14 @@ export function extractCompactionFidelity(input: CompactionFidelityInput): Compa
 			// Synthetic/steering messages are harness noise, not user asks.
 			if (message.synthetic === true || message.steering === true) continue;
 			if (!text) continue;
-			if (pendingQuestion && pendingQuestion.answer === undefined) qa.push(pendingQuestion);
+			// A new ask closes the previous one, even when the new message is small talk.
+			if (pendingQuestion && pendingQuestion.answer === undefined) {
+				qa.push(pendingQuestion);
+				pendingQuestion = undefined;
+			}
+			// Durable facts live in every message, including the user's own words.
+			collectTextFacts(text);
+			if (!RETAINABLE_USER_TEXT_PATTERN.test(text)) continue;
 			pendingQuestion = { question: clip(text, MAX_QA_QUESTION_CHARS), askedAt: message.timestamp };
 			if (qa.length >= MAX_QA) pendingQuestion = undefined;
 			continue;
@@ -191,26 +206,19 @@ export function extractCompactionFidelity(input: CompactionFidelityInput): Compa
 				qa.push(pendingQuestion);
 				pendingQuestion = undefined;
 			}
-			if (text) {
-				collectIds(text, ids);
-				collectLines(text, CONSTRAINT_PATTERN, constraints, MAX_CONSTRAINTS);
-				collectLines(text, UNFINISHED_PATTERN, unfinished, MAX_UNFINISHED);
-			}
+			if (text) collectTextFacts(text);
 			for (const block of Array.isArray(message.content) ? message.content : []) {
 				if (isToolCallBlock(block)) collectPaths(block.arguments, paths);
 			}
 			continue;
 		}
 		if (message.role === "toolResult") {
-			if (text) {
-				collectPaths(text, paths);
-				collectLines(text, UNFINISHED_PATTERN, unfinished, MAX_UNFINISHED);
-			}
+			if (text) collectTextFacts(text);
 			// A result whose tool name says it wrote a file keeps that exact path.
 			if ("details" in message && message.details) collectPaths(message.details, paths);
 			continue;
 		}
-		if (text) collectPaths(text, paths);
+		if (text) collectTextFacts(text);
 	}
 	if (pendingQuestion && pendingQuestion.answer === undefined) qa.push(pendingQuestion);
 
