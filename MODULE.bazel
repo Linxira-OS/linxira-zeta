@@ -274,7 +274,9 @@ use_repo(crate, "crates")
 # invalidates the ~2 GiB LLVM download or the ~1 GiB xwin splat:
 #   @llvm_msvc_tools  pruned LLVM 20.1.7 release binaries for the exec host
 #                     (//bazel/toolchains:llvm.bzl)
-#   @xwin_sysroot     MSVC CRT + Windows SDK splatted by pinned xwin 0.6.5
+#   @xwin_sysroot     MSVC CRT + Windows SDK splatted by pinned xwin
+#                     (0.10.0 on linux exec hosts, 0.6.5 on macOS,
+#                     which 0.10.0 does not ship binaries for)
 #   @msvc_cc          wrappers + MSVC-flavored cc_toolchain (rules_cc config)
 # toolchain() registrations live in //bazel/toolchains (one per exec host).
 # rules_cc pin matches Bazel 9.2's own builtin dependency.
