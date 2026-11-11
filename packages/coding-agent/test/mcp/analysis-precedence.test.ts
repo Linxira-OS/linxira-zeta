@@ -19,6 +19,7 @@ import {
 	type AnalysisMcpManifest,
 	type AnalysisMcpResolveInput,
 } from "@linxiraos/zeta/mcp/analysis-precedence";
+import { buildAnalysisMcpRefreshInput } from "@linxiraos/zeta/mcp/analysis-precedence-hook";
 import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
 
 const CODEGRAPH = "@colbymchenry/codegraph";
@@ -240,4 +241,52 @@ describe("analysis tool filtering", () => {
 test("the default manifest set is explicit and contains CodeGraph, not a guessed package", () => {
 	expect(ANALYSIS_MCP_MANIFESTS.map(manifest => manifest.id)).toEqual(["codegraph"]);
 	expect(ANALYSIS_MCP_MANIFESTS[0]?.packageNames).toEqual([CODEGRAPH]);
+});
+
+describe("analysis refresh input builder", () => {
+	const manager = {
+		getServerConfig: (name: string): MCPServerConfig | undefined =>
+			name === "codegraph" ? codegraphConfig() : undefined,
+	};
+	const tools = [
+		{ name: "mcp__codegraph_codegraph_explore", mcpServerName: "codegraph", mcpToolName: "codegraph_explore" },
+		{ name: "mcp__codegraph_codegraph_status", mcpServerName: "codegraph", mcpToolName: "codegraph_status" },
+		{ name: "grep" },
+	];
+
+	test("groups server configs and names from the tools about to be bound", () => {
+		const built = buildAnalysisMcpRefreshInput({
+			manager,
+			tools,
+			precedence: "mcp",
+			activeNativeTools: ["ast_grep"],
+		});
+
+		expect(Object.keys(built.configs)).toEqual(["codegraph"]);
+		expect(built.serverTools).toEqual({ codegraph: ["codegraph_explore", "codegraph_status"] });
+		expect(built.precedence).toBe("mcp");
+		expect(built.activeNativeTools).toEqual(["ast_grep"]);
+		// No admission snapshot means no allowlist: the existing session filter
+		// stays authoritative rather than an ownerless builder widening the bind.
+		expect(built.allowedTools).toBeUndefined();
+	});
+
+	test("derives allowedTools, project signals and approval from the supplied snapshot", () => {
+		const built = buildAnalysisMcpRefreshInput({
+			manager,
+			tools,
+			precedence: "native",
+			activeNativeTools: [],
+			admission: {
+				allowsMcpTool: (name, serverName) => serverName === "codegraph" && name.endsWith("_explore"),
+			},
+			project: { packageNames: [CODEGRAPH], markerPaths: [] },
+			approve: async () => false,
+		});
+
+		expect(built.allowedTools).toEqual(["codegraph_explore"]);
+		expect(built.project?.packageNames).toEqual([CODEGRAPH]);
+		expect(built.approve).toBeDefined();
+		expect(built.deniedServers).toBeUndefined();
+	});
 });

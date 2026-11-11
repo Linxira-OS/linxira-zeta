@@ -165,9 +165,12 @@ import { stripXdUrlPrefix } from "@linxiraos/pi-tui/tools/xd-url";
 import { holdSharedLsp } from "./lsp/client";
 import { LSP_STARTUP_EVENT_CHANNEL, type LspStartupEvent } from "./lsp/startup-events";
 import {
+	buildAnalysisMcpRefreshInput,
+	type AnalysisMcpRefreshInput,
 	deduplicateMCPToolsByName,
 	discoverAndLoadMCPTools,
 	getMCPToolOriginKey,
+	inspectProjectAnalysisMcp,
 	type MCPLoadResult,
 	MCPManager,
 	type MCPManagerApi,
@@ -455,6 +458,7 @@ import {
 	cfgMcpEnableProjectConfig,
 	cfgMcpNotificationDebounceMs,
 	cfgMcpNotifications,
+	cfgMcpPrecedence,
 	cfgMcpStartupTimeoutMs,
 } from "./mcp/settings";
 import { cfgPlanEnabled } from "./plan-mode/settings";
@@ -2079,6 +2083,28 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		: undefined;
 	const agentProfile = options.agentProfile;
 	const admission = createAgentToolAdmission(agentProfile?.toolPolicy);
+	/**
+	 * Build the analysis-MCP precedence snapshot for one refresh. Deliberately
+	 * per call, never cached: a reconnect or `tools/list_changed` must recompute
+	 * a denied or shadowed server instead of resurrecting the previous verdict.
+	 * With no profile admission the existing `mcpToolFilter` stays the only deny,
+	 * so no analysis snapshot is supplied that could widen what is bound.
+	 */
+	const buildMcpRefreshAnalysis = async (
+		manager: Pick<MCPManager, "getServerConfig" | "getTools">,
+		tools: CustomTool[],
+		activeToolNames: readonly string[],
+	): Promise<AnalysisMcpRefreshInput | undefined> => {
+		if (!admission.hasPolicy) return undefined;
+		return buildAnalysisMcpRefreshInput({
+			manager,
+			tools,
+			precedence: cfgMcpPrecedence.get(settings),
+			activeNativeTools: activeToolNames.filter(name => isBuiltinToolName(name)),
+			admission,
+			project: await inspectProjectAnalysisMcp(cwd),
+		});
+	};
 	const toolDisabledBySettings = (name: string): boolean => isToolDisabledBySettings(name, settings);
 	const profileNoContext = agentProfile !== undefined && agentProfile.workspaceContext !== true;
 	const effectiveModelPattern = agentProfile?.model ?? options.modelPattern;
@@ -3109,13 +3135,24 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 							// Connected MCP tools (and cached routes of servers still connecting) are
 							// enabled and mounted under xd:// devices right away, so a turn whose
 							// wait runs out still carries them.
-							await liveSession.refreshMCPTools(mcpResult.tools);
+							const analysis = await buildMcpRefreshAnalysis(
+								deferredMCPManager,
+								mcpResult.tools,
+								liveSession.getActiveToolNames(),
+							);
+							await liveSession.refreshMCPTools(mcpResult.tools, analysis);
 							// Discovery returns after the startup window while slower servers keep
 							// connecting. Give them the first turn's wait budget, then publish the
 							// final snapshot so that turn's prompt carries their instructions too.
 							await deferredMCPManager.waitForStartup(MCP_DISCOVERY_TURN_WAIT_MS);
 							if (liveSession.isDisposed) return;
-							await liveSession.refreshMCPTools(deferredMCPManager.getTools());
+							const finalTools = deferredMCPManager.getTools();
+							const finalAnalysis = await buildMcpRefreshAnalysis(
+								deferredMCPManager,
+								finalTools,
+								liveSession.getActiveToolNames(),
+							);
+							await liveSession.refreshMCPTools(finalTools, finalAnalysis);
 						} catch (error) {
 							logger.error("MCP tool load failed", {
 								path: ".mcp.json",
@@ -6234,7 +6271,8 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			const ownedManager = ownedMcpManager;
 			ownedMcpManager.setOnToolsChanged(async tools => {
 				try {
-					await session.refreshMCPTools(tools);
+					const analysis = await buildMcpRefreshAnalysis(ownedManager, tools, session.getActiveToolNames());
+					await session.refreshMCPTools(tools, analysis);
 				} catch (error) {
 					logger.warn("MCP tool refresh failed", {
 						error: error instanceof Error ? error.message : String(error),
@@ -6312,7 +6350,13 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				if (owningSession.isDisposed) return;
 				await ownedMCPManager.reconcileProjectConfig(enabled);
 				if (owningSession.isDisposed) return;
-				await owningSession.refreshMCPTools(ownedMCPManager.getTools());
+				const tools = ownedMCPManager.getTools();
+				const analysis = await buildMcpRefreshAnalysis(
+					ownedMCPManager,
+					tools,
+					owningSession.getActiveToolNames(),
+				);
+				await owningSession.refreshMCPTools(tools, analysis);
 			});
 		}
 
@@ -6323,7 +6367,12 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				sameMcpManagerTools = currentMcpManagerTools[i] === initialMcpManagerTools[i];
 			}
 			if (!sameMcpManagerTools) {
-				await session.refreshMCPTools(currentMcpManagerTools);
+				const analysis = await buildMcpRefreshAnalysis(
+					ownedMcpManager,
+					currentMcpManagerTools,
+					session.getActiveToolNames(),
+				);
+				await session.refreshMCPTools(currentMcpManagerTools, analysis);
 			}
 		}
 
