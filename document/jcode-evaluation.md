@@ -205,7 +205,7 @@ jcode **19.1ms** / pi 596.4ms / Codex 905.8ms / OpenCode 1047.9ms / Claude Code 
 
 | # | 候选 | jcode 证据 | Zeta 目标 | 状态 |
 |---|---|---|---|---|
-| 6 | 并发 agent 的「文件触碰」冲突通知 | `server/file_touch_service.rs`（正排 path→accesses、倒排 session→paths）+ `server/file_activity.rs` | `server/` 新增服务 + `wire` 事件 + `team/` 渲染（Zeta 现无此机制） | `Deferred — not implementation` |
+| 6 | 并发 agent 的「文件触碰」冲突通知 | `server/file_touch_service.rs`（正排 path→accesses、倒排 session→paths）+ `server/file_activity.rs` | `server/` 新增服务 + `wire` 事件 + `team/` 渲染（本次未发现 Zeta 侧等价机制） | `Deferred — not implementation` |
 | 7 | 质量棘轮预算：文件 LOC / panic / 吞异常 / wildcard 导出 | `scripts/{code_size_budget,panic_budget,swallowed_error_budget,wildcard_reexport_budget}.json` + 对应 `check_*.py`；阈值 1,200 行/文件，只许持平或下降 | 新增 `scripts/check-budgets.ts`，接入 `ci:check:full` | `Deferred — not implementation` |
 | 8 | provider 预连接放在压缩/prompt 构建之前 | `agent/turn_streaming_mpsc.rs`：`prewarm()` 先于 `messages_for_provider()`（可能触发压缩） | `packages/agent/src/agent-loop.ts` + `session/cache-warmer.ts` | `Deferred — not implementation` |
 | 9 | resume picker：合并帧 + 预览 LRU + 去抖 | `docs/benchmarks/resume-experience-latency-2026-11-02.md`：逐帧 63.5ms vs 合并 6.3ms（10×）；已准备预览保留 8 条，命中 <0.5ms；搜索去抖 150ms | `resume/view-model.ts` + `tui/overlays/*` 会话选择器 | `Deferred — not implementation` |
