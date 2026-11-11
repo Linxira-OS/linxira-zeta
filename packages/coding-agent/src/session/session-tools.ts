@@ -95,6 +95,10 @@ export interface SessionToolsHost {
 	/** Session-local extension roots (explicit + mode + configured) for post-startup reloads. */
 	effectiveExtensionRoots(): EffectiveExtensionRoots;
 	modelRegistry: ModelRegistry;
+	/** Per-agent tool admission; undefined admits everything. */
+	mcpToolFilter?: (tool: { name: string; mcpServerName?: string }) => boolean;
+	skillFilter?: (name: string) => boolean;
+	approvalCacheDir?: string;
 	extensionRunner(): ExtensionRunner | undefined;
 	clientBridge(): ClientBridge | undefined;
 	agentKind(): "main" | "sub";
@@ -749,6 +753,13 @@ export class SessionTools {
 			disabledExtensions: cfgDisabledExtensions.get(this.#host.settings),
 			extensionRoots: this.#host.effectiveExtensionRoots(),
 		});
+		const filter = this.#host.skillFilter;
+		if (filter) {
+			return {
+				discovered: { ...discovered, skills: discovered.skills.filter(skill => filter(skill.name)) },
+				skillsSettings,
+			};
+		}
 		return { discovered, skillsSettings };
 	}
 
@@ -1259,7 +1270,10 @@ export class SessionTools {
 							args,
 							mode,
 							userPolicies,
-							getApprovalGrants(this.#host.settings.getAgentDir(), this.#host.sessionManager.getSessionId()),
+							getApprovalGrants(
+								this.#host.approvalCacheDir ?? this.#host.settings.getAgentDir(),
+								this.#host.sessionManager.getSessionId(),
+							),
 							restrictions,
 							ctx,
 						);
@@ -2846,7 +2860,8 @@ export class SessionTools {
 	 * while vibe mode is active, activation waits for vibe exit.
 	 */
 	refreshMCPTools(mcpTools: CustomTool[]): Promise<void> {
-		const snapshot = [...mcpTools];
+		const filter = this.#host.mcpToolFilter;
+		const snapshot = filter ? mcpTools.filter(filter) : [...mcpTools];
 		return this.runToolRegistryMutation(() =>
 			this.#host.isDisposed() ? Promise.resolve() : this.#applyMCPToolRefresh(snapshot),
 		);

@@ -77,6 +77,12 @@ export interface SessionHeader {
 	 */
 	origin?: SessionOrigin;
 	/**
+	 * Per-agent memory namespace. Keys local memory roots, Mnemopi/hindsight
+	 * banks, and taste scopes; persisted so a restart keeps the same scope.
+	 * Absent on personal sessions (project scope).
+	 */
+	memoryNamespace?: string;
+	/**
 	 * Additional workspace directories beyond `cwd` (multi-root workspace).
 	 * Absolute, normalized, deduplicated. Absent on legacy single-cwd sessions.
 	 * See {@link SessionWorkspace} in `./session-workspace`.
@@ -116,6 +122,8 @@ export interface NewSessionOptions {
 	 * stamp unless a caller passes another.
 	 */
 	origin?: SessionOrigin;
+	/** Memory namespace carried into the new session; omitted keeps the current one. */
+	memoryNamespace?: string;
 	/** Provider prompt-cache identity to seed on the new session header. */
 	providerPromptCacheKey?: string;
 	taskPromptCacheKey?: string;

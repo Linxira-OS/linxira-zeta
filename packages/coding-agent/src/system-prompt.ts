@@ -538,6 +538,8 @@ export interface BuildSystemPromptOptions {
 	cwd?: string;
 	/** Additional workspace directories beyond cwd (multi-root), absolute. Injected into the project prompt. */
 	additionalWorkspaceRoots?: string[];
+	/** Load the default workspace's PERSONA.md block. Default true. */
+	includeWorkspacePersona?: boolean;
 	/** Pre-loaded context files (skips discovery if provided). */
 	contextFiles?: Array<{ path: string; content: string; depth?: number }>;
 	/** Load no context files beyond `contextFiles`: none for additional workspace roots, no nested AGENTS.md list. */
@@ -678,6 +680,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		cwd,
 		additionalWorkspaceRoots = [],
 		contextFiles: providedContextFiles,
+		includeWorkspacePersona,
 		noContextFiles = false,
 		excludeAgentsMd = false,
 		skills: providedSkills,
@@ -856,7 +859,10 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 					.then(override => override ?? bundledPersonality);
 	// Workspace persona is scoped to the default workspace: `loadWorkspacePersona`
 	// returns null for every other cwd, and for a missing/empty file.
-	const workspacePersonaPromise = logger.time("loadWorkspacePersona", () => loadWorkspacePersona(resolvedCwd));
+	const workspacePersonaPromise =
+		includeWorkspacePersona === false
+			? Promise.resolve(null)
+			: logger.time("loadWorkspacePersona", () => loadWorkspacePersona(resolvedCwd));
 
 	const [
 		resolvedCustomPrompt,

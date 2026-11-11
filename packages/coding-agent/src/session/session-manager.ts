@@ -2094,6 +2094,7 @@ export class SessionManager {
 			// session created inside a resolved Team location is stamped from that
 			// location. A personal session outside a team never acquires one.
 			origin: options?.origin ?? this.#header?.origin ?? resolveTeamSessionOrigin(this.#cwd),
+			memoryNamespace: options?.memoryNamespace ?? this.#header?.memoryNamespace,
 			parentSession: options?.parentSession,
 			providerPromptCacheKey: options?.providerPromptCacheKey,
 			taskPromptCacheKey: options?.taskPromptCacheKey,
@@ -4059,6 +4060,25 @@ export class SessionManager {
 	/** The origin stamp on the header, or `undefined` for a personal session. */
 	getOrigin(): SessionOrigin | undefined {
 		return this.#header.origin;
+	}
+
+	/** This conversation's per-agent memory namespace, or `undefined` for project scope. */
+	getMemoryNamespace(): string | undefined {
+		return this.#header.memoryNamespace;
+	}
+
+	/**
+	 * Pin the per-agent memory namespace on the header. The SDK calls this once
+	 * at session creation (and on profile resume) so every memory backend and
+	 * restart resolves the same scope.
+	 */
+	async setMemoryNamespace(namespace: string | undefined): Promise<void> {
+		if (this.#header.memoryNamespace === namespace) return;
+		if (namespace === undefined) delete this.#header.memoryNamespace;
+		else this.#header.memoryNamespace = namespace;
+		if (!this.#persist || !this.#sessionFile || !this.#shouldHaveSessionFile()) return;
+		this.#rewriteRequired = true;
+		await this.#rewriteAtomically();
 	}
 
 	/**

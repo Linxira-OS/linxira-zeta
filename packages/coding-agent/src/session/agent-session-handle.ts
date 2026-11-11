@@ -63,6 +63,8 @@ export interface AgentSessionManagerHandle {
 	getSessionFile(): string | undefined;
 	/** Artifacts directory, or null when the session is not persisted. */
 	getArtifactsDir(): string | null;
+	/** Per-agent memory namespace, or undefined for project scope. */
+	getMemoryNamespace?(): string | undefined;
 	/** Cumulative usage, including off-transcript model calls and nested task results. */
 	getUsageStatistics(): UsageStatistics;
 }

@@ -161,7 +161,16 @@ async function runTasteExtraction(
 		throw new Error(response.errorMessage || "taste extraction model error");
 	}
 
-	const key = tasteWriteScope({ cwd: session.sessionManager.getCwd(), agentId: session.getAgentId() }, settings);
+	const key = tasteWriteScope(
+		{
+			cwd: session.sessionManager.getCwd(),
+			agentId: session.getAgentId(),
+			...(session.sessionManager.getMemoryNamespace()
+				? { namespace: session.sessionManager.getMemoryNamespace() }
+				: {}),
+		},
+		settings,
+	);
 	for (const block of response.content) {
 		if (block.type !== "toolCall" || block.name !== recordPreferencesTool.name) continue;
 		const args = block.arguments;

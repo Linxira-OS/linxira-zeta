@@ -41,6 +41,8 @@ export interface MCPToolsLoadOptions {
 	cacheStorage?: AgentStorageApi | null;
 	/** Auth storage used to resolve OAuth credentials before initial MCP connect */
 	authStorage?: AuthStorage;
+	/** Server allowlist for a per-agent profile; unlisted servers are never connected. */
+	serverNames?: readonly string[];
 }
 
 async function resolveToolCache(storage: AgentStorageApi | null | undefined): Promise<MCPToolCache | null> {
@@ -76,6 +78,7 @@ export async function discoverAndLoadMCPTools(cwd: string, options?: MCPToolsLoa
 			enableProjectConfig: options?.enableProjectConfig,
 			filterExa: options?.filterExa,
 			filterBrowser: options?.filterBrowser,
+			serverNames: options?.serverNames,
 		});
 	} catch (error) {
 		// If discovery fails entirely, return empty result

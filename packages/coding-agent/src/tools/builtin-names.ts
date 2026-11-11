@@ -58,7 +58,15 @@ const CANONICAL_TOOL_NAMES: Record<string, true> = Object.fromEntries(
 	[...BUILTIN_TOOL_NAMES, ...HIDDEN_TOOL_NAMES].map(name => [name, true]),
 );
 
-/** Canonicalize built-in IDs and legacy aliases. Leave plugin names unchanged. */
+/** Whether `name` is a built-in or hidden built-in tool name (case-insensitive). */
+export function isBuiltinToolName(name: string): boolean {
+	return Object.hasOwn(CANONICAL_TOOL_NAMES, name.toLowerCase());
+}
+
+/**
+ * Canonicalize built-in IDs and legacy aliases. Leave plugin names unchanged.
+ */
+
 export function normalizeToolName(name: string): string {
 	const lower = name.toLowerCase();
 	return LEGACY_BUILTIN_TOOL_NAME_ALIASES.get(lower) ?? (Object.hasOwn(CANONICAL_TOOL_NAMES, lower) ? lower : name);

@@ -162,8 +162,31 @@ export function startMemoryStartupTask(options: {
 }
 
 interface MemoryInstructionSession {
-	sessionManager: Pick<AgentSession["sessionManager"], "getSessionFile">;
+	sessionManager: Pick<AgentSession["sessionManager"], "getSessionFile"> & {
+		getMemoryNamespace?: () => string | undefined;
+	};
 	agent?: { state: { messages: readonly unknown[] } };
+}
+
+/** Reversible, injective directory name for a memory namespace. */
+export function encodeMemoryNamespace(namespace: string): string {
+	let out = "";
+	for (const byte of new TextEncoder().encode(namespace)) {
+		const ch = String.fromCharCode(byte);
+		const safe =
+			(byte >= 48 && byte <= 57) ||
+			(byte >= 65 && byte <= 90) ||
+			(byte >= 97 && byte <= 122) ||
+			byte === 46 ||
+			byte === 95 ||
+			byte === 45;
+		out += safe ? ch : `~${byte.toString(16).padStart(2, "0").toUpperCase()}`;
+	}
+	return out.length === 0 ? "_" : out;
+}
+
+function sessionMemoryRoot(agentDir: string, cwd: string, session?: MemoryInstructionSession): string {
+	return getMemoryRoot(agentDir, cwd, session?.sessionManager.getMemoryNamespace?.());
 }
 
 interface MemoryToolDeveloperInstructionsSnapshot {
@@ -279,7 +302,7 @@ export async function refreshMemoryToolDeveloperInstructionsCacheAfterStartup(
 	if (memoryConversationStarted(session)) return;
 	const sessionFile = getMemoryInstructionSessionFile(session);
 	const cached = memoryToolDeveloperInstructionsBySession.get(session);
-	const root = getMemoryRoot(agentDir, cwd);
+	const root = sessionMemoryRoot(agentDir, cwd, session);
 	const current = await readMemoryToolDeveloperInstructionsSnapshot(root, settings);
 	if (memoryConversationStarted(session)) return;
 	const baseline = memoryToolDeveloperInstructionsByRoot.get(root);
@@ -302,7 +325,7 @@ export async function buildMemoryToolDeveloperInstructions(
 	settings: Settings,
 	session?: MemoryInstructionSession,
 ): Promise<string | undefined> {
-	const root = getMemoryRoot(agentDir, cwd);
+	const root = sessionMemoryRoot(agentDir, cwd, session);
 	if (!session) {
 		const snapshot = await readMemoryToolDeveloperInstructionsSnapshot(root, settings);
 		memoryToolDeveloperInstructionsByRoot.set(root, snapshot);
@@ -378,7 +401,7 @@ async function runPhase1(options: MemoryStartupOptions): Promise<void> {
 	const db = openMemoryDb(getAgentDbPath(agentDir));
 	const nowSec = unixNow();
 	const workerId = `memory-${process.pid}`;
-	const memoryRoot = getMemoryRoot(agentDir, session.sessionManager.getCwd());
+	const memoryRoot = sessionMemoryRoot(agentDir, session.sessionManager.getCwd(), session);
 	const currentThreadId = session.sessionManager.getSessionId();
 
 	try {
@@ -511,7 +534,7 @@ async function runPhase2(options: MemoryStartupOptions): Promise<void> {
 	const db = openMemoryDb(getAgentDbPath(agentDir));
 	const nowSec = unixNow();
 	const workerId = `memory-${process.pid}`;
-	const memoryRoot = getMemoryRoot(agentDir, cwd);
+	const memoryRoot = sessionMemoryRoot(agentDir, cwd, session);
 
 	try {
 		const claimResult = tryClaimGlobalPhase2Job(db, {
@@ -1405,7 +1428,10 @@ function loadMemoryConfig(settings: Settings): MemoryRuntimeConfig {
 	};
 }
 
-export function getMemoryRoot(agentDir: string, cwd: string): string {
+export function getMemoryRoot(agentDir: string, cwd: string, namespace?: string): string {
+	if (namespace !== undefined && namespace.trim().length > 0) {
+		return path.join(getMemoriesDir(agentDir), "agents", encodeMemoryNamespace(namespace));
+	}
 	return path.join(getMemoriesDir(agentDir), encodeProjectPath(normalizeScopeCwd(cwd)));
 }
 
@@ -1467,6 +1493,7 @@ export async function saveLearnedLesson(
 	agentDir: string,
 	cwd: string,
 	input: MemoryBackendSaveInput,
+	namespace?: string,
 ): Promise<MemoryBackendSaveResult> {
 	const content = normalizeLearnedText(input.content, MAX_LEARNED_CONTENT_CHARS);
 	if (!content) {
@@ -1474,7 +1501,7 @@ export async function saveLearnedLesson(
 	}
 	const context = input.context ? normalizeLearnedText(input.context, MAX_LEARNED_CONTEXT_CHARS) : "";
 	const line = context ? `- ${content} _(context: ${context})_` : `- ${content}`;
-	const filePath = path.join(getMemoryRoot(agentDir, cwd), LEARNED_LESSONS_FILE);
+	const filePath = path.join(getMemoryRoot(agentDir, cwd, namespace), LEARNED_LESSONS_FILE);
 
 	// Serialize the read-modify-write per file: parallel `learn` calls (sibling
 	// subagents, or two shared tool calls in one turn) share the project memory

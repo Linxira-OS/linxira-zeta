@@ -1438,6 +1438,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	#extensionRunner: ExtensionRunner | undefined = undefined;
 	#getEvalPreludes: (() => readonly EvalPreludeDefinition[]) | undefined;
 	#reconcileBrowserMcpFilter: AgentSessionConfig["reconcileBrowserMcpFilter"];
+	#approvalCacheDir?: string;
+	#mcpToolFilter?: (tool: { name: string; mcpServerName?: string }) => boolean;
+	#skillFilter?: (name: string) => boolean;
 	#setMcpServerInstructionsSource: AgentSessionConfig["setMcpServerInstructionsSource"];
 	#skillDescriptions: SkillDescriptionCatalog;
 	#promptSkillsSource: readonly Skill[] | undefined;
@@ -3430,6 +3433,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			settings: this.settings,
 			effectiveExtensionRoots: () => this.effectiveExtensionRoots,
 			modelRegistry: this.#modelRegistry,
+			...(this.#mcpToolFilter === undefined ? {} : { mcpToolFilter: this.#mcpToolFilter }),
+			...(this.#skillFilter === undefined ? {} : { skillFilter: this.#skillFilter }),
+			...(this.#approvalCacheDir === undefined ? {} : { approvalCacheDir: this.#approvalCacheDir }),
 			extensionRunner: () => this.#extensionRunner,
 			clientBridge: () => this.#clientBridge,
 			agentKind: () => this.#agentKind,
@@ -3536,6 +3542,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#streamingEditGuard = new StreamingEditGuard(streamGuardsHost);
 		this.#loopGuards = new LoopGuards(streamGuardsHost);
 		this.#agentId = config.agentId;
+		this.#approvalCacheDir = config.approvalCacheDir;
+		this.#mcpToolFilter = config.mcpToolFilter;
+		this.#skillFilter = config.skillFilter;
 		this.#agentRegistry = config.agentRegistry;
 		this.#agentKind = config.agentKind ?? "main";
 		// A subagent's streamed text reaches no output sink until the run settles
@@ -17398,7 +17407,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 	/** Remembered `always-ask-cached` grants this session's tool calls are checked against. */
 	getApprovalGrants(): ApprovalGrantStore {
-		return getApprovalGrants(this.settings.getAgentDir(), this.sessionManager.getSessionId());
+		return getApprovalGrants(this.#approvalCacheDir ?? this.settings.getAgentDir(), this.sessionManager.getSessionId());
 	}
 
 	/**

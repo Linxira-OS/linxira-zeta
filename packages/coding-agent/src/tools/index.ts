@@ -369,6 +369,18 @@ export interface ToolSession {
 	 * required yield tool). Suppresses automatic tool-set expansion.
 	 */
 	restrictToolNames?: boolean;
+	/**
+	 * Per-agent MCP tool admission. Applied on every MCP refresh — startup,
+	 * `tools/list_changed`, reconnect, `/mcp reload` — so a live catalog cannot
+	 * widen an allowlist.
+	 */
+	mcpToolFilter?: (tool: { name: string; mcpServerName?: string }) => boolean;
+	/** Per-agent skill admission, applied after discovery and on rediscovery. */
+	skillFilter?: (name: string) => boolean;
+	/** Per-runtime approval cache directory; undefined uses the agent directory. */
+	approvalCacheDir?: string;
+	/** Per-session memory namespace; persisted on the session header by the SDK. */
+	memoryNamespace?: string;
 	/** Seance forks: the consulted session's artifacts dir, read in place by history://, artifact://, agent://. */
 	readonly seanceSourceArtifactsDir?: string;
 	/** Task recursion depth (0 = top-level, 1 = first child, etc.) */

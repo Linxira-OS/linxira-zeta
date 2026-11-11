@@ -50,7 +50,7 @@ function memoryRootsFromRegistry(): string[] {
 	for (const ref of AgentRegistry.global().list()) {
 		const sm = ref.session?.sessionManager;
 		if (!sm) continue;
-		const root = getMemoryRoot(agentDir, sm.getCwd());
+		const root = getMemoryRoot(agentDir, sm.getCwd(), sm.getMemoryNamespace?.());
 		if (root && !roots.includes(root)) roots.push(root);
 	}
 	return roots;
@@ -64,7 +64,7 @@ function memoryRootsFromRegistry(): string[] {
  */
 function memoryRootsForContext(context: ResolveContext | undefined, caller: AgentSessionHandle | undefined): string[] {
 	const cwd = context?.cwd ?? caller?.sessionManager.getCwd();
-	if (cwd) return [getMemoryRoot(getAgentDir(), cwd)];
+	if (cwd) return [getMemoryRoot(getAgentDir(), cwd, caller?.sessionManager.getMemoryNamespace?.())];
 	return memoryRootsFromRegistry();
 }
 

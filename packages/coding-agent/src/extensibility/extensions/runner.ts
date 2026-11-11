@@ -589,6 +589,8 @@ export class ExtensionRunner {
 	#toolApprovalPreviewWaiter?: (toolCallId: string) => Promise<void>;
 	/** Grant keys (see `sessionApprovalScope`) approved "for this session", each prefixed by the session it covers. */
 	#sessionApprovals = new Set<string>();
+	/** Per-agent extension-command admission; undefined admits every registered command. */
+	#commandAdmission?: (name: string) => boolean;
 	#trackUserWait?: UserWaitTracker;
 	#errorListeners: Set<ExtensionErrorListener> = new Set();
 	#getModel: () => Model | undefined = () => undefined;
@@ -1779,12 +1781,18 @@ export class ExtensionRunner {
 		return true;
 	}
 
+	/** Restrict which extension commands this session may list or execute. */
+	setCommandAdmission(admission: ((name: string) => boolean) | undefined): void {
+		this.#commandAdmission = admission;
+	}
+
 	getRegisteredCommands(reserved?: ReadonlySet<string>): RegisteredCommand[] {
 		this.#commandDiagnostics = [];
 
 		const commands = new Map<string, RegisteredCommand>();
 		for (const ext of this.extensions) {
 			for (const command of ext.commands.values()) {
+				if (this.#commandAdmission !== undefined && !this.#commandAdmission(command.name)) continue;
 				if (reserved?.has(command.name)) {
 					const message = `Extension command '${command.name}' from ${ext.path} conflicts with built-in commands. Skipping.`;
 					this.#commandDiagnostics.push({ type: "warning", message, path: ext.path });
@@ -1805,6 +1813,7 @@ export class ExtensionRunner {
 	}
 
 	getCommand(name: string): RegisteredCommand | undefined {
+		if (this.#commandAdmission !== undefined && !this.#commandAdmission(name)) return undefined;
 		for (let index = this.extensions.length - 1; index >= 0; index -= 1) {
 			const command = this.extensions[index]?.commands.get(name);
 			if (command) {

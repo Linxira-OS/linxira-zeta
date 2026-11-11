@@ -92,8 +92,14 @@ function projectLabel(directory: string): string {
  * Always returns a non-empty `bankId`. Tag fields are populated only for
  * `per-project-tagged`.
  */
-export function computeBankScope(config: HindsightConfig, directory: string): BankScope {
+export function computeBankScope(config: HindsightConfig, directory: string, memoryNamespace?: string): BankScope {
 	const base = baseBankId(config);
+	if (memoryNamespace !== undefined && memoryNamespace.trim().length > 0) {
+		// A per-agent namespace is a hard bank boundary in every scoping mode, so
+		// two agents never share a recall pool through a project tag.
+		const label = memoryNamespace.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, "-").slice(0, 48);
+		return { bankId: `${base}-${label}-${Bun.hash(memoryNamespace).toString(36)}` };
+	}
 	switch (config.scoping) {
 		case "global":
 			return { bankId: base };

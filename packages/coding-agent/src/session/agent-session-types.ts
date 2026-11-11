@@ -205,6 +205,12 @@ export interface AgentSessionConfig {
 	scoutAllowedBySpawnPolicy?: boolean;
 	/** Whether the caller explicitly requested yolo/auto-approve behavior for this session. */
 	autoApprove?: boolean;
+	/** Per-runtime approval cache directory; undefined uses the agent directory. */
+	approvalCacheDir?: string;
+	/** Per-agent MCP tool admission; applied on every refresh. */
+	mcpToolFilter?: (tool: { name: string; mcpServerName?: string }) => boolean;
+	/** Per-agent skill admission; applied after discovery. */
+	skillFilter?: (name: string) => boolean;
 	/** User-authorized model agents inherited from the parent session for nested delegation. */
 	inheritedSessionAgents?: readonly AgentDefinition[];
 	/** Models to cycle through with Ctrl+P (from --models flag). */

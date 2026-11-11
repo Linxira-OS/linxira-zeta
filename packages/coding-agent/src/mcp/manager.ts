@@ -234,6 +234,8 @@ export interface MCPDiscoverOptions {
 	filterBrowser?: boolean;
 	/** Session-local extension roots for post-startup rediscovery (explicit + mode + configured). */
 	extensionRoots?: EffectiveExtensionRoots;
+	/** Server allowlist for a per-agent profile; unlisted servers are never connected. */
+	serverNames?: readonly string[];
 	/** Called when MCP server connection state changes. */
 	onStatus?: (event: McpConnectionStatusEvent) => void;
 	/** Non-blocking discovery window in milliseconds; environment override wins. */
@@ -762,6 +764,7 @@ export class MCPManager implements MCPManagerApi {
 				filterExa: options?.filterExa,
 				filterBrowser: options?.filterBrowser,
 				extensionRoots: options?.extensionRoots,
+				serverNames: options?.serverNames,
 			});
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -809,6 +812,7 @@ export class MCPManager implements MCPManagerApi {
 			filterExa: options.filterExa,
 			filterBrowser: options.filterBrowser,
 			extensionRoots: options.extensionRoots,
+			serverNames: options.serverNames,
 		});
 		// Every server whose resolution depends on the flag: project-level ones
 		// known now, plus project-level ones the enabled load resolves.

@@ -30,11 +30,30 @@ export interface TasteScopeKey {
 	segments: string[];
 }
 
+/** Injective path segment for an agent identity. */
+function encodeTasteSegment(value: string): string {
+	let out = "";
+	for (const byte of new TextEncoder().encode(value)) {
+		const ch = String.fromCharCode(byte);
+		const safe =
+			(byte >= 48 && byte <= 57) ||
+			(byte >= 65 && byte <= 90) ||
+			(byte >= 97 && byte <= 122) ||
+			byte === 46 ||
+			byte === 95 ||
+			byte === 45;
+		out += safe ? ch : `~${byte.toString(16).padStart(2, "0").toUpperCase()}`;
+	}
+	return out.length === 0 ? "_" : out;
+}
+
 /** What the caller knows about where it runs. Reserved fields are accepted and ignored. */
 export interface TasteScopeContext {
 	cwd: string;
 	/** Agent identity (`Main` for the top-level session); selects the `agents` domain. */
 	agentId?: string;
+	/** Per-agent memory namespace; preferred over `agentId` when present. */
+	namespace?: string;
 	/** Reserved: super-agent bot id. */
 	botId?: string;
 	/** Reserved: super-agent room id. */
@@ -58,7 +77,12 @@ export interface TasteScopeContext {
 export function resolveTasteScopes(ctx: TasteScopeContext, settings: Settings): TasteScopeKey[] {
 	const scopes: TasteScopeKey[] = [];
 	const bank = projectBankSegment(ctx.cwd);
-	if (ctx.agentId) scopes.push({ domain: "agents", segments: [bank, ctx.agentId] });
+	// `namespace` is already per-binding; encode it to a slug-safe segment so a
+	// colon or slash cannot collapse two identities into one directory.
+	const identity = ctx.namespace?.trim()
+		? encodeTasteSegment(ctx.namespace.trim())
+		: ctx.agentId;
+	if (identity) scopes.push({ domain: "agents", segments: [bank, identity] });
 	switch (cfgTasteScoping.get(settings)) {
 		case "global":
 			scopes.push({ domain: "global", segments: [] });

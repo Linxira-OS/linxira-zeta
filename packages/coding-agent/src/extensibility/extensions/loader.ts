@@ -530,6 +530,7 @@ async function bindExtension(
 	cwd: string,
 	eventBus: EventBus,
 	runtime: IExtensionRuntime,
+	storageHome?: string,
 ): Promise<{ extension: Extension | null; error: string | null }> {
 	const factory = imported.factory;
 	if (imported.error !== null || factory === null) {
@@ -537,7 +538,7 @@ async function bindExtension(
 	}
 	try {
 		const extension = createExtension(extensionPath, imported.resolvedPath);
-		const storage = await resolvePluginStorage(cwd, imported.resolvedPath);
+		const storage = await resolvePluginStorage(cwd, imported.resolvedPath, { storageHome });
 		extension.localeCatalog = await resolvePluginLocaleCatalog(cwd, imported.resolvedPath);
 		const api = new ConcreteExtensionAPI(extension, runtime, cwd, eventBus, storage);
 		await withHostGuard(() => runExtensionFactory(factory, api, runtime));
@@ -578,9 +579,10 @@ export async function loadExtensions(
 	cwd: string,
 	eventBus?: EventBus,
 	runtime?: IExtensionRuntime,
+	options: { storageHome?: string } = {},
 ): Promise<LoadExtensionsResult> {
 	const preparedExtensions = await Promise.all(paths.map(extPath => importExtensionModule(extPath, cwd)));
-	return bindPreparedExtensions(preparedExtensions, cwd, eventBus, runtime);
+	return bindPreparedExtensions(preparedExtensions, cwd, eventBus, runtime, options);
 }
 
 /**
@@ -593,13 +595,21 @@ export async function bindPreparedExtensions(
 	cwd: string,
 	eventBus?: EventBus,
 	runtime: IExtensionRuntime = new ExtensionRuntime(),
+	options: { storageHome?: string } = {},
 ): Promise<LoadExtensionsResult> {
 	const extensions: Extension[] = [];
 	const errors: Array<{ path: string; error: string }> = [];
 	const resolvedEventBus = eventBus ?? new EventBus();
 
 	for (const prepared of preparedExtensions) {
-		const { extension, error } = await bindExtension(prepared.path, prepared, cwd, resolvedEventBus, runtime);
+		const { extension, error } = await bindExtension(
+			prepared.path,
+			prepared,
+			cwd,
+			resolvedEventBus,
+			runtime,
+			options.storageHome,
+		);
 
 		if (error) {
 			errors.push({ path: prepared.path, error });
