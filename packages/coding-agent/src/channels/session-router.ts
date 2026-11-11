@@ -335,7 +335,12 @@ export class SessionRouter {
 		const existing = this.#bridges.get(key);
 		if (existing) return existing;
 		const correlator = new ReplyCorrelator({
-			sendText: (target, text) => this.#sendText(target.instanceId, target.peer, text),
+			sendText: (target, text) =>
+				this.#sendText(
+					target.instanceId,
+					target.peer,
+					target.originLabel ? `[${target.originLabel}]\n${text}` : text,
+				),
 		});
 		this.#bridges.set(key, correlator);
 		const observer = session.setIrcWakeTurnObserver;
@@ -1517,7 +1522,16 @@ export class SessionRouter {
 			msg.id,
 			binding?.role === "observe"
 				? { kind: "sink", deliver: () => {} }
-				: { kind: "chat", channelId, peer },
+				: {
+						kind: "chat",
+						channelId,
+						peer,
+						originLabel: binding
+							? `${targetKey(binding.target)} · ${binding.agentProfileId}`
+							: handle.entry.target
+								? `${targetKey(handle.entry.target)} · ${handle.entry.agentProfileId ?? "default"}`
+								: undefined,
+					},
 		);
 		try {
 			await handle.session.deliverIrcMessage(msg);
@@ -1584,7 +1598,7 @@ export class SessionRouter {
 			body,
 			ts: Date.now(),
 		};
-		bridge.expect(msg.id, { kind: "chat", channelId, peer });
+		bridge.expect(msg.id, { kind: "chat", channelId, peer, originLabel: `workspace:${workspaceAlias}` });
 		try {
 			await handle.session.deliverIrcMessage(msg);
 		} catch (error) {

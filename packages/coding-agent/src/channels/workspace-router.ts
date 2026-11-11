@@ -10,8 +10,9 @@
  * | `@workspace create <path> [alias]` | mkdir -p the directory and register it |
  * | `@workspace close <alias>` | stop the workspace session and unregister it |
  * | `@workspace rename <old> <new>` | change a workspace alias |
- * | `@workspace use <alias>` | direct-mode: talk to that workspace now |
- * | `@workspace relay` | switch this chat back to the relay coordinator |
+ * | `@workspace use <alias>` | preview a switch to that workspace |
+ * | `@workspace confirm` / `cancel` | apply or discard the pending switch |
+ * | `@workspace relay` | preview a switch back to the relay coordinator |
  * | `@workspace bind <alias>` | persist this chat → workspace binding |
  * | `@workspace unbind` | remove this chat's binding, back to relay |
  * | `@workspace bindings` | list every persisted binding for this platform |

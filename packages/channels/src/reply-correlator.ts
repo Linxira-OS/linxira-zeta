@@ -26,6 +26,8 @@ export interface ChatReplyTarget {
 	peer: string;
 	/** Platform message id being answered, when the platform provided one. */
 	messageId?: string;
+	/** Repo/agent that produced this reply, pinned at delivery time. */
+	originLabel?: string;
 }
 
 /** A reply consumed by an in-process caller instead of an IM chat. */
@@ -191,6 +193,7 @@ export class ReplyCorrelator {
 							instanceId: target.instanceId,
 							peer: target.peer,
 							...(target.messageId === undefined ? {} : { messageId: target.messageId }),
+							...(target.originLabel === undefined ? {} : { originLabel: target.originLabel }),
 						},
 						text,
 					),
