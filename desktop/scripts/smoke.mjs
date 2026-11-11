@@ -118,9 +118,10 @@ async function main() {
 		? path.join(appDir, "Zeta.app", "Contents", "Resources", "zeta")
 		: path.join(appDir, "resources", "zeta");
 	const zeta = path.join(serviceDir, platformInfo.zetaBinaryName);
-	const runtime = path.join(serviceDir, platformInfo.nodeBinaryName);
-	const standaloneServer = path.join(serviceDir, "web-ui", ".next", "standalone", "server.js");
-	for (const required of [zeta, runtime, standaloneServer]) {
+	// The standalone kernel serves the staged Studio renderer itself; there is
+	// no separate Node runtime or Next standalone server to look for.
+	const webApp = path.join(serviceDir, "web-app", "index.html");
+	for (const required of [zeta, webApp]) {
 		if (!fs.existsSync(required)) throw new Error(`Missing packaged resource: ${required}`);
 	}
 
@@ -139,7 +140,7 @@ async function main() {
 	console.log(`Desktop smoke ports: web=${webPort} stats=${statsPort}`);
 	const child = spawn(zeta, ["serve", "--web-port", String(webPort), "--stats-port", String(statsPort)], {
 		cwd: serviceDir,
-		env: { ...process.env, ZETA_DESKTOP: "1", ZETA_WEB_RUNTIME: runtime },
+		env: { ...process.env, ZETA_DESKTOP: "1" },
 		stdio: ["ignore", "pipe", "pipe"],
 		windowsHide: isWindows,
 	});
@@ -164,15 +165,17 @@ async function main() {
 		}
 		const page = await fetch(webUrl);
 		const html = await page.text();
-		const assets = [...html.matchAll(/(?:src|href)="([^"]*\/_next\/[^"]*)"/g)]
-			.map((match) => match[1])
+		// Vite emits relative `./assets/<hash>.js|css`; resolve against the page
+		// so sub-path deployments keep working.
+		const assets = [...html.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)]
+			.map((match) => new URL(match[1], `${webUrl}/`).toString())
 			.filter((asset, index, values) => values.indexOf(asset) === index);
-		if (assets.length === 0) throw new Error("Packaged Web UI did not reference any Next assets");
+		if (assets.length === 0) throw new Error("Packaged Web UI did not reference any built assets");
 		for (const asset of assets) {
-			const response = await fetch(`${webUrl}${asset}`);
-			if (!response.ok) throw new Error(`Packaged Next asset failed: ${response.status} ${asset}`);
+			const response = await fetch(asset);
+			if (!response.ok) throw new Error(`Packaged Web UI asset failed: ${response.status} ${asset}`);
 		}
-		console.log(`Desktop smoke passed: default workspace, SSE, ${assets.length} Next assets, Web UI, API, and Stats dashboard.`);
+		console.log(`Desktop smoke passed: default workspace, SSE, ${assets.length} Web UI assets, API, and Stats dashboard.`);
 	} finally {
 		stopping = true;
 		await stopService(child);

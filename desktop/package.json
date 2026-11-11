@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "npm@12.0.1",
   "author": "Zeta Contributors",
-  "description": "Zeta desktop shell: embedded Web UI + Stats dashboard with local service (no terminal, no system browser)",
+  "description": "Zeta desktop shell: Electron 45 hosting the Work Studio and Stats UI from the standalone Zeta kernel, with SSH execution targets (no system browser)",
   "homepage": "https://linxira-os.github.io/zeta/",
   "main": "dist/main.js",
   "scripts": {

@@ -9,7 +9,7 @@
  * opened and no terminal window appears.
  */
 
-import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, Notification, screen, shell, Tray } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, Notification, protocol, screen, shell, Tray } from "electron";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -26,6 +26,10 @@ import {
 } from "./open-bridge";
 import { classifyDroppedPath, findWorkspace, firstEditorTarget, isPathWithin, resolveWorkspaceFile, workspaceIdFor, type WorkspaceLocation } from "./workspace-actions";
 import { fieldOf } from "./json";
+import { registerRemoteBridge } from "./remote/ipc";
+import type { RemoteBridge } from "./remote/bridge";
+import { registerTerminalBridge } from "./terminal/ipc";
+import type { TerminalBridge } from "./terminal/bridge";
 import { mapUpdateCheck } from "./update-check";
 import { WINDOW_CONTROL_CHANNELS, runWindowControl, windowState } from "./window-controls";
 import { resolveToolIn, type ToolResolutionDeps } from "./tool-resolution";
@@ -219,6 +223,9 @@ ipcMain.handle("pi:pick-workspace", async (_event, input: unknown): Promise<{ ca
 	throw new Error("Selected directory was not registered as a workspace");
 });
 let mainWindow: BrowserWindow | null = null;
+/** SSH execution targets and the desktop terminal/recording surface. */
+let remoteBridge: RemoteBridge | null = null;
+let terminalBridge: TerminalBridge | null = null;
 /** Launch preferences kept for recreating the window after a real close. */
 let activePrefs: TrayPrefs | null = null;
 /** Boot has finished; window recreation is safe and tray menus are live. */
@@ -648,7 +655,12 @@ ipcMain.handle(
 	},
 );
 
-ipcMain.handle("pi:sample-memory", () => {
+type MemoryPhase = "boot" | "heartbeat" | "on-demand";
+const memoryHistory: Array<{ capturedAt: string; totalWorkingSetKb: number; phase: MemoryPhase }> = [];
+let memoryHeartbeat: NodeJS.Timeout | undefined;
+
+/** One projection of `app.getAppMetrics()`; the only sampler in the shell. */
+function sampleProcessMemory(phase: MemoryPhase) {
 	const metrics = app.getAppMetrics();
 	if (metrics.length === 0) return null;
 	const rows = metrics.map((metric, index) => ({
@@ -657,12 +669,24 @@ ipcMain.handle("pi:sample-memory", () => {
 		workingSetKb: Math.round(metric.memory.workingSetSize),
 		...(metric.memory.peakWorkingSetSize > 0 ? { peakWorkingSetKb: Math.round(metric.memory.peakWorkingSetSize) } : {}),
 	}));
-	return {
+	const sample = {
 		capturedAt: new Date().toISOString(),
 		totalWorkingSetKb: rows.reduce((total, row) => total + row.workingSetKb, 0),
 		rows,
 	};
-});
+	memoryHistory.push({ capturedAt: sample.capturedAt, totalWorkingSetKb: sample.totalWorkingSetKb, phase });
+	// One hour of heartbeat at 60s; boot/on-demand share the same bounded ring.
+	while (memoryHistory.length > 60) memoryHistory.shift();
+	return { ...sample, phase, history: memoryHistory.map(entry => ({ ...entry })) };
+}
+
+function startMemoryHeartbeat(): void {
+	if (memoryHeartbeat) return;
+	sampleProcessMemory("boot");
+	memoryHeartbeat = setInterval(() => sampleProcessMemory("heartbeat"), 60_000);
+}
+
+ipcMain.handle("pi:sample-memory", () => sampleProcessMemory("on-demand"));
 
 // ---------------------------------------------------------------------------
 // Session completion monitor.
@@ -1606,6 +1630,12 @@ function handleLaunchArguments(argv: readonly string[]): void {
 	}
 }
 
+// Terminal recordings are played by the renderer through `zeta-artifact://`;
+// the scheme must be privileged before app ready so fetch/CORS work.
+protocol.registerSchemesAsPrivileged([
+	{ scheme: "zeta-artifact", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+]);
+
 app.setName("Zeta");
 app.setAppUserModelId("com.zeta.desktop");
 
@@ -1636,6 +1666,21 @@ if (!app.hasSingleInstanceLock()) {
 			// registration (electron-builder `protocols`); dev registers Electron.
 			if (app.isPackaged) app.setAsDefaultProtocolClient("zeta");
 			else app.setAsDefaultProtocolClient("zeta", process.execPath, [path.resolve(process.argv[1] ?? "")]);
+			remoteBridge = registerRemoteBridge({ userData: app.getPath("userData"), log: writeDesktopLog });
+			terminalBridge = registerTerminalBridge({
+				userData: app.getPath("userData"),
+				localBase: () => webUiUrl,
+				remoteBase: id => remoteBridge?.baseUrl(id),
+			});
+			protocol.handle("zeta-artifact", request => {
+				const name = decodeURIComponent(new URL(request.url).pathname.replace(/^\/+/, ""));
+				const file = terminalBridge?.artifactPath(name);
+				if (!file) return new Response("Recording not found", { status: 404 });
+				return new Response(fs.readFileSync(file), {
+					headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+				});
+			});
+			startMemoryHeartbeat();
 			return boot();
 		})
 		.catch((err: unknown) => {
@@ -1644,6 +1689,10 @@ if (!app.hasSingleInstanceLock()) {
 
 	app.on("before-quit", () => {
 		quitting = true;
+		clearInterval(memoryHeartbeat);
+		memoryHeartbeat = undefined;
+		void remoteBridge?.dispose();
+		terminalBridge = null;
 		stopSessionMonitor();
 		if (mainWindow && !mainWindow.isDestroyed()) captureCurrentBounds(mainWindow);
 		saveWorkspaceState();

@@ -95,6 +95,16 @@ Capabilities the shell owns (paths never cross into the renderer):
   `resolveDroppedPaths`, `pickPlanSavePath`;
 * app chrome — `getAppVersion`, `checkUpdates`, `openUrl`, `notify`,
   `openLogDir`, `exportLogs`, `sampleProcessMemory`, `onMenuCommand`;
+* SSH execution targets — `window.zetaStudioRemote` (`list`/`save`/`connect`/
+  `disconnect`/`query`/`command`/`events`/`browse`/`probe`/`prepare`). It uses
+  the system OpenSSH client and an `ssh -L` tunnel to the remote loopback
+  Studio host; profiles never persist a password, unknown host keys are not
+  auto-accepted, and a disconnected generation rejects writes instead of
+  falling back to the local service;
+* terminal — `window.zetaStudioTerminal` owns the gateway socket, forwards PTY
+  bytes, and records `.studiocast` files (`recordingStart`/`Stop`/`Status`/
+  `Export`); playback is served by `zeta-artifact://`.
+
 * draft dictation — `attachLiveAudio`, `appendLiveAudio`, `detachLiveAudio`,
   `requestMicrophoneAccess`, `openMicrophoneSettings`.
 
@@ -130,8 +140,8 @@ caption buttons and keeps the usual modal dimming.
 Launch integration: the shell registers the `zeta://` scheme, handles
 `open-url`/`open-file`, and treats a second-instance `--cwd=<dir>` as a request
 to register that folder in the project list. Login autostart passes `--hidden`
-(Windows args / Linux autostart entry) or `openAsHidden` (macOS) so the app
-starts in the tray.
+on Windows and writes the XDG autostart entry on Linux; Electron 44 removed the
+macOS `openAsHidden` attribute, so macOS uses a plain login item.
 
 Icons: Windows packages `icon.ico`; Linux and macOS use `icon.png` (an ICO is
 not a valid GTK/AppKit icon), and the Linux installer's `.desktop` entry points
