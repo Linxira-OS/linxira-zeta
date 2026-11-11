@@ -59,6 +59,7 @@ import { BashTool } from "./bash";
 import { BoardTool } from "./board";
 import { CalendarTool } from "./calendar";
 import { RoomReadTool } from "./room";
+import { LocalRoomPostTool, LocalRoomReadTool, LocalRoomReplyTool } from "./local-rooms";
 import { type BuiltinToolName, type HiddenToolName, normalizeToolNames } from "./builtin-names";
 import { isBuiltinAllowedByToolProfile } from "./tool-policy";
 import { ChannelSendTool } from "./channel-send";
@@ -174,6 +175,7 @@ export * from "./read";
 export * from "./report-tool-issue";
 export * from "./resolve";
 export * from "./room";
+export * from "./local-rooms";
 export * from "./secretary";
 export * from "./security-scan";
 export * from "./think";
@@ -688,6 +690,9 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	todo: s => new TodoTool(s),
 	board: s => new BoardTool(s),
 	room_read: s => new RoomReadTool(s),
+	local_room_read: s => new LocalRoomReadTool(s),
+	local_room_post: s => new LocalRoomPostTool(s),
+	local_room_reply: s => new LocalRoomReplyTool(s),
 	mode: s => new ModeTool(s),
 	web_search: s => new WebSearchTool(s),
 	time: s => new TimeTool(s.settings),

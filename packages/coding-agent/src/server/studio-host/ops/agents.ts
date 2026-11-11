@@ -39,8 +39,10 @@ import type {
 	AgentThinkingLevel,
 	EmptyInput,
 } from "../contract/index.js";
-import { gatewayJson, unavailable } from "../gateway.js";
+import { gatewayJson, invalid, StudioOpError, unavailable } from "../gateway.js";
 import type { StudioFamily } from "../registry.js";
+import { AgentLifecycleManager } from "../../../registry/agent-lifecycle.js";
+import { AgentRegistry, type AgentRef } from "../../../registry/agent-registry.js";
 
 const SETTINGS_VALUES_ROUTE = "/api/settings/values";
 
@@ -187,10 +189,80 @@ async function readAgentDefinitions(_input: EmptyInput): Promise<AgentDefinition
 	};
 }
 
-/** Agents family: the task-agent definition inventory. */
+/**
+ * Resolve the generation-fenced live ref an `agent.*` command was issued for.
+ * A stale generation is rejected instead of acting on a newer same-id agent.
+ */
+function mutationRef(input: unknown): AgentRef {
+	const record = input !== null && typeof input === "object" ? (input as Record<string, unknown>) : {};
+	const agentId = typeof record.agentId === "string" && record.agentId !== "" ? record.agentId : undefined;
+	if (!agentId) throw invalid("agentId must be a non-empty string");
+	if (typeof record.expectedGeneration !== "number" || !Number.isSafeInteger(record.expectedGeneration)) {
+		throw invalid("expectedGeneration must be an integer");
+	}
+	const ref = AgentRegistry.global().get(agentId);
+	if (!ref) throw invalid(`Unknown agent "${agentId}"`);
+	if (ref.generation !== record.expectedGeneration) {
+		throw new StudioOpError("STATE_VERSION_CONFLICT", `Agent "${agentId}" changed generation`);
+	}
+	return ref;
+}
+
+async function liveHandle(ref: AgentRef) {
+	if (ref.status === "parked" || ref.status === "aborted") {
+		const handle = await AgentLifecycleManager.global().ensureLive(ref.id, {});
+		return handle;
+	}
+	if (!ref.session) throw unavailable(`Agent "${ref.id}" has no live session`);
+	return ref.session;
+}
+
+/**
+ * Agents family: the task-agent definition inventory plus the real control
+ * commands Agent Hub already advertises. Each handler acts on the live
+ * registry/lifecycle; there is no second control path.
+ */
 export const agentsOps: StudioFamily = {
 	id: "agents",
 	queries: {
 		"agents.definitions.get": readAgentDefinitions,
+	},
+	commands: {
+		"agent.send": async input => {
+			const ref = mutationRef(input);
+			const record = input as Record<string, unknown>;
+			const text = typeof record.text === "string" ? record.text.trim() : "";
+			if (!text) throw invalid("text must be a non-empty string");
+			const mode = record.mode;
+			if (mode !== "prompt" && mode !== "steer" && mode !== "followUp") {
+				throw invalid("mode must be prompt, steer, or followUp");
+			}
+			const session = await liveHandle(ref);
+			if (mode === "steer") {
+				await session.steer(text);
+			} else if (mode === "followUp" || session.isStreaming) {
+				await session.prompt(text, { streamingBehavior: "followUp", userInitiated: true });
+			} else {
+				await session.prompt(text, { userInitiated: true });
+			}
+			return undefined;
+		},
+		"agent.kill": async input => {
+			const ref = mutationRef(input);
+			const released = await AgentLifecycleManager.global().release(ref.id, ref, { tombstone: true });
+			if (!released) throw new StudioOpError("STATE_VERSION_CONFLICT", `Agent "${ref.id}" was not released`);
+			return undefined;
+		},
+		"agent.revive": async input => {
+			const ref = mutationRef(input);
+			await AgentLifecycleManager.global().ensureLive(ref.id, {});
+			return undefined;
+		},
+		"agent.release": async input => {
+			const ref = mutationRef(input);
+			const released = await AgentLifecycleManager.global().release(ref.id, ref);
+			if (!released) throw new StudioOpError("STATE_VERSION_CONFLICT", `Agent "${ref.id}" was not released`);
+			return undefined;
+		},
 	},
 };

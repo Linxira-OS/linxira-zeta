@@ -82,6 +82,15 @@ import type {
 	ResidentsReadModel,
 	SessionHistoryReadModel,
 	SessionHistoryStatus,
+	LocalRoomContactsReadModel,
+	LocalRoomEventReadModel,
+	LocalRoomMemberReadModel,
+	LocalRoomPostReadModel,
+	LocalRoomProposalReadModel,
+	LocalRoomReplyReadModel,
+	LocalRoomResidentReadModel,
+	LocalRoomSnapshotReadModel,
+	LocalRoomSummaryReadModel,
 	TeamGraphReadModel,
 	TeamNodeLifetime,
 	TokenUsageReadModel,
@@ -134,6 +143,11 @@ export interface QueryInputMap extends ContextViewQueryMap {
 		/** One main's team; omit for every cluster. */
 		readonly clusterId?: string;
 	};
+	/** Local Super/Repo/Main rooms (contacts layer), independent of Team DB rooms. */
+	"rooms.list": { readonly viewerId?: string };
+	"room.get": { readonly roomId: string };
+	"room.log.read": { readonly roomId: string; readonly afterSeq?: number; readonly limit?: number };
+	"room.contacts.list": { readonly roomId: string };
 	"projects.list": EmptyInput;
 	/** Lists one directory level. Omit path for the workspace root. */
 	"workspace.fileTree": { readonly workspaceId: WorkspaceId; readonly path?: string };
@@ -204,6 +218,14 @@ export interface QueryResultMap extends ContextViewResultMap {
 	"agents.definitions.get": AgentDefinitionsReadModel;
 	/** Team nodes/edges/clusters; empty arrays plus `gaps` when producers are missing. */
 	"team.graph.get": TeamGraphReadModel;
+	"rooms.list": { readonly rooms: ReadonlyArray<LocalRoomSummaryReadModel> };
+	"room.get": LocalRoomSnapshotReadModel;
+	"room.log.read": {
+		readonly roomId: string;
+		readonly events: ReadonlyArray<LocalRoomEventReadModel>;
+		readonly lastSeq: number;
+	};
+	"room.contacts.list": LocalRoomContactsReadModel;
 	/** Host workspace inventory. Paths never leave the Host registry. */
 	"projects.list": WorkspaceListReadModel;
 	"workspace.fileTree": WorkspaceFileTreeReadModel;
@@ -731,6 +753,58 @@ interface CoreCommandInputMap {
 	"git.execute": GitExecuteInput;
 	/** Execute one strictly typed GitHub CLI operation. */
 	"github.execute": GitHubExecuteInput;
+	/** Local room commands. Delivery uses the existing session queue, never a new scheduler. */
+	"room.create": {
+		readonly roomKind: "super" | "repo" | "main";
+		readonly name: string;
+		readonly repoRoot?: string;
+	};
+	"room.member.add": {
+		readonly roomId: string;
+		readonly memberId: string;
+		readonly role: "super" | "repo" | "main" | "resident";
+		readonly displayName?: string;
+		readonly repoRoot?: string;
+		readonly homeSessionId?: string;
+	};
+	"room.member.remove": { readonly roomId: string; readonly memberId: string };
+	"room.post": {
+		readonly roomId: string;
+		readonly body: string;
+		readonly mode?: "parallel" | "serial" | "mention";
+		readonly mentions?: ReadonlyArray<string>;
+		readonly replyTo?: number;
+	};
+	"room.reply": {
+		readonly roomId: string;
+		readonly memberId: string;
+		readonly body: string;
+		readonly replyTo?: number;
+		readonly roundId?: string;
+	};
+	"room.markRead": { readonly roomId: string; readonly memberId?: string; readonly seq: number };
+	"room.round.stop": { readonly roomId: string; readonly roundId: string };
+	"room.resident.promote": {
+		readonly roomId: string;
+		readonly agentId: string;
+		readonly ownerMemberId?: string;
+	};
+	"room.resident.park": { readonly roomId: string; readonly agentId: string };
+	"room.resident.revive": { readonly roomId: string; readonly agentId: string };
+	"room.proposal.create": {
+		readonly roomId: string;
+		readonly targetRepo: string;
+		readonly targetMemberId?: string;
+		readonly decisionId?: string;
+		readonly body: string;
+	};
+	"room.proposal.respond": {
+		readonly roomId: string;
+		readonly proposalId: string;
+		readonly accept: boolean;
+		readonly decisionId?: string;
+		readonly body?: string;
+	};
 	// Runtime control commands share the same accepted/receipt lifecycle. Their
 	// terminal state is observed through events, so the result is the current
 	// public Runtime snapshot.
@@ -797,6 +871,18 @@ interface CoreCommandResultMap {
 	"usage.openDashboard": ConfigWriteResult;
 	"git.execute": GitOperationResult;
 	"github.execute": GitHubOperationResult;
+	"room.create": LocalRoomSummaryReadModel;
+	"room.member.add": LocalRoomMemberReadModel;
+	"room.member.remove": { readonly removed: true };
+	"room.post": LocalRoomPostReadModel;
+	"room.reply": LocalRoomReplyReadModel;
+	"room.markRead": { readonly roomId: string; readonly seq: number };
+	"room.round.stop": LocalRoomEventReadModel;
+	"room.resident.promote": LocalRoomMemberReadModel;
+	"room.resident.park": LocalRoomResidentReadModel;
+	"room.resident.revive": LocalRoomResidentReadModel;
+	"room.proposal.create": LocalRoomProposalReadModel;
+	"room.proposal.respond": LocalRoomProposalReadModel;
 }
 
 /**

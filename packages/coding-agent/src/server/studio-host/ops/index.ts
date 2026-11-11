@@ -11,6 +11,7 @@ import { gitOps } from "./git.js";
 import { modelsOps } from "./models.js";
 import { operatorOps } from "./operator.js";
 import { planOps } from "./plan.js";
+import { roomsOps } from "./rooms.js";
 import { runtimeOps } from "./runtime.js";
 import { sessionOps } from "./session.js";
 import { settingsOps } from "./settings.js";
@@ -24,6 +25,7 @@ export const STUDIO_FAMILIES: readonly StudioFamily[] = [
 	operatorOps,
 	modelsOps,
 	agentsOps,
+	roomsOps,
 	teamOps,
 	gitOps,
 	skillsOps,

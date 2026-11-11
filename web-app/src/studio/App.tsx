@@ -87,6 +87,7 @@ import { HomePage, ProfileEditDialog, SecondaryPage } from "./HomePage";
 import { HistoryPage } from "./HistoryPage";
 import { AgentHubPage, setHubIntent } from "./AgentHub";
 import { TeamPage } from "./TeamPage";
+import { RoomsPage } from "./RoomsPage";
 import { CapabilitiesPage, setCapIntent, type CapTab } from "./CapabilitiesPage";
 import { ModelConfigPage, modelConfigHasUnsavedChanges, setModelConfigIntent } from "./ModelConfigPage";
 import { approvalPickerDisabled, ComposerApprovalPicker } from "./ComposerApprovalPicker";
@@ -288,7 +289,7 @@ import { buildGitStatusLookup, GIT_STATUS_META, type TreeGitStatus } from "./git
 
 const PREVIEW_PLAN_TITLE = PREVIEW_DECK_ITEMS.find((item) => item.kind === "plan")?.title ?? "Plan";
 
-const KNOWN_ROUTES: ReadonlyArray<Route> = ["home", "workbench", "history", "agent-hub", "team", "capabilities", "model-config", "settings", "diagnostics", "media", "evaluation", "statistics"];
+const KNOWN_ROUTES: ReadonlyArray<Route> = ["home", "workbench", "history", "agent-hub", "team", "rooms", "capabilities", "model-config", "settings", "diagnostics", "media", "evaluation", "statistics"];
 
 function parseStoredRoute(value: string | undefined): Route | undefined {
   return value !== undefined && (KNOWN_ROUTES as readonly string[]).includes(value) ? (value as Route) : undefined;
@@ -337,11 +338,11 @@ type ClientStateSource = StudioClient & {
   onState?: (listener: (state: ClientState) => void) => Unsubscribe;
 };
 
-type Route = "home" | "workbench" | "history" | "agent-hub" | "team" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics";
+type Route = "home" | "workbench" | "history" | "agent-hub" | "team" | "rooms" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics";
 type SecondaryRoute = Exclude<Route, "workbench">;
 
 function isSecondary(route: Route): route is SecondaryRoute {
-  return route === "home" || route === "history" || route === "agent-hub" || route === "team" || route === "capabilities" || route === "model-config" || route === "settings" || route === "diagnostics" || route === "media" || route === "evaluation" || route === "statistics";
+  return route === "home" || route === "history" || route === "agent-hub" || route === "team" || route === "rooms" || route === "capabilities" || route === "model-config" || route === "settings" || route === "diagnostics" || route === "media" || route === "evaluation" || route === "statistics";
 }
 
 const SECONDARY_META: Record<SecondaryRoute, { titleKey: string; icon: string }> = {
@@ -350,6 +351,7 @@ const SECONDARY_META: Record<SecondaryRoute, { titleKey: string; icon: string }>
   history: { titleKey: "nav.history", icon: "history" },
   "agent-hub": { titleKey: "nav.agentHub", icon: "bot" },
   team: { titleKey: "nav.team", icon: "network" },
+  rooms: { titleKey: "nav.rooms", icon: "message" },
   capabilities: { titleKey: "nav.capabilities", icon: "package" },
   "model-config": { titleKey: "nav.modelConfig", icon: "server" },
   settings: { titleKey: "nav.settings", icon: "settings" },
@@ -7081,7 +7083,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     : t("conversation.untitledSession");
   const threadTitle = previewMode.preview
     ? (previewThread?.thread.title ?? "跟踪上游 pi-web 更新到 zeta-web")
-    : currentThreadTitle ?? (state.route === "history" ? t("menu.history") : state.route === "home" ? t("menu.home") : state.route === "agent-hub" ? "Agent Hub" : state.route === "team" ? t("nav.team") : state.route === "capabilities" ? t("menu.capabilities") : state.route === "model-config" ? t("menu.modelConfig") : untitledThreadTitle);
+    : currentThreadTitle ?? (state.route === "history" ? t("menu.history") : state.route === "home" ? t("menu.home") : state.route === "agent-hub" ? "Agent Hub" : state.route === "team" ? t("nav.team") : state.route === "rooms" ? t("nav.rooms") : state.route === "capabilities" ? t("menu.capabilities") : state.route === "model-config" ? t("menu.modelConfig") : untitledThreadTitle);
   const onProvisionalSessionChange = useCallback((change: {
     readonly sessionId?: SessionId;
     readonly workspaceId?: WorkspaceId;
@@ -9003,6 +9005,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               <button className="menu-item" role="menuitem" onClick={() => go("history")}>{t("menu.history")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("agent-hub")}>Agent Hub</button>
               <button className="menu-item" role="menuitem" onClick={() => go("team")}>{t("nav.team")}</button>
+              <button className="menu-item" role="menuitem" onClick={() => go("rooms")}>{t("nav.rooms")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("capabilities")}>{t("menu.capabilities")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("model-config")}>{t("menu.modelConfig")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("media")}>{t("media.title")}</button>
@@ -9137,6 +9140,8 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
             />
           ) : pageRoute === "team" ? (
             <TeamPage client={client} />
+          ) : pageRoute === "rooms" ? (
+            <RoomsPage client={client} />
           ) : pageRoute === "media" ? (
             <MediaPage client={client} workspaceId={hubWorkspaceId} sessionId={snapshot?.sessionId} runtimeAvailable={hubRuntimeConnected} {...(capabilities ? { capabilities } : {})} onInsert={insertPreparedPrompt} />
           ) : pageRoute === "evaluation" ? (

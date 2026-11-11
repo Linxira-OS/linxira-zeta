@@ -72,6 +72,14 @@
 
 - Compaction commit consumers can subscribe through `AgentSession.onCompactionCommit`, which fires exactly once per appended entry with the entry, the discarded-entry cut point, and the fidelity artifact. The listener is awaited, so it must snapshot or enqueue and return — model work belongs on the consumer's own queue.
 
+### Added (unreleased draft)
+
+- **Local Super/Repo/Main rooms** — a durable, room-scoped event log under `<agent dir>/data/rooms.db` (override `ZETA_ROOMS_DB`) with host-assigned `seq`/`sentAt`, parallel/serial/mention message delivery through the existing session queue, explicit resident promotion plus park/revive on the real lifecycle, and a proposal/ack ledger that never writes a target repository. Studio gets a `rooms` contacts page backed by the real host family; agent tools `local_room_read`, `local_room_post`, and `local_room_reply` use the same log. These rooms are independent of the Team database rooms.
+- **Agent control commands registered** — `agent.send`, `agent.kill`, `agent.revive`, and `agent.release` now answer generation-fenced requests from the real registry/lifecycle instead of remaining manifest-only declarations.
+
+### Changed (unreleased draft)
+
+- The Studio capability manifest now advertises the `rooms` family and the four agent controls because their handlers exist; unimplemented operations stay unadvertised.
 
 ## [1.5.1] - 2026-11-10
 

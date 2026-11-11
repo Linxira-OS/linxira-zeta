@@ -1,0 +1,1 @@
+Reply to a local room event as the current agent. Pass the room, the message body, the triggering `replyTo` seq, and the round id when the delivered context named one. The host appends the reply with a new host sequence and advances a serial round.
