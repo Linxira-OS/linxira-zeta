@@ -24,7 +24,7 @@
 - **Agent Profile**：persona（inline/file/workspace）、模型、位置、工具白名单（builtin/extensions/MCP/customTools/skills/commands，空=不允许、不继承环境工具）与记忆后端；`capabilities` 已从 schema 删除，页面不提供权限开关也不标示未建模权限；运行身份含 bindingId，由后端计算展示。
 - **Bot 状态**：读取当前绑定/会话/模型/answer-observe/语音能力与命令示例，实例级发送测试（409 ambiguous 待后端给候选实例）。
 - **TUI `/channels`**：新增管理页（instances/targets/bindings、needs-review/unknown-target）与 `enable-instance`/`disable-instance`；只读 v2 `channels.instances`/`remote.imBindings`，不再合成旧 platform path（未迁移时明确提示执行后端迁移）；任何 token/secret 不进入快照或 transcript。
-- **边界**：后端实例契约在 `feat/report-im`（041e8c0），本切片为本地集成；SettingsPage 接入 `imRuntime` 分组与命令面板；App.tsx 只增加 legacy `channels` 深链别名；真实浏览器交互验证尚未进行，验证不要求生产凭据。
+- **边界**：后端实例契约在 `feat/report-im`（041e8c0），本切片为本地集成；SettingsPage 接入 `imRuntime` 分组与命令面板；App.tsx 只增加 legacy `channels` 深链别名；真实浏览器交互验证见 final-accept @ `f3511fc8`（实例编辑/保存 PUT HTTP 200、`Instance saved.`、持久化到 web.yml、reload 保留、console/pageerror 无 #185），pre-fix #185 未重新复现；验证不要求生产凭据。
 - **Settings 收敛（2026-11-12）**：删除 legacy「IM 渠道」设置组、tab 与命令面板 `set-channels`；`app.settings:channels` 与旧 `zeta.settingsIntent` 统一别名为 `imRuntime`。`ImChannelsPane` 保留为历史组件但不再挂载，不再向用户展示 Discord/QQ「凭据不可用」；QQ/Discord 凭据只在实例编辑器的统一 credential fields 中配置，仍走 `/api/channels/instances/<id>/validate`，不新增第二套 credential store。设备/2FA 仍在「身份与设备」。
 ### Work Studio 诊断（未发布）
 
@@ -74,6 +74,14 @@
 
 ### 自定义命令执行策略（未发布）
 - **命令级 agent/model/template（REQ-052）**：Markdown 与 TypeScript 自定义命令都接受 `agent`、`model`、`template`。执行时按名称解析已发现 agent，把其 persona 追加到本轮提示、把工具面收窄为「会话已有工具 ∩ agent 工具」；agent 声明 `spawns` 时把其允许名单交给 task 既有 spawn policy，名单外的子 agent 会被拒绝；`model` 走与 `--model` 相同的选择器解析，缺省时按 agent 的 model 列表依次尝试。未知 agent、无法解析的 model 在 handler 与模型请求之前明确报错；`template` 取代 Markdown 正文，TypeScript 命令可只给 template 不给 `execute`。优先级是命令 `model` > agent model 列表 > 当前会话 model，命令轮结束（含异常）恢复原 model、思考等级、persona 与工具面。流式运行及 plan/goal/vibe/lead 模式内拒绝带选择器的命令，不做隐式叠加。Codex/OpenCode 发现路径不再在剥离 frontmatter 后丢失这些字段。
+
+### 最终运行时缺陷修复（未发布）
+
+- **事件 socket 与 receipt**：Studio 在 bootstrap 成功、`studio_session` 写入后才订阅 `/api/v1/events`，避免 fresh cookie 下 socket 以无 session 身份 attach 导致 receipt 丢失；command 202 后 UI 收到匹配 `command.receipt` 并清除 busy。
+- **IM 实例保存**：`ImRuntimePage` 移除 loader 对 `botInstance` 的自触发依赖；Save 不再触发 React #185，真实浏览器 PUT HTTP 200、持久化、reload 与 console 干净。
+- **Team 房间即时刷新**：Post 在 durable receipt 后调用 open-room loader，零序列房间轮询执行完整读取；空房事件在收据后约 56ms 出现，无需切房。
+- **Team IM transcript id**：`/api/im/sessions` 增加 additive `transcriptSessionId`（transcript header id），Team IM 用它读取真实 transcript；registry 键 404 保持诚实，缺失 transcript 显示空态，不伪造消息。
+- **验证**：上述修复在 `f3511fc8` 由 final-accept 独立真实 host + Chromium 复验 PASS；`check:ts` RC 0、`check:adr` 18、`check:reqs` 88 行、`web-app` tsc/build 通过。公开发布与 Android/desktop/voice 等硬件验收仍未完成。
 
 ### 1.5.1
 
