@@ -24,7 +24,6 @@
 - **持久游标**：窗口快照、已处理 window/entry id、尝试次数与错误写入 `<agentDir>/memories/window-learning/<SDK namespace>/<session>.json`；commit listener 只落盘快照并快速返回，不调用模型、不阻塞压缩；异步处理由现有 session 事件/stop/重启驱动，无新 daemon。重启、重复 commit、失败重试均不重复成功窗口。
 - **作用域与证据**：命名空间使用 SDK 解析的绑定作用域，不拼接 cwd；候选 evidence/confidence/冲突/去重/tombstone 由宿主计算，模型不提供可信 confidence。`mnemopi.llmMode: none` 时窗口学习不产生额外 LLM 请求；tracking 仍是流程状态，不写入个人事实。LKB 集成继续 Deferred。
 - **文档/测试**：`docs/memory.md` 增补两种模式、成本与作用域；测试覆盖重复 commit、重启、短会话、命名空间隔离与 `llmMode: none` 边界（待 Main 验证窗口执行）。
-
 ### Work Studio 诊断（未发布）
 - **系统 Runtime 不再被误报为未安装**：当 Host 自身就是运行中的 `compatible-system` Runtime（源码/开发构建）时，诊断页显示「系统 Runtime 运行正常（未托管）」、托管卡片「系统 Runtime（未托管）」、签名「不适用（无托管制品）」、上游「本机 Runtime · 无上游记录」；`runtime.install` 与 `runtime.ensure` 能力分开渲染，不再给出必败的 Install 按钮，也不再弹「无法确认 Runtime 工件通道」。运行中的托管 Runtime 缺少安装记录改为黄色提示，launch/handshake/断连失败保留自身错误文案。
 
