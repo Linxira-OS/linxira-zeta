@@ -912,8 +912,10 @@ export class ZetaServer {
 		}
 		this.#channelRuntimeRef = null;
 		clearPendingWechatQr();
-		registerWechatReconnect("", null);
-		registerWechatUnbind("", null);
+		for (const instanceId of this.#channelRuntime?.channels.keys() ?? []) {
+			registerWechatReconnect(instanceId, null);
+			registerWechatUnbind(instanceId, null);
+		}
 		registerChannelStatus(null);
 		registerChannelSend(null);
 	}

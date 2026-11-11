@@ -264,12 +264,12 @@ export function validateImAgentProfiles(value: unknown): ImAgentProfile[] {
 		if (preset !== undefined && !isPreset(preset)) issues.push({ path: `${p}.tools.preset`, message: "unknown preset" });
 		const tools: ImAgentTools = {
 			...(preset !== undefined ? { preset: preset as ImAgentPreset } : {}),
-			builtin: strings(toolsRec.builtin, `${p}.tools.builtin`, issues),
-			extensions: strings(toolsRec.extensions, `${p}.tools.extensions`, issues),
-			customTools: strings(toolsRec.customTools, `${p}.tools.customTools`, issues),
-			mcpServers: strings(toolsRec.mcpServers, `${p}.tools.mcpServers`, issues),
-			skills: strings(toolsRec.skills, `${p}.tools.skills`, issues),
-			commands: strings(toolsRec.commands, `${p}.tools.commands`, issues),
+			builtin: strings(toolsRec.builtin, `${p}.tools.builtin`, issues, { optional: true }),
+			extensions: strings(toolsRec.extensions, `${p}.tools.extensions`, issues, { optional: true }),
+			customTools: strings(toolsRec.customTools, `${p}.tools.customTools`, issues, { optional: true }),
+			mcpServers: strings(toolsRec.mcpServers, `${p}.tools.mcpServers`, issues, { optional: true }),
+			skills: strings(toolsRec.skills, `${p}.tools.skills`, issues, { optional: true }),
+			commands: strings(toolsRec.commands, `${p}.tools.commands`, issues, { optional: true }),
 			...(toolsRec.approvalMode === "always-ask" ||
 			toolsRec.approvalMode === "write" ||
 			toolsRec.approvalMode === "yolo"
