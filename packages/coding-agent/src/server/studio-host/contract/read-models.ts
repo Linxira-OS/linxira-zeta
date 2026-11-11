@@ -1081,6 +1081,48 @@ export interface PluginRecord {
 	readonly err?: string;
 }
 
+/** One html page a plugin declares in its manifest. */
+export interface PluginPageEntry {
+	readonly id: string;
+	readonly title: string;
+	/** Package-relative POSIX path of the html entry. */
+	readonly entry: string;
+	/** Gateway URL that serves the page and the package assets it references. */
+	readonly url: string;
+}
+
+/** A plugin with at least one declared html page. */
+export interface PluginPageGroup {
+	/** Catalogue id the asset URL addresses (`plugin.json#id`, else package/dir name). */
+	readonly id: string;
+	readonly name: string;
+	readonly pages: ReadonlyArray<PluginPageEntry>;
+}
+
+/**
+ * Manifest-declared plugin html pages. This is a declaration inventory from
+ * installed/promoted plugin packages; absolute package paths never appear.
+ */
+export interface PluginPagesReadModel {
+	readonly plugins: ReadonlyArray<PluginPageGroup>;
+}
+
+/** One text block returned by a plugin tool call. */
+export interface PluginCallToolTextContent {
+	readonly type: "text";
+	readonly text: string;
+}
+
+/**
+ * A live plugin tool call's renderer-safe result. `content` is text only and
+ * bounded per block; `details` is JSON-bounded (depth/length) so a plugin
+ * cannot hand the Renderer an arbitrary object graph.
+ */
+export interface PluginCallToolResult {
+	readonly content: ReadonlyArray<PluginCallToolTextContent>;
+	readonly details?: unknown;
+}
+
 /**
  * Configured skills + plugins inventory. This is a disk scan of Zeta-native
  * locations, not the Runtime effective/loaded set.

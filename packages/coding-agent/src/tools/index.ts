@@ -20,6 +20,7 @@ import type {
 	BeforeSubagentSpawnEventResult,
 	PreparedExtension,
 } from "../extensibility/extensions/types";
+import type { DevPluginRuntime } from "../extensibility/plugins/dev";
 import type { Skill, SkillRediscoveryHost } from "../extensibility/skills";
 import type { GoalModeState, GoalRuntime } from "../goals";
 import { GoalTool } from "../goals/tools/goal-tool";
@@ -320,6 +321,12 @@ export interface ToolSession {
 	extensionPaths?: string[];
 	/** Imported extension factories safe to rebind in child sessions. */
 	preparedExtensions?: PreparedExtension[];
+	/**
+	 * Session-local lifecycle for agent-authored dev plugins. Supplied only by
+	 * an interactive main session; absent in print/RPC/subagent/headless
+	 * sessions, so the lifecycle tool refuses instead of guessing a session.
+	 */
+	devPlugins?: () => DevPluginRuntime;
 	/**
 	 * Session-local extension roots for post-startup sub-discovery: explicit SDK
 	 * roots, discovery mode, and configured `extensions:`. A provider (not a

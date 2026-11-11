@@ -24,6 +24,10 @@
 - **持久游标**：窗口快照、已处理 window/entry id、尝试次数与错误写入 `<agentDir>/memories/window-learning/<SDK namespace>/<session>.json`；commit listener 只落盘快照并快速返回，不调用模型、不阻塞压缩；异步处理由现有 session 事件/stop/重启驱动，无新 daemon。重启、重复 commit、失败重试均不重复成功窗口。
 - **作用域与证据**：命名空间使用 SDK 解析的绑定作用域，不拼接 cwd；候选 evidence/confidence/冲突/去重/tombstone 由宿主计算，模型不提供可信 confidence。`mnemopi.llmMode: none` 时窗口学习不产生额外 LLM 请求；tracking 仍是流程状态，不写入个人事实。LKB 集成继续 Deferred。
 - **文档/测试**：`docs/memory.md` 增补两种模式、成本与作用域；测试覆盖重复 commit、重启、短会话、命名空间隔离与 `llmMode: none` 边界（待 Main 验证窗口执行）。
+
+### Agent 自建插件与页面宿主（未发布）
+- **会话内开发插件**：主代理可在 `<agentDir>/plugins-dev/<session>/<name>/` 里 scaffold / validate / load_dev / reload / discard 一个自写插件；文件不写仓库、不改全局 settings，`load_dev` 把扩展工具与命令绑进当前 runner，回合结束检测文件变化后重载，失败保留上一版。promote / export 只由用户通过 `zetacode plugin promote|export` 执行，提升到 `~/.zeta/agent/plugins/<name>` 后需重启；`plugin dev cleanup` 清理过期会话目录。YOLO 仍是默认审批，未新增插件级审批、沙箱或安装通道。
+- **版本化页面宿主**：`plugin.json` 的 `ui.panels`（`kind: "html"`）现在决定可挂载页面，网关 `GET /api/plugin-pages` 列出清单、`GET /api/plugin-assets/<plugin>/<path>` 提供受 containment 保护的包内资源。Studio 的 `/plugins/view/<plugin>/<entry>` 以 sandbox iframe 打开页面，注入 `window.__zetaPage` v1（ready / callTool / getContext / subscribe / notify / resize），写操作只走 `callTool`；工具必须属于该插件、在当前会话启用，并经既有 tool wrapper/审批执行。HTTP `/api/*` 继续是只读数据面。
 ### Work Studio 诊断（未发布）
 - **系统 Runtime 不再被误报为未安装**：当 Host 自身就是运行中的 `compatible-system` Runtime（源码/开发构建）时，诊断页显示「系统 Runtime 运行正常（未托管）」、托管卡片「系统 Runtime（未托管）」、签名「不适用（无托管制品）」、上游「本机 Runtime · 无上游记录」；`runtime.install` 与 `runtime.ensure` 能力分开渲染，不再给出必败的 Install 按钮，也不再弹「无法确认 Runtime 工件通道」。运行中的托管 Runtime 缺少安装记录改为黄色提示，launch/handshake/断连失败保留自身错误文案。
 

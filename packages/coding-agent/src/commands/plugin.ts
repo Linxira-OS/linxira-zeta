@@ -21,6 +21,9 @@ const ACTIONS: PluginAction[] = [
 	"discover",
 	"upgrade",
 	"panel",
+	"promote",
+	"export",
+	"dev",
 ];
 
 export default class Plugin extends Command {
@@ -55,6 +58,7 @@ export default class Plugin extends Command {
 			description: 'Install scope: "user" (default) or "project"',
 			options: ["user", "project"],
 		}),
+		session: Flags.string({ description: "Dev plugin session id (promote/export/dev)" }),
 	};
 
 	async run(): Promise<void> {
@@ -75,6 +79,7 @@ export default class Plugin extends Command {
 				disable: flags.disable,
 				set: flags.set,
 				scope: flags.scope as "user" | "project" | undefined,
+				session: flags.session,
 			},
 		};
 

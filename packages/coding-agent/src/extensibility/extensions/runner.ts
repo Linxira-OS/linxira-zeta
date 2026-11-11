@@ -1323,6 +1323,15 @@ export class ExtensionRunner {
 		return this.extensions.map(e => e.path);
 	}
 
+	/**
+	 * The session-scoped runtime newly bound extensions join. Agent-authored dev
+	 * plugins are bound with it so their `ctx.*` actions and flag defaults are
+	 * the live session's, not a throwaway stub set.
+	 */
+	getRuntime(): ExtensionRuntime {
+		return this.runtime;
+	}
+
 	/** Every extension this runner loaded, in load order, including suspended ones. */
 	getLoadedExtensions(): readonly Extension[] {
 		return this.#loadOrder ?? this.extensions;

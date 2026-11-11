@@ -144,15 +144,48 @@ is not reported from a plain terminal.
 
 ## 4. A web page
 
-Any `.html`/`.htm` file in your package is mountable:
+A plugin page is declared in `plugin.json` as an `html` panel; the host serves
+the manifest entry, not every HTML file in the package:
 
-- host page: `/plugins/view/<plugin-id>/<relative path>`
-- the file itself: `/api/plugin-assets/<plugin-id>/<relative path>`
+```json
+{
+	"id": "my-plugin",
+	"name": "My plugin",
+	"ui": {
+		"panels": [{ "id": "tasks", "kind": "html", "title": "Tasks", "entry": "pages/tasks.html" }]
+	}
+}
+```
 
-The host page mounts your file in a chrome-free iframe with your origin, so the
-page can call `/api/*` and fetch sibling files (`../data/tasks.json`). CSS in the
-page cannot leak into the host UI. Pages are discovered from the package; no
-manifest entry registers them (the `html` panel's `entry` only points at one).
+- host page: `/plugins/view/<plugin-id>/<entry>` (Studio route; `<entry>` is the
+  package-relative HTML path, URL-encoded per segment)
+- the file itself: `/api/plugin-assets/<plugin-id>/pages/tasks.html`
+
+`plugin.json#id` is the catalogue id used by both URLs; without it the package
+name basename is used. The file is served same-origin inside a sandboxed iframe
+(`allow-scripts allow-same-origin`), so it can load sibling CSS/JS/images but
+cannot navigate the top window, open popups, or submit forms.
+
+### Page host bridge
+
+The host injects `window.__zetaPage` after the page loads. It is the only
+host API a page gets; there is no ambient Node access or arbitrary HTTP server.
+
+| Method | Result |
+| --- | --- |
+| `ready(capabilities?)` | announces protocol v1; host replies `init` + `context` |
+| `callTool(tool, args?)` | runs one tool registered by **this plugin**, through the session's normal tool wrapper/approval; resolves to `{ content, details? }` or rejects |
+| `getContext()` | read-only `{ theme, language, cwd, plugin }` |
+| `subscribe(events)` | requests host event projection; unsupported scopes reject |
+| `notify(level, message)` | host-local notice (`info`/`warning`/`error`) |
+| `on(type, listener)` | listens for host `event` messages |
+| `resize(height?)` | sets the iframe height; a `ResizeObserver` sends it automatically |
+
+Messages are `postMessage` envelopes with `__zetaPage: 1`, protocol `v: 1`, and
+a request `id`; the host answers `result` / `error` (`{ code, message }`).
+`callTool` fails unless the tool is active in the session and registered by the
+page's own plugin, so a page cannot reach another plugin's tools or a tool the
+user disabled. Writes go through `callTool`; HTTP `/api/*` stays read-only data.
 
 ## 5. Locales
 

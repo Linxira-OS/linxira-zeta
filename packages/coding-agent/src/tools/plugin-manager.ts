@@ -17,23 +17,39 @@ import {
 } from "./plugin-tool-shared";
 
 /** Lifecycle actions the plugin manager exposes to the main agent. */
-export type PluginManagerAction = "list" | "install" | "uninstall" | "set_enabled";
+export type PluginManagerAction =
+	| "list"
+	| "install"
+	| "uninstall"
+	| "set_enabled"
+	| "list_dev"
+	| "scaffold"
+	| "validate"
+	| "load_dev"
+	| "reload"
+	| "discard";
 
 const pluginManagerSchema = type({
-	action: type('"list" | "install" | "uninstall" | "set_enabled"').describe(
-		"list: installed plugins; install/uninstall/set_enabled: mutate one plugin",
+	action: type(
+		'"list" | "install" | "uninstall" | "set_enabled" | "list_dev" | "scaffold" | "validate" | "load_dev" | "reload" | "discard"',
+	).describe(
+		"list/install/uninstall/set_enabled: installed plugins; list_dev/scaffold/validate/load_dev/reload/discard: this session's agent-authored dev plugins",
 	),
 	"target?": type("string").describe(
-		"Required by install/uninstall/set_enabled: package name, package spec, git spec, or local plugin directory",
+		"Required by install/uninstall/set_enabled: package name, package spec, git spec, or local plugin directory; by dev actions: the dev plugin name",
 	),
 	"enabled?": type("boolean").describe("Required by set_enabled: desired enabled state"),
+	"description?": type("string").describe("scaffold: one-line description for the generated plugin"),
 }).narrow(
 	(p, ctx) =>
 		p.action === "list" ||
+		p.action === "list_dev" ||
 		(p.target !== undefined &&
 			p.target.trim().length > 0 &&
 			(p.action !== "set_enabled" || p.enabled !== undefined)) ||
-		ctx.mustBe('used with "target" for install/uninstall, and with "target" and "enabled" for set_enabled'),
+		ctx.mustBe(
+			'used with "target" for install/uninstall/set_enabled and all dev actions, and with "target" and "enabled" for set_enabled',
+		),
 );
 
 export type PluginManagerParams = typeof pluginManagerSchema.infer;
@@ -46,6 +62,22 @@ export interface PluginManagerDetails {
 	plugin?: PluginSummary;
 	restartRequired?: boolean;
 	note?: string;
+	/** Populated by the dev actions. */
+	devPlugin?: {
+		name: string;
+		root: string;
+		loaded: boolean;
+		toolNames: string[];
+		commandNames: string[];
+	};
+	devPlugins?: { name: string; loaded: boolean; toolNames: string[] }[];
+	validation?: {
+		ok: boolean;
+		errors: string[];
+		warnings: string[];
+		entry?: string;
+		pages: { id: string; entry: string }[];
+	};
 }
 
 /** Expand a leading `~` the shell would normally expand before the tool sees a path. */
@@ -80,10 +112,12 @@ export class PluginManagerTool implements AgentTool<typeof pluginManagerSchema, 
 	/** `list` reads state; the mutation actions write the plugin lockfile and node_modules. */
 	readonly approval = (args: unknown): "read" | "write" => {
 		const action = typeof args === "object" && args !== null && "action" in args ? args.action : undefined;
-		return action === undefined || action === "list" ? "read" : "write";
+		return action === undefined || action === "list" || action === "list_dev" || action === "validate"
+			? "read"
+			: "write";
 	};
 
-	constructor(private readonly session: Pick<ToolSession, "cwd" | "taskDepth">) {}
+	constructor(private readonly session: Pick<ToolSession, "cwd" | "taskDepth" | "hasUI" | "devPlugins">) {}
 
 	static createIf(session: ToolSession): PluginManagerTool {
 		return new PluginManagerTool(session);
@@ -101,7 +135,175 @@ export class PluginManagerTool implements AgentTool<typeof pluginManagerSchema, 
 				return this.#uninstall(manager, params.target!);
 			case "set_enabled":
 				return this.#setEnabled(manager, params.target!, params.enabled!);
+			case "list_dev":
+				return this.#listDev();
+			case "scaffold":
+				return this.#scaffold(params.target!, params.description);
+			case "validate":
+				return this.#validate(params.target!);
+			case "load_dev":
+				return this.#loadDev(params.target!);
+			case "reload":
+				return this.#reload(params.target!);
+			case "discard":
+				return this.#discard(params.target!);
 		}
+	}
+
+	/**
+	 * Dev-plugin actions need a live interactive main session: the runtime is
+	 * wired there. Print/RPC/subagent sessions and headless runs refuse instead
+	 * of creating plugin files nothing will load.
+	 */
+	#devRuntime() {
+		if (!this.session.hasUI || this.session.taskDepth !== 0 || !this.session.devPlugins) {
+			throw new ToolError(
+				"Development plugins need an interactive main session; they are unavailable in this session.",
+			);
+		}
+		return this.session.devPlugins();
+	}
+
+	#devSummary(plugin: {
+		name: string;
+		root: string;
+		toolNames: readonly string[];
+		commands: readonly string[];
+	}): NonNullable<PluginManagerDetails["devPlugin"]> {
+		return {
+			name: plugin.name,
+			root: plugin.root,
+			loaded: true,
+			toolNames: [...plugin.toolNames],
+			commandNames: [...plugin.commands],
+		};
+	}
+
+	async #listDev(): Promise<AgentToolResult<PluginManagerDetails>> {
+		const runtime = this.#devRuntime();
+		const loaded = new Map(runtime.list().map(plugin => [plugin.name, plugin]));
+		const names = runtime.listAvailable();
+		const rows = names.map(name => {
+			const plugin = loaded.get(name);
+			return { name, loaded: plugin !== undefined, toolNames: plugin ? [...plugin.toolNames] : [] };
+		});
+		return {
+			content: [
+				{
+					type: "text",
+					text:
+						rows.length === 0
+							? "No development plugins in this session."
+							: [
+									`Development plugins (${rows.length}, session root ${runtime.sessionRoot}):`,
+									...rows.map(
+										row =>
+											`- ${row.name} [${row.loaded ? "loaded" : "validated"}] tools=${row.toolNames.join(",") || "none"}`,
+									),
+								].join("\n"),
+				},
+			],
+			details: { action: "list_dev", devPlugins: rows },
+		};
+	}
+
+	async #scaffold(name: string, description: string | undefined): Promise<AgentToolResult<PluginManagerDetails>> {
+		const runtime = this.#devRuntime();
+		const result = runtime.scaffold(name, { ...(description === undefined ? {} : { description }) });
+		const validation = result.validation;
+		return {
+			content: [
+				{
+					type: "text",
+					text: [
+						`Scaffolded ${name} at ${result.root}.`,
+						`Files: ${result.files.join(", ")}.`,
+						validation.ok
+							? "Validation passed; call load_dev to load it into this session."
+							: `Validation failed:\n${validation.errors.join("\n")}`,
+					].join("\n"),
+				},
+			],
+			details: {
+				action: "scaffold",
+				devPlugin: { name, root: result.root, loaded: false, toolNames: [], commandNames: [] },
+				validation: {
+					ok: validation.ok,
+					errors: [...validation.errors],
+					warnings: [...validation.warnings],
+					...(validation.entry === undefined ? {} : { entry: validation.entry }),
+					pages: validation.pages.map(page => ({ ...page })),
+				},
+			},
+		};
+	}
+
+	async #validate(name: string): Promise<AgentToolResult<PluginManagerDetails>> {
+		const validation = this.#devRuntime().validate(name);
+		return {
+			content: [
+				{
+					type: "text",
+					text: validation.ok
+						? `Validation passed for ${name}. Entry: ${validation.entry ?? "none"}. Pages: ${validation.pages.length}.`
+						: `Validation failed for ${name}:\n${validation.errors.join("\n")}`,
+				},
+			],
+			details: {
+				action: "validate",
+				validation: {
+					ok: validation.ok,
+					errors: [...validation.errors],
+					warnings: [...validation.warnings],
+					...(validation.entry === undefined ? {} : { entry: validation.entry }),
+					pages: validation.pages.map(page => ({ ...page })),
+				},
+			},
+		};
+	}
+
+	async #loadDev(name: string): Promise<AgentToolResult<PluginManagerDetails>> {
+		const result = await this.#devRuntime().loadDev(name);
+		const tools = result.plugin.toolNames.join(", ") || "none";
+		const commands = result.plugin.commands.join(", ") || "none";
+		return {
+			content: [
+				{
+					type: "text",
+					text: `Loaded ${name} into this session. Tools: ${tools}. Commands: ${commands}. Edits reload at the end of the next turn.`,
+				},
+			],
+			details: {
+				action: "load_dev",
+				devPlugin: this.#devSummary(result.plugin),
+				validation: {
+					ok: true,
+					errors: [],
+					warnings: [...result.warnings],
+					...(result.validation.entry === undefined ? {} : { entry: result.validation.entry }),
+					pages: result.validation.pages.map(page => ({ ...page })),
+				},
+			},
+		};
+	}
+
+	async #reload(name: string): Promise<AgentToolResult<PluginManagerDetails>> {
+		const result = await this.#devRuntime().reload(name);
+		if (!result) throw new ToolError(`Plugin "${name}" is not loaded.`);
+		const tools = result.plugin.toolNames.join(", ") || "none";
+		return {
+			content: [{ type: "text", text: `Reloaded ${name}. Tools: ${tools}.` }],
+			details: { action: "reload", devPlugin: this.#devSummary(result.plugin) },
+		};
+	}
+
+	async #discard(name: string): Promise<AgentToolResult<PluginManagerDetails>> {
+		const runtime = this.#devRuntime();
+		await runtime.discard(name);
+		return {
+			content: [{ type: "text", text: `Discarded development plugin ${name}.` }],
+			details: { action: "discard" },
+		};
 	}
 
 	async #list(manager: PluginManager): Promise<AgentToolResult<PluginManagerDetails>> {

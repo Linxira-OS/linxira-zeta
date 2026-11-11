@@ -334,6 +334,50 @@ A main-agent session also gets two built-ins that wrap the manager described abo
 
 Both report `restart-required` for mutations: the plugin surface is collected at session start, and only the discovery channels (skills, task agents, slash commands) refresh without a restart.
 
+## Agent-authored development plugins
+
+A main agent can create and load a plugin without touching the repository or
+global settings. The lifecycle lives entirely in the user's agent directory:
+
+```text
+<agentDir>/plugins-dev/<session-id>/<plugin-name>/
+  package.json   # zeta manifest: extensions: ["./index.ts"]
+  plugin.json    # optional catalogue: id, pages, declarative panels
+  index.ts       # extension factory
+  pages/…        # optional .html pages declared by plugin.json
+```
+
+The `plugin_manager` tool exposes only the agent side: `scaffold`, `validate`,
+`load_dev`, `reload`, `list_dev`, and `discard`. They work in an interactive
+main session; print, RPC, headless, and subagent sessions refuse. Files are
+created, replaced, and removed only under the session's dev root; a name or
+entry that escapes it is rejected. `load_dev` binds the module into the live
+extension runner, so its tools and commands join the same session. After an
+edit, `reload` (or the automatic end-of-turn check) re-imports the module; if the
+new version fails to import or validate, the previous registrations stay live.
+
+**Promotion is a user action.** The agent cannot promote or export. A promoted
+plugin is copied to the dropped-in root and needs a restart:
+
+```bash
+zetacode plugin promote <name> [--session <id>] [--force]
+zetacode plugin export <name> <destination-dir> [--session <id>] [--force]
+zetacode plugin dev list
+zetacode plugin dev discard <name> [--session <id>]
+zetacode plugin dev cleanup
+```
+
+`promote` validates the dev package, copies it to
+`~/.zeta/agent/plugins/<name>` (staging directory then rename), and refuses to
+replace an existing copy unless `--force` is given. `export` copies the same
+validated tree to a directory you name. `dev cleanup` removes session
+directories untouched for seven days; the current session is never removed.
+
+The development root is scratch, not an install: it has no lockfile entry, does
+not change `settings.extensions`, and does not survive cleanup unless promoted.
+Plugin code runs with the session's own permissions (YOLO is still the default);
+the lifecycle adds no new approval mode, sandbox, or install path.
+
 ## See also
 
 - [`writing-a-plugin.md`](./writing-a-plugin.md) — authoring a plugin: manifest, tools, declarative panels, web pages, locales

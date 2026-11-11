@@ -1271,6 +1271,27 @@ export class SessionTools {
 		this.#installedLeadToolNames.clear();
 	}
 
+	/**
+	 * Remove extension-owned runtime tools (agent-authored dev plugin reloads)
+	 * and drop them from the enabled set. Serialized with every other registry
+	 * mutation so a streamed turn never sees a half-removed registry.
+	 */
+	removeRuntimeTools(names: readonly string[]): Promise<void> {
+		return this.runToolRegistryMutation(async () => {
+			const removed = new Set(names.filter(name => this.#toolRegistry.has(name)));
+			if (removed.size === 0) return;
+			const nextEnabled = this.getEnabledToolNames().filter(name => !removed.has(name));
+			for (const name of removed) {
+				this.#toolRegistry.delete(name);
+				this.#builtInToolNames.delete(name);
+				this.#extensionMcpTools.delete(name);
+				this.#mcpManagerToolNames.delete(name);
+				this.#rpcHostToolNames.delete(name);
+			}
+			await this.#applyActiveToolsByName(nextEnabled);
+		});
+	}
+
 	#getEditModeSession() {
 		return {
 			settings: this.#host.settings,

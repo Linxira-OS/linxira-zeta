@@ -77,6 +77,8 @@ import type {
 	ModelWebSearchSetInput,
 	ModelWebSearchCredentialSetInput,
 	ModelWebSearchCredentialRemoveInput,
+	PluginCallToolResult,
+	PluginPagesReadModel,
 	RuntimeConnection,
 	RuntimeInstallState,
 	ResidentsReadModel,
@@ -132,6 +134,8 @@ export interface QueryInputMap extends ContextViewQueryMap {
 	"models.get": { readonly workspaceId?: WorkspaceId };
 	"models.adaptation.resolve": ModelAdaptationInput;
 	"skills.get": EmptyInput;
+	/** Manifest-declared plugin html pages (`ui.panels` kind `html`). */
+	"plugins.pages": { readonly cwd?: string };
 	"mcp.get": EmptyInput;
 	/** Recent Host-owned probe log for one configured MCP server. */
 	"mcp.logs.get": { readonly name: string };
@@ -210,6 +214,8 @@ export interface QueryResultMap extends ContextViewResultMap {
 	"models.adaptation.resolve": ModelAdaptationResult;
 	/** Configured OMP skills + plugins. Not Runtime CapabilityManifest. */
 	"skills.get": ExtensibilityReadModel;
+	/** Plugin html pages declared by package manifests, with gateway asset URLs. */
+	"plugins.pages": PluginPagesReadModel;
 	/** Configured OMP MCP servers. Disk scan, not MCPManager connection state. */
 	"mcp.get": McpReadModel;
 	/** Last Host probe lines for one MCP server. Never connection secrets. */
@@ -686,6 +692,21 @@ interface CoreCommandInputMap {
 		readonly scope?: "user" | "project";
 	};
 	/**
+	 * Execute one tool a live plugin session exposed. The tool must be active in
+	 * the named session and registered by the addressed plugin; the call runs
+	 * through the session's tool wrapper so approval and `tool_call` handlers
+	 * apply. Result text is bounded; no package path or raw session object
+	 * crosses the contract.
+	 */
+	"plugins.callTool": {
+		/** Catalogue id (`plugin.json#id` / package basename / directory name). */
+		readonly plugin: string;
+		readonly tool: string;
+		readonly arguments?: unknown;
+		/** Live Runtime session that owns the tool; omit and the op is unavailable. */
+		readonly sessionId?: SessionId;
+	};
+	/**
 	 * Whole-skill enable/disable: toggles the SKILL.md frontmatter `enabled`
 	 * field of the winning skill record. `skills.get` reflects the change
 	 * immediately; builtin skills cannot be toggled.
@@ -858,6 +879,7 @@ interface CoreCommandResultMap {
 	"workspace.file.create": WorkspaceFileMutationResult;
 	"workspace.directory.create": WorkspaceFileMutationResult;
 	"plugins.setEnabled": ConfigWriteResult;
+	"plugins.callTool": PluginCallToolResult;
 	"skills.setEnabled": ConfigWriteResult;
 	"skills.reveal": ConfigWriteResult;
 	"skills.revealRoot": ConfigWriteResult;

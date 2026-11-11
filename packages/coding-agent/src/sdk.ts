@@ -2848,6 +2848,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				return prewalk !== undefined || deferredPrewalk !== undefined;
 			},
 			taskDepth: options.taskDepth ?? 0,
+			devPlugins: () => session.getDevPluginRuntime(),
 			getSessionFile: () => sessionManager.getSessionFile() ?? null,
 			sessionManager,
 			getEvalKernelOwnerId: () => evalKernelOwnerId,

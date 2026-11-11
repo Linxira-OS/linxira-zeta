@@ -214,6 +214,7 @@ import { extensionEventFromSessionEvent } from "../extensibility/extensions/life
 import { ManagedTimers } from "../extensibility/extensions/managed-timers";
 import { createExtensionModelQuery } from "../extensibility/extensions/model-api";
 import type { CompactOptions, ContextUsage } from "../extensibility/extensions/types";
+import { DevPluginRuntime } from "../extensibility/plugins/dev";
 import type { CustomCommandContext } from "../extensibility/custom-commands/types";
 import { SkillDescriptionCatalog } from "../extensibility/skill-descriptions";
 import {
@@ -1443,6 +1444,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	#adoptedResetMarkers = new Map<string, number>();
 	// Extension system
 	#extensionRunner: ExtensionRunner | undefined = undefined;
+	/** Lazily created session-local agent-authored plugin lifecycle. */
+	#devPluginRuntime: DevPluginRuntime | undefined;
 	#getEvalPreludes: (() => readonly EvalPreludeDefinition[]) | undefined;
 	#reconcileBrowserMcpFilter: AgentSessionConfig["reconcileBrowserMcpFilter"];
 	#approvalCacheDir?: string;
@@ -17462,6 +17465,26 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	 */
 	get extensionRunner(): ExtensionRunner | undefined {
 		return this.#extensionRunner;
+	}
+
+	/**
+	 * Session-local lifecycle for agent-authored plugins. One instance per
+	 * session: it owns the loaded records, the turn-end change hook, and the
+	 * dev directory for this session id. The tool surface only reaches it when
+	 * the session is interactive and the plugin_manager tool is enabled.
+	 */
+	getDevPluginRuntime(): DevPluginRuntime {
+		this.#devPluginRuntime ??= new DevPluginRuntime({
+			agentDir: this.settings.getAgentDir(),
+			sessionId: this.sessionManager.getSessionId(),
+			cwd: this.sessionManager.getCwd(),
+			host: {
+				getRunner: () => this.#extensionRunner,
+				uninstallTools: names => this.#tools.removeRuntimeTools(names),
+				hasTool: name => this.#tools.getToolByName(name) !== undefined,
+			},
+		});
+		return this.#devPluginRuntime;
 	}
 
 	/** Whether the user approved approval scope `key` for the rest of this session (see {@link ExtensionRunner.hasSessionApproval}). */

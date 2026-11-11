@@ -143,6 +143,7 @@ import { handleOpenGet, handleOpenPost } from "./web-gateway/open";
 import { handleGetPlan } from "./web-gateway/plan";
 import { handleProjectsGet, handleProjectsPut } from "./web-gateway/projects";
 import { handlePluginsGet, handlePluginsPost } from "./web-gateway/plugins";
+import { handlePluginAssetGet, handlePluginPagesGet } from "./web-gateway/assets";
 import { getRunningSessionIds } from "./web-gateway/running-sessions";
 import { isGatewayDraining, setGatewayDraining } from "./web-gateway/draining";
 import {
@@ -294,6 +295,11 @@ const UPDATE_CHECK_RE = /^\/api\/update\/check$/;
 const UPDATE_DOWNLOAD_RE = /^\/api\/update\/download$/;
 const UPDATE_INSTALL_RE = /^\/api\/update\/install$/;
 const PLUGINS_RE = /^\/api\/plugins$/;
+// Plugin page host: the manifest inventory and the package's own static
+// assets. The asset tail is decoded one segment at a time by the handler
+// (`web-gateway/assets.ts`), which also owns root resolution and containment.
+const PLUGIN_PAGES_RE = /^\/api\/plugin-pages$/;
+const PLUGIN_ASSETS_RE = /^\/api\/plugin-assets\/([^/]+)\/(.+)$/;
 const SETTINGS_RE = /^\/api\/settings$/;
 const SETTINGS_RELOAD_RE = /^\/api\/settings\/reload$/;
 const SETTINGS_VALUES_RE = /^\/api\/settings\/values$/;
@@ -975,6 +981,21 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (UPDATE_INSTALL_RE.test(pathname)) {
 		return handleUpdateInstall(req);
+	}
+
+	// Plugin page host. The pages inventory is a literal route; the asset
+	// route owns its own segment decoding and package containment.
+	if (PLUGIN_PAGES_RE.test(pathname)) {
+		if (req.method === "GET") return handlePluginPagesGet(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const pluginAsset = capture(pathname, PLUGIN_ASSETS_RE);
+	if (pluginAsset) {
+		if (req.method === "GET" || req.method === "HEAD") {
+			return handlePluginAssetGet(req, pluginAsset[0], pluginAsset[1]);
+		}
+		return json({ error: "Method not allowed" }, 405);
 	}
 
 	if (PLUGINS_RE.test(pathname)) {
