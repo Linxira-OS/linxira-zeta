@@ -12,7 +12,8 @@ import { gitOps } from "./git.js";
 import { modelsOps } from "./models.js";
 import { operatorOps } from "./operator.js";
 import { planOps } from "./plan.js";
-30: @both
+import { pluginHostOps } from "./plugin-host.js";
+import { roomsOps } from "./rooms.js";
 import { runtimeOps } from "./runtime.js";
 import { sessionOps } from "./session.js";
 import { settingsOps } from "./settings.js";

@@ -21,7 +21,7 @@ import {
 	type SessionTaskSummary,
 } from "./session-task-summary";
 import { isImSession, isTeamSession, normalizeSessionOrigin, type SessionOrigin } from "./session-origin";
-32: @ours
+import { normalizeSessionClient, type SessionClient } from "./session-client";
 import { FileSessionStorage, type SessionStorage, type SessionStorageStat } from "./session-storage";
 import { listSessionTitles, lookupSessionTitle, recordSessionTitle, recordSessionTitles } from "./session-index";
 
