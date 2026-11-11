@@ -17,6 +17,7 @@ import type {
 	ChannelSendOptions,
 	ChatChannel,
 	ChatImage,
+	InboundAttachment,
 	InboundMessage,
 } from "./channel";
 import { DiscordChannel } from "./discord";
@@ -38,6 +39,7 @@ export {
 } from "./auth";
 export {
 	DENY_BY_DEFAULT_CHANNELS,
+	CHANNEL_PLATFORM_CAPABILITIES,
 	type AttachmentKind,
 	type ChannelCapabilities,
 	type ChannelHealth,
@@ -201,12 +203,25 @@ export interface ChannelRuntime {
 	stop(): Promise<void>;
 }
 
+/** Rich inbound context handed to an `onInbound` consumer alongside the text. */
+export interface ChannelInboundContext {
+	threadId?: string;
+	userId?: string;
+	/** Display name the platform attached to the sender, when known. */
+	senderName?: string;
+	/** Platform event time in epoch ms (falls back to receive time). */
+	sentAt?: number;
+	attachments?: readonly InboundAttachment[];
+	/** Platform id this message replies to, when it is a reply. */
+	replyToMessageId?: string;
+}
+
 export type ChannelInboundHandler = (
 	instanceId: ChannelInstanceId,
 	peer: string,
 	body: string,
 	messageId?: string,
-	context?: { threadId?: string; userId?: string },
+	context?: ChannelInboundContext,
 ) => void;
 
 export interface StartChannelsOptions {
@@ -429,6 +444,10 @@ export async function startChannels(
 			onInbound(instanceId, message.peer, body, message.messageId, {
 				...(message.threadId ? { threadId: message.threadId } : {}),
 				...(message.senderId ? { userId: message.senderId } : {}),
+				...(message.senderName ? { senderName: message.senderName } : {}),
+				...(message.ts !== undefined ? { sentAt: message.ts } : {}),
+				...(message.attachments && message.attachments.length > 0 ? { attachments: message.attachments } : {}),
+				...(message.replyToMessageId ? { replyToMessageId: message.replyToMessageId } : {}),
 			});
 			return;
 		}

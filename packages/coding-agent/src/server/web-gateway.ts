@@ -89,6 +89,9 @@ import {
 	handleImBindingsPut,
 	handleImCommands,
 	handleImSessions,
+	handleImSwitchCancel,
+	handleImSwitchConfirm,
+	handleImSwitchGet,
 	handleWechatAction,
 	handleWechatQr,
 } from "./web-gateway/im-instances";
@@ -339,6 +342,9 @@ const IM_AGENTS_RE = /^\/api\/im\/agents$/;
 const IM_BINDINGS_RE = /^\/api\/im\/bindings$/;
 const IM_COMMANDS_RE = /^\/api\/im\/commands$/;
 const IM_SESSIONS_RE = /^\/api\/im\/sessions$/;
+const IM_SWITCH_RE = /^\/api\/im\/switch$/;
+const IM_SWITCH_CONFIRM_RE = /^\/api\/im\/switch\/confirm$/;
+const IM_SWITCH_CANCEL_RE = /^\/api\/im\/switch\/cancel$/;
 const CHANNELS_WECHAT_QR_RE = /^\/api\/channels\/wechat\/qrcode$/;
 const CHANNELS_WECHAT_RECONNECT_RE = /^\/api\/channels\/wechat\/reconnect$/;
 const CHANNELS_WECHAT_UNBIND_RE = /^\/api\/channels\/wechat\/unbind$/;
@@ -1233,6 +1239,21 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (IM_SESSIONS_RE.test(pathname)) {
 		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
 		return handleImSessions();
+	}
+
+	if (IM_SWITCH_RE.test(pathname)) {
+		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+		return handleImSwitchGet(req);
+	}
+
+	if (IM_SWITCH_CONFIRM_RE.test(pathname)) {
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return handleImSwitchConfirm(req);
+	}
+
+	if (IM_SWITCH_CANCEL_RE.test(pathname)) {
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return handleImSwitchCancel(req);
 	}
 
 	if (CHANNELS_SEND_RE.test(pathname)) {

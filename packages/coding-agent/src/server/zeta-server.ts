@@ -40,10 +40,12 @@ import {
 } from "../channels";
 import { acquireChannelLock, channelLockPath, type ChannelLockHandle } from "../channels/instance-lock";
 import { type ImControlParams, type ImControlResult, runImControl } from "../channels/im-control";
-import { registerImSessionCandidateReader } from "../channels/session-router";
+import { resolveTeamDbPath, TeamDb } from "../team/db";
+import { registerImSessionCandidateReader, registerImSwitchGateway } from "../channels/session-router";
 import { approveRemotePlan, type PlanApproveMode } from "../channels/plan-approval";
 import { renderPlanToPng } from "../channels/plan-image";
-import { type ChannelToolContext, SessionRouter } from "../channels/session-router";
+import { type ChannelToolContext, type ImDeliveryContext, SessionRouter } from "../channels/session-router";
+import { buildImUserMessageMetadata } from "../session/session-im";
 import { routeWorkspaceCommand } from "../channels/workspace-router";
 import { spawnWebUi } from "../commands/web-ui-launcher";
 import { Settings } from "../config/settings";
@@ -750,6 +752,34 @@ export class ZetaServer {
 			channelSend: (opts, caller) => this.#channelSendHook(opts, caller),
 			workspaceRun: (opts, caller) => this.#workspaceRunHook(opts, caller),
 			imControl: (sessionKey, params) => this.#imControlHook(sessionKey, params),
+			// `@team` uses the same Team core DB as Studio: list registered teams
+			// and resolve a team's single PM as its host agent; ambiguous/missing
+			// PMs are explicit unknowns, never a guessed agent.
+			listTeams: () => {
+				let db: TeamDb | null = null;
+				try {
+					db = new TeamDb(resolveTeamDbPath());
+					return db.listTeams().map(team => team.name);
+				} catch {
+					return [];
+				} finally {
+					db?.close();
+				}
+			},
+			resolveTeamHost: name => {
+				let db: TeamDb | null = null;
+				try {
+					db = new TeamDb(resolveTeamDbPath());
+					const team = db.listTeams().find(candidate => candidate.name === name || candidate.id === name);
+					if (!team) return undefined;
+					const pms = db.listPms(team.id);
+					return pms.length === 1 ? pms[0]!.id : undefined;
+				} catch {
+					return undefined;
+				} finally {
+					db?.close();
+				}
+			},
 			// Bot sessions route through startRpcSession so they register in the
 			// web gateway (web-UI plan approval opens them by id) and never spawn
 			// a duplicate live session on the same transcript.
@@ -787,6 +817,13 @@ export class ZetaServer {
 			},
 		});
 		registerImSessionCandidateReader(() => this.#router!.listSessionCandidates());
+		registerImSwitchGateway({
+			status: (instanceId, chatId, context) => this.#router!.workspaceSwitchStatus(instanceId as never, chatId, context),
+			confirm: (instanceId, chatId, context, requestId) =>
+				this.#router!.confirmWorkspaceSwitch(instanceId as never, chatId, context, requestId),
+			cancel: (instanceId, chatId, context, requestId) =>
+				this.#router!.cancelWorkspaceSwitch(instanceId as never, chatId, context, requestId),
+		});
 		// Default-space session registry: the relay entry is the coordinator's
 		// transcript and can never be deleted.
 		await this.#router.ensureRelaySession(coordinatorFile);
@@ -956,7 +993,7 @@ export class ZetaServer {
 			runtime = await startChannels(
 				coordinator,
 				webConfig,
-				(instanceId, peer, body, _messageId, context) => {
+				(instanceId, peer, body, messageId, context) => {
 					const runtime = this.#channelRuntimeRef;
 					if (!runtime) return;
 
@@ -989,7 +1026,7 @@ export class ZetaServer {
 
 					void (async () => {
 						try {
-							await this.#routeInboundMessage(instanceId, peer, body, runtime, context);
+							await this.#routeInboundMessage(instanceId, peer, body, runtime, context, messageId);
 						} catch (error) {
 							// Never drop a message silently: log the failure so a broken
 							// route (workspace session, bot session, relay) is visible in
@@ -1191,7 +1228,8 @@ export class ZetaServer {
 		peer: string,
 		body: string,
 		runtime: ChannelRuntime,
-		context: { threadId?: string; userId?: string } = {},
+		context: ImDeliveryContext = {},
+		messageId?: string,
 	): Promise<void> {
 		const router = this.#router;
 		const consumed = await routeWorkspaceCommand(body, peer, {
@@ -1229,7 +1267,7 @@ export class ZetaServer {
 			return;
 		}
 		if (route.kind === "bot" && router) {
-			const result = await router.deliverToBotSession(route.id, instanceId, peer, body, context);
+			const result = await router.deliverToBotSession(route.id, instanceId, peer, body, { ...context, ...(messageId ? { messageId } : {}) });
 			if (!result.ok) {
 				logger.warn("Bot session injection failed", { channel: instanceId, id: route.id, error: result.error });
 				await runtime.sendText(
@@ -1241,7 +1279,7 @@ export class ZetaServer {
 			return;
 		}
 		if (route.kind === "workspace" && router) {
-			const result = await router.deliverDirect(route.alias, instanceId, peer, body);
+			const result = await router.deliverDirect(route.alias, instanceId, peer, body, { ...context, ...(messageId ? { messageId } : {}) });
 			if (!result.ok) {
 				logger.warn("Direct-mode injection failed", {
 					channel: instanceId,
@@ -1270,7 +1308,27 @@ export class ZetaServer {
 		// (the prefix stays in the transcript as a one-line hint).
 		const lang = router ? await router.languageFor(instanceId, peer) : undefined;
 		const relayBody = lang ? `[Language: ${lang === "zh" ? "zh-CN" : "en"}] ${body}` : body;
-		await runtime.host.deliver(instanceId, peer, relayBody);
+		const platform = runtime.channels.get(instanceId)?.platform ?? "unknown";
+		const metadata = buildImUserMessageMetadata({
+			platform,
+			instance: instanceId,
+			chatId: peer,
+			...(context.threadId ? { threadId: context.threadId } : {}),
+			...(context.userId ? { senderId: context.userId } : {}),
+			...(context.senderName ? { senderName: context.senderName } : {}),
+			messageId: messageId ?? `${instanceId}:${peer}:${Date.now()}`,
+			sentAt: context.sentAt ?? Date.now(),
+			...(context.attachments ? { attachments: context.attachments } : {}),
+			route: { workspaceAlias: "main" },
+		});
+		await runtime.host.deliver(
+			instanceId,
+			peer,
+			relayBody,
+			messageId,
+			{ ...(context.userId ? { senderId: context.userId } : {}) },
+			metadata as unknown as Record<string, unknown>,
+		);
 	}
 
 	async #startGateway(): Promise<void> {

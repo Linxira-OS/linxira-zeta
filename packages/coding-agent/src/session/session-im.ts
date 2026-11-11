@@ -167,6 +167,59 @@ export function normalizeImMessageMetadata(value: unknown): ImMessageMetadata | 
 	return { source: "im", ...identity, ...(attachments === undefined ? {} : { attachments }), route };
 }
 
+/** Build the real inbound user-entry metadata from the channel delivery context. */
+export interface BuildImUserMessageMetadataInput {
+	platform: string;
+	instance?: string;
+	chatId: string;
+	threadId?: string;
+	senderId?: string;
+	senderName?: string;
+	messageId: string;
+	sentAt?: number | string;
+	attachments?: readonly { name?: string; mimeType?: string; mime?: string; size?: number }[];
+	route: ImRouteSnapshot;
+}
+
+export function buildImUserMessageMetadata(input: BuildImUserMessageMetadataInput): ImUserMessageMetadata {
+	const sentAt =
+		input.sentAt === undefined
+			? new Date().toISOString()
+			: typeof input.sentAt === "number"
+				? new Date(input.sentAt).toISOString()
+				: input.sentAt;
+	const attachments = input.attachments?.flatMap(attachment => {
+		const mimeType = attachment.mimeType ?? attachment.mime;
+		if (attachment.name === undefined && mimeType === undefined && attachment.size === undefined) return [];
+		return [
+			{
+				...(attachment.name === undefined ? {} : { name: attachment.name }),
+				...(mimeType === undefined ? {} : { mimeType }),
+				...(attachment.size === undefined ? {} : { size: attachment.size }),
+			},
+		];
+	});
+	return {
+		source: "im",
+		platform: input.platform,
+		...(input.instance === undefined ? {} : { instance: input.instance }),
+		chatId: input.chatId,
+		...(input.threadId === undefined ? {} : { threadId: input.threadId }),
+		...(input.senderId === undefined ? {} : { senderId: input.senderId }),
+		...(input.senderName === undefined ? {} : { senderName: input.senderName }),
+		messageId: input.messageId,
+		sentAt,
+		...(attachments && attachments.length > 0 ? { attachments } : {}),
+		route: {
+			...(input.route.workspaceAlias === undefined ? {} : { workspaceAlias: input.route.workspaceAlias }),
+			...(input.route.agentId === undefined ? {} : { agentId: input.route.agentId }),
+			...(input.route.sessionId === undefined ? {} : { sessionId: input.route.sessionId }),
+			...(input.route.botSessionId === undefined ? {} : { botSessionId: input.route.botSessionId }),
+			...(input.route.bindingId === undefined ? {} : { bindingId: input.route.bindingId }),
+		},
+	};
+}
+
 /** Validate an `im_control` entry metadata object. Unknown shapes read as absent. */
 export function normalizeImSwitchControlMetadata(value: unknown): ImSwitchControlMetadata | undefined {
 	if (!isRecord(value) || value.source !== "im_control") return undefined;

@@ -62,7 +62,7 @@ async function setup(): Promise<{ router: SessionRouter; config: WebConfig; dir:
 					memory: {},
 				},
 			],
-			remote: { workspaces: [{ alias: "other", path: dir }] },
+			remote: { workspaces: [{ alias: "other", path: dir }, { alias: "third", path: dir }] },
 		}),
 	);
 	const config = await WebConfig.load(file);
@@ -178,6 +178,45 @@ describe("confirm-gated workspace switch", () => {
 		});
 		const applied = await restarted.confirmWorkspaceSwitch("tg", "c1", context);
 		expect(applied.ok).toBe(true);
+		expect(config.findImBinding("tg", "c1", context)?.target).toEqual({ kind: "workspace", workspace: "other" });
+	});
+
+	test("gateway request ids are atomic: stale/replaced previews never change the binding", async () => {
+		const { router, config } = await setup();
+		const context = { threadId: "t1", userId: "u1" };
+
+		await router.requestWorkspaceSwitch("tg", "c1", { kind: "workspace", workspace: "other" }, context);
+		const first = (await router.workspaceSwitchStatus("tg", "c1", context)).pending;
+		if (!first) throw new Error("first preview missing");
+		await router.requestWorkspaceSwitch("tg", "c1", { kind: "workspace", workspace: "third" }, context);
+		const second = (await router.workspaceSwitchStatus("tg", "c1", context)).pending;
+		if (!second) throw new Error("second preview missing");
+		expect(second.requestId).not.toBe(first.requestId);
+
+		// A stale UI id cannot apply the replaced preview.
+		expect(await router.confirmWorkspaceSwitch("tg", "c1", context, first.requestId)).toMatchObject({
+			ok: false,
+			error: "stale-request",
+		});
+		expect(config.findImBinding("tg", "c1", context)).toBeUndefined();
+		expect((await router.workspaceSwitchStatus("tg", "c1", context)).pending?.requestId).toBe(second.requestId);
+
+		// Another sender cannot see/confirm the same chat+thread's pending switch.
+		expect(
+			await router.confirmWorkspaceSwitch("tg", "c1", { threadId: "t1", userId: "u2" }, second.requestId),
+		).toMatchObject({ ok: false });
+		expect((await router.workspaceSwitchStatus("tg", "c1", context)).pending?.requestId).toBe(second.requestId);
+
+		// A stale cancel leaves the newer pending handshake intact.
+		expect(await router.cancelWorkspaceSwitch("tg", "c1", context, first.requestId)).toBe(false);
+		expect((await router.workspaceSwitchStatus("tg", "c1", context)).pending?.requestId).toBe(second.requestId);
+		expect(await router.cancelWorkspaceSwitch("tg", "c1", context, second.requestId)).toBe(true);
+		expect((await router.workspaceSwitchStatus("tg", "c1", context)).pending).toBeUndefined();
+
+		await router.requestWorkspaceSwitch("tg", "c1", { kind: "workspace", workspace: "other" }, context);
+		const third = (await router.workspaceSwitchStatus("tg", "c1", context)).pending;
+		if (!third) throw new Error("third preview missing");
+		expect((await router.confirmWorkspaceSwitch("tg", "c1", context, third.requestId)).ok).toBe(true);
 		expect(config.findImBinding("tg", "c1", context)?.target).toEqual({ kind: "workspace", workspace: "other" });
 	});
 

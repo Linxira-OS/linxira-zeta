@@ -20,6 +20,8 @@ import type { WebConfig } from "../config/web-config";
 import { resolveChannelHosting } from "./channel-status";
 import { acquireChannelLock, channelLockPath, type ChannelLockHandle } from "./instance-lock";
 import type { SessionRouter } from "./session-router";
+import type { ImDeliveryContext } from "./session-router";
+import { buildImUserMessageMetadata } from "../session/session-im";
 import { routeWorkspaceCommand } from "./workspace-router";
 
 export interface SessionChannelHost {
@@ -146,8 +148,8 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 					instanceId: string,
 					peer: string,
 					body: string,
-					_messageId?: string,
-					context?: { threadId?: string; userId?: string },
+					messageId?: string,
+					context?: ImDeliveryContext,
 				): Promise<void> => {
 					const router = options.router!;
 					const consumed = await routeWorkspaceCommand(body, peer, {
@@ -174,30 +176,40 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 						return;
 					}
 					if (route.kind === "bot") {
-						const result = await router.deliverToBotSession(route.id, instanceId, peer, body, context);
-						if (!result.ok)
-							await runtime.sendText(
-								instanceId,
-								peer,
-								`无法投递到 Bot 会话 ${route.id}：${result.error ?? "unknown error"}`,
-							);
+						const result = await router.deliverToBotSession(route.id, instanceId, peer, body, { ...context, ...(messageId ? { messageId } : {}) });
+						if (!result.ok) await runtime.sendText(instanceId, peer, `无法投递到 Bot 会话 ${route.id}：${result.error ?? "unknown error"}`);
 						return;
 					}
 					if (route.kind === "workspace") {
-						const result = await router.deliverDirect(route.alias, instanceId, peer, body);
-						if (!result.ok)
-							await runtime.sendText(
-								instanceId,
-								peer,
-								`无法连接到工作区 [${route.alias}]：${result.error ?? "unknown error"}`,
-							);
+						const result = await router.deliverDirect(route.alias, instanceId, peer, body, { ...context, ...(messageId ? { messageId } : {}) });
+						if (!result.ok) await runtime.sendText(instanceId, peer, `无法连接到工作区 [${route.alias}]：${result.error ?? "unknown error"}`);
 						return;
 					}
 					if (route.kind === "unavailable") {
 						await runtime.sendText(instanceId, peer, `无法打开工作区 [${route.alias}]：${route.error}`);
 						return;
 					}
-					await runtime.host.deliver(instanceId, peer, body);
+					const platform = runtime.channels.get(instanceId)?.platform ?? "unknown";
+					const metadata = buildImUserMessageMetadata({
+						platform,
+						instance: instanceId,
+						chatId: peer,
+						...(context?.threadId ? { threadId: context.threadId } : {}),
+						...(context?.userId ? { senderId: context.userId } : {}),
+						...(context?.senderName ? { senderName: context.senderName } : {}),
+						messageId: messageId ?? `${instanceId}:${peer}:${Date.now()}`,
+						sentAt: context?.sentAt ?? Date.now(),
+						...(context?.attachments ? { attachments: context.attachments } : {}),
+						route: { workspaceAlias: "main" },
+					});
+					await runtime.host.deliver(
+						instanceId,
+						peer,
+						body,
+						messageId,
+						{ ...(context?.userId ? { senderId: context.userId } : {}) },
+						metadata as unknown as Record<string, unknown>,
+					);
 				}
 			: undefined;
 		runtime = await start(

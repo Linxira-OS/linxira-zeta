@@ -84,6 +84,18 @@ export interface ChannelCapabilities {
 	supportsTyping: boolean;
 }
 
+/**
+ * Read-only capability model for config/UI surfaces. It must match the adapter
+ * instances; tests assert every shipped adapter reports the same values.
+ */
+export const CHANNEL_PLATFORM_CAPABILITIES: Record<ChannelPlatform, ChannelCapabilities> = {
+	wechat: { maxTextLength: Number.POSITIVE_INFINITY, supportsImages: true, supportsFiles: false, supportsTyping: false },
+	feishu: { maxTextLength: Number.POSITIVE_INFINITY, supportsImages: true, supportsFiles: false, supportsTyping: false },
+	telegram: { maxTextLength: 4_096, supportsImages: true, supportsFiles: false, supportsTyping: false },
+	discord: { maxTextLength: 2_000, supportsImages: true, supportsFiles: true, supportsTyping: true },
+	qq: { maxTextLength: 4_500, supportsImages: true, supportsFiles: false, supportsTyping: false },
+};
+
 export type ChannelHealthState = "connecting" | "ready" | "degraded" | "auth-failed" | "stopped";
 
 /** Live connection health surfaced by `/api/channels/status` and the CLI. */

@@ -8,6 +8,7 @@
 
 import { logger } from "@linxiraos/pi-utils";
 import {
+	CHANNEL_PLATFORM_CAPABILITIES,
 	getChannelStatus,
 	getPendingWechatQr,
 	triggerRestartChannels,
@@ -20,7 +21,7 @@ import { runCredentialLogin } from "../../channels/credential-login";
 import { WebConfig } from "../../config/web-config";
 import { resolveTeamDbPath, TeamDb } from "../../team/db";
 import { imAgentRuntimeId } from "../../agent-profile";
-import { readImSessionCandidates } from "../../channels/session-router";
+import { readImSessionCandidates, readImSwitchGateway } from "../../channels/session-router";
 
 function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });
@@ -282,6 +283,87 @@ export async function handleImSessions(): Promise<Response> {
 	return json({ sessions: snapshot.candidates, generatedAt: new Date(snapshot.generatedAt).toISOString() });
 }
 
+interface SwitchIdentity {
+	instanceId: string;
+	chatId: string;
+	threadId?: string;
+	userId?: string;
+}
+
+function switchIdentity(source: Record<string, unknown> | URL): SwitchIdentity | { error: string } {
+	const read = (key: string): string | undefined => {
+		const value = source instanceof URL ? source.searchParams.get(key) : source[key];
+		return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+	};
+	const instanceId = read("instanceId");
+	const chatId = read("chatId");
+	if (!instanceId || !chatId) return { error: "instanceId and chatId are required" };
+	const threadId = read("threadId");
+	const userId = read("userId");
+	return {
+		instanceId,
+		chatId,
+		...(threadId ? { threadId } : {}),
+		...(userId ? { userId } : {}),
+	};
+}
+
+/** GET /api/im/switch — current target plus the pending handshake, if any. */
+export async function handleImSwitchGet(req: Request): Promise<Response> {
+	const gateway = readImSwitchGateway();
+	if (!gateway) return json({ error: "IM relay is not running" }, 503);
+	const identity = switchIdentity(new URL(req.url));
+	if ("error" in identity) return json({ error: identity.error }, 400);
+	return json(await gateway.status(identity.instanceId, identity.chatId, {
+		...(identity.threadId ? { threadId: identity.threadId } : {}),
+		...(identity.userId ? { userId: identity.userId } : {}),
+	}));
+}
+
+/** POST /api/im/switch/confirm — apply the same chat/thread/sender's pending handshake. */
+export async function handleImSwitchConfirm(req: Request): Promise<Response> {
+	const gateway = readImSwitchGateway();
+	if (!gateway) return json({ error: "IM relay is not running" }, 503);
+	const body = await readBody(req);
+	if (!body) return json({ error: "Expected a JSON object" }, 400);
+	const identity = switchIdentity(body);
+	if ("error" in identity) return json({ error: identity.error }, 400);
+	const requestId = typeof body.requestId === "string" ? body.requestId.trim() : "";
+	if (!requestId) return json({ error: "requestId is required" }, 400);
+	const result = await gateway.confirm(
+		identity.instanceId,
+		identity.chatId,
+		{
+			...(identity.threadId ? { threadId: identity.threadId } : {}),
+			...(identity.userId ? { userId: identity.userId } : {}),
+		},
+		requestId,
+	);
+	return json(result, result.ok ? 200 : 409);
+}
+
+/** POST /api/im/switch/cancel — discard the pending handshake, leaving the target untouched. */
+export async function handleImSwitchCancel(req: Request): Promise<Response> {
+	const gateway = readImSwitchGateway();
+	if (!gateway) return json({ error: "IM relay is not running" }, 503);
+	const body = await readBody(req);
+	if (!body) return json({ error: "Expected a JSON object" }, 400);
+	const identity = switchIdentity(body);
+	if ("error" in identity) return json({ error: identity.error }, 400);
+	const requestId = typeof body.requestId === "string" ? body.requestId.trim() : "";
+	if (!requestId) return json({ error: "requestId is required" }, 400);
+	const cancelled = await gateway.cancel(
+		identity.instanceId,
+		identity.chatId,
+		{
+			...(identity.threadId ? { threadId: identity.threadId } : {}),
+			...(identity.userId ? { userId: identity.userId } : {}),
+		},
+		requestId,
+	);
+	return json(cancelled ? { ok: true } : { ok: false, error: "stale-request" }, cancelled ? 200 : 409);
+}
+
 export async function handleImCommands(req: Request): Promise<Response> {
 	const url = new URL(req.url);
 	const instanceId = url.searchParams.get("instanceId");
@@ -304,9 +386,8 @@ export async function handleImCommands(req: Request): Promise<Response> {
 				}
 			: {}),
 		...(session ? { session: { id: session.id, display: session.name } } : {}),
-		...(binding?.model
-			? { model: { ...binding.model, display: `${binding.model.provider}/${binding.model.model}` } }
-			: {}),
+		...(binding?.model ? { model: { ...binding.model, display: `${binding.model.provider}/${binding.model.model}` } } : {}),
+		capabilities: CHANNEL_PLATFORM_CAPABILITIES[instance.platform],
 		voice: { supported: false, reason: "IM voice delivery is not implemented; the tts tool writes a file" },
 		examples: ["!status", "!session list", "!session use {1}", "!model", "!lang zh", "!workspace list"],
 	});
