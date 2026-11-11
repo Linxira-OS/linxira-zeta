@@ -122,6 +122,10 @@ Workspace ids are opaque (`ws-*`). Every action resolves them through the
 gateway's `GET /api/projects` inventory and re-checks containment with
 `realpath`, so a renderer cannot point an open at a path outside its workspace.
 
+The renderer terminal adapter forwards the preload's optional `profiles` and
+`list` capabilities. Hosts without them keep those controls unavailable; the
+adapter does not fabricate a catalog or terminal inventory.
+
 Window lifecycle: closing to the tray hides the window; a real close (or
 `activate` with no window) recreates it from the persisted bounds instead of
 leaving the process windowless. Tray **Open Settings** sends the Studio
