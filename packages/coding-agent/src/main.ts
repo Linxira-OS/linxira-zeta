@@ -3057,14 +3057,6 @@ export async function runRootCommand(
 			// contract; the lock prevents a second session/serve from double-binding.
 			// Remember the request even when nothing is enabled yet: `/channels
 			// enable|login` starts the host from this same session after a write.
-			if (sessionChannelsWebConfig) {
-				rememberSessionChannelContext({
-					session,
-					webConfig: sessionChannelsWebConfig,
-					flag: parsedArgs.channels === true,
-					sessionId: session.sessionManager.getSessionId(),
-				});
-			}
 			const sessionChannelRouter = sessionChannelsWebConfig
 				? new SessionRouter({
 						coordinator: session,
@@ -3078,6 +3070,15 @@ export async function runRootCommand(
 						defaultCwd: session.sessionManager.getCwd(),
 					})
 				: undefined;
+			if (sessionChannelsWebConfig) {
+				rememberSessionChannelContext({
+					session,
+					webConfig: sessionChannelsWebConfig,
+					flag: parsedArgs.channels === true,
+					sessionId: session.sessionManager.getSessionId(),
+					...(sessionChannelRouter ? { router: sessionChannelRouter } : {}),
+				});
+			}
 			const sessionChannels =
 				sessionChannelsWebConfig && sessionChannelsPlan.shouldStart
 					? await startSessionChannels({
