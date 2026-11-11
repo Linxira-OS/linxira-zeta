@@ -106,7 +106,10 @@ test("posts for one audioId are serialized so HTTP reordering cannot reach the r
 });
 
 test("a rejected frame closes the attachment and later frames fail explicitly", async () => {
-	const { post } = recorder([{ ok: false, status: 409, message: "Audio frames arrived out of order" }]);
+	const { post } = recorder([
+		{ ok: true, status: 200 },
+		{ ok: false, status: 409, message: "Audio frames arrived out of order" },
+	]);
 	const relay = createLiveAudioRelay(post);
 	await relay.attach({ audioId: AUDIO_ID, sessionId: SESSION });
 
