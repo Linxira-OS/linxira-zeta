@@ -603,7 +603,7 @@ export interface InteractiveModeContext {
 	): Promise<CompactionOutcome>;
 	handleHandoffCommand(customInstructions?: string): Promise<void>;
 	handleShakeCommand(mode: ShakeMode): Promise<void>;
-	handleMoveCommand(targetPath?: string): Promise<void>;
+	handleMoveCommand(targetPath?: string, options?: { allowCreate?: boolean }): Promise<void>;
 	/** `/cd`: open the folder picker and switch the session there (or resume from it). */
 	showDirectoryPicker(): Promise<void>;
 	/** `/wt`: fork the checkout into a new worktree (keeping changes unless `keepChanges` is false) and move there. */

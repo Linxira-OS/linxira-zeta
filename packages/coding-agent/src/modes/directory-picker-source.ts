@@ -126,19 +126,19 @@ export function createDirectoryPickerSource(options: DirectoryPickerSourceOption
 	const pinEntries = (): DirectoryPickerEntry[] =>
 		pins.map(pin => pinEntry(pin, unavailable.has(directoryPinKey(pin))));
 
-	const loadRoots = async (): Promise<void> => {
+	const loadRoots = async (force: boolean): Promise<void> => {
 		if (fixedRoots) return;
 		if (platform === "win32") {
-			drives = await refreshWindowsDrives();
+			drives = await refreshWindowsDrives({ force });
 			return;
 		}
-		mounts = await refreshLinuxMounts();
+		mounts = await refreshLinuxMounts({ force });
 	};
 
-	const refresh = async (directory?: string | null): Promise<void> => {
+	const refresh = async (directory?: string | null, options: { force?: boolean } = {}): Promise<void> => {
 		if (refreshing) {
 			await refreshing;
-			return;
+			if (options.force !== true) return;
 		}
 		rootsLoading = true;
 		rootsError = undefined;
@@ -162,7 +162,7 @@ export function createDirectoryPickerSource(options: DirectoryPickerSourceOption
 				// A pins read failure leaves the last known pins in place.
 			}
 			try {
-				await loadRoots();
+				await loadRoots(options.force === true);
 			} catch (error) {
 				rootsError = error instanceof Error ? error.message : String(error);
 			} finally {

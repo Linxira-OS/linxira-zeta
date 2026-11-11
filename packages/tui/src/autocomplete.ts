@@ -766,7 +766,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 					}
 					// Directory-only commands must not receive the generic file
 					// fallback below; accepting a file there always fails `/cd`.
-					if (command.argumentCompletionOnly === true) return null;
+					if ("argumentCompletionOnly" in command && command.argumentCompletionOnly === true) return null;
 				}
 			}
 		}
@@ -1309,7 +1309,13 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		if (textBeforeCursor.trim().startsWith("/") && !textBeforeCursor.trim().includes(" ")) {
 			return null;
 		}
-		if (this.#isArgumentOnlyCommand(textBeforeCursor)) return null;
+		const directoryOnly = this.#argumentOnlyCommand(textBeforeCursor);
+		if (directoryOnly) {
+			const suggestions = await directoryOnly.command.getArgumentCompletions?.(directoryOnly.argumentText);
+			return Array.isArray(suggestions) && suggestions.length > 0
+				? { items: suggestions, prefix: directoryOnly.argumentText }
+				: null;
+		}
 
 		// Force extract path prefix - this will always return something
 		const pathMatch = this.#extractPathPrefix(textBeforeCursor, true);
@@ -1335,21 +1341,28 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		if (textBeforeCursor.trim().startsWith("/") && !textBeforeCursor.trim().includes(" ")) {
 			return false;
 		}
-		if (this.#isArgumentOnlyCommand(textBeforeCursor)) return false;
+		if (this.#argumentOnlyCommand(textBeforeCursor)) return false;
 
 		return true;
 	}
 
-	/** Whether the caret is in the argument text of a directory-only command. */
-	#isArgumentOnlyCommand(textBeforeCursor: string): boolean {
+	/** Directory-only command and its argument text when the caret is in one. */
+	#argumentOnlyCommand(
+		textBeforeCursor: string,
+	): { command: SlashCommand; argumentText: string } | undefined {
 		const trimmed = textBeforeCursor.trimStart();
-		if (!trimmed.startsWith("/")) return false;
+		if (!trimmed.startsWith("/")) return undefined;
 		const spaceIndex = trimmed.indexOf(" ");
-		if (spaceIndex === -1) return false;
+		if (spaceIndex === -1) return undefined;
 		const commandName = trimmed.slice(1, spaceIndex);
-		return this.#commands.some(
-			command => commandMatchesNameOrAlias(command, commandName) && command.argumentCompletionOnly === true,
+		const command = this.#commands.find(
+			candidate =>
+				"argumentCompletionOnly" in candidate &&
+				candidate.argumentCompletionOnly === true &&
+				commandMatchesNameOrAlias(candidate, commandName),
 		);
+		if (!command) return undefined;
+		return { command, argumentText: trimmed.slice(spaceIndex + 1) };
 	}
 
 	/** Get inline hint text for slash commands with subcommand hints */

@@ -257,17 +257,19 @@ function queryWindowsDrivesAsync(): Promise<string | null> {
 		"powershell.exe",
 		["-NoProfile", "-NonInteractive", "-Command", WINDOWS_DRIVE_QUERY],
 		{ encoding: "utf8", timeout: 4000, windowsHide: true, maxBuffer: 1024 * 1024 },
-		(error, stdout) => resolve(error ? null : stdout),
+		(error, stdout) => resolve(error || stdout == null ? null : String(stdout)),
 	);
 	return promise;
 }
 
 /** Enumerate Windows volumes without blocking the UI; uses the shared TTL cache. */
 export async function refreshWindowsDrives(
-	options: { query?: () => string | null | Promise<string | null> } = {},
+	options: { query?: () => string | null | Promise<string | null>; force?: boolean } = {},
 ): Promise<DriveInfo[]> {
-	const cached = freshWindowsDrives();
-	if (cached) return cached;
+	if (options.force !== true) {
+		const cached = freshWindowsDrives();
+		if (cached) return cached;
+	}
 	const output = await (options.query ?? queryWindowsDrivesAsync)();
 	let drives = output ? parseWindowsLogicalDisks(output) : [];
 	if (drives.length === 0) drives = await windowsDriveProbe();
@@ -419,10 +421,12 @@ export function listLinuxMounts(options: { read?: () => string | null } = {}): M
  * fixture-driven tests.
  */
 export async function refreshLinuxMounts(
-	options: { read?: () => string | null | Promise<string | null>; validate?: boolean } = {},
+	options: { read?: () => string | null | Promise<string | null>; validate?: boolean; force?: boolean } = {},
 ): Promise<MountInfo[]> {
-	const cached = freshLinuxMounts();
-	if (cached) return cached;
+	if (options.force !== true) {
+		const cached = freshLinuxMounts();
+		if (cached) return cached;
+	}
 	const text = await (options.read ??
 		(async () => {
 			try {

@@ -52,6 +52,7 @@ describe("/cd", () => {
 		expect(command).toBeDefined();
 		expect(command?.aliases).toContain("chdir");
 		expect(command?.allowArgs).toBe(true);
+		expect(command?.argumentCompletionOnly).toBe(true);
 		expect(M.cmdCd.length).toBeGreaterThan(0);
 		expect(M.cmdCdAcp.length).toBeGreaterThan(0);
 	});

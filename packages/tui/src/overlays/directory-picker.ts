@@ -74,7 +74,7 @@ export interface DirectoryPickerSource {
 	/** Persist a pin change; resolves to the new pinned state. */
 	togglePin(directory: string): Promise<boolean>;
 	/** Reload pins and roots for the explicit refresh action (optional test doubles). */
-	refresh?(directory?: string | null): Promise<void>;
+	refresh?(directory?: string | null, options?: { force?: boolean }): Promise<void>;
 }
 
 export interface DirectoryPickerOptions {
@@ -163,7 +163,7 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 		if (event.leftClick && (event.button & 16) !== 0) {
 			const index = this.#selectList.hitTest(line - 1);
 			const row = index === undefined ? undefined : this.#rows[index];
-			if (row) {
+			if (row && row.kind !== "note") {
 				this.#resume(row.entry.path);
 				return;
 			}
@@ -180,7 +180,7 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 		}
 		if (matchesKey(data, "ctrl+r")) {
 			const row = this.#selectedRow();
-			if (row) this.#resume(row.entry.path);
+			if (row && row.kind !== "note") this.#resume(row.entry.path);
 			return;
 		}
 		if (this.#filtering) {
@@ -428,11 +428,15 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 	async #refresh(background: boolean): Promise<void> {
 		const refresh = this.#source.refresh;
 		if (!refresh) return;
+		const selectedPath = this.#selectedRow()?.entry.path;
+		const filter = this.#selectList.getFilter();
+		const filtering = this.#filtering;
 		if (!background) this.#statusText.setText(theme.fg("dim", tuiText("cdPickerRefreshing", "Refreshing…")));
 		try {
-			await refresh.call(this.#source, this.#current);
+			await refresh.call(this.#source, this.#current, { force: !background });
 			if (this.#closed) return;
 			this.#rebuild();
+			this.#restoreAfterRefresh(selectedPath, filter, filtering);
 			if (!background) {
 				this.#statusText.setText(theme.fg("dim", tuiText("cdPickerRefreshed", "Refreshed")));
 				this.invalidate();
@@ -441,6 +445,16 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 			if (this.#closed) return;
 			this.#statusText.setText(theme.fg("error", String(error instanceof Error ? error.message : error)));
 			this.#rebuild();
+			this.#restoreAfterRefresh(selectedPath, filter, filtering);
+		}
+	}
+
+	#restoreAfterRefresh(selectedPath: string | undefined, filter: string, filtering: boolean): void {
+		if (filter) this.#selectList.setFilter(filter);
+		this.#filtering = filtering;
+		if (selectedPath) {
+			const index = this.#rows.findIndex(row => row.entry.path === selectedPath);
+			if (index >= 0) this.#selectList.setSelectedIndex(index);
 		}
 	}
 
