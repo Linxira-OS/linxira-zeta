@@ -8,9 +8,25 @@
 import { CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
 import { CliUsageError } from "@linxiraos/pi-utils/cli";
 import { diagnoseTeam, type DoctorReport } from "../team/doctor";
+import type { TaskEventRecord, TaskRecord } from "../team/db";
 import { formatTeamError, TeamError } from "../team/errors";
 import { createRoom, listRooms, postRoomEvent, showRoom, type RoomView } from "../team/rooms";
 import { addEngineer, addPm, addRepoClone, addRepoLink, addTaskWorktree, bindRepo, initTeam } from "../team/service";
+import {
+	assignTask,
+	cancelTask,
+	claimTask,
+	commentTask,
+	completeTask,
+	createTask,
+	listTasks,
+	rejectTask,
+	releaseTask,
+	renewTaskLease,
+	showTask,
+	submitTask,
+	type TaskView,
+} from "../team/tasks";
 
 export interface TeamCliOptions {
 	action?: string;
@@ -29,6 +45,12 @@ export interface TeamCliOptions {
 	sender?: string;
 	replyTo?: string;
 	limit?: string;
+	title?: string;
+	assignee?: string;
+	agent?: string;
+	lease?: string;
+	req?: string;
+	status?: string;
 	json?: boolean;
 }
 
@@ -49,7 +71,20 @@ Commands:
   room show <room> [--limit <n>]                              Show members and ordered events
   room post <room> --body <text> [--sender <id>] [--reply-to <seq>]
                                                               Append one room event
-  doctor [--root <path>] [--json]                             Validate root, PMs, repos, worktrees, rooms
+  task create <key> --pm <pm> --title <title> [--body <text>] Durable work item (status: pending)
+              [--assignee <engineer>] [--req REQ-1,REQ-2]
+  task list [--status pending|claimed|review|done|cancelled] List tasks with owner, lease, and REQ ids
+  task show <key>                                             Show task fields and ordered events
+  task assign <key> --pm <pm> --assignee <engineer>           Assign a pending task to one engineer
+  task claim <key> --agent <engineer> [--lease <seconds>]     Claim a task; default lease 900s
+  task renew <key> --agent <engineer> [--lease <seconds>]     Extend the caller's lease
+  task release <key> --agent <engineer>                       Release the caller's claim
+  task submit <key> --agent <engineer> [--body <text>]        Hand off claimed -> review
+  task complete <key> --pm <pm> [--body <text>]               Approve review -> done
+  task reject <key> --pm <pm> --body <reason>                 Reject review -> pending
+  task cancel <key> --pm <pm> [--body <text>]                 Cancel a non-done task
+  task comment <key> --agent <actor> --body <text>            Append an audit note carrying REQ-* ids
+  doctor [--root <path>] [--json]                             Validate root, PMs, repos, worktrees, rooms, tasks
 
 Global flags: --json prints machine-readable results. ZETA_TEAM_DB overrides
 the global database path (default ~/.zeta/data/zeta.db).`;
@@ -277,6 +312,200 @@ async function runRoom(options: TeamCliOptions, rest: string[]): Promise<void> {
 	throw new CliUsageError(`Unknown room action "${verb}". Expected: create, list, show, post`);
 }
 
+function formatTaskLease(task: TaskRecord): string {
+	if (task.leaseExpiresAt === null) return "-";
+	return new Date(task.leaseExpiresAt * 1000).toISOString();
+}
+
+function printTaskList(tasks: readonly TaskRecord[]): void {
+	if (tasks.length === 0) {
+		process.stdout.write("No tasks. Create one with `zetacode team task create <key> --pm <pm> --title <title>`.\n");
+		return;
+	}
+	for (const task of tasks) {
+		const assignee = task.assigneeAgentId ?? "-";
+		const owner = task.ownerAgentId ?? "-";
+		const reqs = task.reqIds.length > 0 ? `  ${task.reqIds.join(",")}` : "";
+		process.stdout.write(
+			`${task.taskKey}  ${task.status.padEnd(9)}  pm=${task.assignedPmId}  assignee=${assignee}  owner=${owner}  lease=${formatTaskLease(task)}${reqs}  ${task.title}\n`,
+		);
+	}
+}
+
+function printTaskEvent(event: TaskEventRecord): void {
+	const at = new Date(event.at * 1000).toISOString();
+	const transition = event.fromStatus
+		? `${event.fromStatus}->${event.toStatus ?? event.fromStatus}`
+		: `->${event.toStatus ?? "-"}`;
+	const reqs = event.reqIds.length > 0 ? ` ${event.reqIds.join(",")}` : "";
+	const body = event.body.replace(/\r?\n/g, "\n    ");
+	process.stdout.write(`#${event.seq} ${at} ${event.actorAgentId} [${event.kind}] ${transition}${reqs}\n  ${body}\n`);
+}
+
+function printTaskView(view: TaskView): void {
+	const { task, events } = view;
+	process.stdout.write(
+		`Task ${task.taskKey} [${task.status}] ${task.title}\n` +
+			`  PM: ${task.assignedPmId}  assignee: ${task.assigneeAgentId ?? "-"}  owner: ${
+				task.ownerAgentId ?? "-"
+			}  lease: ${formatTaskLease(task)}  revision: ${task.revision}\n` +
+			`  REQ: ${task.reqIds.length > 0 ? task.reqIds.join(", ") : "-"}\n`,
+	);
+	if (task.body) process.stdout.write(`  ${task.body.replace(/\r?\n/g, "\n  ")}\n`);
+	process.stdout.write("\n");
+	if (events.length === 0) {
+		process.stdout.write("  (no events)\n");
+		return;
+	}
+	for (const event of events) printTaskEvent(event);
+}
+
+async function runTask(options: TeamCliOptions, rest: string[]): Promise<void> {
+	const verb = requireRest(rest, 0, "task action", `${CLI_BIN_NAME} team task create|list|show|claim|...`);
+	const task = (): string => requireRest(rest, 1, "task key", `${CLI_BIN_NAME} team task ${verb} <key>`);
+	const pm = (): string => requireFlag(options.pm, "--pm <pm>", `${CLI_BIN_NAME} team task ${verb} <key> --pm <pm>`);
+	const agent = (): string =>
+		requireFlag(options.agent, "--agent <engineer>", `${CLI_BIN_NAME} team task ${verb} <key> --agent <engineer>`);
+	const lease = (): number | undefined => parsePositiveInt(options.lease, "--lease");
+
+	if (verb === "create") {
+		const title = requireFlag(
+			options.title,
+			"--title <title>",
+			`${CLI_BIN_NAME} team task create <key> --pm <pm> --title <title>`,
+		);
+		const result = await createTask({
+			taskKey: task(),
+			title,
+			body: options.body,
+			pm: pm(),
+			assignee: options.assignee,
+			reqIds: options.req,
+			teamRoot: options.root,
+		});
+		if (options.json) writeJson(result);
+		else
+			process.stdout.write(
+				`Created task "${result.task.taskKey}" (${result.task.status}) for PM ${result.task.assignedPmId}\n`,
+			);
+		return;
+	}
+	if (verb === "list") {
+		const tasks = await listTasks({ status: options.status, teamRoot: options.root });
+		if (options.json) writeJson(tasks);
+		else printTaskList(tasks);
+		return;
+	}
+	if (verb === "show") {
+		const view = await showTask({ task: task(), teamRoot: options.root });
+		if (options.json) writeJson(view);
+		else printTaskView(view);
+		return;
+	}
+	if (verb === "assign") {
+		const result = await assignTask({
+			task: task(),
+			pm: pm(),
+			assignee: requireFlag(
+				options.assignee,
+				"--assignee <engineer>",
+				`${CLI_BIN_NAME} team task assign <key> --pm <pm> --assignee <engineer>`,
+			),
+			body: options.body,
+			teamRoot: options.root,
+		});
+		if (options.json) writeJson(result);
+		else process.stdout.write(`Assigned "${result.task.taskKey}" to ${result.task.assigneeAgentId}\n`);
+		return;
+	}
+	if (verb === "claim" || verb === "renew") {
+		const action = verb === "claim" ? claimTask : renewTaskLease;
+		const result = await action({
+			task: task(),
+			agent: agent(),
+			leaseSeconds: lease(),
+			body: options.body,
+			teamRoot: options.root,
+		});
+		if (options.json) writeJson(result);
+		else {
+			process.stdout.write(
+				`${verb === "claim" ? "Claimed" : "Renewed"} "${result.task.taskKey}" as ${result.task.ownerAgentId} until ${formatTaskLease(result.task)}\n`,
+			);
+		}
+		return;
+	}
+	if (verb === "release") {
+		const result = await releaseTask({ task: task(), agent: agent(), body: options.body, teamRoot: options.root });
+		if (options.json) writeJson(result);
+		else process.stdout.write(`Released "${result.task.taskKey}" (${result.task.status})\n`);
+		return;
+	}
+	if (verb === "submit") {
+		const result = await submitTask({
+			task: task(),
+			agent: agent(),
+			body: options.body,
+			reqIds: options.req,
+			teamRoot: options.root,
+		});
+		if (options.json) writeJson(result);
+		else process.stdout.write(`Submitted "${result.task.taskKey}" for review\n`);
+		return;
+	}
+	if (verb === "complete") {
+		const result = await completeTask({
+			task: task(),
+			pm: pm(),
+			body: options.body,
+			reqIds: options.req,
+			teamRoot: options.root,
+		});
+		if (options.json) writeJson(result);
+		else process.stdout.write(`Completed "${result.task.taskKey}"\n`);
+		return;
+	}
+	if (verb === "reject") {
+		const result = await rejectTask({
+			task: task(),
+			pm: pm(),
+			body: requireFlag(
+				options.body,
+				"--body <reason>",
+				`${CLI_BIN_NAME} team task reject <key> --pm <pm> --body <reason>`,
+			),
+			teamRoot: options.root,
+		});
+		if (options.json) writeJson(result);
+		else process.stdout.write(`Rejected "${result.task.taskKey}" back to ${result.task.status}\n`);
+		return;
+	}
+	if (verb === "cancel") {
+		const result = await cancelTask({ task: task(), pm: pm(), body: options.body, teamRoot: options.root });
+		if (options.json) writeJson(result);
+		else process.stdout.write(`Cancelled "${result.task.taskKey}"\n`);
+		return;
+	}
+	if (verb === "comment") {
+		const result = await commentTask({
+			task: task(),
+			agent: agent(),
+			body: requireFlag(
+				options.body,
+				"--body <text>",
+				`${CLI_BIN_NAME} team task comment <key> --agent <actor> --body <text>`,
+			),
+			teamRoot: options.root,
+		});
+		if (options.json) writeJson(result);
+		else process.stdout.write(`Commented on "${result.task.taskKey}" (#${result.event.seq})\n`);
+		return;
+	}
+	throw new CliUsageError(
+		`Unknown task action "${verb}". Expected: create, list, show, assign, claim, renew, release, submit, complete, reject, cancel, comment`,
+	);
+}
+
 async function runDoctor(options: TeamCliOptions): Promise<void> {
 	const report = await diagnoseTeam({ teamRoot: options.root });
 	if (options.json) {
@@ -310,6 +539,9 @@ export async function runTeamCommand(options: TeamCliOptions): Promise<void> {
 				return;
 			case "room":
 				await runRoom(options, rest);
+				return;
+			case "task":
+				await runTask(options, rest);
 				return;
 			case "doctor":
 				await runDoctor(options);

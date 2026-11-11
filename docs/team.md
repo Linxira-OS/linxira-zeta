@@ -1,19 +1,20 @@
-# Team foundation (paths, database, rooms, and the Team Hub)
+# Team foundation (paths, database, rooms, work queue, and the Team Hub)
 
 `zetacode team` implements the **Zeta Team** product surface (Team mode) and
-its first collaboration primitive: the ownerless team root, PM workspaces,
-canonical base repositories, PM bindings, engineers, linked worktrees, and
-database-only rooms. The TUI adds
+its collaboration primitives: the ownerless team root, PM workspaces,
+canonical base repositories, PM bindings, engineers, linked worktrees,
+database-only rooms, and a durable work queue. The TUI adds
 **path entry** and the **Team Hub**: launching at a Team root or PM workspace
 opens a read/write view of the Team database, while engineer worktrees and base
 repositories open the ordinary coding TUI. Explicit session launches
 (`--continue`, `--resume`, `--fork`, or a prompt) still open a coding session in
 a PM workspace, where `/lead` (alias `/pm`) runs the **PM main agent** with a
 coordination-only toolset and can spawn its one persistent Secretary subagent.
-There is still **no team-wide agent, no board/task rows, and no channel
+There is still **no team-wide agent, no automatic dispatch, and no channel
 binding**. `--execution vibe` records the engineer's
 execution choice; it does not start Vibe, and no Team entry ever enables Vibe
-automatically.
+automatically. The work queue is pull-based: a PM assigns, a worker claims with
+a lease, and the PM reviews.
 
 The `pi-messenger` official plugin owns only the mesh and crew surfaces. Its
 `/teamagent` command registers crew roles as spawnable subagents; it is not
@@ -58,7 +59,7 @@ All structure is written to one SQLite database: `~/.zeta/data/zeta.db`
 disk are discovery hints; `team doctor` reports drift between them and the
 database.
 
-Schema (`PRAGMA user_version` = 4):
+Schema (`PRAGMA user_version` = 5):
 
 | Table | Columns |
 | --- | --- |
@@ -73,11 +74,14 @@ Schema (`PRAGMA user_version` = 4):
 | `room_events` | `seq`, `room_id`, `sent_at`, `sender_agent_id`, `kind`, `body`, `reply_to`, `mentions_json` |
 | `agents` | `agent_id`, `team_id`, `pm_id`, `role`, `persistence`, `parent_agent_id`, `session_id`, `session_file`, `state`, `created_at`, `updated_at` |
 | `agent_skills` | `team_id`, `pm_id`, `engineer_id`, `skill_name`, `source`, `qualified_name`, `assigned_by`, `created_at` (unique per engineer+qualified name and engineer+skill name) |
+| `tasks` | `id`, `team_id`, `task_key`, `title`, `body`, `status`, `assigned_pm_id`, `assignee_agent_id` (nullable), `owner_agent_id` (nullable), `owner_role`, `lease_expires_at`, `req_ids_json`, `revision`, `created_at`, `updated_at` |
+| `task_events` | `seq`, `task_id`, `at`, `actor_agent_id`, `kind`, `body`, `from_status`, `to_status`, `req_ids_json`, `lease_expires_at` |
 
-Worktree `kind` is `home` or `task`; engineer `execution` is `normal` or `vibe`.
+Worktree `kind` is `home` or `task`; engineer `execution` is `normal` or `vibe`;
+task `status` is `pending`, `claimed`, `review`, `done`, or `cancelled`.
 A repo may be bound to several PMs, and one engineer may own a home worktree per
-bound repo. Room `kind` is `pm`, `coordination`, or `room`; rooms are described
-below.
+bound repo. Room `kind` is `pm`, `coordination`, or `room`; rooms and the queue
+are described below.
 
 ## Rooms
 
@@ -105,9 +109,43 @@ session JSONL.
   PM; other rooms require `--sender`.
 - `@name` tokens are stored in `mentions_json` as a JSON array. Readers still see
   the original body.
-- Read API for a future TUI/Studio: `showRoom`, `readRoomEvents` (including
+- Read API for the Hub and Studio: `showRoom`, `readRoomEvents` (including
   `afterSeq` incremental reads), `listRooms` with member/event markers, and
-  `TeamDb.listRoomsForAgent`. No UI is provided yet.
+  `TeamDb.listRoomsForAgent`. The Team Hub uses these reads; a task pane is not
+  shipped in this slice.
+
+## Work queue
+
+A task is a `tasks` row plus an ordered `task_events` log in the same global
+database. It survives restart and is independent of rooms: the queue records
+who owns the work, while rooms remain the conversation log.
+
+| Status | Owner | Lease | Transition |
+| --- | --- | --- | --- |
+| `pending` | none | none | PM creates/assigns; an eligible engineer claims |
+| `claimed` | one engineer row id | required | owner renews, releases, or submits |
+| `review` | the author engineer | none | owning PM completes or rejects |
+| `done` | author retained for audit | none | terminal |
+| `cancelled` | none | none | terminal |
+
+- Claims use a compare-and-set on `tasks.revision`, so two workers cannot own
+  the same task. A claim outside the task's PM is rejected; when
+  `assignee_agent_id` is set, only that engineer may claim.
+- The default lease is 900 seconds (`--lease`), capped at seven days. An expired
+  lease is reclaimable by another engineer of the same PM; a live lease owned by
+  someone else is a conflict.
+- `zetacode team task submit …` moves `claimed → review`; only the owning PM can
+  `complete` or `reject` it. `cancel` is available to the owning PM before
+  `done`. Every mutation and its event commit in one SQLite transaction.
+- `REQ-*` repository-ledger ids are extracted from task titles/bodies and
+  `--req`, stored on the task, and recorded per event. They are metadata; the
+  ledger remains authoritative for their content.
+- Listing is available through `zetacode team task list`; the Team Hub remains a
+  room/roster view. The detailed design, `/initzetateam` dependency order, and
+  Vibe worker integration are in
+  [document/team-task-queue.md](../document/team-task-queue.md).
+- The queue writes no session transcript. IM per-agent binding stays out of
+  scope; see `local://im-multi-account-design.md`.
 
 ## Commands
 
@@ -124,6 +162,18 @@ zetacode team room create <name> --shared [--members <a,b>]
 zetacode team room list [--root <path>]
 zetacode team room show <room> [--limit <n>]
 zetacode team room post <room> --body <text> [--sender <agent>] [--reply-to <seq>]
+zetacode team task create <key> --pm <pm> --title <title> [--body <text>] [--assignee <engineer>] [--req REQ-1]
+zetacode team task list [--status pending|claimed|review|done|cancelled] [--json]
+zetacode team task show <key> [--json]
+zetacode team task assign <key> --pm <pm> --assignee <engineer>
+zetacode team task claim <key> --agent <engineer> [--lease <seconds>]
+zetacode team task renew <key> --agent <engineer> [--lease <seconds>]
+zetacode team task release <key> --agent <engineer>
+zetacode team task submit <key> --agent <engineer> [--body <text>] [--req REQ-1]
+zetacode team task complete <key> --pm <pm> [--body <text>] [--req REQ-1]
+zetacode team task reject <key> --pm <pm> --body <reason>
+zetacode team task cancel <key> --pm <pm> [--body <text>]
+zetacode team task comment <key> --agent <actor> --body <text>
 zetacode team doctor [--root <path>] [--json]
 ```
 
@@ -150,13 +200,21 @@ zetacode team doctor [--root <path>] [--json]
 - `room post` appends one event and prints its host-assigned sequence. `--sender`
   accepts the same tokens as membership; `--reply-to` names an earlier sequence
   in the same room.
+- `task create` writes a `pending` task for an owning PM, optionally assigning
+  one of that PM's engineers and recording `REQ-*` ids. `task list` and
+  `task show` are read-only.
+- `task assign/claim/renew/release/submit/complete/reject/cancel/comment` follow
+  the status table above. Claim/renew/release/submit take `--agent`; review
+  actions take `--pm` and must name the owning PM.
 - `doctor` does not repair. It validates the ownerless root, PM markers and
   plain-folder status, base repo paths and branches, database rows and
   bindings, worktree paths/branches/registration, and room integrity: duplicate
-  names, PM ownership, member rows that resolve to this team's PMs or engineers,
-  the owning PM's membership, event senders, and reply links. It also reports
-  unregistered PM folders, base repos, or linked worktrees. Warnings do not fail
-  the command; errors exit non-zero.
+  names, PM ownership, member rows that resolve to this team's PMs, engineers,
+  or PM-owned agents (including a registered Secretary), the owning PM's
+  membership, event senders, and reply links. It also reports unregistered PM
+  folders, base repos, or linked worktrees, and validates task assignees,
+  owners, leases, and event actors. Warnings do not fail the command; errors
+  exit non-zero.
 
 ## TUI entry and Team Hub
 
@@ -374,11 +432,16 @@ not an error.
 
 ## Not in this slice
 
-Channel bindings, board/task rows, and Vibe auto-start remain unimplemented.
-Lead (PM) mode covers the PM main agent's coordination surface; the Secretary is
-reachable only from that mode, and there is still no Team-root session. The Hub
-is a UI without an Agent and shows only rooms and the PM/engineer roster;
-subagent control remains in Agent Hub. Rooms are reachable through
-`room_read`/`room_post` in Lead mode and through the CLI and Hub. The Engineer
-`execution` column is the only Team-side Vibe fact, and no Team entry enables
-Vibe.
+`/initzetateam`, automatic work dispatch, Vibe auto-start, IM per-agent
+binding, and a Team Hub task pane remain unimplemented. The durable queue is
+usable only through `zetacode team task …`; an engineer or Vibe worker must
+claim explicitly, and no Team entry starts a worker. Lead (PM) mode covers the
+PM main agent's coordination surface; the Secretary is reachable only from that
+mode, and there is still no Team-root session. The Hub is a UI without an Agent
+and shows only rooms and the PM/engineer roster; subagent control remains in
+Agent Hub. Rooms are reachable through `room_read`/`room_post` in Lead mode and
+through the CLI and Hub. The Engineer `execution` column is the only Team-side
+Vibe fact. The `/initzetateam` plan/apply/rollback design and dependency order
+are in [document/team-task-queue.md](../document/team-task-queue.md); IM
+per-agent binding is designed separately in
+`local://im-multi-account-design.md`.
