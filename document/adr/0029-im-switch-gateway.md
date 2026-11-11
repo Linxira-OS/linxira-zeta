@@ -1,6 +1,6 @@
 # 0029. IM switch handshake gateway wire
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-11-12
 - **Deciders:** IM line (session/router/TUI host/gateway); Team renderer consumer: team-studio2
 - **Links:** [Team Studio](../../docs/team-studio.md), [session router](../../packages/coding-agent/src/channels/session-router.ts), [IM gateway](../../packages/coding-agent/src/server/web-gateway/im-instances.ts), ADR-IM-0007, REQ-080, REQ-084
