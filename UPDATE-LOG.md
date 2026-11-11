@@ -2,6 +2,13 @@
 
 ## 下一版本（Unreleased）
 
+### IM 运行时 UI（未发布）
+- **按实例管理 IM**：Studio 新增 IM 运行时页（`web-app/src/studio/settings/ImRuntimePage.tsx`，导出给 Studio 路由挂载），消费冻结契约 ADR-IM-0007：`channels.instances` / `remote.imBindings` / `imAgents`。同一平台多实例、实例 id 命名空间、note、启用/停用、平台校验、每实例微信二维码/重连/解绑；密钥读取一律 `••••`，写入语义为“留空保留 / 显式清除写 null / 填值替换”，掩码不回传。
+- **绑定**：实例 + 聊天/线程/用户 + Agent Profile + target（workspace / team-pm / engineer）+ session + answer/observe，显示 needsReview 与 target-unavailable 原因并阻止保存到不可用目标；写回时剥离 UI 展示字段。
+- **Agent Profile**：persona（inline/file/workspace）、模型、位置、工具白名单（builtin/extensions/MCP/customTools/skills/commands，空=不允许、不继承环境工具）与记忆后端；`capabilities` 由后端执行，页面不提供权限开关也不代写；运行身份含 bindingId，由后端计算展示。
+- **Bot 状态**：读取当前绑定/会话/模型/answer-observe/语音能力与命令示例，实例级发送测试（409 ambiguous 待后端给候选实例）。
+- **TUI `/channels`**：新增只读管理页（instances/targets/bindings、needs-review/unknown-target、legacy 合成提示）与 `enable-instance`/`disable-instance`；任何 token/secret 不进入快照或 transcript。
+- **边界**：后端路由尚未落 main，本切片为本地集成分支；App 路由由 Studio owner 挂载导出页，浏览器交互验证走真实 Settings 页；`PUT /api/im/agents` 已向 IM 后端要求补充。
 ### Work Studio 诊断（未发布）
 - **系统 Runtime 不再被误报为未安装**：当 Host 自身就是运行中的 `compatible-system` Runtime（源码/开发构建）时，诊断页显示「系统 Runtime 运行正常（未托管）」、托管卡片「系统 Runtime（未托管）」、签名「不适用（无托管制品）」、上游「本机 Runtime · 无上游记录」；`runtime.install` 与 `runtime.ensure` 能力分开渲染，不再给出必败的 Install 按钮，也不再弹「无法确认 Runtime 工件通道」。运行中的托管 Runtime 缺少安装记录改为黄色提示，launch/handshake/断连失败保留自身错误文案。
 

@@ -1,0 +1,51 @@
+/* Settings → IM runtime (ADR-IM-0007). Grids collapse on narrow settings panes. */
+
+.imr { display: flex; flex-direction: column; gap: var(--sp-8); }
+.imr-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-16); }
+.imr-head h3 { margin: 0; }
+.imr-tabs { display: flex; gap: var(--sp-4); flex-wrap: wrap; }
+.imr-tab[aria-pressed="true"] { pointer-events: none; }
+.imr-notice { color: var(--green); font-size: var(--fs-12); margin: var(--sp-6) 0; }
+.imr-error { color: var(--red); font-size: var(--fs-11); margin: var(--sp-4) 0; }
+.imr-empty { color: var(--text-3); font-size: var(--fs-11); margin: var(--sp-6) 0; }
+.imr-hint { color: var(--text-3); font-size: var(--fs-11); }
+.imr-note { color: var(--text-3); font-size: var(--fs-11); border: 1px dashed var(--border); border-radius: var(--r-8); padding: var(--sp-8); }
+.imr-muted { color: var(--text-3); }
+.imr-mono { font-family: var(--font-mono); font-size: var(--fs-11); overflow-wrap: anywhere; }
+.imr-actions { display: flex; align-items: flex-end; gap: var(--sp-8); flex-wrap: wrap; margin: var(--sp-8) 0; }
+.imr-facts { display: flex; align-items: center; gap: var(--sp-8); flex-wrap: wrap; margin: var(--sp-8) 0; }
+
+.imr-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-8); margin: var(--sp-8) 0; }
+.imr-table { width: 100%; border-collapse: collapse; font-size: var(--fs-12); }
+.imr-table th,
+.imr-table td { text-align: left; padding: var(--sp-6) var(--sp-10); border-bottom: 1px solid var(--border); vertical-align: top; }
+.imr-table th { font-size: var(--fs-11); font-weight: var(--fw-medium); color: var(--text-3); }
+.imr-table tr:last-child td { border-bottom: none; }
+.imr-table tr[data-needs-review="true"] td { background: color-mix(in srgb, var(--amber) 8%, transparent); }
+.imr-row-actions { display: flex; gap: var(--sp-4); justify-content: flex-end; flex-wrap: wrap; }
+
+.imr-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-8) var(--sp-12); align-items: start; }
+.imr-field { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.imr-field > span { font-size: var(--fs-11); color: var(--text-2); }
+.imr-field .input,
+.imr-field .select { width: 100%; }
+.imr-field-wide { grid-column: 1 / -1; }
+.imr-check { display: flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-11); color: var(--text-2); }
+
+.imr-qr-row td { background: var(--surface-2); }
+.imr-qr { display: flex; align-items: flex-start; gap: var(--sp-16); }
+.imr-qr-frame {
+	width: 168px; height: 168px; flex: none;
+	display: flex; align-items: center; justify-content: center;
+	border: 1px solid var(--border); border-radius: var(--r-8);
+	background: var(--surface); overflow: hidden;
+}
+.imr-qr-svg svg { width: 168px; height: 168px; display: block; }
+.imr-qr-image { width: 168px; height: 168px; object-fit: contain; }
+.imr-qr-placeholder { padding: var(--sp-12); text-align: center; font-size: var(--fs-11); color: var(--text-3); }
+.imr-qr-copy { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+
+.imr-dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-4) var(--sp-12); margin: var(--sp-8) 0; font-size: var(--fs-12); }
+.imr-dl dt { color: var(--text-3); }
+.imr-dl dd { margin: 0; }
+.imr-examples { margin: var(--sp-6) 0; padding-left: var(--sp-16); font-family: var(--font-mono); font-size: var(--fs-11); }

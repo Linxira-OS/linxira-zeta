@@ -257,9 +257,12 @@ describe("/channels command", () => {
 				} as unknown as InteractiveModeContext,
 			};
 			expect(await executeBuiltinSlashCommand("/channels status", runtime)).toBe(true);
-			expect(output.at(-1)).toContain(`IM channels — ${path.join(dir, "web.yml")}`);
-			expect(output.at(-1)).toContain("wechat    enabled, stopped, configured");
+			expect(output.at(-1)).toContain(`IM runtime — ${path.join(dir, "web.yml")}`);
+			expect(output.at(-1)).toContain("wechat");
+			expect(output.at(-1)).toContain("on,stop");
 			expect(output.at(-1)).toContain("no live host");
+			// Legacy config is shown as synthesized instances, not as migrated truth.
+			expect(output.at(-1)).toContain("channels.<platform>");
 		} finally {
 			if (previous === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
 			else process.env.ZETA_CODING_AGENT_DIR = previous;

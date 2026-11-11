@@ -28,6 +28,17 @@ import {
 	channelPairingLockPath,
 	wechatPairingBlockedByHost,
 } from "../channels/instance-lock";
+import {
+	formatChannelsAdmin,
+	legacyAdminBindings,
+	legacyAdminInstances,
+	mergeAdminStatus,
+	parseAdminBindings,
+	parseAdminInstances,
+	type AdminTarget,
+	type ChannelsAdminSnapshot,
+} from "../channels/admin-view";
+import { getChannelStatus } from "../channels";
 import { renderTerminalQr } from "../channels/qr-terminal";
 import { restartSessionChannels, suspendActiveSessionChannels } from "../channels/session-host";
 import { runWechatLogin, wechatQrDisplayPayload, type WechatLoginResult } from "../channels/wechat-login";
@@ -38,6 +49,9 @@ import type { ParsedSlashCommand, SlashCommandSpec } from "./types";
 
 const SUBCOMMANDS = [
 	{ name: "status", description: () => M.cmdChannelsStatus },
+	{ name: "instances", description: () => "instances / targets / bindings" },
+	{ name: "enable-instance", description: () => "enable-instance <instance-id>" },
+	{ name: "disable-instance", description: () => "disable-instance <instance-id>" },
 	{ name: "login", description: () => M.cmdChannelsLogin },
 	{ name: "enable", description: () => M.cmdChannelsEnable },
 	{ name: "disable", description: () => M.cmdChannelsDisable },
@@ -45,9 +59,12 @@ const SUBCOMMANDS = [
 ] as const;
 
 const USAGE = [
-	"Usage: /channels [status|login|enable|disable|logout] [channel]",
+	"Usage: /channels [status|instances|enable-instance|disable-instance|login|enable|disable|logout] [id]",
 	"",
 	"  /channels status",
+	"  /channels instances              instances, targets and bindings (redacted)",
+	"  /channels enable-instance <id>   per-instance switch (instances[] config)",
+	"  /channels disable-instance <id>",
 	"  /channels login wechat [timeout-seconds]",
 	"  /channels login feishu|telegram   (prints the CLI command; secrets stay out of the transcript)",
 	"  /channels enable <wechat|feishu|telegram>",
@@ -71,6 +88,110 @@ function statusLine(entry: ChannelStatusEntry): string {
 	return `  ${entry.id.padEnd(9)} ${state}  peers=${entry.boundPeers}  route=${route}  login=${entry.login}`;
 }
 
+/** Build the redacted admin page from web.yml + the live runtime. */
+async function collectAdminSnapshot(webConfig: WebConfig): Promise<ChannelsAdminSnapshot> {
+	const data = webConfig.getData();
+	const rich = await collectChannelStatus(webConfig);
+	const live = getChannelStatus();
+	const parsed = parseAdminInstances(data);
+	const legacy = parsed === null;
+	let instances = mergeAdminStatus(parsed ?? legacyAdminInstances(data), live);
+	instances = instances.map(instance => {
+		const entry = rich.channels.find(status => status.id === instance.id);
+		if (entry === undefined) return instance;
+		const target = entry.workspaceRoute.workspaceRoot;
+		return {
+			...instance,
+			configured: entry.configured,
+			...(target !== null ? { targetDisplay: entry.workspaceRoute.alias ?? target } : {}),
+			...(entry.running !== instance.running ? { running: entry.running } : {}),
+		};
+	});
+	const bindings = parseAdminBindings(data) ?? legacyAdminBindings(data);
+	const seen = new Set<string>();
+	const targets: AdminTarget[] = [];
+	for (const binding of bindings) {
+		if (binding.targetDisplay === undefined || seen.has(binding.targetDisplay)) continue;
+		seen.add(binding.targetDisplay);
+		targets.push({
+			display: binding.targetDisplay,
+			kind: "binding",
+			available: binding.targetAvailable !== false && binding.needsReview !== true,
+			...(binding.targetReason !== undefined ? { reason: binding.targetReason } : {}),
+		});
+	}
+	const runtime = rich.runtime;
+	const host = runtime.hosting
+		? `hosted by pid ${runtime.pid} (${runtime.host}, started ${runtime.startedAt})`
+		: runtime.stale
+			? `stale lock from pid ${runtime.pid}; no live host`
+			: "no live host";
+	return {
+		configPath: rich.configPath,
+		host,
+		...(legacy
+			? {
+					legacyNote:
+						"web.yml is still on channels.<platform>; instances are synthesized (id = platform) until migration.",
+				}
+			: {}),
+		instances,
+		bindings,
+		targets,
+	};
+}
+
+/** The TUI context has no language accessor; the admin page follows the env. */
+function adminLanguageIsChinese(): boolean {
+	return (process.env.ZETA_LANG ?? process.env.LANG ?? "").toLowerCase().startsWith("zh");
+}
+
+async function showAdmin(ctx: { presentCommandOutput: (content: Text) => void }): Promise<void> {
+	const webConfig = await WebConfig.load();
+	const snapshot = await collectAdminSnapshot(webConfig);
+	ctx.presentCommandOutput(new Text(formatChannelsAdmin(snapshot, adminLanguageIsChinese()), 1, 0));
+}
+
+async function setInstanceEnabledById(
+	ctx: { showStatus: (message: string) => void },
+	webConfig: WebConfig,
+	id: string,
+	enabled: boolean,
+): Promise<void> {
+	const data = webConfig.getData();
+	const parsed = parseAdminInstances(data);
+	if (parsed === null) {
+		if (!isChannelId(id)) {
+			ctx.showStatus(`Unknown instance: ${id}`);
+			return;
+		}
+		await setChannelEnabled(webConfig, id, enabled);
+	} else {
+		const row = parsed.find(instance => instance.id === id);
+		if (row === undefined) {
+			ctx.showStatus(`Unknown instance: ${id}`);
+			return;
+		}
+		try {
+			await webConfig.set(
+				"channels.instances",
+				parsed.map(instance => (instance.id === id ? { ...instance, enabled } : instance)),
+			);
+		} catch (error) {
+			ctx.showStatus(
+				`Could not write channels.instances: ${error instanceof Error ? error.message : String(error)}`,
+			);
+			return;
+		}
+	}
+	const restart = await restartSessionChannels();
+	ctx.showStatus(
+		restart?.started
+			? `${id} ${enabled ? "enabled" : "disabled"}; runtime restarted (${restart.host.channels.join(", ") || "no channels"}).`
+			: `${id} ${enabled ? "enabled" : "disabled"} in ${webConfig.path}. The next session will start it.`,
+	);
+}
+
 export function formatChannelStatus(status: ChannelsStatusJson): string {
 	const runtime = status.runtime;
 	const host = runtime.hosting
@@ -89,12 +210,6 @@ export function formatChannelStatus(status: ChannelsStatusJson): string {
 		"Credential channels: /channels login feishu|telegram for the CLI command.",
 		"",
 	].join("\n");
-}
-
-async function showStatus(ctx: { presentCommandOutput: (content: Text) => void }): Promise<void> {
-	const webConfig = await WebConfig.load();
-	const status = await collectChannelStatus(webConfig);
-	ctx.presentCommandOutput(new Text(formatChannelStatus(status), 1, 0));
 }
 
 async function enableChannel(
@@ -253,8 +368,23 @@ export const BUILTIN_CHANNELS_SLASH_COMMAND: SlashCommandSpec = {
 		const [action = "status", ...rest] = command.args.trim().split(/\s+/).filter(Boolean);
 		switch (action.toLowerCase()) {
 			case "status":
-				await showStatus(ctx);
+			case "instances":
+			case "targets":
+			case "bindings": {
+				await showAdmin(ctx);
 				return commandConsumed();
+			}
+			case "enable-instance":
+			case "disable-instance": {
+				const id = rest[0]?.trim();
+				if (!id) {
+					ctx.showError(`Usage: /channels ${action} <instance-id>`);
+					return commandConsumed();
+				}
+				const webConfig = await WebConfig.load();
+				await setInstanceEnabledById(ctx, webConfig, id, action.toLowerCase() === "enable-instance");
+				return commandConsumed();
+			}
 			case "enable":
 			case "disable": {
 				const channel = parseChannel(rest[0]);
