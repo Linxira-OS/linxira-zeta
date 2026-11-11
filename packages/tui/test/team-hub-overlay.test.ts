@@ -168,14 +168,16 @@ describe("Team Hub overlay", () => {
 			requestRender() {},
 		});
 		await hub.ready;
-		// rooms -> task entry (coordination, core, TASKS label, T-1)
-		hub.handleInput("j");
-		hub.handleInput("j");
+		// core room -> T-1 task entry
 		hub.handleInput("j");
 		expect(hub.render(96).join("\n")).toContain("REQ-1");
 		hub.handleInput("c");
 		await hub.ready;
 		expect(actions).toContain("task:claim:T-1");
+
+		hub.handleInput("K");
+		await hub.ready;
+		expect(actions.some(action => action.startsWith("kind:"))).toBe(true);
 
 		hub.handleInput("g");
 		await hub.ready;
@@ -184,10 +186,6 @@ describe("Team Hub overlay", () => {
 		hub.handleInput("\r");
 		await hub.ready;
 		expect(actions).toContain("member:bob");
-
-		hub.handleInput("K");
-		await hub.ready;
-		expect(actions.some(action => action.startsWith("kind:"))).toBe(true);
 		hub.dispose();
 	});
 
