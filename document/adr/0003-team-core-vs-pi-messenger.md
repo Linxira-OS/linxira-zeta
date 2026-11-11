@@ -20,7 +20,9 @@ the `/team`, `/team hub`, and `/lead` (alias `/pm`) commands.
 plugin: a shared chat room, task claiming, file reservation, the `crew/`
 sub-agent set, `/editor`, `/messenger`, and `/teamagent`. `/teamagent` registers
 the plugin's crew roles and reads the plugin's own store under
-`.zeta/messenger/team/`; it never reads the Zeta Team database.
+`.zeta/messenger/team/`; it never reads the Zeta Team database. The plugin's
+README calls its optional profiles/charter/memory layer "Team", but that is a
+Crew context layer in the plugin store, not Zeta Team mode.
 
 The risk is a second Team model growing inside the optional plugin, or the core
 depending on an optional plugin.
