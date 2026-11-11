@@ -469,10 +469,11 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 			: `  Release scope: ${scope.requirements.length} REQ(s), ${scope.adrs.length} ADR(s) verified.`,
 	);
 
-	// Step 1d: if a local dist exists, it must be built from this commit —
-	// otherwise a stale bundle could be packed/published as the release
-	// (REQ-036). A missing dist is normal (clean checkout).
-	if (await Bun.file("packages/coding-agent/dist/cli.js").exists()) {
+	// Step 1d: a PUBLIC release must not pack a stale local dist — otherwise a
+	// bundle built from another commit could be published as this tag
+	// (REQ-036). Code-only 1.5.x tags publish nothing, so a pre-existing dist
+	// is not a release input and must not falsely block the tag.
+	if (!internalBuild && (await Bun.file("packages/coding-agent/dist/cli.js").exists())) {
 		const artifact = await $`bun scripts/check-release-artifact.ts --staged`.nothrow();
 		if (artifact.exitCode !== 0) {
 			console.error("Error: the staged coding-agent dist is not built from this commit (REQ-036).");
