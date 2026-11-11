@@ -10,9 +10,10 @@
  * 3. `POST /api/auth/2fa/verify` unlocks the caller's window;
  * 4. the original request is replayed **exactly once**.
  *
- * Replay-once is enforced locally: a request that already survived one
- * challenge is returned as-is the second time, so a server that keeps refusing
- * cannot turn into a retry loop.
+ * Replay-once is per fetch invocation: the wrapper never calls itself recursively
+ * for a retry, so one call gets at most one replay and a still-refused retry is
+ * returned to the caller unchanged. Independent calls are not marked: a later
+ * challenge (for example after the verify window expires) prompts again.
  *
  * Wire it once, high in the tree:
  *
@@ -25,13 +26,13 @@
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { verifyTwoFactor } from "./securityApi";
-import type { FetchLike } from "@linxiraos/studio-transport-web";
 import { defaultGatewayFetch, type GatewayFetch } from "./gatewayRequest";
-import { authFetch } from "../../host/authFetch";
+
+export type StepUpPrompt = () => Promise<string | null>;
 
 type PromptResult = string | null;
 
-interface PromptRequest {
+export interface PromptRequest {
 	readonly resolve: (value: PromptResult) => void;
 }
 
@@ -88,10 +89,6 @@ async function readChallenge(response: Response): Promise<TotpChallenge | null> 
 	}
 }
 
-/** Requests that already answered one challenge; never retried twice. */
-const retriedInits = new WeakSet<RequestInit>();
-const retriedStrings = new Set<string>();
-
 /**
  * Whether a request body can be sent twice.
  *
@@ -112,6 +109,11 @@ function replayableBody(init: RequestInit | undefined): boolean {
 	);
 }
 
+export interface StepUpFetchOptions {
+	/** Prompt implementation; production uses the mounted React boundary. */
+	readonly prompt?: StepUpPrompt;
+}
+
 /**
  * Wrap a fetcher with the challenge → verify → replay-once protocol.
  *
@@ -119,8 +121,23 @@ function replayableBody(init: RequestInit | undefined): boolean {
  * the original body is still unread for the retry. A streaming `init.body` is
  * never replayed — the challenge is returned as-is instead of risking a
  * duplicate or a truncated write.
+ *
+ * Replay-once is local to this invocation. There is deliberately no process-
+ * wide "already retried" set: one successful step-up must not suppress a later
+ * challenge from an independent request, and URL-keyed global markers would
+ * grow without bound.
  */
-export function createStepUpFetch(inner: FetchLike = authFetch): FetchLike {
+/** The general fetch shape this wrapper accepts. */
+export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+const defaultInner: FetchLike = (input, init) =>
+	typeof input === "string" ? defaultGatewayFetch(input, init) : fetch(input, init);
+
+export function createStepUpFetch(
+	inner: FetchLike = defaultInner,
+	options: StepUpFetchOptions = {},
+): FetchLike {
+	const ask = options.prompt ?? requestCode;
 	return async (input, init) => {
 		const primary: RequestInfo | URL = input instanceof Request ? input.clone() : input;
 		const response = await inner(primary, init as RequestInit | undefined);
@@ -129,13 +146,9 @@ export function createStepUpFetch(inner: FetchLike = authFetch): FetchLike {
 
 		const replayable = (typeof input === "string" || input instanceof URL || input instanceof Request) &&
 			replayableBody(init as RequestInit | undefined);
-		const key = typeof input === "string" ? input : input instanceof URL ? input.toString() : null;
-		const alreadyRetried = init !== undefined
-			? retriedInits.has(init as RequestInit)
-			: key !== null && retriedStrings.has(key);
-		if (!replayable || alreadyRetried) return response;
+		if (!replayable) return response;
 
-		const code = await requestCode();
+		const code = await ask();
 		if (code === null) return response;
 		try {
 			// `verifyTwoFactor` speaks the gateway shape (a path string); adapt the
@@ -145,8 +158,8 @@ export function createStepUpFetch(inner: FetchLike = authFetch): FetchLike {
 		} catch {
 			return Response.json({ error: "totp_required", retryable: true }, { status: 403 });
 		}
-		if (init !== undefined) retriedInits.add(init as RequestInit);
-		else if (key !== null) retriedStrings.add(key);
+		// Exactly one replay. The retry is not passed through the challenge
+		// handler again; a second 403 is returned to the caller.
 		return inner(input, init as RequestInit | undefined);
 	};
 }
