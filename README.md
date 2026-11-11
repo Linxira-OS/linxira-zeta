@@ -323,6 +323,16 @@ Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in
   [docs/marketplace.md](./docs/marketplace.md),
   [docs/slash-command-internals.md](./docs/slash-command-internals.md).
 
+## Related repositories
+
+- [Linxira Knowledge Base (`lkb`)](https://github.com/Linxira-OS/linxira-knowledge-base)
+  — the sibling self-hosted, layered knowledge base. It exposes an MCP server
+  and an OpenAPI 3.1 surface, so a Zeta agent can query it as an external tool.
+  It is a separate product with its own release line: not bundled with Zeta and
+  not a build dependency. The client boundary — delegated identity, retrieval,
+  maintenance scopes, audit attribution, and write approval — is recorded in
+  [`document/lkb-integration.md`](./document/lkb-integration.md).
+
 ## Documentation
 
 The repository keeps two documentation trees with different audiences:
@@ -729,6 +739,14 @@ Zeta 修改与新增的部分。按产品面说明：
   [docs/custom-tools.md](./docs/custom-tools.md)、
   [docs/marketplace.md](./docs/marketplace.md)、
   [docs/slash-command-internals.md](./docs/slash-command-internals.md)。
+
+### 相关仓库
+
+- [Linxira Knowledge Base（`lkb`）](https://github.com/Linxira-OS/linxira-knowledge-base)
+  —— 同组织的自托管分层知识库。它提供 MCP server 与 OpenAPI 3.1 接口，Zeta agent
+  可作为外部工具查询。它是独立产品、有独立发布线：不随 Zeta 打包，也不是构建
+  依赖。客户端边界（委派身份、检索、维护作用域、审计归因、写入审批）记录在
+  [`document/lkb-integration.md`](./document/lkb-integration.md)。
 
 ### 文档
 
