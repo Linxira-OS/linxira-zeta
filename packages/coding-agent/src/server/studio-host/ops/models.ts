@@ -54,7 +54,7 @@
  */
 import { createHash } from "node:crypto";
 import { YAML } from "bun";
-import { isRecord } from "@linxiraos/pi-utils";
+import { getProjectDir, isRecord } from "@linxiraos/pi-utils";
 import type {
 	AvailableModelRecord,
 	CommandInput,
@@ -91,6 +91,9 @@ import {
 } from "../gateway.js";
 import type { StudioFamily } from "../registry.js";
 import { MODEL_ROLE_IDS, MODEL_ROLES } from "../../../config/model-roles.js";
+import { findAgentRoleReferences, findRoleAssignmentReferences } from "../../../config/role-references.js";
+import { discoverAgents } from "../../../task/discovery.js";
+import type { AgentDefinition } from "../../../task/types.js";
 import { resolveWorkspaceCwd } from "./git.js";
 
 const MODELS_CONFIG_ROUTE = "/api/models-config";
@@ -1089,18 +1092,47 @@ async function createRole(input: CommandInput<"models.roles.create">): Promise<C
 	};
 }
 
-/** `models.roles.delete` handler → `PUT /api/settings` (`modelTags` + `modelRoles`). */
+/** `models.roles.delete` handler → `PUT /api/settings` (`modelTags` + `modelRoles` + chains). */
 async function deleteRole(input: CommandInput<"models.roles.delete">): Promise<ConfigWriteResult> {
 	const id = requiredString(input, "roleId").trim();
 	if (id === "") throw invalid("roleId must be a non-empty string");
 	if (MODEL_ROLE_IDS.some(role => role === id)) throw invalid(`${id} is a built-in role`);
-	const values = await readSettingValues(["modelTags", "modelRoles"]);
+	const values = await readSettingValues([
+		"modelTags",
+		"modelRoles",
+		"retry.fallbackChains",
+		"task.agentModelOverrides",
+	]);
 	const tags = isRecord(values.modelTags) ? { ...values.modelTags } : {};
 	const roles = isRecord(values.modelRoles) ? { ...values.modelRoles } : {};
+	const chains = isRecord(values["retry.fallbackChains"]) ? { ...values["retry.fallbackChains"] } : {};
+	const overrides = isRecord(values["task.agentModelOverrides"]) ? values["task.agentModelOverrides"] : {};
+
+	// Never orphan an agent on a deleted purpose role: the agent would silently
+	// fall through to default at runtime. The caller must reassign or inherit.
+	let agents: AgentDefinition[] = [];
+	try {
+		agents = (await discoverAgents(getProjectDir())).agents;
+	} catch {
+		// Discovery is best-effort; the settings overlay still catches configured
+		// overrides when the agent roots cannot be scanned.
+		agents = [];
+	}
+	const agentRefs = findAgentRoleReferences(agents, overrides, id);
+	const roleRefs = findRoleAssignmentReferences(roles, id).filter(name => name !== id);
+	const references = [...agentRefs.map(name => `agent:${name}`), ...roleRefs.map(name => `role:${name}`)];
+	if (references.length > 0) {
+		throw invalid(
+			`Role @${id} is still referenced by ${references.join(", ")}. Reassign those agents or switch them to inherit before deleting.`,
+		);
+	}
+
 	delete tags[id];
 	delete roles[id];
+	delete chains[id];
 	await putSetting("modelTags", tags);
 	await putSetting("modelRoles", roles);
+	await putSetting("retry.fallbackChains", chains);
 	return { applied: true, runtimeEffect: "new-session", message: `Custom role ${id} deleted.` };
 }
 

@@ -21,6 +21,7 @@ import { pagePhaseClass, useDeferredPresence } from "./pageTransition";
 import { parseJsonOrYaml, StructuredEditor } from "./structured-editor";
 import { ComposerModelMenu } from "./ComposerModelPicker";
 import { createPreviewModelConfig } from "./preview/modelConfigFixtures";
+import { agentModelOverrideFor, resolveAgentModel } from "./models/purposeCategories";
 import {
   AGENT_THINKING,
   createPreviewAgentDefinitions,
@@ -55,7 +56,9 @@ interface AgentDraft {
   autoloadSkills: string;
   outputText: string;
   disabled: boolean;
-  overrideModel: string;
+  overrideMode: "inherit" | "category" | "exact";
+  overrideRole: string;
+  overrideExact: string;
   prewalkOverride: string;
   advisorOverride: string;
   contentHash?: string;
@@ -132,7 +135,9 @@ function blankDraft(projectAvailable: boolean): AgentDraft {
     autoloadSkills: "",
     outputText: "",
     disabled: false,
-    overrideModel: "",
+    overrideMode: "inherit",
+    overrideRole: "",
+    overrideExact: "",
     prewalkOverride: "",
     advisorOverride: "",
     existing: false,
@@ -171,7 +176,21 @@ function draftFromAgent(agent: AgentDefinitionRecord, projectAvailable: boolean)
     autoloadSkills: (agent.autoloadSkills ?? []).join(", "),
     outputText: agent.output === undefined ? "" : JSON.stringify(agent.output, null, 2),
     disabled: agent.disabled,
-    overrideModel: agent.overrideModel ?? "",
+    overrideMode: (agent.overrideModel ?? "").trim() === ""
+      ? "inherit"
+      : (agent.overrideModel ?? "").trim().startsWith("@") || (agent.overrideModel ?? "").trim().startsWith("pi/")
+        ? "category"
+        : "exact",
+    overrideRole: (agent.overrideModel ?? "").trim().startsWith("@")
+      ? (agent.overrideModel ?? "").trim().slice(1)
+      : (agent.overrideModel ?? "").trim().startsWith("pi/")
+        ? (agent.overrideModel ?? "").trim().slice(3)
+        : "",
+    overrideExact: (agent.overrideModel ?? "").trim() !== ""
+      && !(agent.overrideModel ?? "").trim().startsWith("@")
+      && !(agent.overrideModel ?? "").trim().startsWith("pi/")
+        ? (agent.overrideModel ?? "").trim()
+        : "",
     prewalkOverride: agent.prewalkOverride ?? "",
     advisorOverride: agent.advisorOverride ?? "",
     ...(agent.contentHash === undefined ? {} : { contentHash: agent.contentHash }),
@@ -403,6 +422,7 @@ export function SubagentsPanel({
           : draft.advisorMode === "on"
             ? true
             : draft.advisorPattern.trim() || null;
+    const overrideModel = agentModelOverrideFor({ mode: draft.overrideMode, roleId: draft.overrideRole, exact: draft.overrideExact });
     const upsert: AgentDefinitionUpsertInput = {
       name,
       description,
@@ -446,7 +466,7 @@ export function SubagentsPanel({
           canDelete: true,
           canFork: false,
           disabled: draft.disabled,
-          ...(draft.overrideModel.trim() ? { overrideModel: draft.overrideModel.trim() } : {}),
+          ...(overrideModel ? { overrideModel } : {}),
           ...(draft.prewalkOverride.trim() ? { prewalkOverride: draft.prewalkOverride.trim() } : {}),
           ...(draft.advisorOverride.trim() ? { advisorOverride: draft.advisorOverride.trim() } : {}),
         };
@@ -464,7 +484,7 @@ export function SubagentsPanel({
             return {
               ...rest,
               disabled: draft.disabled,
-              ...(draft.overrideModel.trim() ? { overrideModel: draft.overrideModel.trim() } : {}),
+              ...(overrideModel ? { overrideModel } : {}),
               ...(draft.prewalkOverride.trim() ? { prewalkOverride: draft.prewalkOverride.trim() } : {}),
           ...(draft.advisorOverride.trim() ? { advisorOverride: draft.advisorOverride.trim() } : {}),
             };
@@ -484,14 +504,14 @@ export function SubagentsPanel({
       const needsConfigure =
         !draft.editable
         || draft.disabled
-        || Boolean(draft.overrideModel.trim())
+        || Boolean(overrideModel)
         || Boolean(draft.prewalkOverride.trim())
         || Boolean(draft.advisorOverride.trim());
       if (needsConfigure) {
         await runWrite(client, "agents.definition.configure", {
           name: upsert.name,
           disabled: draft.disabled,
-          overrideModel: draft.overrideModel.trim() ? draft.overrideModel.trim() : null,
+          overrideModel: overrideModel ? overrideModel : null,
           prewalkOverride: draft.prewalkOverride.trim() ? draft.prewalkOverride.trim() : null,
           advisorOverride: draft.advisorOverride.trim() ? draft.advisorOverride.trim() : null,
         });
@@ -601,6 +621,9 @@ export function SubagentsPanel({
   };
 
   const definitionLocked = Boolean(draft && !draft.editable);
+  const overrideValue = draft ? agentModelOverrideFor({ mode: draft.overrideMode, roleId: draft.overrideRole, exact: draft.overrideExact }) : "";
+  const overrideRoles = models?.roles ?? [];
+  const overrideResolved = draft ? resolveAgentModel(overrideValue, draft.models, overrideRoles, models?.availableModels ?? []) : undefined;
 
   return (
     <div className={viewLive ? `mc-view ${pagePhaseClass(viewPhase)}` : "mc-view"}>
@@ -876,7 +899,48 @@ export function SubagentsPanel({
           <div className="f-grid">
             <div className="field">
               <label htmlFor="sa-override">{t("subagents.overrideModel")}</label>
-              <input className="input mono" id="sa-override" list="sa-model-suggest" placeholder={t("subagents.overrideModelPlaceholder")} value={draft.overrideModel} onChange={(event) => setDraft({ ...draft, overrideModel: event.target.value })} />
+              <div style={{ display: "grid", gap: 6 }}>
+                <select
+                  className="select"
+                  id="sa-override"
+                  value={draft.overrideMode}
+                  onChange={(event) => {
+                    const mode = event.target.value as AgentDraft["overrideMode"];
+                    if (mode === "inherit") setDraft({ ...draft, overrideMode: mode, overrideRole: "", overrideExact: "" });
+                    else if (mode === "category") {
+                      const first = draft.overrideRole || overrideRoles[0]?.id || "";
+                      setDraft({ ...draft, overrideMode: mode, overrideRole: first, overrideExact: "" });
+                    } else setDraft({ ...draft, overrideMode: mode, overrideRole: "" });
+                  }}
+                >
+                  <option value="inherit">{t("subagents.modelModeInherit")}</option>
+                  <option value="category">{t("subagents.modelModeCategory")}</option>
+                  <option value="exact">{t("subagents.modelModeExact")}</option>
+                </select>
+                {draft.overrideMode === "category" ? (
+                  <select
+                    className="select"
+                    aria-label={t("subagents.modelCategoryLabel")}
+                    value={draft.overrideRole || overrideRoles[0]?.id || ""}
+                    onChange={(event) => setDraft({ ...draft, overrideRole: event.target.value })}
+                  >
+                    {overrideRoles.map((role) => (
+                      <option key={role.id} value={role.id}>{role.name} ({role.alias})</option>
+                    ))}
+                  </select>
+                ) : null}
+                {draft.overrideMode === "exact" ? (
+                  <input className="input mono" aria-label={t("subagents.modelExactLabel")} placeholder="provider/model 或 local/model" value={draft.overrideExact} onChange={(event) => setDraft({ ...draft, overrideExact: event.target.value })} />
+                ) : null}
+                <span className="desc">
+                  {overrideResolved === undefined || overrideResolved.source === "unresolved"
+                    ? t("subagents.modelUnresolved")
+                    : t("subagents.modelResolved", {
+                        source: t(`subagents.modelSource.${overrideResolved.source}`),
+                        model: overrideResolved.model?.selector ?? overrideResolved.selector,
+                      })}
+                </span>
+              </div>
             </div>
             <div className="field">
               <label htmlFor="sa-prewalk-ov">{t("subagents.overridePrewalk")}</label>
