@@ -301,8 +301,13 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 	// Registry entries and the default workspace stay listed even with no
 	// conversations. Preference keys are canonicalized by the store on load.
 	for (const [key, preference] of Object.entries(preferences.projects)) {
-		const bucket = ensureProject(key);
-		if (preference.registered === true) ensureWorkspace(bucket, key);
+		// The key is the case-folded comparison identity; the stored path is the
+		// user's spelling. A preference-only row must not lowercase the folder.
+		const directory = preference.path !== undefined && resumePathKey(preference.path) === key
+			? preference.path
+			: key;
+		const bucket = ensureProject(directory);
+		if (preference.registered === true) ensureWorkspace(bucket, directory);
 	}
 	for (const projectRoot of options.registeredProjects ?? []) {
 		if (projectRoot) ensureWorkspace(ensureProject(projectRoot), projectRoot);

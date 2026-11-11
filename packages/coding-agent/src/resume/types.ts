@@ -132,6 +132,12 @@ export interface ResumeProjectPreferences {
 	collapsed?: boolean;
 	/** Registry flag: keep this project in the directory with zero sessions. */
 	registered?: boolean;
+	/**
+	 * Registered directory as the user spelled it. The map key is the
+	 * case-folded comparison identity; this field keeps the display path/name
+	 * exact (Windows comparison keys would otherwise lowercase the folder).
+	 */
+	path?: string;
 	/** Epoch milliseconds of the last time the project was opened. */
 	lastOpened?: number;
 }

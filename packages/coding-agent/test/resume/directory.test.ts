@@ -86,7 +86,8 @@ describe("resume directory", () => {
 		const empty = directory.projects.find(project => project.key === resumePathKey(EMPTY_PROJECT));
 		expect(empty).toBeDefined();
 		expect(empty?.displayName).toBe("empty-project");
-		expect(empty?.counts).toEqual({ conversations: 0, workspaces: 0, pinnedConversations: 0 });
+		expect(empty?.counts).toEqual({ conversations: 0, workspaces: 1, pinnedConversations: 0 });
+		expect(empty?.workspaces[0]?.key).toBe(resumePathKey(EMPTY_PROJECT));
 		expect(empty?.lastActivity).toBeNull();
 		expect(directory.counts.projects).toBe(2);
 	});
@@ -147,6 +148,23 @@ describe("resume directory", () => {
 		expect(fork.parentKey).toBe(parent.key);
 	});
 
+	it("keeps a registered folder's original spelling in project and workspace rows", async () => {
+		const registered = "/resume-test/Registered-Case";
+		const directory = await buildDirectory({
+			sessions: [],
+			preferences: {
+				version: 1,
+				projects: { [resumePathKey(registered)]: { registered: true, path: registered } },
+			},
+			pinnedIds: pinnedSet(),
+		});
+		const project = directory.projects.find(candidate => candidate.key === resumePathKey(registered));
+		expect(project?.root).toBe(registered);
+		expect(project?.name).toBe("Registered-Case");
+		expect(project?.workspaces[0]?.path).toBe(registered);
+		expect(project?.workspaces[0]?.name).toBe("Registered-Case");
+	});
+
 	it("filters subagents out of the picker directory and its counts", async () => {
 		const parentPath = "/resume-test/sessions/parent.jsonl";
 		const directory = await buildDirectory({
@@ -177,7 +195,8 @@ describe("resume directory", () => {
 		const repoB = directory.projects.find(project => project.key === resumePathKey(REPO_B))!;
 		expect(repoA.counts.conversations).toBe(1);
 		expect(repoB.counts.conversations).toBe(0);
-		expect(repoB.workspaces).toHaveLength(0);
+		expect(repoB.workspaces).toHaveLength(1);
+		expect(repoB.workspaces[0]?.name).toBe("repo-b");
 	});
 
 	it("applies workspace aliases and pins from preferences", async () => {

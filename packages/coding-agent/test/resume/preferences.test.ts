@@ -44,7 +44,7 @@ describe("resume preferences", () => {
 		expect(loaded.version).toBe(1);
 		expect(loaded.projects[resumePathKey(REPO_A)]).toEqual({ alias: "Alpha", collapsed: true });
 		expect(loaded.projects[resumePathKey(REPO_B)]).toEqual({ pinned: true });
-		expect(loaded.projects[resumePathKey(EMPTY_PROJECT)]).toEqual({ registered: true });
+		expect(loaded.projects[resumePathKey(EMPTY_PROJECT)]).toEqual({ registered: true, path: EMPTY_PROJECT });
 
 		const onDisk: unknown = JSON.parse(fs.readFileSync(resumePreferencesPath(agentDir), "utf-8"));
 		expect(onDisk).toEqual(loaded);
@@ -88,6 +88,7 @@ describe("resume preferences", () => {
 			await registerProject(projectRoot, agentDir);
 			expect((await loadResumePreferences(agentDir)).projects[resumePathKey(projectRoot)]).toEqual({
 				registered: true,
+				path: projectRoot,
 			});
 
 			await unregisterProject(projectRoot, agentDir);

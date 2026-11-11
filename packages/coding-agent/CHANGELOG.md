@@ -36,6 +36,10 @@
 
 ### Fixed
 
+- **Registered folders keep their original path spelling** — the registry stores
+  the user's registered directory alongside its case-folded comparison key, so
+  opening or registering a folder no longer lowercases its project/workspace
+  name on Windows. Empty registered folders remain listed as workspaces.
 - **Home and recent chats no longer borrow another project's name** — each row
   uses its own workspace identity; older Hosts omit the label instead of copying
   the current project.

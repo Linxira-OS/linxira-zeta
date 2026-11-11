@@ -54,6 +54,7 @@ function sanitizeProjectPreference(value: unknown): ResumeProjectPreferences | n
 	if ("hidden" in value && typeof value.hidden === "boolean") result.hidden = value.hidden;
 	if ("collapsed" in value && typeof value.collapsed === "boolean") result.collapsed = value.collapsed;
 	if ("registered" in value && typeof value.registered === "boolean") result.registered = value.registered;
+	if ("path" in value && typeof value.path === "string" && value.path.trim() !== "") result.path = value.path;
 	if ("alias" in value && typeof value.alias === "string") {
 		const alias = value.alias.trim();
 		if (alias) result.alias = alias;
@@ -312,7 +313,7 @@ export async function setProjectCollapsed(
  */
 export async function registerProject(projectRoot: string, agentDir: string = getAgentDir()): Promise<void> {
 	if (!resumePathKey(projectRoot)) throw new Error("A project root is required");
-	await setProjectPreference(projectRoot, { registered: true }, agentDir);
+	await setProjectPreference(projectRoot, { registered: true, path: projectRoot }, agentDir);
 }
 
 /** Remove a project from the registry and drop its preferences. */
