@@ -47,7 +47,7 @@ import {
 	readCookie,
 	type RemoteCredential,
 } from "../web-gateway/remote-access";
-import { bindingAllows, type DeviceBinding, type RequestTarget } from "../auth/binding";
+import { bindingAllows, parseBinding, type DeviceBinding, type RequestTarget } from "../auth/binding";
 import { workspaceOfSessionResolver } from "../web-gateway/binding-guard";
 import { classifyOperation, scopeSatisfies } from "../web-gateway/scope";
 import { sessionStore, type LiveSession } from "../auth/session-store";
@@ -332,6 +332,7 @@ export class StudioHost {
 			if (url.pathname === "/api/v1/command" && req.method === "POST") return await this.#command(req, remoteAddr, context);
 			return json({ error: "not_found" }, 404);
 		} catch (error) {
+			if (error instanceof PairingInputError) return json({ error: error.message }, 400);
 			const tooLarge = error instanceof Error && error.message === "body_too_large";
 			return json({ error: tooLarge ? "body_too_large" : "bad_request" }, 400);
 		}
@@ -368,16 +369,17 @@ export class StudioHost {
 		// Pairing is what turns "this phone knows the QR secret" into "this phone
 		// has its own revocable credential". The plaintext token leaves only in
 		// this response; the registry keeps its hash.
+		const deviceRequest = this.#deviceRequest(body, req);
 		let issued: { device: PublicDevice; token: string };
 		try {
-			issued = await deviceRegistry().issue(this.#deviceRequest(body, req));
+			issued = await deviceRegistry().issue(deviceRequest);
 		} catch (error) {
 			logger.warn("Device registration failed during pairing", {
 				error: error instanceof Error ? error.message : String(error),
 			});
 			return json({ error: "device_registry_unavailable" }, 500);
 		}
-		const [sessionId, session] = await this.#createSession(issued.device.id);
+		const [sessionId, session] = await this.#createSession(issued.device.id, deviceRequest.binding);
 		// The device token is for native clients only (Keystore / header auth).
 		// A browser keeps the HttpOnly cookie and never sees the token, so an XSS
 		// cannot lift a long-lived bearer credential out of page JS.
@@ -398,8 +400,13 @@ export class StudioHost {
 	 * The label is a display string; the platform is normalized by the registry
 	 * and defaults to what the User-Agent implies.
 	 */
-	#deviceRequest(body: unknown, req: Request): { label?: string; platform?: string; machineId?: string } {
-		const empty: { label?: string; platform?: string; machineId?: string } = {
+	#deviceRequest(body: unknown, req: Request): {
+		label?: string;
+		platform?: string;
+		machineId?: string;
+		binding?: DeviceBinding;
+	} {
+		const empty: { label?: string; platform?: string; machineId?: string; binding?: DeviceBinding } = {
 			platform: inferPlatform(req.headers.get("user-agent")),
 		};
 		if (body === null || typeof body !== "object" || !("device" in body)) return empty;
@@ -408,10 +415,21 @@ export class StudioHost {
 		const label = "label" in raw && typeof raw.label === "string" ? raw.label : undefined;
 		const platform = "platform" in raw && typeof raw.platform === "string" ? raw.platform : undefined;
 		const machineId = "machineId" in raw && typeof raw.machineId === "string" ? raw.machineId : undefined;
+		// A client may ask for a narrower device: applying a binding to a fresh
+		// device can only restrict what it reaches, never widen it. A malformed
+		// value is rejected rather than ignored, so an operator cannot think a
+		// restriction applied when it did not.
+		let binding: DeviceBinding | undefined;
+		if ("binding" in raw) {
+			const parsed = parseBinding(raw.binding);
+			if (!parsed.ok) throw new PairingInputError("binding_invalid");
+			binding = parsed.binding;
+		}
 		return {
 			...(label !== undefined ? { label } : {}),
 			platform: platform ?? empty.platform,
 			...(machineId !== undefined ? { machineId } : {}),
+			...(binding !== undefined ? { binding } : {}),
 		};
 	}
 
@@ -449,7 +467,11 @@ export class StudioHost {
 		const authorized = await this.#authorize(req, remoteAddr);
 		// A cookie already proves a live session; a stateless token caller is
 		// authorized for reads but gets no cookie here (it pairs explicitly).
-		if (authorized !== undefined && hasCookie) return json(bootstrap);
+		if (authorized !== undefined && hasCookie) {
+			// A cookie session needs the CSRF token for mutations; hand it over on
+			// bootstrap as well as on pair so a WebView never needs a JS bridge.
+			return json(bootstrap, 200, { [STUDIO_CSRF_HEADER]: authorized[1].csrf });
+		}
 		// The same-origin renderer is served on a direct loopback socket by
 		// `zeta serve` and the desktop shell, so it may establish its own session
 		// on the bootstrap read. A proxied peer was already rejected by the
@@ -685,6 +707,9 @@ export class StudioHost {
 		return events;
 	}
 }
+
+/** Pairing input the client got wrong (answered 400, never a silent default). */
+class PairingInputError extends Error {}
 
 /** Whether the request arrived over TLS (cookie `Secure` scoping only, not identity). */
 function isSecureRequest(req: Request): boolean {
