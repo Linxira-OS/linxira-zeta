@@ -369,3 +369,6 @@ function parseFriction(value: unknown): SharpshooterFriction | undefined {
 	return {
 		corrective: friction.corrective,
 		regression: friction.regression,
+		subtle: friction.subtle,
+	};
+}

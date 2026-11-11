@@ -118,6 +118,12 @@ export async function startWindowLearning(options: WindowLearningOptions): Promi
 				try {
 					do {
 						await queue.process(async (window, checkpoint) => {
+							if (!window.messages.some(message => message.role === "user")) {
+								window.memoryDone = true;
+								window.tasteDone = true;
+								await checkpoint();
+								return;
+							}
 							const backend = await resolveMemoryBackend(settings);
 							if (window.memory && !window.memoryDone) {
 								if (!backend.learnWindow) throw new Error(`${backend.id} does not implement window learning`);

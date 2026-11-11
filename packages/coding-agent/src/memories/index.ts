@@ -1666,4 +1666,10 @@ async function runWithConcurrency<T>(
 	// [suppressed] length preallocation
 	const workers = new Array(Math.max(1, concurrency)).fill(0).map(async () => {
 		while (queue.length > 0) {
-			const item = que
+			const item = queue.shift();
+			if (!item) return;
+			await worker(item);
+		}
+	});
+	await Promise.all(workers);
+}
