@@ -2,43 +2,10 @@
 
 ## 下一版本（Unreleased）
 
-### 报告完成列车（本地集成，未发布）
-- **执行记录恢复**：磁盘写满后从已提交版本恢复需求台账，保留原 REQ id；追加 REQ-078 记录经用户授权的旧 worktree/分支及保守缓存清理，退役 SHA 与实际删除状态记在分支登记簿。仅本地提交，公开 1.5.1 不变，不推送、不创建 PR、不打 tag、不发布。
-- **验收状态**：本轮 source integration 与独立验证分开。已合入的 TUI 输入修复、IM schema/API 与首批 IM UI 只记 IMPLEMENTED；Settings 真浏览器、Windows IME 和跨平台桌面验收仍需真实证据。Android 源码开发继续，Android build/device 验证单独暂停。
-
-### IM 运行时 UI（未发布）
-- **按实例管理 IM**：Studio 新增 IM 运行时页（`web-app/src/studio/settings/ImRuntimePage.tsx`，导出给 Studio 路由挂载），面向 `channels.instances` / `remote.imBindings` / `imAgents` 多实例契约（ADR-0008 预留，正式决策记录待落盘）。同一平台多实例、实例 id 命名空间、note、启用/停用、平台校验、每实例微信二维码/重连/解绑；密钥读取一律 `••••`，写入语义为“留空保留 / 显式清除写 null / 填值替换”，掩码不回传。
-- **绑定**：实例 + 聊天/线程/用户 + Agent Profile + target（workspace / team-pm / engineer）+ session + answer/observe，显示 needsReview 与 target-unavailable 原因并阻止保存到不可用目标；写回时剥离 UI 展示字段。
-- **Agent Profile**：persona（inline/file/workspace）、模型、位置、工具白名单（builtin/extensions/MCP/customTools/skills/commands，空=不允许、不继承环境工具）与记忆后端；`capabilities` 由后端执行，页面不提供权限开关也不代写；运行身份含 bindingId，由后端计算展示。
-- **Bot 状态**：读取当前绑定/会话/模型/answer-observe/语音能力与命令示例，实例级发送测试（409 ambiguous 待后端给候选实例）。
-- **TUI `/channels`**：新增只读管理页（instances/targets/bindings、needs-review/unknown-target、legacy 合成提示）与 `enable-instance`/`disable-instance`；任何 token/secret 不进入快照或 transcript。
-- **边界**：schema/API 已在本地集成分支，运行时隔离接线与新版 UI 适配仍按各自提交合入；App/Settings 路由与真实浏览器交互需独立验证，不把后端或导出页当作完整可用能力。
-### 模型可见性与三级 Fallback（未发布，本地草稿）
-- **共享 `hiddenModels`**：WebUI 模型配置新增「模型可见性」页签，按模型/Provider 搜索，按 catalog kind（chat/tiny/image/tts/stt/search/judge/embedding/rerank/video）与角色 tag 过滤；支持逐模型隐藏、按 Provider 批量隐藏，以及当前 kind/tag 筛选结果的批量隐藏/显示。隐藏只作用于 composer 与模型选择器，不删除模型，不改 `modelRoles` / `retry.fallbackChains`；设置页始终显示全部模型，TUI alt+p、`/models` 与 `@role` 读取同一份配置。
-- **固定三级 Fallback**：WebUI 与 TUI Roles 视图统一为 Primary → Fallback 1 → Fallback 2 三个槽；Fallback 2 可空，两槽都空时写入 `[]`（明确无 fallback）。`retry.fallbackChains` 中 Fallback 2 之后的既有条目会显示并保留，只有显式「清除额外 Fallback」才会删除，不会静默截断旧配置。
-- **Host 补齐**：Studio Host `models.get` 已实现（`/api/models` + `/api/models-config` + `/api/settings/values`），并补 `models.roles.create` / `models.roles.delete` / `models.roleStorage.set`；`models.get` 接受 `workspaceId` 并透传 `x-zeta-cwd`。`/api/models` 暴露 `kind`、`roles[]` 与展示能力字段。
-- **测试**：固定槽位组合（F2 可空、`[]`、保留 extras、显式清除）、隐藏模型与角色标签、以及 Host 角色创建/删除/存储往返。真实 Host + Web Settings 的浏览器场景与 100+ 候选搜索留给父窗口统一验证。
-
-### 窗口学习模式（未发布）
-- **按压缩边界学习**：新增 `taste.extractionMode: prompt | window | off`（默认 `prompt`）与 `memory.extractionMode: auto | window | manual`（默认 `auto`）。`window` 仅在一次已提交的压缩后处理被丢弃的旧区域（严格在保留尾部之前），不会读取保留的最近消息；`taste` 的 per-prompt / sharpshooter 式抽取在 window 模式关闭。短会话未压缩结束时在 stop 时补一次。
-- **持久游标**：窗口快照、已处理 window/entry id、尝试次数与错误写入 `<agentDir>/memories/window-learning/<SDK namespace>/<session>.json`；commit listener 只落盘快照并快速返回，不调用模型、不阻塞压缩；异步处理由现有 session 事件/stop/重启驱动，无新 daemon。重启、重复 commit、失败重试均不重复成功窗口。
-- **作用域与证据**：命名空间使用 SDK 解析的绑定作用域，不拼接 cwd；候选 evidence/confidence/冲突/去重/tombstone 由宿主计算，模型不提供可信 confidence。`mnemopi.llmMode: none` 时窗口学习不产生额外 LLM 请求；tracking 仍是流程状态，不写入个人事实。LKB 集成继续 Deferred。
-- **文档/测试**：`docs/memory.md` 增补两种模式、成本与作用域；测试覆盖重复 commit、重启、短会话、命名空间隔离与 `llmMode: none` 边界（待 Main 验证窗口执行）。
-
-### Agent 自建插件与页面宿主（未发布）
-- **会话内开发插件**：主代理可在 `<agentDir>/plugins-dev/<session>/<name>/` 里 scaffold / validate / load_dev / reload / discard 一个自写插件；文件不写仓库、不改全局 settings，`load_dev` 把扩展工具与命令绑进当前 runner，回合结束检测文件变化后重载，失败保留上一版。promote / export 只由用户通过 `zetacode plugin promote|export` 执行，提升到 `~/.zeta/agent/plugins/<name>` 后需重启；`plugin dev cleanup` 清理过期会话目录。YOLO 仍是默认审批，未新增插件级审批、沙箱或安装通道。
-- **版本化页面宿主**：`plugin.json` 的 `ui.panels`（`kind: "html"`）现在决定可挂载页面，网关 `GET /api/plugin-pages` 列出清单、`GET /api/plugin-assets/<plugin>/<path>` 提供受 containment 保护的包内资源。Studio 的 `/plugins/view/<plugin>/<entry>` 以 sandbox iframe 打开页面，注入 `window.__zetaPage` v1（ready / callTool / getContext / subscribe / notify / resize），写操作只走 `callTool`；工具必须属于该插件、在当前会话启用，并经既有 tool wrapper/审批执行。HTTP `/api/*` 继续是只读数据面。
-
-### 草稿听写（未发布）
-- **Studio Host 真正实现 `dictation.*`**：新增 Host family，复用现有 `STTController`、`dictation` 模型角色、`stt.enabled`/`stt.language`、本地模型缓存与 ASR worker；`status/prepare/start/stop/cancel` 不再是空能力宣告。`prepare` 把 36 位 `audioId` 绑定到请求会话，桌面 `attach` 必须重复该会话；帧必须严格递增、已 attach 且不超过 64 KiB，乱序/跨会话/未挂接帧直接拒绝。
-- **桌面音频桥**：Electron preload 新增 `attachLiveAudio`/`appendLiveAudio`/`detachLiveAudio` 与 macOS 麦克风权限方法；Main 逐帧串行 POST 到 loopback `/api/dictation/audio*`，Worklet 16 kHz mono Float32 帧（1280 B / 20 ms）在 Host 转为采样并送入现有流式/云端转写。`stop` 先排空队列再转写，`cancel`/`detach` 丢弃输入且不产出文本。
-- **能力门禁**：只有 Host 能力清单同时声明 `dictation.status/prepare/start/stop/cancel` 且 Desktop preload 提供完整 `attachLiveAudio`/`appendLiveAudio`/`detachLiveAudio` + `getUserMedia` 时才挂载听写控件；否则不渲染、不轮询、不伪造浏览器回退。`stt.enabled=false` 时显示设置提示而非死按钮。
-- **测试**：Host 边界测试（能力清单注册、乱序/越界/错误会话/stop flush/cancel 无输出/start 被拒/未 start 的 stop 报错）、桌面 relay 测试（attach/detach 幂等、帧校验、串行 POST、Host 错误传播）与 composer 门控测试（桥缺失/部分桥/能力缺失/远端）均不下载模型、不依赖麦克风。ADR 0027（草稿）记录 Host/Desktop 边界。
-
-### robomp 离线回放与宿主路径（未发布）
-- **`robomp triage/replay/status --offline`**：本地 fixture 走真实 SQLite 队列 → 真实 git worktree → `artifacts/offline-result.json`；不启动 `zetacode`、不访问 GitHub、不发评论/PR、不启用 release sentinel。`triage`/`replay` 接受 `--fixture`，终态回放需 `--force`；崩溃后 `running` 行可在下次回放恢复，重复 delivery id 按主键去重。
-- **宿主数据根**：默认 `ROBOMP_DATA_DIR`（进程 env 优先，其次 `.env`），否则 Windows `%LOCALAPPDATA%\Zeta\robomp`、`$XDG_STATE_HOME/zeta/robomp`、`~/.zeta/robomp`；显式 per-path 变量仍优先。Compose 继续显式使用 `/data`。工作区 XDG 产品子目录改为 `zeta`（`.omp-*` scratch 名保留）。
-- **明确未启用生产 bot**：本轮只交付离线可回放契约；webhook、自动评论、PR、release sentinel 均未开启。
+40: @ours
+### 发布勘误（未发布）
+- **已发布的 1.5.1 段落不可改写**：`### 1.5.1` 及其条目保持原样（包括 #297 的 logo 归属），不回填、不搬迁历史；勘误只写在本 Unreleased 段落。
+- **以下变更合并在 1.5.1 tag 之后，并未随 1.5.1 发布**：#304（Studio capability matrix）、#307（desktop window controls）、#318（Electron 45）、#319（html-report 技能）、#320（release freeze）、#321（model visibility）。它们只在后续内部构建/1.6.0 中生效；1.5.2–1.5.10 是 code-only 内部 tag，不发布资产或 npm 包，1.6.0 仍需 owner 明确批准后才公开发布。
 ### Work Studio 诊断（未发布）
 - **系统 Runtime 不再被误报为未安装**：当 Host 自身就是运行中的 `compatible-system` Runtime（源码/开发构建）时，诊断页显示「系统 Runtime 运行正常（未托管）」、托管卡片「系统 Runtime（未托管）」、签名「不适用（无托管制品）」、上游「本机 Runtime · 无上游记录」；`runtime.install` 与 `runtime.ensure` 能力分开渲染，不再给出必败的 Install 按钮，也不再弹「无法确认 Runtime 工件通道」。运行中的托管 Runtime 缺少安装记录改为黄色提示，launch/handshake/断连失败保留自身错误文案。
 

@@ -32,6 +32,7 @@
 import { $, Glob } from "bun";
 import { readFileSync } from "node:fs";
 import { compareVersions } from "../packages/utils/src/version";
+import { isPublicRelease, readReleaseScope, renderTraceability } from "./release-scope";
 
 const changelogGlob = new Glob("packages/*/CHANGELOG.md");
 const REPO = process.env.OMP_REPO ?? process.env.GITHUB_REPOSITORY ?? "Linxira-OS/linxira-zeta";
@@ -283,6 +284,15 @@ async function main(): Promise<void> {
 		console.log(`Wrote canary release notes to ${outputPath}.`);
 		return;
 	}
+	const scopeEntry = readReleaseScope().releases[version];
+	if (!scopeEntry && isPublicRelease(version)) {
+		console.error(
+			`Error: release-scope.json has no entry for ${version}. A public release must declare its REQ/ADR scope ` +
+				"(REQ-021); refusing to write notes for an unscoped release.",
+		);
+		process.exit(1);
+	}
+	const traceability = scopeEntry ? `${renderTraceability(scopeEntry)}\n\n` : "";
 	const floor = await resolvePublishedFloorTag(version);
 	if (floor) {
 		console.log(`Aggregating CHANGELOG sections in (${floor}, ${version}].`);
@@ -314,7 +324,7 @@ async function main(): Promise<void> {
 		process.exit(0);
 	}
 
-	const body = `${buildAssetSections(version)}\n\n${sections.join("\n\n")}\n`;
+	const body = `${traceability}${buildAssetSections(version)}\n\n${sections.join("\n\n")}\n`;
 	await Bun.write(outputPath, body);
 	console.log(
 		`Wrote ${sections.length} package section(s) to ${outputPath} (version ${version}${floor ? `, floor ${floor}` : ""}).`,

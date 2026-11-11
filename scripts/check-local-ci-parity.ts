@@ -54,6 +54,7 @@ const EXCLUDED: Record<string, string> = {
 	release_web_ui_packages: "release chain",
 	"notify-packages": "GitHub-only release dispatch (packages reusable workflow + org secret)",
 	native_addons_cross: "cross-target leg (darwin/win32 arm64)",
+	android_tier1_build_manual: "source-only manual Android gate; owner paused all Android builds (REQ-018)",
 };
 
 /** ci.yml job id → local-ci job id. */

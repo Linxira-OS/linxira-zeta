@@ -3,6 +3,7 @@ import * as path from "node:path";
 // absent on cross-compiling release runners.
 import { USER_AGENT } from "@linxiraos/pi-utils/dirs";
 import { embeddedAddonFiles, type NativeEmbedTarget } from "../../natives/scripts/embed-native";
+import { assertExpectedBuildCommit, resolveBuildCommit } from "./build-commit";
 import { buildDocsIndexPayload } from "./generate-docs-index";
 import { createJsonParsePlugin } from "./json-parse-plugin";
 import { createLegacyPiVirtualModulePlugin } from "./legacy-pi-virtual-module";
@@ -42,6 +43,9 @@ export interface CodingAgentCompileOptions {
  * graph supplied by an in-memory build plugin rather than generated files.
  */
 export async function compileCodingAgent(options: CodingAgentCompileOptions): Promise<void> {
+	const buildCommit = resolveBuildCommit(options.repoRoot);
+	// A release build must be cut from the commit CI is verifying (REQ-036).
+	assertExpectedBuildCommit(buildCommit);
 	const previousCodesignSetting = Bun.env.BUN_NO_CODESIGN_MACHO_BINARY;
 	if (options.skipBuiltinCodesign) {
 		Bun.env.BUN_NO_CODESIGN_MACHO_BINARY = "1";
@@ -54,6 +58,7 @@ export async function compileCodingAgent(options: CodingAgentCompileOptions): Pr
 			files: options.native ? await embeddedAddonFiles(options.native) : {},
 			define: {
 				"process.env.PI_COMPILED": JSON.stringify("true"),
+				"process.env.ZETA_BUILD_COMMIT": JSON.stringify(buildCommit),
 				"process.env.PI_DOCS_EMBED": JSON.stringify((await buildDocsIndexPayload()).payload),
 			},
 			// Precompiled bytecode skips parsing the ~20 MB bundle at boot:

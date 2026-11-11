@@ -1,0 +1,4 @@
+{
+	"$comment": "Release scope manifest (REQ-021, ADR draft local://release-preconditions-contract-adr-draft.md). Populate `releases[<version>]` before an owner-approved public release. An empty `releases` map is intentional: no public release is scoped yet, and scripts/release-scope.ts fails closed instead of publishing an unscoped version. 1.5.x internal tags do not use this file.",
+	"releases": {}
+}

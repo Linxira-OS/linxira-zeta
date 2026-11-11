@@ -1,3 +1,9 @@
+> **Frozen — not product routing (2026-11-11, REQ-049).** This nested file is
+> scoped to the retired `web-ui/` snapshot only. It is not product routing, does
+> not override the root `AGENTS.md`, and must not be used to plan work on
+> `web-app/`, Work Studio, the desktop shell, or the release line. Product work
+> starts from the root `AGENTS.md` and `document/release.md`.
+
 # Zeta Web UI Development Notes
 
 ## Zeta Upstream Policy

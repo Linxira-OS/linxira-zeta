@@ -83,6 +83,9 @@
 ### Changed
 
 - `/tracking start` now explains the tracking/memory boundary (process state versus learned facts and preferences) and how to enable the opt-in `tracking.enabled` setting; the whole `/tracking` report is localized and its tests no longer pin exact wording.
+### Changed
+
+- **Release-note errata (1.5.1)** — the published `[1.5.1]` section is immutable and stays as written, including #297's logo entry. Changes merged after the 1.5.1 tag (#304, #307, #318, #319, #320, #321) were **not** part of the published 1.5.1 release and must not be read as shipped there; they ride later internal builds (1.5.2–1.5.10 are code-only tags) and the owner-gated 1.6.0 release.
 
 ## [1.5.1] - 2026-11-10
 

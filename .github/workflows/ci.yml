@@ -160,6 +160,12 @@ on:
             description: "Audit reason for release_override_version (required; recorded in the run log)"
             type: string
             default: ""
+         # Android Tier 1 is paused by owner ruling (REQ-018); this job is
+         # source-only and never runs automatically. Leave it false.
+         android_build:
+            description: "Build Android Tier 1 (paused by owner; no APK/AAB is produced in this train)"
+            type: boolean
+            default: false
 
 # Release runs publish a `v*` tag pushed atomically with main HEAD; sharing
 # the cheap branch-wide `CI-refs/heads/main` group meant a later main push
@@ -318,6 +324,15 @@ jobs:
       steps:
          - uses: actions/checkout@v4
          - uses: ./.github/actions/bun-install
+         # Cheap traceability runs in BOTH modes. A release run skips
+         # `ci:check:full` (its test fan-out is proven on the source commit), so
+         # the ADR index, the ledger structure and the release-scope structure
+         # must be checked here explicitly — these are file parses, not tests.
+         - name: ADR, requirements and release-scope traceability
+           run: |
+              bun run check:adr
+              bun run check:reqs
+              bun scripts/release-scope.ts structural
          # The renderer is the product UI now: `zeta serve` ships this build and
          # the release packs it into `dist/web-app`. web-app is its own npm
          # project (not a root workspace member), so it installs and builds on
@@ -1355,6 +1370,18 @@ jobs:
       steps:
          - uses: actions/checkout@v4
          - uses: ./.github/actions/bun-install
+         # Mechanical release scope (REQ-021): a public tag needs every shipped
+         # REQ VERIFIED/RELEASED with independent evidence, every deferred row
+         # approved with a re-entry trigger, and its contract ADRs Accepted and
+         # indexed. 1.5.x internal tags run the structural pass only (the script
+         # consults the freeze policy); nothing here publishes.
+         - name: Release scope and traceability
+           env:
+              # Same owner override the metadata job evaluated: without it the
+              # script treats a public tag as frozen and skips the scope rules.
+              ZETA_RELEASE_OVERRIDE_VERSION: ${{ inputs.release_override_version || vars.RELEASE_FREEZE_OVERRIDE_VERSION }}
+              ZETA_RELEASE_OVERRIDE_REASON: ${{ inputs.release_override_reason || vars.RELEASE_FREEZE_OVERRIDE_REASON }}
+           run: bun scripts/release-scope.ts check --version "${{ needs.release_metadata.outputs.release-version }}"
          # Generated-config drift gate: bazel/clippy.bazelrc is maintained by
          # scripts/release.ts (like the lockfiles); a stale file only blocks
          # publishing, never ordinary CI.
@@ -1440,6 +1467,9 @@ jobs:
          - name: Build release binary
            env:
               RELEASE_TARGETS: ${{ matrix.target_id }}
+              # compile-binary embeds the commit and the smoke check below reads
+              # it back from the artifact itself (REQ-036).
+              ZETA_EXPECTED_COMMIT: ${{ github.sha }}
            run: bun run ci:release:build-binaries
          # Windows binary is cross-built on Linux, so we have no Windows runner
          # to smoke it on. Cross-build correctness is verified via the bun
@@ -1451,21 +1481,36 @@ jobs:
            run: bun scripts/check-windows-icons.ts --binaries "${{ matrix.binary_path }}"
          - name: Smoke release binary
            if: matrix.platform != 'win32' && matrix.libc != 'musl'
+           env:
+              GITHUB_SHA: ${{ github.sha }}
            run: |
               runtime_dir="$(mktemp -d)"
               HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" "${{ matrix.binary_path }}" --version
-              HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" "${{ matrix.binary_path }}" --smoke-test
+              # Execute the artifact and read its embedded build commit (REQ-036).
+              bun scripts/check-release-artifact.ts --path "${{ matrix.binary_path }}" --expect-commit "$GITHUB_SHA"
+         - name: Verify Windows artifact build commit
+           if: matrix.platform == 'win32'
+           shell: bash
+           env:
+              GITHUB_SHA: ${{ github.sha }}
+           run: bun scripts/check-release-artifact.ts --path "${{ matrix.binary_path }}" --expect-commit "$GITHUB_SHA"
          - name: Smoke musl release binary on Alpine
            if: matrix.libc == 'musl'
+           env:
+              GITHUB_SHA: ${{ github.sha }}
            run: |
               binary="$(realpath "${{ matrix.binary_path }}")"
               # Bun's musl-target binaries link libstdc++/libgcc dynamically;
               # Alpine users install them alongside the binary (same as bun itself).
-              docker run --rm -v "$binary:/usr/local/bin/zetacode:ro" alpine:3.22 sh -ec '
+              docker run --rm -e GITHUB_SHA -v "$binary:/usr/local/bin/zetacode:ro" alpine:3.22 sh -ec '
                 apk add --no-cache libstdc++ libgcc >/dev/null
                 runtime_dir="$(mktemp -d)"
                 HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" zetacode --version
-                HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" zetacode --smoke-test
+                out=$(HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" zetacode --smoke-test)
+                echo "$out"
+                echo "$out" | grep -qx "build-commit: $GITHUB_SHA" || {
+                  echo "::error::musl artifact build commit does not match $GITHUB_SHA (REQ-036)"; exit 1;
+                }
               '
          - name: Upload release binary artifact
            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -1853,7 +1898,19 @@ jobs:
               # it gh exits non-zero and the script would degrade to legacy
               # single-version notes, defeating the recovery.
               GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              ZETA_RELEASE_OVERRIDE_VERSION: ${{ inputs.release_override_version || vars.RELEASE_FREEZE_OVERRIDE_VERSION }}
+              ZETA_RELEASE_OVERRIDE_REASON: ${{ inputs.release_override_reason || vars.RELEASE_FREEZE_OVERRIDE_REASON }}
+              ZETA_RELEASE_SCOPE_PUBLIC: ${{ needs.release_metadata.outputs.assets-allowed }}
            run: bun scripts/ci-release-notes.ts ${{ needs.release_metadata.outputs.release-tag }}
+         - name: Verify release notes cite the release scope
+           env:
+              ZETA_RELEASE_OVERRIDE_VERSION: ${{ inputs.release_override_version || vars.RELEASE_FREEZE_OVERRIDE_VERSION }}
+              ZETA_RELEASE_OVERRIDE_REASON: ${{ inputs.release_override_reason || vars.RELEASE_FREEZE_OVERRIDE_REASON }}
+              ZETA_RELEASE_SCOPE_PUBLIC: ${{ needs.release_metadata.outputs.assets-allowed }}
+           run: >
+              bun scripts/release-scope.ts check
+              --version "${{ needs.release_metadata.outputs.release-version }}"
+              --notes release-notes.md
          - name: Download release binaries
            uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
            with:
@@ -2088,6 +2145,11 @@ jobs:
            with:
               targets: linux-x64-baseline linux-x64-modern
          - name: Publish to npm
+           env:
+              # bundle-dist embeds this commit and fails when the built artifact
+              # reports a different one — a stale local dist can never be
+              # published as this tag (REQ-036).
+              ZETA_EXPECTED_COMMIT: ${{ github.sha }}
            run: bun run ci:release:publish
 
    # Vendored TermIDE (zetaide) upstream test contract, mirroring what the
@@ -2606,6 +2668,25 @@ jobs:
          # plugin resolves at pack time — it publishes the source it ships.
          - name: Publish official plugin packages
            run: bun run ci:release:publish-plugin
+
+   # Source-only manual gate. The owner paused Android Tier 1, so this job is
+   # dispatch-only with `android_build` defaulting false: it can never run on a
+   # push, PR, tag or ordinary dispatch, and it refuses (rather than faking) a
+   # build while no android/ project exists. No APK/AAB is produced in this
+   # train (REQ-018/REQ-049).
+   android_tier1_build_manual:
+      name: Android Tier 1 build (manual, paused)
+      if: ${{ github.event_name == 'workflow_dispatch' && inputs.android_build == true }}
+      runs-on: ubuntu-22.04
+      steps:
+         - uses: actions/checkout@v4
+         - name: Refuse while the Android project is not shipped
+           run: |
+              if [ ! -d android ]; then
+                echo "::error::Android Tier 1 is paused (owner ruling; REQ-018). No android/ project exists; nothing is built."
+                exit 1
+              fi
+              echo "android/ exists; wire the owner-approved build entrypoint here when the pause is lifted."
 
    notify-packages:
       name: Notify packages

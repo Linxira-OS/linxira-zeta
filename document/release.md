@@ -404,19 +404,41 @@ Rules:
   `push` on `refs/heads/main`), so even a mistaken second push keeps both
   verdicts. Branch dispatches still supersede each other.
 
-### ADR and requirements gate (pre-tag)
+### ADR and requirements gate (pre-tag, mechanical)
 
-Before tagging, run `bun run check:adr` and `bun run check:reqs`, then verify by
-hand:
+The gate is enforced by `scripts/release-scope.ts`, not by hand:
 
-- every REQ in the release scope is `VERIFIED` or `RELEASED` in
-  `document/requirements-ledger.md`;
-- every item not shipping is `DEFERRED` with an approval record and a re-entry
-  trigger;
-- every contract, architecture, data-model, security, migration, dependency, or
-  release-scope change has an **Accepted** ADR, an index row, and links to its
-  PR/tests/assets;
-- release notes cite the ADR IDs and the completed REQ IDs.
+```bash
+bun run check:adr
+bun run check:reqs
+bun scripts/release-scope.ts structural          # cheap, both CI modes
+bun scripts/release-scope.ts check --version X.Y.Z
+bun scripts/release-scope.ts check --version X.Y.Z --notes release-notes.md
+```
+
+- `release-scope.json` declares `releases[X.Y.Z]` with `requirements`, `adrs`
+  and `approvedDeferrals`. An empty/missing entry **fails closed**: no public
+  version publishes without a declared scope.
+- Every listed REQ must be `VERIFIED` or `RELEASED` in
+  `document/requirements-ledger.md`, and its evidence must name an independent
+  verification surface (`bun test`/`bun run`/a named check/CI run/workflow).
+  A bare `PR #123` is a code pointer, not verification; `pending` evidence
+  fails. `RELEASED` additionally needs a tag pointer.
+- Every ledger row that is `DEFERRED` or `BLOCKED` but not in the scope must be
+  listed in `approvedDeferrals` with `approvedBy`, `reason` and
+  `reentryTrigger`.
+- Every contract ADR listed for the release must be **Accepted**, present in
+  `document/adr/README.md`, and cited as `ADR-NNNN` in the generated release
+  notes; every scoped `REQ-NNN` must be cited too.
+- `scripts/ci-release-notes.ts` prepends the traceability block and refuses to
+  write notes for an unscoped public release.
+
+Wiring (no second framework): `scripts/release-v2.ts` runs the gate before the
+bump; the CI `release_gate` runs `check --version`; the `check` job runs the
+structural pass in **both** modes (release runs skip `ci:check:full`, so ADR /
+ledger / scope checks are separate cheap steps); `release_github` re-checks the
+generated notes. `check:adr` keeps its structural schema — the full audit lives
+here.
 
 A missing ADR, an unverified REQ, or an unapproved deferral is a release blocker,
 not follow-up work. The operating contract is

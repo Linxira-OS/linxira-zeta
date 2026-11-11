@@ -8,6 +8,7 @@ import { buildOfficialSkillsPayload } from "./generate-official-skills-payload";
 import { createJsonParsePlugin } from "./json-parse-plugin";
 import { createLegacyPiVirtualModulePlugin } from "./legacy-pi-virtual-module";
 import { buildOfficialCatalogPayload, writeOfficialPluginsBundle } from "./official-plugins";
+import { assertExpectedBuildCommit, resolveBuildCommit } from "./build-commit";
 
 const packageDir = path.join(import.meta.dir, "..");
 const defaultOutDir = path.join(packageDir, "dist");
@@ -105,6 +106,9 @@ async function cleanBundleOutputs(outDir: string): Promise<void> {
 /** Builds the npm CLI bundle into `outDir`; release scripts use the package `dist` directory by default. */
 export async function bundleDist(outDir: string = defaultOutDir): Promise<void> {
 	const cliPath = path.join(outDir, "cli.js");
+	const buildCommit = resolveBuildCommit(path.join(packageDir, "..", ".."));
+	// Fail before a release publishes a bundle built from a different tree.
+	assertExpectedBuildCommit(buildCommit);
 	const start = Bun.nanoseconds();
 	await cleanBundleOutputs(outDir);
 	// The npm bundle ships no stats dashboard sources, so embed the dashboard
@@ -129,6 +133,7 @@ export async function bundleDist(outDir: string = defaultOutDir): Promise<void> 
 			external: [...ALWAYS_EXTERNAL, ...RUNTIME_EXTERNAL],
 			define: {
 				"process.env.PI_BUNDLED": JSON.stringify("true"),
+				"process.env.ZETA_BUILD_COMMIT": JSON.stringify(buildCommit),
 				"process.env.PI_DOCS_EMBED": JSON.stringify(docsPayload.payload),
 				"process.env.ZETA_OFFICIAL_SKILLS_EMBED": JSON.stringify(
 					JSON.stringify((await buildOfficialSkillsPayload()).files),
