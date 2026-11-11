@@ -37,7 +37,7 @@
 
 ### robomp 离线回放与宿主路径（未发布）
 - **`robomp triage/replay/status --offline`**：本地 fixture 走真实 SQLite 队列 → 真实 git worktree → `artifacts/offline-result.json`；不启动 `zetacode`、不访问 GitHub、不发评论/PR、不启用 release sentinel。`triage`/`replay` 接受 `--fixture`，终态回放需 `--force`；崩溃后 `running` 行可在下次回放恢复，重复 delivery id 按主键去重。
-- **宿主数据根**：默认 `ROBOMP_DATA_DIR`，否则 Windows `%LOCALAPPDATA%\Zeta\robomp`、`$XDG_STATE_HOME/zeta/robomp`、`~/.zeta/robomp`；Compose 继续显式使用 `/data`。工作区 XDG 产品子目录改为 `zeta`（`.omp-*` scratch 名保留）。
+- **宿主数据根**：默认 `ROBOMP_DATA_DIR`（进程 env 优先，其次 `.env`），否则 Windows `%LOCALAPPDATA%\Zeta\robomp`、`$XDG_STATE_HOME/zeta/robomp`、`~/.zeta/robomp`；显式 per-path 变量仍优先。Compose 继续显式使用 `/data`。工作区 XDG 产品子目录改为 `zeta`（`.omp-*` scratch 名保留）。
 - **明确未启用生产 bot**：本轮只交付离线可回放契约；webhook、自动评论、PR、release sentinel 均未开启。
 ### Work Studio 诊断（未发布）
 - **系统 Runtime 不再被误报为未安装**：当 Host 自身就是运行中的 `compatible-system` Runtime（源码/开发构建）时，诊断页显示「系统 Runtime 运行正常（未托管）」、托管卡片「系统 Runtime（未托管）」、签名「不适用（无托管制品）」、上游「本机 Runtime · 无上游记录」；`runtime.install` 与 `runtime.ensure` 能力分开渲染，不再给出必败的 Install 按钮，也不再弹「无法确认 Runtime 工件通道」。运行中的托管 Runtime 缺少安装记录改为黄色提示，launch/handshake/断连失败保留自身错误文案。

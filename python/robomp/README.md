@@ -170,9 +170,10 @@ Terminal rows require `--force`; duplicate delivery ids dedupe by primary key.
 
 Host data defaults are user-scoped: `ROBOMP_DATA_DIR`, else
 `%LOCALAPPDATA%\Zeta\robomp` on Windows, else `$XDG_STATE_HOME/zeta/robomp`,
-else `~/.zeta/robomp`. Explicit `ROBOMP_WORKSPACE_ROOT` /
-`ROBOMP_SQLITE_PATH` / `ROBOMP_LOG_DIR` still win. Compose keeps its `/data`
-volume.
+else `~/.zeta/robomp`. `.env` is read with the same cwd-relative precedence as
+`Settings` (process env wins over `.env`), and explicit
+`ROBOMP_WORKSPACE_ROOT` / `ROBOMP_SQLITE_PATH` / `ROBOMP_LOG_DIR` still win.
+Compose keeps its `/data` volume.
 
 **Production bot is not enabled by this path.** `ROBOMP_RELEASE_SENTINEL_ENABLED`
 remains `false`; offline replay performs no comments, PRs, pushes, or tags.

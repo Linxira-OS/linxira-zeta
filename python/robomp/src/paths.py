@@ -15,6 +15,32 @@ from pathlib import Path
 DATA_DIR_ENV = "ROBOMP_DATA_DIR"
 
 
+def _dotenv_values() -> Mapping[str, str]:
+    """Read `.env` with the same cwd-relative contract as `Settings`.
+
+    Process environment always wins; this only supplies keys that are not
+    already exported. A missing/unreadable file is ignored here because the
+    settings loader reports its own configuration errors later.
+    """
+    path = Path(".env")
+    if not path.is_file():
+        return {}
+    try:
+        from dotenv import dotenv_values
+
+        parsed = dotenv_values(path)
+    except Exception:
+        return {}
+    return {key: value for key, value in parsed.items() if value is not None}
+
+
+def _merged_env() -> Mapping[str, str]:
+    values = dict(os.environ)
+    for key, value in _dotenv_values().items():
+        values.setdefault(key, value)
+    return values
+
+
 def resolve_data_dir(
     *,
     env: Mapping[str, str] | None = None,
@@ -23,11 +49,13 @@ def resolve_data_dir(
 ) -> Path:
     """Return the roboomp data root.
 
-    Precedence: explicit `ROBOMP_DATA_DIR`; Windows `%LOCALAPPDATA%\\Zeta\\robomp`;
-    POSIX `$XDG_STATE_HOME/zeta/robomp`; fallback `~/.zeta/robomp`.
-    Empty values are ignored.
+    Precedence: explicit `ROBOMP_DATA_DIR` (process env, then `.env`);
+    Windows `%LOCALAPPDATA%\\Zeta\\robomp`; POSIX
+    `$XDG_STATE_HOME/zeta/robomp`; fallback `~/.zeta/robomp`. Empty values are
+    ignored. Passing `env` disables the `.env` overlay (tests / explicit
+    mappings).
     """
-    values = os.environ if env is None else env
+    values = _merged_env() if env is None else env
     home_dir = Path.home() if home is None else home
     system_name = platform.system() if system is None else system
 
