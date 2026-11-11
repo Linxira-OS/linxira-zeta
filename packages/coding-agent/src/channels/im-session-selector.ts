@@ -8,7 +8,8 @@
  * the algorithm.
  */
 
-import { readSessionInfo, sessionDisplayName, type SessionInfo } from "../session/session-listing";
+import { readSessionInfo, type SessionInfo } from "../session/session-listing";
+import type { SessionTaskSummary } from "../session/session-task-summary";
 import type { BotSessionEntry, WebConfig } from "../config/web-config";
 import type { SessionRouter } from "./session-router";
 
@@ -17,8 +18,6 @@ export interface ImSessionCandidate {
 	selector: string;
 	/** Canonical registry/session id; never a selector. */
 	canonicalSessionId: string;
-	/** Alias kept for existing consumers. */
-	canonicalId: string;
 	bindingId?: string;
 	workspaceAlias: string;
 	/** Alias of the canonical workspace id; display label, not an id. */
@@ -27,13 +26,11 @@ export interface ImSessionCandidate {
 	label: string;
 	/** Completed task result only; absent when there is none. */
 	latestTaskSummary?: string;
-	status?: "completed" | "incomplete" | "unknown";
+	status: "completed" | "incomplete" | "unknown";
+	/** Full provenance projection; never inferred from the display label. */
+	taskSummary?: SessionTaskSummary;
 	/** ISO timestamp of the last activity used for display sorting. */
 	lastActiveAt: string;
-	/** Alias kept for existing consumers. */
-	name: string;
-	/** Alias kept for existing consumers. */
-	summary?: string;
 	isPm: boolean;
 	tag: BotSessionEntry["tag"];
 }
@@ -70,6 +67,7 @@ export interface BuildSessionListOptions {
 }
 
 function isPmEntry(entry: BotSessionEntry, webConfig: WebConfig): boolean {
+	if (entry.target?.kind === "team-pm") return true;
 	if (!entry.agentProfileId) return false;
 	const profile = webConfig.getImAgent(entry.agentProfileId);
 	return profile?.location.kind === "team-pm" || profile?.tools.preset === "team-pm";
@@ -90,6 +88,16 @@ function workspaceBase(state: ImSessionSelectorState, alias: string): number {
 	return next;
 }
 
+function candidateLabel(entry: BotSessionEntry, info: SessionInfo | undefined, alias: string): string {
+	const title = info?.title?.replace(/\s+/g, " ").trim();
+	if (title && title !== entry.id && title !== info?.id) return title;
+	const name = entry.name?.replace(/\s+/g, " ").trim();
+	if (name && name !== entry.id && name !== info?.id) return name;
+	const platform = entry.platform ?? "im";
+	const display = { wechat: "WeChat", feishu: "Feishu", telegram: "Telegram", discord: "Discord", qq: "QQ", im: "IM" }[platform] ?? "IM";
+	return `${alias} · ${display} 会话`;
+}
+
 /** Build one immutable list snapshot for the current entry. */
 export async function buildImSessionList(
 	router: SessionRouter,
@@ -103,7 +111,6 @@ export async function buildImSessionList(
 	const rows: Array<{ entry: BotSessionEntry; info?: SessionInfo; workspaceAlias: string; modifiedAt: number; isPm: boolean }> = [];
 	for (const entry of router.listBotSessions()) {
 		const isPm = isPmEntry(entry, webConfig);
-		if (isPm && !includePm) continue;
 		const info = await readSessionInfo(entry.sessionFile).catch(() => undefined);
 		rows.push({
 			entry,
@@ -136,7 +143,7 @@ export async function buildImSessionList(
 	}
 
 	const candidates: ImSessionCandidate[] = rows
-		.filter(row => row.modifiedAt > 0 && now - row.modifiedAt <= maxAge)
+		.filter(row => (!row.isPm || includePm) && row.modifiedAt > 0 && now - row.modifiedAt <= maxAge)
 		.sort((a, b) => b.modifiedAt - a.modifiedAt || a.entry.id.localeCompare(b.entry.id))
 		.map(row => {
 			const taskSummary = row.info?.taskSummary;
@@ -144,18 +151,17 @@ export async function buildImSessionList(
 			const base = state.workspaceBase.get(row.workspaceAlias) ?? 1;
 			const sequence = state.sessionNumber.get(row.entry.id) ?? 1;
 			const selector = `${String(base).padStart(2, "0")}-${String(sequence).padStart(5, "0")}`;
-			const label = row.info ? sessionDisplayName(row.info) : row.entry.name;
+			const label = candidateLabel(row.entry, row.info, row.workspaceAlias);
 			return {
 				selector,
 				canonicalSessionId: row.entry.id,
-				canonicalId: row.entry.id,
 				...(row.entry.bindingId ? { bindingId: row.entry.bindingId } : {}),
 				workspaceAlias: row.workspaceAlias,
 				workspaceId: row.workspaceAlias,
 				label,
-				name: label,
-				...(summary ? { latestTaskSummary: summary, summary } : {}),
-				...(taskSummary ? { status: taskSummary.status } : {}),
+				...(summary ? { latestTaskSummary: summary } : {}),
+				status: taskSummary?.status ?? "unknown",
+				...(taskSummary ? { taskSummary } : {}),
 				lastActiveAt: new Date(row.modifiedAt).toISOString(),
 				isPm: row.isPm,
 				tag: row.entry.tag,

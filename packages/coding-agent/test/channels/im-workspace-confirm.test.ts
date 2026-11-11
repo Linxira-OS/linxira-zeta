@@ -6,6 +6,7 @@ import { YAML } from "bun";
 import { setAgentDir } from "@linxiraos/pi-utils";
 import { SessionRouter } from "../../src/channels/session-router";
 import { WebConfig } from "../../src/config/web-config";
+import { SessionManager } from "../../src/session/session-manager";
 import type { AgentSession } from "../../src/session/agent-session";
 
 const dirs: string[] = [];
@@ -18,16 +19,17 @@ afterAll(() => {
 	else setAgentDir(path.join(os.homedir(), ".zeta", "agent"));
 });
 
-function stubCoordinator(): AgentSession {
+function stubCoordinator(sessionManager?: SessionManager): AgentSession {
 	return {
 		getAgentId: () => "coordinator",
 		subscribe: () => () => {},
 		deliverIrcMessage: async () => "woken" as const,
 		dispose: async () => {},
+		...(sessionManager ? { sessionManager } : {}),
 	} as unknown as AgentSession;
 }
 
-async function setup(): Promise<{ router: SessionRouter; config: WebConfig; dir: string }> {
+async function setup(): Promise<{ router: SessionRouter; config: WebConfig; dir: string; sessionFile: string }> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-im-confirm-"));
 	dirs.push(dir);
 	const agentDir = path.join(dir, "agent");
@@ -44,7 +46,7 @@ async function setup(): Promise<{ router: SessionRouter; config: WebConfig; dir:
 						platform: "telegram",
 						label: "Telegram",
 						enabled: true,
-						agentProfile: "p",
+						agentProfile: "mainp",
 						allow: { peers: ["c1"] },
 						credentials: { botToken: "t" },
 					},
@@ -52,7 +54,7 @@ async function setup(): Promise<{ router: SessionRouter; config: WebConfig; dir:
 			},
 			imAgents: [
 				{
-					id: "p",
+					id: "mainp",
 					label: "P",
 					persona: { mode: "workspace" },
 					location: { kind: "workspace", workspace: "main" },
@@ -64,14 +66,26 @@ async function setup(): Promise<{ router: SessionRouter; config: WebConfig; dir:
 		}),
 	);
 	const config = await WebConfig.load(file);
+	const sessionManager = SessionManager.create(dir, path.join(dir, "sessions"));
+	const sessionFile = sessionManager.getSessionFile();
+	if (!sessionFile) throw new Error("coordinator transcript was not created");
+	// A brand-new session file stays lazy until the first assistant message; a
+	// real relay has history, so seed one to exercise restart recovery.
+	sessionManager.appendMessage({
+		role: "assistant",
+		content: [{ type: "text", text: "relay ready" }],
+		provider: "p",
+		model: "m",
+		timestamp: 0,
+	} as never);
 	const router = new SessionRouter({
-		coordinator: stubCoordinator(),
+		coordinator: stubCoordinator(sessionManager),
 		webConfig: config,
 		getLastInbound: () => null,
 		sendText: async () => {},
 		defaultCwd: dir,
 	});
-	return { router, config, dir };
+	return { router, config, dir, sessionFile };
 }
 
 describe("confirm-gated workspace switch", () => {
@@ -105,8 +119,83 @@ describe("confirm-gated workspace switch", () => {
 		await router.requestWorkspaceSwitch("tg", "c1", { kind: "workspace", workspace: "other" });
 		expect((await router.confirmWorkspaceSwitch("tg", "c1")).ok).toBe(true);
 		expect(config.findImBinding("tg", "c1")).toBeDefined();
-		expect(router.requestWorkspaceUnbind("tg", "c1")).toBe(true);
+		expect(await router.requestWorkspaceUnbind("tg", "c1")).toBe(true);
 		expect((await router.confirmWorkspaceSwitch("tg", "c1")).ok).toBe(true);
 		expect(config.findImBinding("tg", "c1")).toBeUndefined();
+		expect((await router.confirmWorkspaceSwitch("tg", "c1")).ok).toBe(false);
+	});
+
+	test("staged switches are isolated by thread and sender, and unbind removes only its own binding", async () => {
+		const { router, config } = await setup();
+		const t1 = { threadId: "t1", userId: "u1" };
+		const t2 = { threadId: "t2", userId: "u1" };
+		// Only one answer binding may exist per instance+chat; the sibling thread
+		// is a mention binding, exactly as the channel layer would create it.
+		await config.patchImBinding("tg", "c1", { role: "mention" }, t2);
+
+		expect(
+			(await router.requestWorkspaceSwitch("tg", "c1", { kind: "workspace", workspace: "other" }, t1)).same,
+		).toBe(false);
+		expect(
+			(await router.requestWorkspaceSwitch("tg", "c1", { kind: "workspace", workspace: "other" }, t2)).same,
+		).toBe(false);
+
+		expect((await router.confirmWorkspaceSwitch("tg", "c1", t1)).ok).toBe(true);
+		expect(config.findImBinding("tg", "c1", t1)).toBeDefined();
+		expect(config.findImBinding("tg", "c1", t2)?.target).toEqual({ kind: "workspace", workspace: "main" });
+
+		expect((await router.confirmWorkspaceSwitch("tg", "c1", t2)).ok).toBe(true);
+		expect(config.findImBinding("tg", "c1", t2)?.target).toEqual({ kind: "workspace", workspace: "other" });
+		expect(config.findImBinding("tg", "c1", t2)?.role).toBe("mention");
+
+		expect(await router.requestWorkspaceUnbind("tg", "c1", t1)).toBe(true);
+		expect((await router.confirmWorkspaceSwitch("tg", "c1", t1)).ok).toBe(true);
+		expect(config.findImBinding("tg", "c1", t1)).toBeUndefined();
+		expect(config.findImBinding("tg", "c1", t2)).toBeDefined();
+	});
+
+	test("a preview survives a restart and can be confirmed from the persisted handshake", async () => {
+		const { router, config, dir, sessionFile } = await setup();
+		const context = { threadId: "t1" };
+		await router.requestWorkspaceSwitch("tg", "c1", { kind: "workspace", workspace: "other" }, context);
+
+		// A fresh process opens the same persisted coordinator transcript.
+		const reopened = await SessionManager.open(sessionFile);
+		const restarted = new SessionRouter({
+			coordinator: stubCoordinator(reopened),
+			webConfig: config,
+			getLastInbound: () => null,
+			sendText: async () => {},
+			defaultCwd: dir,
+		});
+		const applied = await restarted.confirmWorkspaceSwitch("tg", "c1", context);
+		expect(applied.ok).toBe(true);
+		expect(config.findImBinding("tg", "c1", context)?.target).toEqual({ kind: "workspace", workspace: "other" });
+	});
+
+	test("the same cwd under different targets keeps distinct target-scoped sessions", async () => {
+		const { router, config, dir } = await setup();
+		await router.requestWorkspaceSwitch("tg", "c1", { kind: "workspace", workspace: "other" });
+		expect((await router.confirmWorkspaceSwitch("tg", "c1")).ok).toBe(true);
+		const otherBinding = config.findImBinding("tg", "c1");
+		if (!otherBinding) throw new Error("other binding missing");
+		const other = await router.ensureImBindingSession(otherBinding);
+		expect(other.ok).toBe(true);
+
+		await router.requestWorkspaceSwitch("tg", "c1", { kind: "workspace", workspace: "main" });
+		expect((await router.confirmWorkspaceSwitch("tg", "c1")).ok).toBe(true);
+		const mainBinding = config.findImBinding("tg", "c1");
+		if (!mainBinding) throw new Error("main binding missing");
+		const main = await router.ensureImBindingSession(mainBinding);
+		expect(main.ok).toBe(true);
+		if (!other.ok || !main.ok) throw new Error("session creation failed");
+		expect(main.id).not.toBe(other.id);
+
+		const otherEntry = config.getBotSession(other.id);
+		const mainEntry = config.getBotSession(main.id);
+		expect(otherEntry?.cwd).toBe(dir);
+		expect(mainEntry?.cwd).toBe(dir);
+		expect(otherEntry?.target).toEqual({ kind: "workspace", workspace: "other" });
+		expect(mainEntry?.target).toEqual({ kind: "workspace", workspace: "main" });
 	});
 });

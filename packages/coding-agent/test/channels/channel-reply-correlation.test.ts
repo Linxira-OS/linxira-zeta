@@ -6,6 +6,7 @@
  */
 
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "bun:test";
+import { YAML } from "bun";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -119,13 +120,16 @@ describe("SessionRouter reply correlation", () => {
 		for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 	});
 
-	async function makeRouter(): Promise<{
+	async function makeRouter(webYaml?: Record<string, unknown>): Promise<{
 		router: SessionRouter;
+		webConfig: WebConfig;
 		sent: Array<{ channelId: string; peer: string; text: string }>;
 	}> {
 		const configDir = await mkdtemp(join(tmpdir(), "zeta-correlate-"));
 		cleanups.push(() => rm(configDir, { recursive: true, force: true }));
-		const webConfig = await WebConfig.load(join(configDir, "web.yml"));
+		const file = join(configDir, "web.yml");
+		if (webYaml) await Bun.write(file, YAML.stringify(webYaml));
+		const webConfig = await WebConfig.load(file);
 		const sent: Array<{ channelId: string; peer: string; text: string }> = [];
 		const router = new SessionRouter({
 			coordinator: { getAgentId: () => "coordinator" } as unknown as AgentSession,
@@ -139,7 +143,7 @@ describe("SessionRouter reply correlation", () => {
 		cleanups.push(async () => {
 			await router.stopAll();
 		});
-		return { router, sent };
+		return { router, webConfig, sent };
 	}
 
 	test("two chats on one workspace each receive their own answer", async () => {
@@ -233,6 +237,63 @@ describe("SessionRouter reply correlation", () => {
 		expect(sent).toEqual([
 			{ channelId: "telegram", peer: "peer-a", text: "answer a" },
 			{ channelId: "telegram", peer: "peer-b", text: "answer b" },
+		]);
+	});
+
+	test("a late bot answer after a target switch names the original target; the answer stays plain", async () => {
+		const { router, webConfig, sent } = await makeRouter({
+			channels: {
+				instances: [
+					{
+						id: "telegram",
+						platform: "telegram",
+						label: "Telegram",
+						enabled: true,
+						agentProfile: "mainp",
+						allow: { peers: ["peer-a"] },
+						credentials: { botToken: "t" },
+					},
+				],
+			},
+			imAgents: [
+				{
+					id: "mainp",
+					label: "P",
+					persona: { mode: "workspace" },
+					location: { kind: "workspace", workspace: "main" },
+					tools: { builtin: [], extensions: [], customTools: [], mcpServers: [], skills: [], commands: [] },
+					memory: {},
+				},
+			],
+			remote: { workspaces: [{ alias: "other", path: tmpdir() }] },
+		});
+		const shared = makeObservedStub("bot-shared");
+		vi.spyOn(sdk, "createAgentSession").mockImplementation(async () => ({
+			session: shared.session,
+			extensionsResult: { loaded: [] } as unknown as LoadExtensionsResult,
+			setToolUIContext: () => {},
+			eventBus: new EventBus(),
+		}));
+		await router.ensureRelaySession(join(tmpdir(), "zeta-late-relay.jsonl"));
+		const created = await router.createBotSession("shared");
+		if (!created.ok) throw new Error(created.error);
+		const id = created.entry.id;
+
+		await webConfig.patchImBinding("telegram", "peer-a", {});
+		await router.deliverToBotSession(id, "telegram", "peer-a", "question");
+		expect(await router.requestWorkspaceSwitch("telegram", "peer-a", { kind: "workspace", workspace: "other" })).toMatchObject({
+			same: false,
+		});
+		expect(await router.confirmWorkspaceSwitch("telegram", "peer-a")).toMatchObject({ ok: true });
+
+		shared.turn([shared.deliveries[0]!.id], "answer");
+		// The origin notice is sent first; the plain answer follows on the next
+		// microtask of the same delivery.
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(sent).toEqual([
+			{ channelId: "telegram", peer: "peer-a", text: "原目标回复：workspace:main · mainp" },
+			{ channelId: "telegram", peer: "peer-a", text: "answer" },
 		]);
 	});
 });

@@ -71,6 +71,8 @@ export interface ImReplyMetadata extends ImMessageIdentity {
 export type ImMessageMetadata = ImUserMessageMetadata | ImReplyMetadata;
 
 export type ImSwitchAction = "switch_request" | "switch_confirm" | "switch_cancel";
+/** What a staged switch will do when confirmed; absent on legacy rows reads as `"target"`. */
+export type ImSwitchOperation = "target" | "unbind";
 
 /**
  * A workspace/agent switch handshake. `request` proposes `to`; `confirm`
@@ -82,6 +84,8 @@ export interface ImSwitchControlMetadata extends ImMessageIdentity {
 	readonly action: ImSwitchAction;
 	/** Correlates request/confirm/cancel for one pending switch. */
 	readonly requestId: string;
+	/** Confirmed operation; legacy rows without it are a target switch. */
+	readonly operation?: ImSwitchOperation;
 	/** Binding that was active when the control message arrived. */
 	readonly from: ImRouteSnapshot;
 	/** Proposed/confirmed target; for `cancel` it is the abandoned proposal. */
@@ -168,12 +172,22 @@ export function normalizeImSwitchControlMetadata(value: unknown): ImSwitchContro
 	if (!isRecord(value) || value.source !== "im_control") return undefined;
 	const action = value.action;
 	if (action !== "switch_request" && action !== "switch_confirm" && action !== "switch_cancel") return undefined;
+	const operation = value.operation;
+	if (operation !== undefined && operation !== "target" && operation !== "unbind") return undefined;
 	const requestId = optionalString(value, "requestId");
 	const identity = identityFromRecord(value);
 	const from = routeFromRecord(value.from);
 	const to = routeFromRecord(value.to);
 	if (!requestId || !identity || !from || !to) return undefined;
-	return { source: "im_control", ...identity, action, requestId, from, to };
+	return {
+		source: "im_control",
+		...identity,
+		action,
+		requestId,
+		...(operation === undefined ? {} : { operation }),
+		from,
+		to,
+	};
 }
 
 /** True when a metadata object is a user-visible inbound message (not a reply). */

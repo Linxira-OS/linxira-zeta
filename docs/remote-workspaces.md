@@ -19,6 +19,8 @@ agent, external binding, session origin, relay — is defined in
 | Cross-project denial | **IMPLEMENTED** | A project-bound bot session's `workspace_run` may only reach its own project; arbitrary paths and other projects are refused. The relay coordinator keeps its documented cross-repo role. |
 | `channel_send` allowlist | **IMPLEMENTED** | Outbound targets are checked against `channels.allowedPeers`; an agent cannot message a peer the operator never authorized. |
 | Channel+chat → one agent | **IMPLEMENTED** (runtime) | `@agent use` binds a chat to one agent target for the life of the process; the override is in-memory and clears on restart. |
+| Confirm-gated workspace switch | **IMPLEMENTED** | `@workspace use/bind/relay/unbind` previews and writes nothing; `confirm` applies the target and resuming session in one atomic binding update. Pending state is scoped by instance+chat+thread+sender, replaces on a newer request, expires after 10 minutes, and survives a restart through the persisted `im_control` handshake. |
+| Stable session selectors | **IMPLEMENTED** | `!session list` and the Studio IM page share one typed candidate snapshot (`01-00001`). Workspace bases and per-workspace numbers never renumber or get reused when the 3-day window changes; PM sessions stay hidden by default but keep their number. |
 | Persisted channel+chat → `agentId` | **PLANNED** | Persisting the agent binding and hosting several main agents in the default workspace is design-only; today bindings persist as workspace/bot-session rows. |
 | Local IM session hiding | **IMPLEMENTED** | IM/bot/relay transcripts carry `SessionHeader.origin` (`kind: "im"` with channel/chat/bot/workspace fields). Studio, the resume picker, and `history.list` hide them by default; Work Studio History has an explicit **IM / Bot** (`includeIm`) view, and IM rows show an alias or `IM · <channel>` instead of an absolute cwd. The old `relay`/`bot`/`draft` tags remain the fallback for pre-origin transcripts. See [session origin](./session.md#header-sessionheader). |
 
@@ -52,11 +54,20 @@ Channel hosting and credentials: [IM channels](./channels.md).
 Every inbound message resolves to a target:
 
 1. `@agent use` / `@team` (a runtime agent override for this chat),
-2. A runtime override from `@workspace use <alias>` / `*<alias>`,
-3. The chat's active bot session (`!session use <id>`) — its bound project,
-4. A persisted per-chat binding from `@workspace bind <alias>`,
-5. A channel default workspace (`channels.<id>.workspaceRoot` in `web.yml`),
-6. otherwise the relay coordinator (`main`, the default workspace).
+2. a confirmed workspace target for this chat (`@workspace use/bind` →
+   `@workspace confirm`) or its active bot session (`!session use`),
+3. a persisted per-chat binding from an earlier confirmed switch,
+4. a channel default workspace (`channels.<id>.workspaceRoot` in `web.yml`),
+5. otherwise the relay coordinator (`main`, the default workspace).
+
+A workspace change is a **two-step handshake**: the first command prints a
+preview and writes nothing; `@workspace confirm` (or `!workspace confirm`)
+applies the target, `cancel` discards it. The pending handshake is keyed by
+instance + chat + thread + sender, so another sender or thread can neither see
+nor confirm it; a newer request replaces the older one. Confirm writes the
+target and its resuming session id in one atomic binding update. A preview
+stays confirmable for 10 minutes, including across a restart (the handshake is
+persisted as an `im_control` transcript entry, never as an LLM prompt).
 
 A bound chat is **direct mode**: messages go straight to the bound workspace
 and its reply returns to you. A chat pointed at a project-bound bot session
@@ -65,6 +76,12 @@ coordinator decides (reply directly or delegate via `workspace_run`). A
 binding that cannot be opened answers with an explicit error — it never falls
 back to the default workspace, which would answer for a repository it does not
 own.
+
+Reply correlation keeps ordinary answers plain: the answer text is exactly
+the agent's text, with no `[workspace:…]` prefix. If the chat's target changes
+while a bot answer is in flight, that late answer is preceded by a separate
+notice naming its origin (`原目标回复：<old target>`), so the user can tell it
+came from the previous target.
 
 ## Command reference
 
@@ -80,12 +97,12 @@ is IME-independent.
 !help                       — full categorized reference
 !status                     — channels, current routing, workspaces, language, model
 !lang <zh|en>               — set this chat's reply language
-!session list               — sessions ({n} [id]), project, and the active one
+!session list               — last-3-day sessions, each with a stable 01-00001 selector
 !session new <name> [project:<alias>] — create a session; project defaults to main
-!session use {n}|[id]       — switch this chat to a session (its project wins)
+!session use 01-00001        — switch this chat to a session (its project wins)
 !session project <alias|main> — rebind the active session to a repo / back to main
-!session rename {n}|[id] <name>
-!session delete {n}|[id]    — delete a session (the relay session is protected)
+!session rename 01-00001 <name>
+!session delete 01-00001    — delete a session (the relay session is protected)
 !model                      — list available models by number ({p-m})
 !model {p-m}                — switch this chat's model (e.g. !model {1-1})
 !workspace list             — workspaces + their sessions, numbered ({n} [alias], {n-m} [session])
@@ -100,14 +117,19 @@ is IME-independent.
 !workspace create <path> [alias]  — mkdir -p + register
 !workspace close <alias>          — unregister + stop the session
 !workspace rename <old> <new>     — rename an alias
-!workspace use <alias>            — direct mode: talk to that workspace now
-!workspace relay                  — switch back to the relay coordinator
-!workspace bind <alias>           — persist this chat → workspace binding
-!workspace unbind                 — remove this chat's binding (back to relay)
+!workspace use <alias>            — preview direct mode; apply with @workspace confirm
+!workspace relay                  — preview a switch back to the relay coordinator
+!workspace bind <alias>           — preview a persisted chat → workspace binding
+!workspace unbind                 — preview removal of this chat's binding
+!workspace confirm                — apply the pending preview (10-minute window)
+!workspace cancel                 — discard the pending preview
 !workspace bindings               — list bindings for this platform
 *<alias>                          — shorthand for !workspace use <alias>
 *relay / *back / *main            — shorthand for !workspace relay
 ```
+
+Preview, confirm and cancel are scoped to the same instance + chat + thread +
+sender. `confirm` is required: `@workspace use` alone writes nothing.
 
 ### AI commands
 
@@ -118,18 +140,19 @@ is IME-independent.
 !draft <task>                    — run a one-off task in a fresh draft session
 ```
 
-Listings use `{n}` numbers and `[name]` names — pass them back verbatim in
-follow-up commands (e.g. `!session use {2}`, `!model {1-1}`).
+Workspace/model listings use `{n}` numbers and `[name]` labels; bot sessions
+use the stable `NN-00001` selector from `!session list`. Pass them back verbatim
+(e.g. `!session use 01-00002`, `!model {1-1}`, `!workspace use {2}`).
 
 ## Natural-language control
 
 The coordinator (and each bot session) exposes the `im_control` tool: when you
 ask — in any language — to manage workspaces / sessions / language / model
 (e.g. "把语言改成英文", "用 web 仓库干活", "新建一个会话叫 test", "列出所有模型",
-"切到会话 2"), the agent calls it and relays the result. It reuses the same
-`{n}`/`[name]` listings and the same operations as the `!` commands; no special
-syntax needed, and ordinary task messages are never treated as control
-intents.
+"切到会话 01-00002"), the agent calls it and relays the result. It reuses the
+same `{n}`/`[name]` listings, the same `NN-00001` session selectors, and the
+same operations as the `!` commands; no special syntax needed, and ordinary
+task messages are never treated as control intents.
 
 ## Models (`!model`)
 
@@ -146,11 +169,34 @@ its own `.jsonl` transcript under
 `~/.zeta/agent/sessions/<cwd>/<name>-<id>.jsonl`; `cwd` is the session's
 project. `!session new PM project:web` binds the new session to the `web`
 repository (the alias must already be registered with `@workspace open`);
-`!session project web` rebinds an existing session. `!session use {n}` points
-this chat at it — and clears any stale direct workspace binding, so the
-session's project is authoritative. `!session list` shows each session's
-project (`→ [alias]`). The `relay` session is the coordinator's transcript in
-the default workspace and **cannot be deleted or rebound**.
+`!session project web` rebinds an existing session. `!session use 01-00001`
+points this chat at it — and clears any stale direct workspace binding, so the
+session's project is authoritative. The `relay` session is the coordinator's
+transcript in the default workspace and **cannot be deleted or rebound**.
+
+### Selector numbering
+
+`!session list` shows the last **3 days** of bot sessions, each with a selector
+of the form `NN-00001`:
+
+- `NN` is a **stable workspace base**: `01` is the default workspace (`main`)
+  and registered workspaces follow their `web.yml` order (`02`, `03`, …).
+- `00001` is a **stable per-workspace creation-order number**. It is assigned
+  before the display window is applied, so a session that slides out of the 3
+  days keeps its number; a new session takes the next number and numbers are
+  never reused. Older conversations stay visible in Studio/History.
+- PM/secretary sessions are **hidden by default** but still consume their
+  number, so enabling the explicit PM view (`includePm`, used by the Team IM
+  page) shows the same selector the ordinary list would have used.
+- `!session list`, the Studio IM page and the gateway consume **one typed
+  candidate snapshot** (`selector`, `canonicalSessionId`, `label`, `status`,
+  `taskSummary`); there is no second numbering algorithm.
+
+Labels come from the transcript title or registry name, never from the raw
+first message or the session id. `status`/`taskSummary` are the deterministic
+latest-task projection: a completed turn gives intent + result, an open turn
+gives intent only (`incomplete`), and a window without a reliable task gives
+`unknown` with no summary. Nothing here is an LLM-generated summary.
 
 Session files carry a `SessionHeader.origin` (`kind: "im"` with channel, chat,
 bot-session, workspace and optional agent/binding fields) while the older
@@ -168,14 +214,6 @@ See [session origin](./session.md#header-sessionheader).
 `!lang zh|en` sets a per-chat reply language. For a bot session the directive
 is appended to that session's system prompt; for the shared relay session it
 is injected as a `[Language: zh-CN]` / `[Language: en]` prefix on the message.
-
-## Models (`!model`)
-
-`!model` prints available models grouped by provider with stable numbering
-(`<provider>-<model>`); `!model 1-1` switches this chat's target session
-(bot session, or the relay) to that model. Numbering is alphabetical and can
-shift after the model registry refreshes — always check the latest `!model`
-output.
 
 ## Relay delegation (coordinator tools)
 
@@ -207,12 +245,15 @@ uses the same `plan_approve` path.
 ## Persistence
 
 `web.yml` stores registered workspaces (`remote.workspaces: [{alias, path}]`),
-per-chat bindings (`remote.sessionMappings: [{platform, chatId,
-workspaceAlias, mode}]`), the bot-session registry
+per-chat bindings (`remote.imBindings: [{instanceId, chatId, threadId?,
+userId?, target, sessionId, …}]`), the bot-session registry
 (`remote.botSessions: [{id, name, tag, sessionFile, cwd, workspaceAlias, …}]`),
 and the legacy web-ui sidebar toggle (`remote.showBotSessions`), so all of it
-survives restarts. `@workspace use` is a runtime-only override;
-`@workspace bind` and `!session` operations persist.
+survives restarts. A workspace change persists only after `confirm`, which
+writes the target and the target-scoped resuming `sessionId` in one atomic
+binding update; the staged handshake itself is an `im_control` transcript
+entry, so a pending preview can still be confirmed after a restart (10-minute
+window). `!session` operations persist their registry rows.
 
 ## Remote access
 

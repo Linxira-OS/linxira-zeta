@@ -447,7 +447,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 				await deps.sendText("No workspace router in this mode.");
 				return true;
 			}
-			router.requestWorkspaceUnbind(
+			await router.requestWorkspaceUnbind(
 				deps.channelId as never,
 				deps.peer,
 				{ ...(deps.threadId ? { threadId: deps.threadId } : {}), ...(deps.userId ? { userId: deps.userId } : {}) },
@@ -746,9 +746,9 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 				return;
 			}
 			const lines = snapshot.candidates.map(candidate => {
-				const mark = candidate.canonicalId === activeId ? " [当前]" : "";
-				const summary = candidate.summary ? ` — ${candidate.summary}` : "";
-				return `${candidate.selector} ${candidate.name}${summary} [${candidate.workspaceAlias}]${mark}`;
+				const mark = candidate.canonicalSessionId === activeId ? " [当前]" : "";
+				const summary = candidate.latestTaskSummary ? ` — ${candidate.latestTaskSummary}` : "";
+				return `${candidate.selector} ${candidate.label}${summary} [${candidate.workspaceAlias}]${mark}`;
 			});
 			await deps.sendText(
 				["Bot 会话（近 3 天）:", ...lines, "回复 !session use 01-00001 切换；更早会话请在电脑 Studio 查看"].join("\n"),

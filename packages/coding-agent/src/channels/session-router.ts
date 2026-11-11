@@ -43,7 +43,8 @@ import type { AgentSessionEvent } from "../session/agent-session-events";
 import { SessionManager } from "../session/session-manager";
 import { isImSession, sameSessionOrigin, type SessionOrigin } from "../session/session-origin";
 import type { ImControlParams, ImControlResult } from "./im-control";
-import { targetKey, targetScopedBindingId } from "./im-config";
+import { type ImBinding, type ImTarget, targetKey, targetScopedBindingId } from "./im-config";
+import { normalizeImSwitchControlMetadata, type ImSwitchControlMetadata } from "../session/session-im";
 import { buildImSessionList, createImSessionSelectorState, type ImSessionListSnapshot } from "./im-session-selector";
 import { type AgentProfileOptions, loadImAgentProfilePersona, resolveImAgentProfileRuntime } from "../agent-profile";
 
@@ -61,6 +62,9 @@ export async function readImSessionCandidates(): Promise<ImSessionListSnapshot |
 
 /** Upper bound for a delegated `workspace_run` turn (no reply → timeout error). */
 const RUN_TIMEOUT_MS = 10 * 60_000;
+
+/** A staged switch stays confirmable this long, including across a restart. */
+const WORKSPACE_SWITCH_TTL_MS = 10 * 60_000;
 
 /** Reserved alias of the relay coordinator (default workspace). */
 export const COORDINATOR_ALIAS = "main";
@@ -229,7 +233,7 @@ export class SessionRouter {
 	readonly #sessionSelectorState = createImSessionSelectorState();
 	readonly #pendingWorkspaceSwitch = new Map<
 		string,
-		| { action: "target"; target: import("./im-config").ImTarget; at: number; requestId: string }
+		| { action: "target"; target: ImTarget; at: number; requestId: string }
 		| { action: "unbind"; at: number; requestId: string }
 	>();
 	/** Cross-process agent roster; defaults to the mesh node plus this process's registry. */
@@ -354,12 +358,16 @@ export class SessionRouter {
 		const existing = this.#bridges.get(key);
 		if (existing) return existing;
 		const correlator = new ReplyCorrelator({
-			sendText: (target, text) =>
-				this.#sendText(
-					target.instanceId,
-					target.peer,
-					target.originLabel ? `[${target.originLabel}]\n${text}` : text,
-				),
+			sendText: async (target, text) => {
+				// Origin is delivery metadata. Ordinary answers stay byte-for-byte
+				// unchanged; only a late answer after a switch needs a separate notice.
+				const current = this.#webConfig.findImBinding(target.instanceId, target.peer, target.context ?? {});
+				const currentLabel = current ? `${targetKey(current.target)} · ${current.agentProfileId}` : undefined;
+				if (target.originLabel && currentLabel && currentLabel !== target.originLabel) {
+					await this.#sendText(target.instanceId, target.peer, `原目标回复：${target.originLabel}`);
+				}
+				await this.#sendText(target.instanceId, target.peer, text);
+			},
 		});
 		this.#bridges.set(key, correlator);
 		const observer = session.setIrcWakeTurnObserver;
@@ -589,7 +597,7 @@ export class SessionRouter {
 	 * are errors, never a fallback to the default workspace.
 	 */
 	async resolveImTargetCwd(
-		target: import("./im-config").ImTarget,
+		target: ImTarget,
 	): Promise<{ ok: true; cwd: string; alias?: string } | { ok: false; error: string }> {
 		if (target.kind === "workspace") {
 			if (target.workspace === COORDINATOR_ALIAS) return { ok: true, cwd: this.#defaultCwd, alias: COORDINATOR_ALIAS };
@@ -636,7 +644,7 @@ export class SessionRouter {
 	 * transcript or memory home with another binding.
 	 */
 	async ensureImBindingSession(
-		binding: import("./im-config").ImBinding,
+		binding: ImBinding,
 	): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
 		if (binding.sessionId === "relay") return { ok: true, id: "relay" };
 		const resolved = await this.resolveImTargetCwd(binding.target);
@@ -645,7 +653,11 @@ export class SessionRouter {
 		// back resumes the same conversation, while a different workspace never
 		// inherits another target's history or memory.
 		const current = this.#webConfig.getBotSession(binding.sessionId);
-		if (current && current.cwd === resolved.cwd) return { ok: true, id: current.id };
+		if (current && current.cwd === resolved.cwd &&
+			(!current.target || targetKey(current.target) === targetKey(binding.target)) &&
+			(!current.agentProfileId || current.agentProfileId === binding.agentProfileId)) {
+			return { ok: true, id: current.id };
+		}
 		const targetSessionId = `im-${targetScopedBindingId(binding).replace(/[^a-z0-9-]+/gi, "-")}`;
 		const existing = this.#webConfig.getBotSession(targetSessionId);
 		if (existing) {
@@ -670,7 +682,7 @@ export class SessionRouter {
 		}
 		const profile = this.#webConfig.getImAgent(binding.agentProfileId);
 		if (!profile) return { ok: false, error: `Unknown agent profile "${binding.agentProfileId}"` };
-		const safeName = `${profile.label}-${binding.id}`.replace(/[^\w\u4e00-\u9fff-]+/g, "-").slice(0, 60);
+		const safeName = `${profile.label}-${targetScopedBindingId(binding)}`.replace(/[^\w\u4e00-\u9fff-]+/g, "-");
 		const entry: BotSessionEntry = {
 			id: targetSessionId,
 			name: `${profile.label} · ${binding.chatId}`,
@@ -702,7 +714,7 @@ export class SessionRouter {
 	resolveSessionSelector(selector: string): string | null {
 		const cleaned = selector.trim().replace(/^\{|\}$/g, "").replace(/^\[|\]$/g, "");
 		if (!cleaned) return null;
-		const fromSnapshot = this.#sessionListSnapshot?.bySelector.get(cleaned)?.canonicalId;
+		const fromSnapshot = this.#sessionListSnapshot?.bySelector.get(cleaned)?.canonicalSessionId;
 		if (fromSnapshot) return fromSnapshot;
 		// Explicit registry ids remain valid for scripts and legacy commands.
 		return this.#webConfig.getBotSession(cleaned)?.id ?? null;
@@ -724,22 +736,36 @@ export class SessionRouter {
 	async requestWorkspaceSwitch(
 		instanceId: ChannelInstanceId,
 		peer: string,
-		target: import("./im-config").ImTarget,
+		target: ImTarget,
 		context: { threadId?: string; userId?: string } = {},
 	): Promise<{ current: string; next: string; same: boolean }> {
 		const key = this.#workspaceSwitchKey(instanceId, peer, context);
 		const binding = this.#webConfig.findImBinding(instanceId, peer, context);
 		const currentTarget = binding?.target ?? (this.#webConfig.getImAgent(this.#webConfig.getChannelInstance(instanceId)?.agentProfile ?? "")?.location);
-		const current = currentTarget ? targetKey(currentTarget) : "unbound";
+		const current = this.agentTargetFor(instanceId, peer) ?? (currentTarget ? targetKey(currentTarget) : "unbound");
 		const next = targetKey(target);
 		if (current === next) {
+			// "Already there" also supersedes an earlier staged target, otherwise
+			// a restart could resurrect a preview the user replaced.
+			const replaced = this.#pendingWorkspaceSwitch.get(key);
 			this.#pendingWorkspaceSwitch.delete(key);
+			if (replaced) {
+				await this.#recordImControl(
+					instanceId,
+					peer,
+					context,
+					"switch_cancel",
+					replaced.requestId,
+					replaced.action === "target" ? replaced.target : { kind: "workspace", workspace: COORDINATOR_ALIAS },
+					replaced.action,
+				);
+			}
 			return { current, next, same: true };
 		}
 		// One pending request per entry; a new request replaces the old one.
 		const requestId = randomUUID().slice(0, 8);
 		this.#pendingWorkspaceSwitch.set(key, { action: "target", target, at: Date.now(), requestId });
-		await this.#recordImControl(instanceId, peer, context, "switch_request", requestId, target);
+		await this.#recordImControl(instanceId, peer, context, "switch_request", requestId, target, "target");
 		return { current, next, same: false };
 	}
 
@@ -748,10 +774,20 @@ export class SessionRouter {
 		instanceId: ChannelInstanceId,
 		peer: string,
 		context: { threadId?: string; userId?: string } = {},
-	): Promise<{ ok: true; target: import("./im-config").ImTarget } | { ok: false; error: string }> {
+	): Promise<{ ok: true; target: ImTarget } | { ok: false; error: string }> {
 		const key = this.#workspaceSwitchKey(instanceId, peer, context);
-		const pending = this.#pendingWorkspaceSwitch.get(key);
+		let pending = this.#pendingWorkspaceSwitch.get(key);
+		if (!pending) {
+			// A preview issued before a restart is still confirmable: rebuild it
+			// from the durable im_control request in the same chat/thread scope.
+			pending = await this.#restorePendingWorkspaceSwitch(instanceId, peer, context);
+			if (pending) this.#pendingWorkspaceSwitch.set(key, pending);
+		}
 		if (!pending) return { ok: false, error: "No pending workspace change for this chat/thread/user." };
+		if (Date.now() - pending.at > WORKSPACE_SWITCH_TTL_MS) {
+			this.#pendingWorkspaceSwitch.delete(key);
+			return { ok: false, error: "The pending workspace change expired; send the switch command again." };
+		}
 		this.#pendingWorkspaceSwitch.delete(key);
 		await this.#recordImControl(
 			instanceId,
@@ -760,13 +796,34 @@ export class SessionRouter {
 			"switch_confirm",
 			pending.requestId,
 			pending.action === "target" ? pending.target : { kind: "workspace", workspace: COORDINATOR_ALIAS },
+			pending.action,
 		);
 		try {
 			if (pending.action === "unbind") {
-				await this.#webConfig.removeImBindingByChat(instanceId, peer);
+				// Remove exactly this chat/thread/sender binding, never a sibling
+				// thread's binding on the same chat.
+				const current = this.#webConfig.findImBinding(instanceId, peer, context);
+				if (current) await this.#webConfig.removeImBinding(current.id);
+				this.#agentBindings.delete(`${instanceId}:${peer}`);
+				this.#runtimeBindings.delete(`${instanceId}:${peer}`);
 				return { ok: true, target: { kind: "workspace", workspace: COORDINATOR_ALIAS } };
 			}
-			await this.#webConfig.patchImBinding(instanceId, peer, { target: pending.target }, context);
+			const current = this.#webConfig.findImBinding(instanceId, peer, context);
+			// Choose the target's existing session before the single atomic binding
+			// write. In particular, leaving relay must not retain its sentinel id.
+			const previous = current && this.#webConfig.getBotSessions().find(entry =>
+				entry.instanceId === instanceId && entry.chatId === peer &&
+				entry.agentProfileId === current.agentProfileId && entry.target &&
+				targetKey(entry.target) === targetKey(pending.target) &&
+				entry.bindingId === targetScopedBindingId({ id: current.id, target: pending.target }));
+			await this.#webConfig.patchImBinding(instanceId, peer, {
+				target: pending.target,
+				...(previous ? { sessionId: previous.id } : current ? {
+					sessionId: `im-${targetScopedBindingId({ id: current.id, target: pending.target }).replace(/[^a-z0-9-]+/gi, "-")}`,
+				} : {}),
+			}, context);
+			this.#agentBindings.delete(`${instanceId}:${peer}`);
+			this.#runtimeBindings.delete(`${instanceId}:${peer}`);
 			return { ok: true, target: pending.target };
 		} catch (error) {
 			return { ok: false, error: error instanceof Error ? error.message : String(error) };
@@ -774,14 +831,23 @@ export class SessionRouter {
 	}
 
 	/** Stage removal of this entry's binding (confirm-gated). */
-	requestWorkspaceUnbind(
+	async requestWorkspaceUnbind(
 		instanceId: ChannelInstanceId,
 		peer: string,
 		context: { threadId?: string; userId?: string } = {},
-	): boolean {
+	): Promise<boolean> {
 		const key = this.#workspaceSwitchKey(instanceId, peer, context);
 		const requestId = randomUUID().slice(0, 8);
 		this.#pendingWorkspaceSwitch.set(key, { action: "unbind", at: Date.now(), requestId });
+		await this.#recordImControl(
+			instanceId,
+			peer,
+			context,
+			"switch_request",
+			requestId,
+			{ kind: "workspace", workspace: COORDINATOR_ALIAS },
+			"unbind",
+		);
 		return true;
 	}
 
@@ -801,8 +867,79 @@ export class SessionRouter {
 			"switch_cancel",
 			pending.requestId,
 			pending.action === "target" ? pending.target : { kind: "workspace", workspace: COORDINATOR_ALIAS },
+			pending.action,
 		);
 		return true;
+	}
+
+	/**
+	 * Rebuild one chat/thread/sender's pending switch from persisted `im_control`
+	 * rows. A later request supersedes an earlier one; confirm/cancel terminates
+	 * the request. Only handshakes younger than {@link WORKSPACE_SWITCH_TTL_MS}
+	 * are resumed, so an old preview cannot surprise the user days later.
+	 */
+	async #restorePendingWorkspaceSwitch(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string },
+	): Promise<
+		| { action: "target"; target: ImTarget; at: number; requestId: string }
+		| { action: "unbind"; at: number; requestId: string }
+		| undefined
+	> {
+		const binding = this.#webConfig.findImBinding(instanceId, peer, context);
+		const managers: SessionManager[] = [];
+		const live = binding ? this.#botSessions.get(binding.sessionId)?.session.sessionManager : undefined;
+		if (live) managers.push(live);
+		if (this.#coordinator.sessionManager && !managers.includes(this.#coordinator.sessionManager)) {
+			managers.push(this.#coordinator.sessionManager);
+		}
+		const entry = binding ? this.#webConfig.getBotSession(binding.sessionId) : undefined;
+		if (!live && entry?.sessionFile) {
+			try {
+				const manager = await SessionManager.open(entry.sessionFile, undefined, undefined, { throwIfMissing: false });
+				managers.push(manager);
+			} catch {
+				// A missing/unreadable transcript leaves no resumable handshake.
+			}
+		}
+		const requests = new Map<string, { metadata: ImSwitchControlMetadata; at: number }>();
+		const terminated = new Set<string>();
+		for (const manager of managers) {
+			for (const item of manager.getEntries()) {
+				if (item.type !== "im_control") continue;
+				const metadata = normalizeImSwitchControlMetadata(item.metadata);
+				if (!metadata) continue;
+				if (metadata.instance !== instanceId || metadata.chatId !== peer) continue;
+				if ((metadata.threadId ?? "") !== (context.threadId ?? "")) continue;
+				if ((metadata.senderId ?? "") !== (context.userId ?? "")) continue;
+				if (metadata.action !== "switch_request") {
+					terminated.add(metadata.requestId);
+					continue;
+				}
+				const at = Date.parse(metadata.sentAt);
+				const previous = requests.get(metadata.requestId);
+				if (!previous || at >= previous.at) requests.set(metadata.requestId, { metadata, at });
+			}
+		}
+		let latest: { metadata: ImSwitchControlMetadata; at: number } | undefined;
+		for (const candidate of requests.values()) {
+			if (terminated.has(candidate.metadata.requestId)) continue;
+			if (!Number.isFinite(candidate.at) || Date.now() - candidate.at > WORKSPACE_SWITCH_TTL_MS) continue;
+			if (!latest || candidate.at > latest.at) latest = candidate;
+		}
+		if (!latest) return undefined;
+		if ((latest.metadata.operation ?? "target") === "unbind") {
+			return { action: "unbind", at: latest.at, requestId: latest.metadata.requestId };
+		}
+		const alias = latest.metadata.to.workspaceAlias;
+		if (!alias) return undefined;
+		return {
+			action: "target",
+			target: { kind: "workspace", workspace: alias },
+			at: latest.at,
+			requestId: latest.metadata.requestId,
+		};
 	}
 
 	/** Persist an im_control handshake on the target session (never an LLM prompt). */
@@ -812,14 +949,15 @@ export class SessionRouter {
 		context: { threadId?: string; userId?: string },
 		action: "switch_request" | "switch_confirm" | "switch_cancel",
 		requestId: string,
-		to: import("./im-config").ImTarget,
+		to: ImTarget,
+		operation: "target" | "unbind" = "target",
 	): Promise<void> {
 		const instance = this.#webConfig.getChannelInstance(instanceId);
 		const binding = this.#webConfig.findImBinding(instanceId, peer, context);
 		const manager = (binding ? this.#botSessions.get(binding.sessionId)?.session.sessionManager : undefined) ?? this.#coordinator.sessionManager;
 		if (!manager) return;
 		const fromTarget = binding?.target;
-		const route = (target: import("./im-config").ImTarget | undefined) => ({
+		const route = (target: ImTarget | undefined) => ({
 			...(target?.kind === "workspace" ? { workspaceAlias: target.workspace } : {}),
 			...(binding?.agentProfileId ? { agentId: binding.agentProfileId } : {}),
 			...(binding?.sessionId ? { sessionId: binding.sessionId, botSessionId: binding.sessionId } : {}),
@@ -836,6 +974,7 @@ export class SessionRouter {
 			sentAt: new Date().toISOString(),
 			action,
 			requestId,
+			operation,
 			from: route(fromTarget),
 			to: route(to),
 		});
@@ -1643,13 +1782,21 @@ export class SessionRouter {
 				? { kind: "sink", deliver: () => {} }
 				: {
 						kind: "chat",
-						channelId,
+						instanceId: channelId,
 						peer,
 						originLabel: binding
 							? `${targetKey(binding.target)} · ${binding.agentProfileId}`
 							: handle.entry.target
 								? `${targetKey(handle.entry.target)} · ${handle.entry.agentProfileId ?? "default"}`
 								: undefined,
+						...(context.threadId || context.userId
+							? {
+									context: {
+										...(context.threadId ? { threadId: context.threadId } : {}),
+										...(context.userId ? { userId: context.userId } : {}),
+									},
+								}
+							: {}),
 					},
 		);
 		try {
@@ -1717,7 +1864,7 @@ export class SessionRouter {
 			body,
 			ts: Date.now(),
 		};
-		bridge.expect(msg.id, { kind: "chat", channelId, peer, originLabel: `workspace:${workspaceAlias}` });
+		bridge.expect(msg.id, { kind: "chat", instanceId: channelId, peer });
 		try {
 			await handle.session.deliverIrcMessage(msg);
 		} catch (error) {

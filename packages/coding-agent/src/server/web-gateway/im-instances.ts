@@ -272,7 +272,7 @@ export async function handleImBindingsPut(req: Request): Promise<Response> {
 	return json({ ok: true });
 }
 
-/** The same typed candidates `!session list` uses (selector/canonicalId/label/summary). */
+/** The same typed candidates `!session list` uses (selector/canonicalSessionId/label/taskSummary). */
 export async function handleImSessions(): Promise<Response> {
 	const snapshot = await readImSessionCandidates();
 	if (!snapshot) return json({ sessions: [], generatedAt: null });

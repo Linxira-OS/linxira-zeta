@@ -238,7 +238,7 @@ describe("channel inbound dedupe", () => {
 	test("a retried message id is routed once", async () => {
 		const agentDir = await mkdtemp(join(tmpdir(), "zeta-channel-dedupe-"));
 		cleanups.push(() => rm(agentDir, { recursive: true, force: true }));
-		const webConfig = await makeTelegramConfig(agentDir, []);
+		const webConfig = await makeTelegramConfig(agentDir, ["1001"]);
 
 		const inbound: string[] = [];
 		const mock = installTelegramMock([
@@ -262,7 +262,7 @@ describe("channel inbound dedupe", () => {
 	test("seen state persists across a restart and drops the replay", async () => {
 		const agentDir = await mkdtemp(join(tmpdir(), "zeta-channel-restart-"));
 		cleanups.push(() => rm(agentDir, { recursive: true, force: true }));
-		const webConfig = await makeTelegramConfig(agentDir, []);
+		const webConfig = await makeTelegramConfig(agentDir, ["1001"]);
 		const replayed: TelegramUpdate[][] = [
 			[{ update_id: 1, message: { message_id: 42, chat: { id: 1001 }, text: "hello" } }],
 		];
