@@ -141,6 +141,37 @@ describe("analysis MCP collision policy", () => {
 		expect(decision.approval?.prompt).toContain("Mount the MCP server instead");
 	});
 
+	test("an explicit approval for this refresh mounts ask and names it in the reason", () => {
+		const [decision] = resolveAnalysisMcp(
+			input({
+				manifests: [NATIVE_MANIFEST],
+				activeNativeTools: ["ast_grep"],
+				precedence: "ask",
+				approvedServers: ["codegraph"],
+			}),
+		);
+
+		expect(decision.state).toBe("mounted");
+		expect(decision.mount).toBe(true);
+		expect(decision.approval).toBeUndefined();
+		expect(decision.reason).toContain("approved ask");
+		expect(decision.suppressNativeTools).toEqual(["ast_grep"]);
+	});
+
+	test("a server-scoped allowlist admits only that server's tools", () => {
+		const [denied, allowed] = resolveAnalysisMcp(
+			input({
+				configs: { codegraph: codegraphConfig(), "codegraph-alt": codegraphConfig() },
+				allowedServerTools: { "codegraph-alt": ["codegraph_explore"] },
+			}),
+		);
+
+		expect(denied.serverName).toBe("codegraph");
+		expect(denied.state).toBe("shadowed-profile");
+		expect(allowed.serverName).toBe("codegraph-alt");
+		expect(allowed.state).toBe("mounted");
+	});
+
 	test("same capability mounts one server; duplicate functions are shadowed", () => {
 		const [decision, duplicate] = resolveAnalysisMcp(
 			input({

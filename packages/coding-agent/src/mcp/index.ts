@@ -9,6 +9,7 @@
 export * from "./client";
 // Analysis-MCP recognition / collision policy
 export * from "./analysis-precedence";
+export * from "./analysis-precedence-approval";
 export * from "./analysis-precedence-hook";
 // Config
 export * from "./config";

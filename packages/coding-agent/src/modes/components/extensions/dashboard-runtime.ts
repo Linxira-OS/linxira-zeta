@@ -6,6 +6,7 @@ import type { Settings } from "../../../config/settings";
 import { getAllProvidersInfo, isForeignUserProvider, isUserSourceEnabled } from "../../../discovery";
 import type { CustomTool } from "../../../extensibility/custom-tools/types";
 import { setMcpServerEnabled } from "../../../mcp/config-writer";
+import type { AnalysisMcpRefreshInput } from "../../../mcp/analysis-precedence-hook";
 import type { MCPManager } from "../../../mcp/manager";
 import { MCP_CONNECTION_STATUS_EVENT_CHANNEL } from "../../../mcp/startup-events";
 import type { EventBus } from "../../../utils/event-bus";
@@ -24,7 +25,8 @@ export function createExtensionDashboardRuntime(options: {
 	extensionRoots?: () => EffectiveExtensionRoots;
 	mcpManager?: MCPManager;
 	eventBus?: EventBus;
-	onMcpToolsChanged?: (tools: CustomTool[]) => Promise<void> | void;
+	onMcpToolsChanged?: (tools: CustomTool[], analysis?: AnalysisMcpRefreshInput) => Promise<void> | void;
+	activeNativeTools?: () => readonly string[];
 	browserMcpFilterEnabled?: () => boolean;
 }): ExtensionDashboardRuntime {
 	const { cwd, settings, extensionRoots, mcpManager, eventBus, onMcpToolsChanged, browserMcpFilterEnabled } = options;
@@ -56,6 +58,8 @@ export function createExtensionDashboardRuntime(options: {
 				cwd,
 				manager: mcpManager,
 				session: onMcpToolsChanged ? { refreshMCPTools: onMcpToolsChanged } : undefined,
+				settings,
+				activeNativeTools: options.activeNativeTools,
 				discovery: {
 					enableProjectConfig: cfgMcpEnableProjectConfig.get(settings),
 					filterExa: true,

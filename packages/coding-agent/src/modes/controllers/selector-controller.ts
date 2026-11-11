@@ -688,7 +688,8 @@ export class SelectorController {
 				extensionRoots: () => this.ctx.session.effectiveExtensionRoots,
 				mcpManager: this.ctx.mcpManager,
 				eventBus: this.ctx.eventBus,
-				onMcpToolsChanged: tools => this.ctx.session.refreshMCPTools(tools),
+				onMcpToolsChanged: (tools, analysis) => this.ctx.session.refreshMCPTools(tools, analysis),
+				activeNativeTools: () => this.ctx.session.getEnabledToolNames(),
 				browserMcpFilterEnabled: () =>
 					this.ctx.session.getEvalPreludes().some(definition => definition.name === "browser"),
 			}),

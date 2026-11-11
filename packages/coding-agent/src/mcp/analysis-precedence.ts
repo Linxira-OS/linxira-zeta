@@ -110,10 +110,14 @@ export interface AnalysisMcpResolveInput {
 	readonly activeNativeTools: readonly string[];
 	/** Tool-profile allowlist; undefined means unrestricted. */
 	readonly allowedTools?: readonly string[] | ReadonlySet<string>;
+	/** Server-scoped profile admission; raw function names can repeat across servers. */
+	readonly allowedServerTools?: Readonly<Record<string, readonly string[]>>;
 	/** Persistent user denylist, highest precedence. */
 	readonly deniedServers?: readonly string[];
 	readonly project?: AnalysisMcpProjectSignals;
 	readonly manifests?: readonly AnalysisMcpManifest[];
+	/** Explicit grants for this refresh only; the hook never carries them across refreshes. */
+	readonly approvedServers?: readonly string[];
 }
 
 export interface AnalysisMcpApprovalRequest {
@@ -240,7 +244,11 @@ export function resolveAnalysisMcp(input: AnalysisMcpResolveInput): AnalysisMcpD
 
 		for (const [serverName, config] of configured) {
 			const expectedTools = input.serverTools?.[serverName] ?? manifest.tools;
-			const visibleTools = allowed === undefined ? expectedTools : expectedTools.filter(tool => allowed.has(tool));
+			const serverAllowed = input.allowedServerTools?.[serverName];
+			const visibleTools = expectedTools.filter(
+				tool => (allowed === undefined || allowed.has(tool)) &&
+					(input.allowedServerTools === undefined || serverAllowed?.includes(tool) === true),
+			);
 			const base = {
 				manifestId: manifest.id,
 				label: manifest.label,
@@ -257,7 +265,7 @@ export function resolveAnalysisMcp(input: AnalysisMcpResolveInput): AnalysisMcpD
 				});
 				continue;
 			}
-			if (allowed !== undefined && visibleTools.length === 0) {
+			if ((allowed !== undefined || input.allowedServerTools !== undefined) && visibleTools.length === 0) {
 				decisions.push({
 					...base,
 					state: "shadowed-profile",
@@ -285,6 +293,11 @@ export function resolveAnalysisMcp(input: AnalysisMcpResolveInput): AnalysisMcpD
 				continue;
 			}
 
+			// An explicit approval for this refresh is the only way `ask` mounts. It is
+			// not a new precedence tier: the mounted reason still names the approval so
+			// `/mcp` and diagnostics distinguish it from `mcp.precedence=mcp`.
+			const approvedAsk = input.precedence === "ask" && input.approvedServers?.includes(serverName) === true;
+
 			if (manifestNativeTools.length > 0 && input.precedence === "native") {
 				blockedByNative = true;
 				decisions.push({
@@ -295,7 +308,7 @@ export function resolveAnalysisMcp(input: AnalysisMcpResolveInput): AnalysisMcpD
 				});
 				continue;
 			}
-			if (manifestNativeTools.length > 0 && input.precedence === "ask") {
+			if (manifestNativeTools.length > 0 && input.precedence === "ask" && !approvedAsk) {
 				mountedBy = serverName;
 				decisions.push({
 					...base,
@@ -321,7 +334,9 @@ export function resolveAnalysisMcp(input: AnalysisMcpResolveInput): AnalysisMcpD
 				tools: visibleTools,
 				reason:
 					manifestNativeTools.length > 0
-						? `mounted (mcp.precedence=mcp); suppress native ${manifestNativeTools.join(", ")}`
+						? approvedAsk
+							? `mounted (approved ask); suppress native ${manifestNativeTools.join(", ")}`
+							: `mounted (mcp.precedence=mcp); suppress native ${manifestNativeTools.join(", ")}`
 						: `mounted (no active native equivalent)`,
 				...(manifestNativeTools.length > 0 ? { suppressNativeTools: manifestNativeTools } : {}),
 			});
