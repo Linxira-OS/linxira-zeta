@@ -245,6 +245,7 @@ PR 只承担评审与 CI，**合并由用户点**——agent 不自行 merge 自
 | 本地 CI 镜像与 job map | `document/local-ci.md` |
 | 插件体系 | `document/plugin-system.md` |
 | 架构（分层、natives、gateway、TUI） | `document/architecture-layers.md`、`document/web-gateway.md` |
+| 架构/契约决策为什么这样定（ADR） | `document/adr/README.md` |
 | 上游移植指南 | `document/porting-from-pi-mono.md` |
 | 同步台账 / 历史决策 | `document/upstream-sync.md` |
 | CI 问题台账（只记录、批量修） | `document/ci-issue-log.md` |
