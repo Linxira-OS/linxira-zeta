@@ -33,6 +33,7 @@ the reason.
 | Window controls | show | hidden | hidden | hidden | hidden |
 | Runtime install / update | pass-through | pass-through | pass-through | hidden | pass-through |
 | Runtime restart | unavailable¹ | unavailable¹ | unavailable¹ | hidden | unavailable¹ |
+| Draft dictation (composer) | show | hidden⁶ | hidden⁶ | hidden | pass-through |
 | Import local update | show | unavailable² | unavailable² | hidden | pass-through |
 | Local data cleanup | pass-through | pass-through | pass-through | hidden | pass-through |
 | Open / export host logs | show | unavailable² | unavailable² | hidden | pass-through |
@@ -59,6 +60,12 @@ the reason.
 6. A phone may **verify** a code (a remote write answers `totp_required`), but
    enrollment, policy and disable stay on the machine; the pane hides them and
    names why.
+7. Dictation needs the desktop preload's complete live-audio bridge
+   (`attachLiveAudio`/`appendLiveAudio`/`detachLiveAudio` + `getUserMedia`) and
+   a Host manifest that advertises all five `dictation.*` commands
+   (`status`, `prepare`, `start`, `stop`, `cancel`). A browser/remote tab, or a
+   Host without the family, renders no dictation control and polls no
+   `dictation.*` command.
 
 ## Where the matrix is used
 

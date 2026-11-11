@@ -76,6 +76,7 @@ import {
 } from "./shellMemory";
 import type { ApprovalMode, OperatorStateSnapshot, SessionTelemetrySnapshot, StudioAgentSnapshot } from "@linxiraos/studio-protocol";
 import type { OperatorCommandManifest } from "@linxiraos/studio-protocol";
+import { DICTATION_KINDS } from "@linxiraos/studio-protocol";
 import { AppIcon, Icon } from "./icons";
 import { FileRowMenu, MenuItem, type FileMenuAction, type FileMenuController, type FileMenuTarget, type FileOpenerOption } from "./menus";
 import { I18nProvider, useI18n, type TranslationParams } from "./i18n";
@@ -3988,6 +3989,8 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     if (runtime?.classification === "limited-system") return false;
     return true;
   };
+  /** Dictation mounts only when the Host advertises every command it polls. */
+  const dictationCapable = DICTATION_KINDS.every(id => can(id));
   const conversationClient = useMemo(() => asConversationClient(client), [client]);
   const runtimeConnected = runtime?.status === "connected";
   // A resident session is activated asynchronously after history selection.
@@ -6183,7 +6186,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
                 }}
                 onError={setComposerError}
               />
-              <DictationControl client={client} capabilities={capabilities} sessionId={composerOwner} available={runtimeConnected && executionMatches && !worktreeGated} onText={text => {
+              <DictationControl client={client} sessionId={composerOwner} available={runtimeConnected && executionMatches && !worktreeGated} capabilityAvailable={dictationCapable} onText={text => {
                 const current = composerInputRef.current?.getSnapshot() ?? draftPublisher.live;
                 const next = snapshotFromDoc({ nodes: [...current.doc.nodes, { type: "text", value: `${current.text.trim() ? "\n" : ""}${text}` }] });
                 composerInputRef.current?.setSnapshot(next);

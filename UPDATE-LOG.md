@@ -28,6 +28,12 @@
 ### Agent 自建插件与页面宿主（未发布）
 - **会话内开发插件**：主代理可在 `<agentDir>/plugins-dev/<session>/<name>/` 里 scaffold / validate / load_dev / reload / discard 一个自写插件；文件不写仓库、不改全局 settings，`load_dev` 把扩展工具与命令绑进当前 runner，回合结束检测文件变化后重载，失败保留上一版。promote / export 只由用户通过 `zetacode plugin promote|export` 执行，提升到 `~/.zeta/agent/plugins/<name>` 后需重启；`plugin dev cleanup` 清理过期会话目录。YOLO 仍是默认审批，未新增插件级审批、沙箱或安装通道。
 - **版本化页面宿主**：`plugin.json` 的 `ui.panels`（`kind: "html"`）现在决定可挂载页面，网关 `GET /api/plugin-pages` 列出清单、`GET /api/plugin-assets/<plugin>/<path>` 提供受 containment 保护的包内资源。Studio 的 `/plugins/view/<plugin>/<entry>` 以 sandbox iframe 打开页面，注入 `window.__zetaPage` v1（ready / callTool / getContext / subscribe / notify / resize），写操作只走 `callTool`；工具必须属于该插件、在当前会话启用，并经既有 tool wrapper/审批执行。HTTP `/api/*` 继续是只读数据面。
+
+### 草稿听写（未发布）
+- **Studio Host 真正实现 `dictation.*`**：新增 Host family，复用现有 `STTController`、`dictation` 模型角色、`stt.enabled`/`stt.language`、本地模型缓存与 ASR worker；`status/prepare/start/stop/cancel` 不再是空能力宣告。`prepare` 把 36 位 `audioId` 绑定到请求会话，桌面 `attach` 必须重复该会话；帧必须严格递增、已 attach 且不超过 64 KiB，乱序/跨会话/未挂接帧直接拒绝。
+- **桌面音频桥**：Electron preload 新增 `attachLiveAudio`/`appendLiveAudio`/`detachLiveAudio` 与 macOS 麦克风权限方法；Main 逐帧串行 POST 到 loopback `/api/dictation/audio*`，Worklet 16 kHz mono Float32 帧（1280 B / 20 ms）在 Host 转为采样并送入现有流式/云端转写。`stop` 先排空队列再转写，`cancel`/`detach` 丢弃输入且不产出文本。
+- **能力门禁**：只有 Host 能力清单同时声明 `dictation.status/prepare/start/stop/cancel` 且 Desktop preload 提供完整 `attachLiveAudio`/`appendLiveAudio`/`detachLiveAudio` + `getUserMedia` 时才挂载听写控件；否则不渲染、不轮询、不伪造浏览器回退。`stt.enabled=false` 时显示设置提示而非死按钮。
+- **测试**：Host 边界测试（能力清单注册、乱序/越界/错误会话/stop flush/cancel 无输出/start 被拒/未 start 的 stop 报错）、桌面 relay 测试（attach/detach 幂等、帧校验、串行 POST、Host 错误传播）与 composer 门控测试（桥缺失/部分桥/能力缺失/远端）均不下载模型、不依赖麦克风。ADR 0027（草稿）记录 Host/Desktop 边界。
 ### Work Studio 诊断（未发布）
 - **系统 Runtime 不再被误报为未安装**：当 Host 自身就是运行中的 `compatible-system` Runtime（源码/开发构建）时，诊断页显示「系统 Runtime 运行正常（未托管）」、托管卡片「系统 Runtime（未托管）」、签名「不适用（无托管制品）」、上游「本机 Runtime · 无上游记录」；`runtime.install` 与 `runtime.ensure` 能力分开渲染，不再给出必败的 Install 按钮，也不再弹「无法确认 Runtime 工件通道」。运行中的托管 Runtime 缺少安装记录改为黄色提示，launch/handshake/断连失败保留自身错误文案。
 

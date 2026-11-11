@@ -8,31 +8,20 @@ import { openLiveCapture, type LiveCapture } from "../media/liveCapture";
 import { ensureMicrophoneAccess, MicrophoneDeniedError, MicrophoneSettingsButton } from "../media/microphoneAccess";
 import { hostErrorMessage, waitReceipt } from "../hostError";
 import { Icon } from "../icons";
-import { supportsCapability } from "../deck/capabilitySupport";
+import { desktopDictationBridge, dictationControlMounts } from "./dictationSurface";
 
 const DEMO: DictationState = { available: true, enabled: true, phase: "off", text: "", model: "local/nemotron-streaming-en-0.6b", language: "zh", cloud: false, downloadRequired: false };
 
-type DictationControlProps = { client: StudioClient; capabilities?: CapabilityManifest | undefined; sessionId?: string | undefined; available: boolean; onText(text: string): void };
-
-/** Mount the channel only when both the Host and this local surface provide it. */
-export function DictationControl(props: DictationControlProps) {
-  const { preview } = usePreviewMode();
-  const target = useExecutionTarget();
-  const bridge = globalThis.zetaStudioChrome;
-  const transportAvailable = !!bridge?.attachLiveAudio && !!bridge.appendLiveAudio && !!bridge.detachLiveAudio
-    && typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
-  if (!preview && (!props.available || !props.sessionId || target.id || !transportAvailable
-    || !["dictation.status", "dictation.prepare", "dictation.start", "dictation.stop", "dictation.cancel"].every(kind => supportsCapability(props.capabilities, kind)))) return null;
-  return <AvailableDictationControl {...props} />;
-}
-
-/** Capture text is merged only by an explicit stop, never sent as a prompt. */
-function AvailableDictationControl({ client, sessionId, available, onText }: DictationControlProps) {
+/** Capture has its own temporary text. Only an explicit stop merges it into the owner's draft. */
+export function DictationControl({ client, sessionId, available, capabilityAvailable, onText }: { client: StudioClient; sessionId?: string | undefined; available: boolean; capabilityAvailable: boolean; onText(text: string): void }) {
   const { preview } = usePreviewMode(); const { resolvedLanguage } = useI18n(); const zh = resolvedLanguage === "zh";
   const target = useExecutionTarget();
-  const [state, setState] = useState<DictationState>(); const [review, setReview] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [denied, setDenied] = useState(false);
+  const [state, setState] = useState<DictationState>(); const [review, setReview] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [denied, setDenied] = useState(false); const [supported, setSupported] = useState(true);
   const generation = useRef(0); const capture = useRef<LiveCapture | undefined>(undefined); const id = useRef<string | undefined>(undefined); const abort = useRef<AbortController | undefined>(undefined); const locked = useRef(false); const finishing = useRef(false); const callback = useRef(onText); callback.current = onText;
-  const enabled = preview || (available && !!sessionId && !target.id && !!globalThis.zetaStudioChrome?.attachLiveAudio);
+  const bridge = desktopDictationBridge(globalThis.zetaStudioChrome, navigator.mediaDevices);
+  // The mount gate also decides whether the status poll may run: an unadvertised
+  // `dictation.*` capability or an incomplete preload bridge never reaches the Host.
+  const enabled = dictationControlMounts({ preview, capabilityAvailable, bridgeComplete: bridge, available, sessionId, remoteTarget: !!target.id, supported });
   const invoke = useCallback(async <K extends keyof DictationResultMap>(kind: K, input: CommandInput<K>): Promise<DictationState> => {
     const handle = await client.command(kind, input); return (await waitReceipt<{ result: DictationState }>(client, handle.requestId, kind === "dictation.stop" ? 130000 : 30000)).result;
   }, [client]);
@@ -43,18 +32,18 @@ function AvailableDictationControl({ client, sessionId, available, onText }: Dic
     setBusy(false); setReview(false); setState(previous => previous ? { ...previous, phase: "off", text: "" } : previous);
   }, [invoke, sessionId, preview]);
   useEffect(() => {
-    generation.current++; setState(preview ? DEMO : undefined); setError(""); setReview(false);
-    let alive = true; let timer: ReturnType<typeof setTimeout>;
+    const epoch = ++generation.current; setState(preview ? DEMO : undefined); setError(""); setReview(false);
+    let alive = true; let timer: ReturnType<typeof setTimeout>; let stopped = false;
     const poll = async () => {
-      try {
-        if (!document.hidden && !locked.current) {
-          const next = await invoke("dictation.status", { sessionId: sessionId! });
-          if (!alive) return;
-          if (!locked.current) setState(next);
-          if (!next.available || !next.enabled) return;
-        }
-        if (alive) timer = setTimeout(() => void poll(), id.current ? 300 : 3000);
-      } catch (cause) { if (alive) setError(hostErrorMessage(cause, "Dictation unavailable")); }
+      try { if (!document.hidden && !locked.current) { const next = await invoke("dictation.status", { sessionId: sessionId! }); if (alive && !locked.current) setState(next); } }
+      catch (cause) {
+        const code = cause !== null && typeof cause === "object" && "code" in cause ? cause.code : undefined;
+        // Older hosts do not implement dictation.*: hide the feature and never
+        // poll an operation the capability manifest does not advertise.
+        if (code === "unsupported") { stopped = true; if (alive) setSupported(false); return; }
+        if (alive) setError(hostErrorMessage(cause, "Dictation unavailable"));
+      }
+      finally { if (alive && !stopped) timer = setTimeout(() => void poll(), id.current ? 300 : 3000); }
     };
     if (!preview && enabled) void poll();
     const hide = () => { if (document.hidden && !preview) cancel(); }; document.addEventListener("visibilitychange", hide);
@@ -66,16 +55,37 @@ function AvailableDictationControl({ client, sessionId, available, onText }: Dic
     const controller = new AbortController(); abort.current = controller;
     try {
       const access = ensureMicrophoneAccess(zh); if (access) await access;
+      // Model preflight runs before the microphone opens, so the Worklet is not
+      // streaming a queue that would overflow during a first-run model download.
+      const prepared = await invoke("dictation.prepare", { sessionId: sessionId! });
+      if (!prepared.audioId) throw new Error(prepared.error ?? "Dictation input was not prepared");
+      if (epoch !== generation.current || controller.signal.aborted) throw new Error("Dictation target changed");
+      id.current = prepared.audioId;
+      const started = await invoke("dictation.start", { sessionId: sessionId!, audioId: prepared.audioId });
+      if (epoch === generation.current) { setState(started); setReview(false); }
+      if (started.phase === "error") throw new Error(started.error ?? "Could not start dictation");
+      // Wait for the Host's controller to be recording (model ready) before
+      // attaching the microphone; the Host intends `starting` to mean that.
+      let status = started;
+      const deadline = Date.now() + 300_000;
+      while (status.phase !== "recording") {
+        if (epoch !== generation.current || controller.signal.aborted) throw new Error("Dictation target changed");
+        if (status.phase === "error") throw new Error(status.error ?? "Could not start dictation");
+        if (status.phase === "complete" || status.phase === "off") throw new Error("Dictation stopped before recording");
+        if (Date.now() >= deadline) throw new Error("Dictation model did not become ready in time");
+        const { promise, resolve } = Promise.withResolvers<void>();
+        setTimeout(resolve, 200);
+        await promise;
+        status = await invoke("dictation.status", { sessionId: sessionId! });
+        if (epoch === generation.current) setState(status);
+      }
       const input = await openLiveCapture({ signal: controller.signal, onFault: message => { if (finishing.current) return; cancel(); setError(message); }, attach: async () => {
-        const prepared = await invoke("dictation.prepare", { sessionId: sessionId! });
-        if (!prepared.audioId) throw new Error("Dictation input was not prepared");
-        if (epoch !== generation.current || controller.signal.aborted) { void invoke("dictation.cancel", { sessionId: sessionId!, audioId: prepared.audioId }).catch(() => {}); throw new Error("Dictation target changed"); }
-        id.current = prepared.audioId; const attached = await globalThis.zetaStudioChrome!.attachLiveAudio!({ sessionId: sessionId!, audioId: prepared.audioId });
-        if (!attached.ok) throw new Error(attached.message ?? "Microphone attach failed"); return prepared.audioId;
+        if (epoch !== generation.current || controller.signal.aborted) throw new Error("Dictation target changed");
+        const attached = await globalThis.zetaStudioChrome!.attachLiveAudio!({ sessionId: sessionId!, audioId: prepared.audioId! });
+        if (!attached.ok) throw new Error(attached.message ?? "Microphone attach failed");
+        return prepared.audioId!;
       } });
       capture.current = input;
-      const next = await invoke("dictation.start", { sessionId: sessionId!, audioId: input.audioId });
-      if (epoch === generation.current) { setState(next); setReview(false); }
     } catch (cause) { if (epoch === generation.current) { cancel(); setDenied(cause instanceof MicrophoneDeniedError); setError(hostErrorMessage(cause, "Could not start dictation")); } }
     finally { if (epoch === generation.current) { locked.current = false; setBusy(false); } }
   };
@@ -93,7 +103,9 @@ function AvailableDictationControl({ client, sessionId, available, onText }: Dic
     finally { capture.current?.stop(); capture.current = undefined; id.current = undefined; finishing.current = false; if (epoch === generation.current) { locked.current = false; setBusy(false); } }
   };
   const active = state && ["starting", "recording", "transcribing"].includes(state.phase);
-  if (!preview && (!state?.available || !state.enabled)) return null;
+  // W4 gate: capability manifest, desktop bridge, target and session all have
+  // to hold before the control exists; an incomplete surface renders nothing.
+  if (!enabled) return null;
   return <section className="composer-dictation" aria-label={zh ? "草稿听写" : "Draft dictation"}>
     <button type="button" className="btn small ghost" disabled={!enabled || busy || active || !state?.enabled} onClick={() => setReview(true)} data-tip={target.id ? "远端目标未提供本机麦克风转发" : "听写只填草稿"}><Icon name="mic" extra="sm" />{zh ? "听写" : "Dictate"}</button>
     {active ? <><span role="status">{state.phase} · {preview ? "演示" : state.model}</span><button type="button" className="btn small outline" disabled={busy} onClick={() => void stop()}>{zh ? "停止并填入草稿" : "Stop and fill draft"}</button><button type="button" className="btn small ghost" onClick={cancel}>{zh ? "取消" : "Cancel"}</button><p aria-live="polite">{state.text}</p></> : null}

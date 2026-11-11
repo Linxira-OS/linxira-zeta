@@ -94,7 +94,19 @@ Capabilities the shell owns (paths never cross into the renderer):
   `resolveFileAbsolutePath`, `listFileOpeners`, `getPathForFile`,
   `resolveDroppedPaths`, `pickPlanSavePath`;
 * app chrome — `getAppVersion`, `checkUpdates`, `openUrl`, `notify`,
-  `openLogDir`, `exportLogs`, `sampleProcessMemory`, `onMenuCommand`.
+  `openLogDir`, `exportLogs`, `sampleProcessMemory`, `onMenuCommand`;
+* draft dictation — `attachLiveAudio`, `appendLiveAudio`, `detachLiveAudio`,
+  `requestMicrophoneAccess`, `openMicrophoneSettings`.
+
+Draft dictation is desktop-only. Chromium captures the microphone through
+`getUserMedia` + an AudioWorklet (ordered 16 kHz mono Float32 frames); the
+preload hands each frame to Main, which serializes it per `audioId` and POSTs it
+to the loopback-only `/api/dictation/audio*` route. The Studio Host binds that
+`audioId` to the requesting session in `dictation.prepare`, rejects unattached,
+out-of-order or wrong-session frames, flushes queued audio on `dictation.stop`,
+and uses the existing `STTController`/model-role cache for transcription. The
+renderer shows no dictation control in a browser tab, a remote target or a Host
+that does not advertise `dictation.*`; there is no fallback capture path.
 
 Workspace ids are opaque (`ws-*`). Every action resolves them through the
 gateway's `GET /api/projects` inventory and re-checks containment with

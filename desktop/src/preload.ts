@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "electron";
+import { liveAudioBridge } from "./live-audio-preload";
 
 interface DesktopOpenTarget {
 	id: string;
@@ -192,6 +193,10 @@ const bridge = {
 };
 
 export type PiDesktopApi = typeof bridge;
+
+// Dictation keeps its own module (channels, validation, macOS TCC); spreading
+// it in keeps the desktop capability surface one object under both globals.
+Object.assign(bridge, liveAudioBridge);
 
 contextBridge.exposeInMainWorld("piDesktop", bridge);
 contextBridge.exposeInMainWorld("zetaStudioChrome", bridge);

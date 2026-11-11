@@ -103,6 +103,7 @@ import {
 	handleFsDirectoriesPost,
 } from "./web-gateway/cwd";
 import { handleDesktopInfoGet } from "./web-gateway/desktop";
+import { handleDictationAudio } from "./web-gateway/dictation-audio";
 import { handleDocsGet } from "./web-gateway/docs";
 import { handleFileIndexGet } from "./web-gateway/file-index";
 import { handleFilesGet, handleFilesPost } from "./web-gateway/files";
@@ -497,6 +498,19 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		if (req.method === "PUT") return handleProjectsPut(req);
 		if (req.method === "DELETE") return handleDeleteProject(req);
 		return json({ error: "Method not allowed" }, 405);
+	}
+
+	// Desktop dictation transport: the Renderer's Worklet frames are forwarded
+	// by Electron Main. Only a prepared `dictation.*` audioId has a sink, and
+	// only the local shell may post audio: a paired remote browser is rejected
+	// even with a valid token.
+	if (
+		pathname === "/api/dictation/audio" ||
+		pathname === "/api/dictation/audio/attach" ||
+		pathname === "/api/dictation/audio/detach"
+	) {
+		if (!loopback) return json({ error: "Forbidden" }, 403);
+		return handleDictationAudio(req);
 	}
 
 	if (pathname === "/api/git/branches") {

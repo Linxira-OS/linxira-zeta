@@ -74,6 +74,7 @@ import {
 	type ServeCommand,
 	type ServeResolutionDeps,
 } from "./serve-resolution";
+import { installLiveAudioIpc } from "./live-audio-main";
 
 // Must match packages/utils/src/ports.ts (this standalone package cannot import
 // the workspace); `scripts/check-service-ports.ts` fails CI when they drift.
@@ -444,6 +445,11 @@ async function gatewayJson(pathname: string, init?: RequestInit): Promise<unknow
 	if (!response.ok) throw new Error(`${pathname} → HTTP ${response.status}`);
 	return await response.json();
 }
+
+// Desktop dictation: the preload bridge streams Worklet frames here and this
+// relays them to the prepared Host capture. Registered once; the service URL
+// is resolved per request so a restarted/adopted service keeps working.
+installLiveAudioIpc(() => webUiUrl);
 
 async function workspaceLocation(workspaceId: unknown): Promise<WorkspaceLocation> {
 	if (typeof workspaceId !== "string" || !workspaceId.startsWith("ws-")) throw new Error("Invalid workspace id");

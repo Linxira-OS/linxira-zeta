@@ -6,6 +6,7 @@
  */
 import type { StudioFamily } from "../registry.js";
 import { agentsOps } from "./agents.js";
+import { dictationOps } from "./dictation.js";
 import { filesOps } from "./files.js";
 import { gitOps } from "./git.js";
 import { modelsOps } from "./models.js";
@@ -27,6 +28,7 @@ export const STUDIO_FAMILIES: readonly StudioFamily[] = [
 	agentsOps,
 	roomsOps,
 	teamOps,
+	dictationOps,
 	gitOps,
 	skillsOps,
 	pluginHostOps,
