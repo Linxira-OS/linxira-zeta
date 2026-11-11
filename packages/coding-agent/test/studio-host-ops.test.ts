@@ -484,6 +484,11 @@ describe("model visibility settings", () => {
 
 	test("configure persists the per-agent model override and clears it", async () => {
 		await runCommand("agents.definition.configure", { name: "scout", overrideModel: "@research" });
+		// The host command goes through the real in-process gateway routes, not a
+		// mock echo: the isolated agent dir now holds the persisted overlay.
+		const configPath = path.join(agentDir.path(), "config.yml");
+		expect(fs.existsSync(configPath)).toBe(true);
+		expect(fs.readFileSync(configPath, "utf8")).toContain("agentModelOverrides");
 		let definitions = await queryResult("agents.definitions.get", {});
 		const scout = definitions.agents.find(agent => agent.name === "scout");
 		expect(scout?.overrideModel).toBe("@research");
