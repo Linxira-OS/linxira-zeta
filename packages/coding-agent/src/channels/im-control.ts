@@ -10,9 +10,11 @@
  * the final answer.
  */
 
-import type { ChannelId } from "@linxiraos/pi-channels";
 import { COORDINATOR_ALIAS, type SessionRouter } from "./session-router";
 import { resolveBotSession } from "./workspace-router";
+
+/** Instance id, never a platform. */
+type ChannelId = string;
 
 export type ImControlOperation =
 	| "list_workspaces"

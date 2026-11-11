@@ -477,7 +477,9 @@ export async function runCredentialLogin(
 			...(options.customFetch ? { customFetch: options.customFetch } : {}),
 			...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
 		});
-		await options.webConfig.set("channels.telegram.botToken", botToken);
+		await options.webConfig.setInstance(options.instanceId, {
+			credentials: { ...storedCredentials(options.webConfig, options.instanceId), botToken },
+		});
 		return { channel, state: "connected", identity, credentialsPersisted: true };
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);

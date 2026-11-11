@@ -737,19 +737,22 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 	const cmd = parts[1]?.toLowerCase();
 	switch (cmd) {
 		case "list": {
-			const entries = router.listBotSessions();
+			const snapshot = await router.listSessionCandidates();
 			const activeId = await router.activeBotSessionIdFor(deps.channelId as never, deps.peer);
-			if (entries.length === 0) {
-				await deps.sendText("No default-space sessions. Try !session new <name>.");
+			if (snapshot.candidates.length === 0) {
+				await deps.sendText(
+					"近 3 天没有可选会话。更早的会话请在电脑上的 Studio 查看；!session new <name> 可新建。",
+				);
 				return;
 			}
-			const lines = entries.map((entry, index) => {
-				const mark = entry.id === activeId ? " [当前]" : "";
-				const project = ` → [${entry.workspaceAlias ?? COORDINATOR_ALIAS}]`;
-				const chat = entry.chatId ? ` (${entry.platform ?? "?"}:${entry.chatId})` : "";
-				return `{${index + 1}} [${entry.id}] — ${entry.name} [${entry.tag}]${project}${chat}${mark}`;
+			const lines = snapshot.candidates.map(candidate => {
+				const mark = candidate.canonicalId === activeId ? " [当前]" : "";
+				const summary = candidate.summary ? ` — ${candidate.summary}` : "";
+				return `${candidate.selector} ${candidate.name}${summary} [${candidate.workspaceAlias}]${mark}`;
 			});
-			await deps.sendText(["Bot 会话:", ...lines, "回复 !session use {n} 或 [id] 切换"].join("\n"));
+			await deps.sendText(
+				["Bot 会话（近 3 天）:", ...lines, "回复 !session use 01-00001 切换；更早会话请在电脑 Studio 查看"].join("\n"),
+			);
 			return;
 		}
 		case "new": {
@@ -770,7 +773,7 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 			if (result.ok) {
 				const where = result.entry.workspaceAlias ?? COORDINATOR_ALIAS;
 				await deps.sendText(
-					`会话 [${result.entry.name}] 已创建 (id [${result.entry.id}], 项目 [${where}])。回复 !session use [${result.entry.id}] 切换。`,
+					`会话 [${result.entry.name}] 已创建 (项目 [${where}])。回复 !session list 获取短 selector 后切换。`,
 				);
 			} else {
 				await deps.sendText(result.error);
@@ -802,9 +805,10 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 				await deps.sendText("Usage: !session use <id|n>");
 				return;
 			}
-			const entry = resolveBotSession(router, selector);
+			const canonicalId = router.resolveSessionSelector(selector);
+			const entry = canonicalId ? router.botSession(canonicalId) : undefined;
 			if (!entry) {
-				await deps.sendText(`Unknown bot session "${selector}". Type !session list to see them.`);
+				await deps.sendText(`Unknown session selector "${selector}". Type !session list to refresh.`);
 				return;
 			}
 			const result = await router.setActiveBotSession(deps.channelId as never, deps.peer, entry.id);
@@ -822,9 +826,10 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 				await deps.sendText("Usage: !session rename <id|n> <name>");
 				return;
 			}
-			const entry = resolveBotSession(router, selector);
+			const canonicalId = router.resolveSessionSelector(selector);
+			const entry = canonicalId ? router.botSession(canonicalId) : undefined;
 			if (!entry) {
-				await deps.sendText(`Unknown bot session "${selector}". Type !session list to see them.`);
+				await deps.sendText(`Unknown session selector "${selector}". Type !session list to refresh.`);
 				return;
 			}
 			const result = await router.renameBotSession(entry.id, name);
@@ -841,9 +846,10 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 				await deps.sendText("Usage: !session delete <id|n>");
 				return;
 			}
-			const entry = resolveBotSession(router, selector);
+			const canonicalId = router.resolveSessionSelector(selector);
+			const entry = canonicalId ? router.botSession(canonicalId) : undefined;
 			if (!entry) {
-				await deps.sendText(`Unknown bot session "${selector}". Type !session list to see them.`);
+				await deps.sendText(`Unknown session selector "${selector}". Type !session list to refresh.`);
 				return;
 			}
 			const result = await router.deleteBotSession(entry.id);
@@ -862,21 +868,10 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 	}
 }
 
-/** Resolve a `!session` selector: `[id]` / `{n}` / bare id / 1-based list index. */
-export function resolveBotSession(
-	router: SessionRouter,
-	selector: string,
-): { id: string; name: string; tag: string; chatId?: string; platform?: string } | undefined {
-	const entries = router.listBotSessions();
-	// Strip `{…}` / `[…]` wrappers so `!session use {1}` / `[relay]` work as typed.
-	const clean = selector.replace(/[{}[\]]/g, "");
-	const byId = entries.find(entry => entry.id === clean);
-	if (byId) return byId;
-	const index = Number(clean);
-	if (Number.isInteger(index) && index >= 1 && index <= entries.length) {
-		return entries[index - 1];
-	}
-	return undefined;
+/** Resolve a `!session` selector against the pinned list snapshot or a canonical id. */
+export function resolveBotSession(router: SessionRouter, selector: string): ReturnType<SessionRouter["botSession"]> {
+	const canonicalId = router.resolveSessionSelector(selector);
+	return canonicalId ? router.botSession(canonicalId) : undefined;
 }
 
 /** `!lang <zh|en>` — per-chat reply language (zero AI). */

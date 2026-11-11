@@ -16,6 +16,8 @@ export interface IrcMessage {
 	body: string;
 	ts: number;
 	replyTo?: string;
+	/** Platform origin metadata for IM ingress. */
+	metadata?: Record<string, unknown>;
 }
 
 export interface ChannelSession {

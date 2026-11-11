@@ -298,6 +298,7 @@ export class IrcBridge {
 				...(msg.broadcast ? { broadcast: true } : {}),
 				...(msg.progress ? { progress: true } : {}),
 				...(fromParent ? { fromParent: true } : {}),
+				...(msg.metadata ? { metadata: msg.metadata } : {}),
 			},
 			attribution: "agent",
 			timestamp: msg.ts,

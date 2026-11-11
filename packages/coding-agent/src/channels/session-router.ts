@@ -44,6 +44,7 @@ import { SessionManager } from "../session/session-manager";
 import { isImSession, sameSessionOrigin, type SessionOrigin } from "../session/session-origin";
 import type { ImControlParams, ImControlResult } from "./im-control";
 import { targetKey, targetScopedBindingId } from "./im-config";
+import { buildImSessionList, type ImSessionListSnapshot } from "./im-session-selector";
 import { type AgentProfileOptions, loadImAgentProfilePersona, resolveImAgentProfileRuntime } from "../agent-profile";
 
 /** Upper bound for a delegated `workspace_run` turn (no reply → timeout error). */
@@ -212,6 +213,7 @@ export class SessionRouter {
 	/** Runtime per-chat agent override from `@agent use` / `@team` (highest precedence). */
 	readonly #agentBindings = new Map<string, string>();
 	/** Pending workspace switch, keyed by instance+chat+thread+user. */
+	#sessionListSnapshot: ImSessionListSnapshot | null = null;
 	readonly #pendingWorkspaceSwitch = new Map<
 		string,
 		{ action: "target"; target: import("./im-config").ImTarget; at: number } | { action: "unbind"; at: number }
@@ -674,6 +676,26 @@ export class SessionRouter {
 		};
 		await this.#webConfig.upsertBotSession(entry);
 		return { ok: true, id: entry.id };
+	}
+
+	/** Refresh and pin the short-selector snapshot for this entry. */
+	async listSessionCandidates(options: { includePm?: boolean; now?: number; maxAgeMs?: number } = {}): Promise<ImSessionListSnapshot> {
+		this.#sessionListSnapshot = await buildImSessionList(this, this.#webConfig, options);
+		return this.#sessionListSnapshot;
+	}
+
+	/** Resolve a short selector against the list the user saw; never renumber mid-use. */
+	resolveSessionSelector(selector: string): string | null {
+		const cleaned = selector.trim().replace(/^\{|\}$/g, "").replace(/^\[|\]$/g, "");
+		if (!cleaned) return null;
+		const fromSnapshot = this.#sessionListSnapshot?.bySelector.get(cleaned)?.canonicalId;
+		if (fromSnapshot) return fromSnapshot;
+		// Explicit registry ids remain valid for scripts and legacy commands.
+		return this.#webConfig.getBotSession(cleaned)?.id ?? null;
+	}
+
+	sessionSelectorSnapshot(): ImSessionListSnapshot | null {
+		return this.#sessionListSnapshot;
 	}
 
 	#workspaceSwitchKey(
@@ -1759,15 +1781,15 @@ export class SessionRouter {
 
 	/**
 	 * Push text through the channel runtime (channel_send tool sink). Outbound
-	 * targets are checked against `channels.allowedPeers`: an agent cannot use
-	 * the tool to message a peer the operator never authorized.
+	 * targets are checked against the target instance's peer allowlist: an
+	 * agent cannot use the tool to message a peer the operator never authorized.
 	 */
 	async push(opts: { text: string; to?: string; channel?: string }, caller?: ChannelToolContext): Promise<void> {
 		const target = this.resolvePush(opts, caller);
 		if (!target) throw new Error("No channel or peer bound to this session");
-		const allowedPeers = this.#webConfig.getData().channels.allowedPeers;
-		if (!isPeerAllowed(target.to, allowedPeers)) {
-			throw new Error(`channel_send: peer "${target.to}" is not in channels.allowedPeers`);
+		const instance = this.#webConfig.getChannelInstance(target.channelId);
+		if (!instance || !instance.allow.peers.includes(target.to)) {
+			throw new Error(`channel_send: peer "${target.to}" is not in the ${target.channelId} instance allowlist`);
 		}
 		await this.#sendText(target.channelId, target.to, opts.text);
 	}

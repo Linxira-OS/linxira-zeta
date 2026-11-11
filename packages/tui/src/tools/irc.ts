@@ -14,6 +14,8 @@ export interface IrcMessage {
 	ts: number;
 	/** Message id being answered. */
 	replyTo?: string;
+	/** Platform origin metadata for IM ingress (instance/chat/thread/user/display/time/attachments). */
+	metadata?: Record<string, unknown>;
 	/**
 	 * Automated wake-turn relay of a woken subagent's stop output (task executor
 	 * `relayWakeTurnOutput`). Relays are answers, never wake sources: the
