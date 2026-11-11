@@ -6,6 +6,7 @@ import ircIncomingTemplate from "../prompts/system/irc-incoming.md" with { type:
 import { AgentRegistry, isRootAgentRef } from "../registry/agent-registry";
 import type { AgentSessionEvent } from "./agent-session-events";
 import { escapeHarnessTags } from "./harness-tags";
+import { normalizeImMessageMetadata } from "./session-im";
 import type { CustomMessage } from "./messages";
 import type { SessionManager } from "./session-manager";
 
@@ -275,10 +276,25 @@ export class IrcBridge {
 		// harness envelope it is rendered into or open a forged one, e.g. a parent
 		// steer. `details.message` keeps the raw body for the transcript card and inbox.
 		const envelopeBody = escapeHarnessTags(msg.body);
+		// IM ingress is a real user turn with entry-level provenance. The custom
+		// record remains the wake/correlation carrier, but carries no duplicate
+		// prompt text once the user entry exists.
+		const imMetadata = normalizeImMessageMetadata(msg.metadata);
+		const isImUserTurn = imMetadata !== undefined && !("replyToMessageId" in imMetadata);
+		if (isImUserTurn) {
+			this.#host.sessionManager.appendMessage(
+				{
+					role: "user",
+					content: [{ type: "text", text: msg.body }],
+					timestamp: msg.ts,
+				} as AgentMessage,
+				imMetadata,
+			);
+		}
 		const record: CustomMessage = {
 			role: "custom",
 			customType: "irc:incoming",
-			content: prompt.render(ircIncomingTemplate, {
+			content: isImUserTurn ? "" : prompt.render(ircIncomingTemplate, {
 				from: msg.from,
 				message: envelopeBody,
 				replyTo: msg.replyTo ?? "",

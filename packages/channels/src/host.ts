@@ -137,6 +137,7 @@ export class ChannelHost {
 		body: string,
 		messageId?: string,
 		identity?: Omit<PeerIdentity, "peer">,
+		metadata?: Record<string, unknown>,
 	): Promise<ChannelDeliveryResult> {
 		// Authorization is the FIRST inbound check, mirroring `routeInbound`:
 		// an unauthorized sender must never reach dispatch or start a turn.
@@ -159,6 +160,7 @@ export class ChannelHost {
 			to: agentId,
 			body,
 			ts: Date.now(),
+			...(metadata ? { metadata } : {}),
 		};
 		// Registered before delivery: a wake turn can start synchronously inside
 		// `deliverIrcMessage`, and the observer must find the expectation.

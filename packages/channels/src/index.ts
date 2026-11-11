@@ -8,7 +8,7 @@
  */
 
 import * as path from "node:path";
-import { getAgentDir, logger } from "@linxiraos/pi-utils";
+import { getAgentDir, logger, Snowflake } from "@linxiraos/pi-utils";
 import { CHANNEL_PEER_REFUSED_TEXT, isAllowlistEmpty, isPeerAllowedFor, type ChannelAllowlists } from "./auth";
 import type {
 	ChannelHealthState,
@@ -426,7 +426,29 @@ export async function startChannels(
 			});
 			return;
 		}
-		void host.deliver(instanceId, message.peer, body, message.messageId, identity).catch(error => {
+		const platform = platformOf.get(instanceId);
+		const metadata = {
+			source: "im",
+			platform: platform ?? "unknown",
+			instance: instanceId,
+			chatId: message.peer,
+			...(message.threadId ? { threadId: message.threadId } : {}),
+			...(message.senderId ? { senderId: message.senderId } : {}),
+			...(message.senderName ? { senderName: message.senderName } : {}),
+			messageId: message.messageId ?? Snowflake.next(),
+			sentAt: new Date(message.ts ?? Date.now()).toISOString(),
+			...(message.attachments && message.attachments.length > 0
+				? {
+						attachments: message.attachments.map(attachment => ({
+							...(attachment.name ? { name: attachment.name } : {}),
+							...(attachment.mime ? { mimeType: attachment.mime } : {}),
+							...(attachment.size === undefined ? {} : { size: attachment.size }),
+						})),
+					}
+				: {}),
+			route: {},
+		};
+		void host.deliver(instanceId, message.peer, body, message.messageId, identity, metadata).catch(error => {
 			logger.warn("Channel message injection failed", {
 				instance: instanceId,
 				error: error instanceof Error ? error.message : String(error),
