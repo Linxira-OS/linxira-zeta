@@ -152,7 +152,6 @@ import { AgentRegistry } from "./registry/agent-registry";
 import { deliverPendingRoomEvents } from "./team/room-delivery";
 import { isTeamHubEntry, resolveTeamEntry } from "./team/entry";
 import {
-	discoverSystemPromptOverride,
 	discoverTitleSystemPromptFile,
 	loadSystemPromptTemplateFile,
 	resolvePromptInput,
@@ -1553,31 +1552,28 @@ export async function buildSessionOptions(
 		throw new Error("--system-prompt and --system-prompt-template cannot be combined");
 	}
 	const cwd = options.cwd;
-	const discoveredOverride =
-		parsed.systemPrompt === undefined && parsed.systemPromptTemplate === undefined
-			? await discoverSystemPromptOverride(cwd)
-			: undefined;
-	const systemPromptSource =
-		parsed.systemPrompt ?? (discoveredOverride?.kind === "text" ? discoveredOverride.path : undefined);
-	const templatePath =
-		parsed.systemPromptTemplate ?? (discoveredOverride?.kind === "template" ? discoveredOverride.path : undefined);
-	const appendPromptSource = parsed.appendSystemPrompt ?? discoverAppendSystemPromptFile();
+	// Discovered SYSTEM.md/template stays on the buildSystemPrompt discovery path:
+	// it re-reads the source on every prompt rebuild. Only explicit CLI inputs
+	// are frozen into options here (an explicit flag is a one-shot value).
+	const explicitTemplatePath = parsed.systemPromptTemplate;
+	const discoveredAppendSource = parsed.appendSystemPrompt === undefined ? discoverAppendSystemPromptFile() : undefined;
 	const titleSystemPromptSource = discoverTitleSystemPromptFile(cwd);
 	const [resolvedSystemPrompt, resolvedAppendPrompt, titleSystemPrompt, resolvedSystemPromptTemplate] =
 		await Promise.all([
-			discoveredOverride?.kind === "text"
-				? Promise.resolve(discoveredOverride.content)
-				: resolvePromptInput(systemPromptSource, "system prompt"),
-			resolvePromptInput(appendPromptSource, "append system prompt"),
+			parsed.systemPrompt === undefined
+				? Promise.resolve(undefined)
+				: resolvePromptInput(parsed.systemPrompt, "system prompt"),
+			parsed.appendSystemPrompt === undefined
+				? Promise.resolve(undefined)
+				: resolvePromptInput(parsed.appendSystemPrompt, "append system prompt"),
 			resolvePromptInput(titleSystemPromptSource, "title system prompt"),
-			// Discovered templates arrive pre-loaded from the capability; only
-			// explicit CLI paths hit the strict file loader here.
-			discoveredOverride?.kind === "template" && parsed.systemPromptTemplate === undefined
-				? Promise.resolve(discoveredOverride.content)
-				: templatePath === undefined
-					? Promise.resolve(undefined)
-					: loadSystemPromptTemplateFile(templatePath),
+			explicitTemplatePath === undefined
+				? Promise.resolve(undefined)
+				: loadSystemPromptTemplateFile(explicitTemplatePath),
 		]);
+	if (discoveredAppendSource !== undefined) {
+		options.appendSystemPromptSource = discoveredAppendSource;
+	}
 
 	if (sessionManager) {
 		options.sessionManager = sessionManager;

@@ -282,6 +282,7 @@ import {
 	composeAppendPrompt,
 	loadProjectContextFiles as loadContextFilesInternal,
 	projectSystemPromptToolMetadata,
+	resolvePromptInput,
 	withoutAgentsMd,
 } from "./system-prompt";
 import type { AgentDefinition } from "./task/types";
@@ -732,6 +733,12 @@ export interface CreateAgentSessionOptions {
 	customSystemPrompt?: string;
 	/** Already-loaded text appended through the bundled system prompt templates. */
 	appendSystemPrompt?: string;
+	/**
+	 * Source path of a discovered APPEND_SYSTEM.md. Read once per prompt
+	 * rebuild (not per turn), so editing/atomically replacing the file reaches
+	 * the next rebuild. Explicit `appendSystemPrompt` wins.
+	 */
+	appendSystemPromptSource?: string;
 	/**
 	 * Already-loaded title-generation system prompt override (typically
 	 * {@link discoverTitleSystemPromptFile} → {@link resolvePromptInput}). When
@@ -4744,9 +4751,14 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				}
 			}
 			const personaAppend = agentProfile?.persona?.appendSystemPrompt?.trim();
+			const appendText =
+				options.appendSystemPrompt ??
+				(options.appendSystemPromptSource === undefined
+					? undefined
+					: await resolvePromptInput(options.appendSystemPromptSource, "append system prompt"));
 			const appendPrompt = composeAppendPrompt(
 				personaAppend ? [...appendParts, personaAppend] : appendParts,
-				options.appendSystemPrompt,
+				appendText,
 			);
 			// Owned/in-band tool dialects (non-native) require the full functions-
 			// namespace catalog; native tool calling lets the compact name list suffice.
