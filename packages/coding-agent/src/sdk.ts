@@ -348,6 +348,7 @@ import {
 import { createBrowserPrelude } from "./tools/browser";
 import { isBuiltinToolName, isMCPToolName, normalizeToolNames } from "./tools/builtin-names";
 import { isToolDisabledBySettings } from "./tools/tool-policy";
+import { deliverPendingRoomEvents } from "./team/room-delivery";
 import { createComputerPrelude } from "./tools/computer";
 import { createRatchetPrelude } from "./ratchet/prelude-definition";
 import { createArchivePrelude } from "./archive/prelude-definition";
@@ -5915,6 +5916,14 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			throw new Error(`Agent "${resolvedAgentId}" was replaced during session initialization.`);
 		}
 		hasRegistered = true;
+		if (agentKind === "main" || agentKind === "sub") {
+			void deliverPendingRoomEvents({ agentId: resolvedAgentId, cwd }).catch(error => {
+				logger.debug("team: pending room delivery failed", {
+					agentId: resolvedAgentId,
+					error: String(error),
+				});
+			});
+		}
 		if (options.onSessionAttached !== undefined) {
 			try {
 				const cleanup = options.onSessionAttached({ agentId: resolvedAgentId, cwd, session });
