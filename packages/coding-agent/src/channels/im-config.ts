@@ -146,6 +146,15 @@ function record(value: unknown): Record<string, unknown> | null {
 function text(value: unknown): string | null {
 	return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
+/**
+ * Whether a value can be persisted as a binding key component: a non-empty
+ * trimmed string without control characters. Legacy rows that fail this must
+ * be healed away, never silently joined into a key.
+ */
+export function isPersistableKeyText(value: unknown): value is string {
+	return typeof value === "string" && value.trim() !== "" && !CONTROL_RE.test(value.trim());
+}
+
 /** A key component that can be joined without ambiguity. */
 function keyText(value: unknown, pathName: string, issues: ConfigIssue[]): string | null {
 	const parsed = text(value);
@@ -281,7 +290,7 @@ export function validateImAgentProfiles(value: unknown): ImAgentProfile[] {
 		const memRec = record(rec.memory) ?? {};
 		const backend = text(memRec.backend);
 		if (
-			backend !== undefined &&
+			backend !== null &&
 			!["off", "local", "hindsight", "mnemopi", "sharpshooter"].includes(backend)
 		) {
 			issues.push({ path: `${p}.memory.backend`, message: "unknown backend" });

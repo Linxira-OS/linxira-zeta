@@ -22,6 +22,7 @@ export const WEB_CONFIG_FILENAME = "web.yml";
 import {
 	ImConfigError,
 	bindingKey,
+	isPersistableKeyText,
 	type ChannelInstanceConfig,
 	type ImAgentProfile,
 	type ImBinding,
@@ -331,15 +332,82 @@ const LEGACY_BUILTIN_TOOLS = [
 	"im_control",
 ];
 
-/** Drop binding rows whose instance no longer exists; return true when healed. */
+/**
+ * Validate binding rows one at a time, keeping every row that is legal on its
+ * own and under the accumulated set (duplicate ids/keys/sessions drop only the
+ * later row). A single malformed legacy row must never sink the whole config.
+ */
+function repairImBindings(
+	value: unknown,
+	instances: readonly ChannelInstanceConfig[],
+	profiles: readonly ImAgentProfile[],
+): { bindings: ImBinding[]; healed: boolean } {
+	if (value === undefined) return { bindings: [], healed: false };
+	const rows = Array.isArray(value) ? value : [];
+	let healed = !Array.isArray(value);
+	const kept: unknown[] = [];
+	for (const row of rows) {
+		try {
+			const validated = validateImBindings([...kept, row], instances, profiles);
+			if (validated.length === kept.length + 1) {
+				kept.push(row);
+				continue;
+			}
+			healed = true;
+		} catch {
+			healed = true;
+		}
+	}
+	if (kept.length !== rows.length) healed = true;
+	return { bindings: validateImBindings(kept, instances, profiles), healed };
+}
+
+/**
+ * Drop legacy chat keys that cannot be persisted/validated: `sessionMappings`
+ * is a pre-v2 shape that may survive when no instance could be matched, and
+ * legacy `botSessions` may carry a malformed chat key. Legal items are kept.
+ */
+function cleanLegacyImChatKeys(data: WebConfigData): boolean {
+	let healed = false;
+	const remote = data.remote as unknown as Record<string, unknown>;
+	const mappings = remote.sessionMappings;
+	if (Array.isArray(mappings)) {
+		const kept = mappings.filter(entry => {
+			if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return false;
+			const row = entry as Record<string, unknown>;
+			if (!isPersistableKeyText(row.chatId)) return false;
+			if (row.threadId !== undefined && !isPersistableKeyText(row.threadId)) return false;
+			if (row.userId !== undefined && !isPersistableKeyText(row.userId)) return false;
+			return true;
+		});
+		if (kept.length !== mappings.length) {
+			healed = true;
+			if (kept.length === 0) delete remote.sessionMappings;
+			else remote.sessionMappings = kept;
+		}
+	}
+	for (const entry of data.remote.botSessions ?? []) {
+		const row = entry as unknown as Record<string, unknown>;
+		if (row.chatId !== undefined && !isPersistableKeyText(row.chatId)) {
+			delete row.chatId;
+			healed = true;
+		}
+		if (row.instanceId !== undefined && !isPersistableKeyText(row.instanceId)) {
+			delete row.instanceId;
+			delete row.bindingId;
+			healed = true;
+		}
+	}
+	return healed;
+}
+
+/** Drop binding rows this version can no longer validate; return true when healed. */
 function healUnpersistableImBindings(data: WebConfigData): boolean {
-	const bindings = data.remote.imBindings;
-	if (!bindings || bindings.length === 0) return false;
-	const instanceIds = new Set(data.channels.instances.map(instance => instance.id));
-	const kept = bindings.filter(binding => instanceIds.has(binding.instanceId));
-	if (kept.length === bindings.length) return false;
-	data.remote.imBindings = kept;
-	return true;
+	const repaired = repairImBindings(data.remote.imBindings, data.channels.instances, data.imAgents);
+	let healed = repaired.healed;
+	if (healed) data.remote.imBindings = repaired.bindings;
+	if (cleanLegacyImChatKeys(data)) healed = true;
+	return healed;
 }
 
 /** Legacy `channels.<platform>` block, kept only inside the one-shot migrator. */
@@ -429,7 +497,7 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 		const connectionId = typeof rec.connectionId === "string" ? rec.connectionId : undefined;
 		const instanceId = connectionId && instances.some(instance => instance.id === connectionId) ? connectionId : platform;
 		const chatId = typeof rec.chatId === "string" ? rec.chatId : "";
-		if (!chatId) continue;
+		if (!chatId || !isPersistableKeyText(chatId)) continue;
 		const workspaceAlias = typeof rec.workspaceAlias === "string" && rec.workspaceAlias !== "" ? rec.workspaceAlias : undefined;
 		const target: ImBinding["target"] = {
 			kind: "workspace",
@@ -485,7 +553,7 @@ function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; 
 		const platform = typeof rec.platform === "string" ? rec.platform : undefined;
 		const chatId = typeof rec.chatId === "string" ? rec.chatId : undefined;
 		const instance = platform ? instances.find(candidate => candidate.platform === platform) : undefined;
-		if (!instance || !chatId) continue;
+		if (!instance || !chatId || !isPersistableKeyText(chatId)) continue;
 		let binding =
 			bindings.find(candidate => candidate.instanceId === instance.id && candidate.chatId === chatId) ??
 			bindings.find(candidate => candidate.platform === platform && candidate.chatId === chatId);
@@ -575,7 +643,8 @@ export class WebConfig {
 
 	/** Load from disk, deep-merging defaults; a missing/corrupt file falls back to defaults. */
 	static async load(filePath = WebConfig.defaultPath()): Promise<WebConfig> {
-		return new WebConfig(filePath, await WebConfig.#read(filePath));
+		const { data } = await WebConfig.#read(filePath);
+		return new WebConfig(filePath, data);
 	}
 
 	/**
@@ -596,7 +665,7 @@ export class WebConfig {
 		WebConfig.#shared.clear();
 	}
 
-	static async #read(filePath: string): Promise<WebConfigData> {
+	static async #read(filePath: string): Promise<{ data: WebConfigData; healed: boolean }> {
 		await migrateLegacyWebConfigFile(filePath).catch(error => {
 			logger.warn("web.yml legacy migration failed; continuing without migration", {
 				filePath,
@@ -624,8 +693,12 @@ export class WebConfig {
 		const merged = deepMerge(DEFAULT_DATA, raw);
 		merged.imAgents = validateImAgentProfiles(merged.imAgents);
 		merged.channels.instances = validateChannelInstances(merged.channels.instances, merged.imAgents);
-		merged.remote.imBindings = validateImBindings(merged.remote.imBindings ?? [], merged.channels.instances, merged.imAgents);
-		return merged;
+		// One bad legacy row must not sink the config: validate each row on its
+		// own and keep every legal binding. #mutate writes the repaired file.
+		const repaired = repairImBindings(merged.remote.imBindings, merged.channels.instances, merged.imAgents);
+		merged.remote.imBindings = repaired.bindings;
+		const healedLegacy = cleanLegacyImChatKeys(merged);
+		return { data: merged, healed: repaired.healed || healedLegacy };
 	}
 
 	get path(): string {
@@ -1004,7 +1077,7 @@ export class WebConfig {
 	/** Re-read the file from disk (under the config lock), discarding in-memory changes. */
 	async reload(): Promise<void> {
 		await withFileLock(this.#filePath, async () => {
-			this.#data = await WebConfig.#read(this.#filePath);
+			this.#data = (await WebConfig.#read(this.#filePath)).data;
 		});
 	}
 
@@ -1016,9 +1089,9 @@ export class WebConfig {
 	 */
 	async #mutate<T>(mutation: (data: WebConfigData) => { changed: boolean; value: T }): Promise<T> {
 		return withFileLock(this.#filePath, async () => {
-			const data = await WebConfig.#read(this.#filePath);
+			const { data, healed: readHealed } = await WebConfig.#read(this.#filePath);
 			const { changed, value } = mutation(data);
-			const healed = healUnpersistableImBindings(data);
+			const healed = healUnpersistableImBindings(data) || readHealed;
 			if (changed || healed) await this.#write(data);
 			this.#data = data;
 			return value;

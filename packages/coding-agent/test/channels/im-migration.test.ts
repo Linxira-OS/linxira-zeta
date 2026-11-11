@@ -87,24 +87,24 @@ describe("binding validation", () => {
 		platform: "telegram" as const,
 		label: "Telegram",
 		enabled: true,
-		agentProfile: "p",
+		agentProfile: "profile",
 		allow: { peers: ["c1"] },
 		credentials: {},
 	};
 	const profile = {
-		id: "p",
+		id: "profile",
 		label: "P",
 		persona: { mode: "workspace" as const },
 		location: { kind: "workspace" as const, workspace: "main" },
 		tools: { builtin: [], extensions: [], customTools: [], mcpServers: [], skills: [], commands: [] },
-		memory: {},
+		memory: { backend: "mnemopi" },
 	};
 	const base = {
 		id: "b_0123456789abcdef",
 		instanceId: "telegram",
 		platform: "telegram" as const,
 		chatId: "c1",
-		agentProfileId: "p",
+		agentProfileId: "profile",
 		sessionId: "s1",
 		target: { kind: "workspace" as const, workspace: "main" },
 		role: "answer" as const,
@@ -132,5 +132,111 @@ describe("binding validation", () => {
 		expect(() =>
 			validateImBindings([base, { ...mention, role: "answer" }], [instance], [profile]),
 		).toThrow();
+	});
+});
+
+describe("persisted chat-key healing", () => {
+	const instance = {
+		id: "telegram",
+		platform: "telegram" as const,
+		label: "Telegram",
+		enabled: true,
+		agentProfile: "profile",
+		allow: { peers: ["c1"] },
+		credentials: {},
+	};
+	const profile = {
+		id: "profile",
+		label: "P",
+		persona: { mode: "workspace" as const },
+		location: { kind: "workspace" as const, workspace: "main" },
+		tools: { builtin: [], extensions: [], customTools: [], mcpServers: [], skills: [], commands: [] },
+		memory: { backend: "mnemopi" },
+	};
+	const legal = {
+		id: "b_0123456789abcdef",
+		instanceId: "telegram",
+		platform: "telegram" as const,
+		chatId: "c1",
+		agentProfileId: "profile",
+		sessionId: "s1",
+		target: { kind: "workspace" as const, workspace: "main" },
+		role: "answer" as const,
+		createdAt: "2026-01-01T00:00:00.000Z",
+	};
+	const malformed = {
+		...legal,
+		id: "b_fedcba9876543210",
+		chatId: "bad\u0001key",
+		sessionId: "s2",
+	};
+
+	test("v2 rows with an unp persistable chat key are dropped on mutate; legal rows survive", async () => {
+		const file = await fixture(
+			YAML.stringify({
+				channels: { instances: [instance] },
+				imAgents: [profile],
+				remote: { imBindings: [legal, malformed] },
+			}),
+		);
+		const loaded = await WebConfig.load(file);
+		expect(loaded.getImBindings().map(binding => binding.chatId)).toEqual(["c1"]);
+		await loaded.setWorkspaceEntry("other", path.dirname(file));
+		const raw = YAML.parse(await Bun.file(file).text()) as Record<string, any>;
+		expect(raw.remote.imBindings).toHaveLength(1);
+		expect(raw.remote.imBindings[0]).toMatchObject({ id: legal.id, chatId: "c1" });
+	});
+
+	test("a clean v2 file is not rewritten or altered by a mutate", async () => {
+		const file = await fixture(
+			YAML.stringify({
+				channels: { instances: [instance] },
+				imAgents: [profile],
+				remote: { imBindings: [{ ...legal, role: "answer" }] },
+			}),
+		);
+		const loaded = await WebConfig.load(file);
+		expect(loaded.getImBindings()).toHaveLength(1);
+		await loaded.setWorkspaceEntry("other", path.dirname(file));
+		const raw = YAML.parse(await Bun.file(file).text()) as Record<string, any>;
+		expect(raw.remote.imBindings).toHaveLength(1);
+		expect(raw.remote.imBindings[0]).toMatchObject({ chatId: "c1", sessionId: "s1", role: "answer" });
+	});
+
+	test("legacy mappings drop only the unp persistable key; bot session keys are cleaned", async () => {
+		const file = await fixture(
+			YAML.stringify({
+				channels: { telegram: { enabled: true, botToken: "t", allowedChannels: ["c1"] } },
+				remote: {
+					sessionMappings: [
+						{ platform: "telegram", connectionId: "telegram", chatId: "c1", sessionId: "keep" },
+						{ platform: "telegram", connectionId: "telegram", chatId: "bad\u0001key", sessionId: "drop" },
+					],
+					botSessions: [
+						{
+							id: "legacy-bot",
+							name: "Old Bot",
+							tag: "bot",
+							sessionFile: path.join(os.tmpdir(), "zeta-legacy-bot.jsonl"),
+							platform: "telegram",
+							chatId: "bad\u0001key",
+							createdAt: "2026-01-01T00:00:00.000Z",
+						},
+					],
+				},
+			}),
+		);
+		expect(await migrateLegacyWebConfigFile(file)).toBe(true);
+		const migrated = YAML.parse(await Bun.file(file).text()) as Record<string, any>;
+		expect(migrated.remote.imBindings).toHaveLength(1);
+		expect(migrated.remote.imBindings[0]).toMatchObject({ chatId: "c1", sessionId: "keep" });
+		const loaded = await WebConfig.load(file);
+		expect(loaded.getImBindings()).toHaveLength(1);
+		await loaded.setWorkspaceEntry("other", path.dirname(file));
+		const raw = YAML.parse(await Bun.file(file).text()) as Record<string, any>;
+		expect(raw.remote.sessionMappings).toBeUndefined();
+		expect(raw.remote.imBindings).toHaveLength(1);
+		expect(raw.remote.botSessions[0].chatId).toBeUndefined();
+		expect(raw.remote.botSessions[0].id).toBe("legacy-bot");
 	});
 });
