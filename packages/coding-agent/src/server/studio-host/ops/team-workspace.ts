@@ -49,6 +49,7 @@ import {
 } from "../../../team/db.js";
 import {
 	applyTeamBootstrap,
+	type BootstrapInput,
 	listBootstrapRuns,
 	planTeamBootstrap,
 	resumeTeamBootstrap,
@@ -300,7 +301,7 @@ function planStep(step: {
 	};
 }
 
-function bootstrapInput(input: TeamBootstrapInput): TeamBootstrapInput {
+function bootstrapInput(input: TeamBootstrapInput): BootstrapInput {
 	const root = text(input.root, "root");
 	if (!path.isAbsolute(root)) throw invalid("root must be an absolute path");
 	return {
