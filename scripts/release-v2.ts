@@ -30,6 +30,8 @@ import { generateNixBunDeps, normalizeLockfileVersion } from "./gen-nix-bun";
 import { mainWorkspaceMembers, pinnedWorkspaceVersions, rewriteWorkspaceVersions } from "./cargo-workspace-lock";
 import { distributionManifests, distributionPins, NPM_DISTRIBUTIONS } from "./npm-distributions";
 import { selectLatestZetaTag, validateExplicitVersion, watchCI } from "./release";
+import { assertTagAllowed, INTERNAL_BUILD_MARKER, internalBuildTagMessage } from "./release-policy";
+import type { PublishPolicyDecision } from "./release-policy";
 
 // All published packages ride the release version in lock-step. Entries are
 // repo-relative package directories — official plugins (plugins/official/<id>)
@@ -416,6 +418,26 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 		process.exit(1);
 	}
 
+	// Step 1b: release freeze (ADR 0006). 1.5.2–1.5.10 may be tagged, but the
+	// tag is code-only: no npm publish and no GitHub Release assets. 1.5.0/1.5.1,
+	// anything past the internal ceiling, and 1.6.0+ (without an owner override)
+	// are refused before any bump work starts.
+	let policy: PublishPolicyDecision;
+	try {
+		policy = assertTagAllowed(version);
+	} catch (err) {
+		console.error(err instanceof Error ? err.message : String(err));
+		process.exit(1);
+	}
+	const internalBuild = policy.channel === "internal-build";
+	if (internalBuild) {
+		console.log(
+			`  Freeze policy: internal build tag (${INTERNAL_BUILD_MARKER}) — no npm publish, no release assets.\n`,
+		);
+	} else {
+		console.log(`  Freeze policy: owner-approved public release — ${policy.reason}\n`);
+	}
+
 	// Step 0: pre-flight.
 	console.log("Pre-flight checks...");
 	const branch = (await git(["branch", "--show-current"]).text()).trim();
@@ -687,10 +709,22 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	await $`bun run check:ts`;
 	console.log();
 
-	// Step 9: single commit, fixed subject, no body.
+	// Step 9: single commit, fixed subject. Internal builds carry the code-only
+	// marker in the body; the subject stays fixed so the release-run
+	// concurrency group still matches `chore: bump version to X.Y.Z`.
 	console.log("Committing...");
 	await git(["add", "."]);
-	await git(["commit", "-m", `chore: bump version to ${version}`]);
+	if (internalBuild) {
+		await git([
+			"commit",
+			"-m",
+			`chore: bump version to ${version}`,
+			"-m",
+			`Internal-Build: ${INTERNAL_BUILD_MARKER}`,
+		]);
+	} else {
+		await git(["commit", "-m", `chore: bump version to ${version}`]);
+	}
 	console.log();
 
 	// Step 10: verify the release SOURCE commit's push run is green, then push
@@ -721,7 +755,13 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 		}
 	}
 	console.log("Tagging and pushing branch + tag atomically...");
-	await git(["tag", "-f", tagRef]);
+	if (internalBuild) {
+		// Annotated tag is mandatory for an internal build: it is the only
+		// release note this version gets (no GitHub Release assets are made).
+		await git(["tag", "-f", "-a", tagRef, "-m", internalBuildTagMessage(version)]);
+	} else {
+		await git(["tag", "-f", tagRef]);
+	}
 	await git([
 		"-c",
 		"http.lowSpeedLimit=0",
@@ -735,16 +775,25 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	]);
 	console.log();
 	console.log(`Tag ${tagRef} is on ${sha.slice(0, 12)} (branch + tag pushed atomically).`);
-	console.log("The branch push carries the tag, so it IS the release run (tests skipped, straight to build+publish).");
+	if (internalBuild) {
+		console.log(`Internal build tag: ${INTERNAL_BUILD_MARKER}`);
+		console.log("CI builds/packages/tests only; no npm publish and no GitHub Release assets for this version.");
+	} else {
+		console.log(
+			"The branch push carries the tag, so it IS the release run (tests skipped, straight to build+publish).",
+		);
+	}
 	if (watch) {
 		console.log("\nWatching CI...");
 		const success = await watchCI();
 		if (success) {
-			console.log(`=== Released v${version} ===`);
+			console.log(internalBuild ? `=== Tagged internal build v${version} ===` : `=== Released v${version} ===`);
 		} else {
 			console.log("\nTo retry after fixing (repeat until CI passes):");
 			console.log(`  git commit -m "chore: bump version to ${version}" -m "<what was fixed>"`);
-			console.log(`  git tag -f v${version}`);
+			console.log(
+				internalBuild ? `  git tag -f -a v${version} -m "${INTERNAL_BUILD_MARKER}"` : `  git tag -f v${version}`,
+			);
 			console.log(
 				`  git push --atomic origin refs/heads/main:refs/heads/main "+$(git rev-parse HEAD):refs/tags/v${version}"`,
 			);

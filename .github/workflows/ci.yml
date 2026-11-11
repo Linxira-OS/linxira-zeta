@@ -145,6 +145,21 @@ on:
             description: "Publish the paused @linxiraos/main workbench packages on release (zetawork is suspended since 2026-11-05)"
             type: boolean
             default: false
+         # Owner-approved release override (ADR 0006). Empty by default: every
+         # asset upload / npm publish is denied, and 1.5.x tags stay code-only.
+         # Both values are required together, must name the exact release tag
+         # version, and 1.6.0 is the first version they can unlock. The same
+         # values may be set as repository variables
+         # RELEASE_FREEZE_OVERRIDE_VERSION / RELEASE_FREEZE_OVERRIDE_REASON so a
+         # tag push (which carries no inputs) can release an approved version.
+         release_override_version:
+            description: "Owner-approved version to unfreeze for assets/npm publish (must equal the tag version; 1.6.0+ only)"
+            type: string
+            default: ""
+         release_override_reason:
+            description: "Audit reason for release_override_version (required; recorded in the run log)"
+            type: string
+            default: ""
 
 # Release runs publish a `v*` tag pushed atomically with main HEAD; sharing
 # the cheap branch-wide `CI-refs/heads/main` group meant a later main push
@@ -223,6 +238,15 @@ jobs:
          # Canary tags publish to npm's canary dist-tag (derived script-side), mark
          # the GitHub release prerelease, and skip the stable-only brew tap.
          channel: ${{ steps.detect.outputs.channel }}
+         # Release freeze (ADR 0006, scripts/release-policy.ts). Every publish /
+         # asset job branches on these; `false` is the default for every 1.5.x
+         # tag and for any tag without an explicit owner override.
+         release-version: ${{ steps.detect.outputs.release-version }}
+         tag-allowed: ${{ steps.policy.outputs.tag-allowed }}
+         publish-allowed: ${{ steps.policy.outputs.publish-allowed }}
+         assets-allowed: ${{ steps.policy.outputs.assets-allowed }}
+         release-channel: ${{ steps.policy.outputs.release-channel }}
+         policy-reason: ${{ steps.policy.outputs.policy-reason }}
       steps:
          # Only a main-branch run needs tags fetched, so `git tag --points-at
          # HEAD` can see the freshly-pushed `v*`. A tag-ref dispatch reads the
@@ -259,8 +283,28 @@ jobs:
               {
                 echo "is-release=$is_release"
                 echo "release-tag=$release_tag"
+                echo "release-version=${release_tag#v}"
                 echo "channel=$channel"
               } >> "$GITHUB_OUTPUT"
+         # Release freeze decision (ADR 0006). `decide` always exits 0 and
+         # publishes its verdict as job outputs — a frozen version must still
+         # build/package/test; only the asset-upload/npm-publish jobs are held.
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+         - name: Evaluate release freeze policy
+           id: policy
+           env:
+              ZETA_RELEASE_OVERRIDE_VERSION: ${{ inputs.release_override_version || vars.RELEASE_FREEZE_OVERRIDE_VERSION }}
+              ZETA_RELEASE_OVERRIDE_REASON: ${{ inputs.release_override_reason || vars.RELEASE_FREEZE_OVERRIDE_REASON }}
+           run: |
+              set -euo pipefail
+              version="${{ steps.detect.outputs.release-version }}"
+              if [ -z "$version" ]; then
+                echo "No release tag at HEAD: not a release run."
+                bun scripts/release-policy.ts decide --version 0.0.0 --github-output
+              else
+                bun scripts/release-policy.ts decide --version "$version" --github-output
+              fi
+              grep -E '^(tag|publish|assets)-allowed=|release-channel=|policy-reason=' "$GITHUB_OUTPUT" | tail -n 5
 
    check:
       name: Lint, type check & web build
@@ -509,6 +553,11 @@ jobs:
          # unit tests rather than a native-artifact bucket.
          - name: Unit-test the release chain
            run: bun test scripts/release-chain.test.ts
+         # The release freeze (ADR 0006): the policy unit tests plus a static
+         # parse of ci.yml / the standalone publish workflows. Fails if a
+         # 1.5.x tag can upload assets or publish npm by default.
+         - name: Unit-test the release freeze policy
+           run: bun test scripts/release-freeze.test.ts
          # The external package-repository contract: identity/asset/migration
          # consistency, the release asset upload, and the "no automatic
          # in-place upgrade across different installer identities" rule.
@@ -1704,6 +1753,7 @@ jobs:
    release_native_leaves:
       name: Publish native leaf packages
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_metadata.outputs.publish-allowed == 'true' &&
          needs.release_gate.result == 'success' &&
          needs.release_binary.result == 'success' &&
          !inputs.skip_npm }}
@@ -1776,6 +1826,7 @@ jobs:
    release_github:
       name: Publish GitHub release
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_metadata.outputs.assets-allowed == 'true' &&
          needs.release_gate.result == 'success' &&
          needs.release_binary.result == 'success' &&
          needs.release_product_binaries.result == 'success' &&
@@ -1983,6 +2034,7 @@ jobs:
    release_npm:
       name: Publish to npm
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_metadata.outputs.publish-allowed == 'true' &&
          needs.release_binary.result == 'success' &&
          needs.release_native_leaves.result == 'success' &&
          !inputs.skip_npm }}
@@ -2227,6 +2279,7 @@ jobs:
    release_editor_packages:
       name: Publish editor npm packages
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_metadata.outputs.publish-allowed == 'true' &&
          needs.release_gate.result == 'success' &&
          !inputs.skip_npm }}
       # npm Trusted Publisher binds the workflow file that EXECUTES the
@@ -2246,9 +2299,16 @@ jobs:
          - name: Dispatch editor-publish.yml and wait for it
            env:
               GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              # Forward the owner-approved override to the dispatched workflow:
+              # a dispatch input does not cross a `gh workflow run` boundary, and
+              # the callee re-evaluates the freeze policy itself (ADR 0006).
+              RELEASE_OVERRIDE_VERSION: ${{ inputs.release_override_version || vars.RELEASE_FREEZE_OVERRIDE_VERSION }}
+              RELEASE_OVERRIDE_REASON: ${{ inputs.release_override_reason || vars.RELEASE_FREEZE_OVERRIDE_REASON }}
            run: |
               set -euo pipefail
-              gh workflow run editor-publish.yml --ref "${GITHUB_REF_NAME}"
+              gh workflow run editor-publish.yml --ref "${GITHUB_REF_NAME}" \
+                -f override_version="$RELEASE_OVERRIDE_VERSION" \
+                -f override_reason="$RELEASE_OVERRIDE_REASON"
               rid=""
               for _ in $(seq 1 30); do
                  sleep 10
@@ -2284,6 +2344,7 @@ jobs:
    release_ide_packages:
       name: Publish ide npm packages
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_metadata.outputs.publish-allowed == 'true' &&
          needs.release_gate.result == 'success' &&
          !inputs.skip_npm }}
       needs: [release_metadata, release_gate]
@@ -2297,9 +2358,16 @@ jobs:
          - name: Dispatch ide-publish.yml and wait for it
            env:
               GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              # Forward the owner-approved override to the dispatched workflow:
+              # a dispatch input does not cross a `gh workflow run` boundary, and
+              # the callee re-evaluates the freeze policy itself (ADR 0006).
+              RELEASE_OVERRIDE_VERSION: ${{ inputs.release_override_version || vars.RELEASE_FREEZE_OVERRIDE_VERSION }}
+              RELEASE_OVERRIDE_REASON: ${{ inputs.release_override_reason || vars.RELEASE_FREEZE_OVERRIDE_REASON }}
            run: |
               set -euo pipefail
-              gh workflow run ide-publish.yml --ref "${GITHUB_REF_NAME}"
+              gh workflow run ide-publish.yml --ref "${GITHUB_REF_NAME}" \
+                -f override_version="$RELEASE_OVERRIDE_VERSION" \
+                -f override_reason="$RELEASE_OVERRIDE_REASON"
               rid=""
               for _ in $(seq 1 30); do
                  sleep 10
@@ -2349,6 +2417,7 @@ jobs:
       # package keeps its published versions but only republishes when the
       # `publish_web_ui` dispatch input asks for it.
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_metadata.outputs.publish-allowed == 'true' &&
          needs.release_gate.result == 'success' &&
          inputs.publish_web_ui &&
          !inputs.skip_npm }}
@@ -2432,6 +2501,7 @@ jobs:
    release_main_packages:
       name: Publish zetawork npm packages
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_metadata.outputs.publish-allowed == 'true' &&
          needs.release_gate.result == 'success' &&
          needs.release_npm.result == 'success' &&
          needs.release_ide_packages.result == 'success' &&
@@ -2448,9 +2518,16 @@ jobs:
          - name: Dispatch main-publish.yml and wait for it
            env:
               GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              # Forward the owner-approved override to the dispatched workflow:
+              # a dispatch input does not cross a `gh workflow run` boundary, and
+              # the callee re-evaluates the freeze policy itself (ADR 0006).
+              RELEASE_OVERRIDE_VERSION: ${{ inputs.release_override_version || vars.RELEASE_FREEZE_OVERRIDE_VERSION }}
+              RELEASE_OVERRIDE_REASON: ${{ inputs.release_override_reason || vars.RELEASE_FREEZE_OVERRIDE_REASON }}
            run: |
               set -euo pipefail
-              gh workflow run main-publish.yml --ref "${GITHUB_REF_NAME}"
+              gh workflow run main-publish.yml --ref "${GITHUB_REF_NAME}" \
+                -f override_version="$RELEASE_OVERRIDE_VERSION" \
+                -f override_reason="$RELEASE_OVERRIDE_REASON"
               rid=""
               for _ in $(seq 1 30); do
                  sleep 10
@@ -2469,7 +2546,8 @@ jobs:
    # release_plugin_packages (which requires is-release and the gate).
    release_plugin_packages_manual:
       name: Publish official plugin npm packages (manual)
-      if: ${{ !cancelled() && !inputs.skip_npm && inputs.publish_plugins }}
+      if: ${{ !cancelled() && !inputs.skip_npm && inputs.publish_plugins &&
+         needs.release_metadata.outputs.publish-allowed == 'true' }}
       needs: [release_metadata]
       runs-on: ubuntu-22.04
       permissions:
@@ -2496,6 +2574,7 @@ jobs:
       # already-released version line can complete a package that the release
       # run lost — without re-cutting the tag.
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_metadata.outputs.publish-allowed == 'true' &&
          needs.release_gate.result == 'success' &&
          !inputs.skip_npm && !inputs.publish_plugins }}
       needs: [release_metadata, release_gate]
