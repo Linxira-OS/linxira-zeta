@@ -136,8 +136,11 @@ export function ImRuntimePage({ visible = true, initialTab = "instances" }: ImRu
 		setAgents(nextAgents);
 		setBindings(nextBindings);
 		setErrors(nextErrors);
-		if (nextInstances !== null && botInstance === "") setBotInstance(nextInstances[0]?.id ?? "");
-	}, [botInstance]);
+		// Keep the selected instance without making `load` depend on it: rebuilding
+		// the loader when the selection changed re-ran the visible effect and
+		// issued a second overlapping read.
+		setBotInstance(current => (current === "" ? (nextInstances?.[0]?.id ?? "") : current));
+	}, []);
 
 	useEffect(() => {
 		if (!visible) return;

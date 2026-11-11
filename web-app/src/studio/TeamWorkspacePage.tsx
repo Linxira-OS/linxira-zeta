@@ -1301,6 +1301,8 @@ function RoomsTab({
   const [kindPm, setKindPm] = useState(workspace.pms[0]?.name ?? "");
   const viewRef = useRef<TeamRoomView | undefined>(undefined);
   viewRef.current = roomView;
+  /** Refetch the open room after a durable post; polling alone waits 2.5s. */
+  const reloadRef = useRef<() => void>(() => {});
 
   const memberChoices = memberOptions(workspace.pms, workspace.engineers);
 
@@ -1330,13 +1332,17 @@ function RoomsTab({
       }
       setSender(current => current || result.members[0]?.agentId || "");
     };
+    // An empty room has no sequence to poll after, so a full read is the only
+    // way a first post becomes visible; later ticks continue from the tail.
+    reloadRef.current = () => void load().catch(() => undefined);
     void load().catch(() => undefined);
     const timer = setInterval(() => {
       const seq = lastRoomSeq(viewRef.current?.events ?? []);
-      if (seq > 0) void load(seq).catch(() => undefined);
+      void load(seq > 0 ? seq : undefined).catch(() => undefined);
     }, 2500);
     return () => {
       active = false;
+      reloadRef.current = () => {};
       clearInterval(timer);
     };
   }, [client, roomName, viewer, workspace.team.id]);
@@ -1640,6 +1646,7 @@ function RoomsTab({
                         });
                         await waitReceipt(client, handle.requestId);
                         setRoomBody("");
+                        reloadRef.current();
                       }, "Posted");
                     }}
                   />
@@ -1658,6 +1665,7 @@ function RoomsTab({
                       });
                       await waitReceipt(client, handle.requestId);
                       setRoomBody("");
+                      reloadRef.current();
                     }, "Posted")
                   }
                 >

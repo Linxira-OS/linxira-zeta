@@ -204,6 +204,25 @@ describe("IM session selector read model", () => {
 		expect(snapshot.bySelector.get("01-00005")?.canonicalSessionId).toBe("s6");
 	});
 
+	test("a registry key and the transcript header id stay distinct", async () => {
+		const dir = await tempDir("transcript-id");
+		const config = await makeConfig(dir);
+		const state = createImSessionSelectorState();
+		// Bot/relay entries are keyed by routing ids ("relay", "im-<binding>");
+		// the transcript header carries the id `GET /api/sessions/:id` resolves.
+		const relay = entry(dir, "relay", { tag: "relay", name: "Relay" });
+		await writeSession(relay.sessionFile, {
+			id: "transcript-real",
+			messages: [{ role: "user", text: "hi" }],
+		});
+		await setAge(relay.sessionFile, 60 * 60_000);
+
+		const snapshot = await buildImSessionList(stubRouter([relay]), config, state);
+		const candidate = byId(snapshot, "relay");
+		expect(candidate?.canonicalSessionId).toBe("relay");
+		expect(candidate?.transcriptSessionId).toBe("transcript-real");
+	});
+
 	test("PM sessions are hidden by default but keep their number when explicitly included", async () => {
 		const dir = await tempDir("pm");
 		const config = await makeConfig(dir);

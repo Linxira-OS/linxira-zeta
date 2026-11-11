@@ -160,11 +160,23 @@ export function TeamImChatPane({
     }
     let active = true;
     setTranscript(undefined);
-    setChatLoading(true);
     setTranscriptError("");
+    // The registry key is not a transcript id: a bot/relay entry may be keyed
+    // by `relay` or `im-<binding>` while the header carries a real session id.
+    // Reading by the registry key would ask for a nonexistent transcript and
+    // show its 404 as if the chat were missing.
+    const transcriptSessionId = selected.transcriptSessionId;
+    if (transcriptSessionId === undefined) {
+      setChatLoading(false);
+      setTranscriptError(zh ? "该会话尚未生成记录。" : "This chat has no persisted transcript yet.");
+      return () => {
+        active = false;
+      };
+    }
+    setChatLoading(true);
     void (async () => {
       try {
-        const result = await loadImChatTranscript(selected.canonicalSessionId, fetcher);
+        const result = await loadImChatTranscript(transcriptSessionId, fetcher);
         if (!active) return;
         setTranscript(result);
       } catch (cause) {

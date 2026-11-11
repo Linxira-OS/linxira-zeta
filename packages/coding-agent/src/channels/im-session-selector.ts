@@ -18,6 +18,12 @@ export interface ImSessionCandidate {
 	selector: string;
 	/** Canonical registry/session id; never a selector. */
 	canonicalSessionId: string;
+	/**
+	 * Persisted transcript id (`GET /api/sessions/:id`) for a candidate whose
+	 * registry key differs from the id written into the transcript header.
+	 * Absent until the transcript exists, or when the header carries no id.
+	 */
+	transcriptSessionId?: string;
 	bindingId?: string;
 	workspaceAlias: string;
 	/** Alias of the canonical workspace id; display label, not an id. */
@@ -164,6 +170,10 @@ export async function buildImSessionList(
 			return {
 				selector,
 				canonicalSessionId: row.entry.id,
+				// The registry key is what `!session use` switches by; the header
+				// id is the only key the gateway transcript route resolves. Keep
+				// both so a reader never has to guess which one a field means.
+				...(row.info?.id ? { transcriptSessionId: row.info.id } : {}),
 				...(row.entry.bindingId ? { bindingId: row.entry.bindingId } : {}),
 				workspaceAlias: row.workspaceAlias,
 				workspaceId: row.workspaceAlias,

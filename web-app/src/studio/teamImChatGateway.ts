@@ -31,6 +31,8 @@ export type ImChatSummaryState = "completed" | "incomplete" | "unknown";
 export interface ImChatCandidate {
 	readonly selector: string;
 	readonly canonicalSessionId: SessionId;
+	/** Transcript id the gateway route resolves; absent until a transcript exists. */
+	readonly transcriptSessionId?: SessionId;
 	readonly label: string;
 	readonly latestTaskSummary?: string;
 	readonly summaryState: ImChatSummaryState;
@@ -104,6 +106,7 @@ export async function loadImChatCandidates(
 		if (!isRecord(entry)) continue;
 		const selector = optionalString(entry, "selector");
 		const canonicalSessionId = optionalString(entry, "canonicalSessionId");
+		const transcriptSessionId = optionalString(entry, "transcriptSessionId");
 		const label = optionalString(entry, "label");
 		if (selector === undefined || canonicalSessionId === undefined || label === undefined) continue;
 		const latestTaskSummary = optionalString(entry, "latestTaskSummary");
@@ -116,6 +119,7 @@ export async function loadImChatCandidates(
 		rows.push({
 			selector,
 			canonicalSessionId: canonicalSessionId as SessionId,
+			...(transcriptSessionId === undefined ? {} : { transcriptSessionId: transcriptSessionId as SessionId }),
 			label,
 			...(latestTaskSummary === undefined ? {} : { latestTaskSummary }),
 			summaryState: latestTaskSummary === undefined ? summaryState(entry.status) : "completed",

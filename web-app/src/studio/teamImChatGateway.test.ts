@@ -43,6 +43,7 @@ describe("IM candidate selector", () => {
 					{
 						selector: "02-00009",
 						canonicalSessionId: "sess-a",
+						transcriptSessionId: "transcript-a",
 						canonicalId: "sess-a",
 						bindingId: "bind-2",
 						workspaceAlias: "ops",
@@ -73,6 +74,7 @@ describe("IM candidate selector", () => {
 		expect(rows.length).toBe(2);
 		expect(rows[0]?.selector).toBe("02-00009");
 		expect(rows[0]?.canonicalSessionId).toBe("sess-a");
+		expect(rows[0]?.transcriptSessionId).toBe("transcript-a");
 		expect(rows[0]?.label).toBe("Ops release");
 		expect(rows[0]?.latestTaskSummary).toBe("Released 1.5 build");
 		expect(rows[0]?.summaryState).toBe("completed");

@@ -73,7 +73,6 @@ export class StudioClientImpl implements StudioClient {
     }
     const generation = this.transportGeneration;
     this.bootstrapping = true;
-    this.ensureSubscribed();
     const run = (async (): Promise<ClientBootstrap> => {
       try {
         const bootstrap = await this.transport.bootstrap();
@@ -84,6 +83,11 @@ export class StudioClientImpl implements StudioClient {
             message: `Client contract mismatch: expected ${CLIENT_CONTRACT_VERSION}, received ${String(bootstrap.contractVersion)}`,
           } satisfies ClientError;
         }
+        // Subscribe only after the credential bootstrap. The event upgrade
+        // authenticates with the same cookie/session as commands; a socket
+        // opened first can attach as an unpaired local caller and never see
+        // the receipts emitted for the cookie session created by bootstrap.
+        this.ensureSubscribed();
         this.applyAction({ type: "bootstrap.set", bootstrap, occurredAt: this.ids.now() });
         const pending = this.bufferedEvents.splice(0);
         for (const event of pending) {
