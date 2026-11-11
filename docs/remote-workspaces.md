@@ -262,6 +262,13 @@ leaves your machine except the requests your phone makes to the endpoint you
 choose — bring your own port mapping, tunnel (frp, Tailscale, Cloudflare
 Tunnel), or reverse proxy.
 
+**SSH port forwarding is local trust.** A request that arrives through
+`ssh -L` looks like loopback with no forwarding headers, so Zeta treats it like
+the desktop itself: it passes the access gate and is never challenged for TOTP.
+The SSH layer authenticated the person who opened the tunnel. 2FA covers phone
+and reverse-proxy access, not an SSH tunnel; do not expose a forwarded port to
+anyone you would not trust with an unlocked terminal.
+
 ```bash
 # loopback only (default): open http://127.0.0.1:43141
 zetacode serve

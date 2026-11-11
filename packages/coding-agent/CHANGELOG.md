@@ -11,6 +11,8 @@
 
 - Remote pairing, `query`/`command`, event WebSockets and terminal tickets work behind a real host name: the Origin guard compares the request's own origin, a forwarded request is treated as remote, and a revoked device's sessions and sockets are dropped immediately (`revoke-all` included).
 - `GET /api/remote/pairing` no longer returns the machine token and requires a local caller or a write credential with a fresh step-up, so a read-only device cannot escalate.
+- Explicit empty device scope grants stay empty when issued or loaded, so `[]` denies every operation instead of silently granting both `read` and `write`.
+- A remote terminal WebSocket now needs a live `write` credential plus its one-time ticket, is attributed by the terminal's real cwd (a declared workspace id cannot widen it), and is closed immediately when its device is revoked (single or `revoke-all`).
 
 ### Breaking
 

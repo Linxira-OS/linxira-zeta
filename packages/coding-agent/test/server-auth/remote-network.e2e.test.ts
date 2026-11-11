@@ -13,7 +13,7 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import type { Server } from "bun";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
@@ -36,7 +36,7 @@ import { totp, totpStep } from "../../src/server/auth/totp";
 const HOST = "zeta.example.com";
 const ORIGIN = `http://${HOST}`;
 const PEER = "203.0.113.9";
-const ENV_KEYS = ["ZETA_CODING_AGENT_DIR"];
+const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", "ZETA_STUDIO_PAIRING_CODE"];
 const savedEnv = new Map<string, string | undefined>();
 const cleanups: Array<() => Promise<void>> = [];
 
@@ -61,11 +61,9 @@ function operations(): StudioOperations {
 	]);
 }
 
-/** Start the real server that mirrors `zeta serve`'s dispatch. */
-function startServer(): void {
-	const host = new StudioHost(operations(), { pairingCode: "424242" });
-	setStudioHostForTest(host);
-	server = Bun.serve<{ kind: "studio"; sessionId: string }>({
+/** A real server over one host, mirroring `zeta serve`'s dispatch. */
+function serveHost(host: StudioHost): { server: Server; base: string } {
+	const started = Bun.serve<{ kind: "studio"; sessionId: string }>({
 		port: 0,
 		async fetch(req, srv) {
 			const remoteAddr = srv.requestIP(req)?.address;
@@ -93,12 +91,21 @@ function startServer(): void {
 			},
 		},
 	});
-	base = `http://127.0.0.1:${server.port}`;
+	return { server: started, base: `http://127.0.0.1:${started.port}` };
+}
+
+/** Start the shared server that mirrors `zeta serve`'s dispatch. */
+function startServer(): void {
+	const host = new StudioHost(operations(), { pairingCode: "424242" });
+	setStudioHostForTest(host);
+	const started = serveHost(host);
+	server = started.server;
+	base = started.base;
 }
 
 /** A request as a remote browser sends it: public Host + forwarded peer. */
-function remote(path: string, init: RequestInit = {}): Promise<Response> {
-	return fetch(`${base}${path}`, {
+function requestTo(targetBase: string, path: string, init: RequestInit = {}): Promise<Response> {
+	return fetch(`${targetBase}${path}`, {
 		...init,
 		headers: {
 			host: HOST,
@@ -107,6 +114,10 @@ function remote(path: string, init: RequestInit = {}): Promise<Response> {
 			...(init.headers as Record<string, string> | undefined),
 		},
 	});
+}
+
+function remote(path: string, init: RequestInit = {}): Promise<Response> {
+	return requestTo(base, path, init);
 }
 
 function cookiesFrom(response: Response): string {
@@ -153,6 +164,7 @@ async function setup(): Promise<void> {
 	cleanups.push(() => rm(agentDir, { recursive: true, force: true }));
 	for (const key of ENV_KEYS) savedEnv.set(key, process.env[key]);
 	process.env.ZETA_CODING_AGENT_DIR = agentDir;
+	delete process.env.ZETA_STUDIO_PAIRING_CODE;
 	await writeFile(join(agentDir, "web.yml"), "remote:\n  token: machine-secret\n", "utf8");
 	refreshDirsFromEnv();
 	WebConfig.resetShared();
@@ -225,6 +237,44 @@ describe("origin and forwarded peers", () => {
 		expect(JSON.stringify(body)).not.toContain("machine-secret");
 	});
 
+	test("pairing needs the code, and a malformed binding does not burn it", async () => {
+		// This host uses a generated (single-use) code, so "not burned" is observable.
+		const host = new StudioHost(operations());
+		const started = serveHost(host);
+		const post = (body: unknown) =>
+			requestTo(started.base, "/api/v1/pair", {
+				method: "POST",
+				headers: { authorization: "Bearer machine-secret", "content-type": "application/json" },
+				body: JSON.stringify(body),
+			});
+		const code = host.pairingCode;
+		try {
+			// A token header is not a substitute for the presence credential.
+			const noCode = await post({ device: { label: "Pixel" } });
+			expect(noCode.status).toBe(401);
+			const noCodeBody = (await noCode.json()) as { error: string };
+			expect(noCodeBody.error).toBe("unauthenticated");
+
+			// A malformed binding is a 400 *before* the one-time code is reserved.
+			const invalid = await post({ code, device: { binding: { sessionId: 42 } } });
+			expect(invalid.status).toBe(400);
+			const invalidBody = (await invalid.json()) as { error: string };
+			expect(invalidBody.error).toBe("binding_invalid");
+
+			// The same code still pairs: it was not burned by the invalid block.
+			const paired = await post({ code, device: { label: "Pixel", issueToken: true } });
+			expect(paired.status).toBe(200);
+			const pairedBody = (await paired.json()) as { device: { token: string } };
+			expect(pairedBody.device.token.startsWith("zdt_")).toBe(true);
+
+			// Now it is consumed; replaying the old code fails.
+			const replay = await post({ code });
+			expect(replay.status).toBe(401);
+		} finally {
+			started.server.stop(true);
+		}
+	});
+
 	test("a read-only device cannot mint, verify-write, or read the pairing code", async () => {
 		const reader = await registry.issue({ label: "tablet", scopes: ["read"] });
 		const auth = { authorization: `Bearer ${reader.token}` };
@@ -293,6 +343,32 @@ describe("sessions", () => {
 		expect((await remote("/api/v1/bootstrap", { headers: { cookie: second.cookie } })).status).toBe(401);
 	});
 
+	test("a Studio cookie session slides its one-hour expiry on use", async () => {
+		const device = await pair();
+		const storePath = join(agentDir, "auth", "sessions.json");
+		const expiry = async (): Promise<number> => {
+			const file = JSON.parse(await readFile(storePath, "utf8")) as { sessions: Array<{ expiresAt: number }> };
+			return file.sessions[0]?.expiresAt ?? 0;
+		};
+		const created = await expiry();
+
+		// Advance the clock past the one-minute touch throttle: an active Studio
+		// request must move the expiry forward, not leave it at pairing time.
+		const realNow = Date.now;
+		const later = created - 3_600_000 + 61_000;
+		Date.now = () => later;
+		try {
+			const bootstrap = await remote("/api/v1/bootstrap", { headers: { cookie: device.cookie } });
+			expect(bootstrap.status).toBe(200);
+		} finally {
+			Date.now = realNow;
+		}
+
+		const slid = await expiry();
+		expect(slid).toBeGreaterThan(created);
+		expect(slid).toBe(later + 3_600_000);
+	});
+
 	test("a cookie failure does not fall back to the machine token", async () => {
 		const response = await remote("/api/v1/bootstrap", {
 			headers: { cookie: "studio_session=stale-value", authorization: "Bearer machine-secret" },
@@ -302,9 +378,44 @@ describe("sessions", () => {
 });
 
 describe("scope", () => {
-	test("write scope is required for a command and allowed for a query", async () => {
-		const device = await pair();
-		const auth = { authorization: `Bearer ${device.token}` };
+	test("write is its own grant and does not imply read", async () => {
+		const writer = await registry.issue({ label: "writer", scopes: ["write"] });
+		const auth = { authorization: `Bearer ${writer.token}` };
+		const command = () =>
+			remote("/api/v1/command", {
+				method: "POST",
+				headers: { ...auth, "content-type": "application/json" },
+				body: JSON.stringify({ commandName: "core.abort", input: {}, idempotencyKey: "k", requestId: "r" }),
+			});
+
+		expect((await remote("/api/v1/bootstrap", { headers: auth })).status).toBe(403);
+		expect(
+			(
+				await remote("/api/v1/query", {
+					method: "POST",
+					headers: { ...auth, "content-type": "application/json" },
+					body: JSON.stringify({ queryName: "environment.get", input: {} }),
+				})
+			).status,
+		).toBe(403);
+		expect((await command()).status).toBe(202);
+	});
+
+	test("an empty scope grant reaches nothing", async () => {
+		const disabled = await registry.issue({ label: "disabled", scopes: [] });
+		expect(disabled.device.scopes).toEqual([]);
+		const auth = { authorization: `Bearer ${disabled.token}` };
+
+		expect((await remote("/api/v1/bootstrap", { headers: auth })).status).toBe(403);
+		expect(
+			(
+				await remote("/api/v1/query", {
+					method: "POST",
+					headers: { ...auth, "content-type": "application/json" },
+					body: JSON.stringify({ queryName: "environment.get", input: {} }),
+				})
+			).status,
+		).toBe(403);
 		expect(
 			(
 				await remote("/api/v1/command", {
@@ -313,7 +424,7 @@ describe("scope", () => {
 					body: JSON.stringify({ commandName: "core.abort", input: {}, idempotencyKey: "k", requestId: "r" }),
 				})
 			).status,
-		).toBe(202);
+		).toBe(403);
 	});
 
 	test("binding refuses a global list and the wrong session, allows the bound one", async () => {
@@ -408,6 +519,42 @@ describe("2FA challenge on a real socket", () => {
 		// Commands are accepted asynchronously: 202 is the success envelope.
 		expect(allowed.status).toBe(202);
 		expect(step).toBeGreaterThan(0);
+	});
+
+	test("revoke-all also drops the caller's 2FA grant", async () => {
+		const store = twoFactorStore();
+		const enrollment = await store.enroll();
+		expect((await store.confirm(totp(enrollment.secret, Date.now()))).ok).toBe(true);
+		await store.setRequired(true);
+		const machine = { authorization: "Bearer machine-secret" };
+
+		const verify = await remote("/api/auth/2fa/verify", {
+			method: "POST",
+			headers: { ...machine, "content-type": "application/json" },
+			body: JSON.stringify({ code: totp(enrollment.secret, Date.now()) }),
+		});
+		expect(verify.status).toBe(200);
+
+		const command = () =>
+			remote("/api/v1/command", {
+				method: "POST",
+				headers: { ...machine, "content-type": "application/json" },
+				body: JSON.stringify({ commandName: "core.abort", input: {}, idempotencyKey: "k", requestId: "r" }),
+			});
+		expect((await command()).status).toBe(202);
+
+		const revokeAll = await remote("/api/remote/devices/revoke-all", {
+			method: "POST",
+			headers: { ...machine, "content-type": "application/json" },
+			body: "{}",
+		});
+		expect(revokeAll.status).toBe(200);
+
+		// The machine token still authenticates, so a 403 means the *grant* is gone.
+		const after = await command();
+		expect(after.status).toBe(403);
+		const afterBody = (await after.json()) as { error: string };
+		expect(afterBody.error).toBe("totp_required");
 	});
 });
 

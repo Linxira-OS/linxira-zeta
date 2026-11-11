@@ -18,6 +18,7 @@ import {
 	TerminalRingBuffer,
 	buildZetaIdeCommand,
 	controlFrame,
+	dropDeviceTerminalSockets,
 	handleTerminalCreate,
 	handleTerminalDelete,
 	handleTerminalEnsure,
@@ -53,6 +54,8 @@ import {
 import type { OpenProbeContext } from "../../src/utils/bin-discovery";
 import type { ResolvedTerminal } from "../../src/server/web-gateway/open";
 import { CUSTOM_PROFILES_ENV, resetShellProfileCacheForTests } from "../../src/server/web-gateway/terminal-profiles";
+import { DeviceRegistry, setDeviceRegistryForTest } from "../../src/server/auth/device-registry";
+import { setResourceOwnership } from "../../src/server/web-gateway/binding-guard";
 
 const ENV_KEYS = ["ZETA_CODING_AGENT_DIR", CUSTOM_PROFILES_ENV];
 const savedEnv = new Map<string, string | undefined>();
@@ -82,6 +85,9 @@ afterEach(async () => {
 	await Promise.all(cleanups.splice(0).map(fn => fn()));
 	resetTerminalManagerForTests();
 	resetPtyBackend();
+	dropDeviceTerminalSockets();
+	setDeviceRegistryForTest(undefined);
+	setResourceOwnership(undefined);
 	resetShellProfileCacheForTests();
 });
 
@@ -700,22 +706,26 @@ describe("terminal WS upgrade gate", () => {
 		expect(badTicket?.status).toBe(403);
 	});
 
-	test("a valid one-time ticket authenticates a remote upgrade exactly once", async () => {
-		await setup();
+	test("a write credential and one-time ticket authenticate a remote upgrade exactly once", async () => {
+		await setup("terminal-secret");
 		installFakePty();
 		const cwd = await mkdtemp(join(tmpdir(), "zeta-term-cwd-"));
 		cleanups.push(() => rm(cwd, { recursive: true, force: true }));
 		const created = (await (await createTerminal({ cwd })).json()) as { id: string; ticket: string };
 		const srv = fakeServer(() => {});
 		const first = await handleTerminalWsUpgrade(
-			upgradeRequest(`/api/terminal/${created.id}/ws?ticket=${encodeURIComponent(created.ticket)}`),
+			upgradeRequest(`/api/terminal/${created.id}/ws?ticket=${encodeURIComponent(created.ticket)}`, {
+				authorization: "Bearer terminal-secret",
+			}),
 			srv,
 			"192.168.1.5",
 		);
 		expect(first).toBeNull();
 		// One-time: second use is denied even for the same terminal.
 		const second = await handleTerminalWsUpgrade(
-			upgradeRequest(`/api/terminal/${created.id}/ws?ticket=${encodeURIComponent(created.ticket)}`),
+			upgradeRequest(`/api/terminal/${created.id}/ws?ticket=${encodeURIComponent(created.ticket)}`, {
+				authorization: "Bearer terminal-secret",
+			}),
 			srv,
 			"192.168.1.5",
 		);
@@ -725,11 +735,125 @@ describe("terminal WS upgrade gate", () => {
 		const { ticket } = (await ticketRes.json()) as { ticket: string };
 		expect(typeof ticket).toBe("string");
 		const third = await handleTerminalWsUpgrade(
-			upgradeRequest(`/api/terminal/${created.id}/ws?ticket=${encodeURIComponent(ticket)}`),
+			upgradeRequest(`/api/terminal/${created.id}/ws?ticket=${encodeURIComponent(ticket)}`, {
+				authorization: "Bearer terminal-secret",
+			}),
 			srv,
 			"192.168.1.5",
 		);
 		expect(third).toBeNull();
+	});
+
+	test("a device upgrade uses the terminal cwd rather than a declared workspace", async () => {
+		const agentDir = await setup();
+		const registry = new DeviceRegistry(join(agentDir, "auth", "devices.json"));
+		setDeviceRegistryForTest(registry);
+		const device = await registry.issue({ scopes: ["write"], binding: { workspaceId: "allowed" } });
+		installFakePty();
+		const cwd = await mkdtemp(join(tmpdir(), "zeta-term-cwd-"));
+		cleanups.push(() => rm(cwd, { recursive: true, force: true }));
+		const created = (await (await createTerminal({ cwd })).json()) as { id: string; ticket: string };
+		let workspace = "other";
+		setResourceOwnership({
+			workspaceOfSession: async () => undefined,
+			workspaceOfCwd: async actualCwd => {
+				expect(actualCwd).toBe(cwd);
+				return workspace;
+			},
+		});
+		const captured: TerminalWsData[] = [];
+		const srv = fakeServer(data => captured.push(data));
+		const request = () => upgradeRequest(
+			`/api/terminal/${created.id}/ws?workspaceId=allowed&ticket=${encodeURIComponent(created.ticket)}`,
+			{ authorization: `Bearer ${device.token}` },
+		);
+		const denied = await handleTerminalWsUpgrade(request(), srv, "192.168.1.5");
+		expect(denied?.status).toBe(403);
+		expect(await denied?.json()).toEqual({ error: "binding_scope" });
+		workspace = "allowed";
+		expect(await handleTerminalWsUpgrade(request(), srv, "192.168.1.5")).toBeNull();
+		expect(captured).toEqual([{ sessionId: created.id, deviceId: device.device.id }]);
+	});
+
+	test("a ticket alone cannot authorize a forwarded loopback upgrade", async () => {
+		await setup();
+		installFakePty();
+		const created = (await (await createTerminal({ cwd: process.cwd() })).json()) as { id: string; ticket: string };
+		const response = await handleTerminalWsUpgrade(
+			upgradeRequest(`/api/terminal/${created.id}/ws?ticket=${created.ticket}`, { "x-forwarded-for": "203.0.113.9" }),
+			fakeServer(() => {}),
+			"127.0.0.1",
+		);
+		expect(response?.status).toBe(403);
+	});
+
+	test("a bound device cannot connect when the terminal cwd is unattributable", async () => {
+		const agentDir = await setup();
+		const registry = new DeviceRegistry(join(agentDir, "auth", "devices.json"));
+		setDeviceRegistryForTest(registry);
+		const device = await registry.issue({ scopes: ["write"], binding: { workspaceId: "allowed" } });
+		installFakePty();
+		const created = (await (await createTerminal({ cwd: process.cwd() })).json()) as { id: string; ticket: string };
+		setResourceOwnership({
+			workspaceOfSession: async () => undefined,
+			workspaceOfCwd: async () => undefined,
+		});
+		const response = await handleTerminalWsUpgrade(
+			upgradeRequest(`/api/terminal/${created.id}/ws?ticket=${encodeURIComponent(created.ticket)}`, {
+				authorization: `Bearer ${device.token}`,
+			}),
+			fakeServer(() => {}),
+			"192.168.1.5",
+		);
+		expect(response?.status).toBe(403);
+		expect(await response?.json()).toEqual({ error: "binding_scope" });
+	});
+
+	test("read-only and empty-scope devices cannot upgrade with a valid ticket", async () => {
+		const agentDir = await setup();
+		const registry = new DeviceRegistry(join(agentDir, "auth", "devices.json"));
+		setDeviceRegistryForTest(registry);
+		const reader = await registry.issue({ scopes: ["read"] });
+		const empty = await registry.issue({ scopes: [] });
+		installFakePty();
+		const created = (await (await createTerminal({ cwd: process.cwd() })).json()) as { id: string; ticket: string };
+		for (const device of [reader, empty]) {
+			const response = await handleTerminalWsUpgrade(
+				upgradeRequest(`/api/terminal/${created.id}/ws?ticket=${encodeURIComponent(created.ticket)}`, {
+					authorization: `Bearer ${device.token}`,
+				}),
+				fakeServer(() => {}),
+				"192.168.1.5",
+			);
+			expect(response?.status).toBe(403);
+			expect(await response?.json()).toEqual({ error: "insufficient_scope" });
+		}
+	});
+
+	test("revoking a device closes its terminal socket and stops further input", async () => {
+		const agentDir = await setup();
+		const registry = new DeviceRegistry(join(agentDir, "auth", "devices.json"));
+		setDeviceRegistryForTest(registry);
+		const device = await registry.issue({ scopes: ["write"] });
+		installFakePty();
+		const created = (await (await createTerminal({ cwd: process.cwd() })).json()) as { id: string };
+		const closed: Array<{ code?: number; reason?: string }> = [];
+		const ws = {
+			data: { kind: "terminal" as const, sessionId: created.id, deviceId: device.device.id },
+			send: () => 0,
+			close: (code?: number, reason?: string) => closed.push({ code, reason }),
+		} as unknown as Bun.ServerWebSocket<TerminalWsData>;
+		await terminalWebSocketHandler.open?.(ws);
+		expect(closed).toEqual([]);
+		terminalWebSocketHandler.message?.(ws, "hello");
+		expect(fakePtys.at(-1)?.written).toEqual(["hello"]);
+
+		// The gateway's revoke route revokes the row and then drops its sockets.
+		await registry.revoke(device.device.id);
+		dropDeviceTerminalSockets(device.device.id);
+		expect(closed).toEqual([{ code: 4001, reason: "device revoked" }]);
+		terminalWebSocketHandler.message?.(ws, "after revoke");
+		expect(fakePtys.at(-1)?.written).toEqual(["hello"]);
 	});
 
 	test("isTerminalWsUpgradeRequest matches only terminal WS paths", () => {

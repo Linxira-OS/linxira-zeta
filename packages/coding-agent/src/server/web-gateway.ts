@@ -191,6 +191,7 @@ import {
 	handleRemoteTokenRotatePost,
 } from "./web-gateway/pairing";
 import {
+	dropDeviceTerminalSockets,
 	handleTerminalCreate,
 	handleTerminalDelete,
 	handleTerminalEnsure,
@@ -1117,6 +1118,7 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 				// 2FA grants. Otherwise an upgraded WebSocket keeps receiving events.
 				const dropped = await sessionStore().deleteAll();
 				forgetAllVerifications();
+				dropDeviceTerminalSockets();
 				for (const deviceId of dropped.deviceIds) studioHost().dropDeviceSessions(deviceId);
 			}
 			return response;
@@ -1136,6 +1138,7 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 				await sessionStore().deleteByDevice(deviceId[0]);
 				studioHost().dropDeviceSessions(deviceId[0]);
 				forgetDeviceVerification(deviceId[0]);
+				dropDeviceTerminalSockets(deviceId[0]);
 			}
 			return response;
 		}

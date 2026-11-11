@@ -82,6 +82,15 @@ describe("DeviceRegistry", () => {
 		expect(file).toContain(hashDeviceToken(issued.token));
 	});
 
+	test("explicit empty scopes survive issuance and reload without widening", async () => {
+		const { registry: store, filePath } = await registry();
+		const issued = await store.issue({ label: "disabled", scopes: [] });
+		expect(issued.device.scopes).toEqual([]);
+		const reloaded = new DeviceRegistry(filePath);
+		expect((await reloaded.findByToken(issued.token))?.scopes).toEqual([]);
+		expect((await reloaded.get(issued.device.id))?.scopes).toEqual([]);
+	});
+
 	test("the file is owner-only on POSIX", async () => {
 		if (process.platform === "win32") return;
 		const { registry: store, filePath } = await registry();

@@ -266,7 +266,8 @@ function parseRecord(raw: unknown): DeviceRecord | null {
 			? { machineId: parsed.machineId.trim() }
 			: {}),
 		...bindingFieldValue,
-		scopes: scopes.length > 0 ? [...new Set(scopes)] : ["read", "write"],
+		// Missing scopes retain the legacy default; explicit empty grants deny all.
+		scopes: parsed.scopes !== undefined ? [...new Set(scopes)] : ["read", "write"],
 		tokenHash,
 		createdAt: parsed.createdAt ?? new Date(0).toISOString(),
 		lastSeenAt: parsed.lastSeenAt ?? null,
@@ -387,10 +388,8 @@ export class DeviceRegistry {
 				? { machineId: input.machineId.trim() }
 				: {}),
 			...bindingField(input.binding),
-			scopes:
-				input.scopes !== undefined && input.scopes.length > 0
-					? [...new Set(input.scopes.filter(scope => scope in SCOPES))]
-					: ["read", "write"],
+			// Default only when omitted: an explicit empty grant must never widen.
+			scopes: input.scopes !== undefined ? [...new Set(input.scopes.filter(scope => scope in SCOPES))] : ["read", "write"],
 			tokenHash: hashDeviceToken(token),
 			createdAt: now.toISOString(),
 			lastSeenAt: now.toISOString(),
