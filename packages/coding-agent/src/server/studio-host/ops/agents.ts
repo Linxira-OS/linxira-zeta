@@ -226,7 +226,6 @@ async function liveHandle(ref: AgentRef) {
  * registry/lifecycle; there is no second control path.
  */
 
-
 /** `PUT /api/settings` for one registered path. */
 async function putSetting(path: string, value: unknown): Promise<void> {
 	const body = await gatewayJson<unknown>(SETTINGS_ROUTE, { method: "PUT", body: { path, value } });
@@ -300,7 +299,10 @@ async function configureAgent(input: CommandInput<"agents.definition.configure">
 			const next = new Set(disabled);
 			if (input.disabled) next.add(name);
 			else next.delete(name);
-			await putSetting("task.disabledAgents", [...next].sort((left, right) => left.localeCompare(right)));
+			await putSetting(
+				"task.disabledAgents",
+				[...next].sort((left, right) => left.localeCompare(right)),
+			);
 			wrote = true;
 		}
 	}

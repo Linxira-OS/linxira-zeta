@@ -44,7 +44,12 @@ import { SessionManager } from "../session/session-manager";
 import { isImSession, sameSessionOrigin, type SessionOrigin } from "../session/session-origin";
 import type { ImControlParams, ImControlResult } from "./im-control";
 import { type ImBinding, type ImTarget, targetKey, targetScopedBindingId } from "./im-config";
-import { buildImUserMessageMetadata, normalizeImSwitchControlMetadata, type ImRouteSnapshot, type ImSwitchControlMetadata } from "../session/session-im";
+import {
+	buildImUserMessageMetadata,
+	normalizeImSwitchControlMetadata,
+	type ImRouteSnapshot,
+	type ImSwitchControlMetadata,
+} from "../session/session-im";
 import { buildImSessionList, createImSessionSelectorState, type ImSessionListSnapshot } from "./im-session-selector";
 import { type AgentProfileOptions, loadImAgentProfilePersona, resolveImAgentProfileRuntime } from "../agent-profile";
 
@@ -882,7 +887,15 @@ export class SessionRouter {
 			);
 		}
 		const requestId = randomUUID().slice(0, 8);
-		const control = await this.#recordImControl(instanceId, peer, context, "switch_request", requestId, target, "target");
+		const control = await this.#recordImControl(
+			instanceId,
+			peer,
+			context,
+			"switch_request",
+			requestId,
+			target,
+			"target",
+		);
 		this.#pendingWorkspaceSwitch.set(key, {
 			action: "target",
 			target,
@@ -1173,7 +1186,9 @@ export class SessionRouter {
 	): Promise<ImSwitchControlRecord | undefined> {
 		const instance = this.#webConfig.getChannelInstance(instanceId);
 		const binding = this.#webConfig.findImBinding(instanceId, peer, context);
-		const manager = (binding ? this.#botSessions.get(binding.sessionId)?.session.sessionManager : undefined) ?? this.#coordinator.sessionManager;
+		const manager =
+			(binding ? this.#botSessions.get(binding.sessionId)?.session.sessionManager : undefined) ??
+			this.#coordinator.sessionManager;
 		if (!manager) return undefined;
 		const fromTarget = binding?.target;
 		const route = (target: ImTarget | undefined) => ({
@@ -1227,9 +1242,7 @@ export class SessionRouter {
 					.getImBindings()
 					.some(
 						binding =>
-							binding.platform === instance.platform &&
-							binding.chatId === peer &&
-							binding.role === "answer",
+							binding.platform === instance.platform && binding.chatId === peer && binding.role === "answer",
 					);
 				imBinding = await this.#webConfig.patchImBinding(
 					channelId,
@@ -2140,14 +2153,7 @@ export class SessionRouter {
 			to: handle.session.getAgentId() ?? "workspace",
 			body,
 			ts: Date.now(),
-			metadata: this.#imUserMetadata(
-				channelId,
-				peer,
-				context,
-				{ workspaceAlias },
-				messageId,
-				Date.now(),
-			),
+			metadata: this.#imUserMetadata(channelId, peer, context, { workspaceAlias }, messageId, Date.now()),
 		};
 		bridge.expect(msg.id, { kind: "chat", instanceId: channelId, peer });
 		try {

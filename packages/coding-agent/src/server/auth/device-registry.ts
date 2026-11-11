@@ -389,7 +389,10 @@ export class DeviceRegistry {
 				: {}),
 			...bindingField(input.binding),
 			// Default only when omitted: an explicit empty grant must never widen.
-			scopes: input.scopes !== undefined ? [...new Set(input.scopes.filter(scope => scope in SCOPES))] : ["read", "write"],
+			scopes:
+				input.scopes !== undefined
+					? [...new Set(input.scopes.filter(scope => scope in SCOPES))]
+					: ["read", "write"],
 			tokenHash: hashDeviceToken(token),
 			createdAt: now.toISOString(),
 			lastSeenAt: now.toISOString(),

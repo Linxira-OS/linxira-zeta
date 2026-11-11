@@ -40,15 +40,17 @@ async function queryResult<TName extends QueryName>(
 }
 
 function runCommand<TName extends CommandName>(commandName: TName, input: CommandInput<TName>) {
-	return operations.command(
-		{
-			commandName,
-			input,
-			idempotencyKey: `team-test-${commandName}` as IdempotencyKey,
-			requestId: `team-test-${commandName}` as CommandRequestId,
-		},
-		context(),
-	).then(reply => reply.result as CommandResult<TName>);
+	return operations
+		.command(
+			{
+				commandName,
+				input,
+				idempotencyKey: `team-test-${commandName}` as IdempotencyKey,
+				requestId: `team-test-${commandName}` as CommandRequestId,
+			},
+			context(),
+		)
+		.then(reply => reply.result as CommandResult<TName>);
 }
 
 function makeFixtureRepo(parent: string, name: string): string {
@@ -71,8 +73,8 @@ describe("Studio Team workspace", () => {
 	let dbPath: string;
 	let fixtureRepo: string;
 	let bootstrapRunId = "";
-	let taskKey = "T-101";
-	let rejectKey = "T-102";
+	const taskKey = "T-101";
+	const rejectKey = "T-102";
 
 	let releaseEnv: (() => void) | undefined;
 
@@ -140,10 +142,7 @@ describe("Studio Team workspace", () => {
 		expect(read.worktrees.map(worktree => worktree.kind)).toEqual(["home"]);
 		expect(read.rooms.map(room => room.name).sort()).toEqual(["coordination", "core", "shared"]);
 		const coordination = read.rooms.find(room => room.name === "coordination");
-		expect(read.roomMembers[coordination?.id ?? ""]?.map(member => member.role).sort()).toEqual([
-			"engineer",
-			"pm",
-		]);
+		expect(read.roomMembers[coordination?.id ?? ""]?.map(member => member.role).sort()).toEqual(["engineer", "pm"]);
 		// The Host must never serialize a Team path to the renderer.
 		expect(JSON.stringify(read)).not.toContain(scratch);
 	});

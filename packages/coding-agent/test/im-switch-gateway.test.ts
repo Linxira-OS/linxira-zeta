@@ -2,11 +2,7 @@
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { registerImSwitchGateway } from "../src/channels/session-router";
-import {
-	handleImSwitchCancel,
-	handleImSwitchConfirm,
-	handleImSwitchGet,
-} from "../src/server/web-gateway/im-instances";
+import { handleImSwitchCancel, handleImSwitchConfirm, handleImSwitchGet } from "../src/server/web-gateway/im-instances";
 
 afterEach(() => {
 	registerImSwitchGateway(null);
@@ -33,7 +29,9 @@ describe("IM switch gateway", () => {
 		});
 		expect((await handleImSwitchGet(new Request("http://127.0.0.1/api/im/switch?instanceId=tg"))).status).toBe(400);
 		expect((await handleImSwitchConfirm(request({ chatId: "c1", requestId: "r1" }))).status).toBe(400);
-		expect((await handleImSwitchConfirm(request({ instanceId: "tg", chatId: "c1", requestId: " " }))).status).toBe(400);
+		expect((await handleImSwitchConfirm(request({ instanceId: "tg", chatId: "c1", requestId: " " }))).status).toBe(
+			400,
+		);
 		expect((await handleImSwitchCancel(request({ instanceId: "tg", chatId: "c1" }))).status).toBe(400);
 	});
 

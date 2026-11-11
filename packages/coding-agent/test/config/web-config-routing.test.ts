@@ -118,7 +118,13 @@ describe("web-config workspace routing writes", () => {
 
 		const rows = (await WebConfig.load(file)).getImBindings();
 		expect(rows).toHaveLength(1);
-		expect(rows[0]).toMatchObject({ instanceId: "feishu", chatId: "oc_2", lang: "zh", sessionId: "abc123", model: { provider: "example", model: "chat" } });
+		expect(rows[0]).toMatchObject({
+			instanceId: "feishu",
+			chatId: "oc_2",
+			lang: "zh",
+			sessionId: "abc123",
+			model: { provider: "example", model: "chat" },
+		});
 		// The GUI's whole-array PUT of exactly this array must be accepted.
 		await expect(config.setImBindings(rows)).resolves.toHaveLength(1);
 	});
@@ -130,10 +136,19 @@ describe("web-config workspace routing writes", () => {
 	});
 
 	it("keeps legal bindings when an obsolete row names a missing instance", async () => {
-		fs.writeFileSync(file, JSON.stringify({
-			channels: { instances: [INSTANCE] }, imAgents: [PROFILE],
-			remote: { imBindings: [BINDING, { ...BINDING, id: "b_fedcba9876543210", sessionId: "old", instanceId: "telegram" }] },
-		}));
+		fs.writeFileSync(
+			file,
+			JSON.stringify({
+				channels: { instances: [INSTANCE] },
+				imAgents: [PROFILE],
+				remote: {
+					imBindings: [
+						BINDING,
+						{ ...BINDING, id: "b_fedcba9876543210", sessionId: "old", instanceId: "telegram" },
+					],
+				},
+			}),
+		);
 		const config = await WebConfig.load(file);
 		expect(config.getImBindings()).toEqual([BINDING]);
 		await config.set("tray.autostart", true);

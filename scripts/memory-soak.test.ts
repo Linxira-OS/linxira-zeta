@@ -140,7 +140,11 @@ describe("summarizeSamples", () => {
 	});
 
 	test("reports the first real commit reading when early probes are still pending", () => {
-		const summary = summarizeSamples([snapshot(0, 100, 20), snapshot(1000, 150, 35, 2000), snapshot(2000, 140, 30, 2100)]);
+		const summary = summarizeSamples([
+			snapshot(0, 100, 20),
+			snapshot(1000, 150, 35, 2000),
+			snapshot(2000, 140, 30, 2100),
+		]);
 		expect(summary.systemCommitStartMiB).toBe(2000);
 		expect(summary.systemCommitPeakMiB).toBe(2100);
 	});

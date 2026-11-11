@@ -158,7 +158,10 @@ describe("served IM provenance", () => {
 		const delivered = await router.deliverToBotSession(created.entry.id, "telegram", "peer-a", "hello", context);
 		expect(delivered).toEqual({ ok: true });
 
-		const userRow = manager.getEntries().filter(entry => entry.type === "message" && entry.message.role === "user").at(-1);
+		const userRow = manager
+			.getEntries()
+			.filter(entry => entry.type === "message" && entry.message.role === "user")
+			.at(-1);
 		if (!userRow || userRow.type !== "message") throw new Error("user row missing");
 		const metadata = normalizeImMessageMetadata(userRow.metadata);
 		expect(metadata).toMatchObject({
@@ -179,9 +182,19 @@ describe("served IM provenance", () => {
 		const initialRoute = metadata?.route;
 
 		// A later switch must not rewrite the route already captured on the row.
-		await router.requestWorkspaceSwitch("telegram", "peer-a", { kind: "workspace", workspace: "other" }, { threadId: "t1", userId: "u1" });
-		expect((await router.confirmWorkspaceSwitch("telegram", "peer-a", { threadId: "t1", userId: "u1" })).ok).toBe(true);
-		const reread = manager.getEntries().filter(entry => entry.type === "message" && entry.message.role === "user").at(-1);
+		await router.requestWorkspaceSwitch(
+			"telegram",
+			"peer-a",
+			{ kind: "workspace", workspace: "other" },
+			{ threadId: "t1", userId: "u1" },
+		);
+		expect((await router.confirmWorkspaceSwitch("telegram", "peer-a", { threadId: "t1", userId: "u1" })).ok).toBe(
+			true,
+		);
+		const reread = manager
+			.getEntries()
+			.filter(entry => entry.type === "message" && entry.message.role === "user")
+			.at(-1);
 		if (!reread || reread.type !== "message") throw new Error("user row missing after switch");
 		expect(normalizeImMessageMetadata(reread.metadata)?.route).toEqual(initialRoute);
 	});

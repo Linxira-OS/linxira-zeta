@@ -89,8 +89,18 @@ export interface ChannelCapabilities {
  * instances; tests assert every shipped adapter reports the same values.
  */
 export const CHANNEL_PLATFORM_CAPABILITIES: Record<ChannelPlatform, ChannelCapabilities> = {
-	wechat: { maxTextLength: Number.POSITIVE_INFINITY, supportsImages: true, supportsFiles: false, supportsTyping: false },
-	feishu: { maxTextLength: Number.POSITIVE_INFINITY, supportsImages: true, supportsFiles: false, supportsTyping: false },
+	wechat: {
+		maxTextLength: Number.POSITIVE_INFINITY,
+		supportsImages: true,
+		supportsFiles: false,
+		supportsTyping: false,
+	},
+	feishu: {
+		maxTextLength: Number.POSITIVE_INFINITY,
+		supportsImages: true,
+		supportsFiles: false,
+		supportsTyping: false,
+	},
 	telegram: { maxTextLength: 4_096, supportsImages: true, supportsFiles: false, supportsTyping: false },
 	discord: { maxTextLength: 2_000, supportsImages: true, supportsFiles: true, supportsTyping: true },
 	qq: { maxTextLength: 4_500, supportsImages: true, supportsFiles: false, supportsTyping: false },

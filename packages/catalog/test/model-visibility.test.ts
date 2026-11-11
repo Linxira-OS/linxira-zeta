@@ -42,9 +42,7 @@ describe("hidden model selectors", () => {
 		const codingRouterHigh = { provider: "nanogpt", id: "nanogpt/coding-router:high" };
 		const opusThinkingLow = { provider: "nanogpt", id: "anthropic/claude-opus-4.6:thinking:low" };
 		expect(isModelHiddenBySelectors(codingRouterHigh, ["nanogpt/nanogpt/coding-router:high"])).toBe(true);
-		expect(isModelHiddenBySelectors(opusThinkingLow, ["nanogpt/anthropic/claude-opus-4.6:thinking:low"])).toBe(
-			true,
-		);
+		expect(isModelHiddenBySelectors(opusThinkingLow, ["nanogpt/anthropic/claude-opus-4.6:thinking:low"])).toBe(true);
 		const bareLiteral = { provider: "nanogpt", id: "coding-router:high" };
 		const bareBase = { provider: "nanogpt", id: "coding-router" };
 		expect(isModelHiddenBySelectors(bareLiteral, ["coding-router:high"])).toBe(true);

@@ -176,13 +176,29 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 						return;
 					}
 					if (route.kind === "bot") {
-						const result = await router.deliverToBotSession(route.id, instanceId, peer, body, { ...context, ...(messageId ? { messageId } : {}) });
-						if (!result.ok) await runtime.sendText(instanceId, peer, `无法投递到 Bot 会话 ${route.id}：${result.error ?? "unknown error"}`);
+						const result = await router.deliverToBotSession(route.id, instanceId, peer, body, {
+							...context,
+							...(messageId ? { messageId } : {}),
+						});
+						if (!result.ok)
+							await runtime.sendText(
+								instanceId,
+								peer,
+								`无法投递到 Bot 会话 ${route.id}：${result.error ?? "unknown error"}`,
+							);
 						return;
 					}
 					if (route.kind === "workspace") {
-						const result = await router.deliverDirect(route.alias, instanceId, peer, body, { ...context, ...(messageId ? { messageId } : {}) });
-						if (!result.ok) await runtime.sendText(instanceId, peer, `无法连接到工作区 [${route.alias}]：${result.error ?? "unknown error"}`);
+						const result = await router.deliverDirect(route.alias, instanceId, peer, body, {
+							...context,
+							...(messageId ? { messageId } : {}),
+						});
+						if (!result.ok)
+							await runtime.sendText(
+								instanceId,
+								peer,
+								`无法连接到工作区 [${route.alias}]：${result.error ?? "unknown error"}`,
+							);
 						return;
 					}
 					if (route.kind === "unavailable") {

@@ -826,7 +826,10 @@ export class WebConfig {
 	}
 
 	/** Whole-array replacement; masked gateway secrets are resolved under the same lock. */
-	async setChannelInstances(value: unknown, options: { preserveSecrets?: boolean } = {}): Promise<ChannelInstanceConfig[]> {
+	async setChannelInstances(
+		value: unknown,
+		options: { preserveSecrets?: boolean } = {},
+	): Promise<ChannelInstanceConfig[]> {
 		return this.#mutate(data => {
 			let incoming = value;
 			if (options.preserveSecrets && Array.isArray(value)) {
@@ -844,9 +847,16 @@ export class WebConfig {
 					return {
 						...entry,
 						credentials: merge(entry.credentials ?? {}, stored?.credentials),
-						...(entry.options?.peerTokens ? {
-							options: { ...entry.options, peerTokens: merge(entry.options.peerTokens, stored?.options?.peerTokens) },
-						} : entry.options === undefined && stored?.options ? { options: stored.options } : {}),
+						...(entry.options?.peerTokens
+							? {
+									options: {
+										...entry.options,
+										peerTokens: merge(entry.options.peerTokens, stored?.options?.peerTokens),
+									},
+								}
+							: entry.options === undefined && stored?.options
+								? { options: stored.options }
+								: {}),
 					};
 				});
 			}
@@ -863,9 +873,13 @@ export class WebConfig {
 			if (!current) throw new Error(`Unknown channel instance: ${id}`);
 			const next = { ...current, ...patch, id: current.id, platform: current.platform };
 			data.channels.instances = validateChannelInstances(
-				data.channels.instances.map(instance => instance.id === id ? next : instance), data.imAgents,
+				data.channels.instances.map(instance => (instance.id === id ? next : instance)),
+				data.imAgents,
 			);
-			return { changed: true, value: structuredClone(data.channels.instances.find(instance => instance.id === id)!) };
+			return {
+				changed: true,
+				value: structuredClone(data.channels.instances.find(instance => instance.id === id)!),
+			};
 		});
 	}
 
@@ -896,7 +910,9 @@ export class WebConfig {
 			]);
 			for (const id of referenced) {
 				if (!profiles.some(profile => profile.id === id)) {
-					throw new ImConfigError([{ path: "imAgents", message: `profile ${id} is referenced by an instance or binding` }]);
+					throw new ImConfigError([
+						{ path: "imAgents", message: `profile ${id} is referenced by an instance or binding` },
+					]);
 				}
 			}
 			data.imAgents = profiles;
@@ -927,7 +943,12 @@ export class WebConfig {
 
 	async upsertImBinding(binding: ImBinding): Promise<ImBinding> {
 		return this.#mutate(data => {
-			const next = [...(data.remote.imBindings ?? []).filter(entry => entry.id !== binding.id && bindingKey(entry) !== bindingKey(binding)), binding];
+			const next = [
+				...(data.remote.imBindings ?? []).filter(
+					entry => entry.id !== binding.id && bindingKey(entry) !== bindingKey(binding),
+				),
+				binding,
+			];
 			data.remote.imBindings = validateImBindings(next, data.channels.instances, data.imAgents);
 			return { changed: true, value: structuredClone(data.remote.imBindings.at(-1)!) };
 		});
@@ -949,23 +970,26 @@ export class WebConfig {
 			const profileId = patch.agentProfileId ?? existing?.agentProfileId ?? instance.agentProfile;
 			const profile = data.imAgents.find(profile => profile.id === profileId);
 			if (!profile) throw new Error(`Unknown agent profile: ${profileId}`);
-			const next: ImBinding = existing ? { ...existing, ...patch } : {
-				id: `b_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
-				instanceId,
-				platform: instance.platform,
-				chatId,
-				...(opts.threadId ? { threadId: opts.threadId } : {}),
-				...(opts.userId ? { userId: opts.userId } : {}),
-				agentProfileId: profileId,
-				sessionId: randomUUID().slice(0, 8),
-				target: profile.location,
-				role: "answer",
-				createdAt: new Date().toISOString(),
-				...patch,
-			};
+			const next: ImBinding = existing
+				? { ...existing, ...patch }
+				: {
+						id: `b_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
+						instanceId,
+						platform: instance.platform,
+						chatId,
+						...(opts.threadId ? { threadId: opts.threadId } : {}),
+						...(opts.userId ? { userId: opts.userId } : {}),
+						agentProfileId: profileId,
+						sessionId: randomUUID().slice(0, 8),
+						target: profile.location,
+						role: "answer",
+						createdAt: new Date().toISOString(),
+						...patch,
+					};
 			data.remote.imBindings = validateImBindings(
 				[...current.filter(entry => entry.id !== next.id && bindingKey(entry) !== key), next],
-				data.channels.instances, data.imAgents,
+				data.channels.instances,
+				data.imAgents,
 			);
 			return { changed: true, value: structuredClone(data.remote.imBindings.at(-1)!) };
 		});

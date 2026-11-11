@@ -768,10 +768,11 @@ describe("terminal WS upgrade gate", () => {
 		});
 		const captured: TerminalWsData[] = [];
 		const srv = fakeServer(data => captured.push(data));
-		const request = () => upgradeRequest(
-			`/api/terminal/${created.id}/ws?workspaceId=allowed&ticket=${encodeURIComponent(created.ticket)}`,
-			{ authorization: `Bearer ${device.token}` },
-		);
+		const request = () =>
+			upgradeRequest(
+				`/api/terminal/${created.id}/ws?workspaceId=allowed&ticket=${encodeURIComponent(created.ticket)}`,
+				{ authorization: `Bearer ${device.token}` },
+			);
 		const denied = await handleTerminalWsUpgrade(request(), srv, "192.168.1.5");
 		expect(denied?.status).toBe(403);
 		expect(await denied?.json()).toEqual({ error: "binding_scope" });
@@ -785,7 +786,9 @@ describe("terminal WS upgrade gate", () => {
 		installFakePty();
 		const created = (await (await createTerminal({ cwd: process.cwd() })).json()) as { id: string; ticket: string };
 		const response = await handleTerminalWsUpgrade(
-			upgradeRequest(`/api/terminal/${created.id}/ws?ticket=${created.ticket}`, { "x-forwarded-for": "203.0.113.9" }),
+			upgradeRequest(`/api/terminal/${created.id}/ws?ticket=${created.ticket}`, {
+				"x-forwarded-for": "203.0.113.9",
+			}),
 			fakeServer(() => {}),
 			"127.0.0.1",
 		);

@@ -62,7 +62,12 @@ async function setup(): Promise<{ router: SessionRouter; config: WebConfig; dir:
 					memory: {},
 				},
 			],
-			remote: { workspaces: [{ alias: "other", path: dir }, { alias: "third", path: dir }] },
+			remote: {
+				workspaces: [
+					{ alias: "other", path: dir },
+					{ alias: "third", path: dir },
+				],
+			},
 		}),
 	);
 	const config = await WebConfig.load(file);

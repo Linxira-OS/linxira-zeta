@@ -160,18 +160,36 @@ describe("web.yml concurrent writers", () => {
 		await second.patchImBinding("wechat", "room", { sessionId: "persisted-session" });
 		const reloaded = await WebConfig.load(file);
 		expect(reloaded.getChannelInstance("wechat")).toMatchObject({ note: "personal bot", enabled: true });
-		expect(reloaded.findImBinding("wechat", "room")).toMatchObject({ lang: "zh", sessionId: "persisted-session", role: "answer" });
-		expect(reloaded.findImBinding("telegram", "room")).toMatchObject({ role: "observe", model: { provider: "example", model: "chat" } });
+		expect(reloaded.findImBinding("wechat", "room")).toMatchObject({
+			lang: "zh",
+			sessionId: "persisted-session",
+			role: "answer",
+		});
+		expect(reloaded.findImBinding("telegram", "room")).toMatchObject({
+			role: "observe",
+			model: { provider: "example", model: "chat" },
+		});
 	});
 
 	test("masked form saves preserve freshly rotated credentials and reconnect tokens", async () => {
 		const form = await WebConfig.load(file);
-		await form.setInstance("wechat", { credentials: { botToken: "old" }, options: { peerTokens: { peer: "old-context" } } });
+		await form.setInstance("wechat", {
+			credentials: { botToken: "old" },
+			options: { peerTokens: { peer: "old-context" } },
+		});
 		const masked = form.getMasked().channels.instances;
-		await (await WebConfig.load(file)).setInstance("wechat", { credentials: { botToken: "rotated" }, options: { peerTokens: { peer: "new-context" } } });
+		await (
+			await WebConfig.load(file)
+		).setInstance("wechat", {
+			credentials: { botToken: "rotated" },
+			options: { peerTokens: { peer: "new-context" } },
+		});
 		await form.setChannelInstances(masked, { preserveSecrets: true });
 		const reloaded = await WebConfig.load(file);
-		expect(reloaded.getChannelInstance("wechat")).toMatchObject({ credentials: { botToken: "rotated" }, options: { peerTokens: { peer: "new-context" } } });
+		expect(reloaded.getChannelInstance("wechat")).toMatchObject({
+			credentials: { botToken: "rotated" },
+			options: { peerTokens: { peer: "new-context" } },
+		});
 		expect(JSON.stringify(reloaded.getMasked())).not.toContain("rotated");
 		expect(JSON.stringify(reloaded.getMasked())).not.toContain("new-context");
 	});

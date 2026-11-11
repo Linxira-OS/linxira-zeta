@@ -818,7 +818,8 @@ export class ZetaServer {
 		});
 		registerImSessionCandidateReader(() => this.#router!.listSessionCandidates());
 		registerImSwitchGateway({
-			status: (instanceId, chatId, context) => this.#router!.workspaceSwitchStatus(instanceId as never, chatId, context),
+			status: (instanceId, chatId, context) =>
+				this.#router!.workspaceSwitchStatus(instanceId as never, chatId, context),
 			confirm: (instanceId, chatId, context, requestId) =>
 				this.#router!.confirmWorkspaceSwitch(instanceId as never, chatId, context, requestId),
 			cancel: (instanceId, chatId, context, requestId) =>
@@ -1267,7 +1268,10 @@ export class ZetaServer {
 			return;
 		}
 		if (route.kind === "bot" && router) {
-			const result = await router.deliverToBotSession(route.id, instanceId, peer, body, { ...context, ...(messageId ? { messageId } : {}) });
+			const result = await router.deliverToBotSession(route.id, instanceId, peer, body, {
+				...context,
+				...(messageId ? { messageId } : {}),
+			});
 			if (!result.ok) {
 				logger.warn("Bot session injection failed", { channel: instanceId, id: route.id, error: result.error });
 				await runtime.sendText(
@@ -1279,7 +1283,10 @@ export class ZetaServer {
 			return;
 		}
 		if (route.kind === "workspace" && router) {
-			const result = await router.deliverDirect(route.alias, instanceId, peer, body, { ...context, ...(messageId ? { messageId } : {}) });
+			const result = await router.deliverDirect(route.alias, instanceId, peer, body, {
+				...context,
+				...(messageId ? { messageId } : {}),
+			});
 			if (!result.ok) {
 				logger.warn("Direct-mode injection failed", {
 					channel: instanceId,

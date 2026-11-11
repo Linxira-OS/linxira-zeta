@@ -1356,7 +1356,9 @@ export async function handleTerminalWsUpgrade(
 	const session = manager.get(terminalId);
 	if (!session) return json({ error: "terminal not found" }, 404);
 
-	const upgraded = srv.upgrade(req, { data: { sessionId: terminalId, ...(deviceId !== undefined ? { deviceId } : {}) } });
+	const upgraded = srv.upgrade(req, {
+		data: { sessionId: terminalId, ...(deviceId !== undefined ? { deviceId } : {}) },
+	});
 	return upgraded ? null : json({ error: "websocket upgrade failed" }, 500);
 }
 
@@ -1379,7 +1381,9 @@ export const terminalWebSocketHandler: WebSocketHandler<TerminalWsData> = {
 		if (ws.data.deviceId !== undefined) {
 			// Revocation may have completed between upgrade authorization and open.
 			remoteTerminalSockets.set(ws, ws.data.deviceId);
-			const device = await deviceRegistry().get(ws.data.deviceId).catch(() => undefined);
+			const device = await deviceRegistry()
+				.get(ws.data.deviceId)
+				.catch(() => undefined);
 			if (!remoteTerminalSockets.has(ws)) return;
 			if (device === undefined || device.revokedAt !== null) {
 				remoteTerminalSockets.delete(ws);

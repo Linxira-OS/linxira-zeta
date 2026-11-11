@@ -101,12 +101,7 @@ import type {
 	WorkspaceFileTreeReadModel,
 	WorkspaceFileMutationResult,
 } from "./read-models.js";
-import type {
-	TeamCommandInputMap,
-	TeamCommandResultMap,
-	TeamQueryInputMap,
-	TeamQueryResultMap,
-} from "./team.js";
+import type { TeamCommandInputMap, TeamCommandResultMap, TeamQueryInputMap, TeamQueryResultMap } from "./team.js";
 
 /** Empty input shape for queries that take no arguments. */
 export type EmptyInput = Readonly<Record<string, never>>;

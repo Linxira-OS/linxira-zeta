@@ -207,7 +207,6 @@ export async function handleChannelInstancesGet(): Promise<Response> {
 	return json({ instances: maskedInstances(webConfig.getChannelInstances()) });
 }
 
-
 export async function handleChannelInstancesPut(req: Request): Promise<Response> {
 	const body = await readBody(req);
 	if (!body || !Array.isArray(body.instances)) return json({ ok: false, error: "Missing instances array" }, 400);
@@ -314,10 +313,12 @@ export async function handleImSwitchGet(req: Request): Promise<Response> {
 	if (!gateway) return json({ error: "IM relay is not running" }, 503);
 	const identity = switchIdentity(new URL(req.url));
 	if ("error" in identity) return json({ error: identity.error }, 400);
-	return json(await gateway.status(identity.instanceId, identity.chatId, {
-		...(identity.threadId ? { threadId: identity.threadId } : {}),
-		...(identity.userId ? { userId: identity.userId } : {}),
-	}));
+	return json(
+		await gateway.status(identity.instanceId, identity.chatId, {
+			...(identity.threadId ? { threadId: identity.threadId } : {}),
+			...(identity.userId ? { userId: identity.userId } : {}),
+		}),
+	);
 }
 
 /** POST /api/im/switch/confirm — apply the same chat/thread/sender's pending handshake. */
@@ -386,7 +387,9 @@ export async function handleImCommands(req: Request): Promise<Response> {
 				}
 			: {}),
 		...(session ? { session: { id: session.id, display: session.name } } : {}),
-		...(binding?.model ? { model: { ...binding.model, display: `${binding.model.provider}/${binding.model.model}` } } : {}),
+		...(binding?.model
+			? { model: { ...binding.model, display: `${binding.model.provider}/${binding.model.model}` } }
+			: {}),
 		capabilities: CHANNEL_PLATFORM_CAPABILITIES[instance.platform],
 		voice: { supported: false, reason: "IM voice delivery is not implemented; the tts tool writes a file" },
 		examples: ["!status", "!session list", "!session use {1}", "!model", "!lang zh", "!workspace list"],
