@@ -100,6 +100,33 @@ Top-level keys:
 
 The config writer accepts names up to 100 characters containing letters, numbers, `_`, `-`, `.`, `:`, and single spaces between non-space name segments. The bundled schema omits colons and spaces from its name pattern, so names such as `cloudflare:cloudflare-api` or `MaaS Slack` may be valid at runtime while an editor reports a schema error.
 
+## Analysis MCP recognition and precedence
+
+Zeta recognizes a small, explicit set of project-analysis MCP capabilities
+(CodeGraph today) from an **explicit** `mcpServers` entry, a declared
+`package.json` dependency, or a project marker such as `.codegraph/`.
+
+- A matching server is **configured** and can mount.
+- A declared package or marker without a matching server is **detected**: it is
+  shown as a suggestion only. Zeta does not mark it available, install it, or
+  run `npx`.
+- `mcp.precedence` controls a same-capability collision: `native` (default)
+  keeps the active native tool and marks the MCP server shadowed; `mcp` mounts
+  the server and suppresses the overlapping native tools; `ask` uses the
+  existing approval path. A disabled native tool does not shadow an allowed MCP
+  server.
+- One capability mounts one set. A later same-capability server, or a server
+  exposing duplicate functions, is shadowed and `/mcp` can show the reason.
+- The tool-profile allowlist applies before mount. A server with no allowed
+  tools stays shadowed.
+- `tools/list_changed` and reconnect recompute the same rules from the current
+  snapshot; a denied server is not resurrected.
+
+The resolver and hook adapter are
+`packages/coding-agent/src/mcp/analysis-precedence.ts` and
+`analysis-precedence-hook.ts`. They do not read foreign project sources or
+bypass the external-source hash-consent gate.
+
 ## Supported server fields
 
 Shared fields for every transport:

@@ -1618,6 +1618,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "MCP 项目配置",
 		description: "从项目根目录加载 .mcp.json/mcp.json",
 	},
+	"mcp.precedence": {
+		label: "MCP 工具优先级",
+		description:
+			"原生工具与 MCP 服务器提供同一分析能力时：优先原生、优先 MCP，或通过现有审批路径询问。禁用的原生工具不会压制允许的 MCP 服务器。",
+	},
 	"mcp.renderMarkdownResults": {
 		label: "MCP Markdown 结果",
 		description: "在记录中将非 JSON 的 MCP 文本结果渲染为 Markdown",

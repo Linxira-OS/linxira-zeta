@@ -44,6 +44,17 @@ Filtering behavior:
 - `enableProjectConfig: false` removes project-level entries (`_source.level === "project"`).
 - `enabled: false` entries are suppressed unless the active-profile user `enabledServers` allowlist names them; the user `disabledServers` denylist always suppresses a same-named entry.
 - Exa servers are filtered out by default and API keys are extracted for native Exa tool integration, unless the config explicitly requests Exa tools the native integration does not provide (`web_fetch_exa`, `web_search_advanced_exa`); browser automation MCP servers are filtered when `filterBrowser` is true.
+- Analysis MCP servers (explicit manifest only) pass through the
+  `analysis-precedence` resolver: configured servers can mount, detected
+  package/marker-only capabilities are suggestions, and same-capability
+  collisions follow `mcp.precedence` (`native`/`mcp`/`ask`). A disabled native
+  tool cannot shadow an allowed MCP server.
+- `tools/list_changed` and reconnect call the same resolver again; shadowing,
+  profile filtering, and ask decisions are never cached across a refresh.
+- `/mcp list` reads the session's last resolver snapshot and prints
+  `[shadowed: reason]` beside the affected server, plus a line explaining that
+  shadowed servers are excluded from the prompt and the mounted set follows
+  `mcp.precedence` and the active tool profile.
 
 Result includes both `configs` and `sources` (metadata used later for provider labeling).
 

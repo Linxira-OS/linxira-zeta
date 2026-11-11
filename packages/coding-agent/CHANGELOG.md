@@ -46,6 +46,7 @@
   all `dictation.*` host operations and a complete desktop microphone transport;
   otherwise it renders nothing and does not poll.
 - Context files and `SYSTEM.md` are hot-reloaded at the next turn boundary: an edited, replaced, renamed, deleted, or newly discovered file that this session actually rendered from rebuilds the base system prompt before the next provider request and re-keys the prompt cache once; an unchanged file changes nothing. The check is a bounded stat of the session's own discovered set plus depth-0 watchers on the directories those files live in (and the session cwd) — never a tree walk — and a streaming turn is never altered mid-request. Provenance is untouched: files discovery did not include stay out of the prompt.
+- **Analysis MCP recognition and collision policy** — CodeGraph and other explicitly manifested analysis MCP servers are recognized from declared `mcpServers`, `package.json` dependencies, or project markers. A declared-but-unconfigured capability is shown as `detected`, never installed or spawned. `mcp.precedence` (`native` default, `mcp`, `ask`) resolves same-capability collisions; a disabled native tool cannot shadow an allowed MCP server, and `tools/list_changed`/reconnect recompute the decision without resurrecting a denied server.
 
 ## [1.5.1] - 2026-11-10
 

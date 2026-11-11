@@ -17,6 +17,7 @@ import {
 	loadAllMCPConfigs,
 	MCPManager,
 	OAuthIssuerMismatchError,
+	readAnalysisMcpShadowReasons,
 } from "../../mcp";
 import {
 	findMcpServerForAuth,
@@ -1306,6 +1307,12 @@ export class MCPCommandController {
 
 			const userServers = Object.keys(userConfig.mcpServers ?? {});
 			const projectServers = Object.keys(projectConfig.mcpServers ?? {});
+			const shadowReasons = readAnalysisMcpShadowReasons(this.ctx.session) ?? {};
+			const shadowSuffix = (name: string): string => {
+				const reason = shadowReasons[name];
+				if (!reason) return "";
+				return theme.fg("warning", ` [shadowed: ${reason.replace(/^shadowed:\s*/, "")}]`);
+			};
 
 			// Collect runtime-discovered servers not in config files
 			const configServerNames = new Set([...userServers, ...projectServers]);
@@ -1360,7 +1367,7 @@ export class MCPCommandController {
 								: state === "connecting"
 									? theme.fg("muted", " ◌ connecting")
 									: theme.fg("muted", " ○ not connected");
-					lines.push(`  ${theme.fg("accent", name)}${status} ${theme.fg("dim", `[${type}]`)}`);
+					lines.push(`  ${theme.fg("accent", name)}${status} ${theme.fg("dim", `[${type}]`)}${shadowSuffix(name)}`);
 				}
 				lines.push("");
 			}
@@ -1383,7 +1390,7 @@ export class MCPCommandController {
 								: state === "connecting"
 									? theme.fg("muted", " ◌ connecting")
 									: theme.fg("muted", " ○ not connected");
-					lines.push(`  ${theme.fg("accent", name)}${status} ${theme.fg("dim", `[${type}]`)}`);
+					lines.push(`  ${theme.fg("accent", name)}${status} ${theme.fg("dim", `[${type}]`)}${shadowSuffix(name)}`);
 				}
 				lines.push("");
 			}
@@ -1400,7 +1407,7 @@ export class MCPCommandController {
 								: state === "connecting"
 									? theme.fg("muted", " ◌ connecting")
 									: theme.fg("muted", " ○ not connected");
-						lines.push(`  ${theme.fg("accent", name)}${status}`);
+						lines.push(`  ${theme.fg("accent", name)}${status}${shadowSuffix(name)}`);
 					}
 					lines.push("");
 				}
@@ -1414,6 +1421,14 @@ export class MCPCommandController {
 					lines.push(`  ${theme.fg("accent", name)}${theme.fg("warning", " ◌ disabled")}`);
 				}
 				lines.push("");
+			}
+			if (Object.keys(shadowReasons).length > 0) {
+				lines.push(
+					theme.fg(
+						"muted",
+						"Shadowed analysis MCP servers are not mounted and are excluded from the prompt; the selected set follows mcp.precedence and the active tool profile.",
+					),
+				);
 			}
 			this.#showReport("Configured MCP Servers", lines.join("\n"));
 		} catch (error) {
