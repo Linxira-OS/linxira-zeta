@@ -273,6 +273,11 @@ export async function restartSessionChannels(): Promise<StartSessionChannelsResu
 	return await startSessionChannels(lastContext);
 }
 
+/** Stop the active CLI/TUI host without remembering a restart request. */
+export async function stopActiveSessionChannels(): Promise<void> {
+	if (activeHost) await activeHost.stop();
+}
+
 export async function suspendActiveSessionChannels(): Promise<boolean> {
 	if (!activeHost) return false;
 	await activeHost.stop();
