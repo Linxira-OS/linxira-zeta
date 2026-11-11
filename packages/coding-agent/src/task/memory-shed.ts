@@ -1,12 +1,11 @@
 /**
- * Pull-driven memory-pressure shedding.
+ * Memory-pressure shedding: pull-driven checkpoints plus a Windows push adapter.
  *
- * There is no push-style memory-pressure event in this codebase: memory is
- * *sampled*, and `fanout-pressure.ts` is the only sampler. This module hangs a
- * shed off the checkpoints that already sample — the subagent spawn permit
- * (`task/index.ts`), the workpool worker ceiling (`task/workpool.ts`), and a
- * turn-end sample on the session layer — and releases memory by cost, lowest
- * first:
+ * Memory is normally *sampled*, and `fanout-pressure.ts` is the only sampler.
+ * This module hangs a shed off the checkpoints that already sample — the
+ * subagent spawn permit (`task/index.ts`), the workpool worker ceiling
+ * (`task/workpool.ts`), and a turn-end sample on the session layer — and
+ * releases memory by cost, lowest first:
  *
  *   TIGHT    -> (1) TUI render caches, (2) idle owned browser tabs
  *   CRITICAL -> TIGHT, plus (3) the mnemopi embedding worker and
@@ -17,6 +16,11 @@
  * stays. A shed logs one line (level, released object, reason) and writes no
  * tracking — the fan-out notice already says the machine is short; a tracking
  * entry per checkpoint would just be noise.
+ *
+ * Bun also documents a `process.on("memoryPressure")` event. The Windows
+ * adapter at the end of this module is the only push trigger; it drops derived
+ * render caches only, and its OS delivery is not locally verified — tests
+ * inject the level and prove the adapter/cache effect, never an OS signal.
  */
 
 import { logger } from "@linxiraos/pi-utils";
@@ -194,4 +198,107 @@ export async function shedUnderMemoryPressure(
 		);
 	}
 	return { level, released };
+}
+
+/**
+ * The level Bun's `process.on("memoryPressure")` delivers.
+ *
+ * Bun's typings document `warning`/`critical` on macOS and always `critical`
+ * on Windows. That is the published API contract. This repository does not
+ * exercise native OS delivery in tests, so no test or log line below claims a
+ * system signal was observed.
+ */
+export type MemoryPressureEventLevel = "warning" | "critical";
+
+/**
+ * Platforms whose memory-pressure event this adapter registers.
+ *
+ * Only Windows is claimed: the os-error-1455 triage targets Windows and Bun
+ * 1.4 types the event for that platform. Registration alone proves nothing —
+ * a plain EventEmitter accepts any event name — so callers get `undefined`
+ * elsewhere and must not treat a listener as OS support.
+ */
+export function supportsMemoryPressureEvent(platform: NodeJS.Platform = process.platform): boolean {
+	return platform === "win32";
+}
+
+/** Map the OS level onto the shed ladder (`warning` is the lower rung). */
+export function memoryPressureEventShedLevel(level: MemoryPressureEventLevel): MemoryShedLevel {
+	return level === "warning" ? "tight" : "critical";
+}
+
+/** The cache effect an event can use — the only process-wide, session-free target. */
+export type MemoryPressureEventEffects = Pick<MemoryShedEffects, "clearRenderCaches">;
+
+/**
+ * Shed render caches for one memory-pressure event.
+ *
+ * Only derived memoization is dropped (Markdown L2 and mermaid L1). Every block
+ * renders its rows again on the next frame; no transcript or session content is
+ * removed. The append-only emission ledger is deliberately untouched: published
+ * rows in native scrollback cannot be retracted.
+ */
+export function handleMemoryPressureEvent(
+	level: MemoryPressureEventLevel,
+	effects: MemoryPressureEventEffects = DEFAULT_MEMORY_SHED_EFFECTS,
+): void {
+	effects.clearRenderCaches();
+	logger.warn(
+		`memory-shed: ${level} memoryPressure event (${memoryPressureEventShedLevel(level)} shed) — ` +
+			"released TUI render caches (markdown, mermaid)",
+	);
+}
+
+/** Anything that can deliver the event: `process`, or a test emitter. */
+export interface MemoryPressureEventSource {
+	on(event: "memoryPressure", listener: (level: MemoryPressureEventLevel) => void): unknown;
+	off(event: "memoryPressure", listener: (level: MemoryPressureEventLevel) => void): unknown;
+}
+
+export interface InstallMemoryPressureShedOptions {
+	/** Defaults to `process.platform`; tests pass a platform to pin the gate. */
+	platform?: NodeJS.Platform;
+	/** Defaults to `process`; tests pass an isolated emitter. */
+	source?: MemoryPressureEventSource;
+	effects?: MemoryPressureEventEffects;
+}
+
+let uninstallMemoryPressureShed: (() => void) | undefined;
+
+/** Whether this process currently owns the event listener. */
+export function isMemoryPressureShedInstalled(): boolean {
+	return uninstallMemoryPressureShed !== undefined;
+}
+
+/**
+ * Register the Windows memory-pressure shed once per process.
+ *
+ * Returns the uninstall function for the interactive lifecycle's `stop()`, or
+ * `undefined` when the platform is not claimed — callers never register a
+ * fictional event. Installation is idempotent: the second call returns the
+ * existing uninstall.
+ */
+export function installMemoryPressureShed(
+	options: InstallMemoryPressureShedOptions = {},
+): (() => void) | undefined {
+	if (!supportsMemoryPressureEvent(options.platform)) return undefined;
+	if (uninstallMemoryPressureShed !== undefined) return uninstallMemoryPressureShed;
+	const source: MemoryPressureEventSource = options.source ?? process;
+	const effects = options.effects ?? DEFAULT_MEMORY_SHED_EFFECTS;
+	const listener = (level: MemoryPressureEventLevel): void => {
+		try {
+			handleMemoryPressureEvent(level, effects);
+		} catch (error) {
+			logger.warn("memory-shed: memoryPressure event handler failed", {
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	};
+	source.on("memoryPressure", listener);
+	const uninstall = (): void => {
+		source.off("memoryPressure", listener);
+		if (uninstallMemoryPressureShed === uninstall) uninstallMemoryPressureShed = undefined;
+	};
+	uninstallMemoryPressureShed = uninstall;
+	return uninstall;
 }

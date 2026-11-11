@@ -294,6 +294,38 @@ export default function extension(pi: ExtensionAPI): void {
 }
 ```
 
+## Memory pressure and render-cache shedding
+
+The TUI's render caches are derived data. Markdown renders go through a
+byte-weighted L2 cache (4 MiB aggregate, 512 KiB per entry including the key),
+and transcript blocks release component-owned rows, formatting, and streaming
+state when they retire into native scrollback (`releaseRenderCaches`). Neither
+path drops the semantic transcript, the append-only emission ledger already
+written to scrollback, image ownership, or expansion state.
+
+On Windows the interactive TUI registers Bun's documented
+`process.on("memoryPressure")` event in `InteractiveMode.init()` and removes it
+in `stop()` (`packages/coding-agent/src/task/memory-shed.ts`). A `warning` maps to
+the tight shed and `critical` to the critical shed; the event path clears only
+the Markdown L2 and mermaid L1 caches. The next frame re-renders from semantic
+content, so the UI degrades to a smaller cache, not to a lost conversation.
+
+Scope of the claim: Bun's type definitions document the event and its levels,
+but this repository has not observed a native OS signal. Tests inject the level
+and assert that the adapter drops caches; a registered listener is not treated
+as proof of OS delivery. Other platforms keep only the sampled checkpoints
+(spawn permit, workpool ceiling, turn end).
+
+Retention is guarded with consumer bytes rather than cache constants:
+`packages/tui/test/render-cache-consumer-bounds.test.ts` measures retained heap
+after a full GC, and `packages/tui/test/render-cache-pressure-restore.test.ts`
+checks restore-safe output. For profiling, `bun scripts/memory-soak.ts` runs a
+bounded scripted session (large Markdown output, transcript commits, width
+cycles) and samples RSS/heap plus the Windows commit charge
+(`Get-Counter '\Memory\Committed Bytes'`). It is report-only unless given
+`--max-rss-growth-mib=<measured + headroom>`; do not commit a threshold that was
+not measured on the runner it gates.
+
 ## Key implementation files
 
 - `packages/tui/src/tui.ts` — `Component`, `Focusable`, cursor marker, focus, overlay, input dispatch.

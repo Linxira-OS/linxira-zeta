@@ -79,6 +79,7 @@ import { M } from "../i18n";
 import { pickTableChart } from "../auto-graph/planner";
 import { restartArgv } from "../cli/flag-tables";
 import type { BackendAttachLink } from "../backend/attach-link";
+import { installMemoryPressureShed } from "../task/memory-shed";
 import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import { appKey, editorKey, rawKeyHint } from "@linxiraos/pi-tui/chrome/keybinding-hints";
@@ -1401,6 +1402,8 @@ const JOBS_SHEET_REFRESH_MS = 250;
 
 export class InteractiveMode implements InteractiveModeContext {
 	#ownsStartedUi: boolean;
+	/** Windows-only Bun memoryPressure listener; installed by `init`, removed by `stop`. */
+	#uninstallMemoryPressureShed: (() => void) | undefined;
 	session: AgentSession;
 	sessionManager: SessionManager;
 	settings: Settings;
@@ -2791,6 +2794,10 @@ export class InteractiveMode implements InteractiveModeContext {
 			}),
 		);
 		this.#syncEditorMaxHeight();
+		// Windows-only push shed: an OS memory-pressure event drops derived render
+		// caches (markdown/mermaid); the next frame re-renders them. Off Windows
+		// the installer returns undefined rather than registering a fictional event.
+		this.#uninstallMemoryPressureShed = installMemoryPressureShed();
 		this.isInitialized = true;
 		// The startup composer is already visible. Commit the complete runtime
 		// tree before session_start hooks/reconciliation continue; renderNow keeps
@@ -8503,6 +8510,9 @@ export class InteractiveMode implements InteractiveModeContext {
 			process.stdout.removeListener("resize", this.#resizeHandler);
 			this.#resizeHandler = undefined;
 		}
+		// The push shed must not outlive this UI instance (headless re-init, tests).
+		this.#uninstallMemoryPressureShed?.();
+		this.#uninstallMemoryPressureShed = undefined;
 		if (this.unsubscribe) {
 			this.unsubscribe();
 		}
