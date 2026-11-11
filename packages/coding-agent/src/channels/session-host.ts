@@ -19,6 +19,7 @@ import { CLI_BIN_NAME, logger } from "@linxiraos/pi-utils";
 import type { WebConfig } from "../config/web-config";
 import { resolveChannelHosting } from "./channel-status";
 import { acquireChannelLock, channelLockPath, type ChannelLockHandle } from "./instance-lock";
+import type { SessionRouter } from "./session-router";
 
 export interface SessionChannelHost {
 	readonly runtime: ChannelRuntime;
@@ -48,6 +49,8 @@ export interface StartSessionChannelsOptions {
 	host?: "cli" | "serve";
 	sessionId?: string;
 	onQrCode?: (instanceId: string, payload: WeChatQrStatus) => void;
+	/** Per-binding router; CLI/TUI hosts use the same resolution as serve. */
+	router?: SessionRouter;
 	startChannels?: typeof startChannels;
 }
 
@@ -137,10 +140,42 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 	let runtime: ChannelRuntime;
 	try {
 		const start = options.startChannels ?? startChannels;
+		const onInbound = options.router
+			? async (
+					instanceId: string,
+					peer: string,
+					body: string,
+					_messageId?: string,
+					context?: { threadId?: string; userId?: string },
+				): Promise<void> => {
+					const router = options.router!;
+					const route = await router.resolveChatTarget(instanceId, peer, context);
+					if (route.kind === "agent") {
+						const result = await router.deliverToAgent(route.target, instanceId, peer, body);
+						if (!result.ok) await runtime.sendText(instanceId, peer, `Failed to reach agent ${route.target}: ${result.error ?? "unknown error"}`);
+						return;
+					}
+					if (route.kind === "bot") {
+						const result = await router.deliverToBotSession(route.id, instanceId, peer, body, context);
+						if (!result.ok) await runtime.sendText(instanceId, peer, `无法投递到 Bot 会话 ${route.id}：${result.error ?? "unknown error"}`);
+						return;
+					}
+					if (route.kind === "workspace") {
+						const result = await router.deliverDirect(route.alias, instanceId, peer, body);
+						if (!result.ok) await runtime.sendText(instanceId, peer, `无法连接到工作区 [${route.alias}]：${result.error ?? "unknown error"}`);
+						return;
+					}
+					if (route.kind === "unavailable") {
+						await runtime.sendText(instanceId, peer, `无法打开工作区 [${route.alias}]：${route.error}`);
+						return;
+					}
+					await runtime.host.deliver(instanceId, peer, body);
+				}
+			: undefined;
 		runtime = await start(
 			options.session,
 			effectiveWebConfig,
-			undefined,
+			onInbound,
 			(instanceId, payload) => {
 				options.onQrCode?.(instanceId, payload);
 				defaultQrHint(instanceId, payload);
@@ -209,6 +244,11 @@ export async function sendFromSessionChannel(opts: {
 
 export function hasActiveSessionChannels(): boolean {
 	return activeHost !== null;
+}
+
+/** The live CLI/TUI host, for router callbacks that outlive a local variable. */
+export function activeSessionChannelHost(): SessionChannelHost | null {
+	return activeHost;
 }
 
 export function rememberSessionChannelContext(options: StartSessionChannelsOptions): void {

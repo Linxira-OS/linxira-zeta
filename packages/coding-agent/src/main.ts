@@ -55,11 +55,13 @@ import { getLatestRelease, isSourceCheckout, managedInstallName } from "./cli/up
 import { findConfigFile } from "./config";
 import { resolveChannelHosting } from "./channels/channel-status";
 import {
+	activeSessionChannelHost,
 	rememberSessionChannelContext,
 	sendFromSessionChannel,
 	startSessionChannels,
 	stopActiveSessionChannels,
 } from "./channels/session-host";
+import { SessionRouter } from "./channels/session-router";
 import { ModelRegistry } from "./config/model-registry";
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import {
@@ -3063,6 +3065,19 @@ export async function runRootCommand(
 					sessionId: session.sessionManager.getSessionId(),
 				});
 			}
+			const sessionChannelRouter = sessionChannelsWebConfig
+				? new SessionRouter({
+						coordinator: session,
+						webConfig: sessionChannelsWebConfig,
+						getLastInbound: () => activeSessionChannelHost()?.lastInbound ?? null,
+						sendText: async (instanceId, to, text) => {
+							const host = activeSessionChannelHost();
+							if (!host) throw new Error("IM channels are not started in this session");
+							await host.runtime.sendText(instanceId, to, text);
+						},
+						defaultCwd: session.sessionManager.getCwd(),
+					})
+				: undefined;
 			const sessionChannels =
 				sessionChannelsWebConfig && sessionChannelsPlan.shouldStart
 					? await startSessionChannels({
@@ -3070,6 +3085,7 @@ export async function runRootCommand(
 							webConfig: sessionChannelsWebConfig,
 							flag: parsedArgs.channels === true,
 							sessionId: session.sessionManager.getSessionId(),
+							...(sessionChannelRouter ? { router: sessionChannelRouter } : {}),
 						}).catch(error => ({
 							started: false as const,
 							reason: "start-failed" as const,
