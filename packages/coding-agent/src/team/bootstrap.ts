@@ -400,9 +400,11 @@ function normalizeInput(input: BootstrapInput): NormalizedBootstrapInput {
 	const pms = input.pms.map(pm => ({ ...pm, name: pm.name.trim() }));
 	const repos = (input.repos ?? []).map(repo => ({ ...repo, name: repo.name.trim() }));
 	const pmsByName = new Map(pms.map(pm => [pm.name, pm]));
-	for (const repo of repos) {
-		for (const pm of repo.bindPms ?? []) {
-			if (!pmsByName.has(pm)) throw new TeamError(`Repo "${repo.name}" binds unknown PM "${pm}"`);
+	if (!input.engineerOnly) {
+		for (const repo of repos) {
+			for (const pm of repo.bindPms ?? []) {
+				if (!pmsByName.has(pm)) throw new TeamError(`Repo "${repo.name}" binds unknown PM "${pm}"`);
+			}
 		}
 	}
 	const engineers = (input.engineers ?? []).map(engineer => ({
@@ -411,11 +413,13 @@ function normalizeInput(input: BootstrapInput): NormalizedBootstrapInput {
 		pm: engineer.pm.trim(),
 		repo: engineer.repo.trim(),
 	}));
-	for (const engineer of engineers) {
-		if (!pmsByName.has(engineer.pm))
-			throw new TeamError(`Engineer "${engineer.name}" names unknown PM "${engineer.pm}"`);
-		if (!repos.some(repo => repo.name === engineer.repo)) {
-			throw new TeamError(`Engineer "${engineer.name}" names unknown repo "${engineer.repo}"`);
+	if (!input.engineerOnly) {
+		for (const engineer of engineers) {
+			if (!pmsByName.has(engineer.pm))
+				throw new TeamError(`Engineer "${engineer.name}" names unknown PM "${engineer.pm}"`);
+			if (!repos.some(repo => repo.name === engineer.repo)) {
+				throw new TeamError(`Engineer "${engineer.name}" names unknown repo "${engineer.repo}"`);
+			}
 		}
 	}
 	const rooms = (input.rooms ?? []).map(room => ({ ...room, name: room.name.trim() }));
@@ -1061,6 +1065,7 @@ async function compensateStep(step: BootstrapStepRecord, plan: BootstrapPlan, db
 				if (!pm) break;
 				const marker = pmMarkerPath(pm.workspacePath);
 				fs.rmSync(marker, { force: true });
+				removeEmptyDir(path.join(pm.workspacePath, ".zeta"));
 				removeEmptyDir(path.join(pm.workspacePath, "notes"));
 				removeEmptyDir(path.join(pm.workspacePath, "links"));
 				if (!removeEmptyDir(pm.workspacePath)) {
@@ -1583,6 +1588,10 @@ export async function rollbackBootstrapRun(
 			} finally {
 				update.close();
 			}
+			// Do not compensate parent objects after a child could not be removed:
+			// deleting the team/PM/repo row would orphan the preserved worktree or
+			// clone on disk.
+			break;
 		}
 	}
 	const final = new TeamDb(dbPath);
