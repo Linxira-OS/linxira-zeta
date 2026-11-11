@@ -44,7 +44,7 @@ describe("durable window journal", () => {
 		// A later window containing an already processed entry learns only the new tail.
 		let observed: MemoryLearningWindow["messages"] = [];
 		await queue.capture({
-			...window("compact-2", [{ role: "user", content: "New rule" }], ["e1", "e2"]),
+			...window("compact-2", [{ role: "user", content: "Use explicit return types" }, { role: "user", content: "New rule" }], ["e1", "e2"]),
 			memory: true,
 			taste: false,
 		});
