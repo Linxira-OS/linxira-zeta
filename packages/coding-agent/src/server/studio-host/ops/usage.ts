@@ -140,6 +140,10 @@ interface SessionRow {
 	readonly firstMessage?: string;
 	/** IM/bot/relay provenance, from the header or the web.yml tag fallback. */
 	readonly origin?: SessionOrigin;
+	/** Client that created the session; absent/unknown on legacy rows. */
+	readonly client?: SessionClient;
+	/** Client that initiated the latest durable run; absent when none was recorded. */
+	readonly runClient?: SessionClient;
 }
 
 /** Validate one `SessionInfo` row; a row without identity or timestamps is dropped. */
@@ -155,6 +159,8 @@ function sessionRow(value: unknown): SessionRow | undefined {
 	const name = stringField(value, "name");
 	const firstMessage = stringField(value, "firstMessage");
 	const origin = normalizeSessionOrigin(value.origin);
+	const client = normalizeSessionClient(value.client);
+	const runClient = normalizeSessionClient(value.runClient);
 	return {
 		id,
 		cwd,
@@ -164,6 +170,8 @@ function sessionRow(value: unknown): SessionRow | undefined {
 		...(name === undefined ? {} : { name }),
 		...(firstMessage === undefined ? {} : { firstMessage }),
 		...(origin === undefined ? {} : { origin }),
+		...(client === undefined ? {} : { client }),
+		...(runClient === undefined ? {} : { runClient }),
 	};
 }
 
@@ -205,6 +213,8 @@ function historyEntry(
 		messageCount: row.messageCount,
 		status,
 		...(row.origin === undefined ? {} : { origin: row.origin }),
+		...(row.client === undefined ? {} : { client: row.client }),
+		...(row.runClient === undefined ? {} : { runClient: row.runClient }),
 	};
 }
 

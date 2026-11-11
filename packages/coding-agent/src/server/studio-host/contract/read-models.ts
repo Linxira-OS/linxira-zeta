@@ -10,6 +10,7 @@ import type { ModelParameterValues, ModelParameterSources, ModelCatalogStatus } 
  */
 
 import type { AgentId, OperatorStateSnapshot, StudioRuntimeSettingsSnapshot } from "../protocol/index.js";
+import type { SessionClient } from "../../../session/session-client.js";
 
 /** Runtime settings projection carried by an optional snapshot field. */
 export type RuntimeSettingsReadModel = StudioRuntimeSettingsSnapshot;
@@ -248,6 +249,10 @@ export interface SessionHistoryEntry {
 	readonly pinned?: boolean;
 	/** IM/bot/relay provenance; absent on personal sessions. */
 	readonly origin?: SessionOriginSummary;
+	/** Client that created the session; absent on legacy transcripts (unknown). */
+	readonly client?: SessionClient;
+	/** Client that initiated the latest durable run; absent when none was recorded. */
+	readonly runClient?: SessionClient;
 }
 
 export interface SessionHistoryReadModel {

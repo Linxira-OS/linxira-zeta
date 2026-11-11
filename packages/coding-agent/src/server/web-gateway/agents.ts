@@ -51,6 +51,7 @@ import type { AgentProfileOptions } from "../../agent-profile";
 import { type AgentSession, type ModeId } from "../../session/agent-session";
 import type { AgentSessionEvent } from "../../session/agent-session-events";
 import type { SessionClient } from "../../session/session-entries";
+import { SESSION_CLIENT_HEADER, clientFromHeaderValue } from "../../session/session-client";
 import { SessionManager } from "../../session/session-manager";
 import type { SessionOrigin } from "../../session/session-origin";
 import { type TodoPhase } from "@linxiraos/pi-tui/tools/todo";
@@ -1564,6 +1565,9 @@ function json(data: unknown, status = 200): Response {
 
 export async function handleAgentNew(req: Request): Promise<Response> {
 	if (isGatewayDraining()) return json({ error: "backend is draining; no new sessions" }, 503);
+	// Transport metadata only, never authorization. An absent/unknown header
+	// keeps the web gateway's own client kind; it never guesses CLI.
+	const runClient = clientFromHeaderValue(req.headers.get(SESSION_CLIENT_HEADER)) ?? "web";
 	try {
 		const body = (await req.json()) as { cwd?: string; type?: string; [key: string]: unknown };
 		const { cwd, ...command } = body;
@@ -1589,7 +1593,14 @@ export async function handleAgentNew(req: Request): Promise<Response> {
 		};
 
 		const tempKey = `__new__${randomUUID()}`;
-		const { session, realSessionId } = await startRpcSession(tempKey, "", cwd, toolNames);
+		const { session, realSessionId } = await startRpcSession(
+			tempKey,
+			"",
+			cwd,
+			toolNames,
+			undefined,
+			runClient,
+		);
 
 		if (provider && modelId) {
 			await session.send({ type: "set_model", provider, modelId });
@@ -1611,6 +1622,9 @@ export async function handleAgentNew(req: Request): Promise<Response> {
 }
 
 export async function handleAgentCommand(req: Request, sessionId: string): Promise<Response> {
+	// Metadata only: a resume/attach run records the transport's real client
+	// kind on a run_init entry; the creator's header is never rewritten.
+	const runClient = clientFromHeaderValue(req.headers.get(SESSION_CLIENT_HEADER)) ?? "web";
 	try {
 		const body = (await req.json()) as AgentCommand;
 		if (
@@ -1630,7 +1644,7 @@ export async function handleAgentCommand(req: Request, sessionId: string): Promi
 			return json({ error: "Session not found" }, 404);
 		}
 
-		const { session } = await startRpcSession(sessionId, filePath);
+		const { session } = await startRpcSession(sessionId, filePath, undefined, undefined, undefined, runClient);
 		const result = await session.send(body);
 		return json({ success: true, data: result });
 	} catch (error) {
@@ -1654,6 +1668,7 @@ export async function handleAgentState(sessionId: string): Promise<Response> {
 }
 
 export async function handleAgentEvents(req: Request, sessionId: string): Promise<Response> {
+	const runClient = clientFromHeaderValue(req.headers.get(SESSION_CLIENT_HEADER)) ?? "web";
 	let session = sessions.get(sessionId);
 	if (!session?.isAlive()) {
 		const filePath = await resolveSessionPath(sessionId);
@@ -1661,7 +1676,7 @@ export async function handleAgentEvents(req: Request, sessionId: string): Promis
 			return new Response("Session not found", { status: 404 });
 		}
 		try {
-			({ session } = await startRpcSession(sessionId, filePath));
+			({ session } = await startRpcSession(sessionId, filePath, undefined, undefined, undefined, runClient));
 		} catch (error) {
 			return new Response(`Failed to start agent: ${String(error)}`, { status: 500 });
 		}

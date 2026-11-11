@@ -79,6 +79,7 @@ Session files are JSONL: one JSON object per line. Current files physically begi
 	"cwd": "/work/pi",
 	"title": "optional session title",
 	"titleSource": "auto",
+	"client": "web",
 	"additionalDirectories": ["/work/shared"],
 	"previousSessionFiles": ["/old/location/session.jsonl"],
 	"providerPromptCacheKey": "optional inherited cache identity",
@@ -113,6 +114,9 @@ Notes:
 - `parentSession` is an opaque lineage string. Current code writes either a session id or a session path depending on flow (`fork`, `forkFrom`, `createBranchedSession`, or explicit `newSession({ parentSession })`). Treat it as metadata, not a typed foreign key.
 
 - `titleSource` is `auto` or `user`; automatic renames cannot overwrite a user title.
+- `client` is the closed client kind that **created** the session: `cli`, `web`, `desktop`, or `automation`. It is metadata, never an authorization signal. An absent field is a legacy transcript and reads as **unknown**; readers must not infer it from `cwd`, a URL, or the process shape, and must not default it to `cli`.
+- A later **run** of the same session never rewrites this creator stamp. It appends a `run_init` entry (below) whose `client` is the client that actually initiated that run, so a session created in the CLI and resumed in Studio keeps `client: "cli"` on the header while its latest `run_init.client` is `"web"`. A fork writes the fork initiator's `client` on the new header and keeps the source in `parentSession`.
+- Transports may declare the client they actually are with the `x-zeta-client` header (`cli`/`web`/`desktop`/`automation`). Unknown or missing values stay unknown for run metadata; the web gateway's own default is `web`, and a serve process uses `desktop` (`ZETA_DESKTOP=1`) or `automation`. The SDK leaves `client` absent unless its caller passes one explicitly; that is an explicit unknown, not a guessed CLI.
 - `origin` marks a conversation that belongs to an IM/bot/relay channel or to a Team checkout rather than a personal coding session. It is optional and additive: an absent or malformed field reads as personal, and an IM transcript written before the field existed is still recognized through its `relay`/`bot`/`draft` web.yml registry tag. `agentId` and `bindingId` are reserved for a default workspace that hosts several main agents (personal, WeChat, Feishu, …), each with its own channel/chat binding; a mobile client scoped to one binding filters by them. Studio, the resume picker and `history.list` hide IM conversations by default and expose them only through an explicit "IM / Bot" filter; the transcript itself stays fully usable as a personal agent. A `kind: "team"` stamp carries `teamId` and the optional deterministic row ids `pmId` / `engineerId` / `repoId` / `roomId` plus a name-only `workspaceAlias`; created inside a resolved Team location, it is hidden from the default current-folder/all-projects scopes and from `history.list` unless `includeTeam` is set, and grouped as Team → PM → engineer → repo → conversation. `--resume <id>` bypasses that filter. Team transcripts stay in the same per-cwd JSONL buckets; nothing is moved.
 
 ### Visibility and deletion
@@ -418,6 +422,50 @@ Append-only audit entry for a session rename. It records `title`, `source` (`aut
 ### `credential_pin`
 
 Records the provider and a pseudonymous SHA-256 account/scope hash used to re-pin resumed OAuth traffic to the serving account and preserve account-scoped prompt-cache reuse. It does not store the raw account identity; exported hashes remain linkable and are not anonymous.
+
+### IM message provenance
+
+An IM inbound message is persisted as the real `role: "user"` entry (never re-written as an assistant/system summary). The entry carries `metadata` with the canonical set:
+
+```jsonc
+{
+	"source": "im",
+	"platform": "wechat",
+	"instance": "optional bot instance",
+	"chatId": "chat-1",
+	"threadId": "optional thread",
+	"senderId": "platform user id",
+	"senderName": "display name",
+	"messageId": "platform message id",
+	"sentAt": "2026-07-01T09:00:00.000Z",
+	"attachments": [{ "id": "...", "name": "...", "mimeType": "image/jpeg", "size": 42 }],
+	"route": { "workspaceAlias": "alpha", "agentId": "agent-a", "sessionId": "...", "botSessionId": "...", "bindingId": "..." }
+}
+```
+
+- `route` is a snapshot of the workspace/agent/session that actually received the message. It is immutable: a later `!workspace` switch must not rewrite an earlier row. The assistant entry that answers it carries `replyToMessageId` plus the same sender/chat/instance identity.
+- Metadata lives on the entry, not inside the provider payload, so it never changes the LLM prompt and needs no second transcript store. The Team IM chat page reads these entries through the normal session/context routes.
+- `!workspace` handshakes are `type: "im_control"` entries with `metadata.action` = `switch_request` | `switch_confirm` | `switch_cancel`, `requestId`, and `from`/`to` route snapshots. They are not user prompts and must be skipped by LLM context builders; a transcript viewer may render them. Pending request state and its per-chat key isolation belong to the IM channel layer, not the transcript.
+- Visibility: an IM-bound session (origin `kind: "im"`) is hidden from ordinary home/recent/history lists by default and exposed through the explicit IM/Bot filter. Ordinary Agent sessions, including a Team-origin session, are unaffected. Looking at the transcript never rewrites it.
+
+### `run_init`
+
+Durable provenance of one run of an existing session (resume/attach), appended by the process that starts that run. It carries the same `client` field name as the header, so there is no parallel `initiatedBy` authority; the header keeps the creator and the newest `run_init` names the current run.
+
+```json
+{
+	"type": "run_init",
+	"id": "8-char-id",
+	"parentId": "active-leaf-id",
+	"timestamp": "2026-02-16T10:21:00.000Z",
+	"runtime": { "version": "1.4.13" },
+	"client": "web"
+}
+```
+
+- Absent on legacy transcripts and on writers that could not name themselves. Readers report the latest run's client as unknown rather than guessing.
+- Writing one must not modify the header, the title, or any earlier entry, so a read-only cross-client view never rewrites the original transcript.
+- `session_init.client` (below) records the initiator of a subagent run; top-level runs use `run_init`.
 
 ### `session_init`
 

@@ -45,6 +45,16 @@ export interface SessionInfo {
 	 * on personal sessions and on transcripts written before the stamp existed.
 	 */
 	origin?: SessionOrigin;
+	/**
+	 * Client that created the session (header stamp). Absent on legacy
+	 * transcripts: unknown, never guessed from cwd or the running process.
+	 */
+	client?: SessionClient;
+	/**
+	 * Client that initiated the latest durable run (`run_init.client`), when the
+	 * scan window contained one. Absent means no recorded run or a legacy file.
+	 */
+	runClient?: SessionClient;
 	title?: string;
 	/** Path to the parent session (if this session was forked or spawned as a subagent). */
 	parentSessionPath?: string;
@@ -342,6 +352,17 @@ function parseTurnLine(line: string): Message | undefined {
 	return role === "user" || role === "assistant" ? record.message : undefined;
 }
 
+/** The newest durable `run_init` record's initiating client in `entries`, if any. */
+function latestRunClient(entries: readonly Record<string, unknown>[]): SessionClient | undefined {
+	for (let index = entries.length - 1; index >= 0; index--) {
+		const entry = entries[index]!;
+		if (entry.type !== "run_init") continue;
+		const client = normalizeSessionClient(entry.client);
+		if (client) return client;
+	}
+	return undefined;
+}
+
 /** The last `model_change`/`model_usage` record's model id in `entries`, if any. */
 function latestModelName(entries: readonly Record<string, unknown>[]): string | undefined {
 	for (let index = entries.length - 1; index >= 0; index--) {
@@ -389,6 +410,7 @@ interface SessionListHeader {
 	id: string;
 	cwd?: string;
 	branch?: string;
+	client?: SessionClient;
 	origin?: SessionOrigin;
 	title?: string;
 	parentSession?: string;
@@ -420,6 +442,7 @@ function sessionListHeaderFromRecord(
 		id: record.id,
 		cwd: typeof record.cwd === "string" ? record.cwd : undefined,
 		branch: typeof record.branch === "string" ? record.branch : undefined,
+		client: normalizeSessionClient(record.client),
 		origin: normalizeSessionOrigin(record.origin),
 		title:
 			titleOverride === null
@@ -440,6 +463,7 @@ function parseSessionListHeaderLine(line: string, titleOverride?: string | null)
 		id,
 		cwd: extractStringProperty(line, "cwd"),
 		branch: extractStringProperty(line, "branch"),
+		client: normalizeSessionClient(extractStringProperty(line, "client")),
 		origin: parseSessionListOrigin(line),
 		title: titleOverride === null ? undefined : (titleOverride ?? extractStringProperty(line, "title")),
 		parentSession: extractStringProperty(line, "parentSession"),
@@ -600,11 +624,11 @@ async function scanSessionFile(
 			}
 		}
 		firstMessage ||= extractFirstDisplayMessageFromPrefix(content) ?? "";
-		// The suffix is the file's tail, so its last model record supersedes any
-		// in the prefix window; fall back to the prefix when the tail has none.
-		const model =
-			(withStatus ? latestModelName(parseJsonlLenient<Record<string, unknown>>(suffix)) : undefined) ??
-			latestModelName(entries);
+		// The suffix is the file's tail, so its last model/run record supersedes
+		// any in the prefix window; fall back to the prefix when the tail has none.
+		const tailEntries = withStatus ? parseJsonlLenient<Record<string, unknown>>(suffix) : undefined;
+		const model = (tailEntries ? latestModelName(tailEntries) : undefined) ?? latestModelName(entries);
+		const runClient = (tailEntries ? latestRunClient(tailEntries) : undefined) ?? latestRunClient(entries);
 		const messageCount = Math.max(parsedMessageCount, countMessageMarkers(content));
 		const info: SessionInfo = {
 			path: file,
@@ -612,6 +636,8 @@ async function scanSessionFile(
 			cwd: header.cwd ?? "",
 			...(header.branch ? { branch: header.branch } : {}),
 			...(header.origin ? { origin: header.origin } : {}),
+			...(header.client ? { client: header.client } : {}),
+			...(runClient ? { runClient } : {}),
 			title: header.title ?? shortSummary,
 			parentSessionPath: header.parentSession,
 			...(agent ? { agent } : {}),
