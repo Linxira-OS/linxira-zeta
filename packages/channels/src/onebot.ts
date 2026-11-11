@@ -48,6 +48,7 @@ export type OneBotInboundHandler = (message: InboundMessage) => void;
 export type OneBotMode = "forward" | "reverse";
 
 export interface OneBotChannelOptions {
+	instanceId?: string;
 	/** Forward mode only: ws://127.0.0.1:3001 (the bridge's OneBot server). */
 	endpoint?: string;
 	/** OneBot access token; sent as `Authorization: Bearer`. */
@@ -254,7 +255,8 @@ function numericId(value: string | undefined): number | undefined {
 }
 
 export class OneBotChannel implements ChatChannel {
-	readonly id = "qq" as const;
+	readonly id: string;
+	readonly platform = "qq" as const;
 	readonly capabilities: ChannelCapabilities = {
 		maxTextLength: MAX_TEXT,
 		supportsImages: true,
@@ -298,6 +300,7 @@ export class OneBotChannel implements ChatChannel {
 	#probeSupported = true;
 
 	constructor(options: OneBotChannelOptions) {
+		this.id = options.instanceId ?? "qq";
 		this.#onMessage = options.onMessage;
 		this.#mode = options.mode ?? "forward";
 		this.#endpoint = options.endpoint;

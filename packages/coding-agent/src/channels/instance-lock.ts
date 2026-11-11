@@ -22,7 +22,7 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { ChannelId } from "@linxiraos/pi-channels";
+import type { ChannelPlatform } from "@linxiraos/pi-channels";
 
 export const CHANNEL_LOCK_FILENAME = "channels.lock";
 
@@ -32,8 +32,13 @@ const MAX_ACQUIRE_ATTEMPTS = 40;
 const MALFORMED_RETRIES = 5;
 const RETRY_DELAY_MS = 15;
 
+export interface ChannelLockInstance {
+	id: string;
+	platform: ChannelPlatform;
+}
+
 export interface ChannelLockMetadata {
-	version: 1;
+	version: 2;
 	/** Unique per host instance, so a stopped host never deletes its successor's lock. */
 	instanceId: string;
 	pid: number;
@@ -44,8 +49,8 @@ export interface ChannelLockMetadata {
 	cwd: string;
 	/** Session id when the host has a persisted session. */
 	sessionId?: string;
-	/** Channels that actually started (empty while a start is in flight). */
-	channels: ChannelId[];
+	/** Instances that actually started (empty while a start is in flight). */
+	instances: ChannelLockInstance[];
 }
 
 export interface ChannelLockSnapshot {
@@ -60,7 +65,7 @@ export interface ChannelLockHandle {
 	readonly path: string;
 	readonly metadata: ChannelLockMetadata;
 	/** Replace the live metadata (e.g. after channels finish starting). */
-	update(patch: Partial<Pick<ChannelLockMetadata, "channels" | "sessionId" | "cwd">>): Promise<void>;
+	update(patch: Partial<Pick<ChannelLockMetadata, "instances" | "sessionId" | "cwd">>): Promise<void>;
 	/** Remove the file only when this instance still owns it. */
 	release(): Promise<void>;
 }
@@ -105,7 +110,7 @@ export async function wechatPairingBlockedByHost(
 	const holder = await readChannelLock(lockPath, options);
 	if (holder === null || !holder.alive) return { ok: true, holder };
 	const pid = holder.metadata.pid;
-	if (holder.metadata.channels.includes("wechat")) {
+	if (holder.metadata.instances.some(instance => instance.platform === "wechat")) {
 		return {
 			ok: false,
 			reason: "wechat-hosted",
@@ -115,7 +120,7 @@ export async function wechatPairingBlockedByHost(
 				"Use `/channels login wechat` in that session, or stop that process first.",
 		};
 	}
-	if (holder.metadata.channels.length === 0) {
+	if (holder.metadata.instances.length === 0) {
 		return {
 			ok: false,
 			reason: "starting",
@@ -141,27 +146,47 @@ export function isProcessAlive(pid: number): boolean {
 
 function parseMetadata(text: string): ChannelLockMetadata | null {
 	try {
-		const value = JSON.parse(text) as Partial<ChannelLockMetadata>;
+		const value = JSON.parse(text) as Record<string, unknown>;
 		if (
-			value.version !== 1 ||
 			typeof value.instanceId !== "string" ||
 			typeof value.pid !== "number" ||
 			(value.host !== "serve" && value.host !== "cli") ||
 			typeof value.startedAt !== "string" ||
-			typeof value.cwd !== "string" ||
-			!Array.isArray(value.channels)
+			typeof value.cwd !== "string"
 		) {
 			return null;
 		}
+		// v1: channels: string[] → v2 instances [{id, platform}].
+		if (value.version === 1 && Array.isArray(value.channels)) {
+			const platforms = new Set(["wechat", "feishu", "telegram", "discord", "qq"]);
+			return {
+				version: 2,
+				instanceId: value.instanceId,
+				pid: value.pid,
+				host: value.host,
+				startedAt: value.startedAt,
+				cwd: value.cwd,
+				...(typeof value.sessionId === "string" ? { sessionId: value.sessionId } : {}),
+				instances: value.channels
+					.filter((id): id is string => typeof id === "string" && platforms.has(id))
+					.map(id => ({ id, platform: id as ChannelPlatform })),
+			};
+		}
+		if (value.version !== 2 || !Array.isArray(value.instances)) return null;
 		return {
-			version: 1,
+			version: 2,
 			instanceId: value.instanceId,
 			pid: value.pid,
 			host: value.host,
 			startedAt: value.startedAt,
 			cwd: value.cwd,
 			...(typeof value.sessionId === "string" ? { sessionId: value.sessionId } : {}),
-			channels: value.channels.filter((id): id is ChannelId => typeof id === "string"),
+			instances: value.instances.flatMap(entry => {
+				if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return [];
+				const record = entry as Record<string, unknown>;
+				if (typeof record.id !== "string" || typeof record.platform !== "string") return [];
+				return [{ id: record.id, platform: record.platform as ChannelPlatform }];
+			}),
 		};
 	} catch {
 		return null;
@@ -183,13 +208,13 @@ export async function readChannelLock(
 	if (!metadata) {
 		return {
 			metadata: {
-				version: 1,
+				version: 2,
 				instanceId: "invalid",
 				pid: 0,
 				host: "cli",
 				startedAt: "",
 				cwd: "",
-				channels: [],
+				instances: [],
 			},
 			alive: false,
 			malformed: true,
@@ -280,14 +305,14 @@ export async function acquireChannelLock(options: {
 	isAlive?: (pid: number) => boolean;
 }): Promise<AcquireChannelLockResult> {
 	const metadata: ChannelLockMetadata = {
-		version: 1,
+		version: 2,
 		instanceId: options.metadata.instanceId ?? randomUUID(),
 		pid: options.metadata.pid,
 		host: options.metadata.host,
 		startedAt: options.metadata.startedAt ?? new Date().toISOString(),
 		cwd: options.metadata.cwd,
 		...(options.metadata.sessionId ? { sessionId: options.metadata.sessionId } : {}),
-		channels: [...options.metadata.channels],
+		instances: [...options.metadata.instances],
 	};
 	const payload = `${JSON.stringify(metadata, null, 2)}\n`;
 	await fs.mkdir(path.dirname(options.lockPath), { recursive: true });

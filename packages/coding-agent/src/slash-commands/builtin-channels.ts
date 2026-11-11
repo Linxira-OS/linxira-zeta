@@ -11,13 +11,13 @@
  */
 
 import * as path from "node:path";
-import type { ChannelId } from "@linxiraos/pi-channels";
+
 import { CLI_BIN_NAME } from "@linxiraos/pi-utils";
 import { Text } from "@linxiraos/pi-tui";
 import {
-	CHANNEL_IDS,
+	CHANNEL_PLATFORMS,
 	collectChannelStatus,
-	isChannelId,
+	isChannelInstanceId,
 	setChannelEnabled,
 	type ChannelStatusEntry,
 	type ChannelsStatusJson,
@@ -66,14 +66,14 @@ const USAGE = [
 	"  /channels enable-instance <id>   per-instance switch (instances[] config)",
 	"  /channels disable-instance <id>",
 	"  /channels login wechat [timeout-seconds]",
-	"  /channels login feishu|telegram   (prints the CLI command; secrets stay out of the transcript)",
+	"  /channels login <instance-id>   (non-WeChat prints the CLI command; secrets stay out of the transcript)",
 	"  /channels enable <wechat|feishu|telegram>",
 	"  /channels disable <wechat|feishu|telegram>",
 	"  /channels logout <wechat|feishu|telegram>",
 ].join("\n");
 
-function parseChannel(value: string | undefined): ChannelId | null {
-	return value && isChannelId(value) ? value : null;
+function parseChannel(value: string | undefined): string | null {
+	return value && isChannelInstanceId(value) ? value : null;
 }
 
 function statusLine(entry: ChannelStatusEntry): string {
@@ -82,10 +82,7 @@ function statusLine(entry: ChannelStatusEntry): string {
 		entry.running ? "running" : "stopped",
 		entry.configured ? "configured" : "not configured",
 	].join(", ");
-	const route = entry.workspaceRoute.workspaceRoot
-		? `${entry.workspaceRoute.workspaceRoot}${entry.workspaceRoute.alias ? ` [${entry.workspaceRoute.alias}]` : ""}`
-		: "session default";
-	return `  ${entry.id.padEnd(9)} ${state}  peers=${entry.boundPeers}  route=${route}  login=${entry.login}`;
+	return `  ${entry.id.padEnd(14)} ${entry.platform.padEnd(9)} ${state}  agent=${entry.agentProfileId}  target=${entry.targetDisplay}  peers=${entry.boundPeers}  login=${entry.login}`;
 }
 
 /** Build the redacted admin page from web.yml + the live runtime. */
@@ -204,7 +201,7 @@ export function formatChannelStatus(status: ChannelsStatusJson): string {
 		`IM channels — ${status.configPath}`,
 		`  ${host}`,
 		"",
-		...status.channels.map(statusLine),
+		...status.instances.map(statusLine),
 		"",
 		"Pair from here: /channels login wechat",
 		"Credential channels: /channels login feishu|telegram for the CLI command.",
@@ -214,7 +211,7 @@ export function formatChannelStatus(status: ChannelsStatusJson): string {
 
 async function enableChannel(
 	ctx: { showStatus: (message: string) => void; showWarning: (message: string) => void },
-	channel: ChannelId,
+	channel: string,
 	enabled: boolean,
 ): Promise<void> {
 	const webConfig = await WebConfig.load();
@@ -228,7 +225,7 @@ async function enableChannel(
 	}
 	if (restart.started) {
 		ctx.showStatus(
-			`${channel} ${enabled ? "enabled" : "disabled"}; runtime restarted (${restart.host.channels.join(", ") || "no channels"}).`,
+			`${channel} ${enabled ? "enabled" : "disabled"}; runtime restarted (${restart.host.instances.join(", ") || "no instances"}).`,
 		);
 		return;
 	}
@@ -271,7 +268,7 @@ async function loginWechat(
 			pid: process.pid,
 			host: "cli",
 			cwd: process.cwd(),
-			channels: ["wechat"],
+			instances: [{ id: "wechat", platform: "wechat" }],
 		},
 	});
 	if (!acquired.ok) {
@@ -321,7 +318,7 @@ async function loginWechat(
 		const restarted = await restartSessionChannels();
 		ctx.showStatus(
 			`WeChat connected. Credentials saved to ${webConfig.path}.` +
-				(restarted?.started ? ` Runtime restarted (${restarted.host.channels.join(", ")}).` : ""),
+				(restarted?.started ? ` Runtime restarted (${restarted.host.instances.join(", ")}).` : ""),
 		);
 	} else {
 		if (suspended) await restartSessionChannels();
@@ -389,7 +386,7 @@ export const BUILTIN_CHANNELS_SLASH_COMMAND: SlashCommandSpec = {
 			case "disable": {
 				const channel = parseChannel(rest[0]);
 				if (!channel) {
-					ctx.showError(`Usage: /channels ${action} <${CHANNEL_IDS.join("|")}>`);
+					ctx.showError(`Usage: /channels ${action} <instance-id>`);
 					return commandConsumed();
 				}
 				await enableChannel(ctx, channel, action.toLowerCase() === "enable");
@@ -412,7 +409,7 @@ export const BUILTIN_CHANNELS_SLASH_COMMAND: SlashCommandSpec = {
 			case "logout": {
 				const channel = parseChannel(rest[0]);
 				if (!channel) {
-					ctx.showError(`Usage: /channels logout <${CHANNEL_IDS.join("|")}>`);
+					ctx.showError(`Usage: /channels logout <instance-id>`);
 					return commandConsumed();
 				}
 				ctx.showWarning(

@@ -697,7 +697,7 @@ export async function startDaemon(options: DaemonStartOptions): Promise<DaemonSt
 
 		const acquired = await acquireChannelLock({
 			lockPath: paths.lock,
-			metadata: { pid: spawned.pid, host: "serve", cwd, channels: [] },
+			metadata: { pid: spawned.pid, host: "serve", cwd, instances: [] },
 			isAlive: runtime.isAlive,
 		});
 		if (!acquired.ok) {

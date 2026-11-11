@@ -17,12 +17,12 @@
  */
 
 import { logger } from "@linxiraos/pi-utils";
-import type { ChannelId } from "./channel";
+import type { ChannelInstanceId } from "./channel";
 
 /** A reply that goes back to one IM chat. */
 export interface ChatReplyTarget {
 	kind: "chat";
-	channelId: ChannelId;
+	instanceId: ChannelInstanceId;
 	peer: string;
 	/** Platform message id being answered, when the platform provided one. */
 	messageId?: string;
@@ -188,7 +188,7 @@ export class ReplyCorrelator {
 					this.#options.sendText(
 						{
 							kind: "chat",
-							channelId: target.channelId,
+							instanceId: target.instanceId,
 							peer: target.peer,
 							...(target.messageId === undefined ? {} : { messageId: target.messageId }),
 						},
@@ -196,7 +196,7 @@ export class ReplyCorrelator {
 					),
 				).catch(error => {
 					logger.warn("Channel reply delivery failed", {
-						channel: target.channelId,
+						instance: target.instanceId,
 						error: error instanceof Error ? error.message : String(error),
 					});
 				});

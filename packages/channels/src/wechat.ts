@@ -24,7 +24,7 @@
 import * as crypto from "node:crypto";
 import { logger } from "@linxiraos/pi-utils";
 import type { ChannelCapabilities, ChatChannel, ChatImage, InboundMessage } from "./channel";
-import type { ChannelsWebConfig } from "./types";
+
 
 export type WeChatInboundHandler = (message: InboundMessage) => void;
 
@@ -37,7 +37,14 @@ export interface WeChatQrStatus {
 	status: string;
 }
 
+export interface WeChatCredentialSink {
+	setField(field: "botToken" | "baseUrl" | "ilinkBotId" | "ilinkUserId", value: string): Promise<void>;
+	setPeerTokens(tokens: Record<string, string>): Promise<void>;
+	clear(): Promise<void>;
+}
+
 export interface WeChatChannelOptions {
+	instanceId?: string;
 	config: {
 		botToken?: string;
 		ilinkBotId?: string;
@@ -48,7 +55,8 @@ export interface WeChatChannelOptions {
 		/** Persisted peer → context_token bindings restored on start. */
 		peerTokens?: Record<string, string>;
 	};
-	webConfig?: ChannelsWebConfig;
+	/** Persists this instance's credentials/peer tokens; no global path. */
+	credentialSink?: WeChatCredentialSink;
 	onMessage: WeChatInboundHandler;
 	/** Surfaced QR-login progress (the web-ui renders the QR for the user to scan). */
 	onQrCode?: (payload: WeChatQrStatus) => void;
@@ -110,7 +118,8 @@ function wechatMessageId(msg: WeChatMessage): string | undefined {
 }
 
 export class WeChatChannel implements ChatChannel {
-	readonly id = "wechat" as const;
+	readonly id: string;
+	readonly platform = "wechat" as const;
 	readonly capabilities: ChannelCapabilities = {
 		maxTextLength: Number.POSITIVE_INFINITY,
 		supportsImages: true,
@@ -129,6 +138,7 @@ export class WeChatChannel implements ChatChannel {
 	#loop: Promise<void> | null = null;
 
 	constructor(options: WeChatChannelOptions) {
+		this.id = options.instanceId ?? "wechat";
 		this.#options = options;
 		this.#onMessage = options.onMessage;
 		this.#botToken = options.config.botToken;
@@ -289,18 +299,12 @@ export class WeChatChannel implements ChatChannel {
 					for (const [peer, contextToken] of Object.entries(this.#options.config.peerTokens ?? {})) {
 						if (contextToken) this.#contextTokens.set(peer, contextToken);
 					}
-					const config = this.#options.webConfig;
-					if (config) {
-						await config.set("channels.wechat.botToken", this.#botToken);
-						if (baseUrl !== "") {
-							await config.set("channels.wechat.baseUrl", baseUrl);
-						}
-						if (typeof ilinkBotId === "string" && ilinkBotId !== "") {
-							await config.set("channels.wechat.ilinkBotId", ilinkBotId);
-						}
-						if (typeof ilinkUserId === "string" && ilinkUserId !== "") {
-							await config.set("channels.wechat.ilinkUserId", ilinkUserId);
-						}
+					const sink = this.#options.credentialSink;
+					if (sink) {
+						await sink.setField("botToken", this.#botToken);
+						if (baseUrl !== "") await sink.setField("baseUrl", baseUrl);
+						if (typeof ilinkBotId === "string" && ilinkBotId !== "") await sink.setField("ilinkBotId", ilinkBotId);
+						if (typeof ilinkUserId === "string" && ilinkUserId !== "") await sink.setField("ilinkUserId", ilinkUserId);
 					}
 					this.#options.onQrCode?.({
 						qrcode: token,
@@ -367,17 +371,15 @@ export class WeChatChannel implements ChatChannel {
 						this.#baseUrl = status.baseurl;
 					}
 					// Persist credentials so the next serve start skips scanning.
-					const config = this.#options.webConfig;
-					if (config) {
-						await config.set("channels.wechat.botToken", this.#botToken);
-						if (this.#baseUrl !== DEFAULT_BASE_URL) {
-							await config.set("channels.wechat.baseUrl", this.#baseUrl);
-						}
+					const sink = this.#options.credentialSink;
+					if (sink) {
+						await sink.setField("botToken", this.#botToken);
+						if (this.#baseUrl !== DEFAULT_BASE_URL) await sink.setField("baseUrl", this.#baseUrl);
 						if (typeof status.ilink_bot_id === "string" && status.ilink_bot_id !== "") {
-							await config.set("channels.wechat.ilinkBotId", status.ilink_bot_id);
+							await sink.setField("ilinkBotId", status.ilink_bot_id);
 						}
 						if (typeof status.ilink_user_id === "string" && status.ilink_user_id !== "") {
-							await config.set("channels.wechat.ilinkUserId", status.ilink_user_id);
+							await sink.setField("ilinkUserId", status.ilink_user_id);
 						}
 					}
 					this.#options.onQrCode?.({ qrcode, qrcodeUrl, status: "confirmed" });
@@ -485,13 +487,13 @@ export class WeChatChannel implements ChatChannel {
 
 	/** Persist the peer → context_token map so bindings survive restarts. */
 	async #persistPeerTokens(): Promise<void> {
-		const config = this.#options.webConfig;
-		if (!config) return;
+		const sink = this.#options.credentialSink;
+		if (!sink) return;
 		const snapshot: Record<string, string> = {};
 		for (const [peer, token] of this.#contextTokens) {
 			if (token) snapshot[peer] = token;
 		}
-		await config.set("channels.wechat.peerTokens", snapshot);
+		await sink.setPeerTokens(snapshot);
 	}
 
 	/**
@@ -509,13 +511,7 @@ export class WeChatChannel implements ChatChannel {
 		}
 		this.#contextTokens.clear();
 		this.#botToken = undefined;
-		const config = this.#options.webConfig;
-		if (config) {
-			await config.set("channels.wechat.peerTokens", {});
-			await config.set("channels.wechat.botToken", "");
-			await config.set("channels.wechat.ilinkBotId", "");
-			await config.set("channels.wechat.ilinkUserId", "");
-		}
+		await this.#options.credentialSink?.clear();
 	}
 
 	async sendText(to: string, text: string): Promise<void> {

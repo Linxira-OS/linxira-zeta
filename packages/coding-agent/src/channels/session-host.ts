@@ -1,20 +1,14 @@
 /**
  * Host the IM channel runtime from a normal CLI/TUI session.
  *
- * `startChannels` is transport-agnostic: it only needs the four-method
- * `ChannelSession` contract that `AgentSession` already implements. This
- * module owns the process-level pieces the gateway used to get from
- * `ZetaServer`: config/flag resolution, the single-instance lock, the outbound
- * sink used by `channel_send`, and stop-on-session-end semantics.
- *
- * The web gateway keeps reading the in-process runtime (`registerChannelStatus`
- * in `zeta-server.ts`); a CLI host never starts a server and never becomes a
- * second source of truth for config or routes.
+ * One process hosts every enabled instance. The lock records instance ids and
+ * platforms; an unpaired WeChat instance is left out so a terminal QR login is
+ * not competing with a hidden adapter login.
  */
 
 import * as path from "node:path";
 import type {
-	ChannelId,
+	ChannelInstanceId,
 	ChannelRuntime,
 	ChannelSession,
 	ChannelsWebConfig,
@@ -28,14 +22,13 @@ import { acquireChannelLock, channelLockPath, type ChannelLockHandle } from "./i
 
 export interface SessionChannelHost {
 	readonly runtime: ChannelRuntime;
-	readonly channels: ChannelId[];
+	readonly instances: string[];
 	readonly host: "cli" | "serve";
-	lastInbound: { channelId: ChannelId; peer: string } | null;
+	lastInbound: { instanceId: string; peer: string } | null;
 	stop(): Promise<void>;
 }
 
 let activeHost: SessionChannelHost | null = null;
-/** Most recent start request for this session, so `/channels` can restart it. */
 let lastContext: StartSessionChannelsOptions | null = null;
 
 export type StartSessionChannelsResult =
@@ -44,37 +37,27 @@ export type StartSessionChannelsResult =
 			started: false;
 			reason: "already-running" | "not-enabled" | "unpaired" | "instance-lock" | "start-failed";
 			message: string;
-			channels: ChannelId[];
+			instances: string[];
 	  };
 
 export interface StartSessionChannelsOptions {
 	session: ChannelSession;
 	webConfig: WebConfig;
-	/** `--channels` on the launch surface. */
 	flag?: boolean;
-	/** Test seam; production uses `<agent dir>/run/channels.lock`. */
 	lockPath?: string;
-	/** Which surface owns the lock; normal sessions are `cli`, serve passes `serve`. */
 	host?: "cli" | "serve";
 	sessionId?: string;
-	/** Extra QR observer (the default prints a one-line pairing hint). */
-	onQrCode?: (payload: WeChatQrStatus) => void;
-	/** Test seam. */
+	onQrCode?: (instanceId: string, payload: WeChatQrStatus) => void;
 	startChannels?: typeof startChannels;
 }
 
-function defaultQrHint(payload: WeChatQrStatus): void {
+function defaultQrHint(instanceId: string, payload: WeChatQrStatus): void {
 	if (payload.status === "confirmed") return;
 	process.stderr.write(
-		`[channels] WeChat pairing needed; run \`${CLI_BIN_NAME} channels login wechat\` in a terminal to scan.\n`,
+		`[channels] WeChat instance ${instanceId} needs pairing; run \`${CLI_BIN_NAME} channels login wechat --instance ${instanceId}\`.\n`,
 	);
 }
 
-/**
- * Start the runtime for one session. A second host in the same process, or a
- * live lock from another process, is refused with a message that names the
- * holder — never silently ignored.
- */
 export async function startSessionChannels(options: StartSessionChannelsOptions): Promise<StartSessionChannelsResult> {
 	lastContext = options;
 	const plan = resolveChannelHosting(options.webConfig, options.flag === true);
@@ -82,8 +65,8 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 		return {
 			started: false,
 			reason: "not-enabled",
-			message: "No IM channel is enabled: set channels.<id>.enabled in web.yml or pass --channels.",
-			channels: [],
+			message: "No IM channel instance is enabled: add one under channels.instances or pass --channels.",
+			instances: [],
 		};
 	}
 	if (activeHost) {
@@ -93,47 +76,49 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 			message:
 				`IM channels are already hosted by this process (pid ${process.pid}). ` +
 				"Stop that session before starting another host.",
-			channels: [...activeHost.channels],
+			instances: [...activeHost.instances],
 		};
 	}
 
-	// WeChat without a token would start the adapter's QR login inside the
-	// session, competing with `zetacode channels login wechat` for the scan.
-	// The CLI path pairs explicitly, then the next host uses the token.
 	const data = options.webConfig.getData();
+	const unpairedWechat = data.channels.instances.filter(
+		instance => instance.enabled && instance.platform === "wechat" && !instance.credentials.botToken,
+	);
 	let effectiveWebConfig: ChannelsWebConfig = options.webConfig;
-	const unpairedWechat = data.channels.wechat.enabled && !data.channels.wechat.botToken;
-	if (unpairedWechat) {
-		// Do not take the host lock when there is nothing left to host: an
-		// unpaired WeChat must be pairable from this session or another
-		// terminal. Holding `channels.lock` here was the old deadlock.
-		const hostable = plan.enabled.filter(id => id !== "wechat");
+	if (unpairedWechat.length > 0) {
+		const unpairedIds = new Set(unpairedWechat.map(instance => instance.id));
+		const hostable = plan.enabled.filter(id => !unpairedIds.has(id));
 		if (hostable.length === 0) {
 			return {
 				started: false,
 				reason: "unpaired",
 				message:
-					"WeChat is enabled but not paired: run `/channels login wechat` in this session " +
-					`(or \`${CLI_BIN_NAME} channels login wechat\`), then retry.`,
-				channels: [],
+					`WeChat instance(s) ${[...unpairedIds].join(", ")} are not paired: run ` +
+					`\`${CLI_BIN_NAME} channels login wechat --instance <id>\`, then retry.`,
+				instances: [],
 			};
 		}
 		process.stderr.write(
-			`[channels] WeChat is enabled but not paired; run \`/channels login wechat\` in this session ` +
-				`(or \`${CLI_BIN_NAME} channels login wechat\`), then restart this session.\n`,
+			`[channels] WeChat instance(s) ${[...unpairedIds].join(", ")} are not paired; skipping them until paired.\n`,
 		);
 		effectiveWebConfig = {
 			getData: () => {
 				const current = options.webConfig.getData();
-				current.channels.wechat.enabled = false;
+				current.channels.instances = current.channels.instances.map(instance =>
+					unpairedIds.has(instance.id) ? { ...instance, enabled: false } : instance,
+				);
 				return current;
 			},
 			set: (pathToSet, value) => options.webConfig.set(pathToSet, value),
+			setInstance: (id, patch) => options.webConfig.setInstance(id, patch),
 		};
 	}
 
 	const lockPath = options.lockPath ?? channelLockPath(path.dirname(options.webConfig.path));
 	const hostKind = options.host ?? "cli";
+	const planned = data.channels.instances
+		.filter(instance => instance.enabled && !unpairedWechat.some(unpaired => unpaired.id === instance.id))
+		.map(instance => ({ id: instance.id, platform: instance.platform }));
 	const acquired = await acquireChannelLock({
 		lockPath,
 		metadata: {
@@ -141,45 +126,37 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 			host: hostKind,
 			cwd: process.cwd(),
 			sessionId: options.sessionId,
-			// Publish the planned set before the runtime starts. A pairing
-			// process must see "wechat is planned" rather than the empty list
-			// that only means "still starting"; the actual set replaces it
-			// after `startChannels` returns.
-			channels: plan.enabled,
+			instances: planned,
 		},
 	});
 	if (!acquired.ok) {
-		return {
-			started: false,
-			reason: "instance-lock",
-			message: acquired.message,
-			channels: plan.enabled,
-		};
+		return { started: false, reason: "instance-lock", message: acquired.message, instances: plan.enabled };
 	}
 
 	const lock: ChannelLockHandle = acquired.lock;
 	let runtime: ChannelRuntime;
-	let lastQr = "";
 	try {
 		const start = options.startChannels ?? startChannels;
 		runtime = await start(
 			options.session,
 			effectiveWebConfig,
 			undefined,
-			payload => {
-				if (payload.status === "confirmed" || payload.qrcodeUrl === lastQr) return;
-				lastQr = payload.qrcodeUrl;
-				options.onQrCode?.(payload);
-				defaultQrHint(payload);
+			(instanceId, payload) => {
+				options.onQrCode?.(instanceId, payload);
+				defaultQrHint(instanceId, payload);
 			},
-			// Durable per-channel dedupe, shared with serve (`<agent dir>/run`).
 			{ stateDir: path.dirname(options.webConfig.path) },
 		);
-		const channels = [...runtime.channels.keys()];
-		await lock.update({ channels });
+		const instances = [...runtime.channels.keys()];
+		await lock.update({
+			instances: instances.map(id => ({
+				id,
+				platform: runtime.channels.get(id)?.platform ?? "wechat",
+			})),
+		});
 		const host: SessionChannelHost = {
 			runtime,
-			channels,
+			instances,
 			host: hostKind,
 			get lastInbound() {
 				return runtime.host.lastInbound;
@@ -194,7 +171,7 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 			},
 		};
 		activeHost = host;
-		logger.info("IM channels started from a CLI session", { channels });
+		logger.info("IM channel instances started from a CLI session", { instances });
 		return { started: true, host };
 	} catch (error) {
 		await lock.release();
@@ -202,68 +179,50 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 			started: false,
 			reason: "start-failed",
 			message: error instanceof Error ? error.message : String(error),
-			channels: plan.enabled,
+			instances: plan.enabled,
 		};
 	}
 }
 
-/**
- * Outbound sink for `channel_send`. Resolves like the serve coordinator: an
- * explicit channel/peer wins; otherwise the last inbound chat is the target.
- */
-export async function sendFromSessionChannel(opts: { text: string; to?: string; channel?: string }): Promise<void> {
+export async function sendFromSessionChannel(opts: {
+	text: string;
+	to?: string;
+	instance?: string;
+	channel?: string;
+}): Promise<void> {
 	const host = activeHost;
 	if (!host) throw new Error("IM channels are not started in this session");
 	const last = host.lastInbound;
-	const channel = (opts.channel as ChannelId | undefined) ?? last?.channelId;
-	const to = opts.to ?? (channel === last?.channelId ? last?.peer : undefined);
-	if (!channel) throw new Error("No channel is bound to this session; name one with channel=<id>.");
-	if (!to) throw new Error(`No peer is bound to channel ${channel}; name one with to=<peer>.`);
-	if (!host.runtime.channels.has(channel)) throw new Error(`Channel not enabled: ${channel}`);
-	await host.runtime.sendText(channel, to, opts.text);
+	let instanceId = opts.instance;
+	if (!instanceId && opts.channel) {
+		const matches = [...host.runtime.channels.values()].filter(channel => channel.platform === opts.channel);
+		if (matches.length === 1) instanceId = matches[0]!.id;
+		else if (matches.length > 1) throw new Error(`Ambiguous platform "${opts.channel}"; name one with instance=<id>.`);
+	}
+	instanceId ??= last?.instanceId;
+	const to = opts.to ?? (instanceId === last?.instanceId ? last?.peer : undefined);
+	if (!instanceId) throw new Error("No channel instance is bound to this session; name one with instance=<id>.");
+	if (!to) throw new Error(`No peer is bound to instance ${instanceId}; name one with to=<peer>.`);
+	if (!host.runtime.channels.has(instanceId)) throw new Error(`Channel instance not enabled: ${instanceId}`);
+	await host.runtime.sendText(instanceId, to, opts.text);
 }
 
-/** True when this process currently hosts channels (used by lifecycle wiring). */
 export function hasActiveSessionChannels(): boolean {
 	return activeHost !== null;
 }
 
-/** Remember a session's start request even when no channel is enabled yet. */
 export function rememberSessionChannelContext(options: StartSessionChannelsOptions): void {
 	lastContext = options;
 }
 
-/**
- * Stop the live host (if any) and start again from the remembered request.
- * Used after `/channels enable|disable|login` so the runtime reflects the
- * config immediately instead of waiting for a session restart.
- *
- * Returns `null` when this session never attempted to host channels.
- */
 export async function restartSessionChannels(): Promise<StartSessionChannelsResult | null> {
-	const context = lastContext;
-	if (!context) return null;
-	await stopActiveSessionChannels();
-	return await startSessionChannels(context);
+	if (!lastContext) return null;
+	if (activeHost) await activeHost.stop();
+	return await startSessionChannels(lastContext);
 }
 
-/**
- * Stop this process's channel host without forgetting the request. Pairing
- * calls this before opening the QR flow so `channels.pairing.lock` and
- * `channels.lock` do not overlap, then {@link restartSessionChannels}
- * re-establishes whichever channels the fresh `web.yml` enables.
- */
 export async function suspendActiveSessionChannels(): Promise<boolean> {
-	const host = activeHost;
-	if (!host) return false;
-	await host.stop();
+	if (!activeHost) return false;
+	await activeHost.stop();
 	return true;
-}
-
-/** Stop the live host, if this process has one. Idempotent. */
-export async function stopActiveSessionChannels(): Promise<void> {
-	const host = activeHost;
-	if (!host) return;
-	await host.stop().catch(() => {});
-	if (activeHost === host) activeHost = null;
 }

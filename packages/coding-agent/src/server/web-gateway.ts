@@ -79,6 +79,20 @@ import {
 	handleTwoFactorVerifyPost,
 } from "./auth/two-factor-auth";
 import { handleChannelCredentials, handleChannelSend, renderWechatLoginQrSvg } from "./web-gateway/channels";
+import {
+	handleChannelInstanceToggle,
+	handleChannelInstancesGet,
+	handleChannelInstancesPut,
+	handleChannelValidate,
+	handleChannelsStatus,
+	handleImAgentsGet,
+	handleImAgentsPut,
+	handleImBindingsGet,
+	handleImBindingsPut,
+	handleImCommands,
+	handleWechatAction,
+	handleWechatQr,
+} from "./web-gateway/im-instances";
 import { handleAgentContextUsage } from "./web-gateway/context-usage";
 import {
 	handleCwdBrowseGet,
@@ -306,6 +320,13 @@ const REMOTE_DEVICE_ID_PART = "[A-Za-z0-9_-]{1,64}";
 const REMOTE_DEVICE_RE = new RegExp(`^/api/remote/devices/(${REMOTE_DEVICE_ID_PART})$`);
 const DOCS_RE = /^\/api\/docs\/([A-Za-z0-9._/-]+)$/;
 const BLOB_RE = /^\/api\/blobs\/([^/]+)$/;
+const CHANNELS_INSTANCES_RE = /^\/api\/channels\/instances$/;
+const CHANNELS_INSTANCE_RE = /^\/api\/channels\/instances\/([a-z0-9][a-z0-9_-]{1,31})$/;
+const CHANNELS_INSTANCE_ACTION_RE = /^\/api\/channels\/instances\/([a-z0-9][a-z0-9_-]{1,31})\/(validate|enable|disable)$/;
+const CHANNELS_INSTANCE_WECHAT_RE = /^\/api\/channels\/instances\/([a-z0-9][a-z0-9_-]{1,31})\/wechat\/(qrcode|reconnect|unbind)$/;
+const IM_AGENTS_RE = /^\/api\/im\/agents$/;
+const IM_BINDINGS_RE = /^\/api\/im\/bindings$/;
+const IM_COMMANDS_RE = /^\/api\/im\/commands$/;
 const CHANNELS_WECHAT_QR_RE = /^\/api\/channels\/wechat\/qrcode$/;
 const CHANNELS_WECHAT_RECONNECT_RE = /^\/api\/channels\/wechat\/reconnect$/;
 const CHANNELS_WECHAT_UNBIND_RE = /^\/api\/channels\/wechat\/unbind$/;
@@ -1081,7 +1102,58 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (CHANNELS_STATUS_RE.test(pathname)) {
 		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
-		return json({ channels: getChannelStatus() });
+		return handleChannelsStatus();
+	}
+
+	if (CHANNELS_INSTANCES_RE.test(pathname)) {
+		if (req.method === "GET") return handleChannelInstancesGet();
+		if (req.method === "PUT") return handleChannelInstancesPut(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const instanceAction = capture(pathname, CHANNELS_INSTANCE_ACTION_RE);
+	if (instanceAction) {
+		const [instanceId, action] = instanceAction;
+		if (action === "validate") {
+			if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+			return handleChannelValidate(req, instanceId!);
+		}
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return handleChannelInstanceToggle(instanceId!, action === "enable");
+	}
+
+	const instanceWechat = capture(pathname, CHANNELS_INSTANCE_WECHAT_RE);
+	if (instanceWechat) {
+		const [instanceId, action] = instanceWechat;
+		if (action === "qrcode") {
+			if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+			const response = await handleWechatQr(instanceId!);
+			const payload = await response.clone().json().catch(() => null);
+			if (payload && typeof payload === "object" && payload.pending === true && typeof payload.qrcodeUrl === "string") {
+				const svg = renderWechatLoginQrSvg(payload.qrcodeUrl);
+				return json({ ...payload, ...(svg === undefined ? {} : { svg }) });
+			}
+			return response;
+		}
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return handleWechatAction(instanceId!, action === "reconnect" ? "reconnect" : "unbind");
+	}
+
+	if (IM_AGENTS_RE.test(pathname)) {
+		if (req.method === "GET") return handleImAgentsGet();
+		if (req.method === "PUT") return handleImAgentsPut(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (IM_BINDINGS_RE.test(pathname)) {
+		if (req.method === "GET") return handleImBindingsGet(req);
+		if (req.method === "PUT") return handleImBindingsPut(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (IM_COMMANDS_RE.test(pathname)) {
+		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+		return handleImCommands(req);
 	}
 
 	if (CHANNELS_SEND_RE.test(pathname)) {

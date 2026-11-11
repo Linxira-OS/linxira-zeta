@@ -12,10 +12,17 @@
  * shape into the IRC body the agent sees (see `inboundBody` in `index.ts`).
  */
 
-export type ChannelId = "wechat" | "feishu" | "telegram" | "discord" | "qq";
+/** A platform. Not unique in a runtime: several instances may share one. */
+export type ChannelPlatform = "wechat" | "feishu" | "telegram" | "discord" | "qq";
 
-/** Channels that refuse to start without a non-empty peer allowlist. */
-export const DENY_BY_DEFAULT_CHANNELS: readonly ChannelId[] = ["discord", "qq"];
+/** Compatibility name for the platform type (no runtime authority of its own). */
+export type ChannelId = ChannelPlatform;
+
+/** Stable, immutable instance id; the namespace for every runtime key. */
+export type ChannelInstanceId = string;
+
+/** Every instance is deny-by-default; the allowlist must be non-empty. */
+export const DENY_BY_DEFAULT_CHANNELS: readonly ChannelPlatform[] = ["wechat", "feishu", "telegram", "discord", "qq"];
 
 export interface ChatImage {
 	data: Uint8Array;
@@ -90,7 +97,9 @@ export interface ChannelSendOptions {
 }
 
 export interface ChatChannel {
-	readonly id: ChannelId;
+	/** Instance id (unique), not the platform. */
+	readonly id: ChannelInstanceId;
+	readonly platform: ChannelPlatform;
 	readonly capabilities: ChannelCapabilities;
 	start(): Promise<void>;
 	stop(): Promise<void>;

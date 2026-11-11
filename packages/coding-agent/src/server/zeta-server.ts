@@ -21,7 +21,10 @@ import {
 	ZETA_STATS_PORT,
 	ZETA_WEB_PORT,
 } from "@linxiraos/pi-utils";
-import type { ChannelId, ChatImage } from "../channels";
+import type { ChatImage } from "../channels";
+
+/** Runtime key for a channel: an instance id, never a platform. */
+type ChannelId = string;
 import {
 	type ChannelRuntime,
 	getChannelStatus,
@@ -906,9 +909,9 @@ export class ZetaServer {
 			this.#channelLock = null;
 		}
 		this.#channelRuntimeRef = null;
-		setPendingWechatQr(null);
-		registerWechatReconnect(null);
-		registerWechatUnbind(null);
+		clearPendingWechatQr();
+		registerWechatReconnect("", null);
+		registerWechatUnbind("", null);
 		registerChannelStatus(null);
 		registerChannelSend(null);
 	}
@@ -916,12 +919,7 @@ export class ZetaServer {
 	/** Start the channel runtime when any channel is enabled (fresh copy). */
 	async #startChannelRuntime(webConfig: WebConfig): Promise<void> {
 		const data = webConfig.getData();
-		const anyEnabled =
-			data.channels.wechat.enabled ||
-			data.channels.feishu.enabled ||
-			data.channels.telegram.enabled ||
-			data.channels.discord.enabled ||
-			data.channels.qq.enabled;
+		const anyEnabled = data.channels.instances.some(instance => instance.enabled);
 		if (!this.#options.channels && !anyEnabled) {
 			await this.#stopChannelRuntime();
 			return;
@@ -939,7 +937,7 @@ export class ZetaServer {
 				host: "serve",
 				cwd: process.cwd(),
 				sessionId: coordinator.sessionManager.getSessionId(),
-				channels: [],
+				instances: [],
 			},
 		});
 		if (!acquired.ok) {
@@ -952,14 +950,14 @@ export class ZetaServer {
 			runtime = await startChannels(
 				coordinator,
 				webConfig,
-				(channelId, peer, body) => {
+				(instanceId, peer, body) => {
 					const runtime = this.#channelRuntimeRef;
 					if (!runtime) return;
 
 					// Remote plan-approval replies: while a plan is awaiting
 					// approval on this peer, an exact "1"-"4" reply resolves it
 					// instead of reaching the session.
-					const pendingKey = `${channelId}:${peer}`;
+					const pendingKey = `${instanceId}:${peer}`;
 					const pendingPlan = this.#pendingPlanApproval.get(pendingKey);
 					if (pendingPlan) {
 						// Expired approvals no longer intercept replies — the plan
@@ -971,7 +969,7 @@ export class ZetaServer {
 							if (mode) {
 								this.#pendingPlanApproval.delete(pendingKey);
 								void this.#executePendingPlanApproval(
-									channelId,
+									instanceId,
 									peer,
 									pendingPlan.planFilePath,
 									mode,
@@ -985,20 +983,20 @@ export class ZetaServer {
 
 					void (async () => {
 						try {
-							await this.#routeInboundMessage(channelId as ChannelId, peer, body, runtime);
+							await this.#routeInboundMessage(instanceId, peer, body, runtime);
 						} catch (error) {
 							// Never drop a message silently: log the failure so a broken
 							// route (workspace session, bot session, relay) is visible in
 							// ~/.zeta/logs instead of the chat going quiet.
 							logger.error("Channel message routing failed", {
-								channel: channelId,
+								instance: instanceId,
 								peer,
 								error: error instanceof Error ? error.message : String(error),
 							});
 						}
 					})();
 				},
-				payload => setPendingWechatQr(payload),
+				(instanceId, payload) => setPendingWechatQr(instanceId, payload),
 				// Per-channel dedupe survives a serve restart/reconnect: retried
 				// platform updates are dropped instead of answered twice.
 				{ stateDir: path.dirname(webConfig.path) },
@@ -1009,7 +1007,9 @@ export class ZetaServer {
 			throw error;
 		}
 		this.#channelRuntime = runtime;
-		await this.#channelLock?.update({ channels: [...runtime.channels.keys()] });
+		await this.#channelLock?.update({
+			instances: [...runtime.channels.entries()].map(([id, channel]) => ({ id, platform: channel.platform })),
+		});
 		this.#channelRuntimeRef = runtime;
 		// The runtime owns the list: it includes channels that are enabled but
 		// refused to start (empty allowlist) with the reason, so a settings page
@@ -1020,22 +1020,25 @@ export class ZetaServer {
 		// answers the in-process `channel_send` tool does: "not enabled" when
 		// the channel is missing here, "not paired" when the channel refuses
 		// the peer before sending, and the platform's own error otherwise.
-		registerChannelSend(async (channelId, to, text) => {
+		registerChannelSend(async (instanceId, to, text) => {
 			const runtime = this.#channelRuntimeRef;
-			if (!runtime || !runtime.channels.has(channelId)) {
-				return { ok: false, kind: "unknown-channel", message: `Channel not enabled: ${channelId}` };
+			if (!runtime || !runtime.channels.has(instanceId)) {
+				return { ok: false, kind: "unknown-channel", message: `Channel instance not enabled: ${instanceId}` };
 			}
 			try {
-				await runtime.sendText(channelId, to, text);
+				await runtime.sendText(instanceId, to, text);
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				return { ok: false, kind: classifySendError(message), message };
 			}
-			return { ok: true, channelId, to };
+			return { ok: true, instanceId, to };
 		});
-		const wechatChannel = this.#channelRuntime.channels.get("wechat");
-		registerWechatReconnect(wechatChannel instanceof WeChatChannel ? () => wechatChannel.reconnect() : null);
-		registerWechatUnbind(wechatChannel instanceof WeChatChannel ? () => wechatChannel.unbind() : null);
+		for (const [instanceId, channel] of this.#channelRuntime.channels) {
+			if (channel instanceof WeChatChannel) {
+				registerWechatReconnect(instanceId, () => channel.reconnect());
+				registerWechatUnbind(instanceId, () => channel.unbind());
+			}
+		}
 		logger.info("IM channels started", { count: this.#channelRuntime.channels.size });
 	}
 
@@ -1178,7 +1181,7 @@ export class ZetaServer {
 	/** Route one inbound channel message: commands → workspace direct → active bot
 	 *  session → relay coordinator (with the chat's reply-language prefix). */
 	async #routeInboundMessage(
-		channelId: ChannelId,
+		instanceId: string,
 		peer: string,
 		body: string,
 		runtime: ChannelRuntime,
@@ -1186,15 +1189,15 @@ export class ZetaServer {
 		const router = this.#router;
 		const consumed = await routeWorkspaceCommand(body, peer, {
 			router,
-			channelId,
+			instanceId,
 			peer,
-			sendText: text => runtime.sendText(channelId, peer, text),
-			planRequest: (title, workflow) => this.#startRemotePlanRequest(channelId, peer, title, runtime, workflow),
+			sendText: text => runtime.sendText(instanceId, peer, text),
+			planRequest: (title, workflow) => this.#startRemotePlanRequest(instanceId, peer, title, runtime, workflow),
 			fallback: async () => {},
 			channelStatus: () => getChannelStatus(),
 			listModels: () => this.#listModels(),
-			setChatModel: (provider, modelId) => this.#setChatModel(channelId, peer, provider, modelId),
-			getChatModel: () => this.#getChatModel(channelId, peer),
+			setChatModel: (provider, modelId) => this.#setChatModel(instanceId, peer, provider, modelId),
+			getChatModel: () => this.#getChatModel(instanceId, peer),
 		});
 		if (consumed) return;
 		// `@agent use` wins; then the chat's project — its bot session (a PM
@@ -1202,13 +1205,13 @@ export class ZetaServer {
 		// default — and finally the relay coordinator. A binding that cannot be
 		// opened reports an error; it never silently falls back to the default
 		// workspace, which would answer for a repository it does not own.
-		const route = router ? await router.resolveChatTarget(channelId, peer) : ({ kind: "relay" } as const);
+		const route = router ? await router.resolveChatTarget(instanceId, peer) : ({ kind: "relay" } as const);
 		if (route.kind === "agent" && router) {
-			const result = await router.deliverToAgent(route.target, channelId, peer, body);
+			const result = await router.deliverToAgent(route.target, instanceId, peer, body);
 			if (!result.ok) {
-				logger.warn("Agent-target injection failed", { channel: channelId, error: result.error });
+				logger.warn("Agent-target injection failed", { channel: instanceId, error: result.error });
 				await runtime.sendText(
-					channelId,
+					instanceId,
 					peer,
 					`Failed to reach agent ${route.target}: ${result.error ?? "unknown error"}`,
 				);
@@ -1216,11 +1219,11 @@ export class ZetaServer {
 			return;
 		}
 		if (route.kind === "bot" && router) {
-			const result = await router.deliverToBotSession(route.id, channelId, peer, body);
+			const result = await router.deliverToBotSession(route.id, instanceId, peer, body);
 			if (!result.ok) {
-				logger.warn("Bot session injection failed", { channel: channelId, id: route.id, error: result.error });
+				logger.warn("Bot session injection failed", { channel: instanceId, id: route.id, error: result.error });
 				await runtime.sendText(
-					channelId,
+					instanceId,
 					peer,
 					`无法投递到 Bot 会话 ${route.id}：${result.error ?? "unknown error"}`,
 				);
@@ -1228,15 +1231,15 @@ export class ZetaServer {
 			return;
 		}
 		if (route.kind === "workspace" && router) {
-			const result = await router.deliverDirect(route.alias, channelId, peer, body);
+			const result = await router.deliverDirect(route.alias, instanceId, peer, body);
 			if (!result.ok) {
 				logger.warn("Direct-mode injection failed", {
-					channel: channelId,
+					channel: instanceId,
 					alias: route.alias,
 					error: result.error,
 				});
 				await runtime.sendText(
-					channelId,
+					instanceId,
 					peer,
 					`无法连接到工作区 [${route.alias}]：${result.error ?? "unknown error"}`,
 				);
@@ -1245,19 +1248,19 @@ export class ZetaServer {
 		}
 		if (route.kind === "unavailable") {
 			logger.warn("Chat binding unavailable", {
-				channel: channelId,
+				channel: instanceId,
 				alias: route.alias,
 				error: route.error,
 			});
-			await runtime.sendText(channelId, peer, `无法打开工作区 [${route.alias}]：${route.error}`);
+			await runtime.sendText(instanceId, peer, `无法打开工作区 [${route.alias}]：${route.error}`);
 			return;
 		}
 		// Relay: prefix the chat's reply language so the shared coordinator
 		// session replies in the right language without per-chat system prompts
 		// (the prefix stays in the transcript as a one-line hint).
-		const lang = router ? await router.languageFor(channelId, peer) : undefined;
+		const lang = router ? await router.languageFor(instanceId, peer) : undefined;
 		const relayBody = lang ? `[Language: ${lang === "zh" ? "zh-CN" : "en"}] ${body}` : body;
-		await runtime.host.deliver(channelId, peer, relayBody);
+		await runtime.host.deliver(instanceId, peer, relayBody);
 	}
 
 	async #startGateway(): Promise<void> {

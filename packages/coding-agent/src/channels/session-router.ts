@@ -23,7 +23,7 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type ChannelId, ReplyCorrelator, isPeerAllowed } from "@linxiraos/pi-channels";
+import { type ChannelInstanceId, ReplyCorrelator } from "@linxiraos/pi-channels";
 import { isEnoent, logger, Snowflake } from "@linxiraos/pi-utils";
 import type { BotSessionEntry, WebConfig } from "../config/web-config";
 import { Settings, type SettingProvenance } from "../config/settings";
@@ -80,7 +80,7 @@ interface ActiveRun {
 
 /** The chat a bot session most recently answered (channel_send/im_control target). */
 interface BotChatTarget {
-	channelId: ChannelId;
+	channelId: ChannelInstanceId;
 	peer: string;
 }
 
@@ -165,8 +165,8 @@ function samePath(a: string | undefined, b: string | undefined): boolean {
 export class SessionRouter {
 	readonly #coordinator: AgentSession;
 	readonly #webConfig: WebConfig;
-	readonly #getLastInbound: () => { channelId: ChannelId; peer: string } | null;
-	readonly #sendText: (channelId: ChannelId, to: string, text: string) => Promise<void>;
+	readonly #getLastInbound: () => { channelId: ChannelInstanceId; peer: string } | null;
+	readonly #sendText: (channelId: ChannelInstanceId, to: string, text: string) => Promise<void>;
 	/** IM channel tool sinks forwarded to bot sessions (undefined in CLI mode). */
 	readonly #channelSend?: (
 		opts: { text: string; to?: string; channel?: string },
@@ -218,8 +218,8 @@ export class SessionRouter {
 	constructor(options: {
 		coordinator: AgentSession;
 		webConfig: WebConfig;
-		getLastInbound: () => { channelId: ChannelId; peer: string } | null;
-		sendText: (channelId: ChannelId, to: string, text: string) => Promise<void>;
+		getLastInbound: () => { channelId: ChannelInstanceId; peer: string } | null;
+		sendText: (channelId: ChannelInstanceId, to: string, text: string) => Promise<void>;
 		/** Default cwd for newly created bot sessions (defaults to process.cwd()). */
 		defaultCwd?: string;
 		/** channel_send sink for bot sessions (defaults to the coordinator's pattern). */
@@ -329,7 +329,7 @@ export class SessionRouter {
 		const existing = this.#bridges.get(key);
 		if (existing) return existing;
 		const correlator = new ReplyCorrelator({
-			sendText: (target, text) => this.#sendText(target.channelId, target.peer, text),
+			sendText: (target, text) => this.#sendText(target.instanceId, target.peer, text),
 		});
 		this.#bridges.set(key, correlator);
 		const observer = session.setIrcWakeTurnObserver;
@@ -435,7 +435,7 @@ export class SessionRouter {
 	 * the row means "this chat belongs to the coordinator", even when an earlier
 	 * direct binding left an alias behind.
 	 */
-	async resolveRoute(channelId: ChannelId, peer: string): Promise<"direct" | "relay"> {
+	async resolveRoute(channelId: ChannelInstanceId, peer: string): Promise<"direct" | "relay"> {
 		const binding = await this.bindingFor(channelId, peer);
 		if (!binding) return "relay";
 		if (binding === COORDINATOR_ALIAS) return "relay";
@@ -488,7 +488,7 @@ export class SessionRouter {
 	 * workspaces own the same bare id) is an explicit error, never a guess.
 	 */
 	async setAgentTarget(
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		selector?: string,
 	): Promise<{ ok: true; target: string } | { ok: false; error: string }> {
@@ -533,7 +533,7 @@ export class SessionRouter {
 	}
 
 	/** Runtime agent override for one chat, if any. */
-	agentTargetFor(channelId: ChannelId, peer: string): string | undefined {
+	agentTargetFor(channelId: ChannelInstanceId, peer: string): string | undefined {
 		return this.#agentBindings.get(`${channelId}:${peer}`);
 	}
 
@@ -552,7 +552,7 @@ export class SessionRouter {
 	 * then {@link resolveRoute} — the documented decision point, which also
 	 * materializes a direct workspace session — then the relay coordinator.
 	 */
-	async resolveChatTarget(channelId: ChannelId, peer: string): Promise<ChatRouteTarget> {
+	async resolveChatTarget(channelId: ChannelInstanceId, peer: string): Promise<ChatRouteTarget> {
 		const agent = this.agentTargetFor(channelId, peer);
 		if (agent) return { kind: "agent", target: agent, local: !agent.includes("/") };
 		// A manual `@workspace use` wins: the operator explicitly switched this
@@ -567,7 +567,17 @@ export class SessionRouter {
 			const entry = this.#webConfig.getBotSession(botId);
 			if (entry) return { kind: "bot", id: botId };
 		}
-		// Persisted chat binding, then the channel-default workspace.
+		// Persisted binding: workspace targets route directly; Team targets
+		// must resolve through the Team DB (explicit error until wired, never relay).
+		const imBinding = this.#webConfig.findImBinding(channelId, peer);
+		if (imBinding) {
+			if (imBinding.target.kind === "workspace") return this.#workspaceTarget(imBinding.target.workspace);
+			return {
+				kind: "unavailable",
+				alias: imBinding.target.kind,
+				error: `Team target ${imBinding.target.kind} is not wired in this runtime; configure a workspace target or update the binding.`,
+			};
+		}
 		const binding = await this.bindingFor(channelId, peer);
 		if (!binding || binding === COORDINATOR_ALIAS) return { kind: "relay" };
 		return this.#workspaceTarget(binding);
@@ -596,7 +606,7 @@ export class SessionRouter {
 	 */
 	async deliverToAgent(
 		target: string,
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		body: string,
 	): Promise<{ ok: boolean; error?: string }> {
@@ -624,28 +634,12 @@ export class SessionRouter {
 	}
 
 	/** Resolve the effective workspace alias for one chat ("" = relay coordinator). */
-	async bindingFor(channelId: ChannelId, peer: string): Promise<string | null> {
+	async bindingFor(channelId: ChannelInstanceId, peer: string): Promise<string | null> {
 		const runtime = this.#runtimeBindings.get(`${channelId}:${peer}`);
 		if (runtime) return runtime;
-		const mapping = this.#webConfig.findSessionMapping(channelId, peer);
-		// `mode: "relay"` is the chat's persisted decision to live in the
-		// coordinator; it outranks the alias the same row may still carry.
-		if (mapping?.mode === "relay") return COORDINATOR_ALIAS;
-		// A mapping may carry only lang/sessionId (from !lang / !session use) with
-		// no workspaceAlias — those must NOT shadow the channel-default
-		// workspaceRoot fallback below.
-		if (mapping?.workspaceAlias) return mapping.workspaceAlias;
-		// Channel default workspace (`channels.<id>.workspaceRoot`): messages on
-		// this channel go direct to that repo unless overridden above.
-		const channelDefault = this.#webConfig.getData().channels[channelId]?.workspaceRoot;
-		if (channelDefault) {
-			const entry = this.#webConfig.findWorkspace(channelDefault);
-			if (entry) return entry.alias;
-			// Register the configured default on first use so direct routing works
-			// without a manual `@workspace open`.
-			const opened = await this.open(channelDefault, path.basename(channelDefault));
-			if (opened.ok) return opened.alias;
-		}
+		const binding = this.#webConfig.findImBinding(channelId, peer);
+		if (!binding) return null;
+		if (binding.target.kind === "workspace") return binding.target.workspace;
 		return null;
 	}
 
@@ -666,7 +660,7 @@ export class SessionRouter {
 	 * Reports that cannot be attributed to a chat are never pushed anywhere.
 	 */
 	async reportDelegation(
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		stage: "progress" | "completion" | "failure",
 		text: string,
@@ -699,7 +693,7 @@ export class SessionRouter {
 	 * already succeeded and its reply still reaches the coordinator.
 	 */
 	async #forwardReport(
-		chat: { channelId: ChannelId; peer: string } | null,
+		chat: { channelId: ChannelInstanceId; peer: string } | null,
 		stage: "progress" | "completion" | "failure",
 		text: string,
 	): Promise<"sent" | "buffered" | "suppressed"> {
@@ -720,7 +714,7 @@ export class SessionRouter {
 	 * direct/relay route, persona activation, project-layer memory backend, and
 	 * the relay report policy.
 	 */
-	async statusSnapshot(channelId: ChannelId, peer: string): Promise<ChatStatusSnapshot> {
+	async statusSnapshot(channelId: ChannelInstanceId, peer: string): Promise<ChatStatusSnapshot> {
 		// A selected bot session owns the chat's project; otherwise the persisted
 		// binding (then the channel default) decides the landing workspace.
 		const botId = await this.activeBotSessionIdFor(channelId, peer);
@@ -763,7 +757,7 @@ export class SessionRouter {
 
 	/** Set a runtime (non-persisted) route override for one chat. */
 	async setRuntimeBinding(
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		alias: string,
 	): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -776,7 +770,7 @@ export class SessionRouter {
 
 	/** Persist a chat → workspace binding (direct mode). */
 	async bindChat(
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		alias: string,
 	): Promise<{ ok: true; alias: string } | { ok: false; error: string }> {
@@ -793,27 +787,29 @@ export class SessionRouter {
 		// One merge keeps a chat's language and drops any bot-session pointer: a
 		// workspace binding supersedes both. `mode: direct` is the explicit
 		// project selection that outranks the channel default.
-		await this.#webConfig.updateChatMapping(channelId, peer, {
-			workspaceAlias: alias,
-			mode: "direct",
-			sessionId: null,
+		await this.#webConfig.patchImBinding(channelId, peer, {
+			target: { kind: "workspace", workspace: alias },
 		});
 		return { ok: true, alias };
 	}
 
 	/** Remove a chat's persisted + runtime binding. */
-	async unbindChat(channelId: ChannelId, peer: string): Promise<boolean> {
+	async unbindChat(channelId: ChannelInstanceId, peer: string): Promise<boolean> {
 		this.#runtimeBindings.delete(`${channelId}:${peer}`);
 		this.#agentBindings.delete(`${channelId}:${peer}`);
-		return this.#webConfig.removeSessionMapping(channelId, peer);
+		return this.#webConfig.removeImBindingByChat(channelId, peer);
 	}
 
 	/** List every persisted binding for one platform. */
-	bindingsForPlatform(channelId: ChannelId): { chatId: string; workspaceAlias?: string; mode?: string }[] {
+	bindingsForPlatform(channelId: ChannelInstanceId): { chatId: string; workspaceAlias?: string; mode?: string }[] {
 		return this.#webConfig
-			.getSessionMappings()
-			.filter(mapping => mapping.platform === channelId)
-			.map(mapping => ({ chatId: mapping.chatId, workspaceAlias: mapping.workspaceAlias, mode: mapping.mode }));
+			.getImBindings()
+			.filter(binding => binding.instanceId === channelId)
+			.map(binding => ({
+				chatId: binding.chatId,
+				...(binding.target.kind === "workspace" ? { workspaceAlias: binding.target.workspace } : {}),
+				role: binding.role,
+			}));
 	}
 
 	// ------------------------------------------------------------------
@@ -831,7 +827,7 @@ export class SessionRouter {
 	}
 
 	/** The origin stamp for one registry entry. */
-	#botOrigin(entry: BotSessionEntry, chat?: { channelId: ChannelId; peer: string }): SessionOrigin {
+	#botOrigin(entry: BotSessionEntry, chat?: { channelId: ChannelInstanceId; peer: string }): SessionOrigin {
 		const channel = chat?.channelId ?? entry.platform;
 		const chatId = chat?.peer ?? entry.chatId;
 		return {
@@ -864,7 +860,7 @@ export class SessionRouter {
 	 * transcript when either changed. A no-op for repeat deliveries from the
 	 * same chat, so the hot path never rewrites web.yml.
 	 */
-	async #rememberBotChat(id: string, channelId: ChannelId, peer: string): Promise<void> {
+	async #rememberBotChat(id: string, channelId: ChannelInstanceId, peer: string): Promise<void> {
 		const entry = this.#webConfig.getBotSession(id);
 		if (!entry) return;
 		const changed = entry.platform !== channelId || entry.chatId !== peer;
@@ -1150,26 +1146,21 @@ export class SessionRouter {
 	}
 
 	/** The bot session id this chat currently uses ("" / null → relay). */
-	async activeBotSessionIdFor(channelId: ChannelId, peer: string): Promise<string | null> {
-		const mapping = this.#webConfig.findSessionMapping(channelId, peer);
-		return mapping?.sessionId ?? null;
+	async activeBotSessionIdFor(channelId: ChannelInstanceId, peer: string): Promise<string | null> {
+		return this.#webConfig.findImBinding(channelId, peer)?.sessionId ?? null;
 	}
 
 	/** Point one chat at a bot session (clears direct workspace mode). Relay is
 	 *  the implicit default: `use relay` drops the pointer back to it. */
 	async setActiveBotSession(
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		id: string,
 	): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
 		if (id === "relay") {
 			// Relay means the coordinator: drop the session pointer and any
 			// persisted project/direct binding that would keep answering for a repo.
-			await this.#webConfig.updateChatMapping(channelId, peer, {
-				sessionId: null,
-				workspaceAlias: null,
-				mode: null,
-			});
+			await this.#webConfig.patchImBinding(channelId, peer, { sessionId: "relay" });
 			this.#runtimeBindings.delete(`${channelId}:${peer}`);
 			return { ok: true, id: "relay" };
 		}
@@ -1182,11 +1173,7 @@ export class SessionRouter {
 		if (!ensured.ok) return ensured;
 		// The selected session owns its project: a stale workspace binding must
 		// not keep routing this chat to a different repository.
-		await this.#webConfig.updateChatMapping(channelId, peer, {
-			sessionId: id,
-			workspaceAlias: null,
-			mode: null,
-		});
+		await this.#webConfig.patchImBinding(channelId, peer, { sessionId: id });
 		this.#runtimeBindings.delete(`${channelId}:${peer}`);
 		await this.#rememberBotChat(id, channelId, peer);
 		const lang = (await this.languageFor(channelId, peer)) ?? entry.lang;
@@ -1196,7 +1183,7 @@ export class SessionRouter {
 
 	/** Resolve the live session a chat's messages should target (bot session or relay). */
 	async resolveChatTargetSession(
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 	): Promise<{ ok: true; session: AgentSession; id: string } | { ok: false; error: string }> {
 		// Same precedence as inbound routing: the chat's bot session or bound
@@ -1225,28 +1212,28 @@ export class SessionRouter {
 	 * session id → the chat it is currently replying to (else its bound chat,
 	 * else the relay's last inbound). Never guesses a wrong chat.
 	 */
-	resolveImControlChat(sessionKey: string): { channelId: ChannelId; peer: string } | null {
+	resolveImControlChat(sessionKey: string): { channelId: ChannelInstanceId; peer: string } | null {
 		if (sessionKey === "coordinator") return this.#getLastInbound();
 		const reply = this.#botLastChat.get(sessionKey);
 		if (reply) return { channelId: reply.channelId, peer: reply.peer };
 		const entry = this.#webConfig.getBotSession(sessionKey);
-		if (entry?.platform && entry.chatId) return { channelId: entry.platform as ChannelId, peer: entry.chatId };
+		if (entry?.platform && entry.chatId) return { channelId: entry.platform as ChannelInstanceId, peer: entry.chatId };
 		return this.#getLastInbound();
 	}
 
 	/** Drop a chat's bot-session pointer (falls back to the relay). */
-	async clearActiveBotSession(channelId: ChannelId, peer: string): Promise<void> {
-		await this.#webConfig.updateChatMapping(channelId, peer, { sessionId: null });
+	async clearActiveBotSession(channelId: ChannelInstanceId, peer: string): Promise<void> {
+		await this.#webConfig.patchImBinding(channelId, peer, { sessionId: "relay" });
 	}
 
 	/** The reply language configured for one chat ("" → unset). */
-	async languageFor(channelId: ChannelId, peer: string): Promise<"zh" | "en" | undefined> {
-		return this.#webConfig.findSessionMapping(channelId, peer)?.lang;
+	async languageFor(channelId: ChannelInstanceId, peer: string): Promise<"zh" | "en" | undefined> {
+		return this.#webConfig.findImBinding(channelId, peer)?.lang;
 	}
 
 	/** Set a chat's reply language and apply it to its active bot session. */
-	async setLanguage(channelId: ChannelId, peer: string, lang: "zh" | "en"): Promise<void> {
-		await this.#webConfig.updateChatMapping(channelId, peer, { lang });
+	async setLanguage(channelId: ChannelInstanceId, peer: string, lang: "zh" | "en"): Promise<void> {
+		await this.#webConfig.patchImBinding(channelId, peer, { lang });
 		const activeId = await this.activeBotSessionIdFor(channelId, peer);
 		if (!activeId) return;
 		const handle = this.#botSessions.get(activeId);
@@ -1264,7 +1251,7 @@ export class SessionRouter {
 	 */
 	async deliverToBotSession(
 		id: string,
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		body: string,
 	): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -1325,7 +1312,7 @@ export class SessionRouter {
 	 */
 	async deliverDirect(
 		workspaceAlias: string,
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		body: string,
 	): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -1476,10 +1463,10 @@ export class SessionRouter {
 	resolvePush(
 		opts: { to?: string; channel?: string },
 		caller?: ChannelToolContext,
-	): { channelId: ChannelId; to: string } | null {
+	): { channelId: ChannelInstanceId; to: string } | null {
 		const inbound = this.#getLastInbound();
 		const scoped = this.#chatForContext(caller);
-		const channelId = (opts.channel as ChannelId | undefined) ?? scoped?.channelId ?? inbound?.channelId ?? null;
+		const channelId = (opts.channel as ChannelInstanceId | undefined) ?? scoped?.channelId ?? inbound?.channelId ?? null;
 		const to =
 			opts.to ??
 			(channelId !== null && scoped?.channelId === channelId ? scoped.peer : undefined) ??
@@ -1505,13 +1492,13 @@ export class SessionRouter {
 	}
 
 	/** The chat that invoked a channel tool through `caller`'s session. */
-	#chatForContext(caller?: ChannelToolContext): { channelId: ChannelId; peer: string } | null {
+	#chatForContext(caller?: ChannelToolContext): { channelId: ChannelInstanceId; peer: string } | null {
 		if (!caller) return null;
 		if (caller.sessionKey === "coordinator") return this.#getLastInbound();
 		const last = this.#botLastChat.get(caller.sessionKey);
 		if (last) return { channelId: last.channelId, peer: last.peer };
 		const entry = this.#webConfig.getBotSession(caller.sessionKey);
-		if (entry?.platform && entry.chatId) return { channelId: entry.platform as ChannelId, peer: entry.chatId };
+		if (entry?.platform && entry.chatId) return { channelId: entry.platform as ChannelInstanceId, peer: entry.chatId };
 		return null;
 	}
 
