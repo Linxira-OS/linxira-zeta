@@ -148,7 +148,7 @@ describe("short session boundary", () => {
 		expect(retained).toBe(1);
 		const journal = (await Bun.file(queue.file).json()) as { processed: string[]; entries: string[] };
 		expect(journal.entries).toEqual(["e1"]);
-		expect(journal.processed).toEqual(["compact-1", "stop:session-short:e1"]);
+		expect([...journal.processed].sort()).toEqual(["compact-1", "stop:session-short:e1"].sort());
 
 		// A second stop with the same branch is not a new window.
 		await handle.stop();

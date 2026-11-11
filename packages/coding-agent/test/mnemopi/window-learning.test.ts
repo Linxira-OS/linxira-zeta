@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
+import * as ai from "@linxiraos/pi-ai";
 import { TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { mnemopiBackend } from "@linxiraos/zeta/mnemopi/backend";
 import { loadMnemopiConfig } from "@linxiraos/zeta/mnemopi/config";
 import { loadMnemopi, loadMnemopiCore, MnemopiSessionState, setMnemopiSessionState } from "@linxiraos/zeta/mnemopi/state";
+import { startWindowLearning } from "@linxiraos/zeta/memory-backend/window-learning";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
 await Promise.all([loadMnemopi(), loadMnemopiCore()]);
@@ -19,10 +21,18 @@ function setup(mode: "auto" | "window" | "manual") {
 	dirs.push(dir);
 	const settings = Settings.isolated({ "memory.backend": "mnemopi", "memory.extractionMode": mode,
 		"mnemopi.llmMode": "none", "mnemopi.noEmbeddings": true, "mnemopi.scoping": "global",
+		"taste.enabled": true, "taste.extractionMode": "window",
 		"mnemopi.dbPath": dir.join("memory.db") });
-	const session = { settings, sessionId: "window-session", sessionManager: {
-		getCwd: () => dir.path(), getEntries: () => { throw new Error("must not read live tail"); },
-	} } as unknown as AgentSession;
+	const entry = { type: "message" as const, id: "window-entry", timestamp: "2026-01-01T00:00:00.000Z",
+		message: { role: "user" as const, content: [{ type: "text" as const, text: "Keep project queues bounded and durable." }] } };
+	const session = { settings, sessionId: "window-session", messages: [], getAgentId: () => "Main",
+		subscribe: () => () => {}, onCompactionCommit: () => () => {},
+		sessionManager: {
+			getCwd: () => dir.path(),
+			getEntries: () => { throw new Error("must not read live tail"); },
+			getBranch: () => [entry],
+			getEntry: (id: string) => (id === entry.id ? entry : undefined),
+		} } as unknown as AgentSession;
 	const state = new MnemopiSessionState({ session, sessionId: session.sessionId, config: loadMnemopiConfig(settings, dir.path()) });
 	setMnemopiSessionState(session, state);
 	states.push(state);
@@ -69,5 +79,24 @@ describe("mnemopi window consumer", () => {
 		remember.mockRestore();
 		await mnemopiBackend.learnWindow!(context, window);
 		expect(state.memory.beam.db.query("SELECT COUNT(*) AS n FROM working_memory WHERE source = 'coding-agent-window'").get()).toEqual({ n: 1 });
+	});
+
+	it("consumer lifecycle performs zero completion calls with mnemopi llmMode none", async () => {
+		const { state, context } = setup("window");
+		const completion = vi.spyOn(ai, "completeSimple");
+		const fetchSpy = vi.spyOn(globalThis, "fetch");
+		const handle = await startWindowLearning({
+			session: context.session,
+			settings: context.session.settings,
+			modelRegistry: {} as never,
+			agentDir: context.agentDir,
+			namespace: "repo:window-test",
+			taskDepth: 0,
+		});
+		await handle.stop();
+		expect(completion).not.toHaveBeenCalled();
+		expect(fetchSpy).not.toHaveBeenCalled();
+		const rows = state.memory.beam.db.query("SELECT COUNT(*) AS n FROM working_memory WHERE source = 'coding-agent-window'").get();
+		expect(rows).toEqual({ n: 1 });
 	});
 });
