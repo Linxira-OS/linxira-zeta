@@ -39,6 +39,27 @@ release and is NOT integrated; see the probe below.)_
   `fix-changelogs` promoted/pruned upstream release sections; `Cargo.lock`
   workspace members pinned to 1.5.1. `MODULE.bazel.lock` retains the merged
   upstream lock; no bazel run locally.
+
+- **Final gate truth (2026-11-12)**: the full `merge-gate --base ddb44711b5d --tag
+  v18.19.0` run finished **RED**: 29 pass / 9 fail / 1 skip. Green: version,
+  type check, brand, Tern/OMP compat, sentinels, shared-infra, host parity,
+  removed files, scope imports, CI surface, asset names, license map, ports,
+  workbench bundles, LSP tables, export viewer, i18n catalogue/commands,
+  serve-discovery, robomp contract, local-ci parity, nix-bun freshness,
+  relay assets, package.json merge, merge-contract regressions, branch registry,
+  cargo fmt, lineage. Red: Bazel lock input hashes (fixed after the run by
+  `--inputs-only`), merge member loss (68 Zeta-only members across 16 files),
+  upstream test/fixture import (Zeta-deleted WebKit/Tern tests), brand regression
+  scan (190 upstream `omp`/`.omp` additions in the merge diff), guard regression
+  tests, TS behaviour suites, stats orphan suite (29 failures), pi-messenger
+  orphan suite (88 failures), Rust nextest (not installed; shallow-clone
+  `test:rs` refusal). The stats/pi-messenger/nextest reds are host/tooling
+  reds; member/brand/audit reds are merge-restoration gaps and are NOT green.
+
+- **Docs follow-up merge**: `docs/qq-wecom-pause` (`19cdfa8e3ffcf93498ec8a02a692d68dd7a7a01a`)
+  merged as `6f831e69739` (docs/ADR-0035/ledger/roadmap/channels); `check:adr` 23 records and
+  `check:reqs` 91 rows pass. Branch registry now covers 134 local branches.
+
 - **Gates**: lint/format and version line repaired; brand-check and Zeta
   sentinels reached 0/118; removed-upstream-files OK after deleting revived
   collab/Tern paths; scope imports OK. `merge-gate --base ddb44711b5d --tag
