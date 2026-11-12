@@ -672,6 +672,10 @@ impl Panel for IdePage {
         "IDE".to_owned()
     }
 
+    fn captures_escape(&self) -> bool {
+        self.preview.is_some() || self.commit.active
+    }
+
     fn prepare_render(&mut self, theme: &Theme, config: &Arc<Config>) {
         self.left.prepare_render(theme, config);
         self.git.prepare_render(theme, config);
@@ -1212,6 +1216,37 @@ mod tests {
         assert!(page.close_active());
         assert_eq!(page.titles(), vec!["a.rs".to_owned(), "b.rs".to_owned()]);
         assert_eq!(page.active, Some(1), "the left neighbour takes over");
+    }
+
+    #[test]
+    fn transient_previews_and_commit_own_escape_without_closing_the_page() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("sample.json");
+        std::fs::write(&path, "{\"count\": 42}\n").unwrap();
+        let mut page = IdePage::new();
+        page.open(path);
+        let titles = page.titles();
+
+        page.open_json_preview();
+        assert!(
+            page.captures_escape(),
+            "the host must not close the IDE page before the JSON preview consumes Esc"
+        );
+        let _ = page.handle_key(key(KeyCode::Esc));
+        assert!(page.preview.is_none(), "JSON preview exits on Esc");
+        assert_eq!(page.titles(), titles, "the active tab is preserved");
+
+        page.open_todo_preview();
+        assert!(page.captures_escape());
+        let _ = page.handle_key(key(KeyCode::Esc));
+        assert!(page.preview.is_none(), "TODO preview exits on Esc");
+        assert_eq!(page.titles(), titles);
+
+        page.commit.active = true;
+        assert!(page.captures_escape(), "the commit box owns Esc while editing");
+        let _ = page.handle_key(key(KeyCode::Esc));
+        assert!(!page.commit.active, "commit editing cancels, page stays");
+        assert_eq!(page.titles(), titles);
     }
 
     /// A left pane that answers every interaction with `OpenFile`, standing in
