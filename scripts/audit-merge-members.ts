@@ -279,6 +279,17 @@ const ZETA_REMOVALS: Record<string, readonly string[] | "*"> = {
 	"packages/coding-agent/src/commands/share.ts": "*",
 	"packages/coding-agent/src/export/share.ts": "*",
 	"packages/wire/src/index.ts": ["export DEFAULT_SHARE_URL"],
+	// Retired after v18.19.0: upstream deleted task-file approval/smithery and
+	// Zeta does not revive them; append-prompt discovery was removed with the
+	// build-service/system-prompt refactor.
+	"packages/coding-agent/src/task/index.ts": ["flushToolUpdates", "wrapped"],
+	"packages/coding-agent/src/modes/controllers/mcp-command-controller.ts": [
+		"#stripOAuthAuth",
+		"connectionError",
+		"connectionSucceeded",
+	],
+	"packages/coding-agent/src/session/session-storage.ts": ["moveSessionWithArtifactsToTrash"],
+	"packages/coding-agent/src/config.ts": ["export discoverAppendSystemPromptPath"],
 };
 
 /** Whether `member` (or the whole file) is a documented Zeta removal. */
