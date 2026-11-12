@@ -43,17 +43,14 @@
 | `fix/ui-audit-p0` | fix | `document/ui-bugfix-report.md` 的 P0/P1/P2 UI/功能修复：托盘驻留、分栏/页脚、会话删除、modal 交互与浮岛视觉；附带 Git 面板提交全部更改/推送闭环；worktree `temp/ui-audit-fixes` | agent | 2026-11-04 | 修复合入 `main` 后删（删前记 SHA） |
 | `backup/pre-studio-ui-2026-11-05` | backup | Studio 迁移前冻结快照，`c1f6c6c6a79789ed99e37c42b14f3648e00fe624`（`v1.4.10` 线）；已推 `origin` | agent | 2026-11-05 | 迁移分支通过全量验证后再删（删前记 SHA） |
 | `dev/main-v1830-wip` | dev | v18.3.0 合并 WIP（2026-09-25，已被 v18.14.2 远超） | user | 2026-09-25 | **用户决定**；技术上是死的 |
-| `fix/browser-relay-hello-race` | fix | browser relay hello 竞态修复（`c1f6c6c6a79`；`git branch --merged main` 已含此分支） | unassigned | — | 已并入 `main`，删前记 SHA |
 | `port/studio-conversation` | port | Studio 会话面语义移植（`d2ab1add16f`，未并入 `main`；内容随 `feat/web-ui-studio-migration` 走） | agent | 2026-11-05 | 迁移分支合入 `main` 后删；删前记 SHA |
 | `port/studio-sidebar` | port | Studio 侧栏移植 + `port/studio-pages` 合并（`d5ef794bfd7`，未并入 `main`） | agent | 2026-11-05 | 迁移分支合入 `main` 后删；删前记 SHA |
-| `feat/device-account-ux` | feat | 远端访问的设备凭据层：`src/server/auth/{device-registry,device-auth}.ts`、配对签发 `zdt_` 设备令牌、`/api/remote/devices` 列表/撤销/全撤销、门禁接受设备令牌、撤销时断开该设备的 Studio 会话、修复 token 认证远端被 loopback Origin 误判 403；含 `test/server-auth/` 与 docs。2FA/TOTP 只定契约不实现。worktree `temp/device-account-ux` | agent | 2026-11-10 | 合入 `main` 后删（删前记 SHA） |
 | `temp/release-dispatch` | temp | 临时 release dispatch 工作流实验（`89963b49b81`，未并入 `main`） | unassigned | — | 实验结束即删；删前记 SHA |
 | `feat/StaticCompression` | feat | 静态资源构建期预压缩（`.br`/`.gz` 边车）+ `Accept-Encoding` 协商；worktree `temp/StaticCompression` | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
 | `feat/PluginRegistry` | feat | Studio 插件列表改为真实 Zeta 插件注册表 + 启停写对文件 + `ui.panels` 清单；worktree `temp/PluginRegistry` | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
 | `feat/UsageData` | feat | 用量数据：`packages/stats` 的日/时聚合读 API + `GET /api/usage/daily` + `usage.get` 填充 + deep link/`usage.openDashboard`；worktree `temp/UsageData` | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
 | `feat/session-window` | feat | 会话转写窗口分页（已并入 `main` 的 `952b3c0`）；worktree `temp/session-window` | agent | 2026-11-06 | 删分支/worktree 前登记退役 |
 | `docs/update-log-1.4.11` | docs | 1.4.11 的 `UPDATE-LOG.md` 条目；worktree `temp/update-log-114` | agent | 2026-11-06 | 合入后删 |
-| `feat/ci-buckets` | feat | 把真浏览器/Chromium 测试从每次 push 的 CI 挪进独立 `browser` bucket：`ci-test-ts.ts` 第五个 bucket + `coding-agent-browser` 模式、`ci.yml` 夜间 schedule/`browser_tests` dispatch/release 专属 job 与 `release_gate` 断言、Gitea 镜像、CI surface/parity/文档同步；顺带补上本地 `check` job 缺失的 web-app 构建 | agent | 2026-11-06 | 合入 `main` 后删（删前记 SHA） |
 | `fix/board-tool` | fix | 把 `.zeta/board/` 从仅有 API/UI 提升为内置 `board` 工具：共享 store、list/get/create/update/move/assign/delete、项目根绑定、子代理显式 `tools: board` 门禁与测试；worktree `temp/board-tool` | agent | 2026-11-09 | 合入 `main` 后删（删前记 SHA） |
 | `perf/tui-subagent-load` | fix | 多子代理 fan-out 下 TUI 响应性：`task` 批次进度更新按 100 ms 合并（leading + trailing，终态立即 flush），消除每 spawn 每 150 ms 的全卡重建/深清洗；含合并正确性与 fan-out 预算测试。worktree `temp/tui-load-perf` | agent | 2026-11-10 | 合入 `main` 后删（删前记 SHA） |
 
@@ -118,6 +115,10 @@
 | `port/studio-pages` | `a5cdafcdb77` | 2026-11-05 | 已并入 `feat/web-ui-studio-migration`（`a5cdafcdb77` 即该分支末端合并提交），worktree `temp/port-pages` 已删；内容随迁移分支走 |
 | `port/studio-deck` | `f20aef45342` | 2026-11-05 | 已并入 `feat/web-ui-studio-migration`，worktree `temp/port-deck` 已删（`.git` 文件在中止的删除中被抹掉，`worktree prune` + `safe-remove-tree apply` 清理）；内容随迁移分支走 |
 | `port/studio-shell` | `917c777a3c6` | 2026-11-05 | 已并入 `feat/web-ui-studio-migration`，worktree `temp/port-shell` 已删；内容随迁移分支走 |
+
+| `fix/browser-relay-hello-race` | `c1f6c6c6a79789ed99e37c42b14f3648e00fe624` | 2026-11-12 | 已合入 `main@381acebe` 与 `feat/report-completion@d0ef54a5c694`（ancestor 验证）；worktree `temp/fix-browser-relay` 已登记待删除（执行前登记，尚待删除确认）；no-follow logical 580,886,416 B；clean（无 tracked/untracked 改动） |
+| `feat/ci-buckets` | `06671d0b78607b87e17aeb7df8c44d19448f47d8` | 2026-11-12 | 已合入 `main@381acebe` 与 `feat/report-completion@d0ef54a5c694`（ancestor 验证）；worktree `temp/ci-buckets` 已登记待删除（执行前登记，尚待删除确认）；no-follow logical 2,663,773,956 B；仅 known-regenerable ignored（node_modules/export-assets/viewer/native node） |
+| `feat/device-account-ux` | `509e4390233b06f3ae861feec39891fe7469fdc7` | 2026-11-12 | 已合入 `main@381acebe` 与 `feat/report-completion@d0ef54a5c694`（ancestor 验证）；worktree `temp/device-account-ux` 已登记待删除（执行前登记，尚待删除确认）；no-follow logical 1,871,833,836 B；仅 known-regenerable ignored |
 
 ## 定期动作
 
