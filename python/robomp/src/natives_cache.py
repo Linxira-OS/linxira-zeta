@@ -8,7 +8,6 @@ domain. The cache directory must be inaccessible to slots.
 from __future__ import annotations
 
 import errno
-import fcntl
 import fnmatch
 import hashlib
 import json
@@ -205,14 +204,17 @@ def _copy_file(
         dst = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=dst_dir)
         try:
             cloned = False
-            clone = getattr(fcntl, "FICLONE", None)
-            if clone is not None:
-                try:
-                    fcntl.ioctl(dst, clone, src)
-                    cloned = True
-                except OSError as exc:
-                    if exc.errno not in (errno.EOPNOTSUPP, errno.EXDEV, errno.EINVAL, errno.ENOTTY, errno.ENOSYS):
-                        raise
+            if sys.platform != "win32":
+                import fcntl
+
+                clone = getattr(fcntl, "FICLONE", None)
+                if clone is not None:
+                    try:
+                        fcntl.ioctl(dst, clone, src)
+                        cloned = True
+                    except OSError as exc:
+                        if exc.errno not in (errno.EOPNOTSUPP, errno.EXDEV, errno.EINVAL, errno.ENOTTY, errno.ENOSYS):
+                            raise
             if not cloned:
                 with os.fdopen(os.dup(src), "rb") as source, os.fdopen(os.dup(dst), "wb") as dest:
                     remaining = _MAX_ARTIFACT_SIZE + 1
@@ -246,6 +248,8 @@ def _flock(path: Path) -> Generator[IO[bytes]]:
     ``flock`` is advisory but every caller goes through ``NativesCache``, so
     cooperative locking is sufficient. POSIX-only — Windows is not a target.
     """
+    import fcntl
+
     path.parent.mkdir(parents=True, exist_ok=True)
     fh = open(path, "ab+")  # noqa: SIM115 — managed by the context manager
     try:

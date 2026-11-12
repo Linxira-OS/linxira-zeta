@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import sys
 import traceback
 from collections.abc import Callable
 from contextlib import suppress
@@ -46,7 +47,7 @@ class WorkerPool:
         if slot_pool is not None:
             self._slot_pool = slot_pool
             self._semaphore = None
-        elif os.geteuid() == 0:
+        elif sys.platform != "win32" and os.geteuid() == 0:
             self._slot_pool = SlotPool(range(2001, 2001 + settings.max_concurrency))
             self._semaphore = None
         else:

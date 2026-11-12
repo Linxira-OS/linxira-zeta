@@ -2,6 +2,10 @@ package com.zeta.android
 
 import java.net.URI
 
+private fun canonicalHost(raw: String): String {
+    return raw.removePrefix("[").removeSuffix("]").lowercase()
+}
+
 /**
  * A paired host's fixed origin. Work Studio is served at the origin root; a
  * reverse-proxy path prefix is rejected rather than pretended to work, because
@@ -84,9 +88,5 @@ object HostPolicy {
         }
         val scheme = uri.scheme?.lowercase() ?: return false
         return scheme == "https" || scheme == "mailto" || scheme == "tel"
-    }
-
-    private fun canonicalHost(raw: String): String {
-        return raw.removePrefix("[").removeSuffix("]").lowercase()
     }
 }
