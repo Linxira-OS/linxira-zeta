@@ -71,6 +71,15 @@ instruction naming that item.
   the existing enterprise channel; TIM remains PLANNED. Re-entry needs a new
   explicit owner ruling and a new ADR superseding ADR-0035; see REQ-091.
 
+## Legacy migration
+
+- **Legacy `web-ui` / `zetawork-gui`:** the single tracker is
+  [`document/legacy-webui-migration.md`](./legacy-webui-migration.md). Archive
+  `archive/web-ui-zetawork-gui-2026-11-12` is an orphan at `e528e6c18dea`;
+  `main@381acebe` still carries `web-ui/` (1,081 files) and
+  `main/crates/zetawork-gui/` (92 files). Migration status and deletion gates
+  live in that ledger. This is a legacy migration record, not an owner hold.
+
 ## Shipped (Zeta-originated capabilities)
 
 These exist today (headline capabilities are marked in the root `README.md`):

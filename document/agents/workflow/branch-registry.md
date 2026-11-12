@@ -77,6 +77,8 @@
 | `feat/report-mcp` | feat | Embedded MCP recognition：REQ-053；SDK/manager 只交 tool-scope hook，不 race 工具白名单。worktree `temp/report-mcp` | agent | 2026-11-11 | 合入集成分支后删 |
 | `feat/report-memory` | feat | Memory H3：REQ-061–REQ-065；large-session-perf 试发，dead 由父 recover；REQ-066 仍 desktop owner。worktree `temp/report-memory` | agent | 2026-11-11 | 合入集成分支后删 |
 
+| `archive/web-ui-zetawork-gui-2026-11-12` | archive | 局部存档：`web-ui/` 1081 files + `main/crates/zetawork-gui/` 92 files + README；orphan 无父 commit `e528e6c18dea`；不 build/不 merge/不 publish | agent | 2026-11-12 | 保留；确认不再需要时删 branch（删前记 SHA） |
+| `docs/maintenance` | docs | 维护/归属/安全协议：`document/maintenance-ownership.md`、README 中英文维护与文档边界章节、`assets/maintenance-map.svg`、`SECURITY.md`/`CONTRIBUTING.md` 路由；仅文档，无代码/测试；worktree `temp/maintenance-docs` | agent | 2026-11-12 | 合入 `main` 后删（删前记 SHA） |
 | `chore/release-freeze` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
 | `chore/remove-paused-zetawork` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
 | `chore/report-gov` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-12 | Preserve; owner review |
