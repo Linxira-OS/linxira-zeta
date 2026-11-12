@@ -181,7 +181,7 @@ export class CredentialPool implements CredentialsApi {
 	/**
 	 * Adopt credentials another process committed before selecting or rotating.
 	 *
-	 * The store is shared across every omp process, but the pool is an
+	 * The store is shared across every zeta process, but the pool is an
 	 * in-process cache refreshed only by this process's own writes. Without
 	 * this a long-running session ranks a stale pool for its whole lifetime:
 	 * `zetacode auth` in another terminal is invisible, rotation reports no usable

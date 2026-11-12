@@ -1233,7 +1233,7 @@ export class AssistantMessageComponent extends Container {
 		return card({ role: "zeta.$1", tone: "error", key: "error" }, children);
 	}
 
-	/** Control clicks (the error frame's actions, the turn footer's Copy): omp's own retry, clipboard and model-picker paths. */
+	/** Control clicks (the error frame's actions, the turn footer's Copy): zeta's own retry, clipboard and model-picker paths. */
 	#handleAction(act: string): void {
 		if (act === "retry") runTranscriptAction({ act: "retry" });
 		else if (act === "switch-model") runTranscriptAction({ act: "switch-model" });

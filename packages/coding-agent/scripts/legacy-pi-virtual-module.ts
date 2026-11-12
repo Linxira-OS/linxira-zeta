@@ -3,9 +3,9 @@ import { isEnoent } from "@linxiraos/pi-utils/fs-error";
 import { isRecord } from "@linxiraos/pi-utils/type-guards";
 
 /** Build-time specifier resolved to bundled legacy Pi module namespaces. */
-export const LEGACY_PI_MODULES_SPECIFIER = "omp-legacy-pi-modules";
+export const LEGACY_PI_MODULES_SPECIFIER = "zeta-legacy-pi-modules";
 
-const VIRTUAL_NAMESPACE = "omp-legacy-pi-modules-build";
+const VIRTUAL_NAMESPACE = "zeta-legacy-pi-modules-build";
 
 /**
  * Where the bundled Pi packages live. The monorepo keeps them under
@@ -289,9 +289,9 @@ export async function createLegacyPiVirtualModulePlugin(
 	const source = __renderLegacyPiVirtualModule(await collectBundledPiEntries(layout));
 	const virtualPath = path.join(layout.packageDir, LEGACY_PI_MODULES_SPECIFIER);
 	return {
-		name: "omp:legacy-pi-modules",
+		name: "zeta:legacy-pi-modules",
 		setup(build) {
-			build.onResolve({ filter: /^omp-legacy-pi-modules$/ }, () => ({
+			build.onResolve({ filter: /^zeta-legacy-pi-modules$/ }, () => ({
 				path: virtualPath,
 				namespace: VIRTUAL_NAMESPACE,
 			}));

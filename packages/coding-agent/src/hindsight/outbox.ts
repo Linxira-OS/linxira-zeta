@@ -14,7 +14,7 @@ const QUARANTINE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** Undelivered events per destination; past it, writes fail instead of evicting. */
 const MAX_EVENTS = 1000;
 const BATCH_SIZE = 16;
-const EVENT_FILE = /^omp-retain-[a-f0-9]{32}\.json$/;
+const EVENT_FILE = /^zeta-retain-[a-f0-9]{32}\.json$/;
 /** Statuses that refuse the request body itself; every other failure is retried. */
 const REJECTED_PAYLOAD_STATUSES = new Set([400, 413, 422]);
 
@@ -181,7 +181,7 @@ export class HindsightOutbox {
 		const identity = JSON.stringify([call.sessionId, call.toolCallId, index, scope, context, content]);
 		return {
 			version: 1,
-			id: `omp-retain-${new Bun.CryptoHasher("sha256").update(identity).digest("hex").slice(0, 32)}`,
+			id: `zeta-retain-${new Bun.CryptoHasher("sha256").update(identity).digest("hex").slice(0, 32)}`,
 			scope,
 			tags: scope === "global" ? [] : (call.tags ?? []).map(tag => this.#clean(tag)),
 			timestamp: new Date().toISOString(),

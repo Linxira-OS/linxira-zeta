@@ -346,7 +346,7 @@ class CompactRun implements Component {
 	}
 
 	describe(): NativeNode {
-		this.#node ??= col(this.#members, { role: "omp.compact", gap: "none" });
+		this.#node ??= col(this.#members, { role: "zeta.compact", gap: "none" });
 		return this.#node;
 	}
 }

@@ -799,7 +799,7 @@ describe("TurnRecovery replay-unsafe output classification", () => {
 	});
 
 	// Anthropic's request classifier can refuse AFTER the model streamed a tool
-	// call. Production shape (omp.2026-08-07 log): `stopDetails.type === "refusal"`,
+	// call. Production shape (zeta.2026-08-07 log): `stopDetails.type === "refusal"`,
 	// `errorId: 0` (no AIError flag, so `AIError.retriable` cannot rescue it), and
 	// the agent loop appends a synthetic `executed: false` result AFTER the refused
 	// assistant message, so state ends with `lastRole: "toolResult"`.
@@ -1506,7 +1506,7 @@ describe("TurnRecovery replay-unsafe output classification", () => {
 			expect(recovery.handleCommittedTextStreamStall(message)).toBe(true);
 		});
 
-		it("continues a Codex turn the native lane dropped over omp's steer after committed text", () => {
+		it("continues a Codex turn the native lane dropped over zeta's steer after committed text", () => {
 			// The steer rejection drops the response mid-stream like a transport
 			// failure; committed text vetoes the replay retry, so without a
 			// continuation the session stopped on a pinned "Request failed".
