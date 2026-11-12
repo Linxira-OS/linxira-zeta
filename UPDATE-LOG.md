@@ -31,6 +31,10 @@
 - **Work Studio 多终端管理页 + ELYTerminal 参考**：暂挂且架构未裁决（扩展 zetaide vs 复用旧 zetawork TUI 前后端渲染）；ELYTerminal 仅作公开参考，不作为依赖。现有多标签终端（`TerminalPane`/`terminalSessions`，最多恢复 4 个标签）保留，但 Orca 式左侧多终端管理专页尚未存在、未开工。旧 TY/TUI PR 不合并、暂挂。
 - 决策记录为 ADR-0034；roadmap 的“Owner holds (2026-11-12)”与 ledger REQ-018/030/066/089/090 同步。暂挂项不算完成，不作为 1.5.2 资产验收证据。
 
+### QQ / WeCom 通道暂挂（2026-11-12，未发布，docs-only）
+- **QQ 与 WeCom 通道暂停**：第三方 OneBot bridge 生态不可用；QQ 官方接口需要公网回调 + 固定出口 IP 白名单，个人电脑/动态 IP 不满足；WeCom 两类接口都涉及 IP/企业/开发者/用户准入白名单，实际可用性不如飞书。现有 OneBot v11 源码保留、行为不改，但不承诺支持、不做 live 验收、不作为 release 资产；不打包/自动安装 bridge，不新增官方 QQ adapter；WeCom 保持无 adapter；飞书为现有企业通道，TIM 仍 PLANNED。
+- 文档记录 ADR-0035、roadmap Owner holds、ledger REQ-091、`docs/channels.md` 与 `docs/gui-im-channels.md` 的 owner-pause 说明；未改代码/测试。
+
 ### 1.6.0 公开发布准入（2026-11-12）
 - 用户明确：只有全部计划内开发有逐项证据、用户在 1.5.x 亲测全部功能并确认稳定、手机全部开发且真实设备流程验收、SSH 真实目标功能完整、无未解决 known bug 后，才考虑 1.6.0；未验/held/blocked 不能算 100%。当前不授权 1.6.0 tag/bump/publish/PR/main-merge，1.5.1 冻结与 1.5.3–1.5.10 code-only 不变，1.5.2 仅按 ADR-0033 exact owner-review override 做资产验收；ADR-0006 仅由 ADR-0033 对 exact 1.5.2 取代，owner exact-version override 仍是最后机械门。本轮 owner 已明确先进行 upstream tag 合并和 1.5.2 资产验收；这不是 1.6.0 的 tag/bump/publish/PR/main-merge 授权。详见 `document/release.md` §1.6.0 readiness。
 

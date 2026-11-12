@@ -23,9 +23,11 @@ upstream position changes.
 
 ## Owner holds (2026-11-12)
 
-This is the only authoritative hold list. The decision record is
-[ADR 0034](adr/0034-owner-scope-holds-2026-11-12.md); the ledger carries the same
-holds in REQ-018/REQ-030/REQ-066/REQ-089/REQ-090. A held item is not complete,
+This is the only authoritative hold list. The decision records are
+[ADR 0034](adr/0034-owner-scope-holds-2026-11-12.md) (Android, desktop, audio,
+multi-terminal) and [ADR 0035](adr/0035-pause-qq-wecom-channels.md) (QQ/WeCom
+channels); the ledger carries the same holds in
+REQ-018/REQ-030/REQ-066/REQ-089/REQ-090/REQ-091. A held item is not complete,
 not release evidence, and not a promise; re-entry needs an explicit owner
 instruction naming that item.
 
@@ -58,6 +60,16 @@ instruction naming that item.
 - **Old TY/TUI PR — held and unmerged.** No merge, review, comment, or branch
   cleanup. The only open PR matching the paused zetawork surface is #281
   (`chore/remove-paused-zetawork`); the hold does not authorize work on it.
+- **QQ and WeCom channels — owner-paused 2026-11-12.** Third-party OneBot
+  bridges are treated as unavailable/blocked; the official QQ Bot API requires
+  a public callback and a fixed egress-IP allowlist that a personal machine on
+  a dynamic IP cannot provide; and both WeCom interface families require
+  IP/enterprise/developer/user-admission allowlists. The existing OneBot v11
+  source is retained without behavior changes, but it is unsupported and not a
+  release asset; no bridge is bundled/auto-installed, no official QQ adapter
+  and no WeCom adapter are added, and there is no live validation. Feishu is
+  the existing enterprise channel; TIM remains PLANNED. Re-entry needs a new
+  explicit owner ruling and a new ADR superseding ADR-0035; see REQ-091.
 
 ## Shipped (Zeta-originated capabilities)
 
