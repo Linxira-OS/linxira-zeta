@@ -19,6 +19,7 @@
 
 ### 平台 CLI / IDE 运行边界（未发布）
 - **Android Tier1 CLI**：Gradle 8.9 wrapper、`BUILD SUCCESSFUL` 39s、11 JUnit 0 fail、debug APK 已签名（sha256/证书见 `local://android-cli-build-evidence-20261112.md`）；package `com.zeta.android` min26/target35/compile35。未接 device/emulator，release 仍 unsigned/frozen。
+- **ASCII `!` 指令优先**：workspace/agent/team/session/help 用户入口统一推荐 ASCII 感叹号；全角 `！` 继续由既有 `normalizeFullWidth` 归一化；旧 `@` 别名继续兼容但不推荐。真实 router tests 22/0/121 expect，独立 final-accept 的 SessionRouter/WebConfig/AgentRegistry/TeamDb fixture 验证 EN/ZH、fullwidth、`!workshop` fallback、agent/team/session state；未声称外部平台全链路。
 - **robomp Windows 离线 CLI**：懒加载 POSIX `fcntl`/`grp`、Windows queue-root guard；offline paths/replay/status 19/0、config 31/0、真实 triage/replay SQLite 通过；生产仍按 POSIX/Linux-root 边界，不声称 Windows 生产已验证。
 - **TermIDE walker**：`require_git(false)` 尊重 git root 外 ignore，Windows-only slash normalization；post-fix nextest walk 2/2、三 IDE crates 66/66（3 leaky 已记录），doctest RC0。后续 Esc/JSON/TODO/Git 实测见下条；旧“未打开/早于 fix”表述已由当前实测取代。
 - **TermIDE Esc preview/commit fix**：IdePage 为 transient preview 与 commit box 设置 `captures_escape`；`a189d4385b6` 后 panel-ide 52/52（3 leaky），GNU rebuild RC0 28.84s，doctest RC0 0 examples。实际 pyte 屏幕：JSON tree 值/Esc 退出/折叠、TODO scan/sample jump、独立 Git `[Diff]` hunk 通过；组件级 inline `OpenGitDiff{README.md}` smoke 通过（只显示 `README change`、不含 `SECOND change`，用后删除），`GitDiffPanel::new_for_commit_file` 真实单提交双文件 smoke 1/1（README hunk 在、第二文件不出现，用后删除）；永久 `panel-git-log` per-file filter 与 1200 commits scrolling 测试通过。完整 App IDE lower Git mouse focus/per-file history UI paging 未验，不宣称。

@@ -18,8 +18,8 @@ agent, external binding, session origin, relay — is defined in
 | `!session new <name> project:<alias>` / `!session project` | **IMPLEMENTED** | The alias must already be a registered workspace; `project` defaults to `main` (the default workspace). |
 | Cross-project denial | **IMPLEMENTED** | A project-bound bot session's `workspace_run` may only reach its own project; arbitrary paths and other projects are refused. The relay coordinator keeps its documented cross-repo role. |
 | `channel_send` allowlist | **IMPLEMENTED** | Outbound targets are checked against `channels.allowedPeers`; an agent cannot message a peer the operator never authorized. |
-| Channel+chat → one agent | **IMPLEMENTED** (runtime) | `@agent use` binds a chat to one agent target for the life of the process; the override is in-memory and clears on restart. |
-| Confirm-gated workspace switch | **IMPLEMENTED** | `@workspace use/bind/relay/unbind` previews and writes nothing; `confirm` applies the target and resuming session in one atomic binding update. Pending state is scoped by instance+chat+thread+sender, replaces on a newer request, expires after 10 minutes, and survives a restart through the persisted `im_control` handshake. |
+| Channel+chat → one agent | **IMPLEMENTED** (runtime) | `!agent use` binds a chat to one agent target for the life of the process; the override is in-memory and clears on restart. |
+| Confirm-gated workspace switch | **IMPLEMENTED** | `!workspace use/bind/relay/unbind` previews and writes nothing; `confirm` applies the target and resuming session in one atomic binding update. Pending state is scoped by instance+chat+thread+sender, replaces on a newer request, expires after 10 minutes, and survives a restart through the persisted `im_control` handshake. |
 | Stable session selectors | **IMPLEMENTED** | `!session list` and the Studio IM page share one typed candidate snapshot (`01-00001`). Workspace bases and per-workspace numbers never renumber or get reused when the 3-day window changes; PM sessions stay hidden by default but keep their number. |
 | Persisted channel+chat → `agentId` | **PLANNED** | Persisting the agent binding and hosting several main agents in the default workspace is design-only; today bindings persist as workspace/bot-session rows. |
 | Local IM session hiding | **IMPLEMENTED** | IM/bot/relay transcripts carry `SessionHeader.origin` (`kind: "im"` with channel/chat/bot/workspace fields). Studio, the resume picker, and `history.list` hide them by default; Work Studio History has an explicit **IM / Bot** (`includeIm`) view, and IM rows show an alias or `IM · <channel>` instead of an absolute cwd. The old `relay`/`bot`/`draft` tags remain the fallback for pre-origin transcripts. See [session origin](./session.md#header-sessionheader). |
@@ -53,16 +53,15 @@ Channel hosting and credentials: [IM channels](./channels.md).
 
 Every inbound message resolves to a target:
 
-1. `@agent use` / `@team` (a runtime agent override for this chat),
-2. a confirmed workspace target for this chat (`@workspace use/bind` →
-   `@workspace confirm`) or its active bot session (`!session use`),
+1. `!agent use` / `!team` (a runtime agent override for this chat),
+2. a confirmed workspace target for this chat (`!workspace use/bind` →
+   `!workspace confirm`) or its active bot session (`!session use`),
 3. a persisted per-chat binding from an earlier confirmed switch,
 4. a channel default workspace (`channels.<id>.workspaceRoot` in `web.yml`),
 5. otherwise the relay coordinator (`main`, the default workspace).
 
 A workspace change is a **two-step handshake**: the first command prints a
-preview and writes nothing; `@workspace confirm` (or `!workspace confirm`)
-applies the target, `cancel` discards it. The pending handshake is keyed by
+preview and writes nothing; `!workspace confirm` applies the target, `cancel` discards it. The pending handshake is keyed by
 instance + chat + thread + sender, so another sender or thread can neither see
 nor confirm it; a newer request replaces the older one. Confirm writes the
 target and its resuming session id in one atomic binding update. A preview
@@ -85,7 +84,7 @@ came from the previous target.
 
 ## Command reference
 
-Both `@workspace` and `!workspace` prefixes work. **On Feishu use `!workspace`**
+Both `@workspace` (legacy alias, still recognized) and the recommended `!workspace` prefix work. **On Feishu use `!workspace`**
 — `@` is reserved for user mentions there. Full-width punctuation from Chinese
 input methods (`！`/`＠`/`＊`/full-width space) is auto-normalized, so grammar
 is IME-independent.
@@ -111,13 +110,13 @@ is IME-independent.
 ### Workspace management
 
 ```
-!workspace help (or @workspace)   — usage
+!workspace help (or !workspace)   — usage
 !workspace list                   — workspaces + this chat's binding + each workspace's sessions
 !workspace open <path> [alias]    — register a directory (alias = folder name by default)
 !workspace create <path> [alias]  — mkdir -p + register
 !workspace close <alias>          — unregister + stop the session
 !workspace rename <old> <new>     — rename an alias
-!workspace use <alias>            — preview direct mode; apply with @workspace confirm
+!workspace use <alias>            — preview direct mode; apply with !workspace confirm
 !workspace relay                  — preview a switch back to the relay coordinator
 !workspace bind <alias>           — preview a persisted chat → workspace binding
 !workspace unbind                 — preview removal of this chat's binding
@@ -129,7 +128,7 @@ is IME-independent.
 ```
 
 Preview, confirm and cancel are scoped to the same instance + chat + thread +
-sender. `confirm` is required: `@workspace use` alone writes nothing.
+sender. `confirm` is required: `!workspace use` alone writes nothing.
 
 ### AI commands
 
@@ -168,7 +167,7 @@ refreshes — always check the latest `!model` output.
 its own `.jsonl` transcript under
 `~/.zeta/agent/sessions/<cwd>/<name>-<id>.jsonl`; `cwd` is the session's
 project. `!session new PM project:web` binds the new session to the `web`
-repository (the alias must already be registered with `@workspace open`);
+repository (the alias must already be registered with `!workspace open`);
 `!session project web` rebinds an existing session. `!session use 01-00001`
 points this chat at it — and clears any stale direct workspace binding, so the
 session's project is authoritative. The `relay` session is the coordinator's
