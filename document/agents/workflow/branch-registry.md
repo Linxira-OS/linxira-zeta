@@ -116,9 +116,9 @@
 | `port/studio-deck` | `f20aef45342` | 2026-11-05 | 已并入 `feat/web-ui-studio-migration`，worktree `temp/port-deck` 已删（`.git` 文件在中止的删除中被抹掉，`worktree prune` + `safe-remove-tree apply` 清理）；内容随迁移分支走 |
 | `port/studio-shell` | `917c777a3c6` | 2026-11-05 | 已并入 `feat/web-ui-studio-migration`，worktree `temp/port-shell` 已删；内容随迁移分支走 |
 
-| `fix/browser-relay-hello-race` | `c1f6c6c6a79789ed99e37c42b14f3648e00fe624` | 2026-11-12 | 已合入 `main@381acebe` 与 `feat/report-completion@d0ef54a5c694`（ancestor 验证）；worktree `temp/fix-browser-relay` 已登记待删除（执行前登记，尚待删除确认）；no-follow logical 580,886,416 B；clean（无 tracked/untracked 改动） |
-| `feat/ci-buckets` | `06671d0b78607b87e17aeb7df8c44d19448f47d8` | 2026-11-12 | 已合入 `main@381acebe` 与 `feat/report-completion@d0ef54a5c694`（ancestor 验证）；worktree `temp/ci-buckets` 已登记待删除（执行前登记，尚待删除确认）；no-follow logical 2,663,773,956 B；仅 known-regenerable ignored（node_modules/export-assets/viewer/native node） |
-| `feat/device-account-ux` | `509e4390233b06f3ae861feec39891fe7469fdc7` | 2026-11-12 | 已合入 `main@381acebe` 与 `feat/report-completion@d0ef54a5c694`（ancestor 验证）；worktree `temp/device-account-ux` 已登记待删除（执行前登记，尚待删除确认）；no-follow logical 1,871,833,836 B；仅 known-regenerable ignored |
+| `fix/browser-relay-hello-race` | `c1f6c6c6a79789ed99e37c42b14f3648e00fe624` | 2026-11-12 | 已合入 `main@381acebe` 与 `feat/report-completion@d0ef54a5c694`（ancestor 验证）；worktree `temp/fix-browser-relay` 已删除（git worktree remove RC0；branch -d was c1f6c6c6a79；0 links）；no-follow logical 580,886,416 B；clean（无 tracked/untracked 改动） |
+| `feat/ci-buckets` | `06671d0b78607b87e17aeb7df8c44d19448f47d8` | 2026-11-12 | 已合入 `main@381acebe` 与 `feat/report-completion@d0ef54a5c694`（ancestor 验证）；worktree `temp/ci-buckets` 已删除（safe-remove-tree 先删 18 links + 3435 dirs + 40017 files；worktree remove RC0；branch -d was 06671d0b786）；no-follow logical 2,663,773,956 B；仅 known-regenerable ignored（node_modules/export-assets/viewer/native node） |
+| `feat/device-account-ux` | `509e4390233b06f3ae861feec39891fe7469fdc7` | 2026-11-12 | 已合入 `main@381acebe` 与 `feat/report-completion@d0ef54a5c694`（ancestor 验证）；worktree `temp/device-account-ux` 已删除（safe-remove-tree 先删 18 links + 2120 dirs + 29314 files；worktree remove RC0；branch -d was 509e4390233）；no-follow logical 1,871,833,836 B；仅 known-regenerable ignored |
 
 ## 定期动作
 
