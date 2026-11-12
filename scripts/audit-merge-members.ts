@@ -301,18 +301,92 @@ const ZETA_REMOVALS: Record<string, readonly string[] | "*"> = {
  * This is a reviewed mapping, not a blanket allowlist.
  */
 const MIGRATED: Record<string, Record<string, string>> = {
+	"packages/ai/src/auth/cascade.ts": {
+		mirrorKey: "upstream auth cascade refactor; no call site",
+	},
+	"packages/coding-agent/src/config/model-registry.ts": {
+		"#buildCustomModelsResult": "upstream ModelRegistry refresh refactor; private fields removed",
+		"#catalogFetch": "upstream ModelRegistry refresh refactor; private fields removed",
+		"#modelsWebConfigMtime": "upstream ModelRegistry refresh refactor; private fields removed",
+		"#pushConfigWarning": "upstream ModelRegistry refresh refactor; private fields removed",
+		"#reportUnknownCompatKeys": "upstream ModelRegistry refresh refactor; private fields removed",
+		currentMtime: "upstream ModelRegistry refresh refactor; private fields removed",
+	},
 	"packages/coding-agent/src/goals/continuation-controller.ts": {
 		"export GOAL_CONTINUATION_MODE_INTERACTIVE": "RpcGoalController continuation mode/options",
 		"export GoalContinuationCommand": "RpcGoalCommand / RpcGoalOp",
 		"export GoalContinuationController": "RpcGoalController",
 		"export GoalContinuationControllerOptions": "RpcGoalController constructor options",
 		error: "RpcGoalController onContinuationDropped callback",
+		"export GOAL_CONTINUATION_MODE_WEB": "local web constant / RpcGoal types",
+		"export GoalContinuationOp": "local web constant / RpcGoal types",
+		"export GoalContinuationResult": "local web constant / RpcGoal types",
+		"export GoalContinuationSession": "local web constant / RpcGoal types",
 	},
 	"packages/coding-agent/src/irc/bus.ts": {
 		"#bumpMailboxRevision": "#bumpMailboxGeneration",
 		"#mailboxRevision": "#mailboxGeneration",
 		onMailboxChange: "IrcBusApi.onMailboxChange",
 		unsubscribeLiveness: "onMailboxChange unsubscribe",
+		"#localWorkspaceRef": "IrcBusApi onMailboxChange/take/unreadCount boundary; internal helpers removed",
+		"#spawningMainId": "IrcBusApi onMailboxChange/take/unreadCount boundary; internal helpers removed",
+		"#subagentSendError": "IrcBusApi onMailboxChange/take/unreadCount boundary; internal helpers removed",
+		current: "IrcBusApi onMailboxChange/take/unreadCount boundary; internal helpers removed",
+		listener: "IrcBusApi onMailboxChange/take/unreadCount boundary; internal helpers removed",
+		requested: "IrcBusApi onMailboxChange/take/unreadCount boundary; internal helpers removed",
+		while: "IrcBusApi onMailboxChange/take/unreadCount boundary; internal helpers removed",
+	},
+	"packages/coding-agent/src/modes/controllers/selector-controller.ts": {
+		applyHyperlinkSetting: "upstream settings commands/controller refactor",
+		applyProviderGlobalsFromSettings: "upstream settings commands/controller refactor",
+		disableProvider: "upstream settings commands/controller refactor",
+		enableProvider: "upstream settings commands/controller refactor",
+		entry: "upstream settings commands/controller refactor",
+		resumeSourceToLoad: "upstream settings commands/controller refactor",
+		setColorBlindMode: "upstream settings commands/controller refactor",
+		setLanguage: "upstream settings commands/controller refactor",
+		setMarkdownMermaidRendering: "upstream settings commands/controller refactor",
+		setSymbolPreset: "upstream settings commands/controller refactor",
+		setTheme: "upstream settings commands/controller refactor",
+		setTuiTight: "upstream settings commands/controller refactor",
+		switch: "upstream settings commands/controller refactor",
+	},
+	"packages/coding-agent/src/session/session-tools.ts": {
+		"#uninstallLeadTools": "upstream SessionToolsOptions boundary",
+		directory: "upstream SessionToolsOptions boundary",
+		dispose: "upstream SessionToolsOptions boundary",
+		refreshContextFilesIfChanged: "upstream SessionToolsOptions boundary",
+		setContextWatchPaths: "upstream SessionToolsOptions boundary",
+		tool: "upstream SessionToolsOptions boundary",
+	},
+	"packages/coding-agent/src/system-prompt.ts": {
+		canvasEnabled: "upstream BuildSystemPromptOptions boundary",
+		includeWorkspacePersona: "upstream BuildSystemPromptOptions boundary",
+	},
+	"packages/coding-agent/src/tools/read.ts": {
+		"#isPlanRead": "upstream plan-file helpers",
+		readTargetsPlan: "upstream plan-file helpers",
+		readTargetsPlanArtifact: "upstream plan-file helpers",
+	},
+	"packages/tui/src/chrome/transcript-container.ts": {
+		"#imageFlushState": "upstream transcript-container boundary",
+		"#settledImageFlushLimit": "upstream transcript-container boundary",
+		imageFlushLimit: "upstream transcript-container boundary",
+	},
+	"packages/tui/src/overlays/agent-hub.ts": {
+		"#lastIrcRevision": "upstream agent-hub picker boundary",
+		"#pickerDataVersion": "upstream agent-hub picker boundary",
+		"#takeIrcRevision": "upstream agent-hub picker boundary",
+	},
+	"packages/tui/src/terminal.ts": {
+		"#armWin32PendingFlush": "upstream Terminal input boundary",
+		"#ensureWin32Decoding": "upstream Terminal input boundary",
+		"#win32ModeActive": "upstream Terminal input boundary",
+		reassertInputModes: "upstream Terminal input boundary",
+	},
+	"packages/tui/src/tools/grep.ts": {
+		tuiText: "upstream TUI text/i18n boundary",
+		tuiTextFmt: "upstream TUI text/i18n boundary",
 	},
 };
 
