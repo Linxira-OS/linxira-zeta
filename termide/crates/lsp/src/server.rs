@@ -8,7 +8,8 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::AtomicU64;
 use std::sync::{mpsc, Arc, Mutex};
-use std::thread::{self, JoinHandle};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use lsp_types::{
@@ -55,10 +56,52 @@ pub enum ServerStatus {
     Running,
     ShuttingDown,
     Stopped,
+    /// The connection was lost without a shutdown: the process exited, its
+    /// output closed, or it sent a stream that cannot be framed. Requests
+    /// fail at once from then on.
+    Crashed,
+    /// A crashed or manually restarted server is being replaced by a new
+    /// process. Reported by [`crate::LspManager`], never by a server itself.
+    Restarting,
 }
 
-/// Pending request tracking
-type PendingRequests = Arc<Mutex<HashMap<RequestId, mpsc::Sender<Value>>>>;
+/// Where a server reports that it crashed: its id is sent once, when the
+/// connection is lost without a shutdown, so the owner can restart it.
+#[derive(Clone)]
+pub struct CrashNotice {
+    tx: mpsc::Sender<u64>,
+    id: u64,
+}
+
+impl CrashNotice {
+    pub fn new(tx: mpsc::Sender<u64>, id: u64) -> Self {
+        Self { tx, id }
+    }
+
+    fn send(&self) {
+        let _ = self.tx.send(self.id);
+    }
+}
+
+/// Documents the server published non-empty diagnostics for, so they can be
+/// cleared once it is gone.
+type Published = Arc<Mutex<HashSet<Uri>>>;
+
+/// Requests waiting for their reply, keyed by id.
+#[derive(Default)]
+struct Pending {
+    waiting: HashMap<RequestId, mpsc::Sender<Value>>,
+    /// Set once the connection is lost; no request is accepted after it.
+    closed: bool,
+}
+
+type PendingRequests = Arc<Mutex<Pending>>;
+
+/// How long shutdown waits for the reply to `shutdown`, then for the process
+/// to exit after `exit`, before it kills it. Bounded because shutdown runs
+/// on quit and project close, on the UI thread.
+const SHUTDOWN_REPLY_TIMEOUT: Duration = Duration::from_secs(1);
+const EXIT_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// LSP server instance
 pub struct LspServer {
@@ -68,10 +111,6 @@ pub struct LspServer {
     next_id: AtomicU64,
     /// Pending requests waiting for responses
     pending: PendingRequests,
-    /// Writer thread handle
-    writer_handle: Option<JoinHandle<()>>,
-    /// Reader thread handle
-    reader_handle: Option<JoinHandle<()>>,
     /// Channel to send messages to the writer thread
     writer_tx: mpsc::Sender<String>,
     /// Server status
@@ -80,6 +119,8 @@ pub struct LspServer {
     capabilities: Arc<Mutex<Option<ServerCapabilities>>>,
     /// Active progress tokens (server is indexing while non-empty)
     active_progress: Arc<Mutex<HashSet<String>>>,
+    /// Documents with diagnostics from this server
+    published: Published,
 }
 
 impl LspServer {
@@ -90,6 +131,7 @@ impl LspServer {
         workspace_root: PathBuf,
         diagnostics_tx: mpsc::Sender<PublishDiagnosticsParams>,
         apply_edit_tx: mpsc::Sender<WorkspaceEdit>,
+        crash_notice: CrashNotice,
     ) -> Result<Self> {
         let mut process = Command::new(&config.command)
             .args(&config.args)
@@ -118,56 +160,66 @@ impl LspServer {
         // Detach stderr thread - we don't need to join it
         drop(stderr_handle);
 
-        let pending: PendingRequests = Arc::new(Mutex::new(HashMap::new()));
+        let pending: PendingRequests = Arc::new(Mutex::new(Pending::default()));
         let status = Arc::new(Mutex::new(ServerStatus::Starting));
         let capabilities = Arc::new(Mutex::new(None));
         let active_progress = Arc::new(Mutex::new(HashSet::new()));
+        let published: Published = Arc::new(Mutex::new(HashSet::new()));
 
         let (writer_tx, writer_rx) = mpsc::channel::<String>();
 
-        // Reader thread - receives messages from server
-        let reader_handle = {
+        // Reader thread - receives messages from server. Neither it nor the
+        // writer is joined: a grandchild still holding the server's stdout
+        // would keep the reader blocked past the server's own exit.
+        {
             let pending = pending.clone();
             let status = status.clone();
             let capabilities = capabilities.clone();
             let active_progress = active_progress.clone();
             let writer_tx = writer_tx.clone();
+            let connection = transport::Connection {
+                pending,
+                status,
+                crash_notice: crash_notice.clone(),
+            };
+            let inbound = transport::Inbound {
+                capabilities,
+                active_progress,
+                published: published.clone(),
+                diagnostics_tx,
+                apply_edit_tx,
+                writer_tx,
+            };
             thread::spawn(move || {
-                Self::reader_loop(
-                    stdout,
-                    pending,
-                    status,
-                    capabilities,
-                    active_progress,
-                    diagnostics_tx,
-                    apply_edit_tx,
-                    writer_tx,
-                );
-            })
-        };
+                Self::reader_loop(stdout, connection, inbound);
+            });
+        }
 
         let mut server = Self {
             process,
             next_id: AtomicU64::new(1),
             pending,
-            writer_handle: None,
-            reader_handle: Some(reader_handle),
             writer_tx,
             status,
             capabilities,
             active_progress,
+            published,
         };
 
         // Send initialize request
         let initialize_rx = server.initialize(workspace_root, &config.command)?;
 
         // Writer thread - sends messages to server
-        server.writer_handle = Some({
-            let status = server.status.clone();
+        {
+            let connection = transport::Connection {
+                pending: server.pending.clone(),
+                status: server.status.clone(),
+                crash_notice,
+            };
             thread::spawn(move || {
-                Self::writer_loop(stdin, writer_rx, initialize_rx, status);
-            })
-        });
+                Self::writer_loop(stdin, writer_rx, initialize_rx, connection);
+            });
+        }
 
         Ok(server)
     }
@@ -248,8 +300,13 @@ impl LspServer {
 
         let rx = self.send_request::<InitializeResult>("initialize", params)?;
 
-        // Set to Indexing - will become Running when all progress tokens complete
-        *self.status.lock().unwrap_or_else(|e| e.into_inner()) = ServerStatus::Indexing;
+        // Set to Indexing - will become Running when all progress tokens
+        // complete. A server that already died stays crashed.
+        let mut status = self.status.lock().unwrap_or_else(|e| e.into_inner());
+        if *status == ServerStatus::Starting {
+            *status = ServerStatus::Indexing;
+        }
+        drop(status);
         Ok(rx)
     }
 
@@ -457,12 +514,12 @@ impl LspServer {
     }
 
     /// Send textDocument/didOpen notification
-    pub fn did_open(&self, uri: Uri, language_id: String, text: String) {
+    pub fn did_open(&self, uri: Uri, language_id: String, version: i32, text: String) {
         let params = lsp_types::DidOpenTextDocumentParams {
             text_document: TextDocumentItem {
                 uri,
                 language_id,
-                version: 1,
+                version,
                 text,
             },
         };
@@ -565,29 +622,47 @@ impl LspServer {
         self.status() == ServerStatus::Indexing
     }
 
-    /// Shutdown the server
-    pub fn shutdown(mut self) {
+    /// Shut the server down: `shutdown`, then `exit`, then the process is
+    /// reaped — killed if it has not exited by then. Takes at most about
+    /// two seconds, however the server behaves.
+    ///
+    /// Returns the documents the server left diagnostics on; it forwards no
+    /// more once this returns, so clearing them now cannot be overtaken.
+    pub fn shutdown(self) -> Vec<Uri> {
+        self.shutdown_within(SHUTDOWN_REPLY_TIMEOUT, EXIT_TIMEOUT)
+    }
+
+    fn shutdown_within(mut self, reply_timeout: Duration, exit_timeout: Duration) -> Vec<Uri> {
+        // Keeps a lost connection from being reported as a crash; the writer
+        // still writes what is queued.
         *self.status.lock().unwrap_or_else(|e| e.into_inner()) = ServerStatus::ShuttingDown;
 
-        // Send shutdown request
-        let _ = self.send_request::<()>("shutdown", serde_json::json!(null));
-
-        // Send exit notification
-        self.send_notification("exit", serde_json::json!(null));
-
-        // Wait for threads to finish
-        if let Some(handle) = self.writer_handle.take() {
-            let _ = handle.join();
+        // A dead server fails this at once, and its receiver disconnects as
+        // soon as the connection is lost, so neither waits out the timeout.
+        if let Ok(reply) = self.send_request::<Value>("shutdown", Value::Null) {
+            let _ = reply.recv_timeout(reply_timeout);
         }
-        if let Some(handle) = self.reader_handle.take() {
-            let _ = handle.join();
+        self.send_notification("exit", Value::Null);
+
+        let deadline = Instant::now() + exit_timeout;
+        loop {
+            match self.process.try_wait() {
+                Ok(Some(_)) => break,
+                Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(10)),
+                _ => {
+                    let _ = self.process.kill();
+                    let _ = self.process.wait();
+                    break;
+                }
+            }
         }
 
-        // Kill process if still running
-        let _ = self.process.kill();
-        let _ = self.process.wait();
-
+        // Under the lock the reader forwards diagnostics with, so none of
+        // this server's reaches the app after this point.
         *self.status.lock().unwrap_or_else(|e| e.into_inner()) = ServerStatus::Stopped;
+
+        let published = self.published.lock().unwrap_or_else(|e| e.into_inner());
+        published.iter().cloned().collect()
     }
 }
 
@@ -611,8 +686,173 @@ mod tests {
             ServerStatus::Running,
             ServerStatus::ShuttingDown,
             ServerStatus::Stopped,
+            ServerStatus::Crashed,
         ] {
             assert_eq!(effective_status(status, false), status);
+        }
+    }
+
+    /// Stand-in servers written in `sh`, so the process side is real.
+    #[cfg(unix)]
+    mod process {
+        use std::path::Path;
+        use std::sync::mpsc;
+        use std::time::{Duration, Instant};
+
+        use crate::server::{CrashNotice, LspServer, LspServerConfig, ServerStatus};
+
+        fn start(dir: &Path, script: &str) -> LspServer {
+            start_noticed(dir, script).0
+        }
+
+        /// A server whose crash notices (carrying id 7) can be watched.
+        fn start_noticed(dir: &Path, script: &str) -> (LspServer, mpsc::Receiver<u64>) {
+            let (diagnostics_tx, _) = mpsc::channel();
+            let (apply_edit_tx, _) = mpsc::channel();
+            let (crash_tx, crash_rx) = mpsc::channel();
+            let config = LspServerConfig {
+                command: "sh".into(),
+                args: vec!["-c".into(), script.into()],
+                root_markers: Vec::new(),
+            };
+            let server = LspServer::start(
+                "test".into(),
+                config,
+                dir.to_path_buf(),
+                diagnostics_tx,
+                apply_edit_tx,
+                CrashNotice::new(crash_tx, 7),
+            )
+            .expect("sh starts");
+            (server, crash_rx)
+        }
+
+        fn hover(server: &LspServer, dir: &Path) -> mpsc::Receiver<Option<lsp_types::Hover>> {
+            let uri = crate::path_to_uri(&dir.join("a.rs")).unwrap();
+            server.hover(uri, lsp_types::Position::new(0, 0))
+        }
+
+        fn wait_for(server: &LspServer, status: ServerStatus) {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while server.status() != status {
+                assert!(Instant::now() < deadline, "still {:?}", server.status());
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        }
+
+        fn pending_count(server: &LspServer) -> usize {
+            server.pending.lock().unwrap().waiting.len()
+        }
+
+        /// A server that dies shows as crashed instead of running forever,
+        /// and a request already waiting is released rather than holding its
+        /// thread for good.
+        #[test]
+        fn a_dead_server_is_crashed_and_releases_waiting_requests() {
+            let dir = tempfile::tempdir().unwrap();
+            // Alive long enough to take a request, never answering it.
+            let server = start(dir.path(), "sleep 0.3");
+            let waiting = hover(&server, dir.path());
+
+            wait_for(&server, ServerStatus::Crashed);
+            assert_eq!(
+                waiting.recv_timeout(Duration::from_secs(5)),
+                Err(mpsc::RecvTimeoutError::Disconnected)
+            );
+            assert_eq!(pending_count(&server), 0);
+            server.shutdown_within(Duration::from_secs(5), Duration::from_secs(5));
+        }
+
+        /// A crash is reported once, under the server's id; a shutdown is
+        /// not a crash and reports nothing.
+        #[test]
+        fn a_crash_is_reported_once_and_a_shutdown_not_at_all() {
+            let dir = tempfile::tempdir().unwrap();
+            let (server, crashes) = start_noticed(dir.path(), "exit 0");
+            assert_eq!(crashes.recv_timeout(Duration::from_secs(5)), Ok(7));
+            server.shutdown_within(Duration::from_secs(5), Duration::from_secs(5));
+            assert!(crashes.try_recv().is_err());
+
+            let (server, crashes) = start_noticed(dir.path(), "exec sleep 60");
+            server.shutdown_within(Duration::from_millis(300), Duration::from_millis(300));
+            std::thread::sleep(Duration::from_millis(100));
+            assert!(crashes.try_recv().is_err());
+        }
+
+        /// Every request to a crashed server fails at once: nothing is left
+        /// in `pending`, no thread waits on a reply that cannot come.
+        #[test]
+        fn requests_to_a_crashed_server_fail_fast() {
+            let dir = tempfile::tempdir().unwrap();
+            let server = start(dir.path(), "exit 0");
+            wait_for(&server, ServerStatus::Crashed);
+
+            for _ in 0..50 {
+                let rx = hover(&server, dir.path());
+                assert_eq!(rx.try_recv(), Err(mpsc::TryRecvError::Disconnected));
+            }
+            assert_eq!(pending_count(&server), 0);
+
+            // Nothing left to wait for, so no timeout is waited out either.
+            let start = Instant::now();
+            server.shutdown_within(Duration::from_secs(5), Duration::from_secs(5));
+            assert!(start.elapsed() < Duration::from_secs(2));
+        }
+
+        /// A server that ignores both `exit` and the end of its input is
+        /// killed after the bounded waits: quitting must never hang on it.
+        #[test]
+        fn shutdown_is_bounded_for_a_server_that_will_not_exit() {
+            let dir = tempfile::tempdir().unwrap();
+            let server = start(dir.path(), "trap '' TERM HUP; exec sleep 60");
+
+            let start = Instant::now();
+            server.shutdown_within(Duration::from_millis(200), Duration::from_millis(200));
+            assert!(
+                start.elapsed() < Duration::from_secs(3),
+                "took {:?}",
+                start.elapsed()
+            );
+        }
+
+        /// `shutdown` and `exit` reach the server: the writer no longer stops
+        /// at the status change that comes before them.
+        #[test]
+        fn shutdown_and_exit_are_written_to_the_server() {
+            let dir = tempfile::tempdir().unwrap();
+            let out = dir.path().join("received");
+            let reply = r#"{"jsonrpc":"2.0","id":1,"result":{"capabilities":{}}}"#;
+            // Answer `initialize`, then record everything that comes in. No
+            // `exec`: the shell keeps its output open, so the connection
+            // stands until the shutdown.
+            let script = format!(
+                "printf 'Content-Length: {}\\r\\n\\r\\n%s' '{reply}'; cat > '{}'",
+                reply.len(),
+                out.display()
+            );
+            let server = start(dir.path(), &script);
+            // `Running` shows before the reply to `initialize` is read, and a
+            // shutdown during that wait skips `initialized` by design: wait
+            // for it to reach the server instead.
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while !std::fs::read_to_string(&out)
+                .unwrap_or_default()
+                .contains(r#""method":"initialized""#)
+            {
+                assert!(Instant::now() < deadline, "initialized never arrived");
+                std::thread::sleep(Duration::from_millis(10));
+            }
+
+            server.shutdown_within(Duration::from_millis(300), Duration::from_millis(300));
+            let received = std::fs::read_to_string(&out).unwrap();
+            let at = |method: &str| {
+                received
+                    .find(&format!(r#""method":"{method}""#))
+                    .unwrap_or_else(|| panic!("no {method} in {received}"))
+            };
+            assert!(at("initialize") < at("initialized"));
+            assert!(at("initialized") < at("shutdown"));
+            assert!(at("shutdown") < at("exit"));
         }
     }
 }

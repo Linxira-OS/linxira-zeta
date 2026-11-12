@@ -44,12 +44,18 @@ struct Cli {
     #[arg(long)]
     diagnostics: bool,
 
-    /// Start a detached instance and print its id. The instance keeps
-    /// running — with every shell, LSP server and job inside it — after the
-    /// terminal that started it is closed.
+    /// Start a detached instance and attach to it. The instance keeps
+    /// running — with every shell, LSP server and job inside it — after
+    /// `Alt+D` or the terminal that started it is closed.
     #[cfg(unix)]
-    #[arg(long)]
+    #[arg(short, long)]
     detached: bool,
+
+    /// With `--detached`: only start the instance and print its id, for
+    /// scripts and launches without a terminal.
+    #[cfg(unix)]
+    #[arg(long, requires = "detached")]
+    no_attach: bool,
 
     /// Attach to a detached instance. Without an id, the most recent one.
     #[cfg(unix)]
@@ -69,7 +75,7 @@ struct Cli {
     force: bool,
 
     /// End a detached instance, with every shell and job inside it, and exit.
-    /// Unsaved changes in it are lost.
+    /// Unsaved changes in it are kept for its next start.
     #[cfg(unix)]
     #[arg(long, value_name = "ID")]
     kill: Option<String>,
@@ -127,12 +133,18 @@ struct Cli {
     #[arg(long, value_name = "FORMAT", requires = "headless", value_parser = ["text", "json", "stream-json"], default_value = "text")]
     output: String,
 
-    /// Reopen the projects of the last run, in the project that run was in;
-    /// the others open in the background and load when first entered. From a
-    /// directory of that set, stays in it. Without a saved set, an ordinary
-    /// launch.
+    /// Start in the last run's project instead of this directory, which is
+    /// not added to the set; the other projects of that run open in the
+    /// background, even with `general.restore_projects` off. From a directory
+    /// of that set, stays in it. Without a saved set, an ordinary launch.
     #[arg(short, long, conflicts_with_all = ["files", "headless"])]
     restore: bool,
+
+    /// Do not reopen the projects of the last run this time, though
+    /// `general.restore_projects` says to: start with the working
+    /// directory's project alone.
+    #[arg(long, conflicts_with = "restore")]
+    no_restore: bool,
 
     /// File(s) to open, optionally with a `file:line[:col]` position suffix.
     /// An existing directory becomes the project root. Given any file,
@@ -397,8 +409,48 @@ fn hosted_args(cli: &Cli, files: &[&termide_app::OpenedTarget]) -> Vec<std::ffi:
     if cli.restore {
         args.push("--restore".into());
     }
+    if cli.no_restore {
+        args.push("--no-restore".into());
+    }
     args.extend(files.iter().map(|t| t.path.clone().into_os_string()));
     args
+}
+
+/// Whether stdin and stdout are a terminal an attach client can drive.
+#[cfg(unix)]
+fn attach_terminal_present() -> bool {
+    use std::io::IsTerminal;
+    std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
+}
+
+/// A launch for `root`, which `owner` has open: attach to the owner when it
+/// is a detached instance and `may_attach` lets this terminal do so, else
+/// say where the project is. Returns the exit code.
+fn project_taken(root: &std::path::Path, owner: &termide_project::Owner, may_attach: bool) -> i32 {
+    let path = root.display();
+    #[cfg(unix)]
+    if let Some(id) = &owner.instance {
+        if may_attach && attach_terminal_present() {
+            println!("{path} is open in detached instance '{id}'; attaching to it.");
+            return match termide_detach::client::attach(Some(id.clone()), false) {
+                Ok(code) => code,
+                Err(e) => {
+                    eprintln!("termide: {e:#}");
+                    1
+                }
+            };
+        }
+        eprintln!("termide: {path} is open in detached instance '{id}'; attach with: termide --attach {id}");
+        return 1;
+    }
+    #[cfg(not(unix))]
+    let _ = may_attach;
+    let pid = match owner.pid {
+        0 => "?".to_string(),
+        pid => pid.to_string(),
+    };
+    eprintln!("termide: {path} is already open in another termide (pid {pid}); switch to it there");
+    1
 }
 
 /// Handle `--list-instances`, `--kill`, `--attach` and `--detached`.
@@ -442,17 +494,44 @@ fn handle_detached_instance_cli(
     }
 
     if cli.detached {
+        // Refused before the spawn: an instance started for a client that
+        // cannot attach would be left running unseen.
+        if !cli.no_attach && !attach_terminal_present() {
+            eprintln!(
+                "termide: --detached attaches, and this is not a terminal; \
+                 add --no-attach to only start the instance"
+            );
+            return Ok(Some(1));
+        }
         let project_root = std::env::current_dir()?;
+        // A project is open in one instance at a time: a new one for a project
+        // a detached instance has is that instance.
+        if cli.files.is_empty() {
+            if let Some(owner) = termide_project::project_owner(&project_root) {
+                return Ok(Some(project_taken(&project_root, &owner, !cli.no_attach)));
+            }
+        }
         let id = termide_detach::spawn_detached(&project_root, &hosted_args(cli, file_targets))?;
-        println!("Detached instance '{id}' started.");
-        println!("Attach with: termide --attach {id}");
-        return Ok(Some(0));
+        if cli.no_attach {
+            println!("Detached instance '{id}' started.");
+            println!("Attach with: termide --attach {id}");
+            return Ok(Some(0));
+        }
+        return match termide_detach::client::attach(Some(id), false) {
+            Ok(code) => Ok(Some(code)),
+            Err(e) => {
+                eprintln!("termide: {e:#}");
+                Ok(Some(1))
+            }
+        };
     }
 
     Ok(None)
 }
 
 fn main() -> Result<()> {
+    termide_core::set_version(env!("TERMIDE_VERSION"));
+
     // Askpass mode: when termide is set as ssh's or git's askpass helper for a
     // git network operation, ssh / git re-execute this binary to obtain the
     // SSH key passphrase or the HTTPS credentials. We detect that purely by
@@ -477,6 +556,18 @@ fn main() -> Result<()> {
             let _ = std::io::stdout().write_all(&secret);
         }
         return Ok(());
+    }
+
+    // A built-in plugin: termide started by itself as `termide --plugin
+    // <name>`, speaking the plugin protocol on stdin and stdout. No TUI, no
+    // clap; stdout belongs to the protocol.
+    if std::env::args().nth(1).as_deref() == Some(termide_plugins::BUILTIN_FLAG) {
+        let name = std::env::args().nth(2).unwrap_or_default();
+        if name == termide_plugin_perforce::NAME {
+            termide_plugin_perforce::run();
+            return Ok(());
+        }
+        anyhow::bail!("no built-in plugin {name:?}");
     }
 
     // Parse CLI arguments
@@ -624,11 +715,47 @@ fn main() -> Result<()> {
     // Skipped with file arguments: `git commit` and friends wait for the editor
     // to exit, and a detach would tell them the edit finished when it had not.
     // Skipped inside a hosted instance for the obvious reason.
+    //
+    // Asking whether this process is hosted also takes the hosting variables
+    // out of the environment, which must happen before any thread exists.
     #[cfg(unix)]
-    if config.general.always_detachable
-        && file_targets.is_empty()
-        && std::env::var_os(termide_detach::SOCKET_ENV).is_none()
-    {
+    let hosted = termide_detach::is_hosted();
+    #[cfg(not(unix))]
+    let hosted = false;
+    // A project is open in one instance at a time. The project started in
+    // is claimed here, before the UI, so that a launch for a project open
+    // elsewhere ends on an untouched terminal — or attaches to the detached
+    // instance that has it. A launch that hands over to a host of its own
+    // only looks: the host claims it, and must find it free. `$EDITOR`
+    // launches and the headless runs take no project.
+    #[cfg(unix)]
+    let spawns_host = config.general.always_detachable && !hosted;
+    #[cfg(not(unix))]
+    let spawns_host = false;
+    let mut start_claim = None;
+    if file_targets.is_empty() && cli.prompt.is_none() && cli.recall.is_none() {
+        let taken = if spawns_host {
+            termide_project::project_owner(&project_root)
+        } else {
+            #[cfg(unix)]
+            let instance = termide_detach::hosted_instance_id();
+            #[cfg(not(unix))]
+            let instance: Option<String> = None;
+            match termide_project::claim_project(&project_root, instance.as_deref()) {
+                Ok(claim) => {
+                    start_claim = claim;
+                    None
+                }
+                Err(owner) => Some(owner),
+            }
+        };
+        if let Some(owner) = taken {
+            std::process::exit(project_taken(&project_root, &owner, !hosted));
+        }
+    }
+
+    #[cfg(unix)]
+    if spawns_host && file_targets.is_empty() {
         let id = termide_detach::spawn_detached(&project_root, &hosted_args(&cli, &file_targets))?;
         let code = termide_detach::client::attach(Some(id), false)?;
         std::process::exit(code);
@@ -677,6 +804,7 @@ fn main() -> Result<()> {
         };
         let code = termide_app::run_agent_headless(
             &config.ai,
+            config.terminal.default_shell.as_deref(),
             &cwd,
             &project_root,
             cli.agent.as_deref(),
@@ -726,10 +854,6 @@ fn main() -> Result<()> {
     // call, and the frame diff must agree with it. A hosted instance has the
     // daemon at the other end of its PTY, which answers no query: there the
     // attach client probes its own terminal and hands the answer over.
-    #[cfg(unix)]
-    let hosted = std::env::var_os(termide_detach::SOCKET_ENV).is_some();
-    #[cfg(not(unix))]
-    let hosted = false;
     let vs16_probe = if hosted {
         None
     } else {
@@ -744,6 +868,13 @@ fn main() -> Result<()> {
         log::warn!("Could not install the reattach handler: {e:#}");
     }
 
+    // SIGHUP (the terminal closed), SIGTERM (`termide --kill`) and SIGINT end
+    // the run through its shutdown, keeping unsaved changes, instead of
+    // killing it outright. See `termide_app::termination`.
+    if let Err(e) = termide_app::termination::install_handlers() {
+        log::warn!("Could not install the termination signal handlers: {e}");
+    }
+
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -753,6 +884,7 @@ fn main() -> Result<()> {
     let width = size.width.max(20);
     let height = size.height.max(5);
 
+    let config_restores_projects = config.general.restore_projects;
     // Create application with pre-loaded config (avoids double config loading)
     let mut app = App::new_with_config(
         config,
@@ -801,18 +933,16 @@ fn main() -> Result<()> {
     // layout (restoring or overwriting it when editing e.g. a commit message
     // would be surprising and could clobber the real layout).
     if file_targets.is_empty() {
-        // Try to load the project layout, fallback to default layout on error
-        if let Err(e) = app.load_layout() {
-            // Layout file doesn't exist or is corrupted - use default layout.
-            // Surface the reason in the Journal so a corrupted layout is
-            // diagnosable instead of silently snapping to defaults.
-            log::warn!(
-                "Could not load the project layout ({e}); starting with the default layout."
-            );
-            app.setup_default_layout();
-        }
+        app.hold_start_project(start_claim);
+        app.load_layout_or_default();
+        // `--restore` is asked for this launch, and goes as the menu item
+        // does. The setting restores around the directory started in, and
+        // leaves agents' unfinished work until its project is entered: a
+        // plain `termide` must not set requests going in other projects.
         if cli.restore {
-            app.restore_projects_on_start();
+            app.restore_projects_on_start(true);
+        } else if config_restores_projects && !cli.no_restore {
+            app.restore_projects_on_start(false);
         }
     } else {
         app.set_layout_persistence(false);
@@ -834,9 +964,25 @@ fn main() -> Result<()> {
     }
     restore_terminal();
 
-    // Print error if there was one
-    if let Err(err) = result {
-        log::error!("Error: {:?}", err);
+    // A run ended by a signal or an error must not look like a clean exit:
+    // `EDITOR=termide git commit` would take the message as edited. The
+    // journal has the reason already; stderr is the terminal's again after
+    // `restore_terminal` — unless the terminal is gone, hence no `eprintln!`,
+    // which panics when the write fails.
+    let status = match (termide_app::termination::ended_by(), &result) {
+        (Some(signal), _) => Some(termide_app::termination::exit_status(signal)),
+        (None, Err(err)) => {
+            use std::io::Write;
+            let _ = writeln!(io::stderr(), "termide: {err:#}");
+            Some(1)
+        }
+        (None, Ok(())) => None,
+    };
+    if let Some(status) = status {
+        // `exit` runs no destructors: stop the shells and language servers
+        // the panels own first.
+        drop(app);
+        std::process::exit(status);
     }
 
     Ok(())
@@ -891,6 +1037,27 @@ mod cli_tests {
             assert!(cli.detached && cli.restore);
             assert_eq!(super::hosted_args(&cli, &[]), vec!["--restore"]);
         }
+    }
+
+    /// `--no-restore` opts out of the setting once, reaches a detached
+    /// instance, and contradicts `--restore`.
+    #[test]
+    fn no_restore_goes_to_the_host_and_conflicts_with_restore() {
+        assert!(Cli::try_parse_from(["termide", "--no-restore", "-r"]).is_err());
+        let cli = Cli::try_parse_from(["termide", "--no-restore"]).unwrap();
+        assert!(cli.no_restore);
+        #[cfg(unix)]
+        assert_eq!(super::hosted_args(&cli, &[]), vec!["--no-restore"]);
+    }
+
+    /// `--no-attach` qualifies `--detached` and never reaches the instance.
+    #[cfg(unix)]
+    #[test]
+    fn no_attach_needs_detached_and_stays_with_the_launcher() {
+        assert!(Cli::try_parse_from(["termide", "--no-attach"]).is_err());
+        let cli = Cli::try_parse_from(["termide", "-d", "--no-attach"]).unwrap();
+        assert!(cli.detached && cli.no_attach);
+        assert!(super::hosted_args(&cli, &[]).is_empty());
     }
 
     /// A detached instance runs with the settings flags it was started

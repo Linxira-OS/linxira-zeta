@@ -27,7 +27,7 @@ use serde_json::{json, Value};
 use termide_agent_core::{chars_for_tokens, handoff, recap};
 use termide_agent_core::{
     companion_tools, parse_verdict, GoalPrompt, HandoffPrompt, IntentLog, ModelSpec, Provider,
-    ReviewerSetup, SessionView, ThinkingLevel,
+    ReviewerSetup, SessionView, Spender, ThinkingLevel,
 };
 use termide_agent_core::{
     expand_env, now_millis, AcpConfig, AcpFlavor, Agent, AgentCommand, AgentEvent,
@@ -37,6 +37,7 @@ use termide_agent_core::{
     ToolCall, ToolContext, ToolDecision, ToolRegistry, ToolResultMessage, Usage, UserMessage,
     ACP_PROVIDER, RECAP_LIMIT,
 };
+use termide_agent_core::{CompactionCall, CompactionReason, SHELL_TOOL};
 use termide_agent_mcp::{McpServer, SERVER_NAME};
 
 mod provider;
@@ -338,6 +339,24 @@ struct Shared {
     /// answer text and after anything else (milliseconds).
     quiet_after_text_ms: AtomicU64,
     quiet_ms: AtomicU64,
+    /// The compaction of its context the agent reported started
+    /// (`compaction_update`), until it reports how it ended.
+    compaction: Mutex<Option<OpenCompaction>>,
+    /// The id of the compaction that ended last: the agent may repeat its
+    /// end, which must not reach the panel twice.
+    compaction_ended: Mutex<Option<String>>,
+}
+
+/// A compaction the agent runs on its own context, as its
+/// `compaction_update` and `compaction_summary_chunk` reported it so far.
+struct OpenCompaction {
+    id: String,
+    /// The summary that replaces the history, as far as it came.
+    summary: String,
+    /// The context's fill when it began, as `usage_update` last stated it.
+    tokens_before: u64,
+    reason: CompactionReason,
+    started: Instant,
 }
 
 /// How long an agent working by itself must stay quiet after its answer
@@ -398,17 +417,10 @@ impl AcpRuntime {
         setup: BackendSetup,
         service: bool,
     ) -> Result<Self, String> {
-        let mut command = Command::new(&config.command);
-        command
-            .args(&config.args)
-            .current_dir(&setup.cwd)
+        let mut child = agent_command(config, &setup.cwd)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        for (key, value) in &config.env {
-            command.env(key, expand_env(value, |var| std::env::var(var).ok()));
-        }
-        let mut child = command
+            .stderr(Stdio::piped())
             .spawn()
             .map_err(|error| format!("cannot start {}: {error}", config.command))?;
         let stdin = child.stdin.take().ok_or("no stdin")?;
@@ -583,6 +595,8 @@ impl AcpRuntime {
             unsolicited: AtomicBool::new(false),
             last_update: Mutex::new(Instant::now()),
             last_was_text: AtomicBool::new(false),
+            compaction: Mutex::new(None),
+            compaction_ended: Mutex::new(None),
             quiet_after_text_ms: AtomicU64::new(UNSOLICITED_QUIET_AFTER_TEXT.as_millis() as u64),
             quiet_ms: AtomicU64::new(UNSOLICITED_QUIET.as_millis() as u64),
         });
@@ -669,8 +683,10 @@ impl Backend for AcpRuntime {
             self.shared.finish_unsolicited(StopReason::Stop, None);
             return;
         }
+        // Held while the agent compacts, see [`Shared::compacting`].
         if self.shared.steering.load(Ordering::Acquire)
             && self.shared.turn_running.load(Ordering::Acquire)
+            && !self.shared.compacting()
         {
             self.shared.steer_now(message);
         }
@@ -797,18 +813,25 @@ impl Backend for AcpRuntime {
                 shared.goal.system_prompt(&goal),
                 shared.goal.request
             );
-            let event = match shared.side_query(&text) {
-                Ok(reply) if !reply.trim().is_empty() => {
-                    let verdict = parse_verdict(&reply);
-                    AgentEvent::GoalJudged {
+            let (answer, usage) = shared.side_query(&text);
+            shared.report_spent(Spender::GoalJudge, usage);
+            let event = match answer {
+                Ok(reply) if !reply.trim().is_empty() => match parse_verdict(&reply) {
+                    Ok(verdict) => AgentEvent::GoalJudged {
                         outcome: verdict.outcome,
                         reason: verdict.reason,
-                    }
-                }
+                        reply,
+                    },
+                    Err(error) => AgentEvent::GoalJudgeFailed { error, reply },
+                },
                 Ok(_) => AgentEvent::GoalJudgeFailed {
                     error: "the judge call did not complete".to_string(),
+                    reply: String::new(),
                 },
-                Err(error) => AgentEvent::GoalJudgeFailed { error },
+                Err(error) => AgentEvent::GoalJudgeFailed {
+                    error,
+                    reply: String::new(),
+                },
             };
             let _ = shared.events.send(event);
         });
@@ -825,7 +848,9 @@ impl Backend for AcpRuntime {
                 "{}\n\n{}",
                 shared.handoff.instructions, shared.handoff.request
             );
-            let brief = match shared.side_query(&text) {
+            let (answer, usage) = shared.side_query(&text);
+            shared.report_spent(Spender::Handoff, usage);
+            let brief = match answer {
                 Ok(reply) if !reply.trim().is_empty() => Ok(reply.trim().to_string()),
                 Ok(_) => Err("the handoff call did not produce a brief".to_string()),
                 Err(error) => Err(error),
@@ -882,6 +907,12 @@ impl Backend for AcpRuntime {
     /// own tools.
     fn runs_host_tools(&self) -> bool {
         self.shared.flavor == AcpFlavor::ClaudeCode && self.shared.serving()
+    }
+
+    /// Claude Code, which is handed termide's prompt for its own when its
+    /// session starts.
+    fn takes_system_prompt(&self) -> bool {
+        self.shared.flavor == AcpFlavor::ClaudeCode && !self.shared.system_prompt.is_empty()
     }
 
     /// Codex and Gemini CLI, on the same terms as [`Self::runs_host_tools`],
@@ -1001,6 +1032,32 @@ impl Backend for AcpRuntime {
     }
 }
 
+/// The agent's process, in `cwd` with its environment, in a session of its
+/// own with no controlling terminal.
+///
+/// Left on termide's terminal, the agent or anything it runs could open
+/// `/dev/tty`: a read takes keys and halves of escape sequences from
+/// termide, and a mode change takes the terminal out of raw mode.
+fn agent_command(config: &AcpConfig, cwd: &Path) -> Command {
+    let mut command = Command::new(&config.command);
+    command.args(&config.args).current_dir(cwd);
+    for (key, value) in &config.env {
+        command.env(key, expand_env(value, |var| std::env::var(var).ok()));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        // SAFETY: setsid is async-signal-safe and touches no Rust state.
+        unsafe {
+            command.pre_exec(|| {
+                libc::setsid();
+                Ok(())
+            });
+        }
+    }
+    command
+}
+
 impl Drop for AcpRuntime {
     fn drop(&mut self) {
         self.shared.cancel.cancel();
@@ -1045,7 +1102,10 @@ impl Shared {
                 "protocolVersion": PROTOCOL_VERSION,
                 "clientCapabilities": {
                     "fs": { "readTextFile": true, "writeTextFile": true },
-                    "terminal": true
+                    "terminal": true,
+                    // Its own compactions reported as such, not as a made-up
+                    // "Compact conversation" tool call.
+                    "session": { "compaction": {} }
                 },
                 "clientInfo": { "name": "zetaide", "version": env!("CARGO_PKG_VERSION") }
             }),
@@ -1346,7 +1406,11 @@ impl Shared {
         if self.flavor != AcpFlavor::ClaudeCode {
             return params;
         }
-        let mut options = json!({ "settingSources": [], "strictMcpConfig": true });
+        // No predicted follow-up prompt: termide shows none, and each would
+        // be one more request a turn.
+        let mut options = json!({
+            "settingSources": [], "strictMcpConfig": true, "promptSuggestions": false
+        });
         if served {
             options["tools"] = json!([]);
             options["allowedTools"] = json!([format!("mcp__{SERVER_NAME}")]);
@@ -1764,7 +1828,18 @@ impl Shared {
             }
             class
         });
-        let usage = result.as_ref().map(usage_of).unwrap_or_default();
+        let usage = result
+            .as_ref()
+            .map(|value| usage_of(value, self.flavor))
+            .unwrap_or_default();
+        if let Ok(value) = &result {
+            for (model, beyond) in usage_beyond(value, &usage, &self.model_name()) {
+                self.report_spent_on(Spender::AgentInternal, model, beyond);
+            }
+        }
+        // A compaction the turn ended in the middle of: an adapter reporting
+        // it as a made-up call never ends it then.
+        self.end_compaction("cancelled", None, None);
         self.close_unfinished_calls();
         self.close_message_with(stop, error, failure, usage);
         self.flush_steered();
@@ -1838,9 +1913,13 @@ impl Shared {
     /// closed afterwards when it closes one; else in the session itself, as
     /// a turn kept from the panel and the log (the agent's own session still
     /// holds it). Its tools are not asked for: a permission request from it
-    /// is refused.
-    fn side_query(self: &Arc<Self>, text: &str) -> Result<String, String> {
-        let main = self.session_id()?;
+    /// is refused. What the request spent comes with the answer, or with
+    /// the failure of a request that went out.
+    fn side_query(self: &Arc<Self>, text: &str) -> (Result<String, String>, Usage) {
+        let main = match self.session_id() {
+            Ok(main) => main,
+            Err(error) => return (Err(error), Usage::default()),
+        };
         let forked = if self.can_fork.load(Ordering::Acquire) {
             let reply = self.request(
                 "session/fork",
@@ -1864,7 +1943,7 @@ impl Shared {
                 .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
                 .is_err()
         {
-            return Err("the agent is busy".to_string());
+            return (Err("the agent is busy".to_string()), Usage::default());
         }
         let session_id = forked.clone().unwrap_or(main);
         let answer = self.side_prompt(&session_id, text, Duration::from_secs(60 * 60));
@@ -1889,14 +1968,15 @@ impl Shared {
     }
 
     /// Send `text` as a side request in session `session_id` and return the
-    /// answer's text, which reaches neither the panel nor the log; several
-    /// may run at once, each in its own session.
+    /// answer's text, which reaches neither the panel nor the log, and what
+    /// the request spent — a stopped one too, as far as the agent tells;
+    /// several may run at once, each in its own session.
     fn side_prompt(
         &self,
         session_id: &str,
         text: &str,
         timeout: Duration,
-    ) -> Result<String, String> {
+    ) -> (Result<String, String>, Usage) {
         self.side
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -1912,10 +1992,16 @@ impl Shared {
             .unwrap_or_else(PoisonError::into_inner)
             .remove(session_id)
             .unwrap_or_default();
-        let reply = result?;
+        let reply = match result {
+            Ok(reply) => reply,
+            Err(error) => return (Err(error), Usage::default()),
+        };
+        let usage = usage_of(&reply, self.flavor);
         match reply["stopReason"].as_str() {
-            Some(stop @ ("cancelled" | "refusal")) => Err(format!("the agent stopped: {stop}")),
-            _ => Ok(answer),
+            Some(stop @ ("cancelled" | "refusal")) => {
+                (Err(format!("the agent stopped: {stop}")), usage)
+            }
+            _ => (Ok(answer), usage),
         }
     }
 
@@ -2328,6 +2414,19 @@ impl Shared {
             .send(AgentEvent::MessageEnd(Message::Assistant(message)));
     }
 
+    /// Tell the panel what a side request of `by`'s spent, credited to the
+    /// session's model, so the log keeps it.
+    fn report_spent(&self, by: Spender, usage: Usage) {
+        self.report_spent_on(by, self.model_name(), usage);
+    }
+
+    /// [`Self::report_spent`] on `model`.
+    fn report_spent_on(&self, by: Spender, model: String, usage: Usage) {
+        if usage.total() > 0 {
+            let _ = self.events.send(AgentEvent::Spent { by, model, usage });
+        }
+    }
+
     /// The model to credit a message to: the agent's current one, or the
     /// agent's name while it has named none.
     fn model_name(&self) -> String {
@@ -2363,7 +2462,19 @@ impl Shared {
                 .unwrap_or_else(PoisonError::into_inner)
                 .remove(&id);
             log::debug!("acp {}: {error}", self.name);
-            return Err(RpcFailure::new(self.closed(method), FailureKind::AgentDied));
+            let shut_down = self
+                .writer
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .is_none();
+            // An agent that exited before reading fails the write with a
+            // broken pipe: the same end as a closed connection, whose last
+            // stderr line says why.
+            return Err(if shut_down {
+                RpcFailure::new(error, FailureKind::AgentDied)
+            } else {
+                self.connection_closed(method)
+            });
         }
         let deadline = Instant::now() + timeout;
         loop {
@@ -2386,21 +2497,19 @@ impl Shared {
                     })
                 }
                 Err(RecvTimeoutError::Timeout) => {}
-                Err(RecvTimeoutError::Disconnected) => {
-                    return Err(RpcFailure::new(self.closed(method), FailureKind::AgentDied));
-                }
+                Err(RecvTimeoutError::Disconnected) => return Err(self.connection_closed(method)),
             }
         }
     }
 
-    /// What a request whose agent went away says: its last stderr line, when
-    /// there is one, so a refused adapter launch is not just "closed".
-    fn closed(&self, method: &str) -> String {
+    /// The failure of a request the agent hung up on, with the last line it
+    /// printed to stderr.
+    fn connection_closed(&self, method: &str) -> RpcFailure {
         let mut text = format!("{method}: the agent closed the connection");
         if let Some(line) = self.stderr.as_ref().and_then(|t| t.last(STDERR_GRACE)) {
             text = format!("{text}: {line}");
         }
-        text
+        RpcFailure::new(text, FailureKind::AgentDied)
     }
 
     fn notify(&self, method: &str, params: Value) -> Result<(), String> {
@@ -2611,7 +2720,22 @@ impl Shared {
         {
             return selected(pick(&["allow_once", "allow_always"]));
         }
-        let call = permission_call(&params["toolCall"]);
+        // Codex asks about a call it has already announced by its id alone,
+        // with no kind: what the request leaves out is the announced call's.
+        let mut tool_call = params["toolCall"].clone();
+        if let Some(announced) = self
+            .announced
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(id)
+        {
+            for (key, value) in announced.as_object().into_iter().flatten() {
+                if tool_call.get(key).is_none_or(Value::is_null) {
+                    tool_call[key] = value.clone();
+                }
+            }
+        }
+        let call = permission_call(&tool_call);
         let ctx = ToolContext {
             session: Some(self.session_view()),
             ..ToolContext::new(self.cwd.clone())
@@ -2639,7 +2763,7 @@ impl Shared {
     }
 
     /// One `session/update` into the events the panel understands.
-    fn on_update(&self, update: &Value) {
+    fn on_update(self: &Arc<Self>, update: &Value) {
         let kind = update["sessionUpdate"].as_str().unwrap_or("");
         if self.replaying.load(Ordering::Acquire)
             && matches!(
@@ -2650,8 +2774,13 @@ impl Shared {
                     | "tool_call"
                     | "tool_call_update"
                     | "plan"
+                    | "compaction_update"
+                    | "compaction_summary_chunk"
             )
         {
+            return;
+        }
+        if matches!(kind, "tool_call" | "tool_call_update") && self.on_compaction_call(update) {
             return;
         }
         if kind == "tool_call" {
@@ -2772,6 +2901,28 @@ impl Shared {
                         .unwrap_or_else(PoisonError::into_inner) = rejected_until(limit);
                 }
             }
+            "compaction_update" => self.on_compaction_update(update),
+            "compaction_summary_chunk" => {
+                let text = update["content"]["text"].as_str().unwrap_or("");
+                let Some(id) = update["compactionId"].as_str() else {
+                    return;
+                };
+                if self.open_compaction(id) {
+                    if let Some(open) = self
+                        .compaction
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .as_mut()
+                    {
+                        open.summary.push_str(text);
+                    }
+                    let _ = self
+                        .events
+                        .send(AgentEvent::CompactionUpdate(StreamEvent::TextDelta(
+                            text.to_string(),
+                        )));
+                }
+            }
             "current_model_update" => {
                 if let Some(id) = update["modelId"].as_str() {
                     *self
@@ -2811,6 +2962,220 @@ impl Shared {
                 }
             }
             other => log::debug!("acp {}: update {other} ignored", self.name),
+        }
+    }
+
+    /// Make the compaction `id` the open one, starting it when it is new;
+    /// `false` for one that already ended, whose late reports are dropped.
+    fn open_compaction(&self, id: &str) -> bool {
+        if self
+            .compaction_ended
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .as_deref()
+            == Some(id)
+        {
+            return false;
+        }
+        if self
+            .compaction
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .as_ref()
+            .is_some_and(|open| open.id == id)
+        {
+            return true;
+        }
+        // Text streamed so far is its own message, before the compaction.
+        self.close_message(StopReason::ToolUse, None);
+        let tokens_before = self
+            .context
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .map_or(0, |(used, _)| used);
+        let reason = if self.prompted_compact() {
+            CompactionReason::Manual
+        } else {
+            CompactionReason::Threshold
+        };
+        *self
+            .compaction
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = Some(OpenCompaction {
+            id: id.to_string(),
+            summary: String::new(),
+            tokens_before,
+            reason,
+            started: Instant::now(),
+        });
+        let _ = self.events.send(AgentEvent::CompactionStart {
+            reason,
+            prompt_tokens: tokens_before,
+        });
+        true
+    }
+
+    /// Whether the turn running was asked for with the agent's `/compact`.
+    fn prompted_compact(&self) -> bool {
+        self.last_prompt
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .as_ref()
+            .and_then(|blocks| blocks.last())
+            .and_then(|block| block["text"].as_str())
+            .and_then(|text| text.trim_start().strip_prefix("/compact"))
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with(char::is_whitespace))
+    }
+
+    /// A `compaction_update`: the compaction it names starts, takes the
+    /// summary it carries, and ends on a final status. A finished one
+    /// replaces the history with its summary, as the built-in loop's does.
+    fn on_compaction_update(self: &Arc<Self>, update: &Value) {
+        let Some(id) = update["compactionId"].as_str() else {
+            return;
+        };
+        if !self.open_compaction(id) {
+            return;
+        }
+        // A summary given replaces what came in chunks; `null` or `[]`
+        // clears it, and its absence keeps it.
+        if let Some(summary) = update.get("summary") {
+            if let Some(open) = self
+                .compaction
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .as_mut()
+            {
+                open.summary = blocks_text(summary);
+            }
+        }
+        let status = update["status"].as_str().unwrap_or("");
+        if !matches!(status, "completed" | "failed" | "cancelled") {
+            // `in_progress`, or a status this client does not know.
+            return;
+        }
+        let error = update["error"].as_str().filter(|error| !error.is_empty());
+        self.end_compaction(status, error, None);
+    }
+
+    /// The made-up "Compact conversation" call an adapter that does not know
+    /// the compaction capability reports its compaction as: it starts the
+    /// compaction and its end ends it, with no summary, so the log keeps the
+    /// history whole. `false` for any other call.
+    fn on_compaction_call(self: &Arc<Self>, update: &Value) -> bool {
+        let Some(id) = update["toolCallId"].as_str() else {
+            return false;
+        };
+        let known = self
+            .compaction
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .as_ref()
+            .is_some_and(|open| open.id == id)
+            || self
+                .compaction_ended
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .as_deref()
+                == Some(id);
+        let fresh = update["sessionUpdate"] == "tool_call" && is_compaction_call(update);
+        if !(known || fresh) {
+            return false;
+        }
+        if !self.open_compaction(id) || !is_finished(update) {
+            return true;
+        }
+        let status = update["status"].as_str().unwrap_or("");
+        // Its error comes as the call's result, after a fixed prefix.
+        let text = content_text(&update["content"]);
+        let error = text.trim();
+        let error = error
+            .strip_prefix("Compaction failed:")
+            .unwrap_or(error)
+            .trim();
+        let tokens_before = update["rawOutput"]["preTokens"].as_u64();
+        self.end_compaction(status, Some(error).filter(|e| !e.is_empty()), tokens_before);
+        true
+    }
+
+    /// End the open compaction with `status` (`completed`, `failed` or
+    /// `cancelled`) and hand the turn the messages held while it ran.
+    /// `tokens_before` is the agent's own count of the context it began
+    /// with, when it gives one.
+    fn end_compaction(
+        self: &Arc<Self>,
+        status: &str,
+        error: Option<&str>,
+        tokens_before: Option<u64>,
+    ) {
+        let Some(open) = self
+            .compaction
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take()
+        else {
+            return;
+        };
+        *self
+            .compaction_ended
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = Some(open.id.clone());
+        let tokens_before = tokens_before
+            .filter(|tokens| *tokens > 0)
+            .unwrap_or(open.tokens_before);
+        let summary = open.summary.trim().to_string();
+        let event = if status == "completed" {
+            AgentEvent::Compacted {
+                // Claude Code keeps nothing of the history verbatim.
+                kept: 0,
+                tokens_before,
+                // Corrected by the `usage_update` that follows.
+                tokens_after: (summary.chars().count() / 4) as u64,
+                call: CompactionCall {
+                    reason: open.reason,
+                    stop_reason: StopReason::Stop,
+                    duration_ms: open.started.elapsed().as_millis() as u64,
+                    usage: Usage::default(),
+                    thinking_chars: 0,
+                    tool_calls: Vec::new(),
+                    input_cut: Vec::new(),
+                },
+                summary,
+            }
+        } else {
+            AgentEvent::CompactionFailed {
+                error: error.unwrap_or(status).to_string(),
+                tokens_before,
+                call: None,
+                reply: String::new(),
+            }
+        };
+        let _ = self.events.send(event);
+        self.steer_held();
+    }
+
+    /// Whether the agent is compacting its context: a message steered into
+    /// the turn now would abort the compaction (Claude Code delivers a steer
+    /// by interrupting the model call running), so it waits for the end.
+    fn compacting(&self) -> bool {
+        self.compaction
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_some()
+    }
+
+    /// Hand the running turn the messages that waited for its compaction.
+    fn steer_held(self: &Arc<Self>) {
+        if !self.steering.load(Ordering::Acquire) || !self.turn_running.load(Ordering::Acquire) {
+            return;
+        }
+        let held = self
+            .queue
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone();
+        for message in held {
+            self.steer_now(message);
         }
     }
 
@@ -2965,9 +3330,10 @@ impl Shared {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .remove(&call.id);
-        // termide ran it: the details its tool gave, which the MCP reply
-        // leaves out, so its block draws as for the built-in agent.
-        let host_details = host.and_then(|(name, arguments)| {
+        // termide ran it: the details and pictures its tool gave, which the
+        // agent's report leaves out, so its block draws as for the built-in
+        // agent.
+        let host_finished = host.and_then(|(name, arguments)| {
             call.name = name;
             let server = self
                 .mcp_server
@@ -2991,8 +3357,15 @@ impl Shared {
                         extra_content: None,
                     });
             }
-            server.take_details(&call.name, &arguments)
+            server.take_finished(&call.name, &arguments)
         });
+        let (host_details, mut images) = match host_finished {
+            Some(finished) => (finished.details, finished.images),
+            None => (None, Vec::new()),
+        };
+        if images.is_empty() {
+            images = content_images(&update["content"]);
+        }
         // Codex reports an MCP call's result as the MCP result, not as content.
         let mut text = content_text(&update["content"]);
         if text.is_empty() {
@@ -3009,7 +3382,7 @@ impl Shared {
                 },
             )
         } else {
-            ToolResultMessage::text(&call, text)
+            ToolResultMessage::text(&call, text).with_images(images)
         };
         if let Some(details) = host_details {
             result = result.with_details(details);
@@ -3057,21 +3430,60 @@ fn tool_call_of(update: &Value) -> ToolCall {
         .unwrap_or_else(|| json!({}));
     let kind = update["kind"].as_str().unwrap_or("other");
     // `other` names no tool: the title does — what the model called, such as
-    // a `bash` it made up in place of `mcp__termide__bash` — so the block
+    // a `shell` it made up in place of `mcp__termide__shell` — so the block
     // reads as that call, not as the ACP kind.
     let name = if kind == "other" && !title.is_empty() {
         title
     } else {
+        fill_own_call(update, kind, &title, &mut arguments);
         if !title.is_empty() {
             arguments["title"] = json!(title);
         }
-        kind.to_string()
+        match kind {
+            "execute" => SHELL_TOOL.to_string(),
+            kind => kind.to_string(),
+        }
     };
     ToolCall {
         id: update["toolCallId"].as_str().unwrap_or("").to_string(),
         name,
         arguments,
         extra_content: None,
+    }
+}
+
+/// Give an agent's own command, read or edit of ACP `kind` the arguments
+/// termide's tool of the kind takes, where its raw input `arguments` lacks
+/// them: Codex gives a command as `command` words, or only as the call's
+/// `title`, and the file of a read or an edit only in the call's locations or
+/// its diff.
+fn fill_own_call(call: &Value, kind: &str, title: &str, arguments: &mut Value) {
+    match kind {
+        "execute" if arguments["command"].as_str().is_none() => {
+            let command = match &arguments["command"] {
+                Value::Array(words) => words
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                _ => title.to_string(),
+            };
+            arguments["command"] = json!(command);
+        }
+        "read" | "edit" if arguments["path"].as_str().is_none() => {
+            let path = call["locations"][0]["path"].as_str().or_else(|| {
+                call["content"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|block| block["type"] == "diff")
+                    .and_then(|diff| diff["path"].as_str())
+            });
+            if let Some(path) = path {
+                arguments["path"] = json!(path);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -3217,14 +3629,96 @@ fn mcp_result_text(result: &Value) -> String {
 }
 
 /// The token usage a `session/prompt` result reports, when it does.
-fn usage_of(result: &Value) -> Usage {
+fn usage_of(result: &Value, flavor: AcpFlavor) -> Usage {
     let usage = &result["usage"];
     let count = |key: &str| usage[key].as_u64().unwrap_or(0);
-    Usage {
+    let mut usage = Usage {
         input: count("inputTokens"),
         output: count("outputTokens"),
         cache_read: count("cachedReadTokens"),
         cache_write: count("cachedWriteTokens"),
+        // Codex's reasoning, within its output; Claude Code never counts
+        // its thinking apart.
+        thinking: count("thoughtTokens"),
+    };
+    // Gemini CLI passes on the Gemini API's counts as they are: the prompt
+    // with its cached part in it, and the output without the thoughts.
+    if flavor == AcpFlavor::GeminiCli {
+        usage.input = usage.input.saturating_sub(usage.cache_read);
+        usage.output += usage.thinking;
+    }
+    usage
+}
+
+/// What a `session/prompt` result's `_meta.quota.model_usage` counts beyond
+/// its `usage`, by model. Claude Code's `usage` is its conversation's own
+/// turns, while its rows by model also count its subagents, summaries and
+/// helper calls; Codex's single row is its `usage`, so nothing is beyond.
+///
+/// The turns are taken out of one row: among those that hold them whole, one
+/// on `current` (the session's model, named its own way) or else the
+/// largest; with none holding them, the largest row.
+fn usage_beyond(result: &Value, usage: &Usage, current: &str) -> Vec<(String, Usage)> {
+    let Some(rows) = result["_meta"]["quota"]["model_usage"].as_array() else {
+        return Vec::new();
+    };
+    let mut rows: Vec<(String, Usage)> = rows
+        .iter()
+        .filter_map(|row| {
+            Some((
+                bare_model(row["model"].as_str()?),
+                token_count(&row["token_count"]),
+            ))
+        })
+        .collect();
+    let covers = |row: &Usage| {
+        row.input >= usage.input
+            && row.output >= usage.output
+            && row.cache_read >= usage.cache_read
+            && row.cache_write >= usage.cache_write
+    };
+    let current = bare_model(current).to_lowercase();
+    let named = |model: &str| {
+        let model = model.to_lowercase();
+        !current.is_empty() && (model.contains(&current) || current.contains(&model))
+    };
+    let host = rows
+        .iter()
+        .enumerate()
+        .filter(|(_, (_, row))| covers(row))
+        .max_by_key(|(_, (model, row))| (named(model), row.total()))
+        .or_else(|| {
+            rows.iter()
+                .enumerate()
+                .max_by_key(|(_, (_, row))| row.total())
+        })
+        .map(|(index, _)| index);
+    if let Some(index) = host {
+        rows[index].1 = rows[index].1.less(usage);
+    }
+    rows.retain(|(_, row)| row.total() > 0);
+    rows
+}
+
+/// A model id without the context-size suffix Claude Code decorates it
+/// with, `claude-sonnet-5[1m]` read as `claude-sonnet-5`.
+fn bare_model(model: &str) -> String {
+    match model.find('[') {
+        Some(at) if model.ends_with(']') => model[..at].to_string(),
+        _ => model.to_string(),
+    }
+}
+
+/// A `_meta.quota` `token_count`: Codex's shape, which Claude Code's
+/// follows but for spelling its cache writes its own way.
+fn token_count(count: &Value) -> Usage {
+    let count = |key: &str| count[key].as_u64().unwrap_or(0);
+    Usage {
+        input: count("inputTokens"),
+        output: count("outputTokens"),
+        cache_read: count("cachedInputTokens"),
+        cache_write: count("cachedWriteTokens").max(count("cacheWriteInputTokens")),
+        thinking: count("reasoningOutputTokens"),
     }
 }
 
@@ -3233,6 +3727,17 @@ fn has_arguments(update: &Value) -> bool {
     update["rawInput"]
         .as_object()
         .is_some_and(|input| !input.is_empty())
+}
+
+/// Whether a `tool_call` is the "Compact conversation" call an adapter
+/// without the compaction capability stands in for its compaction: Claude
+/// Code's names its tool `compact`; failing that, its title and kind with
+/// no arguments.
+fn is_compaction_call(update: &Value) -> bool {
+    update["_meta"]["claudeCode"]["toolName"] == "compact"
+        || (update["title"] == "Compact conversation"
+            && update["kind"] == "think"
+            && !has_arguments(update))
 }
 
 /// Whether a tool call update reports the call done.
@@ -3269,7 +3774,7 @@ fn gemini_mode(mode: Mode) -> &'static str {
 
 /// A `session/request_permission` `toolCall` as a termide [`ToolCall`], its
 /// ACP `kind` translated to the tool name the permission rules speak so the
-/// same logic judges it: `execute` becomes `bash` (the command placed under
+/// same logic judges it: `execute` becomes `shell` (the command placed under
 /// `command`, from the raw input or the title), `read`/`edit` keep their
 /// names, and anything else stands as its kind, which no built-in rule covers
 /// and so reaches the user.
@@ -3277,7 +3782,7 @@ fn permission_call(tool_call: &Value) -> ToolCall {
     let title = tool_call["title"].as_str().unwrap_or("").to_string();
     let kind = tool_call["kind"].as_str().unwrap_or("other");
     let name = match kind {
-        "execute" => "bash",
+        "execute" => SHELL_TOOL,
         other => other,
     };
     let mut arguments = tool_call
@@ -3285,11 +3790,10 @@ fn permission_call(tool_call: &Value) -> ToolCall {
         .filter(|v| v.is_object())
         .cloned()
         .unwrap_or_else(|| json!({}));
-    // `bash` rules match on the command line; if the agent gave none in the
-    // raw input, the title is the best stand-in for a read-only check.
-    if name == "bash" && arguments.get("command").and_then(Value::as_str).is_none() {
-        arguments["command"] = json!(title);
-    }
+    // `shell` rules match on the command line and `edit` ones on the path;
+    // if the agent gave neither in the raw input, they are read off the rest
+    // of the call — for a command, its title is the best stand-in.
+    fill_own_call(tool_call, kind, &title, &mut arguments);
     if !title.is_empty() {
         arguments["title"] = json!(title);
     }
@@ -3325,6 +3829,35 @@ fn content_text(content: &Value) -> String {
     out
 }
 
+/// The pictures among a tool call's ACP content, as `(media type, base64
+/// data)`.
+fn content_images(content: &Value) -> Vec<(String, String)> {
+    content
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|block| block["type"] == "content" && block["content"]["type"] == "image")
+        .filter_map(|block| {
+            let image = &block["content"];
+            Some((
+                image["mimeType"].as_str()?.to_string(),
+                image["data"].as_str()?.to_string(),
+            ))
+        })
+        .collect()
+}
+
+/// The text of a list of ACP content blocks, its text blocks one after
+/// another; empty for anything else.
+fn blocks_text(blocks: &Value) -> String {
+    blocks
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|block| block["text"].as_str())
+        .collect()
+}
+
 fn absolute(cwd: &Path, path: &str) -> PathBuf {
     let path = Path::new(path);
     if path.is_absolute() {
@@ -3343,20 +3876,54 @@ fn rpc_reply(id: u64, result: Result<Value, String>) -> Value {
     }
 }
 
+/// Most bytes one `fs/read_text_file` returns: a whole file larger than this
+/// is refused, and a range stops at the last whole line within it.
+const READ_TEXT_MAX_BYTES: usize = 16 * 1024 * 1024;
+
 fn read_text_file(cwd: &Path, params: &Value) -> Result<Value, String> {
+    use std::io::Read as _;
     let path = absolute(cwd, params["path"].as_str().ok_or("path missing")?);
-    let text = std::fs::read_to_string(&path)
-        .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+    let cannot_read = |error: std::io::Error| format!("cannot read {}: {error}", path.display());
+    let file = std::fs::File::open(&path).map_err(cannot_read)?;
     let line = params["line"].as_u64().map(|l| l.max(1) as usize - 1);
     let limit = params["limit"].as_u64().map(|l| l as usize);
     let content = match (line, limit) {
-        (None, None) => text,
-        (line, limit) => text
-            .lines()
-            .skip(line.unwrap_or(0))
-            .take(limit.unwrap_or(usize::MAX))
-            .collect::<Vec<_>>()
-            .join("\n"),
+        (None, None) => {
+            let mut bytes = Vec::new();
+            file.take(READ_TEXT_MAX_BYTES as u64 + 1)
+                .read_to_end(&mut bytes)
+                .map_err(cannot_read)?;
+            if bytes.len() > READ_TEXT_MAX_BYTES {
+                return Err(format!(
+                    "{} is larger than {} MiB; read it in parts with `line` and `limit`",
+                    path.display(),
+                    READ_TEXT_MAX_BYTES / (1024 * 1024)
+                ));
+            }
+            String::from_utf8(bytes).map_err(|_| {
+                format!(
+                    "cannot read {}: stream did not contain valid UTF-8",
+                    path.display()
+                )
+            })?
+        }
+        (line, limit) => termide_agent_core::read_line_window(
+            file,
+            termide_agent_core::WindowSpec {
+                first: line.unwrap_or(0),
+                max_lines: limit.unwrap_or(usize::MAX),
+                max_bytes: READ_TEXT_MAX_BYTES,
+                max_line_bytes: READ_TEXT_MAX_BYTES,
+                count_total: false,
+            },
+            &|| false,
+        )
+        .map_err(cannot_read)?
+        .lines
+        .into_iter()
+        .map(|line| line.text)
+        .collect::<Vec<_>>()
+        .join("\n"),
     };
     Ok(json!({ "content": content }))
 }
@@ -3368,7 +3935,7 @@ fn write_text_file(cwd: &Path, params: &Value) -> Result<Value, String> {
         std::fs::create_dir_all(parent)
             .map_err(|error| format!("cannot create {}: {error}", parent.display()))?;
     }
-    std::fs::write(&path, content)
+    termide_agent_core::write_atomic(&path, content.as_bytes())
         .map_err(|error| format!("cannot write {}: {error}", path.display()))?;
     Ok(json!({}))
 }
@@ -3380,6 +3947,75 @@ mod tests {
     use termide_agent_core::{
         permission_channel, PermissionAnswer, PermissionEnvelope, PermissionRules,
     };
+
+    /// `fs/read_text_file` serves a range of a file without loading it whole
+    /// and refuses a whole read past its cap.
+    #[test]
+    fn read_text_file_pages_ranges_and_caps_whole_reads() {
+        let dir = tempfile::tempdir().unwrap();
+        let body: String = (1..=1000).map(|n| format!("l{n}\r\n")).collect();
+        std::fs::write(dir.path().join("a.txt"), &body).unwrap();
+        let range = |params: Value| read_text_file(dir.path(), &params).unwrap()["content"].clone();
+        assert_eq!(
+            range(json!({ "path": "a.txt", "line": 500, "limit": 3 })),
+            "l500\nl501\nl502"
+        );
+        assert_eq!(
+            range(json!({ "path": "a.txt", "line": 999 })),
+            "l999\nl1000"
+        );
+        assert_eq!(range(json!({ "path": "a.txt", "limit": 1 })), "l1");
+        assert_eq!(range(json!({ "path": "a.txt" })), body.as_str());
+
+        let big = std::fs::File::create(dir.path().join("big.txt")).unwrap();
+        big.set_len(READ_TEXT_MAX_BYTES as u64 + 1).unwrap();
+        let error = read_text_file(dir.path(), &json!({ "path": "big.txt" })).unwrap_err();
+        assert!(error.contains("in parts"), "{error}");
+    }
+
+    /// `fs/write_text_file` replaces a file whole, through a symlink to its
+    /// target, keeping the target's permissions.
+    #[cfg(unix)]
+    #[test]
+    fn write_text_file_is_atomic_and_follows_symlinks() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let real = dir.path().join("tool.sh");
+        std::fs::write(&real, "old").unwrap();
+        std::fs::set_permissions(&real, std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::os::unix::fs::symlink("tool.sh", dir.path().join("link.sh")).unwrap();
+        write_text_file(dir.path(), &json!({ "path": "link.sh", "content": "new" })).unwrap();
+        assert_eq!(std::fs::read_to_string(&real).unwrap(), "new");
+        assert!(std::fs::symlink_metadata(dir.path().join("link.sh"))
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        let mode = std::fs::metadata(&real).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o700);
+    }
+
+    /// Only meaningful when the test itself runs with a controlling
+    /// terminal; without one both answers are `NO_TTY`.
+    #[cfg(unix)]
+    #[test]
+    fn an_agent_cannot_open_termides_terminal() {
+        let config = AcpConfig {
+            command: "sh".into(),
+            args: vec![
+                "-c".into(),
+                "if (exec 3</dev/tty) 2>/dev/null; then echo TTY; else echo NO_TTY; fi".into(),
+            ],
+            env: Default::default(),
+            timeout_secs: 5,
+            flavor: AcpFlavor::default(),
+            context_limit: None,
+        };
+        let out = agent_command(&config, Path::new("/"))
+            .stdin(Stdio::null())
+            .output()
+            .unwrap();
+        assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "NO_TTY");
+    }
 
     /// An agent on the other end of two pipes, scripted for one prompt: it
     /// thinks, speaks, edits a file through our fs methods after asking for
@@ -3781,8 +4417,14 @@ mod tests {
             _on_update: &mut dyn FnMut(termide_agent_core::ToolUpdate),
             _cancel: &CancelToken,
         ) -> ToolResultMessage {
-            ToolResultMessage::text(call, "echoed")
-                .with_details(json!({ "said": "echoed", "call": call.id }))
+            let result = ToolResultMessage::text(call, "echoed")
+                .with_details(json!({ "said": "echoed", "call": call.id }));
+            // As `read` returns an image file.
+            if call.arguments["text"] == "picture" {
+                result.with_images(vec![("image/png".into(), "AAAA".into())])
+            } else {
+                result
+            }
         }
     }
 
@@ -3868,6 +4510,312 @@ mod tests {
         );
     }
 
+    /// Claude Code reports the picture termide's tool returned as a line of
+    /// text naming the file it saved it to: the block shows the picture all
+    /// the same, from what the server kept.
+    #[test]
+    fn a_call_of_termides_tool_ends_with_the_pictures_its_report_left_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let (runtime, seen) = recording_agent(
+            dir.path().to_path_buf(),
+            AcpFlavor::ClaudeCode,
+            Some(echo_host()),
+            ModeHandle::new(Mode::default()),
+        );
+        let new = seen_where(&seen, |m| m["method"] == "session/new").remove(0);
+        let server = &new["params"]["mcpServers"][0];
+        let url = server["url"].as_str().unwrap();
+        let auth = server["headers"][0]["value"].as_str().unwrap();
+        let shared = &runtime.shared;
+        shared.on_update(&json!({
+            "sessionUpdate": "tool_call", "toolCallId": "t1", "kind": "other",
+            "status": "pending", "title": "mcp__termide__echo",
+            "rawInput": { "text": "picture" },
+        }));
+        let reply = post_mcp(
+            url,
+            auth,
+            &json!({ "jsonrpc": "2.0", "id": 7, "method": "tools/call",
+                     "params": { "name": "echo", "arguments": { "text": "picture" } } }),
+        );
+        assert_eq!(reply["result"]["content"][1]["type"], "image");
+        shared.on_update(&json!({
+            "sessionUpdate": "tool_call_update", "toolCallId": "t1", "status": "completed",
+            "content": [{ "type": "content", "content": { "type": "text",
+                          "text": "echoed\n[Image: source: /tmp/blob.png]" } }],
+        }));
+        let ended = runtime.drain().into_iter().find_map(|e| match e {
+            AgentEvent::ToolExecutionEnd { result } => Some(result),
+            _ => None,
+        });
+        let ended = ended.expect("the call ends");
+        assert_eq!(ended.images().collect::<Vec<_>>(), [("image/png", "AAAA")]);
+        assert_eq!(ended.details.unwrap()["said"], "echoed");
+    }
+
+    /// A picture the agent's own tool returns, sent as ACP image content.
+    #[test]
+    fn an_agents_own_call_ends_with_the_pictures_it_reports() {
+        let dir = tempfile::tempdir().unwrap();
+        let (runtime, _seen) = recording_agent(
+            dir.path().to_path_buf(),
+            AcpFlavor::ClaudeCode,
+            None,
+            ModeHandle::new(Mode::default()),
+        );
+        let shared = &runtime.shared;
+        shared.on_update(&json!({
+            "sessionUpdate": "tool_call", "toolCallId": "t1", "kind": "read",
+            "status": "pending", "title": "Read a.png", "rawInput": { "file_path": "a.png" },
+        }));
+        shared.on_update(&json!({
+            "sessionUpdate": "tool_call_update", "toolCallId": "t1", "status": "completed",
+            "content": [
+                { "type": "content", "content": { "type": "image",
+                  "mimeType": "image/png", "data": "BBBB" } },
+            ],
+        }));
+        let ended = runtime.drain().into_iter().find_map(|e| match e {
+            AgentEvent::ToolExecutionEnd { result } => Some(result),
+            _ => None,
+        });
+        let ended = ended.expect("the call ends");
+        assert_eq!(ended.images().collect::<Vec<_>>(), [("image/png", "BBBB")]);
+    }
+
+    #[test]
+    fn the_agents_own_compaction_reaches_the_panel_as_a_compaction() {
+        let dir = tempfile::tempdir().unwrap();
+        let (runtime, seen) = recording_agent(
+            dir.path().to_path_buf(),
+            AcpFlavor::ClaudeCode,
+            None,
+            ModeHandle::new(Mode::default()),
+        );
+        // Asked for, so the agent does not stand a tool call in for it.
+        let init = seen_where(&seen, |m| m["method"] == "initialize").remove(0);
+        assert_eq!(
+            init["params"]["clientCapabilities"]["session"]["compaction"],
+            json!({})
+        );
+        let shared = &runtime.shared;
+        runtime.drain();
+        shared.on_update(
+            &json!({ "sessionUpdate": "usage_update", "used": 230_000, "size": 262_144 }),
+        );
+        shared.on_update(&json!({
+            "sessionUpdate": "agent_message_chunk", "content": { "type": "text", "text": "Reading." },
+        }));
+        // As Claude Code goes about it: the start, the summary streamed,
+        // the end with the summary whole, and the end again.
+        shared.on_update(&json!({
+            "sessionUpdate": "compaction_update", "compactionId": "c1", "status": "in_progress",
+        }));
+        shared.on_update(&json!({
+            "sessionUpdate": "compaction_summary_chunk", "compactionId": "c1",
+            "content": { "type": "text", "text": "## Kept" },
+        }));
+        let summary = "## Kept\nThe user wants the parser fixed.";
+        let end = json!({
+            "sessionUpdate": "compaction_update", "compactionId": "c1", "status": "completed",
+            "summary": [{ "type": "text", "text": summary }],
+        });
+        shared.on_update(&end);
+        shared.on_update(&json!({
+            "sessionUpdate": "compaction_update", "compactionId": "c1", "status": "completed",
+        }));
+        let events = runtime.drain();
+        let at = |pick: &dyn Fn(&AgentEvent) -> bool| events.iter().position(pick);
+        let text_end = at(&|e| matches!(e, AgentEvent::MessageEnd(_))).expect("text closed");
+        let start = at(&|e| {
+            matches!(
+                e,
+                AgentEvent::CompactionStart {
+                    reason: CompactionReason::Threshold,
+                    prompt_tokens: 230_000
+                }
+            )
+        })
+        .expect("compaction starts");
+        assert!(text_end < start, "{events:?}");
+        assert!(events.iter().any(|e| matches!(
+            e,
+            AgentEvent::CompactionUpdate(StreamEvent::TextDelta(text)) if text == "## Kept"
+        )));
+        let ended: Vec<_> = events
+            .iter()
+            .filter_map(|e| match e {
+                AgentEvent::Compacted {
+                    summary,
+                    kept,
+                    tokens_before,
+                    ..
+                } => Some((summary.as_str(), *kept, *tokens_before)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(ended, [(summary, 0, 230_000)], "{events:?}");
+        // No tool call stands for it.
+        assert!(!events
+            .iter()
+            .any(|e| matches!(e, AgentEvent::ToolExecutionStart { .. })));
+    }
+
+    #[test]
+    fn an_interrupted_compaction_of_the_agent_ends_as_failed() {
+        let dir = tempfile::tempdir().unwrap();
+        let (runtime, _seen) = recording_agent(
+            dir.path().to_path_buf(),
+            AcpFlavor::ClaudeCode,
+            None,
+            ModeHandle::new(Mode::default()),
+        );
+        let shared = &runtime.shared;
+        runtime.drain();
+        // Reported only at its end, as a runtime with no start may.
+        shared.on_update(&json!({
+            "sessionUpdate": "compaction_update", "compactionId": "c2", "status": "cancelled",
+        }));
+        shared.on_update(&json!({
+            "sessionUpdate": "compaction_update", "compactionId": "c3", "status": "failed",
+            "error": "aborted",
+        }));
+        let failed: Vec<String> = runtime
+            .drain()
+            .into_iter()
+            .filter_map(|e| match e {
+                AgentEvent::CompactionFailed { error, .. } => Some(error),
+                AgentEvent::Compacted { .. } => panic!("nothing was compacted"),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(failed, ["cancelled", "aborted"]);
+    }
+
+    #[test]
+    fn an_adapters_made_up_compact_call_reaches_the_panel_as_a_compaction() {
+        let dir = tempfile::tempdir().unwrap();
+        let (runtime, _seen) = recording_agent(
+            dir.path().to_path_buf(),
+            AcpFlavor::ClaudeCode,
+            None,
+            ModeHandle::new(Mode::default()),
+        );
+        let shared = &runtime.shared;
+        runtime.drain();
+        shared.on_update(
+            &json!({ "sessionUpdate": "usage_update", "used": 150_000, "size": 200_000 }),
+        );
+        // As an adapter without the compaction capability reports it: a
+        // call of kind think, its start, a heartbeat and its end.
+        let meta = json!({ "claudeCode": { "toolName": "compact" } });
+        shared.on_update(&json!({
+            "sessionUpdate": "tool_call", "toolCallId": "c1", "title": "Compact conversation",
+            "kind": "think", "status": "in_progress", "_meta": meta,
+        }));
+        shared.on_update(&json!({
+            "sessionUpdate": "tool_call_update", "toolCallId": "c1", "status": "in_progress",
+            "_meta": meta,
+        }));
+        shared.on_update(&json!({
+            "sessionUpdate": "tool_call_update", "toolCallId": "c1", "status": "completed",
+            "rawOutput": { "trigger": "automatic", "preTokens": 160_000, "postTokens": 9_000 },
+            "_meta": meta,
+        }));
+        // The same call failing, reported only at its end.
+        shared.on_update(&json!({
+            "sessionUpdate": "tool_call", "toolCallId": "c2", "title": "Compact conversation",
+            "kind": "think", "status": "failed",
+            "content": [{ "type": "content", "content": { "type": "text", "text": "Compaction failed: aborted" } }],
+            "_meta": meta,
+        }));
+        let events = runtime.drain();
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                AgentEvent::CompactionStart {
+                    prompt_tokens: 150_000,
+                    ..
+                }
+            )),
+            "{events:?}"
+        );
+        // No summary: the panel logs no compaction in place of the history.
+        let ended: Vec<_> = events
+            .iter()
+            .filter_map(|e| match e {
+                AgentEvent::Compacted {
+                    summary,
+                    tokens_before,
+                    ..
+                } => Some((summary.as_str(), *tokens_before)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(ended, [("", 160_000)], "{events:?}");
+        assert!(events.iter().any(|e| matches!(
+            e,
+            AgentEvent::CompactionFailed { error, .. } if error == "aborted"
+        )));
+        assert!(
+            !events.iter().any(|e| matches!(
+                e,
+                AgentEvent::ToolExecutionStart { .. } | AgentEvent::ToolExecutionEnd { .. }
+            )),
+            "{events:?}"
+        );
+        // A call that merely thinks is still a call.
+        shared.on_update(&json!({
+            "sessionUpdate": "tool_call", "toolCallId": "t1", "title": "Plan", "kind": "think",
+            "status": "in_progress", "rawInput": { "thought": "x" },
+        }));
+        assert!(runtime
+            .drain()
+            .iter()
+            .any(|e| matches!(e, AgentEvent::ToolExecutionStart { .. })));
+    }
+
+    #[test]
+    fn a_message_typed_while_the_agent_compacts_joins_the_turn_after_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let (runtime, seen) = recording_agent(
+            dir.path().to_path_buf(),
+            AcpFlavor::ClaudeCode,
+            None,
+            ModeHandle::new(Mode::default()),
+        );
+        let shared = &runtime.shared;
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while shared.session_id().is_err() {
+            assert!(Instant::now() < deadline, "no session");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        // A turn of an agent that steers is running.
+        shared.steering.store(true, Ordering::Release);
+        shared.turn_running.store(true, Ordering::Release);
+        shared.on_update(&json!({
+            "sessionUpdate": "compaction_update", "compactionId": "c1", "status": "in_progress",
+        }));
+        let message = UserMessage::text("more");
+        runtime.steer(message.clone());
+        // Steered now, it would abort the compaction: it waits.
+        assert_eq!(*shared.queue.lock().unwrap(), [message]);
+        assert!(shared.steering_out.lock().unwrap().is_empty());
+        shared.on_update(&json!({
+            "sessionUpdate": "compaction_update", "compactionId": "c1", "status": "failed",
+            "error": "aborted",
+        }));
+        let steering = loop {
+            let steering = seen_where(&seen, |m| m["method"] == "_session/steering");
+            if !steering.is_empty() {
+                break steering;
+            }
+            assert!(Instant::now() < deadline, "the message never went");
+            std::thread::sleep(Duration::from_millis(5));
+        };
+        assert_eq!(steering[0]["params"]["prompt"][0]["text"], "more");
+    }
+
     #[test]
     fn a_call_whose_raw_input_streams_shows_and_logs_it_in_full() {
         let dir = tempfile::tempdir().unwrap();
@@ -3945,6 +4893,7 @@ mod tests {
         let options = &params["_meta"]["claudeCode"]["options"];
         assert_eq!(options["tools"], json!([]));
         assert_eq!(options["settingSources"], json!([]));
+        assert_eq!(options["promptSuggestions"], false);
         assert_eq!(options["allowedTools"], json!(["mcp__termide"]));
         let server = &params["mcpServers"][0];
         assert_eq!(server["type"], "http");
@@ -3969,22 +4918,22 @@ mod tests {
         assert!(served_tools(url, auth).is_empty());
         // Its calls of termide's tools show under their own names.
         let call = tool_call_of(&json!({
-            "toolCallId": "t1", "title": "mcp__termide__bash", "kind": "other",
+            "toolCallId": "t1", "title": "mcp__termide__shell", "kind": "other",
             "rawInput": { "command": "ls" }
         }));
         assert_eq!(
             (call.name.as_str(), &call.arguments),
-            ("bash", &json!({ "command": "ls" }))
+            ("shell", &json!({ "command": "ls" }))
         );
         // A tool the model made up comes as kind `other`: the block takes
         // the name it called, not the kind.
         let call = tool_call_of(&json!({
-            "toolCallId": "t2", "title": "bash", "kind": "other",
+            "toolCallId": "t2", "title": "shell", "kind": "other",
             "rawInput": { "command": "ls" }
         }));
         assert_eq!(
             (call.name.as_str(), &call.arguments),
-            ("bash", &json!({ "command": "ls" }))
+            ("shell", &json!({ "command": "ls" }))
         );
         // A kind that names an action keeps it, the title beside.
         let call = tool_call_of(&json!({
@@ -3993,6 +4942,36 @@ mod tests {
         }));
         assert_eq!(call.name, "read");
         assert_eq!(call.arguments["title"], "Reading x.rs");
+        // Codex's own calls: a command by its raw input or its title, the
+        // file of a read in its locations, of an edit in its diff.
+        let call = tool_call_of(&json!({
+            "toolCallId": "t4", "title": "cargo test", "kind": "execute",
+            "rawInput": { "command": ["cargo", "test"], "cwd": "/p" }
+        }));
+        assert_eq!(
+            (call.name.as_str(), &call.arguments["command"]),
+            ("shell", &json!("cargo test"))
+        );
+        let call = tool_call_of(&json!({
+            "toolCallId": "t5", "title": "ls -la", "kind": "execute"
+        }));
+        assert_eq!(call.arguments["command"], "ls -la");
+        let call = tool_call_of(&json!({
+            "toolCallId": "t6", "title": "Read file 'src/x.rs'", "kind": "read",
+            "locations": [{ "path": "src/x.rs" }]
+        }));
+        assert_eq!(
+            (call.name.as_str(), &call.arguments["path"]),
+            ("read", &json!("src/x.rs"))
+        );
+        let call = tool_call_of(&json!({
+            "toolCallId": "t7", "title": "Editing files", "kind": "edit",
+            "content": [{ "type": "diff", "path": "/p/src/x.rs", "oldText": "a", "newText": "b" }]
+        }));
+        assert_eq!(
+            (call.name.as_str(), &call.arguments["path"]),
+            ("edit", &json!("/p/src/x.rs"))
+        );
     }
 
     /// Prompt `text` and wait for the turn to end; the text blocks the agent
@@ -4101,7 +5080,7 @@ mod tests {
         );
         let shared = &runtime.shared;
         shared.on_update(&json!({ "sessionUpdate": "tool_call", "toolCallId": "t1",
-            "title": "mcp__termide__bash", "kind": "other", "rawInput": {}, "status": "pending" }));
+            "title": "mcp__termide__shell", "kind": "other", "rawInput": {}, "status": "pending" }));
         let starts = |events: &[AgentEvent]| -> Vec<ToolCall> {
             events
                 .iter()
@@ -4117,7 +5096,7 @@ mod tests {
         );
         shared.on_update(
             &json!({ "sessionUpdate": "tool_call_update", "toolCallId": "t1",
-            "title": "mcp__termide__bash", "rawInput": { "command": "ls" } }),
+            "title": "mcp__termide__shell", "rawInput": { "command": "ls" } }),
         );
         shared.on_update(
             &json!({ "sessionUpdate": "tool_call_update", "toolCallId": "t1",
@@ -4126,7 +5105,7 @@ mod tests {
         let events = runtime.drain();
         let started = starts(&events);
         assert_eq!(started.len(), 1, "{events:?}");
-        assert_eq!(started[0].name, "bash");
+        assert_eq!(started[0].name, "shell");
         assert_eq!(started[0].arguments, json!({ "command": "ls" }));
         assert!(events
             .iter()
@@ -4148,7 +5127,7 @@ mod tests {
         let shared = &runtime.shared;
         let call = |id: &str, command: &str| {
             json!({ "sessionUpdate": "tool_call", "toolCallId": id,
-                "title": "mcp__termide__bash", "kind": "other",
+                "title": "mcp__termide__shell", "kind": "other",
                 "rawInput": { "command": command }, "status": "pending" })
         };
         let done = |id: &str, text: &str| {
@@ -4223,11 +5202,67 @@ mod tests {
         assert_eq!(runtime.context_usage(), Some((975, 200_000)));
     }
 
+    /// Claude Code's rows by model count more than its turn's `usage`: what
+    /// they hold beyond it is told apart by model, the turn taken out of the
+    /// session's model's row; Codex's single row is the usage itself.
+    #[test]
+    fn what_a_turn_spent_beyond_its_usage_is_read_by_model() {
+        let row = |model: &str, input: u64, output: u64, read: u64, write: u64| {
+            json!({ "model": model, "token_count": {
+                "inputTokens": input, "outputTokens": output,
+                "cachedInputTokens": read, "cachedWriteTokens": write,
+                "reasoningOutputTokens": 0,
+            } })
+        };
+        let usage = Usage {
+            input: 10,
+            output: 20,
+            cache_read: 300,
+            cache_write: 40,
+            thinking: 0,
+        };
+        let claude = json!({ "stopReason": "end_turn", "_meta": { "quota": { "model_usage": [
+            row("claude-haiku-4-5", 5, 1, 0, 0),
+            row("claude-opus-5[1m]", 15, 30, 300, 40),
+        ] } } });
+        assert_eq!(
+            usage_beyond(&claude, &usage, "opus-5"),
+            [
+                (
+                    "claude-haiku-4-5".to_string(),
+                    Usage {
+                        input: 5,
+                        output: 1,
+                        ..Usage::default()
+                    }
+                ),
+                (
+                    "claude-opus-5".to_string(),
+                    Usage {
+                        input: 5,
+                        output: 10,
+                        ..Usage::default()
+                    }
+                ),
+            ]
+        );
+        let codex = json!({ "stopReason": "end_turn", "_meta": { "quota": { "model_usage": [{
+            "model": "gpt-5.5", "token_count": {
+                "inputTokens": 10, "outputTokens": 20, "cachedInputTokens": 300,
+                "cacheWriteInputTokens": 40, "reasoningOutputTokens": 0,
+            } }] } } });
+        assert!(usage_beyond(&codex, &usage, "gpt-5.5").is_empty());
+        assert!(usage_beyond(&json!({ "stopReason": "end_turn" }), &usage, "x").is_empty());
+    }
+
     #[test]
     fn a_turns_reported_usage_is_read() {
-        let usage = usage_of(&json!({ "stopReason": "end_turn", "usage": {
+        let usage = usage_of(
+            &json!({ "stopReason": "end_turn", "usage": {
             "inputTokens": 4, "outputTokens": 63, "cachedReadTokens": 919,
-            "cachedWriteTokens": 1009, "totalTokens": 1995 } }));
+            "cachedWriteTokens": 1009, "totalTokens": 1995 } }),
+            AcpFlavor::ClaudeCode,
+        );
         assert_eq!(
             (
                 usage.input,
@@ -4238,8 +5273,25 @@ mod tests {
             (4, 63, 919, 1009)
         );
         assert_eq!(
-            usage_of(&json!({ "stopReason": "end_turn" })),
+            usage_of(&json!({ "stopReason": "end_turn" }), AcpFlavor::Codex),
             Usage::default()
+        );
+    }
+
+    /// Gemini CLI reports the Gemini API's counts: its prompt holds the
+    /// cached part, and its output leaves the thoughts out.
+    #[test]
+    fn gemini_clis_usage_is_read_as_the_others() {
+        let usage = usage_of(
+            &json!({ "stopReason": "end_turn", "usage": {
+                "inputTokens": 56_200, "outputTokens": 1_870,
+                "cachedReadTokens": 41_300, "thoughtTokens": 980,
+                "totalTokens": 58_070 } }),
+            AcpFlavor::GeminiCli,
+        );
+        assert_eq!(
+            (usage.input, usage.output, usage.cache_read, usage.thinking),
+            (14_900, 2_850, 41_300, 980)
         );
     }
 
@@ -4456,6 +5508,36 @@ mod tests {
         );
         // Ended, it is a call like any other again.
         assert!(shared.host_calls.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn codex_asking_about_an_announced_edit_by_its_id_is_judged_as_that_edit() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("report.py");
+        let (runtime, _seen) = recording_agent_with(
+            dir.path().to_path_buf(),
+            AcpFlavor::Codex,
+            None,
+            ModeHandle::new(Mode::Edit),
+            false,
+        );
+        let shared = &runtime.shared;
+        // As Codex sends them: the file change is announced with its diff and
+        // no raw input, and the request that follows names its id and paths.
+        shared.on_update(&json!({
+            "sessionUpdate": "tool_call", "toolCallId": "p1", "kind": "edit",
+            "status": "pending", "title": "Editing files",
+            "content": [{ "type": "diff", "path": path, "oldText": "a\n", "newText": "b\n" }],
+        }));
+        let answer = shared.ask_permission(&json!({
+            "toolCall": { "toolCallId": "p1", "title": "Editing files", "locations": [{ "path": path }] },
+            "options": [
+                { "kind": "allow_once", "optionId": "approved" },
+                { "kind": "reject_once", "optionId": "abort" },
+            ],
+        }));
+        // An edit inside the project passes in `edit` mode without a card.
+        assert_eq!(answer["outcome"]["optionId"], "approved");
     }
 
     #[test]
@@ -5058,7 +6140,8 @@ mod tests {
         let events = events_until(&runtime, |e| matches!(e, AgentEvent::GoalJudged { .. }));
         assert!(events.contains(&AgentEvent::GoalJudged {
             outcome: termide_agent_core::GoalOutcome::Done,
-            reason: "the tests pass".into()
+            reason: "the tests pass".into(),
+            reply: "DONE\nthe tests pass".into(),
         }));
         // Nothing of it reached the transcript.
         assert!(!events
@@ -5664,21 +6747,21 @@ mod tests {
     }
 
     #[test]
-    fn an_execute_request_maps_to_a_bash_call() {
+    fn an_execute_request_maps_to_a_shell_call() {
         let call = permission_call(&json!({
             "toolCallId": "t1",
             "title": "Run cat",
             "kind": "execute",
             "rawInput": { "command": "cat notes.txt" }
         }));
-        assert_eq!(call.name, "bash");
+        assert_eq!(call.name, "shell");
         assert_eq!(call.arguments["command"], "cat notes.txt");
 
         // With no raw command, the title stands in so a read-only check works.
         let from_title = permission_call(&json!({
             "toolCallId": "t2", "title": "ls -la", "kind": "execute"
         }));
-        assert_eq!(from_title.name, "bash");
+        assert_eq!(from_title.name, "shell");
         assert_eq!(from_title.arguments["command"], "ls -la");
     }
 

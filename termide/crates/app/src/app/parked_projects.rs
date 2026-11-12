@@ -119,6 +119,26 @@ fn display_root(root: &Path) -> String {
     termide_core::util::shorten_home_path(&root.display().to_string())
 }
 
+/// The detached instance this process runs in, recorded with the projects it
+/// holds so that a launch elsewhere can attach to it.
+fn hosted_instance() -> Option<String> {
+    #[cfg(unix)]
+    return termide_detach::hosted_instance_id();
+    #[cfg(not(unix))]
+    None
+}
+
+/// Why the project at `root` does not open here: `owner` has it open.
+fn open_elsewhere_message(root: &Path, owner: &termide_project::Owner) -> String {
+    let t = i18n::t();
+    let path = display_root(root);
+    match &owner.instance {
+        Some(id) => t.projects_open_in_instance_fmt(&path, id),
+        None if owner.pid == 0 => t.projects_open_elsewhere_fmt(&path, "?"),
+        None => t.projects_open_elsewhere_fmt(&path, &owner.pid.to_string()),
+    }
+}
+
 /// What entering a project hands back to finish the switch with.
 pub(super) struct EnteredProject {
     /// What the project kept when it was open already (`None` when it opens
@@ -225,6 +245,8 @@ impl App {
                 }
             }
         }
+        // What plugins said of files while the project was parked.
+        self.reapply_plugin_files();
         // The outline may have missed edits and focus moves while parked.
         self.resync_outline();
         self.state.needs_watcher_registration = true;
@@ -239,6 +261,9 @@ impl App {
     /// Bring `state.open_projects`, which the menus draw, in step with the
     /// open projects, and save the set for reopening when it changed.
     pub(super) fn sync_open_projects(&mut self) {
+        // A project closed or moved away is let go for another instance.
+        let open = &self.open_projects;
+        self.project_claims.retain(|root, _| open.is_open(root));
         self.save_open_projects();
         self.plugins.mark_dirty();
         let views: Vec<OpenProjectView> =
@@ -246,6 +271,9 @@ impl App {
                 .roots()
                 .map(|root| OpenProjectView {
                     root: root.to_path_buf(),
+                    taken: self.open_projects.is_pending(root)
+                        && !self.project_claims.contains_key(root)
+                        && termide_project::project_owner(root).is_some(),
                     attention: self.open_projects.parked().any(|(parked_root, parked)| {
                         parked_root == root && parked.needs_attention()
                     }),
@@ -254,6 +282,37 @@ impl App {
         if views != self.state.open_projects {
             self.state.open_projects = views;
             self.state.needs_redraw = true;
+        }
+    }
+
+    /// Hold the project started in, claimed before the UI came up.
+    pub fn hold_start_project(&mut self, claim: Option<termide_project::ProjectClaim>) {
+        if let Some(claim) = claim {
+            self.project_claims.insert(self.project_root.clone(), claim);
+        }
+    }
+
+    /// Take the project at `root` for this instance before it opens.
+    /// `Err` names the instance that has it open.
+    fn try_claim_project(&mut self, root: &Path) -> Result<(), termide_project::Owner> {
+        if self.project_claims.contains_key(root) {
+            return Ok(());
+        }
+        if let Some(claim) = termide_project::claim_project(root, hosted_instance().as_deref())? {
+            self.project_claims.insert(root.to_path_buf(), claim);
+        }
+        Ok(())
+    }
+
+    /// [`Self::try_claim_project`], saying on the status line why a project
+    /// another instance has open does not open here.
+    pub(super) fn claim_project(&mut self, root: &Path) -> bool {
+        match self.try_claim_project(root) {
+            Ok(()) => true,
+            Err(owner) => {
+                self.state.set_error(open_elsewhere_message(root, &owner));
+                false
+            }
         }
     }
 
@@ -291,7 +350,12 @@ impl App {
         let mut roots: Vec<PathBuf> = Vec::new();
         for root in termide_project::load_open_projects().roots {
             let root = project_root_of(root);
-            if root.is_dir() && !self.open_projects.is_open(&root) && !roots.contains(&root) {
+            // One another instance has open is its to reopen, not ours.
+            if root.is_dir()
+                && !self.open_projects.is_open(&root)
+                && !roots.contains(&root)
+                && termide_project::project_owner(&root).is_none()
+            {
                 roots.push(root);
             }
         }
@@ -299,11 +363,21 @@ impl App {
     }
 
     /// Open the projects of the last run in the background. Their layouts
-    /// load the first time each is entered; the current project stays.
-    pub(super) fn reopen_previous_projects(&mut self) {
+    /// load the first time each is entered — those whose agents left work
+    /// unfinished at once, with `resume_agent_work`; the current project
+    /// stays.
+    pub(super) fn reopen_previous_projects(&mut self, resume_agent_work: bool) {
         let roots = std::mem::take(&mut self.state.reopenable_projects);
         let mut opened = 0;
         for root in roots {
+            // Taken meanwhile by another instance: left to it, quietly, as
+            // the menu would not have offered it. One free now is not taken
+            // until it loads, so that a project only listed here does not
+            // keep another instance from opening it.
+            if let Some(owner) = termide_project::project_owner(&root) {
+                log::info!("Not reopening {:?}: open in {:?}", root, owner);
+                continue;
+            }
             if self.open_projects.open_pending(root) {
                 opened += 1;
             }
@@ -316,7 +390,9 @@ impl App {
             .collect();
         self.open_projects.arrange(&order);
         log::info!("Reopened {} projects of the last run", opened);
-        self.load_projects_holding_agent_work();
+        if resume_agent_work {
+            self.load_projects_holding_agent_work();
+        }
         self.sync_open_projects();
     }
 
@@ -342,6 +418,11 @@ impl App {
             let recency = [&root, &home].map(|root| self.open_projects.last_used(root));
             if let Err(e) = self.switch_to_project(root.clone()) {
                 log::warn!("Could not load {} in the background: {e}", root.display());
+                continue;
+            }
+            if self.project_root != root {
+                // Another instance opened it meanwhile; its agent is that
+                // instance's to resume.
                 continue;
             }
             if let Err(e) = self.switch_to_project(home.clone()) {
@@ -514,10 +595,7 @@ impl App {
     }
 
     /// The plugin panel `id`, in the current project or a parked one.
-    pub(super) fn plugin_panel_mut(
-        &mut self,
-        id: u64,
-    ) -> Option<&mut termide_panel_markdown::MarkdownPanel> {
+    pub(super) fn plugin_panel_mut(&mut self, id: u64) -> Option<PluginPanelMut<'_>> {
         let parked = self
             .open_projects
             .parked_mut()
@@ -525,12 +603,8 @@ impl App {
         self.layout_manager
             .iter_all_panels_mut()
             .chain(parked)
-            .filter_map(|panel| {
-                panel
-                    .as_any_mut()
-                    .downcast_mut::<termide_panel_markdown::MarkdownPanel>()
-            })
-            .find(|panel| panel.plugin_panel_id() == Some(id))
+            .filter_map(|panel| PluginPanelMut::of(panel.as_any_mut()))
+            .find(|panel| panel.id() == id)
     }
 
     /// The ids of every plugin panel open, in any project.
@@ -542,12 +616,7 @@ impl App {
         self.layout_manager
             .iter_all_panels_mut()
             .chain(parked)
-            .filter_map(|panel| {
-                panel
-                    .as_any()
-                    .downcast_ref::<termide_panel_markdown::MarkdownPanel>()
-                    .and_then(termide_panel_markdown::MarkdownPanel::plugin_panel_id)
-            })
+            .filter_map(|panel| plugin_panel_id(panel.as_any()))
             .collect()
     }
 
@@ -613,9 +682,17 @@ impl App {
     /// The open project to switch to when the current one closes: the one
     /// left last.
     fn successor_project(&self) -> Option<PathBuf> {
+        // Skipping one still to load that another instance has opened
+        // since: it cannot be entered.
         self.open_projects
             .by_recent_use()
-            .get(1)
+            .into_iter()
+            .skip(1)
+            .find(|root| {
+                !self.open_projects.is_pending(root)
+                    || self.project_claims.contains_key(*root)
+                    || termide_project::project_owner(root).is_none()
+            })
             .map(|root| root.to_path_buf())
     }
 
@@ -680,6 +757,10 @@ impl App {
                 return self.return_to_projects(from);
             };
             self.switch_to_project(successor)?;
+            if self.project_root == root {
+                // The successor could not be entered; the status line says why.
+                return Ok(());
+            }
         }
         if let Some(mut parked) = self.open_projects.close(root) {
             // Its agent panels go with it, and the tasks they handed over
@@ -707,6 +788,8 @@ impl App {
                 }
             }
             log::info!("Closed project {:?}", root);
+            // Release the watches its panels held.
+            self.state.needs_watcher_registration = true;
         }
         self.sync_open_projects();
         self.return_to_projects(from)
@@ -744,6 +827,15 @@ impl App {
         Some(message)
     }
 
+    /// Keep the unsaved changes of the parked projects with their layouts,
+    /// as [`Self::keep_unsaved_changes`] does for all projects.
+    pub(super) fn keep_parked_unsaved_changes(&mut self) {
+        let persist = self.persist_layout;
+        for (root, parked) in self.open_projects.parked_mut() {
+            super::project_layout::keep_unsaved_changes_of(root, &mut parked.layout, persist);
+        }
+    }
+
     /// Save the layouts of the parked projects, as quitting leaves them.
     pub(super) fn save_parked_layouts(&mut self) {
         if !self.persist_layout {
@@ -755,6 +847,70 @@ impl App {
             }
         }
     }
+}
+
+/// A panel a plugin opened: Markdown, or a list.
+pub(super) enum PluginPanelMut<'a> {
+    Markdown(&'a mut termide_panel_markdown::MarkdownPanel),
+    List(&'a mut termide_panel_plugin_list::PluginListPanel),
+    Diff(&'a mut termide_panel_git_diff::GitDiffPanel),
+}
+
+impl<'a> PluginPanelMut<'a> {
+    fn of(panel: &'a mut dyn std::any::Any) -> Option<Self> {
+        if panel.is::<termide_panel_plugin_list::PluginListPanel>() {
+            return panel.downcast_mut().map(Self::List);
+        }
+        if panel.is::<termide_panel_git_diff::GitDiffPanel>() {
+            return panel
+                .downcast_mut::<termide_panel_git_diff::GitDiffPanel>()
+                .filter(|panel| panel.plugin_panel_id().is_some())
+                .map(Self::Diff);
+        }
+        panel
+            .downcast_mut::<termide_panel_markdown::MarkdownPanel>()
+            .filter(|panel| panel.plugin_panel_id().is_some())
+            .map(Self::Markdown)
+    }
+
+    fn id(&self) -> u64 {
+        match self {
+            Self::Markdown(panel) => panel.plugin_panel_id().unwrap_or(u64::MAX),
+            Self::List(panel) => panel.plugin_panel_id(),
+            Self::Diff(panel) => panel.plugin_panel_id().unwrap_or(u64::MAX),
+        }
+    }
+
+    /// Replace the panel's `[≡]` entries.
+    pub(super) fn set_menu(&mut self, menu: Vec<(String, String)>) {
+        match self {
+            Self::Markdown(panel) => panel.set_plugin_menu(menu),
+            Self::List(panel) => panel.set_plugin_menu(menu),
+            Self::Diff(panel) => panel.set_plugin_menu(menu),
+        }
+    }
+
+    /// The plugin is gone: the panel says so in `message`.
+    pub(super) fn set_stopped(&mut self, message: String) {
+        match self {
+            Self::Markdown(panel) => panel.set_plugin_content(None, format!("*{message}*")),
+            Self::List(panel) => panel.set_stopped(message),
+            Self::Diff(panel) => panel.set_stopped(message),
+        }
+    }
+}
+
+/// The id of `panel` if a plugin opened it.
+pub(super) fn plugin_panel_id(panel: &dyn std::any::Any) -> Option<u64> {
+    if let Some(list) = panel.downcast_ref::<termide_panel_plugin_list::PluginListPanel>() {
+        return Some(list.plugin_panel_id());
+    }
+    if let Some(diff) = panel.downcast_ref::<termide_panel_git_diff::GitDiffPanel>() {
+        return diff.plugin_panel_id();
+    }
+    panel
+        .downcast_ref::<termide_panel_markdown::MarkdownPanel>()
+        .and_then(termide_panel_markdown::MarkdownPanel::plugin_panel_id)
 }
 
 #[cfg(test)]

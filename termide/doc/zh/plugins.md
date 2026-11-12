@@ -28,6 +28,23 @@ LOG_LEVEL = "info"
 
 插件在 termide 启动时读取。安装、删除或修改插件后，在命令面板（`Ctrl+P`）中执行 **插件：重新读取插件目录** 即可无需重启地载入它：所有插件都会重新启动，新安装插件的语言功能对此后打开的编辑器生效。**插件：显示状态** 列出已安装的插件及其在当前项目中的状态，**插件：重启 <名称>** 会重新启动某个插件。
 
+## 内置插件
+
+termide 在自身程序中自带了一些插件，因此它们不需要 Python、不需要另外下载，也不需要插件目录：termide 以 `termide --plugin <名称>` 的方式把自己作为插件运行，和任何已安装的插件一样是一个独立进程。
+
+| 插件 | 作用 |
+|---|---|
+| `perforce` | Perforce：状态栏中的文件状态、在只读文件中按 `Ctrl+E` 执行 `p4 edit`、关闭编辑时还原、打开以添加、diff、在 git 之外按 `Alt+G` 按 changelist 列出已打开文件并提交、sync、文件管理器中的颜色、编辑器中的改动行、供代理使用的工具。需要 `PATH` 中有 `p4`。 |
+
+内置插件在全局 `config.toml` 为它设置模式之前是关闭的，因为无论你是否需要，每个 termide 都带着它：
+
+```toml
+[plugins.perforce]
+mode = "on"       # 所有项目；或 "opt-in" 并在项目中设置 `enabled = true`
+```
+
+之后项目中的 `enabled` 像对已安装插件一样开关它；仅凭项目本身无法开启它。插件目录中同名的插件会取代内置插件。
+
 ## 开启和关闭插件
 
 全局 `config.toml` 为每个插件设置模式：
@@ -95,6 +112,8 @@ enabled = false
 
 `file/will_save` 是请求而不是事件：订阅了它的插件，会在其项目的编辑器中按下 `Ctrl+S`、写入文件之前收到 `{ "path", "version" }`，并可以回答 `{ "edits": [...] }`（同 `editor/edit`）或 `null`——即保存时格式化。termide 依次询问这些插件，每个三秒，若缓冲区期间未改变就应用其编辑，然后写入文件。关闭时保存和“另存为”不会询问。
 
+`file/will_edit` 也是请求：当其项目中某个编辑器开启编辑（`Ctrl+E`，或点击 `Edit: No`），而该文件在磁盘上只读时，订阅了它的插件会收到 `{ "path", "edit": true }`；在可写文件中关闭编辑时，会收到 `{ "path", "edit": false, "modified" }`，`modified` 表示缓冲区是否有未保存的改动。插件处理完毕后回答 `{ "handled": true }`——无论是像 `p4 edit` 那样让文件可写，还是与用户商定保持编辑状态不变；编辑器随文件权限而变。其他任何回答、错误，或没有插件订阅，都会像没有插件时的 `Ctrl+E` 一样切换编辑，并就未保存的改动进行询问。关闭编辑时，插件可以回答 `{ "buffer": "save" }`，让缓冲区先像 `Ctrl+S` 那样写入（包括 `file/will_save` 插件），或回答 `{ "buffer": "discard" }`，让它从磁盘重新读取——例如在还原（`p4 revert`）之后；此时不再询问其他插件。termide 依次询问这些插件，每个最多等待五分钟，足够用户回答插件途中提出的问题；在此期间编辑器保持原状。
+
 只有当前项目的某个插件请求了编辑器事件时，termide 才会监视这些事件。
 
 `initialize` 的结果，以及之后为替换它而发送的 `contributions/changed` 通知的参数：
@@ -113,6 +132,8 @@ enabled = false
 ```
 
 命令以 `<plugin>: <title>` 的形式出现在命令面板（`Plugins` 类别）中以及命令菜单的末尾。命令的 `key` 可以在任何地方运行它，前提是 termide 没有在任何地方绑定该键（包括用户自己的命令），并且它是 `Ctrl` 或 `Alt` 加另一个修饰键（`Ctrl+Alt+K`、`Ctrl+Shift+K`、`Alt+Shift+K`），或 F 键加一个修饰键（`Shift+F7`）：这些是终端中的程序很少需要的键。不符合条件的键不会被绑定，并在日志中留下一行记录。
+
+命令可以在 termide 无事可做的地方替代 termide 的某个操作：`"replaces": "open_git_status"` 会在 git 仓库之外的项目中代替 git status 面板（`Alt+G`、菜单和命令面板）运行它，因此版本控制插件自己的状态面板不需要单独的快捷键。
 
 工具以 `plugin-<plugin>__<tool>` 的名称提供给插件所属项目的代理会话。代理的权限规则把它们当作 MCP 工具对待：除非标为 `readOnly`，运行前都会询问。工具运行期间，插件可以带上调用中的 `progress` 令牌发送 `tool/progress` `{ "token", "text" }`：即到目前为止的完整输出，会随到随显示在对话记录中。用户停止的调用，或超过十分钟的调用，之后会收到 `$/cancelRequest`；超过五分钟的命令也是如此。
 
@@ -175,6 +196,23 @@ termide 会与服务器一起询问文件所属项目的插件，并给出一个
 
 行号从 0 开始，列按 LSP 的方式计数（UTF-16 码元）。没有 `col` 时标记整行；只有 `col` 时标记该处的单词。`severity` 为 `error`、`warning`（默认）、`info` 或 `hint`。之后打开的文件会显示此前设置的标记；插件停止时其标记会被移除。
 
+### 文件与改动行
+
+用于 git 以外版本控制系统的插件，可以像 termide 显示 git 状态那样显示它的状态。
+
+`files/status`（请求）`{ "items": [{ "path", "status" }] }` 为文件管理器中的文件着色：`status` 为 `modified`、`added`、`deleted` 或 `ignored`，使用 git 的颜色；`null` 撤回对该文件的说明。每次调用替换插件对所列路径的说明，其余不变；改动文件上方的目录显示为已修改。`path` 为绝对路径。
+
+`editor/base`（请求）`{ "path", "text" }` 给出该文件在插件的版本控制中的内容：编辑器在边栏标出相对它改动的行，就像相对 git 最近一次提交那样。`text` 为空时所有行标为新增；`null` 撤回基准。之后打开的文件会得到此前设置的基准。
+
+两者都以 git 为先：git 有状态的文件保留 git 的颜色，git 仓库中的文件保留 git 的标记。插件停止时这些都会移除。
+
+```json
+{ "items": [
+  { "path": "/home/me/ws/src/main.c", "status": "modified" },
+  { "path": "/home/me/ws/src/new.c", "status": "added" }
+] }
+```
+
 ### 窗口
 
 插件可以在 termide 自己的窗口中向用户提问。请求会在用户关闭窗口时得到答复：带上回答；若窗口被关闭（`Esc`）则为 `null`。
@@ -186,24 +224,66 @@ termide 会与服务器一起询问文件所属项目的插件，并给出一个
 | `window/input` | `title`、`prompt`、`default`（可选） | 文本，或 `null` |
 | `window/form` | `title`、`fields`：`[{ "name", "label", "type", "options"?, "default"? }]`，`type` 为 `text`、`number`、`bool` 或 `select` | `{ name: value }`（开关为布尔值，数字为数字），或 `null` |
 | `window/message` | `title`、`message` | `null` |
+| `window/dialog` | `title`，以及 `message`、`input`、`list`、`buttons` 中的任意几项（见下） | `{ "button", "text"?, "checked"?, "selected"? }`，或 `null` |
+
+**对话框**由若干部分组成，不需要的部分可以省略：`message` 是文字；`input`
+是 `{ "label"?, "default"?, "lines"? }`，1 到 10 行的输入框；`list` 是
+`{ "items", "pick"? }`，条目为字符串或 `{ "label", "detail"?, "checked"? }`，
+`pick` 为 `none`（只读，默认）、`one`（选一行）或 `many`（勾选多行）；
+`buttons` 最多 6 个按钮文字，省略时为 `["OK"]`。`Tab` 和 `Shift+Tab` 在各部分之间切换。
+在单行输入框和列表中，`Enter` 按下第一个按钮；在多行输入框中则换行。`Space`
+勾选一行；`←`/`→` 选择按钮，`Enter` 按下它；点击一行即勾选，点击按钮即按下。
+回答包含按下按钮的序号，以及对话框中有的部分：输入框的 `text`、勾选列表中
+被勾选的行 `checked`、单选列表中选中的行 `selected`。
+
+```json
+{ "title": "Submit",
+  "input": { "label": "Description", "lines": 4 },
+  "list": { "items": [{ "label": "src/a.c", "detail": "edit", "checked": true }], "pick": "many" },
+  "buttons": ["Submit", "Cancel"] }
+```
 
 每个窗口都由 termide 加上标题 `🧩 <插件> · <title>`，使它绝不会被当成 termide 自己的提问；插件给出的文字会去掉控制字符与不可见字符。没有隐藏输入：要求输入密码的窗口正是钓鱼插件会显示的东西，因此机密应放在插件的 `settings` 或其环境中。窗口会排在屏幕上已有的窗口之后，并且只在其插件所属项目为当前项目时显示；每个插件一次只能有一个窗口，期间再请求会以 busy 被拒绝。插件停止或其项目关闭时，它的窗口会被撤下。
 
 ### 面板
 
-插件可以打开自己的面板，按它发送的 Markdown 绘制：标题、列表、表格、代码和链接，与 Markdown 查看器相同，带光标、选择、搜索和复制。指向 `plugin:<动作>` 的链接就是按钮：跟随它（在链接上按 `Enter` 或点击）会把动作发回插件，插件再以更新面板作答。
+插件可以打开自己的面板，分三种。
+
+**Markdown** 面板显示插件发送的 Markdown：标题、列表、表格、代码和链接，与 Markdown 查看器相同，带光标、选择、搜索和复制。指向 `plugin:<动作>` 的链接就是按钮：跟随它（在链接上按 `Enter` 或点击）会把动作发回插件，插件再以更新面板作答。
+
+**列表**面板显示按标题分组的行，每行带有插件提供的动作，用法与 git 状态面板相同：方向键在行间移动，`Enter` 或双击运行该行的第一个动作，`Space`（或右键单击）列出全部动作，状态栏把它们显示为带快捷键的按钮。带 `key` 的动作使用对应的 git 状态快捷键，按 `[git_status.keybindings]` 的设置：`view`（`F3`）、`edit`（`F4`）或 `revert`（`Backspace`、`Delete`）；刷新键（`Ctrl+R`）发送列表的 `refresh`。行的 `status` 会像文件管理器显示 git 状态那样为它着色。带 `path` 的行排在同组其他行之后，组成文件夹树，以路径的最后一部分命名，就像 git 状态面板显示改动的文件那样：文件夹取其文件的颜色，`←`/`→`、`Enter` 或双击可折叠和展开它。`buttons` 位于各行下方；`Tab` 在按钮与行之间切换，方向键选择按钮，`Enter` 或单击按下它。
+
+```json
+{ "groups": [{
+    "label": "Change 7", "detail": "Guard Heal",
+    "actions": [{ "label": "Submit", "action": "submit-7" }],
+    "items": [{
+      "label": "Source/Game/Health.cpp", "path": "Source/Game/Health.cpp",
+      "detail": "edit", "status": "modified",
+      "actions": [
+        { "label": "Open", "action": "open-0", "key": "edit" },
+        { "label": "Diff", "action": "diff-0", "key": "view" },
+        { "label": "Revert", "action": "revert-0", "key": "revert" } ] }] }],
+  "empty": "No files are opened.",
+  "refresh": "refresh",
+  "buttons": [{ "label": "Sync", "action": "sync" }] }
+```
+
+`status` 取 `modified`、`added`、`deleted`、`ignored` 之一；`path`、`detail`、动作、`empty`、`refresh` 和 `buttons` 都可以省略。每行最多 6 个动作，每个列表最多 12 个按钮，一个快捷键归第一个指明它的动作。
+
+**diff** 面板显示统一格式的 diff（即 `diff -u` 输出的文本），方式与 git diff 面板显示 git 的改动相同：每个文件一个可折叠其改动的标题，新增和删除的行着色，并显示两侧的行号。文件按 `---`/`+++` 标题（或 `diff --git` 行）区分；路径取自 `+++` 一侧，去掉 git 的 `b/`，并相对于项目，以便 `F4` 打开它。面板不会自行重新加载，由插件来更新。
 
 | 方法 | 类型 | 方向 | 参数 / 结果 |
 |---|---|---|---|
-| `panel/open` | 请求 | 插件 → termide | `title`、`markdown`、`menu`（可选）；结果为 `{ "panel" }`，即其 id |
-| `panel/update` | 请求 | 插件 → termide | `panel`、`markdown`，以及可选的 `title` 和 `menu` |
+| `panel/open` | 请求 | 插件 → termide | `title`、`markdown`、`list` 或 `diff` 之一、`menu`（可选）；结果为 `{ "panel" }`，即其 id |
+| `panel/update` | 请求 | 插件 → termide | `panel`、`markdown`、`list` 或 `diff`（与打开时同类），以及可选的 `title` 和 `menu` |
 | `panel/close` | 请求 | 插件 → termide | `panel` |
 | `panel/action` | 通知 | termide → 插件 | `panel`、`action` |
 | `panel/closed` | 通知 | termide → 插件 | `panel`：用户关闭了它 |
 
 `menu` 是面板 `[≡]` 菜单中它自己的条目，`[{ "label", "action" }]`（最多 12 个）：选中的条目会像 `plugin:` 链接一样作为 `panel/action` 发送。表明面板出自谁之手的部分由 termide 决定：图标总是 🧩，标题总是以插件名开头（`deploy: Report`）；插件给出的标题和标签会去掉控制字符与不可见字符并截断长度。
 
-面板在插件所属的项目中打开，该项目必须是当前项目；面板不会随布局保存。更新会尽量让读者停留在原处。插件停止时，它的面板保留并说明这一点；重新启动的插件不会再拿回它们。
+面板在插件所属的项目中打开，该项目必须是当前项目；面板不会随布局保存。更新会尽量让读者停留在原处，列表的选中项留在同一行、折叠的文件夹保持折叠，diff 的选中文件和折叠的文件保持不变。插件停止时，它的面板保留并说明这一点；重新启动的插件不会再拿回它们。
 
 ```python
 # 位于下方示例的循环中

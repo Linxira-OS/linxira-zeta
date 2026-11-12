@@ -63,6 +63,9 @@ impl App {
             PanelEvent::RestartDebug => self.restart_debug(),
 
             PanelEvent::ClearBreakpoints => self.clear_breakpoints(),
+            PanelEvent::RestartLanguageServer { file } => {
+                self.restart_language_server(Some(file));
+            }
 
             PanelEvent::RunCommand { command, cwd } => {
                 self.event_run_command(command, cwd)?;
@@ -92,6 +95,8 @@ impl App {
                 self.event_swap_active_to_text(path)?;
             }
 
+            PanelEvent::StopEditingUnsaved(path) => self.ask_stop_editing(path),
+
             PanelEvent::ViewMarkdown(path) => {
                 self.event_view_markdown(path)?;
             }
@@ -106,6 +111,14 @@ impl App {
 
             PanelEvent::SwapActiveToMermaid(path) => {
                 self.event_swap_active_to_mermaid(path)?;
+            }
+
+            PanelEvent::ViewCsv(path) => {
+                self.event_view_csv(path)?;
+            }
+
+            PanelEvent::SwapActiveToCsv(path) => {
+                self.event_swap_active_to_csv(path)?;
             }
 
             PanelEvent::SaveContentAs {
@@ -465,6 +478,10 @@ impl App {
 
             PanelEvent::OpenAgentSession(path) => {
                 self.ai_open_session(path)?;
+            }
+
+            PanelEvent::OpenAgentTerminal { session, name } => {
+                self.open_agent_terminal(&session, &name);
             }
 
             PanelEvent::RestartDelegates { panel, items } => {

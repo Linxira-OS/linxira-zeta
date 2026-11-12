@@ -3,10 +3,10 @@
 | 项         | 值                                                         |
 | ---------- | ---------------------------------------------------------- |
 | 上游仓库   | https://github.com/termide/termide                         |
-| 来源 commit | tag `0.46.0` = `a027ca788cd4c9d24f060cdcd3195ca2e475617b`(2026-10-26 bump;前一快照 `0.41.0` = `f49a4c40ef6aaaff0741f7a52cefbf163dd9519b`) |
-| 引入方式   | `git archive 0.46.0`(无上游 git 历史;上游 `.github/` 需显式删除,见「bump 流程」) |
+| 来源 commit | tag `0.49.0` = `057eb55e0a7c4ee969982fab62dc83bde028e052`(2026-11-12 bump;前一快照 `0.46.0` = `a027ca788cd4c9d24f060cdcd3195ca2e475617b`) |
+| 引入方式   | `git archive 0.49.0`(无上游 git 历史;上游 `.github/` 需显式删除,见「bump 流程」) |
 | 协议       | MIT(`LICENSE` 追加 Linxira-OS/Zeta 版权行)              |
-| 引入日期   | 2026-09-28(0.41.0 bump 2026-10-15;0.46.0 bump 2026-10-29)  |
+| 引入日期   | 2026-09-28(0.41.0 bump 2026-10-15;0.46.0 bump 2026-10-29;0.49.0 bump 2026-11-12)  |
 | npm 包     | `@linxiraos/ide`(bin `zetaide`,Rust 二进制分发,版本对齐 Zeta 产品线;2026-09-30 由未发布的 `@linxiraos/work` 更名) |
 | 角色       | 工作台/壳:可视化文件管理器(最底层入口)+ 内嵌虚拟终端 pane;`zetacode`/`zetaide` 作为 pane 内子进程经 PTY 组合,编辑器为进程内面板,零代码耦合。产品愿景:把完整 Linux 无图形界面运维迁移到 Agent 流程的 TUI 底座 |
 
@@ -25,7 +25,7 @@
 | 29 | `src/main.rs` | **CLI 展示名**：`#[command(name = "termide", about = "Terminal IDE")]` → `name = "zetaide"`、`about = "Linxira Zeta IDE"`；`--help` 的 `Usage:` 行原本印上游 `termide.exe` | 上游写自家产品名 | **保留**（Zeta 2026-10-22：`zetaide --help` 是对外品牌面，与偏离 28 的窗口标题同一决定） | 2026-10-22 |
 
 | 30 | `build.rs`、`assets/termide.rc`（新增） | **Windows PE 图标**：为 `termide` / `termide-editor` 编入与 zetawork 共用的 `icon.ico`；上游无 Windows 资源，Explorer/安装器原本显示通用图标。`build.rs` 把模板里的 `@ZETA_ICON@` 换成绝对路径再交给 windres（旧版 windres 按 CWD 解析 `ICON`，新版按 rc 文件目录解析，绝对路径两边都对） | 上游无此物 | **保留**（Zeta 2026-10-25：所有 Zeta 主 exe 同一 logo，名称区分产品；release windows-gnu 缺 windres 时构建失败，避免发无图标二进制） | 2026-10-25 |
-| 35 | `build.rs`、`src/main.rs`、`src/editor_entry.rs` | **`--version` 显示 Zeta 产品线**：Cargo workspace 保持本次上游 `0.46.0`（便于后续快照重放）；`build.rs` 从根 `package.json` 读取 Zeta 版本，注入 `ZETA_DISPLAY_VERSION`，`zetaide --version` / `termide-editor --version` 输出 `1.4.x (termide 0.46.0)` | 上游只显示自身 crate 版本 | **保留**（Zeta 2026-10-25：IDE 是 Zeta 产品，但 vendored 内部版本不追 Zeta 线） | 2026-10-25 |
+| 35 | `build.rs`、`src/main.rs`、`src/editor_entry.rs` | **`--version` 显示 Zeta 产品线**：Cargo workspace 保持本次上游 `0.49.0`（便于后续快照重放）；`build.rs` 从根 `package.json` 读取 Zeta 版本，注入 `ZETA_DISPLAY_VERSION`，`zetaide --version` / `termide-editor --version` 输出 `1.4.x (termide 0.49.0)` | 上游只显示自身 crate 版本 | **保留**（Zeta 2026-10-25：IDE 是 Zeta 产品，但 vendored 内部版本不追 Zeta 线） | 2026-10-25 |
 
 ## 与仓库其余部分的关系
 
@@ -35,7 +35,7 @@
   `termide-editor[.exe]` 进 `editor/npm/editor-{windows,linux}-x64/bin/`,由 `@linxiraos/editor`
   launcher(无 bin,按路径解析)与 `plugins/official/pi-messenger/editor-binary.ts` 解析;
   `$EDITOR` 用法(位置参数 `FILE[:line[:col]]`、阻塞到退出)即由该入口保证。
-- **被 `main/`(zeta 工作台)以 path 依赖链接 5 个 crate**:`termide-core`、`termide-config`、`termide-keyboard`、`termide-panel-terminal`、`termide-theme`。因此 `termide/**` 的改动可以让 `main_tests` 变红,`.github/workflows/ci.yml` 的 `main_tests` 触发路径已含 `termide/`(2026-10-15 修复;此前只匹配 `main/`,纯 vendor 改动会让该 job 自跳)。
+- **被 `main/`(zeta 工作台)以 path 依赖链接 8 个 crate**:`termide-core`、`termide-config`、`termide-panel-ide`、`termide-panel-markdown`、`termide-keyboard`、`termide-panel-terminal`、`termide-panel-editor`、`termide-theme`。因此 `termide/**` 的改动可以让 `main_tests` 变红,`.github/workflows/ci.yml` 的 `main_tests` 触发路径已含 `termide/`(2026-10-15 修复;此前只匹配 `main/`,纯 vendor 改动会让该 job 自跳)。
 - 构建产物走 `termide/target/`(根 `.gitignore` 全局 `target/` 已覆盖)。
 
 ## 修改层清单(对上游快照的全部偏离)
@@ -179,3 +179,84 @@ linux 叶子要在一个 **native checkout(clone)** 里构建(旧的 0.38.0 叶�
 - 0.46 的 1.97.1 clippy 修：`agent-mcp`/`agent-acp` 的 `sort_by` 改 `sort_by_key(Reverse(..))`，`ui` 的 range loop 改迭代器，`panel-editor` 的 `needless_bool` 化简，`vfs`/`panel-terminal` 的固定宽度 `chunks_exact` 改 `as_chunks`，`modal` 的设置页 Esc 分支改 guard；`core`/`file-ops`/`ui-render` 对中间测试模块加 `items_after_test_module` allow（上游 0.46 代码在更老的 clippy 上通过）。
 - 上游新增能力：0.42 的图片 `read`、delegate/peer；0.43–0.44 的断点/DAP 调试器；0.45 的插件、项目信任/安全加固、delegate 暂停；0.46 的命令占位符与 delegate 限流。
 - 验证：`cargo fmt --check`、`cargo check --workspace`（Linux）、`cargo test --workspace`（Linux）、`cargo check --workspace --target x86_64-pc-windows-gnu` 通过；ACP 专项 `termide-agent-acp` 50 tests、provider/config/app tests 全绿；`main` workspace 的 Linux/Windows GNU `cargo check` 与 `cargo test --workspace`（524 tests）也通过。Strict clippy（1.97.1 等价 lint 集）已通过，覆盖 `chunks_exact_to_as_chunks` / `unnecessary_sort_by` / `needless_range_loop` / `collapsible_match`。
+
+## 0.49.0 bump (2026-11-12)
+
+- 上游：<https://github.com/termide/termide>，tag `0.49.0`（annotated `4cc014fbbc809395dfbeb239f468de5dfc077035`，解引用 commit `057eb55e0a7c4ee969982fab62dc83bde028e052`，release 2026-11-05T18:39:48Z；前一快照 `0.46.0` = `a027ca788cd4c9d24f060cdcd3195ca2e475617b`）。bump 日期 2026-11-12；合并开始前 `git ls-remote --tags ... 0.49.0 0.49.0^{}` 已复核 tag 未移动。
+- 窗口：GitHub compare `0.46.0...0.49.0` = **247 commits**；compare API 的 `files` 数组 capped 300。本地逐树 diff（base 0.46.0 → 0.49.0）= **410 路径**（334 改、73 增、3 删、+56233/−7516）。
+- 重放方法：`temp/termide-bases/0.46.0` = base、本树 = ours、`temp/termide-bases/0.49.0` = theirs，在独立三提交树内 `git merge --no-commit --no-ff`；10 处内容冲突逐项解决，其余 400 路径自动合并。Zeta-only 文件（`VENDOR.md`、`npm/`、`rustfmt.toml`、`crates/panel-ide/`、`cli_args.rs`、`hyperlink.rs`、`kitty.rs`、`reports.rs`、编辑入口）全部保留。
+- 安全修复（release notes + `Cargo.lock` 复核）：
+  - **0.47.1**：zip 9.0.0–9.0.4 读 local header 与 central header 不一致，可让 crafted `.zip` 通过检查并写出解包目录；0.49 锁到 `zip 9.1.3`。
+  - **0.49.0 SSH/SFTP**：`russh 0.65.0`，越过 **0.64** advisories——agent signing without confirmation、crafted `EXT_INFO`/`CONSTRAIN_CONFIRM` 的无界分配、零 max packet size 的 channel stall、Pageant frame buffering。
+  - **0.49.0 agent 判定**：命令按真正执行它的 shell 语法判定（zsh glob qualifier `${(e)x}`、fish `(cmd)`/不可整体解析的 fish 命令一律询问）；关闭 look-only 绕过（bash 5.3 `${ cmd; }`/`${|cmd; }`、`test -v` 的数组下标、`find -del''ete` 这类引号/反斜杠拆开选项）；变量值（算术/`${!x}`/下标等）不再无询问地当代码跑。
+  - **0.47.0**：SFTP 强制 `known_hosts`（首见列 key type + SHA256 指纹再接受，变更/吊销拒绝）、`ssh_config`/`ProxyJump`；归档解包不跟随符号链接链写出目的地；shell 名字中的控制字符转义；`read`/`bash`/`/dev/tty` 与管道边界收紧。
+- 终端/LSP/编辑器修复（zetaide 直接相关）：
+  - 终端：resize 时保存光标不再 panic；缩小时保留 prompt 行、恢复时行从 scrollback 回到屏幕（xterm 语义）；同步更新（DEC 2026）超时不再永久冻结；未终止 OSC 有 64 KiB 上限；程序停止读输入时 UI 不再冻结（`PtyInput` 队列 + 独立 writer 线程）；BEL 洪泛限频；自退出 shell 不再留 zombie。解析器改为 `VtParser` + `VtPerformer` + `ReplySink`，另新增 `OutputTap`。
+  - LSP：崩溃 server 3 分钟内最多重启 3 次并重发全部打开文档，标题显示 `(restarting)`；命令面板/编辑器菜单可立即重启（含启动失败者）；协议消息长度异常成为协议错误而非 abort；shutdown 有界。
+  - 编辑器/文件：写文件改为同目录临时文件 + rename（保留 symlink/权限）；Windows 跨卷 move 回退 copy+delete；CRLF 文件按多数行保留行尾；不可读 layout 改名 `session.toml.broken-<time>` 并恢复未保存 buffer；搜索替换组合字符按字素；增量语法高亮（820 KB Rust 每键约 1 ms，原约 1 s）。
+  - 项目/进程：同一 project 同时只属于一个 instance（claim/lease，detached 时自动 attach）；退出保存未保存改动并以 `128 + signal` 退出；上一轮项目在后台恢复。
+  - 上游新增能力：0.47 CSV/TSV 表格查看器与 agent 终端会话（`shell session`/`background`、`terminals`）；0.48 Perforce 插件、插件 VCS 替换、API key vault；0.49 `bash`→`shell` 重命名、Claude prompt cache、app attribution、`--no-restore`。
+- Zeta 偏离重放表（0.49.0 结果）：
+
+| # | 偏离 | 0.49.0 结果 |
+| --- | --- | --- |
+| 1 | `LICENSE` 追加 Linxira-OS/Zeta 行 | **保留**；`npm/ide`、`npm/ide-{linux,windows}-x64` 三份 LICENSE 同步含该行 |
+| 2 | `npm/` 包 | **保留**（上游不涉 npm 面；叶包二进制仍待 bump 后重编） |
+| 3 | `rustfmt.toml` | **保留**（0.49.0 根条目仍无同名文件） |
+| 4 | `PanelEvent::OpenPath` 增 `line`/`col` | **保留**（`core/src/event.rs` 上游改动未触碰该变体） |
+| 5 | `wide_cells.rs` `#[allow(deprecated)]` | **保留** |
+| 6 | `panel-terminal/src/hyperlink.rs` | **保留**（OSC 8 区域/percent-decode/`?line=&col=`) |
+| 7 | 本地 `LinkType::Hyperlink` + `link_text` | **上游**（自 0.41 已作废；`link_detection` 取上游） |
+| 8 | `Cell.link`、`TerminalScreen` hyperlink/title/intern | **保留**；另与上游新 `sync_output_*`、`sidebar_apc`、`cell_px`、`graphics` 并存 |
+| 9 | `osc_dispatch` OSC 0/2 + 8 + 7/9 | **保留**（上游 0.49 仍只处理 7/9，且新增 `MAX_OSC_LEN`；本树重放三段并复用 `apply_ops`） |
+| 10 | `mouse.rs` OSC 8 语义（Ctrl 跟随 / Ctrl+Alt 外开） | **保留** |
+| 11 | `set_env` 注入 `ZETA_WORKBENCH` / 外层身份清扫 | **保留**，并按偏离 31 声明 `TERM_PROGRAM=zetawork` + `TERM_PROGRAM_VERSION` + `COLORTERM=truecolor`，清扫 `WT_SESSION`/`KITTY_WINDOW_ID` 等 |
+| 12 | `shell_utils.rs` Windows shell 链 | **保留**（上游 `detect_shell` 有改动，按语义合并） |
+| 13/14/15/16/17 | `cli_args`、`open_cli_path_at`、`hosted_args`、positional 解析 | **保留并适配**：新增 0.49 的 `--no-restore`、project claim/`load_layout_or_default`、detached 默认 attach；`hosted_args(cli, files: &[&OpenedTarget])` 仍传已解析绝对路径 |
+| 18 | `CHANGELOG.md` `[Unreleased]` | **保留**（置于 0.49/0.48/0.47.x 段之上） |
+| 19 | `render.rs` `cell_style()` | **保留** |
+| 20 | `CellStyle::dim` + SGR 22 | **保留** |
+| 21 | CSI-u 位掩码 `flag & 1` | **保留**（上游仍 `flag == 1`） |
+| 22 | `send_ctrl_char` Alt 和弦 | **保留** |
+| 23 | `termide-editor` 入口 | **保留**（`src/bin/termide-editor.rs`、`editor_entry.rs`、`tests/editor_entry.rs`；未动 `src/main.rs` 的 bin 结构） |
+| 24 | `Terminal::try_wait` | **保留** |
+| 25 | `Terminal::send_bytes` | **保留**（与上游新 `run_file_command`/`send_command` 并存） |
+| 26 | 1.97.1 clippy 修 | **保留**（`sort_by_key(Reverse)`、`while let` 等仍在）；0.49 新代码按同一 lint 集另行修正 |
+| 27 | Windows 盘符页 | **合并**：上游 0.49 把目录树抽成 `dir_tree.rs`（`DirTree`/`TreeRoot`）；盘符页改由 `DirTree::set_roots(drives)` 实现，保留 `starting_at_drives`/`drives()`/盘符根 Backspace 回盘符页/卷行不当作项目目录；测试适配 `tree.has_roots()` |
+| 28 | 窗口标题 `zetaide:` + theme 命中测试 | **保留** |
+| 29 | CLI `name = "zetaide"` / `about` | **保留** |
+| 30 | Windows PE 图标（`build.rs` + `assets/termide.rc`） | **保留** |
+| 31 | kitty 图形终端 / 真实像素 / APC | **合并**：上游 0.49 的 `VtParser`/`VtPerformer`/`ReplySink`/`OutputTap` 与新 `spawn_reader` 被采纳；本树 `StreamParser` 改为包装 `VtParser` + `ApcScanner` + `VtPerformer(replies)`，`apc`/`apc_oversized`、sidebar sideband、CSI 14/16/18、DA1 `?1;2c`、XTVERSION、`cell_px`/`graphics` 全部重放 |
+| 32 | panic 现场捕获 + `logger::file_path()` | **保留**；0.49 把版本 stamp 从 `crates/core/build.rs`（上游删除）移到根 `build.rs`——根 `build.rs` 现同时做 `TERMIDE_VERSION` stamp 和 Zeta 图标/`ZETA_DISPLAY_VERSION`；**stamp 陷阱改为根 `build.rs`** |
+| 33 | `project_key` 保留卷名 + 迁移 | **保留**（上游 project 层新增 claim/lease，未冲突） |
+| 34 | Windows dead-code `cfg` 门 | **保留** |
+| 35 | `--version` 显示 Zeta 产品线 | **保留**：workspace 版本随上游 `0.49.0`，`ZETA_DISPLAY_VERSION` 输出 `1.4.x (termide 0.49.0)`；`termide-editor` 同 |
+
+- 0.49 新增代码的 1.97.1 clippy 修（本机 Windows GNU `-D warnings` 实际驱动）：
+  `agent-mcp`/`dir_tree`/`panel-agent` 的 `sort_by` → `sort_by_key(Reverse(..))`；
+  `panel-csv` 的 `[b',', …]` → `*b",;\t|"`；`agent-mcp` 测试 import；
+  Windows 上的 dead-code 门：`agent-web` 的 unix test prelude、`detach` 的
+  `process_start`/`own_process`、`agent_shell` 的 `HANGUP_GRACE`/`child`/`has_exited`、
+  `app` 的 `direnv::Lookup::Pending`/`termination::record`、`project/atomic.rs` 的 `File`；
+  `agent_shell` 的 test 模块后置静态断言加 `allow(clippy::items_after_test_module)`。
+- 新结构注意：0.49 删除 `crates/core/build.rs`（stamp 上移到根 `build.rs`）；`crates/agent-tools/src/bash.rs` 与 `crates/agent-core/assets/tools/bash.md` 被上游改名为 `shell` 体系（`crates/agent-tools/src/shell.rs`、`assets/tools/shell.md`），Zeta ACP 面未受影响。
+- 验证（2026-11-12；Windows GNU `1.97.1-x86_64-pc-windows-gnu`，`CARGO_TARGET_DIR` 在 F: 以免占满 C:）：
+  - `cargo fmt --check`：通过。
+  - `cargo check --workspace --offline`：通过（仅上游既有 `unused`/deprecated warnings；0.49 新代码的 Windows dead-code 已在上面收紧）。
+  - `cargo clippy --workspace --all-targets --offline -- -D warnings`：通过。
+  - `cargo test --workspace --offline --no-fail-fast`：Windows GNU 上 9 个 target 红。分类结果：**1 个 Zeta 自有测试**（`app::agent_panel::tests::a_cli_agents_window_limit_reaches_it_in_its_environment`，Zeta 的 `zeta` provider 在 Windows 走 `cmd /C zetacode acp`；已把断言改为按平台分支，修复后该测试通过）——其余 **43 个全部是上游 0.49 自身的 Windows 假设**，涉及文件与 `temp/termide-bases/0.49.0` 逐字节相同（`vfs/archive/iso.rs` 仅有本树 1.97.1 clippy 的 `as_chunks` 改写，语义不变；`app/agent_panel.rs` 的差异仅 Zeta ACP 分支）：
+    - `termide-agent-core` 11：`permissions::tests::{a_compound_command_asks_about_each_part_left_and_remembers_each, a_loop_that_changes_directory_leaves_it_unknown, critical_removals_are_the_root_the_home_and_the_project, debug_steps_go_through_and_launches_stay_with_the_mode, each_mode_decides_by_its_table, parts_resolve_their_program_from_the_directory_cd_left, rule_denials_block_without_prompting, subjects_are_project_relative, writing_under_git_asks_in_every_mode_but_all}`、`session::tests::{a_new_session_is_leased_from_the_start, a_session_held_by_another_termide_opens_only_to_be_read}`（Unix `/etc` 与 lease/lock 语义）。
+    - `termide-agent-recall` 4：`filter::tests::{a_filter_is_restated_inside_a_nested_directory, paths_read_from_the_working_directory_and_results_point_back_to_it}`、`files::tests::nested_repositories_are_searched_even_when_the_outer_one_ignores_them`、`tests::a_search_finds_sessions_commits_and_files_together`（`\` vs `/`、`src\main.rs`）。
+    - `termide-app` 8（修复前 9）：`app::modal::path_suggestions::tests::a_path_completes_from_its_directory_directories_first`、`app::plugin_providers::tests::a_plugins_answers_are_checked`、`app::recent_destinations::tests::{a_confirmed_copy_counts_and_a_rename_does_not, a_path_naming_the_item_counts_by_its_directory, a_saved_file_counts_by_its_directory, an_archive_own_directory_counts_as_its_parent, an_existing_directory_counts_as_itself}`、`app::agent_panel::tests::a_subagent_on_a_cli_agent_runs_its_task_to_the_end`（渲染文本 `src\main.rs` vs `src/main.rs`）。
+    - `termide-debug` 7：`breakpoints::tests::{saving_keeps_the_files_another_instance_wrote, set_and_remove_lines}`、`cargo::tests::{a_bins_main_file_is_that_bin_alone, a_build_outside_the_workspace_names_its_manifest}`、`launch::tests::{delve_takes_only_go_files, gdb_quotes_a_path_with_a_space, lldb_sets_the_breakpoints_and_runs}`。
+    - `termide-lsp` 1：`workspace::tests::go_work_lists_relative_and_absolute_uses`。
+    - `termide-modal` 4：`editable_select::tests::{directories_are_created_in_the_tree_and_letters_stay_typing, picking_a_directory_keeps_the_file_name, tab_opens_the_quick_destinations_and_down_writes_them_into_the_field}`、`save_as::tests::tab_opens_the_tree_and_a_picked_directory_keeps_the_file_name`。
+    - `termide-panel-agent` 2：`input::picture_path_tests::only_text_naming_nothing_but_pictures_is_taken`、`tests::a_session_another_termide_holds_is_shown_read_only_until_let_go`。
+    - `termide-panel-html` 1：`tests::a_file_page_saves_as_markdown_next_to_its_name`。
+    - `termide-vfs` 5：`archive::index::tests::subtree_is_the_entry_and_its_descendants_only`、`archive::iso::tests::{a_directory_loop_is_not_followed, a_relocated_directory_is_listed_where_it_belongs, an_hdiutil_image_reads_its_joliet_names, every_tree_of_an_image_can_be_read}`。
+    上游 CI 不在 Windows 跑测试（0.46 bump 同样只把 `cargo test` 放在 Linux），所以这些记为 **known upstream Windows red**，不当作本 bump 的回归，也不静默跳过。
+  - Linux（WSL **native copy** `/root/zeta-termide-049`，不是 worktree；toolchain `1.97.1-x86_64-unknown-linux-gnu`）：
+    `cargo check --workspace --locked` **通过**（1 个上游 `unused` warning）；`cargo test --workspace --locked --no-fail-fast` 全 workspace 仅 `termide-clipboard` 出现 1 个 **transient** 红（14 passed / 1 failed / 1 ignored），单独重跑该包 **15 passed / 0 failed / 1 ignored**（其余 target 全绿）。该失败在并发跑 Windows release LTO 构建时发生，重跑不复现。
+- 叶二进制：**pending（未拷贝/未提交）**。尝试 `cargo build --release --locked -p termide --target x86_64-pc-windows-gnu`（干净树、`CARGO_TARGET_DIR=F:/zeta-target-leaf-049`）；release profile 的 `-C lto -C codegen-units=1` 在本机卡住：两个 rustc 自 20:12 起 15+ 分钟 CPU 不再增长，只留下 0 字节的 `termide-*.rcgu.o` / `termide_editor-*.rcgu.o`，从未生成 `F:/zeta-target-leaf-049/x86_64-pc-windows-gnu/release/termide.exe` 或 `termide-editor.exe`；已停止构建并杀掉卡住的 rustc，未伪造、未拷贝。mingw (`x86_64-w64-mingw32-gcc`、`windres`) 与 `nasm` 均在 PATH 上，Windows GNU `cargo check`/clippy 全绿；`termide/npm/ide-windows-x64/bin/termide.exe`、`editor/npm/editor-windows-x64/bin/termide-editor.exe` 仍是旧快照，需在 release 机器上重跑同一 recipe。Linux leaf 未构建（native copy 只做 check/test）。
+- 叶二进制 stamp 要求：`0.49.0`；免执行核对
+  `grep -a -o -E '0\.49\.0 \([0-9a-f]{8}(-dirty)?\)' <leaf binary>`。

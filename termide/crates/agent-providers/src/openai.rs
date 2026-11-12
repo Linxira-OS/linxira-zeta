@@ -7,10 +7,11 @@ use std::time::Duration;
 
 use serde_json::{json, Map, Value};
 use termide_agent_core::{
-    AssistantContent, AssistantMessage, CancelToken, Message, ModelInfo, Provider, Request,
-    StopReason, StreamEvent, ThinkingLevel,
+    AssistantContent, AssistantMessage, Attribution, CancelToken, Message, ModelInfo, Provider,
+    Request, StopReason, StreamEvent, ThinkingLevel,
 };
 
+use crate::attribution;
 use crate::retry::{with_retries, Failure, RetryPolicy};
 use crate::sse::Accumulator;
 
@@ -18,10 +19,11 @@ use crate::sse::Accumulator;
 /// of which a server may refuse: the top-level ones and, on assistant
 /// messages, the reasoning sent back. A server that names one in a 400 or
 /// 422 gets the request again without it, and never again after.
-const OPTIONAL_FIELDS: [&str; 5] = [
+const OPTIONAL_FIELDS: [&str; 6] = [
     "chat_template_kwargs",
     "reasoning_effort",
     "return_progress",
+    "cache_control",
     "reasoning_content",
     "reasoning",
 ];
@@ -45,6 +47,12 @@ pub struct Compat {
     /// `return_progress`). Off by default: OpenAI rejects unknown fields;
     /// the app turns it on for every server but the hosted APIs.
     pub prefill_progress: bool,
+    /// Ask a gateway to cache the prompt of the models that cache only on
+    /// request — Anthropic's, as OpenRouter serves them — with a top-level
+    /// `cache_control`, which caches the conversation up to its last message
+    /// and moves along as it grows. Off by default: other servers cache by
+    /// themselves or not at all; the app turns it on for OpenRouter.
+    pub prompt_cache: bool,
     /// Merged into every request body last; the escape hatch for anything
     /// not modelled here (`chat_template_kwargs`, `temperature`, ...).
     pub extra_body: Map<String, Value>,
@@ -57,6 +65,7 @@ impl Default for Compat {
             reasoning: ReasoningParam::None,
             send_reasoning: false,
             prefill_progress: false,
+            prompt_cache: false,
             extra_body: Map::new(),
         }
     }
@@ -80,6 +89,9 @@ pub struct OpenAiCompatProvider {
     /// Base URL including the API prefix, e.g. `http://127.0.0.1:10000/v1`.
     base_url: String,
     api_key: Option<String>,
+    /// How to identify termide to this endpoint, when it files usage by app
+    /// and the user asked for it; `None` sends no such header.
+    attribution: Option<Attribution>,
     pub compat: Compat,
     pub retry: RetryPolicy,
     /// Idle limit between two SSE reads; a stalled server fails the request.
@@ -102,6 +114,7 @@ impl OpenAiCompatProvider {
             refused: refusals_of(&base_url),
             base_url,
             api_key: None,
+            attribution: None,
             compat: Compat::default(),
             retry: RetryPolicy::default(),
             read_timeout,
@@ -113,6 +126,15 @@ impl OpenAiCompatProvider {
     #[must_use]
     pub fn with_api_key(mut self, key: Option<String>) -> Self {
         self.api_key = key.filter(|k| !k.is_empty());
+        self
+    }
+
+    /// Identify termide to the endpoint with `attribution`'s headers; `None`
+    /// leaves the request unattributed, as any server that has no per-app
+    /// notion sees it.
+    #[must_use]
+    pub fn with_attribution(mut self, attribution: Option<Attribution>) -> Self {
+        self.attribution = attribution;
         self
     }
 
@@ -173,6 +195,9 @@ impl OpenAiCompatProvider {
         body.insert("stream_options".into(), json!({ "include_usage": true }));
         if self.compat.prefill_progress {
             body.insert("return_progress".into(), json!(true));
+        }
+        if self.compat.prompt_cache && caches_on_request(&request.model.id) {
+            body.insert("cache_control".into(), json!({ "type": "ephemeral" }));
         }
         // No limit configured: leave the reply's length to the model.
         if let Some(max_tokens) = request.model.max_tokens {
@@ -354,6 +379,7 @@ impl OpenAiCompatProvider {
         if let Some(key) = &self.api_key {
             http = http.set("Authorization", &format!("Bearer {key}"));
         }
+        let http = attribution::apply(http, self.attribution);
 
         let response = match http.send_string(body) {
             Ok(response) => response,
@@ -458,6 +484,7 @@ impl Provider for OpenAiCompatProvider {
         if let Some(key) = &self.api_key {
             http = http.set("Authorization", &format!("Bearer {key}"));
         }
+        let http = attribution::apply(http, self.attribution);
         let body = match http.call() {
             Ok(response) => response
                 .into_string()
@@ -524,13 +551,13 @@ impl OpenAiCompatProvider {
 }
 
 /// The fields a server refused, by the providers that talk to it.
-type Refusals = Arc<Mutex<BTreeSet<&'static str>>>;
+pub(crate) type Refusals = Arc<Mutex<BTreeSet<&'static str>>>;
 
 /// The refusals of the server at `base_url`, shared across the process: each
 /// session and side call builds its own provider, and a field one of them
 /// learned the server refuses is not tried again by the next. They live as
 /// long as the process, so an upgraded server is asked again after a restart.
-fn refusals_of(base_url: &str) -> Refusals {
+pub(crate) fn refusals_of(base_url: &str) -> Refusals {
     static SHARED: Mutex<Option<HashMap<String, Refusals>>> = Mutex::new(None);
     let mut shared = SHARED.lock().unwrap_or_else(PoisonError::into_inner);
     Arc::clone(
@@ -566,7 +593,7 @@ fn refused_in(failure: &Failure, body: &Value) -> Vec<&'static str> {
 }
 
 /// Whether `text` names `field` as a word of its own.
-fn names_field(text: &str, field: &str) -> bool {
+pub(crate) fn names_field(text: &str, field: &str) -> bool {
     let word = |c: char| c.is_ascii_alphanumeric() || c == '_';
     text.match_indices(field).any(|(at, _)| {
         let before = text[..at].chars().next_back();
@@ -615,6 +642,17 @@ fn build_agent(connect: Duration, read: Duration) -> ureq::Agent {
         .build()
 }
 
+/// Whether a gateway's `model` caches its prompt only when asked: Anthropic's
+/// models (`anthropic/…`, or `~anthropic/…`, OpenRouter's latest-of-a-family
+/// alias). The others a gateway serves cache by themselves (OpenAI, DeepSeek,
+/// Gemini, Grok, Moonshot) or take breakpoints on message parts only.
+fn caches_on_request(model: &str) -> bool {
+    model
+        .trim_start_matches('~')
+        .to_ascii_lowercase()
+        .starts_with("anthropic/")
+}
+
 /// The `reasoning_effort` values `model` takes, as levels: OpenAI's own
 /// models by family (a gateway's `openai/` prefix aside), the three common
 /// ones for anything else.
@@ -655,8 +693,10 @@ fn effort_levels(model: &str) -> Vec<ThinkingLevel> {
 
 /// Models from a `GET /models` body: OpenAI's `{"data": [{"id": …}]}`, or a
 /// bare array of objects or strings as some servers return. Sorted by id,
-/// duplicates dropped. `max_model_len` (vLLM, omlx) becomes the context
-/// window when present.
+/// duplicates dropped. `max_model_len` (vLLM, omlx) or `context_length`
+/// (OpenRouter and other gateways) becomes the context window when present,
+/// and a `name` other than the id (OpenRouter's "Anthropic: Claude …") the
+/// name shown for the model.
 fn parse_model_list(body: &str) -> Result<Vec<ModelInfo>, String> {
     let value: Value =
         serde_json::from_str(body).map_err(|error| format!("model list is not JSON: {error}"))?;
@@ -674,9 +714,15 @@ fn parse_model_list(body: &str) -> Result<Vec<ModelInfo>, String> {
                 .or_else(|| item.as_str())?;
             Some(ModelInfo {
                 id: id.to_string(),
-                context_window: item
-                    .get("max_model_len")
-                    .and_then(Value::as_u64)
+                name: item
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|name| !name.is_empty() && *name != id)
+                    .map(str::to_string),
+                context_window: ["max_model_len", "context_length"]
+                    .iter()
+                    .find_map(|field| item.get(*field).and_then(Value::as_u64))
                     .filter(|len| *len > 0),
             })
         })
@@ -704,7 +750,7 @@ fn error_text(body: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::io::{Read, Write};
     use std::net::{TcpListener, TcpStream};
     use std::sync::{Arc, Mutex};
@@ -778,7 +824,16 @@ mod tests {
 
     /// One-shot HTTP responder: each entry answers one request in order and
     /// records the request bodies.
-    fn serve(responses: Vec<String>) -> (String, Arc<Mutex<Vec<String>>>) {
+    pub(crate) fn serve(responses: Vec<String>) -> (String, Arc<Mutex<Vec<String>>>) {
+        serve_recording(responses, false)
+    }
+
+    /// The same, recording whole requests so their headers can be asserted.
+    fn serve_raw(responses: Vec<String>) -> (String, Arc<Mutex<Vec<String>>>) {
+        serve_recording(responses, true)
+    }
+
+    fn serve_recording(responses: Vec<String>, whole: bool) -> (String, Arc<Mutex<Vec<String>>>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let url = format!("http://{}/v1", listener.local_addr().unwrap());
         let bodies = Arc::new(Mutex::new(Vec::new()));
@@ -788,8 +843,10 @@ mod tests {
                 let Ok((mut stream, _)) = listener.accept() else {
                     return;
                 };
-                let body = read_request(&mut stream);
-                seen.lock().unwrap().push(body);
+                let raw = read_request(&mut stream);
+                seen.lock()
+                    .unwrap()
+                    .push(if whole { raw.clone() } else { body_of(&raw) });
                 let _ = stream.write_all(response.as_bytes());
                 let _ = stream.flush();
             }
@@ -797,6 +854,13 @@ mod tests {
         (url, bodies)
     }
 
+    /// The body of a raw HTTP request: what follows its blank line.
+    fn body_of(raw: &str) -> String {
+        raw.find("\r\n\r\n")
+            .map_or_else(String::new, |end| raw[end + 4..].to_string())
+    }
+
+    /// The whole request, headers included: the caller takes its body.
     fn read_request(stream: &mut TcpStream) -> String {
         let mut raw = Vec::new();
         let mut buffer = [0u8; 4096];
@@ -817,16 +881,16 @@ mod tests {
             let n = stream.read(&mut buffer).unwrap();
             raw.extend_from_slice(&buffer[..n]);
         }
-        String::from_utf8_lossy(&raw[header_end..header_end + content_length]).into_owned()
+        String::from_utf8_lossy(&raw).into_owned()
     }
 
-    fn sse(body: &str) -> String {
+    pub(crate) fn sse(body: &str) -> String {
         format!(
             "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n{body}"
         )
     }
 
-    fn status(code: u16, body: &str) -> String {
+    pub(crate) fn status(code: u16, body: &str) -> String {
         format!(
             "HTTP/1.1 {code} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
             body.len()
@@ -934,6 +998,47 @@ mod tests {
         assert!(plain.get("return_progress").is_none());
         assert!(plain.get("reasoning_effort").is_none());
         assert!(plain["messages"][2].get("reasoning_content").is_none());
+    }
+
+    #[test]
+    fn a_gateway_is_asked_to_cache_the_models_that_cache_only_on_request() {
+        let gateway =
+            OpenAiCompatProvider::new("p", "https://openrouter.ai/api/v1").with_compat(Compat {
+                prompt_cache: true,
+                ..Compat::default()
+            });
+        let messages = vec![Message::User(UserMessage::text("hi"))];
+        let body = |provider: &OpenAiCompatProvider, id: &str| {
+            let model = ModelSpec {
+                id: id.into(),
+                ..model()
+            };
+            provider.build_body(&Request {
+                model: &model,
+                system_prompt: "s",
+                messages: &messages,
+                tools: &[],
+                thinking: ThinkingLevel::Off,
+            })
+        };
+        for id in [
+            "anthropic/claude-sonnet-5",
+            "~anthropic/claude-sonnet-latest",
+        ] {
+            assert_eq!(
+                body(&gateway, id)["cache_control"],
+                json!({ "type": "ephemeral" }),
+                "{id}"
+            );
+        }
+        // Models that cache by themselves, and servers not asked to.
+        assert!(body(&gateway, "openai/gpt-6-luna")
+            .get("cache_control")
+            .is_none());
+        let plain = OpenAiCompatProvider::new("p", "http://x/v1");
+        assert!(body(&plain, "anthropic/claude-sonnet-5")
+            .get("cache_control")
+            .is_none());
     }
 
     #[test]
@@ -1242,6 +1347,67 @@ data: [DONE]\n";
         assert!(body.get("tools").is_none());
     }
 
+    /// The identification headers go where the connection was switched on to
+    /// send them and nowhere else; the endpoint's own headers are untouched.
+    #[test]
+    fn a_connection_asked_to_identify_names_termide_and_another_does_not() {
+        let transcript = "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\n\
+data: [DONE]\n";
+        let ask = |attribution: Option<Attribution>| {
+            let (url, seen) = serve_raw(vec![sse(transcript)]);
+            let provider = provider(&url).with_attribution(attribution);
+            let messages = vec![Message::User(UserMessage::text("hi"))];
+            let request = Request {
+                model: &model(),
+                system_prompt: "",
+                messages: &messages,
+                tools: &[],
+                thinking: ThinkingLevel::Off,
+            };
+            let message = provider.stream(&request, &mut |_| {}, &CancelToken::new());
+            assert_eq!(message.plain_text(), "ok");
+            let raw = seen.lock().unwrap()[0].clone();
+            (raw.clone(), raw.to_ascii_lowercase())
+        };
+
+        let (identified, identified_ci) = ask(Some(Attribution {
+            referer: "https://github.com/termide/termide",
+            title: "Termide",
+            categories: "cli-agent,programming-app",
+        }));
+        // As the service spells them, so its own parsing finds them.
+        assert!(
+            identified.contains("HTTP-Referer: https://github.com/termide/termide"),
+            "{identified}"
+        );
+        assert!(
+            identified.contains("X-OpenRouter-Title: Termide"),
+            "{identified}"
+        );
+        assert!(
+            identified.contains("X-OpenRouter-Categories: cli-agent,programming-app"),
+            "{identified}"
+        );
+        assert!(
+            identified_ci.contains("authorization: bearer secret"),
+            "{identified_ci}"
+        );
+
+        let (_, unattributed_ci) = ask(None);
+        assert!(
+            !unattributed_ci.contains("http-referer"),
+            "{unattributed_ci}"
+        );
+        assert!(
+            !unattributed_ci.contains("x-openrouter"),
+            "{unattributed_ci}"
+        );
+        assert!(
+            unattributed_ci.contains("authorization: bearer secret"),
+            "{unattributed_ci}"
+        );
+    }
+
     #[test]
     fn transient_status_is_retried_then_succeeds() {
         let ok = sse("data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"back\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n");
@@ -1494,10 +1660,12 @@ data: [DONE]\n";
             vec![
                 ModelInfo {
                     id: "llama".into(),
+                    name: None,
                     context_window: None
                 },
                 ModelInfo {
                     id: "qwen".into(),
+                    name: None,
                     context_window: Some(32_000)
                 },
             ]
@@ -1523,6 +1691,33 @@ data: [DONE]\n";
             .unwrap_err()
             .contains("no `data` array"));
         assert!(parse_model_list("<html>").unwrap_err().contains("not JSON"));
+    }
+
+    #[test]
+    fn model_list_takes_a_gateways_names_and_windows() {
+        // OpenRouter's shape: `name` and `context_length` beside the id.
+        let models = parse_model_list(
+            r#"{"data":[
+                {"id":"anthropic/claude-sonnet-5","name":"Anthropic: Claude Sonnet 5","context_length":1000000},
+                {"id":"qwen","name":"qwen","context_length":0}
+            ]}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            models,
+            vec![
+                ModelInfo {
+                    id: "anthropic/claude-sonnet-5".into(),
+                    name: Some("Anthropic: Claude Sonnet 5".into()),
+                    context_window: Some(1_000_000)
+                },
+                ModelInfo {
+                    id: "qwen".into(),
+                    name: None,
+                    context_window: None
+                },
+            ]
+        );
     }
     #[test]
     fn the_endpoint_is_the_host_of_the_base_url() {

@@ -14,13 +14,14 @@ use serde_json::{json, Value};
 use termide_agent_core::{
     CancelToken, LateTools, Tool, ToolCall, ToolContext, ToolResultMessage, ToolTraits, ToolUpdate,
 };
-use termide_config::{plugin_enabled, Config, PluginSettings};
+use termide_config::{builtin_plugin_enabled, plugin_enabled, Config, PluginSettings};
 use termide_plugins::protocol::{self, events};
 use termide_plugins::rpc::{RpcError, INTERNAL_ERROR, INVALID_PARAMS, METHOD_NOT_FOUND};
 use termide_plugins::{
     Contributions, Host, HostEvent, Installed, Launch, PluginKey, ProcessLauncher, Timing,
 };
 
+use super::parked_projects::{plugin_panel_id, PluginPanelMut};
 use super::App;
 
 /// The action prefix of a plugin command in the palette.
@@ -56,10 +57,31 @@ pub(crate) struct PluginRuntime {
     pub(super) windows: super::plugin_windows::Windows,
     /// What the plugins were last told of the editors.
     pub(super) editors: super::plugin_editor::EditorWatch,
+    /// What the plugins said of files: statuses and bases.
+    pub(super) files: super::plugin_files::PluginFiles,
 }
 
-/// What the plugins directory beside the global config file holds now.
+/// The plugins termide carries in its own program, run in the directory of
+/// that program.
+fn builtin_plugins() -> Vec<Installed> {
+    let dir = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(Path::to_path_buf))
+        .unwrap_or_else(std::env::temp_dir);
+    vec![Installed::builtin(
+        termide_plugin_perforce::NAME,
+        termide_plugin_perforce::DESCRIPTION,
+        dir,
+    )]
+}
+
+/// What the plugins directory beside the global config file holds now,
+/// with the built-in plugins it holds no plugin of the same name for.
 fn discover_installed() -> Vec<Installed> {
+    termide_plugins::with_builtins(discover_directory(), builtin_plugins())
+}
+
+fn discover_directory() -> Vec<Installed> {
     match Config::config_file_path() {
         Ok(config_file) => {
             let dir = config_file
@@ -111,6 +133,7 @@ impl PluginRuntime {
             next_panel: 1,
             windows: Default::default(),
             editors: Default::default(),
+            files: Default::default(),
         }
     }
 
@@ -144,7 +167,12 @@ impl PluginRuntime {
         let mut launches = Vec::new();
         let mut problems = Vec::new();
         for installed in &self.installed {
-            if !plugin_enabled(plugins, &installed.name) {
+            let enabled = if installed.builtin {
+                builtin_plugin_enabled(plugins, &installed.name)
+            } else {
+                plugin_enabled(plugins, &installed.name)
+            };
+            if !enabled {
                 continue;
             }
             let program = match installed.program() {
@@ -243,6 +271,7 @@ impl App {
         self.orphan_plugin_panels(key);
         self.drop_plugin_windows(key);
         self.clear_plugin_diagnostics(key);
+        self.forget_plugin_files(key);
         self.refresh_plugin_ui();
     }
 
@@ -274,6 +303,7 @@ impl App {
         self.serve_plugin_windows();
         self.watch_editors_for_plugins();
         self.serve_plugin_saves();
+        self.serve_plugin_edits();
     }
 
     /// Tell each plugin about its panels the user closed since the last tick.
@@ -321,8 +351,8 @@ impl App {
             .collect();
         for id in orphaned {
             self.plugins.panels.remove(&id);
-            if let Some(panel) = self.plugin_panel_mut(id) {
-                panel.set_plugin_content(None, format!("*The plugin {} stopped.*", key.name));
+            if let Some(mut panel) = self.plugin_panel_mut(id) {
+                panel.set_stopped(format!("The plugin {} stopped.", key.name));
             }
         }
         self.state.needs_redraw = true;
@@ -481,6 +511,14 @@ impl App {
                 self.set_plugin_diagnostics(key, path, items);
                 Ok(Value::Null)
             }
+            protocol::FILES_STATUS => {
+                self.set_plugin_file_status(key, params)?;
+                Ok(Value::Null)
+            }
+            protocol::EDITOR_BASE => {
+                self.set_plugin_base(key, params)?;
+                Ok(Value::Null)
+            }
             protocol::PANEL_OPEN => {
                 if key.project != self.open_projects.current() {
                     return Err(RpcError::new(
@@ -491,26 +529,69 @@ impl App {
                 let id = self.plugins.next_panel;
                 self.plugins.next_panel += 1;
                 let title = plugin_title(&key.name, params["title"].as_str());
-                let markdown = text("markdown")?;
-                let mut panel =
-                    termide_panel_markdown::MarkdownPanel::for_plugin(id, title, markdown);
-                panel.set_plugin_menu(protocol::menu_items(&params["menu"]));
-                self.add_panel(Box::new(panel));
+                let menu = protocol::menu_items(&params["menu"]);
+                let panel: Box<dyn termide_core::Panel> = match PanelContent::of(params)? {
+                    PanelContent::Markdown(markdown) => {
+                        let mut panel =
+                            termide_panel_markdown::MarkdownPanel::for_plugin(id, title, markdown);
+                        panel.set_plugin_menu(menu);
+                        Box::new(panel)
+                    }
+                    PanelContent::List(list) => {
+                        let mut panel =
+                            termide_panel_plugin_list::PluginListPanel::new(id, title, list);
+                        panel.set_plugin_menu(menu);
+                        Box::new(panel)
+                    }
+                    PanelContent::Diff(diff) => {
+                        let mut panel = termide_panel_git_diff::GitDiffPanel::for_plugin(
+                            id,
+                            key.project.clone(),
+                            title,
+                            &diff,
+                        );
+                        panel.set_plugin_menu(menu);
+                        Box::new(panel)
+                    }
+                };
+                self.add_panel(panel);
                 self.plugins.panels.insert(id, key.clone());
                 self.state.needs_redraw = true;
                 Ok(json!({ "panel": id }))
             }
             protocol::PANEL_UPDATE => {
                 let id = self.owned_panel(key, params)?;
-                let markdown = text("markdown")?;
+                let content = PanelContent::of(params)?;
                 let title = params["title"]
                     .as_str()
                     .map(|title| plugin_title(&key.name, Some(title)));
                 let menu = params.get("menu").map(protocol::menu_items);
-                if let Some(panel) = self.plugin_panel_mut(id) {
-                    panel.set_plugin_content(title, markdown);
+                if let Some(mut panel) = self.plugin_panel_mut(id) {
+                    match (&mut panel, content) {
+                        (PluginPanelMut::Markdown(panel), PanelContent::Markdown(markdown)) => {
+                            panel.set_plugin_content(title, markdown);
+                        }
+                        (PluginPanelMut::List(panel), PanelContent::List(list)) => {
+                            panel.set_list(title, list);
+                        }
+                        (PluginPanelMut::Diff(panel), PanelContent::Diff(diff)) => {
+                            panel.set_unified(title, &diff);
+                        }
+                        (PluginPanelMut::Markdown(_), _) => {
+                            return Err(RpcError::new(
+                                INVALID_PARAMS,
+                                "the panel shows `markdown`",
+                            ));
+                        }
+                        (PluginPanelMut::List(_), _) => {
+                            return Err(RpcError::new(INVALID_PARAMS, "the panel shows a `list`"));
+                        }
+                        (PluginPanelMut::Diff(_), _) => {
+                            return Err(RpcError::new(INVALID_PARAMS, "the panel shows a `diff`"));
+                        }
+                    }
                     if let Some(menu) = menu {
-                        panel.set_plugin_menu(menu);
+                        panel.set_menu(menu);
                     }
                 }
                 self.state.needs_redraw = true;
@@ -518,13 +599,10 @@ impl App {
             }
             protocol::PANEL_CLOSE => {
                 let id = self.owned_panel(key, params)?;
-                let position = self.layout_manager.iter_all_panels_mut().position(|panel| {
-                    panel
-                        .as_any()
-                        .downcast_ref::<termide_panel_markdown::MarkdownPanel>()
-                        .and_then(termide_panel_markdown::MarkdownPanel::plugin_panel_id)
-                        == Some(id)
-                });
+                let position = self
+                    .layout_manager
+                    .iter_all_panels_mut()
+                    .position(|panel| plugin_panel_id(panel.as_any()) == Some(id));
                 match position {
                     Some(position) => {
                         let width = self.state.terminal.width;
@@ -699,6 +777,23 @@ impl App {
         keys
     }
 
+    /// The current project's plugin command standing in for `action`, as
+    /// the action name it runs as; the first plugin's when several do.
+    pub(super) fn plugin_stand_in(&self, action: &str) -> Option<String> {
+        let current = self.open_projects.current();
+        self.plugins
+            .contributions
+            .iter()
+            .filter(|(key, _)| key.project == current)
+            .find_map(|(key, contributions)| {
+                contributions
+                    .commands
+                    .iter()
+                    .find(|command| command.replaces.as_deref() == Some(action))
+                    .map(|command| format!("{}:{}", key.name, command.id))
+            })
+    }
+
     /// Run a plugin command named by its action, `<plugin>:<id>` after the
     /// prefix. The plugin is asked on a thread of its own: it answers when it
     /// is done, and speaks through `window/notify` if it has something to say.
@@ -728,12 +823,13 @@ impl App {
         });
     }
 
-    /// The names of the plugins installed, for the settings.
-    pub(super) fn plugin_names(&self) -> Vec<String> {
+    /// The plugins installed, by name, each with whether termide carries it
+    /// itself, for the settings.
+    pub(super) fn plugin_names(&self) -> Vec<(String, bool)> {
         self.plugins
             .installed
             .iter()
-            .map(|p| p.name.clone())
+            .map(|p| (p.name.clone(), p.builtin))
             .collect()
     }
 
@@ -937,6 +1033,40 @@ fn is_one_command_line(command: &str) -> bool {
     !command.trim().is_empty() && !command.chars().any(char::is_control)
 }
 
+/// What a plugin panel shows: the `markdown`, the `list` or the `diff`
+/// param, one of them.
+enum PanelContent {
+    Markdown(String),
+    List(termide_panel_plugin_list::PanelList),
+    Diff(String),
+}
+
+impl PanelContent {
+    fn of(params: &Value) -> Result<Self, RpcError> {
+        let given = ["markdown", "list", "diff"].map(|kind| params.get(kind).is_some());
+        let content = match given {
+            [true, false, false] => params["markdown"]
+                .as_str()
+                .map(|markdown| Self::Markdown(markdown.to_string())),
+            [false, true, false] => {
+                return super::plugin_list::plugin_list(&params["list"])
+                    .map(Self::List)
+                    .map_err(|e| RpcError::new(INVALID_PARAMS, e));
+            }
+            [false, false, true] => params["diff"]
+                .as_str()
+                .map(|diff| Self::Diff(diff.to_string())),
+            _ => None,
+        };
+        content.ok_or_else(|| {
+            RpcError::new(
+                INVALID_PARAMS,
+                "give one of `markdown`, a string, `list`, or `diff`, a string",
+            )
+        })
+    }
+}
+
 /// A plugin panel's title as termide shows it: the plugin's name, which the
 /// plugin cannot choose, then its own title, cleaned. Nothing a plugin sends
 /// can make its panel pass for one of termide's.
@@ -1009,6 +1139,7 @@ impl Tool for PluginTool {
         ToolTraits {
             mcp: true,
             read_only: self.info.read_only,
+            ..Default::default()
         }
     }
 
@@ -1139,6 +1270,29 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     #[test]
+    fn a_panel_shows_exactly_one_kind_of_content() {
+        use super::PanelContent;
+        use serde_json::json;
+        let of = |params| PanelContent::of(&params).ok();
+
+        assert!(matches!(
+            of(json!({ "diff": "--- a/x\n+++ b/x\n" })),
+            Some(PanelContent::Diff(diff)) if diff.starts_with("--- a/x")
+        ));
+        assert!(matches!(
+            of(json!({ "markdown": "# x" })),
+            Some(PanelContent::Markdown(_))
+        ));
+        assert!(matches!(
+            of(json!({ "list": { "groups": [] } })),
+            Some(PanelContent::List(_))
+        ));
+        assert!(of(json!({ "markdown": "# x", "diff": "" })).is_none());
+        assert!(of(json!({ "diff": 3 })).is_none());
+        assert!(of(json!({ "title": "x" })).is_none());
+    }
+
+    #[test]
     fn a_plugin_given_up_on_is_marked_in_its_own_projects_status_bar() {
         use super::{Host, PluginKey, PluginRuntime, ProcessLauncher, Timing};
         use std::collections::{BTreeMap, BTreeSet};
@@ -1159,6 +1313,7 @@ mod tests {
             next_panel: 1,
             windows: Default::default(),
             editors: Default::default(),
+            files: Default::default(),
         };
         plugins
             .status

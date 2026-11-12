@@ -24,6 +24,7 @@ reasoning = "high"                 # default; off | minimal | low | medium | hig
 fold_blocks = "immediately"        # immediately (default) | on-finish | never
 bell_on_attention = true           # default; ring the bell when a panel out of sight waits for you
 on_limit = "ask"                   # default; ask | ask_else_wait | wait | stop — see "When a run fails"
+max_terminal_sessions = 10         # default; terminals one agent session keeps open at most — see "Terminal sessions"
 
 [ai.connections.local]
 provider = "openai_compatible"     # openai_compatible (default), anthropic_compatible, claude_code, codex, gemini_cli, zeta
@@ -33,6 +34,7 @@ model = "Qwen3.8-Flash-Next-oQ4e-mtp"  # left out: the provider's first model
 # context_window_fallback = 32000  # used only when the server does not report a window
 # max_concurrent_requests = 1      # requests served at once across termide; default 0: no limit
 # reviewer = "small"               # the connection whose model reviews in `auto`; default: [ai.auto_reviewer]
+# app_attribution = false          # not to identify termide to the endpoint; default on, and only where it is tracked
 
 [ai.connections.cloud]
 provider = "anthropic_compatible"
@@ -46,8 +48,8 @@ provider = "codex"                 # a CLI agent needs nothing else
 
 A connection carries `provider`, `base_url`, `model`, `api_key_env`,
 `context_window_fallback`, `subagents` (see [Subagents](#subagents)),
-`reviewer` (see [Auto mode](#auto-mode)), `max_concurrent_requests`;
-what it leaves out takes that field's default.
+`reviewer` (see [Auto mode](#auto-mode)), `max_concurrent_requests` and
+`app_attribution`; what it leaves out takes that field's default.
 `max_concurrent_requests` caps how many requests the connection serves at
 once across the whole termide process — the agents of every panel, their
 subagents, the `auto` reviewer and the other side calls on it; the rest wait
@@ -60,8 +62,26 @@ name, so two connections to one server keep separate counts, and two termide
 processes do not share it. A CLI agent sends its requests itself, so it has
 none.
 Every server but the hosted APIs is asked for its prompt-processing progress
-(`return_progress`), which llama.cpp reports and others ignore; one that
-refuses the field is asked again without it. Everything else in `[ai]` — the output limit, reasoning,
+(`return_progress`), which llama.cpp and omlx (0.7.1 and later) report and
+others ignore; one that
+refuses the field is asked again without it.
+`app_attribution` identifies termide to an endpoint that keeps a breakdown of
+usage by the app that sent it — OpenRouter today, which files the requests of
+an app that sends no such headers under `Unknown`. Termide names itself there:
+its name and address as the app, and the categories it belongs to. It is **on
+by default**, because termide already sends its name in `User-Agent` to every
+endpoint it talks to — the headers only let an endpoint that tracks this file
+what it already sees under a name instead of `Unknown`. The switch appears on
+the connection's page only for an endpoint that tracks this — it shows up as
+soon as you leave the base URL field on a host that does, without waiting for
+the settings to be saved, and goes away when the URL points elsewhere. A local
+llama.cpp, vLLM or Ollama has no per-app notion and ignores the headers, so
+there is nothing to switch there. Where it does apply, the app's page at the
+service is the one everyone sending that address shares and its usage shows in
+the open; turn the switch off to stay unattributed. The headers come from the
+endpoint's own entry, so an endpoint changed under a switch left on sends
+nothing — the switch alone never names termide anywhere.
+Everything else in `[ai]` — the output limit, reasoning,
 permissions, compaction and the rest — applies whichever connection a session
 runs on.
 
@@ -102,7 +122,8 @@ The settings modal (the gear, or the command palette) has all of it under
 **AI**. **Connections** comes first: each row names a connection with its
 provider and model, the one new sessions start on marked `●`. `Enter` or a
 click opens a connection on a page of its own — name, provider, base URL, API
-key variable, model, context window (for a CLI agent, **Context window
+key, API key variable, **Identify as Termide** (only for an endpoint that keeps
+a breakdown of usage by app, see `app_attribution` above), model, context window (for a CLI agent, **Context window
 limit**, see below), **Requests at once** (not for a CLI agent), **Subagents**, **Auto mode reviewer** and **Use by default** (new sessions start
 on it) — and **[ Back to list ]**, `Esc` or `Backspace` returns to the list;
 **+ Add connection** adds an OpenAI-compatible one, and
@@ -114,17 +135,49 @@ connection is named after its provider until you name it. The model is a
 dropdown: **Auto — the provider's choice** first, then the connection's
 models, fetched in the background when its page opens (a spinner turns in the
 field meanwhile; a CLI agent is started for it and lists the models of its
-sign-in), and last "Enter a model
-id…" to type one by hand when the endpoint cannot list them. Auto, a
+sign-in, shown by the names it gives them while the id is what is stored),
+and last "Enter a model id…" to type one by hand when the endpoint cannot list them. Auto, a
 connection's model left empty, runs on the first model the provider lists (a
 CLI agent on its own default); a request sent before that list arrives waits
 in the input with a notice. Text fields edit like every input in termide: the
 cursor moves by character and word, `Shift` or a mouse drag selects, and
 `Ctrl+C`/`Ctrl+X`/`Ctrl+V`, `Ctrl+A` and undo work.
 
-The API key is read from the environment variable named by `api_key_env`, so
-the configuration file never holds a secret. Local servers usually need no key
-at all; leave the variable unset. `fold_blocks` decides when reasoning and tool
+A saved change to a connection reaches the agent panels already open on it:
+each keeps its conversation and goes on with the new endpoint, model and
+window from its next request. A run going on finishes on the endpoint it
+started on and moves when the turn ends; a panel whose connection was deleted
+stays where it is.
+
+The configuration file never holds an API key. A connection finds its key in
+two places, in this order:
+
+1. the environment variable named by `api_key_env`, when it is set;
+2. the [password vault](passwords.md), where the **API key** field on a
+   connection's page in the settings stores it.
+
+The **API key** field never shows the key, only whether the vault holds one.
+**Enter a key…** asks for it with the input masked and stores it at once; the
+first key stored creates the vault, asking for a new master password. **Remove
+from the vault** deletes it. Renaming the connection moves the key to the new
+name, which needs the master password when the vault is locked; cancelled, the
+key stays under the old name and a message says so. Deleting the connection
+removes its key without asking.
+
+A request on a connection whose key is in a locked vault asks for the master
+password first. Cancelled, the request fails with an error saying so, and the
+next one asks again. A key once unlocked stays in memory until termide exits,
+even after the vault locks itself. The model list in the settings never asks:
+it uses the key only when the vault is unlocked or the key was used already. A
+run [from the command line](#from-the-command-line) cannot ask for the master
+password, so there a connection needs `api_key_env`.
+
+A value of `api_key_env` that looks like a key rather than a variable name
+(`sk-…`) is never shown back: the field reads `********`, with a warning, and
+the **API key** field offers **Move the key from the variable field to the
+vault**, which stores it in the vault and clears `api_key_env`.
+
+Local servers usually need no key at all; leave both unset. `fold_blocks` decides when reasoning and tool
 calls fold to their one-line headline: `immediately` folds them while they
 still run (a running reasoning block shows its latest line), `on-finish` shows
 them in full until they finish, `never` leaves every block expanded; a
@@ -160,6 +213,14 @@ subscription set `provider = "anthropic_compatible"`, drop `base_url` (the API r
 built in; set it only for a gateway) and point `api_key_env` at your
 `ANTHROPIC_API_KEY`; the reasoning level then asks the model to think. The
 **Model** chip lists the endpoint's models for each.
+
+Claude caches a prompt only when asked, so an Anthropic connection asks for
+automatic prompt caching (a top-level `cache_control`), and so does an
+OpenRouter connection for Anthropic's models (`anthropic/…`): each step of a
+run reads the conversation before it from the cache, at a fraction of the input
+price, and the status bar counts those tokens under `↻`. The other hosted
+models cache by themselves. A gateway that refuses the field is asked again
+without it, and not again until termide restarts.
 
 `provider = "claude_code"`, `provider = "codex"`, `provider = "gemini_cli"` and
 `provider = "zeta"` are different in kind: instead of the built-in loop talking
@@ -224,19 +285,29 @@ server's tools only once, when their session starts, so the session waits up
 to ten seconds for termide's MCP servers to answer. A server that connects
 later, or is reloaded, reaches them in the next session.
 
-All three keep their own conversation loop: they compact their context themselves,
-a run cannot pause between steps, and there is no prefill or generation
+All three keep their own conversation loop: they compact their context themselves
+(when the agent reports it, as Claude Code does, its compaction shows and is
+logged as the built-in one, its summary in place of the history before it, so
+`recall` finds what it took out; an older adapter that reports it as a
+"Compact conversation" step shows it as a compaction too, with no summary, so
+the log keeps the history whole), a run cannot pause between steps, and there is no prefill or generation
 timing (token totals show when the agent reports them, as Claude Code does).
 The **Permissions** chip works for all three, `auto` with termide's
 [reviewer](#auto-mode), by default on the agent's own subscription. The settings modal says the same under a
-connection's page.
+connection's page. On Claude Code each side call — the reviewer, the recall
+solver — writes the five-minute prompt cache rather than the hour a
+subscription gives a conversation, since its request is never read again; no
+session asks Claude Code for its predicted next prompt, which termide does not
+show.
 
 The rest of the panel works with them as with the built-in loop:
 
 - A message typed while the agent works joins the turn it is running, as a
   steering message joins the built-in loop's, when the agent takes one
   (Claude Code's and Codex's adapters do); otherwise it waits in the state
-  strip and goes as the next request.
+  strip and goes as the next request. While the agent compacts its context
+  the message waits for the compaction to end, since joining the turn then
+  would abort it.
 - The **Model** chip shows the model by the name the agent gives it, with a
   spinner while the agent is still starting. It lists and switches the
   agent's models, the
@@ -315,7 +386,7 @@ are on, connecting, needs sign-in. The banner gives way to the conversation as
 soon as you send your first message, and those lines stay at the top of it;
 from then on every change is a line of its own — a server reconnected or
 changing its tools, a toolset applied (`mcp github: 3 of 12 tools on`,
-`Tools switched off: bash; on: —`) — since from there the model has a
+`Tools switched off: shell; on: —`) — since from there the model has a
 different set.
 
 The **Tools** chip (and the banner's tools line) opens a checklist of what
@@ -332,7 +403,8 @@ in one column: `[↻]` connects it again (`r` on the heading), and on a server
 that signs in with OAuth `[⇥]` signs in or `[⇤]` signs out (`l`) to its left.
 A button does what it says and leaves the list open, brought up to date. A
 server the project brings that waits for approval (see below) has a checkbox
-of its own on its heading, unticked, and no buttons (`[ ] MCP: ext`): ticked,
+of its own on its heading, unticked, what it would run beside it, and no
+buttons (`[ ] MCP: ext  npx ext-server`): ticked,
 it is approved at once, the list staying open: the server connects and its
 tools come under the heading, on, even if the session had switched them off.
 A server that connects while the list is open appears in it there and then — its heading loses its remark and its tools come under it — so you do
@@ -397,7 +469,7 @@ you have named or sent even one message to is always kept.
 | `Shift+Enter`, `Alt+Enter`, `Ctrl+J` | New line in the input |
 | `Esc` | Clear the input when something is typed (even while a task runs); with the input empty, stop the running task; with nothing running either, pick a message to rewind to (see [Rewinding to a message](#rewinding-to-a-message)). `Esc` never closes the agent panel |
 | `Ctrl+O` | Expand or collapse every block, and new blocks after them |
-| `Tab` | Move focus between the input and the chat; in the chat, `↑`/`↓` pick a block, `Space`/`Enter` fold or unfold it, `→`/`←` unfold or fold it as in the file manager's tree, `o` opens it in its own panel, and any other character goes back to the input and is typed there; on a fresh session's banner, `↑`/`↓` pick a recent session and `Enter` opens it |
+| `Tab` | Move focus between the input and the chat; in the chat, `↑`/`↓` pick a block, `Space`/`Enter` fold or unfold it, `→`/`←` unfold or fold it as in the file manager's tree, `Shift+→`/`Shift+←` pan its diagram too wide for the panel, `o` opens it in its own panel, and any other character goes back to the input and is typed there; on a fresh session's banner, `↑`/`↓` pick a recent session and `Enter` opens it |
 | Click an unfocused panel | Only focus the panel: the click selects no block, opens no session and places no cursor; click again where you meant to |
 | Click a block | Focus the chat and select that block (the selected block is shown inverted, success and error colours keeping their hue); click it again to fold or unfold it |
 | Ctrl+Click on a link | Follow it inside termide, as a link opens from the terminal (see [HTML preview](html.md)): a link in an answer, the file or page a tool call's headline names, or a web address or existing path written out in the text. Holding `Ctrl` over one lights it whole |
@@ -413,7 +485,7 @@ you have named or sent even one message to is always kept.
 | `Ctrl+S` | Save the chat as a Markdown file (your messages and the agent's answers under who and when, each day under its own heading); also the `[≡]` menu |
 | `Ctrl+T` | In a view of another agent's task, take the task over, after a confirmation (see [Subagents](#subagents)) |
 | `F9` | In a view of another agent's task shown over the layout, move it into a panel of its own (see [Subagents](#subagents)) |
-| `F3` | Open the session-info modal (model, agent, mode, directory, created/last-active times, messages, compactions, tokens, context, how much shell output was cleaned); also `/usage` and the `[≡]` menu |
+| `F3` | Open the session-info modal (model, agent, mode, directory, created/last-active times, messages, compactions, cache hits, how much `shell` output was cleaned, tokens, context and what fills it, who spent the tokens on which model); also `/usage` and the `[≡]` menu |
 | `F4` | Pick a message to rewind the session to, as `Esc` does in the idle empty prompt |
 | `F5` | Fork this session (after a confirmation): its log is copied and the copy opens in a new agent panel, while this one goes on working at its own |
 | `F6` | Switch session — open the picker of this directory's sessions |
@@ -430,7 +502,9 @@ The conversation is a stack of blocks, each opened by a mark:
 `› ` for your message and for the agent's answer, `@ ` for its reasoning, `$ `
 for a shell call or a command offered for you to run, `< ` for a file read, `> ` for a write, `± ` for an edit,
 `/ ` for a skill, `& ` for a subagent and every message to or from another
-agent, `* ` for an MCP tool, `¿ ` for a question to you, `# ` for the system prompt. The marks are in the accent,
+agent, `* ` for an MCP tool, `¿ ` for a question to you, `● ` for a
+breakpoint and `→ ` for any other debugger step, as the editor gutter marks
+them, `# ` for the system prompt. The marks are in the accent,
 except the system prompt's `#`, dim like the prompt itself. The answer is shown in full;
 a user message or the system prompt longer than five lines is
 folded to a preview that keeps the first line and the last few, with a
@@ -468,7 +542,9 @@ the query (`↓ Fetching https://docs.rs`, `? Searching ratatui scrollbar`), a
 skill with its name and arguments (`/ Using skill review src/x.rs`), a
 subagent with its name and the first line of the task (`& Delegating to
 reviewer · check the diff`), an MCP tool with its server, name and arguments as
-`key=value` (`* Using MCP github: create_issue title=Crash`); any other tool
+`key=value` (`* Using MCP github: create_issue title=Crash`), the debugger
+with its action and what it acts on (`→ Debugging debug-server`,
+`● Setting breakpoint src/main.rs:42`, `→ Stepping over`); any other tool
 as its name and a summary. The reasoning is its own block above the
 answer, and its text wraps to the width. Only the system prompt
 opens with a dim dashed rule that sets it apart from the block before; an
@@ -478,6 +554,42 @@ between stack with no gap. A folded block is marked
 with `▸`, an unfolded one with `▾`, right after the step's action
 (`@ Thinking ▸`, `$ Running ▸`, `< Reading ▸ src/main.rs`) or the system
 prompt's `#` (`# ▸`).
+
+A ```` ```mermaid ```` block in an answer is drawn as the diagram itself, at
+most half the panel's height: a taller one shows as one row from the start,
+`┊ ▸ mermaid … N more lines`. Unfold it as any block — `Enter`, `→` or a
+second click on the answer — and every diagram of the answer shows whole;
+fold the answer by hand and each is that row. Scrolling folds nothing: what is
+out of sight is not drawn anyway, and is as you left it when you come back.
+With `fold_blocks = "never"` diagrams have no limit and never fold.
+
+A diagram wider than the panel is not cut at its right edge: its rows stay
+whole and a scrollbar under it shows how much of it is in view. The horizontal
+wheel or `Shift`+wheel over the diagram or its scrollbar pans it, and so does a
+click or a drag on the scrollbar; with its answer picked in the chat,
+`Shift+→`/`Shift+←` pan it too. The `┊` bar stays put while the diagram moves,
+each diagram keeps its own position, and copying the answer still copies the
+whole diagram. A diagram that fits looks as before, with no scrollbar.
+
+Pictures show the same way: one `read` returned, under its headline even
+while the call is folded, and one you pasted, inside your message. A picture
+is drawn with the terminal's graphics (Kitty, Sixel, iTerm2, or half blocks
+where there are none), no larger than itself, as wide as the panel and at
+most as tall as half its height or half its width, whichever is more, centred
+across the panel. It is drawn only while all of it is on screen; a picture
+cut by the panel's edge shows its placeholder, `PNG 1280×800`, where terminal
+graphics would leave debris. With Sixel or iTerm2, which send a picture
+again wherever it moves, a picture that is moving — scrolled, or pushed up by
+what the agent writes — is an empty frame of its size until it has stood
+still for 150 ms; with Kitty it moves as text does. Folding its block by hand
+folds it to `▸ PNG 1280×800`; unfold the block to see it again.
+
+A page or document the agent writes is not shown in the transcript: a `write`
+of an HTML, Markdown or Mermaid file (`.html`, `.htm`, `.md`, `.markdown`,
+`.mmd`) adds one row under its headline, `↗ HTML report.html`. A click on it,
+or `o` on the block, opens the file in the viewer it opens in from Open… — the
+HTML, Markdown or Mermaid panel; `Alt`+click opens it outside, in the system's
+default application.
 
 While a run works, a run clock sits right-aligned under its last block: an
 animated `✽` and the time since the request was sent. It has its own glyph
@@ -492,14 +604,19 @@ last block, with the time it ended and how: `✻ 3m41s · 21:03:41 ✗`.
 `/pause` takes effect as soon as the tool call or model reply in progress
 finishes — not at the end of the whole step, so a step that fetches several
 pages stops after the current one. The tasks the panel handed to delegates
-in the background wait with it: each holds before its next request or call,
-and `/continue` lets every one of them go on where it stood. A task the run
-waits on is the call in progress, so the pause comes once it returns. The pause's row in the state
-strip counts them (`‖ Paused · 2 waiting`); a delegate run by an external
-agent runs its own program, which no pause can hold, so it is counted apart
-(`· 1 keeps running`) and only stops. A held delegate's view says so on the
+wait with it: each holds before its next request or call, and `/continue`
+lets every one of them go on where it stood. That includes the task the run
+waits on: the call in progress, it holds the run's pause with it, so the
+pause stays asked for, its `[▶]` withdrawing it and letting the delegate go
+on. A delegate run by an external agent runs its own loop, which no pause
+reaches: its turn is cut short, and once the pause is lifted the same
+session is told to carry the task on. The pause's row in the state strip
+counts the held ones (`‖ Paused · 2 waiting`). A held delegate's view says so on the
 rule above its buttons (`‖ paused`), since its log stops growing with nothing
-else to tell why. The calls it leaves unrun wait for
+else to tell why. Stopping the run, paused or not, stops every task it handed
+over, in the background too; what those answer reaches the agent with your
+next request instead of starting a turn, kept in the session's log until
+then, so a reopened session sends it too. The calls it leaves unrun wait for
 `/continue`, which runs them first; a new request instead closes them as not
 run. A run stopped with `/pause` gets a pause line instead, `‖ 1m12s`: it counts
 how long the pause has lasted, its `‖` marked while the pause is on, and
@@ -568,7 +685,9 @@ of a delegate opens by itself.
 it, every delegate it left behind: each runs again out of sight under the
 `task` call that handed it over, taking its steps back from its own log —
 what it did before stands there, so it goes on rather than starts over — and
-answering the panel that delegated it when it is over. Its permission requests
+answering the panel that delegated it when it is over. A delegate run by an
+external agent goes on in the agent's own session, which its log names, or,
+when the agent no longer holds it, is told a recap of the log. Its permission requests
 come to that panel as cards, since a task run out of sight has none of its
 own. A panel with nothing of its own left unfinished asks about its delegates
 alone, and there **Continue** starts only those. **Decide later** leaves the
@@ -704,7 +823,11 @@ the agent moved to the background (`$ Running  cargo test`), so one whose
 block has scrolled out of view still shows it works. Each of these has a `✕`
 that stops it, after a confirmation; a click elsewhere on its row selects the
 block and brings it into view, and for a subagent opens the panel following
-it or running it (see [Subagents](#subagents)). Everything queued
+it or running it (see [Subagents](#subagents)). The session's open terminals
+follow (`$ Terminal · dev  npm run dev` with how long the command has run, or
+`$ Terminal · tests · idle`; after three, a count of the rest): a click opens
+the terminal in a panel, and its `✕` closes it, after a confirmation (see
+[Terminal sessions](#terminal-sessions)). Everything queued
 goes to the agent at once, as a single message with the pieces joined by a
 blank line — messages typed while the agent works are usually one thought
 added to — and leaves the strip then, showing up in the conversation as your
@@ -733,7 +856,7 @@ reasoning shows those on the answer instead.
 While a turn is still running, the same right-aligned meta zone shows the live
 figures: until the first token, a `⏫` prefill line with how long the model has
 been reading the prompt and an estimate of its size (`⏫ 14s (↑~48k)`), or, from
-a server that reports its progress (llama.cpp), a bar with the tokens
+a server that reports its progress (llama.cpp, omlx), a bar with the tokens
 read so far and the speed over those not served from its cache
 (`⏫ 14s ▰▰▰▰▱▱▱▱ (↑24k/48k, 1k tok/s)`), and before that, while the request
 waits for a slot of its connection (`max_concurrent_requests`), a `⏳` line
@@ -747,7 +870,9 @@ status bar's context figure drops to the summary and the kept tail as soon as it
 ends. An external agent shows no live
 prefill line, as its message starts with its first text. Reopening a
 conversation restores each block's time, its reasoning, the turn's
-prefill/generation lines and each tool call's duration from the log.
+prefill/generation lines and each tool call's duration from the log, and the
+whole conversation: the blocks a compaction took out of the context stay above
+its notice, as they did while it ran.
 
 Unfold a block to see all of it: click it, or press `Tab` to move into the
 chat and `Space`/`Enter` or `→` on the block the `↑`/`↓` cursor is on (`←`
@@ -782,7 +907,10 @@ so a noisy command costs far fewer tokens. A test run — Rust (`cargo test`,
 `vitest`) — drops the passing and skipped test lines and keeps the failures and
 the result summary. The full, untouched log is still
 written to a file whose path the tool reports, and you still see the raw
-stream live in the panel.
+stream live in the panel. The session info (`F3`) shows, after the cache
+hits, **Cleaned shell**: the share of the session's raw `shell` output
+the cleaning took out, in characters, and about how many tokens that was,
+read from the log.
 
 The status chips run, left to right: the agent, the permission mode, the
 **Reasoning** level (none for a model that cannot be asked), the connection with its protocol
@@ -794,7 +922,48 @@ are cut, never these. The totals are `↑` the prompt tokens billed in full (the
 uncached input and what was written to the prompt cache), `↻` those the cache
 served, shown once there are any, and `↓` the output: `↑2.1k ↻48k ↓900`. They
 include what subagents spent, added when their task ends, and what the `auto`
-mode reviewer spent; the window counts only the session's own context. The
+mode reviewer, `recall`'s solver, summaries, the `/goal` judge and `/handoff`
+spent; the window counts only the session's own context. They are the
+session's, kept in its log: a reopened session starts from what it had spent,
+and its window from how full it last stood — a Claude Code or Codex session's
+as the agent last reported it, with the window's size.
+The session info (`F3`) breaks them down: **Spent by** the conversation,
+subagents, the reviewer, recall, summaries, the goal judge and handoff, and
+**By model**, each with a bar and its share, largest first; **Cache hits**,
+the share of prompt tokens the cache served; and **Reasoning**, the output
+spent thinking, when the provider counts it apart (Codex, Gemini CLI and
+OpenAI-compatible servers do; Claude Code counts it within its output and never apart). A share
+counts tokens as they are, every kind as one — uncached input, cache writes
+and reads, output — and each part shows its `↑ ↻ ↓` beside it: what they cost
+on your model and plan is yours to weigh. A Claude Code or Codex reviewer is credited to the model it ran on, the
+cheapest the CLI offers by default. Claude Code reports its turn's tokens for
+its conversation alone and, apart, a sum by model that also counts its own
+subagents, its summaries and its helper calls on a smaller model; what that sum
+holds beyond the turn is **Inside the agent**, on the model it names. A
+subagent's share is read from its own
+session log: its turns count as **Subagents** on the model it ran on, and what
+its own reviewer, summaries and subagents spent joins those rows; what its task
+reports beyond its log — a log from before this was recorded, one deleted —
+counts as the subagent's on an `unknown` model. A fork counts from its own
+start: what was spent on the conversation it carries is its source's.
+
+Right below the context window the session info shows what the context is
+made of, estimated at four characters a token. **Context holds** splits what it
+holds now: termide's system prompt, where the model works under it (the
+built-in agent and Claude Code, which takes termide's for its own), the
+definitions of the tools termide serves it (all of them, or for Codex and
+Gemini CLI the few beside their own), skills the `skill` tool loaded, the other
+tools' output, the conversation and a compaction's summary; and, for a CLI
+agent that reported its fill, **Agent's own**: what the fill holds beyond those
+parts — its own prompt and tools, and what it adds. **By tool** shows each
+tool's results across the session, a skill's as `skill:<name>`: `≈` what they
+brought into the context and `↻` how much the model calls after them read
+again while they stayed, until a summary, pruning or fitting took them out.
+The share counts both, so a skill loaded early and carried through a long
+session can outweigh a large command output read once; the eight largest are
+named and the rest summed as `others`. A CLI agent's
+session logs its turns rather than each call, so what its calls read again
+comes out low. The
 window is the tokens used of it with a fill bar, `66k/262k ▰▰▱▱▱▱▱▱`; for
 Claude Code, Codex and Gemini CLI both come from what the agent reports, and the window
 shows once it has.
@@ -852,7 +1021,8 @@ pasted pictures, the model has to read images: a text-only model's server
 refuses the request.
 
 **Model** asks the endpoint for the models it serves and lists them, the
-current one marked `●`; the last entry lets you type an id instead, which is
+current one marked `●` and each by the name the endpoint gives it beside its
+id (OpenRouter's `Anthropic: Claude Sonnet 5 · anthropic/claude-sonnet-5`); the last entry lets you type an id instead, which is
 also what you get when the endpoint cannot list its models. The switch takes
 effect on your next request and stays with the session: it is written to the
 session log — with the provider it runs on — so reopening that session brings
@@ -862,11 +1032,11 @@ model call in progress finishes on the old model. Switching the connection
 waits for the current task, like switching sessions.
 
 **Context window.** When the endpoint reports a model's window (vLLM and omlx
-report `max_model_len`), the panel always adopts it — at startup and on every
+report `max_model_len`, OpenRouter `context_length`), the panel always adopts it — at startup and on every
 model switch — so `Context:` matches what the server actually allows. The
 configured `context_window_fallback` is only a **fallback**, used when the endpoint
-reports no window; left unset it shows `(auto)` in the settings modal and the
-built-in default stands in until (or unless) the provider is known.
+reports no window; left unset, the built-in 32,000 stands in, and the settings
+modal shows it as `(default 32000)`.
 
 The **Permissions** chip offers the six modes described below. `Shift+Tab` cycles
 through them without the picker. A change applies at the agent's next tool
@@ -884,7 +1054,7 @@ shell mode `↑` and `↓` walk the commands you ran before rather than the
 messages. Text that merely opens with a `$` — pasted, or after a space — is
 still a message.
 
-The command runs in the session's directory through the same `bash` the agent
+The command runs in the session's directory through the same `shell` tool the agent
 uses, so a long output keeps its beginning and end and writes the complete log
 to a file. It shows in the transcript as a shell call block, like the agent's
 own — `$ git status --short`, folded, with its time and a `✗` if it failed;
@@ -913,7 +1083,7 @@ content is gone.
 Before `edit` or `write` runs, the panel keeps a copy of the target under the
 session's directory (`ai/sessions/<path>/checkpoints/<session id>/`), one
 folder per request, deleted again when the request is undone. Shell commands
-are not covered: what `bash` changes, git or your own backups have to hold.
+are not covered: what `shell` changes, git or your own backups have to hold.
 
 ### Rewinding to a message
 
@@ -942,7 +1112,7 @@ described after the list, **agents** and **send_message** (see
 [Debugging](#debugging)).
 
 Calls the model asks for in one reply that change nothing — `read`, `recall`,
-`fetch`, `web_search`, `skill`, a look-only `bash` command such as `rg` or
+`fetch`, `web_search`, `skill`, a look-only `shell` command such as `rg` or
 `git log` — and `task` delegations run side by side; each ends in the
 transcript as it finishes, and the model gets their results in the order it
 asked. Their permission decisions still take turns, before any of them runs.
@@ -957,9 +1127,25 @@ something. How many delegated tasks think at once is the
 - **edit** replaces a unique piece of text in a file and reports a diff of
   what changed.
 - **write** creates a file or replaces its whole content.
-- **bash** runs a shell command in the project directory, streaming its output.
+- **shell** runs a shell command in the project directory, streaming its output.
   Long output keeps its beginning and end, and the complete log is written to
-  a file the agent can read.
+  a file the agent can read. Only the two ends stay in memory, so a command
+  that prints without end until its timeout cannot exhaust it; the log stops
+  at 256 MiB. The command runs with the shell terminal panels use —
+  `terminal.default_shell`, or the one found on the system — when that is
+  bash, zsh or fish, and with bash otherwise (sh, PowerShell, cmd and the
+  like); the tool's description names the shell to the model, and the
+  permission rules read the command in its syntax (see
+  [Permissions](#permissions)). The tool used to be called `bash`;
+  termide renames it once in what it keeps itself — the global config and
+  its `ai/` files, rules granted for projects, session logs. A project's own
+  files are not rewritten: a `bash` left in them is reported, as any name no
+  tool goes by is, and is for you to rename. With `session` or `background`
+  the command runs in a terminal that stays open; see
+  [Terminal sessions](#terminal-sessions).
+- **terminals** lists the agent's terminal sessions, reads what one printed
+  since the agent last looked, types into one and waits for its answer,
+  shows its screen, interrupts its command or closes it.
 - **web_search** asks a search engine and returns titles, links and snippets.
 - **fetch** loads a web page and returns its text as markdown, paged like
   `read` when it is long.
@@ -967,7 +1153,7 @@ something. How many delegated tasks think at once is the
   and its code for past work, decisions and their reasons; see
   [Recall](#recall).
 
-Searching the project's files by pattern is done through `bash` with the tools
+Searching the project's files by pattern is done through `shell` with the tools
 you already have (`rg`, `find`), rather than through a separate search tool.
 
 One more tool, **skill**, appears when skills are defined; see
@@ -1013,6 +1199,69 @@ rules: where plan mode is on or a `deny` rule covers the command, **Run** and
 no permission — it changes nothing by itself — so the agent can always reach you
 this way; only your confirmation reaches the shell. Like `question`, the tool
 belongs to the panel's agent alone, Claude Code included.
+
+### Terminal sessions
+
+A `shell` call runs its command in a fresh shell that ends with it. For work
+that needs more — a dev server to test against, a watcher, a REPL's state, a
+build that takes longer than the agent wants to wait — the agent runs the
+command in a terminal session instead:
+
+- `session: "dev"` runs it in the terminal named `dev`, opening it on first
+  use. The terminal keeps its state between calls: the directory, the
+  variables, what runs in its background. A command that outlives the call's
+  timeout runs on there: the call returns with what it printed so far, and
+  the next call to that terminal is told it is still busy.
+- `background: true` starts the command and returns after a second with what
+  it printed, leaving it running. Without a `session` it gets a terminal of
+  its own (`bg-1`, `bg-2`, …).
+
+The **terminals** tool lists them, with what each runs and for how long;
+`read` returns what one printed since the agent last looked, `interrupt`
+sends its command `Ctrl+C`, and `close` ends it.
+
+`send` is how the agent drives an interactive program — a REPL, a debugger,
+a prompt asking `[y/N]`, a full-screen program: it types `input` (a line
+break is `Enter`; to submit a line press `Enter` in `keys`, since a line
+break at the very end of `input` may not reach the terminal), presses
+`keys` by name (`Enter`, `Tab`, `Esc`, `Up`, `PageDown`, `F5`, `Ctrl+C`,
+`Alt+b`…), and waits — until the text `wait_for` appears in the output,
+until the shell finishes a command typed at its prompt (which comes back with
+its exit code), until the output stops for `quiet_ms` (half a second when
+neither is given), or `timeout` seconds at most (10 by default, a backstop
+for programs that report nothing of their own). It returns what the terminal
+printed after the input, with a line a program redrew — readline repainting
+what you type, a progress bar — collapsed to what the screen shows of it;
+while a full-screen program has the terminal, which redraws rather than
+prints, it returns the screen instead. `screen` returns what the terminal
+shows at any time, with where the cursor is. What the agent typed goes in the
+order it sent it; a command it runs in the terminal meanwhile waits its turn.
+Each terminal keeps the last 2 MiB of its output in memory and the whole of it
+in a log, up to 256 MiB, which the agent can read. Before each request the
+agent is reminded which of its terminals are open, so it closes those it no
+longer needs.
+
+A terminal belongs to the agent session that opened it, and lives as long as
+that session is open in a panel. It ends — the shell and everything started
+in it — when the panel closes, when the panel switches to another session,
+when termide quits, or, for a subagent, when its task is over. A project
+kept open in the background keeps its terminals too. A subagent's terminals
+are its own: the agent that handed the task over does not see them. One
+agent session keeps at most `max_terminal_sessions` terminals open (10 by
+default); past that the call fails with the list of open ones, and nothing
+is closed for the agent.
+
+The terminals show in the strip above the panel's input and the status bar
+counts them. A click on a terminal's row shows it in a panel, an
+ordinary terminal where you can watch it and type into it too — what you
+type there is between you and the agent. Closing that panel hands the
+terminal back to the agent, still running; a reopened project does not
+restore it. The terminals run the shell `shell` runs, after your startup
+file for it (`~/.bashrc`, `.zshrc`, fish's `config.fish`), with job control,
+history and pagers off; a terminal already open keeps its shell when the
+setting changes. When a terminal ends — the agent closed it, its session
+ended, or you quit the shell in its panel — that panel comes down with it at
+once, wherever it stands, as the strip no longer lists the terminal.
 
 ### Web
 
@@ -1173,7 +1422,7 @@ with **debug** as the user does in the debug panel (see
 
 | Action | What it does |
 |--------|--------------|
-| `start` | Debug `command` — the identifier or label of a command with a debug adapter in `commands.toml` — or `file`, a Python script, the Go package of a file's directory or the Cargo binary a Rust file belongs to, with the project's breakpoints set; waits up to 10 minutes, a build included, for the first stop or the end |
+| `start` | Debug `command` — the identifier or label of a command with a debug adapter in `commands.toml` — or `file`, a Python script, the Go package of a file's directory or the Cargo binary a Rust file belongs to, with the project's breakpoints set; waits up to 10 minutes, a build included, for the first stop or the end. A command's parameters take `params`, values by name; the rest take what its form opens with |
 | `breakpoint` | Set the breakpoint at `file`:`line`, or remove it with `set: false`; editors show it at once, and a running session gets it |
 | `continue`, `step_over`, `step_in`, `step_out` | Resume the stopped program and wait up to a minute for the next stop or the end |
 | `pause`, `stop` | Stop the running program where it is; end the session and the program |
@@ -1188,10 +1437,24 @@ that runs out says the program still runs; `state` or `pause` follow it up.
 A session the agent starts opens the debug panel beside the others without
 taking the focus, and is the same session the user sees there: either can
 step it. Only debug adapters can be driven: a command whose `debugger` is a
-command-line debugger in a terminal, or one that asks for parameters, is
-refused with the reason, as is a file whose adapter (debugpy, Delve, lldb-dap
-or GDB's) is not installed. The session ends when the panel is closed, `stop`
-is called or another launch starts.
+command-line debugger in a terminal, or one that takes `{file}` or another
+value from the focused panel, is refused with the reason, as is a file whose
+adapter (debugpy, Delve, lldb-dap or GDB's) is not installed. A command's
+parameters get the values the form would: those in `params`, each one its field
+could hold — one of a `select`'s options, a number, `true` or `false` — and
+the rest what the form opens with. The session ends when the panel is closed,
+`stop` is called or another launch starts.
+
+`start` and `evaluate`, which can call the program's own functions, are
+decided as any tool call is, by the rules and the mode; their subject for a
+rule names what runs (`start debug-server`, `start app/main.py`,
+`evaluate len(items)`), so "Allow always" trusts that command. Everything
+else — stepping, pausing, stopping, breakpoints, frames, `state` — only moves
+on or looks at a program whose launch was already decided, and asks no one,
+outside plan mode; a `deny` rule still refuses it. A `start` refused for a
+reason known beforehand — no such command, a command-line debugger, a value
+from the focused panel, a parameter the command does not declare or a value
+its field could not hold — fails at once, before any prompt or reviewer.
 
 ## Permissions
 
@@ -1204,7 +1467,7 @@ that runs its own tools may sandbox them itself; termide does not.
 
 Nothing that changes your project happens without your say-so. When the agent
 wants to do something that is not already allowed, a card appears in the
-panel above the input. Its title is the intent — "Agent wants to run bash:" —
+panel above the input. Its title is the intent — "Agent wants to run shell:" —
 and under it, dim, exactly what that is (the command or path); a long one
 folds to five lines that a click unfolds. The rows follow: allow once, allow
 for this session, in `configured` and `auto` also allow always in this project and
@@ -1249,7 +1512,7 @@ Rules live per tool. Among the rules that match, the strictest wins, so a
 [ai.permissions]
 mode = "auto"       # ask | plan | edit | configured | auto (default) | all — what new sessions start in
 
-[ai.permissions.bash]
+[ai.permissions.shell]
 "cargo *"     = "allow"
 "git status*" = "allow"
 "git push*"   = "ask"
@@ -1266,7 +1529,9 @@ mode = "auto"       # ask | plan | edit | configured | auto (default) | all — 
 In a pattern, `*` stands for any text and a leading `**/` is optional, so
 `**/.env*` also matches `.env` in the project root. Shell commands are matched
 per part: `cargo build && rm -rf target` needs both halves allowed, and a deny
-on either half stops the whole command. The shell's own words are not parts:
+on either half stops the whole command. A background `&` separates parts as
+`;` does, so `cargo test & rm -rf src` is two commands, while the `&` of a
+redirection (`2>&1`, `&>file`) is not. The shell's own words are not parts:
 in `if [ -f x ]; then make; fi` the parts are `[ -f x ]` and `make`, and a
 `for … in` header or a closing `fi` or `done` is no part at all. Command substitution (`$(…)`, backticks)
 is never allowed automatically, and it asks about the part that carries it and
@@ -1275,6 +1540,15 @@ not about the parts beside it, so `cd x && ls && echo $(date)` asks about the
 line no further. An inline script is one command, not the
 commands its lines would be: a quoted script (escaped quotes included) and
 the body of a here-document (`python3 - <<'EOF'`) are the command's data.
+
+A command is read in the syntax of the shell that runs it. In zsh an unquoted
+`(` inside a word — a glob qualifier such as `*(e:'cmd':)` runs code — and a
+`${(…)` expansion flag count as substitution. In fish `(…)` is a command
+substitution as `$(…)` is, and `and`, `or`, `not`, `begin … end`, `if`,
+`while` and `for` are read as their POSIX counterparts. A fish command that
+cannot be read as a whole — `switch` or `function`, an escape such as `\x41`,
+a here-document, an unbalanced quote, parenthesis or `end` — is one part that
+is never allowed automatically and gets no rule.
 
 A command's parts are judged in the directory they run in: termide follows
 `cd`, `pushd` and `popd` through the line, and a program named by a path is
@@ -1334,6 +1608,7 @@ for the current panel only.
 | edit inside the project | ? | ✗ | ✓ | rules / ? | ✓ | ✓ |
 | edit outside it | ? | ✗ | ? | rules / ? | rules / R | ✓ |
 | look-only command | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| look-only command reading outside the project | ? | ? | ? | rules / ? | rules / R | ✓ |
 | other command | ? | ✗ | ? | rules / ? | rules / R | ✓ |
 | MCP tool | ? | rules / ? ¹ | ? ² | rules / ? | rules / R | ✓ |
 
@@ -1341,6 +1616,18 @@ for the current panel only.
 matching rule and asks without one. Whatever the mode, a rule's `deny` refuses and its `ask` asks:
 the modes set the configured `allow` rules aside, never the refusals. Your
 answers for the session count in every mode but `all`.
+
+A file counts as inside or outside the project by where its symlinks lead,
+not by how its path is spelled: with a link `docs` pointing at your home
+directory, writing `docs/.zshrc` is an edit outside the project, and a rule
+for `.env` also covers a link to it.
+
+An edit or a write under a `.git` directory, or to a worktree's `.git` file,
+asks in every mode but `all`, whatever the `allow` rules say: git's config
+and hooks name programs that even a look-only `git status` runs. A `deny`
+rule still refuses it, plan mode refuses it, and the answer holds for that
+one call. `all` lets it through like everything else: that mode runs any
+shell command unasked, so a prompt there would guard nothing.
 
 ¹ In `plan` an MCP tool counts the configured `allow` rules too, and one its
 server marks read-only (`readOnlyHint`) runs without asking.
@@ -1360,8 +1647,48 @@ issues, pull/merge requests, CI runs, releases, repositories and labels
 can retry jobs, and so does a bare `tea comments`, which posts), `sed` only while it prints (no `-i` or `-f`, and a script of
 addresses with `p`, `l`, `=`, `q` or `d`, such as `sed -n '40,80p'`; a
 substitution asks), `find` only without `-delete`, `-exec`, `-ok`, `-fprint` or `-fls`, and
-`sort -o`, `uniq` with an output file, `tree -o`/`-R`, `rg --pre` and
-`git diff --output` ask. Loading a skill never asks.
+`sort -o` and `sort --compress-program`, `uniq` with an output file,
+`tree -o`/`-R`, `rg --pre`, `--pre-glob` and `--hostname-bin`, and
+`git diff --output` ask, abbreviated long options (`--out=`) included.
+A variable's value that bash takes as code asks too, since it runs the
+substitutions in it and a terminal session keeps what an earlier command
+set: an operand of a test's arithmetic comparison that is not a number
+(`[ "$n" -gt 3 ]`), the variable `-v` asks about when a value names it or it
+has a subscript, `${!x}`, `${x@P}`, and an array subscript or a substring
+offset that is not a number (`${a[i]}`, `${s:i}`).
+
+A look-only command that reads outside the project asks where reading a file
+there does: a path argument or an input redirection (`< file`) that leads out
+— absolute, under `~`, through `..` or a symlink, or a glob such as `.*` that
+can match `..` —, a variable whose value the rules cannot see (`cat $f`), and
+`ls`, `find`, `du`, `tree`, `git` or a bare `rg` run in a directory outside
+the project (`cd /etc && cat passwd` included). A glob is judged by what it
+matches in the directory the command runs in, as the shell expands it (`*`,
+`?`, `[…]`; a dotfile only for a pattern that starts with `.`; a pattern that
+matches nothing stays the word as written): `cat *` or `head */config` with a
+link out of the project among the matches asks, and so does a glob that
+matches more than 1024 paths, one whose match starts with `-` and would be
+taken for an option, or a relative one in a directory that cannot be told.
+A loop (`for`, `while`,
+`until`, `select`) that changes directory (`cd`, `pushd`, `popd`) runs its
+later turns somewhere else, so in its body and after it the directory counts
+as unknown and a relative path asks:
+`for x in a b; do cat src/lib.rs; cd ..; done` asks, until an absolute `cd`
+after the loop sets the directory again. A walk that follows symlinks
+(`rg -L`/`--follow`, `grep -R`/`--dereference-recursive`, `find -L`, `-H` or
+`-follow`, `ls -L`, `du -L`, `tree -l`) asks too: a link inside the project
+can lead it anywhere. So do `env` and `printenv`
+without arguments, which print every secret in the environment. A grep or
+`rg` pattern is not taken for a path (`rg /api/ src` does not ask), nor is a
+`$` that starts no expansion a variable (`rg "foo$" src` does not ask).
+The variable of a `for` loop over words that each name a path inside the
+project — literals or globs, as a path argument would — reads inside it:
+`for f in *.rs src/*.toml; do wc -l $f; done` does not ask. The loop's body
+must hold only look-only commands, without a `cd`, and nothing on the line
+may set that variable some other way; a list that cannot be seen
+(`for f in $(ls ~)`, `while read f`), a word outside the project
+(`for f in ~/*`) or a word with an option or a space still asks. The rule
+"allow always" keeps for such a read names that one command, not `cat *`. Loading a skill never asks.
 
 ### Plan mode
 
@@ -1471,7 +1798,10 @@ reviewer; narrow ones such as `"cargo test*"` still pass without it.
 What the reviewer is told is `system/classify.md` in the configuration's
 agent directory: what to allow, what to block, and the shape of the verdict.
 Edit it to tell the reviewer about your infrastructure or your habits. By
-default the session's own model reviews. `[ai.auto_reviewer]` (in the
+default the session's own model reviews; on a Claude Code or Codex
+connection it is the cheapest model the subscription offers instead — the
+first whose name has `haiku` for Claude Code, `luna` or else `mini` for Codex
+— or, when the CLI offers none, the model the agent runs on. `[ai.auto_reviewer]` (in the
 settings modal, **Auto mode reviewer** and **Reviewer model** under
 Permissions) names another connection, another model, or both, a small fast
 model being the usual choice. A review is one more model call before each
@@ -1509,7 +1839,8 @@ Headless runs use it the same way, falling back to a refusal where the panel
 would ask. An external agent's requests, and its calls of termide's tools,
 are reviewed the same way, against your words and the calls it made; with
 no reviewer configured, "the session's model" is the agent's own
-subscription, on the model it runs on.
+subscription, on its cheapest model as above (Gemini CLI: the model it runs
+on).
 
 ## The AI menu
 
@@ -1615,7 +1946,7 @@ description: Reviews diffs and points at risks
 icon: 🔍
 model: Qwen3.8-27B-MTPLX-Optimized-Quality
 mode: edit
-tools: read, bash
+tools: read, shell
 ---
 You review the changes you are given. …
 
@@ -1638,7 +1969,11 @@ on). Only its first character is kept, an emoji sequence counting as one, and
 invisible marks a copy may bring along — a zero-width space, a byte order
 mark, control characters — are dropped; an icon with nothing visible left
 keeps 🤖. A key termide does not read — a typo
-such as `descripton:` — is reported under the banner when a panel opens.
+such as `descripton:` — is reported under the banner when a panel opens, and
+so is a name in `tools:`, or in a hook's `tools`, that no tool goes by; a
+config's `[ai.permissions.<tool>]` table named after no tool is reported among
+the config warnings. Names of MCP and plugin tools (`server__tool`) and
+patterns with `*` or `?` are taken as they are.
 
 An agent a project defines may start only in `plan` or `ask`, and cannot be
 an external agent (`command:`): the model can delegate to it by itself, and a
@@ -1765,17 +2100,20 @@ to their own connection.
 
 A `task` call with `background` does not wait: the task runs out of sight
 as a delegate the call waits for does, and the call returns at once. The delegating agent carries on, and when the task is
-over its answer reaches the agent as a message of the delegate's, a step
+over its answer reaches the session that handed it over, wherever it is
+open by then, as a message of the delegate's, a step
 reading `& Receiving reply from <delegate> · …`, the way an answer to
 `send_message` does: an idle agent starts a turn on it, a busy one reads it
 at its next step. Several background tasks can run at once. With no block
 running for it, each has a row above the delegating panel's input
 (`& Delegating to · agent  task`, what it did last and its time) with a `✕`
 that stops it, after a confirmation, as a waited-for task's row has; a click elsewhere on the row, or `o` on the `task` block,
-shows a view of it, as for any delegate (above). Its permission
-requests and questions come to the delegating panel as a delegate's do, and
-stay up when that panel's own run stops: stopping the run does not reach a
-task handed over in the background. Closing the delegating panel stops its
+shows a view of it, as for any delegate (above). The delegating agent can
+stop the task itself, without asking you, once it no longer needs it — see
+[What the agent set going](#what-the-agent-set-going). Its permission
+requests and questions come to the delegating panel as a delegate's do.
+Stopping that panel's run stops its background tasks too, and their answers
+wait for your next request there rather than start a turn. Closing the delegating panel stops its
 tasks, after a confirmation that counts them, and the agent hears that each
 was stopped; so does closing its project. They ask and answer through the
 panel's session, so the session stays while they run, as it does during a
@@ -1785,31 +2123,59 @@ without you, so a chain of background tasks is cut off as such messages
 are. Only an agent in a panel can hand a task over in the background: a
 headless run has nowhere to take the answer.
 
+#### What the agent set going
+
+An agent can set work going that runs on while it does something else: tasks
+it hands over in the background, those of them parked at a limit, and a
+delegate or a command it was waiting for when you wrote to it. A message you
+type while the panel's agent waits on a `task` call does not wait for the
+task to end: the task moves to the background — the call returns saying so,
+with the task's id, the task gets a row above the input as one handed over
+in the background has, and its answer comes later as a message — so the
+agent reads what you wrote at once. Past the limit of messages agents pass
+one another without you the task stays waited for, since its answer would be
+one more. Claude Code does the same with a long call of its own. Any of
+it can stop mattering before it ends. **jobs** lists what the agent set going
+that still runs, each with its id (the hand-over of a background task gives
+the id too), what it is and how long it has run (`& Listing background
+work`), and with `stop` set to an id stops that one (`& Stopping <id>`): a
+task stops, a parked one is given up, a call is cancelled, and no answer
+comes from it afterwards. It asks you nothing in any mode, since it touches
+only the agent's own work; a `/goal` or `/loop` is yours and is not listed.
+The tool comes with `task`: an agent whose `tools` list leaves `task` out
+gets `jobs` only by naming it. Subagents have neither.
+
 ### Talking to other panels
 
 The panel's own agent, and Claude Code on termide's tools, can write to the
 agents of the other agent panels open in the project, on screen or in the
-background. **agents** lists them —
-each panel's number, its agent, what it is doing (free, idle, working,
-waiting for you, following another agent's task) and where it works — and
+background. **agents** lists the sessions open in them — each one's id, its
+agent, what it is doing (free, idle, working, waiting for you, following
+another agent's task), where it works and the panel it is open in — and
 **send_message** sends one of them a message: `info` to tell it something,
-`question` to ask it something, `reply` to answer a message it got. The
+`question` to ask it something, `reply` to answer a message it got. A
+message goes to a session, not to a panel: if the session is now open in
+another panel, it goes there; if you left it — went back to the session
+list, opened another one — it waits in that session's log, the panel
+starts no new session for it, and the sender is told so. When you open
+that session again, a notice says how many messages wait, and they go with
+your next request there. The
 message reaches the other agent at once — an idle one starts a turn on it, a
 busy one reads it at its next step — as that agent's words, never yours: the
 transcript shows it as a step, not on the plate of your messages —
 `& Receiving reply from reviewer (panel 3) · …`, `& Receiving question
 from …`, `& Receiving note from …`, `& Taking task from …`, its text folded
 under it — and the model reads it framed with the
-sender's name and panel, so it knows where to answer, and the `auto`
+sender's name and session, so it knows where to answer, and the `auto`
 reviewer does not take it for a request of yours. An answer comes back the
 same way, as a message of its own, not as the call's result. A panel following
 another agent's task takes no messages until the task is over. A free panel,
 nothing asked in it yet, takes no `question`: its agent knows nothing of the
 work so far and has nothing to answer from. Every exchange with another
 agent opens with `&` in the transcript, the verb saying which way it goes:
-`& Delegating to …` for a task, `& Asking panel 3 · …`, `& Replying to
-panel 1 · …` and `& Telling panel 3 · …` for a message sent, `& Listing agent
-panels` for `agents`. `send_message` acts outside the
+`& Delegating to …` for a task, `& Asking session 1a2b3c4d · …`,
+`& Replying to session 5e6f7a8b · …` and `& Telling session 1a2b3c4d · …`
+for a message sent, `& Listing agent panels` for `agents`. `send_message` acts outside the
 panel, so it asks as such tools do: in `ask` mode you confirm each message,
 in plan mode none goes; `agents` only reads. Agents may pass ten messages to
 one another without you; the next is refused and the agent told to finish
@@ -1822,7 +2188,7 @@ which file, in order: an `edit` or `write` of a file another panel changed
 after this one last read it — or that this one never read — is refused, and
 the agent is told to read the file again first. A delegate's reads and
 changes count as its parent panel's. Changes made outside the agents' tools
-(a `bash` command, your editor) are not tracked.
+(a `shell` command, your editor) are not tracked.
 
 ### External agents
 
@@ -2043,9 +2409,17 @@ goal whose agent only talks, three work turns in a row without a tool call,
 pauses, still set: `/continue` carries on, `/goal stop` ends it. So does one
 whose agent has stopped on you — a question, an approval, a process it will not
 touch — at the judge's first `WAITING`, rather than being sent back to restate
-the wait every turn, a full model call each. A failed check
+the wait every turn, a full model call each. The verdict word must stand
+alone on the first line of the answer (markup round it and a `:` or `—` with
+the reason after it are fine); an answer that opens otherwise — one that
+echoes the instructions, such as "`DONE` if the goal is fully achieved", or
+lists several verdicts — holds no verdict and counts as a failed check, so a
+weak judge cannot end a goal by accident. A failed check
 is tried again after 10 s and 20 s, then the goal pauses the same way and
-`/continue` checks again. A goal can be set while the agent works: it is taken
+`/continue` checks again. Every answer of the judge goes into the session log
+(a `goal_verdict` entry with the verdict, its reason, or why the check failed,
+and the answer as it came), and a session whose goal the judge ended shows
+the same "goal reached" or "cannot be reached" notice when reopened. A goal can be set while the agent works: it is taken
 at once, nothing is queued, and once the run ends its first turn, headed by the
 `/goal` as typed, goes in place of the judge. The goal stays in the state strip
 while it goes on (`◎ Heading for the goal …` with how long it has run, and the
@@ -2087,9 +2461,9 @@ to change how the answer is drawn or cited.
 ### Tool texts
 
 What the model is told about each built-in tool is a file too:
-`tools/<name>.md` for `read`, `edit`, `write`, `bash`, `question`,
+`tools/<name>.md` for `read`, `edit`, `write`, `shell`, `question`,
 `suggest_command`, `task`, `skill`, `fetch`, `web_search`, `recall`, `agents`,
-`send_message` and `debug`, seeded
+`send_message`, `debug`, `jobs` and `terminals`, seeded
 and kept current like the `system/` files, and read from the configuration
 level only. The body is the description the model sees with the tool;
 `snippet:` in the front matter is its line in the system prompt's tool list
@@ -2309,13 +2683,21 @@ A server that comes from anywhere but the configuration level — a project's
 `mcp.toml`, any `.mcp.json` — starts a program or sends your keys to an
 address the repository chose, so it waits for you: the session says what it
 would run (`mcp ext: from the project, runs npx ext-server — /trust ext to
-start it`) and it is listed but not started. `/trust` lists everything a
+start it`) and it is listed but not started. What it says is everything the
+approval covers: after the command or URL come the `env`, `headers`, OAuth
+client and `cwd` it sets, values as written — `[headers
+Authorization="Bearer $ANTHROPIC_API_KEY"]` tells you which of your
+environment variables the server would receive. `/trust` lists everything a
 project brings that waits so, `/trust <name>` (or a tick on its heading in
 the toolset list) approves it and connects it. The approval is for the launch as
 it is now — command, arguments, environment, working directory, or URL,
 headers and OAuth client — and is kept in termide's data directory under the
 project (`trust/<project path>/approved.toml`), never in the project. If the
-repository changes any of it, it waits again.
+repository changes any of it, it waits again. The approval is also bound to
+what you were shown: `/trust <name>` and the tick approve the launch of the
+last notice or of the heading beside the box, and if the file says something
+else by then — or nothing was shown yet — nothing is approved and the launch
+it holds now is shown instead, for the next `/trust <name>` to approve.
 
 An MCP tool asks for permission like a command: it runs in `all`, goes to
 the reviewer in `auto`, and asks elsewhere unless a rule covers it in
@@ -2339,7 +2721,7 @@ output, the shape Claude Code, Gemini CLI and Cursor share:
 ```toml
 [no-force-push]
 event = "before_tool_call"      # or after_tool_call
-tools = ["bash"]                # patterns; every tool when absent
+tools = ["shell"]                # patterns; every tool when absent
 command = "scripts/guard.sh"    # run in the panel's directory
 timeout_secs = 30
 ```
@@ -2359,17 +2741,18 @@ and ignored, so a broken hook never stops the agent.
 A project's hook waits for approval as a project's MCP server does: the panel
 says so when it opens, it does not run until `/trust <name>`, and the approval
 holds while its command, arguments, event, tools and timeout stay as they were; it then runs from
-the next run on. A project can neither switch off nor replace a hook of the
+the next run on. As for a server, `/trust <name>` approves the hook as it was
+last shown; one changed since is shown again instead. A project can neither switch off nor replace a hook of the
 configuration level: one of yours may be a guard.
 
 ### Command shims
 
 A shim is an executable in `shims/` named after a command. When the built-in
-agent runs a shell command, `shims/` is prepended to the `bash` tool's `PATH`,
+agent runs a shell command, `shims/` is prepended to the `shell` tool's `PATH`,
 so a shim shadows the real command — including inside a pipeline
 (`… | grep …`). It is the token-saving layer you extend by hand: a `shims/grep`
 that runs a leaner search, a `shims/cat` that trims noise, each printing a
-compact result the model reads. (The `bash` tool also cleans output on its own;
+compact result the model reads. (The `shell` tool also cleans output on its own;
 a shim is the part you control.)
 
 ```sh
@@ -2443,7 +2826,7 @@ same fields as `json` — for a caller that follows a long run live.
 termide --prompt "count the TODOs in src" --output json
 # {"ok":true,"answer":"7","stop_reason":"stop","model":"…","provider":"…",
 #  "usage":{"input":…,"output":…,"cache_read":…,"cache_write":…},
-#  "tools":[{"name":"bash","subject":"rg -c TODO src","error":false}],"error":null}
+#  "tools":[{"name":"shell","subject":"rg -c TODO src","error":false}],"error":null}
 ```
 
 No one is watching to answer a permission card, so a headless run does only

@@ -67,7 +67,7 @@ fn version_prints_the_snapshot_stamp() {
         "version line names the binary: {version}"
     );
     assert!(
-        version.contains(env!("CARGO_PKG_VERSION")) || version.contains(termide_core::VERSION),
+        version.contains(env!("CARGO_PKG_VERSION")) || version.contains(termide_core::version()),
         "version line carries the snapshot version: {version}"
     );
 }

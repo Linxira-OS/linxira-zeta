@@ -160,6 +160,8 @@
 | `sync/omp-release/v18.18.1-2` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
 | `sync/omp-release/v18.18.3` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
 
+| `vendor/termide-0.49.0` | vendor | TermIDE `0.49.0` vendor bump（annotated tag `0.49.0` = `4cc014fb…`，commit `057eb55e…`；base `ddb44711b5d`）；三向重放与测试记录见 `termide/VENDOR.md`；worktree `temp/termide-0.49.0-sync` | agent | 2026-11-12 | 合入 `main` 后删（删前记 SHA） |
+
 ## 已退役（删除前登记）
 
 | 分支 | SHA | 退役日期 | 原因 |

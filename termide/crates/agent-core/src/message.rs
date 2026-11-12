@@ -60,6 +60,15 @@ pub struct Usage {
     pub cache_read: u64,
     #[serde(default)]
     pub cache_write: u64,
+    /// Of `output`, the tokens spent reasoning, when the provider counts
+    /// them apart (OpenAI, Codex); Anthropic's are in `output` uncounted.
+    #[serde(default, skip_serializing_if = "is_zero_u64")]
+    pub thinking: u64,
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn is_zero_u64(n: &u64) -> bool {
+    *n == 0
 }
 
 impl Usage {
@@ -86,6 +95,19 @@ impl Usage {
         self.output = self.output.saturating_add(other.output);
         self.cache_read = self.cache_read.saturating_add(other.cache_read);
         self.cache_write = self.cache_write.saturating_add(other.cache_write);
+        self.thinking = self.thinking.saturating_add(other.thinking);
+    }
+
+    /// These counts less `other`'s, none below zero.
+    #[must_use]
+    pub fn less(&self, other: &Self) -> Self {
+        Self {
+            input: self.input.saturating_sub(other.input),
+            output: self.output.saturating_sub(other.output),
+            cache_read: self.cache_read.saturating_sub(other.cache_read),
+            cache_write: self.cache_write.saturating_sub(other.cache_write),
+            thinking: self.thinking.saturating_sub(other.thinking),
+        }
     }
 }
 
@@ -122,6 +144,9 @@ pub const IMAGE_ESTIMATE_CHARS: usize = 6000;
 pub struct ToolCall {
     /// Provider-assigned id echoed back in the matching [`ToolResultMessage`].
     pub id: String,
+    /// The tool's name; a log written before a tool was renamed reads with
+    /// the current one.
+    #[serde(deserialize_with = "crate::tool::de_tool_name")]
     pub name: String,
     /// Parsed JSON arguments; an object for well-formed calls.
     pub arguments: Value,
@@ -215,14 +240,14 @@ pub struct UserMessage {
 /// Who sent a message between agents, and what it is.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageOrigin {
-    /// The id of the sending agent's session; empty when it has none termide
-    /// knows of (an external agent's).
+    /// The id of the sending agent's session, where an answer goes; empty
+    /// when it has none (a background task's answer).
     pub session: String,
     /// The sending agent's name.
     pub agent: String,
     pub kind: OriginKind,
-    /// The agent panel it was sent from, by its number: where an answer
-    /// goes.
+    /// The agent panel it was sent from, by its number, for the user to
+    /// see; an answer goes to `session`, wherever it is open by then.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub panel: Option<u64>,
     /// How many messages agents have passed one another since the user last
@@ -364,18 +389,15 @@ impl UserMessage {
     /// The text with, for another agent's message, the frame that says who
     /// sent it and what it is, so the model never takes it for the user's:
     /// `<agent-message from="…" session="…" kind="…">`, without the session
-    /// when there is none.
+    /// when there is none. The session is where an answer goes; the panel
+    /// it was sent from is the user's to see, not the model's to write to.
     #[must_use]
     pub fn framed_text(&self) -> String {
         let text = self.plain_text();
         match &self.origin {
             Some(origin) => format!(
-                "<agent-message from=\"{}\"{}{} kind=\"{}\">\n{}\n</agent-message>",
+                "<agent-message from=\"{}\"{} kind=\"{}\">\n{}\n</agent-message>",
                 attribute(&origin.agent),
-                origin
-                    .panel
-                    .map(|panel| format!(" panel=\"{panel}\""))
-                    .unwrap_or_default(),
                 if origin.session.is_empty() {
                     String::new()
                 } else {
@@ -542,6 +564,7 @@ impl AssistantMessage {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolResultMessage {
     pub tool_call_id: String,
+    #[serde(deserialize_with = "crate::tool::de_tool_name")]
     pub tool_name: String,
     pub content: Vec<ToolResultContent>,
     #[serde(default)]
@@ -698,6 +721,7 @@ mod tests {
             output: 5,
             cache_read: 100,
             cache_write: 0,
+            ..Default::default()
         };
         assert_eq!(ToolResultMessage::text(&call, "ok").spent(), None);
         let nothing = ToolResultMessage::text(&call, "ok").with_spent(Usage::default());
@@ -734,6 +758,7 @@ mod tests {
                 output: 5,
                 cache_read: 0,
                 cache_write: 0,
+                ..Default::default()
             },
             provider: "fake".into(),
             model: "m".into(),
@@ -882,14 +907,26 @@ mod tests {
     fn error_result_flags_and_copies_call_identity() {
         let call = ToolCall {
             id: "id-7".into(),
-            name: "bash".into(),
+            name: "shell".into(),
             arguments: json!({}),
             extra_content: None,
         };
         let result = ToolResultMessage::error(&call, "boom");
         assert!(result.is_error);
         assert_eq!(result.tool_call_id, "id-7");
-        assert_eq!(result.tool_name, "bash");
+        assert_eq!(result.tool_name, "shell");
         assert_eq!(result.plain_text(), "boom");
+    }
+
+    #[test]
+    fn a_log_from_before_the_shell_tools_rename_reads_with_its_new_name() {
+        let call: ToolCall =
+            serde_json::from_value(json!({ "id": "c", "name": "bash", "arguments": {} })).unwrap();
+        assert_eq!(call.name, "shell");
+        let result: ToolResultMessage = serde_json::from_value(
+            json!({ "tool_call_id": "c", "tool_name": "bash", "content": [], "timestamp": 1 }),
+        )
+        .unwrap();
+        assert_eq!(result.tool_name, "shell");
     }
 }

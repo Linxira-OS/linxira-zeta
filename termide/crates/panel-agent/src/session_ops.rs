@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::{Arc, PoisonError};
 
 use crate::runtime::local_minute;
-use termide_agent_core::{EntryKind, PromptError, Session, SessionSummary};
+use termide_agent_core::{ContextLoad, EntryKind, PromptError, Session, SessionSummary};
 use termide_core::{ConfirmAction, InputAction, PanelEvent};
 use termide_ui::ChoiceForm;
 
@@ -66,8 +66,10 @@ impl AgentPanel {
         // A search in the banner's list ends with the banner it searched,
         // and the prompt box gets its own text back.
         self.end_session_search();
-        // What the session being left has going is written before it goes.
+        // What the session being left has going is written before it goes,
+        // what its reviewer spent last included.
         self.sync_autorun();
+        self.take_reviewer_spent();
         let session = session.or_else(|| {
             start_session(
                 self.session_dir.as_deref(),
@@ -150,6 +152,7 @@ impl AgentPanel {
             session.as_ref(),
             &blocked,
             self.shell_run.clone(),
+            self.terminals.as_ref(),
             served_skills(
                 self.catalog.as_ref(),
                 &self.offered_skills,
@@ -173,11 +176,15 @@ impl AgentPanel {
         // same-session rebuild (switch agent, undo) the caller has already
         // taken the session out, so there is nothing to leave here.
         if let Some(old) = self.session.take() {
+            if session.as_ref().map(Session::id) != Some(old.id()) {
+                self.release_terminals(&old);
+            }
             discard_if_empty(old);
             // The unfinished delegates and the answer owed to a delegating
             // panel were the session left's, not the next one's.
             self.restored_delegates.clear();
             self.carry_back = None;
+            self.held_reports.clear();
         }
         self.session = session;
         self.model = model;
@@ -222,7 +229,10 @@ impl AgentPanel {
         self.run_start_due = false;
         self.pause_requested = false;
         self.stop_requested = None;
-        self.context_tokens = 0;
+        // The totals and the context's fill are the session's: what its log
+        // says it spent so far and how full it last stood.
+        self.seed_spent();
+        self.seed_context();
         // What the previous agent stated is not this one's.
         self.acp_has_models = false;
         self.acp_options.clear();
@@ -792,8 +802,8 @@ impl AgentPanel {
             }
         }
         rows.push((t.agent_info_agent().into(), self.agent.clone()));
-        rows.push((t.agent_info_provider().into(), self.provider_kind.clone()));
-        rows.push((t.agent_info_model().into(), self.model.id.clone()));
+        rows.push((t.agent_info_provider().into(), self.connection_display()));
+        rows.push((t.agent_info_model().into(), self.model_name(&self.model.id)));
         rows.push((
             t.agent_info_mode().into(),
             self.mode.get().label().to_string(),
@@ -815,9 +825,42 @@ impl AgentPanel {
                 .iter()
                 .filter(|e| matches!(e.kind, EntryKind::Compaction { .. }))
                 .count();
+            rows.push((t.agent_info_messages().into(), messages.to_string()));
             rows.push((t.agent_info_compactions().into(), compactions.to_string()));
+        } else {
+            rows.push((t.agent_info_messages().into(), messages.to_string()));
         }
-        rows.push((t.agent_info_messages().into(), messages.to_string()));
+        // Who spent the tokens and on which model, from the log, so a reopened
+        // session shows it all, and from the subagents' logs: their models
+        // and their own reviewers; what the context is made of, and what
+        // each tool's results cost as later calls read them again. The
+        // breakdowns are rendered together so their bars line up.
+        let mut breakdown = Vec::new();
+        let mut cleaning = None;
+        if let Some(session) = self.session.as_ref() {
+            let spending = session.spending_with_subagents();
+            rows.extend(crate::spending::spending_figures(&spending));
+            cleaning = crate::spending::cleaning_row(session);
+            breakdown.extend(crate::spending::spending_rows(&spending, |id| {
+                self.model_name(id)
+            }));
+            let load = ContextLoad::of(session, &self.compaction_prompts);
+            let (system, tools) = self.context_head();
+            // An external agent's fill, when it told it, holds its own part
+            // too; the built-in loop's is all the parts above.
+            let fill = (self.external
+                && (self.runtime.context_usage().is_some() || self.context_logged.is_some()))
+            .then_some(self.context_tokens);
+            breakdown.extend(crate::spending::context_rows(&load, system, tools, fill));
+        }
+        let mut rendered = crate::spending::render(breakdown);
+        let mut take = |label: &str| {
+            rendered
+                .iter()
+                .position(|(key, _)| key == label)
+                .map(|at| rendered.remove(at))
+        };
+        rows.extend(cleaning);
         rows.push((t.agent_info_tokens().into(), self.token_totals()));
         rows.push((
             t.agent_info_context().into(),
@@ -827,24 +870,47 @@ impl AgentPanel {
                 format_tokens(self.model.context_window)
             ),
         ));
-        // How much the clean mechanism has shrunk shell output this session,
-        // when any ran: raw → cleaned and the percentage saved.
-        if self.clean_raw_bytes > 0 {
-            let saved = self.clean_raw_bytes.saturating_sub(self.clean_out_bytes);
-            let percent = saved * 100 / self.clean_raw_bytes;
-            rows.push((
-                t.agent_info_output_cleaned().into(),
-                format!(
-                    "{} → {} (−{percent}%)",
-                    format_bytes(self.clean_raw_bytes),
-                    format_bytes(self.clean_out_bytes),
-                ),
-            ));
-        }
+        rows.extend(take(t.agent_info_context_parts()));
+        rows.extend(take(t.agent_info_spent_by()));
+        rows.extend(take(t.agent_info_by_model()));
+        rows.extend(take(t.agent_info_by_tool()));
         vec![PanelEvent::ShowInfo {
             title: t.agent_session_info().to_string(),
             rows,
         }]
+    }
+
+    /// What termide put at the head of the model's context, in estimated
+    /// tokens: its system prompt, when the model works under it, and the
+    /// definitions of the tools it serves the model. `None` for what the
+    /// model does not have from termide: an external agent's own prompt.
+    fn context_head(&self) -> (Option<u64>, Option<u64>) {
+        let estimate = |chars: usize| Some((chars / 4) as u64);
+        let system = if self.runtime.takes_system_prompt() {
+            estimate(self.effective_system_prompt().chars().count())
+        } else {
+            None
+        };
+        let served = if !self.external || self.runtime.runs_host_tools() {
+            Some(self.tools.specs())
+        } else if self.runtime.takes_mcp_tools() {
+            Some(self.companions_served().specs())
+        } else {
+            None
+        };
+        let tools = served.and_then(|specs| {
+            estimate(
+                specs
+                    .iter()
+                    .map(|spec| {
+                        spec.name.len()
+                            + spec.description.chars().count()
+                            + spec.parameters.to_string().chars().count()
+                    })
+                    .sum(),
+            )
+        });
+        (system, tools)
     }
 
     /// Put the last request's files back, rewind the session to before it
@@ -889,16 +955,5 @@ impl AgentPanel {
         );
         events.push(PanelEvent::NeedsRedraw);
         events
-    }
-}
-
-/// A byte count as `B`/`KB`/`MB`, for the output-cleaning diagnostic.
-fn format_bytes(bytes: u64) -> String {
-    if bytes >= 1_000_000 {
-        format!("{:.1}MB", bytes as f64 / 1_000_000.0)
-    } else if bytes >= 1000 {
-        format!("{}KB", (bytes + 500) / 1000)
-    } else {
-        format!("{bytes}B")
     }
 }

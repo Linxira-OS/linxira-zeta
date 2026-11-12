@@ -91,7 +91,7 @@ say in your answer what you would have run and why, and wait for the user.",
         match suggester.suggest(suggestion.clone()) {
             // The user confirmed it: run it now, through the same runner a
             // typed `$` command uses, and give the model what it printed. The command
-            // is not handed to `bash` as a tool call of its own — the loop is
+            // is not handed to `shell` as a tool call of its own — the loop is
             // busy with this one — so the runner is what reaches the shell.
             SuggestionReply::Run => match &ctx.shell_run {
                 Some(run) => match run.run(&suggestion.command, cancel) {
@@ -195,6 +195,7 @@ mod tests {
             panel: None,
             tool: Default::default(),
             resume: None,
+            running: None,
         }
     }
 
@@ -217,6 +218,7 @@ mod tests {
             panel: None,
             tool: Default::default(),
             resume: None,
+            running: None,
         }
     }
 
@@ -276,6 +278,7 @@ mod tests {
             panel: None,
             tool: Default::default(),
             resume: None,
+            running: None,
         };
         let answerer = std::thread::spawn(move || {
             let envelope = rx.recv().unwrap();
@@ -368,6 +371,7 @@ mod tests {
             panel: None,
             tool: Default::default(),
             resume: None,
+            running: None,
         };
         let answerer = std::thread::spawn(move || {
             let envelope = rx.recv().unwrap();
@@ -413,6 +417,7 @@ mod tests {
             panel: None,
             tool: Default::default(),
             resume: None,
+            running: None,
         };
         let result = SuggestCommandTool.execute(
             &call(json!({ "command": "gh issue comment 59" })),
@@ -446,6 +451,7 @@ mod tests {
             panel: None,
             tool: Default::default(),
             resume: None,
+            running: None,
         };
         let result = SuggestCommandTool.execute(
             &call(json!({ "command": "ls" })),

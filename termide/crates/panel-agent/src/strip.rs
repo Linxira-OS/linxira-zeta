@@ -1,16 +1,16 @@
 //! The state strip above the input: what holds right now rather than what
 //! happened — a pause asked for or a retry waited for, the queued messages,
 //! an active `/goal` or `/loop`, the running subagents and the commands the
-//! agent moved to the background. Every row reads the same way: its glyph
+//! agent moved to the background, and the session's terminals. Every row reads the same way: its glyph
 //! and what it is, in the accent; what it works on, dim; at the right edge
 //! how long it has gone on and, where it can be called off, `✕`. No row
 //! spins: the transcript's live line does, once, for the run.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use termide_agent_core::ToolCall;
+use termide_agent_core::{TerminalState, ToolCall};
 use termide_core::ThemeColors;
 
 use crate::render::{capitalized, Autorun, GOAL_GLYPH, LOOP_GLYPH, STATE_QUEUED_ROWS};
@@ -36,6 +36,8 @@ pub(crate) enum StripTarget {
     Parked(usize),
     /// A command the agent moved to the background, by its block's index.
     Background(usize),
+    /// One of the session's terminals, by its place in the panel's list.
+    Terminal(usize),
     /// A delegated task left unfinished when termide closed, by its place
     /// among the panel's restored delegates: the row above the input, which
     /// opens that session, where its own card asks to carry it on.
@@ -97,6 +99,11 @@ impl StripRow {
         Self::new(glyph, String::new(), text, StripTarget::More)
     }
 }
+
+/// How many rows the subagents, the background commands and the terminals
+/// show each, newest first, before the rest fold into a count: what was just
+/// launched stays in sight, and the older ones give way.
+pub(crate) const STRIP_GROUP_ROWS: usize = 5;
 
 /// The columns a row's body keeps before its notes are cut.
 const MIN_BODY: usize = 10;
@@ -179,8 +186,9 @@ pub(crate) fn strip_lines(
 
 impl AgentPanel {
     /// The strip's rows, in order: a retry waited for or a pause asked for,
-    /// the queued messages, the goal and the loop, the running subagents and
-    /// the background commands. Empty when nothing holds.
+    /// the queued messages (oldest first, as the agent takes them), the goal
+    /// and the loop, then the subagents, the background commands and the
+    /// terminals (each newest first). Empty when nothing holds.
     pub(crate) fn strip_rows(&mut self, width: u16) -> Vec<StripRow> {
         let t = termide_i18n::t();
         let mut rows = Vec::new();
@@ -199,9 +207,8 @@ impl AgentPanel {
                 .stoppable(),
             );
         } else if self.pause_requested {
-            // The work handed to delegates stands with the run; an external
-            // agent's runs its own program, so it is named as still going.
-            let held = crate::live::state_of(self.panel_id);
+            // The work handed to delegates stands with the run.
+            let held = crate::live::held_of(self.panel_id);
             let mut row = StripRow::new(
                 transcript::PAUSED_GLYPH,
                 t.agent_strip_pause().to_string(),
@@ -210,12 +217,8 @@ impl AgentPanel {
             )
             .since(self.pause_requested_at)
             .stoppable();
-            if held.held > 0 {
-                row.notes.push(t.agent_strip_pause_held_fmt(held.held));
-            }
-            if held.running > 0 {
-                row.notes
-                    .push(t.agent_strip_pause_running_fmt(held.running));
+            if held > 0 {
+                row.notes.push(t.agent_strip_pause_held_fmt(held));
             }
             rows.push(row);
         }
@@ -273,7 +276,12 @@ impl AgentPanel {
         let mut tasks = self.running_tasks();
         tasks.extend(self.background_tasks());
         tasks.extend(self.parked_tasks());
-        let more = tasks.len().saturating_sub(STATE_QUEUED_ROWS);
+        // Newest first, whatever their kind: a fold leaves out the oldest.
+        // Clocks first seen in one frame tie, and the later block goes first.
+        tasks.reverse();
+        tasks.sort_by_key(|(age, _)| *age);
+        let tasks: Vec<StripRow> = tasks.into_iter().map(|(_, row)| row).collect();
+        let more = tasks.len().saturating_sub(STRIP_GROUP_ROWS);
         if more == 0 {
             // Nothing left out: the next time there is, it starts folded.
             self.strip_tasks_open = false;
@@ -287,7 +295,7 @@ impl AgentPanel {
                 StripTarget::MoreTasks,
             ));
         } else {
-            rows.extend(tasks.into_iter().take(STATE_QUEUED_ROWS));
+            rows.extend(tasks.into_iter().take(STRIP_GROUP_ROWS));
             if more > 0 {
                 rows.push(StripRow::new(
                     "&",
@@ -298,7 +306,50 @@ impl AgentPanel {
             }
         }
         rows.extend(self.background_rows(width));
+        rows.extend(self.terminal_rows());
         rows.extend(self.restored_rows());
+        rows
+    }
+
+    /// The rows of the session's terminals: `$ Terminal · name  command`,
+    /// the command's time when one runs. `✕` closes the terminal, once
+    /// confirmed; elsewhere on the row it opens in a panel.
+    fn terminal_rows(&self) -> Vec<StripRow> {
+        let t = termide_i18n::t();
+        let mut rows: Vec<StripRow> = self
+            .terminal_list
+            .iter()
+            .enumerate()
+            // Newest first: the list runs in the order they were opened.
+            .rev()
+            .take(STRIP_GROUP_ROWS)
+            .map(|(index, entry)| {
+                let (body, note, time) = match &entry.state {
+                    TerminalState::Running { command, elapsed } => {
+                        (single_line(command), None, Some(*elapsed))
+                    }
+                    TerminalState::Idle => (String::new(), Some(t.agent_strip_idle()), None),
+                    TerminalState::Exited => (String::new(), Some(t.agent_strip_ended()), None),
+                };
+                let mut row = StripRow::new(
+                    "$",
+                    t.agent_strip_terminal().to_string(),
+                    body,
+                    StripTarget::Terminal(index),
+                )
+                .stoppable();
+                row.notes.push(entry.name.clone());
+                row.notes.extend(note.map(str::to_string));
+                row.time = time.map(|time| u32::try_from(time.as_millis()).unwrap_or(u32::MAX));
+                row
+            })
+            .collect();
+        if self.terminal_list.len() > STRIP_GROUP_ROWS {
+            rows.push(StripRow::more(
+                "$",
+                format!("+{}", self.terminal_list.len() - STRIP_GROUP_ROWS),
+            ));
+        }
         rows
     }
 
@@ -329,7 +380,7 @@ impl AgentPanel {
     /// The running subagents' rows: `& Delegating to · agent  prompt`, its
     /// last step before the time. The clock of each starts when it is first
     /// seen, and is dropped once the call has returned.
-    fn running_tasks(&mut self) -> Vec<StripRow> {
+    fn running_tasks(&mut self) -> Vec<(Duration, StripRow)> {
         let t = termide_i18n::t();
         let now = Instant::now();
         let mut seen = Vec::new();
@@ -363,7 +414,7 @@ impl AgentPanel {
             }
             row.notes.push(arg("agent"));
             row.status = last_line(live.unwrap_or(""), true);
-            rows.push(row);
+            rows.push((now.saturating_duration_since(start), row));
         }
         self.task_clocks.retain(|id, _| seen.contains(id));
         rows
@@ -372,8 +423,9 @@ impl AgentPanel {
     /// The rows of the tasks this panel handed over in the background that
     /// still run: worded as a running subagent's, with a `✕` that stops it.
     /// Their calls have returned, so no running block stands for them.
-    fn background_tasks(&mut self) -> Vec<StripRow> {
+    fn background_tasks(&mut self) -> Vec<(Duration, StripRow)> {
         let t = termide_i18n::t();
+        let now = Instant::now();
         let tasks = crate::live::background_of(self.panel_id);
         self.strip_delegates = tasks.iter().map(|task| task.call.clone()).collect();
         tasks
@@ -397,18 +449,14 @@ impl AgentPanel {
                 .stoppable();
                 row.notes.push(task.agent);
                 // Held at the panel's pause, its last step no longer stands:
-                // what it does is wait. An external agent's task cannot be
-                // held, so it says it is still going.
+                // what it does is wait.
                 if task.paused {
                     row.notes.push(t.agent_strip_paused().to_string());
                     row.status = String::new();
                 } else {
-                    if !task.pausable {
-                        row.notes.push(t.agent_strip_keeps_running().to_string());
-                    }
                     row.status = task.status;
                 }
-                row
+                (now.saturating_duration_since(task.started), row)
             })
             .collect()
     }
@@ -417,7 +465,7 @@ impl AgentPanel {
     /// its reset — or for the panel to move to another connection, which wakes
     /// it at once — and answers where a running one would. `✕` gives the task
     /// up; elsewhere on the row its session opens, where it stands paused.
-    fn parked_tasks(&mut self) -> Vec<StripRow> {
+    fn parked_tasks(&mut self) -> Vec<(Duration, StripRow)> {
         let t = termide_i18n::t();
         let now = crate::failure::unix_now();
         let parked = crate::live::parked_of(self.panel_id);
@@ -445,7 +493,7 @@ impl AgentPanel {
                 let at = p.failure.resets_at.filter(|at| *at > now);
                 row.notes
                     .push(crate::failure::clock(at.unwrap_or(p.wake_at)));
-                row
+                (Duration::from_secs(now.saturating_sub(p.since)), row)
             })
             .collect()
     }
@@ -453,8 +501,10 @@ impl AgentPanel {
     /// The rows of the commands the agent moved to the background that
     /// termide still runs, each worded as its block's headline.
     fn background_rows(&self, width: u16) -> Vec<StripRow> {
-        self.runtime
-            .background_calls()
+        let mut calls = self.runtime.background_calls();
+        // Newest first: the rows left out are the oldest.
+        calls.sort_by_key(|background| background.elapsed);
+        calls
             .into_iter()
             .filter_map(|background| {
                 let index = self.transcript.index_of_call(&background.call.id)?;
@@ -474,7 +524,7 @@ impl AgentPanel {
                 row.time = Some(u32::try_from(background.elapsed.as_millis()).unwrap_or(u32::MAX));
                 Some(row)
             })
-            .take(STATE_QUEUED_ROWS)
+            .take(STRIP_GROUP_ROWS)
             .collect()
     }
 
@@ -630,6 +680,29 @@ impl AgentPanel {
                 }
             }
             StripTarget::Background(index) => select(self, index),
+            // `✕` closes a terminal, once confirmed; elsewhere on the row it
+            // opens in a panel, and closing that panel hands it back.
+            StripTarget::Terminal(index) => {
+                let (Some(entry), Some(session)) =
+                    (self.terminal_list.get(index), self.session.as_ref())
+                else {
+                    return vec![PanelEvent::NeedsRedraw];
+                };
+                if on_stop {
+                    return vec![PanelEvent::ShowConfirm {
+                        message: termide_i18n::t().agent_close_terminal_confirm_fmt(&entry.name),
+                        on_confirm: termide_core::ConfirmAction::Custom(format!(
+                            "{}{}",
+                            crate::CLOSE_TERMINAL_ACTION,
+                            entry.name
+                        )),
+                    }];
+                }
+                return vec![PanelEvent::OpenAgentTerminal {
+                    session: session.id().to_string(),
+                    name: entry.name.clone(),
+                }];
+            }
             // `✕` takes the queue back into the input, as `↑` does: it goes
             // as one message, so it comes back whole; a recalled request in
             // the input counts as typed.

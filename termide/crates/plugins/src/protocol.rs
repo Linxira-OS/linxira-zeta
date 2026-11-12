@@ -28,7 +28,9 @@
 //!   (dismissed); `window/choose` `{ "title", "items" }` → an index or
 //!   `null`; `window/input` `{ "title", "prompt", "default"? }` → text or
 //!   `null`; `window/form` `{ "title", "fields" }` → `{ name: value }` or
-//!   `null`; `window/message` `{ "title", "message" }` → `null`. Requests,
+//!   `null`; `window/message` `{ "title", "message" }` → `null`;
+//!   `window/dialog` `{ "title", "message"?, "input"?, "list"?, "buttons"? }`
+//!   → `{ "button", "text"?, "checked"?, "selected"? }` or `null`. Requests,
 //!   answered once the user closes the window; one window per plugin at a
 //!   time, shown while its project is current.
 //! - `editor/active` → `{ "path", "line", "col", "selection", "modified",
@@ -43,15 +45,26 @@
 //!   clears them). Each item is `{ "line", "col"?, "end_line"?, "end_col"?,
 //!   "severity"?, "message", "code"? }`, lines from 0, columns as LSP counts
 //!   them; without `col` the whole line is marked.
-//! - `panel/open` (request) `{ "title", "markdown" }` opens a panel in the
-//!   plugin's project, which must be the current one; the result is
-//!   `{ "panel" }`, its id.
-//! - `panel/update` (request) `{ "panel", "markdown", "title"? }`.
+//! - `files/status` (request) `{ "items": [{ "path", "status" }] }`: how
+//!   the file manager colours each absolute `path` — `modified`, `added`,
+//!   `deleted` or `ignored` as git's statuses, `null` to say nothing again —
+//!   replacing what the plugin said of those paths; the directories above a
+//!   changed file show as modified. Git's status, where git has one, wins.
+//! - `editor/base` (request) `{ "path", "text" }`: the file at `path` as the
+//!   plugin's version control has it, which the editor marks changed lines
+//!   against while git has no original for the file; `text: null` takes it
+//!   back.
+//! - `panel/open` (request) `{ "title", "markdown" | "list" | "diff",
+//!   "menu"? }` opens a panel in the plugin's project, which must be the
+//!   current one; the result is `{ "panel" }`, its id. `diff` is a unified
+//!   diff, shown as git's diffs are.
+//! - `panel/update` (request) `{ "panel", "markdown" | "list" | "diff",
+//!   "title"?, "menu"? }`, of the kind the panel was opened with.
 //! - `panel/close` (request) `{ "panel" }`.
 //!
 //! About its panels, termide → plugin (notifications):
-//! - `panel/action` `{ "panel", "action" }`: a `plugin:<action>` link in
-//!   the panel was followed.
+//! - `panel/action` `{ "panel", "action" }`: a `plugin:<action>` link, a
+//!   list row's action or a `[≡]` entry was chosen.
 //! - `panel/closed` `{ "panel" }`: the user closed it.
 
 use serde::Deserialize;
@@ -77,7 +90,10 @@ pub const WINDOW_CHOOSE: &str = "window/choose";
 pub const WINDOW_INPUT: &str = "window/input";
 pub const WINDOW_FORM: &str = "window/form";
 pub const WINDOW_MESSAGE: &str = "window/message";
+pub const WINDOW_DIALOG: &str = "window/dialog";
 pub const EDITOR_DIAGNOSTICS: &str = "editor/diagnostics";
+pub const FILES_STATUS: &str = "files/status";
+pub const EDITOR_BASE: &str = "editor/base";
 pub const EDITOR_ACTIVE: &str = "editor/active";
 pub const EDITOR_READ: &str = "editor/read";
 pub const EDITOR_EDIT: &str = "editor/edit";
@@ -107,6 +123,14 @@ pub mod events {
     /// A request, not a notification: `{ "path", "version" }` before `Ctrl+S`
     /// writes the file; the answer is `{ "edits" }` or `null`.
     pub const FILE_WILL_SAVE: &str = "file/will_save";
+    /// A request, not a notification: `{ "path", "edit": true }` when
+    /// editing is turned on for a file that is read-only on disk,
+    /// `"edit": false` when it is turned off for a saved file that is
+    /// writable. The answer is `{ "handled": true }` once the plugin settled
+    /// it (made the file writable, or decided with the user to leave
+    /// editing as it is), anything else to let termide toggle editing as it
+    /// would have.
+    pub const FILE_WILL_EDIT: &str = "file/will_edit";
 }
 
 /// `text` from a plugin made fit to stand in termide's own chrome — a panel
@@ -184,7 +208,15 @@ pub struct CommandInfo {
     /// program's in the terminal.
     #[serde(default)]
     pub key: Option<String>,
+    /// A termide action it stands in for where termide has nothing to do:
+    /// only [`STATUS_ACTION`], run instead of git's status panel in a
+    /// project outside a git repository.
+    #[serde(default)]
+    pub replaces: Option<String>,
 }
+
+/// The action a version control plugin's status command may stand in for.
+pub const STATUS_ACTION: &str = "open_git_status";
 
 /// A tool for the agent.
 #[derive(Debug, Clone, PartialEq, Deserialize)]

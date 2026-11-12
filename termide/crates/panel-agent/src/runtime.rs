@@ -8,11 +8,11 @@ use std::sync::{Arc, Mutex};
 use termide_agent_core::{
     permission_channel, question_channel, suggestion_channel, Agent, AgentRuntime, Backend,
     BackendSetup, CancelToken, ChainedHooks, CheckpointHooks, CheckpointStore, CompactionPolicy,
-    CompactionPrompts, GoalPrompt, HandoffPrompt, Hooks, HostTools, LoggedMessage, LoopPrompt,
-    Message, Mode, ModeHandle, ModelInfo, ModelSpec, PermissionEnvelope, PermissionHooks,
-    PermissionRules, PersistRule, PlanGuard, PlanPrompt, Provider, QuestionEnvelope, Refusals,
-    ReviewerSetup, Session, ShellRunner, SkillInfo, SuggestionEnvelope, Timing, ToolContext,
-    ToolRegistry, MODEL_OPTION,
+    CompactionPrompts, GoalPrompt, HandoffPrompt, HistoryStep, Hooks, HostTools, LoggedMessage,
+    LoopPrompt, Message, Mode, ModeHandle, ModelInfo, ModelSpec, PermissionEnvelope,
+    PermissionHooks, PermissionRules, PersistRule, PlanGuard, PlanPrompt, Provider,
+    QuestionEnvelope, Refusals, ReviewerSetup, Session, ShellRunner, SkillInfo, SuggestionEnvelope,
+    TerminalSessions, Timing, ToolContext, ToolRegistry, MODEL_OPTION,
 };
 
 use crate::toolset::{Blocked, ToolsetGuard};
@@ -200,6 +200,7 @@ pub(crate) fn spawn_runtime(
     session: Option<&Session>,
     blocked: &Blocked,
     shell_run: Option<ShellRunner>,
+    terminals: Option<&Arc<dyn TerminalSessions>>,
     skills: Vec<SkillInfo>,
     panel: u64,
 ) -> Spawned {
@@ -259,13 +260,15 @@ pub(crate) fn spawn_runtime(
 
     let mut transcript = Transcript::default();
     transcript.set_fold(fold);
-    let history = session
-        .map(|s| s.context_messages_with_times(compaction_prompts))
-        .unwrap_or_default();
-    for logged in &history {
-        push_history(&mut transcript, logged);
+    if let Some(session) = session {
+        push_steps(
+            &mut transcript,
+            &session.history_with_times(compaction_prompts),
+        );
     }
-    let messages: Vec<Message> = history.into_iter().map(|logged| logged.message).collect();
+    let messages: Vec<Message> = session
+        .map(|s| s.context_messages_with(compaction_prompts))
+        .unwrap_or_default();
 
     if let Some(factory) = backend {
         // The external agent gets its own prompter on a channel of its own,
@@ -357,6 +360,12 @@ pub(crate) fn spawn_runtime(
         // middle of the call that asked.
         agent = agent.with_shell_run(run);
     }
+    if let Some(terminals) = terminals {
+        // The agent hears of its open terminal sessions at each model call.
+        agent = agent.with_context_note(termide_agent_core::terminals::context_note(Arc::clone(
+            terminals,
+        )));
+    }
     let mut chain = guards(checkpoints);
     chain.push(Box::new(hooks));
     let hooks: Box<dyn Hooks> = Box::new(ChainedHooks::new(chain));
@@ -369,6 +378,47 @@ pub(crate) fn spawn_runtime(
         transcript,
         mode,
         external: false,
+    }
+}
+
+/// The notice a compaction leaves in the transcript, live and on reopen.
+pub(crate) fn compacted_notice(tokens_before: u64, kept: usize) -> String {
+    // Nothing kept verbatim, as with an external agent: the summary is all
+    // that stands for the history.
+    if kept == 0 {
+        termide_i18n::t().agent_notice_compacted_summary_fmt(tokens_before)
+    } else {
+        termide_i18n::t().agent_notice_compacted_fmt(tokens_before, kept)
+    }
+}
+
+/// The notice a fitting leaves in the transcript, live and on reopen.
+pub(crate) fn fitted_notice(tokens_before: u64, tokens_after: u64) -> String {
+    termide_i18n::t().agent_notice_fitted_fmt(tokens_before, tokens_after)
+}
+
+/// Mirror a reopened session's branch into the transcript as the live run
+/// showed it: every block, those a compaction took out of the context
+/// included, with the compaction's notice where it happened.
+pub(crate) fn push_steps(transcript: &mut Transcript, steps: &[HistoryStep]) {
+    for step in steps {
+        match step {
+            HistoryStep::Message(logged) => push_history(transcript, logged),
+            HistoryStep::Compacted {
+                tokens_before,
+                kept,
+            } => transcript.push(Item::Notice {
+                text: compacted_notice(*tokens_before, *kept),
+                kind: NoticeKind::Info,
+            }),
+            HistoryStep::Fitted {
+                tokens_before,
+                tokens_after,
+            } => transcript.push(Item::Notice {
+                text: fitted_notice(*tokens_before, *tokens_after),
+                kind: NoticeKind::Info,
+            }),
+        }
     }
 }
 

@@ -9,11 +9,11 @@ use anyhow::{Context, Result};
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use ignore::WalkBuilder;
 use notify::{RecommendedWatcher, RecursiveMode};
-use notify_debouncer_mini::{new_debouncer, DebouncedEvent, Debouncer};
+use notify_debouncer_mini::{new_debouncer, Debouncer};
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{channel, Receiver};
 use std::time::{Duration, Instant};
 
 /// Debounce duration for filesystem events.
@@ -41,44 +41,242 @@ pub enum WatchEvent {
     GitignoreChanged(PathBuf),
 }
 
-/// Internal event from debouncer callback.
-#[derive(Debug, Clone)]
-#[allow(clippy::enum_variant_names)]
-enum InternalEvent {
-    /// Regular filesystem change
-    FsChange { changed_path: PathBuf },
-    /// Git-related change (needs additional debounce)
-    GitChange { repo_root: PathBuf },
-    /// .gitignore changed
-    GitignoreChange { repo_root: PathBuf },
+/// Where a repository keeps its git state.
+///
+/// A repository's own `.git` is usually a directory, but in a linked
+/// worktree or a submodule it is a file (`gitdir: <path>`) pointing at the
+/// real git directory elsewhere: `<main>/.git/worktrees/<name>` or
+/// `<outer>/.git/modules/<name>`. Branches, tags and `packed-refs` live in
+/// the common directory a worktree's `commondir` file names; a submodule's
+/// git directory is its own common directory.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GitDirs {
+    /// The repository's own state: `index`, `HEAD`, merge and rebase state.
+    git_dir: PathBuf,
+    /// Refs shared with every worktree of the same repository.
+    common_dir: PathBuf,
 }
 
-/// Unified watcher for filesystem and git changes.
-///
-/// Per-repo install progress for [`UnifiedWatcher::poll_pending`].
-///
-/// Holds the path queue (already walked, not yet handed to notify) and
-/// the set of paths already installed for this repo. We don't update
-/// `UnifiedWatcher::watched_repos` until the queue drains so that
-/// `is_watching_repo` returns `true` across the full install window —
-/// otherwise `register_panel_watchers` would race with the install and
-/// schedule a duplicate walk on the next tick.
-#[derive(Debug)]
-struct RepoInstallState {
-    repo_root: PathBuf,
-    queue: Vec<PathBuf>,
-    installed: HashSet<PathBuf>,
-    ignore: Option<Gitignore>,
+impl GitDirs {
+    /// Resolve the git directories of the repository at `repo_root`. Paths
+    /// read from `.git` and `commondir` are canonicalised so they compare
+    /// with the paths the OS reports events for.
+    fn resolve(repo_root: &Path) -> Self {
+        let dot_git = repo_root.join(".git");
+        let git_dir = if dot_git.is_file() {
+            std::fs::read_to_string(&dot_git)
+                .ok()
+                .and_then(|text| {
+                    text.lines()
+                        .find_map(|line| line.strip_prefix("gitdir:"))
+                        .map(|dir| canonical_from(repo_root, dir.trim()))
+                })
+                .unwrap_or(dot_git)
+        } else {
+            dot_git
+        };
+        let common_dir = std::fs::read_to_string(git_dir.join("commondir"))
+            .ok()
+            .map(|dir| canonical_from(&git_dir, dir.trim()))
+            .unwrap_or_else(|| git_dir.clone());
+        Self {
+            git_dir,
+            common_dir,
+        }
+    }
+
+    /// Whether the git state lives outside the repository root, so the
+    /// root's own watches do not cover it.
+    fn is_linked(&self, repo_root: &Path) -> bool {
+        !self.git_dir.starts_with(repo_root) || !self.common_dir.starts_with(repo_root)
+    }
+
+    /// Whether a change at `path` concerns the repository: its own state in
+    /// its git directory, or a ref in the common directory it shares.
+    fn concerns(&self, path: &Path) -> bool {
+        if let Ok(own) = path.strip_prefix(&self.git_dir) {
+            return is_own_git_state(own);
+        }
+        path.strip_prefix(&self.common_dir)
+            .is_ok_and(is_shared_git_state)
+    }
+
+    /// Whether `path` lies in the repository's git directories at all.
+    fn contains(&self, path: &Path) -> bool {
+        path.starts_with(&self.git_dir) || path.starts_with(&self.common_dir)
+    }
+
+    /// The directories to watch for a linked repository's git state, in the
+    /// repository watch mode; nothing when `.git` is a directory inside the
+    /// root, which the root's own watches cover.
+    ///
+    /// A recursive watch takes the common directory whole: one FSEvents
+    /// path, with object writes dropped when they arrive. Per-directory
+    /// watches take the git directory, the common directory for
+    /// `packed-refs`, and every directory under the common `refs/` —
+    /// never `objects/`.
+    fn watch_paths(&self, repo_root: &Path) -> Vec<PathBuf> {
+        if !self.is_linked(repo_root) {
+            return Vec::new();
+        }
+        if RECURSIVE_ROOT_WATCH {
+            let mut paths = vec![self.common_dir.clone()];
+            if !self.git_dir.starts_with(&self.common_dir) {
+                paths.push(self.git_dir.clone());
+            }
+            return paths;
+        }
+        let mut paths = vec![self.git_dir.clone()];
+        if self.common_dir != self.git_dir {
+            paths.push(self.common_dir.clone());
+        }
+        let mut pending = vec![self.common_dir.join("refs")];
+        while let Some(dir) = pending.pop() {
+            let Ok(entries) = std::fs::read_dir(&dir) else {
+                continue;
+            };
+            pending.extend(
+                entries
+                    .filter_map(|entry| entry.ok())
+                    .filter(|entry| entry.file_type().is_ok_and(|ft| ft.is_dir()))
+                    .map(|entry| entry.path()),
+            );
+            paths.push(dir);
+        }
+        paths
+    }
 }
 
-/// What the worker thread hands back for one `watch_repository` call.
+/// `path` as written in a git file, relative paths taken from `base`.
+fn canonical_from(base: &Path, path: &str) -> PathBuf {
+    let path = base.join(path);
+    dunce::canonicalize(&path).unwrap_or(path)
+}
+
+/// Whether a change at `relative`, inside a git directory, moves the state a
+/// status or log shows: the index, `HEAD` and its siblings, refs, reflogs.
+/// Objects are not; neither is another worktree's private state under
+/// `worktrees/`. Submodule state under `modules/` is, for the superproject:
+/// its status shows the submodule's checked-out commit.
+fn is_own_git_state(relative: &Path) -> bool {
+    let mut parts = relative.components().map(|c| c.as_os_str());
+    if matches!(
+        parts.next().and_then(OsStr::to_str),
+        Some("objects" | "worktrees")
+    ) {
+        return false;
+    }
+    if let Some(
+        "index" | "HEAD" | "MERGE_HEAD" | "FETCH_HEAD" | "REBASE_HEAD" | "CHERRY_PICK_HEAD"
+        | "ORIG_HEAD" | "COMMIT_EDITMSG" | "packed-refs",
+    ) = relative.file_name().and_then(OsStr::to_str)
+    {
+        return true;
+    }
+    relative
+        .components()
+        .any(|c| c.as_os_str() == "refs" || c.as_os_str() == "logs")
+}
+
+/// Whether a change at `relative`, inside a common directory, moves refs
+/// every worktree sharing it sees: branches, tags, remotes, `packed-refs`.
+fn is_shared_git_state(relative: &Path) -> bool {
+    relative.starts_with("refs") || relative == Path::new("packed-refs")
+}
+
+/// What a walk on a worker thread was started for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WalkKind {
+    /// The repo's whole watch set: the first registration, or a reload after
+    /// its ignore rules changed. Authoritative — directories it no longer
+    /// lists lose their watch.
+    Full,
+    /// Directories that appeared inside the repo after the full walk; added
+    /// to the set, nothing removed.
+    Extend,
+}
+
+/// What the worker thread hands back for one walk.
 struct RepoWalk {
     /// Directories to install watches for (just the root when
     /// [`RECURSIVE_ROOT_WATCH`] is on).
     paths: Vec<PathBuf>,
     /// The repo's ignore rules, used to drop events from ignored subtrees
-    /// that a recursive root watch delivers anyway.
+    /// that a recursive root watch delivers anyway. Only full walks carry it.
     ignore: Option<Gitignore>,
+}
+
+/// One watched repository.
+///
+/// The entry exists from the first [`UnifiedWatcher::watch_repository`] to
+/// the matching last [`UnifiedWatcher::unwatch_repository`], whatever stage
+/// the install is in: the reference count is kept from the first call, not
+/// from the moment the walk lands, so every acquire has its release.
+#[derive(Debug)]
+struct RepoWatch {
+    /// How many holders asked for the repo.
+    refs: usize,
+    /// Directories with an installed watch.
+    watched: HashSet<PathBuf>,
+    /// Walked directories not yet handed to notify; drained
+    /// [`INSTALL_CHUNK`] at a time by [`UnifiedWatcher::poll_pending`].
+    queue: Vec<PathBuf>,
+    /// Walks still running on worker threads.
+    walks: Vec<(WalkKind, Receiver<RepoWalk>)>,
+    /// The repo's ignore rules, consulted for events that a recursive root
+    /// watch delivers from ignored subtrees.
+    ignore: Option<Gitignore>,
+    /// Where the repo keeps its git state, resolved on the first acquire.
+    git: GitDirs,
+}
+
+impl RepoWatch {
+    /// Whether a full walk is still running for the repo.
+    fn full_walk_pending(&self) -> bool {
+        self.walks.iter().any(|(kind, _)| *kind == WalkKind::Full)
+    }
+
+    /// Whether the watch set is complete: no full walk running and nothing
+    /// left to install.
+    #[cfg(test)]
+    fn is_ready(&self) -> bool {
+        !self.full_walk_pending() && self.queue.is_empty()
+    }
+
+    /// Take a finished walk's result into the install queue.
+    fn land(
+        &mut self,
+        kind: WalkKind,
+        walk: RepoWalk,
+        os: &mut PathWatches,
+        watcher: &mut dyn notify::Watcher,
+    ) {
+        match kind {
+            WalkKind::Full => {
+                let fresh: HashSet<PathBuf> = walk.paths.into_iter().collect();
+                // Directories the rules now exclude lose their watch.
+                let stale: Vec<PathBuf> = self.watched.difference(&fresh).cloned().collect();
+                for path in stale {
+                    os.release(watcher, &path, repo_watch_mode());
+                    self.watched.remove(&path);
+                }
+                self.queue = fresh
+                    .into_iter()
+                    .filter(|path| !self.watched.contains(path))
+                    .collect();
+                self.ignore = walk.ignore;
+            }
+            WalkKind::Extend => {
+                let known: HashSet<&PathBuf> = self.queue.iter().collect();
+                let fresh: Vec<PathBuf> = walk
+                    .paths
+                    .into_iter()
+                    .filter(|path| !self.watched.contains(path) && !known.contains(path))
+                    .collect();
+                self.queue.extend(fresh);
+            }
+        }
+    }
 }
 
 /// Maximum number of `notify::Watcher::watch` calls processed per tick.
@@ -102,6 +300,114 @@ const INSTALL_CHUNK: usize = 256;
 /// per-directory syscall, so Linux keeps the walk.
 const RECURSIVE_ROOT_WATCH: bool = cfg!(target_os = "macos");
 
+/// The mode every repository watch is installed with.
+fn repo_watch_mode() -> RecursiveMode {
+    if RECURSIVE_ROOT_WATCH {
+        RecursiveMode::Recursive
+    } else {
+        RecursiveMode::NonRecursive
+    }
+}
+
+/// How many holders want an OS watch on one path, by mode.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+struct PathHolders {
+    recursive: usize,
+    flat: usize,
+}
+
+impl PathHolders {
+    fn count(&mut self, mode: RecursiveMode) -> &mut usize {
+        match mode {
+            RecursiveMode::Recursive => &mut self.recursive,
+            RecursiveMode::NonRecursive => &mut self.flat,
+        }
+    }
+
+    /// The mode the OS watch needs: recursive if any holder wants it.
+    fn mode(&self) -> Option<RecursiveMode> {
+        if self.recursive > 0 {
+            Some(RecursiveMode::Recursive)
+        } else if self.flat > 0 {
+            Some(RecursiveMode::NonRecursive)
+        } else {
+            None
+        }
+    }
+}
+
+/// The OS-level watches, shared by every holder of a path.
+///
+/// notify keeps one watch per path: a second `watch` replaces the first
+/// (FSEvents also takes the new recursive flag), and one `unwatch` removes
+/// it whoever installed it. Holders do overlap — a repository nested in
+/// another is walked by both on Linux, and a directory can be held as a
+/// repo and as a plain directory while a panel moves between the two — so
+/// each path counts its holders, and the OS watch goes only with the last.
+#[derive(Debug, Default)]
+struct PathWatches {
+    paths: HashMap<PathBuf, PathHolders>,
+}
+
+impl PathWatches {
+    /// Hold `path` in `mode`, installing or widening the OS watch when this
+    /// holder changes what it must be. A failed install holds nothing.
+    fn acquire(
+        &mut self,
+        watcher: &mut dyn notify::Watcher,
+        path: &Path,
+        mode: RecursiveMode,
+    ) -> notify::Result<()> {
+        let before = self.paths.get(path).copied().unwrap_or_default();
+        let mut after = before;
+        *after.count(mode) += 1;
+        if let Some(wanted) = after.mode().filter(|m| Some(*m) != before.mode()) {
+            if before.mode().is_some() {
+                let _ = watcher.unwatch(path);
+            }
+            if let Err(err) = watcher.watch(path, wanted) {
+                if let Some(previous) = before.mode() {
+                    let _ = watcher.watch(path, previous);
+                }
+                return Err(err);
+            }
+        }
+        self.paths.insert(path.to_path_buf(), after);
+        Ok(())
+    }
+
+    /// Let go of one hold of `path` in `mode`: the last holder removes the
+    /// OS watch, the last recursive one narrows it to its direct children.
+    fn release(&mut self, watcher: &mut dyn notify::Watcher, path: &Path, mode: RecursiveMode) {
+        let Some(holders) = self.paths.get_mut(path) else {
+            return;
+        };
+        let before = holders.mode();
+        let count = holders.count(mode);
+        *count = count.saturating_sub(1);
+        match holders.mode() {
+            None => {
+                self.paths.remove(path);
+                let _ = watcher.unwatch(path);
+            }
+            Some(narrower) if Some(narrower) != before => {
+                let _ = watcher.unwatch(path);
+                let _ = watcher.watch(path, narrower);
+            }
+            Some(_) => {}
+        }
+    }
+}
+
+/// Something to watch, as a holder asks for it.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum WatchTarget {
+    /// A git repository root: every directory not ignored by its rules.
+    Repo(PathBuf),
+    /// A directory outside any repository: its direct children only.
+    Dir(PathBuf),
+}
+
 /// Combines functionality of FileSystemWatcher and GitWatcher:
 /// - Reference counting for all watches
 /// - Filters .git/ to only index/HEAD/refs changes -> GitCommit events
@@ -109,25 +415,14 @@ const RECURSIVE_ROOT_WATCH: bool = cfg!(target_os = "macos");
 #[derive(Debug)]
 pub struct UnifiedWatcher {
     debouncer: Debouncer<RecommendedWatcher>,
-    /// Git repos: repo_root -> (reference_count, watched_paths)
-    watched_repos: HashMap<PathBuf, (usize, HashSet<PathBuf>)>,
-    /// Repos whose directory walk is still running on a worker thread.
-    /// `poll_pending` drains these into `pending_repo_installs` when
-    /// ready. `is_watching_repo` reports `true` for pending repos so
-    /// callers don't restart the walk.
-    pending_repo_walks: HashMap<PathBuf, Receiver<RepoWalk>>,
-    /// Walks that have completed and are now being installed chunk by
-    /// chunk. Each tick `poll_pending` consumes at most
-    /// `INSTALL_CHUNK` paths so a repo with thousands of directories
-    /// doesn't spike a single tick into a visible freeze.
-    pending_repo_installs: Vec<RepoInstallState>,
+    /// Git repos by root, from the first acquire to the last release.
+    repos: HashMap<PathBuf, RepoWatch>,
     /// Non-git dirs: dir_path -> reference count (NonRecursive mode)
     watched_dirs: HashMap<PathBuf, usize>,
-    /// Ignore rules of fully watched repos, consulted for events that a
-    /// recursive root watch delivers from ignored subtrees.
-    repo_ignores: HashMap<PathBuf, Gitignore>,
-    /// Receiver for internal events from debouncer callback
-    internal_rx: Receiver<InternalEvent>,
+    /// The OS watches the repos and dirs above hold, counted per path.
+    os_watches: PathWatches,
+    /// Changed paths from the debouncer callback, classified on poll.
+    internal_rx: Receiver<PathBuf>,
     /// Pending git events waiting for the `GIT_DEBOUNCE_MS` debounce
     pending_git: HashMap<PathBuf, Instant>,
     /// Pending gitignore changes waiting for debounce
@@ -146,7 +441,7 @@ impl UnifiedWatcher {
             move |result: notify_debouncer_mini::DebounceEventResult| {
                 if let Ok(events) = result {
                     for event in events {
-                        Self::process_raw_event(&event, &internal_tx);
+                        let _ = internal_tx.send(event.path);
                     }
                 }
             },
@@ -155,11 +450,9 @@ impl UnifiedWatcher {
 
         Ok(Self {
             debouncer,
-            watched_repos: HashMap::new(),
-            pending_repo_walks: HashMap::new(),
-            pending_repo_installs: Vec::new(),
+            repos: HashMap::new(),
             watched_dirs: HashMap::new(),
-            repo_ignores: HashMap::new(),
+            os_watches: PathWatches::default(),
             internal_rx,
             pending_git: HashMap::new(),
             pending_gitignore: HashMap::new(),
@@ -167,38 +460,61 @@ impl UnifiedWatcher {
         })
     }
 
-    /// Process raw event from debouncer, classify and send to internal channel.
-    fn process_raw_event(event: &DebouncedEvent, tx: &Sender<InternalEvent>) {
-        let path = &event.path;
-
-        // Check if this is a .gitignore change
+    /// Sort one changed path into the pending git, `.gitignore` and
+    /// filesystem changes.
+    ///
+    /// Classification needs the watched repos' git directories — a linked
+    /// worktree's or a submodule's live outside its root — so it runs here
+    /// rather than on the debouncer thread.
+    fn classify(&mut self, path: PathBuf) {
         if path.file_name() == Some(OsStr::new(".gitignore")) {
-            // Find repo root by walking up to .git directory
-            if let Some(repo_root) = Self::find_repo_root(path) {
-                let _ = tx.send(InternalEvent::GitignoreChange { repo_root });
+            if let Some(repo_root) = Self::find_repo_root(&path) {
+                self.pending_gitignore.insert(repo_root, Instant::now());
             }
-            // Also emit as regular fs change so FileManager updates
-            let _ = tx.send(InternalEvent::FsChange {
-                changed_path: path.clone(),
-            });
+            // Also a regular change, so the file manager updates.
+        } else if let Some(repos) = self.git_change_owners(&path) {
+            for repo_root in repos {
+                // Fixed window from the first change in a burst — do NOT
+                // reset on every event, or continuous repo churn would keep
+                // pushing the deadline out and the update would never fire.
+                self.pending_git
+                    .entry(repo_root)
+                    .or_insert_with(Instant::now);
+            }
             return;
         }
+        if !self.is_ignored_in_repo(&path) {
+            self.pending_fs.insert(path);
+        }
+    }
 
-        // Check if this is a .git/ event
-        if Self::is_git_path(path) {
-            // Filter to only commit-related files
-            if Self::is_commit_related(path) {
-                if let Some(repo_root) = Self::find_repo_root_from_git_path(path) {
-                    let _ = tx.send(InternalEvent::GitChange { repo_root });
+    /// The repos a change inside git state concerns, or `None` when `path`
+    /// is not git state but a regular file.
+    ///
+    /// A watched repo hears its own git directory and the refs of the
+    /// common directory it shares, so a worktree's index belongs to the
+    /// worktree, and a branch moving belongs to every worktree of the
+    /// repository. A `.git` path no watched repo claims — a nested
+    /// repository walked by an outer one but not watched itself — goes to
+    /// the repository its `.git` belongs to.
+    fn git_change_owners(&self, path: &Path) -> Option<Vec<PathBuf>> {
+        let mut inside = false;
+        let mut owners = Vec::new();
+        for (root, repo) in &self.repos {
+            if repo.git.contains(path) {
+                inside = true;
+                if repo.git.concerns(path) {
+                    owners.push(root.clone());
                 }
             }
-            // Ignore other .git/* events
-        } else {
-            // Regular filesystem change
-            let _ = tx.send(InternalEvent::FsChange {
-                changed_path: path.clone(),
-            });
         }
+        if !inside && !Self::is_git_path(path) {
+            return None;
+        }
+        if owners.is_empty() && !inside {
+            owners.extend(Self::find_repo_root_from_git_path(path));
+        }
+        Some(owners)
     }
 
     /// Find repository root by walking up from a path.
@@ -217,26 +533,16 @@ impl UnifiedWatcher {
         path.components().any(|c| c.as_os_str() == ".git")
     }
 
-    /// Check if git path is commit-related (index, HEAD, refs, merge/rebase state).
-    fn is_commit_related(path: &Path) -> bool {
-        if let Some(
-            "index" | "HEAD" | "MERGE_HEAD" | "FETCH_HEAD" | "REBASE_HEAD" | "CHERRY_PICK_HEAD"
-            | "ORIG_HEAD" | "COMMIT_EDITMSG",
-        ) = path.file_name().and_then(|n| n.to_str())
-        {
-            return true;
-        }
-        // Also check for refs/* and logs/* changes
-        let path_str = path.to_string_lossy();
-        path_str.contains("/refs/") || path_str.contains("/logs/")
-    }
-
-    /// Find repository root from a path inside .git directory.
-    /// Canonicalizes the result to match paths stored by panels (resolves symlinks/mounts).
+    /// The repository whose `.git` directory holds `path`, when the change
+    /// concerns its state ([`is_own_git_state`]). Canonicalizes the result
+    /// to match paths stored by panels (resolves symlinks/mounts).
     fn find_repo_root_from_git_path(path: &Path) -> Option<PathBuf> {
         let mut current = path;
         while let Some(parent) = current.parent() {
             if parent.file_name().and_then(|n| n.to_str()) == Some(".git") {
+                if !is_own_git_state(path.strip_prefix(parent).ok()?) {
+                    return None;
+                }
                 let repo_root = parent.parent()?;
                 return Some(
                     dunce::canonicalize(repo_root).unwrap_or_else(|_| repo_root.to_path_buf()),
@@ -247,95 +553,100 @@ impl UnifiedWatcher {
         None
     }
 
-    /// Start watching a git repository root, respecting .gitignore.
+    /// Acquire a watch on `target`; pair it with one [`Self::unwatch`].
+    pub fn watch(&mut self, target: &WatchTarget) -> Result<()> {
+        match target {
+            WatchTarget::Repo(root) => self.watch_repository(root.clone()),
+            WatchTarget::Dir(dir) => self.watch_directory(dir.clone()),
+        }
+    }
+
+    /// Release one watch acquired with [`Self::watch`].
+    pub fn unwatch(&mut self, target: &WatchTarget) {
+        match target {
+            WatchTarget::Repo(root) => self.unwatch_repository(root),
+            WatchTarget::Dir(dir) => self.unwatch_directory(dir),
+        }
+    }
+
+    /// Start watching a git repository root, respecting .gitignore, or count
+    /// one more holder of a repo already watched.
     ///
     /// The `WalkBuilder` traversal that collects the per-directory list
     /// is the slow part — on a repo that tracks `$HOME` it can take
     /// seconds. It runs on a worker thread; the actual `watcher.watch`
     /// installs happen when [`Self::poll_pending`] picks up the result.
-    /// Until then [`Self::is_watching_repo`] reports `true` for the
-    /// pending root so callers don't re-spawn the walk.
     ///
     /// File-system events emitted before the walk finishes are simply
-    /// missed — same behaviour as the synchronous path while it was
-    /// still mid-walk; once watches are installed the panel picks up
-    /// changes from there on out.
+    /// missed; once watches are installed the panel picks up changes from
+    /// there on out.
     pub fn watch_repository(&mut self, repo_root: PathBuf) -> Result<()> {
-        // Increment reference count if already fully watching
-        if let Some((count, _)) = self.watched_repos.get_mut(&repo_root) {
-            *count += 1;
+        if let Some(repo) = self.repos.get_mut(&repo_root) {
+            repo.refs += 1;
             return Ok(());
         }
-        // Already pending — keep one walk in flight per root. The
-        // caller has no separate refcount on the pending entry; the
-        // implicit count is 1 and gets folded into watched_repos when
-        // the worker reports back.
-        if self.pending_repo_walks.contains_key(&repo_root) {
-            return Ok(());
-        }
-
-        let (tx, rx) = channel();
-        let repo = repo_root.clone();
-        std::thread::spawn(move || {
-            let paths = if RECURSIVE_ROOT_WATCH {
-                vec![repo.clone()]
-            } else {
-                collect_repo_watch_paths(&repo)
-            };
-            let ignore = RECURSIVE_ROOT_WATCH
-                .then(|| repo_gitignore(&repo))
-                .flatten();
-            let _ = tx.send(RepoWalk { paths, ignore });
-        });
-        self.pending_repo_walks.insert(repo_root, rx);
+        let git = GitDirs::resolve(&repo_root);
+        let walk = spawn_full_walk(&repo_root, &git);
+        self.repos.insert(
+            repo_root,
+            RepoWatch {
+                refs: 1,
+                watched: HashSet::new(),
+                queue: Vec::new(),
+                walks: vec![(WalkKind::Full, walk)],
+                ignore: None,
+                git,
+            },
+        );
         Ok(())
     }
 
-    /// Stop watching a git repository (decrement reference count).
-    /// Only unwatches when count reaches 0.
+    /// Release one holder of a git repository. The last release removes
+    /// every watch installed for it and abandons its running walks.
     pub fn unwatch_repository(&mut self, repo_root: &Path) {
-        if let Some((count, _)) = self.watched_repos.get_mut(repo_root) {
-            *count = count.saturating_sub(1);
-            if *count == 0 {
-                // Remove and get the watched paths
-                if let Some((_, watched_paths)) = self.watched_repos.remove(repo_root) {
-                    let watcher = self.debouncer.watcher();
-                    // Unwatch all paths that were watched for this repo
-                    for path in watched_paths {
-                        let _ = watcher.unwatch(&path);
-                    }
-                }
-                self.repo_ignores.remove(repo_root);
-            }
+        let Some(repo) = self.repos.get_mut(repo_root) else {
+            return;
+        };
+        repo.refs = repo.refs.saturating_sub(1);
+        if repo.refs > 0 {
+            return;
         }
-        // If the registration was still mid-walk or mid-install, drop
-        // it so we don't keep installing watches the caller no longer
-        // wants. Anything already in `installed` stays in notify until
-        // the panel decides to register again or shut down.
-        self.pending_repo_walks.remove(repo_root);
-        self.pending_repo_installs
-            .retain(|s| s.repo_root != repo_root);
+        if let Some(repo) = self.repos.remove(repo_root) {
+            let watcher = self.debouncer.watcher();
+            for path in repo.watched {
+                self.os_watches.release(watcher, &path, repo_watch_mode());
+            }
+            // Dropping the receivers abandons the walks: their send fails.
+        }
     }
 
-    /// Check if repository root is being watched (including the pending
-    /// walk and chunked install phases). Returning `true` here keeps
-    /// `register_panel_watchers` from spinning up a second walk for the
-    /// same root.
+    /// Re-read a watched repository's ignore rules after its `.gitignore`
+    /// changed: a fresh full walk replaces the watch set when it lands,
+    /// unwatching directories now ignored and adding those no longer
+    /// ignored. The holders and their count are untouched, and the watches
+    /// stay live meanwhile.
+    pub fn reload_repo_ignores(&mut self, repo_root: &Path) {
+        let Some(repo) = self.repos.get_mut(repo_root) else {
+            return;
+        };
+        // A full walk still running read the old rules; the new one supersedes it.
+        repo.walks.retain(|(kind, _)| *kind != WalkKind::Full);
+        let walk = spawn_full_walk(repo_root, &repo.git);
+        repo.walks.push((WalkKind::Full, walk));
+    }
+
+    /// Check if repository root is being watched, including while its walk
+    /// runs and its watches install.
     pub fn is_watching_repo(&self, repo_root: &Path) -> bool {
-        self.watched_repos.contains_key(repo_root)
-            || self.pending_repo_walks.contains_key(repo_root)
-            || self
-                .pending_repo_installs
-                .iter()
-                .any(|s| s.repo_root == repo_root)
+        self.repos.contains_key(repo_root)
     }
 
     /// Drain background work in two stages so a single tick never
     /// spikes:
-    /// 1. Pull finished `WalkBuilder` results off
-    ///    `pending_repo_walks` and queue them for install.
+    /// 1. Take finished walks off the worker threads and queue their
+    ///    directories for install.
     /// 2. Install up to `INSTALL_CHUNK` watches per tick from the
-    ///    queue. Each `watcher.watch` is a syscall, and a repo with
+    ///    queues. Each `watcher.watch` is a syscall, and a repo with
     ///    thousands of dirs would otherwise stall the main loop for
     ///    ~tens of milliseconds.
     ///
@@ -343,81 +654,51 @@ impl UnifiedWatcher {
     /// installed) so the caller can request a redraw.
     pub fn poll_pending(&mut self) -> bool {
         let mut any_progress = false;
+        let watcher = self.debouncer.watcher();
 
-        // Stage 1: move finished walks into the install queue. Capture the
-        // walk result in the SAME `try_recv` — the channel delivers the paths
-        // exactly once, so a second `try_recv` would find it empty/disconnected
-        // and silently drop the repo (its watches would never install).
-        let mut landed: Vec<(PathBuf, RepoWalk)> = Vec::new();
-        let mut drop_disconnected: Vec<PathBuf> = Vec::new();
-        for (repo, rx) in &self.pending_repo_walks {
-            match rx.try_recv() {
-                Ok(walk) => landed.push((repo.clone(), walk)),
-                Err(std::sync::mpsc::TryRecvError::Empty) => {}
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                    drop_disconnected.push(repo.clone())
+        // Stage 1: each walk's channel delivers its result exactly once.
+        for repo in self.repos.values_mut() {
+            let mut landed: Vec<(WalkKind, RepoWalk)> = Vec::new();
+            repo.walks.retain(|(kind, rx)| match rx.try_recv() {
+                Ok(walk) => {
+                    landed.push((*kind, walk));
+                    false
                 }
+                Err(std::sync::mpsc::TryRecvError::Empty) => true,
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => false,
+            });
+            for (kind, walk) in landed {
+                repo.land(kind, walk, &mut self.os_watches, watcher);
+                any_progress = true;
             }
         }
-        for repo in drop_disconnected {
-            self.pending_repo_walks.remove(&repo);
-            any_progress = true;
-        }
-        for (repo, walk) in landed {
-            self.pending_repo_walks.remove(&repo);
-            self.pending_repo_installs.push(RepoInstallState {
-                repo_root: repo,
-                queue: walk.paths,
-                installed: HashSet::new(),
-                ignore: walk.ignore,
-            });
-            any_progress = true;
-        }
 
-        // Stage 2: install up to INSTALL_CHUNK watches across all
-        // pending repos this tick. Round-robin across repos keeps a
-        // single huge repo from starving smaller siblings.
+        // Stage 2: install up to INSTALL_CHUNK watches across all repos
+        // this tick. Round-robin across repos keeps a single huge repo
+        // from starving smaller siblings.
+        let mode = repo_watch_mode();
         let mut budget = INSTALL_CHUNK;
-        while budget > 0 && !self.pending_repo_installs.is_empty() {
-            let mut made_progress = false;
-            let mut finished_indices: Vec<usize> = Vec::new();
-            for (i, state) in self.pending_repo_installs.iter_mut().enumerate() {
+        while budget > 0 {
+            let waiting = self.repos.values().filter(|r| !r.queue.is_empty()).count();
+            if waiting == 0 {
+                break;
+            }
+            let share = (budget / waiting).max(1);
+            for repo in self.repos.values_mut() {
                 if budget == 0 {
                     break;
                 }
-                if state.queue.is_empty() {
-                    finished_indices.push(i);
+                let take = share.min(budget).min(repo.queue.len());
+                if take == 0 {
                     continue;
                 }
-                let take = budget.min(state.queue.len());
-                let watcher = self.debouncer.watcher();
-                let mode = if RECURSIVE_ROOT_WATCH {
-                    RecursiveMode::Recursive
-                } else {
-                    RecursiveMode::NonRecursive
-                };
-                for path in state.queue.drain(state.queue.len() - take..) {
-                    if watcher.watch(&path, mode).is_ok() {
-                        state.installed.insert(path);
+                let from = repo.queue.len() - take;
+                for path in repo.queue.drain(from..) {
+                    if self.os_watches.acquire(watcher, &path, mode).is_ok() {
+                        repo.watched.insert(path);
                     }
                 }
                 budget -= take;
-                made_progress = true;
-                if state.queue.is_empty() {
-                    finished_indices.push(i);
-                }
-            }
-            if !made_progress {
-                break;
-            }
-            // Walk in reverse so removals don't shift earlier indices.
-            for i in finished_indices.into_iter().rev() {
-                let done = self.pending_repo_installs.swap_remove(i);
-                if let Some(ignore) = done.ignore {
-                    self.repo_ignores.insert(done.repo_root.clone(), ignore);
-                }
-                self.watched_repos
-                    .insert(done.repo_root, (1, done.installed));
                 any_progress = true;
             }
         }
@@ -429,57 +710,74 @@ impl UnifiedWatcher {
     /// already-watched git repo after registration (e.g. a terminal/agent ran
     /// `mkdir`). The initial repo walk only covers directories that existed at
     /// registration time, and watches are non-recursive — so without this a new
-    /// subtree emits no events at all. Respects `.gitignore` (via
-    /// [`collect_repo_watch_paths`]) and is additive: it extends the repo's
-    /// watched-path set without touching its reference count.
+    /// subtree emits no events at all.
+    ///
+    /// Telling directories from files and walking the new subtrees takes a
+    /// `stat` per changed path and a walk per new directory — a `git clone` or
+    /// an unpacked archive inside the repo is thousands of each — so it runs
+    /// on a worker thread, and the result is installed by
+    /// [`Self::poll_pending`] in chunks like the initial walk. Applies the
+    /// rules of the initial walk (via [`collect_new_dir_watch_paths`]), so a
+    /// `target/` a build creates at the root stays unwatched, and is
+    /// additive: it extends the repo's watch set without touching its
+    /// reference count.
+    ///
+    /// Every watched repo containing the path extends its own set, not just
+    /// the innermost: an outer repo's walk descends into a nested one, so
+    /// its set holds the nested repo's directories too and must keep them
+    /// when the nested repo is released.
     fn watch_new_repo_dirs(&mut self, changed: &[PathBuf]) {
         // A recursive root watch already covers directories created later.
-        if RECURSIVE_ROOT_WATCH || self.watched_repos.is_empty() {
+        if RECURSIVE_ROOT_WATCH || self.repos.is_empty() {
             return;
         }
 
-        // Plan the installs first (immutable reads of `watched_repos`) so the
-        // mutable watcher/`watched_repos` borrows below don't overlap.
-        let mut plan: Vec<(PathBuf, Vec<PathBuf>)> = Vec::new();
+        let mut candidates: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
         for path in changed {
-            if !path.is_dir() {
-                continue;
-            }
-            let Some(repo_root) = self
-                .watched_repos
-                .keys()
-                .find(|r| path.starts_with(r))
-                .cloned()
-            else {
-                continue;
-            };
-            let Some((_, watched)) = self.watched_repos.get(&repo_root) else {
-                continue;
-            };
-            if watched.contains(path) {
-                continue; // already watched — nothing new below it
-            }
-            let fresh: Vec<PathBuf> = collect_repo_watch_paths(path)
-                .into_iter()
-                .filter(|p| !watched.contains(p))
-                .collect();
-            if !fresh.is_empty() {
-                plan.push((repo_root, fresh));
+            for (root, repo) in &self.repos {
+                // A full walk still running covers it; a watched path is known.
+                if !path.starts_with(root)
+                    || repo.full_walk_pending()
+                    || repo.watched.contains(path)
+                {
+                    continue;
+                }
+                // Below a directory the repo does not watch — one its rules
+                // exclude — nothing is the repo's to watch.
+                let parent_held = path.parent().is_some_and(|parent| {
+                    repo.watched.contains(parent) || repo.queue.iter().any(|p| p == parent)
+                });
+                if !parent_held {
+                    continue;
+                }
+                candidates
+                    .entry(root.clone())
+                    .or_default()
+                    .push(path.clone());
             }
         }
 
-        for (repo_root, fresh) in plan {
-            let mut installed = Vec::new();
-            {
-                let watcher = self.debouncer.watcher();
-                for p in &fresh {
-                    if watcher.watch(p, RecursiveMode::NonRecursive).is_ok() {
-                        installed.push(p.clone());
-                    }
+        for (root, mut paths) in candidates {
+            // A subtree's walk covers every path below it.
+            paths.sort();
+            let mut tops: Vec<PathBuf> = Vec::new();
+            for path in paths {
+                if tops.last().is_some_and(|top| path.starts_with(top)) {
+                    continue;
                 }
+                tops.push(path);
             }
-            if let Some((_, watched)) = self.watched_repos.get_mut(&repo_root) {
-                watched.extend(installed);
+            let (tx, rx) = channel();
+            let repo_root = root.clone();
+            std::thread::spawn(move || {
+                let paths = collect_new_dir_watch_paths(&repo_root, tops);
+                let _ = tx.send(RepoWalk {
+                    paths,
+                    ignore: None,
+                });
+            });
+            if let Some(repo) = self.repos.get_mut(&root) {
+                repo.walks.push((WalkKind::Extend, rx));
             }
         }
     }
@@ -494,7 +792,8 @@ impl UnifiedWatcher {
         }
 
         let watcher = self.debouncer.watcher();
-        watcher.watch(&dir_path, RecursiveMode::NonRecursive)?;
+        self.os_watches
+            .acquire(watcher, &dir_path, RecursiveMode::NonRecursive)?;
 
         self.watched_dirs.insert(dir_path, 1);
         Ok(())
@@ -508,7 +807,8 @@ impl UnifiedWatcher {
             if *count == 0 {
                 self.watched_dirs.remove(dir_path);
                 let watcher = self.debouncer.watcher();
-                let _ = watcher.unwatch(dir_path);
+                self.os_watches
+                    .release(watcher, dir_path, RecursiveMode::NonRecursive);
             }
         }
     }
@@ -521,27 +821,8 @@ impl UnifiedWatcher {
     /// Poll for pending events.
     /// Call this periodically (e.g., on tick) to get accumulated events.
     pub fn poll_events(&mut self) -> Vec<WatchEvent> {
-        // Collect all internal events
-        while let Ok(event) = self.internal_rx.try_recv() {
-            match event {
-                InternalEvent::FsChange { changed_path } => {
-                    if !self.is_ignored_in_repo(&changed_path) {
-                        self.pending_fs.insert(changed_path);
-                    }
-                }
-                InternalEvent::GitChange { repo_root } => {
-                    // Fixed window from the first change in a burst — do NOT
-                    // reset on every event, or continuous repo churn would keep
-                    // pushing the deadline out and the update would never fire.
-                    self.pending_git
-                        .entry(repo_root)
-                        .or_insert_with(Instant::now);
-                }
-                InternalEvent::GitignoreChange { repo_root } => {
-                    // Update timestamp for gitignore debounce
-                    self.pending_gitignore.insert(repo_root, Instant::now());
-                }
-            }
+        while let Ok(path) = self.internal_rx.try_recv() {
+            self.classify(path);
         }
 
         let mut events = Vec::new();
@@ -596,20 +877,24 @@ impl UnifiedWatcher {
     /// Whether `path` lies in an ignored subtree of a watched repo — what the
     /// per-directory walk achieves by never subscribing to such directories.
     fn is_ignored_in_repo(&self, path: &Path) -> bool {
-        self.repo_ignores
+        self.repos
             .iter()
             .filter(|(root, _)| path.starts_with(root))
             .max_by_key(|(root, _)| root.as_os_str().len())
-            .is_some_and(|(_, ignore)| ignored_by(ignore, path))
+            .and_then(|(_, repo)| repo.ignore.as_ref())
+            .is_some_and(|ignore| ignored_by(ignore, path))
     }
 
-    /// Find the watched root that contains this path.
+    /// Find the watched root that contains this path: the innermost repo,
+    /// so a change in a nested repo is reported as the nested repo's.
     fn find_watched_root(&self, path: &Path) -> PathBuf {
-        // First check watched repos
-        for repo_root in self.watched_repos.keys() {
-            if path.starts_with(repo_root) {
-                return repo_root.clone();
-            }
+        if let Some(repo_root) = self
+            .repos
+            .keys()
+            .filter(|root| path.starts_with(root))
+            .max_by_key(|root| root.as_os_str().len())
+        {
+            return repo_root.clone();
         }
 
         // Then check watched directories
@@ -660,26 +945,95 @@ fn ignored_by(ignore: &Gitignore, path: &Path) -> bool {
         .is_ignore()
 }
 
+/// Start the full walk of `repo_root` on a worker thread: its directories
+/// and, for a linked worktree or a submodule, its git directories.
+fn spawn_full_walk(repo_root: &Path, git: &GitDirs) -> Receiver<RepoWalk> {
+    let (tx, rx) = channel();
+    let repo = repo_root.to_path_buf();
+    let git = git.clone();
+    std::thread::spawn(move || {
+        let mut paths = if RECURSIVE_ROOT_WATCH {
+            vec![repo.clone()]
+        } else {
+            collect_repo_watch_paths(&repo)
+        };
+        paths.extend(git.watch_paths(&repo));
+        let ignore = RECURSIVE_ROOT_WATCH
+            .then(|| repo_gitignore(&repo))
+            .flatten();
+        let _ = tx.send(RepoWalk { paths, ignore });
+    });
+    rx
+}
+
 /// Walk `repo_root` respecting `.gitignore` and collect the per-directory
 /// list that `watch_repository` will install non-recursive watches for.
 ///
 /// The walk is the slow part — on repos that track `$HOME` it can take
 /// seconds — so the public API hides this behind a worker thread.
 fn collect_repo_watch_paths(repo_root: &Path) -> Vec<PathBuf> {
-    let git_objects_dir = repo_root.join(".git/objects");
-    WalkBuilder::new(repo_root)
+    watchable_dirs(repo_walker(repo_root).build(), repo_root).collect()
+}
+
+/// Walk the directories that appeared at `tops` inside `repo_root` by the
+/// rules of the full walk.
+///
+/// Each is listed from its parent: a walker never applies the ignore rules
+/// to the path it starts at, so a walk started at an ignored directory — a
+/// `target/` that cargo creates at the root — would watch all of it.
+fn collect_new_dir_watch_paths(repo_root: &Path, tops: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut by_parent: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
+    for top in tops {
+        if let Some(parent) = top.parent() {
+            by_parent
+                .entry(parent.to_path_buf())
+                .or_default()
+                .insert(top);
+        }
+    }
+    let mut paths = Vec::new();
+    for (parent, tops) in by_parent {
+        let walk = repo_walker(&parent)
+            .filter_entry(move |entry| entry.depth() != 1 || tops.contains(entry.path()))
+            .build();
+        paths.extend(watchable_dirs(walk, repo_root).filter(|path| path != &parent));
+    }
+    paths
+}
+
+/// The walker of a repo's watch set, for the full walk and for directories
+/// created later alike, so both see the same rules.
+fn repo_walker(start: &Path) -> WalkBuilder {
+    let mut builder = WalkBuilder::new(start);
+    builder
         .hidden(false) // we still need the `.git/` directory
         .git_ignore(true)
         .git_global(true)
-        .git_exclude(true)
-        .build()
-        .filter_map(|e| e.ok())
+        .git_exclude(true);
+    builder
+}
+
+/// The directories of `walk` that get a watch.
+fn watchable_dirs(walk: ignore::Walk, repo_root: &Path) -> impl Iterator<Item = PathBuf> {
+    let repo_root = repo_root.to_path_buf();
+    walk.filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_some_and(|ft| ft.is_dir()))
         .map(|e| e.into_path())
-        // Skip `.git/objects/<hash-prefix>/` — hundreds of subdirs that
-        // emit no commit-relevant events.
-        .filter(|path| !(path.starts_with(&git_objects_dir) && path != &git_objects_dir))
-        .collect()
+        .filter(move |path| !under_git_objects(path, &repo_root))
+}
+
+/// Whether `path` lies below a `.git/objects` directory inside `repo_root`:
+/// its own or that of a repository nested in it. The hash-prefix
+/// subdirectories there number in the hundreds and emit no commit-relevant
+/// events; `objects` itself stays watched.
+fn under_git_objects(path: &Path, repo_root: &Path) -> bool {
+    let Ok(relative) = path.strip_prefix(repo_root) else {
+        return false;
+    };
+    let parts: Vec<_> = relative.components().map(|c| c.as_os_str()).collect();
+    parts
+        .windows(3)
+        .any(|w| w[0] == ".git" && w[1] == "objects")
 }
 
 #[cfg(test)]
@@ -700,25 +1054,63 @@ mod tests {
     }
 
     #[test]
-    fn test_is_commit_related() {
-        assert!(UnifiedWatcher::is_commit_related(Path::new(
-            "/project/.git/index"
-        )));
-        assert!(UnifiedWatcher::is_commit_related(Path::new(
-            "/project/.git/HEAD"
-        )));
-        assert!(UnifiedWatcher::is_commit_related(Path::new(
-            "/project/.git/refs/heads/main"
-        )));
-        assert!(UnifiedWatcher::is_commit_related(Path::new(
-            "/project/.git/logs/HEAD"
-        )));
-        assert!(!UnifiedWatcher::is_commit_related(Path::new(
-            "/project/.git/objects/ab/cdef"
-        )));
-        assert!(!UnifiedWatcher::is_commit_related(Path::new(
-            "/project/.git/config"
-        )));
+    fn object_subdirectories_of_any_nested_repo_are_not_watched() {
+        let root = Path::new("/project");
+        assert!(under_git_objects(
+            Path::new("/project/.git/objects/ab"),
+            root
+        ));
+        assert!(under_git_objects(
+            Path::new("/project/vendor/lib/.git/objects/ab"),
+            root
+        ));
+        assert!(under_git_objects(
+            Path::new("/project/vendor/lib/.git/objects/pack/x"),
+            root
+        ));
+        assert!(!under_git_objects(Path::new("/project/.git/objects"), root));
+        assert!(!under_git_objects(
+            Path::new("/project/vendor/lib/.git/objects"),
+            root
+        ));
+        assert!(!under_git_objects(
+            Path::new("/project/.git/refs/heads"),
+            root
+        ));
+        assert!(!under_git_objects(
+            Path::new("/project/src/objects/ab"),
+            root
+        ));
+        // Above the repository root nothing counts.
+        assert!(!under_git_objects(Path::new("/.git/objects/ab"), root));
+    }
+
+    #[test]
+    fn own_git_state_is_what_a_status_or_log_shows() {
+        for own in [
+            "index",
+            "HEAD",
+            "refs/heads/main",
+            "logs/HEAD",
+            "packed-refs",
+            "modules/sub/HEAD",
+            "modules/sub/index",
+        ] {
+            assert!(is_own_git_state(Path::new(own)), "{own}");
+        }
+        for other in [
+            "objects/ab/cdef",
+            "config",
+            "worktrees/wt1/index",
+            "worktrees/wt1/HEAD",
+            "index.lock",
+        ] {
+            assert!(!is_own_git_state(Path::new(other)), "{other}");
+        }
+        assert!(is_shared_git_state(Path::new("refs/heads/main")));
+        assert!(is_shared_git_state(Path::new("packed-refs")));
+        assert!(!is_shared_git_state(Path::new("index")));
+        assert!(!is_shared_git_state(Path::new("logs/HEAD")));
     }
 
     #[test]
@@ -736,19 +1128,22 @@ mod tests {
         assert_eq!(root, None);
     }
 
-    fn wait_until_watched(w: &mut UnifiedWatcher, root: &Path) {
-        // Drive the async walk + chunked install to completion.
+    /// Drive the async walks and chunked installs until `done` holds.
+    fn drive_until(w: &mut UnifiedWatcher, what: &str, done: impl Fn(&UnifiedWatcher) -> bool) {
         for _ in 0..2000 {
             w.poll_pending();
-            if w.watched_repos.contains_key(root) {
-                break;
+            if done(w) {
+                return;
             }
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
-        assert!(
-            w.watched_repos.contains_key(root),
-            "repo should be fully watched after registration"
-        );
+        panic!("timed out waiting until {what}");
+    }
+
+    fn wait_until_watched(w: &mut UnifiedWatcher, root: &Path) {
+        drive_until(w, "the repo is fully watched", |w| {
+            w.repos.get(root).is_some_and(RepoWatch::is_ready)
+        });
     }
 
     fn temp_repo(gitignore: Option<&str>) -> (tempfile::TempDir, PathBuf) {
@@ -782,6 +1177,369 @@ mod tests {
         assert!(repo_gitignore(&bare).is_none());
     }
 
+    /// Every acquire counts, also those made while the walk still runs:
+    /// the repo stays watched until the last holder releases it.
+    #[test]
+    fn repo_holders_are_counted_from_the_first_acquire() {
+        let (_tmp, root) = temp_repo(None);
+        let mut w = UnifiedWatcher::new().unwrap();
+        let target = WatchTarget::Repo(root.clone());
+        w.watch(&target).unwrap();
+        w.watch(&target).unwrap(); // the walk has not landed yet
+        wait_until_watched(&mut w, &root);
+        w.watch(&target).unwrap();
+        assert_eq!(w.repos[&root].refs, 3);
+
+        w.unwatch(&target);
+        w.unwatch(&target);
+        assert!(w.is_watching_repo(&root), "one holder is left");
+        w.unwatch(&target);
+        assert!(!w.is_watching_repo(&root));
+        // A release past the last is a no-op, not an underflow.
+        w.unwatch(&target);
+        assert!(!w.is_watching_repo(&root));
+    }
+
+    /// Releasing a repo whose walk is still running drops it at once.
+    #[test]
+    fn releasing_a_pending_repo_drops_it() {
+        let (_tmp, root) = temp_repo(None);
+        let mut w = UnifiedWatcher::new().unwrap();
+        w.watch_repository(root.clone()).unwrap();
+        w.unwatch_repository(&root);
+        assert!(!w.is_watching_repo(&root));
+        // The abandoned walk landing later installs nothing.
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        w.poll_pending();
+        assert!(w.repos.is_empty());
+    }
+
+    /// A `.gitignore` change re-reads the rules without touching the holders.
+    #[test]
+    fn reloading_ignores_keeps_holders_and_applies_new_rules() {
+        let (_tmp, root) = temp_repo(Some("node_modules/\n"));
+        std::fs::create_dir_all(root.join("build/out")).unwrap();
+        let mut w = UnifiedWatcher::new().unwrap();
+        w.watch_repository(root.clone()).unwrap();
+        w.watch_repository(root.clone()).unwrap();
+        wait_until_watched(&mut w, &root);
+        if RECURSIVE_ROOT_WATCH {
+            assert!(!w.is_ignored_in_repo(&root.join("build/out/a.o")));
+        } else {
+            assert!(w.repos[&root].watched.contains(&root.join("build/out")));
+        }
+
+        std::fs::write(root.join(".gitignore"), "node_modules/\nbuild/\n").unwrap();
+        w.reload_repo_ignores(&root);
+        drive_until(&mut w, "the new rules apply", |w| {
+            w.repos[&root].is_ready()
+                && if RECURSIVE_ROOT_WATCH {
+                    w.is_ignored_in_repo(&root.join("build/out/a.o"))
+                } else {
+                    !w.repos[&root].watched.contains(&root.join("build"))
+                }
+        });
+        assert!(w.repos[&root].watched.contains(&root));
+        assert_eq!(w.repos[&root].refs, 2, "holders are untouched");
+    }
+
+    /// notify's contract as the backends implement it: one watch per path,
+    /// a repeated `watch` replaces it, one `unwatch` removes it.
+    #[derive(Default)]
+    struct FakeWatcher {
+        active: HashMap<PathBuf, RecursiveMode>,
+        /// Paths and modes `watch` fails for.
+        refuse: HashSet<(PathBuf, bool)>,
+    }
+
+    impl notify::Watcher for FakeWatcher {
+        fn new<F: notify::EventHandler>(_: F, _: notify::Config) -> notify::Result<Self> {
+            Ok(Self::default())
+        }
+        fn watch(&mut self, path: &Path, mode: RecursiveMode) -> notify::Result<()> {
+            if self
+                .refuse
+                .contains(&(path.to_path_buf(), mode == RecursiveMode::Recursive))
+            {
+                return Err(notify::Error::path_not_found());
+            }
+            self.active.insert(path.to_path_buf(), mode);
+            Ok(())
+        }
+        fn unwatch(&mut self, path: &Path) -> notify::Result<()> {
+            self.active
+                .remove(path)
+                .map(|_| ())
+                .ok_or_else(notify::Error::watch_not_found)
+        }
+        fn kind() -> notify::WatcherKind {
+            notify::WatcherKind::NullWatcher
+        }
+    }
+
+    /// Two holders of one directory: the first release keeps the OS watch.
+    #[test]
+    fn a_shared_path_is_unwatched_with_its_last_holder() {
+        let mut os = PathWatches::default();
+        let mut fake = FakeWatcher::default();
+        let dir = Path::new("/outer/inner/src");
+        os.acquire(&mut fake, dir, RecursiveMode::NonRecursive)
+            .unwrap();
+        os.acquire(&mut fake, dir, RecursiveMode::NonRecursive)
+            .unwrap();
+        os.release(&mut fake, dir, RecursiveMode::NonRecursive);
+        assert_eq!(fake.active.get(dir), Some(&RecursiveMode::NonRecursive));
+        os.release(&mut fake, dir, RecursiveMode::NonRecursive);
+        assert!(fake.active.is_empty());
+        assert!(os.paths.is_empty());
+        // A release past the last is a no-op.
+        os.release(&mut fake, dir, RecursiveMode::NonRecursive);
+    }
+
+    /// A path held flat and recursive at once is watched recursively, and
+    /// narrows back when the recursive holder goes — in either order.
+    #[test]
+    fn a_path_is_watched_in_the_widest_mode_held() {
+        let mut os = PathWatches::default();
+        let mut fake = FakeWatcher::default();
+        let dir = Path::new("/repo");
+        os.acquire(&mut fake, dir, RecursiveMode::NonRecursive)
+            .unwrap();
+        os.acquire(&mut fake, dir, RecursiveMode::Recursive)
+            .unwrap();
+        assert_eq!(fake.active.get(dir), Some(&RecursiveMode::Recursive));
+        os.release(&mut fake, dir, RecursiveMode::Recursive);
+        assert_eq!(fake.active.get(dir), Some(&RecursiveMode::NonRecursive));
+
+        os.acquire(&mut fake, dir, RecursiveMode::Recursive)
+            .unwrap();
+        os.release(&mut fake, dir, RecursiveMode::NonRecursive);
+        assert_eq!(
+            fake.active.get(dir),
+            Some(&RecursiveMode::Recursive),
+            "the flat holder leaving does not narrow a recursive watch"
+        );
+        os.release(&mut fake, dir, RecursiveMode::Recursive);
+        assert!(fake.active.is_empty());
+    }
+
+    /// A refused install holds nothing and leaves an existing watch intact.
+    #[test]
+    fn a_refused_watch_holds_nothing() {
+        let mut os = PathWatches::default();
+        let mut fake = FakeWatcher::default();
+        let dir = Path::new("/gone");
+        fake.refuse.insert((dir.to_path_buf(), false));
+        assert!(os
+            .acquire(&mut fake, dir, RecursiveMode::NonRecursive)
+            .is_err());
+        assert!(os.paths.is_empty());
+
+        let held = Path::new("/held");
+        os.acquire(&mut fake, held, RecursiveMode::NonRecursive)
+            .unwrap();
+        fake.refuse.insert((held.to_path_buf(), true));
+        assert!(os
+            .acquire(&mut fake, held, RecursiveMode::Recursive)
+            .is_err());
+        assert_eq!(fake.active.get(held), Some(&RecursiveMode::NonRecursive));
+        assert_eq!(
+            os.paths[held],
+            PathHolders {
+                recursive: 0,
+                flat: 1
+            }
+        );
+    }
+
+    /// `outer/` with a repository nested at `outer/inner/`.
+    fn nested_repos() -> (tempfile::TempDir, PathBuf, PathBuf) {
+        let (tmp, outer) = temp_repo(None);
+        let inner = outer.join("inner");
+        std::fs::create_dir_all(inner.join(".git")).unwrap();
+        std::fs::write(inner.join(".git/HEAD"), b"ref: refs/heads/main\n").unwrap();
+        std::fs::create_dir(inner.join("src")).unwrap();
+        (tmp, outer, inner)
+    }
+
+    /// Every directory each still-watched repo installed keeps its OS hold.
+    fn assert_repo_watches_held(w: &UnifiedWatcher) {
+        for (root, repo) in &w.repos {
+            for path in &repo.watched {
+                assert!(
+                    w.os_watches.paths.contains_key(path),
+                    "{} lost the watch on {}",
+                    root.display(),
+                    path.display()
+                );
+            }
+        }
+    }
+
+    /// Wait for a filesystem event on `path`.
+    fn wait_for_change(w: &mut UnifiedWatcher, path: &Path) -> WatchEvent {
+        for _ in 0..100 {
+            w.poll_pending();
+            if let Some(event) = w.poll_events().into_iter().find(
+                |event| matches!(event, WatchEvent::DirectoryChanged { changed, .. } if changed == path),
+            ) {
+                return event;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        panic!("no event for {}", path.display());
+    }
+
+    /// A change of a file's permission alone is an event too: the editor
+    /// follows it, as Perforce makes a file writable on `p4 edit` and
+    /// read-only on `p4 revert` without touching its contents.
+    #[test]
+    fn a_permission_change_alone_is_reported() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = dunce::canonicalize(tmp.path()).unwrap();
+        let file = dir.join("a.txt");
+        std::fs::write(&file, b"a").unwrap();
+
+        let mut w = UnifiedWatcher::new().unwrap();
+        w.watch_directory(dir.clone()).unwrap();
+        // Let the registration settle and drop whatever it reported.
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        w.poll_pending();
+        w.poll_events();
+
+        let mut permissions = std::fs::metadata(&file).unwrap().permissions();
+        permissions.set_readonly(true);
+        std::fs::set_permissions(&file, permissions).unwrap();
+        wait_for_change(&mut w, &file);
+    }
+
+    /// Releasing either of two nested repos keeps every watch the other
+    /// installed, and the other still hears changes below the nested root.
+    #[test]
+    fn releasing_a_nested_repo_keeps_the_outer_repos_watches() {
+        for release_inner in [true, false] {
+            let (_tmp, outer, inner) = nested_repos();
+            let mut w = UnifiedWatcher::new().unwrap();
+            w.watch_repository(outer.clone()).unwrap();
+            w.watch_repository(inner.clone()).unwrap();
+            wait_until_watched(&mut w, &outer);
+            wait_until_watched(&mut w, &inner);
+            if !RECURSIVE_ROOT_WATCH {
+                assert!(
+                    w.repos[&outer].watched.contains(&inner.join("src")),
+                    "the outer walk descends into the nested repo"
+                );
+            }
+
+            let (gone, kept) = if release_inner {
+                (&inner, &outer)
+            } else {
+                (&outer, &inner)
+            };
+            w.unwatch_repository(gone);
+            assert_repo_watches_held(&w);
+            assert!(w.os_watches.paths.contains_key(kept));
+
+            let file = inner.join("src/lib.rs");
+            std::fs::write(&file, b"x").unwrap();
+            let WatchEvent::DirectoryChanged { root, .. } = wait_for_change(&mut w, &file) else {
+                unreachable!()
+            };
+            assert_eq!(&root, kept);
+
+            w.unwatch_repository(kept);
+            assert!(w.os_watches.paths.is_empty(), "{:?}", w.os_watches.paths);
+        }
+    }
+
+    /// A change inside a nested repo belongs to the nested repo, whatever
+    /// order the repos are found in.
+    #[test]
+    fn nested_repo_changes_are_attributed_to_the_innermost_repo() {
+        let (_tmp, outer, inner) = nested_repos();
+        let mut w = UnifiedWatcher::new().unwrap();
+        w.watch_repository(outer.clone()).unwrap();
+        w.watch_repository(inner.clone()).unwrap();
+        assert_eq!(w.find_watched_root(&inner.join("src/lib.rs")), inner);
+        assert_eq!(w.find_watched_root(&inner.join("x")), inner);
+        assert_eq!(w.find_watched_root(&outer.join("src/main.rs")), outer);
+        assert_eq!(
+            UnifiedWatcher::find_repo_root_from_git_path(&inner.join(".git/index")),
+            Some(inner.clone())
+        );
+        assert_eq!(
+            UnifiedWatcher::find_repo_root(&inner.join(".gitignore")),
+            Some(inner)
+        );
+    }
+
+    #[test]
+    #[cfg(not(target_os = "macos"))]
+    fn a_directory_created_in_a_nested_repo_is_held_by_both_repos() {
+        let (_tmp, outer, inner) = nested_repos();
+        let mut w = UnifiedWatcher::new().unwrap();
+        w.watch_repository(outer.clone()).unwrap();
+        w.watch_repository(inner.clone()).unwrap();
+        wait_until_watched(&mut w, &outer);
+        wait_until_watched(&mut w, &inner);
+
+        let created = inner.join("src/new");
+        std::fs::create_dir(&created).unwrap();
+        w.watch_new_repo_dirs(std::slice::from_ref(&created));
+        drive_until(&mut w, "both repos hold the new directory", |w| {
+            w.repos.values().all(|r| r.watched.contains(&created))
+        });
+        w.unwatch_repository(&inner);
+        assert!(w.os_watches.paths.contains_key(&created));
+    }
+
+    /// A directory created later is watched by the rules of the initial
+    /// walk: a `target/` cargo creates at the root stays unwatched, and so
+    /// does everything below it.
+    #[test]
+    #[cfg(not(target_os = "macos"))]
+    fn ignored_directories_created_after_registration_stay_unwatched() {
+        use std::fs;
+        let (_tmp, root) = temp_repo(Some("target/\n/build\n"));
+        fs::write(root.join("src/.gitignore"), "gen/\n").unwrap();
+        let mut w = UnifiedWatcher::new().unwrap();
+        w.watch_repository(root.clone()).unwrap();
+        wait_until_watched(&mut w, &root);
+
+        for dir in ["target/debug/deps", "build/out", "src/gen/x", "newdir/sub"] {
+            fs::create_dir_all(root.join(dir)).unwrap();
+        }
+        w.watch_new_repo_dirs(&[
+            root.join("target"),
+            // An event from below an ignored directory, as a watch that
+            // outlived a rules change can still deliver.
+            root.join("target/debug/deps"),
+            root.join("build"),
+            root.join("src/gen"),
+            root.join("newdir"),
+        ]);
+        drive_until(&mut w, "the new directories are walked", |w| {
+            w.repos[&root].walks.is_empty() && w.repos[&root].queue.is_empty()
+        });
+
+        let watched = &w.repos[&root].watched;
+        assert!(watched.contains(&root.join("newdir/sub")), "{watched:?}");
+        for ignored in [
+            "target",
+            "target/debug",
+            "target/debug/deps",
+            "build",
+            "build/out",
+            "src/gen",
+            "src/gen/x",
+        ] {
+            assert!(
+                !watched.contains(&root.join(ignored)),
+                "{ignored} is ignored but watched"
+            );
+        }
+    }
+
     #[test]
     #[cfg(target_os = "macos")]
     fn a_repo_is_one_recursive_watch_on_the_root() {
@@ -792,16 +1550,17 @@ mod tests {
         w.watch_repository(root.clone()).unwrap();
         wait_until_watched(&mut w, &root);
 
-        let watched = &w.watched_repos[&root].1;
+        let watched = &w.repos[&root].watched;
         assert_eq!(watched.iter().collect::<Vec<_>>(), vec![&root]);
-        assert!(w.repo_ignores.contains_key(&root));
+        assert!(w.repos[&root].ignore.is_some());
         assert!(w.is_ignored_in_repo(&root.join("node_modules/x/y.js")));
         assert!(!w.is_ignored_in_repo(&root.join("src/y.js")));
 
         std::fs::create_dir_all(root.join("newdir/sub")).unwrap();
         w.watch_new_repo_dirs(&[root.join("newdir")]);
-        assert_eq!(w.watched_repos[&root].1.len(), 1);
-        assert_eq!(w.watched_repos[&root].0, 1, "refcount must be preserved");
+        assert!(w.repos[&root].walks.is_empty(), "no walk is needed");
+        assert_eq!(w.repos[&root].watched.len(), 1);
+        assert_eq!(w.repos[&root].refs, 1, "refcount must be preserved");
     }
 
     #[test]
@@ -823,15 +1582,27 @@ mod tests {
         w.watch_repository(root.clone()).unwrap();
         wait_until_watched(&mut w, &root);
         assert!(
-            !w.watched_repos[&root].1.contains(&root.join("newdir")),
+            !w.repos[&root].watched.contains(&root.join("newdir")),
             "newdir does not exist yet, must not be watched"
         );
 
-        // Create a nested subtree after registration and subscribe it.
+        // Create a nested subtree after registration and subscribe it. The
+        // file below it is covered by the directory's walk; the plain file
+        // is told apart on the worker thread and adds nothing.
         fs::create_dir_all(root.join("newdir/sub")).unwrap();
-        w.watch_new_repo_dirs(&[root.join("newdir")]);
+        fs::write(root.join("newdir/sub/a.txt"), b"a").unwrap();
+        fs::write(root.join("plain.txt"), b"p").unwrap();
+        w.watch_new_repo_dirs(&[
+            root.join("newdir/sub/a.txt"),
+            root.join("newdir"),
+            root.join("plain.txt"),
+        ]);
+        assert_eq!(w.repos[&root].walks.len(), 1, "one walk per batch");
+        drive_until(&mut w, "the new subtree is watched", |w| {
+            w.repos[&root].walks.is_empty() && w.repos[&root].queue.is_empty()
+        });
 
-        let watched = &w.watched_repos[&root].1;
+        let watched = &w.repos[&root].watched;
         assert!(
             watched.contains(&root.join("newdir")),
             "the created directory must be watched: {watched:?}"
@@ -840,7 +1611,207 @@ mod tests {
             watched.contains(&root.join("newdir/sub")),
             "nested created directories must be watched too: {watched:?}"
         );
+        assert!(!watched.contains(&root.join("plain.txt")));
         // Reference count is untouched by the additive install.
-        assert_eq!(w.watched_repos[&root].0, 1, "refcount must be preserved");
+        assert_eq!(w.repos[&root].refs, 1, "refcount must be preserved");
+    }
+
+    /// Run `git` in `dir`, isolated from the user's and system config.
+    fn git(dir: &Path, args: &[&str]) {
+        let out = std::process::Command::new("git")
+            .current_dir(dir)
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .args([
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "protocol.file.allow=always",
+            ])
+            .args(args)
+            .output()
+            .expect("git runs");
+        assert!(
+            out.status.success(),
+            "git {args:?}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    /// A repository with one commit on `main`, at `parent/name`.
+    fn git_repo(parent: &Path, name: &str) -> PathBuf {
+        let root = parent.join(name);
+        std::fs::create_dir(&root).unwrap();
+        git(&root, &["init", "-q", "-b", "main"]);
+        std::fs::write(root.join("a.txt"), b"a").unwrap();
+        git(&root, &["add", "a.txt"]);
+        git(&root, &["commit", "-q", "-m", "init"]);
+        root
+    }
+
+    /// Stage a new file in `repo`.
+    fn stage(repo: &Path, file: &str) {
+        std::fs::write(repo.join(file), file).unwrap();
+        git(repo, &["add", file]);
+    }
+
+    /// The repos git events arrive for: polled until every repo in `expect`
+    /// has one, then a while longer for any that should not arrive.
+    fn git_events(w: &mut UnifiedWatcher, expect: &[&Path]) -> HashSet<PathBuf> {
+        let mut seen = HashSet::new();
+        let mut settle = None;
+        for _ in 0..200 {
+            w.poll_pending();
+            for event in w.poll_events() {
+                if let WatchEvent::GitCommit(root) = event {
+                    seen.insert(root);
+                }
+            }
+            if settle.is_none() && expect.iter().all(|r| seen.contains(*r)) {
+                settle = Some(Instant::now());
+            }
+            if settle.is_some_and(|t| t.elapsed() > Duration::from_millis(800)) {
+                return seen;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        panic!("git events for {expect:?} never arrived, got {seen:?}");
+    }
+
+    /// Let events from the setup pass before the changes a test checks.
+    fn drain(w: &mut UnifiedWatcher) {
+        std::thread::sleep(Duration::from_millis(700));
+        w.poll_pending();
+        w.poll_events();
+    }
+
+    #[test]
+    fn a_linked_worktree_resolves_its_git_and_common_dirs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let base = dunce::canonicalize(tmp.path()).unwrap();
+        let main = git_repo(&base, "main");
+        git(&main, &["worktree", "add", "-q", "-b", "wt1", "../wt"]);
+        let wt = base.join("wt");
+
+        let dirs = GitDirs::resolve(&wt);
+        assert_eq!(dirs.git_dir, main.join(".git/worktrees/wt"));
+        assert_eq!(dirs.common_dir, main.join(".git"));
+        assert!(dirs.is_linked(&wt));
+        assert!(dirs.concerns(&main.join(".git/worktrees/wt/index")));
+        assert!(dirs.concerns(&main.join(".git/refs/heads/main")));
+        assert!(!dirs.concerns(&main.join(".git/index")));
+        assert!(!dirs.concerns(&main.join(".git/objects/ab/cd")));
+
+        let own = GitDirs::resolve(&main);
+        assert!(!own.is_linked(&main));
+        assert!(own.watch_paths(&main).is_empty());
+        assert!(!own.concerns(&main.join(".git/worktrees/wt/index")));
+        assert!(own.concerns(&main.join(".git/index")));
+    }
+
+    /// Staging in a worktree is the worktree's change, not the main
+    /// repo's; a commit moves a shared branch and concerns both; releasing
+    /// the main repo keeps the worktree's watches and events.
+    #[test]
+    fn worktree_git_changes_are_attributed_to_the_worktree() {
+        let tmp = tempfile::tempdir().unwrap();
+        let base = dunce::canonicalize(tmp.path()).unwrap();
+        let main = git_repo(&base, "main");
+        git(&main, &["worktree", "add", "-q", "-b", "wt1", "../wt"]);
+        let wt = base.join("wt");
+
+        // The worktree alone: its git directory is watched.
+        let mut w = UnifiedWatcher::new().unwrap();
+        w.watch_repository(wt.clone()).unwrap();
+        wait_until_watched(&mut w, &wt);
+        let watched = &w.repos[&wt].watched;
+        let common = main.join(".git");
+        if RECURSIVE_ROOT_WATCH {
+            assert!(watched.contains(&common), "{watched:?}");
+        } else {
+            for dir in [
+                common.join("worktrees/wt"),
+                common.clone(),
+                common.join("refs/heads"),
+            ] {
+                assert!(watched.contains(&dir), "{} unwatched", dir.display());
+            }
+        }
+        assert!(
+            !watched
+                .iter()
+                .any(|p| p.starts_with(common.join("objects"))),
+            "{watched:?}"
+        );
+        drain(&mut w);
+        stage(&wt, "b.txt");
+        assert!(git_events(&mut w, &[&wt]).contains(&wt));
+
+        w.watch_repository(main.clone()).unwrap();
+        wait_until_watched(&mut w, &main);
+        drain(&mut w);
+        stage(&wt, "c.txt");
+        let seen = git_events(&mut w, &[&wt]);
+        assert!(!seen.contains(&main), "{seen:?}");
+
+        stage(&main, "m.txt");
+        let seen = git_events(&mut w, &[&main]);
+        assert!(!seen.contains(&wt), "{seen:?}");
+
+        git(&wt, &["commit", "-q", "-m", "wt"]);
+        git_events(&mut w, &[&wt, &main]);
+
+        w.unwatch_repository(&main);
+        assert_repo_watches_held(&w);
+        stage(&wt, "d.txt");
+        assert!(git_events(&mut w, &[&wt]).contains(&wt));
+
+        w.unwatch_repository(&wt);
+        assert!(w.os_watches.paths.is_empty(), "{:?}", w.os_watches.paths);
+    }
+
+    /// A submodule's index is the submodule's change, heard whether or not
+    /// the superproject is watched; the superproject's own is not the
+    /// submodule's.
+    #[test]
+    fn submodule_git_changes_are_attributed_to_the_submodule() {
+        let tmp = tempfile::tempdir().unwrap();
+        let base = dunce::canonicalize(tmp.path()).unwrap();
+        let lib = git_repo(&base, "lib");
+        let outer = git_repo(&base, "outer");
+        git(
+            &outer,
+            &["submodule", "add", "-q", lib.to_str().unwrap(), "sub"],
+        );
+        git(&outer, &["commit", "-q", "-m", "sub"]);
+        let sub = outer.join("sub");
+        let dirs = GitDirs::resolve(&sub);
+        assert_eq!(dirs.git_dir, outer.join(".git/modules/sub"));
+        assert_eq!(dirs.common_dir, dirs.git_dir);
+
+        let mut w = UnifiedWatcher::new().unwrap();
+        w.watch_repository(sub.clone()).unwrap();
+        wait_until_watched(&mut w, &sub);
+        drain(&mut w);
+        stage(&sub, "b.txt");
+        assert!(git_events(&mut w, &[&sub]).contains(&sub));
+
+        w.watch_repository(outer.clone()).unwrap();
+        wait_until_watched(&mut w, &outer);
+        drain(&mut w);
+        stage(&sub, "c.txt");
+        git_events(&mut w, &[&sub]);
+        stage(&outer, "o.txt");
+        let seen = git_events(&mut w, &[&outer]);
+        assert!(!seen.contains(&sub), "{seen:?}");
+
+        w.unwatch_repository(&outer);
+        assert_repo_watches_held(&w);
+        stage(&sub, "d.txt");
+        assert!(git_events(&mut w, &[&sub]).contains(&sub));
     }
 }

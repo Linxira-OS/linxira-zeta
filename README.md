@@ -25,7 +25,9 @@ licensed MIT; we modify and extend the upstream tree rather than presenting it
 as our own. Upstream copyright notices and the upstream MIT text are retained
 in [`LICENSE`](./LICENSE); [`NOTICE`](./NOTICE) names the integrated upstream
 release and Zeta's modifications. The sync ledger is
-[`document/upstream-sync.md`](./document/upstream-sync.md).
+[`document/upstream-sync.md`](./document/upstream-sync.md). The pinned release
+tag and status for every upstream we vendor or track are kept in
+[`document/upstream-baselines.md`](./document/upstream-baselines.md).
 
 ## Built on
 
@@ -254,7 +256,8 @@ top. Per product surface:
 
 ### `zetaide` — terminal IDE (from TermIDE)
 
-- **Upstream**: `termide/termide` tag `0.46.0`, vendored under `termide/` and
+- **Upstream**: `termide/termide` tag `0.49.0`
+  (`057eb55e0a7c4ee969982fab62dc83bde028e052`), vendored under `termide/` and
   shipped as the `zetaide` command (`@linxiraos/ide`).
 - **Zeta changes**: the fork, the `zetaide` command and npm packaging, editor
   payload handling, theme and brand adaptation; deviations are listed in
@@ -683,7 +686,8 @@ Zeta 修改与新增的部分。按产品面说明：
 
 #### `zetaide` — 终端 IDE（源自 TermIDE）
 
-- **上游**：`termide/termide` tag `0.46.0`，vendored 在 `termide/`，以 `zetaide`
+- **上游**：`termide/termide` tag `0.49.0`
+  （`057eb55e0a7c4ee969982fab62dc83bde028e052`），vendored 在 `termide/`，以 `zetaide`
   命令（`@linxiraos/ide`）发布。
 - **Zeta 的改动**：本分支、`zetaide` 命令与 npm 打包、编辑器载荷处理、主题与品牌适配；
   逐条差异见 `termide/VENDOR.md`。

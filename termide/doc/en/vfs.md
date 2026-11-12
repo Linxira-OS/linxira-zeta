@@ -42,9 +42,9 @@ ftps://secure.example.com/uploads
 Notes:
 - Non-ASCII characters in `path` are accepted; the parser
   percent-decodes them back to UTF-8 before talking to the server.
-- Omitting the user makes the SFTP provider fall back to your SSH
-  config (see Authentication).
-- Omitting the port uses the protocol default (22 / 21 / 990).
+- Omitting the user or port makes SFTP take them from your SSH
+  configuration (see [SSH configuration](#ssh-configuration-sftp)).
+- Otherwise, omitting the port uses the protocol default (22 / 21 / 990).
 - A password in the URL is not used. When a server asks for one, Termide
   prompts for it and can keep it in the
   [password vault](passwords.md); for SFTP, key-based authentication
@@ -71,10 +71,10 @@ properties on Space) is exactly the same as for local panels.
 
 SFTP supports four authentication modes:
 
-- **`Auto`** *(default)* — tries SSH agent first, then keys listed in
-  `~/.ssh/config` for the host (including `IdentityFile`, `User`,
-  `Port` and `Hostname` aliases), then default keys
+- **`Auto`** *(default)* — tries SSH agent first, then the host's
+  `IdentityFile` keys from the SSH configuration, then default keys
   (`id_ed25519`, `id_rsa`, `id_ecdsa`, `id_dsa`), then password.
+  `IdentitiesOnly yes` skips the agent and the default keys.
 - **SSH agent** — uses an SSH agent if `SSH_AUTH_SOCK` points at one.
 - **SSH key** — explicit private-key file, optionally with a
   passphrase.
@@ -85,10 +85,113 @@ FTP and FTPS log in with the user from the URL; a refused login asks for
 the password the same way. Without a user in the URL the login is
 anonymous.
 
-Because `Auto` reads `~/.ssh/config`, you can keep the bookmark URL
-plain (`sftp://my-build-host/path`) and let SSH config supply the
-real hostname, user and key file. Same configuration as the `ssh`
-CLI uses.
+## SSH configuration (SFTP)
+
+The host in an `sftp://` URL may be a `Host` alias: keep the bookmark
+URL plain (`sftp://my-build-host/path`) and let the SSH configuration
+supply the real host name, port, user and key, as for the `ssh` CLI.
+
+Termide reads `~/.ssh/config` and then `/etc/ssh/ssh_config` the way
+`ssh` does: the first value found for an option wins, `Host` patterns
+take `*`, `?` and `!` negations, and `Include` is followed (wildcards
+allowed, relative paths taken from `~/.ssh` or `/etc/ssh`). These
+options are used:
+
+| Option | Effect |
+|--------|--------|
+| `HostName` | The server actually connected to; `%h` stands for the host in the URL. |
+| `Port` | Used when the URL has no port. |
+| `User` | Used when the URL has no user; without either, your local user name. |
+| `IdentityFile`, `IdentitiesOnly` | The keys `Auto` tries. |
+| `UserKnownHostsFile`, `GlobalKnownHostsFile` | Where server keys are looked up. |
+| `HostKeyAlias` | The name the server key is looked up and recorded under. |
+| `HashKnownHosts` | `yes` writes remembered keys with the host name hashed. |
+| `StrictHostKeyChecking` | `yes` refuses an unknown server key instead of asking. |
+| `ProxyJump` | Jump hosts to connect through; see below. |
+
+A port or user written in the URL wins over `Port` and `User`, as on
+the `ssh` command line. `Match` blocks are skipped as a whole, since
+not all of their conditions can be judged. `ProxyCommand` is ignored:
+Termide does not run commands from the SSH configuration, so a host
+reached that way is connected to directly; use `ProxyJump` instead.
+Other options are ignored too.
+
+`%` tokens are expanded where `ssh_config(5)` allows them:
+
+| Token | Stands for |
+|-------|------------|
+| `%h` | The host connected to (after `HostName`). |
+| `%n` | The host as written in the URL or in `ProxyJump`. |
+| `%p` | The port connected to. |
+| `%r` | The remote user. |
+| `%u` | Your local user name. |
+| `%d` | Your home directory. |
+| `%k` | `HostKeyAlias`, else the host as written. |
+| `%%` | A literal `%`. |
+
+`HostName` takes `%h` and `%%`; `ProxyJump` takes `%h`, `%n`, `%p`, `%r`
+and `%%`; `IdentityFile` and `UserKnownHostsFile` take them all. Other
+tokens (`%C`, `%i`, `%j`, `%L`, `%l`) are left as written.
+
+### Jump hosts
+
+With `ProxyJump` (`[user@]host[:port]`, or `ssh://[user@]host[:port]`,
+several separated by commas and visited in order) Termide logs in to
+each jump host in turn, asks it to open a connection to the next one,
+and runs the next SSH session inside that connection, as `ssh -J` does.
+`ProxyJump none` turns it off for a host.
+
+- Each jump host is resolved with its own `Host` entry: `HostName`,
+  `Port`, `User`, keys and `known_hosts` options. A user or port in the
+  `ProxyJump` value wins over that entry. The first jump host of the
+  list may itself have a `ProxyJump`; the others are reached through
+  the ones before them. More than 8 jump hosts on the way to one server
+  are refused, which also stops a loop.
+- Each jump host's key is checked like any server key (see below)
+  before anything is sent to it. The question or refusal names the jump
+  host, and the answer is recorded in that host's `known_hosts`.
+- Jump hosts log in with the SSH agent and keys only (`Auto` without the
+  password). A refused login to a jump host is reported as an error
+  naming it; the password Termide asks for, or takes from the vault, is
+  sent only to the server in the URL.
+
+## Server keys (SFTP)
+
+Before anything is sent to an SFTP server — a password included —
+Termide checks the server's key the way OpenSSH does, against the
+files named by `UserKnownHostsFile` and `GlobalKnownHostsFile`: by
+default `~/.ssh/known_hosts`, `~/.ssh/known_hosts2`,
+`/etc/ssh/ssh_known_hosts` and `/etc/ssh/ssh_known_hosts2`. The server
+is looked up under its `HostKeyAlias` if set, else under its
+`HostName`, written `[name]:port` off port 22. Hashed entries
+(`|1|…`), wildcards and `!` negations are understood.
+
+- **Recorded key** — the connection goes ahead without a word.
+- **Unknown host** — the connection stops and a dialog shows the host,
+  key type and SHA256 fingerprint, as `ssh` prints them. Compare the
+  fingerprint with one you trust, then choose:
+  - **Accept and remember** — the key is appended in OpenSSH format
+    to the first `UserKnownHostsFile` (`~/.ssh/known_hosts` by
+    default; its directory is created with mode 0700 and the file with
+    0600 if missing), with the host name hashed under
+    `HashKnownHosts yes`, and the connection is made again. Next time,
+    here and in `ssh`, it goes ahead silently. With
+    `UserKnownHostsFile none` there is nowhere to remember it, and
+    only **Accept once** works.
+  - **Accept once** — the key is trusted until Termide exits and
+    nothing is written.
+  - **Cancel** *(preselected)* — nothing is connected. `Esc` does the
+    same.
+
+  With `StrictHostKeyChecking yes` there is no question: the
+  connection is refused, and the message shows the fingerprint. Every
+  other value (`ask`, `accept-new`, `no`, `off`) asks as above;
+  Termide never accepts an unknown key without asking.
+- **Changed key** — when the recorded key of that type differs, or the
+  key is marked `@revoked`, the connection is refused and the dialog
+  names the `known_hosts` file and line. There is no override: if the
+  change is expected, remove the old key with the `ssh-keygen -R`
+  command the dialog gives, and connect again.
 
 ## How remote panels feel
 
@@ -191,9 +294,13 @@ renaming inside an archive are refused with a notice.
 
 Extraction never writes outside the destination: entries named with
 `..` or an absolute path are not shown, a symbolic link is created only
-when its target stays inside the extracted tree (and only after all
-files are written), and an entry that unpacks to more than its declared
-size fails instead of filling the disk.
+when its target stays inside the extracted tree — resolved the way the
+system resolves it, through the archive's other links — and only after
+all files are written. Nothing is written through a symbolic link that
+is already in the destination: a link where a file goes is replaced by
+the file, and a link where a directory goes stops the extraction with an
+error. An entry that unpacks to more than its declared size fails
+instead of filling the disk.
 
 The URL of a location inside an archive is
 `archive://<archive file>!<path inside>`, e.g.
@@ -204,15 +311,15 @@ saved projects like any other VFS URL.
 
 `P` (or `Alt+F5`) packs the selected files and directories (or the entry under the
 cursor) into a new archive. The prompt suggests `<name>.zip` next to
-the selection and lists the other formats in its dropdown; the name's
-suffix picks the format — `.zip`, `.tar`, `.tar.gz`, `.tar.bz2`,
-`.tar.xz` or `.tar.zst`. A relative path is taken from the selection's
-directory, and a directory gets an archive named after the selection
-inside it.
+the selection; the name's suffix picks the format — `.zip`, `.tar`,
+`.tar.gz`, `.tar.bz2`, `.tar.xz` or `.tar.zst` — and the **Format** row
+under the name swaps it for another writable one. A relative path is
+taken from the selection's directory, and a directory gets an archive
+named after the selection inside it.
 
-The **Compression** row under the name (reached with `↓`, changed with
-`←`/`→`, `Space` or a click) picks **None**, **Fast**, **Normal** (the
-default) or **Best**. zip, `.tar.gz`, `.tar.bz2` and `.tar.xz` map them
+The **Compression** row under it (reached with `↓`, changed with
+`←`/`→`, `Space` or a click, as is **Format**) picks **None**, **Fast**,
+**Normal** (the default) or **Best**. zip, `.tar.gz`, `.tar.bz2` and `.tar.xz` map them
 to levels 0, 1, 6 and 9; bzip2 and xz have no uncompressed mode, so
 **None** gives their weakest level. `.tar.zst` only tells **None** from
 the rest, and a plain `.tar` is never compressed.
@@ -229,7 +336,8 @@ is never overwritten. Only local files can be packed.
 `Alt+F9` unpacks the archives in the selection, or the archive under the
 cursor; other selected entries are left out. The prompt suggests a
 directory named after the archive in the nearest other file manager's
-directory and lists the other panels' directories in its dropdown. A
+directory and offers the other panels' directories in its
+[directory tree](file-manager.md#destination-path). A
 single archive is unpacked into the directory you give, which is created
 if needed; several archives go into a directory each, named after the
 archive, under it. A relative path is taken from the archive's directory.
@@ -247,3 +355,10 @@ the password before starting and asks again after a wrong one.
   uploads start over from the beginning if re-issued.
 - The passphrase of an encrypted SSH key is not asked for in remote
   panels; load the key into your SSH agent.
+- Host certificates (`@cert-authority`) are not accepted, and user
+  certificates (`CertificateFile`) are not offered.
+- `Match` blocks in the SSH configuration are skipped, `ProxyCommand` is
+  not run, and the `%C`, `%i`, `%j`, `%L` and `%l` tokens are not
+  expanded.
+- Jump hosts cannot log in with a password; load their key into your
+  SSH agent or name it with `IdentityFile`.

@@ -15,8 +15,8 @@ use termide_agent_core::{
     Failure, FailureKind, HostTools, IntentLog, LimitPolicy, Message, MessageOrigin, ModeHandle,
     ModelChoice, ModelSpec, OriginKind, PermissionAnswer, PermissionHooks, PermissionRules,
     PersistScope, PlanGuard, PromptOptions, Provider, Refusals, ReviewerSetup, Session,
-    SessionParent, SessionSummary, ShellOutput, ShellRunner, StreamEvent, ThinkingLevel, Tool,
-    ToolCall, ToolContext, ToolRegistry, ToolUpdate, Usage, UserMessage, DEFAULT_AGENT,
+    SessionParent, SessionSummary, ShellOutput, ShellRunner, Spender, StreamEvent, ThinkingLevel,
+    Tool, ToolCall, ToolContext, ToolRegistry, ToolUpdate, Usage, UserMessage, DEFAULT_AGENT,
     GLOBAL_AGENT_DIR, SESSIONS_DIR,
 };
 use termide_agent_hooks::CommandHooks;
@@ -26,17 +26,19 @@ use termide_agent_providers::{
 };
 use termide_agent_recall::{PanelDir, RecallSetup, RecallTool, RepoFinder, Solver, TimeLimits};
 use termide_agent_tools::{
-    builtin_tools, BashTool, QuestionTool, SkillTool, SubagentOutcome, SubagentRun, SubagentTask,
-    SuggestCommandTool, TaskTool,
+    builtin_tools, JobsTool, OwnTasks, QuestionTool, ShellTool, SkillTool, SubagentOutcome,
+    SubagentRun, SubagentTask, SuggestCommandTool, TaskTool, TerminalsTool,
 };
 use termide_agent_web::{web_tools, Web, WebConfig};
 use termide_config::{AiSettings, Connection, WebSettings};
 use termide_core::AgentSetupState;
 use termide_panel_agent::{
     AgentCatalog, AgentEntry, AgentPanel, AgentPanelSetup, AgentProfile, BackendFactory,
-    ConnectionCatalog, ConnectionChoice, ConnectionEntry, FoldMode, HooksFactory,
+    ConnectionCatalog, ConnectionChoice, ConnectionEntry, FoldMode, HeldHook, HooksFactory,
+    Trusted,
 };
 
+use super::api_keys::{Broker, KeyedProvider};
 use super::App;
 
 mod debug_tool;
@@ -44,6 +46,7 @@ pub(in crate::app) use debug_tool::Waiter as DebugWaiter;
 mod headless;
 pub(crate) mod live;
 mod peers;
+pub(crate) mod terminals;
 pub use headless::{run_agent_headless, run_recall, HeadlessOutput};
 pub(super) use peers::same_dir;
 
@@ -524,29 +527,49 @@ impl AgentCatalog for FsCatalog {
         Some(self.mcp.reload(mcp_servers(&self.dirs, &self.approvals)))
     }
 
-    fn held_hooks(&self) -> Vec<(String, String)> {
+    fn held_hooks(&self) -> Vec<HeldHook> {
         let (_, held) = self.approvals.split_hooks(self.dirs.hooks());
         held.into_iter()
-            .map(|(name, hook)| (name, hook.launch_line()))
+            .map(|(name, hook)| HeldHook {
+                launch: hook.launch_line(),
+                fingerprint: hook.fingerprint(),
+                name,
+            })
             .collect()
     }
 
     /// A server is approved as it is configured now and connected; a hook
-    /// as it is configured now, running from the next run on.
-    fn trust(&self, name: &str) -> Result<Option<termide_agent_core::McpReload>, String> {
+    /// as it is configured now, running from the next run on — each only
+    /// while the file read now still holds the launch that was shown.
+    fn trust(&self, name: &str, shown: &str) -> Result<Trusted, String> {
         if let Some(server) = self
             .dirs
             .mcp_servers()
             .get(name)
             .filter(|server| server.from_project)
         {
-            self.approvals.approve_mcp(name, server)?;
+            if !self.approvals.approve_mcp(name, server, shown)? {
+                return Ok(Trusted::Changed {
+                    hook: false,
+                    launch: server.launch_line(),
+                    fingerprint: server.fingerprint(),
+                });
+            }
             let servers = mcp_servers(&self.dirs, &self.approvals);
-            return self.mcp.reconnect(name, &servers).map(Some);
+            return self
+                .mcp
+                .reconnect(name, &servers)
+                .map(|report| Trusted::Approved(Some(report)));
         }
         if let Some(hook) = self.dirs.hooks().get(name).filter(|hook| hook.from_project) {
-            self.approvals.approve_hook(name, hook)?;
-            return Ok(None);
+            if !self.approvals.approve_hook(name, hook, shown)? {
+                return Ok(Trusted::Changed {
+                    hook: true,
+                    launch: hook.launch_line(),
+                    fingerprint: hook.fingerprint(),
+                });
+            }
+            return Ok(Trusted::Approved(None));
         }
         Err(termide_i18n::t().agent_notice_trust_unknown_fmt(name))
     }
@@ -654,11 +677,15 @@ impl AgentCatalog for FsCatalog {
                         if task.background {
                             return runner.start_background(&caller, task, ctx).into();
                         }
-                        runner.run(&caller, task, ctx, cancel, on_update)
+                        runner.run_detachable(&caller, task, ctx, cancel, on_update)
                     });
                     tools.insert(Arc::new(TaskTool::new(delegates, run)));
                 }
             }
+        }
+        // What the agent set going is its own to see and stop.
+        if backend.is_none() {
+            tools.insert(Arc::new(JobsTool::new(Arc::new(PanelTasks))));
         }
         restrict_tools(&mut tools, &definition.spec.tools, name);
         // Skills are instructions, not a capability, so an agent's `tools`
@@ -736,6 +763,17 @@ fn base_tools(
     recall: Option<&Arc<RecallTool>>,
 ) -> ToolRegistry {
     let mut tools = builtin_tools(dirs.shims_dir());
+    // The shell runs commands in terminal sessions too, which `terminals`
+    // looks after.
+    let sessions: Arc<dyn termide_agent_core::TerminalSessions> =
+        Arc::clone(terminals::agent_terminals()) as _;
+    tools.insert(Arc::new(ShellTool {
+        shell: terminals::agent_terminals().shell(),
+        shim_path: dirs.shims_dir(),
+        terminals: Some(Arc::clone(&sessions)),
+        ..ShellTool::default()
+    }));
+    tools.insert(Arc::new(TerminalsTool::new(sessions)));
     for tool in web.map(web_tools).unwrap_or_default() {
         tools.insert(tool);
     }
@@ -825,7 +863,9 @@ fn restrict_tools(tools: &mut ToolRegistry, allowed: &Option<Vec<String>>, agent
         .map(str::to_string)
         .collect::<Vec<_>>()
     {
-        if !allowed.contains(&tool) {
+        // `jobs` stops what `task` hands over, so it comes with it.
+        let with_task = tool == "jobs" && allowed.iter().any(|name| name == "task");
+        if !allowed.contains(&tool) && !with_task {
             tools.remove(&tool);
         }
     }
@@ -859,11 +899,16 @@ type ActiveSlot = Arc<std::sync::RwLock<Active>>;
 /// layout are built away from the `App`.
 static APPLIED_AI: std::sync::RwLock<Option<AiSettings>> = std::sync::RwLock::new(None);
 
+/// Run the agent's commands in the shell picked for terminals, `configured`
+/// (`terminal.default_shell`), or the one found when none is.
+pub(crate) fn publish_shell(configured: Option<&str>) {
+    terminals::agent_terminals().set_shell(configured);
+}
+
 /// Record `settings` as the applied `[ai]` settings for open panels.
 pub(crate) fn publish_ai_settings(settings: &AiSettings) {
-    *APPLIED_AI
-        .write()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(settings.clone());
+    *APPLIED_AI.write().unwrap_or_else(PoisonError::into_inner) = Some(settings.clone());
+    terminals::agent_terminals().set_limit(settings.max_terminal_sessions);
     // A limit changed in the settings reaches the requests already queued.
     for (name, connection) in &settings.connections {
         if !connection.is_cli() {
@@ -876,7 +921,7 @@ pub(crate) fn publish_ai_settings(settings: &AiSettings) {
 fn applied_ai_settings(built_with: &AiSettings) -> AiSettings {
     APPLIED_AI
         .read()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .unwrap_or_else(PoisonError::into_inner)
         .clone()
         .unwrap_or_else(|| built_with.clone())
 }
@@ -922,14 +967,12 @@ impl ConnectionCatalog for AiConnections {
             context_window: connection.effective_context_window(),
             backend: cli_provider_backend(connection, agent),
             reviewer: reviewer_setup(&settings, &self.dirs, name),
+            settings: connection.clone(),
         })
     }
 
     fn activate(&self, choice: &ConnectionChoice) {
-        *self
-            .active
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Active {
+        *self.active.write().unwrap_or_else(PoisonError::into_inner) = Active {
             connection: choice.name.clone(),
             kind: choice.kind.clone(),
             provider: Arc::clone(&choice.provider),
@@ -991,13 +1034,6 @@ fn session_connection(
         .or_else(|| settings.default_connection().map(str::to_string))?;
     let connection = settings.connections[&name].clone();
     Some((name, connection))
-}
-
-/// The API key the connection names, read from its environment variable.
-fn api_key_of(connection: &Connection) -> Option<String> {
-    (!connection.api_key_env.is_empty())
-        .then(|| std::env::var(&connection.api_key_env).ok())
-        .flatten()
 }
 
 /// A side call's provider when its connection names no model: the first
@@ -1132,17 +1168,55 @@ fn side_model(
 }
 
 /// The `auto` mode reviewer: the texts of `system/classify.md`, and the
-/// model `[ai.auto_reviewer]` names, see [`side_model`].
+/// model `[ai.auto_reviewer]` names, see [`side_model`]; with none named, on
+/// a Claude Code or Codex connection the cheapest model its subscription
+/// offers, see [`cheap_reviewer`].
 fn reviewer_setup(settings: &AiSettings, dirs: &AgentDirs, session: &str) -> ReviewerSetup {
+    let choice = settings.reviewer_of(session);
+    let model = cheap_reviewer(settings, &choice, session).unwrap_or_else(|| {
+        side_model(
+            settings,
+            &choice,
+            &format!("the reviewer of connection {session}"),
+        )
+    });
     ReviewerSetup {
         prompt: dirs.classify_prompt(),
-        model: side_model(
-            settings,
-            &settings.reviewer_of(session),
-            &format!("the reviewer of connection {session}"),
-        ),
+        model,
         spent: termide_agent_core::SpentMeter::default(),
     }
+}
+
+/// The reviewer of a session on connection `session` when `choice` names no
+/// model and that connection is Claude Code or Codex: the cheapest model of
+/// the subscription, picked from those the agent offers — the session's own
+/// model, often the frontier one, would spend the plan's limits on every
+/// call reviewed. `None` elsewhere: the session's model reviews.
+fn cheap_reviewer(
+    settings: &AiSettings,
+    choice: &termide_config::SideModel,
+    session: &str,
+) -> Option<ModelChoice> {
+    if !choice.connection.trim().is_empty() || !choice.model.trim().is_empty() {
+        return None;
+    }
+    let connection = settings.connections.get(session)?;
+    if !matches!(connection.provider.as_str(), "claude_code" | "codex") {
+        return None;
+    }
+    let config = cli_acp_config(connection)?;
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let spec = ModelSpec {
+        provider: "agent".to_string(),
+        id: String::new(),
+        context_window: 0,
+        max_tokens: None,
+        thinking: ThinkingLevel::Off,
+    };
+    Some(ModelChoice::own(
+        Arc::new(AcpProvider::new(session, config, cwd).cheapest()),
+        spec,
+    ))
 }
 
 /// The `recall` tool of a project: its session logs, the repositories it
@@ -1625,6 +1699,21 @@ impl DelegateLog {
         Self(Some(session))
     }
 
+    /// Log what the task's reviewer spent since the last look, by model, as
+    /// a panel logs its own reviewer's; the sum comes back for the outcome.
+    fn note_reviews(&mut self, reviews: &termide_agent_core::SpentMeter) -> Usage {
+        let mut total = Usage::default();
+        for (model, usage) in reviews.take_by_model() {
+            total.add(&usage);
+            if let Some(session) = &mut self.0 {
+                if let Err(error) = session.append_spent(Spender::Reviewer, &model, usage) {
+                    log::warn!("delegate session write failed: {error}");
+                }
+            }
+        }
+        total
+    }
+
     /// Write a finished message of the task's.
     fn note(&mut self, message: &Message) {
         if let Some(session) = &mut self.0 {
@@ -1654,6 +1743,30 @@ impl DelegateLog {
                 log::warn!("delegate session write failed: {error}");
             }
         }
+    }
+
+    /// Record the session an external agent opened for the task, so the
+    /// task carried on from this log goes on in it.
+    fn note_external_session(&mut self, agent: &str, session_id: &str) {
+        if let Some(session) = &mut self.0 {
+            if let Err(error) = session.append_external_session(agent, session_id) {
+                log::warn!("delegate session write failed: {error}");
+            }
+        }
+    }
+
+    /// The external agent's session the task ran in, when the agent still
+    /// holds it, and what the log holds of the task, for an agent that does
+    /// not: told it as a recap.
+    fn external_resume(&self) -> (Option<termide_agent_core::ExternalSessionRef>, Vec<Message>) {
+        self.0.as_ref().map_or((None, Vec::new()), |session| {
+            (session.external_session(), session.context_messages())
+        })
+    }
+
+    /// Where the task works: the directory its log names.
+    fn cwd(&self) -> Option<PathBuf> {
+        self.0.as_ref().map(|session| session.header().cwd.clone())
     }
 
     /// The log's path, when there is one.
@@ -1741,6 +1854,9 @@ impl Subagents {
         // Its answer starts the delegating agent anew, so it counts among the
         // messages agents pass one another.
         peers::may_hand_over(&self.project_root, parent)?;
+        // Its answer is for the session that handed it over, wherever that
+        // is by the time it comes.
+        let parent_session = ctx.session.as_ref().and_then(|session| session.id.clone());
         let this = Arc::clone(self);
         let ctx = ctx.clone();
         let (caller, agent, prompt, call) = (
@@ -1769,14 +1885,28 @@ impl Subagents {
                 if outcome.parked {
                     return;
                 }
+                let held = termide_panel_agent::live::take_quiet(parent, &call);
+                // Stopped by the agent that handed it over: it knows.
+                if termide_panel_agent::live::take_withdrawn(parent, &call) {
+                    return;
+                }
                 let text = background_report(&prompt, &thread_agent, &outcome);
-                peers::report(&this.project_root, parent, &thread_agent, text);
+                peers::report(
+                    &this.project_root,
+                    parent,
+                    parent_session,
+                    &thread_agent,
+                    text,
+                    held,
+                );
             })
             .map_err(|error| format!("cannot start the task: {error}"))?;
         Ok(format!(
-            "{agent} took the task and works on it out of sight. Carry on: its answer comes \
-             to you later as a message of its own. Do not wait for it with tools, and do not \
-             hand the same task over again."
+            "{agent} took the task and works on it out of sight; its id is {}. Carry on: its \
+             answer comes to you later as a message of its own. Do not wait for it with tools, \
+             and do not hand the same task over again. Should you no longer need it, stop it \
+             with `jobs`.",
+            task.call
         ))
     }
 
@@ -1816,6 +1946,11 @@ impl Subagents {
             "Carry this task on from where you stopped. What you did before is in your log; \
              do not start it over.\n\n{task}"
         );
+        let parent_session = log
+            .header()
+            .parent
+            .as_ref()
+            .and_then(|parent| parent.session.clone());
         let this = Arc::clone(self);
         let cwd = log.header().cwd.clone();
         let (caller, agent, carried, call, session, original) = (
@@ -1830,6 +1965,11 @@ impl Subagents {
         std::thread::Builder::new()
             .name(format!("carried-{thread_agent}"))
             .spawn(move || {
+                // The agent that handed it over stopped it before this try
+                // got going: nothing is run, nothing answered.
+                if termide_panel_agent::live::take_withdrawn(parent, &call) {
+                    return;
+                }
                 // Nobody waits on the call, as for any task handed over in the
                 // background: its cards stay up until the user answers them.
                 let (prompter, rx) = permission_channel(CancelToken::new());
@@ -1856,8 +1996,19 @@ impl Subagents {
                 }
                 // The report names the task as it was handed over, not the
                 // words that carried it on.
+                let held = termide_panel_agent::live::take_quiet(parent, &call);
+                if termide_panel_agent::live::take_withdrawn(parent, &call) {
+                    return;
+                }
                 let text = background_report(&original, &thread_agent, &outcome);
-                peers::report(&this.project_root, parent, &thread_agent, text);
+                peers::report(
+                    &this.project_root,
+                    parent,
+                    parent_session,
+                    &thread_agent,
+                    text,
+                    held,
+                );
             })
             .map_err(|error| log::warn!("cannot carry the task on: {error}"))
             .is_ok()
@@ -1874,6 +2025,151 @@ impl Subagents {
     ) -> SubagentOutcome {
         self.delegate(caller, task, ctx, cancel, on_update)
             .unwrap_or_else(|error| Err(error).into())
+    }
+
+    /// Run `task`, which the agent `caller` handed over and waits for, so
+    /// that it can move to the background midway: when the user writes to
+    /// the panel meanwhile (see [`termide_panel_agent::live::ask_aside`]), the call returns at
+    /// once, saying where the task went, and the task runs on out of sight,
+    /// answering as one handed over in the background does. The agent then
+    /// reads the user's message, and may stop the task with `jobs`.
+    fn run_detachable(
+        self: &Arc<Self>,
+        caller: &str,
+        task: &SubagentTask,
+        ctx: &ToolContext,
+        cancel: &CancelToken,
+        on_update: &mut dyn FnMut(ToolUpdate),
+    ) -> SubagentOutcome {
+        let Some(parent) = ctx.panel else {
+            return self.run(caller, task, ctx, cancel, on_update);
+        };
+        // The run's stop reaches the task only while the run waits on it.
+        let own = CancelToken::new();
+        let attached = Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let (updates_tx, updates) = std::sync::mpsc::channel::<ToolUpdate>();
+        let (done_tx, done) = std::sync::mpsc::channel::<SubagentOutcome>();
+        // Taken by the call that lets go of the task: the outcome then has no
+        // one to go to, and is reported as a background task's.
+        let waiting = Arc::new(std::sync::Mutex::new(Some(done_tx)));
+        let parent_session = ctx.session.as_ref().and_then(|session| session.id.clone());
+        let (this, ctx_owned, thread_own) = (Arc::clone(self), ctx.clone(), own.clone());
+        let thread_attached = Arc::clone(&attached);
+        let thread_waiting = Arc::clone(&waiting);
+        let (thread_caller, agent, prompt, call) = (
+            caller.to_string(),
+            task.agent.to_string(),
+            task.prompt.to_string(),
+            task.call.to_string(),
+        );
+        let spawned = std::thread::Builder::new()
+            .name(format!("task-{agent}"))
+            .spawn(move || {
+                let task = SubagentTask {
+                    agent: &agent,
+                    prompt: &prompt,
+                    call: &call,
+                    background: false,
+                };
+                let outcome = this
+                    .delegate(
+                        &thread_caller,
+                        &task,
+                        &ctx_owned,
+                        &thread_own,
+                        &mut |update| {
+                            if thread_attached.load(std::sync::atomic::Ordering::Acquire) {
+                                let _ = updates_tx.send(update);
+                            }
+                        },
+                    )
+                    .unwrap_or_else(|error| Err(error).into());
+                let waiter = thread_waiting
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .take();
+                if let Some(waiter) = waiter {
+                    let _ = waiter.send(outcome);
+                    return;
+                }
+                // Moved aside: answered as a task handed over in the
+                // background is, once it has really run to its end.
+                if outcome.parked {
+                    return;
+                }
+                let held = termide_panel_agent::live::take_quiet(parent, &call);
+                if termide_panel_agent::live::take_withdrawn(parent, &call) {
+                    return;
+                }
+                let text = background_report(&prompt, &agent, &outcome);
+                peers::report(
+                    &this.project_root,
+                    parent,
+                    parent_session,
+                    &agent,
+                    text,
+                    held,
+                );
+            });
+        if let Err(error) = spawned {
+            return Err(format!("cannot start the task: {error}")).into();
+        }
+        loop {
+            for update in updates.try_iter() {
+                on_update(update);
+            }
+            match done.recv_timeout(DETACH_POLL) {
+                Ok(outcome) => {
+                    for update in updates.try_iter() {
+                        on_update(update);
+                    }
+                    termide_panel_agent::live::take_aside(parent, task.call);
+                    return outcome;
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    return Err("the task's thread ended without an answer".to_string()).into();
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+            }
+            if cancel.is_cancelled() {
+                own.cancel();
+                continue;
+            }
+            if !termide_panel_agent::live::take_aside(parent, task.call) {
+                continue;
+            }
+            // Its answer starts the agent anew, so it counts among the
+            // messages agents pass one another: past their limit, the task
+            // stays waited for.
+            if peers::may_hand_over(&self.project_root, parent).is_err() {
+                continue;
+            }
+            // Mark it as in the background before the call lets go, so a
+            // stop of the panel's run from here on keeps its answer for the
+            // next request rather than dropping it.
+            termide_panel_agent::live::move_to_background(parent, task.call);
+            let let_go = waiting
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .take();
+            drop(let_go);
+            // It ended just before the call let go: its answer is the call's.
+            if let Ok(outcome) = done.try_recv() {
+                for update in updates.try_iter() {
+                    on_update(update);
+                }
+                return outcome;
+            }
+            attached.store(false, std::sync::atomic::Ordering::Release);
+            return Ok(format!(
+                "The user wrote while {} worked on the task, so it goes on out of sight and you \
+                 can read what they wrote; its id is {}. Its answer comes to you later as a \
+                 message of its own: do not wait for it with tools, and do not hand the same \
+                 task over again. Should you no longer need it, stop it with `jobs`.",
+                task.agent, task.call
+            ))
+            .into();
+        }
     }
 
     /// `[ai] on_limit` as it stands now: a change in the settings reaches a
@@ -1979,19 +2275,15 @@ impl Subagents {
         let active = self
             .active
             .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .unwrap_or_else(PoisonError::into_inner)
             .clone();
         let settings = applied_ai_settings(&self.settings);
         let target = subagent_target(&settings, &active)?;
         // The session's connection says who reviews, wherever the task runs.
         let reviewer = reviewer_setup(&settings, &self.dirs, &active.connection);
         // A meter of its own: what its reviewer spends counts in the task,
-        // not in the panel's own reviews.
+        // and in its log, not in the panel's own reviews.
         let reviews = reviewer.spent.clone();
-        let with_reviews = |mut outcome: SubagentOutcome| {
-            outcome.spent.add(&reviews.take());
-            outcome
-        };
 
         let mut rules = self.rules.clone();
         rules.mode = subagent_mode(self.mode.get(), definition.spec.mode);
@@ -2002,22 +2294,17 @@ impl Subagents {
         // What the rules do not settle goes to the user of its parent's
         // panel, on a card headed with its name; with no one there it is
         // refused with a reason the model reads.
-        // A task handed over in the background is no run's to stop: a stop
-        // of its panel's run leaves its cards up, its own takes them back.
+        // Its cards end with its own run, not the panel's: a stop of the
+        // panel's run reaches a task the run waits on through `cancel`, which
+        // ends its budget, and leaves one handed over in the background — or
+        // moved there when the user wrote — with its cards up.
         let prompter = ctx.prompter.as_ref().map(|prompter| {
-            let prompter = prompter
+            prompter
                 .for_delegate(name, budget.clone())
-                .for_task(task.call);
-            if task.background {
-                prompter.detached()
-            } else {
-                prompter
-            }
+                .for_task(task.call)
+                .detached()
         });
-        let asker = match asker {
-            Some(asker) if task.background => Some(asker.detached(budget.clone())),
-            asker => asker,
-        };
+        let asker = asker.map(|asker| asker.detached(budget.clone()));
         let asks: Box<dyn termide_agent_core::PermissionPrompter> = match &prompter {
             Some(prompter) => Box::new(prompter.clone()),
             None => Box::new(AutoDenyPrompter::new(
@@ -2058,22 +2345,36 @@ impl Subagents {
             .as_ref()
             .map(|session| IntentLog::delegated(&session.intent))
             .unwrap_or_default();
+        // A task carried on runs out of the log it already made: what it did
+        // stands there, and the run goes on from where it stopped, in the
+        // directory it worked in then. It holds the log as a panel does: a
+        // log open in a panel, or in another termide, is not run twice.
+        let resumed = match ctx.resume.as_ref() {
+            Some(path) => Some(Session::open_exclusive(path).map_err(|error| {
+                format!("cannot carry the task on from {}: {error}", path.display())
+            })?),
+            None => None,
+        };
         // An external agent runs its own program, whatever the session's
         // connection: out of sight as a Claude Code copy does, asking the
-        // user of its parent's panel what its rules leave open.
+        // user of its parent's panel what its rules leave open. Carried on,
+        // it goes on in its own session of the agent's, from its log.
         if let Some(config) = definition.spec.acp.clone() {
-            let log = DelegateLog::start(
-                self.session_dir.as_deref(),
-                &self.cwd,
-                lineage,
-                &DelegateRun {
-                    connection: name,
-                    provider: termide_agent_core::ACP_PROVIDER,
-                    model: "",
-                    context_window: None,
-                    agent: name,
-                },
-            );
+            let log = match resumed {
+                Some(session) => DelegateLog::resume(session),
+                None => DelegateLog::start(
+                    self.session_dir.as_deref(),
+                    &self.cwd,
+                    lineage,
+                    &DelegateRun {
+                        connection: name,
+                        provider: termide_agent_core::ACP_PROVIDER,
+                        model: "",
+                        context_window: None,
+                        agent: name,
+                    },
+                ),
+            };
             let run = CliSubagent {
                 name: name.to_string(),
                 connection: active.connection.clone(),
@@ -2091,27 +2392,28 @@ impl Subagents {
                 prompter,
                 panel: ctx.panel,
             };
-            return self
-                .run_cli(run, message, log, &budget, cancel, caller, task, on_update)
-                .map(with_reviews);
+            return self.run_cli(run, message, log, &budget, cancel, caller, task, on_update);
         }
 
         let (provider, requested, context_window, connection_name, kind) = match target {
             SubagentTarget::Cli(connection_name, connection) => {
                 let config = cli_acp_config(&connection)
                     .ok_or_else(|| format!("{} is not a CLI agent", connection.provider))?;
-                let log = DelegateLog::start(
-                    self.session_dir.as_deref(),
-                    &self.cwd,
-                    lineage,
-                    &DelegateRun {
-                        connection: &connection_name,
-                        provider: &connection.provider,
-                        model: connection.model.trim(),
-                        context_window: None,
-                        agent: name,
-                    },
-                );
+                let log = match resumed {
+                    Some(session) => DelegateLog::resume(session),
+                    None => DelegateLog::start(
+                        self.session_dir.as_deref(),
+                        &self.cwd,
+                        lineage,
+                        &DelegateRun {
+                            connection: &connection_name,
+                            provider: &connection.provider,
+                            model: connection.model.trim(),
+                            context_window: None,
+                            agent: name,
+                        },
+                    ),
+                };
                 let run = CliSubagent {
                     name: format!("{connection_name}:{name}"),
                     connection: connection_name.clone(),
@@ -2128,9 +2430,7 @@ impl Subagents {
                     prompter,
                     panel: ctx.panel,
                 };
-                return self
-                    .run_cli(run, message, log, &budget, cancel, caller, task, on_update)
-                    .map(with_reviews);
+                return self.run_cli(run, message, log, &budget, cancel, caller, task, on_update);
             }
             // On a connection of its own the subagent runs that connection's
             // model: the id its `AGENT.md` names is one of the session's
@@ -2163,16 +2463,6 @@ impl Subagents {
             context_window,
             max_tokens: self.max_tokens,
             thinking: self.reasoning,
-        };
-        // A task carried on runs out of the log it already made: what it did
-        // stands there, and the run goes on from where it stopped, in the
-        // directory it worked in then. It holds the log as a panel does: a
-        // log open in a panel, or in another termide, is not run twice.
-        let resumed = match ctx.resume.as_ref() {
-            Some(path) => Some(Session::open_exclusive(path).map_err(|error| {
-                format!("cannot carry the task on from {}: {error}", path.display())
-            })?),
-            None => None,
         };
         let cwd = resumed
             .as_ref()
@@ -2213,9 +2503,19 @@ impl Subagents {
         if let Some(panel) = ctx.panel {
             agent = agent.with_panel(panel);
         }
+        // The subagent's terminal sessions are its own, kept under its log's
+        // id and ended with its task; its parent does not reach them.
+        let terminals_owner = log.0.as_ref().map(|session| session.id().to_string());
+        if terminals_owner.is_some() {
+            let terminals: Arc<dyn termide_agent_core::TerminalSessions> =
+                terminals::agent_terminals().clone();
+            agent = agent
+                .with_session_id(terminals_owner.clone())
+                .with_context_note(termide_agent_core::terminals::context_note(terminals));
+        }
 
         // Followed from its parent's panel while it runs.
-        let live = register_live(ctx.panel, caller, task, &log, true);
+        let live = register_live(ctx.panel, caller, task, &log);
         // The panel's pause holds this run at its step boundaries.
         agent = agent.with_pause_gate(live.control().gate());
         let user_stop = live.control().stop_token().clone();
@@ -2273,21 +2573,23 @@ impl Subagents {
             agent.run(message, &mut hooks, &budget, &mut emit);
             finished.store(true, std::sync::atomic::Ordering::Release);
         });
+        if let Some(owner) = &terminals_owner {
+            termide_agent_core::TerminalSessions::release(
+                terminals::agent_terminals().as_ref(),
+                owner,
+            );
+        }
         if report.answer.is_none() && report.error.is_none() {
             report.error = run_error(agent.messages());
         }
         let answered = report.answer.is_some();
         let session = log.path();
-        let outcome = self.after_run(
-            ctx.panel,
-            task,
-            with_reviews(match live.control().ended_by_user() {
-                Some(why) if !cancel.is_cancelled() => report.ended_by_user(why),
-                _ => report.into_outcome(cancel.is_cancelled()),
-            }),
-            &connection_name,
-            session.as_deref(),
-        );
+        let mut ended = match live.control().ended_by_user() {
+            Some(why) if !cancel.is_cancelled() => report.ended_by_user(why),
+            _ => report.into_outcome(cancel.is_cancelled()),
+        };
+        ended.spent.add(&log.note_reviews(&reviews));
+        let outcome = self.after_run(ctx.panel, task, ended, &connection_name, session.as_deref());
         // Held at its panel's pause, or parked at a limit that will pass: the
         // reopened session asks to carry the task on. One that answered is
         // over, whatever pause or limit came after its last step.
@@ -2313,12 +2615,11 @@ impl Subagents {
         on_update: &mut dyn FnMut(ToolUpdate),
     ) -> Result<SubagentOutcome, String> {
         // Followed from its parent's panel while it runs.
-        // An external agent runs its own program: the panel's pause cannot
-        // hold it, only stop it.
-        let live = register_live(run.panel, caller, task, &log, false);
+        let live = register_live(run.panel, caller, task, &log);
         let mut noted = noting(&live, on_update);
         let on_update: &mut dyn FnMut(ToolUpdate) = &mut noted;
         let config = run.config;
+        let reviews = run.reviewer.spent.clone();
         // The agent's own requests go where its parent's panel asks; with
         // no one there they come here, and are refused.
         let (prompter, permission_rx) = match run.prompter {
@@ -2328,8 +2629,12 @@ impl Subagents {
                 (prompter, Some(rx))
             }
         };
+        // Carried on, the task goes on in the agent's own session when it
+        // still holds it, else the agent is told a recap of the log.
+        let (resume, history) = log.external_resume();
+        let cwd = log.cwd().unwrap_or_else(|| self.cwd.clone());
         let setup = BackendSetup {
-            cwd: self.cwd.clone(),
+            cwd: cwd.clone(),
             prompter,
             cancel: budget.clone(),
             mode: ModeHandle::new(run.rules.mode),
@@ -2346,13 +2651,13 @@ impl Subagents {
                 context: ToolContext {
                     asker: run.asker,
                     panel: run.panel,
-                    ..ToolContext::new(self.cwd.clone())
+                    ..ToolContext::new(cwd.clone())
                 },
                 skills: run.skills,
                 session_id: None,
             }),
-            resume: None,
-            history: Vec::new(),
+            resume,
+            history,
         };
         let runtime = AcpRuntime::start(&run.name, &config, setup)?;
         // The task's run is recorded in its own log, as a panel's is: cut
@@ -2367,9 +2672,10 @@ impl Subagents {
             permission_rx: permission_rx.as_ref(),
             refusal: &self.refusals.unattended_subagent,
             max_turns: run.max_turns,
-            cwd: &self.cwd,
+            cwd: &cwd,
             budget,
             cancel,
+            held_at_end: std::cell::Cell::new(false),
         };
         let session = log.path();
         let panel = run.panel;
@@ -2383,7 +2689,8 @@ impl Subagents {
             on_update,
         );
         let outcome = match outcome {
-            Ok(outcome) => {
+            Ok(mut outcome) => {
+                outcome.spent.add(&log.note_reviews(&reviews));
                 Ok(self.after_run(panel, task, outcome, &connection, session.as_deref()))
             }
             Err(error) => {
@@ -2393,9 +2700,12 @@ impl Subagents {
                 Err(error)
             }
         };
-        // Parked at a limit that will pass: the task stands unfinished, and a
-        // reopen of its session offers to carry it on.
-        log.note_run_end(outcome.as_ref().is_ok_and(|outcome| outcome.parked));
+        // Parked at a limit that will pass, or held at its panel's pause when
+        // the panel closed: the task stands unfinished, and a reopen of its
+        // session offers to carry it on.
+        let unfinished =
+            drive.held_at_end.get() || outcome.as_ref().is_ok_and(|outcome| outcome.parked);
+        log.note_run_end(unfinished);
         outcome.map(|outcome| log.into_outcome(outcome))
     }
 }
@@ -2467,6 +2777,72 @@ impl App {
     }
 }
 
+/// The tasks a panel's agent handed over that run on without a call waiting
+/// for them — in the background, or parked at a limit — for `jobs` to list
+/// and stop. The task is the agent's own, so a stop asks nothing, and its
+/// answer does not come.
+struct PanelTasks;
+
+impl OwnTasks for PanelTasks {
+    fn list(&self, ctx: &ToolContext) -> Vec<String> {
+        use termide_agent_tools::jobs_text::{duration, first_line};
+        let Some(panel) = ctx.panel else {
+            return Vec::new();
+        };
+        let mut lines: Vec<String> = termide_panel_agent::live::background_of(panel)
+            .into_iter()
+            .map(|task| {
+                let state = if task.paused {
+                    "held at the panel's pause".to_string()
+                } else {
+                    format!("running {}", duration(task.started.elapsed()))
+                };
+                let last = if task.status.is_empty() {
+                    String::new()
+                } else {
+                    format!(" · last: {}", first_line(&task.status, 80))
+                };
+                format!(
+                    "- {} · background task · {}: {} · {state}{last}",
+                    task.call,
+                    task.agent,
+                    first_line(&task.task, 100)
+                )
+            })
+            .collect();
+        let now = unix_now();
+        lines.extend(
+            termide_panel_agent::live::parked_of(panel)
+                .into_iter()
+                .filter(|parked| !parked.launching)
+                .map(|parked| {
+                    let wait = std::time::Duration::from_secs(parked.wake_at.saturating_sub(now));
+                    format!(
+                        "- {} · task waiting out a limit · {}: {} · goes again in {}",
+                        parked.call,
+                        parked.agent,
+                        first_line(&parked.task, 100),
+                        duration(wait)
+                    )
+                }),
+        );
+        lines
+    }
+
+    fn stop(&self, id: &str, ctx: &ToolContext) -> Option<String> {
+        use termide_panel_agent::live::{withdraw, Withdrawn};
+        match withdraw(ctx.panel?, id) {
+            Withdrawn::Running(agent) => Some(format!(
+                "Stopped {agent}'s task {id}; no answer will come from it."
+            )),
+            Withdrawn::Parked(agent) => Some(format!(
+                "Gave up {agent}'s task {id}, which waited out a limit; no answer will come from it."
+            )),
+            Withdrawn::None => None,
+        }
+    }
+}
+
 /// The message a background task's answer reaches the delegating agent as:
 /// which task it answers, then the delegate's last words or what went wrong.
 fn background_report(prompt: &str, agent: &str, outcome: &SubagentOutcome) -> String {
@@ -2499,7 +2875,6 @@ fn register_live(
     caller: &str,
     task: &SubagentTask,
     log: &DelegateLog,
-    pausable: bool,
 ) -> termide_panel_agent::live::Registration {
     termide_panel_agent::live::register(termide_panel_agent::live::LiveTask {
         panel,
@@ -2509,7 +2884,6 @@ fn register_live(
         task: task.prompt,
         session: log.path(),
         background: task.background,
-        pausable,
     })
 }
 
@@ -2547,6 +2921,9 @@ struct CliDrive<'a> {
     connection: &'a str,
     budget: &'a CancelToken,
     cancel: &'a CancelToken,
+    /// The run ended while its panel's pause held it — the panel closed —
+    /// so its log reads as paused, to be carried on.
+    held_at_end: std::cell::Cell<bool>,
 }
 
 impl CliDrive<'_> {
@@ -2593,19 +2970,29 @@ impl CliDrive<'_> {
         if stopped() {
             return Err("the subagent was stopped".into());
         }
+        let origin = message.origin.clone();
         backend
             .prompt(message)
             .map_err(|error| format!("the subagent did not start: {error:?}"))?;
         let mut report = SubagentReport::new(self.max_turns, self.connection);
         let mut aborted: Option<std::time::Instant> = None;
         let mut idle = 0;
+        // The agent runs its own loop, which no pause reaches: held at its
+        // panel's pause, its turn is cut short, and once the pause is lifted
+        // the same session is asked to carry on.
+        let mut holding: Option<std::time::Instant> = None;
+        // Something came of the turn: an agent cut short before that may go
+        // on with the cut prompt out of sight, so the cut waits for it.
+        let mut heard = false;
         'run: loop {
             for envelope in self.permission_rx.into_iter().flat_map(|rx| rx.try_iter()) {
                 let _ = envelope
                     .reply
                     .send(PermissionAnswer::DenyWithReason(self.refusal.to_string()));
             }
+            let mut ended = false;
             for event in backend.drain() {
+                heard = true;
                 if let AgentEvent::MessageEnd(message) = &event {
                     log.note(message);
                 }
@@ -2623,19 +3010,56 @@ impl CliDrive<'_> {
                     AgentEvent::ToolExecutionEnd { result } => {
                         report.call_ended(&result, on_update);
                     }
-                    AgentEvent::AgentEnd => break 'run,
+                    AgentEvent::ExternalSession { agent, session_id } => {
+                        log.note_external_session(&agent, &session_id);
+                    }
+                    AgentEvent::AgentEnd => {
+                        ended = true;
+                        break;
+                    }
                     _ => {}
                 }
             }
             // An agent that went away without saying it ended is over too,
             // as is one that does not end within a while of being stopped.
             idle = if backend.is_busy() { 0 } else { idle + 1 };
-            if idle > 1 || aborted.is_some_and(|at| at.elapsed() > CLI_SUBAGENT_ABORT_WAIT) {
+            // A cut that does not end the turn within a while is taken as
+            // ended, as a stop's is.
+            let over = ended
+                || idle > 1
+                || holding.is_some_and(|at| at.elapsed() > CLI_SUBAGENT_ABORT_WAIT);
+            if over && holding.is_some() && !stopped() {
+                // The cut turn is over: wait out the pause, then go on.
+                while self.control.is_paused() && !stopped() {
+                    std::thread::sleep(CLI_SUBAGENT_POLL);
+                }
+                if stopped() {
+                    // A pause still on: its panel closed, holding it.
+                    self.held_at_end.set(self.control.is_paused());
+                    break 'run;
+                }
+                let mut carry_on = UserMessage::text(CLI_SUBAGENT_CARRY_ON);
+                carry_on.origin.clone_from(&origin);
+                if backend.prompt(carry_on).is_err() {
+                    break 'run;
+                }
+                (holding, heard, idle) = (None, false, 0);
+                continue;
+            }
+            if over || aborted.is_some_and(|at| at.elapsed() > CLI_SUBAGENT_ABORT_WAIT) {
                 break;
             }
             if aborted.is_none() && stopped() {
                 aborted = Some(std::time::Instant::now());
+                // Stopped while its turn was being cut for the pause: the
+                // pause still on means its panel closed, holding it.
+                if holding.is_some() {
+                    self.held_at_end.set(self.control.is_paused());
+                }
                 self.budget.cancel();
+                backend.abort();
+            } else if holding.is_none() && heard && self.control.is_paused() {
+                holding = Some(std::time::Instant::now());
                 backend.abort();
             }
             std::thread::sleep(CLI_SUBAGENT_POLL);
@@ -2687,9 +3111,16 @@ fn mcp_servers(
 
 /// How often a subagent on a CLI agent is looked at while it runs.
 const CLI_SUBAGENT_POLL: std::time::Duration = std::time::Duration::from_millis(50);
+/// How often a call waiting on a task looks whether the user asked it aside.
+const DETACH_POLL: std::time::Duration = std::time::Duration::from_millis(100);
 
 /// How long a stopped subagent on a CLI agent may take to end its turn.
 const CLI_SUBAGENT_ABORT_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// What a subagent on a CLI agent is told once the pause that cut its turn
+/// short is lifted.
+const CLI_SUBAGENT_CARRY_ON: &str = "You were paused, not stopped: carry the task on from where \
+     you were cut off. Do not start it over.";
 
 /// Everything the panel needs, resolved from `settings` for a panel working
 /// in `cwd` inside the termide project at `project_root` as the agent named
@@ -2707,6 +3138,7 @@ fn agent_setup(
         session_connection(settings, session.as_ref()).unwrap_or_default();
     let provider_kind = connection.provider.clone();
     let provider = connection_provider(&connection_name, &connection);
+    terminals::agent_terminals().set_limit(settings.max_terminal_sessions);
 
     let mut catalog = FsCatalog::new(&cwd, project_root);
     let web = shared_web(&settings.web, &catalog.dirs);
@@ -2812,6 +3244,7 @@ fn agent_setup(
             active,
         })),
         connection: connection_name,
+        connection_settings: connection.clone(),
         provider,
         provider_kind,
         model,
@@ -2835,16 +3268,17 @@ fn agent_setup(
         session_dir,
         session,
         shell_run: Some(shell_run),
+        terminals: Some(Arc::clone(terminals::agent_terminals()) as _),
         on_limit: settings.on_limit,
     }
 }
 
 /// The runner behind `!` in the agent panel's input and `[Run]` on a
-/// `suggest_command` card: the same `bash` tool the agent calls, so timeouts,
+/// `suggest_command` card: the same `shell` tool the agent calls, so timeouts,
 /// output cleaning and the full-log file behave identically either way. It is
 /// built here rather than taken from the agent's registry because a command
 /// the user ran is not governed by the tools an agent profile was given —
-/// `restrict_tools` may well have left `bash` out of those.
+/// `restrict_tools` may well have left `shell` out of those.
 /// Where the session logs of a panel working in `cwd` live: filed by that
 /// directory, under the same `ai/` directory as the agents,
 /// `<config>/ai/sessions/<path>/`.
@@ -2857,15 +3291,16 @@ fn session_dir_of(cwd: &Path) -> Option<PathBuf> {
 }
 
 fn user_shell_runner(dirs: &AgentDirs, cwd: &Path) -> ShellRunner {
-    let tool = BashTool {
+    let tool = ShellTool {
+        shell: terminals::agent_terminals().shell(),
         shim_path: dirs.shims_dir(),
-        ..BashTool::default()
+        ..ShellTool::default()
     };
     let cwd = cwd.to_path_buf();
     ShellRunner::new(move |command, cancel| {
         let call = ToolCall {
             id: "user-command".into(),
-            name: "bash".into(),
+            name: "shell".into(),
             arguments: serde_json::json!({ "command": command }),
             extra_content: None,
         };
@@ -3030,7 +3465,7 @@ fn refresh_adapter(package: &'static str) {
 
     let first = REFRESHED
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .unwrap_or_else(PoisonError::into_inner)
         .get_or_insert_with(HashSet::new)
         .insert(package);
     if !first {
@@ -3080,15 +3515,17 @@ fn refresh_adapter(package: &'static str) {
 /// of `connection`. A CLI agent is started for it, as for a side call, and
 /// lists the models of its login; the process ends with the fetch. The
 /// receiver is polled by the app loop.
+/// `api_key` is the key the app could find without asking anyone.
 pub(crate) fn spawn_settings_model_fetch(
     connection: &Connection,
+    api_key: Option<String>,
 ) -> Option<std::sync::mpsc::Receiver<Result<Vec<termide_agent_core::ModelInfo>, String>>> {
     let provider: Arc<dyn Provider> = if connection.is_cli() {
         let config = cli_acp_config(connection)?;
         let cwd = std::env::current_dir().unwrap_or_default();
         Arc::new(AcpProvider::new("settings", config, cwd))
     } else {
-        build_provider(connection, api_key_of(connection))
+        build_provider(connection, api_key)
     };
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
@@ -3100,12 +3537,24 @@ pub(crate) fn spawn_settings_model_fetch(
 /// The provider of connection `name` for a session or a side call: its
 /// requests take the connection's slots, which every panel of the process
 /// shares (see `max_concurrent_requests`). A CLI agent's is a placeholder
-/// that serves no request, so it takes none.
+/// that serves no request, so it takes none. A model connection's key is
+/// resolved for each call (see `api_keys`).
 fn connection_provider(name: &str, connection: &Connection) -> Arc<dyn Provider> {
-    let provider = build_provider(connection, api_key_of(connection));
     if connection.is_cli() {
-        return provider;
+        return build_provider(connection, None);
     }
+    if connection.api_key_env_looks_like_key() {
+        log::warn!(
+            "api_key_env of connection {name} holds what looks like a key, not a variable \
+             name; it is not used"
+        );
+    }
+    let provider: Arc<dyn Provider> = Arc::new(KeyedProvider::new(
+        name,
+        connection,
+        build_provider,
+        Broker::global(),
+    ));
     let slots = Slots::shared(name, connection.max_concurrent_requests as usize);
     Arc::new(SlottedProvider::new(provider, slots))
 }
@@ -3131,6 +3580,7 @@ fn build_provider(connection: &Connection, api_key: Option<String>) -> Arc<dyn P
                 AnthropicProvider::with_base_url("agent", settings.base_url.clone())
             };
             anthropic = anthropic.with_api_key(api_key);
+            anthropic = anthropic.with_attribution(settings.attribution());
             Arc::new(anthropic)
         }
         other => {
@@ -3144,12 +3594,14 @@ fn build_provider(connection: &Connection, api_key: Option<String>) -> Arc<dyn P
             Arc::new(
                 OpenAiCompatProvider::new("agent", settings.base_url.clone())
                     .with_api_key(api_key)
+                    .with_attribution(settings.attribution())
                     .with_compat({
                         let reasoning = reasoning_param(settings);
                         Compat {
                             reasoning,
                             send_reasoning: sends_reasoning(settings),
                             prefill_progress: prefill_progress(settings),
+                            prompt_cache: asks_for_prompt_cache(settings),
                             ..Compat::default()
                         }
                     }),
@@ -3187,9 +3639,18 @@ fn prefill_progress(connection: &Connection) -> bool {
     !is_hosted_api(&connection.base_url)
 }
 
+/// Whether a connection asks its gateway to cache the prompt of the models
+/// that cache only on request (see `Compat::prompt_cache`): OpenRouter, a
+/// known service whose Anthropic models need it. Elsewhere a model caches
+/// by itself, or the server is not one to ask.
+fn asks_for_prompt_cache(connection: &Connection) -> bool {
+    let host = termide_config::url_host(&connection.base_url);
+    host == "openrouter.ai" || host.ends_with(".openrouter.ai")
+}
+
 /// Whether `url` is one of the hosted APIs known to take `reasoning_effort`.
 fn is_hosted_api(url: &str) -> bool {
-    let host = url_host(url);
+    let host = termide_config::url_host(url);
     [
         "api.openai.com",
         "openrouter.ai",
@@ -3197,21 +3658,6 @@ fn is_hosted_api(url: &str) -> bool {
     ]
     .iter()
     .any(|known| host == *known || host.ends_with(&format!(".{known}")))
-}
-
-/// The lowercased host of `url`, without its port or an IPv6 address's
-/// brackets.
-fn url_host(url: &str) -> String {
-    let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
-    let authority = rest.split('/').next().unwrap_or("");
-    let authority = authority
-        .rsplit_once('@')
-        .map_or(authority, |(_, host)| host);
-    let host = match authority.strip_prefix('[') {
-        Some(v6) => v6.split(']').next().unwrap_or(""),
-        None => authority.split(':').next().unwrap_or(""),
-    };
-    host.to_ascii_lowercase()
 }
 
 /// The shipped default base URL, used to tell "left at default" from "set on
@@ -3342,20 +3788,99 @@ mod tests {
         let status = catalog.mcp_status();
         assert_eq!(status[0].status, McpStatus::NeedsApproval);
         assert_eq!(status[0].launch, "/nonexistent/termide-ext -x");
+        let hooks = catalog.held_hooks();
+        assert_eq!(hooks.len(), 1);
         assert_eq!(
-            catalog.held_hooks(),
-            [("check".to_string(), "./check.sh".to_string())]
+            (hooks[0].name.as_str(), hooks[0].launch.as_str()),
+            ("check", "./check.sh")
         );
 
-        let report = catalog.trust("ext").unwrap().unwrap();
+        let Trusted::Approved(Some(report)) = catalog.trust("ext", &status[0].fingerprint).unwrap()
+        else {
+            panic!("the server shown is approved");
+        };
         assert_eq!(report.started, ["ext"]);
         assert_ne!(catalog.mcp_status()[0].status, McpStatus::NeedsApproval);
-        assert_eq!(catalog.trust("check").unwrap(), None);
+        assert_eq!(
+            catalog.trust("check", &hooks[0].fingerprint).unwrap(),
+            Trusted::Approved(None)
+        );
         assert!(catalog.held_hooks().is_empty());
         assert!(store.is_file());
-        assert!(catalog.trust("nope").is_err());
+        assert!(catalog.trust("nope", "").is_err());
         // Nothing was written into the project.
         assert!(!project.join(".termide/approved.toml").exists());
+    }
+
+    /// A `.mcp.json` or hook changed between the notice and the approval is
+    /// not approved: the approval is of what was shown, and the launch the
+    /// file holds now comes back to be shown instead.
+    #[test]
+    fn a_launch_changed_after_it_was_shown_is_not_approved() {
+        use termide_agent_core::McpStatus;
+        let tmp = tempfile::tempdir().unwrap();
+        let project = tmp.path().join("proj");
+        let global = tmp.path().join("ai");
+        std::fs::create_dir_all(project.join(".termide/ai")).unwrap();
+        std::fs::create_dir_all(&global).unwrap();
+        let mcp = |args: &str| {
+            std::fs::write(
+                project.join(".mcp.json"),
+                format!(r#"{{"mcpServers":{{"ext":{{"command":"/nonexistent/termide-ext","args":[{args}]}}}}}}"#),
+            )
+            .unwrap();
+        };
+        let hook = |command: &str| {
+            std::fs::write(
+                project.join(".termide/ai/hooks.toml"),
+                format!("[check]\nevent = \"before_tool_call\"\ncommand = \"{command}\"\n"),
+            )
+            .unwrap();
+        };
+        mcp(r#""-x""#);
+        hook("./check.sh");
+        let store = tmp.path().join("data/trust/approved.toml");
+        let approvals = termide_agent_core::approvals::Approvals::new(Some(store));
+        let catalog = FsCatalog::with_global(&project, &project, Some(global), None, approvals);
+        let shown = catalog.mcp_status()[0].fingerprint.clone();
+        let shown_hook = catalog.held_hooks()[0].fingerprint.clone();
+
+        // Changed in between: refused, and the new launch comes back.
+        mcp(r#""-x","--evil""#);
+        hook("./evil.sh");
+        let Trusted::Changed {
+            hook: false,
+            launch,
+            fingerprint,
+        } = catalog.trust("ext", &shown).unwrap()
+        else {
+            panic!("a changed server is not approved");
+        };
+        assert_eq!(launch, "/nonexistent/termide-ext -x --evil");
+        assert_ne!(fingerprint, shown);
+        assert_eq!(catalog.mcp_status()[0].status, McpStatus::NeedsApproval);
+        let Trusted::Changed {
+            hook: true,
+            launch,
+            fingerprint: new_hook,
+        } = catalog.trust("check", &shown_hook).unwrap()
+        else {
+            panic!("a changed hook is not approved");
+        };
+        assert_eq!(launch, "./evil.sh");
+        assert_eq!(catalog.held_hooks().len(), 1);
+
+        // What came back, shown in turn, is what an approval then takes.
+        assert!(matches!(
+            catalog.trust("ext", &fingerprint).unwrap(),
+            Trusted::Approved(Some(_))
+        ));
+        assert_ne!(catalog.mcp_status()[0].status, McpStatus::NeedsApproval);
+        assert_eq!(
+            catalog.trust("check", &new_hook).unwrap(),
+            Trusted::Approved(None)
+        );
+        assert!(catalog.held_hooks().is_empty());
     }
 
     #[test]
@@ -3402,6 +3927,49 @@ mod tests {
         assert!(pick("gone", "").own.is_none());
     }
 
+    #[test]
+    fn a_subscription_agent_with_no_reviewer_named_reviews_on_its_cheapest_model() {
+        let mut settings = AiSettings::default();
+        for (name, provider) in [
+            ("local", "openai_compatible"),
+            ("claude", "claude_code"),
+            ("codex", "codex"),
+            ("gemini", "gemini_cli"),
+        ] {
+            settings.connections.insert(
+                name.to_string(),
+                termide_config::Connection {
+                    provider: provider.to_string(),
+                    ..termide_config::Connection::default()
+                },
+            );
+        }
+        let cheap = |settings: &AiSettings, session: &str| {
+            cheap_reviewer(settings, &settings.reviewer_of(session), session).map(|choice| {
+                let (provider, model) = choice.own.expect("a model of its own");
+                (provider.name().to_string(), model.id)
+            })
+        };
+        // The agent's subscription, the model picked from what it offers.
+        assert_eq!(
+            cheap(&settings, "claude"),
+            Some(("acp".into(), String::new()))
+        );
+        assert_eq!(
+            cheap(&settings, "codex"),
+            Some(("acp".into(), String::new()))
+        );
+        // An endpoint, or an agent with no cheap class: the session's model.
+        assert_eq!(cheap(&settings, "local"), None);
+        assert_eq!(cheap(&settings, "gemini"), None);
+        // A reviewer named, by the connection or `[ai.auto_reviewer]`, wins.
+        settings.auto_reviewer.model = "sonnet".into();
+        assert_eq!(cheap(&settings, "claude"), None);
+        settings.auto_reviewer.model.clear();
+        settings.connections.get_mut("claude").unwrap().reviewer = "local".into();
+        assert_eq!(cheap(&settings, "claude"), None);
+    }
+
     /// Every built-in tool a panel can offer has a shipped text, and every
     /// shipped text a tool: a tool whose `ToolText::seed` name is wrong, or
     /// one added without its `assets/tools/<name>.md`, would otherwise reach
@@ -3433,6 +4001,7 @@ mod tests {
             tools.insert(tool);
         }
         tools.insert(debug_tool::debug_tool(tmp.path()));
+        tools.insert(Arc::new(JobsTool::new(Arc::new(PanelTasks))));
 
         let mut names: Vec<&str> = tools.iter().map(|tool| tool.name()).collect();
         names.sort_unstable();
@@ -3530,14 +4099,27 @@ mod tests {
         }
     }
 
+    #[test]
+    fn only_openrouter_is_asked_to_cache_the_prompt() {
+        let asks = |base_url: &str| {
+            asks_for_prompt_cache(&Connection {
+                base_url: base_url.into(),
+                ..Connection::default()
+            })
+        };
+        assert!(asks("https://openrouter.ai/api/v1"));
+        assert!(asks("https://eu.openrouter.ai/api/v1"));
+        assert!(!asks("https://openrouter.ai.example/api/v1"));
+        assert!(!asks("https://api.openai.com/v1"));
+        assert!(!asks("http://127.0.0.1:8080/v1"));
+    }
+
     /// The applied `[ai]` settings are one per process: the tests that read
     /// or publish them take turns, and a publisher clears them as it ends.
     static APPLIED_TURN: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     fn applied_turn() -> std::sync::MutexGuard<'static, ()> {
-        APPLIED_TURN
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        APPLIED_TURN.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
     /// Clears the applied settings when dropped, a failed assertion included.
@@ -3545,9 +4127,7 @@ mod tests {
 
     impl Drop for ClearApplied {
         fn drop(&mut self) {
-            *APPLIED_AI
-                .write()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+            *APPLIED_AI.write().unwrap_or_else(PoisonError::into_inner) = None;
         }
     }
 
@@ -3658,6 +4238,9 @@ mod tests {
         prompted: std::sync::Mutex<Vec<String>>,
         events: std::sync::Mutex<std::collections::VecDeque<AgentEvent>>,
         busy: std::sync::atomic::AtomicBool,
+        /// Its first turn stops after its first words, going on until it is
+        /// cut short, as a turn under way when its panel pauses.
+        long_first_turn: bool,
     }
 
     impl Backend for FakeCli {
@@ -3694,9 +4277,21 @@ mod tests {
             );
             let test = call(
                 "c2",
-                "bash",
+                "shell",
                 serde_json::json!({ "command": "cargo test\n--quiet" }),
             );
+            if self.long_first_turn && self.prompted.lock().unwrap().len() == 1 {
+                self.events.lock().unwrap().extend([
+                    AgentEvent::ExternalSession {
+                        agent: "claude".into(),
+                        session_id: "ext-1".into(),
+                    },
+                    AgentEvent::AgentStart,
+                    AgentEvent::MessageEnd(Message::User(message)),
+                    said("working"),
+                ]);
+                return Ok(());
+            }
             // As an ACP agent's turn does, the task is logged first.
             self.events.lock().unwrap().extend([
                 AgentEvent::AgentStart,
@@ -3761,6 +4356,43 @@ mod tests {
     /// A subagent on Claude Code runs on the connection's model, reports
     /// what it says as it goes and answers with its last words; stopped
     /// before it starts, it is not handed the task.
+    /// What a task's reviewer spent goes into the task's own log, by model,
+    /// so its session shows who spent what; the sum joins its outcome.
+    #[test]
+    fn a_tasks_reviews_are_logged_with_the_task() {
+        let logs = tempfile::tempdir().unwrap();
+        let mut log = DelegateLog::start(
+            Some(logs.path()),
+            Path::new("/proj"),
+            SessionParent {
+                session: Some("p1".into()),
+                agent: "lead".into(),
+                call: "call-7".into(),
+            },
+            &DelegateRun {
+                connection: "claude",
+                provider: "claude_code",
+                model: "haiku",
+                context_window: None,
+                agent: "search",
+            },
+        );
+        let reviews = termide_agent_core::SpentMeter::default();
+        let spent = Usage {
+            input: 30,
+            output: 2,
+            ..Default::default()
+        };
+        reviews.add_on("tiny", &spent);
+        assert_eq!(log.note_reviews(&reviews), spent);
+        // Taken once.
+        assert_eq!(log.note_reviews(&reviews), Usage::default());
+        let session = Session::open(&log.path().unwrap()).unwrap();
+        let spending = session.spending();
+        assert_eq!(spending.by.get(&Spender::Reviewer), Some(&spent));
+        assert_eq!(spending.models.get("tiny"), Some(&spent));
+    }
+
     #[test]
     fn a_subagent_on_a_cli_agent_runs_its_task_to_the_end() {
         let (_prompter, permission_rx) = permission_channel(CancelToken::new());
@@ -3777,6 +4409,7 @@ mod tests {
             cwd: Path::new("/proj"),
             budget: &budget,
             cancel: &cancel,
+            held_at_end: std::cell::Cell::new(false),
         };
         let cli = FakeCli::default();
         let mut progress = Vec::new();
@@ -3842,7 +4475,7 @@ mod tests {
         // directory, a failed one marked; a command shows its first line.
         assert_eq!(
             progress.last().unwrap(),
-            "working\n\n· read src/main.rs\n· bash cargo test ✗\n\nthe answer"
+            "working\n\n· read src/main.rs\n· shell cargo test ✗\n\nthe answer"
         );
 
         cancel.cancel();
@@ -3856,6 +4489,75 @@ mod tests {
         );
         assert!(answer.is_err());
         assert!(stopped.prompted.lock().unwrap().is_empty());
+    }
+
+    /// Held at its panel's pause, a subagent on a CLI agent has its turn cut
+    /// short and, once the pause is lifted, is told to carry on in the same
+    /// session; the session the agent opened is in its log, for a task
+    /// carried on later.
+    #[test]
+    fn a_paused_subagent_on_a_cli_agent_carries_on_in_its_session() {
+        let (budget, cancel) = (CancelToken::new(), CancelToken::new());
+        let control = termide_panel_agent::DelegateControl::new();
+        let drive = CliDrive {
+            control: &control,
+            name: "claude:search",
+            connection: "claude-code",
+            model: "",
+            permission_rx: None,
+            refusal: "nobody to ask",
+            max_turns: SUBAGENT_MAX_TURNS,
+            cwd: Path::new("/proj"),
+            budget: &budget,
+            cancel: &cancel,
+            held_at_end: std::cell::Cell::new(false),
+        };
+        let cli = FakeCli {
+            long_first_turn: true,
+            ..FakeCli::default()
+        };
+        let logs = tempfile::tempdir().unwrap();
+        let mut log = DelegateLog::start(
+            Some(logs.path()),
+            Path::new("/proj"),
+            SessionParent {
+                session: Some("p1".into()),
+                agent: "lead".into(),
+                call: "call-8".into(),
+            },
+            &DelegateRun {
+                connection: "claude",
+                provider: termide_agent_core::ACP_PROVIDER,
+                model: "",
+                context_window: None,
+                agent: "search",
+            },
+        );
+        control.pause();
+        let lift = {
+            let control = control.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(300));
+                control.resume();
+            })
+        };
+        let answer = drive.run(
+            &cli,
+            &|| false,
+            UserMessage::text("find it"),
+            &mut log,
+            &mut |_| {},
+        );
+        lift.join().unwrap();
+        assert_eq!(answer.unwrap().answer.as_deref(), Ok("the answer"));
+        let prompted = cli.prompted.lock().unwrap().clone();
+        assert_eq!(prompted.len(), 2, "{prompted:?}");
+        assert!(prompted[1].contains("paused, not stopped"), "{prompted:?}");
+        assert!(!drive.held_at_end.get());
+        assert_eq!(
+            log.external_resume().0.map(|session| session.session_id),
+            Some("ext-1".to_string())
+        );
     }
 
     #[test]
@@ -4043,8 +4745,17 @@ mod tests {
         assert_eq!(gemini.context_limit, None);
         // Zeta's own agent speaks ACP directly, without an npm adapter.
         let zeta = cli_acp_config(&on("zeta", 64_000)).unwrap();
-        assert_eq!(zeta.command, "zetacode");
-        assert_eq!(zeta.args, ["acp"]);
+        #[cfg(windows)]
+        {
+            // `zetacode` is an npm shim (`.cmd`) on Windows; `cmd /C` runs it.
+            assert_eq!(zeta.command, "cmd");
+            assert_eq!(zeta.args, ["/C", "zetacode", "acp"]);
+        }
+        #[cfg(not(windows))]
+        {
+            assert_eq!(zeta.command, "zetacode");
+            assert_eq!(zeta.args, ["acp"]);
+        }
         assert_eq!(zeta.flavor, AcpFlavor::Generic);
         assert!(zeta.env.is_empty());
         assert_eq!(zeta.context_limit, None);
@@ -4074,11 +4785,11 @@ mod tests {
         let path = dir.path().join("config.toml");
         std::fs::write(&path, "[ai]\nmodel = \"m\"  # keep me\n").unwrap();
 
-        merge_permission_rule(&path, "bash", "cat *", Decision::Allow).unwrap();
+        merge_permission_rule(&path, "shell", "cat *", Decision::Allow).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
-        // Written under [ai.permissions.bash] (not the old [agent.…]), and the
+        // Written under [ai.permissions.shell] (not the old [agent.…]), and the
         // rest of the file is preserved.
-        assert!(text.contains("[ai.permissions.bash]"), "{text}");
+        assert!(text.contains("[ai.permissions.shell]"), "{text}");
         assert!(text.contains("\"cat *\" = \"allow\""), "{text}");
         assert!(text.contains("# keep me"), "{text}");
         assert!(!text.contains("[agent"), "{text}");
@@ -4086,18 +4797,18 @@ mod tests {
         // The document is valid and the config loader reads the rule back.
         let config = termide_config::Config::load_from(&path).unwrap();
         assert_eq!(
-            config.ai.permissions.evaluate("bash", "cat notes.txt"),
+            config.ai.permissions.evaluate("shell", "cat notes.txt"),
             Some(Decision::Allow)
         );
 
         // A second grant updates in place — no duplicate table, still valid.
-        merge_permission_rule(&path, "bash", "python3 *", Decision::Allow).unwrap();
-        merge_permission_rule(&path, "bash", "cat *", Decision::Allow).unwrap();
+        merge_permission_rule(&path, "shell", "python3 *", Decision::Allow).unwrap();
+        merge_permission_rule(&path, "shell", "cat *", Decision::Allow).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
-        assert_eq!(text.matches("[ai.permissions.bash]").count(), 1, "{text}");
+        assert_eq!(text.matches("[ai.permissions.shell]").count(), 1, "{text}");
         let config = termide_config::Config::load_from(&path).unwrap();
         assert_eq!(
-            config.ai.permissions.evaluate("bash", "python3 x.py"),
+            config.ai.permissions.evaluate("shell", "python3 x.py"),
             Some(Decision::Allow)
         );
     }
@@ -4109,7 +4820,7 @@ mod tests {
         // Two tables of the same name: invalid TOML.
         let broken = "[ai.permissions.bash]\n\"cat *\" = \"allow\"\n[ai.permissions.bash]\n\"ls *\" = \"allow\"\n";
         std::fs::write(&path, broken).unwrap();
-        assert!(merge_permission_rule(&path, "bash", "python3 *", Decision::Allow).is_err());
+        assert!(merge_permission_rule(&path, "shell", "python3 *", Decision::Allow).is_err());
         // The file is untouched, not appended to.
         assert_eq!(std::fs::read_to_string(&path).unwrap(), broken);
     }
@@ -4202,6 +4913,7 @@ mod tests {
                 .iter()
                 .map(|id| termide_agent_core::ModelInfo {
                     id: (*id).to_string(),
+                    name: None,
                     context_window: None,
                 })
                 .collect())
@@ -4235,6 +4947,7 @@ mod tests {
             self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             Ok(vec![termide_agent_core::ModelInfo {
                 id: "first".into(),
+                name: None,
                 context_window: None,
             }])
         }
@@ -4396,6 +5109,112 @@ mod tests {
             .filter(|kind| !kind.is_empty())
             .collect();
         assert_eq!(kinds, vec!["start", "end"]);
+    }
+
+    /// Subagents whose model says nothing until stopped.
+    fn silent_subagents(root: &Path) -> Arc<Subagents> {
+        let dirs = AgentDirs::new(root, Some(root), None);
+        let settings = with_cloud();
+        let mut active = active_on(&settings, "local");
+        active.provider = Arc::new(Silent);
+        Arc::new(Subagents {
+            active: Arc::new(std::sync::RwLock::new(active)),
+            settings: settings.clone(),
+            recall: recall_tool(&settings, &dirs, root, root),
+            web: shared_web(&settings.web, &dirs),
+            dirs,
+            mcp: Connections::new(std::collections::BTreeMap::new()),
+            cwd: root.to_path_buf(),
+            project_root: root.to_path_buf(),
+            session_dir: Some(root.join("sessions")),
+            rules: settings.permissions.clone(),
+            mode: termide_agent_core::ModeHandle::new(settings.permissions.mode),
+            max_tokens: settings.output_limit(),
+            reasoning: ThinkingLevel::Off,
+            compaction: settings.compaction,
+            refusals: Refusals::default(),
+        })
+    }
+
+    /// The user writing while the agent waits on a task moves the task to
+    /// the background: the call returns, the task runs on in the strip and
+    /// answers as a message — unless the agents have passed too many
+    /// messages already, when the call keeps waiting.
+    #[test]
+    fn a_waited_task_moves_to_the_background_when_the_user_writes() {
+        use termide_panel_agent::live;
+        let tmp = tempfile::tempdir().unwrap();
+        let subagents = silent_subagents(tmp.path());
+        let ctx = ToolContext {
+            panel: Some(7301),
+            ..ToolContext::new(tmp.path().to_path_buf())
+        };
+        let waited = |call: &'static str, cancel: CancelToken| {
+            let (subagents, ctx) = (Arc::clone(&subagents), ctx.clone());
+            let handle = std::thread::spawn(move || {
+                subagents.run_detachable(
+                    "lead",
+                    &SubagentTask {
+                        agent: DEFAULT_AGENT,
+                        prompt: "look around",
+                        call,
+                        background: false,
+                    },
+                    &ctx,
+                    &cancel,
+                    &mut |_| {},
+                )
+            });
+            let started = std::time::Instant::now();
+            while !live::is_running(7301, call) {
+                assert!(started.elapsed() < std::time::Duration::from_secs(5));
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            handle
+        };
+
+        // Past the limit of messages between agents: it stays waited for.
+        let (reports_tx, reports) = std::sync::mpsc::channel();
+        let serving = CancelToken::new();
+        let server = peers::serve_for_test(peers::MAX_HOPS, reports_tx.clone(), serving.clone());
+        let cancel = CancelToken::new();
+        let task = waited("c-kept", cancel.clone());
+        assert_eq!(live::ask_aside(7301), 1);
+        std::thread::sleep(DETACH_POLL * 4);
+        assert!(!task.is_finished(), "the call still waits");
+        assert!(live::background_of(7301).is_empty());
+        cancel.cancel();
+        let outcome = task.join().unwrap();
+        assert_eq!(outcome.answer, Err("the subagent was stopped".to_string()));
+        serving.cancel();
+        server.join().unwrap();
+
+        let serving = CancelToken::new();
+        let server = peers::serve_for_test(0, reports_tx, serving.clone());
+        let cancel = CancelToken::new();
+        let task = waited("c-aside", cancel.clone());
+        assert_eq!(live::ask_aside(7301), 1);
+        let outcome = task.join().unwrap();
+        let words = outcome.answer.unwrap();
+        assert!(words.contains("goes on out of sight"), "{words}");
+        assert!(words.contains("c-aside"), "{words}");
+        let moved: Vec<String> = live::background_of(7301)
+            .into_iter()
+            .map(|task| task.call)
+            .collect();
+        assert_eq!(moved, ["c-aside"]);
+        // The run's stop no longer reaches it through the call...
+        cancel.cancel();
+        std::thread::sleep(DETACH_POLL * 2);
+        assert!(live::is_running(7301, "c-aside"));
+        // ...but a stop of the panel's run does, keeping its answer.
+        live::stop_with_run(7301);
+        let report = reports
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("its answer goes to the panel");
+        assert!(report.contains("look around"), "{report}");
+        serving.cancel();
+        server.join().unwrap();
     }
 
     /// A delegated task stopped by a limit that passes answers nothing: it is
@@ -4826,7 +5645,7 @@ done"#;
         assert_eq!(catalog.resolve("search").unwrap().tools.names(), ["read"]);
         assert_eq!(
             catalog.resolve("lead").unwrap().tools.names(),
-            ["read", "task"]
+            ["read", "task", "jobs"]
         );
         assert!(catalog
             .resolve(DEFAULT_AGENT)
@@ -4942,26 +5761,28 @@ done"#;
         assert_eq!(entries[1].description, "Reviews diffs");
         let review = catalog.resolve("review").unwrap();
         assert!(review.system_prompt.starts_with("You review.\n\n- read:"));
-        assert_eq!(review.tools.names(), ["read", "bash"]);
+        assert_eq!(review.tools.names(), ["read", "shell"]);
         assert_eq!(review.model.as_deref(), Some("big"));
         assert_eq!(review.mode, Some(termide_agent_core::Mode::Auto));
 
         let default = catalog.resolve(DEFAULT_AGENT).unwrap();
-        // The built-in four, plus the two that speak to the user watching the
-        // panel, `question` and `suggest_command`, and the two that speak to
-        // the agents of the other panels, and the debugger.
+        // The built-in four and `terminals`, plus the two that speak to the
+        // user watching the panel, `question` and `suggest_command`, and the
+        // two that speak to the agents of the other panels, and the debugger.
         assert_eq!(
             default.tools.names(),
             [
                 "read",
                 "edit",
                 "write",
-                "bash",
+                "shell",
+                "terminals",
                 "question",
                 "suggest_command",
                 "agents",
                 "send_message",
-                "debug"
+                "debug",
+                "jobs"
             ]
         );
         assert!(default
@@ -4980,7 +5801,7 @@ done"#;
         .unwrap();
         std::fs::write(global.join(DEFAULT_AGENT_FILE), "{{skills}}\n").unwrap();
         let review = catalog.resolve("review").unwrap();
-        assert_eq!(review.tools.names(), ["read", "bash", "skill"]);
+        assert_eq!(review.tools.names(), ["read", "shell", "skill"]);
 
         // A `command` makes an external agent: no tools of ours, a backend.
         let outside = global.join("agents/outside");

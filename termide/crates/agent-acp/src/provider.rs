@@ -25,6 +25,18 @@ pub struct AcpProvider {
     timeout: Duration,
     connect: Connector,
     runtime: Mutex<Option<AcpRuntime>>,
+    /// What a call that names no model runs on: the agent's own, or its
+    /// cheapest offered (see [`AcpProvider::cheapest`]).
+    unnamed: Unnamed,
+}
+
+/// The model a call that names none runs on.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Unnamed {
+    /// The one the agent picks.
+    Own,
+    /// The first offered of the flavor's cheapest class, see [`cheap_hints`].
+    Cheapest,
 }
 
 impl AcpProvider {
@@ -40,7 +52,18 @@ impl AcpProvider {
                 AcpRuntime::start_service(&name, &config, service_setup(cwd.clone()))
             }),
             runtime: Mutex::new(None),
+            unnamed: Unnamed::Own,
         }
+    }
+
+    /// The same, but a call that names no model runs on the agent's cheapest
+    /// class of model it offers (Claude Code's Haiku, Codex's smallest), when
+    /// the flavor has one and the agent offers it; on its own otherwise. For
+    /// side calls such as the `auto` reviewer, which need no frontier model.
+    #[must_use]
+    pub fn cheapest(mut self) -> Self {
+        self.unnamed = Unnamed::Cheapest;
+        self
     }
 
     /// A provider whose connections `connect` makes, in tests.
@@ -51,6 +74,7 @@ impl AcpProvider {
             timeout,
             connect,
             runtime: Mutex::new(None),
+            unnamed: Unnamed::Own,
         }
     }
 
@@ -129,23 +153,43 @@ impl Provider for AcpProvider {
                 request.system_prompt,
                 &user.join("\n\n"),
                 &request.model.id,
+                self.unnamed,
             )
         });
         match answer {
-            Ok(text) if !text.trim().is_empty() => {
+            Ok(SideAnswer {
+                answer: Ok(text),
+                usage,
+                model,
+            }) if !text.trim().is_empty() => {
                 on_event(StreamEvent::TextDelta(text.clone()));
                 AssistantMessage {
                     content: vec![AssistantContent::Text { text }],
                     stop_reason: StopReason::Stop,
-                    usage: Usage::default(),
+                    usage,
                     provider: ACP_PROVIDER.into(),
-                    model: request.model.id.clone(),
+                    // The model that answered, which the request may have
+                    // left to the agent to pick.
+                    model: model.unwrap_or_else(|| request.model.id.clone()),
                     error_message: None,
                     failure: None,
                     timestamp: now_millis(),
                 }
             }
-            Ok(_) => failed("the agent answered nothing".to_string()),
+            // Spent all the same, on the model it went to.
+            Ok(SideAnswer {
+                answer,
+                usage,
+                model,
+            }) => AssistantMessage {
+                usage,
+                model: model.unwrap_or_else(|| request.model.id.clone()),
+                ..failed(
+                    answer
+                        .err()
+                        .unwrap_or_else(|| "the agent answered nothing".to_string()),
+                )
+            },
             Err(error) => failed(error),
         }
     }
@@ -155,11 +199,20 @@ impl Provider for AcpProvider {
         Ok(models
             .into_iter()
             .map(|model| ModelInfo {
+                name: (model.name != model.id).then_some(model.name),
                 id: model.id,
                 context_window: None,
             })
             .collect())
     }
+}
+
+/// A side call's answer, or why it gave none, what it spent and the model
+/// it was switched to (`None`: the agent's own, not known here).
+struct SideAnswer {
+    answer: Result<String, String>,
+    usage: Usage,
+    model: Option<String>,
 }
 
 impl Shared {
@@ -171,13 +224,19 @@ impl Shared {
         system: &str,
         user: &str,
         model: &str,
-    ) -> Result<String, String> {
+        unnamed: Unnamed,
+    ) -> Result<SideAnswer, String> {
         let mut params = json!({ "cwd": self.cwd, "mcpServers": [] });
         let text = if flavor == AcpFlavor::ClaudeCode {
+            // A side call's request is unique and never read again, and the
+            // calls come in bursts: the five-minute cache writes it for less
+            // than the hour a subscription gives a session's conversation.
             params["_meta"] = json!({
                 "systemPrompt": system,
                 "claudeCode": { "options": {
-                    "settingSources": [], "strictMcpConfig": true, "tools": []
+                    "settingSources": [], "strictMcpConfig": true, "tools": [],
+                    "promptSuggestions": false,
+                    "env": { "CLAUDE_CODE_PROMPT_CACHE_TTL": "5m" },
                 } },
             });
             user.to_string()
@@ -191,9 +250,13 @@ impl Shared {
             .as_str()
             .ok_or("session/new returned no sessionId")?
             .to_string();
-        if !model.trim().is_empty() {
-            self.pick_model(&session_id, &opened, model);
-        }
+        let picked = if !model.trim().is_empty() {
+            self.pick_model(&session_id, &opened, model)
+        } else if unnamed == Unnamed::Cheapest {
+            self.pick_cheapest(&session_id, &opened, flavor)
+        } else {
+            None
+        };
         if flavor == AcpFlavor::Codex {
             // It asks before anything but reading, and is refused.
             let _ = self.request(
@@ -202,7 +265,7 @@ impl Shared {
                 Duration::from_secs(30),
             );
         }
-        let answer = self.side_prompt(&session_id, &text, ANSWER_TIMEOUT);
+        let (answer, usage) = self.side_prompt(&session_id, &text, ANSWER_TIMEOUT);
         if self.can_close.load(Ordering::Acquire) {
             let _ = self.request(
                 "session/close",
@@ -210,7 +273,11 @@ impl Shared {
                 Duration::from_secs(10),
             );
         }
-        answer
+        Ok(SideAnswer {
+            answer,
+            usage,
+            model: picked,
+        })
     }
 
     /// The models the agent offers on its login: a session is opened, as
@@ -240,7 +307,7 @@ impl Shared {
     /// Switch session `session_id` to the model `wanted` names among those
     /// `opened` (its `session/new` result) offers; a name that matches none,
     /// or more than one, leaves the agent's own.
-    fn pick_model(&self, session_id: &str, opened: &Value, wanted: &str) {
+    fn pick_model(&self, session_id: &str, opened: &Value, wanted: &str) -> Option<String> {
         let (offered, config_id) = offered_models(opened);
         let Some(id) = match_model(wanted, &offered) else {
             log::warn!(
@@ -248,8 +315,34 @@ impl Shared {
                 self.name,
                 offered.iter().map(|m| m.id.as_str()).collect::<Vec<_>>()
             );
-            return;
+            return None;
         };
+        self.set_model(session_id, config_id.as_deref(), &id)
+            .then_some(id)
+    }
+
+    /// Switch session `session_id` to the first model `opened` offers of
+    /// `flavor`'s cheapest class; none such leaves the agent's own.
+    fn pick_cheapest(&self, session_id: &str, opened: &Value, flavor: AcpFlavor) -> Option<String> {
+        let (offered, config_id) = offered_models(opened);
+        match cheapest_model(flavor, &offered) {
+            Some(id) => self
+                .set_model(session_id, config_id.as_deref(), &id)
+                .then_some(id),
+            None => {
+                log::warn!(
+                    "acp {}: no cheap model among {:?}; the agent's own answers",
+                    self.name,
+                    offered.iter().map(|m| m.id.as_str()).collect::<Vec<_>>()
+                );
+                None
+            }
+        }
+    }
+
+    /// Switch session `session_id` to model `id`, through the config option
+    /// `config_id` when the agent switches models with one; whether it did.
+    fn set_model(&self, session_id: &str, config_id: Option<&str>, id: &str) -> bool {
         let set = match config_id {
             Some(config_id) => self.request(
                 "session/set_config_option",
@@ -262,8 +355,12 @@ impl Shared {
                 Duration::from_secs(30),
             ),
         };
-        if let Err(error) = set {
-            log::warn!("acp {}: cannot switch to {id}: {error}", self.name);
+        match set {
+            Ok(_) => true,
+            Err(error) => {
+                log::warn!("acp {}: cannot switch to {id}: {error}", self.name);
+                false
+            }
         }
     }
 }
@@ -294,6 +391,30 @@ fn offered_models(opened: &Value) -> (Vec<BackendModel>, Option<String>) {
             (list, None)
         }
     }
+}
+
+/// What the names of a flavor's cheapest class of model contain, the first
+/// preferred: Claude Code's Haiku; Codex's small tier, `luna` now and `mini`
+/// before it. None for the others.
+fn cheap_hints(flavor: AcpFlavor) -> &'static [&'static str] {
+    match flavor {
+        AcpFlavor::ClaudeCode => &["haiku"],
+        AcpFlavor::Codex => &["luna", "mini"],
+        AcpFlavor::Generic | AcpFlavor::GeminiCli => &[],
+    }
+}
+
+/// The first model of `offered` whose id or name contains one of `flavor`'s
+/// [`cheap_hints`], tried in order. An agent lists its newest models first,
+/// and Codex one entry per reasoning level, so the first match is taken
+/// rather than refused as ambiguous as [`match_model`] does.
+fn cheapest_model(flavor: AcpFlavor, offered: &[BackendModel]) -> Option<String> {
+    cheap_hints(flavor).iter().find_map(|hint| {
+        offered
+            .iter()
+            .find(|m| m.id.to_lowercase().contains(hint) || m.name.to_lowercase().contains(hint))
+            .map(|m| m.id.clone())
+    })
 }
 
 /// The model of `offered` that `wanted` names: by its id, else by its id or
@@ -379,8 +500,103 @@ mod tests {
         assert_eq!(match_model("opus", &offered), None);
     }
 
+    #[test]
+    fn the_cheapest_model_is_the_first_offered_of_the_flavors_small_class() {
+        let offered = |ids: &[&str]| -> Vec<BackendModel> {
+            ids.iter()
+                .map(|id| BackendModel {
+                    id: (*id).into(),
+                    name: (*id).into(),
+                })
+                .collect()
+        };
+        let claude = offered(&["default", "opus", "claude-haiku-5-5", "sonnet"]);
+        assert_eq!(
+            cheapest_model(AcpFlavor::ClaudeCode, &claude).as_deref(),
+            Some("claude-haiku-5-5")
+        );
+        // One entry per reasoning level, newest first: the first is taken.
+        let codex = offered(&[
+            "gpt-6.1-sol/medium",
+            "gpt-6-luna/low",
+            "gpt-6-luna/high",
+            "gpt-5.6-luna/low",
+        ]);
+        assert_eq!(
+            cheapest_model(AcpFlavor::Codex, &codex).as_deref(),
+            Some("gpt-6-luna/low")
+        );
+        let older = offered(&["gpt-5-codex/low", "gpt-5-codex-mini/low"]);
+        assert_eq!(
+            cheapest_model(AcpFlavor::Codex, &older).as_deref(),
+            Some("gpt-5-codex-mini/low")
+        );
+        // None of the class, or a flavor without one: the agent's own.
+        assert_eq!(cheapest_model(AcpFlavor::ClaudeCode, &codex), None);
+        assert_eq!(cheapest_model(AcpFlavor::GeminiCli, &claude), None);
+    }
+
+    #[test]
+    fn a_call_naming_no_model_runs_on_the_cheapest_when_asked_to() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let for_connect = Arc::clone(&seen);
+        let provider = AcpProvider::with_connector(
+            AcpFlavor::ClaudeCode,
+            Duration::from_secs(5),
+            Box::new(move || Ok(reviewer_agent(&for_connect))),
+        )
+        .cheapest();
+        let reply = ask(&provider, "");
+        assert_eq!(reply.plain_text(), "ALLOW r1");
+        // Credited to the model picked, and with what it spent: the
+        // reviewer's tokens are counted, on the model they went to.
+        assert_eq!(reply.model, "claude-haiku-4-5");
+        assert_eq!(
+            reply.usage,
+            Usage {
+                input: 3,
+                output: 9,
+                cache_read: 40,
+                cache_write: 7,
+                thinking: 4,
+            }
+        );
+        let seen = seen.lock().unwrap();
+        let picked: Vec<&Value> = seen
+            .iter()
+            .filter(|m| m["method"] == "session/set_config_option")
+            .collect();
+        assert_eq!(picked.len(), 1);
+        assert_eq!(picked[0]["params"]["value"], "claude-haiku-4-5");
+    }
+
+    /// A call the agent stops still spent its tokens, on the model picked.
+    #[test]
+    fn a_stopped_call_still_counts_what_it_spent() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let for_connect = Arc::clone(&seen);
+        let provider = AcpProvider::with_connector(
+            AcpFlavor::ClaudeCode,
+            Duration::from_secs(5),
+            Box::new(move || Ok(reviewer_agent(&for_connect))),
+        )
+        .cheapest();
+        let reply = ask_text(&provider, "", "refuse this call");
+        assert_eq!(reply.stop_reason, StopReason::Error);
+        assert!(
+            reply
+                .error_message
+                .as_deref()
+                .is_some_and(|e| e.contains("refusal")),
+            "{reply:?}"
+        );
+        assert_eq!(reply.model, "claude-haiku-4-5");
+        assert_eq!((reply.usage.input, reply.usage.output), (3, 9));
+    }
+
     /// An agent that records what it is sent and answers every prompt with
-    /// `ALLOW <the session id>` after a pause, so calls overlap.
+    /// `ALLOW <the session id>` after a pause, so calls overlap, reporting
+    /// what the prompt spent; a prompt saying `refuse` it refuses.
     fn reviewer_agent(seen: &Arc<Mutex<Vec<Value>>>) -> AcpRuntime {
         let (to_agent_rx, to_agent_tx) = pipe().unwrap();
         let (from_agent_rx, from_agent_tx) = pipe().unwrap();
@@ -411,6 +627,14 @@ mod tests {
                         // Answered from a thread of its own, after a pause.
                         let out = Arc::clone(&out);
                         let session = message["params"]["sessionId"].clone();
+                        let stop = if message["params"]["prompt"][0]["text"]
+                            .as_str()
+                            .is_some_and(|text| text.contains("refuse"))
+                        {
+                            "refusal"
+                        } else {
+                            "end_turn"
+                        };
                         std::thread::spawn(move || {
                             std::thread::sleep(Duration::from_millis(50));
                             send(
@@ -424,7 +648,10 @@ mod tests {
                             send(
                                 &out,
                                 json!({ "jsonrpc": "2.0", "id": id,
-                                "result": { "stopReason": "end_turn" } }),
+                                "result": { "stopReason": stop, "usage": {
+                                    "inputTokens": 3, "outputTokens": 9,
+                                    "cachedReadTokens": 40, "cachedWriteTokens": 7,
+                                    "thoughtTokens": 4, "totalTokens": 59 } } }),
                             );
                         });
                         continue;
@@ -486,6 +713,9 @@ mod tests {
         let models = provider.list_models().unwrap();
         let ids: Vec<&str> = models.iter().map(|m| m.id.as_str()).collect();
         assert_eq!(ids, ["default", "claude-haiku-4-5"]);
+        // With the names the agent gives them, for the settings to show.
+        let names: Vec<Option<&str>> = models.iter().map(|m| m.name.as_deref()).collect();
+        assert_eq!(names, [Some("Default"), Some("Haiku")]);
         let seen = seen.lock().unwrap();
         let methods: Vec<&str> = seen.iter().filter_map(|m| m["method"].as_str()).collect();
         // Opened without tools or settings, read, closed; nothing is asked.
@@ -497,6 +727,10 @@ mod tests {
     }
 
     fn ask(provider: &AcpProvider, model: &str) -> AssistantMessage {
+        ask_text(provider, model, "judge this call")
+    }
+
+    fn ask_text(provider: &AcpProvider, model: &str, text: &str) -> AssistantMessage {
         let spec = ModelSpec {
             provider: "agent".into(),
             id: model.into(),
@@ -504,7 +738,7 @@ mod tests {
             max_tokens: None,
             thinking: ThinkingLevel::Off,
         };
-        let messages = [Message::User(UserMessage::text("judge this call"))];
+        let messages = [Message::User(UserMessage::text(text))];
         let request = Request {
             model: &spec,
             system_prompt: "You review calls.",
@@ -546,6 +780,11 @@ mod tests {
             new["params"]["_meta"]["claudeCode"]["options"]["tools"],
             json!([])
         );
+        // Its unique request goes to the five-minute cache, with no
+        // follow-up suggestion generated after it.
+        let options = &new["params"]["_meta"]["claudeCode"]["options"];
+        assert_eq!(options["env"]["CLAUDE_CODE_PROMPT_CACHE_TTL"], "5m");
+        assert_eq!(options["promptSuggestions"], false);
         let picked: Vec<&Value> = seen
             .iter()
             .filter(|m| m["method"] == "session/set_config_option")

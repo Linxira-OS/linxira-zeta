@@ -14,6 +14,40 @@ use crate::provider::ToolSpec;
 use crate::shell::ShellRunner;
 use crate::suggest::CommandSuggester;
 
+/// The name of the built-in tool that runs shell commands.
+pub const SHELL_TOOL: &str = "shell";
+
+/// What the shell tool was called before it was renamed, as the user's rules,
+/// hooks, agent profiles and old session logs may still name it.
+pub const LEGACY_SHELL_TOOL: &str = "bash";
+
+/// The name a tool goes by now: a name from before a rename maps to the
+/// current one, any other passes through.
+#[must_use]
+pub fn canonical_tool_name(name: &str) -> &str {
+    if name == LEGACY_SHELL_TOOL {
+        SHELL_TOOL
+    } else {
+        name
+    }
+}
+
+/// Deserialize a tool name, mapped through [`canonical_tool_name`].
+pub fn de_tool_name<'de, D: serde::Deserializer<'de>>(de: D) -> Result<String, D::Error> {
+    let name = <String as serde::Deserialize>::deserialize(de)?;
+    Ok(canonical_tool_name(&name).to_string())
+}
+
+/// Deserialize a list of tool names, each mapped through
+/// [`canonical_tool_name`].
+pub fn de_tool_names<'de, D: serde::Deserializer<'de>>(de: D) -> Result<Vec<String>, D::Error> {
+    let names = <Vec<String> as serde::Deserialize>::deserialize(de)?;
+    Ok(names
+        .iter()
+        .map(|name| canonical_tool_name(name).to_string())
+        .collect())
+}
+
 /// Environment a tool runs in.
 #[derive(Debug, Clone)]
 pub struct ToolContext {
@@ -50,6 +84,39 @@ pub struct ToolContext {
     /// its steps back from there and goes on from where they stopped, instead
     /// of starting a log of its own. `None` starts a fresh run.
     pub resume: Option<PathBuf>,
+    /// The agent's other calls that run beside this one — those an external
+    /// agent moved to the background to go on meanwhile — to list and stop.
+    /// `None` where no call outlives its step: termide's own loop.
+    pub running: Option<RunningCalls>,
+}
+
+/// A call of the agent's that runs beside the one asking: its id as the
+/// agent knows it, its tool and arguments, and how long it has run.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RunningCall {
+    pub id: String,
+    pub name: String,
+    pub arguments: Value,
+    pub elapsed: std::time::Duration,
+}
+
+/// What runs the agent's calls, seen from one of them: the others it runs,
+/// and a way to stop one.
+pub trait CallsBeside: Send + Sync {
+    /// The calls running beside the asking one, longest first.
+    fn list(&self) -> Vec<RunningCall>;
+    /// Stop the call `id`; false when none such runs.
+    fn stop(&self, id: &str) -> bool;
+}
+
+/// A shared [`CallsBeside`], for the context.
+#[derive(Clone)]
+pub struct RunningCalls(pub Arc<dyn CallsBeside>);
+
+impl std::fmt::Debug for RunningCalls {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("RunningCalls")
+    }
 }
 
 /// What a tool says of itself that the permission hooks weigh.
@@ -60,6 +127,38 @@ pub struct ToolTraits {
     /// The tool's author declares that it changes nothing (MCP's
     /// `readOnlyHint`). A claim of the server's, not a check of termide's.
     pub read_only: bool,
+    /// The language of the commands the tool runs, for a tool that runs
+    /// them: what the permission checks read a command as.
+    pub shell: ShellSyntax,
+}
+
+/// The command language of a shell, as the permission checks read it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ShellSyntax {
+    /// bash and the other POSIX shells.
+    #[default]
+    Posix,
+    /// zsh: POSIX, where parentheses inside a word may also run code — a
+    /// glob qualifier `*(e:…:)`, an expansion flag `${(e)…}`, `=(…)`.
+    Zsh,
+    /// fish: `(…)` substitutes a command, its single quotes take escapes,
+    /// and its blocks end with `end`.
+    Fish,
+}
+
+impl ShellSyntax {
+    /// The syntax of the shell named `name`, among those the agent can run
+    /// its commands in: bash, zsh and fish, each of which can mark where a
+    /// command in a terminal session starts and ends.
+    #[must_use]
+    pub fn of(name: &str) -> Option<Self> {
+        match name {
+            "bash" => Some(Self::Posix),
+            "zsh" => Some(Self::Zsh),
+            "fish" => Some(Self::Fish),
+            _ => None,
+        }
+    }
 }
 
 impl ToolContext {
@@ -77,6 +176,7 @@ impl ToolContext {
             panel: None,
             tool: ToolTraits::default(),
             resume: None,
+            running: None,
         }
     }
 }
@@ -118,6 +218,16 @@ pub trait Tool: Send + Sync {
     /// the agents `task` can delegate to. Nothing to fill by default.
     fn render_description(&self, template: &str) -> String {
         template.to_string()
+    }
+
+    /// Refuse a call bound to fail whatever anyone answers — malformed
+    /// arguments, something named that does not exist — before the hooks
+    /// ask the user or the reviewer about it. Only cheap checks that change
+    /// nothing belong here; `execute` still checks for itself. `Err` is
+    /// returned to the model as the call's error. Nothing is refused by
+    /// default.
+    fn check(&self, _call: &ToolCall, _ctx: &ToolContext) -> Result<(), String> {
+        Ok(())
     }
 
     /// Run the call. Failures are returned as a result with `is_error`
@@ -182,10 +292,12 @@ pub enum LateTools {
         url: String,
     },
     /// The source comes from a project and waits for the user to approve
-    /// what it runs, `launch`.
+    /// what it runs, `launch`; `fingerprint` names that launch, so the
+    /// approval is of it and no other.
     NeedsApproval {
         source: String,
         launch: String,
+        fingerprint: String,
     },
 }
 
@@ -299,12 +411,12 @@ mod tests {
     fn insert_replaces_same_name_in_place() {
         let mut registry = ToolRegistry::new();
         registry.insert(Arc::new(Named("read")));
-        registry.insert(Arc::new(Named("bash")));
+        registry.insert(Arc::new(Named("shell")));
         registry.insert(Arc::new(Named("read")));
-        assert_eq!(registry.names(), vec!["read", "bash"]);
+        assert_eq!(registry.names(), vec!["read", "shell"]);
         assert_eq!(registry.len(), 2);
-        assert!(registry.get("bash").is_some());
+        assert!(registry.get("shell").is_some());
         assert!(registry.remove("read").is_some());
-        assert_eq!(registry.names(), vec!["bash"]);
+        assert_eq!(registry.names(), vec!["shell"]);
     }
 }

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::cancel::CancelToken;
-use crate::message::{AssistantMessage, Message, StopReason, UserMessage};
+use crate::message::{AssistantMessage, Message, StopReason, Usage, UserMessage};
 
 /// How much reasoning effort to request from a model that supports it.
 ///
@@ -105,8 +105,13 @@ pub struct ModelSpec {
 pub struct ModelInfo {
     /// Model id as the provider expects it.
     pub id: String,
+    /// Name to show for it, when the provider gives one other than the id
+    /// (an ACP agent's `name`: "Opus (1M context)" for `opus[1m]`; a
+    /// gateway's: "Anthropic: Claude Sonnet 5").
+    pub name: Option<String>,
     /// Context window in tokens when the endpoint reports it (vLLM and omlx
-    /// do as `max_model_len`; Ollama and llama.cpp do not).
+    /// do as `max_model_len`, OpenRouter as `context_length`; Ollama and
+    /// llama.cpp do not).
     pub context_window: Option<u64>,
 }
 
@@ -127,6 +132,23 @@ pub struct Request<'a> {
     pub messages: &'a [Message],
     pub tools: &'a [ToolSpec],
     pub thinking: ThinkingLevel,
+}
+
+/// How a hosted service attributes a request to the app that sent it.
+///
+/// A fact about the service, not a guess from its address: a server with no
+/// per-app notion ignores these headers. termide therefore offers them only
+/// for the endpoints listed in `Connection::attribution` (termide-config),
+/// and only on a connection the user switched them on for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Attribution {
+    /// The app's identifier at the service: its URL. Without it the service
+    /// files the usage as unattributed.
+    pub referer: &'static str,
+    /// The name the service shows for the app.
+    pub title: &'static str,
+    /// Comma-separated marketplace categories, at most two per request.
+    pub categories: &'static str,
 }
 
 /// Incremental piece of an assistant message, for live rendering only.
@@ -227,6 +249,17 @@ pub fn one_shot(
     user: &str,
     cancel: &CancelToken,
 ) -> Result<String, String> {
+    one_shot_spent(provider, model, system, user, cancel).0
+}
+
+/// [`one_shot`] with what the call spent, a failed one's too.
+pub fn one_shot_spent(
+    provider: &dyn Provider,
+    model: &ModelSpec,
+    system: &str,
+    user: &str,
+    cancel: &CancelToken,
+) -> (Result<String, String>, Usage) {
     let messages = [Message::User(UserMessage::text(user))];
     let request = Request {
         model,
@@ -236,16 +269,18 @@ pub fn one_shot(
         thinking: ThinkingLevel::Off,
     };
     let reply = provider.stream(&request, &mut |_| {}, cancel);
+    let usage = reply.usage;
     if matches!(reply.stop_reason, StopReason::Error | StopReason::Aborted) {
-        return Err(reply
+        let error = reply
             .error_message
-            .unwrap_or_else(|| "the call did not finish".to_string()));
+            .unwrap_or_else(|| "the call did not finish".to_string());
+        return (Err(error), usage);
     }
     let text = reply.plain_text();
     if text.trim().is_empty() {
-        return Err("the model answered nothing".to_string());
+        return (Err("the model answered nothing".to_string()), usage);
     }
-    Ok(text)
+    (Ok(text), usage)
 }
 
 #[cfg(test)]

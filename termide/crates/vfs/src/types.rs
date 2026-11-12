@@ -916,8 +916,29 @@ pub struct ConnectOptions {
     pub auth: AuthMethod,
     /// Connection timeout in seconds.
     pub timeout_secs: Option<u64>,
-    /// Whether to verify host key (SSH).
-    pub verify_host: bool,
+}
+
+/// An SSH server key that is not trusted yet, as put to the user before
+/// anything is sent to the server.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostKey {
+    /// Host as given in the path, before any resolution.
+    pub host: String,
+    /// Port connected to.
+    pub port: u16,
+    /// User logging in, after `User`; with `host` and `port` it selects
+    /// the `known_hosts` files, whose names may use `%r`.
+    pub user: String,
+    /// Name the key is (to be) recorded under in `known_hosts`, and what
+    /// `ssh-keygen -R` takes: the `HostKeyAlias`, else the `HostName` as
+    /// `name` on port 22 or `[name]:port`.
+    pub known_as: String,
+    /// Key type, e.g. `ssh-ed25519`.
+    pub algorithm: String,
+    /// OpenSSH SHA256 fingerprint, `SHA256:<base64>`.
+    pub fingerprint: String,
+    /// The key in OpenSSH public-key format, `<type> <base64>`.
+    pub openssh: String,
 }
 
 impl ConnectOptions {

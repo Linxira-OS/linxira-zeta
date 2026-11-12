@@ -1243,7 +1243,10 @@ mod tests {
         assert_eq!(page.titles(), titles);
 
         page.commit.active = true;
-        assert!(page.captures_escape(), "the commit box owns Esc while editing");
+        assert!(
+            page.captures_escape(),
+            "the commit box owns Esc while editing"
+        );
         let _ = page.handle_key(key(KeyCode::Esc));
         assert!(!page.commit.active, "commit editing cancels, page stays");
         assert_eq!(page.titles(), titles);

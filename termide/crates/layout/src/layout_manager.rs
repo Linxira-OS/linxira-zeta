@@ -146,6 +146,32 @@ impl LayoutManager {
         Some(panel)
     }
 
+    /// Remove every panel for which `ended` holds, and return them in the
+    /// order they stood, for a caller to hand back or drop. They are taken
+    /// from the last to the first, so removing one never moves a match still
+    /// to come; a group left empty goes with its last panel.
+    pub fn remove_panels_where(
+        &mut self,
+        ended: impl Fn(&dyn Panel) -> bool,
+        available_width: u16,
+    ) -> Vec<Box<dyn Panel>> {
+        let mut positions: Vec<usize> = Vec::new();
+        let mut before = 0;
+        for group in self.panel_groups.iter() {
+            for panel in group.panels() {
+                if ended(panel.as_ref()) {
+                    positions.push(before);
+                }
+                before += 1;
+            }
+        }
+        positions
+            .into_iter()
+            .rev()
+            .filter_map(|position| self.remove_panel_at(position, available_width))
+            .collect()
+    }
+
     /// Find panel by name, expand it in its group, return mutable reference.
     /// Does NOT change focus. Used for reusing existing panels.
     pub fn find_and_expand_panel_by_name(&mut self, name: &str) -> Option<&mut Box<dyn Panel>> {
@@ -497,6 +523,68 @@ mod tests {
 
     fn panel(name: &'static str) -> Box<dyn Panel> {
         Box::new(MockPanel::new(name))
+    }
+
+    fn groups_with_widths(widths: &[Option<u16>]) -> LayoutManager {
+        let mut lm = LayoutManager::new();
+        for &width in widths {
+            let mut group = PanelGroup::new(panel("p"));
+            group.width = width;
+            lm.panel_groups.push(group);
+        }
+        lm
+    }
+
+    /// Regression: dividers were placed at the sum of the stored widths,
+    /// while the groups are drawn where the layout solver puts them. Three
+    /// groups wanting 20 columns each in 50 columns are squeezed, and an
+    /// auto-width group counted as 0, so clicks and the drag ghost missed
+    /// the divider drawn on screen.
+    #[test]
+    fn dividers_sit_where_the_groups_are_drawn() {
+        let area = Rect::new(0, 1, 50, 20);
+        for widths in [
+            vec![Some(20), Some(20), Some(20)],
+            vec![None, None],
+            vec![Some(30), None, Some(10)],
+        ] {
+            let lm = groups_with_widths(&widths);
+            let rects = crate::calculate_group_rects(&lm.panel_groups, area);
+            let dividers = lm.get_divider_positions(area);
+            assert_eq!(dividers.len(), widths.len() - 1, "{widths:?}");
+            for &(idx, x) in &dividers {
+                assert_eq!(x, rects[idx + 1].x, "{widths:?}: divider {idx}");
+                assert!(x <= area.right(), "{widths:?}: divider {idx} off screen");
+                // Both columns of the grab zone hit the divider.
+                assert_eq!(lm.find_divider_at_position(x, 5, area), Some(idx));
+                assert_eq!(lm.find_divider_at_position(x - 1, 5, area), Some(idx));
+            }
+        }
+
+        let lm = groups_with_widths(&[Some(20), Some(20), Some(20)]);
+        assert_ne!(
+            lm.get_divider_positions(area),
+            vec![(0, 20), (1, 40)],
+            "the stored widths do not fit in 50 columns"
+        );
+    }
+
+    #[test]
+    fn dividers_are_hit_only_in_the_panel_rows() {
+        let area = Rect::new(0, 1, 100, 20);
+        let lm = groups_with_widths(&[Some(50), Some(50)]);
+        assert_eq!(lm.find_divider_at_position(50, 1, area), Some(0));
+        assert_eq!(lm.find_divider_at_position(50, 20, area), Some(0));
+        assert_eq!(lm.find_divider_at_position(50, 0, area), None, "menu row");
+        assert_eq!(
+            lm.find_divider_at_position(50, 21, area),
+            None,
+            "status bar"
+        );
+        assert_eq!(lm.find_divider_at_position(30, 5, area), None);
+        assert!(groups_with_widths(&[Some(100)])
+            .get_divider_positions(area)
+            .is_empty());
     }
 
     #[test]
@@ -966,6 +1054,36 @@ mod tests {
     fn test_active_panel_with_no_panels() {
         let lm = LayoutManager::new();
         assert!(lm.active_panel().is_none());
+    }
+
+    /// Every panel a predicate names comes down, in every group, and taking
+    /// them from the last to the first never skips one standing next to it.
+    #[test]
+    fn remove_panels_where_takes_every_match_wherever_it_stands() {
+        let mut lm = LayoutManager::new();
+        let config = make_config(200);
+        // Two stacked in one group, then two of their own.
+        lm.add_panel(panel("gone"), &config, 100);
+        lm.add_panel(panel("kept"), &config, 100);
+        lm.add_panel(panel("gone too"), &config, 400);
+        lm.add_panel(panel("kept too"), &config, 400);
+        assert_eq!((lm.group_count(), lm.panel_count()), (2, 4));
+        let taken: Vec<String> = lm
+            .remove_panels_where(|p| p.name().starts_with("gone"), 100)
+            .into_iter()
+            .map(|panel| panel.name().to_string())
+            .collect();
+        assert_eq!(taken, ["gone too", "gone"]);
+        assert_eq!(lm.panel_count(), 2);
+        let names: Vec<String> = lm
+            .iter_all_panels_mut()
+            .map(|p| p.name().to_string())
+            .collect();
+        assert_eq!(names, ["kept", "kept too"]);
+        // Nothing left to take: the layout is untouched.
+        assert!(lm
+            .remove_panels_where(|p| p.name().starts_with("gone"), 100)
+            .is_empty());
     }
 
     #[test]

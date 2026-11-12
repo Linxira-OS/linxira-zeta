@@ -67,9 +67,9 @@ pub use error::{VfsError, VfsResult};
 pub use local::{drive_roots, is_drive_root, LocalFileSystem};
 pub use traits::VfsProvider;
 pub use types::{
-    AuthMethod, ConnectOptions, ConnectionState, CopyProgress, DownloadProgress, UploadProgress,
-    VfsCopyOperation, VfsDownloadOperation, VfsEntry, VfsFileType, VfsMetadata, VfsOperation,
-    VfsPath, VfsProtocol, VfsUploadOperation,
+    AuthMethod, ConnectOptions, ConnectionState, CopyProgress, DownloadProgress, HostKey,
+    UploadProgress, VfsCopyOperation, VfsDownloadOperation, VfsEntry, VfsFileType, VfsMetadata,
+    VfsOperation, VfsPath, VfsProtocol, VfsUploadOperation,
 };
 pub use url::{is_vfs_url, parse_vfs_url, UrlComponents};
 
@@ -220,12 +220,22 @@ impl VfsManager {
             }
         };
 
-        let port = path.effective_port().unwrap_or(22);
+        // Port and user only as given: `~/.ssh/config` fills in the rest.
+        let port = path.port;
         let username = path.username.clone();
 
         self.spawn_connect(options, path, move || {
             SftpProvider::new(&host, port, username.as_deref())
         })
+    }
+
+    /// Trust an SSH server key that a connection refused with
+    /// [`VfsError::UnknownHostKey`], so the next connection accepts it:
+    /// until termide exits, and with `remember` also in
+    /// `~/.ssh/known_hosts`.
+    #[cfg(feature = "sftp")]
+    pub fn trust_host_key(&self, key: &HostKey, remember: bool) -> VfsResult<()> {
+        crate::sftp::trust_host_key(key, remember)
     }
 
     /// Connect to an FTP or FTPS server.
@@ -563,6 +573,19 @@ impl VfsManager {
         self.dispatch_remote(
             path,
             |p| p.metadata(path),
+            || VfsOperation::error(VfsError::NotConnected),
+        )
+    }
+
+    /// Get metadata for a path without following a final symlink.
+    pub fn symlink_metadata(&self, path: &VfsPath) -> VfsOperation<VfsMetadata> {
+        if path.is_local() {
+            return self.local.symlink_metadata(path);
+        }
+
+        self.dispatch_remote(
+            path,
+            |p| p.symlink_metadata(path),
             || VfsOperation::error(VfsError::NotConnected),
         )
     }

@@ -87,6 +87,7 @@
 - **Удалённые файловые системы** - SFTP, FTP и FTPS на чистом Rust, с копированием между локальной и удалённой панелями; `smb://` и `nfs://` через системное монтирование
 - **Фоновые операции** - Копирование, перемещение, загрузка и скачивание с прогрессом, паузой, возобновлением и отменой
 - **Просмотр баз данных** - SQLite, PostgreSQL и MySQL по URL-закладке: серверная сортировка, фильтры по столбцам, редактирование ячеек, строки в TSV, JSON или INSERT
+- **Таблицы CSV и TSV** - Файлы с разделителями в виде сортируемой таблицы, разделитель и заголовок угадываются; файл читается с диска окнами, поэтому открывается сразу при любом размере
 - **Хранилище паролей** - Пароли удалённых хостов, баз данных и git в зашифрованном хранилище под мастер-паролем
 - **Закладки и переключатель каталогов** - Сохранённые места и быстрая смена каталога по `Ctrl+\`
 
@@ -101,7 +102,7 @@
 ### Рабочее пространство
 
 - **Git** - Статус, журнал с цветным графом коммитов, дифф, индексация, stash, blame, ветки с их рабочими копиями
-- **Проекты** - Раскладки панелей восстанавливаются для каждого проекта; проекты, с которых вы переключились, продолжают работать в фоне и видны кнопками в меню-баре; `termide --restore` открывает проекты прошлого запуска
+- **Проекты** - Раскладки панелей восстанавливаются для каждого проекта; проекты, с которых вы переключились, продолжают работать в фоне и видны кнопками в меню-баре; проекты прошлого запуска открываются при старте вокруг каталога, в котором вы запустились
 - **Многопанельный интерфейс** - Группы панелей с настраиваемой высотой, полноэкранный режим (`Alt+F11`) и автоматическая перекомпоновка в узком терминале
 - **Пользовательские команды** - Глобальные и проектные команды с горячими клавишами, формами параметров и режимами терминал / фон / отчёт
 - **Плагины** - Программы из глобального каталога плагинов, запущенные рядом с каждым открытым проектом по JSON-RPC: слышат открытие и сохранение файлов, добавляют команды, элементы строки состояния и инструменты агента; проект переключает их в пределах заданного вами режима
@@ -156,37 +157,37 @@ nix run github:termide/termide                     # Nix, без установ�
 
 ```bash
 # Linux x86_64 (также работает в WSL)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-x86_64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.49.0-x86_64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux x86_64 (статический musl — Alpine, distroless-контейнеры, любая система без glibc)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.49.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # macOS Intel (x86_64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-apple-darwin.tar.gz
-tar xzf termide-0.46.0-x86_64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.49.0-x86_64-apple-darwin.tar.gz
+tar xzf termide-0.49.0-x86_64-apple-darwin.tar.gz
 ./termide
 
 # macOS Apple Silicon (ARM64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-apple-darwin.tar.gz
-tar xzf termide-0.46.0-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.49.0-aarch64-apple-darwin.tar.gz
+tar xzf termide-0.49.0-aarch64-apple-darwin.tar.gz
 ./termide
 
 # Linux ARM64 (Raspberry Pi, ARM-серверы)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.46.0-aarch64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-aarch64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.49.0-aarch64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux ARM64 (статический musl — Android/Termux, Alpine ARM, любой ARM64 без glibc)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.49.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 
 # Windows x86_64 (скачайте .zip с Releases, распакуйте, запустите в Windows Terminal)
-# https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-pc-windows-msvc.zip
+# https://github.com/termide/termide/releases/latest/download/termide-0.49.0-x86_64-pc-windows-msvc.zip
 ```
 
 </details>
@@ -196,13 +197,13 @@ tar xzf termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
 
 Termide работает нативно на Windows 10+ через ConPTY. Для лучшего опыта используйте **Windows Terminal**.
 
-1. Скачайте `termide-0.46.0-x86_64-pc-windows-msvc.zip` с [GitHub Releases](https://github.com/termide/termide/releases).
+1. Скачайте `termide-0.49.0-x86_64-pc-windows-msvc.zip` с [GitHub Releases](https://github.com/termide/termide/releases).
 2. Распакуйте архив.
 3. Запустите `termide.exe` в Windows Terminal.
 
 Конфигурация, раскладки проектов и логи хранятся в `%APPDATA%\termide\`.
 
-Либо в **WSL/WSL2** используйте сборку Linux x86_64 (`termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz`), как на любом Linux.
+Либо в **WSL/WSL2** используйте сборку Linux x86_64 (`termide-0.49.0-x86_64-unknown-linux-gnu.tar.gz`), как на любом Linux.
 
 </details>
 
@@ -213,8 +214,8 @@ Termide работает нативно на Windows 10+ через ConPTY. Дл
 
 ```bash
 # Только x86_64 (для ARM64 используйте tar.gz выше)
-wget https://github.com/termide/termide/releases/latest/download/termide_0.46.0-1_amd64.deb
-sudo dpkg -i termide_0.46.0-1_amd64.deb
+wget https://github.com/termide/termide/releases/latest/download/termide_0.49.0-1_amd64.deb
+sudo dpkg -i termide_0.49.0-1_amd64.deb
 ```
 
 </details>
@@ -226,8 +227,8 @@ sudo dpkg -i termide_0.46.0-1_amd64.deb
 
 ```bash
 # Только x86_64 (для ARM64 используйте tar.gz выше)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-1.x86_64.rpm
-sudo rpm -i termide-0.46.0-1.x86_64.rpm
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-1.x86_64.rpm
+sudo rpm -i termide-0.49.0-1.x86_64.rpm
 ```
 
 </details>
@@ -298,8 +299,8 @@ nix profile install github:termide/termide
 
 ```bash
 pkg install git openssh   # инструменты, которые вызывает termide (а также нужные LSP-серверы)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.49.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 ```
 
@@ -359,8 +360,8 @@ cargo build --release
 Проще всего взять готовый tarball из релиза:
 
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.49.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # Проверка полной статичности — нет разделяемых библиотек
@@ -397,17 +398,21 @@ termide [OPTIONS] [FILE]...
 Опции:
   --log-level <LEVEL>  Уровень логирования (trace, debug, info, warn, error)
   --no-lsp             Отключить LSP-серверы
-  -r, --restore        Открыть проекты прошлого запуска в том проекте, где он был
+  -r, --restore        Начать в проекте прошлого запуска, а не в этом каталоге
+  --no-restore         В этот раз начать только с проекта этого каталога
   --config <PATH>      Использовать свой путь к файлу конфигурации
   --diagnostics        Прогнать предполётную диагностику и выйти (без UI)
-  --detached           Запустить отсоединённый экземпляр, переживающий закрытие
-                       терминала, и напечатать его идентификатор (только Unix)
+  -d, --detached       Запустить отсоединённый экземпляр, переживающий закрытие
+                       терминала, и подключиться к нему (только Unix)
+  --no-attach          С --detached: только запустить экземпляр и напечатать
+                       его идентификатор
   --attach [<ID>]      Подключиться к отсоединённому экземпляру, по умолчанию
                        к последнему
   -f, --force          С --attach: перехватить экземпляр у уже подключённого
                        клиента, отключив его
   --kill <ID>          Завершить отсоединённый экземпляр со всеми оболочками и
-                       задачами в нём и выйти; несохранённые изменения теряются
+                       задачами в нём и выйти; несохранённые изменения остаются
+                       до следующего запуска
   --list-instances     Показать отсоединённые экземпляры и выйти
   --completions <SHELL>
                        Напечатать скрипт автодополнения (bash, zsh, fish) и выйти
@@ -501,6 +506,7 @@ project_retention_days = 30
 bell_on_operation_complete = true
 icon_mode = "auto"  # auto, emoji, unicode
 always_detachable = false  # экземпляр переживает закрытие терминала (Unix)
+restore_projects = true  # открывать проекты прошлого запуска при старте
 resource_monitor_interval = 1000
 
 [editor]
