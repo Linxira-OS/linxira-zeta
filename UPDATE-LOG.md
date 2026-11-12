@@ -15,12 +15,15 @@
 ### 移动端安全入口（未发布）
 - 修复手机 Work Studio 的 Settings 入口缺失：File、侧栏 OMP 菜单与 Zeta 菜单此前在 mobile 上隐藏 Settings，现仅隐藏 diagnostics；手机实际 `surface=mobile`（iPhone UA、390px、coarse=true）可点击进入 Settings → 身份与设备。
 - 安全能力矩阵在 mobile 上保持发布策略：设备列表/pairing pass-through、TOTP read-only（首绑仅本机）、remote token/device revoke/enroll 隐藏；删除 `remote-token=hidden` 时仍渲染 Rotate/Revoke 的错误，配对 QR 在隔离 fixture 实际显示成功；mobile 契约测试 14/0。
-- **2FA step-up 单次验证修复**：真实 mounted `AuthStepUpBoundary` + `createStepUpFetch` + repo-local 远端身份 fixture 实际得到 command 403 → 弹窗 → verify 200（一次）→ replay 202；修复前 boundary 与 wrapper 各 verify 一次，第二次 401 导致命令不重放。boundary 现在只收码，wrapper 独占 verify+replay，server replay protection 不变。既有 remote socket 2FA fixture 2/0；custom-prompt 协议测试 4/0。完整 App 手机 remote 2FA 与原生设备配对仍待 E2E。
+- **2FA step-up 单次验证修复**：真实 mounted `AuthStepUpBoundary` + `createStepUpFetch` + repo-local 远端身份 fixture 实际得到 command 403 → 弹窗 → verify 200（一次）→ replay 202；修复前 boundary 与 wrapper 各 verify 一次，第二次 401 导致命令不重放。boundary 现在只收码，wrapper 独占 verify+replay，server replay protection 不变。既有 remote socket 2FA fixture 2/0；custom-prompt 协议测试 4/0；新增 browser-bucket mounted regression 2/0（真 Chromium + 单次 consume server：旧 double-verify 路径会因 verify=2/accepted=0 失败，正确路径 verify=1/protected=2/accepted=1，wrong-code 不 grant）。完整 App 手机 remote 2FA 与原生设备配对仍待 E2E。
 
 ### 平台 CLI / IDE 运行边界（未发布）
 - **Android Tier1 CLI**：Gradle 8.9 wrapper、`BUILD SUCCESSFUL` 39s、11 JUnit 0 fail、debug APK 已签名（sha256/证书见 `local://android-cli-build-evidence-20261112.md`）；package `com.zeta.android` min26/target35/compile35。未接 device/emulator，release 仍 unsigned/frozen。
 - **robomp Windows 离线 CLI**：懒加载 POSIX `fcntl`/`grp`、Windows queue-root guard；offline paths/replay/status 19/0、config 31/0、真实 triage/replay SQLite 通过；生产仍按 POSIX/Linux-root 边界，不声称 Windows 生产已验证。
 - **TermIDE walker**：`require_git(false)` 尊重 git root 外 ignore，Windows-only slash normalization；post-fix nextest walk 2/2、三 IDE crates 66/66（3 leaky 已记录），doctest RC0；TUI 真实 context menu（Alt+Z/Alt+K）与 TODO scanner 4 hits，JSON viewer 仍要求先打开文件，Git status [Diff] per-file 未打开。built TUI binary 早于 walker fix，行为只由 post-fix nextest 覆盖。
+
+### 1.6.0 公开发布准入（2026-11-12）
+- 用户明确：只有全部计划内开发有逐项证据、用户在 1.5.x 亲测全部功能并确认稳定、手机全部开发且真实设备流程验收、SSH 真实目标功能完整、无未解决 known bug 后，才考虑 1.6.0；未验/held/blocked 不能算 100%。当前不授权 tag/bump/publish/PR/main-merge，1.5.1 冻结与 1.5.2–1.5.10 code-only 不变；owner exact-version override 仍是最后机械门，ADR-0006 不改。详见 `document/release.md` §1.6.0 readiness。
 
 ### 本地工作树/缓存清理（2026-11-12，未发布）
 - 在用户授权下只处理仓库内、已合并且 clean 的 3 个旧 worktree/分支：`fix/browser-relay-hello-race`（`c1f6c6c6a79`）、`feat/ci-buckets`（`06671d0b7860`）、`feat/device-account-ux`（`509e4390233b`），no-follow logical 合计 5,116,494,208 B；worktree 数量 120→117、本地 heads 128→125。

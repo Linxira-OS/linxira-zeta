@@ -94,6 +94,26 @@ and the npm publisher all consult it.
   stops defaulting to empty, or if a 1.5.x path becomes publishable. It runs in
   the `check` job on GitHub and in the Gitea `local-ci` mirror.
 
+### 1.6.0 public-release readiness (owner-confirmed 2026-11-12)
+
+The 1.5.1 freeze and the `1.5.2`–`1.5.10` code-only line are unchanged; no
+tag, version bump, publish, PR, or merge to main is authorized now. A 1.6.0
+public release may be dispatched only after **all** of the following:
+
+1. Every planned development item is complete with per-item source and behavior
+   evidence; `SCOPED`, held, blocked, or unverified work cannot be counted as
+   100% complete.
+2. The owner has personally exercised every feature on the 1.5.x line and
+   confirmed the complete set is stable.
+3. Mobile development is fully complete and the real-device flow (pairing,
+   device, and 2FA) has been accepted on physical hardware.
+4. SSH works against a real target with the full feature set.
+5. No unresolved known bug remains.
+
+The existing exact-version `release_override_version` remains the final
+mechanical gate; the readiness list is the owner acceptance that override must
+cite, not a second unlock path. ADR-0006's decision is unchanged.
+
 ## CI and Release
 
 - GitHub CI is tiered: PR and non-main dispatch runs take the fast path (no
