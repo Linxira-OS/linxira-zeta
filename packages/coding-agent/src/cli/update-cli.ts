@@ -50,9 +50,10 @@ const PACKAGE = "@linxiraos/zeta";
 const HOMEBREW_FORMULA = "Linxira-OS/tap/zeta";
 const MISE_TOOL = "github:Linxira-OS/linxira-zeta";
 const NIX_STORE_DIR = "/nix/store";
+const BINARY_DOWNLOAD_TIMEOUT_MS = 15 * 60_000;
+const BUILD_DOWNLOAD_TIMEOUT_MS = 15 * 60_000;
 const GITHUB_API = "https://api.github.com";
 const RELEASE_METADATA_TIMEOUT_MS = 30_000;
-const BINARY_DOWNLOAD_TIMEOUT_MS = 15 * 60_000;
 
 /**
  * Core native addon package. Bumped in lock-step with {@link PACKAGE} so the
@@ -1725,7 +1726,7 @@ export async function sweepStaleUpdateArtifacts(targetPath: string): Promise<voi
 			} catch {
 				continue;
 			}
-			if (now - mtimeMs < BINARY_DOWNLOAD_TIMEOUT_MS) continue;
+			if (now - mtimeMs < BUILD_DOWNLOAD_TIMEOUT_MS) continue;
 		}
 		await removeBackupBestEffort(full);
 	}

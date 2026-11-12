@@ -12,6 +12,7 @@ import {
 	rewriteMarkdownLinkDestinations,
 	speculativeStreamingSource,
 	streamingMarkdownSource,
+	type TableLocks,
 } from "../components/markdown";
 import { Spacer } from "../components/spacer";
 import { Text } from "../components/text";
@@ -21,7 +22,7 @@ import { LRUCache } from "@linxiraos/pi-utils/lru";
 import type { AssistantTextRenderer, AssistantTextRendering, AssistantThinkingRenderer } from "./extension-types";
 import { ensureThemeSync, getMarkdownTheme, getMarkdownThemeWithLinkTargets, getThemeEpoch, theme } from "../theme";
 import { card, col, elapsed, node, span, text } from "../native/describe";
-import { hasTranscriptActions, runTranscriptAction } from "./transcript-actions";
+import { hasTranscriptActions, runTranscriptAction, runTurnAction, turnHoldEntries } from "./transcript-actions";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { isNativeRendering } from "../native/state";
 import { NativeImageCache, nativeMediaNode } from "../native/blobs";
@@ -75,7 +76,7 @@ interface FastPathItem {
 }
 type DisplayThinkingContentBlock = ThinkingContentBlock & { rawThinking?: string };
 type StablePartKind = "thinking" | "text";
-type StablePart = { kind: StablePartKind; text: string } | { kind: "spacer" };
+type StablePart = { kind: StablePartKind; text: string; contentIndex: number } | { kind: "spacer" };
 
 /**
  * One published prefix of the block's finished content. Later snapshots extend
@@ -87,6 +88,8 @@ interface StableSnapshot {
 	// Earlier parts are immutable; only the final part needs a historical offset.
 	readonly partCount: number;
 	readonly lastTextLength: number;
+	/** The final part ends inside a locked table that kept streaming (see Markdown.openTableTail). */
+	readonly openTable: boolean;
 }
 
 /**
@@ -370,6 +373,9 @@ export class AssistantMessageComponent extends Container {
 	#lastTokenTime = 0;
 	/** Published width-independent stable prefixes; grows only, never retracts. */
 	#stableSnapshots: StableSnapshot[] = [];
+	// Locked table layouts per content block, shared by the Markdown streaming
+	// that block and the ones rendering its stable prefix.
+	readonly #tableLocks = new Map<number, TableLocks>();
 	#stableParts: readonly StablePart[] = [];
 	#nextStableRowId = 0;
 	#transcriptStableRows: TranscriptStableRow[] = [];
@@ -888,7 +894,7 @@ export class AssistantMessageComponent extends Container {
 	}
 
 	/**
-	 * A `col` (role `zeta.assistant`) of `md` nodes keyed by content index, so
+	 * A `col` (role `zeta.$1`) of `md` nodes keyed by content index, so
 	 * streamed deltas reach the terminal as `text append` on the same node;
 	 * the tail block carries `stream: true` until the message finalizes.
 	 * Thinking blocks are quiet collapsible `section`s: a muted "Thinking…"
@@ -1038,7 +1044,7 @@ export class AssistantMessageComponent extends Container {
 								"row",
 								{ gap: "sm", title },
 								[
-									node("spinner", { style: "starburst", role: "zeta.thinking.spin" }),
+									node("spinner", { style: "starburst", role: "zeta.$1.spin" }),
 									text([span("Thinking…", "muted")]),
 									elapsed(performance.now() - (this.#thinkingClock.get(index)?.start ?? performance.now())),
 									...(rate >= 0.05 ? [node("rate", { value: rate, unit: "tok/s" })] : []),
@@ -1052,7 +1058,7 @@ export class AssistantMessageComponent extends Container {
 							"section",
 							{
 								// `.live` while streaming: the body clamps to its tail under a fade.
-								role: thinkingLive ? "zeta.thinking.live" : "zeta.thinking",
+								role: thinkingLive ? "zeta.$1.live" : "zeta.$1",
 								collapsible: true,
 								// Open while it streams; a finished thought folds to its "Thought for 12s" line unless the user keeps thinking expanded.
 								collapsed:
@@ -1101,12 +1107,7 @@ export class AssistantMessageComponent extends Container {
 		children.push(...this.#markerSlot.children);
 		if (this.#rewound) {
 			children.push(
-				node(
-					"badge",
-					{ text: "↺ rewound", tone: "muted", role: "zeta.assistant.rewound-tag" },
-					undefined,
-					"rewound",
-				),
+				node("badge", { text: "↺ rewound", tone: "muted", role: "zeta.$1.rewound-tag" }, undefined, "rewound"),
 			);
 		}
 		if (this.#turnUsage) {
@@ -1120,7 +1121,7 @@ export class AssistantMessageComponent extends Container {
 						"icon",
 						{
 							name: "copy",
-							role: "zeta.turn.copy",
+							role: "zeta.$1.copy",
 							title: "Copy answer",
 							aria: "Copy answer",
 							actions: { click: "copy-answer" },
@@ -1133,15 +1134,20 @@ export class AssistantMessageComponent extends Container {
 			}
 			line.push(node("text", { text: usage.text }, undefined, "text"));
 			children.push(
-				node(
-					"row",
-					{ role: "zeta.turn.usage", gap: "xs", align: "center", title: usage.title },
-					line,
-					"turn-usage",
-				),
+				node("row", { role: "zeta.$1.usage", gap: "xs", align: "center", title: usage.title }, line, "turn-usage"),
 			);
 		}
-		return col(children, { role: this.#rewound ? "zeta.assistant.rewound" : "zeta.assistant" });
+		// A phone's long press on a turn's answer lists its actions (a desktop keeps the usage line's Copy).
+		const at = this.#answerMessage?.timestamp;
+		const hold =
+			this.#turnUsage && answered && at !== undefined && !this.#rewound && hasTranscriptActions()
+				? {
+						actions: {
+							hold: turnHoldEntries("assistant", { id: "copy-answer", label: "Copy reply", icon: "copy" }),
+						},
+					}
+				: {};
+		return col(children, { role: this.#rewound ? "zeta.$1.rewound" : "zeta.$1", ...hold });
 	}
 
 	/**
@@ -1161,7 +1167,7 @@ export class AssistantMessageComponent extends Container {
 			return node(
 				"section",
 				{
-					role: "zeta.assistant.recovered",
+					role: "zeta.$1.recovered",
 					head: [span(`↻ Recovered after ${attempt} ${attempt === 1 ? "retry" : "retries"}`, "muted")],
 					collapsible: true,
 					collapsed: true,
@@ -1173,7 +1179,7 @@ export class AssistantMessageComponent extends Container {
 		if (presentation.kind !== "full" || message.content.some(content => content.type === "toolCall"))
 			return undefined;
 		if (message.stopReason === "aborted") {
-			return text([span(presentation.text, "error")], { wrap: "word", key: "error", role: "zeta.assistant.abort" });
+			return text([span(presentation.text, "error")], { wrap: "word", key: "error", role: "zeta.$1.abort" });
 		}
 		const lines = presentation.text
 			.split("\n")
@@ -1191,14 +1197,14 @@ export class AssistantMessageComponent extends Container {
 				{ gap: "sm" },
 				[
 					text([span("Request failed", "error strong")]),
-					...(code ? [node("badge", { text: code[1]!, tone: "error", role: "zeta.error.code" })] : []),
+					...(code ? [node("badge", { text: code[1]!, tone: "error", role: "zeta.$1.code" })] : []),
 				],
 				"head",
 			),
 			text([span(errorText, "mono")], {
 				wrap: "word",
 				lines: this.#errorExpanded ? undefined : MAX_TRANSCRIPT_ERROR_ROWS,
-				role: "zeta.error.message",
+				role: "zeta.$1.message",
 				key: "message",
 			}),
 		];
@@ -1206,14 +1212,14 @@ export class AssistantMessageComponent extends Container {
 			const button = (act: string, label: string, keys: readonly string[], title: string): NativeNode =>
 				node(
 					"row",
-					{ gap: "xs", role: "zeta.error.action", actions: { click: act }, title },
+					{ gap: "xs", role: "zeta.$1.action", actions: { click: act }, title },
 					keys.length > 0 ? [text(label), node("kbd", { keys })] : [text(label)],
 					act,
 				);
 			children.push(
 				node(
 					"row",
-					{ gap: "sm", role: "zeta.error.actions" },
+					{ gap: "sm", role: "zeta.$1.actions" },
 					[
 						button("retry", "Retry", ["F5"], "Retry the failed turn"),
 						button("copy-error", "Copy error", [], "Copy the error message"),
@@ -1224,10 +1230,10 @@ export class AssistantMessageComponent extends Container {
 			);
 		}
 		this.#errorText = errorText;
-		return card({ role: "zeta.error", tone: "error", key: "error" }, children);
+		return card({ role: "zeta.$1", tone: "error", key: "error" }, children);
 	}
 
-	/** Control clicks (the error frame's actions, the turn footer's Copy): zeta's own retry, clipboard and model-picker paths. */
+	/** Control clicks (the error frame's actions, the turn footer's Copy): omp's own retry, clipboard and model-picker paths. */
 	#handleAction(act: string): void {
 		if (act === "retry") runTranscriptAction({ act: "retry" });
 		else if (act === "switch-model") runTranscriptAction({ act: "switch-model" });
@@ -1235,7 +1241,7 @@ export class AssistantMessageComponent extends Container {
 		else if (act === "copy-answer") {
 			const text = this.#answerText();
 			if (text) runTranscriptAction({ act: "copy", text });
-		}
+		} else if (this.#answerMessage) runTurnAction(act, { role: "assistant", at: this.#answerMessage.timestamp });
 	}
 
 	/** The answer as the transcript shows it: its text blocks' markdown, a blank line apart, without thinking or tool calls. */
@@ -1287,6 +1293,7 @@ export class AssistantMessageComponent extends Container {
 				snapshot.lastTextLength,
 				width,
 				"replay",
+				snapshot.openTable,
 			);
 			if (this.#recordStableRows(index, width, rows)) return rows;
 		}
@@ -1305,18 +1312,25 @@ export class AssistantMessageComponent extends Container {
 	#publishStableSnapshot(rendered: readonly string[], width: number): void {
 		// Extension text renderers may rewrite text they already drew, and published rows never retract.
 		if (!this.#midStreamPublication || this.#textRendering) return;
-		const parts = this.#currentStableSnapshot();
-		if (!parts) return;
+		const current = this.#currentStableSnapshot();
+		if (!current) return;
+		const { parts, openTable } = current;
 		const last = parts.at(-1);
 		if (!last || last.kind === "spacer") return;
-		const snapshot = { partCount: parts.length, lastTextLength: last.text.length };
+		const snapshot: StableSnapshot = { partCount: parts.length, lastTextLength: last.text.length, openTable };
 		const previous = this.#stableSnapshots.at(-1);
 		// An unmoved boundary publishes nothing whether or not it still extends
 		// the last snapshot, so most frames skip the whole-document comparison.
-		if (previous?.partCount === snapshot.partCount && previous.lastTextLength === snapshot.lastTextLength) return;
+		if (
+			previous?.partCount === snapshot.partCount &&
+			previous.lastTextLength === snapshot.lastTextLength &&
+			previous.openTable === snapshot.openTable
+		) {
+			return;
+		}
 		if (previous && !isSnapshotExtension(this.#stableParts, parts)) return;
 		this.#syncStableRenderInputs();
-		const currentRows = this.#renderStableParts(parts, parts.length, last.text.length, width, "head");
+		const currentRows = this.#renderStableParts(parts, parts.length, last.text.length, width, "head", openTable);
 		// The container verifies stable rows against the blank-trimmed render.
 		if (!isRowPrefix(currentRows, trimBlankEdges(rendered))) return;
 		const previousRows = previous
@@ -1338,12 +1352,13 @@ export class AssistantMessageComponent extends Container {
 	 * (finalized or non-transient renders, marker rows, extension components,
 	 * hidden thinking, or no frozen prefix yet).
 	 */
-	#currentStableSnapshot(): readonly StablePart[] | undefined {
+	#currentStableSnapshot(): { parts: readonly StablePart[]; openTable: boolean } | undefined {
 		if (this.#transcriptBlockFinalized || !this.#lastUpdateTransient) return undefined;
 		if (this.#markerSlot.children.length > 0) return undefined;
 		const items = this.#fastPathItems;
 		if (!items || items.length === 0) return undefined;
 		const parts: StablePart[] = [];
+		let openTable = false;
 		let itemIndex = 0;
 		for (const child of this.#contentContainer.children) {
 			const item = items[itemIndex];
@@ -1351,7 +1366,10 @@ export class AssistantMessageComponent extends Container {
 				const md = item.md;
 				if (md instanceof FigureMarkdown) {
 					// Plain Markdown reproduces only the prose ahead of the first figure.
-					if (md.leadingProse) parts.push({ kind: item.blockType, text: md.leadingProse });
+					if (md.leadingProse) {
+						parts.push({ kind: item.blockType, text: md.leadingProse, contentIndex: item.contentIndex });
+						openTable = md.leadingProseEndsInOpenTable;
+					}
 					break;
 				}
 				if (itemIndex === items.length - 1) {
@@ -1367,14 +1385,19 @@ export class AssistantMessageComponent extends Container {
 					let past = streamingMarkdownSource(item.lastText).slice(raw.length);
 					if (item.blockType === "thinking") past = past.replace(UNSETTLED_THINKING_TAIL, "");
 					if (frozen.length > 0 && /\S/.test(past)) {
-						parts.push({ kind: item.blockType, text: frozen });
+						parts.push({ kind: item.blockType, text: frozen, contentIndex: item.contentIndex });
+						openTable = md.lastRenderStableTextEndsInOpenTable();
 					}
 					break;
 				}
 				// Closed child: only the streaming tail may mutate in place, so
 				// everything before it is final. Same form as the frozen prefix it
 				// published while streaming, so the snapshot still extends.
-				parts.push({ kind: item.blockType, text: streamingMarkdownSource(item.lastText) });
+				parts.push({
+					kind: item.blockType,
+					text: streamingMarkdownSource(item.lastText),
+					contentIndex: item.contentIndex,
+				});
 				itemIndex++;
 				continue;
 			}
@@ -1387,7 +1410,7 @@ export class AssistantMessageComponent extends Container {
 		}
 		while (parts.at(-1)?.kind === "spacer") parts.pop();
 		if (parts.length === 0) return undefined;
-		return parts;
+		return { parts, openTable };
 	}
 
 	/**
@@ -1403,6 +1426,7 @@ export class AssistantMessageComponent extends Container {
 		lastLength: number,
 		width: number,
 		role: "head" | "replay",
+		openTable: boolean,
 	): readonly string[] {
 		const ledger = this.#stableLedger(width);
 		const rows: string[] = [];
@@ -1420,7 +1444,15 @@ export class AssistantMessageComponent extends Container {
 			if (cached?.kind === part.kind && cached.text === text) {
 				partRows = cached.rows;
 			} else {
-				partRows = this.#renderStablePart(index, part.kind, text, width, closed ? undefined : role);
+				partRows = this.#renderStablePart(
+					index,
+					part.kind,
+					part.contentIndex,
+					text,
+					width,
+					closed ? undefined : role,
+					!closed && openTable,
+				);
 				if (closed) ledger.parts[index] = { kind: part.kind, text, rows: partRows };
 			}
 			for (const row of partRows) rows.push(row);
@@ -1436,35 +1468,74 @@ export class AssistantMessageComponent extends Container {
 	#renderStablePart(
 		index: number,
 		kind: StablePartKind,
+		contentIndex: number,
 		text: string,
 		width: number,
 		role: "head" | "replay" | undefined,
+		openTable: boolean,
 	): readonly string[] {
+		const locks = this.#lockScope(contentIndex);
 		// Trim like the live children, dropping the trailing blank line a frozen
 		// prefix still carries.
 		const trimmed = text.trim();
-		if (this.#transcriptBlockFinalized) return this.#createMarkdown(kind, trimmed).render(width);
+		if (this.#transcriptBlockFinalized) {
+			const md = this.#createMarkdown(kind, trimmed, locks);
+			md.openTableTail = openTable;
+			return md.render(width);
+		}
 		const head = this.#stableHeadRenderer;
 		const replay = this.#stableReplayRenderer;
 		const renderer = role === "head" ? head : role === "replay" ? replay : head?.index === index ? head : replay;
 		if (renderer?.index === index && renderer.kind === kind) {
 			renderer.md.setText(trimmed);
+			renderer.md.openTableTail = openTable;
 			return trimFabricatedCloser(renderer.md.render(width), trimmed);
 		}
-		const md = this.#createMarkdown(kind, trimmed);
+		const md = this.#createMarkdown(kind, trimmed, locks);
+		md.openTableTail = openTable;
 		if (role === "head") this.#stableHeadRenderer = { index, kind, md };
 		else if (role === "replay") this.#stableReplayRenderer = { index, kind, md };
 		return trimFabricatedCloser(md.render(width), trimmed);
 	}
 
 	/** Markdown for a text or thinking block; live children and stable-row renders share it so stable rows prefix the block render. */
-	#createMarkdown(kind: StablePartKind, text: string): Markdown {
-		return kind === "text"
-			? new Markdown(text, 1, 0, this.#getProseTheme(), this.#getProseTextStyle(), 0)
-			: new Markdown(text, 1, 0, getMarkdownTheme(), {
-					color: (value: string) => theme.fg("thinkingText", value),
-					italic: true,
-				});
+	#createMarkdown(kind: StablePartKind, text: string, tableLocks?: TableLocks): Markdown {
+		const md =
+			kind === "text"
+				? new Markdown(text, 1, 0, this.#getProseTheme(), this.#getProseTextStyle(), 0)
+				: new Markdown(text, 1, 0, getMarkdownTheme(), {
+						color: (value: string) => theme.fg("thinkingText", value),
+						italic: true,
+					});
+		md.tableLocks = tableLocks;
+		return md;
+	}
+
+	/** The table locks of content block `contentIndex`. */
+	#lockScope(contentIndex: number): TableLocks {
+		let locks = this.#tableLocks.get(contentIndex);
+		if (locks === undefined) {
+			locks = new Map();
+			this.#tableLocks.set(contentIndex, locks);
+		}
+		return locks;
+	}
+
+	/**
+	 * Lock the column widths of a table streaming at the end of this message,
+	 * so its finished rows can leave the screen for scrollback. The transcript
+	 * calls this when rows of this block no longer fit and none of them is
+	 * stable yet. The transcript asks during a frame whose history batch is
+	 * already chosen, so a new lock requests the next frame, which publishes
+	 * and commits the table's finished rows even if the stream pauses. A block
+	 * that publishes nothing mid-stream (a revisable wire) gains nothing from a
+	 * lock, so it keeps its natural layout.
+	 */
+	lockStreamingLayout(): void {
+		if (!this.#midStreamPublication) return;
+		const items = this.#fastPathItems;
+		const md = items?.at(-1)?.md;
+		if ((md instanceof FigureMarkdown || md instanceof Markdown) && md.lockOpenTable()) this.#onImageUpdate?.();
 	}
 
 	/**
@@ -1500,13 +1571,14 @@ export class AssistantMessageComponent extends Container {
 	 * `previous` so its figures keep their rasters across rebuilds.
 	 */
 	#proseBlock(index: number, text: string, previous: ReadonlyMap<number, FigureMarkdown>): ProseBlock {
-		if (!this.#liftsFigures(text)) return this.#createMarkdown("text", text);
+		if (!this.#liftsFigures(text)) return this.#createMarkdown("text", text, this.#lockScope(index));
 		let block = previous.get(index);
 		if (block) {
 			block.setText(text);
 		} else {
 			block = new FigureMarkdown(text, {
 				markdown: value => this.#createMarkdown("text", value),
+				tableLocks: this.#lockScope(index),
 				charts: this.#showTableCharts,
 				budget: this.#imageBudget,
 				onChange: () => {
@@ -2035,7 +2107,7 @@ export class AssistantMessageComponent extends Container {
 					);
 
 				// Thinking traces in thinkingText color, italic
-				const md = this.#createMarkdown("thinking", thinkingText);
+				const md = this.#createMarkdown("thinking", thinkingText, this.#lockScope(i));
 				md.transientRenderCache = this.#lastUpdateTransient;
 				this.#contentContainer.addChild(md);
 				captureItems?.push({ md, contentIndex: i, blockType: "thinking", lastText: thinkingText });

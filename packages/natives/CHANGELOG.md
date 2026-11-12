@@ -1,9 +1,5 @@
 ## [Unreleased]
 
-## [1.5.1] - 2026-11-10
-
-- Released as part of Zeta 1.5.1; no package-specific user-visible changes.
-
 ## [9.8.0] - 2026-02-01
 
 ### Breaking Changes
@@ -150,6 +146,8 @@
 ### Fixed
 
 - Fixed potential crashes when updating native binaries by using safe copy strategy that avoids overwriting in-memory binaries
+
+## [1.5.1] - 2026-11-10
 
 ## [1.5.0] - 2026-11-09
 

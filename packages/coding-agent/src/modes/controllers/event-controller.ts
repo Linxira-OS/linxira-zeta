@@ -2043,7 +2043,6 @@ export class EventController {
 		const blocked = this.#blockingPrompt(renderToolName, event.args);
 		if (blocked) {
 			this.#blockingPrompts.set(event.toolCallId, blocked);
-			setRunStatus(blocked);
 		}
 		this.#resolveDisplaceablePoll(renderToolName);
 		if (!this.ctx.pendingTools.has(event.toolCallId)) {
@@ -2293,7 +2292,8 @@ export class EventController {
 		// (added at tool_execution_start), so the delete also covers them without
 		// leaking ids until turn end.
 		if (this.#blockingPrompts.delete(event.toolCallId)) {
-			setRunStatus(this.#blockingPrompts.values().next().value ?? { state: "working" });
+			const nextStatus = this.#blockingPrompts.values().next().value;
+			setRunStatus(nextStatus && nextStatus.state !== "blocked" ? nextStatus : { state: "working" });
 		}
 		if (event.toolName === "read") {
 			if (this.#inlineReadToolImages(event.toolCallId, event.result)) {
@@ -2609,7 +2609,7 @@ export class EventController {
 	 * retry leaves the user at the prompt). Reads the turn's own `agent_end`
 	 * messages for the reason `sendErrorNotification` does.
 	 */
-	#settledRunStatus(event: Extract<AgentSessionEvent, { type: "agent_end" }>): RunStatus {
+	#settledRunStatus(event: Extract<AgentSessionEvent, { type: "agent_end" }>): RunFlowStatus {
 		if (this.#retryPending) return { state: "idle" };
 		const last = event.messages.findLast((message): message is AssistantMessage => message.role === "assistant");
 		if (last?.stopReason === "error") return { state: "error", msg: last.errorMessage };

@@ -123,8 +123,7 @@ function subagentLabel(session: ObservableSession): string {
 /** The task row's plain text: the ANSI row and the native snapshot share it. */
 function todoLabel(todo: TodoItem): string {
 	const box = todo.status === "completed" ? theme.checkbox.checked : theme.checkbox.unchecked;
-	let label = `${box} ${todo.content}`;
-	if (todo.status === "blocked") label += " (blocked)";
+	const label = `${box} ${todo.content}`;
 	return label;
 }
 
@@ -137,8 +136,6 @@ function todoColor(status: TodoItem["status"]): ThemeColor {
 			return "accent";
 		case "abandoned":
 			return "error";
-		case "blocked":
-			return "warning";
 		default:
 			return "dim";
 	}
@@ -153,8 +150,6 @@ function todoTone(status: TodoItem["status"]): TspTone {
 			return "accent";
 		case "abandoned":
 			return "error";
-		case "blocked":
-			return "warning";
 		default:
 			return "muted";
 	}

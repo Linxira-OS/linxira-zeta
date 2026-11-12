@@ -43,7 +43,7 @@ import { createPromptActionAutocompleteProvider } from "@linxiraos/pi-tui/prompt
 import { createModelMentionSource } from "@linxiraos/pi-tui/prompt/model-mention-autocomplete";
 import { createModelBrowserSource } from "../model-browser-source";
 import { parseQueueShorthand, splitQueuedMessages } from "@linxiraos/pi-tui/prompt/queue-input";
-import { invokeSkillCommandFromText, isKnownSkillCommand } from "../../modes/skill-command";
+import { invokeSkillCommandFromText, isKnownSkillCommand, type SkillCommandHost } from "../../modes/skill-command";
 import { parseFileSlashInvocation, renderFileSlashCommand } from "../../extensibility/slash-commands";
 import type { InteractiveModeContext, SubmittedUserInput } from "../../modes/types";
 import { openLocalFileInEditor } from "../local-file-editor";
@@ -1742,7 +1742,7 @@ export class InputController {
 			// free-text Enter semantics below); Ctrl+Enter routes through `handleFollowUp`.
 			// During compaction, queue immediately so bash/python/loop-mode branches do
 			// not consume the skill before the compaction-resume path re-parses it.
-			if (text && isKnownSkillCommand(this.ctx, text)) {
+			if (text && isKnownSkillCommand(this.ctx as unknown as SkillCommandHost, text)) {
 				// Capture here too: this branch's own early returns below would
 				// otherwise skip the non-skill capture further down.
 				if (this.ctx.loopModeEnabled) {
@@ -2042,7 +2042,7 @@ export class InputController {
 		const session = this.ctx.session;
 		if (session.extensionRunner?.getCommand(invocation.name) !== undefined) return false;
 		if (session.customCommands.some(loaded => loaded.command.name === invocation.name)) return false;
-		if (isKnownSkillCommand(this.ctx, text)) return false;
+		if (isKnownSkillCommand(this.ctx as unknown as SkillCommandHost, text)) return false;
 		const command = session.slashCommands.find(cmd => cmd.name === invocation.name);
 		if (!command?.side) return false;
 		let question: string;
@@ -2381,7 +2381,7 @@ export class InputController {
 		imageLinks?: (string | undefined)[],
 		preserveDraft = false,
 	): Promise<boolean> {
-		if (!isKnownSkillCommand(this.ctx, text)) return false;
+		if (!isKnownSkillCommand(this.ctx as unknown as SkillCommandHost, text)) return false;
 		const draftImages = images && images.length > 0 ? [...images] : undefined;
 		const draftImageLinks = draftImages && imageLinks && imageLinks.length > 0 ? [...imageLinks] : undefined;
 		const restoreDraft = () => {
@@ -2404,7 +2404,7 @@ export class InputController {
 		if (preserveDraft) this.ctx.editor.addToHistory(text);
 		else this.ctx.editor.clearDraft(text);
 		try {
-			const dispatched = await invokeSkillCommandFromText(this.ctx, text, streamingBehavior, {
+			const dispatched = await invokeSkillCommandFromText(this.ctx as unknown as SkillCommandHost, text, streamingBehavior, {
 				images: draftImages,
 				imageLinks: draftImageLinks,
 				optimistic: true,

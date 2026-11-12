@@ -1,4 +1,3 @@
-import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ApiKeyResolver, FetchImpl, ResolvedApiKey, UsageProvider } from "@linxiraos/pi-ai";
 import { type AuthApiKeyOptions, type AuthPeekOptions, oauthAccountKey } from "@linxiraos/pi-ai/auth-storage";
@@ -19,6 +18,7 @@ import type {
 	ThinkingConfig,
 } from "@linxiraos/pi-ai/types";
 import type { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { litellmUsageProvider } from "@linxiraos/pi-ai/usage/litellm";
 import { buildDiscoveredModel, buildModel, nextBuildPriceChange } from "@linxiraos/pi-catalog/build";
 import { collapseBuiltVariants } from "@linxiraos/pi-catalog/compat/collapse";
 import {
@@ -132,17 +132,15 @@ export {
 } from "./model-provider-discovery";
 
 import {
-	formatUnknownCompatKeyWarnings,
 	getUnknownCompatKeys,
 	ModelsConfigFile,
 	type ProviderValidationModel,
 	validateProviderConfiguration,
 } from "./models-config";
-import { loadModelsLayers, mergeModelsConfigs, modelsWebConfigPath } from "./models-config-layers";
 import type { ModelOverride, ModelsConfig, ProviderAuthMode } from "./models-config-schema";
 import { type Settings, settings } from "./settings";
 
-import { cfgCatalogRemoteRefresh, cfgDisabledProviders } from "./model-settings";
+import { cfgDisabledProviders } from "./model-settings";
 import {
 	cfgCompactionModelThresholds,
 	cfgCompactionModelThresholdsEnabled,
@@ -283,22 +281,13 @@ function selectProviderModels<T extends { provider: string }>(models: T[], provi
  * opening `/models` and hovering a provider fetch catalogs without re-running
  * `!command` helpers. Pass `refreshCommandCredentials` only for explicit user
  * refresh (`zetacode models refresh`, TUI F5).
- *
- * `forceStatic` re-runs the static load (local models.yml + OMP overlay) even
- * when neither file changed — for credential-state changes (web api-key save,
- * copy-from-OMP, settings reload) that alter what the overlay should inject.
  */
 export interface ModelRegistryRefreshOptions {
 	refreshCommandCredentials?: boolean;
+	/** Zeta: restrict discovery to named providers. */
+	providers?: readonly string[];
+	/** Zeta: force static refresh. */
 	forceStatic?: boolean;
-	/**
-	 * Restrict the discovery pass to these providers. Callers that only need a
-	 * specific catalog (a fallback role's model, a resume target's) skip the
-	 * bundled-provider sweep, which costs one network fetch per provider with a
-	 * cold cache and is otherwise picked up by the post-frame background pass.
-	 * Omitted: every provider is refreshed.
-	 */
-	providers?: Iterable<string>;
 }
 
 /** Authentication material returned to legacy extensions for one model request. */
@@ -388,7 +377,6 @@ export class ModelRegistry {
 	#configWarnings: string[] = [];
 	#modelsConfigFile: ConfigFile<ModelsConfig>;
 	#lastStaticLoadMtime: number | null = null;
-	#lastWebConfigMtime: number | null = null;
 	#registeredProviderSources: Set<string> = new Set();
 	#providerDiscoveryStates: Map<string, ProviderDiscoveryState> = new Map();
 	#cacheDbPath?: string;
@@ -436,18 +424,6 @@ export class ModelRegistry {
 	#runtimeModelManagers: Map<string, { options: ModelManagerOptions<Api>; sourceId: string }> = new Map();
 	#ignoreLocalModelConfig: boolean;
 	#fetch: FetchImpl;
-	/**
-	 * Transport for the shared models.dev catalog. Returns the registry fetcher
-	 * only when `catalog.remoteRefresh` is on; otherwise `undefined`, which makes
-	 * the catalog package serve the snapshot bundled into this build instead of
-	 * calling the shared host. Discovery of provider *endpoints* never uses this
-	 * — those requests are always live.
-	 */
-	#catalogFetch(): FetchImpl | undefined {
-		if (!this.#settings) return undefined;
-		return cfgCatalogRemoteRefresh.get(this.#settings) ? this.#fetch : undefined;
-	}
-
 	#settings: Settings | undefined;
 	/** Registry this one mirrors (on another thread); see the constructor option. */
 	#owner: ModelRegistryOwner | undefined;
@@ -585,22 +561,16 @@ export class ModelRegistry {
 	}
 
 	#reloadStaticModelsForRefresh(options?: ModelRegistryRefreshOptions, providerId?: string): void {
-		if (options?.refreshCommandCredentials || options?.forceStatic) {
-			if (options.refreshCommandCredentials) {
-				if (providerId) this.#invalidateProviderCommandConfigs(providerId);
-				else this.#invalidateAllCommandConfigs();
-			}
+		if (options?.refreshCommandCredentials) {
+			if (providerId) this.#invalidateProviderCommandConfigs(providerId);
+			else this.#invalidateAllCommandConfigs();
 			this.#reloadStaticModels({ force: true, preserveRuntimeDiscovery: true });
 			return;
 		}
 		this.#reloadStaticModels();
 	}
 
-	#installProviderApiKey(
-		provider: string,
-		keyConfig: string,
-		options?: { fallback?: boolean; mirror?: boolean },
-	): void {
+	#installProviderApiKey(provider: string, keyConfig: string, options?: { fallback?: boolean }): void {
 		this.#customProviderApiKeys.set(provider, keyConfig);
 		if (!this.#owner) this.authStorage.keys.setConfig(provider, keyConfig, options);
 	}
@@ -880,10 +850,7 @@ export class ModelRegistry {
 		// as a background reconcile, and must not spawn `!command` helpers.
 		this.#reloadStaticModelsForRefresh(options);
 		this.#suppressedSelectors.clear();
-		await this.#refreshRuntimeDiscoveries(
-			strategy,
-			options?.providers === undefined ? undefined : new Set(options.providers),
-		);
+		await this.#refreshRuntimeDiscoveries(strategy);
 	}
 
 	/**
@@ -1008,10 +975,7 @@ export class ModelRegistry {
 			await this.#backgroundRefresh;
 			changed = true;
 		}
-		if (
-			this.#modelsConfigFile.getMtimeMs() !== this.#lastStaticLoadMtime ||
-			this.#modelsWebConfigMtime() !== this.#lastWebConfigMtime
-		) {
+		if (this.#modelsConfigFile.getMtimeMs() !== this.#lastStaticLoadMtime) {
 			await this.refresh("offline");
 			changed = true;
 		}
@@ -1237,9 +1201,7 @@ export class ModelRegistry {
 
 	#reloadStaticModels(options?: { force?: boolean; preserveRuntimeDiscovery?: boolean }): void {
 		const currentMtime = this.#modelsConfigFile.getMtimeMs();
-		const currentWebMtime = this.#modelsWebConfigMtime();
-		const staticConfigUnchanged =
-			currentMtime === this.#lastStaticLoadMtime && currentWebMtime === this.#lastWebConfigMtime;
+		const staticConfigUnchanged = currentMtime === this.#lastStaticLoadMtime;
 		if (!options?.force && currentMtime !== null && staticConfigUnchanged) {
 			// Models config unchanged since last load; reloading would be redundant.
 			return;
@@ -1382,7 +1344,24 @@ export class ModelRegistry {
 			this.#applyHardcodedModelPolicies(this.#loadCachedDiscoverableModels()),
 		);
 		this.#lastStaticLoadMtime = this.#modelsConfigFile.getMtimeMs();
-		this.#lastWebConfigMtime = this.#modelsWebConfigMtime();
+		this.#syncLiteLLMUsage();
+	}
+
+	/**
+	 * Register LiteLLM budget usage for `litellm` and every `discovery.type: litellm`
+	 * provider not in `disabledProviders`. A mirror's owner already did this.
+	 */
+	#syncLiteLLMUsage(): void {
+		if (this.#owner) return;
+		const disabled = getDisabledProviderIdsFromSettings(this.#settings);
+		const providers = new Map<string, UsageProvider>();
+		for (const provider of [
+			"litellm",
+			...this.#discoverableProviders.filter(c => c.discovery.type === "litellm").map(c => c.provider),
+		]) {
+			if (!disabled.has(provider)) providers.set(provider, litellmUsageProvider);
+		}
+		this.authStorage.usage.replaceConfiguredProviders(providers);
 	}
 
 	#resetStaticComposition(): void {
@@ -1430,6 +1409,14 @@ export class ModelRegistry {
 			}
 		}
 		this.#providerLookupSnapshots.delete(providerName);
+	}
+
+	/** A modifier runs only for a provider holding OAuth credentials; without one it cannot touch the catalog. */
+	#modelModifierCanApply(): boolean {
+		for (const providerName of this.#runtimeModelModifiers.keys()) {
+			if (this.authStorage.credentials.getOAuth(providerName)) return true;
+		}
+		return false;
 	}
 
 	/**
@@ -1573,7 +1560,7 @@ export class ModelRegistry {
 	#composeStaticModels(providerFilter?: ReadonlySet<string>): Model<Api>[] {
 		// A modifier is a whole-catalog transform. Build and project the full catalog
 		// before narrowing a lazy lookup, matching getAll() followed by filtering.
-		const projectFullCatalog = providerFilter !== undefined && this.#runtimeModelModifiers.size > 0;
+		const projectFullCatalog = providerFilter !== undefined && this.#modelModifierCanApply();
 		const compositionFilter = projectFullCatalog ? undefined : providerFilter;
 		const unprojected = this.#projectBaseModels(this.#composeBaseModels(compositionFilter), compositionFilter);
 		const projected = this.#finalizeModels(this.#applyRuntimeModelModifiers(unprojected));
@@ -2059,7 +2046,7 @@ export class ModelRegistry {
 		}
 	}
 
-	#loadCustomModels(sourceConfig?: ModelsConfig): CustomModelsResult {
+	#loadCustomModels(): CustomModelsResult {
 		// Gateway mode: serve bundled + broker-discovered catalog metadata only.
 		// Local models.yml provider overrides (baseUrl/apiKey/headers/transport),
 		// custom models, custom discovery, and config API keys are all client-side
@@ -2078,13 +2065,9 @@ export class ModelRegistry {
 				found: false,
 			};
 		}
-		if (sourceConfig) {
-			// Explicit config — no file I/O.
-			return this.#buildCustomModelsResult(sourceConfig);
-		}
-		const layers = loadModelsLayers(this.#modelsConfigFile.path());
+		const { value, error, status } = this.#modelsConfigFile.tryLoad();
 
-		if (layers.userError) {
+		if (status === "error") {
 			return {
 				models: [],
 				overrides: new Map(),
@@ -2092,12 +2075,10 @@ export class ModelRegistry {
 				keylessProviders: new Set(),
 				discoverableProviders: [],
 				configuredProviders: new Set(),
-				error: layers.userError,
+				error,
 				found: true,
 			};
-		}
-		const merged = mergeModelsConfigs(layers.user, layers.web);
-		if (!merged) {
+		} else if (status === "not-found") {
 			return {
 				models: [],
 				overrides: new Map(),
@@ -2108,11 +2089,15 @@ export class ModelRegistry {
 				found: false,
 			};
 		}
-		return this.#buildCustomModelsResult(merged);
-	}
 
-	#buildCustomModelsResult(value: ModelsConfig): CustomModelsResult {
-		this.#reportUnknownCompatKeys(value);
+		for (const unknown of getUnknownCompatKeys(value)) {
+			const keyPath = unknown.paths[0] ?? unknown.key;
+			if (this.#warnedCompatKeys.has(keyPath)) continue;
+			this.#warnedCompatKeys.add(keyPath);
+			this.#configWarnings.push(
+				`Unknown compat key in ${this.#modelsConfigFile.path()}: ${keyPath} (configuration still loaded).`,
+			);
+		}
 
 		const overrides = new Map<string, ProviderOverride>();
 		const allModelOverrides = new Map<string, Map<string, ModelOverride>>();
@@ -2227,43 +2212,6 @@ export class ModelRegistry {
 			configuredProviders,
 			found: true,
 		};
-	}
-
-	/**
-	 * Surface unknown `models.yml` compat keys, once per path.
-	 *
-	 * Every occurrence of one key collapses into a single line: the reported
-	 * shape (one stale key repeated per model across four providers) pushed
-	 * eight identical notifications into the startup header. The complete path
-	 * list always lands in the debug log, so nothing is lost.
-	 */
-	#reportUnknownCompatKeys(value: ModelsConfig): void {
-		const fresh = getUnknownCompatKeys(value)
-			.map(finding => ({
-				...finding,
-				paths: finding.paths.filter(keyPath => !this.#warnedCompatKeys.has(keyPath)),
-			}))
-			.filter(finding => finding.paths.length > 0);
-		if (fresh.length === 0) return;
-		for (const finding of fresh) {
-			for (const keyPath of finding.paths) this.#warnedCompatKeys.add(keyPath);
-		}
-		const file = this.#modelsConfigFile.path();
-		logger.debug("unknown compat keys in models config", {
-			file,
-			keys: fresh.map(finding => ({ key: finding.key, paths: finding.paths })),
-		});
-		for (const line of formatUnknownCompatKeyWarnings(file, fresh)) this.#pushConfigWarning(line);
-	}
-
-	/**
-	 * Append a config diagnostic, skipping an exact repeat.
-	 *
-	 * Collectors re-run on every refresh, and the interactive header renders one
-	 * row per entry, so an unchanged message must never accumulate.
-	 */
-	#pushConfigWarning(message: string): void {
-		if (!this.#configWarnings.includes(message)) this.#configWarnings.push(message);
 	}
 
 	async #refreshRuntimeDiscoveries(
@@ -2479,23 +2427,9 @@ export class ModelRegistry {
 		return providerConfig.provider;
 	}
 
-	/** Panel-layer mtime, or null when the path is not YAML or the layer is absent. */
-	#modelsWebConfigMtime(): number | null {
-		const modelsPath = this.#modelsConfigFile.path();
-		if (!modelsPath.endsWith(".yml") && !modelsPath.endsWith(".yaml")) return null;
-		try {
-			return fs.statSync(modelsWebConfigPath(modelsPath)).mtimeMs;
-		} catch {
-			return null;
-		}
-	}
-
 	#isDiscoveryCacheOlderThanModelsConfig(cacheUpdatedAt: number): boolean {
-		const configMtime = Math.max(
-			this.#modelsConfigFile.getMtimeMs() ?? Number.NEGATIVE_INFINITY,
-			this.#modelsWebConfigMtime() ?? Number.NEGATIVE_INFINITY,
-		);
-		return Number.isFinite(configMtime) && cacheUpdatedAt < Math.floor(configMtime);
+		const configMtime = this.#modelsConfigFile.getMtimeMs();
+		return configMtime !== null && cacheUpdatedAt < Math.floor(configMtime);
 	}
 
 	async #discoverProviderModels(
@@ -2648,7 +2582,7 @@ export class ModelRegistry {
 			const provider = providerConfig.provider;
 			// The endpoint env var may embed `user:pass@`, and fetch errors can echo it.
 			const detail = error.replaceAll(baseUrl, url).replace(URL_USERINFO_RE, "$1").replace(/\s+/g, " ").trim();
-			this.#pushConfigWarning(
+			this.#configWarnings.push(
 				`Built-in ${provider} provider: model discovery at ${url} (from ${endpointEnv}) failed. Fix or unset ${endpointEnv}, or add "${provider}" to disabledProviders. Error: ${detail}`,
 			);
 		}
@@ -2921,7 +2855,7 @@ export class ModelRegistry {
 				const managerOptions = descriptor.createModelManagerOptions(preparedConfig);
 				const modelsDev = managerOptions.modelsDev
 					? { ...managerOptions.modelsDev, additiveOnly: true }
-					: modelsDevCatalogFallback(descriptor.providerId, this.#catalogFetch());
+					: modelsDevCatalogFallback(descriptor.providerId, this.#fetch);
 				options.push(modelsDev ? { ...managerOptions, modelsDev } : managerOptions);
 			}
 		}
@@ -2945,7 +2879,7 @@ export class ModelRegistry {
 			if (disabledProviders.has(providerId) || configuredDiscoveryProviders.has(providerId)) continue;
 			if (providerFilter && !providerFilter.has(providerId)) continue;
 			if (this.#runtimeModelManagers.has(providerId)) continue;
-			const modelsDev = modelsDevCatalogFallback(providerId, this.#catalogFetch());
+			const modelsDev = modelsDevCatalogFallback(providerId, this.#fetch);
 			if (!modelsDev) continue;
 			options.push({
 				providerId,
@@ -2981,10 +2915,12 @@ export class ModelRegistry {
 			const models = result.models.map(model =>
 				model.provider === options.providerId ? model : { ...model, provider: options.providerId },
 			);
+			// An offline pass only reads the cache: a missing row means "not fetched
+			// yet" (a cold, credential-scoped namespace), not an unreachable provider.
 			const status =
 				result.source === "cache"
 					? "cached"
-					: result.source === "bundled" && result.stale
+					: result.source === "bundled" && result.stale && strategy !== "offline"
 						? "unavailable"
 						: result.source === "bundled"
 							? "idle"
@@ -3536,7 +3472,7 @@ export class ModelRegistry {
 		// owned by refresh, discovery and runtime provider registration. Whole-
 		// catalog modifiers can inspect live credentials, so keep reprojecting
 		// those rather than extending the lifetime of their output.
-		if (availableProviders.size === 1 && this.#runtimeModelModifiers.size === 0) {
+		if (availableProviders.size === 1 && !this.#modelModifierCanApply()) {
 			const models = this.#modelsForProviderLookup(availableProviders.values().next().value!);
 			return kind === "all" ? models.slice() : models.filter(model => modelKind(model) === kind);
 		}
@@ -3556,7 +3492,7 @@ export class ModelRegistry {
 	/**
 	 * Check whether auth is configured for a model's provider.
 	 *
-	 * Mirrors the upstream `@mariozechner/zeta` API surface so that
+	 * Mirrors the upstream `@mariozechner/pi-coding-agent` API surface so that
 	 * external plugins/extensions and downstream wrappers (e.g. subagent launch
 	 * paths that pre-flight auth before model resolution) can probe a model
 	 * without resolving an API key. Returns true for keyless providers as well
@@ -4120,8 +4056,13 @@ export class ModelRegistry {
 
 			// A modifier is explicitly a whole-catalog transform and may throw
 			// based on another provider's models. Preserve registration-time
-			// execution/error reporting by materializing only for this case.
-			if (config.oauth?.modifyModels && !this.#hasFullSnapshot) {
+			// execution/error reporting by materializing only for this case, and
+			// only once a credential lets the hook run at all.
+			if (
+				config.oauth?.modifyModels &&
+				!this.#hasFullSnapshot &&
+				this.authStorage.credentials.getOAuth(providerName)
+			) {
 				logger.time(`modelRegistry:materializeModifier:${providerName}`, () => this.#ensureFullSnapshot());
 			}
 			if (config.oauth?.modifyModels) {

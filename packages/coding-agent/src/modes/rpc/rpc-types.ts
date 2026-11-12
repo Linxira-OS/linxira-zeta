@@ -34,7 +34,7 @@ import type { RpcMessagesPage } from "./rpc-messages";
 import type { GoalModeState } from "../../goals/state";
 import type { PlanModeState } from "../../plan-mode/state";
 import type { VibeModeState } from "../../vibe/state";
-import type { GoalContinuationOp, GoalContinuationResult } from "../../goals/continuation-controller";
+import type { RpcGoalOp, RpcGoalResult } from "../../goals/continuation-controller";
 import type { BtwHistoryRecord } from "../../session/btw-history";
 
 // ============================================================================
@@ -95,7 +95,7 @@ export type RpcCommand =
 	| {
 			id?: string;
 			type: "goal";
-			op: GoalContinuationOp;
+			op: RpcGoalOp;
 			objective?: string;
 			token_budget?: number;
 	  }
@@ -527,7 +527,7 @@ export type RpcResponse =
 			data: { enabled: boolean; active: boolean };
 	  }
 	| { id?: string; type: "response"; command: "set_slow_mode"; success: true; data: { enabled: boolean } }
-	| { id?: string; type: "response"; command: "goal"; success: true; data: GoalContinuationResult }
+	| { id?: string; type: "response"; command: "goal"; success: true; data: RpcGoalResult }
 	| { id?: string; type: "response"; command: "set_ask_dialog"; success: true; data: { enabled: boolean } }
 	| {
 			id?: string;

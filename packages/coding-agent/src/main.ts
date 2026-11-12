@@ -9,7 +9,7 @@ import * as os from "node:os";
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import type { ImageContent, Model } from "@linxiraos/pi-ai";
 import { getModelPricingStatus } from "@linxiraos/pi-catalog/models";
-import { CLI_BIN_NAME, isEnoent, isEnotdir } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME, ensureSqliteLockShim, isEnoent, isEnotdir } from "@linxiraos/pi-utils";
 import {
 	APP_NAME,
 	directoryIsMissing,
@@ -53,7 +53,6 @@ import { applyStartupCwd } from "./cli/startup-cwd";
 import { M } from "./i18n";
 import { runAutoUpdate } from "./cli/auto-update";
 import { getLatestRelease, isSourceCheckout, managedInstallName } from "./cli/update-cli";
-import { discoverAppendSystemPromptPath } from "./config";
 import { resolveChannelHosting } from "./channels/channel-status";
 import {
 	activeSessionChannelHost,
@@ -173,7 +172,8 @@ import { cfgGoalEnabled } from "./goals/settings";
 import { cfgPlanDefaultOnStartup, cfgPlanEnabled } from "./plan-mode/settings";
 
 import { cfgAdvisorEnabled } from "./advisor/settings";
-import { cfgAsyncPrintWake, cfgToolsApprovalMode } from "./tools/settings";
+import { cfgAsyncPrintWake, cfgLaunchPersist, cfgToolsApprovalMode } from "./tools/settings";
+import { claimTerminal } from "./tools/browser/terminal-owner";
 import {
 	cfgAutocompleteMaxVisible,
 	cfgAutoResume,
@@ -481,6 +481,7 @@ export async function submitInteractiveInput(
 		| "renderOptimisticSkillMessage"
 		| "clearOptimisticSkillMessage"
 		| "optimisticSkillMessagePending"
+		| "restoreDroppedPrompt"
 	> &
 		Partial<Pick<InteractiveMode, "loopPrompt" | "pauseLoop">>,
 	session: Pick<AgentSession, "buildUserSkillPrompt" | "prompt" | "promptCustomMessage" | "resume" | "isStreaming">,
@@ -514,6 +515,7 @@ export async function submitInteractiveInput(
 			showError: mode.showError.bind(mode),
 			renderOptimisticSkillMessage: mode.renderOptimisticSkillMessage.bind(mode),
 			clearOptimisticSkillMessage: mode.clearOptimisticSkillMessage.bind(mode),
+			restoreDroppedPrompt: mode.restoreDroppedPrompt.bind(mode),
 			get optimisticSkillMessagePending() {
 				return mode.optimisticSkillMessagePending;
 			},
@@ -537,11 +539,16 @@ export async function submitInteractiveInput(
 				imageLinks: input.imageLinks,
 				optimistic: true,
 				propagateErrors: true,
+				followUps: input.followUps,
 			});
 		} else {
 			let forwarded = false;
 			try {
-				forwarded = await session.prompt(input.text, { images: input.images, streamingBehavior });
+				forwarded = await session.prompt(input.text, {
+					images: input.images,
+					streamingBehavior,
+					followUps: input.followUps,
+				});
 			} catch (error: unknown) {
 				mode.showError(error instanceof Error ? error.message : "Unknown error occurred");
 			}
@@ -1539,8 +1546,6 @@ export async function buildSessionOptions(
 	// it re-reads the source on every prompt rebuild. Only explicit CLI inputs
 	// are frozen into options here (an explicit flag is a one-shot value).
 	const explicitTemplatePath = parsed.systemPromptTemplate;
-	const discoveredAppendSource =
-		parsed.appendSystemPrompt === undefined ? discoverAppendSystemPromptPath() : undefined;
 	const titleSystemPromptSource = discoverTitleSystemPromptFile(cwd);
 	const [resolvedSystemPrompt, resolvedAppendPrompt, titleSystemPrompt, resolvedSystemPromptTemplate] =
 		await Promise.all([
@@ -1555,10 +1560,6 @@ export async function buildSessionOptions(
 				? Promise.resolve(undefined)
 				: loadSystemPromptTemplateFile(explicitTemplatePath),
 		]);
-	if (discoveredAppendSource !== undefined) {
-		options.appendSystemPromptSource = discoveredAppendSource;
-	}
-
 	if (sessionManager) {
 		options.sessionManager = sessionManager;
 	}
@@ -1646,6 +1647,7 @@ export async function buildSessionOptions(
 			}
 		} else if (resolved.model) {
 			options.model = resolved.model;
+			if (resolved.configuredRole) options.modelRole = resolved.configuredRole;
 			options.rebindModelAfterDiscovery = true;
 			// The recorded role must carry the effort the session actually starts
 			// at, or the first cycle back into `default` overrides it.
@@ -2129,6 +2131,8 @@ export async function runRootCommand(
 			});
 			process.exit(exitCode);
 		}
+		// Upstream guard: claim the terminal before browser tabs are opened for this session.
+		if (isInteractive) claimTerminal();
 		// Before session resolution: resume, fork, and import act on these same
 		// startup-parse flags, so rejecting later would leave forked or imported
 		// transcripts (or an opened picker) behind a usage error.
@@ -2246,6 +2250,12 @@ export async function runRootCommand(
 		// explicit --hide-thinking block display option still wins for output display.
 		if (parsedArgs.printThoughts && !isProtocolMode && !isInteractive) {
 			cfgOmitThinking.override(settingsInstance, false);
+		}
+		// Print, RPC and ACP hosts serve a caller (script, harness, editor) that outlives the
+		// session and uses the servers a run leaves running; keep them past this process's
+		// exit, as `nohup cmd &` is.
+		if (!isInteractive) {
+			cfgLaunchPersist.override(settingsInstance, true);
 		}
 		// Apply --hide-thinking CLI flag (ephemeral, not persisted)
 		if (parsedArgs.hideThinking) {
@@ -2569,6 +2579,13 @@ export async function runRootCommand(
 			if (isInteractive) notifs.push({ kind: "warn", message: warning });
 			else writeStartupWarning(warning);
 		};
+		// The CLI moved SQLite onto OFD locks before any store opened; without them a
+		// read of a live store elsewhere in this process can corrupt it (issue #15586).
+		if (process.platform === "linux" && !ensureSqliteLockShim()) {
+			startupWarning(
+				"SQLite lock protection is unavailable with this Bun build: reading omp's own databases from inside omp (e.g. `grep -r ~/.zeta`, `cp ~/.zeta/agent/agent.db`) can corrupt them. Avoid it, and report this with your Bun version (#15586).",
+			);
+		}
 		const buildStartupSessionOptions = async (manager: SessionManager | undefined) => {
 			const options = await logger.time(
 				"buildSessionOptions",

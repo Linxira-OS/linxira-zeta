@@ -543,7 +543,7 @@ async function acquireTabImpl(
 	let initPayload: WorkerInitPayload;
 	let worker: WorkerHandle;
 	try {
-		initPayload = await buildInitPayload(browser, opts);
+		initPayload = await buildInitPayload(browser as PuppeteerBrowserHandle, opts);
 		worker = await spawnTabWorker();
 	} catch (error) {
 		// Failing before the worker took its own hold must release the
@@ -568,7 +568,7 @@ async function acquireTabImpl(
 		await worker.terminate().catch(() => undefined);
 		// A worker that died mid-init may have created a tab in headless Chromium,
 		// the relay, or a spawned Chrome — close exactly the reported target.
-		closeAbandonedWorkerPage(browser, worker);
+		closeAbandonedWorkerPage(browser as PuppeteerBrowserHandle, worker);
 		if (worker.mode === "inline" || isReportedInitFailure(error)) {
 			if (tempHold || browser.refCount === 0) await releaseBrowser(browser, { kill: false });
 			throw error;
@@ -588,7 +588,7 @@ async function acquireTabImpl(
 			info = await initializeTabWorker(worker, initPayload, initBudgetMs, startedAt);
 		} catch (inlineError) {
 			await worker.terminate().catch(() => undefined);
-			closeAbandonedWorkerPage(browser, worker);
+			closeAbandonedWorkerPage(browser as PuppeteerBrowserHandle, worker);
 			if (tempHold || browser.refCount === 0) await releaseBrowser(browser, { kill: false });
 			const finalError = new ToolError(
 				`Failed to start browser tab worker (inline fallback also failed): ${inlineError instanceof Error ? inlineError.message : String(inlineError)}`,
@@ -607,7 +607,7 @@ async function acquireTabImpl(
 	// for its owner to release.
 	if (opts.signal?.aborted) {
 		await worker.terminate().catch(() => undefined);
-		closeAbandonedWorkerPage(browser, worker);
+		closeAbandonedWorkerPage(browser as PuppeteerBrowserHandle, worker);
 		if (tempHold || browser.refCount === 0) await releaseBrowser(browser, { kill: false }).catch(() => undefined);
 		throw new ToolAbortError("Browser tab open aborted");
 	}

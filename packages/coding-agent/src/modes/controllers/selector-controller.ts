@@ -1,18 +1,12 @@
 import { type AgentMessage, type AgentToolResult, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
-import type { Model, PASTE_CODE_LOGIN_PROVIDERS as PasteCodeLoginProviders, UsageReport } from "@linxiraos/pi-ai";
-import type {
-	getOAuthProviders as GetOAuthProviders,
-	getOAuthCredentialProvider as GetOAuthCredentialProvider,
-} from "@linxiraos/pi-ai/oauth";
+import type { ImageContent, Model, UsageReport } from "@linxiraos/pi-ai";
 import type { OAuthProvider } from "@linxiraos/pi-ai/oauth/types";
-import type { Component, OverlayHandle, ResizeScrollbackMode } from "@linxiraos/pi-tui";
-import { Loader, Spacer, Text, setTuiTight } from "@linxiraos/pi-tui";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import type { Component, OverlayHandle } from "@linxiraos/pi-tui";
+import { Loader, Spacer, Text } from "@linxiraos/pi-tui";
 import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
 import { appKey, editorKey } from "@linxiraos/pi-tui/chrome/keybinding-hints";
-import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
-import { ReadToolGroupComponent } from "@linxiraos/pi-tui/chat/read-tool-group";
-import * as vcs from "@linxiraos/pi-natives/vcs";
 import {
 	getAgentDbPath,
 	getAgentDir,
@@ -44,9 +38,7 @@ import { resolveAdvisorRoleSelection, resolveModelRoleValue } from "../../config
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import { getRoleInfo } from "../../config/model-roles";
 import { settings } from "../../config/settings";
-import { cfgSiyuanToken } from "../../tools/settings";
 import { createSettingsHost } from "../../config/settings-ui";
-import { setLanguage } from "../../i18n";
 import { createPluginSettingsHost } from "../../extensibility/plugins/settings-host";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import {
@@ -56,16 +48,7 @@ import {
 	getPluginsCacheDir,
 	MarketplaceManager,
 } from "../../extensibility/plugins/marketplace";
-import {
-	getAvailableThemes,
-	getSymbolTheme,
-	previewTheme,
-	setColorBlindMode,
-	setMarkdownMermaidRendering,
-	setSymbolPreset,
-	setTheme,
-	theme,
-} from "@linxiraos/pi-tui/theme";
+import { getAvailableThemes, getSymbolTheme, previewTheme, theme } from "@linxiraos/pi-tui/theme";
 import type {
 	AgentHubOpenOptions,
 	InteractiveModeContext,
@@ -85,18 +68,14 @@ import type { ForeignSessionInfo, ForeignSessionSource } from "../../session/for
 import { previewModelCompactionPoint, setModelCompactionPoint } from "../../session/model-compaction-threshold";
 import { isTranscriptEntry, type TranscriptEntry } from "../../session/session-context";
 import { isUserRequestEntry } from "@linxiraos/pi-tui/chat/transcript-entry";
+import type { TurnAct, TurnMessage } from "@linxiraos/pi-tui/chat/transcript-actions";
 import type { SessionEntry, SessionTreeNode } from "../../session/session-entries";
 import { findSessionContinuation, readSessionInfo, type SessionInfo } from "../../session/session-listing";
 import { SessionManager } from "../../session/session-manager";
-import { resolveManagedSessionRoot } from "../../session/session-paths";
-import { loadPinnedSessionIds } from "../../session/session-pins";
-import { deleteSessionFiles } from "../../session/session-delete";
+import { loadPinnedSessionIds, setSessionPinned } from "../../session/session-pins";
 import { FileSessionStorage } from "../../session/session-storage";
-import { toLogoutAccounts, listLogoutAccounts, logoutCredential } from "../../slash-commands/helpers/logout";
-import type {
-	LogoutAccount,
-	LogoutAccountSelectorComponent as LogoutAccountSelectorComponentType,
-} from "@linxiraos/pi-tui/overlays/logout-account-selector";
+import { listLogoutAccounts, logoutCredential } from "../../slash-commands/helpers/logout";
+import type { LogoutAccount } from "@linxiraos/pi-tui/overlays/logout-account-selector";
 import { describeRedeemOutcome, toResetUsageAccounts } from "../../slash-commands/helpers/reset-usage";
 import { toSessionPinAccounts } from "../../slash-commands/helpers/session-pin";
 import {
@@ -129,11 +108,7 @@ import { getEditorCommand, openInEditor } from "../../utils/external-editor";
 import { collapseSharedUsageReports } from "@linxiraos/pi-tui/overlays/usage-display";
 import { limitMatchesActiveAccount } from "../../slash-commands/helpers/active-oauth-account";
 import { AgentHubOverlayComponent } from "@linxiraos/pi-tui/overlays/agent-hub";
-import { TeamHubOverlayComponent } from "@linxiraos/pi-tui/overlays/team-hub";
 import { createAgentHubRuntime } from "../agent-hub-runtime";
-import { resolveTeamEntry } from "../../team/entry";
-import { createTeamHubDataSource } from "../../team/hub-data";
-import type { TeamEntry } from "../../team/entry";
 import { AgentsHubComponent } from "@linxiraos/pi-tui/overlays/agents-hub";
 import { CopySelectorComponent } from "@linxiraos/pi-tui/overlays/copy-selector";
 import { ExtensionDashboard } from "@linxiraos/pi-tui/overlays/extensions/extension-dashboard";
@@ -144,22 +119,15 @@ import {
 import { createExtensionDashboardRuntime } from "../components/extensions/dashboard-runtime";
 import { HistorySearchComponent } from "@linxiraos/pi-tui/overlays/history-search";
 import { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
-import type { LoginDialogComponent as LoginDialogComponentType } from "@linxiraos/pi-tui/overlays/login-dialog";
-import type {
-	ModelHubComponent as ModelHubComponentType,
-	ModelRoleSelectionScope,
-} from "@linxiraos/pi-tui/overlays/model-hub";
+import { ModelHubComponent, type ModelRoleSelectionScope } from "@linxiraos/pi-tui/overlays/model-hub";
 import { createModelBrowserSource } from "../model-browser-source";
 import { formatSessionContinuationNotice } from "../persistence-failure";
-import type { ModelPickerComponent as ModelPickerComponentType } from "@linxiraos/pi-tui/overlays/model-picker";
-import type { OAuthSelectorComponent as OAuthSelectorComponentType } from "@linxiraos/pi-tui/overlays/oauth-selector";
+import { ModelPickerComponent } from "@linxiraos/pi-tui/overlays/model-picker";
 import { PluginSelectorComponent } from "@linxiraos/pi-tui/overlays/plugin-selector";
 import { type ResetUsageAccount, ResetUsageSelectorComponent } from "@linxiraos/pi-tui/overlays/reset-usage-selector";
 import { type BranchVariantPath, RewindSelectorComponent } from "@linxiraos/pi-tui/overlays/rewind-selector";
 import { SessionAccountSelectorComponent } from "@linxiraos/pi-tui/overlays/session-account-selector";
 import { SessionSelectorComponent, type SessionSelectorOptions } from "@linxiraos/pi-tui/overlays/session-selector";
-import type { ResumeScopeKindLike } from "@linxiraos/pi-tui/overlays/resume-picker";
-import { LiveResumePickerSource, loadResumePickerState } from "../resume-picker-source";
 import { SettingsSelectorComponent } from "@linxiraos/pi-tui/overlays/settings-selector";
 import { TranscriptBlock } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector";
@@ -171,7 +139,7 @@ import type { SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session
 import { cfgAdvisorSyncBacklog } from "../../advisor/settings";
 import { cfgBranchSummaryEnabled } from "../../session/context-settings";
 import { cfgCycleOrder, cfgDisabledProviders, cfgModelRoleStorage } from "../../config/model-settings";
-import { cfgDefaultThinkingLevel, cfgRetryFallbackChains } from "../../session/settings";
+import { cfgDefaultThinkingLevel, cfgRetryFallbackChains, cfgSessionWorktreeScope } from "../../session/settings";
 import {
 	cfgStatusLineCompactThinkingLevel,
 	cfgStatusLineContextLine,
@@ -187,58 +155,22 @@ import {
 } from "../settings";
 import { cfgTaskAgentModelOverrides } from "../../task/settings";
 
-import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
-import { M } from "../../i18n";
-import { applyHyperlinkSetting } from "@linxiraos/pi-tui/render/hyperlink";
-import type { disableProvider as DisableProvider, enableProvider as EnableProvider } from "../../discovery";
-import { applyProviderGlobalsFromSettings } from "../../config/provider-globals";
-
-interface ProviderToggleModules {
-	disableProvider: typeof DisableProvider;
-	enableProvider: typeof EnableProvider;
-}
-
-/** Settings-only boundary for provider discovery mutations. */
-function loadProviderToggles(): ProviderToggleModules {
-	const discovery = require("../../discovery") as {
-		disableProvider: typeof DisableProvider;
-		enableProvider: typeof EnableProvider;
-	};
-	return { disableProvider: discovery.disableProvider, enableProvider: discovery.enableProvider };
-}
-
-interface ModelOverlayModules {
-	ModelHubComponent: typeof ModelHubComponentType;
-	ModelPickerComponent: typeof ModelPickerComponentType;
-}
-
-/** Synchronous first-use boundary for model overlays; key callbacks require immediate mounting. */
-function loadModelOverlayComponents(): ModelOverlayModules {
+/** First-use boundary for provider auth catalog and dialog components. */
+async function loadProviderAuthUi() {
+	const [{ PASTE_CODE_LOGIN_PROVIDERS }, oauth, loginDialog, logoutSelector, oauthSelector] = await Promise.all([
+		import("@linxiraos/pi-ai"),
+		import("@linxiraos/pi-ai/oauth"),
+		import("@linxiraos/pi-tui/overlays/login-dialog"),
+		import("@linxiraos/pi-tui/overlays/logout-account-selector"),
+		import("@linxiraos/pi-tui/overlays/oauth-selector"),
+	]);
 	return {
-		ModelHubComponent: require("@linxiraos/pi-tui/overlays/model-hub.js").ModelHubComponent,
-		ModelPickerComponent: require("@linxiraos/pi-tui/overlays/model-picker.js").ModelPickerComponent,
-	};
-}
-
-interface ProviderAuthUiModules {
-	PASTE_CODE_LOGIN_PROVIDERS: typeof PasteCodeLoginProviders;
-	getOAuthProviders: typeof GetOAuthProviders;
-	getOAuthCredentialProvider: typeof GetOAuthCredentialProvider;
-	LoginDialogComponent: typeof LoginDialogComponentType;
-	LogoutAccountSelectorComponent: typeof LogoutAccountSelectorComponentType;
-	OAuthSelectorComponent: typeof OAuthSelectorComponentType;
-}
-
-/** Synchronous first-use boundary for provider auth catalog and dialog components. */
-function loadProviderAuthUi(): ProviderAuthUiModules {
-	return {
-		PASTE_CODE_LOGIN_PROVIDERS: require("@linxiraos/pi-ai/index.js").PASTE_CODE_LOGIN_PROVIDERS,
-		getOAuthProviders: require("@linxiraos/pi-ai/registry/oauth/index.js").getOAuthProviders,
-		getOAuthCredentialProvider: require("@linxiraos/pi-ai/registry/oauth/index.js").getOAuthCredentialProvider,
-		LoginDialogComponent: require("@linxiraos/pi-tui/overlays/login-dialog.js").LoginDialogComponent,
-		LogoutAccountSelectorComponent: require("@linxiraos/pi-tui/overlays/logout-account-selector.js")
-			.LogoutAccountSelectorComponent,
-		OAuthSelectorComponent: require("@linxiraos/pi-tui/overlays/oauth-selector.js").OAuthSelectorComponent,
+		PASTE_CODE_LOGIN_PROVIDERS,
+		getOAuthProviders: oauth.getOAuthProviders,
+		getOAuthCredentialProvider: oauth.getOAuthCredentialProvider,
+		LoginDialogComponent: loginDialog.LoginDialogComponent,
+		LogoutAccountSelectorComponent: logoutSelector.LogoutAccountSelectorComponent,
+		OAuthSelectorComponent: oauthSelector.OAuthSelectorComponent,
 	};
 }
 
@@ -250,7 +182,6 @@ type MenuKind =
 	| "model-hub"
 	| "agents-dashboard"
 	| "agent-hub"
-	| "team-hub"
 	| "usage-dashboard";
 
 /** An open menu: registered when the request runs, filled once its component mounts. */
@@ -688,8 +619,7 @@ export class SelectorController {
 				extensionRoots: () => this.ctx.session.effectiveExtensionRoots,
 				mcpManager: this.ctx.mcpManager,
 				eventBus: this.ctx.eventBus,
-				onMcpToolsChanged: (tools, analysis) => this.ctx.session.refreshMCPTools(tools, analysis),
-				activeNativeTools: () => this.ctx.session.getEnabledToolNames(),
+				onMcpToolsChanged: tools => this.ctx.session.refreshMCPTools(tools),
 				browserMcpFilterEnabled: () =>
 					this.ctx.session.getEvalPreludes().some(definition => definition.name === "browser"),
 			}),
@@ -786,315 +716,10 @@ export class SelectorController {
 	 * setting applies through handle listeners owned by the session and InteractiveMode.
 	 */
 	handleSettingChange(id: string, value: unknown): void {
-		// Discovery provider toggles
-		if (id.startsWith("discovery.")) {
-			const providerId = id.replace("discovery.", "");
-			const { disableProvider, enableProvider } = loadProviderToggles();
-			if (value) {
-				enableProvider(providerId);
-			} else {
-				disableProvider(providerId);
-			}
-			return;
-		}
-
-		switch (id) {
-			// Display language is process-global: apply it now, then rebuild the
-			// slash-command descriptions that clients cache. `/language` and the
-			// settings panel write the same setting, so both paths land here.
-			case "language":
-				if (value === "en" || value === "zh") {
-					setLanguage(value);
-					void this.ctx.refreshSlashCommandState().catch(error =>
-						logger.warn("Failed to refresh slash commands after a language change", {
-							error: String(error),
-						}),
-					);
-					this.ctx.ui.requestRender();
-				}
-				break;
-			// Session-managed settings (not in SettingsManager)
-			case "autoCompact":
-				this.ctx.session.setAutoCompactionEnabled(value as boolean, true);
-				this.ctx.statusLine.setAutoCompactEnabled(value as boolean);
-				break;
-			case "composer.shape":
-				this.ctx.syncComposerShape();
-				break;
-			case "advisor.enabled":
-				this.ctx.session.setAdvisorEnabled(value as boolean);
-				this.ctx.statusLine.invalidate();
-				this.ctx.ui.requestRender();
-				break;
-			case "advisor.maxNotesPerUpdate":
-				if (this.ctx.session.isAdvisorEnabled()) {
-					this.ctx.session.setAdvisorEnabled(true);
-					this.ctx.ui.requestRender();
-				}
-				break;
-			case "steeringMode":
-				this.ctx.session.setSteeringMode(value as "all" | "one-at-a-time", true);
-				break;
-			case "followUpMode":
-				this.ctx.session.setFollowUpMode(value as "all" | "one-at-a-time", true);
-				break;
-			case "interruptMode":
-				this.ctx.session.setInterruptMode(value as "immediate" | "wait", true);
-				break;
-			case "thinkingLevel":
-			case "defaultThinkingLevel":
-				this.ctx.session.setThinkingLevel(value as ConfiguredThinkingLevel, true);
-				this.ctx.statusLine.invalidate();
-				this.ctx.updateEditorBorderColor();
-				break;
-			case "personality":
-				void this.ctx.session.refreshBaseSystemPrompt().catch(err => {
-					this.ctx.showError(`Failed to apply personality: ${err}`);
-				});
-				break;
-			case "tools.xdevDocs":
-				void this.ctx.session.refreshBaseSystemPrompt().catch(err => {
-					this.ctx.showError(`Failed to apply xd:// prompt docs setting: ${err}`);
-				});
-				break;
-			case "siyuan.enabled":
-				if (value === true && !cfgSiyuanToken.get(settings).trim()) {
-					this.ctx.showError(
-						"SiYuan is enabled but has no API token. Set Settings → Tools → SiYuan → API Token (or SIYUAN_TOKEN).",
-					);
-				}
-				break;
-			case "memory.backend":
-				void this.ctx.session.applyMemoryBackend().catch(err => {
-					this.ctx.showError(M.statusFailedToApplyMemoryBackendFmt.replace("%s", String(err)));
-				});
-				break;
-			case "externalThinking":
-				void this.ctx.session.setThinkToolEnabled(value as boolean).catch(err => {
-					this.ctx.showError(M.statusFailedToApplyExternalThinkingFmt.replace("%s", String(err)));
-				});
-				break;
-			case "autocompleteMaxVisible":
-				this.ctx.editor.setAutocompleteMaxVisible(typeof value === "number" ? value : Number(value));
-				break;
-
-			// Settings with UI side effects
-			case "display.hideToolActivity": {
-				const hidden = value as boolean;
-				this.ctx.hideToolActivity = hidden;
-				if (!hidden) this.ctx.toolOutputExpanded = false;
-				for (const child of this.ctx.chatContainer.children) {
-					if (!hidden && (child instanceof ToolExecutionComponent || child instanceof ReadToolGroupComponent)) {
-						child.setExpanded(false);
-					} else if (child instanceof AssistantMessageComponent) {
-						child.setToolResultImagesVisible(!hidden);
-					}
-				}
-				this.ctx.chatContainer.setToolActivityVisible(!hidden);
-				if (hidden) this.ctx.ui.clearInlineImages();
-				// Match the shortcut path: visibility changes must rebuild retired terminal history.
-				this.ctx.ui.resetDisplay();
-				break;
-			}
-			case "terminal.showImages":
-			case "showImages": {
-				const visible = value as boolean;
-				for (const child of this.ctx.chatContainer.children) {
-					if (child instanceof ToolExecutionComponent) {
-						child.setShowImages(visible);
-					} else if (child instanceof AssistantMessageComponent) {
-						child.setImagesVisible(visible);
-					}
-				}
-				if (!visible) this.ctx.ui.clearInlineImages();
-				this.ctx.ui.requestRender(true);
-				break;
-			}
-			case "hideThinkingBlock":
-				this.ctx.hideThinkingBlock = value as boolean;
-				for (const child of this.ctx.chatContainer.children) {
-					if (child instanceof AssistantMessageComponent) {
-						child.setHideThinkingBlock(this.ctx.effectiveHideThinkingBlock);
-					}
-				}
-				this.ctx.ui.requestRender(true);
-				break;
-			case "proseOnlyThinking":
-				this.ctx.proseOnlyThinking = value as boolean;
-				for (const child of this.ctx.chatContainer.children) {
-					if (child instanceof AssistantMessageComponent) {
-						child.setProseOnlyThinking(value as boolean);
-					}
-				}
-				this.ctx.ui.requestRender(true);
-				break;
-			case "omitThinking":
-				this.ctx.session.agent.hideThinkingSummary = value as boolean;
-				break;
-			case "display.cacheMissMarker":
-				// Rebuild re-runs the usage-based detection under the new setting so
-				// markers appear/disappear; full reset retires any already committed
-				// to native scrollback (mirrors hideThinking).
-				this.ctx.rebuildChatFromMessages();
-				this.ctx.ui.resetDisplay();
-				break;
-			case "display.collapseCompacted":
-				// Rebuild swaps between the collapsed tail and the full inline
-				// history; full reset retires blocks already committed to native
-				// scrollback (mirrors cacheMissMarker).
-				this.ctx.rebuildChatFromMessages();
-				this.ctx.ui.resetDisplay();
-				break;
-			case "display.showTokenUsage":
-				// Rebuild reruns usage-row detection under the new setting; resetDisplay
-				// retires rows already committed to native scrollback.
-				this.ctx.rebuildChatFromMessages();
-				this.ctx.ui.resetDisplay();
-				break;
-			case "display.showTurnTime":
-				// Same as showTokenUsage: the prompt→yield delta lives in the same
-				// usage row, so toggling it must rebuild and retire committed rows.
-				this.ctx.rebuildChatFromMessages();
-				this.ctx.ui.resetDisplay();
-				break;
-			case "tui.tight":
-				setTuiTight(value as boolean);
-				this.ctx.ui.invalidate();
-				this.ctx.ui.requestRender();
-				break;
-			case "tui.sidebar":
-				// Re-wire the engine's main-width override so the toggle lands live,
-				// without waiting for the next sidebar-related render.
-				this.ctx.applySidebar();
-				this.ctx.ui.requestRender();
-				break;
-			case "tui.hyperlinks":
-				applyHyperlinkSetting();
-				this.ctx.statusLine.invalidate();
-				this.ctx.ui.invalidate();
-				this.ctx.ui.requestRender();
-				break;
-			case "tui.resizeScrollback":
-				this.ctx.ui.setResizeScrollback(value as ResizeScrollbackMode);
-				break;
-
-			case "tui.renderMermaid":
-				setMarkdownMermaidRendering(value as boolean);
-				this.ctx.session.refreshBaseSystemPrompt().catch(err => {
-					this.ctx.showError(`Failed to apply Mermaid rendering setting: ${err}`);
-				});
-				this.ctx.rebuildChatFromMessages();
-				this.ctx.ui.resetDisplay();
-				break;
-
-			case "theme": {
-				setTheme(value as string, true).then(result => {
-					this.ctx.statusLine.invalidate();
-					this.ctx.ui.requestRender();
-					this.ctx.ui.invalidate();
-					if (!result.success) {
-						this.ctx.showError(`Failed to load theme "${value}": ${result.error}\nFell back to dark theme.`);
-					}
-				});
-				break;
-			}
-			case "symbolPreset": {
-				setSymbolPreset(value as "unicode" | "nerd" | "ascii").then(() => {
-					this.ctx.statusLine.invalidate();
-					this.ctx.ui.requestRender();
-					this.ctx.ui.invalidate();
-				});
-				break;
-			}
-			case "colorBlindMode": {
-				setColorBlindMode(value === "true" || value === true).then(() => {
-					this.ctx.ui.invalidate();
-				});
-				break;
-			}
-			case "temperature": {
-				const temp = typeof value === "number" ? value : Number(value);
-				this.ctx.session.agent.temperature = temp >= 0 ? temp : undefined;
-				break;
-			}
-			case "topP": {
-				const topP = typeof value === "number" ? value : Number(value);
-				this.ctx.session.agent.topP = topP >= 0 ? topP : undefined;
-				break;
-			}
-			case "topK": {
-				const topK = typeof value === "number" ? value : Number(value);
-				this.ctx.session.agent.topK = topK >= 0 ? topK : undefined;
-				break;
-			}
-			case "minP": {
-				const minP = typeof value === "number" ? value : Number(value);
-				this.ctx.session.agent.minP = minP >= 0 ? minP : undefined;
-				break;
-			}
-			case "presencePenalty": {
-				const presencePenalty = typeof value === "number" ? value : Number(value);
-				this.ctx.session.agent.presencePenalty = presencePenalty >= 0 ? presencePenalty : undefined;
-				break;
-			}
-			case "repetitionPenalty": {
-				const repetitionPenalty = typeof value === "number" ? value : Number(value);
-				this.ctx.session.agent.repetitionPenalty = repetitionPenalty >= 0 ? repetitionPenalty : undefined;
-				break;
-			}
-			case "git.enabled":
-			case "statusLinePreset":
-			case "statusLine.preset":
-			case "statusLineSeparator":
-			case "statusLine.separator":
-			case "statusLineShowHooks":
-			case "statusLine.showHookStatus":
-			case "statusLine.sessionAccent":
-			case "statusLine.transparent":
-			case "statusLine.compactThinkingLevel":
-			case "statusLineSegments":
-			case "statusLineModelThinking":
-			case "statusLinePathAbbreviate":
-			case "statusLinePathMaxLength":
-			case "statusLinePathStripWorkPrefix":
-			case "statusLineGitShowBranch":
-			case "statusLineGitShowStaged":
-			case "statusLineGitShowUnstaged":
-			case "statusLineGitShowUntracked":
-			case "statusLineTimeFormat":
-			case "statusLineTimeShowSeconds": {
-				const s = settings;
-				const statusLineSettings = {
-					preset: cfgStatusLinePreset.get(s),
-					leftSegments: cfgStatusLineLeftSegments.get(s),
-					rightSegments: cfgStatusLineRightSegments.get(s),
-					separator: cfgStatusLineSeparator.get(s),
-					showHookStatus: cfgStatusLineShowHookStatus.get(s),
-					sessionAccent: cfgStatusLineSessionAccent.get(s),
-					transparent: cfgStatusLineTransparent.get(s),
-					segmentOptions: cfgStatusLineSegmentOptions.get(s),
-					compactThinkingLevel: cfgStatusLineCompactThinkingLevel.get(s),
-				};
-				this.ctx.statusLine.updateSettings(statusLineSettings);
-				this.ctx.ui.requestRender();
-				break;
-			}
-
-			// Provider settings - update runtime preferences
-			case "providers.webSearchOrder":
-			case "providers.webSearchExclude":
-			case "providers.imageOrder":
-				applyProviderGlobalsFromSettings(this.ctx.settings);
-				break;
-
-			// MCP update injection - live subscribe/unsubscribe
-			case "mcp.notifications":
-				this.ctx.mcpManager?.setNotificationsEnabled(value as boolean);
-				break;
-
-			// All other settings are handled by the definitions (get/set on SettingsManager)
-			// No additional side effects needed
-		}
+		if (id !== cfgDefaultThinkingLevel.id || typeof value !== "string") return;
+		const level = parseConfiguredThinkingLevel(value);
+		if (level === undefined || level === this.ctx.session.configuredThinkingLevel()) return;
+		this.ctx.session.setThinkingLevel(level);
 	}
 
 	/**
@@ -1223,7 +848,6 @@ export class SelectorController {
 			this.ctx.ui.requestRender();
 		};
 		const isCurrent = () => this.#openMenus.get(menuKind) === menu;
-		const { ModelPickerComponent } = loadModelOverlayComponents();
 		const picker = new ModelPickerComponent(
 			this.ctx.ui,
 			createModelBrowserSource(this.ctx.settings, model => viewed.effectiveServiceTier(model)),
@@ -1323,7 +947,6 @@ export class SelectorController {
 			this.focusActiveEditorArea();
 			this.ctx.ui.requestRender();
 		};
-		const { ModelHubComponent } = loadModelOverlayComponents();
 		const hub = new ModelHubComponent(
 			this.ctx.ui,
 			createModelBrowserSource(this.ctx.settings, model => this.ctx.session.effectiveServiceTier(model)),
@@ -1621,18 +1244,8 @@ export class SelectorController {
 			pluginsCacheDir: getPluginsCacheDir(),
 			clearPluginRootsCache: clearPluginRootsAndCaches,
 		});
-		// The bundled official plugins are installed but disabled on first sight; the
-		// selector lists installed entries, so materialize them before reading.
-		try {
-			await mgr.ensureOfficialPluginsInstalled();
-		} catch {
-			// The catalog and any existing install still list.
-		}
 
-		const [marketplaces, installed] = await Promise.all([
-			mgr.listAvailableMarketplaces(),
-			mgr.listInstalledPlugins(),
-		]);
+		const [marketplaces, installed] = await Promise.all([mgr.listMarketplaces(), mgr.listInstalledPlugins()]);
 		const installedIds = new Set(installed.map(p => p.id));
 
 		if (mode === "uninstall") {
@@ -1709,7 +1322,8 @@ export class SelectorController {
 		});
 	}
 
-	showUserMessageSelector(): void {
+	/** The rewind selector (Esc Esc), its outline on the latest turn, or on entry `startAt` (a turn's Rewind to here…). */
+	showUserMessageSelector(startAt?: string): void {
 		const entries = this.ctx.sessionManager.getBranch().filter(isTranscriptEntry);
 		if (entries.length === 0) {
 			this.ctx.showStatus("No messages to branch from");
@@ -1734,6 +1348,7 @@ export class SelectorController {
 			linkTargets: getAssistantMessageLinkTargets(this.ctx),
 			requestRender: () => this.ctx.ui.requestRender(),
 			siblingPaths: entryId => this.#siblingBranchPaths(entryId),
+			startAt,
 			onSelect: entryId => void this.#rewindFromTranscript(entryId, done),
 			onCancel: done,
 		});
@@ -1798,9 +1413,11 @@ export class SelectorController {
 	 * replaces the editor text, so it is a real move even when it is the
 	 * current leaf; every other target lands the leaf on the entry. `done`
 	 * closes the fullscreen selector after the transcript is rebuilt so the
-	 * alternate screen never flashes a stale transcript.
+	 * alternate screen never flashes a stale transcript. `resend` sends a user
+	 * target's prompt again at once (a turn's Retry) instead of leaving it in
+	 * the editor; otherwise the status toast offers Undo ({@link #undoRewind}).
 	 */
-	async #rewindFromTranscript(entryId: string, done: () => void): Promise<void> {
+	async #rewindFromTranscript(entryId: string, done: () => void, resend = false): Promise<void> {
 		const entry = this.ctx.sessionManager.getEntry(entryId);
 		if (!entry || !isTranscriptEntry(entry)) {
 			done();
@@ -1815,6 +1432,10 @@ export class SelectorController {
 			return;
 		}
 		const treeRewind = this.#treeRewindBoundary(entryId, realLeafId);
+		const branch = this.ctx.sessionManager.getBranch();
+		const at = branch.findIndex(e => e.id === entryId);
+		const dropped = at < 0 ? 0 : branch.slice(isUserTarget ? at : at + 1).filter(e => isUserRequestEntry(e)).length;
+		const draft = { text: this.ctx.editor.getText(), images: [...this.ctx.editor.pendingImages] };
 		try {
 			const result = await this.ctx.session.navigateTree(entryId, { summarize: false });
 			if (result.cancelled) {
@@ -1832,13 +1453,113 @@ export class SelectorController {
 			await this.ctx.reloadTodos();
 			if (result.editorText && (isUserTarget || !this.ctx.editor.getText().trim())) {
 				this.ctx.editor.setDraft(result.editorText, result.editorImages);
+				if (resend && isUserTarget) this.ctx.editor.submit();
 			}
 			done();
-			this.ctx.showStatus("Rewound to selected point");
+			if (resend) {
+				this.ctx.showStatus("Retrying the turn");
+				return;
+			}
+			this.ctx.showStatus(
+				dropped > 0 ? `Rewound ${dropped} turn${dropped === 1 ? "" : "s"}` : "Rewound to selected point",
+				{
+					action: {
+						act: "undo",
+						label: "Undo",
+						run: () => void this.#undoRewind(realLeafId, isUserTarget ? draft : undefined),
+					},
+				},
+			);
 		} catch (error) {
 			done();
 			this.ctx.showError(error instanceof Error ? error.message : String(error));
 		}
+	}
+
+	/**
+	 * Undo of a transcript rewind: the leaf goes back to `leafId`, where it was (the rewind kept that path as a
+	 * branch), and `draft`, what the editor held before the rewind put a prompt there, comes back.
+	 */
+	async #undoRewind(
+		leafId: string | null,
+		draft: { text: string; images: ImageContent[] } | undefined,
+	): Promise<void> {
+		if (!leafId) return;
+		try {
+			const result = await this.ctx.session.navigateTree(leafId, { summarize: false });
+			if (result.cancelled) {
+				this.ctx.showStatus("Navigation cancelled");
+				return;
+			}
+			await this.ctx.renderInitialMessages({ clearTerminalHistory: true });
+			await this.ctx.reloadTodos();
+			if (draft) this.ctx.editor.setDraft(draft.text, draft.images);
+			this.ctx.showStatus("Rewind undone");
+		} catch (error) {
+			this.ctx.showError(error instanceof Error ? error.message : String(error));
+		}
+	}
+
+	/**
+	 * A transcript turn's hold-menu action on `message`, found on the current branch by role and timestamp:
+	 * `rewind` opens the rewind selector on it; `edit` rewinds past the turn's prompt and puts it in the editor,
+	 * as Esc Esc does; `retry` rewinds past the prompt and sends it again; `fork` moves onto a new session
+	 * holding the conversation up to the message, the old one kept on disk.
+	 */
+	async runTurnAction(turn: TurnAct, message: TurnMessage): Promise<void> {
+		const branch = this.ctx.sessionManager.getBranch();
+		const index = branch.findLastIndex(
+			e => e.type === "message" && e.message.role === message.role && e.message.timestamp === message.at,
+		);
+		const entry = branch[index];
+		if (!entry) {
+			this.ctx.showStatus("That message is no longer on this branch");
+			return;
+		}
+		if (turn === "rewind") {
+			this.showUserMessageSelector(entry.id);
+			return;
+		}
+		if (turn === "fork") {
+			await this.#forkAt(entry.id);
+			return;
+		}
+		// The turn's prompt: the message itself, or the last one asked before the answer.
+		const prompt = message.role === "user" ? entry : branch.slice(0, index).findLast(e => isUserRequestEntry(e));
+		if (!prompt) {
+			this.ctx.showStatus("No prompt to resend before this answer");
+			return;
+		}
+		// Retry sends the prompt through the editor, which holds the user's unsent draft.
+		if (turn === "retry" && (this.ctx.editor.getText().trim() || this.ctx.editor.pendingImages.length > 0)) {
+			this.ctx.showStatus("Send or clear the draft to retry this turn");
+			return;
+		}
+		await this.#rewindFromTranscript(prompt.id, () => this.ctx.ui.requestRender(), turn === "retry");
+	}
+
+	/** Fork from here: the session moves onto a new file holding the conversation up to `entryId`. */
+	async #forkAt(entryId: string): Promise<void> {
+		if (this.ctx.session.isStreaming) {
+			this.ctx.showWarning("Wait for the current response to finish or abort it before forking.");
+			return;
+		}
+		const previous = this.ctx.sessionManager.isSessionOnDisk() ? this.ctx.sessionManager.getSessionId() : undefined;
+		try {
+			if (!(await this.ctx.session.fork(entryId))) {
+				this.ctx.showError("Fork failed (session not persisted or cancelled)");
+				return;
+			}
+		} catch (error) {
+			this.ctx.showError(error instanceof Error ? error.message : String(error));
+			return;
+		}
+		await this.ctx.renderInitialMessages({ clearTerminalHistory: true });
+		await this.ctx.reloadTodos();
+		this.ctx.statusLine.invalidate();
+		this.ctx.showStatus(
+			previous ? `Forked into a new session · /resume ${previous} returns` : "Forked into a new session",
+		);
 	}
 
 	showCopySelector(): void {
@@ -2151,23 +1872,10 @@ export class SelectorController {
 		}
 	}
 
-	/**
-	 * Open the resume picker. `options.workspacePath` opens it on another
-	 * directory's conversations (the `/cd` picker's secondary action), and
-	 * `options.initialScope` picks the starting scope instead of the persisted one.
-	 */
-	async showSessionSelector(
-		source?: ForeignSessionSource,
-		onSelect?: SessionPickHandler,
-		options: { workspacePath?: string; initialScope?: ResumeScopeKindLike } = {},
-	): Promise<void> {
+	async showSessionSelector(source?: ForeignSessionSource, onSelect?: SessionPickHandler): Promise<void> {
 		let sessions: SessionInfo[];
 		let onSelectSession: (session: SessionInfo) => Promise<boolean>;
-		let selectorOptions: SessionSelectorOptions<SessionInfo> & {
-			resumeSource?: LiveResumePickerSource;
-			deleteMode?: "trash" | "permanent";
-		};
-		let resumeSourceToLoad: LiveResumePickerSource | undefined;
+		let selectorOptions: SessionSelectorOptions<SessionInfo>;
 
 		if (source) {
 			const sourceName = foreignSessionSourceName(source);
@@ -2213,78 +1921,91 @@ export class SelectorController {
 				showCwd: true,
 			};
 		} else {
+			const [listing, pinnedIds] = await Promise.all([
+				SessionManager.listForPicker(
+					this.ctx.sessionManager.getCwd(),
+					this.ctx.sessionManager.getSessionDir(),
+					undefined,
+					cfgSessionWorktreeScope.get(this.ctx.settings),
+				),
+				loadPinnedSessionIds(),
+			]);
+			sessions = listing.sessions;
+			const historyStorage = this.ctx.historyStorage;
+			const historyMatcher = historyStorage
+				? (query: string) => historyStorage.matchingSessionIds(query)
+				: undefined;
 			onSelectSession = session => this.handleResumeSession(session.path, { followContinuation: true });
-			const deleteWithTrash = async (session: SessionInfo): Promise<boolean> => {
-				if (!(await this.#detachActiveSessionBeforeDeletion(session.path))) return false;
-				const storage = new FileSessionStorage();
-				try {
-					await deleteSessionFiles(session.path, { mode: "trash", storage });
-					return true;
-				} catch (error) {
-					throw new Error(`Failed to delete session: ${error instanceof Error ? error.message : String(error)}`, {
-						cause: error,
-					});
-				}
+			selectorOptions = {
+				...(!onSelect
+					? {
+							onDelete: async (session: SessionInfo) => {
+								if (!(await this.#detachActiveSessionBeforeDeletion(session.path))) {
+									return false;
+								}
+								const storage = new FileSessionStorage();
+								try {
+									await storage.deleteSessionWithArtifacts(session.path);
+									return true;
+								} catch (error) {
+									throw new Error(
+										`Failed to delete session: ${error instanceof Error ? error.message : String(error)}`,
+										{ cause: error },
+									);
+								}
+							},
+							onRename: async (session: SessionInfo, title: string): Promise<string | null> => {
+								if (this.ctx.sessionManager.getSessionFile() === session.path) {
+									// A session that has only been read does not hold
+									// its ownership lease, so another omp process can
+									// claim it; the live rename would then fork onto
+									// a sibling and still report success, leaving the
+									// row here pointing at the old path. Claim the
+									// lease up front and refuse while it is held by
+									// someone else.
+									const claim = new FileSessionStorage().claimSession(session.id, session.path);
+									if (!claim) {
+										throw new Error(
+											"Failed to rename session: it is currently in use by another omp process",
+										);
+									}
+									try {
+										const renamed = await this.ctx.sessionManager.setSessionName(title, "user");
+										return renamed ? (this.ctx.sessionManager.getSessionName() ?? null) : null;
+									} finally {
+										claim();
+									}
+								}
+								const renamed = await SessionManager.renameSessionTitle(session.path, title, {
+									cwd: session.cwd,
+								});
+								// The picker renders the failure itself; throwing
+								// hands it the reason so it can show one message
+								// instead of two.
+								if (!renamed) {
+									throw new Error("Failed to rename session: it is currently in use or no longer available");
+								}
+								return renamed;
+							},
+							onSetPinned: async (session: SessionInfo, pinned: boolean) => {
+								await setSessionPinned(session.id, pinned);
+								this.ctx.applySessionPin(session.id, pinned);
+							},
+						}
+					: {
+							title: "Select a Session to Consult",
+							actionLabel: "Select",
+							scopeLabel: false,
+							showCwd: true,
+						}),
+				historyMatcher,
+				completeSessions: listing.complete,
+				loadAllSessions: () => SessionManager.listAllForPicker(),
+				pinnedIds,
+				// Live getter so detach/newSession stays accurate; tolerant of partial
+				// contexts and in-memory sessions (undefined file means no marker).
+				currentSessionPath: () => this.ctx.sessionManager.getSessionFile?.() ?? undefined,
 			};
-			const currentSessionPath = () => this.ctx.sessionManager.getSessionFile?.() ?? undefined;
-			if (!onSelect) {
-				// The three-level resume tree loads its directory after the overlay
-				// paints (scope control + skeleton first), then fills project,
-				// workspace and conversation rows from the local model. It enumerates
-				// this process's own sessions: the owning sessions root when the dir
-				// is one bucket under it, else the dir's own list (a custom
-				// `--session-dir` writes session files straight into the directory).
-				const initialState = await loadResumePickerState();
-				const cwd = this.ctx.sessionManager.getCwd();
-				const sessionDir = this.ctx.sessionManager.getSessionDir();
-				const sessionsRoot = resolveManagedSessionRoot(sessionDir, cwd);
-				const resumeSource = new LiveResumePickerSource({
-					initialScope: options.initialScope ?? initialState.scope,
-					initialState,
-					workspacePath: options.workspacePath ?? cwd,
-					deleteMode: "trash",
-					...(sessionsRoot
-						? { sessionsRoot }
-						: { sessions: async () => (await SessionManager.listForPicker(cwd, sessionDir)).sessions }),
-					currentSessionPath,
-					renameCurrentSession: async title => {
-						const manager = this.ctx.sessionManager;
-						const applied = await manager.setSessionName(title, "user");
-						return applied ? (manager.getSessionName() ?? null) : null;
-					},
-					deleteConversation: async conversation => deleteWithTrash(conversation.session as SessionInfo),
-				});
-				sessions = [];
-				resumeSourceToLoad = resumeSource;
-				selectorOptions = {
-					onDelete: deleteWithTrash,
-					resumeSource,
-					deleteMode: "trash",
-					// Live getter so detach/newSession stays accurate; tolerant of partial
-					// contexts and in-memory sessions (undefined file means no marker).
-					currentSessionPath,
-				};
-			} else {
-				const [consultSessions, pinnedIds] = await Promise.all([
-					SessionManager.listForPicker(this.ctx.sessionManager.getCwd(), this.ctx.sessionManager.getSessionDir()),
-					loadPinnedSessionIds(),
-				]);
-				const historyStorage = this.ctx.historyStorage;
-				const historyMatcher = historyStorage
-					? (query: string) => historyStorage.matchingSessionIds(query)
-					: undefined;
-				sessions = await consultSessions.complete;
-				selectorOptions = {
-					title: "Select a Session to Consult",
-					actionLabel: "Select",
-					scopeLabel: false,
-					showCwd: true,
-					historyMatcher,
-					loadAllSessions: async () => (await SessionManager.listAllForPicker()).complete,
-					pinnedIds,
-					currentSessionPath,
-				};
-			}
 		}
 
 		// Keep the fullscreen picker on the alternate buffer while a selected
@@ -2346,12 +2067,6 @@ export class SelectorController {
 		});
 		this.ctx.ui.setFocus(selector);
 		this.ctx.ui.requestRender();
-		if (resumeSourceToLoad) {
-			void resumeSourceToLoad.refresh().then(() => {
-				selector.getResumeTree()?.invalidate();
-				this.ctx.ui.requestRender();
-			});
-		}
 	}
 
 	#refreshSessionTerminalTitle(): void {
@@ -2494,7 +2209,7 @@ export class SelectorController {
 
 		const confirmed = await this.ctx.showHookConfirm(
 			"Delete Session",
-			"This will move the current session to the trash (~/.zeta/trash/sessions; /restore brings it back).\nYou will be returned to the session selector.",
+			"This will permanently delete the current session.\nYou will be returned to the session selector.",
 		);
 
 		if (!confirmed) {
@@ -2507,8 +2222,8 @@ export class SelectorController {
 			return;
 		}
 
-		// Move the session file, artifacts, and stale backups into the trash
-		await storage.moveSessionWithArtifactsToTrash(sessionFile);
+		// Delete the session file and artifacts directory
+		await storage.deleteSessionWithArtifacts(sessionFile);
 
 		// Show session selector
 		this.ctx.showStatus("Session deleted");
@@ -2952,7 +2667,8 @@ export class SelectorController {
 		const hub = new AgentHubOverlayComponent({
 			...createAgentHubRuntime({
 				settings: this.ctx.settings,
-				registry: this.ctx.agentRegistry,
+				registry: undefined,
+				remote: undefined,
 				sessionFile: this.ctx.sessionManager.getSessionFile() ?? null,
 			}),
 			observers,
@@ -2961,6 +2677,7 @@ export class SelectorController {
 			initialSection: options?.initialSection,
 			onDone: done,
 			requestRender: () => this.ctx.ui.requestRender(),
+			remote: undefined,
 			ui: this.ctx.ui,
 			getTool: name => this.ctx.session.getToolByName(name),
 			isBuiltInTool: name => this.ctx.session.hasBuiltInTool(name),
@@ -2999,59 +2716,5 @@ export class SelectorController {
 		} else {
 			showReadyHub();
 		}
-	}
-
-	/**
-	 * Open the Team Hub for the Team containing the session cwd. The Hub is a UI:
-	 * it reads the Team database and never loads a team-root transcript. Esc
-	 * closes it and restores this coding session.
-	 */
-	showTeamHub(): void {
-		if (this.#focusOpenMenu("team-hub")) return;
-		const menu = this.#claimMenu("team-hub");
-		void (async () => {
-			let entry: TeamEntry;
-			try {
-				entry = await resolveTeamEntry(this.ctx.sessionManager.getCwd());
-			} catch (error) {
-				this.#releaseMenu("team-hub", menu);
-				this.ctx.showWarning(error instanceof Error ? error.message : String(error));
-				return;
-			}
-			if (!entry.teamRoot || !entry.teamId) {
-				this.#releaseMenu("team-hub", menu);
-				this.ctx.showWarning(
-					"This session is not inside a Team. Run `zetacode` in a Team root or an engineer worktree.",
-				);
-				return;
-			}
-			if (this.#openMenus.get("team-hub") !== menu || menu.component) return;
-			let closed = false;
-			const done = (): void => {
-				if (closed) return;
-				closed = true;
-				hub.dispose();
-				menu.handle?.hide();
-				this.#releaseMenu("team-hub", menu);
-				this.focusActiveEditorArea();
-				this.ctx.ui.requestRender();
-			};
-			const hub = new TeamHubOverlayComponent({
-				source: createTeamHubDataSource({
-					teamRoot: entry.teamRoot,
-					teamId: entry.teamId,
-					teamName: entry.teamName,
-				}),
-				ui: this.ctx.ui,
-				initialPmId: entry.pmId,
-				onDone: done,
-				requestRender: () => this.ctx.ui.requestRender(),
-				openAgentHub: () => {
-					done();
-					this.ctx.showAgentHub();
-				},
-			});
-			this.#mountMenu(menu, hub, () => this.#showFullscreenMenu(hub));
-		})();
 	}
 }

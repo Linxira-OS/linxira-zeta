@@ -384,7 +384,7 @@ import {
 } from "@linxiraos/pi-tui/overlays/session-observer-registry";
 import { createSessionTeardown, type SessionTeardown } from "./session-teardown";
 import { sanitizeStatusText } from "@linxiraos/pi-tui/chrome/shared";
-import { invokeSkillCommandFromText, isKnownSkillCommand } from "./skill-command";
+import { invokeSkillCommandFromText, isKnownSkillCommand, type SkillCommandHost } from "./skill-command";
 import { clearMermaidCache } from "@linxiraos/pi-tui/theme/mermaid-cache";
 import { type ShimmerPalette, shimmerEnabled, shimmerText } from "@linxiraos/pi-tui/theme/shimmer";
 import type { Theme } from "@linxiraos/pi-tui/theme";
@@ -4127,7 +4127,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		// message, and EventController appends that canonical row on its own. An
 		// ordinary optimistic user row would survive as a duplicate, so mirror the
 		// dispatch condition here.
-		if (!submission.customType && !isKnownSkillCommand(this, submission.text)) {
+		if (!submission.customType && !isKnownSkillCommand(this as unknown as SkillCommandHost, submission.text)) {
 			this.#resetGoalContinuationSuppression();
 			const imageCount = submission.images?.length ?? 0;
 			this.optimisticUserMessageSignature = `${submission.text}\u0000${imageCount}`;
@@ -7315,8 +7315,8 @@ export class InteractiveMode implements InteractiveModeContext {
 		});
 		this.#planModePausedWorkflow = undefined;
 		if (!initialPrompt) return false;
-		if (isKnownSkillCommand(this, initialPrompt)) {
-			await invokeSkillCommandFromText(this, initialPrompt, "steer", {
+		if (isKnownSkillCommand(this as unknown as SkillCommandHost, initialPrompt)) {
+			await invokeSkillCommandFromText(this as unknown as SkillCommandHost, initialPrompt, "steer", {
 				images: input?.images,
 				propagateErrors: true,
 			});
@@ -7446,7 +7446,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 		await this.#enterVibeMode();
 		if (!initialPrompt) return false;
-		if (isKnownSkillCommand(this, initialPrompt)) {
+		if (isKnownSkillCommand(this as unknown as SkillCommandHost, initialPrompt)) {
 			// Append synchronously: the skill file read below yields before the
 			// turn reserves, so a concurrent plain prompt must see this claim
 			// before it can take the idle waiter — and a later skill must queue
@@ -7457,7 +7457,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				try {
 					await prev;
 					await this.#waitForInFlightSubmission(true);
-					await invokeSkillCommandFromText(this, initialPrompt, "steer", {
+					await invokeSkillCommandFromText(this as unknown as SkillCommandHost, initialPrompt, "steer", {
 						images: input?.images,
 						propagateErrors: true,
 					});

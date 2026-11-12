@@ -50,7 +50,7 @@ export async function deleteSessionFiles(
 	} else {
 		// FileStorage owns the trash move; alternate storage backends that do not
 		// implement it still share the same filesystem trash primitive.
-		const trash = (storage as Partial<Pick<FileSessionStorage, "moveSessionWithArtifactsToTrash">>)
+		const trash = (storage as Partial<{ moveSessionWithArtifactsToTrash(path: string): Promise<{ moved: boolean; entry: unknown | null }> }>)
 			.moveSessionWithArtifactsToTrash;
 		const moved = trash ? await trash.call(storage, sessionPath) : await moveSessionToTrash(sessionPath);
 		deleted = moved.moved || moved.entry === null;

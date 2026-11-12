@@ -47,11 +47,7 @@ export function createAgentMessenger(bus: AgentMessengerBus = IrcBus.global()): 
 			const message: Omit<IrcMessage, "id" | "ts"> = { from, to, body };
 			if (opts?.replyTo !== undefined) message.replyTo = opts.replyTo;
 			if (opts?.wakeRelay) message.wakeRelay = true;
-			const delivery =
-				opts?.expectsReply === undefined && opts?.suppressRelay === undefined
-					? undefined
-					: { expectsReply: opts.expectsReply, suppressRelay: opts.suppressRelay };
-			return bus.send(message, delivery);
+			return bus.send(message);
 		},
 		wait: (agentId, filter, timeoutMs, signal) => bus.wait(agentId, filter, timeoutMs, signal),
 		inbox: (agentId, opts) => bus.inbox(agentId, opts),

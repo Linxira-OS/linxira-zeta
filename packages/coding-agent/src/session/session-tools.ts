@@ -1,18 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import * as path from "node:path";
 import type { Agent, AgentMessage, AgentTool, AgentToolContext } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { resolveDelegationBias } from "@linxiraos/pi-catalog/compat/delegation";
-import {
-	getAgentDir,
-	isRecord,
-	logger,
-	prompt,
-	stringProperty,
-	structuredCloneJSON,
-	untilAborted,
-} from "@linxiraos/pi-utils";
-import { getConfigDirPaths } from "../config";
+import { isRecord, logger, prompt, stringProperty, structuredCloneJSON, untilAborted } from "@linxiraos/pi-utils";
 import { reset as resetCapabilities } from "../capability";
 import type { EffectiveExtensionRoots } from "../capability/types";
 import { shouldInlineToolDescriptors } from "../config/inline-tool-descriptors-mode";
@@ -39,12 +29,10 @@ import { stripXdUrlPrefix, XD_URL_PREFIX } from "@linxiraos/pi-tui/tools/xd-url"
 import { deduplicateMCPToolsByName, resolveMCPToolAlias } from "../mcp/tool-bridge";
 import { resolveMemoryBackend } from "../memory-backend/resolve";
 import { MEMORY_BACKEND_TOOL_NAMES } from "../memory-backend/tool-names";
-import { invalidateToolSchemaMetadata } from "@linxiraos/pi-tui/status-line/context-usage";
+import { invalidateToolSchemaMetadata, type SystemPromptSources } from "@linxiraos/pi-tui/status-line/context-usage";
 import type { MemoryBackendStartOptions, MemoryPromptPreparation } from "../memory-backend/types";
+import { getPerCallModelAdvertisement, type PerCallModelAdvertisement } from "../task/model-approval";
 import type { AgentDefinition } from "../task/types";
-import { discoverSystemPromptOverride } from "../system-prompt";
-import { createContextReloadService, type ContextReloadService } from "./context-reload";
-import { createAnalysisMcpPrecedenceHook, type AnalysisMcpRefreshInput } from "../mcp/analysis-precedence-hook";
 import evalPreludeNoticePrompt from "../prompts/system/eval-prelude-notice.md" with { type: "text" };
 import sessionAgentNoticePrompt from "../prompts/system/session-agent-notice.md" with { type: "text" };
 import skillNoticePrompt from "../prompts/system/skill-notice.md" with { type: "text" };
@@ -82,7 +70,8 @@ import {
 	PERMISSION_REQUIRED_TOOLS,
 } from "./acp-permission-gate";
 import type { ClientBridge, ClientBridgePermissionOutcome } from "./client-bridge";
-import { toolReadsSkillUris } from "../system-prompt";
+import { type BuildSystemPromptResult, toolReadsSkillUris } from "../system-prompt";
+import { matchModelPattern } from "../utils/model-patterns";
 
 import type { CustomMessage } from "./messages";
 import { SESSION_AGENT_NOTICE_TYPE } from "./queued-messages";
@@ -90,7 +79,13 @@ import type { SessionEntry } from "./session-entries";
 import type { SessionManager } from "./session-manager";
 
 import { cfgDisabledExtensions, cfgSkills, type SkillsSettings } from "../extensibility/settings";
-import { cfgExternalThinking, cfgIncludeModelInPrompt, cfgInlineToolDescriptors, cfgSkillful } from "./settings";
+import {
+	cfgExternalThinking,
+	cfgIncludeModelInPrompt,
+	cfgInlineToolDescriptors,
+	cfgSkillful,
+	systemPromptTemplatePatterns,
+} from "./settings";
 import { cfgStartupQuiet } from "../modes/settings";
 import {
 	cfgToolsApproval,
@@ -108,10 +103,6 @@ export interface SessionToolsHost {
 	/** Session-local extension roots (explicit + mode + configured) for post-startup reloads. */
 	effectiveExtensionRoots(): EffectiveExtensionRoots;
 	modelRegistry: ModelRegistry;
-	/** Per-agent tool admission; undefined admits everything. */
-	mcpToolFilter?: (tool: { name: string; mcpServerName?: string }) => boolean;
-	skillFilter?: (name: string) => boolean;
-	approvalCacheDir?: string;
 	extensionRunner(): ExtensionRunner | undefined;
 	clientBridge(): ClientBridge | undefined;
 	agentKind(): "main" | "sub";
@@ -184,24 +175,12 @@ export type SystemPromptRebuilder = (
 	toolNames: string[],
 	tools: Map<string, AgentTool>,
 	xdev: XdevState | undefined,
-) => Promise<{
-	systemPrompt: string[];
-	xdevCatalogNames?: readonly string[];
-	/**
-	 * The context files this rebuild actually rendered, after the owner's own
-	 * filtering (`noContextFiles`, `excludeAgentsMd`, explicit `contextFiles`).
-	 * The context-reload service watches exactly these paths, so provenance and
-	 * consent stay the discovery layer's decision.
-	 */
-	contextWatchPaths?: readonly string[];
-}>;
+) => Promise<BuildSystemPromptResult>;
 
 interface SessionToolsOptions {
 	autoApprove?: boolean;
 	toolRegistry?: Map<string, AgentTool>;
 	createVibeTools?: () => AgentTool[];
-	/** Creates tools registered only while lead (PM) mode is active. */
-	createLeadTools?: () => AgentTool[];
 	/** Creates the private `think` scratchpad tool for runtime setting changes. */
 	createThinkTool?: () => Promise<AgentTool | null>;
 	builtInToolNames?: Iterable<string>;
@@ -220,16 +199,11 @@ interface SessionToolsOptions {
 	 */
 	reconcileSettingsGatedTools?: (isBuiltIn: (name: string) => boolean) => Promise<SettingsGatedToolDelta>;
 	rebuildSystemPrompt?: SystemPromptRebuilder;
-	/**
-	 * Watch set for {@link SessionTools.refreshContextFilesIfChanged}: the files this
-	 * session's system prompt was rendered from. Prefer the rebuild result's
-	 * `contextWatchPaths`; this provider covers hosts that build the prompt elsewhere.
-	 */
-	contextWatchPaths?: () => readonly string[];
 	getMcpServerInstructions?: () => Map<string, string> | undefined;
 	xdev?: XdevState;
 	setActiveToolNames?: (names: Iterable<string>) => void;
 	baseSystemPrompt: string[];
+	systemPromptSources?: SystemPromptSources;
 	skills?: Skill[];
 	skillWarnings?: SkillWarning[];
 	skillsSettings?: SkillsSettings;
@@ -400,6 +374,8 @@ interface PromptSurface {
 	sessionAgents: readonly AgentDefinition[];
 	/** Tool names the eval description lists as callable from cells. */
 	evalToolNames: readonly string[];
+	/** Per-call model roles the task/eval descriptions advertise (mid-session role edits). */
+	perCallModelAdvertisement: PerCallModelAdvertisement;
 }
 
 /**
@@ -437,11 +413,11 @@ export class SessionTools {
 	readonly #host: SessionToolsHost;
 	#autoApprove: boolean;
 	#toolRegistry: Map<string, AgentTool>;
-	#createVibeTools: (() => AgentTool[]) | undefined;
 	#createLeadTools: (() => AgentTool[]) | undefined;
+	#installedLeadToolNames = new Set<string>();
+	#createVibeTools: (() => AgentTool[]) | undefined;
 	#createThinkTool: SessionToolsOptions["createThinkTool"];
 	#installedVibeToolNames = new Set<string>();
-	#installedLeadToolNames = new Set<string>();
 	/** An MCP refresh landed while vibe narrowed the active set; vibe exit activates its manager tools. */
 	#vibeDeferredMcpRefresh = false;
 	#builtInToolNames: Set<string>;
@@ -489,6 +465,7 @@ export class SessionTools {
 	#presentationPinnedToolNames: ReadonlySet<string> | undefined;
 	#runtimeSelectedToolNames: ReadonlySet<string> | undefined;
 	#baseSystemPrompt: string[];
+	#systemPromptSources: SystemPromptSources | undefined;
 	/**
 	 * Per-turn system prompt returned by a `before_agent_start` extension hook
 	 * ("replace the system prompt for this turn"). While set, base-prompt
@@ -534,6 +511,8 @@ export class SessionTools {
 	#promptModelKey: string | undefined;
 	/** Inline-descriptor decision of the model the base prompt was rendered for. */
 	#promptInlineDescriptors: boolean | undefined;
+	/** `systemPromptTemplates` path selected for the model the base prompt was rendered for. */
+	#promptTemplate: string | undefined;
 	#rebuildSystemPrompt: SessionToolsOptions["rebuildSystemPrompt"];
 	#getMcpServerInstructions: SessionToolsOptions["getMcpServerInstructions"];
 	/**
@@ -585,21 +564,13 @@ export class SessionTools {
 	 */
 	#promptSurface: PromptSurface;
 	#acpPermissionDecisions = new Map<string, "allow_always" | "reject_always">();
-	/** Watches the files this session's prompt rendered from; refreshes at turn boundaries only. */
-	#contextReload: ContextReloadService;
-	/** Last watch set the rebuild reported (see {@link SystemPromptRebuilder}). */
-	#contextWatchPaths: readonly string[];
-	/** Resolved custom-prompt files (`SYSTEM.md`/`SYSTEM_TEMPLATE.md`, `APPEND_SYSTEM.md`, `PERSONALITY.md`). */
-	#promptSourcePaths: readonly string[] = [];
-	/** Last analysis-MCP precedence snapshot; `/mcp list` reads it, never recomputes. */
-	#analysisMcpShadowReasons: Readonly<Record<string, string>> = {};
 
 	constructor(host: SessionToolsHost, options: SessionToolsOptions) {
 		this.#host = host;
 		this.#autoApprove = options.autoApprove === true;
 		this.#toolRegistry = options.toolRegistry ?? new Map();
-		this.#createVibeTools = options.createVibeTools;
 		this.#createLeadTools = options.createLeadTools;
+		this.#createVibeTools = options.createVibeTools;
 		this.#createThinkTool = options.createThinkTool;
 		this.#builtInToolNames = new Set(options.builtInToolNames ?? []);
 		this.#mcpManagerToolNames = new Set(options.mcpManagerToolNames ?? []);
@@ -622,35 +593,6 @@ export class SessionTools {
 		this.#ensureGoalRegistered = options.ensureGoalRegistered;
 		this.#reconcileSettingsGatedTools = options.reconcileSettingsGatedTools;
 		this.#rebuildSystemPrompt = options.rebuildSystemPrompt;
-		this.#contextWatchPaths = [];
-		void this.#adoptPromptSourcePaths();
-		this.#contextReload = createContextReloadService({
-			readWatchPaths: () => [
-				...(options.contextWatchPaths?.() ?? this.#contextWatchPaths),
-				...this.#promptSourcePaths,
-			],
-			// Watch the cwd's ancestor chain and the agent dir too: a context or custom-prompt
-			// file added (or removed) in a parent native directory is noticed without any
-			// tree walk, and the walk is bounded to the discovery roots.
-			watchRoots: () => {
-				const roots: string[] = [];
-				let directory = path.resolve(this.#host.sessionManager.getCwd());
-				for (let depth = 0; depth < 8; depth++) {
-					roots.push(directory);
-					const parent = path.dirname(directory);
-					if (parent === directory) break;
-					directory = parent;
-				}
-				roots.push(getAgentDir());
-				return roots;
-			},
-			refresh: async isCurrent => {
-				await this.refreshBaseSystemPrompt(isCurrent);
-				// The rebuild re-resolved the custom-prompt sources; follow them.
-				await this.#adoptPromptSourcePaths();
-			},
-			isDisposed: () => this.#host.isDisposed(),
-		});
 		this.#getMcpServerInstructions = options.getMcpServerInstructions;
 		this.#xdev = options.xdev;
 		if (this.#xdev && this.#xdev.tools !== this.#toolRegistry) {
@@ -659,6 +601,7 @@ export class SessionTools {
 		if (this.#xdev) this.#xdev.decorateExecution = tool => this.#wrapToolForAcpPermission(tool);
 		this.#setActiveToolNames = options.setActiveToolNames;
 		this.#baseSystemPrompt = options.baseSystemPrompt;
+		this.#systemPromptSources = options.systemPromptSources;
 		const restoredReply = this.#latestReply();
 		const restoredPromptDigest = restoredReply && this.recordedPromptDigest();
 		this.#restoredTranscript =
@@ -682,6 +625,7 @@ export class SessionTools {
 		this.#basePromptRoutedXdevNames = this.#routedSummaryXdevNames();
 		this.#promptModelKey = this.#currentPromptModelKey();
 		this.#promptInlineDescriptors = this.#currentInlineDescriptors();
+		this.#promptTemplate = this.#currentPromptTemplate();
 	}
 
 	/** Mutable registry shared with controller hosts that inspect available tools. */
@@ -694,9 +638,19 @@ export class SessionTools {
 		return this.#baseSystemPrompt;
 	}
 
-	/** Replaces the controller-owned base prompt without applying it to the agent. */
-	setBaseSystemPrompt(prompt: string[]): void {
+	/**
+	 * Replaces the controller-owned base prompt and its sources without applying them to the agent.
+	 * Pass the sources built with `prompt`; a prompt built before an appended memory promotion keeps
+	 * the current sources, since promotion only appends a block.
+	 */
+	restoreBaseSystemPrompt(prompt: string[], sources: SystemPromptSources | undefined): void {
 		this.#baseSystemPrompt = prompt;
+		this.#systemPromptSources = sources;
+	}
+
+	/** Sources committed with the base prompt; appended blocks (memory promotion) keep them valid. */
+	get systemPromptSources(): SystemPromptSources | undefined {
+		return this.#systemPromptSources;
 	}
 
 	/**
@@ -731,52 +685,6 @@ export class SessionTools {
 	/** Drops the active per-turn override; later rebuilds fall back to the base prompt. */
 	clearTurnSystemPromptOverride(): void {
 		this.#turnSystemPromptOverride = undefined;
-	}
-
-	/**
-	 * Resolve the custom-prompt files the builder reads for this cwd, using the same
-	 * discovery the builder uses — no independent scan. Only paths are kept; the content is
-	 * read by the rebuild itself.
-	 */
-	async #adoptPromptSourcePaths(): Promise<void> {
-		const cwd = this.#host.sessionManager.getCwd();
-		// `findConfigFile` hides missing files; the *candidates* are what a hot update has to
-		// watch, so a newly created APPEND_SYSTEM.md is seen where discovery would look.
-		const candidates = [...getConfigDirPaths("APPEND_SYSTEM.md"), path.join(getAgentDir(), "PERSONALITY.md")];
-		try {
-			const override = await discoverSystemPromptOverride(cwd);
-			if (override?.path) candidates.push(override.path);
-		} catch (error) {
-			logger.debug("Could not resolve custom-prompt sources for context reload", { error: String(error) });
-		}
-		const seen = new Set<string>();
-		const paths: string[] = [];
-		for (const candidate of candidates) {
-			const resolved = path.resolve(candidate);
-			if (seen.has(resolved)) continue;
-			seen.add(resolved);
-			paths.push(resolved);
-		}
-		this.#promptSourcePaths = paths;
-	}
-
-	/** Replace the context-reload watch set (hosts that build the prompt outside the rebuilder). */
-	setContextWatchPaths(paths: readonly string[]): void {
-		this.#contextWatchPaths = [...paths];
-	}
-
-	/**
-	 * Refresh the base prompt when a watched context/custom-prompt file changed. Idle hosts
-	 * call this to apply an edit before the next turn; the turn boundary calls the same path.
-	 * Returns whether a rebuild ran.
-	 */
-	refreshContextFilesIfChanged(isCurrent?: () => boolean): Promise<boolean> {
-		return this.#contextReload.beforeRequest(isCurrent);
-	}
-
-	/** Close the context-reload watchers and timers. Safe to call twice. */
-	dispose(): void {
-		this.#contextReload.dispose();
 	}
 
 	/** The live skill registry: what `skill://` and `/skill:` resolve. */
@@ -865,13 +773,6 @@ export class SessionTools {
 			disabledExtensions: cfgDisabledExtensions.get(this.#host.settings),
 			extensionRoots: this.#host.effectiveExtensionRoots(),
 		});
-		const filter = this.#host.skillFilter;
-		if (filter) {
-			return {
-				discovered: { ...discovered, skills: discovered.skills.filter(skill => filter(skill.name)) },
-				skillsSettings,
-			};
-		}
 		return { discovered, skillsSettings };
 	}
 
@@ -913,6 +814,13 @@ export class SessionTools {
 	get advertisedSessionAgents(): readonly AgentDefinition[] {
 		return (this.#promptSurfaceScope.getStore() ?? this.#promptSurface).sessionAgents;
 	}
+	/**
+	 * Per-call model roles the task/eval descriptions advertise (see
+	 * {@link #promptSurface}); the candidate inside a rebuild frame.
+	 */
+	get advertisedPerCallModel(): PerCallModelAdvertisement {
+		return (this.#promptSurfaceScope.getStore() ?? this.#promptSurface).perCallModelAdvertisement;
+	}
 
 	/**
 	 * Tool names the eval description advertises (see {@link #promptSurface});
@@ -930,6 +838,11 @@ export class SessionTools {
 			evalPreludes: this.#host.evalPreludes(),
 			sessionAgents: this.#host.sessionAgents(),
 			evalToolNames: this.getEvalBridgeToolNames(),
+			perCallModelAdvertisement: getPerCallModelAdvertisement(
+				this.#host.settings,
+				this.#host.model(),
+				this.#host.modelRegistry,
+			),
 		};
 	}
 	/** Drops cached per-session ACP `allow_always`/`reject_always` decisions. */
@@ -1220,78 +1133,6 @@ export class SessionTools {
 		this.#installedVibeToolNames.clear();
 	}
 
-	/** Installs and activates the ephemeral Lead (PM) tool set. */
-	activateLeadTools(baseToolNames: string[]): Promise<void> {
-		return this.runToolRegistryMutation(async () => {
-			const createLeadTools = this.#createLeadTools;
-			if (!createLeadTools) {
-				throw new Error("Lead tools are unavailable in this session.");
-			}
-
-			const tools = createLeadTools();
-			const leadToolNames = tools.map(tool => tool.name);
-			if (new Set(leadToolNames).size !== leadToolNames.length) {
-				throw new Error("Lead tool names must be unique.");
-			}
-
-			for (const tool of tools) {
-				if (this.#toolRegistry.has(tool.name)) continue;
-				this.#toolRegistry.set(tool.name, this.#wrapRuntimeTool(tool));
-				this.#builtInToolNames.add(tool.name);
-				this.#installedLeadToolNames.add(tool.name);
-			}
-
-			await this.#applyActiveToolsByName([...new Set([...baseToolNames, ...leadToolNames])]);
-		});
-	}
-
-	/** Uninstalls lead tools and activates the replacement set. */
-	deactivateLeadTools(nextToolNames: string[]): Promise<void> {
-		return this.runToolRegistryMutation(async () => {
-			this.#uninstallLeadTools();
-			await this.#applyActiveToolsByName(nextToolNames);
-		});
-	}
-
-	/** Removes lead tools without restoring a source-session snapshot. */
-	removeLeadToolsPreservingActive(): Promise<void> {
-		return this.runToolRegistryMutation(async () => {
-			const removed = new Set(this.#installedLeadToolNames);
-			this.#uninstallLeadTools();
-			const nextEnabled = this.getEnabledToolNames().filter(name => !removed.has(name));
-			await this.#applyActiveToolsByName(nextEnabled);
-		});
-	}
-
-	#uninstallLeadTools(): void {
-		for (const name of this.#installedLeadToolNames) {
-			this.#toolRegistry.delete(name);
-			this.#builtInToolNames.delete(name);
-		}
-		this.#installedLeadToolNames.clear();
-	}
-
-	/**
-	 * Remove extension-owned runtime tools (agent-authored dev plugin reloads)
-	 * and drop them from the enabled set. Serialized with every other registry
-	 * mutation so a streamed turn never sees a half-removed registry.
-	 */
-	removeRuntimeTools(names: readonly string[]): Promise<void> {
-		return this.runToolRegistryMutation(async () => {
-			const removed = new Set(names.filter(name => this.#toolRegistry.has(name)));
-			if (removed.size === 0) return;
-			const nextEnabled = this.getEnabledToolNames().filter(name => !removed.has(name));
-			for (const name of removed) {
-				this.#toolRegistry.delete(name);
-				this.#builtInToolNames.delete(name);
-				this.#extensionMcpTools.delete(name);
-				this.#mcpManagerToolNames.delete(name);
-				this.#rpcHostToolNames.delete(name);
-			}
-			await this.#applyActiveToolsByName(nextEnabled);
-		});
-	}
-
 	#getEditModeSession() {
 		return {
 			settings: this.#host.settings,
@@ -1314,6 +1155,13 @@ export class SessionTools {
 		return shouldInlineToolDescriptors(cfgInlineToolDescriptors.get(this.#host.settings), activeModel.id);
 	}
 
+	/** `systemPromptTemplates` path the active model selects; a change replaces the whole instruction block. */
+	#currentPromptTemplate(): string | undefined {
+		const activeModel = this.#host.model();
+		if (!activeModel) return undefined;
+		return matchModelPattern(systemPromptTemplatePatterns.get(this.#host.settings), formatModelString(activeModel));
+	}
+
 	#currentPromptModelKey(): string | undefined {
 		const activeModel = this.#host.model();
 		if (!activeModel) return undefined;
@@ -1330,21 +1178,25 @@ export class SessionTools {
 	 * Delegation wording the prompt was rendered with: re-rendering them changed the prompt's bytes,
 	 * and the provider then wrote the whole cached conversation again on every hop. It still rebuilds
 	 * when the hop changes what the request must carry for the new model: the edit-mode policy
-	 * (#11983), or the inline-descriptor decision, which also turns provider-side description pruning
-	 * on or off (#14200). The kept key makes a later switch back to the rendered model a no-op, and a
-	 * deliberate switch (`/model`, `setModel`) compares against the model the prompt describes.
+	 * (#11983), the inline-descriptor decision, which also turns provider-side description pruning
+	 * on or off (#14200), or the `systemPromptTemplates` entry the model selects. The kept key makes a
+	 * later switch back to the rendered model a no-op, and a deliberate switch (`/model`, `setModel`)
+	 * compares against the model the prompt describes.
 	 */
 	async syncAfterModelChange(previousEditMode: EditModeSetting, options?: { retryFallback?: boolean }): Promise<void> {
 		const currentEditMode = this.resolveActiveEditMode();
+		const templateChanged = this.#currentPromptTemplate() !== this.#promptTemplate;
 		if (options?.retryFallback) {
 			const inlineDescriptorsChanged = this.#currentInlineDescriptors() !== this.#promptInlineDescriptors;
-			if (previousEditMode !== currentEditMode || inlineDescriptorsChanged) await this.refreshBaseSystemPrompt();
+			if (previousEditMode !== currentEditMode || inlineDescriptorsChanged || templateChanged) {
+				await this.refreshBaseSystemPrompt();
+			}
 			return;
 		}
 		const editModeChanged = previousEditMode !== currentEditMode && this.getActiveToolNames().includes("edit");
 		// The system prompt selects model-specific policy even when it does not display the model id.
 		const modelChanged = this.#currentPromptModelKey() !== this.#promptModelKey;
-		if (editModeChanged || modelChanged) {
+		if (editModeChanged || modelChanged || templateChanged) {
 			await this.refreshBaseSystemPrompt();
 		}
 	}
@@ -1403,10 +1255,7 @@ export class SessionTools {
 							args,
 							mode,
 							userPolicies,
-							getApprovalGrants(
-								this.#host.approvalCacheDir ?? this.#host.settings.getAgentDir(),
-								this.#host.sessionManager.getSessionId(),
-							),
+							getApprovalGrants(this.#host.settings.getAgentDir(), this.#host.sessionManager.getSessionId()),
 							restrictions,
 							ctx,
 						);
@@ -1726,6 +1575,7 @@ export class SessionTools {
 		this.#setActiveToolNames?.(validToolNames);
 
 		let rebuiltSystemPrompt: string[] | undefined;
+		let rebuiltSources: SystemPromptSources | undefined;
 		let rebuiltSignature: string | undefined;
 		let frozenSignature: string | undefined;
 		// Trigger of an implicit (non-forced) rebuild, rechecked at commit.
@@ -1752,8 +1602,8 @@ export class SessionTools {
 					this.#promptSurfaceScope.run(surface, () =>
 						this.#computeAppliedToolSignature(validToolNames, tools, mountedSignatureTools),
 					);
-				// Eval-prelude, eval tool-name and model-mention changes alone never
-				// trigger a rebuild: they ride their hidden notices. The trigger keeps
+				// Eval-prelude, eval tool-name, model-mention and per-call-model advertisement
+				// changes alone never trigger a rebuild: they ride their hidden notices. The trigger keeps
 				// the committed sets; a rebuild caused by anything else absorbs the
 				// live ones.
 				const triggerSignature = computeSignature({
@@ -1761,6 +1611,7 @@ export class SessionTools {
 					evalPreludes: this.#promptSurface.evalPreludes,
 					sessionAgents: this.#promptSurface.sessionAgents,
 					evalToolNames: this.#promptSurface.evalToolNames,
+					perCallModelAdvertisement: this.#promptSurface.perCallModelAdvertisement,
 				});
 				const freezeImplicitPromptRefresh =
 					!forcePromptRefresh &&
@@ -1777,6 +1628,7 @@ export class SessionTools {
 						),
 					);
 					rebuiltSystemPrompt = built.systemPrompt;
+					rebuiltSources = built.sources;
 					if (!forcePromptRefresh) implicitRebuildSignature = triggerSignature;
 					rebuiltSignature = signature;
 					rebuiltXdevCatalogNames = built.xdevCatalogNames;
@@ -1829,6 +1681,7 @@ export class SessionTools {
 					this.#host.clearInheritedProviderPromptCacheKey();
 				}
 				this.#baseSystemPrompt = rebuiltSystemPrompt;
+				this.#systemPromptSources = rebuiltSources;
 				this.#host.clearMemoryPromotionSnapshot();
 				this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 				invalidateToolSchemaMetadata(this.#host.agent.state.tools);
@@ -1836,6 +1689,7 @@ export class SessionTools {
 				this.#recordPromptRoster(validToolNames);
 				this.#promptModelKey = this.#currentPromptModelKey();
 				this.#promptInlineDescriptors = this.#currentInlineDescriptors();
+				this.#promptTemplate = this.#currentPromptTemplate();
 				this.#setBasePromptXdevNames(rebuiltXdevCatalogNames);
 				// The rebuilt prompt is a fresh roster snapshot. Keep the complete
 				// pending delta for a turn override that hides it, while separately
@@ -2626,17 +2480,6 @@ export class SessionTools {
 	}
 
 	/**
-	 * Applies the external-thinking setting to the private `think` scratchpad
-	 * immediately (live /settings toggle). Enabling constructs the tool once;
-	 * disabling removes it from the active set but keeps its registry entry.
-	 *
-	 * @returns false when enabling was requested but this session cannot build the tool.
-	 */
-	setThinkToolEnabled(enabled: boolean): Promise<boolean> {
-		return this.#setThinkToolActive(enabled && supportsExternalThinking(this.#host.model()));
-	}
-
-	/**
 	 * Reconciles the private `think` scratchpad with the `externalThinking`
 	 * setting and the active model. Enabling constructs the tool once;
 	 * disabling removes it from the active set but keeps its registry entry.
@@ -2763,23 +2606,15 @@ export class SessionTools {
 				// awaiting its final commit: its own lifecycle published its own
 				// snapshot, so only carry the prompt forward.
 				if (this.#baseSystemPrompt !== previousBaseSystemPrompt) return true;
-				const promptChanged = !samePromptBlocks(previousBaseSystemPrompt, built.systemPrompt);
 				this.#baseSystemPrompt = built.systemPrompt;
-				if (built.contextWatchPaths !== undefined) this.#contextWatchPaths = built.contextWatchPaths;
+				this.#systemPromptSources = built.sources;
 				this.#promptSurface = candidate;
 				this.#setBasePromptXdevNames(built.xdevCatalogNames);
 				this.#host.clearMemoryPromotionSnapshot();
-				if (promptChanged) {
+				if (!samePromptBlocks(previousBaseSystemPrompt, this.#baseSystemPrompt)) {
 					this.#host.clearInheritedProviderPromptCacheKey();
 				}
-				// A cleared per-turn override must be replaced by the base prompt even when
-				// the bytes did not change; an identical re-apply is skipped so a byte-equal
-				// rebuild keeps its applied prompt and inherited provider cache lineage.
-				const applied = this.#turnSystemPromptOverride ?? this.#baseSystemPrompt;
-				if (!samePromptBlocks(this.#host.agent.state.systemPrompt, applied)) {
-					this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
-				}
-
+				this.#applyAgentSystemPrompt(this.#baseSystemPrompt);
 				invalidateToolSchemaMetadata(this.#host.agent.state.tools);
 				// The rebuilt prompt is a fresh roster snapshot. Keep the complete pending
 				// delta for a turn override that hides it, while separately tracking any
@@ -2788,6 +2623,7 @@ export class SessionTools {
 				this.#pendingToolRosterDeltaAfterBase = undefined;
 				this.#promptModelKey = this.#currentPromptModelKey();
 				this.#promptInlineDescriptors = this.#currentInlineDescriptors();
+				this.#promptTemplate = this.#currentPromptTemplate();
 				this.#lastAppliedToolSignature = signature;
 				this.#recordPromptRoster(activeToolNames);
 				return true;
@@ -2812,6 +2648,7 @@ export class SessionTools {
 		const candidate: PromptSurface = {
 			...this.#derivePromptSurface(),
 			evalToolNames: this.#promptSurface.evalToolNames,
+			perCallModelAdvertisement: this.#promptSurface.perCallModelAdvertisement,
 		};
 		const built = await this.#promptSurfaceScope.run(candidate, () =>
 			rebuildSystemPrompt(roster.toolNames, roster.tools, roster.xdev),
@@ -2839,10 +2676,6 @@ export class SessionTools {
 		isCurrent: () => boolean,
 		signal?: AbortSignal,
 	): Promise<SystemPromptPreparation> {
-		// Turn boundary: apply an edited context file / custom prompt before this request is
-		// assembled. A streaming turn never reaches here, and a stale reload is dropped by the
-		// generation guard inside the service.
-		await this.#contextReload.beforeRequest(isCurrent);
 		const backend = await resolveMemoryBackend(this.#host.settings);
 		if (!isCurrent() || !backend.beforeAgentStartPrompt) return { systemPrompt: this.#baseSystemPrompt };
 
@@ -2991,31 +2824,44 @@ export class SessionTools {
 	}
 
 	/**
-	 * Replace MCP tools in the registry and enable them immediately. Refreshes
-	 * are serialized so an older asynchronous prompt rebuild cannot commit
-	 * after a newer catalog snapshot. Every connected MCP tool becomes available
-	 * (mounted under `xd://` when that transport is active, else top-level);
-	 * while vibe mode is active, activation waits for vibe exit.
+	 * Replace MCP tools in the registry, enabling newly discovered manager tools
+	 * while preserving the selection of existing ones. Refreshes are serialized
+	 * so an older asynchronous prompt rebuild cannot commit after a newer catalog
+	 * snapshot. During vibe mode, new tools wait for vibe exit.
 	 */
-	refreshMCPTools(mcpTools: CustomTool[], analysis?: AnalysisMcpRefreshInput): Promise<void> {
+	/** Install the Lead/PM tool set (Zeta lead mode). */
+	async activateLeadTools(baseToolNames: string[]): Promise<void> {
+		const createLeadTools = this.#createLeadTools;
+		if (!createLeadTools) throw new Error("Lead tools are unavailable in this session.");
+		await this.runToolRegistryMutation(async () => {
+			for (const tool of createLeadTools()) this.#toolRegistry.set(tool.name, tool);
+			void baseToolNames;
+		});
+	}
+
+	/** Remove the Lead/PM tool set. */
+	async deactivateLeadTools(nextToolNames: string[]): Promise<void> {
+		await this.runToolRegistryMutation(async () => {
+			for (const name of this.#installedLeadToolNames) this.#toolRegistry.delete(name);
+			this.#installedLeadToolNames.clear();
+			void nextToolNames;
+		});
+	}
+
+	refreshMCPTools(mcpTools: CustomTool[]): Promise<void> {
 		const snapshot = [...mcpTools];
 		return this.runToolRegistryMutation(() =>
-			this.#host.isDisposed() ? Promise.resolve() : this.#applyMCPToolRefresh(snapshot, analysis),
+			this.#host.isDisposed() ? Promise.resolve() : this.#applyMCPToolRefresh(snapshot),
 		);
 	}
 
-	/** Last analysis-MCP precedence decisions (server -> reason), or `{}` when none ran. */
-	getAnalysisMcpShadowReasons(): Readonly<Record<string, string>> {
-		return this.#analysisMcpShadowReasons;
-	}
-
-	async #applyMCPToolRefresh(mcpTools: CustomTool[], analysis?: AnalysisMcpRefreshInput): Promise<void> {
+	async #applyMCPToolRefresh(mcpTools: CustomTool[]): Promise<void> {
 		const previousMcpTools = new Map<string, AgentTool>();
 		for (const [name, tool] of this.#toolRegistry) {
 			if (isMCPToolName(name)) previousMcpTools.set(name, tool);
 		}
 		const previousMcpManagerToolNames = new Set(this.#mcpManagerToolNames);
-		const previousActiveMcpToolNames = this.getEnabledToolNames().filter(isMCPToolName);
+		const previousActiveMcpToolNames = new Set(this.getEnabledToolNames().filter(isMCPToolName));
 		const restorePreviousMcpTools = () => {
 			for (const name of this.#toolRegistry.keys()) {
 				if (isMCPToolName(name)) this.#toolRegistry.delete(name);
@@ -3025,36 +2871,7 @@ export class SessionTools {
 		};
 
 		const extensionRunner = this.#host.extensionRunner();
-		// Analysis MCP precedence (REQ053): resolved once per refresh from the manager's
-		// own snapshot, after dedup and before anything is bound to the session. The hook
-		// is never cached, so a reconnect or `tools/list_changed` recomputes a denied or
-		// shadowed server instead of resurrecting an earlier decision.
-		const dedupedMcpTools = deduplicateMCPToolsByName(mcpTools);
-		const analysisHook = analysis ? createAnalysisMcpPrecedenceHook(analysis) : undefined;
-		if (analysisHook && analysis) {
-			this.#analysisMcpShadowReasons = analysisHook.shadowReasons;
-			// `ask` is a descriptor only: hand it to the host's existing approval path. No
-			// adapter means the server stays unmounted (it is already filtered out).
-			if (analysis.approve) {
-				for (const request of analysisHook.approvalRequests) {
-					// A refused or failed approval must not roll back the tool set: the
-					// server simply stays unmounted.
-					try {
-						if (await analysis.approve(request)) analysisHook.approve(request.serverName);
-					} catch (error) {
-						logger.debug("analysis-MCP approval request failed", { error: String(error) });
-					}
-				}
-			}
-		}
-		// The host filter (settings-disabled tools + profile admission) stays the
-		// outer deny: the hook sees the raw snapshot so a denied/shadowed server
-		// still gets a reason, then the same filter decides what is actually bound.
-		const filter = this.#host.mcpToolFilter;
-		const acceptedMcpTools = (analysisHook ? analysisHook.filterTools(dedupedMcpTools) : dedupedMcpTools).filter(
-			tool => (filter ? filter(tool) : true),
-		);
-		const managerTools = acceptedMcpTools.map(customTool => {
+		const managerTools = deduplicateMCPToolsByName(mcpTools).map(customTool => {
 			const wrapped = wrapToolWithMetaNotice(
 				CustomToolAdapter.wrap(customTool, this.#getCustomToolContext) as AgentTool,
 			);
@@ -3072,25 +2889,20 @@ export class SessionTools {
 			if (managerToolSet.has(tool)) this.#mcpManagerToolNames.add(tool.name);
 		}
 
-		// Connected manager tools become active immediately, except while vibe
-		// narrows the active set to the director's tools: then every MCP tool keeps
-		// its prior selection and vibe exit activates the manager set. Extension-owned
-		// MCP tools always retain their prior selection while both share one registry.
+		// Refresh replaces implementations, not an extension's selection. Walk
+		// the new registry in order so catalog reordering still updates the prompt.
+		// Names previously supplied by extensions keep their selection if ownership changes.
 		const vibeActive = this.#installedVibeToolNames.size > 0;
-		const retainedActiveMcpToolNames = previousActiveMcpToolNames.filter(
-			name => (vibeActive || this.#extensionMcpTools.has(name)) && this.#toolRegistry.has(name),
-		);
-		// A same-capability native tool the MCP server won is kept in the registry but
-		// dropped from the active set; the next refresh re-derives this from the then-current
-		// snapshot, so disabling and re-enabling the native tool is never stale.
-		const suppressedNativeTools = new Set(analysisHook?.nativeToolsToSuppress ?? []);
-		const nextActive = [
-			...new Set([
-				...this.#getActiveNonMCPToolNames().filter(name => !suppressedNativeTools.has(name)),
-				...(vibeActive ? [] : this.#mcpManagerToolNames),
-				...retainedActiveMcpToolNames,
-			]),
-		];
+		const nextActive = this.#getActiveNonMCPToolNames();
+		for (const name of this.#toolRegistry.keys()) {
+			if (
+				isMCPToolName(name) &&
+				(previousActiveMcpToolNames.has(name) ||
+					(!vibeActive && this.#mcpManagerToolNames.has(name) && !previousMcpTools.has(name)))
+			) {
+				nextActive.push(name);
+			}
+		}
 		try {
 			await this.#applyActiveToolsByName(nextActive);
 			if (this.#host.isDisposed()) {

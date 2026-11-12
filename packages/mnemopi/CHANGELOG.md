@@ -2,8 +2,6 @@
 
 ## [1.5.1] - 2026-11-10
 
-- Released as part of Zeta 1.5.1; no package-specific user-visible changes.
-
 ## [1.5.0] - 2026-11-09
 
 - Released as part of Zeta 1.5.0; no package-specific user-visible changes.

@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, sanitizeText, tryAcquireFileLock, withFileLock } from "@linxiraos/pi-utils";
+import { isEnoent, logger, sanitizeText, tryAcquireFileLock, withFileLock } from "@linxiraos/pi-utils";
 import type { MemoryWriteScope } from "../memory-backend/global-scope";
 import { redactMemorySecrets } from "../memory-backend/redact";
 import { writeFileAtomically } from "../utils/atomic-file";
@@ -14,8 +14,7 @@ const QUARANTINE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** Undelivered events per destination; past it, writes fail instead of evicting. */
 const MAX_EVENTS = 1000;
 const BATCH_SIZE = 16;
-/** New events are `zeta-retain-*`; the legacy `omp-retain-*` files stay readable so queued events survive the rename. */
-const EVENT_FILE = /^(?:zeta|omp)-retain-[a-f0-9]{32}\.json$/;
+const EVENT_FILE = /^omp-retain-[a-f0-9]{32}\.json$/;
 /** Statuses that refuse the request body itself; every other failure is retried. */
 const REJECTED_PAYLOAD_STATUSES = new Set([400, 413, 422]);
 
@@ -136,7 +135,8 @@ export class HindsightOutbox {
 
 	/**
 	 * Sends this destination's events and quarantines every destination's expired
-	 * ones. Stops at the first retryable failure; events stay on disk for the next drain.
+	 * ones, then prunes quarantine. Stops at the first retryable failure; events stay
+	 * on disk for the next drain. Pruning is best-effort and never fails delivery.
 	 */
 	async drain(): Promise<DrainResult> {
 		const result: DrainResult = { busy: false, delivered: 0, quarantined: 0, kept: 0 };
@@ -162,6 +162,13 @@ export class HindsightOutbox {
 				lease.release();
 			}
 		}
+		try {
+			await this.#pruneQuarantine();
+		} catch (error) {
+			logger.warn("Hindsight quarantine cleanup failed", {
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
 		return result;
 	}
 
@@ -174,7 +181,7 @@ export class HindsightOutbox {
 		const identity = JSON.stringify([call.sessionId, call.toolCallId, index, scope, context, content]);
 		return {
 			version: 1,
-			id: `zeta-retain-${new Bun.CryptoHasher("sha256").update(identity).digest("hex").slice(0, 32)}`,
+			id: `omp-retain-${new Bun.CryptoHasher("sha256").update(identity).digest("hex").slice(0, 32)}`,
 			scope,
 			tags: scope === "global" ? [] : (call.tags ?? []).map(tag => this.#clean(tag)),
 			timestamp: new Date().toISOString(),
@@ -292,24 +299,44 @@ export class HindsightOutbox {
 		result.quarantined += await this.#quarantine(expired);
 	}
 
-	/** Moves `files` to quarantine, then deletes quarantined events past their review period. */
+	/** Moves `files` to quarantine and starts their review period. */
 	async #quarantine(files: string[]): Promise<number> {
 		if (files.length === 0) return 0;
 		const dir = this.quarantineDir;
 		await fs.mkdir(dir, { recursive: true, mode: 0o700 });
-		const now = new Date();
-		for (const file of files) {
-			const target = path.join(dir, path.basename(file));
-			await fs.rename(file, target);
-			// The review period starts now, not at enqueue.
-			await fs.utimes(target, now, now);
-		}
-		const cutoff = now.getTime() - QUARANTINE_TTL_MS;
-		for (const name of await fs.readdir(dir)) {
-			const file = path.join(dir, name);
-			if ((await fs.stat(file)).mtimeMs < cutoff) await fs.rm(file, { force: true });
-		}
-		return files.length;
+		return withFileLock(dir, async () => {
+			const now = new Date();
+			for (const file of files) {
+				const target = path.join(dir, path.basename(file));
+				await fs.rename(file, target);
+				// The review period starts now, not at enqueue.
+				await fs.utimes(target, now, now);
+			}
+			return files.length;
+		});
+	}
+
+	/** Deletes quarantined events past their review period. */
+	async #pruneQuarantine(): Promise<void> {
+		const dir = this.quarantineDir;
+		await withFileLock(dir, async () => {
+			let names: string[];
+			try {
+				names = await fs.readdir(dir);
+			} catch (error) {
+				if (isEnoent(error)) return;
+				throw error;
+			}
+			const cutoff = Date.now() - QUARANTINE_TTL_MS;
+			for (const name of names) {
+				const file = path.join(dir, name);
+				try {
+					if ((await fs.stat(file)).mtimeMs < cutoff) await fs.rm(file, { force: true });
+				} catch (error) {
+					if (!isEnoent(error)) throw error;
+				}
+			}
+		});
 	}
 }
 

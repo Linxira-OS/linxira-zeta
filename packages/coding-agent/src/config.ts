@@ -1,16 +1,22 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CONFIG_DIR_NAME, getConfigAgentDirName, getProjectDir } from "@linxiraos/pi-utils";
+import { CONFIG_DIR_NAME, getAgentDir, getProjectDir } from "@linxiraos/pi-utils";
 import { isUserSourceEnabled } from "./capability";
 import { resolveClaudePaths } from "./config/claude-paths";
 import { expandTilde } from "./tools/path-utils";
 
 export * from "./config/config-file";
 
-const priorityList = [
-	{ dir: CONFIG_DIR_NAME, globalAgentDir: getConfigAgentDirName },
-	{ dir: ".claude" },
+/**
+ * Config sources, highest priority first. `userBase` overrides the default
+ * `~/<dir>` user-level location: omp's own user dir follows `getAgentDir()`
+ * (profile, `ZETA_CONFIG_DIR`, and `ZETA_CODING_AGENT_DIR` aware), Claude's follows
+ * its active config directory.
+ */
+const priorityList: Array<{ dir: string; userBase?: () => string }> = [
+	{ dir: CONFIG_DIR_NAME, userBase: getAgentDir },
+	{ dir: ".claude", userBase: () => resolveClaudePaths().configDir },
 	{ dir: ".codex" },
 	{ dir: ".gemini" },
 ];
@@ -78,12 +84,11 @@ export function getChangelogPath(): string | undefined {
 // =============================================================================
 
 /**
- * User-level: ~/.zeta/agent, Claude's active config directory, ~/.codex, ~/.gemini
+ * User-level: the omp agent dir (~/.zeta/agent), Claude's active config directory, ~/.codex, ~/.gemini
  * Project-level: .zeta, .claude, .codex, .gemini
  */
-const USER_CONFIG_BASES = priorityList.map(({ dir, globalAgentDir }) => ({
-	base: () =>
-		dir === ".claude" ? resolveClaudePaths().configDir : path.join(os.homedir(), globalAgentDir?.() ?? dir),
+const USER_CONFIG_BASES = priorityList.map(({ dir, userBase }) => ({
+	base: userBase ?? (() => path.join(os.homedir(), dir)),
 	name: dir,
 }));
 
@@ -174,11 +179,6 @@ export interface ConfigFileResult<T> {
  * Find the first existing config file (for non-JSON files like SYSTEM.md).
  * Returns just the path, or undefined if not found.
  */
-/** Discover APPEND_SYSTEM.md (project first, then user); the rebuild re-reads it. */
-export function discoverAppendSystemPromptPath(): string | undefined {
-	return findConfigFile("APPEND_SYSTEM.md", { user: false }) ?? findConfigFile("APPEND_SYSTEM.md", { user: true });
-}
-
 export function findConfigFile(subpath: string, options: GetConfigDirsOptions = {}): string | undefined {
 	const dirs = getConfigDirs("", { ...options, existingOnly: false });
 

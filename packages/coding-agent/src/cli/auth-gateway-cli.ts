@@ -42,7 +42,7 @@ import {
 import { authPolicyFor } from "@linxiraos/pi-catalog/compat/auth";
 import { buildModelProviderPriorityRank } from "@linxiraos/pi-catalog/identity";
 import { type GeneratedProvider, getBundledModels, getEffectiveTokenCost } from "@linxiraos/pi-catalog/models";
-import { type ModelKind, modelKind } from "@linxiraos/pi-catalog/types";
+import { modelKind } from "@linxiraos/pi-catalog/types";
 import { getConfigRootDir, logger, VERSION } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { ModelRegistry } from "../config/model-registry";
@@ -55,7 +55,7 @@ import {
 	resolveAuthBrokerConfig,
 	resolveEffectiveSettings,
 } from "../session/auth-broker-config";
-import { runAuthGatewayStdio } from "./auth-gateway-stdio";
+import { GATEWAY_MODEL_KINDS, runAuthGatewayStdio } from "./auth-gateway-stdio";
 import { generateToken, readTokenFile, writeTokenFile } from "./token-file";
 
 export type AuthGatewayAction = "serve" | "stdio" | "token" | "status" | "check";
@@ -207,25 +207,6 @@ export function createAuthGatewayClientsReloader(
 		return inFlight;
 	};
 }
-
-/**
- * Catalog kinds the gateway has a route for: chat (`/v1/chat/completions`,
- * `/v1/messages`, `/v1/responses`, `/v1/pi/stream`), judge (`/v1/systemone`),
- * image (`/v1/images/*`), tts (`/v1/audio/speech`), stt
- * (`/v1/audio/transcriptions`), embedding (`/v1/embeddings`), rerank
- * (`/v1/rerank`), video (`/v1/videos/*`). Other kinds (tiny, search) have no
- * wire and stay off the served catalog so `/v1/models` never advertises them.
- */
-const GATEWAY_MODEL_KINDS: readonly ModelKind[] = [
-	"chat",
-	"judge",
-	"image",
-	"tts",
-	"stt",
-	"embedding",
-	"rerank",
-	"video",
-];
 
 /** Every registry model of a kind the gateway can route, bundled catalog order within each kind. */
 export function gatewayRoutableModels(registry: ModelRegistry): Model<Api>[] {
@@ -421,7 +402,7 @@ async function runServe(flags: AuthGatewayCommandArgs["flags"]): Promise<void> {
 	// Build the model resolver + catalog from the ModelRegistry — the same
 	// component the TUI/CLI use — scoped to providers we hold credentials for.
 	// `getAll()` is a superset of the bundled catalog (bundled first, then
-	// cached + broker-discovered), so the discovery-only models zeta itself
+	// cached + broker-discovered), so the discovery-only models omp itself
 	// reaches become routable through the gateway instead of freezing on the
 	// compiled snapshot. `ignoreLocalModelConfig` keeps the host's `models.yml`
 	// out of the picture: client-side provider overrides (baseUrl/apiKey/headers/

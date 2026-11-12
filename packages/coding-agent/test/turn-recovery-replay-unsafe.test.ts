@@ -1,19 +1,20 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
 import type { AgentMessage, SyntheticToolResultDetails } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, ToolResultMessage } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import type { Model, Usage } from "@linxiraos/pi-catalog/types";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import {
 	type RecoveryCompactionResult,
+	kUsageLimitRequestProvider,
 	TurnRecovery,
 	type TurnRecoveryHost,
 } from "@linxiraos/zeta/session/turn-recovery";
+import { TempDir } from "@linxiraos/pi-utils";
 import { createProviderErrorMessage } from "../../ai/src/providers/error-message";
 import { streamFactoryDroidGemini } from "../../ai/src/providers/factory-droid/gemini";
 import { captureFetch, gemini as factoryGemini } from "../../ai/test/helpers/factory-droid";
@@ -39,6 +40,10 @@ function makeMessage(content: AssistantMessage["content"], model: Model): Assist
 		errorMessage: "timeout",
 		timestamp: Date.now(),
 	};
+}
+
+function stampIssuedProvider(message: AssistantMessage, provider: string): void {
+	(message as AssistantMessage & { [kUsageLimitRequestProvider]?: string })[kUsageLimitRequestProvider] = provider;
 }
 
 function createHost(
@@ -382,6 +387,209 @@ describe("TurnRecovery replay-unsafe output classification", () => {
 		expect(recovery.isRetryableError(message)).toBe(false);
 	});
 
+	it("does not block or cool down the healthy provider for a delayed old-provider quota error", async () => {
+		const codex = getBundledModel("openai-codex", "gpt-6.1-sol");
+		if (!codex) throw new Error("Expected bundled openai-codex model");
+		const host = createHost(model, modelRegistry, {
+			fallbackChains: { [`${model.provider}/${model.id}`]: ["openai/gpt-4o-mini"] },
+		});
+		const events: { type: string; delayMs?: number }[] = [];
+		host.emitSessionEvent = async event => {
+			events.push(
+				event.type === "auto_retry_start" ? { type: event.type, delayMs: event.delayMs } : { type: event.type },
+			);
+		};
+		const recovery = new TurnRecovery(host);
+		const mark = vi.spyOn(authStorage.limits, "markReached").mockResolvedValue({ switched: false });
+		const redeem = vi.spyOn(host, "maybeAutoRedeemReset").mockResolvedValue({ restored: false });
+		const cooldown = vi.spyOn(recovery, "noteRetryFallbackCooldown").mockImplementation(() => {});
+		try {
+			const failed: AssistantMessage = {
+				...makeMessage([], codex),
+				errorMessage: "429 usage_limit_reached: You've reached your ChatGPT plan limit. Try again in ~9701 min.",
+			};
+			stampIssuedProvider(failed, codex.provider);
+			await recovery.recordUsageLimitOutcome(failed);
+			expect(mark).not.toHaveBeenCalled();
+			const retried = await recovery.handleRetryableError(failed);
+			expect(retried).toBe(true);
+			expect(redeem).not.toHaveBeenCalled();
+			expect(cooldown).not.toHaveBeenCalled();
+			const retryStart = events.find(event => event.type === "auto_retry_start");
+			expect(retryStart).toBeDefined();
+			expect(retryStart?.delayMs ?? Infinity).toBeLessThan(60_000);
+		} finally {
+			mark.mockRestore();
+			redeem.mockRestore();
+			cooldown.mockRestore();
+		}
+	});
+
+	it("does not spend a stale quota hint on the fallback even when no block was recorded", async () => {
+		const codex = getBundledModel("openai-codex", "gpt-6.1-sol");
+		if (!codex) throw new Error("Expected bundled openai-codex model");
+		const host = createHost(model, modelRegistry, {
+			fallbackChains: { [`${model.provider}/${model.id}`]: ["openai/gpt-4o-mini"] },
+		});
+		const events: { type: string; delayMs?: number }[] = [];
+		host.emitSessionEvent = async event => {
+			events.push(
+				event.type === "auto_retry_start" ? { type: event.type, delayMs: event.delayMs } : { type: event.type },
+			);
+		};
+		const recovery = new TurnRecovery(host);
+		const redeem = vi.spyOn(host, "maybeAutoRedeemReset").mockResolvedValue({ restored: false });
+		const cooldown = vi.spyOn(recovery, "noteRetryFallbackCooldown").mockImplementation(() => {});
+		try {
+			const failed: AssistantMessage = {
+				...makeMessage([], codex),
+				errorMessage: "429 usage_limit_reached: You've reached your ChatGPT plan limit. Try again in ~9701 min.",
+			};
+			stampIssuedProvider(failed, codex.provider);
+			const retried = await recovery.handleRetryableError(failed);
+			expect(retried).toBe(true);
+			expect(redeem).not.toHaveBeenCalled();
+			expect(cooldown).not.toHaveBeenCalled();
+			expect(events.find(event => event.type === "auto_retry_start")?.delayMs ?? Infinity).toBeLessThan(60_000);
+		} finally {
+			redeem.mockRestore();
+			cooldown.mockRestore();
+		}
+	});
+
+	it("still attributes a same-provider quota error to the current provider", async () => {
+		const recovery = new TurnRecovery(createHost(model, modelRegistry));
+		const mark = vi.spyOn(authStorage.limits, "markReached").mockResolvedValue({ switched: true });
+		try {
+			const failed: AssistantMessage = {
+				...makeMessage([], model),
+				errorMessage: "429 usage_limit_reached: Weekly limit reached, retry-after-ms=1000",
+			};
+			expect(await recovery.recordUsageLimitOutcome(failed)).toBe(true);
+			expect(mark).toHaveBeenCalledWith("anthropic", "test-session", {
+				retryAfterMs: expect.any(Number),
+				providerTimed: true,
+				baseUrl: model.baseUrl,
+				modelId: model.id,
+			});
+		} finally {
+			mark.mockRestore();
+		}
+	});
+
+	it("ignores old-provider quota policy when the model changes during marking", async () => {
+		const codex = getBundledModel("openai-codex", "gpt-6.1-sol");
+		if (!codex) throw new Error("Expected bundled openai-codex model");
+		const host = createHost(codex, modelRegistry, {
+			fallbackChains: { [`${model.provider}/${model.id}`]: ["openai/gpt-4o-mini"] },
+		});
+		let active = codex;
+		const current = vi.spyOn(host, "model").mockImplementation(() => active);
+		const entered = Promise.withResolvers<void>();
+		const release = Promise.withResolvers<{ switched: boolean }>();
+		const mark = vi.spyOn(authStorage.limits, "markReached").mockImplementation(async () => {
+			entered.resolve();
+			return release.promise;
+		});
+		const redeem = vi.spyOn(host, "maybeAutoRedeemReset").mockResolvedValue({ restored: false });
+		const recovery = new TurnRecovery(host);
+		const cooldown = vi.spyOn(recovery, "noteRetryFallbackCooldown").mockImplementation(() => {});
+		const events: { type: string; delayMs?: number }[] = [];
+		host.emitSessionEvent = async event => {
+			events.push(
+				event.type === "auto_retry_start" ? { type: event.type, delayMs: event.delayMs } : { type: event.type },
+			);
+		};
+		try {
+			const failed: AssistantMessage = {
+				...makeMessage([], codex),
+				errorMessage: "429 usage_limit_reached: You've reached your ChatGPT plan limit. Try again in ~9701 min.",
+			};
+			stampIssuedProvider(failed, codex.provider);
+			const recording = recovery.recordUsageLimitOutcome(failed);
+			await entered.promise;
+			active = model;
+			release.resolve({ switched: false });
+			await recording;
+			expect(mark).toHaveBeenCalledWith("openai-codex", "test-session", expect.any(Object));
+			expect(await recovery.handleRetryableError(failed)).toBe(true);
+			expect(redeem).not.toHaveBeenCalled();
+			expect(cooldown).not.toHaveBeenCalled();
+			expect(events.find(event => event.type === "auto_retry_start")?.delayMs ?? Infinity).toBeLessThan(60_000);
+		} finally {
+			current.mockRestore();
+			mark.mockRestore();
+			redeem.mockRestore();
+			cooldown.mockRestore();
+		}
+	});
+
+	it("does not treat an old reset as current credential recovery after an awaited switch", async () => {
+		const codex = getBundledModel("openai-codex", "gpt-6.1-sol");
+		if (!codex) throw new Error("Expected bundled openai-codex model");
+		const host = createHost(codex, modelRegistry, {
+			fallbackChains: { [`${model.provider}/${model.id}`]: ["openai/gpt-4o-mini"] },
+		});
+		let active = codex;
+		const current = vi.spyOn(host, "model").mockImplementation(() => active);
+		const mark = vi.spyOn(authStorage.limits, "markReached").mockResolvedValue({ switched: false });
+		const entered = Promise.withResolvers<void>();
+		const release = Promise.withResolvers<{ restored: boolean }>();
+		const redeem = vi.spyOn(host, "maybeAutoRedeemReset").mockImplementation(async () => {
+			entered.resolve();
+			return release.promise;
+		});
+		const recovery = new TurnRecovery(host);
+		const cooldown = vi.spyOn(recovery, "noteRetryFallbackCooldown").mockImplementation(() => {});
+		const events: { type: string; delayMs?: number }[] = [];
+		host.emitSessionEvent = async event => {
+			events.push(
+				event.type === "auto_retry_start" ? { type: event.type, delayMs: event.delayMs } : { type: event.type },
+			);
+		};
+		try {
+			const failed: AssistantMessage = {
+				...makeMessage([], codex),
+				errorMessage: "429 usage_limit_reached: You've reached your ChatGPT plan limit. Try again in ~9701 min.",
+			};
+			stampIssuedProvider(failed, codex.provider);
+			await recovery.recordUsageLimitOutcome(failed);
+			const retrying = recovery.handleRetryableError(failed);
+			await entered.promise;
+			active = model;
+			release.resolve({ restored: true });
+			expect(await retrying).toBe(true);
+			expect(cooldown).not.toHaveBeenCalled();
+			const delay = events.find(event => event.type === "auto_retry_start")?.delayMs;
+			expect(delay).toBeGreaterThan(0);
+			expect(delay ?? Infinity).toBeLessThan(60_000);
+		} finally {
+			current.mockRestore();
+			mark.mockRestore();
+			redeem.mockRestore();
+			cooldown.mockRestore();
+		}
+	});
+
+	it("does not replay visible output or block the healthy provider for an old quota error", async () => {
+		const codex = getBundledModel("openai-codex", "gpt-6.1-sol");
+		if (!codex) throw new Error("Expected bundled openai-codex model");
+		const recovery = new TurnRecovery(createHost(model, modelRegistry));
+		const mark = vi.spyOn(authStorage.limits, "markReached").mockResolvedValue({ switched: false });
+		try {
+			const failed: AssistantMessage = {
+				...makeMessage([{ type: "text", text: "Already shown to the user" }], codex),
+				errorMessage: "429 usage_limit_reached: You've reached your ChatGPT plan limit. Try again in ~9701 min.",
+			};
+			stampIssuedProvider(failed, codex.provider);
+			expect(recovery.isRetryableError(failed)).toBe(false);
+			await recovery.recordUsageLimitOutcome(failed);
+			expect(mark).not.toHaveBeenCalled();
+		} finally {
+			mark.mockRestore();
+		}
+	});
+
 	it("allows replay-safe hard fallback and excludes committed text with a configured chain", () => {
 		const fallbackChains = {
 			[`${model.provider}/${model.id}`]: ["openai/gpt-4o-mini"],
@@ -591,7 +799,7 @@ describe("TurnRecovery replay-unsafe output classification", () => {
 	});
 
 	// Anthropic's request classifier can refuse AFTER the model streamed a tool
-	// call. Production shape (zeta.2026-08-07 log): `stopDetails.type === "refusal"`,
+	// call. Production shape (omp.2026-08-07 log): `stopDetails.type === "refusal"`,
 	// `errorId: 0` (no AIError flag, so `AIError.retriable` cannot rescue it), and
 	// the agent loop appends a synthetic `executed: false` result AFTER the refused
 	// assistant message, so state ends with `lastRole: "toolResult"`.

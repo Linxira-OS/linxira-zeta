@@ -124,7 +124,7 @@ export const createAutoresearchExtension: ExtensionFactory = api => {
 	api.registerTool(createUpdateNotesTool({ dashboard, getRuntime, pi: api }));
 
 	api.registerCommand("autoresearch", {
-		description: () => M.cmdAutoresearch,
+		description: M.cmdAutoresearch,
 		getArgumentCompletions(argumentPrefix: string): AutocompleteItem[] | null {
 			if (argumentPrefix.includes(" ")) return null;
 			const normalized = argumentPrefix.trim().toLowerCase();

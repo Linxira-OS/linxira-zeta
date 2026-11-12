@@ -436,9 +436,8 @@ export class Win32PasteMarkerNormalizer {
 		if (output) this.#onInput(output);
 		if (this.#candidate || this.#pending) {
 			this.#timer = setTimeout(() => {
-				// An overloaded loop runs expired timers before poll delivers the
-				// rest of a record. Give stdin one poll pass before releasing the
-				// marker as raw records, or the tail is typed as text.
+				// A stalled loop can have the rest of this record waiting in stdin's
+				// poll queue; release only after it has had a chance to arrive.
 				this.#timer = setTimeout(() => {
 					this.#timer = undefined;
 					this.flush();

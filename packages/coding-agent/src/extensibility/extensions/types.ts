@@ -1,8 +1,9 @@
-import type { Settings } from "../../config/settings";
 import type { AgentMessenger } from "../../irc/facade";
 import type { AgentDirectory } from "../../registry/agent-directory";
+import type { Settings } from "../../config/settings";
+import type { NativeNode } from "@linxiraos/pi-tui/native/node";
+import type { SegmentContext } from "@linxiraos/pi-tui/status-line/types";
 import type { PluginLocaleCatalog } from "../plugins/locales";
-import type { PluginStorage } from "../plugins/types";
 /**
  * Extension system types.
  *
@@ -48,8 +49,7 @@ import type {
 	ToolLoadMode,
 } from "@linxiraos/pi-agent-core";
 import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
-import type { NativeNode } from "@linxiraos/pi-tui/native/node";
-import type { ContextUsage, SegmentContext } from "@linxiraos/pi-tui/status-line/types";
+import type { ContextUsage } from "@linxiraos/pi-tui/status-line/types";
 import type { LoopConditionConfig } from "@linxiraos/pi-tui/status-line/loop";
 import type { LivePhase } from "@linxiraos/pi-tui/apps/live-visualizer";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
@@ -132,6 +132,8 @@ import type {
 	SessionBeforeBranchResult,
 	SessionBeforeCompactEvent,
 	SessionBeforeCompactResult,
+	SessionBeforeShutdownEvent,
+	SessionBeforeShutdownResult,
 	SessionBeforeSwitchEvent,
 	SessionBeforeSwitchResult,
 	SessionBeforeTreeEvent,
@@ -187,12 +189,17 @@ export type {
 	ExtensionAskDialogResult,
 } from "@linxiraos/pi-tui/overlays/ask-dialog";
 
-import type { HtmlFormData } from "@linxiraos/pi-tui/html-form/data";
-export type { HtmlFormData, HtmlFormValue } from "@linxiraos/pi-tui/html-form/data";
+import type { HtmlFormData, OptionNote } from "@linxiraos/pi-tui/html-form/data";
+export type { HtmlFormData, HtmlFormValue, OptionNote } from "@linxiraos/pi-tui/html-form/data";
 
-/** A submitted {@link ExtensionUIContext.formDialog}: the form data, flagged when the timeout submitted the defaults. */
+/** A submitted {@link ExtensionUIContext.formDialog}: form values and optional notes on selected options. */
 export interface ExtensionFormDialogResult {
 	data: HtmlFormData;
+	/**
+	 * Notes on selected options, separate from `data`. Only the interactive form
+	 * dialog collects them; ACP elicitation and field-by-field hosts never do.
+	 */
+	notes?: OptionNote[];
 	timedOut?: boolean;
 }
 
@@ -325,32 +332,6 @@ export type ExtensionApprovalAnswer =
 	| { grant: ExtensionApprovalGrant["scope"]; always: boolean };
 
 /**
- * A third-party sidebar widget registered through
- * {@link ExtensionUIContext.registerSidebarWidget}. `render` returns the
- * widget's full rows (header included when it has one) for the gutter width;
- * an empty array hides the widget for that frame. It runs synchronously on
- * every frame the sidebar draws — it must never perform IO.
- */
-export interface SidebarWidget {
-	/** Stable identity; re-registering the same id replaces the widget. */
-	id: string;
-	/** Display name (settings/listing surfaces); not auto-rendered. */
-	title: string;
-	/** Sort key among all sidebar widgets; lower renders first. */
-	order: number;
-	/** Render the widget's rows for the sidebar's segment context and width. */
-	render(ctx: SegmentContext, width: number): readonly string[];
-	/**
-	 * Semantic description served to a native (non-ANSI) sidebar renderer:
-	 * plain TSP nodes, no escapes, `null` when the widget is hidden this frame.
-	 * Return only JSON-serializable nodes — a `Component` child cannot cross the
-	 * snapshot boundary, so the frame falls back to the ANSI gutter instead.
-	 * Optional: without it the renderer degrades `render`'s rows to plain text.
-	 */
-	describe?(ctx: SegmentContext, width: number): NativeNode | null;
-}
-
-/**
  * UI context for extensions to request interactive UI.
  * Each mode (interactive, RPC, print) provides its own implementation.
  */
@@ -450,18 +431,6 @@ export interface ExtensionUIContext {
 
 	/** Set a custom header component, or undefined to restore the built-in header. */
 	setHeader(factory: ExtensionUiComponentFactory | undefined): void;
-
-	/**
-	 * Register a third-party sidebar widget. Interactive-TUI only — other
-	 * modes omit this, so guard with `ctx.ui.registerSidebarWidget?.(...)`.
-	 * Registration is synchronous; the widget's `render` runs synchronously on
-	 * every frame the sidebar draws and must never perform IO. Widgets render
-	 * only while the `tui.sidebarWidgets` setting is on.
-	 */
-	registerSidebarWidget?(widget: SidebarWidget): void;
-
-	/** Remove a previously registered sidebar widget by id. */
-	unregisterSidebarWidget?(id: string): void;
 
 	/** Set the terminal window/tab title. */
 	setTitle(title: string): void;
@@ -826,15 +795,16 @@ export interface ExtensionLiveSession {
 }
 
 export interface ExtensionContext {
+	/** Live settings access for extensions. */
+	readonly settings: Settings;
+	/** Owning-plugin translation; lookups fall back to English then the key. */
+	t(key: string, fallback?: string): string;
+	/** Cross-agent roster (Zeta extension peer API). */
+	readonly agents: AgentDirectory;
+	/** Cross-agent messaging over the existing IRC bus (Zeta extension peer API). */
+	readonly messaging: AgentMessenger;
 	/** UI methods for user interaction */
 	ui: ExtensionUIContext;
-	/**
-	 * Read access to the session's settings. Extensions read through the
-	 * registered handles (`cfgFoo.get(ctx.settings)`) rather than string paths,
-	 * so a renamed or deleted setting is a type error instead of a silent
-	 * `undefined`.
-	 */
-	readonly settings: Settings;
 	/** Current run mode. Use `"tui"` to guard terminal-only UI such as custom components. */
 	mode: ExtensionMode;
 	/** Get current context usage for the active model. */
@@ -849,17 +819,6 @@ export interface ExtensionContext {
 	cwd: string;
 	/** Session manager (read-only) */
 	sessionManager: ReadonlySessionManager;
-	/**
-	 * Translate a key from the owning plugin's message catalogues
-	 * (`ctx.t("some.key", "English fallback")`). Lookup order is the current
-	 * host language, then `en`, then `fallback`, then the key itself.
-	 *
-	 * The catalogue is the one shipped by the plugin that owns this extension;
-	 * an extension from another plugin, or a loose extension file, never sees
-	 * another plugin's strings. The language is read per call, so `/language`
-	 * switches take effect without reloading plugins.
-	 */
-	t(key: string, fallback?: string): string;
 	/** Model registry for API key resolution */
 	modelRegistry: ModelRegistry;
 	/** Calling session's `local://` root mapping for external tool bridges. */
@@ -911,18 +870,7 @@ export interface ExtensionContext {
 	/** Identity of the agent this session runs: the top-level session or a subagent. */
 	agent: ExtensionAgentIdentity;
 	/**
-	 * Read-only directory of agents in this process (the main session plus
-	 * subagents). Descriptors are session-free snapshots, so holding one never
-	 * keeps a disposed agent reachable.
-	 */
-	readonly agents: AgentDirectory;
-	/**
-	 * Cross-agent messaging over the same bus the `irc` tools use: send,
-	 * wait, and mailbox access. No extra transport and no delivery policy.
-	 */
-	readonly messaging: AgentMessenger;
-	/**
-	 * Whether the current project/workspace is trusted. ZETA performs no
+	 * Whether the current project/workspace is trusted. OMP performs no
 	 * project-trust gating — project-level settings and extensions load
 	 * unconditionally — so this always returns `true`. Exposed for
 	 * compatibility with extensions authored against upstream Pi, whose
@@ -993,16 +941,16 @@ export interface ExtensionContext {
 
 	/**
 	 * Whether project-local inputs for the current working directory (extensions, settings,
-	 * skills, resources) are trusted. Upstream `@earendil-works/zeta` (>=0.79) asks the
+	 * skills, resources) are trusted. Upstream `@earendil-works/pi-coding-agent` (>=0.79) asks the
 	 * user once per directory before loading project-local inputs and exposes the saved decision
 	 * here; extensions written against that API (e.g. Plannotator) feature-detect this method to
 	 * decide whether project-local config is safe to load, and warn when it is absent.
 	 *
-	 * Zeta has no equivalent per-directory trust gate: `.zeta/extensions`, `.zeta/config.yml`, and
+	 * OMP has no equivalent per-directory trust gate: `.zeta/extensions`, `.zeta/config.yml`, and
 	 * other project-local inputs are already discovered and loaded unconditionally (see
 	 * `docs/extension-loading.md`). This method exists for compatibility with that upstream surface
-	 * and always returns `true`, truthfully reflecting that ZETA already trusts project-local inputs
-	 * by default -- it does not narrow or widen ZETA's own security model.
+	 * and always returns `true`, truthfully reflecting that OMP already trusts project-local inputs
+	 * by default -- it does not narrow or widen OMP's own security model.
 	 */
 	isProjectTrusted(): boolean;
 }
@@ -1169,7 +1117,7 @@ export type SourceOrigin = "package" | "top-level";
 
 /**
  * Provenance metadata describing where a registered tool came from. Mirrors the
- * `@earendil-works/zeta` `SourceInfo` contract so extensions authored
+ * `@earendil-works/pi-coding-agent` `SourceInfo` contract so extensions authored
  * against upstream pi (e.g. gentle-pi) can read `sourceInfo.source` unchanged.
  */
 export interface SourceInfo {
@@ -1224,6 +1172,7 @@ export interface ResourcesDiscoverResult {
 export type {
 	SessionBeforeBranchEvent,
 	SessionBeforeCompactEvent,
+	SessionBeforeShutdownEvent,
 	SessionBeforeSwitchEvent,
 	SessionBeforeTreeEvent,
 	SessionBranchEvent,
@@ -1565,7 +1514,7 @@ export interface PlanReviewResolvedEvent {
  * loop it replaces that text, and on a paused loop `enter` resumes it.
  */
 export type SessionModeRequest =
-	| { mode: "plan" | "lead" | "vibe"; action: "enter" | "exit" }
+	| { mode: "plan" | "vibe"; action: "enter" | "exit" }
 	| { mode: "goal"; action: "enter"; objective: string; tokenBudget?: number }
 	| { mode: "goal"; action: "pause" | "resume" | "drop" }
 	| { mode: "loop"; action: "enter"; prompt?: string; limit?: LoopLimitConfig; condition?: LoopConditionConfig }
@@ -1863,6 +1812,7 @@ export interface BeforeSubagentSpawnEventResult {
 export type {
 	SessionBeforeBranchResult,
 	SessionBeforeCompactResult,
+	SessionBeforeShutdownResult,
 	SessionBeforeSwitchResult,
 	SessionBeforeTreeResult,
 	SessionCompactingResult,
@@ -1880,13 +1830,12 @@ export type {
 // Parallel to HookAPI's RegisteredCommand: extensions add
 // `getArgumentCompletions` and bind handlers to ExtensionCommandContext.
 export interface RegisteredCommand {
+	/** Zeta: owning extension path for command provenance. */
+	extensionPath?: string;
 	name: string;
-	/** Localized copy as a thunk (`() => M.cmdFoo`); resolved at read time. */
-	description?: string | (() => string);
+	description?: string;
 	getArgumentCompletions?: (argumentPrefix: string) => AutocompleteItem[] | null;
 	handler: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
-	/** Extension that registered the command; scopes `ctx.t()` to its plugin catalogues. */
-	extensionPath?: string;
 }
 
 // ============================================================================
@@ -1939,18 +1888,8 @@ export interface ExtensionAPI {
 	/** Injected Zod-compatible omptype builder for extension tools. */
 	zod: typeof zod;
 
-	/** Injected zeta exports for accessing SDK utilities */
+	/** Injected pi-coding-agent exports for accessing SDK utilities */
 	pi: typeof PiCodingAgent;
-
-	/**
-	 * Host-managed per-plugin storage roots (spec §4.3): `{ dataDir, cacheDir,
-	 * stateDir }` under `~/.zeta/plugins/{data,cache,state}/<plugin-id>/`,
-	 * created by the host before the factory runs. Present only when this
-	 * extension belongs to an installed plugin; top-level extensions and
-	 * inline factories get `undefined`. Plugins MUST persist user data only
-	 * here (or project-local `.zeta/`), never elsewhere under `~/.zeta` (§4.4).
-	 */
-	readonly storage?: PluginStorage;
 
 	// =========================================================================
 	// Event Subscription
@@ -1978,6 +1917,10 @@ export interface ExtensionAPI {
 		handler: ExtensionHandler<CacheWarmingDecisionEvent, CacheWarmingDecisionEventResult>,
 	): void;
 	on(event: "session_compact", handler: ExtensionHandler<SessionCompactEvent>): void;
+	on(
+		event: "session_before_shutdown",
+		handler: ExtensionHandler<SessionBeforeShutdownEvent, SessionBeforeShutdownResult>,
+	): void;
 	on(event: "session_shutdown", handler: ExtensionHandler<SessionShutdownEvent>): void;
 	on(event: "session_before_tree", handler: ExtensionHandler<SessionBeforeTreeEvent, SessionBeforeTreeResult>): void;
 	on(event: "session_tree", handler: ExtensionHandler<SessionTreeEvent>): void;
@@ -2102,7 +2045,7 @@ export interface ExtensionAPI {
 	registerCommand(
 		name: string,
 		options: {
-			description?: string | (() => string);
+			description?: string;
 			getArgumentCompletions?: RegisteredCommand["getArgumentCompletions"];
 			handler: RegisteredCommand["handler"];
 		},
@@ -2427,7 +2370,7 @@ export interface RegisteredTool<TParams extends TSchema = TSchema, TDetails = un
 	extensionPath: string;
 	/**
 	 * Upstream-shaped provenance mirroring {@link SourceInfo}. Extensions authored
-	 * against `@earendil-works/zeta` — whose registered tools expose
+	 * against `@earendil-works/pi-coding-agent` — whose registered tools expose
 	 * `sourceInfo` — read `sourceInfo.path` off `getAllRegisteredTools()` entries,
 	 * so it carries the same value `SessionTools.getAllToolInfos()` synthesizes.
 	 */
@@ -2571,6 +2514,15 @@ export interface ExtensionRuntime extends ExtensionRuntimeState, ExtensionAction
 }
 
 /** Loaded extension with all registered items. */
+/** A third-party sidebar widget registered through `ExtensionUIContext.registerSidebarWidget`. */
+export interface SidebarWidget {
+	id: string;
+	title: string;
+	order: number;
+	render(ctx: SegmentContext, width: number): readonly string[];
+	describe?(ctx: SegmentContext, width: number): NativeNode | null;
+}
+
 export interface Extension {
 	path: string;
 	resolvedPath: string;

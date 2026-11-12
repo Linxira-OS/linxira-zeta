@@ -1,6 +1,6 @@
-Persistent shell: one fact command/pipeline; dependencies use `&&`.
-{{#if hasEval}}Scripts/heredocs/`$(…)`/complex pipelines → `eval`.{{else}}Scripts/heredocs/`$(…)`/complex flow → dedicated tool or checked-in script.{{/if}}
-`cwd`, not `cd`; `pty` only interactive.
+Persistent bash 5.3.
+cwd will reset after each turn, don't rely on cd; `pty` = interactive.
+In-process builtins, ahead of PATH: {{join builtins ", "}}.
 Internal URIs work as paths for builtins/coreutils, redirects, globs.
 {{#if asyncEnabled}}`async` defers finite results but keeps the deadline (default {{defaultTimeoutSec}}s); `timeout: 0` for watchers and long jobs.{{/if}}
 No `head`/`tail`/redirection; output trunc by default, full result at `artifact://<id>`.

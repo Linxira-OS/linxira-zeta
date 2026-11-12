@@ -9,7 +9,7 @@ exec hosts. Replaces cargo-xwin.
 | Piece              | Where                                                            | Why separate                                                                                                                                                                                                                                     |
 | ------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `@llvm_msvc_tools` | `//bazel/toolchains:llvm.bzl` (shared with the darwin toolchain) | LLVM 20.1.7 release archive for the fetching host, pruned to clang-cl/lld-link/llvm-lib/llvm-rc/llvm-mt + `lib/clang/*/include`. Downloads (~2 GiB) are sha256-pinned → Bazel repository cache.                                                  |
-| `@xwin_sysroot`    | `sysroot.bzl`                                                    | xwin 0.10.0 on linux exec hosts, 0.6.5 on macOS (no 0.10.0 darwin build); both sha256-pinned per host. Runs `splat` in the repo rule. The ~1 GiB CRT/SDK payload comes from the Microsoft CDN via xwin itself and is **not** in Bazel's repo cache — a cold output base re-downloads it. Keep `sysroot.bzl` stable. |
+| `@xwin_sysroot`    | `sysroot.bzl`                                                    | xwin 0.6.5 (pinned per-host sha256) runs `splat` in the repo rule. The ~1 GiB CRT/SDK payload comes from the Microsoft CDN via xwin itself and is **not** in Bazel's repo cache — a cold output base re-downloads it. Keep `sysroot.bzl` stable. |
 | `@msvc_cc`         | `cc.bzl`                                                         | Wrapper scripts + `cc_toolchain` + MSVC feature config (copied from the resolved rules_cc, like `@local_config_cc`). Cheap to regenerate — iterate flags here.                                                                                   |
 | `toolchain()`s     | `//bazel/toolchains` (`msvc-cc-from-*`)                          | One per exec host (linux-x64/arm64, darwin-arm64/x64), all pointing at `@msvc_cc//:cc_toolchain`; only the local host's variant can resolve. `target_compatible_with = [windows, x86_64]` ⇒ can never shadow zig on linux.                       |
 | MODULE.bazel       | `# --- msvc cross toolchain ---` section                         | `rules_cc` 0.2.17 (= Bazel 9.2's builtin pin) + the three `use_repo_rule` instantiations. Plus the target-suffixed toolchain-file key in the `opusic-sys` annotation (see below).                                                                |
@@ -71,13 +71,6 @@ exec hosts. Replaces cargo-xwin.
   channel payload over time → splat is stable day-to-day, not bit-reproducible
   forever (same property cargo-xwin had). Action keys only depend on the files
   actually read, so remote-cache hit rates degrade gracefully after an MS bump.
-- Microsoft's current package manifest writes the 10.0.26100 SDK payload names
-  with forward slashes (`Installers/Windows SDK Desktop Headers x64-...`).
-  xwin 0.6.5 hard-codes backslashes and dies with `unable to find x86_64
-  headers for Win11SDK_10.0.26100` (Jake-Shadle/xwin#178); 0.10.0 accepts both
-  forms (PR #179). linux hosts are therefore on 0.10.0. macOS has no
-  0.10.0 binary, so `sysroot.bzl` keeps 0.6.5 there and pins SDK 10.0.22621
-  (whose payload names still use backslashes).
 - Toolchain binaries differ per exec host (linux vs mac clang) → win32 link
   actions do not share remote-cache entries across host OSes. CI is
   linux-x64-only for this target, so this only affects dev machines.
@@ -143,11 +136,11 @@ exec hosts. Replaces cargo-xwin.
 
 - LLVM version/sha256s: `//bazel/toolchains:llvm.bzl` (`llvm_msvc_tools_repository`). 20.1.7 is
   the newest release with archives for all four host tuples.
-- xwin version + manifest channel: `sysroot.bzl` (`_XWIN_VERSION` 0.10.0 —
-  first release that accepts the current forward-slash package manifests and
-  ships linux binaries; `_XWIN_DARWIN_VERSION` 0.6.5 — last release with
-  darwin binaries, pinned to SDK `_XWIN_SDK_VERSION_LEGACY` 10.0.22621;
-  `_XWIN_MANIFEST_VERSION` "17").
+- xwin version + manifest channel: `sysroot.bzl` (`_XWIN_VERSION` 0.6.5 — last
+  release with darwin binaries; `_XWIN_MANIFEST_VERSION` "17").
+- Windows SDK: both splats pin `sdk_version = "10.0.22621"` in `MODULE.bazel`.
+  xwin's default (the manifest's latest, 10.0.26100) fails x86_64 with "unable
+  to find x86_64 headers" and arm64 with cab-less MSIs.
 - Compile/link flags, include/libpath set, CRT choice: wrapper templates and
   `cc_toolchain_config` attrs in `cc.bzl`.
 - Static CRT if ever needed: build with the standard `static_link_msvcrt`
@@ -156,9 +149,8 @@ exec hosts. Replaces cargo-xwin.
 ## aarch64-pc-windows-msvc (`//:natives-win32-arm64`)
 
 Second instantiation of the same rules: `@xwin_sysroot_arm64` (`arch = "aarch64"`,
-`sdk_version = "10.0.22621"` — the newest SDK's arm64 MSIs reference no cab
-files, which the macOS 0.6.5 binary rejects (#126), so the older SDK stays
-pinned for every host) and `@msvc_cc_arm64` (`arch = "aarch64"`), with
+`sdk_version = "10.0.22621"` — the latest SDK's arm64 MSIs reference no cab
+files, which xwin 0.6.5 rejects) and `@msvc_cc_arm64` (`arch = "aarch64"`), with
 `msvc-arm64-cc-from-*` toolchain()s gated on `[windows, aarch64]`. Arm64-only
 quirks, all generated by `cc.bzl` for `arch = "aarch64"`:
 

@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@oh-my-pi/pi-tui",
+  "name": "@linxiraos/pi-tui",
   "version": "18.9.2",
   "description": "Terminal User Interface library with differential rendering for efficient text-based applications",
   "homepage": "https://omp.sh",
@@ -38,14 +38,14 @@
     "gen:glyphs": "bun scripts/gen-glyphs.ts"
   },
   "dependencies": {
-    "@oh-my-pi/omptype": "catalog:",
-    "@oh-my-pi/pi-agent-core": "catalog:",
-    "@oh-my-pi/pi-ai": "catalog:",
-    "@oh-my-pi/pi-catalog": "catalog:",
-    "@oh-my-pi/pi-natives": "catalog:",
-    "@oh-my-pi/pi-utils": "catalog:",
-    "@oh-my-pi/pi-wire": "catalog:",
-    "@oh-my-pi/snapcompact": "catalog:"
+    "@linxiraos/zeta-schema": "catalog:",
+    "@linxiraos/pi-agent-core": "catalog:",
+    "@linxiraos/pi-ai": "catalog:",
+    "@linxiraos/pi-catalog": "catalog:",
+    "@linxiraos/pi-natives": "catalog:",
+    "@linxiraos/pi-utils": "catalog:",
+    "@linxiraos/pi-wire": "catalog:",
+    "@linxiraos/zeta-compact": "catalog:"
   },
   "devDependencies": {
     "kitty-vt-wasm": "catalog:"

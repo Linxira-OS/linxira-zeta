@@ -1,13 +1,5 @@
 ## [Unreleased]
 
-### Added
-
-- Tracking page and `GET /api/tracking?project=<folder>`: a read-only snapshot of `<project>/.zeta/tracking/` (`status.json`, `INDEX.md`, action log, `sessions/*.md`) scoped to a label in the stats project registry and resolved to the newest session header's cwd. Bounded reads report missing, partial, corrupt and error states instead of inventing progress; the dashboard never writes tracking files.
-
-### Changed
-
-- `/tracking start` guidance is localized and explains the memory boundary (tracking = process state, memory = facts/preferences) and the `tracking.enabled` opt-in switch.
-
 ## [1.5.1] - 2026-11-10
 
 - Released as part of Zeta 1.5.1; no package-specific user-visible changes.

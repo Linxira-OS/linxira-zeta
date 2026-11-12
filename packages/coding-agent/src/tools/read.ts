@@ -1,8 +1,6 @@
-import { type ReadToolDetails, isReadableUrlPath } from "@linxiraos/pi-tui/tools/read";
-import type { Stats } from "node:fs";
+import { isReadableUrlPath, type ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { readTargetsPlan, readTargetsPlanArtifact } from "../plan-mode/plan-protection";
 import { type EditStore, notebookToEditableText } from "@linxiraos/pi-natives";
 import { type } from "@linxiraos/zeta-schema";
 import type {
@@ -31,6 +29,7 @@ import {
 	parseImageMetadata,
 	prompt,
 	readImageMetadata,
+	untilAborted,
 } from "@linxiraos/pi-utils";
 import { peekFile } from "@linxiraos/pi-utils/peek-file";
 import {
@@ -45,6 +44,7 @@ import { getEditStore, recordFullySeenRows } from "../edit/store";
 import { extractUriScheme, InternalUrlRouter, type SchemeSpec, sessionResolveContext } from "../internal-urls";
 import { isMarkdownPath } from "@linxiraos/pi-tui/lang-from-path";
 import readDescription from "../prompts/tools/read.md" with { type: "text" };
+import readSourcesDoc from "../prompts/tools/read-sources.md" with { type: "text" };
 import type { ToolSession } from "../sdk";
 import { McpResourceNotFoundError } from "../internal-urls/mcp-protocol";
 import { parseInternalUrl } from "../internal-urls/parse";
@@ -64,8 +64,7 @@ import {
 } from "../utils/block-context";
 import { isCpuProfilePath, renderCpuProfile } from "../utils/cpuprofile";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
-import { isCanvasPath } from "../utils/canvas-svg";
-import { loadCanvasImageInput, loadHeifImageInput, loadImageInput, loadSvgImageInput } from "../utils/image-loading";
+import { loadHeifImageInput, loadImageInput, loadSvgImageInput } from "../utils/image-loading";
 import {
 	ImageInputTooLargeError,
 	InvalidImageDataError,
@@ -193,7 +192,6 @@ import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import {
-	cfgCanvasEnabled,
 	cfgFetchEnabled,
 	cfgReadDefaultLimit,
 	cfgReadRenderMarkdown,
@@ -839,8 +837,6 @@ interface FilesystemReadOptions {
 	question?: string;
 	/** Model-facing path for `?q=` hints; defaults to the displayed file path. */
 	questionPath?: string;
-	/** The read targeted the session plan URL: raise the default line window to the full cap. */
-	planTargetedRead?: boolean;
 	signal?: AbortSignal;
 	onBufferedFile?: (bytes: Buffer) => void;
 	onConflictMarkers?: () => void;
@@ -1099,6 +1095,17 @@ async function assessLocalReadSpeculation(
 	};
 }
 
+/** Whether `readPath` is one web URL, whose fetch reads nothing an earlier call could have changed. */
+function isSingleWebUrl(readPath: string): boolean {
+	if (readPath.includes(";")) return false;
+	try {
+		return parseReadUrlTarget(readPath) !== null;
+	} catch {
+		// A malformed URL selector: the read reports it.
+		return false;
+	}
+}
+
 /**
  * Read tool implementation.
  *
@@ -1160,6 +1167,19 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			IS_HL_MODE: resolveFileDisplayMode(this.session).hashLines,
 			BINARY_VIEWS: cfgIdaAvailable.get(this.session.settings),
 		});
+	}
+	/**
+	 * `xd://read/sources`: selector reference for the sources the description only names.
+	 * `xd://read/urls`: internal-URL grammar the system prompt's one-line entries leave out.
+	 */
+	docTopics(): Record<string, string> {
+		return {
+			sources: prompt.render(readSourcesDoc, { BINARY_VIEWS: cfgIdaAvailable.get(this.session.settings) }),
+			urls: InternalUrlRouter.instance()
+				.reference()
+				.map(line => `- ${line}`)
+				.join("\n"),
+		};
 	}
 	readonly parameters = readSchema;
 	readonly strict = true;
@@ -1298,23 +1318,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		} finally {
 			this.#speculativeReads.delete(context.toolCall.id);
 		}
-	}
-
-	/**
-	 * True when `readPath` targets a plan file: the canonical `local://PLAN.md`
-	 * alias, the session plan reference path, or the canonical session-local
-	 * artifact name `local://<name>-plan.md` (recognised even before the
-	 * reference is promoted on submission). Plan files read without an explicit
-	 * selector get the full default window so incremental plan amendments never
-	 * operate on a truncated view.
-	 */
-	#isPlanRead(readPath: string): boolean {
-		const reference = this.session.getPlanReferencePath?.() ?? "local://PLAN.md";
-		return (
-			readTargetsPlan(readPath, "local://PLAN.md") ||
-			readTargetsPlan(readPath, reference) ||
-			readTargetsPlanArtifact(readPath)
-		);
 	}
 
 	/**
@@ -1573,7 +1576,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		mimeType: string;
 		imageMetadata: ImageMetadata | null;
 		fileSize: number;
-		imageKind?: "svg" | "heif" | "canvas";
+		imageKind?: "svg" | "heif";
 		question?: string;
 		questionPath?: string;
 		signal?: AbortSignal;
@@ -1619,15 +1622,13 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			const imageInput =
 				imageKind === "svg"
 					? await loadSvgImageInput(imageLoadOptions)
-					: imageKind === "canvas"
-						? await loadCanvasImageInput(imageLoadOptions)
-						: imageKind === "heif"
-							? await loadHeifImageInput({ ...imageLoadOptions, detectedMimeType: mimeType }, signal)
-							: await loadImageInput({ ...imageLoadOptions, detectedMimeType: mimeType });
+					: imageKind === "heif"
+						? await loadHeifImageInput({ ...imageLoadOptions, detectedMimeType: mimeType }, signal)
+						: await loadImageInput({ ...imageLoadOptions, detectedMimeType: mimeType });
 			if (!imageInput) {
 				throw new ToolError(
-					imageKind === "svg" || imageKind === "canvas"
-						? "The ':img' selector rasterizes .svg, .svgz, .canvas, and .excalidraw files. Read a raster image such as PNG or JPEG without ':img'."
+					imageKind === "svg"
+						? "The ':img' selector only rasterizes .svg and .svgz files. Read a raster image such as PNG or JPEG without ':img'."
 						: `Read image file [${mimeType}] failed: unsupported image format.`,
 				);
 			}
@@ -1888,6 +1889,12 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		onUpdate?: AgentToolUpdateCallback<ReadToolDetails>,
 		toolContext?: AgentToolContext,
 	): Promise<AgentToolResult<ReadToolDetails>> {
+		// Running beside an earlier call that may write (a `bash` before this read
+		// in the same message), the read could finish before that write lands. The
+		// model sees the batch's results only after every call ends, so waiting for
+		// those calls costs no turn latency. A single web fetch reads nothing on disk.
+		const earlierEffects = isSingleWebUrl(params.path) ? undefined : toolContext?.toolCall?.earlierEffectsSettled;
+		if (earlierEffects) await untilAborted(signal, earlierEffects);
 		const inner = await this.#executeInner(toolCallId, params, signal, onUpdate, toolContext);
 		const innerDetails: ReadDetailsWithWindow | undefined = inner.details;
 		const result = await shapeToolResult(
@@ -1976,7 +1983,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			return executeReadUrl(this.session, { path: parsedUrlTarget.path, raw: urlRaw }, signal);
 		}
 
-		// Handle native ZETA URLs and custom-scheme resources advertised by MCP servers.
+		// Handle native OMP URLs and custom-scheme resources advertised by MCP servers.
 		const internalRouter = InternalUrlRouter.instance();
 		const delimitedInternalResult = internalRouter.canResolve(readPath)
 			? await this.#tryReadDelimitedPaths(readPath, signal, toolContext, entry => internalRouter.canResolve(entry))
@@ -2053,7 +2060,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			question,
 			questionPath: readPath,
 			signal,
-			planTargetedRead: this.#isPlanRead(readPath),
 			toolContext,
 			plainWindow,
 		});
@@ -2106,9 +2112,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			toolContext,
 			plainWindow,
 		} = options;
-		// `question` is reassigned below when a JSON/image query target supplies it.
 		let { question } = options;
-		const planTargetedRead = options.planTargetedRead === true;
 		const rawImages = toolContext?.rawImages === true;
 		const immutable = located?.spec.immutable === true;
 		const displayMode = resolveFileDisplayMode(this.session, { immutable });
@@ -2416,17 +2420,13 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			return this.#readVideoFile(absolutePath, localTarget.sel, fileSize, suffixResolution, question, signal);
 		}
 		if (parsed.kind === "image") {
-			const canvasImage = isCanvasPath(absolutePath);
-			if (canvasImage && !cfgCanvasEnabled.get(this.session.settings)) {
-				throw new ToolError("Canvas scenes are disabled. Enable Settings → Tools → Canvas Scenes.");
-			}
 			({ content, details, sourcePath } = await this.#loadImageContent({
 				readPath: localReadPath,
 				absolutePath,
-				mimeType: canvasImage ? "application/json" : "image/svg+xml",
+				mimeType: "image/svg+xml",
 				imageMetadata: null,
 				fileSize,
-				imageKind: canvasImage ? "canvas" : "svg",
+				imageKind: "svg",
 				question,
 				questionPath: questionPath ?? `${resolvedDisplayPath}:img`,
 				signal,
@@ -2682,11 +2682,16 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 						shapesOutput(this.session, "read");
 					const lineCap = wholeFileShaping ? MAX_SUMMARY_LINES : DEFAULT_MAX_LINES;
 					const DEFAULT_LIMIT = wholeFileShaping ? MAX_SUMMARY_LINES : this.#defaultLimit;
-					const effectiveLimit = limit ?? (planTargetedRead ? lineCap : DEFAULT_LIMIT);
+					const effectiveLimit = limit ?? DEFAULT_LIMIT;
 					let maxLinesToCollect = Math.min(effectiveLimit + leadingContext + trailingContext, lineCap);
 					let selectedLineLimit = effectiveLimit + leadingContext + trailingContext;
-					// Scale byte budget with line limit so the configured line count actually fits.
-					// Assume ~512 bytes/line average; never go below the shared default.
+					// Scale byte budget with line limit so the configured line count actually fits
+					// (~512 bytes/line, never below the shared default). Pages that would otherwise
+					// spill also stop at the spill threshold: past it the page would be middle-elided
+					// into an artifact, while stopping here pages at a line boundary with an exact
+					// `:N` continuation. Row prefixes (`N|`/`N:`) count against that threshold, so
+					// their worst-case width is reserved (at most half the threshold). Artifact-storage
+					// pages never spill, so they keep the full budget.
 					const budgetFor = (firstLine: number, lineCount: number): number => {
 						if (wholeFileShaping) return MAX_SUMMARY_BYTES;
 						const scaled = Math.max(DEFAULT_MAX_BYTES, lineCount * 512);

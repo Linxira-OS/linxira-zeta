@@ -2,6 +2,8 @@
 
 ## Integrated through: v18.18.3
 
+**Integrated through**: `v18.18.3`
+
 _(`v18.18.2` was the header until 2026-11-09; the v18.18.3 round is PR #272 on
 `sync/omp-release/v18.18.3`. Previous headers: `v18.16.0` until 2026-11-08,
 `v18.18.0` until the v18.18.2 round. `v18.18.8` is a later official upstream

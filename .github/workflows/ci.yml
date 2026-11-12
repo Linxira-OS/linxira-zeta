@@ -1810,9 +1810,9 @@ jobs:
    # feed release_github as installer assets. Linux/Windows reuse the
    # native_addons artifact; macOS builds its own addon (no cross-hosted
 
-   # Publishes the @linxiraos/pi-natives-<tag> leaf packages once validation
-   # passes and every binary built. Runs on one linux runner: leaf publishing
-   # is platform-agnostic file packaging (gen-npm-packages reads
+   # Publishes the six @linxiraos/pi-natives-<tag> leaf packages once
+   # validation passes and every binary built. Runs on one linux runner: leaf
+   # publishing is platform-agnostic file packaging (gen-npm-packages reads
    # packages/natives/native), so no per-platform runners are needed.
    release_native_leaves:
       name: Publish native leaf packages

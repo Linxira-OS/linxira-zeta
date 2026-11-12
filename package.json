@@ -84,7 +84,6 @@
     "build:native": "bun --cwd=packages/natives run build",
     "test": "bun scripts/ci-test-ts.ts local",
     "test:ts": "bun scripts/ci-test-ts.ts local-ts",
-    "test:scripts": "bun test scripts",
     "test:rs": "bun scripts/run-rs-task.ts test:rs",
     "merge-gate": "bun scripts/merge-gate.ts",
     "check": "bun run check:adr && bun run check:reqs && bun run --parallel check:ts check:rs",

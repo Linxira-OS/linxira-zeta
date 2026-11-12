@@ -4,15 +4,17 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-
+import type { ShellMinimizerSettings } from "@linxiraos/zeta/exec/settings";
 import {
 	applyDirenvPreflight,
 	type BashResult,
 	buildMinimizerOptions,
 	executeBash,
 	isPersistentShellCdCommand,
+	releaseShellSessions,
 } from "@linxiraos/zeta/exec/bash-executor";
 import * as direnvModule from "@linxiraos/zeta/exec/direnv";
+import { evaluateLoopCondition } from "@linxiraos/zeta/modes/loop-condition";
 import { DEFAULT_MAX_BYTES } from "@linxiraos/pi-tui/tools/streaming-output";
 import {
 	defaultShellVizPreferences,
@@ -26,7 +28,7 @@ import * as piNatives from "@linxiraos/pi-natives";
 import { $which, removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { isShellTrace } from "@linxiraos/pi-wire";
 
-import { type ShellMinimizerSettings, cfgBashDirenvLoadTimeoutMs, cfgShellPath } from "@linxiraos/zeta/exec/settings";
+import { cfgBashDirenvLoadTimeoutMs, cfgShellPath } from "@linxiraos/zeta/exec/settings";
 
 // Matches the schema default for `tools.artifactHeadBytes` (20 KB) used by
 // OutputSink when bash-executor pulls settings via resolveOutputSinkHeadBytes.
@@ -42,7 +44,7 @@ const KILL_SETTLE_MS = 25; // let the kill signal land before we touch `release`
 const KILL_REACT_MS = 50; // > one poll interval: a survivor would write its marker
 
 function makeTempDir(): string {
-	return fs.mkdtempSync(path.join(os.tmpdir(), "zeta-bash-exec-"));
+	return fs.mkdtempSync(path.join(os.tmpdir(), "omp-bash-exec-"));
 }
 
 function shellQuote(value: string): string {
@@ -369,7 +371,7 @@ describe("executeBash", () => {
 			return;
 		}
 
-		const shellDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-shellpath-"));
+		const shellDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-shellpath-"));
 		const marker = path.join(shellDir, "fake-shell-ran");
 		const markerEscaped = marker.replace(/'/g, "'\\''");
 		const fakeShell = path.join(shellDir, "fake-shell");
@@ -420,7 +422,7 @@ exit 64
 	it("persists cd, bare cd, and cd - when shortcut commands use a non-bash user shell", async () => {
 		if (process.platform === "win32") return;
 
-		const shellDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-cd-shellpath-"));
+		const shellDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-cd-shellpath-"));
 		const marker = path.join(shellDir, "fake-shell-ran");
 		const fakeShell = path.join(shellDir, "fake-shell");
 		const childDir = path.join(tempDir, "child");
@@ -505,7 +507,7 @@ exit 64
 		}
 
 		const originalShell = Bun.env.SHELL;
-		const shellDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-env-shell-"));
+		const shellDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-env-shell-"));
 		const marker = path.join(shellDir, "env-shell-ran");
 		const markerEscaped = marker.replace(/'/g, "'\\''");
 		const fakeShell = path.join(shellDir, "fish");
@@ -574,7 +576,7 @@ exit 64
 			return;
 		}
 
-		const shellDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-zsh-shellpath-"));
+		const shellDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-zsh-shellpath-"));
 		fs.writeFileSync(path.join(shellDir, ".zshrc"), "alias pi_shell_alias='printf zsh-alias-ok\\\\n'\n");
 		cfgShellPath.set(Settings.instance, zshPath);
 
@@ -626,7 +628,7 @@ exit 64
 			return;
 		}
 
-		const shellDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-fish-shellpath-"));
+		const shellDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-fish-shellpath-"));
 		const configDir = path.join(shellDir, ".config", "fish");
 		fs.mkdirSync(path.join(configDir, "conf.d"), { recursive: true });
 		fs.writeFileSync(path.join(configDir, "config.fish"), "function pi_fish_fn; echo fish-fn-ok; end\n");
@@ -677,7 +679,7 @@ exit 64
 			return;
 		}
 
-		const shellDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-zsh-pty-"));
+		const shellDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-zsh-pty-"));
 		fs.writeFileSync(path.join(shellDir, ".zshrc"), "alias pi_pty_alias='printf pty-alias-ok'\n");
 		cfgShellPath.set(Settings.instance, zshPath);
 
@@ -916,6 +918,122 @@ exit 64
 		expect(next.output.trim()).toBe("still_persistent");
 	});
 
+	it("releases a session's own and namespaced shells, leaving other sessions alone", async () => {
+		// A session's shells are cached under the session key itself (the bash tool's
+		// own) or under one namespace of it, `<label>:<session id>` (a /loop
+		// condition uses `loop-condition:<id>`). Release must collect both, or a
+		// disposed session keeps a native shell for the life of the process; another
+		// session's namespaced shell is not its to drop.
+		const id = crypto.randomUUID();
+		const other = crypto.randomUUID();
+		const colonId = `/work/repo:${crypto.randomUUID()}`;
+		const run = (sessionKey: string, command: string) =>
+			executeBash(command, { cwd: tempDir, timeout: 5000, sessionKey });
+		const runLoop = (sessionId: string, command: string) =>
+			evaluateLoopCondition({ command, until: false }, { cwd: tempDir, timeoutMs: 5000, sessionId });
+		try {
+			await run(id, "PI_PLAIN=kept");
+			expect(await runLoop(id, "PI_LOOP=kept")).toEqual({ kind: "continue" });
+			await run(other, "PI_OTHER=kept");
+			expect(await runLoop(other, "PI_OTHER_LOOP=kept")).toEqual({ kind: "continue" });
+			// A key whose front part is a path, not a surface label, is no namespace of
+			// `id` even though its tail reads like one.
+			const pathLike = `/work/repo:${id}`;
+			await run(pathLike, "PI_PATH_KEY=kept");
+			// A session id may itself contain a colon (a cwd-derived session name);
+			// that session's own shells are still its to release.
+			await run(colonId, "PI_COLON=kept");
+			expect(await runLoop(colonId, "PI_COLON_LOOP=kept")).toEqual({ kind: "continue" });
+
+			releaseShellSessions(id);
+			releaseShellSessions(colonId);
+
+			expect((await run(id, 'printf "[%s]" "$PI_PLAIN"')).output).toBe("[]");
+			expect(await runLoop(id, 'test -z "$PI_LOOP"')).toEqual({ kind: "continue" });
+			expect((await run(colonId, 'printf "[%s]" "$PI_COLON"')).output).toBe("[]");
+			expect(await runLoop(colonId, 'test -z "$PI_COLON_LOOP"')).toEqual({ kind: "continue" });
+			// A key that is neither the id nor a namespace of it survives the other
+			// session's release, and another session's shells survive both.
+			expect((await run(pathLike, 'printf "[%s]" "$PI_PATH_KEY"')).output).toBe("[kept]");
+			expect((await run(other, 'printf "[%s]" "$PI_OTHER"')).output).toBe("[kept]");
+			expect(await runLoop(other, 'test "$PI_OTHER_LOOP" = kept')).toEqual({ kind: "continue" });
+		} finally {
+			releaseShellSessions(id);
+			releaseShellSessions(other);
+			releaseShellSessions(colonId);
+			releaseShellSessions(`/work/repo:${id}`);
+		}
+	});
+
+	it.skipIf(process.platform === "win32")(
+		"retains live background jobs when an in-use namespaced shell is released before settling",
+		async () => {
+			const id = crypto.randomUUID();
+			const pidFile = path.join(tempDir, "in-use-release-pid");
+			const gateFile = path.join(tempDir, "in-use-release-gate");
+			const sleepBin = $which("sleep");
+			if (!sleepBin) throw new Error("sleep executable not found");
+			const liveJobsSpy = vi.spyOn(piNatives.Shell.prototype, "liveBackgroundJobCount");
+			let pid: number | undefined;
+			try {
+				const pending = evaluateLoopCondition(
+					{
+						command: `PI_IN_USE_LOOP=kept; ${shellQuote(sleepBin)} 30 >/dev/null 2>&1 & echo $! > ${shellQuote(pidFile)}; while [ ! -f ${shellQuote(gateFile)} ]; do ${shellQuote(sleepBin)} 0.02; done`,
+						until: false,
+					},
+					{ cwd: tempDir, timeoutMs: 5000, sessionId: id },
+				);
+				await pollUntil(() => {
+					if (!fs.existsSync(pidFile)) return false;
+					const parsed = Number.parseInt(fs.readFileSync(pidFile, "utf8").trim(), 10);
+					if (!Number.isInteger(parsed)) return false;
+					pid = parsed;
+					return true;
+				}, Date.now() + 4000);
+				if (pid === undefined) throw new Error("Timed out waiting for background job PID");
+
+				// Release the session while the condition shell is still in flight.
+				// `releaseShellSessions` removes the cached key immediately, but cannot
+				// retain the shell yet because `shellSessionsInUse` still holds it.
+				releaseShellSessions(id);
+				expect(liveJobsSpy).not.toHaveBeenCalled();
+
+				fs.writeFileSync(gateFile, "ok");
+				expect(await pending).toEqual({ kind: "continue" });
+				expect(liveJobsSpy).toHaveBeenCalledTimes(1);
+				// Drop `liveJobsSpy.mock.contexts` so the spy does not keep the released
+				// `Shell` alive across `Bun.gc(true)` below.
+				liveJobsSpy.mockRestore();
+
+				// A follow-up condition starts a fresh shell while the released one stays
+				// retained until its background child exits.
+				expect(
+					await evaluateLoopCondition(
+						{ command: 'test -z "$PI_IN_USE_LOOP"', until: false },
+						{ cwd: tempDir, timeoutMs: 5000, sessionId: id },
+					),
+				).toEqual({ kind: "continue" });
+
+				Bun.gc(true);
+				await Bun.sleep(50);
+				let alive = true;
+				try {
+					process.kill(pid, 0);
+				} catch {
+					alive = false;
+				}
+				expect(alive).toBe(true);
+			} finally {
+				if (pid !== undefined) {
+					try {
+						process.kill(pid, "SIGKILL");
+					} catch {}
+				}
+				releaseShellSessions(id);
+			}
+		},
+	);
+
 	it("aborts the shell without aborting its native signal when the JavaScript timeout fallback wins", async () => {
 		// Compress the JS-side fallback timer (floored at 1000ms in the source) so
 		// the safety-net fires deterministically without a real 1s wait. Only long
@@ -1052,7 +1170,6 @@ exit 64
 		expect(aborted.cancelled).toBe(true);
 
 		// oxlint-disable-next-line no-template-curly-in-string -- this is a bash variable expansion
-		// biome-ignore lint/suspicious/noTemplateCurlyInString: literal shell parameter expansion
 		const afterAbort = await executeBash("echo ${PI_RESET_VAR:-unset}", {
 			cwd: tempDir,
 			timeout: 5000,

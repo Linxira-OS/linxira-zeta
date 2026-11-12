@@ -11,8 +11,6 @@ const JSON_OBJECT = "Record<string, unknown>";
 
 export const stateDefs = {
 	QueueMode: "'all' | 'one-at-a-time'",
-	// The three session modes the TUI and the gateway both drive (plan/goal/vibe).
-	SessionModeId: "'plan' | 'goal' | 'vibe'",
 	InterruptMode: "'immediate' | 'wait'",
 	StreamingBehavior: "'steer' | 'followUp'",
 	QueuedMessageQueue: "'steering' | 'followUp'",
@@ -21,24 +19,13 @@ export const stateDefs = {
 		"'full' | 'delta'",
 		"`set_event_filter` projection: `delta` replaces the accumulated snapshots with the block a start/end event touches.",
 	),
-	TodoStatus: "'pending' | 'in_progress' | 'completed' | 'abandoned' | 'blocked'",
-	GoalOp: "'get' | 'create' | 'resume' | 'pause' | 'drop' | 'budget'",
+	TodoStatus: "'pending' | 'in_progress' | 'completed' | 'abandoned'",
+	GoalOp: "'get' | 'create' | 'resume' | 'pause' | 'drop'",
 	GoalStatus: "'active' | 'paused' | 'budget-limited' | 'complete' | 'dropped'",
 	SlashCommandSource: "'builtin' | 'skill' | 'extension' | 'custom' | 'mcp_prompt' | 'file'",
 	SubagentSubscriptionLevel: doc(
 		"'off' | 'progress' | 'events'",
 		"Forwarded subagent frames: none, lifecycle and progress, or also raw session events.",
-	),
-	ComponentId: "'zetacode' | 'zetawork' | 'zetawork-gui' | 'zetaide'",
-	ComponentInfo: doc(
-		{
-			id: "ComponentId",
-			command: "string",
-			"path?": doc("string", "Resolved absolute executable; absent when not installed."),
-			openable: "boolean",
-			"reason?": doc("string", "Why `component_open` refuses this component."),
-		},
-		"A companion binary shipped with the product (desktop app, IDE, workbench, runtime).",
 	),
 	AgentSource: "'bundled' | 'user' | 'project'",
 	SubagentStatus: "'pending' | 'running' | 'completed' | 'failed' | 'aborted'",
@@ -46,7 +33,6 @@ export const stateDefs = {
 	TodoItem: {
 		content: "string",
 		status: "TodoStatus",
-		"blocker?": doc("string", "What a `blocked` task is waiting on."),
 		"details?": "string",
 		"notes?": "string[]",
 	},
@@ -79,22 +65,6 @@ export const stateDefs = {
 			updatedAt: "number.integer",
 		},
 		"A tracked goal: its objective, lifecycle status, and resource accounting.",
-	),
-	PlanModeState: doc(
-		{
-			enabled: "boolean",
-			planFilePath: "string",
-			"workflow?": "'parallel' | 'iterative' | 'ultra'",
-			"reentry?": "boolean",
-			"enteredBy?": "'user' | 'agent'",
-			"objective?": "string",
-		},
-		"Session plan mode: enabled, where its plan lives, and who armed it.",
-	),
-	VibeModeState: doc({ enabled: "boolean" }, "Session vibe mode."),
-	ModeStates: doc(
-		{ "plan?": "PlanModeState", "goal?": "GoalModeState", "vibe?": "VibeModeState" },
-		"Every mode's state, the snapshot a client renders its mode banners from.",
 	),
 	GoalModeState: doc(
 		{ enabled: "boolean", mode: "'active' | 'exiting'", "reason?": "'completed'", goal: "Goal" },
@@ -172,11 +142,6 @@ export const stateDefs = {
 		dumpTools: absentAs("ToolDescriptor[]", []),
 		"contextUsage?": "ContextUsage",
 		goal: absentAs(doc("GoalModeState | null", "Current goal mode; null when the session has no goal."), null),
-		guidedGoalInterview: absentAs(
-			doc("boolean", '`/guided-goal` interview is active; the client must treat bare "c" as text.'),
-			false,
-		),
-		"modes?": "ModeStates",
 	},
 
 	BashResult: {

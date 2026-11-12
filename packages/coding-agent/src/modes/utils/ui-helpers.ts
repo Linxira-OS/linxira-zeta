@@ -69,6 +69,7 @@ import { theme } from "@linxiraos/pi-tui/theme";
 import type {
 	CompactionQueuedMessage,
 	InteractiveModeContext,
+	RenderInitialMessagesOptions,
 	RenderSessionContextOptions,
 	ShowStatusOptions,
 } from "../../modes/types";
@@ -114,13 +115,6 @@ import {
 	cfgTerminalShowImages,
 } from "../settings";
 import { cfgReadToolResultPreview } from "../../tools/settings";
-
-interface RenderInitialMessagesOptions {
-	preserveExistingChat?: boolean;
-	clearTerminalHistory?: boolean;
-	/** Replay every message instead of the recent display window (benchmarks and tests). */
-	limitTranscript?: boolean;
-}
 
 const TRANSCRIPT_RENDER_CHUNK_MESSAGES = 32;
 const TRANSCRIPT_RENDER_CHUNK_MS = 8;
@@ -363,7 +357,7 @@ export class UiHelpers {
 		// Resolve the dim color lazily so a later theme change re-shapes the line
 		// instead of leaving the palette that was active when it was presented.
 		const styleFn = useDim ? (t: string) => theme.fg("dim", t) : undefined;
-		const notice = { styleFn, toast: options?.toast };
+		const notice = { styleFn, toast: options?.toast, action: options?.action };
 
 		if (last && last === this.ctx.lastStatus) {
 			if (this.ctx.lastStatus.message !== message) {
@@ -1362,6 +1356,7 @@ export class UiHelpers {
 				}
 			}
 			committed = true;
+			options.onCommit?.(context);
 
 			// Show compaction info if session was compacted.
 			const allEntries = this.ctx.viewSession.sessionManager.getEntries();
@@ -1519,7 +1514,7 @@ export class UiHelpers {
 			return;
 		}
 		if (
-			await invokeSkillCommandFromText(this.ctx, message.text, message.mode, {
+			await invokeSkillCommandFromText(this.ctx as unknown as SkillCommandHost, message.text, message.mode, {
 				propagateErrors: true,
 				queueOnly: true,
 				images: message.images,
@@ -1708,7 +1703,7 @@ export class UiHelpers {
 			// are rebuilt as user-attributed custom messages so queued `/skill:` text
 			// is not sent as a literal prompt after compaction.
 			let promptPromise: Promise<unknown>;
-			if (isKnownSkillCommand(this.ctx, first.text)) {
+			if (isKnownSkillCommand(this.ctx as unknown as SkillCommandHost, first.text)) {
 				const built = await buildSkillCommandPrompt(this.ctx, first.text, first.mode, first.images);
 				promptPromise = built
 					? this.ctx.session

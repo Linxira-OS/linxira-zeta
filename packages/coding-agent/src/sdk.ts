@@ -23,6 +23,7 @@ import type {
 	ServiceTier,
 	ServiceTierByFamily,
 	SimpleStreamOptions,
+	TextContent,
 } from "@linxiraos/pi-ai";
 import { resolveApiKeyOnce } from "@linxiraos/pi-ai/auth-retry";
 import type { DiscoverAuthStorageOptions } from "@linxiraos/pi-ai/auth-broker/discover";
@@ -32,6 +33,7 @@ import { prewarmModelConnection } from "@linxiraos/pi-ai/providers/connection-pr
 import { isOpenAICodexWebSocketPreferred } from "@linxiraos/pi-ai/providers/openai-codex-transport";
 import { withCredentialRedaction } from "@linxiraos/pi-ai/providers/transform-messages";
 import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
+import { syncOpenAIResponsesHistoryTexts } from "@linxiraos/pi-ai/utils";
 import { FALLBACK_DIALECT, preferredDialect } from "@linxiraos/pi-catalog/identity";
 import type { Component } from "@linxiraos/pi-tui";
 import { $env } from "@linxiraos/pi-utils/env";
@@ -102,7 +104,6 @@ import { type EvalPreludeDefinition, getEnabledEvalPreludes } from "./eval/prelu
 import { disposeAllKernelSessions, disposeKernelSessionsByOwner } from "./eval/py/executor";
 import { defaultEvalSessionId } from "./eval/session-id";
 import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
-
 import {
 	CustomCommandWatcher,
 	type CustomCommandsLoadResult,
@@ -177,6 +178,7 @@ import {
 	shouldFilterBrowserMCPForPrelude,
 } from "./mcp";
 import { parseMCPToolName } from "@linxiraos/pi-tui/tools/mcp";
+import { mapPromptArguments } from "./mcp/prompt-args";
 import { MCP_CONNECTION_STATUS_EVENT_CHANNEL, type McpConnectionStatusEvent } from "./mcp/startup-events";
 import { resolveMCPToolAlias } from "./mcp/tool-bridge";
 import { createSessionMemoryRuntimeContext, resolveMemoryBackend } from "./memory-backend";
@@ -253,14 +255,20 @@ import {
 	resolveRetryFallbackChainKey,
 } from "./session/retry-fallback-chains";
 import { describeUsageFallback } from "./session/retry-fallback-reason";
-import { mapPromptArguments } from "./mcp/prompt-args";
+import { kUsageLimitRequestProvider } from "./session/turn-recovery";
 import { getReadableCompactionEntry, getRestorableSessionModels } from "./session/session-context";
 import type { SessionClient } from "./session/session-entries";
 import { SessionManager } from "./session/session-manager";
 import { SHAPE_RULE } from "./spotlight/shape";
 import { buildCallContext } from "./spotlight/context";
 import { type CalledToolShaper, shapeCalledTool } from "./spotlight";
-import { SPOTLIGHT_INTENT_DESCRIPTION, SPOTLIGHT_INTENT_GUIDANCE, startSpotlightExperiment } from "./spotlight/session";
+import {
+	NO_CREDENTIAL_NOTICE,
+	SPOTLIGHT_INTENT_DESCRIPTION,
+	SPOTLIGHT_INTENT_GUIDANCE,
+	SPOTLIGHT_NOTICE_SOURCE,
+	startSpotlightExperiment,
+} from "./spotlight/session";
 import {
 	collectMountedMCPToolRoutes,
 	projectMountedMCPXdevGuidance,
@@ -424,6 +432,7 @@ import {
 	cfgTierAnthropic,
 	cfgTierGoogle,
 	cfgTierOpenai,
+	systemPromptTemplatePatterns,
 } from "./session/settings";
 import {
 	cfgCommandsEnableClaudeProject,
@@ -650,6 +659,8 @@ export interface CreateAgentSessionOptions {
 
 	/** Model to use. Default: from settings, else first available */
 	model?: Model;
+	/** Role whose alias selected {@link model} (CLI `--model pi/<role>`); retries walk that role's fallback chain. */
+	modelRole?: string;
 	/**
 	 * Allow an explicit {@link model} to be rebound to its same-selector registry
 	 * entry after initial background discovery. The CLI enables this for models
@@ -2689,6 +2700,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 						model: message.model,
 						usage: message.usage,
 						stopReason: message.stopReason,
+						errorMessage: message.errorMessage,
 					},
 					{ sessionId: sessionManager.getSessionId(), parentId: sessionManager.getLeafId() },
 				);
@@ -2892,6 +2904,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			getSessionSpawns: () => session?.getCommandSpawns() ?? options.spawns ?? "*",
 			getSessionAgents: () => session?.getSessionAgents() ?? [],
 			advertisedSessionAgents: () => session?.getAdvertisedSessionAgents() ?? [],
+			advertisedPerCallModel: () => session?.getAdvertisedPerCallModel(),
 			getModelString: () => (hasExplicitModel && model ? formatModelString(model) : undefined),
 			getActiveModelString,
 			getActiveModel: () => agent?.state.model ?? model,
@@ -3535,7 +3548,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				// ship no static models can be unresolved here; the bundled sweep
 				// belongs to the post-frame background refresh.
 				await logger.time("resolveModelDiscoveryFallbackNonRuntime", () =>
-					modelRegistry.refresh("online-if-uncached", { providers: unresolvedDiscoveryProviders }),
+					modelRegistry.refresh("online-if-uncached"),
 				);
 			}
 			const allEnabledModels =
@@ -3943,9 +3956,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				// first frame (`refreshInBackground`), so nothing is lost.
 				const unresolvedDiscoveryProviders = modelRegistry.getDiscoverableProviders();
 				if (!hasExplicitModel && (defaultRoleConfigured || !pick) && unresolvedDiscoveryProviders.length > 0) {
-					await logger.time("resolveModelDiscoveryFallback", () =>
-						modelRegistry.refresh("online-if-uncached", { providers: unresolvedDiscoveryProviders }),
-					);
+					await logger.time("resolveModelDiscoveryFallback", () => modelRegistry.refresh("online-if-uncached"));
 					if (!(await tryResolveDefaultRole()) && !model) {
 						fallbackCandidates = await resolveAllowedModels(modelRegistry, settings, modelMatchPreferences);
 						pick = pickDefaultAvailableModel(fallbackCandidates.filter(hasModelAuth), provider =>
@@ -4745,7 +4756,6 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 					});
 			if (tasteInstructions) appendParts.push(tasteInstructions);
 			if (autoLearnInstructions) appendParts.push(autoLearnInstructions);
-			if (spotlightExperiment) appendParts.push(SHAPE_RULE);
 			// List each mounted MCP tool once. A routed tool that the xd:// catalog
 			// would list carries its catalog summary on the route line and gets no
 			// catalog line; a tool the route bound omits keeps its catalog line.
@@ -4830,6 +4840,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				xdevDocs: xdevPromptDocs ? renderXdevPromptDocs(xdevPromptDocs, routedCatalogNames) : "",
 				resolvedCustomPrompt: agentProfile?.persona?.systemPrompt ?? options.customSystemPrompt,
 				systemPromptTemplate: options.systemPromptTemplate,
+				modelSystemPromptTemplates: systemPromptTemplatePatterns.get(settings),
 				skills: cfgSkillful.get(settings) ? (session?.promptSkills ?? skills) : [],
 				skillDescriptions,
 				contextFiles,
@@ -4848,7 +4859,6 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				eagerTasks: agentKind === "main" && cfgTaskEager.get(settings) !== "default",
 				eagerTasksAlways: agentKind === "main" && cfgTaskEager.get(settings) === "always",
 				taskBatch: cfgTaskBatch.get(settings),
-				taskMaxConcurrency: cfgTaskMaxConcurrency.get(settings),
 				scoutAvailable: isScoutSpawnable(cfgTaskDisabledAgents.get(settings), options.spawns ?? "*"),
 				delegationBias: sessionDelegationBias(toolSession),
 				taskIrcEnabled: !restrictToolNames && isIrcEnabled(settings, options.taskDepth ?? 0),
@@ -4857,6 +4867,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				writeTransportOnly:
 					toolSession.deviceOnlyWrite === true && toolSession.pendingFullWriteDescription !== true,
 				secretsEnabled: obfuscator?.obfuscates() === true,
+				resultShaping: spotlightExperiment ? SHAPE_RULE : undefined,
 				workspaceTree: workspaceTreePromise ?? emptyWorkspaceTree,
 				includeWorkspaceTree,
 				memoryBackend: memoryBackend?.id,
@@ -4883,7 +4894,6 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			const customPrompt = options.systemPrompt(defaultPrompt.systemPrompt);
 			return {
 				systemPrompt: typeof customPrompt === "string" ? [customPrompt] : customPrompt,
-				contextWatchPaths,
 			};
 		};
 
@@ -4999,7 +5009,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		}
 
 		setSessionActiveToolNames(initialToolNames);
-		const { systemPrompt } = await logger.time(
+		const { systemPrompt, sources: systemPromptSources } = await logger.time(
 			"buildSystemPrompt",
 			rebuildSystemPrompt,
 			initialToolNames,
@@ -5227,6 +5237,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		// a session recreate. The single shared host keeps its evidence across
 		// toggles; per-turn coordinator close never touches it.
 		const speculativeToolExecution = createSpeculativeToolExecutionConfig(settings, toolSession, extensionRunner);
+		let mainRequestProvider: string | undefined;
 
 		agent = new Agent({
 			initialState: {
@@ -5257,6 +5268,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			getToolContext: tc => toolContextStore.getContext(tc),
 			getApiKey: effectiveGetApiKey,
 			streamFn: (streamModel, context, streamOptions) => {
+				mainRequestProvider = undefined;
 				options.assertDispatchModel?.(streamModel);
 				// The loop checks the cap before each request, but a side request can finish
 				// in between: refuse here, as this run's refusal, before announcing a dispatch.
@@ -5290,6 +5302,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				// The provider calls `onPayload` as it sends, past any wait for an in-flight
 				// slot: the prompt cache entry's lifetime starts there, not here.
 				const onPayload = merged.onPayload;
+				mainRequestProvider = streamModel.provider;
 				const stream = primaryStreamFn(streamModel, context, {
 					...merged,
 					...(fallbackCreditRedemption !== undefined ? { fallbackCreditRedemption } : {}),
@@ -5330,7 +5343,16 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 					}
 				}
 				const content = await session?.extensionRunner?.emitAssistantMessage(message, signal);
-				if (content) message.content = content;
+				if (content) {
+					// Same-model Responses replay sends the captured payload items
+					// verbatim; sync the rewrite into them or it never reaches the wire.
+					const texts = content
+						.filter((block): block is TextContent => block.type === "text")
+						.map(block => block.text);
+					const synced = syncOpenAIResponsesHistoryTexts(message.providerPayload, texts);
+					message.content = content;
+					if (synced) message.providerPayload = synced;
+				}
 			},
 			// Recovery only fires on turns without tool calls and appends a new one,
 			// so streamed calls (and their speculation sessions) are never rewritten.
@@ -5354,12 +5376,31 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 					: undefined
 				: undefined,
 		});
+		// The main Agent's issued provider is available before AgentSession accounts
+		// for the finalized message, including errors synthesized after a stream throws.
+		agent.subscribe(event => {
+			if (event.type === "message_end" && event.message.role === "assistant" && mainRequestProvider !== undefined) {
+				(event.message as typeof event.message & { [kUsageLimitRequestProvider]?: string })[
+					kUsageLimitRequestProvider
+				] = mainRequestProvider;
+			} else if (event.type === "turn_end" || event.type === "agent_end") {
+				mainRequestProvider = undefined;
+			}
+		});
 		// Catalog rows carry the registry settings' extended-window opt-ins; this
 		// session adopts every model with the window its own settings select (a
 		// subagent with a compaction override must not inherit the parent's).
 		agent.setModelResolver(next => modelRegistry.fitContextWindow(next, settings));
 
 		cursorEventEmitter = event => agent.emitExternalEvent(event);
+
+		// The retry role follows the explicit default entry, as the task executor records it,
+		// so chain lookup prefers the role's chain while resume still restores this model as the default.
+		const retryRole = options.modelRole ?? modelPatternRetryFallbackRole;
+		const recordInitialModelChange = (initialModel: string) => {
+			sessionManager.appendModelChange(initialModel);
+			if (retryRole && retryRole !== "default") sessionManager.appendModelChange(initialModel, retryRole);
+		};
 
 		// Restore messages if session has existing data
 		if (hasExistingSession) {
@@ -5377,6 +5418,9 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 							obfuscator,
 						);
 			agent.replaceMessages(restored.messages);
+			// Only an explicit role alias re-owns a resumed branch; any other explicit model
+			// (subagent revival, SDK callers) keeps the role its history recorded.
+			if (model && options.modelRole) recordInitialModelChange(`${model.provider}/${model.id}`);
 			if (persistInitialServiceTier) {
 				sessionManager.appendServiceTierChange(
 					Object.keys(initialServiceTierByFamily).length > 0 ? initialServiceTierByFamily : null,
@@ -5384,16 +5428,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			}
 		} else {
 			// Save initial model, thinking level, and service tier for new sessions so they can be restored on resume.
-			if (model) {
-				const initialModel = `${model.provider}/${model.id}`;
-				sessionManager.appendModelChange(initialModel);
-				// A deferred pattern's own retry role follows the explicit default entry, as
-				// the task executor records it, so chain lookup prefers the pattern's chain
-				// while resume still restores this model as the default.
-				if (modelPatternRetryFallbackRole) {
-					sessionManager.appendModelChange(initialModel, modelPatternRetryFallbackRole);
-				}
-			}
+			if (model) recordInitialModelChange(`${model.provider}/${model.id}`);
 			if (!autoThinking) {
 				// Do not write the `auto` selector before the first turn resolves; auto
 				// classification persists its concrete effort once a real user turn runs.
@@ -5584,6 +5619,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			advisorStreamFn: settingsAwareStreamFn,
 			convertToLlm: convertToLlmFinal,
 			rebuildSystemPrompt,
+			systemPromptSources,
 			getXdevToolEntries: () => (toolSession.xdev ? xdevEntries(toolSession.xdev) : []),
 			xdev: toolSession.xdev,
 			presentationPinnedToolNames,
@@ -5633,7 +5669,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			// The advisor's bridge tools are wrapped for approval, but the wrapper
 			// reads the mode and per-tool policies only from the execute-time
 			// context — the primary bridge passes the same store.
-			advisorGetToolContext: () => toolContextStore.getContext(),
+			advisorGetToolContext: toolCall => toolContextStore.getContext(toolCall),
 			// Same live connections the primary bridge reads; an advisor's
 			// resource frame would otherwise report every server as empty.
 			advisorMcpResources: cursorMcpResources,
@@ -5724,7 +5760,11 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 		// advisor transcript size (issue #9553).
 		session.beginInitialAdvisorCostRestore();
 		// Lines already seen follow the live context on their own (`getContextMessages`); a new session file starts over.
-		if (spotlightExperiment) session.registerSessionChangeCallback(() => spotlightExperiment.onSessionChange());
+		if (spotlightExperiment) {
+			session.registerSessionChangeCallback(() => spotlightExperiment.onSessionChange());
+			spotlightExperiment.client.onCredentialMissing = () =>
+				session.emitNotice("warning", NO_CREDENTIAL_NOTICE, SPOTLIGHT_NOTICE_SOURCE);
+		}
 		// Extension factories normally register tools before session construction,
 		// but Pi-compatible extensions may discover them asynchronously from a
 		// session_start handler. Install those late registrations into the live

@@ -105,6 +105,13 @@ function filterText(input: Input): string {
 	return input.render(visibleWidth(input.getValue()) + 1)[0] ?? "";
 }
 
+/** A running row's clock: its `time` fact is `durationMs` aged from `progressAt` at send. */
+interface PickerClock {
+	index: number;
+	durationMs: number;
+	progressAt: number | undefined;
+}
+
 /** Two-pane mode needs a useful roster and a readable inspector. */
 const SPLIT_MIN_WIDTH = 96;
 const DETAIL_MIN_WIDTH = 34;
@@ -115,6 +122,14 @@ type ActivityFilter = "all" | "errors" | "responses" | "tools";
 type ActivityScope = "all" | "agent" | "subtree";
 
 type HubViewMode = "roster" | "tree";
+/** The roster's status scopes: what a phone filters agents by. */
+type StatusScope = "all" | "running" | "done" | "parked";
+const STATUS_SCOPES: readonly { id: StatusScope; label: string; icon: string; status?: AgentRecordLike["status"] }[] = [
+	{ id: "all", label: "All", icon: "list" },
+	{ id: "running", label: "Running", icon: "play", status: "running" },
+	{ id: "done", label: "Done", icon: "check", status: "idle" },
+	{ id: "parked", label: "Parked", icon: "pause", status: "parked" },
+];
 
 const SECTION_TABS = [
 	{ id: "agents", label: "1 Agents" },
@@ -197,6 +212,19 @@ interface AgentTreeEntry extends TspTreeNode {
 /** Refresh cadence for the relative-time column. */
 const AGE_TICK_MS = 5_000;
 const DATA_CHANGE_RENDER_COALESCE_MS = 100;
+/**
+ * The picker re-sends every row on any change (TSP has no per-item op), so its
+ * data-change window grows with the rows it ships: 100 ms up to 50 rows, 1 s
+ * from 500. Running clocks keep ticking terminal-side in between.
+ */
+const PICKER_COALESCE_MS_PER_ROW = 2;
+const PICKER_COALESCE_MAX_MS = 1_000;
+/**
+ * How long an unchanged agent picker list keeps the elapsed ages it was sent
+ * with. Reusing it sends no `items` op (hundreds of rows per repaint otherwise);
+ * a picker re-added from the cache rewinds running clocks by at most this.
+ */
+const PICKER_CLOCK_REUSE_MS = 1_000;
 /** Double-tap window for the table's left-left "close hub" gesture. */
 const LEFT_TAP_WINDOW_MS = 500;
 
@@ -405,6 +433,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 	#treeMaxDepth = 0;
 	/** Fuzzy agent filter (`/`), applied to id and display name. */
 	readonly #agentFilter = filterInput();
+	#statusScope: StatusScope = "all";
 	#agentFilterEditing = false;
 	/** Current observer index and summary data, rebuilt on source changes rather than every paint. */
 	#observedById = new Map<string, ObservableSession>();
@@ -488,20 +517,10 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 	#nativeVariant = "";
 	/** Preview recent-activity rows by node key, for their pointer actions. */
 	#recentByKey = new Map<string, AgentActivityRow>();
-	/** Bumped whenever the roster rows change; the picker items rebuild once per generation. */
-	#pickerDataVersion = 0;
-	/** Last agent picker items; repaints for selection, hover or age ticks reuse the array. */
-	#pickerItemsCache:
-		| {
-				version: number;
-				viewMode: HubViewMode;
-				at: number;
-				ircRevision: number;
-				items: readonly TspPickerItem[];
-		  }
-		| undefined;
-	/** Last mailbox generation seen; a change invalidates unread badges without polling agents. */
-	#lastIrcRevision = -1;
+	/** Last agent picker list: clock-free rows (`key`), the sent rows, and when their clocks were read. */
+	#agentItems: { key: TspPickerItem[]; items: TspPickerItem[]; at: number } | undefined;
+	/** Session roster size before the filter, for the picker's `total`. */
+	#sessionRefCount = 0;
 
 	constructor(deps: AgentHubDeps<TRecord>) {
 		super();
@@ -539,37 +558,8 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		this.#expandKeys = deps.expandKeys ?? ["ctrl+o"];
 		this.#focusAgent = deps.focusAgent;
 
-		this.#unsubscribers.push(
-			this.#registry.onChange(event => {
-				// Terminal state changed (spawn/status/removal): the badge and status
-				// must not wait for the progress coalescing window. Metadata refreshes
-				// share that window because they arrive with the same cadence.
-				this.#pickerDataVersion += 1;
-				this.#scheduleDataChange(event?.type !== "metadata_changed");
-			}),
-		);
-		this.#unsubscribers.push(
-			this.#observers.onChange(kind => {
-				// New activity/messages: invalidate the picker generation immediately.
-				// Only high-frequency streaming progress keeps the larger coalescing
-				// window; lifecycle changes and mailbox growth render right away.
-				this.#pickerDataVersion += 1;
-				const unreadChanged = this.#takeIrcRevision();
-				this.#scheduleDataChange(kind !== "progress" || unreadChanged);
-			}),
-		);
-		const unsubscribeMailbox = this.#irc.onMailboxChange?.(() => {
-			// A queued message changes the unread badge without any roster or
-			// observer event; render it now rather than waiting out the age tick.
-			this.#pickerDataVersion += 1;
-			this.#takeIrcRevision();
-			// Drop the described tree synchronously: a caller that asks for the
-			// picker before the scheduled data-change timer fires must see the
-			// new badge, not the previous generation's snapshot.
-			this.#requestRender();
-			this.#scheduleDataChange(true);
-		});
-		if (unsubscribeMailbox) this.#unsubscribers.push(unsubscribeMailbox);
+		this.#unsubscribers.push(this.#registry.onChange(() => this.#scheduleDataChange()));
+		this.#unsubscribers.push(this.#observers.onChange(() => this.#scheduleDataChange()));
 		this.#ageTimer = setInterval(() => {
 			if (this.#hasFallbackLiveSessions) {
 				this.#refreshAggregate(true);
@@ -772,7 +762,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		}
 		const tabs = node("tabs", { items: SECTION_TABS, active: this.#section }, undefined, "section");
 		const body = this.#section === "activity" ? this.#describeActivity() : this.#describeAgents(nativeTree);
-		this.#native = overlayCard("zeta.overlay.agentHub", "Agent Hub", [tabs, ...body]);
+		this.#native = overlayCard("zeta.$1.agentHub", "Agent Hub", [tabs, ...body]);
 		return this.#native;
 	}
 
@@ -873,6 +863,10 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			case "scope":
 				if (activity && ACTIVITY_FILTERS.includes(event.value as ActivityFilter)) {
 					this.#setActivityFilter(event.value as ActivityFilter);
+				} else if (!activity && STATUS_SCOPES.some(scope => scope.id === event.value)) {
+					this.#statusScope = event.value as StatusScope;
+					this.#refreshRows();
+					this.#requestRender();
 				}
 				return;
 			case "close":
@@ -976,10 +970,12 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			preview: "side",
 			...pickerQuery(this.#agentFilterEditing || this.#agentFilter.getValue() ? this.#agentFilter : null),
 			placeholder: "Filter agents…",
+			scopes: this.#statusScopes(),
+			scope: this.#statusScope,
 			columns: AGENT_COLUMNS,
 			items: this.#agentPickerItems(),
 			selected: selected?.id ?? null,
-			total: this.#sessionRefs().length,
+			total: this.#sessionRefCount,
 			state: this.#rows.length === 0 && this.#loadingPersistedSubagents ? "loading" : "ready",
 			empty: "No agents in this session. Finished, parked and killed subagents stay with the session that created them.",
 			actions,
@@ -987,41 +983,41 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		};
 	}
 
+	/** The status scopes with their counts over the whole session. */
+	#statusScopes(): TspPickerScope[] {
+		const refs = this.#sessionRefs();
+		return STATUS_SCOPES.map(scope => ({
+			id: scope.id,
+			label: scope.label,
+			icon: scope.icon,
+			count: scope.status ? refs.filter(ref => ref.status === scope.status).length : refs.length,
+		}));
+	}
+
 	/**
-	 * Picker rows for this roster generation. The picker ships `items` whole, so
-	 * rebuilding/allocating every row on a selection move, hover or age tick
-	 * becomes O(agents) per repaint (and a large roster repaints often). Reuse
-	 * the array until `#refreshRows` or the clock tick invalidates it.
+	 * Agent picker items. The picker ships `items` whole, so a repaint that
+	 * changes no row (navigation, hover, the age tick) reuses the last list —
+	 * including its sent running clocks, which Tern keeps ticking — instead of
+	 * re-sending every row with a fresh age.
 	 */
-	#agentPickerItems(): readonly TspPickerItem[] {
+	#agentPickerItems(): TspPickerItem[] {
+		const clocks: PickerClock[] = [];
+		const key = this.#rows.map((ref, index) => this.#pickerAgentItem(ref, index, clocks));
 		const now = Date.now();
-		// Unread badges come from the live mailbox, so a generation change must
-		// break the cache even when the age window has not elapsed: a queued
-		// message may arrive with no roster/observer event at all.
-		const ircRevision = this.#irc.revision?.() ?? -1;
-		this.#lastIrcRevision = ircRevision;
-		const cached = this.#pickerItemsCache;
-		if (
-			cached &&
-			cached.version === this.#pickerDataVersion &&
-			cached.viewMode === this.#viewMode &&
-			cached.ircRevision === ircRevision &&
-			now - cached.at < AGE_TICK_MS
-		) {
-			return cached.items;
+		const cached = this.#agentItems;
+		if (cached && now - cached.at < PICKER_CLOCK_REUSE_MS && Bun.deepEquals(cached.key, key)) return cached.items;
+		const items = key.slice();
+		for (const clock of clocks) {
+			const item = items[clock.index]!;
+			const age = clock.durationMs + (clock.progressAt === undefined ? 0 : Math.max(0, now - clock.progressAt));
+			items[clock.index] = { ...item, facts: { ...item.facts, time: age } };
 		}
-		const items = this.#rows.map(ref => this.#pickerAgentItem(ref));
-		this.#pickerItemsCache = {
-			version: this.#pickerDataVersion,
-			viewMode: this.#viewMode,
-			at: now,
-			ircRevision,
-			items,
-		};
+		this.#agentItems = { key, items, at: now };
 		return items;
 	}
 
-	#pickerAgentItem(ref: TRecord): TspPickerItem {
+	/** One picker row; a running clock's `time` is its origin here, aged by {@link #agentPickerItems}. */
+	#pickerAgentItem(ref: TRecord, index: number, clocks: PickerClock[]): TspPickerItem {
 		const observed = this.#observableFor(ref.id);
 		const metrics = this.#metricsFor(ref, observed);
 		const task = observed?.description ?? observed?.progress?.task ?? ref.activity;
@@ -1049,22 +1045,26 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 				: undefined,
 			badges: badges.length > 0 ? badges.slice(0, 3) : undefined,
 		};
-		if (this.#viewMode === "tree") {
-			const depth = this.#treeDepthById.get(ref.id) ?? 0;
-			return { ...item, depth, open: this.#childrenByParent.has(ref.id) ? true : undefined };
-		}
-		if (!metrics) return item;
+		const placed: TspPickerItem =
+			this.#viewMode === "tree"
+				? {
+						...item,
+						depth: this.#treeDepthById.get(ref.id) ?? 0,
+						open: this.#childrenByParent.has(ref.id) ? true : undefined,
+					}
+				: item;
+		if (!metrics) return placed;
 		// A running agent's active time ticks terminal-side from the age at send; a settled one
-		// is frozen text. Progress `durationMs` was current when its frame arrived, so age it to now
-		// — re-sending the stale value on every repaint rewinds Tern's clock. A first frame can
-		// report 0 ms, so a progress timestamp alone makes the row clockable.
+		// is frozen text. Progress `durationMs` was current when its frame arrived, so a send ages
+		// it to now — re-sending the stale value rewinds Tern's clock. A first frame can report
+		// 0 ms, so a progress timestamp alone makes the row clockable.
 		const progressAt = observed?.progress ? observed.progressAt : undefined;
+		const clocked = ref.status === "running" && (metrics.durationMs > 0 || progressAt !== undefined);
+		if (clocked) clocks.push({ index, durationMs: metrics.durationMs, progressAt });
 		const facts: Record<string, string | number> = {
 			cost: formatCost(metrics.cost),
-			time:
-				ref.status === "running" && (metrics.durationMs > 0 || progressAt !== undefined)
-					? metrics.durationMs + (progressAt === undefined ? 0 : Math.max(0, Date.now() - progressAt))
-					: formatDuration(metrics.durationMs),
+			// Constant while the clock runs, so an unchanged row compares equal across repaints.
+			time: clocked ? metrics.durationMs - (progressAt ?? 0) : formatDuration(metrics.durationMs),
 			req: metrics.requests,
 			tools: metrics.tools,
 			tok: metrics.tokens,
@@ -1074,7 +1074,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			facts.ctx = Math.max(0, Math.min(1, metrics.contextTokens / metrics.contextWindow));
 			title = `Context ${formatNumber(metrics.contextTokens)} / ${formatNumber(metrics.contextWindow)}`;
 		}
-		return { ...item, facts, title };
+		return { ...placed, facts, title };
 	}
 
 	/** Selected agent's preview: title with status, facts, context meter, recent activity. */
@@ -1086,10 +1086,10 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		const out: NativeChild[] = [
 			node(
 				"row",
-				{ role: "zeta.hub.title", gap: "sm", align: "center" },
+				{ role: "zeta.$1.title", gap: "sm", align: "center" },
 				[
 					text(sanitizeDisplaySingleLine(ref.displayName || ref.id), {
-						role: "zeta.picker.title",
+						role: "zeta.$1.title",
 						truncate: "end",
 					}),
 					node("badge", { text: ref.status, tone: statusDot(ref.status) }),
@@ -1113,7 +1113,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			}
 			facts.splice(facts[0]?.k === "Task" ? 1 : 0, 0, { k: "Model", v: model });
 		}
-		out.push(node("kv", { items: facts, layout: "grid", role: "zeta.hub.kv" }, undefined, "facts"));
+		out.push(node("kv", { items: facts, layout: "grid", role: "zeta.$1.kv" }, undefined, "facts"));
 		if (metrics?.contextTokens !== undefined && metrics.contextWindow) {
 			const ratio = Math.max(0, Math.min(1, metrics.contextTokens / metrics.contextWindow));
 			const label = `${formatNumber(metrics.contextTokens)} / ${formatNumber(metrics.contextWindow)} · ${Math.round(ratio * 100)}%`;
@@ -1142,7 +1142,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			return node(
 				"row",
 				{
-					role: "zeta.hub.activity.row",
+					role: "zeta.$1.activity.row",
 					gap: "sm",
 					align: "baseline",
 					actions: { click: "transcript" },
@@ -1158,11 +1158,13 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			);
 		});
 		if (rows.length === 0) rows.push(text([span("No response or tool activity yet", "dim")]));
-		out.push(node("section", { head: "Recent activity", role: "zeta.hub.activity" }, rows, "recentActivity"));
+		out.push(node("section", { head: "Recent activity", role: "zeta.$1.activity" }, rows, "recentActivity"));
 		return out;
 	}
 
 	#activityPickerProps(): PickerBody {
+		// The picker's `items` now hold activity rows; returning to agents must send fresh clocks.
+		this.#agentItems = undefined;
 		const agent = this.#rows[this.#selectedRow]?.id;
 		const scope =
 			this.#activityScope === "all"
@@ -1314,7 +1316,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 						[span("Finished, parked, and killed subagents remain with the session that created them.", "dim")],
 						{ wrap: "word" },
 					),
-					text([span("Resume that session with zetacode --continue, or spawn a task here.", "dim")], {
+					text([span("Resume that session with omp-dev --continue, or spawn a task here.", "dim")], {
 						wrap: "word",
 					}),
 				],
@@ -1406,7 +1408,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			grow: 2,
 			min: { w: `${DETAIL_MIN_WIDTH}ch` },
 			gap: "sm",
-			role: "zeta.overlay.agentHub.detail",
+			role: "zeta.$1.agentHub.detail",
 		} as const;
 		if (!ref) return node("col", layout, [text([span("Select an agent to inspect", "dim")])], "detail");
 		const observed = this.#observableFor(ref.id);
@@ -1617,44 +1619,27 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 	// Live data plumbing
 	// ========================================================================
 
-	#scheduleDataChange(immediate = false): void {
-		if (this.#dataChangeTimer) {
-			if (!immediate) return;
-			// A later status/message change supersedes a queued progress batch: render
-			// on the next tick instead of finishing the old window with stale data.
-			clearTimeout(this.#dataChangeTimer);
+	#scheduleDataChange(): void {
+		if (this.#dataChangeTimer) return;
+		this.#dataChangeTimer = setTimeout(() => {
 			this.#dataChangeTimer = undefined;
-		}
-		this.#dataChangeTimer = setTimeout(
-			() => {
-				this.#dataChangeTimer = undefined;
-				this.#onDataChange();
-			},
-			immediate ? 0 : this.#dataChangeDelay(),
-		);
+			this.#onDataChange();
+		}, this.#dataChangeDelay());
 		this.#dataChangeTimer.unref?.();
+	}
+
+	#dataChangeDelay(): number {
+		if (!this.#nativeVariant.startsWith("picker")) return DATA_CHANGE_RENDER_COALESCE_MS;
+		const rows = this.#section === "activity" ? this.#activityRows.length : this.#rows.length;
+		return Math.min(
+			PICKER_COALESCE_MAX_MS,
+			Math.max(DATA_CHANGE_RENDER_COALESCE_MS, rows * PICKER_COALESCE_MS_PER_ROW),
+		);
 	}
 
 	#onDataChange(): void {
 		this.#refreshRows();
 		this.#requestRender();
-	}
-
-	/**
-	 * Coalescing window for high-frequency progress batches: 100 ms for small
-	 * rosters, widening with the row count (1 s at 500+). Status, lifecycle and
-	 * unread changes bypass it through the immediate path above.
-	 */
-	#dataChangeDelay(): number {
-		return Math.min(1000, Math.max(DATA_CHANGE_RENDER_COALESCE_MS, this.#rows.length * 2));
-	}
-
-	/** Consume a mailbox-generation change; true when an unread badge may have moved. */
-	#takeIrcRevision(): boolean {
-		const next = this.#irc.revision?.() ?? -1;
-		if (next === this.#lastIrcRevision) return false;
-		this.#lastIrcRevision = next;
-		return true;
 	}
 
 	/** A parked or killed agent with no live session and an unknown id, seen while the saved-agent scan runs, is one the scan found. */
@@ -1675,6 +1660,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 	#refreshRows(): void {
 		const selectedId = this.#rows[this.#selectedRow]?.id;
 		const refs = this.#sessionRefs();
+		this.#sessionRefCount = refs.length;
 		this.#observedById = new Map();
 		for (const session of this.#observers.getSessions()) this.#observedById.set(session.id, session);
 		const live = new Set(refs);
@@ -1697,9 +1683,11 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			query.length > 0
 				? ordered.filter(ref => fuzzyMatch(query, `${ref.id} ${ref.displayName ?? ""}`).matches)
 				: ordered;
+		const scoped = STATUS_SCOPES.find(scope => scope.id === this.#statusScope)?.status;
+		const statusRows = scoped ? rosterRows.filter(ref => ref.status === scoped) : rosterRows;
 
 		if (this.#viewMode === "tree") {
-			const tree = projectAgentTree(rosterRows, ref => this.#frozenRank.get(ref)!.batch < 0);
+			const tree = projectAgentTree(statusRows, ref => this.#frozenRank.get(ref)!.batch < 0);
 			this.#rows = tree.rows;
 			this.#treeDepthById = tree.depthById;
 			this.#treeParentById = tree.parentById;
@@ -1707,7 +1695,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			this.#treeMaxDepth = 0;
 			for (const depth of tree.depthById.values()) this.#treeMaxDepth = Math.max(this.#treeMaxDepth, depth);
 		} else {
-			this.#rows = rosterRows;
+			this.#rows = statusRows;
 			this.#treeDepthById.clear();
 			this.#treeParentById.clear();
 			this.#treeLastSiblingById.clear();
@@ -1734,7 +1722,6 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		this.#refreshActivityData(rosterRows);
 		// The 2,000-row activity query only feeds the Activity tab; switching to it refreshes.
 		if (this.#section === "activity") this.#refreshActivityRows();
-		this.#pickerDataVersion++;
 	}
 
 	#refreshActivityData(refs: readonly TRecord[]): void {
@@ -1987,7 +1974,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 				const emptyState = [
 					`${theme.fg("muted", theme.status.shadowed)} ${theme.bold("No agents in this session")}`,
 					theme.fg("dim", "Finished, parked, and killed subagents remain with the session that created them."),
-					theme.fg("dim", "Resume that session with zetacode --continue, or spawn a task here."),
+					theme.fg("dim", "Resume that session with omp-dev --continue, or spawn a task here."),
 				];
 				for (const line of emptyState.slice(0, budget)) {
 					lines.push(line);

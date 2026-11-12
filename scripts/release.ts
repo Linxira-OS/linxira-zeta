@@ -78,7 +78,7 @@ export function selectLatestZetaTag(tagListOutput: string): string | null {
  * no downstream manifest (package.json, Cargo.toml, tag) ever sees a `v`
  * prefix — Cargo rejects `version = "v17.2.8"`.
  */
-export function validateExplicitVersion(version: string): string | null {
+function validateExplicitVersion(version: string): string | null {
 	const match = /^v?((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))$/.exec(version);
 	return match ? match[1] : null;
 }

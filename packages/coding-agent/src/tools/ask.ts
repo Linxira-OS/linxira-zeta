@@ -10,7 +10,6 @@
 
 import { type as arkType } from "@linxiraos/zeta-schema";
 import type { AgentTool, AgentToolContext, AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
-import type { ToolExample } from "@linxiraos/pi-ai";
 import { TERMINAL } from "@linxiraos/pi-tui";
 import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
 import { editorKey, editorKeys } from "@linxiraos/pi-tui/chrome/keybinding-hints";
@@ -21,6 +20,7 @@ import {
 	fieldError,
 	formAnswers,
 	type HtmlFormData,
+	type OptionNote,
 	OTHER_LABEL,
 	textValue,
 } from "@linxiraos/pi-tui/html-form/data";
@@ -35,11 +35,12 @@ import { disambiguateDisplayLabels } from "@linxiraos/pi-tui/render/render-utils
 import { theme } from "@linxiraos/pi-tui/theme";
 import type { AskToolDetails } from "@linxiraos/pi-tui/tools/ask";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
-import { APP_NAME, isRecord, prompt, untilAborted } from "@linxiraos/pi-utils";
+import { isRecord, prompt, untilAborted } from "@linxiraos/pi-utils";
 import type { ExtensionUIContext, ExtensionUIDialogOptions, ExtensionUISelectItem } from "../extensibility/extensions";
 import { askTimeoutMs, cfgAskNotify } from "../modes/settings";
 import askDescription from "../prompts/tools/ask.md" with { type: "text" };
 import askHeadlessForkMessage from "../prompts/tools/ask-headless-fork.md" with { type: "text" };
+import askResultTemplate from "../prompts/tools/ask-result.md" with { type: "text" };
 import { cfgSpeechEnabled } from "../tts/settings";
 import { vocalizer } from "../tts/vocalizer";
 import type { ToolSession } from ".";
@@ -332,29 +333,15 @@ async function askFieldByField(
 // Tool Class
 // =============================================================================
 
-const EXAMPLE_FORM = `<form>
-  <p>Sessions live in memory and are lost on restart.</p>
-  <fieldset>
-    <legend>Session store</legend>
-    <label><input type="radio" name="store" value="sqlite" checked> SQLite: one file, no new service</label>
-    <label><input type="radio" name="store" value="redis"> Redis: shared across instances, needs ops</label>
-  </fieldset>
-  <label>Session lifetime (days) <input type="number" name="ttl_days" value="30" min="1"></label>
-</form>`;
-
 /** Asks the user to fill in one HTML form and returns the submitted form data. */
 export class AskTool implements AgentTool<typeof askSchema, AskToolDetails> {
 	readonly name = "ask";
 	readonly approval = "read" as const;
 	readonly label = "Ask";
 	readonly summary = "Ask the user to fill in a form";
-	readonly description: string;
 	readonly parameters = askSchema;
 	readonly strict = true;
 
-	readonly examples: readonly ToolExample<typeof askSchema.infer>[] = [
-		{ caption: "Choice with context and a number", call: { html: EXAMPLE_FORM } },
-	];
 	// Run alone in its tool batch. The interactive dialog is a single shared UI
 	// surface (`ExtensionUiController` has no queue and overwrites the active
 	// dialog on each call), so two concurrent `ask` calls would clobber each
@@ -363,9 +350,9 @@ export class AskTool implements AgentTool<typeof askSchema, AskToolDetails> {
 	readonly concurrency = "exclusive";
 	readonly loadMode = "discoverable";
 
-	constructor(private readonly session: ToolSession) {
-		this.description = prompt.render(askDescription);
-	}
+	constructor(private readonly session: ToolSession) {}
+
+	readonly description = prompt.render(askDescription);
 
 	static createIf(session: ToolSession): AskTool | null {
 		return (session.canPromptUser ?? session.hasUI) || session.advertiseHeadlessAsk ? new AskTool(session) : null;
@@ -377,7 +364,7 @@ export class AskTool implements AgentTool<typeof askSchema, AskToolDetails> {
 		const method = cfgAskNotify.get(this.session.settings);
 		if (method === "off") return;
 		TERMINAL.sendNotification({
-			title: APP_NAME,
+			title: "omp",
 			body: "Waiting for input",
 			type: "ask",
 			urgency: "normal",
@@ -443,7 +430,7 @@ export class AskTool implements AgentTool<typeof askSchema, AskToolDetails> {
 			vocalizer.speak(named.map(field => questions.get(field) ?? field.name).join("\n"));
 		}
 
-		let answered: { data: HtmlFormData; timedOut?: boolean } | undefined;
+		let answered: { data: HtmlFormData; notes?: OptionNote[]; timedOut?: boolean } | undefined;
 		try {
 			if (extensionUi.formDialog) {
 				const formDialog = extensionUi.formDialog.bind(extensionUi);
@@ -459,17 +446,17 @@ export class AskTool implements AgentTool<typeof askSchema, AskToolDetails> {
 		}
 		if (!answered) return cancelAsk();
 
-		const json = JSON.stringify(answered.data, null, 2);
-		const details: AskToolDetails = { answers: formAnswers(form, answered.data) };
-		if (answered.timedOut) {
-			details.timedOut = true;
-			return {
-				content: [
-					{ type: "text", text: `No answer before the timeout; submitted the form's current values:\n${json}` },
-				],
-				details,
-			};
-		}
-		return { content: [{ type: "text", text: `User answers:\n${json}` }], details };
+		const notes = answered.notes?.length ? answered.notes : undefined;
+		const details: AskToolDetails = {
+			answers: formAnswers(form, answered.data),
+			...(notes ? { notes } : {}),
+			...(answered.timedOut ? { timedOut: true } : {}),
+		};
+		const text = prompt.render(askResultTemplate, {
+			timedOut: answered.timedOut,
+			json: JSON.stringify(answered.data, null, 2),
+			notes: notes?.map(note => ({ ...note, text: note.text.replace(/\s+/g, " ").trim() })),
+		});
+		return { content: [{ type: "text", text }], details };
 	}
 }

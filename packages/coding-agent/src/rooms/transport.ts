@@ -68,10 +68,12 @@ export function createAgentRoomDeliveryPort(): RoomDeliveryPort {
 			const sender = hostSender(ref);
 			if (sender) {
 				try {
-					const receipt = await IrcBus.global().send(
-						{ from: sender.id, to: ref.id, body, replyTo: event.eventId },
-						{ suppressRelay: true },
-					);
+					const receipt = await IrcBus.global().send({
+						from: sender.id,
+						to: ref.id,
+						body,
+						replyTo: event.eventId,
+					});
 					const outcome = normalizeOutcome(receipt.outcome);
 					return revived && outcome === "injected" ? "revived" : outcome;
 				} catch {
