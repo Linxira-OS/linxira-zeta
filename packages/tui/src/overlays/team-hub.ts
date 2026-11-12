@@ -1003,6 +1003,7 @@ export class TeamHubOverlayComponent implements Component {
 		} else if (this.#snapshot && this.#snapshot.rooms.length === 0) {
 			push(theme.fg("dim", "No rooms in this team yet."));
 			push(theme.fg("dim", "Create one: zetacode team room create <name> --pm <pm>"));
+			push(theme.fg("dim", "Add members: zetacode team room member add <room> --agent <id>"));
 		} else {
 			push(theme.fg("dim", "No room selected."));
 		}

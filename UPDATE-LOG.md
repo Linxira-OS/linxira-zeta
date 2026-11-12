@@ -6,6 +6,11 @@
 - **已发布的 1.5.1 段落不可改写**：`### 1.5.1` 及其条目保持原样（包括 #297 的 logo 归属），不回填、不搬迁历史；勘误只写在本 Unreleased 段落。
 - **以下变更合并在 1.5.1 tag 之后，并未随 1.5.1 发布**：#304（Studio capability matrix）、#307（desktop window controls）、#318（Electron 45）、#319（html-report 技能）、#320（release freeze）、#321（model visibility）。它们只在后续内部构建/1.6.0 中生效；1.5.2–1.5.10 是 code-only 内部 tag，不发布资产或 npm 包，1.6.0 仍需 owner 明确批准后才公开发布。
 
+### Team Hub headless 与成员命令（未发布）
+- `/team hub` 新增 headless/ACP/IM 纯文本入口：`resolveTeamEntry` + `createTeamHubDataSource` 复用真实 Team DB 快照（PM/工程师/房间/选中房间事件/任务），不新增 backend、agent 或伪造状态。空 Team 只输出真实 CLI next steps；DB row 缺失保留真实 warning。
+- 新增 `zetacode team room member add/remove`，复用既有 `addRoomMember`/`removeRoomMember` 与 PM ownership 规则；TUI 空 Team 指引补上 member 命令。
+- 实测：真实 fixture 在 PM cwd 无 `--root` 创建房间/成员/发事件/任务；ACP `executeAcpBuiltinSlashCommand` 返回 `{consumed:true}` 并显示真实 row/event/task；团队窄测试 37/0。
+
 ### 本地工作树/缓存清理（2026-11-12，未发布）
 - 在用户授权下只处理仓库内、已合并且 clean 的 3 个旧 worktree/分支：`fix/browser-relay-hello-race`（`c1f6c6c6a79`）、`feat/ci-buckets`（`06671d0b7860`）、`feat/device-account-ux`（`509e4390233b`），no-follow logical 合计 5,116,494,208 B；worktree 数量 120→117、本地 heads 128→125。
 - 先经 `bun scripts/safe-remove-tree.ts` 删除 junction/`node_modules` 链接（分别为 18/18 links），再 `git worktree remove` 与 `git branch -d`；未使用 `rm -rf`/递归 PowerShell。登记先写“待删除”（`f695f93ad1fd`），结果证据单独提交（`b3cc7077c559`）。

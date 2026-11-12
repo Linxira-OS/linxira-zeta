@@ -11,7 +11,15 @@ import { runInitTeamCommand } from "../team/bootstrap-command";
 import { diagnoseTeam, type DoctorReport } from "../team/doctor";
 import type { TaskEventRecord, TaskRecord } from "../team/db";
 import { formatTeamError, TeamError } from "../team/errors";
-import { createRoom, listRooms, postRoomEvent, showRoom, type RoomView } from "../team/rooms";
+import {
+	addRoomMember,
+	createRoom,
+	listRooms,
+	postRoomEvent,
+	removeRoomMember,
+	showRoom,
+	type RoomView,
+} from "../team/rooms";
 import {
 	ackRoom,
 	deliverPendingRoomEvents,
@@ -90,6 +98,8 @@ Commands:
   room create <name> --shared [--members a,b]                 Create a coordination room
   room list [--root <path>]                                   List database-only rooms
   room show <room> [--limit <n>]                              Show members and ordered events
+  room member add <room> --agent <id>                         Add an existing PM/engineer to a room
+  room member remove <room> --agent <id>                      Remove a member from a room
   room post <room> --body <text> [--sender <id>] [--reply-to <seq>]
                                                               Append one room event
   room subscribe <room> --agent <id> [--from-seq <n>]         Subscribe (default starts at latest)
@@ -342,6 +352,28 @@ async function runRoom(options: TeamCliOptions, rest: string[]): Promise<void> {
 		else printRoomView(view);
 		return;
 	}
+	if (verb === "member") {
+		const action = requireRest(
+			rest,
+			1,
+			"member action",
+			`${CLI_BIN_NAME} team room member add|remove <room> --agent <id>`,
+		);
+		const room = requireRest(rest, 2, "room name", `${CLI_BIN_NAME} team room member ${action} <room> --agent <id>`);
+		if (action === "add") {
+			const record = await addRoomMember({ room, member: agent(), teamRoot: options.root });
+			if (options.json) writeJson(record);
+			else process.stdout.write(`Added ${record.agentId} to room "${room}" as ${record.role}\n`);
+			return;
+		}
+		if (action === "remove") {
+			await removeRoomMember({ room, member: agent(), teamRoot: options.root });
+			if (options.json) writeJson({ removed: true, room, agent: options.agent });
+			else process.stdout.write(`Removed ${options.agent} from room "${room}"\n`);
+			return;
+		}
+		throw new CliUsageError(`Unknown member action "${action}". Expected: add, remove`);
+	}
 	if (verb === "subscribe") {
 		const room = requireRest(rest, 1, "room name", `${CLI_BIN_NAME} team room subscribe <room> --agent <id>`);
 		const subscription = await subscribeRoom({
@@ -431,7 +463,7 @@ async function runRoom(options: TeamCliOptions, rest: string[]): Promise<void> {
 		return;
 	}
 	throw new CliUsageError(
-		`Unknown room action "${verb}". Expected: create, list, show, post, subscribe, ack, pending, deliver, subscriptions`,
+		`Unknown room action "${verb}". Expected: create, list, show, member, post, subscribe, ack, pending, deliver, subscriptions`,
 	);
 }
 

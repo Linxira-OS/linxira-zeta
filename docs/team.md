@@ -215,6 +215,8 @@ zetacode team room create <name> --pm <pm> [--members <a,b>]
 zetacode team room create <name> --shared [--members <a,b>]
 zetacode team room list [--root <path>]
 zetacode team room show <room> [--limit <n>]
+zetacode team room member add <room> --agent <id>
+zetacode team room member remove <room> --agent <id>
 zetacode team room post <room> --body <text> [--sender <agent>] [--reply-to <seq>]
 zetacode team task create <key> --pm <pm> --title <title> [--body <text>] [--assignee <engineer>] [--req REQ-1]
 zetacode team task list [--status pending|claimed|review|done|cancelled] [--json]
@@ -289,6 +291,14 @@ session opens with a warning instead. Explicit launches that already choose work
 or a prompt) keep their normal meaning and skip Hub auto-entry. On a bare
 interactive launch, `/team hub` opens the Hub from any Team directory; `Esc`
 returns to the previous coding session.
+
+`/team hub` also has a plain-text `handle` for headless, ACP and IM dispatchers.
+It resolves the same Team entry and renders the same `TeamHubSnapshot` (PMs,
+engineers, rooms, selected room events, tasks) without a TUI, model request or
+daemon. An empty Team shows the real CLI next steps and never invents rooms,
+members or statuses; a missing database row keeps the snapshot warning. Room
+membership is changed through `zetacode team room member add/remove`, which use
+the existing membership service and its PM-ownership rules.
 
 The Hub reads the global database on open, on `r`, and after a post. It never
 creates a session or a transcript and never fabricates agents, rooms, or

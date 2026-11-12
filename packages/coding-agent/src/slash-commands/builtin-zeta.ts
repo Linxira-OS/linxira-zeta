@@ -5,6 +5,9 @@ import type { Settings } from "../config/settings";
 import { handleDesignCommand } from "../design/command";
 import { parseInitTeamArgs, runInitTeamCommand } from "../team/bootstrap-command";
 import { runTeamWorkerCommand } from "../team/engineer-worker";
+import { resolveTeamEntry } from "../team/entry";
+import { createTeamHubDataSource } from "../team/hub-data";
+import { formatTeamHubSnapshot } from "../team/hub-text";
 import { cfgLanguage } from "../zeta-settings";
 import { cfgSessionTimeInjectEvery, cfgTrackingEnabled } from "../tools/settings";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
@@ -110,6 +113,33 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		subcommands: [{ name: "hub", description: () => M.cmdTeamHub }],
 		subcommandOptional: true,
 		allowArgs: true,
+		handle: async (command, runtime) => {
+			const [sub = ""] = command.args.trim().split(/\s+/).filter(Boolean);
+			if (sub.toLowerCase() !== "hub") {
+				await runtime.output(M.teamHubUsage);
+				return commandConsumed();
+			}
+			try {
+				const entry = await resolveTeamEntry(runtime.cwd);
+				if (!entry.teamRoot || !entry.teamId) {
+					await runtime.output(
+						"Team Hub is available inside a Team root or PM/engineer worktree. Run `zetacode team init <name> --root <path>` first.",
+					);
+					return commandConsumed();
+				}
+				const source = createTeamHubDataSource({
+					teamRoot: entry.teamRoot,
+					teamId: entry.teamId,
+					teamName: entry.teamName,
+				});
+				const snapshot = await source.load();
+				await runtime.output(formatTeamHubSnapshot(snapshot));
+			} catch (error) {
+				await runtime.output(`Team Hub unavailable: ${error instanceof Error ? error.message : String(error)}`);
+				return { consumed: true, failed: true };
+			}
+			return commandConsumed();
+		},
 		handleTui: (command, runtime) => {
 			const sub = command.args.trim().split(/\s+/)[0]?.toLowerCase();
 			if (sub === "hub") {
