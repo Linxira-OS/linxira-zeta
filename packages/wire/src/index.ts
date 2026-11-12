@@ -279,7 +279,6 @@ export function takeAutoRejoin(history: number[], now = Date.now()): boolean {
 export const DEFAULT_RELAY_URL = "wss://my.omp.sh";
 
 /** Default share viewer/upload base; `/share` links resolve against `<base>/<id>#<key>`. */
-export const DEFAULT_SHARE_URL = "https://my.omp.sh/s";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Relay control messages (TEXT JSON, unencrypted, no session data)

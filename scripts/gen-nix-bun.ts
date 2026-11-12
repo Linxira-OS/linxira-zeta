@@ -18,7 +18,7 @@ const BUN2NIX_NPM_SPEC = "bun2nix@2.1.2";
  * upgrades a loaded v1 lockfile. Version 3+ (scoped override objects) does
  * change content, so it throws instead of downgrading.
  */
-function normalizeLockfileVersion(contents: string): string {
+export function normalizeLockfileVersion(contents: string): string {
 	const stamp = /^(\s*"lockfileVersion":\s*)(\d+)(,)/m.exec(contents);
 	if (!stamp) throw new Error("bun.lock is missing a lockfileVersion stamp");
 	const version = Number(stamp[2]);
