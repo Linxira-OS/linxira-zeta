@@ -172,6 +172,7 @@
 | `docs/maintenance` | docs | 用户侧文档维护分支；未审查内容 | user | 2026-11-12 | owner 决定；不删 |
 | `feat/webui-model-config` | feat | 用户侧 WebUI 模型配置分支；未审查内容 | user | 2026-11-12 | owner 决定；不删 |
 | `fix/favicon-brand` | fix | Work Studio 浏览器标签图标对齐官方 `zeta-mark`：`web-app/index.html` 的 tab 链接改为 SVG/PNG32/ICO/apple-touch，并带 `?v=` 内容哈希缓存失效；`web-app/public/favicon.ico` 与 `assets/favicon.ico` 同字节，新增 `zeta-mark-32.png`；`icon.png` 本已与 `assets/icon-512.png` 同字节。worktree `temp/favicon-brand` | agent | 2026-11-12 | 合入 `main` 后删（删前记 SHA） |
+| `fix/stats-spotlight` | fix | Stats Spotlight read-path normalization against the session cwd；`packages/stats/src/spotlight-ingest.ts`；head `51c6a275b93` | agent | 2026-11-12 | 已合入 sync（merge `cad02d965c99`）；1.5.2 验收后删（删前记 SHA） |
 
 
 | `vendor/termide-0.49.0` | vendor | TermIDE `0.49.0` vendor bump（annotated tag `0.49.0` = `4cc014fb…`，commit `057eb55e…`；base `ddb44711b5d`）；三向重放与测试记录见 `termide/VENDOR.md`；worktree `temp/termide-0.49.0-sync` | agent | 2026-11-12 | 合入 `main` 后删（删前记 SHA） |
