@@ -1,9 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createTempCrewDirs } from "../helpers/temp-dirs.ts";
 import * as store from "../../crew/store.ts";
 import * as teamStore from "../../crew/team/store.ts";
 import { renderStatusBar, renderTaskList } from "../../overlay-render.ts";
 import { createCrewViewState } from "../../overlay-actions.ts";
+
+vi.mock("@linxiraos/pi-tui", () => ({
+	matchesKey: () => false,
+	truncateToWidth: (value: string) => value,
+	visibleWidth: (value: string) => value.length,
+}));
 
 const theme = { fg: (_color: string, text: string) => text } as any;
 

@@ -29,6 +29,13 @@ export function createTempCrewDirs(): TempCrewDirs {
 	return { root, cwd, crewDir, tasksDir, blocksDir };
 }
 
+/** Windows refuses directory symlinks without Developer Mode/admin; a junction
+ *  is the privilege-free reparse point that gives the same canonical-path alias.
+ *  POSIX keeps the plain directory symlink. */
+export function linkDirectory(target: string, alias: string): void {
+	fs.symlinkSync(target, alias, process.platform === "win32" ? "junction" : "dir");
+}
+
 afterEach(() => {
 	for (const root of roots) {
 		try {

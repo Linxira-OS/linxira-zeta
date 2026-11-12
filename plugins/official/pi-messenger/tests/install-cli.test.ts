@@ -30,7 +30,9 @@ describe("install.mjs", () => {
 		try {
 			execFileSync(process.execPath, ["install.mjs"], {
 				cwd: process.cwd(),
-				env: { ...process.env, HOME: home },
+				// os.homedir() reads HOME on POSIX and USERPROFILE on Windows; set
+				// both so the child never touches the developer's real home there.
+				env: { ...process.env, HOME: home, USERPROFILE: home },
 				encoding: "utf-8",
 				stdio: ["ignore", "pipe", "pipe"],
 			});

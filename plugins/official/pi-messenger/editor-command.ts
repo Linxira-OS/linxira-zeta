@@ -19,12 +19,6 @@
  * another switch, and a crashed editor never takes the session with it.
  */
 
-import { cfgEditorAutoInstall } from "@linxiraos/zeta/session/settings";
-import {
-	createDefaultTerminalLaunchRequest,
-	terminalLaunchCapabilities,
-} from "@linxiraos/zeta/subprocess/terminal-launch";
-import { classifyTerminalMultiplexer } from "@linxiraos/pi-tui/terminal-multiplexer";
 import * as cp from "node:child_process";
 import type { ExtensionAPI, ExtensionCommandContext } from "@linxiraos/zeta";
 import { ensureEditorBinary } from "./editor-binary.ts";
@@ -50,7 +44,12 @@ export function registerEditorCommand(pi: ExtensionAPI): void {
  */
 export async function switchToEditor(ctx: ExtensionCommandContext, args = ""): Promise<void> {
 	const cwd = ctx.cwd;
-	const autoInstall = ctx.settings ? cfgEditorAutoInstall.get(ctx.settings) : true;
+	// Deferred: the host runtime pulls in Bun-only modules at load time. The
+	// plugin index must stay importable by the Node-based vitest suite and by
+	// hosts whose /editor command is never invoked, so resolve it on use.
+	const autoInstall = ctx.settings
+		? (await import("@linxiraos/zeta/session/settings")).cfgEditorAutoInstall.get(ctx.settings)
+		: true;
 	const resolved = ensureEditorBinary(autoInstall === true);
 	if (!resolved.binary) {
 		ctx.ui?.notify?.(resolved.error ?? "The editor is unavailable.", "error");
@@ -65,8 +64,14 @@ export async function switchToEditor(ctx: ExtensionCommandContext, args = ""): P
 	// `ctx.ui.openTerminal`); when it cannot place the pane we fall through to
 	// the detached spawn rather than leaving the user without an editor.
 	if (process.platform !== "win32" && ctx.ui?.openTerminal) {
+		// Deferred for the same reason as the settings import above: a host
+		// without /editor must not pay the host runtime's load-time graph.
+		const { classifyTerminalMultiplexer } = await import("@linxiraos/pi-tui/terminal-multiplexer");
 		const multiplexer = classifyTerminalMultiplexer(process.env);
 		if (multiplexer !== null) {
+			const { createDefaultTerminalLaunchRequest, terminalLaunchCapabilities } = await import(
+				"@linxiraos/zeta/subprocess/terminal-launch"
+			);
 			const plan = createDefaultTerminalLaunchRequest(multiplexer, "pane", [resolved.binary, ...argv], cwd);
 			if ("request" in plan) {
 				try {
