@@ -177,8 +177,8 @@ describe("optional embeddings", () => {
 			fetch: async request => {
 				requests += 1;
 				expect(request.headers.get("content-type")).toBe("application/json");
-				expect(request.headers.get("user-agent")).toBe(`zetacode/${packageJson.version}`);
-				expect(request.headers.get("http-referer")).toBe("https://zeta.sh/");
+				expect(request.headers.get("user-agent")).toBe(`zeta/${packageJson.version}`);
+				expect(request.headers.get("http-referer")).toBe("https://linxira-os.github.io/zeta/");
 				expect(request.headers.get("x-openrouter-title")).toBe("zeta");
 				expect(request.headers.get("x-openrouter-categories")).toBe("cli-agent");
 				expect(request.headers.get("x-title")).toBeNull();
