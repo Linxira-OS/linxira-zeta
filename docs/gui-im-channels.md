@@ -11,6 +11,14 @@
 > (`main/crates/zetawork-gui`) nor the frozen `web-ui/` snapshot is a channel
 > settings surface.
 
+> **Owner pause (2026-11-12).** QQ (OneBot v11) and WeCom (企业微信) are
+> owner-paused ([ADR-0035](../document/adr/0035-pause-qq-wecom-channels.md)).
+> The retained QQ adapter is still registered, so a QQ row can appear in this
+> UI; that is **not** a support or release promise, no bridge is bundled, and
+> there is no official QQ Bot API adapter or live validation. WeCom has no
+> adapter. Feishu remains the existing enterprise channel. Existing UI code is
+> retained unchanged.
+
 The pane is a front-end over `/api/channels/instances` and `/api/im/*`. Device,
 pairing, remote-token and TOTP actions live next door in **Settings → 身份与设备**
 (`SecuritySettingsPane.tsx`); the surface matrix shared by both pages is
@@ -34,8 +42,9 @@ write re-reads it, and nothing renders a value the gateway did not send.
 
 ## Channels and runtime words
 
-One row per adapter — 微信, 飞书 / Lark, Telegram, Discord, QQ (OneBot v11) —
-each with an enable switch and two chips:
+One row per adapter — 微信, 飞书 / Lark, Telegram, Discord, QQ (OneBot v11,
+retained/owner-paused) — each with an enable switch and two chips. WeCom has no
+adapter row because no adapter exists:
 
 - **运行中** — the status list reports the channel running;
 - **已停止** — the config disables it;

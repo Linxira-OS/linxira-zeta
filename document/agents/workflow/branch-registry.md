@@ -56,6 +56,7 @@
 
 | `feat/team-core` | feat | Team path/DB foundation（第一纵切）：`.zeta/team.json` / `.zeta/pm.json` 解析与上行 resolver、单库 `~/.zeta/data/zeta.db`（teams/team_pms/repos/repo_bindings/engineers/worktrees）、`zetacode team` 的 init/pm/repo/engineer/worktree/doctor（真实 `git worktree add`）；无 UI/房间/graph。worktree `temp/team-core` | agent | 2026-11-09 | 合入 `main` 后删（删前记 SHA） |
 | `docs/execution-system` | docs | 需求台账 + 执行契约 + ADR 规范性规则：`document/requirements-ledger.md`（25 条 seeded REQ）、`document/agents/workflow/execution-contract.md`、`scripts/check-requirements-ledger.ts`、`check:adr`/`check:reqs` 接入 `bun check`、`document/release.md` 预打 tag 清单；无产品代码。worktree `temp/execution-system` | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
+| `docs/qq-wecom-pause` | docs | QQ/WeCom owner pause docs：ADR-0035、roadmap Owner holds、ledger REQ-091、`docs/channels.md`/`docs/gui-im-channels.md` owner-pause 文案、personal-account 2026-11-12 update；docs-only，不改代码/测试。worktree `temp/qq-wecom-pause` | agent | 2026-11-12 | 合入 v18.19.0 sync 分支后删（删前记 SHA） |
 | `feat/report-completion` | feat | 报告完成列车集成分支；ledger delta + matrix/owner seams + ADR reservations；不 push/PR，本地小 lane 合入。worktree `temp/report-completion` | agent | 2026-11-11 | 全部小 lane 合入并独立验收后删（删前记 SHA） |
 | `feat/active-surface-completion` | feat | A core/Team：Team Hub headless/ACP/IM、`/lead` `/pm` headless、mobile Settings+security gating+单次 2FA verify、SSH probe、metadata、permanent mounted step-up browser regression、1.6.0 readiness gate；ADR-0031/0032。worktree `temp/active-surface-completion`；source commits `5c40b5c27ed` + `befef7c8df6` + `ffab8dcb8ab` + `31e8955f933`；merges `52b7c0c08ab` + `bdcd7026b05` | agent | 2026-11-12 | 合入 `feat/report-completion` 并独立验收后删（删前记 SHA；保留 evidence） |
 | `feat/android-cli-completion` | feat | Android Tier1 CLI + IDE walker/robomp runtime boundary；wrapper Gradle 8.9、39 tasks success、11 JUnit 0 fail、signed debug APK；walk post-fix nextest 2/2；IdePage `captures_escape` fix 后 panel-ide 52/52（3 leaky），GNU rebuild RC0 28.84s；inline `OpenGitDiff`/`GitDiffPanel::new_for_commit_file` 组件 smoke 通过，全 App mouse focus/paging 未验。worktree `temp/android-cli-completion`；HEAD `a189d4385b6600fd8a7574059a3413ffb76cf2a5` | android-research | 2026-11-12 | 已本地合入 `feat/active-surface-completion`；device/emulator/release 未验；删前记 SHA |
@@ -159,6 +160,7 @@
 | `sync/omp-release/v18.18.0` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
 | `sync/omp-release/v18.18.1-2` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
 | `sync/omp-release/v18.18.3` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `sync/omp-release/v18.19.0` | sync | OMP v18.19.0 上游 tag 真 merge（进行中，由 sync owner 维护）；worktree `temp/omp-v18.19.0-sync` | agent | 2026-11-12 | 六阶段门禁/CI 绿后并入 `main`，删前记 SHA |
 
 ## 已退役（删除前登记）
 
