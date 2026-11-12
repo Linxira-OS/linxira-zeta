@@ -6,6 +6,12 @@
 - **已发布的 1.5.1 段落不可改写**：`### 1.5.1` 及其条目保持原样（包括 #297 的 logo 归属），不回填、不搬迁历史；勘误只写在本 Unreleased 段落。
 - **以下变更合并在 1.5.1 tag 之后，并未随 1.5.1 发布**：#304（Studio capability matrix）、#307（desktop window controls）、#318（Electron 45）、#319（html-report 技能）、#320（release freeze）、#321（model visibility）。它们只在后续内部构建/1.6.0 中生效；1.5.2–1.5.10 是 code-only 内部 tag，不发布资产或 npm 包，1.6.0 仍需 owner 明确批准后才公开发布。
 
+### 本地工作树/缓存清理（2026-11-12，未发布）
+- 在用户授权下只处理仓库内、已合并且 clean 的 3 个旧 worktree/分支：`fix/browser-relay-hello-race`（`c1f6c6c6a79`）、`feat/ci-buckets`（`06671d0b7860`）、`feat/device-account-ux`（`509e4390233b`），no-follow logical 合计 5,116,494,208 B；worktree 数量 120→117、本地 heads 128→125。
+- 先经 `bun scripts/safe-remove-tree.ts` 删除 junction/`node_modules` 链接（分别为 18/18 links），再 `git worktree remove` 与 `git branch -d`；未使用 `rm -rf`/递归 PowerShell。登记先写“待删除”（`f695f93ad1fd`），结果证据单独提交（`b3cc7077c559`）。
+- 仅清 19 个 Git 识别的 `tmp_pack_*` garbage，pack 目录 3,763,768,558→3,690,089,703 B（−73,678,855 B）；未执行 repack/gc/prune/reflog expiry，未动 pack/idx/promisor。
+- 保留 integration、owner-review、用户/park/dev/backup/sync/release/report-*、root `main` 与外部缓存；未见并发写入，未杀用户进程。
+
 ### Agent 自建插件与页面宿主（未发布）
 
 - **会话内开发插件**：主代理可在 `<agentDir>/plugins-dev/<session>/<name>/` 里 scaffold / validate / load_dev / reload / discard 一个自写插件；文件不写仓库、不改全局 settings。`validate` 对 session/插件根、manifest 入口和相对 import 做词法 + `realpath` containment，junction/symlink 逃逸直接拒绝；dev 包必须声明至少一个 `extensions` 入口，tools/hooks-only 清单返回明确错误而不是让 `load_dev` 静默失败。`load_dev` 把扩展工具与命令绑进当前 runner，回合结束检测文件变化后重载并移除旧 runner 注册，失败保留上一版。promote / export 只由用户通过 `zetacode plugin promote|export` 执行，提升到 `~/.zeta/agent/plugins/<name>` 后需重启；`plugin dev cleanup` 清理过期会话目录。YOLO 仍是默认审批，未新增插件级审批、沙箱或安装通道。
