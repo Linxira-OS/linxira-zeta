@@ -21,6 +21,44 @@ carries only a technical `tui-plan.md`). We track upstream release tags, not
 feature plans; re-check for roadmaps at each release sync and adjust if the
 upstream position changes.
 
+## Owner holds (2026-11-12)
+
+This is the only authoritative hold list. The decision record is
+[ADR 0034](adr/0034-owner-scope-holds-2026-11-12.md); the ledger carries the same
+holds in REQ-018/REQ-030/REQ-066/REQ-089/REQ-090. A held item is not complete,
+not release evidence, and not a promise; re-entry needs an explicit owner
+instruction naming that item.
+
+- **Android native development + formal release asset — held.** Exact owner
+  wording: 「安卓这边可以先挂着，等我后面开，反正现在接口有就行了。我们安卓什么时候开发都没问题」.
+  Existing Android source, CLI interface, Gradle/unit/debug-build evidence stay
+  in the tree and remain available. No further native development, device or
+  emulator install, release keystore, or formal release asset while held;
+  re-entry is **owner reopens Android**.
+- **Desktop new development — held.** The existing Electron 45 shell,
+  packaging source, and SSH bridge source are preserved; implemented source is
+  not reclassified as missing. SSH real-target acceptance may continue as its
+  own lane. Re-entry is **owner reopens desktop development**.
+- **Audio / TTS / STT / system microphone / desktop audio — held.** Exact owner
+  wording: 「STT TTS、系统麦克风与桌面音频一直暂挂，暂不开发」. Existing
+  capability gates, host bridge code, and their evidence are preserved; no new
+  media features or provider installs. Re-entry is **owner reopens audio**.
+- **Work Studio multi-terminal manager page + ELYTerminal reference — held, no
+  architecture chosen.** The requested page is a dedicated Work Studio surface
+  with a left list of multiple terminals (Orca-like). The owner also asked
+  whether to extend `zetaide` or reuse the old `zetawork` TUI with proper
+  front/back rendering, and referenced
+  [`ELY-Open-Source/ELYTerminal`](https://github.com/ELY-Open-Source/ELYTerminal)
+  (public reference only; MIT, Rust/GPUI, v0.2.4 released 2026-11-10 — not a
+  chosen stack or dependency). The existing multi-tab terminal
+  (`TerminalPane` / `terminalSessions`, up to four restored tabs) stays
+  available, but no Orca-like manager page exists. No manager page, refactor,
+  or architecture decision starts now. Re-entry is **owner chooses `zetaide`
+  expansion vs the old `zetawork` TUI rendering architecture**; see REQ-090.
+- **Old TY/TUI PR — held and unmerged.** No merge, review, comment, or branch
+  cleanup. The only open PR matching the paused zetawork surface is #281
+  (`chore/remove-paused-zetawork`); the hold does not authorize work on it.
+
 ## Shipped (Zeta-originated capabilities)
 
 These exist today (headline capabilities are marked in the root `README.md`):

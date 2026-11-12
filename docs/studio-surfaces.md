@@ -45,7 +45,7 @@ the reason.
 | TOTP | show | pass-through | read-only⁴ | read-only⁶ | unavailable³ |
 | Remote pairing QR | show | pass-through | pass-through | show⁶ | pass-through |
 | Remote token rotate / revoke | show | pass-through | pass-through | hidden | pass-through |
-| SSH execution targets | unavailable⁵ | unavailable⁵ | unavailable⁵ | hidden | pass-through |
+| SSH execution targets | show⁵ | unavailable⁵ | unavailable⁵ | hidden | pass-through |
 
 1. The host refuses to restart its own in-process runtime (`runtime.ensure` with
    `force`); restart `zetacode serve` or the desktop app.
@@ -55,8 +55,11 @@ the reason.
 4. First TOTP enrollment is local-only on the server. A remote browser shows
    status and names that reason instead of rendering an enrollment button that
    would 403.
-5. The desktop SSH bridge (`window.zetaStudioRemote`) has not shipped; the picker
-   already says so.
+5. The desktop SSH bridge (`window.zetaStudioRemote`) is exposed by the
+   preload, and the picker renders the SSH target only when that bridge is
+   present; non-desktop surfaces remain unavailable. Real SSH target and
+   packaging acceptance is being rechecked (2026-11-12), so this is
+   source-level availability, not a `VERIFIED` hardware claim.
 6. A phone may **verify** a code (a remote write answers `totp_required`), but
    enrollment, policy and disable stay on the machine; the pane hides them and
    names why.
@@ -180,4 +183,14 @@ resources.
   the credential; otherwise each read shows the gateway's `unauthorized` error.
   The matrix still advertises the actions because the host supports them; the
   missing piece is renderer plumbing, not authorization policy.
-- **SSH targets** remain unavailable until the desktop bridge ships.
+- **SSH targets** are source-available in the desktop app while the desktop
+  bridge is present; real SSH target/packaging acceptance is still being
+  rechecked, and non-desktop surfaces remain unavailable.
+- **Multi-terminal manager page is owner-held, not started.** The requested
+  dedicated page (left list of multiple terminals, Orca-like) has no chosen
+  architecture: extending `zetaide` vs reusing the old `zetawork` TUI rendering
+  is undecided, and [ELYTerminal](https://github.com/ELY-Open-Source/ELYTerminal)
+  is only a public reference. The existing multi-tab terminal remains; this
+  manager page does not exist. See the
+  [roadmap Owner holds](../document/roadmap.md#owner-holds-2026-11-12) and
+  [ADR 0034](../document/adr/0034-owner-scope-holds-2026-11-12.md).

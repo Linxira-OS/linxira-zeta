@@ -1,6 +1,6 @@
 # Android Tier 1 client
 
-Status: **source compiled; CLI `testDebugUnitTest` and `assembleDebug` verified on Windows**. A debug APK was produced locally for verification (not committed/released). No device/emulator install or instrumentation was run. Release remains unsigned/frozen.
+Status: **source compiled; CLI `testDebugUnitTest` and `assembleDebug` verified on Windows; native development and formal release assets are owner-held (2026-11-12).** A debug APK was produced locally for verification (not committed/released). No device/emulator install or instrumentation was run. Release remains unsigned/frozen. Owner wording: 「安卓这边可以先挂着，等我后面开，反正现在接口有就行了。我们安卓什么时候开发都没问题」. While held there is no further native development, no device/emulator install, no release keystore, and no Android asset in any release; re-entry requires the owner to reopen Android ([ADR 0034](../document/adr/0034-owner-scope-holds-2026-11-12.md), [roadmap Owner holds](../document/roadmap.md#owner-holds-2026-11-12)).
 
 ## Scope
 
@@ -98,6 +98,7 @@ committed.
 
 ## Known holds
 
+- **Owner hold 2026-11-12:** Android native development and formal release assets are paused (ADR-0034 / roadmap Owner holds). The source, CLI interface, and debug-build evidence stay available; no device/emulator install, release key, or release asset is produced while held. The owner said 「安卓这边可以先挂着，等我后面开，反正现在接口有就行了」; re-entry requires the owner to reopen Android.
 - The CLI build, unit tests, and debug APK are verified on this Windows host;
   **no device/emulator install or instrumentation run** was performed.
   `adb devices -l` is empty; do not claim a working install on a phone.

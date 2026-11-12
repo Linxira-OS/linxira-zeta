@@ -4,7 +4,7 @@
 
 ### 发布勘误（未发布）
 - **已发布的 1.5.1 段落不可改写**：`### 1.5.1` 及其条目保持原样（包括 #297 的 logo 归属），不回填、不搬迁历史；勘误只写在本 Unreleased 段落。
-- **以下变更合并在 1.5.1 tag 之后，并未随 1.5.1 发布**：#304（Studio capability matrix）、#307（desktop window controls）、#318（Electron 45）、#319（html-report 技能）、#320（release freeze）、#321（model visibility）。它们只在后续内部构建/1.6.0 中生效；1.5.2–1.5.10 是 code-only 内部 tag，不发布资产或 npm 包，1.6.0 仍需 owner 明确批准后才公开发布。
+- **以下变更合并在 1.5.1 tag 之后，并未随 1.5.1 发布**：#304（Studio capability matrix）、#307（desktop window controls）、#318（Electron 45）、#319（html-report 技能）、#320（release freeze）、#321（model visibility）。它们只在后续内部构建/1.6.0 中生效；1.5.2 只在 exact owner-review override 下发布 GitHub assets，npm 仍为 1.5.1；1.5.3–1.5.10 仍是 code-only 内部 tag，不发布资产或 npm 包；1.6.0 仍需 owner 明确批准后才公开发布。
 
 ### Team Hub headless 与成员命令（未发布）
 - `/team hub` 新增 headless/ACP/IM 纯文本入口：`resolveTeamEntry` + `createTeamHubDataSource` 复用真实 Team DB 快照（PM/工程师/房间/选中房间事件/任务），不新增 backend、agent 或伪造状态。空 Team 只输出真实 CLI next steps；DB row 缺失保留真实 warning。
@@ -24,8 +24,15 @@
 - **TermIDE walker**：`require_git(false)` 尊重 git root 外 ignore，Windows-only slash normalization；post-fix nextest walk 2/2、三 IDE crates 66/66（3 leaky 已记录），doctest RC0。后续 Esc/JSON/TODO/Git 实测见下条；旧“未打开/早于 fix”表述已由当前实测取代。
 - **TermIDE Esc preview/commit fix**：IdePage 为 transient preview 与 commit box 设置 `captures_escape`；`a189d4385b6` 后 panel-ide 52/52（3 leaky），GNU rebuild RC0 28.84s，doctest RC0 0 examples。实际 pyte 屏幕：JSON tree 值/Esc 退出/折叠、TODO scan/sample jump、独立 Git `[Diff]` hunk 通过；组件级 inline `OpenGitDiff{README.md}` smoke 通过（只显示 `README change`、不含 `SECOND change`，用后删除），`GitDiffPanel::new_for_commit_file` 真实单提交双文件 smoke 1/1（README hunk 在、第二文件不出现，用后删除）；永久 `panel-git-log` per-file filter 与 1200 commits scrolling 测试通过。完整 App IDE lower Git mouse focus/per-file history UI paging 未验，不宣称。
 
+### Owner 范围暂挂（2026-11-12，未发布）
+- **Android**：原生开发与正式发布资产再次挂起（用户原话「安卓这边可以先挂着，等我后面开，反正现在接口有就行了。我们安卓什么时候开发都没问题」）。既有 Android 源码/CLI 接口/Gradle + 11 JUnit + debug APK 证据保留，不装设备/模拟器、不建 release key、不把 APK 作为任何 release 资产；恢复条件为 owner 重新开启 Android。
+- **桌面新开发**：暂挂；既有 Electron 45、打包源码与 SSH bridge 源码保留，不把已实现代码改回“缺失”。SSH 真实目标验收由另一 worker 继续复查。
+- **音频/TTS/STT/系统麦克风/桌面音频**：继续暂挂（用户原话『STT TTS、系统麦克风与桌面音频一直暂挂，暂不开发』）；保留既有 capability gate/host bridge 证据，不新增媒体功能或安装音频服务商。
+- **Work Studio 多终端管理页 + ELYTerminal 参考**：暂挂且架构未裁决（扩展 zetaide vs 复用旧 zetawork TUI 前后端渲染）；ELYTerminal 仅作公开参考，不作为依赖。现有多标签终端（`TerminalPane`/`terminalSessions`，最多恢复 4 个标签）保留，但 Orca 式左侧多终端管理专页尚未存在、未开工。旧 TY/TUI PR 不合并、暂挂。
+- 决策记录为 ADR-0034；roadmap 的“Owner holds (2026-11-12)”与 ledger REQ-018/030/066/089/090 同步。暂挂项不算完成，不作为 1.5.2 资产验收证据。
+
 ### 1.6.0 公开发布准入（2026-11-12）
-- 用户明确：只有全部计划内开发有逐项证据、用户在 1.5.x 亲测全部功能并确认稳定、手机全部开发且真实设备流程验收、SSH 真实目标功能完整、无未解决 known bug 后，才考虑 1.6.0；未验/held/blocked 不能算 100%。当前不授权 tag/bump/publish/PR/main-merge，1.5.1 冻结与 1.5.2–1.5.10 code-only 不变；owner exact-version override 仍是最后机械门，ADR-0006 不改。详见 `document/release.md` §1.6.0 readiness。
+- 用户明确：只有全部计划内开发有逐项证据、用户在 1.5.x 亲测全部功能并确认稳定、手机全部开发且真实设备流程验收、SSH 真实目标功能完整、无未解决 known bug 后，才考虑 1.6.0；未验/held/blocked 不能算 100%。当前不授权 1.6.0 tag/bump/publish/PR/main-merge，1.5.1 冻结与 1.5.3–1.5.10 code-only 不变，1.5.2 仅按 ADR-0033 exact owner-review override 做资产验收；ADR-0006 仅由 ADR-0033 对 exact 1.5.2 取代，owner exact-version override 仍是最后机械门。本轮 owner 已明确先进行 upstream tag 合并和 1.5.2 资产验收；这不是 1.6.0 的 tag/bump/publish/PR/main-merge 授权。详见 `document/release.md` §1.6.0 readiness。
 
 ### 本地工作树/缓存清理（2026-11-12，未发布）
 - 在用户授权下只处理仓库内、已合并且 clean 的 3 个旧 worktree/分支：`fix/browser-relay-hello-race`（`c1f6c6c6a79`）、`feat/ci-buckets`（`06671d0b7860`）、`feat/device-account-ux`（`509e4390233b`），no-follow logical 合计 5,116,494,208 B；worktree 数量 120→117、本地 heads 128→125。

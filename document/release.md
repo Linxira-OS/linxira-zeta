@@ -116,7 +116,10 @@ release may be dispatched only after **all** of the following:
 
 The existing exact-version `release_override_version` remains the final
 mechanical gate; the readiness list is the owner acceptance that override must
-cite, not a second unlock path. ADR-0006's decision is unchanged.
+cite, not a second unlock path. ADR-0006 is superseded only for exact 1.5.2 by
+ADR-0033; its 1.6.0 gate is unchanged. The owner has explicitly asked to
+proceed with the upstream tag merge and the 1.5.2 asset review first; that is
+not a 1.6.0 tag, bump, publish, PR, or main-merge authorization.
 
 ## CI and Release
 
