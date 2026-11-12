@@ -159,6 +159,7 @@
 | `sync/omp-release/v18.18.0` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
 | `sync/omp-release/v18.18.1-2` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
 | `sync/omp-release/v18.18.3` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `fix/favicon-brand` | fix | Work Studio 浏览器标签图标对齐官方 `zeta-mark`：`web-app/index.html` 的 tab 链接改为 SVG/PNG32/ICO/apple-touch，并带 `?v=` 内容哈希缓存失效；`web-app/public/favicon.ico` 与 `assets/favicon.ico` 同字节，新增 `zeta-mark-32.png`；`icon.png` 本已与 `assets/icon-512.png` 同字节。worktree `temp/favicon-brand` | agent | 2026-11-12 | 合入 `main` 后删（删前记 SHA） |
 
 ## 已退役（删除前登记）
 
