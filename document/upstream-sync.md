@@ -3233,3 +3233,42 @@ observation points moved onto the state each assertion actually depends on.
 - **Remaining before full gate**: pi-messenger plugin harness/integration
   fixes (11 real failures; 3 Windows symlink `EPERM` environment cases).
 - **No push, tag, main merge, or PR was performed.**
+
+### v18.19.0 final branch consolidation (2026-11-13)
+
+Source branches merged into `sync/omp-release/v18.19.0` in order, all as
+`--no-ff` merges:
+
+| Source branch | Head | Merge commit |
+|---|---|---|
+| `fix/stats-spotlight` | `51c6a275b93` | `cad02d965c9` |
+| `fix/pi-messenger` | `ea6a387d603` | `3115afde31f` |
+| `docs/maintenance` | `8e194bc9caf` | `97619ce4592` |
+| `fix/favicon-brand` | `fa54e4eab24` | `478ec4a6183` |
+| `feat/webui-model-config` | `44320ab644c` | `2ca58e0f3ae` |
+| `vendor/termide-0.49.0` | `9027ee09770` | `747890dad35` |
+| `release/1.5.2-prep` | `bb069a2b7cd` | `a89beca5c3e` |
+
+Conflict decisions:
+
+- `document/adr/README.md`: kept both ADR-0035 and ADR-0036.
+- `document/agents/workflow/branch-registry.md`: kept the current sync row,
+  the source-branch rows, and removed the duplicate `release/1.5.2-prep`
+  row introduced by the favicon merge.
+- `document/release.md`: combined the 1.5.2 lightweight asset-tag form from
+  `release/1.5.2-prep` with the sync-side legacy `web-ui` pointer, keeping
+  both statements and not rewriting 1.5.1.
+- No product-side old behavior was restored; termide stayed vendored only
+  (no local rebuild), with VENDOR/baselines retained.
+
+Narrow results after consolidation:
+
+- `bun test packages/stats/test`: 281 pass / 10 skip / 0 fail.
+- pi-messenger `npx vitest run`: 50 files, 450 pass / 0 fail.
+- `check:adr` 24 records, `check:reqs` 91 rows, branch registry 137 branches
+  (136 live), version consistency 1.5.1 — all green.
+- `bun run --cwd web-app build`: green after `npm ci` in `web-app`.
+- Full `bun run merge-gate --base ddb44711b5d --tag v18.19.0` is the
+  remaining gate; Rust remains CI-only on this Windows host
+  (`local-rust: CI-only`, Linux CI runs `bun run test:rs`).
+- **No push, tag, main merge, or PR was performed.**
