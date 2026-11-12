@@ -178,6 +178,13 @@ Compose keeps its `/data` volume.
 **Production bot is not enabled by this path.** `ROBOMP_RELEASE_SENTINEL_ENABLED`
 remains `false`; offline replay performs no comments, PRs, pushes, or tags.
 
+Windows host CLI can import and run the offline paths above without loading
+POSIX-only orchestration modules: `fcntl` and `grp` remain lazy imports used
+only by the Linux-root cache/worker code. The production `WorkerPool`, sandbox,
+and native cache remain POSIX/Linux-root targets; Windows is not a deployment
+target. `.omp-session` / `.omp-*` scratch names are unchanged baseline
+identifiers in this pass.
+
 ## Tests
 
 ```bash

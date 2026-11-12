@@ -13,7 +13,6 @@ scheduled onto the parent loop complete (`asyncio.run_coroutine_threadsafe`).
 from __future__ import annotations
 
 import asyncio
-import grp
 import logging
 import os
 import shutil
@@ -206,10 +205,12 @@ def _ensure_agent_run_dir() -> None:
     The tree stays group ``omp``, setgid, group-writable; slot subprocesses
     spawn with umask 0002 so their entries inherit group write.
     """
-    if os.geteuid() != 0:
+    if sys.platform == "win32" or os.geteuid() != 0:
         return
     run_dir = _AGENT_HOME / ".zeta" / "run"
     try:
+        import grp
+
         gid = grp.getgrnam("omp").gr_gid
     except KeyError:
         return
