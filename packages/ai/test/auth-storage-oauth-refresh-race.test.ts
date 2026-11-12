@@ -127,15 +127,25 @@ describe("AuthStorage OAuth refresh race", () => {
 		// refresh token to our snapshot will therefore see the SAME stale token
 		// and fall through to the disable. We then race a peer rotation into the
 		// window between the pre-check and the CAS, which the CAS must detect.
-		vi.spyOn(oauthUtils, "getOAuthApiKey").mockImplementation(async (provider, creds) => {
-			const credential = creds[provider];
-			if (credential?.refresh === "stale-refresh") {
-				throw new Error(
-					'HTTP 400 invalid_grant {"error":"invalid_grant","error_description":"Refresh token not found or invalid"}',
-				);
-			}
-			return { newCredentials: credential!, apiKey: credential!.access };
+		// The refresh exchange goes through the documented
+		// `refreshOAuthCredential` override (upstream v18.19 routes stored
+		// refreshes through the provider refresher, not `getOAuthApiKey`).
+		authStorage = new AuthStorage(store, {
+			onCredentialDisabled: event => {
+				events.push(event);
+			},
+			refreshOAuthCredential: async (_provider, _credentialId, credential) => {
+				if (credential.refresh === "stale-refresh") {
+					throw new Error(
+						'HTTP 400 invalid_grant {"error":"invalid_grant","error_description":"Refresh token not found or invalid"}',
+					);
+				}
+				return credential;
+			},
 		});
+		// The fresh AuthStorage composes an empty pool; load the seeded row before
+		// resolving, otherwise no credential is seen and no refresh is attempted.
+		await authStorage.credentials.reload();
 
 		const sharedStore = store;
 		const originalTryDisable = sharedStore.tryDisableAuthCredentialIfMatches.bind(sharedStore);
@@ -188,9 +198,18 @@ describe("AuthStorage OAuth refresh race", () => {
 			},
 		]);
 
-		vi.spyOn(oauthUtils, "getOAuthApiKey").mockImplementation(async () => {
-			throw new Error('invalid_grant {"error":"invalid_grant"}');
+		// Route the exchange through the documented override rather than the
+		// stale `getOAuthApiKey` seam; the stored-refresh path calls the
+		// provider refresher directly since upstream v18.19.
+		authStorage = new AuthStorage(store!, {
+			onCredentialDisabled: event => {
+				events.push(event);
+			},
+			refreshOAuthCredential: async () => {
+				throw new Error('invalid_grant {"error":"invalid_grant"}');
+			},
 		});
+		await authStorage.credentials.reload();
 
 		await withEnv(SUPPRESS_ANTHROPIC_ENV, async () => {
 			const apiKey = await authStorage!.keys.get("anthropic", "session-real-failure");

@@ -426,8 +426,8 @@ ${createLinuxSubreaperScript()}
 			expect(result.ok).toBe(true);
 			expect(match, `stdout was: ${result.stdout}`).not.toBeUndefined();
 			// A cold Bun child spawn on Windows can exceed 5 s while the timer fix is
-		// still correct; Linux keeps the tight 5 s bound.
-		expect(elapsedMs).toBeLessThan(process.platform === "win32" ? 8_000 : 5_000);
+			// still correct; Linux keeps the tight 5 s bound.
+			expect(elapsedMs).toBeLessThan(process.platform === "win32" ? 8_000 : 5_000);
 		} finally {
 			if (orphanPid) Process.fromPid(orphanPid)?.killTree(9);
 		}
@@ -476,8 +476,8 @@ ${createLinuxSubreaperScript()}
 			expect(result.ok).toBe(true);
 			expect(match, `stdout was: ${result.stdout}`).not.toBeUndefined();
 			// A cold Bun child spawn on Windows can exceed 5 s while the timer fix is
-		// still correct; Linux keeps the tight 5 s bound.
-		expect(elapsedMs).toBeLessThan(process.platform === "win32" ? 8_000 : 5_000);
+			// still correct; Linux keeps the tight 5 s bound.
+			expect(elapsedMs).toBeLessThan(process.platform === "win32" ? 8_000 : 5_000);
 		} finally {
 			if (orphanPid) Process.fromPid(orphanPid)?.killTree(9);
 		}
@@ -501,8 +501,8 @@ ${createLinuxSubreaperScript()}
 			orphanPid = match ? Number.parseInt(match[1], 10) : undefined;
 			expect(result.exitCode).toBe(1);
 			// A cold Bun child spawn on Windows can exceed 5 s while the timer fix is
-		// still correct; Linux keeps the tight 5 s bound.
-		expect(elapsedMs).toBeLessThan(process.platform === "win32" ? 8_000 : 5_000);
+			// still correct; Linux keeps the tight 5 s bound.
+			expect(elapsedMs).toBeLessThan(process.platform === "win32" ? 8_000 : 5_000);
 		} finally {
 			if (orphanPid) Process.fromPid(orphanPid)?.killTree(9);
 		}
