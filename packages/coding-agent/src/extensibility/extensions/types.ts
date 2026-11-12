@@ -1514,7 +1514,7 @@ export interface PlanReviewResolvedEvent {
  * loop it replaces that text, and on a paused loop `enter` resumes it.
  */
 export type SessionModeRequest =
-	| { mode: "plan" | "vibe"; action: "enter" | "exit" }
+	| { mode: "plan" | "vibe" | "lead"; action: "enter" | "exit" }
 	| { mode: "goal"; action: "enter"; objective: string; tokenBudget?: number }
 	| { mode: "goal"; action: "pause" | "resume" | "drop" }
 	| { mode: "loop"; action: "enter"; prompt?: string; limit?: LoopLimitConfig; condition?: LoopConditionConfig }
@@ -1833,7 +1833,7 @@ export interface RegisteredCommand {
 	/** Zeta: owning extension path for command provenance. */
 	extensionPath?: string;
 	name: string;
-	description?: string;
+	description?: string | (() => string);
 	getArgumentCompletions?: (argumentPrefix: string) => AutocompleteItem[] | null;
 	handler: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 }

@@ -17728,7 +17728,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			cwd: this.sessionManager.getCwd(),
 			host: {
 				getRunner: () => this.#extensionRunner,
-				uninstallTools: names => this.#tools.removeRuntimeTools(names),
+				uninstallTools: async names => {
+					this.#tools.removeRuntimeTools(names);
+				},
 				hasTool: name => this.#tools.getToolByName(name) !== undefined,
 			},
 		});

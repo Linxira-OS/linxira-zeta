@@ -109,12 +109,6 @@ describe("browser prelude relay guidance", () => {
 			},
 			{
 				settings: {},
-				env: { TERN_PANE_SOCKET: "/tmp/tern.sock", TERN_PANE: "1" },
-				kind: "tern",
-				says: "omp's own Tern picture-in-picture instead",
-			},
-			{
-				settings: {},
 				env: { CMUX_SOCKET_PATH: "/tmp/cmux.sock" },
 				kind: "cmux",
 				says: "omp's own cmux browser surface instead",
@@ -124,7 +118,7 @@ describe("browser prelude relay guidance", () => {
 			for (const key of ENV_KEYS) delete process.env[key];
 			Object.assign(process.env, env);
 			const session = sessionWith({ "browser.relay": true, ...settings });
-			expect(resolveBrowserKind({ action: "open", app: "auto" }, session).kind).toBe(kind);
+			expect(resolveBrowserKind({ action: "open" }, session).kind).toBe(kind);
 			const guidance = createBrowserPrelude(session).guidance;
 			expect(guidance).toContain(says);
 			expect(guidance).not.toContain("throwaway");

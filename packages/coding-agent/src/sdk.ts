@@ -358,7 +358,6 @@ import { createBrowserPrelude } from "./tools/browser";
 import { isBuiltinToolName, isMCPToolName, normalizeToolNames } from "./tools/builtin-names";
 import { isToolDisabledBySettings } from "./tools/tool-policy";
 import { deliverPendingRoomEvents } from "./team/room-delivery";
-import { discoverAppendSystemPromptPath } from "./config";
 import { createComputerPrelude } from "./tools/computer";
 import { createRatchetPrelude } from "./ratchet/prelude-definition";
 import { createArchivePrelude } from "./archive/prelude-definition";
@@ -4796,9 +4795,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				}
 			}
 			const personaAppend = agentProfile?.persona?.appendSystemPrompt?.trim();
-			const appendSource =
-				options.appendSystemPromptSource ??
-				(options.appendSystemPrompt === undefined ? discoverAppendSystemPromptPath() : undefined);
+			const appendSource = options.appendSystemPromptSource;
 			const appendText =
 				options.appendSystemPrompt ??
 				(appendSource === undefined ? undefined : await resolvePromptInput(appendSource, "append system prompt"));

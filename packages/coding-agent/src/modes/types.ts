@@ -5,7 +5,10 @@ import type { Component, Container, EditorTheme, KeyId, Loader, TUI } from "@lin
 import type { TspText } from "@linxiraos/pi-wire";
 import type { StatusNotice, StatusNoticeAction } from "@linxiraos/pi-tui/chrome/status-notice";
 import type { BackendAttachLink } from "../backend/attach-link";
+import type { DroppedPrompt } from "../session/agent-session-types";
 import type { ResumeScopeKindLike } from "@linxiraos/pi-tui/overlays/resume-picker";
+import type { HookSelectorSlider } from "@linxiraos/pi-tui/overlays/hook-selector";
+import type { ExtensionAskDialogQuestion, ExtensionAskDialogResult } from "../extensibility/extensions/types";
 import type { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import type { TrackSegment } from "@linxiraos/pi-tui/chrome/segment-track";
 import type { Composer } from "@linxiraos/pi-tui/prompt/composer";
@@ -602,7 +605,7 @@ export interface InteractiveModeContext {
 	): Promise<CompactionOutcome>;
 	handleHandoffCommand(customInstructions?: string): Promise<void>;
 	handleShakeCommand(mode: ShakeMode): Promise<void>;
-	handleMoveCommand(targetPath?: string): Promise<void>;
+	handleMoveCommand(targetPath?: string, options?: { allowCreate?: boolean }): Promise<void>;
 	/** `/wt`: fork the checkout into a new worktree (keeping changes unless `keepChanges` is false) and move there. */
 	handleWorktreeCommand(branch?: string, options?: { keepChanges?: boolean }): Promise<void>;
 	withBtwSessionMove(operation: () => Promise<boolean>): Promise<boolean>;
@@ -649,6 +652,16 @@ export interface InteractiveModeContext {
 	showThinkingSelector(): void;
 	refreshScopedModelsAfterLogin?(): Promise<void> | void;
 	applySidebar(): void;
+	showDirectoryPicker(): Promise<void>;
+	showTeamHub(): void;
+	leadModeEnabled: boolean;
+	handleLeadModeCommand(): Promise<boolean>;
+	handlePlanUltraCommand(
+		initialPrompt?: string,
+		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
+	): Promise<boolean>;
+	handleSidebarToggle(): void;
+	restoreDroppedPrompt(prompt: DroppedPrompt): void;
 	showSessionSelector(
 		source?: ForeignSessionSource,
 		onSelect?: SessionPickHandler,

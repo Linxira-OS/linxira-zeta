@@ -95,11 +95,13 @@ export interface AgentSessionAdvisorOverview {
 }
 
 /** The surface other agents' code uses on a session obtained from the registry, lifecycle, or IRC delivery. */
-import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 
 export interface AgentSessionHandle {
 	/** Drain buffered IRC inbox messages (Zeta extension peer API). */
-	drainPendingIrcInboxMessages?(agentId: string, options?: { ifAny?: (msg: IrcMessage) => boolean }): IrcMessage[];
+	drainPendingIrcInboxMessages?(
+		agentId: string,
+		options?: { ifAny?: (msg: IrcMessage) => boolean; liveness?: boolean },
+	): IrcMessage[];
 	/** Settings this session resolves against (read-only view; absent on remote proxies). */
 	readonly settings?: Settings;
 	/** Cross-thread identity token: `${homeThreadId}:${snowflake}`, unique per session object. */

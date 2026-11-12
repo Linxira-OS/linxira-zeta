@@ -87,7 +87,12 @@ import type { SessionContext, StrippedToolCallsMarker } from "../../session/sess
 import { listSessionRecaps } from "../../session/session-index";
 import { executeBuiltinSlashCommand, lookupBuiltinSlashCommand } from "../../slash-commands/builtin-registry";
 import { parseSlashCommand } from "../../slash-commands/helpers/parse";
-import { buildSkillCommandPrompt, invokeSkillCommandFromText, isKnownSkillCommand } from "../skill-command";
+import {
+	buildSkillCommandPrompt,
+	invokeSkillCommandFromText,
+	isKnownSkillCommand,
+	type SkillCommandHost,
+} from "../skill-command";
 import {
 	createAssistantMessageComponent,
 	getAssistantMessageLinkTargets,

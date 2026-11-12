@@ -68,7 +68,7 @@ import { writeDeviceDispatch } from "../../tools/resolve";
 import { SpeechEnhancer } from "../../tts/speech-enhancer";
 import { vocalizer } from "../../tts/vocalizer";
 import { canonicalizeMessage } from "@linxiraos/pi-tui/chat/thinking-display";
-import { type RunStatus, setRunStatus } from "../../utils/run-status";
+import { type RunFlowStatus, type RunStatus, setRunStatus } from "../../utils/run-status";
 import { setTerminalTitleState } from "../../utils/title-generator";
 import {
 	assistantMessageLinkTargets,
@@ -206,6 +206,17 @@ function renderArgsWithIntent(args: unknown, intent: string | undefined): unknow
 }
 
 export class EventController {
+	#serial: Promise<void> = Promise.resolve();
+
+	/** Serialize focus/view mutations with the event loop (Zeta attach client). */
+	runSerialized<T>(fn: () => Promise<T>): Promise<T> {
+		const next = this.#serial.then(fn, fn);
+		this.#serial = next.then(
+			() => undefined,
+			() => undefined,
+		);
+		return next;
+	}
 	#lastReadGroup: ReadToolGroupComponent | undefined = undefined;
 	/** Timestamp of the current turn's user prompt; drives the usage row's prompt→yield delta. */
 	#turnStartedAt: number | undefined = undefined;
@@ -2147,7 +2158,7 @@ export class EventController {
 		const sessionSettings = session.settings;
 		const mode = cfgToolsApprovalMode.get(sessionSettings);
 		const userPolicies: Record<string, unknown> = cfgToolsApproval.get(sessionSettings);
-		const grants = mode === "always-ask-cached" ? session.getApprovalGrants() : undefined;
+		const grants = mode === "always-ask-cached" ? session.getApprovalGrants?.() : undefined;
 		const approval = resolveApproval(
 			tool,
 			args,
@@ -2159,7 +2170,7 @@ export class EventController {
 		if (approval.policy !== "prompt") return undefined;
 		// Approved for this session: the wrapper runs it without asking.
 		const scope = sessionApprovalScope(approval, tool.name);
-		if (scope && session.hasSessionApproval(scope.key)) return undefined;
+		if (scope && session.hasSessionApproval?.(scope.key)) return undefined;
 		return { state: "blocked", kind: "permission", msg: formatApprovalPrompt(tool, args, approval.reason) };
 	}
 

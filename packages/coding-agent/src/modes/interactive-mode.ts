@@ -4201,6 +4201,10 @@ export class InteractiveMode implements InteractiveModeContext {
 	 * never persisted, so the tree/branch selectors cannot offer it — remove the
 	 * optimistic transcript row and put the typed text back in the editor for editing.
 	 */
+	restoreDroppedPrompt(prompt: DroppedPrompt): void {
+		this.#restoreDroppedPrompt(prompt);
+	}
+
 	#restoreDroppedPrompt(prompt: DroppedPrompt): void {
 		this.clearOptimisticUserMessage();
 		this.#pendingWorkingMessage = undefined;
@@ -8549,7 +8553,8 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 	}
 
-	async shutdown(): Promise<void> {
+	async shutdown(options?: { cancellable?: boolean }): Promise<void> {
+		void options;
 		if (this.#isShuttingDown) return;
 		// The previous graceful teardown failed AT the memoized session.dispose()
 		// (the session is already disposing), so it re-rejects identically forever

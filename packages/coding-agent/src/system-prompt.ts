@@ -524,6 +524,8 @@ export interface BuildSystemPromptOptions {
 	modelSystemPromptTemplates?: readonly ModelPatternEntry<string>[];
 	/** Include the workspace persona block (Zeta). */
 	includeWorkspacePersona?: boolean;
+	/** Render the canvas capability section (Zeta). */
+	canvasEnabled?: boolean;
 	/** Tools to include in prompt. */
 	tools?: Map<string, SystemPromptToolMetadata>;
 	/** Tool names to include in prompt. */
@@ -1048,6 +1050,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		ruleCount: rules?.length ?? 0,
 		memoryBackend,
 		securityEnabled,
+		canvasEnabled: false,
 		settingsApproval,
 		outReplies,
 		subagent,

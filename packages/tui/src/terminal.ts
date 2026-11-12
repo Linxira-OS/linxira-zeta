@@ -563,6 +563,8 @@ export const CURSOR_SHAPE_CODES: Record<CursorShape, number> = {
 	bar: 6,
 };
 export interface Terminal {
+	/** Re-assert raw/console input modes after focus loss (Zeta Windows focus recovery). */
+	reassertInputModes?(): void;
 	/**
 	 * Start the terminal with input, resize, and host-disconnect handlers.
 	 * Unless input is deferred, this sends capability probes; a terminal that

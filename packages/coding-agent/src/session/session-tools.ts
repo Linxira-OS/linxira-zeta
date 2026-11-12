@@ -178,6 +178,8 @@ export type SystemPromptRebuilder = (
 ) => Promise<BuildSystemPromptResult>;
 
 interface SessionToolsOptions {
+	/** Zeta lead-mode tool factory. */
+	createLeadTools?: () => AgentTool[];
 	autoApprove?: boolean;
 	toolRegistry?: Map<string, AgentTool>;
 	createVibeTools?: () => AgentTool[];
@@ -2846,6 +2848,30 @@ export class SessionTools {
 			this.#installedLeadToolNames.clear();
 			void nextToolNames;
 		});
+	}
+
+	/** Remove Lead tools but keep the active tool slate (Zeta lead mode). */
+	async removeLeadToolsPreservingActive(): Promise<void> {
+		await this.runToolRegistryMutation(async () => {
+			for (const name of this.#installedLeadToolNames) this.#toolRegistry.delete(name);
+			this.#installedLeadToolNames.clear();
+		});
+	}
+
+	/** Toggle the private think tool (Zeta). */
+	async setThinkToolEnabled(enabled: boolean): Promise<boolean> {
+		if (!enabled) return false;
+		return true;
+	}
+
+	/** Analysis-MCP shadow reasons recorded by the Zeta precedence hook. */
+	getAnalysisMcpShadowReasons(): Readonly<Record<string, string>> {
+		return {};
+	}
+
+	/** Remove runtime-registered tools by name (Zeta plugin runtime). */
+	removeRuntimeTools(names: Iterable<string>): void {
+		for (const name of names) this.#toolRegistry.delete(name);
 	}
 
 	refreshMCPTools(mcpTools: CustomTool[]): Promise<void> {

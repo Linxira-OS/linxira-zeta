@@ -2404,12 +2404,17 @@ export class InputController {
 		if (preserveDraft) this.ctx.editor.addToHistory(text);
 		else this.ctx.editor.clearDraft(text);
 		try {
-			const dispatched = await invokeSkillCommandFromText(this.ctx as unknown as SkillCommandHost, text, streamingBehavior, {
-				images: draftImages,
-				imageLinks: draftImageLinks,
-				optimistic: true,
-				propagateErrors: true,
-			});
+			const dispatched = await invokeSkillCommandFromText(
+				this.ctx as unknown as SkillCommandHost,
+				text,
+				streamingBehavior,
+				{
+					images: draftImages,
+					imageLinks: draftImageLinks,
+					optimistic: true,
+					propagateErrors: true,
+				},
+			);
 			if (!dispatched) restoreDraft();
 			return dispatched;
 		} catch (error) {

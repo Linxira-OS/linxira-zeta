@@ -512,6 +512,7 @@ const STATUS_TO_MARKER: Record<TodoStatus, string> = {
 	in_progress: "/",
 	completed: "x",
 	abandoned: "-",
+	blocked: "-",
 };
 
 export function resolveTodoMarkdownPath(input: string, cwd: string): string {

@@ -392,6 +392,7 @@ const todoStatusMap: Record<TodoStatus, "pending" | "in_progress" | "completed">
 	in_progress: "in_progress",
 	completed: "completed",
 	abandoned: "completed",
+	blocked: "pending",
 };
 
 function mapTodoStatus(status: TodoStatus): "pending" | "in_progress" | "completed" {

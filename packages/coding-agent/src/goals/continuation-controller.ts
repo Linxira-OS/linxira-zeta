@@ -17,7 +17,7 @@ import type { AgentSession, AgentSessionEvent } from "../session/agent-session";
 /** `goal.continuationModes` value that enables automatic continuation for RPC hosts. */
 export const RPC_GOAL_CONTINUATION_MODE = "rpc";
 
-export type RpcGoalOp = "get" | "create" | "resume" | "pause" | "drop";
+export type RpcGoalOp = "get" | "create" | "resume" | "pause" | "drop" | "budget";
 
 export interface RpcGoalCommand {
 	op: RpcGoalOp;
@@ -94,9 +94,15 @@ export class RpcGoalController {
 	 * @param onContinuationDropped called when a pending continuation is abandoned
 	 *   (a gate closed while it waited), so settle reporting can re-check.
 	 */
-	constructor(session: RpcGoalSession, onContinuationDropped?: () => void) {
+	constructor(
+		session: RpcGoalSession,
+		optionsOrCallback?:
+			| (() => void)
+			| { continuationMode?: string; continuationSuppressed?: () => boolean; onContinuationDropped?: () => void },
+	) {
 		this.#session = session;
-		this.#onContinuationDropped = onContinuationDropped;
+		this.#onContinuationDropped =
+			typeof optionsOrCallback === "function" ? optionsOrCallback : optionsOrCallback?.onContinuationDropped;
 	}
 
 	/**
@@ -220,6 +226,8 @@ export class RpcGoalController {
 				// The runtime's `goal_updated(dropped)` queues the exit.
 				await this.#session.goalRuntime.dropGoal();
 				await this.#exitTask;
+				return this.#state;
+			case "budget":
 				return this.#state;
 			default: {
 				const op: never = command.op;
@@ -476,3 +484,11 @@ export class RpcGoalController {
 function reportControllerError(error: unknown): void {
 	logger.warn("RPC goal controller failed", { error: error instanceof Error ? error.message : String(error) });
 }
+
+/** Legacy web-gateway aliases retained for the merged call sites. */
+export const GOAL_CONTINUATION_MODE_WEB = "web";
+export const GOAL_CONTINUATION_MODE_RPC = RPC_GOAL_CONTINUATION_MODE;
+export { RpcGoalController as GoalContinuationController };
+export type GoalContinuationOp = RpcGoalOp;
+export type GoalContinuationResult = RpcGoalResult;
+export type GoalContinuationSession = RpcGoalSession;

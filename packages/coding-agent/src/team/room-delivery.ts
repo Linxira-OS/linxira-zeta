@@ -135,7 +135,7 @@ async function deliverToRef(
 	const body = eventBody(event, room, teamId);
 	const host = hostSender(ref);
 	if (host) {
-		const receipt = await IrcBus.global().send({ from: host.id, to: ref.id, body }, { suppressRelay: true });
+		const receipt = await IrcBus.global().send({ from: host.id, to: ref.id, body });
 		const outcome: RoomDeliveryOutcome = receipt.outcome;
 		return {
 			roomId: room.id,

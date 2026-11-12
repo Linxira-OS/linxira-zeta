@@ -618,6 +618,10 @@ export interface HeadlessLaunchFeatures {
 /** Options shared by headless Chromium consumers. */
 export interface LaunchHeadlessOptions extends HeadlessLaunchFeatures {
 	headless: boolean;
+	/** Ignore invalid TLS certificates (Zeta browser). */
+	ignoreHttpsErrors?: boolean;
+	/** Allow file:// access from launched pages. */
+	allowFileAccess?: boolean;
 	viewport?: { width: number; height: number; deviceScaleFactor?: number };
 	/** Additional Chromium arguments merged with the centralized launch defaults. */
 	args?: readonly string[];

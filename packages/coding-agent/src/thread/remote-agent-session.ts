@@ -753,8 +753,9 @@ export class RemoteAgentSession implements AgentViewSession {
 		return restored;
 	}
 
-	resume(): Promise<void> {
-		return this.#command("resume");
+	async resume(): Promise<"restored" | "continue"> {
+		await this.#command("resume");
+		return "continue";
 	}
 
 	retry(): Promise<boolean> {

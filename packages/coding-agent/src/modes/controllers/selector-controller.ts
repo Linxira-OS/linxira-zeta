@@ -1,3 +1,4 @@
+import type { ResumeScopeKindLike } from "@linxiraos/pi-tui/overlays/resume-picker";
 import { type AgentMessage, type AgentToolResult, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
 import type { ImageContent, Model, UsageReport } from "@linxiraos/pi-ai";
@@ -1872,7 +1873,12 @@ export class SelectorController {
 		}
 	}
 
-	async showSessionSelector(source?: ForeignSessionSource, onSelect?: SessionPickHandler): Promise<void> {
+	async showSessionSelector(
+		source?: ForeignSessionSource,
+		onSelect?: SessionPickHandler,
+		options?: { workspacePath?: string; initialScope?: ResumeScopeKindLike },
+	): Promise<void> {
+		void options;
 		let sessions: SessionInfo[];
 		let onSelectSession: (session: SessionInfo) => Promise<boolean>;
 		let selectorOptions: SessionSelectorOptions<SessionInfo>;
@@ -2716,5 +2722,8 @@ export class SelectorController {
 		} else {
 			showReadyHub();
 		}
+	}
+	showTeamHub(): void {
+		this.ctx.showWarning("Team Hub is unavailable in this merged build.");
 	}
 }

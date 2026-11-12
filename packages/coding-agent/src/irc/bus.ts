@@ -67,7 +67,7 @@ export interface IrcBusApi {
 		filter: IrcWaitFilter,
 		timeoutMs: number,
 		signal?: AbortSignal,
-		options?: { drainPending?: boolean },
+		options?: { drainPending?: boolean; liveness?: unknown },
 	): Promise<IrcMessage | null>;
 	/** Consume the oldest pending message for `agentId` (optionally from `from`). */
 	take(agentId: string, from?: string): IrcMessage | undefined;
@@ -77,6 +77,14 @@ export interface IrcBusApi {
 	unreadCount(agentId: string): number;
 	/** Count a settled job of agent `from` owned by `to` as `from`'s reply to `to`. */
 	recordReply(from: string, to: string): void;
+}
+
+/** Raised when an awaited peer ran and stopped without replying (Zeta hub messaging). */
+export class IrcAwaitTargetStopped extends Error {
+	constructor(agentId: string) {
+		super(`Agent ${agentId} stopped before replying`);
+		this.name = "IrcAwaitTargetStopped";
+	}
 }
 
 export class IrcBus implements IrcBusApi {
@@ -308,7 +316,7 @@ export class IrcBus implements IrcBusApi {
 		filter: IrcWaitFilter,
 		timeoutMs: number,
 		signal?: AbortSignal,
-		options?: { drainPending?: boolean },
+		options?: { drainPending?: boolean; liveness?: unknown },
 	): Promise<IrcMessage | null> {
 		if (signal?.aborted) {
 			throw signal.reason instanceof Error ? signal.reason : new Error("IRC wait aborted");
