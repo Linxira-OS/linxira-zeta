@@ -11,6 +11,9 @@ export default defineConfig({
 		fileParallelism: false,
 		isolate: true,
 		pool: "forks",
+		// One fork, one file at a time: a second worker must never load the real
+		// module graph while another file's `vi.mock` factories are installed.
+		poolOptions: { forks: { singleFork: true } },
 		sequence: { shuffle: false },
 	},
 });
