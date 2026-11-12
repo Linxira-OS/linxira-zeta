@@ -1514,7 +1514,24 @@ export const en: LocaleDictionary = {
       "channels": "IM Channels",
       "imRuntime": "IM runtime",
       "security": "Identity & devices",
-      "advanced": "Advanced"
+      "advanced": "Advanced",
+      "catalog": "All Settings",
+    },
+    "schema": {
+      "eyebrow": "GATEWAY SETTINGS SCHEMA",
+      "title": "All Settings",
+      "desc": "Every tab, group and row the gateway advertises, including provider limits, model roles, multiselect options and credential rows.",
+      "refresh": "Reload catalog",
+      "tabs": "Settings tabs",
+      "search": "Search label, description or path",
+      "loading": "Reading the settings catalog…",
+      "loadFailed": "Could not read the settings catalog: {error}",
+      "saveFailed": "Save failed: {error}",
+      "apply": "Apply",
+      "secretPlaceholder": "Enter a new value",
+      "saving": "Saving…",
+      "noMatch": "No matching settings",
+      "empty": "This tab has no visible settings"
     },
     "imChannels": {
       "title": "IM Channels",
@@ -2976,6 +2993,7 @@ export const en: LocaleDictionary = {
     "settingsImRuntime": "IM Runtime",
     "settingsChannels": "IM Channel Settings",
     "settingsAdvanced": "Advanced Settings",
+    "settingsCatalog": "All Settings",
     "settingsBackground": "Background Settings",
     "modelProviders": "Model Providers",
     "modelRoles": "Model Roles",

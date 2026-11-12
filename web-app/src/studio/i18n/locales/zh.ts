@@ -1514,7 +1514,24 @@ const zhRaw = {
       "channels": "IM 渠道",
       "imRuntime": "IM 运行时",
       "security": "身份与设备",
-      "advanced": "高级"
+      "advanced": "高级",
+      "catalog": "全部设置",
+    },
+    "schema": {
+      "eyebrow": "网关设置架构",
+      "title": "全部设置",
+      "desc": "显示网关声明的每个标签、分组和设置行，包括 provider limits、模型角色、多选项和凭据行。",
+      "refresh": "重新读取目录",
+      "tabs": "设置标签",
+      "search": "搜索名称、说明或路径",
+      "loading": "正在读取设置目录…",
+      "loadFailed": "读取设置目录失败：{error}",
+      "saveFailed": "保存失败：{error}",
+      "apply": "应用",
+      "secretPlaceholder": "输入新值",
+      "saving": "保存中…",
+      "noMatch": "没有匹配的设置",
+      "empty": "此标签没有可见设置"
     },
     "imChannels": {
       "title": "IM 渠道",
@@ -2976,6 +2993,7 @@ const zhRaw = {
     "settingsImRuntime": "IM 运行时",
     "settingsChannels": "IM 渠道设置",
     "settingsAdvanced": "高级配置",
+    "settingsCatalog": "全部设置",
     "settingsBackground": "背景设置",
     "modelProviders": "模型供应商配置",
     "modelRoles": "模型角色配置",
