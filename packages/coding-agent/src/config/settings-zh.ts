@@ -108,6 +108,42 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
  * `description` is omitted only when the schema entry has no description.
  */
 export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; description?: string }>> = {
+	"task.steps": {
+		label: "顺序任务步骤",
+		description:
+			"子代理按有序 steps 执行而不是单个 task：先拿到第一步，每完成一步再拿下一步；超过 4 步时较早消息会携带两步或更多。最后一步的结果就是任务结果。",
+	},
+	"codexResets.autoRedeem5h": {
+		label: "Codex 自动兑换已保存重置（5 小时）",
+		description:
+			"在仅 5 小时的限流块和可用聊天窗口最长为 5 小时的到期额度上使用已保存的 Codex 重置。unset 会先询问，无提示绝不花费；yes 不询问直接花费；no 从不花费。",
+	},
+	"codexResets.autoRedeemWeekly": {
+		label: "Codex 自动兑换已保存重置（每周）",
+		description:
+			"在每周限流块和可用聊天窗口为每周的到期额度上使用已保存的 Codex 重置；仅从短暂 429 等待得知的块需要两个 Codex 窗口。unset 会先询问，无提示绝不花费；yes 不询问直接花费；no 从不花费。",
+	},
+	"claudeResets.autoRedeem5h": {
+		label: "Claude 自动兑换已保存重置（5 小时）",
+		description:
+			"在仅 5 小时的限流块和可用覆盖限制最长为 5 小时的到期额度上使用 Claude Cedar 或 Juniper 重置。unset 会先询问，无提示绝不花费；yes 不询问直接花费；no 从不花费。",
+	},
+	"claudeResets.autoRedeemWeekly": {
+		label: "Claude 自动兑换已保存重置（每周）",
+		description:
+			"在每周或模型范围的限流块和可用覆盖限制为每周的到期额度上使用 Claude Cedar 重置。unset 会先询问，无提示绝不花费；yes 不询问直接花费；no 从不花费。",
+	},
+	"claudeResets.autoRedeemFable": {
+		label: "Claude 自动兑换 Fable 重置",
+		description:
+			"使用 Claude Fable 启动重置，它会恢复 Fable 每周用量和 5 小时窗口；只有此设置控制它们。unset 会先询问，无提示绝不花费；yes 不询问直接花费；no 从不花费。",
+	},
+
+	"task.autoParallel": {
+		label: "自动并行",
+		description:
+			"让通过 judge 角色解析的原生裁判判断每个新的顶层提示中哪些部分可以并行运行；需要原生裁判和 task 工具，否则不做判断。",
+	},
 	autoResume: {
 		label: "自动恢复",
 		description: "自动恢复当前目录中的最近会话",
@@ -2400,6 +2436,15 @@ export type ZetaSettingsZhOverlay = typeof ZH_SETTING_TEXTS;
  * `description` is omitted only when the schema entry has no description.
  */
 export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; description?: string }>> = {
+	"task.autoParallel::off": { label: "关闭", description: "从不拆分提示" },
+	"task.autoParallel::suggest": {
+		label: "建议",
+		description: "判断每个提示并报告拆分方案，但不执行",
+	},
+	"task.autoParallel::on": {
+		label: "开启",
+		description: "当提示可拆为独立子任务时，让代理并行委派",
+	},
 	"prewalk.auto::off": {
 		label: "关闭",
 		description: "从不为预遍历分类提示",
