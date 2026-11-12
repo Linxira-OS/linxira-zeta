@@ -387,6 +387,25 @@ sessions in deleted worktrees; this setting only narrows the current-folder list
 
 The catalog below highlights common settings; it is not the complete schema. `zetacode config list` is the authoritative reference for every key, current value, type, and description. Defaults and enum values shown here come from the schema. Settings that accept an env or flag override are noted; those overrides are process-local and not persisted.
 
+### Work Studio: complete schema catalog
+
+Work Studio's **Settings → All Settings** tab renders the gateway's complete schema instead of a hand-coded subset. It reads `GET /api/settings?lang=zh|en` and writes one path with `PUT /api/settings {path, value}`, then re-reads the catalog. The catalog is the same one the CLI and the TUI panel consume, so a row is present only when the schema advertises a control for it.
+
+Control mapping:
+
+| Gateway `type` | Control | Value written |
+| --- | --- | --- |
+| `boolean` | switch | JSON boolean |
+| `enum` / `submenu` with `options` or `values` | select | option value |
+| `submenu` with no options | read-only current value | — |
+| `text` | text field, committed on Enter/blur | string |
+| `text` + `secret` | empty password field; the stored value is never shown | the newly typed string only |
+| `text` whose current value is an object/array | JSON editor with Apply | parsed JSON of the same shape |
+| `providerLimits` / `modelRoles` | JSON object editor with Apply | parsed JSON object |
+| `multiselect` | one checkbox per option | selected values, in option order |
+
+The tab filters by tab and by label, description, path or group substring. Candidate rows whose schema condition is false (`visible: false`) are not drawn. Search matches the old panel: it narrows the current tab rather than fabricating a global result list. Save errors are shown with the gateway's message; a failed write leaves the previous catalog in place.
+
 ### Models
 
 `modelRoles` assigns the primary selector for each workload. `retry.fallbackChains` supplies its ordered fallbacks; keep provider/backend choice out of service-specific settings. Chat selectors may carry a thinking suffix (`:off`, `:minimal`, `:low`, `:medium`, `:high`, `:xhigh`, `:max`, `:auto`, or `:inherit`). Non-chat runners do not use chat thinking budgets. Role values can also contain ordered comma-separated selectors or role aliases such as `@smol`; the role's fallback chain is configured separately.

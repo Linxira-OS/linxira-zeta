@@ -185,6 +185,7 @@ function staticGroups(input: PaletteCatalogInput): PaletteGroup[] {
         { id: "set-im-runtime", icon: "message", label: "palette.settingsImRuntime", keywords: "im runtime channels instances bindings profiles agents targets bot commands discord qq wechat feishu telegram credentials 渠道 实例 绑定 配置 目标 命令 凭据", action: { kind: "openSettings", group: "imRuntime" } },
         { id: "set-security", icon: "shield", label: "palette.settingsSecurity", keywords: "security devices 2fa totp pairing remote token revoke 安全 设备 二次验证 两步验证 配对 令牌 撤销 远程访问", action: { kind: "openSettings", group: "security" } },
         { id: "set-advanced", icon: "wrench", label: "palette.settingsAdvanced", keywords: "advanced 设置 高级 配置层级 重试 循环保护", action: { kind: "openSettings", group: "advanced" } },
+        { id: "set-catalog", icon: "layers", label: "palette.settingsCatalog", keywords: "all settings schema catalog provider limits model roles multiselect 全部设置 设置目录 provider limits 模型角色 多选", action: { kind: "openSettings", group: "catalog" } },
         { id: "mc-providers", icon: "server", label: "palette.modelProviders", keywords: "model config providers 模型配置 供应商", action: { kind: "openModelConfig", tab: "providers" } },
         { id: "mc-roles", icon: "steering", label: "palette.modelRoles", keywords: "model config roles 模型配置 角色", action: { kind: "openModelConfig", tab: "roles" } },
         { id: "mc-subagents", icon: "bot", label: "palette.modelSubagents", keywords: "model config subagents 模型配置 子代理", action: { kind: "openModelConfig", tab: "subagents" } },

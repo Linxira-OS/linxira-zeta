@@ -30,6 +30,7 @@ import { PREVIEW_APP_SETTINGS, PREVIEW_APPROVAL_MODE, usePreviewAppSettings, use
 import { type AppSettings, useAppSettings } from "./settings/appSettings";
 import { ConversationWidthProvider, useConversationWidth } from "./settings/ConversationWidthContext";
 import { RawConfigEditor } from "./settings/RawConfigEditor";
+import { SchemaSettingsPane } from "./settings/SchemaSettingsPane";
 import { SlidingTabs } from "./SlidingTabs";
 import {
   AdvancedTab,
@@ -54,7 +55,7 @@ import type {
 
 export const SETTINGS_INTENT_KEY = "zeta.settingsIntent";
 
-export type SettingsGroupId = "general" | "background" | "interaction" | "permissions" | "context" | "files" | "tasks" | "imRuntime" | "security" | "advanced" | "native";
+export type SettingsGroupId = "general" | "background" | "interaction" | "permissions" | "context" | "files" | "tasks" | "imRuntime" | "security" | "advanced" | "catalog" | "native";
 
 type GroupId = SettingsGroupId;
 
@@ -68,7 +69,7 @@ export interface RuntimeSettingsApi {
   readonly onSet?: (key: StudioRuntimeSettingKey, value: StudioRuntimeSettingValue, persist?: boolean) => void | Promise<void>;
 }
 
-const GROUP_IDS: ReadonlyArray<SettingsGroupId> = ["general", "background", "interaction", "permissions", "context", "files", "tasks", "imRuntime", "security", "advanced", "native"];
+const GROUP_IDS: ReadonlyArray<SettingsGroupId> = ["general", "background", "interaction", "permissions", "context", "files", "tasks", "imRuntime", "security", "advanced", "catalog", "native"];
 
 /** Old desktop/menu deep links to the removed `channels` tab now land on the runtime page. */
 const LEGACY_GROUP_ALIASES: Readonly<Record<string, GroupId>> = { channels: "imRuntime" };
@@ -147,6 +148,7 @@ function SettingsPageContent({
     ["imRuntime", "message", t("settings.tabs.imRuntime")],
     ["security", "shield", t("settings.tabs.security")],
     ["advanced", "wrench", t("settings.tabs.advanced")],
+    ["catalog", "layers", t("settings.tabs.catalog")],
     ["native", "settings", resolvedLanguage === "zh" ? "运行偏好" : "Runtime preferences"],
   ] as const).filter(([id]) => id !== "native" || nativeAvailable);
 
@@ -335,6 +337,9 @@ function SettingsPageContent({
             <AdvancedTab demo={demoRuntime} runtime={runtime} />
             <RawConfigEditor cwd={(client as { cwd?: string | null }).cwd} />
             <PredictionSettings client={client} sessionId={predictionSessionId} available={predictionAvailable} />
+          </div>
+          <div {...pane("catalog")} id="set-catalog" role="tabpanel" aria-labelledby="setTab-catalog" tabIndex={0}>
+            <SchemaSettingsPane visible={group === "catalog"} cwd={(client as { cwd?: string | null }).cwd} />
           </div>
         </div>
       </div>
