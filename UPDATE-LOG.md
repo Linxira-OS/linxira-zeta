@@ -21,6 +21,7 @@
 - **Android Tier1 CLI**：Gradle 8.9 wrapper、`BUILD SUCCESSFUL` 39s、11 JUnit 0 fail、debug APK 已签名（sha256/证书见 `local://android-cli-build-evidence-20261112.md`）；package `com.zeta.android` min26/target35/compile35。未接 device/emulator，release 仍 unsigned/frozen。
 - **robomp Windows 离线 CLI**：懒加载 POSIX `fcntl`/`grp`、Windows queue-root guard；offline paths/replay/status 19/0、config 31/0、真实 triage/replay SQLite 通过；生产仍按 POSIX/Linux-root 边界，不声称 Windows 生产已验证。
 - **TermIDE walker**：`require_git(false)` 尊重 git root 外 ignore，Windows-only slash normalization；post-fix nextest walk 2/2、三 IDE crates 66/66（3 leaky 已记录），doctest RC0；TUI 真实 context menu（Alt+Z/Alt+K）与 TODO scanner 4 hits，JSON viewer 仍要求先打开文件，Git status [Diff] per-file 未打开。built TUI binary 早于 walker fix，行为只由 post-fix nextest 覆盖。
+- **TermIDE Esc preview/commit fix**：IdePage 为 transient preview 与 commit box 设置 `captures_escape`；`a189d4385b6` 后 panel-ide 52/52（3 leaky），GNU rebuild RC0 28.84s，doctest RC0 0 examples。实际 pyte 屏幕：JSON tree 值/Esc 退出/折叠、TODO scan/sample jump、独立 Git `[Diff]` hunk 通过；IDE 内部 lower Git pane 与 per-file history 未验，不宣称。
 
 ### 1.6.0 公开发布准入（2026-11-12）
 - 用户明确：只有全部计划内开发有逐项证据、用户在 1.5.x 亲测全部功能并确认稳定、手机全部开发且真实设备流程验收、SSH 真实目标功能完整、无未解决 known bug 后，才考虑 1.6.0；未验/held/blocked 不能算 100%。当前不授权 tag/bump/publish/PR/main-merge，1.5.1 冻结与 1.5.2–1.5.10 code-only 不变；owner exact-version override 仍是最后机械门，ADR-0006 不改。详见 `document/release.md` §1.6.0 readiness。
