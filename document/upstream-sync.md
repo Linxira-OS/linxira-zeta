@@ -3272,3 +3272,46 @@ Narrow results after consolidation:
   remaining gate; Rust remains CI-only on this Windows host
   (`local-rust: CI-only`, Linux CI runs `bun run test:rs`).
 - **No push, tag, main merge, or PR was performed.**
+
+### Final local gate truth (2026-11-13, after consolidation)
+
+Source-level reds found by the full gate were fixed on the branch:
+
+- `packages/ai/src/auth/cascade.ts`: the upstream v18.19.0 rewrite dropped
+  Zeta's lowest-priority compat mirror tier while the mirror test and
+  `KeysApi` type still required it; the tier is restored on top of upstream's
+  pause guards / `resolveAfterRotation` policy.
+- `packages/ai/test/auth-storage-oauth-refresh-race.test.ts`: stored refreshes
+  go through `AuthStorageOptions.refreshOAuthCredential` now, not
+  `getOAuthApiKey`; the race tests drive that seam and reload the fresh pool.
+- `packages/mnemopi/test/optional-embeddings.test.ts`: upstream's new
+  assertions named `zetacode/` and `https://zeta.sh/`; Zeta ships
+  `zeta/<version>` and `https://linxira-os.github.io/zeta/`.
+- Windows timing bounds (`provider-inflight` cleanup, `ptree-timeout`,
+  natives provider-pool probe, completion-retention probe) use
+  `removeWithRetries` / load-tolerant Windows limits; Linux keeps the tight
+  bounds that carry the regression signal.
+- pi-messenger vitest pins one isolated fork so a parallel worker cannot
+  import the real module graph while another file's `vi.mock` factories are
+  installed.
+
+Narrow results: `ci:test:ts:workspace` (CI's fast bucket, concurrency 4)
+7/8 commands pass; the only red is `.zeta/tests/tui.test.ts` because this
+host has no usable ConPTY ("PTY creation timed out (5s)"). The full
+`merge-gate` guard and audit phases pass; the remaining local reds are
+host/tooling, not source:
+
+- **Native addon:** `shellBuiltins` (added by v18.19.0's
+  `crates/pi-natives/src/shell.rs`) is absent from the untracked prebuilt
+  `packages/natives/native/pi_natives.win32-x64-*.node`; `.node` is
+  `.gitignore`d and this host has no MSVC (`vswhere`/`cl.exe` absent), so
+  `bun run build:native` cannot rebuild it. CI's `native_addons` job builds
+  the addons from source and every test job downloads them.
+- **Windows host:** symlink fixtures fail `EPERM` without Developer Mode
+  (canonicalProjectDir, lsp same-file rename); ovnfs daemon and Chromium
+  browser suites are Linux/CI-only; `.zeta/tests/tui.test.ts` needs ConPTY.
+- **Rust:** `cargo nextest` is not installed; `test:rs` refuses on this
+  shallow clone. Linux CI is authoritative for Rust.
+
+The remaining local blockers above are host/tooling; the PR CI run builds the
+native addons and is the authoritative verification for them.
