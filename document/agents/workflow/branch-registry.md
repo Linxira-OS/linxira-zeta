@@ -160,6 +160,10 @@
 | `sync/omp-release/v18.18.1-2` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
 | `sync/omp-release/v18.18.3` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
 
+| `docs/qq-wecom-pause` | docs | 用户要求的 QQ/WeCom 暂停文档；worktree `temp/active-surface-completion` 之外，保留原分支 | user | 2026-11-12 | 合入 sync 后由 owner 决定；不删 |
+| `sync/omp-release/v18.19.0` | sync | OMP v18.19.0 真 merge（`f2ad635e014`），基于 `ddb44711b5d`；worktree `temp/omp-v18.19.0-sync` | agent | 2026-11-12 | 门禁与 CI 绿后合入 `main` 再删（删前记 SHA） |
+| `vendor/termide-0.49.0` | vendor | TermIDE 0.49.0 vendor 分支；保留原分支 | user | 2026-11-12 | owner 决定；不删 |
+
 ## 已退役（删除前登记）
 
 | 分支 | SHA | 退役日期 | 原因 |
