@@ -50,20 +50,56 @@ Notifications are only available when `POST_NOTIFICATIONS` is granted. The host 
 
 ## Build
 
-The source is a normal Gradle project:
+The source is a normal Gradle project with the standard wrapper checked in:
 
-- `android/settings.gradle.kts`
-- `android/build.gradle.kts`
-- `android/app/build.gradle.kts`
-- `android/gradle/libs.versions.toml`
-- `android/app/src/main/...`
+- `android/gradlew` / `android/gradlew.bat` (executable Linux script)
+- `android/gradle/wrapper/gradle-wrapper.jar`
+- `android/gradle/wrapper/gradle-wrapper.properties` — Gradle **8.9**, official
+  `services.gradle.org` distribution, `distributionSha256Sum=d725d707...`
+- `android/settings.gradle.kts`, `android/build.gradle.kts`, `android/app/build.gradle.kts`
+- `android/gradle/libs.versions.toml`, `android/app/src/main/...`
 
-Pinned toolchain: JDK 21, AGP 8.7.3, Kotlin 2.0.21, compile/target SDK 35, min SDK 26. Gradle is not vendored in this change; use JDK 21 and Gradle 8.9 (or the project wrapper once the environment is available). Do not use the host's JDK 25 default for an AGP build until compatibility is verified.
+Pinned toolchain: JDK 21 (AGP 8.7 baseline JDK 17, Gradle 8.9 supports 21),
+AGP 8.7.3, Kotlin 2.0.21, compile/target SDK 35, min SDK 26, Build Tools 34.0.0
+(AGP 8.7 default). Do not use the host's JDK 25 for AGP 8.7 unless verified.
 
-CI is **not** wired in this branch. A manual-only `android_tests` job patch is delivered to the governance owner for review; it is not applied to `.github/workflows/ci.yml`, not on push/PR/schedule, and not in `release_gate`. Debug artifact only; no release signing key is created or committed.
+Minimal CLI reproduction (no Android Studio needed):
+
+```text
+JAVA_HOME=<JDK 21>
+ANDROID_HOME=<Android SDK with platforms;android-35 + build-tools;34.0.0>
+GRADLE_USER_HOME=<isolated Gradle user home>
+
+Windows:  gradlew.bat testDebugUnitTest assembleDebug
+Linux:    ./gradlew testDebugUnitTest assembleDebug
+```
+
+Optional China Maven preference (project-level, default off):
+
+```text
+gradlew.bat testDebugUnitTest assembleDebug -Pzeta.useAliyunMirrors=true
+```
+
+This only adds Aliyun `repository/google|central|gradle-plugin` before the
+official repositories; it does not downgrade AGP/Kotlin/SDK versions and no
+global `init.gradle` is used. For a local SDK path, create ignored
+`android/local.properties` with `sdk.dir=...` if `ANDROID_HOME` is not exported.
+
+Verified on Windows: `BUILD SUCCESSFUL`, `testDebugUnitTest` and `assembleDebug`
+passed; debug APK at `android/app/build/outputs/apk/debug/app-debug.apk`,
+debug-signed by the SDK debug key. Release has no signing config and remains
+unsigned/frozen. No emulator, NDK, or Android Studio is required for the build.
+
+CI is **not** wired in this branch. A manual-only `android_tests` job patch is
+delivered to the governance owner for review; it is not applied to
+`.github/workflows/ci.yml`, not on push/PR/schedule, and not in
+`release_gate`. Debug artifact only; no release signing key is created or
+committed.
 
 ## Known holds
 
-- No Android build, Gradle, emulator, device, APK, or instrumentation verification has been run in this change. Do not claim an APK or a working install.
+- The CLI build, unit tests, and debug APK are verified on this Windows host;
+  **no device/emulator install or instrumentation run** was performed.
+  `adb devices -l` is empty; do not claim a working install on a phone.
 - Server contract is final for required device token, required/echoed binding, cookie CSRF, 1h sliding session, scope errors; the Android source targets it. The host is an origin root; `/studio/`-style prefixes are unsupported by this client.
 - The mobile Work Studio surface exposes settings, device list, pairing and read-only TOTP verification; `device-revoke` and remote-token mutation stay hidden. The native shell does **not** hide or disable those existing web capabilities: its native pairing/step-up screens are its own entry, while the same web UI remains usable in the WebView. Renderer `AuthStepUpBoundary` must be mounted by the integration owner.
