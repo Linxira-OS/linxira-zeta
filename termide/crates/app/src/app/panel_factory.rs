@@ -56,6 +56,7 @@ impl App {
     /// project's settings. Callers have already set it in `state.config`, so
     /// newly-spawned terminals see the new default shell without a restart.
     pub(super) fn save_shell_preference(&mut self, shell_path: &str) -> Result<()> {
+        super::agent_panel::publish_shell(Some(shell_path));
         let mut global = (*self.state.global_baseline).clone();
         global.terminal.default_shell = Some(shell_path.to_string());
         global.save_global()?;
@@ -200,7 +201,8 @@ impl App {
         let plugin_names = self.plugin_names();
         let modal = SettingsModal::new(config, global_layer, in_project)
             .with_plugins(plugin_names)
-            .with_debugger_defaults(debugger_defaults);
+            .with_debugger_defaults(debugger_defaults)
+            .with_stored_api_keys(self.vault.stored_api_keys());
         self.settings_model_fetch = None;
         self.state.set_pending_action(
             crate::state::PendingAction::Settings,
@@ -214,13 +216,18 @@ impl App {
     /// — a no-op with nothing asked and no fetch in flight.
     pub(super) fn poll_settings_model_fetch(&mut self) {
         use termide_modal::ActiveModal;
-        if let Some(ActiveModal::Settings(modal)) = self.state.active_modal.as_mut() {
-            // A newer request replaces the fetch in flight: its list is for a
-            // connection no longer open.
-            if let Some(connection) = modal.take_model_fetch_request() {
-                self.settings_model_fetch =
-                    super::agent_panel::spawn_settings_model_fetch(&connection);
-                if self.settings_model_fetch.is_none() {
+        let asked = match self.state.active_modal.as_mut() {
+            Some(ActiveModal::Settings(modal)) => modal.take_model_fetch_request(),
+            _ => None,
+        };
+        // A newer request replaces the fetch in flight: its list is for a
+        // connection no longer open.
+        if let Some((name, connection)) = asked {
+            let api_key = self.settings_api_key(&name, &connection);
+            self.settings_model_fetch =
+                super::agent_panel::spawn_settings_model_fetch(&connection, api_key);
+            if self.settings_model_fetch.is_none() {
+                if let Some(ActiveModal::Settings(modal)) = self.state.active_modal.as_mut() {
                     modal.set_model_options(Vec::new());
                 }
             }
@@ -248,14 +255,20 @@ impl App {
             return;
         };
         self.settings_model_fetch = None;
-        let ids = match result {
-            Ok(models) => models.into_iter().map(|m| m.id).collect(),
+        let models = match result {
+            Ok(models) => models
+                .into_iter()
+                .map(|m| {
+                    let name = m.name.unwrap_or_else(|| m.id.clone());
+                    (m.id, name)
+                })
+                .collect(),
             Err(error) => {
                 log::warn!("cannot list the connection's models: {error}");
                 Vec::new()
             }
         };
-        modal.set_model_options(ids);
+        modal.set_model_options(models);
     }
 
     /// Open or refresh the References panel with LSP find-references results.
@@ -330,7 +343,16 @@ impl App {
     /// Always creates a NEW panel (like editors/terminals) rather than focusing
     /// an existing one, so several repositories can be watched side by side —
     /// each instance tracks its own repo via the repo dropdown.
+    ///
+    /// Outside a git repository a plugin's status command stands in for it,
+    /// such as Perforce's opened files: git comes first.
     pub(super) fn handle_open_git_status(&mut self) -> Result<()> {
+        if termide_git::find_repo_root(&self.project_root).is_none() {
+            if let Some(action) = self.plugin_stand_in(termide_plugins::protocol::STATUS_ACTION) {
+                self.run_plugin_command(&action);
+                return Ok(());
+            }
+        }
         self.close_help_panels();
 
         let paths = self.collect_repo_search_paths();

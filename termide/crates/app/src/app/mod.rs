@@ -30,6 +30,7 @@ use crate::PanelExt;
 pub use termide_core::Panel;
 
 pub mod agent_panel;
+mod api_keys;
 mod background_ops;
 mod bg_fetch;
 mod bg_git;
@@ -53,10 +54,14 @@ mod panel_manager;
 mod panel_operations;
 mod parked_projects;
 mod plugin_editor;
+mod plugin_files;
+mod plugin_list;
 mod plugin_providers;
 mod plugin_windows;
 mod plugins;
 mod project_layout;
+mod recent_destinations;
+mod stop_editing;
 mod vault;
 mod watcher;
 mod workspace_edit;
@@ -112,9 +117,16 @@ pub struct App {
     /// is open: a launch for a single directory must not replace the list of
     /// the run before.
     saved_open_projects: Option<termide_project::SavedOpenProjects>,
-    /// Reopen the projects of the last run as soon as the loop starts
-    /// (`termide --restore`), as the Projects menu item does.
-    restore_projects: bool,
+    /// The open projects this instance holds against a second one, by root.
+    /// Taken before a project opens and let go once it is closed; a project
+    /// opened unguarded (see [`termide_project::claim_project`]) has none.
+    project_claims: std::collections::HashMap<std::path::PathBuf, termide_project::ProjectClaim>,
+    /// Reopen the projects of the last run as soon as the loop starts, as
+    /// the Projects menu item does: `Some(true)` for `termide --restore`,
+    /// which also resumes agents' unfinished work, `Some(false)` for
+    /// `general.restore_projects`, which leaves it until its project is
+    /// entered.
+    restore_projects: Option<bool>,
     /// Terminal capabilities this process was started with. Kept so that a
     /// reattach can re-enter exactly the modes startup entered.
     #[cfg(unix)]
@@ -134,6 +146,8 @@ pub struct App {
     vault: vault::VaultState,
     /// An open project held by the mouse to reorder.
     project_drag: Option<mouse::project_drag::ProjectDrag>,
+    /// Destinations confirmed in the path prompts, per project, this run.
+    recent_destinations: recent_destinations::RecentDestinations,
 }
 
 /// Keep the windows external agents report in `<config>/ai/acp-windows.json`,
@@ -152,6 +166,7 @@ impl App {
     pub fn new() -> Self {
         let mut state = AppState::new();
         state.detach_available = Self::detect_detach_available();
+        agent_panel::publish_shell(state.config.terminal.default_shell.as_deref());
 
         // Get project root from current working directory
         let project_root = std::env::current_dir().unwrap_or_else(|_| {
@@ -232,12 +247,14 @@ impl App {
             keyboard_caps: termide_keyboard::KeyboardCaps::default(),
             persist_layout: true,
             saved_open_projects: None,
+            project_claims: Default::default(),
             project_drag: None,
-            restore_projects: false,
+            restore_projects: None,
             last_focus_sig: None,
             settings_model_fetch: None,
             settings_save: None,
             vault: vault::VaultState::default(),
+            recent_destinations: Default::default(),
         }
     }
 
@@ -261,6 +278,7 @@ impl App {
         state.runtime_overrides = runtime_overrides;
         state.update_terminal_size(width, height);
         state.detach_available = Self::detect_detach_available();
+        agent_panel::publish_shell(state.config.terminal.default_shell.as_deref());
 
         // Get project root from current working directory
         let project_root = std::env::current_dir()
@@ -338,12 +356,14 @@ impl App {
             keyboard_caps: caps,
             persist_layout: true,
             saved_open_projects: None,
+            project_claims: Default::default(),
             project_drag: None,
-            restore_projects: false,
+            restore_projects: None,
             last_focus_sig: None,
             settings_model_fetch: None,
             settings_save: None,
             vault: vault::VaultState::default(),
+            recent_destinations: Default::default(),
         }
     }
 
@@ -455,10 +475,14 @@ impl App {
     }
 
     /// Reopen the projects of the last run in the background once the
-    /// application starts (`termide --restore`). Without a saved set the
-    /// launch is an ordinary one.
-    pub fn restore_projects_on_start(&mut self) {
-        self.restore_projects = true;
+    /// application starts. Without a saved set the launch is an ordinary one.
+    ///
+    /// `resume_agent_work` loads at once the projects whose agents left work
+    /// unfinished, so a failed request is tried again and a goal asks to go
+    /// on, as `termide --restore` and the menu item do. A restore the user
+    /// did not ask for this launch leaves that to the user entering them.
+    pub fn restore_projects_on_start(&mut self, resume_agent_work: bool) {
+        self.restore_projects = Some(resume_agent_work);
     }
 
     /// Open a file path in a new editor panel, creating the file (and parent
@@ -711,6 +735,7 @@ impl App {
         if let Some(save) = self.settings_save.take() {
             self.persist_settings(save);
         }
+        self.take_settings_key_changes();
     }
 
     /// Make `config`, a config as the files give it, the running config,
@@ -753,6 +778,20 @@ impl App {
         // project does not reset what the agents read for nothing.
         if config.ai_differs_from(&old) {
             agent_panel::publish_ai_settings(&config.ai);
+            // And to the panels already open: each takes the settings of the
+            // connection it runs on, so an edited connection needs no reopen.
+            // A panel mid-run keeps its endpoint until the run is over.
+            for panel in self.layout_manager.iter_all_panels_mut() {
+                if panel
+                    .handle_command(PanelCommand::RefreshAiConnection)
+                    .needs_redraw()
+                {
+                    self.state.needs_redraw = true;
+                }
+            }
+        }
+        if config.terminal.default_shell != old.terminal.default_shell {
+            agent_panel::publish_shell(config.terminal.default_shell.as_deref());
         }
         if config.plugins != old.plugins {
             self.plugins.mark_dirty();
@@ -789,6 +828,7 @@ impl App {
             });
         }
 
+        self.apply_plugin_files(&mut panel);
         let terminal_width = self.state.terminal.width;
         let config = &self.state.config;
         self.layout_manager.add_panel(panel, config, terminal_width);
@@ -814,6 +854,7 @@ impl App {
             });
         }
 
+        self.apply_plugin_files(&mut panel);
         let terminal_width = self.state.terminal.width;
         let config = &self.state.config;
         self.layout_manager
@@ -946,7 +987,38 @@ impl App {
         }
     }
 
+    /// Run the event loop until the user quits, then shut down: save what
+    /// quitting leaves and stop the debug session and the plugins. The
+    /// shutdown runs however the loop ended — a quit, a termination signal
+    /// (see [`crate::termination`]) or an error, which is returned after it.
+    /// Ended without a quit, nobody confirmed discarding anything, so every
+    /// unsaved change is kept for the next start first, before the slower
+    /// teardown: `termide --kill` allows a few seconds.
     pub fn run<B: Backend>(
+        &mut self,
+        terminal: &mut Terminal<B>,
+        render_fn: impl Fn(&mut ratatui::Frame<'_>, &mut AppState, &mut LayoutManager),
+    ) -> Result<()>
+    where
+        B::Error: Send + Sync + 'static,
+    {
+        let result = self.run_loop(terminal, render_fn);
+        crate::termination::loop_stopped();
+        if let Some(signal) = crate::termination::ended_by() {
+            log::warn!(
+                "{} received: ending without asking, unsaved changes are kept",
+                crate::termination::name(signal)
+            );
+        }
+        if let Err(e) = &result {
+            log::error!("The event loop failed: {e:?}");
+        }
+        let quit = self.state.should_quit;
+        self.shut_down(quit);
+        result
+    }
+
+    fn run_loop<B: Backend>(
         &mut self,
         terminal: &mut Terminal<B>,
         render_fn: impl Fn(&mut ratatui::Frame<'_>, &mut AppState, &mut LayoutManager),
@@ -957,18 +1029,20 @@ impl App {
         // Initialize terminal dimensions
         let size = terminal.size()?;
         self.state.update_terminal_size(size.width, size.height);
+        // Agent work resumed below may ask for an API key before the first
+        // tick answers.
+        api_keys::Broker::global().attach();
         self.load_reopenable_projects();
-        if self.restore_projects {
-            self.restore_projects = false;
+        if let Some(resume_agent_work) = self.restore_projects.take() {
             if self.state.reopenable_projects.is_empty() {
                 log::info!("No projects of the last run to restore");
             } else {
-                self.reopen_previous_projects();
+                self.reopen_previous_projects(resume_agent_work);
             }
         }
         self.sync_open_projects();
 
-        while !self.state.should_quit {
+        while !self.state.should_quit && crate::termination::received().is_none() {
             // Process events
             match self.event_handler.next()? {
                 Event::Key(key) => {
@@ -1001,7 +1075,7 @@ impl App {
                     // Update terminal dimensions in state
                     self.state.update_terminal_size(width, height);
 
-                    // Пропорционально перераспределить ширины групп при изменении размера терминала
+                    // Redistribute group widths proportionally to the new terminal width
                     self.layout_manager
                         .redistribute_widths_proportionally(width);
                     self.state.needs_redraw = true;
@@ -1078,13 +1152,22 @@ impl App {
                 self.state.needs_redraw = false;
             }
         }
+        Ok(())
+    }
 
-        self.save_parked_layouts();
+    /// What every end of [`Self::run`] goes through; `quit` when the user
+    /// quit, and was asked about unsaved changes then.
+    fn shut_down(&mut self, quit: bool) {
+        if quit {
+            self.save_parked_layouts();
+        } else {
+            self.keep_unsaved_changes();
+        }
         self.sync_editor_breakpoints();
         termide_debug::breakpoints::flush();
         self.end_debug_session();
         self.shutdown_plugins();
-        Ok(())
+        agent_panel::terminals::agent_terminals().release_all();
     }
 
     /// Per-tick background polling batch, run once for every `Event::Tick`.
@@ -1283,6 +1366,7 @@ impl App {
             // Check background command operation result (.report. commands)
             self.check_command_operation_result();
             self.check_bg_command_completion();
+            self.start_pending_command_launches();
 
             // Poll unified operation manager for events (new system)
             self.poll_operation_manager();
@@ -1315,6 +1399,14 @@ impl App {
 
     /// Check and close panels that should auto-close
     fn check_auto_close_panels(&mut self) -> Result<()> {
+        // An agent's terminal panel is a borrowed view of the agent's: when
+        // its terminal is gone it comes down wherever it stands, not only
+        // once it is the active one.
+        if self.close_ended_agent_terminals() {
+            self.auto_save_layout();
+            return Ok(());
+        }
+
         // Check if active panel should auto-close
         let should_close = {
             if let Some(panel) = self.layout_manager.active_panel_mut() {

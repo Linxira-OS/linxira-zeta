@@ -396,17 +396,19 @@ impl App {
         if new_project_root == self.project_root {
             return Ok(());
         }
+        // A project reopened from the last run is taken only now, as it
+        // loads: until then another instance may have opened it.
+        let loads = !self.open_projects.is_open(&new_project_root)
+            || self.open_projects.is_pending(&new_project_root);
+        if loads && !self.claim_project(&new_project_root) {
+            // Marks it in the menus as taken.
+            self.sync_open_projects();
+            return Ok(());
+        }
         let entered = self.enter_project(new_project_root)?;
         match entered.restored {
             Some(parked) => self.restore_parked_project(parked),
-            None => {
-                if let Err(e) = self.load_layout() {
-                    log::warn!(
-                        "Could not load the project layout ({e}); starting with the default layout."
-                    );
-                    self.setup_default_layout();
-                }
-            }
+            None => self.load_layout_or_default(),
         }
         self.carry_operations_panel(entered.operations_panel);
         self.update_terminal_title();
@@ -475,6 +477,10 @@ impl App {
         }
         if self.open_projects.is_open(&new_project_root) {
             return self.switch_to_project(new_project_root);
+        }
+        // Resetting it under another instance would lose that one's work.
+        if !self.claim_project(&new_project_root) {
+            return Ok(());
         }
 
         // 1. Clear any existing layout of the target directory
@@ -553,6 +559,11 @@ impl App {
         // Another open project lives there: two would share one root.
         if self.open_projects.is_open(&new_project_root) {
             self.show_error_modal(i18n::t().projects_already_open().to_string());
+            return Ok(());
+        }
+        // Nor may it land on a project another instance has open; the old
+        // root is let go once the move is done.
+        if !self.claim_project(&new_project_root) {
             return Ok(());
         }
 
@@ -736,8 +747,10 @@ impl App {
 
                 // Try as Terminal
                 if let Some(terminal) = panel.as_terminal_mut() {
-                    let _ = terminal.send_cd(path);
-                    self.state.set_info(format!("cd {}", path.display()));
+                    // A refused `cd` reports itself on the terminal's next tick.
+                    if terminal.send_cd(path).is_ok() {
+                        self.state.set_info(format!("cd {}", path.display()));
+                    }
                     return Ok(());
                 }
 

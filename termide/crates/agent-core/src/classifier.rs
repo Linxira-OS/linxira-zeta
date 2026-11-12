@@ -7,6 +7,7 @@
 //! case. What it is told comes from `system/classify.md`, the seed being a
 //! data file in `assets/`, the way the other service prompts are.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -375,20 +376,41 @@ impl ModelChoice {
 /// The tokens model calls spent, added up across the threads that make
 /// them; clones share the count. The reviewers a host builds from one
 /// [`ReviewerSetup`] add to its meter, and the host takes what they spent.
+/// The count is kept by model, `""` for a model not known.
 #[derive(Clone, Default, Debug)]
-pub struct SpentMeter(Arc<Mutex<Usage>>);
+pub struct SpentMeter(Arc<Mutex<BTreeMap<String, Usage>>>);
 
 impl SpentMeter {
     pub fn add(&self, usage: &Usage) {
+        self.add_on("", usage);
+    }
+
+    /// Add what a call on `model` spent.
+    pub fn add_on(&self, model: &str, usage: &Usage) {
+        if usage.total() == 0 {
+            return;
+        }
         self.0
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .entry(model.to_string())
+            .or_default()
             .add(usage);
     }
 
     /// What was spent since the last take, leaving the meter at nothing.
     #[must_use]
     pub fn take(&self) -> Usage {
+        let mut total = Usage::default();
+        for usage in self.take_by_model().values() {
+            total.add(usage);
+        }
+        total
+    }
+
+    /// [`Self::take`] by model.
+    #[must_use]
+    pub fn take_by_model(&self) -> BTreeMap<String, Usage> {
         std::mem::take(
             &mut *self
                 .0
@@ -497,7 +519,14 @@ impl Classifier for ModelClassifier {
         };
         let reply = provider.stream(&request, &mut |_| {}, &self.cancel);
         // Spent whatever the verdict, a failed call's prompt included.
-        self.spent.add(&reply.usage);
+        // On the model that answered: an external agent names the one it
+        // picked, which the request may have left to it.
+        let on = if reply.model.is_empty() {
+            &model.id
+        } else {
+            &reply.model
+        };
+        self.spent.add_on(on, &reply.usage);
         if matches!(reply.stop_reason, StopReason::Error | StopReason::Aborted) {
             return Verdict::Unavailable {
                 reason: reply
@@ -579,7 +608,7 @@ mod tests {
     fn the_turn_shows_user_words_and_calls_but_marks_a_delegated_task() {
         let parent = IntentLog::new();
         parent.push(IntentEntry::User("fix the build".into()));
-        parent.push_calls([call("bash", json!({"command": "cargo build"}))].iter());
+        parent.push_calls([call("shell", json!({"command": "cargo build"}))].iter());
         let log = IntentLog::delegated(&parent);
         log.push(IntentEntry::Delegated("run the tests".into()));
         let entries = log.snapshot();
@@ -592,10 +621,10 @@ mod tests {
             ]
         );
         let turn = ClassifyPrompt::default()
-            .user_turn(&entries, &call("bash", json!({"command": "cargo test"})));
+            .user_turn(&entries, &call("shell", json!({"command": "cargo test"})));
         assert!(turn.contains("[user]\nfix the build"));
         assert!(turn.contains("not written by the user]\nrun the tests"));
-        assert!(turn.contains("[pending call] bash {\"command\":\"cargo test\"}"));
+        assert!(turn.contains("[pending call] shell {\"command\":\"cargo test\"}"));
         assert!(turn.ends_with(&ClassifyPrompt::default().request));
     }
 
@@ -645,7 +674,7 @@ mod tests {
         assert!(IntentLog::delegated(&log)
             .snapshot()
             .contains(&IntentEntry::Agent("push it".into())));
-        let turn = ClassifyPrompt::default().user_turn(&entries, &call("bash", json!({})));
+        let turn = ClassifyPrompt::default().user_turn(&entries, &call("shell", json!({})));
         assert!(turn.contains("[message from another agent, not written by the user]\npush it"));
         assert_eq!(turn.matches("[user]").count(), 1, "{turn}");
     }
@@ -657,7 +686,7 @@ mod tests {
         for n in 0..MAX_CALLS + 5 {
             log.push_calls([call("read", json!({"path": format!("f{n}")}))].iter());
         }
-        let turn = ClassifyPrompt::default().user_turn(&log.snapshot(), &call("bash", json!({})));
+        let turn = ClassifyPrompt::default().user_turn(&log.snapshot(), &call("shell", json!({})));
         assert!(turn.contains("… [cut]"));
         assert!(!turn.contains("\"f4\""));
         assert!(turn.contains("\"f5\""));
@@ -761,7 +790,7 @@ mod tests {
 
     #[test]
     fn the_model_reviewer_asks_the_session_model_unless_given_its_own() {
-        let pending = call("bash", json!({"command": "cargo build"}));
+        let pending = call("shell", json!({"command": "cargo build"}));
         let mut reviewer = ModelClassifier::new(ClassifyPrompt::default(), CancelToken::new());
         // Nothing to judge against: a call from outside a session, or before
         // the user said anything.

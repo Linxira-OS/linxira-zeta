@@ -15,7 +15,7 @@ mod navigation;
 mod render;
 mod search;
 
-pub use render::render_markdown;
+pub use render::{render_markdown, render_markdown_with};
 
 use std::any::Any;
 use std::path::{Path, PathBuf};
@@ -126,6 +126,9 @@ impl MarkdownPanel {
                 copy: Vec::new(),
                 links: Vec::new(),
                 anchors: Vec::new(),
+                diagrams: 0,
+                folded_diagrams: 0,
+                wide_diagrams: Vec::new(),
             },
             layout_width: 0,
             top: 0,
@@ -757,6 +760,9 @@ mod tests {
                 copy: Vec::new(),
                 links: Vec::new(),
                 anchors: Vec::new(),
+                diagrams: 0,
+                folded_diagrams: 0,
+                wide_diagrams: Vec::new(),
             },
             layout_width: 0,
             top: 0,

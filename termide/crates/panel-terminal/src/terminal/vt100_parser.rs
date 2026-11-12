@@ -6,13 +6,20 @@
 #![allow(clippy::needless_range_loop)]
 
 use std::io::Write;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant};
 use vte::{Params, Parser, Perform};
+
+use crate::pty_input::ReplySink;
 
 use super::{
     csi_handlers::{handle_cursor_movement, handle_private_sequence, handle_sgr},
     Cell, KeyboardProtocolMode, TerminalScreen, SIDEBAR_APC_PREFIX,
 };
+
+/// Bells closer together than this ring once: a program printing BEL in
+/// a loop (`yes $'\a'`) must not flood the host terminal or the screen lock.
+pub const BELL_INTERVAL: Duration = Duration::from_millis(100);
 
 /// Batched screen operation to reduce mutex contention.
 ///
@@ -35,13 +42,53 @@ pub enum ScreenOp {
 /// Uses batching to reduce lock contention: simple operations (print, execute)
 /// are collected in a buffer and applied with a single lock via `flush()`.
 pub struct VtPerformer {
-    pub writer: Arc<Mutex<Box<dyn Write + Send>>>,
+    /// Where replies to the program's queries go; never blocks.
+    pub replies: ReplySink,
     pub screen: Arc<RwLock<TerminalScreen>>,
     /// Buffer for batching screen operations
     pub pending_ops: Vec<ScreenOp>,
+    /// Mirror of `TerminalScreen::sync_output`, which only this performer
+    /// changes: lets CR/LF/BS/TAB decide without taking a lock.
+    sync_output: bool,
+    /// When a bell was last passed on, for `BELL_INTERVAL`.
+    last_bell: Option<Instant>,
+}
+
+impl ScreenOp {
+    fn apply(self, screen: &mut TerminalScreen) {
+        match self {
+            ScreenOp::PutChar(ch) => screen.put_char(ch),
+            ScreenOp::Newline => screen.newline(),
+            ScreenOp::CarriageReturn => screen.carriage_return(),
+            ScreenOp::Backspace => screen.backspace(),
+            ScreenOp::Tab => screen.tab(),
+        }
+    }
+}
+
+/// Apply batched operations to a screen already locked by the caller.
+fn apply_ops(ops: &mut Vec<ScreenOp>, screen: &mut TerminalScreen) {
+    if ops.is_empty() {
+        return;
+    }
+    for op in ops.drain(..) {
+        op.apply(screen);
+    }
+    screen.dirty = true;
 }
 
 impl VtPerformer {
+    pub fn new(replies: ReplySink, screen: Arc<RwLock<TerminalScreen>>) -> Self {
+        let sync_output = screen.read().map(|s| s.sync_output).unwrap_or(false);
+        Self {
+            replies,
+            screen,
+            pending_ops: Vec::with_capacity(8192),
+            sync_output,
+            last_bell: None,
+        }
+    }
+
     /// Apply all pending operations with a single write lock.
     ///
     /// This significantly reduces lock contention when processing
@@ -51,24 +98,12 @@ impl VtPerformer {
             return;
         }
         if let Ok(mut screen) = self.screen.write() {
-            for op in self.pending_ops.drain(..) {
-                match op {
-                    ScreenOp::PutChar(ch) => screen.put_char(ch),
-                    ScreenOp::Newline => screen.newline(),
-                    ScreenOp::CarriageReturn => screen.carriage_return(),
-                    ScreenOp::Backspace => screen.backspace(),
-                    ScreenOp::Tab => screen.tab(),
-                }
-            }
-            screen.dirty = true;
+            apply_ops(&mut self.pending_ops, &mut screen);
         }
     }
 
     fn write_response(&self, data: &[u8]) {
-        if let Ok(mut writer) = self.writer.lock() {
-            let _ = writer.write_all(data);
-            let _ = writer.flush();
-        }
+        self.replies.reply(data);
     }
 
     /// Apply one completed graphics APC (`ESC _ ... ESC \`).
@@ -128,22 +163,112 @@ impl VtPerformer {
     }
 }
 
-/// Apply batched screen operations to a held screen, the way an inline flush
-/// in a dispatcher does.
-fn apply_ops(pending_ops: &mut Vec<ScreenOp>, screen: &mut TerminalScreen) {
-    if pending_ops.is_empty() {
+/// Longest OSC string the parser buffers. vte keeps an OSC payload in an
+/// unbounded `Vec` until its terminator, so an unterminated one (binary
+/// output, a truncated stream) would grow memory without limit. The OSCs
+/// the panel acts on (7, 9;9) are short; longer ones are dropped whole.
+pub const MAX_OSC_LEN: usize = 64 * 1024;
+
+/// Where the byte stream stands relative to an OSC string.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum OscState {
+    #[default]
+    Other,
+    /// Just after an ESC: a `]` here starts an OSC.
+    Escape,
+    /// Inside an OSC, with this many payload bytes so far.
+    Osc(usize),
+    /// Past an OSC that ran over `MAX_OSC_LEN`: bytes are swallowed up to
+    /// its terminator.
+    Discarding,
+}
+
+/// The vte parser with a cap on OSC length; feed it the PTY output.
+#[derive(Default)]
+pub struct VtParser {
+    parser: Parser,
+    osc: OscState,
+}
+
+impl VtParser {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn advance(&mut self, performer: &mut VtPerformer, byte: u8) {
+        // BEL, CAN, SUB and ESC end an OSC string in vte (ESC as the start
+        // of ST or of the next sequence).
+        let ends_osc = matches!(byte, 0x07 | 0x18 | 0x1A | 0x1B);
+        self.osc = match self.osc {
+            OscState::Discarding if ends_osc => {
+                if byte != 0x1B {
+                    // The terminator of a dropped OSC: no bell, no output.
+                    self.osc = OscState::Other;
+                    return;
+                }
+                OscState::Escape
+            }
+            OscState::Discarding => return,
+            OscState::Osc(_) | OscState::Other if byte == 0x1B => OscState::Escape,
+            OscState::Osc(_) if ends_osc => OscState::Other,
+            OscState::Osc(len) if len >= MAX_OSC_LEN => {
+                // Forget the buffered payload and swallow the rest.
+                self.parser = Parser::new();
+                self.osc = OscState::Discarding;
+                return;
+            }
+            OscState::Osc(len) => OscState::Osc(len + 1),
+            OscState::Escape if byte == b']' => OscState::Osc(0),
+            OscState::Escape if byte == 0x1B => OscState::Escape,
+            OscState::Escape | OscState::Other => OscState::Other,
+        };
+        self.parser.advance(performer, byte);
+    }
+}
+
+/// The repeat count of an edit or scroll sequence: its first parameter,
+/// where an omitted parameter (which vte reports as 0) and an explicit 0
+/// both mean 1.
+fn count_param(params: &Params) -> usize {
+    params
+        .iter()
+        .next()
+        .and_then(|p| p.first())
+        .copied()
+        .unwrap_or(0)
+        .max(1) as usize
+}
+
+/// Shift `lines[row..=bottom]` by `n` (clamped to the span): down for
+/// IL (`insert`), blanks at `row` and the lines pushed past `bottom` lost;
+/// up for DL, blanks at `bottom`. Lines below `bottom` never move.
+fn shift_lines<T>(
+    lines: &mut std::collections::VecDeque<T>,
+    row: usize,
+    bottom: usize,
+    n: usize,
+    insert: bool,
+    blank: impl Fn() -> T,
+) {
+    let Some(last) = lines.len().checked_sub(1) else {
+        return;
+    };
+    let bottom = bottom.min(last);
+    if row > bottom {
         return;
     }
-    for op in pending_ops.drain(..) {
-        match op {
-            ScreenOp::PutChar(ch) => screen.put_char(ch),
-            ScreenOp::Newline => screen.newline(),
-            ScreenOp::CarriageReturn => screen.carriage_return(),
-            ScreenOp::Backspace => screen.backspace(),
-            ScreenOp::Tab => screen.tab(),
-        }
+    let span = &mut lines.make_contiguous()[row..=bottom];
+    let n = n.min(span.len());
+    let blanks = if insert {
+        span.rotate_right(n);
+        0..n
+    } else {
+        span.rotate_left(n);
+        span.len() - n..span.len()
+    };
+    for line in &mut span[blanks] {
+        *line = blank();
     }
-    screen.dirty = true;
 }
 
 /// One PTY byte stream: the VT parser, the graphics APC scanner, and the
@@ -152,21 +277,27 @@ fn apply_ops(pending_ops: &mut Vec<ScreenOp>, screen: &mut TerminalScreen) {
 /// The reader thread owns one of these for the life of the child; exposing it
 /// also lets a host (or a test) feed child output without a PTY.
 pub struct StreamParser {
-    parser: Parser,
+    parser: VtParser,
     apc: crate::kitty::ApcScanner,
     performer: VtPerformer,
 }
 
 impl StreamParser {
-    pub fn new(writer: crate::SharedWriter, screen: Arc<RwLock<TerminalScreen>>) -> Self {
+    /// A parser whose replies are written straight to `writer` (the Zeta GUI's
+    /// serve backend and its image tests own the writer already).
+    pub fn new(
+        writer: Arc<std::sync::Mutex<Box<dyn std::io::Write + Send>>>,
+        screen: Arc<RwLock<TerminalScreen>>,
+    ) -> Self {
+        Self::new_with_replies(ReplySink::from_writer(writer), screen)
+    }
+
+    /// A parser whose replies go through the panel's non-blocking queue.
+    pub fn new_with_replies(replies: ReplySink, screen: Arc<RwLock<TerminalScreen>>) -> Self {
         Self {
-            parser: Parser::new(),
+            parser: VtParser::new(),
             apc: crate::kitty::ApcScanner::new(),
-            performer: VtPerformer {
-                writer,
-                screen,
-                pending_ops: Vec::with_capacity(8192),
-            },
+            performer: VtPerformer::new(replies, screen),
         }
     }
 
@@ -212,42 +343,38 @@ impl Perform for VtPerformer {
     fn execute(&mut self, byte: u8) {
         match byte {
             b'\n' | b'\r' | b'\x08' | b'\t' => {
-                // Check if we're in sync_output mode
-                // If not, apply immediately to prevent race condition with render
-                let sync_output = self.screen.read().map(|s| s.sync_output).unwrap_or(false);
-
-                if sync_output {
+                let op = match byte {
+                    b'\n' => ScreenOp::Newline,
+                    b'\r' => ScreenOp::CarriageReturn,
+                    b'\x08' => ScreenOp::Backspace,
+                    _ => ScreenOp::Tab,
+                };
+                if self.sync_output {
                     // During sync output, batch operations for efficiency
-                    match byte {
-                        b'\n' => self.pending_ops.push(ScreenOp::Newline),
-                        b'\r' => self.pending_ops.push(ScreenOp::CarriageReturn),
-                        b'\x08' => self.pending_ops.push(ScreenOp::Backspace),
-                        b'\t' => self.pending_ops.push(ScreenOp::Tab),
-                        _ => {}
-                    }
-                } else {
-                    // Outside sync output, apply immediately to keep cursor position accurate
-                    // First flush any pending ops
-                    self.flush();
-                    // Then apply this operation
-                    // NOTE: Don't set dirty=true here! CR/LF/BS/TAB are cursor movement,
-                    // not content changes. Setting dirty here causes render to show
-                    // intermediate states between sync blocks (duplicate prompts bug).
-                    if let Ok(mut screen) = self.screen.write() {
-                        match byte {
-                            b'\n' => screen.newline(),
-                            b'\r' => screen.carriage_return(),
-                            b'\x08' => screen.backspace(),
-                            b'\t' => screen.tab(),
-                            _ => {}
-                        }
-                        // dirty is NOT set - cursor position change without content change
-                    }
+                    self.pending_ops.push(op);
+                } else if let Ok(mut screen) = self.screen.write() {
+                    // Outside sync output, apply immediately (after what is
+                    // pending) to keep the cursor position accurate, under
+                    // one lock.
+                    // NOTE: the op itself does not set dirty: CR/LF/BS/TAB are
+                    // cursor movement, not content changes. Setting dirty here
+                    // causes render to show intermediate states between sync
+                    // blocks (duplicate prompts bug).
+                    apply_ops(&mut self.pending_ops, &mut screen);
+                    op.apply(&mut screen);
                 }
             }
             b'\x07' => {
                 // Bell character - forward to parent terminal, and note it
                 // so the panel asks for attention until it is shown focused.
+                let now = Instant::now();
+                if self
+                    .last_bell
+                    .is_some_and(|last| now.saturating_duration_since(last) < BELL_INTERVAL)
+                {
+                    return;
+                }
+                self.last_bell = Some(now);
                 print!("\x07");
                 let _ = std::io::stdout().flush();
                 if let Ok(mut screen) = self.screen.write() {
@@ -263,18 +390,7 @@ impl Perform for VtPerformer {
         // This eliminates double lock acquisition that occurred on every CSI sequence
         if let Ok(mut screen) = self.screen.write() {
             // Inline flush: apply pending operations with the same lock
-            if !self.pending_ops.is_empty() {
-                for op in self.pending_ops.drain(..) {
-                    match op {
-                        ScreenOp::PutChar(ch) => screen.put_char(ch),
-                        ScreenOp::Newline => screen.newline(),
-                        ScreenOp::CarriageReturn => screen.carriage_return(),
-                        ScreenOp::Backspace => screen.backspace(),
-                        ScreenOp::Tab => screen.tab(),
-                    }
-                }
-                screen.dirty = true;
-            }
+            apply_ops(&mut self.pending_ops, &mut screen);
 
             // Handle private sequences (start with '?')
             if !intermediates.is_empty() && intermediates[0] == b'?' {
@@ -289,6 +405,7 @@ impl Perform for VtPerformer {
                     return;
                 }
                 handle_private_sequence(&mut screen, params, c);
+                self.sync_output = screen.sync_output;
                 return;
             }
 
@@ -485,40 +602,26 @@ impl Perform for VtPerformer {
                 }
                 'P' => {
                     // DCH - Delete Character
-                    let n = params
-                        .iter()
-                        .next()
-                        .and_then(|p| p.first())
-                        .copied()
-                        .unwrap_or(1) as usize;
+                    let n = count_param(params);
                     let (row, col) = screen.cursor;
-                    let cols = screen.cols;
                     let style = screen.current_style;
+                    let cols = screen.active_buffer().get(row).map_or(0, Vec::len);
 
-                    if row < screen.active_buffer().len() {
-                        let n = n.min(cols.saturating_sub(col));
+                    if col < cols {
+                        let n = n.min(cols - col);
                         // Cutting through a wide character removes both halves.
                         screen.split_wide_at(row, col, style);
                         screen.split_wide_at(row, col + n, style);
-                        let buffer = screen.active_buffer_mut();
-                        // Shift characters left from deleted position using copy_within (3-5x faster)
-                        if col + n < cols {
-                            buffer[row].copy_within(col + n..cols, col);
-                        }
-                        // Fill freed space with blanks
-                        buffer[row][cols - n..cols].fill(Cell::blank(style));
+                        let line = &mut screen.active_buffer_mut()[row];
+                        line.copy_within(col + n..cols, col);
+                        line[cols - n..].fill(Cell::blank(style));
                     }
                     // Force cache invalidation after character deletion
                     screen.force_cache_invalidation = true;
                 }
                 'X' => {
                     // ECH - Erase Character
-                    let n = params
-                        .iter()
-                        .next()
-                        .and_then(|p| p.first())
-                        .copied()
-                        .unwrap_or(1) as usize;
+                    let n = count_param(params);
                     let (row, col) = screen.cursor;
                     let style = screen.current_style;
                     screen.blank_cells(row, col, col.saturating_add(n), style);
@@ -527,149 +630,54 @@ impl Perform for VtPerformer {
                 }
                 '@' => {
                     // ICH - Insert Character (shift characters right)
-                    let n = params
-                        .iter()
-                        .next()
-                        .and_then(|p| p.first())
-                        .copied()
-                        .unwrap_or(1) as usize;
+                    let n = count_param(params);
                     let (row, col) = screen.cursor;
-                    let cols = screen.cols;
                     let style = screen.current_style;
+                    let cols = screen.active_buffer().get(row).map_or(0, Vec::len);
 
-                    if row < screen.active_buffer().len() {
-                        let n = n.min(cols.saturating_sub(col));
+                    if col < cols {
+                        let n = n.min(cols - col);
                         // Inserting inside a wide character erases it, and a wide
                         // character pushed past the right edge goes entirely.
                         screen.split_wide_at(row, col, style);
                         screen.split_wide_at(row, cols - n, style);
-                        let buffer = screen.active_buffer_mut();
-                        // Shift characters right using copy_within (3-5x faster)
-                        if col + n < cols {
-                            buffer[row].copy_within(col..cols - n, col + n);
-                        }
-                        // Insert blanks at freed positions
-                        buffer[row][col..col + n].fill(Cell::blank(style));
+                        let line = &mut screen.active_buffer_mut()[row];
+                        line.copy_within(col..cols - n, col + n);
+                        line[col..col + n].fill(Cell::blank(style));
                     }
                     // Force cache invalidation after character insertion
                     screen.force_cache_invalidation = true;
                 }
-                'L' => {
-                    // IL - Insert Lines (insert blank lines within scroll region)
-                    let n = params
-                        .iter()
-                        .next()
-                        .and_then(|p| p.first())
-                        .copied()
-                        .unwrap_or(1) as usize;
+                'L' | 'M' => {
+                    // IL / DL - Insert / Delete Lines. Per ECMA-48 and xterm
+                    // they act only with the cursor inside the scroll region,
+                    // move the lines from the cursor down to the bottom
+                    // margin (no further) and put the cursor in column 0.
+                    let n = count_param(params);
                     let row = screen.cursor.0;
-                    let cols = screen.cols;
-                    let bottom = screen.scroll_bottom;
-                    let empty_cell = Cell::blank(screen.current_style);
-
-                    // Only operate if cursor is within scroll region
-                    if row <= bottom {
-                        let effective_n = n.min(bottom - row + 1);
-                        let buffer = screen.active_buffer_mut();
-
-                        // Delete n lines from scroll_bottom
-                        for _ in 0..effective_n {
-                            if bottom < buffer.len() {
-                                buffer.remove(bottom);
-                            }
-                        }
-                        // Insert n blank lines at cursor position
-                        for _ in 0..effective_n {
-                            if row == 0 {
-                                buffer.push_front(vec![empty_cell; cols]);
-                            } else {
-                                buffer.insert(row, vec![empty_cell; cols]);
-                            }
-                        }
-
-                        // Mirror on wrapped flags
-                        let wrapped = screen.active_wrapped_mut();
-                        for _ in 0..effective_n {
-                            if bottom < wrapped.len() {
-                                wrapped.remove(bottom);
-                            }
-                        }
-                        for _ in 0..effective_n {
-                            if row == 0 {
-                                wrapped.push_front(false);
-                            } else {
-                                wrapped.insert(row, false);
-                            }
-                        }
+                    let (top, bottom) = (screen.scroll_top, screen.scroll_bottom);
+                    if row < top || row > bottom {
+                        return;
                     }
-                    // Ensure buffer size invariant after IL operation
-                    screen.ensure_buffer_size();
-                    // Force cache invalidation after line insertion
-                    screen.force_cache_invalidation = true;
-                }
-                'M' => {
-                    // DL - Delete Lines (delete lines within scroll region)
-                    let n = params
-                        .iter()
-                        .next()
-                        .and_then(|p| p.first())
-                        .copied()
-                        .unwrap_or(1) as usize;
-                    let row = screen.cursor.0;
+                    let blank = Cell::blank(screen.current_style);
                     let cols = screen.cols;
-                    let bottom = screen.scroll_bottom;
-                    let empty_cell = Cell::blank(screen.current_style);
-
-                    // Only operate if cursor is within scroll region
-                    if row <= bottom {
-                        let effective_n = n.min(bottom - row + 1);
-                        let buffer = screen.active_buffer_mut();
-
-                        // Delete n lines at cursor position
-                        for _ in 0..effective_n {
-                            if row < buffer.len() {
-                                if row == 0 {
-                                    buffer.pop_front();
-                                } else {
-                                    buffer.remove(row);
-                                }
-                            }
-                        }
-                        // Insert n blank lines at scroll_bottom
-                        for _ in 0..effective_n {
-                            let insert_pos = bottom.min(buffer.len());
-                            buffer.insert(insert_pos, vec![empty_cell; cols]);
-                        }
-
-                        // Mirror on wrapped flags
-                        let wrapped = screen.active_wrapped_mut();
-                        for _ in 0..effective_n {
-                            if row < wrapped.len() {
-                                if row == 0 {
-                                    wrapped.pop_front();
-                                } else {
-                                    wrapped.remove(row);
-                                }
-                            }
-                        }
-                        for _ in 0..effective_n {
-                            let insert_pos = bottom.min(wrapped.len());
-                            wrapped.insert(insert_pos, false);
-                        }
-                    }
-                    // Ensure buffer size invariant after DL operation
+                    let insert = c == 'L';
+                    shift_lines(screen.active_buffer_mut(), row, bottom, n, insert, || {
+                        vec![blank; cols]
+                    });
+                    shift_lines(screen.active_wrapped_mut(), row, bottom, n, insert, || {
+                        false
+                    });
+                    screen.cursor.1 = 0;
+                    screen.wrap_pending = false;
+                    // Ensure buffer size invariant after the operation
                     screen.ensure_buffer_size();
-                    // Force cache invalidation after line deletion
+                    // Force cache invalidation after line insertion/deletion
                     screen.force_cache_invalidation = true;
                 }
                 'S' => {
                     // SU - Scroll Up (scroll within region)
-                    let n = params
-                        .iter()
-                        .next()
-                        .and_then(|p| p.first())
-                        .copied()
-                        .unwrap_or(1) as usize;
+                    let n = count_param(params);
                     let cols = screen.cols;
                     let top = screen.scroll_top;
                     let bottom = screen.scroll_bottom;
@@ -720,12 +728,7 @@ impl Perform for VtPerformer {
                 }
                 'T' => {
                     // SD - Scroll Down (scroll within region)
-                    let n = params
-                        .iter()
-                        .next()
-                        .and_then(|p| p.first())
-                        .copied()
-                        .unwrap_or(1) as usize;
+                    let n = count_param(params);
                     let cols = screen.cols;
                     let rows = screen.rows;
                     let top = screen.scroll_top;
@@ -889,10 +892,26 @@ impl Perform for VtPerformer {
         }
     }
 
-    fn esc_dispatch(&mut self, _intermediates: &[u8], _ignore: bool, byte: u8) {
+    fn esc_dispatch(&mut self, intermediates: &[u8], _ignore: bool, byte: u8) {
         self.flush();
+        // `ESC # 8`, `ESC ( B` and the like are other functions entirely.
+        if !intermediates.is_empty() {
+            return;
+        }
         if let Ok(mut screen) = self.screen.write() {
             match byte {
+                // DECSC / DECRC - save and restore the cursor. A client that
+                // places a kitty image above the line it writes (`ESC 7` +
+                // CUU, APC, `ESC 8`) relies on the restore: without it the
+                // cursor stays on the image's row and the following text
+                // overwrites it.
+                b'7' => screen.save_cursor(),
+                b'8' => screen.restore_cursor(),
+                // RIS - full reset
+                b'c' => {
+                    screen.reset();
+                    self.sync_output = false;
+                }
                 b'D' => {
                     // IND - Index: move down, scroll at bottom margin
                     if screen.cursor.0 >= screen.scroll_bottom {
@@ -909,12 +928,6 @@ impl Perform for VtPerformer {
                         screen.cursor.0 -= 1;
                     }
                 }
-                // DECSC / DECRC. A client that places a kitty image above the
-                // line it writes (`ESC 7` + CUU, APC, `ESC 8`) relies on the
-                // restore: without it the cursor stays on the image's row and
-                // the following text overwrites it.
-                b'7' => screen.save_cursor(),
-                b'8' => screen.restore_cursor(),
                 _ => {}
             }
             screen.dirty = true;
@@ -925,43 +938,20 @@ impl Perform for VtPerformer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Result as IoResult;
-    use vte::Parser;
+    use crate::pty_input::PtyInput;
 
-    struct SharedCapture(Arc<Mutex<Vec<u8>>>);
+    type PerformerHarness = (VtPerformer, PtyInput, Arc<RwLock<TerminalScreen>>);
 
-    impl Write for SharedCapture {
-        fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
-            self.0.lock().unwrap().extend_from_slice(buf);
-            Ok(buf.len())
-        }
-
-        fn flush(&mut self) -> IoResult<()> {
-            Ok(())
-        }
-    }
-
-    type PerformerHarness = (
-        VtPerformer,
-        Arc<Mutex<Vec<u8>>>,
-        Arc<RwLock<TerminalScreen>>,
-    );
-
+    /// A performer whose replies stay queued in the returned input.
     fn performer() -> PerformerHarness {
-        let capture = Arc::new(Mutex::new(Vec::new()));
+        let input = PtyInput::unspawned();
         let screen = Arc::new(RwLock::new(TerminalScreen::new(24, 80)));
-        let performer = VtPerformer {
-            writer: Arc::new(Mutex::new(
-                Box::new(SharedCapture(Arc::clone(&capture))) as Box<dyn Write + Send>
-            )),
-            screen: Arc::clone(&screen),
-            pending_ops: Vec::new(),
-        };
-        (performer, capture, screen)
+        let performer = VtPerformer::new(input.replies(), Arc::clone(&screen));
+        (performer, input, screen)
     }
 
     fn feed(performer: &mut VtPerformer, bytes: &[u8]) {
-        let mut parser = Parser::new();
+        let mut parser = VtParser::new();
         for byte in bytes {
             parser.advance(performer, *byte);
         }
@@ -1061,6 +1051,45 @@ mod tests {
     }
 
     #[test]
+    fn bells_in_quick_succession_ring_once() {
+        let (mut performer, _capture, screen) = performer();
+        feed(&mut performer, b"\x07");
+        assert!(screen.read().unwrap().bell);
+        screen.write().unwrap().bell = false;
+
+        feed(&mut performer, b"\x07\r\n\x07");
+        assert!(
+            !screen.read().unwrap().bell,
+            "a bell within the interval rang"
+        );
+
+        performer.last_bell = Instant::now().checked_sub(BELL_INTERVAL);
+        feed(&mut performer, b"\x07");
+        assert!(screen.read().unwrap().bell);
+    }
+
+    #[test]
+    fn line_controls_are_batched_only_inside_a_synchronized_update() {
+        let (mut performer, _capture, screen) = performer();
+        feed(&mut performer, b"ab\r\n");
+        assert!(performer.pending_ops.is_empty());
+        assert_eq!(screen.read().unwrap().cursor, (1, 0));
+
+        feed(&mut performer, b"\x1b[?2026hcd\r\n");
+        assert_eq!(screen.read().unwrap().cursor, (1, 0), "applied mid-update");
+        feed(&mut performer, b"\x1b[?2026l");
+        assert_eq!(screen.read().unwrap().cursor, (2, 0));
+        assert_eq!(row_text(&screen, 1), "cd");
+
+        feed(&mut performer, b"\x1b[?2026h\x1bc\r\n");
+        assert_eq!(
+            screen.read().unwrap().cursor,
+            (1, 0),
+            "reset left batching on"
+        );
+    }
+
+    #[test]
     fn osc_cwd_reports_are_recorded_and_print_nothing() {
         let (mut performer, _capture, screen) = performer();
         feed(&mut performer, b"\x1b]9;9;\"D:\\work\"\x1b\\$ ");
@@ -1079,10 +1108,47 @@ mod tests {
     }
 
     #[test]
+    fn an_osc_longer_than_the_cap_is_dropped_whole() {
+        let (mut performer, _capture, screen) = performer();
+        let mut parser = VtParser::new();
+        let mut input = b"\x1b]0;".to_vec();
+        input.resize(input.len() + 3 * MAX_OSC_LEN, b'x');
+        for byte in input {
+            parser.advance(&mut performer, byte);
+        }
+        // vte's buffer was dropped at the cap instead of growing on.
+        assert_eq!(parser.osc, OscState::Discarding);
+        for &byte in b"\x07after\x1b]7;file:///tmp/y\x1b\\!" {
+            parser.advance(&mut performer, byte);
+        }
+        performer.flush();
+        let s = screen.read().unwrap();
+        assert!(!s.bell, "the terminator of a dropped OSC rang the bell");
+        assert_eq!(s.reported_cwd, Some(std::path::PathBuf::from("/tmp/y")));
+        drop(s);
+        assert_eq!(row_text(&screen, 0), "after!");
+    }
+
+    #[test]
+    fn a_dropped_osc_ended_by_esc_lets_the_next_sequence_through() {
+        let (mut performer, _capture, screen) = performer();
+        let mut parser = VtParser::new();
+        let mut input = b"\x1b]2;".to_vec();
+        input.resize(input.len() + MAX_OSC_LEN + 10, b'x');
+        input.extend_from_slice(b"\x1b[2;3Hz");
+        for byte in input {
+            parser.advance(&mut performer, byte);
+        }
+        performer.flush();
+        assert_eq!(row_text(&screen, 0), "");
+        assert_eq!(row_text(&screen, 1), "  z");
+    }
+
+    #[test]
     fn keyboard_query_reply_is_emitted() {
         let (mut performer, capture, _screen) = performer();
         feed(&mut performer, b"\x1b[?u");
-        assert_eq!(&*capture.lock().unwrap(), b"\x1b[?0u");
+        assert_eq!(capture.take_queued(), b"\x1b[?0u");
     }
 
     #[test]
@@ -1105,6 +1171,174 @@ mod tests {
         );
     }
 
+    /// A cursor saved on a large screen, restored after the panel shrank,
+    /// used to land outside the grid; the next insert sliced past the row
+    /// and panicked the reader thread.
+    #[test]
+    fn cursor_saved_before_a_shrink_is_restored_inside_the_grid() {
+        let cases: [(&[u8], &[u8]); 2] = [
+            (b"\x1b[20;70H\x1b[s", b"\x1b[u"),
+            (b"\x1b[20;70H\x1b[?1049h", b"\x1b[?1049l"),
+        ];
+        for (save, restore) in cases {
+            let (mut performer, _capture, screen) = performer();
+            feed(&mut performer, save);
+            screen.write().unwrap().resize(5, 10);
+            feed(&mut performer, restore);
+            assert_eq!(screen.read().unwrap().cursor, (4, 9));
+            feed(&mut performer, b"\x1b[3@\x1b[3P\x1b[3X\x1b[2L\x1b[2Mx");
+            performer.flush();
+            // IL/DL leave the cursor in column 0.
+            assert_eq!(row_text(&screen, 4), "x");
+        }
+
+        // A saved position outside the grid is clamped on restore as well.
+        let (mut performer, _capture, screen) = performer();
+        screen.write().unwrap().saved_cursor = Some((99, 999));
+        feed(&mut performer, b"\x1b[u\x1b[@");
+        assert_eq!(screen.read().unwrap().cursor, (23, 79));
+    }
+
+    /// terminfo's dch1/il1/dl1 for xterm-256color are the parameterless
+    /// `CSI P`, `CSI L` and `CSI M`; vte reports the omitted parameter as 0.
+    #[test]
+    fn edit_and_scroll_sequences_without_a_count_act_once() {
+        let (mut performer, _capture, screen) = performer();
+        feed(&mut performer, b"abcd\x1b[1G\x1b[P");
+        assert_eq!(row_text(&screen, 0), "bcd");
+        feed(&mut performer, b"\x1b[0@");
+        assert_eq!(row_text(&screen, 0), " bcd");
+        feed(&mut performer, b"\x1b[2G\x1b[X");
+        assert_eq!(row_text(&screen, 0), "  cd");
+
+        feed(&mut performer, b"\x1b[H\x1b[2J1\r\n2\r\n3\x1b[1;1H\x1b[L");
+        assert_eq!(row_text(&screen, 0), "");
+        assert_eq!(row_text(&screen, 1), "1");
+        feed(&mut performer, b"\x1b[M");
+        assert_eq!(row_text(&screen, 0), "1");
+        feed(&mut performer, b"\x1b[S");
+        assert_eq!(row_text(&screen, 0), "2");
+        feed(&mut performer, b"\x1b[T");
+        assert_eq!(row_text(&screen, 0), "");
+        assert_eq!(row_text(&screen, 1), "2");
+    }
+
+    /// IL and DL (`CSI L` / `CSI M`) do nothing with the cursor outside
+    /// the scroll region; inside it they move only the lines from the
+    /// cursor down to the bottom margin, and put the cursor in column 0
+    /// (ECMA-48, xterm).
+    #[test]
+    fn insert_and_delete_lines_keep_to_the_scroll_region() {
+        let (mut performer, _capture, screen) = performer();
+        let rows = |screen: &Arc<RwLock<TerminalScreen>>| -> Vec<String> {
+            (0..8).map(|row| row_text(screen, row)).collect()
+        };
+        let fill = |performer: &mut VtPerformer| {
+            feed(
+                performer,
+                b"\x1b[r\x1b[H\x1b[2J0\r\n1\r\n2\r\n3\r\n4\r\n5\r\n6\r\n7",
+            );
+            // Region rows 2..=5 (0-based); DECSTBM homes the cursor.
+            feed(performer, b"\x1b[3;6r");
+        };
+        let untouched = ["0", "1", "2", "3", "4", "5", "6", "7"];
+
+        // Above and below the region: nothing moves, the cursor stays put.
+        for (at, op) in [(b"\x1b[1;5H", b"\x1b[L"), (b"\x1b[8;5H", b"\x1b[M")] {
+            fill(&mut performer);
+            feed(&mut performer, at);
+            feed(&mut performer, op);
+            assert_eq!(rows(&screen), untouched, "{op:?}");
+            let cursor = screen.read().unwrap().cursor;
+            assert_eq!(cursor.1, 4, "{op:?} moved the cursor");
+        }
+        fill(&mut performer);
+        feed(&mut performer, b"\x1b[1;5H\x1b[M\x1b[8;5H\x1b[L");
+        assert_eq!(rows(&screen), untouched);
+
+        // IL inside: blanks at the cursor, lines pushed past the bottom
+        // margin are lost, the line below the region stays.
+        fill(&mut performer);
+        feed(&mut performer, b"\x1b[4;6H\x1b[2L");
+        assert_eq!(rows(&screen), ["0", "1", "2", "", "", "3", "6", "7"]);
+        assert_eq!(screen.read().unwrap().cursor, (3, 0));
+
+        // DL inside: the region closes up over the cursor, blanks come in
+        // at the bottom margin, the line below the region does not.
+        fill(&mut performer);
+        feed(&mut performer, b"\x1b[3;4H\x1b[3M");
+        assert_eq!(rows(&screen), ["0", "1", "5", "", "", "", "6", "7"]);
+        assert_eq!(screen.read().unwrap().cursor, (2, 0));
+
+        // A count beyond the region clears it to the bottom margin.
+        fill(&mut performer);
+        feed(&mut performer, b"\x1b[4;1H\x1b[99L");
+        assert_eq!(rows(&screen), ["0", "1", "2", "", "", "", "6", "7"]);
+        fill(&mut performer);
+        feed(&mut performer, b"\x1b[4;1H\x1b[99M");
+        assert_eq!(rows(&screen), ["0", "1", "2", "", "", "", "6", "7"]);
+    }
+
+    #[test]
+    fn esc_7_and_esc_8_save_and_restore_cursor_and_style() {
+        let (mut performer, _capture, screen) = performer();
+        feed(
+            &mut performer,
+            b"\x1b[3;5H\x1b[1m\x1b7\x1b[m\x1b[10;10Hx\x1b8y",
+        );
+        performer.flush();
+        let s = screen.read().unwrap();
+        assert_eq!(s.cursor, (2, 5));
+        assert!(s.active_buffer()[2][4].style.bold, "style was not restored");
+        assert_eq!(s.active_buffer()[2][4].ch, 'y');
+        drop(s);
+
+        // `ESC # 8` (DECALN) shares the final byte but is not DECRC.
+        feed(&mut performer, b"\x1b[1;1H\x1b#8");
+        assert_eq!(screen.read().unwrap().cursor, (0, 0));
+    }
+
+    #[test]
+    fn esc_c_resets_the_screen_but_keeps_scrollback() {
+        let (mut performer, _capture, screen) = performer();
+        for _ in 0..30 {
+            feed(&mut performer, b"line\r\n");
+        }
+        feed(
+            &mut performer,
+            b"\x1b[1;31m\x1b[5;10r\x1b[?25l\x1b[?1h\x1b[?2004htext",
+        );
+        performer.flush();
+        let scrollback = screen.read().unwrap().scrollback.len();
+        assert!(scrollback > 0);
+
+        feed(&mut performer, b"\x1bc");
+        let s = screen.read().unwrap();
+        assert_eq!(s.cursor, (0, 0));
+        assert!(s.active_buffer().iter().flatten().all(|c| c.ch == ' '));
+        assert_eq!((s.scroll_top, s.scroll_bottom), (0, 23));
+        assert!(s.cursor_visible && !s.application_cursor_keys && !s.bracketed_paste_mode);
+        assert!(!s.current_style.bold);
+        assert_eq!(s.scrollback.len(), scrollback);
+    }
+
+    #[test]
+    fn resize_to_zero_is_floored_and_cursor_motion_stays_safe() {
+        let (mut performer, _capture, screen) = performer();
+        screen.write().unwrap().resize(0, 0);
+        {
+            let s = screen.read().unwrap();
+            assert_eq!((s.rows, s.cols), (1, 1));
+        }
+        feed(
+            &mut performer,
+            b"\x1b[5B\x1b[5C\x1b[9E\x1b[9G\x1b[9d\x1b[@\x1b[Px",
+        );
+        performer.flush();
+        assert_eq!(screen.read().unwrap().cursor, (0, 0));
+        assert_eq!(row_text(&screen, 0), "x");
+    }
+
     #[test]
     fn da_and_dsr_replies_use_current_screen_state() {
         let (mut performer, capture, screen) = performer();
@@ -1113,7 +1347,7 @@ mod tests {
         feed(&mut performer, b"\x1b[c");
         feed(&mut performer, b"\x1b[6n");
 
-        assert_eq!(&*capture.lock().unwrap(), b"\x1b[?1;2c\x1b[2;3R");
+        assert_eq!(&*capture.take_queued(), b"\x1b[?1;2c\x1b[2;3R");
     }
 
     #[test]
@@ -1129,7 +1363,7 @@ mod tests {
         // 80 cols × 12 px = 960, 24 rows × 24 px = 576; the text area is 24×80
         // cells; XTVERSION names the terminal the client is really talking to.
         assert_eq!(
-            &*capture.lock().unwrap(),
+            &*capture.take_queued(),
             concat!(
                 "\x1b[6;24;12t",
                 "\x1b[4;576;960t",
@@ -1150,22 +1384,19 @@ mod tests {
         assert_eq!(screen.read().unwrap().cell_px, (0, 0));
 
         feed(&mut performer, b"\x1b[16t\x1b[14t");
-        assert!(capture.lock().unwrap().is_empty());
+        assert!(capture.take_queued().is_empty());
 
         screen.write().unwrap().cell_px = (9, 18);
         feed(&mut performer, b"\x1b[16t");
-        assert_eq!(&*capture.lock().unwrap(), b"\x1b[6;18;9t");
+        assert_eq!(&*capture.take_queued(), b"\x1b[6;18;9t");
     }
 
     #[test]
     fn a_kitty_apc_is_cut_out_of_the_stream_and_placed_at_the_cursor() {
-        let capture = Arc::new(Mutex::new(Vec::new()));
+        let capture = PtyInput::unspawned();
         let screen = Arc::new(RwLock::new(TerminalScreen::new(10, 20)));
         screen.write().unwrap().cell_px = (12, 24);
-        let writer = Arc::new(Mutex::new(
-            Box::new(SharedCapture(Arc::clone(&capture))) as Box<dyn Write + Send>
-        ));
-        let mut stream = StreamParser::new(writer, Arc::clone(&screen));
+        let mut stream = StreamParser::new_with_replies(capture.replies(), Arc::clone(&screen));
 
         // 1×1 red RGBA at row 2, column 3 (1-based CSI), 3×2 cells, then text.
         stream.feed(b"\x1b[2;3H");
@@ -1193,17 +1424,14 @@ mod tests {
         // The payload is never printed, and the cursor never moved: `X` lands
         // in the placement's own cell.
         assert_eq!(row_text(&screen, 1), "  X");
-        assert_eq!(&*capture.lock().unwrap(), b"\x1b_Gi=42;OK\x1b\\");
+        assert_eq!(&*capture.take_queued(), b"\x1b_Gi=42;OK\x1b\\");
     }
 
     #[test]
     fn a_sidebar_snapshot_apc_is_captured_and_never_drawn() {
-        let capture = Arc::new(Mutex::new(Vec::new()));
+        let capture = PtyInput::unspawned();
         let screen = Arc::new(RwLock::new(TerminalScreen::new(10, 20)));
-        let writer = Arc::new(Mutex::new(
-            Box::new(SharedCapture(Arc::clone(&capture))) as Box<dyn Write + Send>
-        ));
-        let mut stream = StreamParser::new(writer, Arc::clone(&screen));
+        let mut stream = StreamParser::new_with_replies(capture.replies(), Arc::clone(&screen));
 
         stream.feed(b"A");
         stream.feed(b"\x1b_zeta;sidebar;eyJ2IjoxfQ==\x1b\\");
@@ -1225,18 +1453,15 @@ mod tests {
         // A sideband, not output: the grid keeps only the printed text, no
         // graphics reply is written back, and no image is placed.
         assert_eq!(row_text(&screen, 0), "AB");
-        assert!(capture.lock().unwrap().is_empty());
+        assert!(capture.take_queued().is_empty());
         assert!(screen.read().unwrap().graphics.placements().is_empty());
     }
 
     #[test]
     fn an_empty_sidebar_body_replaces_the_previous_snapshot() {
-        let capture = Arc::new(Mutex::new(Vec::new()));
+        let capture = PtyInput::unspawned();
         let screen = Arc::new(RwLock::new(TerminalScreen::new(4, 10)));
-        let writer = Arc::new(Mutex::new(
-            Box::new(SharedCapture(Arc::clone(&capture))) as Box<dyn Write + Send>
-        ));
-        let mut stream = StreamParser::new(writer, Arc::clone(&screen));
+        let mut stream = StreamParser::new_with_replies(capture.replies(), Arc::clone(&screen));
 
         stream.feed(b"\x1b_zeta;sidebar;b25l\x1b\\");
         // The TUI's clear frame: the host drops the column.
@@ -1250,13 +1475,10 @@ mod tests {
 
     #[test]
     fn a_sidebar_apc_does_not_disturb_graphics() {
-        let capture = Arc::new(Mutex::new(Vec::new()));
+        let capture = PtyInput::unspawned();
         let screen = Arc::new(RwLock::new(TerminalScreen::new(6, 10)));
         screen.write().unwrap().cell_px = (12, 24);
-        let writer = Arc::new(Mutex::new(
-            Box::new(SharedCapture(Arc::clone(&capture))) as Box<dyn Write + Send>
-        ));
-        let mut stream = StreamParser::new(writer, Arc::clone(&screen));
+        let mut stream = StreamParser::new_with_replies(capture.replies(), Arc::clone(&screen));
 
         stream.feed(b"\x1b_zeta;sidebar;eyJ2IjoxfQ==\x1b\\");
         stream.feed(b"\x1b_Ga=T,f=32,i=7,c=1,r=1,s=1,v=1,q=0;/wAA/w==\x1b\\");
@@ -1279,13 +1501,10 @@ mod tests {
     fn an_image_placed_over_the_cursor_line_restores_the_cursor() {
         // What the client emits for a block's last line: save, step up to the
         // block's first row, place the image there, restore, keep writing.
-        let capture = Arc::new(Mutex::new(Vec::new()));
+        let capture = PtyInput::unspawned();
         let screen = Arc::new(RwLock::new(TerminalScreen::new(10, 20)));
         screen.write().unwrap().cell_px = (12, 24);
-        let writer = Arc::new(Mutex::new(
-            Box::new(SharedCapture(Arc::clone(&capture))) as Box<dyn Write + Send>
-        ));
-        let mut stream = StreamParser::new(writer, Arc::clone(&screen));
+        let mut stream = StreamParser::new_with_replies(capture.replies(), Arc::clone(&screen));
 
         stream.feed(b"\x1b[5;1H");
         stream.feed(b"\x1b7\x1b[2A");
@@ -1305,12 +1524,9 @@ mod tests {
 
     #[test]
     fn a_deleted_kitty_image_leaves_nothing_to_paint() {
-        let capture = Arc::new(Mutex::new(Vec::new()));
+        let capture = PtyInput::unspawned();
         let screen = Arc::new(RwLock::new(TerminalScreen::new(10, 20)));
-        let writer = Arc::new(Mutex::new(
-            Box::new(SharedCapture(Arc::clone(&capture))) as Box<dyn Write + Send>
-        ));
-        let mut stream = StreamParser::new(writer, Arc::clone(&screen));
+        let mut stream = StreamParser::new_with_replies(capture.replies(), Arc::clone(&screen));
         stream.feed(b"\x1b_Ga=T,f=32,i=5,c=2,r=2,s=1,v=1,q=2;/wAA/w==\x1b\\");
         assert_eq!(screen.read().unwrap().graphics.placements().len(), 1);
         stream.feed(b"\x1b_Ga=d,d=I,i=5,q=2\x1b\\");

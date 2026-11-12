@@ -385,6 +385,24 @@ fn count_virtual_rows_counts_deletion_markers() {
 }
 
 #[test]
+fn a_base_text_marks_the_lines_changed_outside_git() {
+    // A temp file lies outside any repository: git has no original for it.
+    let (mut editor, _file) = create_editor_with_content("a\nB\nc\nd\n");
+    editor.set_base_text(Some("a\nb\nc\n".to_string()));
+    let cache = editor.git.diff_cache.as_ref().unwrap();
+    assert_eq!(cache.get_line_status(1), termide_git::LineStatus::Modified);
+    assert_eq!(cache.get_line_status(3), termide_git::LineStatus::Added);
+
+    editor.set_base_text(None);
+    let cache = editor.git.diff_cache.as_ref().unwrap();
+    assert_eq!(
+        cache.get_line_status(1),
+        termide_git::LineStatus::Unchanged,
+        "taken back"
+    );
+}
+
+#[test]
 fn backspace_word_deletes_previous_word() {
     let (mut editor, _f) = create_editor_with_content("hello world");
     editor.cursor = termide_buffer::Cursor::at(0, 11); // end of "world"
@@ -507,6 +525,144 @@ fn a_buffer_with_unsaved_work_keeps_it_and_flags_the_conflict() {
     assert!(editor.has_external_change());
     assert!(editor.buffer().text().starts_with("xa\nb\n"));
     assert!(editor.buffer().is_modified());
+}
+
+fn set_read_only(file: &NamedTempFile, read_only: bool) {
+    let mut permissions = file.as_file().metadata().unwrap().permissions();
+    permissions.set_readonly(read_only);
+    std::fs::set_permissions(file.path(), permissions).unwrap();
+}
+
+fn permission_changed(editor: &mut Editor, file: &NamedTempFile) {
+    editor.handle_command(PanelCommand::OnFsUpdate {
+        changed_path: file.path(),
+    });
+}
+
+/// `p4 edit` makes a file writable and `p4 revert` read-only again, without
+/// touching its contents: the editor follows, and `Ctrl+E` holds until the
+/// permission changes next.
+#[test]
+fn an_editor_follows_the_file_write_permission() {
+    let file = NamedTempFile::new().unwrap();
+    set_read_only(&file, true);
+    let mut editor =
+        Editor::open_file_with_config(file.path().to_path_buf(), EditorConfig::default()).unwrap();
+    assert!(editor.is_read_only());
+
+    set_read_only(&file, false);
+    permission_changed(&mut editor, &file);
+    assert!(!editor.is_read_only());
+
+    set_read_only(&file, true);
+    permission_changed(&mut editor, &file);
+    assert!(editor.is_read_only());
+
+    // Made editable by hand, it stays so while the permission does not move.
+    editor.config.read_only = false;
+    permission_changed(&mut editor, &file);
+    assert!(!editor.is_read_only());
+    set_read_only(&file, false);
+}
+
+/// With plugins that open files for edit, `Ctrl+E` on a file that is
+/// read-only on disk, or back off on a writable one, saved or not, is handed
+/// to the app instead of toggling; without them it toggles as ever.
+#[test]
+fn ctrl_e_goes_to_the_plugins_behind_the_gate() {
+    let file = NamedTempFile::new().unwrap();
+    set_read_only(&file, true);
+    let mut editor =
+        Editor::open_file_with_config(file.path().to_path_buf(), EditorConfig::default()).unwrap();
+
+    editor.set_edit_gate(true);
+    assert!(!editor.toggle_read_only());
+    assert!(editor.is_read_only(), "left to the plugins");
+    assert_eq!(editor.take_gated_edit(), Some(true));
+    assert_eq!(editor.take_gated_edit(), None, "taken once");
+
+    // No plugin made it writable: the app turns editing on as Ctrl+E would.
+    editor.set_editable(true);
+    assert!(!editor.is_read_only());
+    // Still read-only on disk: back to viewing is the editor's own business.
+    assert!(!editor.toggle_read_only());
+    assert!(editor.is_read_only());
+    assert_eq!(editor.take_gated_edit(), None);
+
+    // Writable on disk: turning editing off asks the plugins.
+    set_read_only(&file, false);
+    editor.set_editable(true);
+    assert!(!editor.toggle_read_only());
+    assert!(!editor.is_read_only(), "left to the plugins");
+    assert_eq!(editor.take_gated_edit(), Some(false));
+    editor.set_editable(false);
+    assert!(editor.is_read_only());
+
+    // Unsaved work too: they ask what to do with it.
+    editor.set_editable(true);
+    let _ = editor.insert_char('x');
+    assert!(!editor.toggle_read_only());
+    assert!(!editor.is_read_only());
+    assert_eq!(editor.take_gated_edit(), Some(false));
+    editor.set_editable(false);
+
+    editor.set_edit_gate(false);
+    set_read_only(&file, true);
+    assert!(!editor.toggle_read_only());
+    assert!(!editor.is_read_only());
+    assert_eq!(editor.take_gated_edit(), None);
+    set_read_only(&file, false);
+}
+
+/// Turning editing off over unsaved work in a file is the app's to ask
+/// about: the editor stays editable until it is answered. A saved file, or
+/// a buffer without a file, switches at once.
+#[test]
+fn ctrl_e_over_unsaved_work_asks_first() {
+    let file = NamedTempFile::new().unwrap();
+    let mut editor =
+        Editor::open_file_with_config(file.path().to_path_buf(), EditorConfig::default()).unwrap();
+    assert!(!editor.is_read_only());
+    let _ = editor.insert_char('x');
+    assert!(editor.toggle_read_only(), "the app asks");
+    assert!(!editor.is_read_only());
+    assert_eq!(editor.take_gated_edit(), None);
+
+    editor.set_editable(false);
+    assert!(
+        !editor.toggle_read_only(),
+        "back to editing needs no question"
+    );
+    assert!(!editor.is_read_only());
+
+    let mut scratch = Editor::new();
+    let _ = scratch.insert_char('x');
+    assert!(!scratch.toggle_read_only());
+    assert!(scratch.is_read_only());
+}
+
+#[test]
+fn unsaved_work_is_not_made_read_only() {
+    let (mut editor, file) = create_editor_with_content("a\n");
+    editor.insert_text("x").unwrap();
+
+    set_read_only(&file, true);
+    permission_changed(&mut editor, &file);
+    assert!(!editor.is_read_only());
+    set_read_only(&file, false);
+}
+
+#[test]
+fn a_view_only_editor_stays_read_only_when_the_file_becomes_writable() {
+    let file = NamedTempFile::new().unwrap();
+    set_read_only(&file, true);
+    let mut editor =
+        Editor::open_file_with_config(file.path().to_path_buf(), EditorConfig::view_only())
+            .unwrap();
+
+    set_read_only(&file, false);
+    permission_changed(&mut editor, &file);
+    assert!(editor.is_read_only());
 }
 
 /// A TAB (or any control character) in a line must not reach a cell: the
@@ -908,4 +1064,61 @@ fn clipboard_commands_edit_the_focused_find_bar_not_the_buffer() {
     editor.handle_command(PanelCommand::PasteText { text: "X".into() });
     assert_eq!(editor.find_bar.as_ref().unwrap().find_text(), "");
     assert!(editor.buffer.line(0).unwrap().contains('X'));
+}
+
+/// Changes to a file that termide has to end on without asking are kept in
+/// a backup the layout names beside the file's path, empty content included;
+/// a file without changes gets none.
+#[test]
+fn unsaved_changes_to_a_file_are_backed_up_with_its_path() {
+    use termide_project::PanelState;
+    let project_dir = tempfile::tempdir().unwrap();
+    let (mut editor, file) = create_editor_with_content("on disk");
+    assert!(!editor.ensure_unsaved_changes_backup());
+    assert_eq!(
+        editor.to_state(project_dir.path()),
+        Some(PanelState::Editor {
+            path: Some(file.path().to_path_buf()),
+            unsaved_buffer_file: None,
+        })
+    );
+
+    editor.restore_unsaved_changes("").unwrap();
+    assert!(editor.ensure_unsaved_changes_backup());
+    let Some(PanelState::Editor {
+        path,
+        unsaved_buffer_file: Some(backup),
+    }) = editor.to_state(project_dir.path())
+    else {
+        panic!("the changes were not backed up");
+    };
+    assert_eq!(path.as_deref(), Some(file.path()));
+    assert_eq!(
+        termide_project::load_unsaved_buffer(project_dir.path(), &backup).unwrap(),
+        ""
+    );
+}
+
+/// A backup put back over the file it was taken from makes the buffer
+/// modified, with the file on disk untouched.
+#[test]
+fn restoring_unsaved_changes_modifies_the_buffer_not_the_file() {
+    let (mut editor, file) = create_editor_with_content("line one\nline two\n");
+    editor.restore_unsaved_changes("edited\n").unwrap();
+    assert!(editor.buffer_is_modified());
+    assert_eq!(editor.buffer.text(), "edited\n");
+    assert_eq!(
+        std::fs::read_to_string(file.path()).unwrap(),
+        "line one\nline two\n"
+    );
+}
+
+/// Once a file's changes are saved its backup name goes, so changes made
+/// later are not backed up unasked and the stale backup is cleaned up.
+#[test]
+fn a_saved_file_drops_its_backup_name() {
+    let (mut editor, _file) = create_editor_with_content("text");
+    editor.set_unsaved_buffer_file(Some("unsaved-1.txt".into()));
+    editor.ensure_unsaved_buffer_file();
+    assert_eq!(editor.unsaved_buffer_file(), None);
 }

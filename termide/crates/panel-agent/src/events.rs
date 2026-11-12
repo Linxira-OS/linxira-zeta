@@ -7,12 +7,14 @@ use std::sync::PoisonError;
 use std::time::{Duration, Instant};
 
 use termide_agent_core::{
-    AgentEvent, Message, StopReason, StreamEvent, Timing, ToolResultMessage, ToolUpdate,
+    AgentEvent, Message, Spender, StopReason, StreamEvent, Timing, ToolResultMessage, ToolUpdate,
+    Usage,
 };
 use termide_core::PanelEvent;
 use termide_ui::ChoiceForm;
 
 use crate::pending::Pending;
+use crate::runtime::{compacted_notice, fitted_notice};
 use crate::{millis, now_hms, transcript, Activity, AgentPanel, Item, NoticeKind, Phase};
 
 /// A finished run shorter than this rings no bell: the user is most likely
@@ -120,6 +122,11 @@ impl AgentPanel {
                 });
                 self.busy = false;
                 self.activity = None;
+                // A settings change asked for during the run is taken now that
+                // the turn is over: the run kept the endpoint it started on.
+                if self.connection_refresh {
+                    self.refresh_connection();
+                }
                 self.log_run_end();
                 // A failure is acted on unless the user stopped the run.
                 let failure = self
@@ -248,7 +255,8 @@ impl AgentPanel {
                     self.raise_attention(ring);
                 }
             }
-            AgentEvent::TurnStart | AgentEvent::TurnEnd => {}
+            AgentEvent::TurnStart => {}
+            AgentEvent::TurnEnd => self.log_context_fill(),
             AgentEvent::MessageStart { prompt_tokens } => {
                 // The reasoning and answer blocks are created lazily on their
                 // first delta, so the reasoning lands above the answer and a
@@ -337,9 +345,7 @@ impl AgentPanel {
                         }
                         // What the cache served is counted apart from what is
                         // billed in full.
-                        self.session_input += assistant.usage.uncached();
-                        self.session_cached += assistant.usage.cache_read;
-                        self.session_output += assistant.usage.output;
+                        self.count_spent(&assistant.usage);
                         // A call that failed before its first token (no network,
                         // say) went through no prefill or generation: it has
                         // no cost to show, only its time and failure. Nor has
@@ -444,27 +450,14 @@ impl AgentPanel {
                 });
             }
             AgentEvent::ToolExecutionEnd { result } => {
-                // A subagent's tokens join the session's totals; its context
-                // was its own, so the context fill stays as it is.
-                if let Some(spent) = result.spent() {
-                    self.session_input += spent.uncached();
-                    self.session_cached += spent.cache_read;
-                    self.session_output += spent.output;
-                }
+                // A subagent's tokens join the session's totals, as its log
+                // tells them when that is more than the result says, so they
+                // agree with the breakdown; its context was its own, so the
+                // context fill stays as it is.
+                self.count_spent(&termide_agent_core::Spending::of_result(&result));
                 if let Some(path) = changed_file(&result) {
                     self.pending_events
                         .push(PanelEvent::FileChangedOnDisk(path));
-                }
-                // Tally how much the output cleaning saved (bash reports the
-                // raw and cleaned byte counts in its details).
-                if let Some(details) = result.details.as_ref() {
-                    if let (Some(raw), Some(clean)) = (
-                        details.get("raw_bytes").and_then(|v| v.as_u64()),
-                        details.get("cleaned_bytes").and_then(|v| v.as_u64()),
-                    ) {
-                        self.clean_raw_bytes += raw;
-                        self.clean_out_bytes += clean;
-                    }
                 }
                 let id = result.tool_call_id.clone();
                 let finished = now_hms();
@@ -551,11 +544,13 @@ impl AgentPanel {
                 // the next turn finishes.
                 self.context_tokens = tokens_after;
                 self.end_compaction();
-                self.notice(
-                    termide_i18n::t().agent_notice_compacted_fmt(tokens_before, kept),
-                    NoticeKind::Info,
-                );
-                if let Some(session) = &mut self.session {
+                // The summary's tokens count with the session's; the log
+                // keeps them with the compaction.
+                self.count_spent(&call.usage);
+                self.notice(compacted_notice(tokens_before, kept), NoticeKind::Info);
+                // An external agent may compact without saying how: the log
+                // then keeps the history whole rather than an empty summary.
+                if let Some(session) = self.session.as_mut().filter(|_| !summary.is_empty()) {
                     if let Err(error) = session.append_compaction_with(
                         &summary,
                         tokens_before,
@@ -579,6 +574,9 @@ impl AgentPanel {
                 reply,
             } => {
                 self.end_compaction();
+                if let Some(call) = &call {
+                    self.count_spent(&call.usage);
+                }
                 self.notice(
                     termide_i18n::t().agent_notice_compaction_failed_fmt(&error.to_string()),
                     NoticeKind::Warn,
@@ -603,10 +601,7 @@ impl AgentPanel {
                 ..
             } => {
                 self.context_tokens = tokens_after;
-                self.notice(
-                    termide_i18n::t().agent_notice_fitted_fmt(tokens_before, tokens_after),
-                    NoticeKind::Info,
-                );
+                self.notice(fitted_notice(tokens_before, tokens_after), NoticeKind::Info);
                 if let Some(session) = &mut self.session {
                     if let Err(error) =
                         session.append_fitted(budget, keep_tail, steps, tokens_before)
@@ -618,6 +613,7 @@ impl AgentPanel {
                     self.context_stale = true;
                 }
             }
+            AgentEvent::Spent { by, model, usage } => self.log_spent(by, &model, usage),
             AgentEvent::ExternalSession { agent, session_id } => {
                 if let Some(session) = &mut self.session {
                     if let Err(error) = session.append_external_session(&agent, &session_id) {
@@ -625,12 +621,20 @@ impl AgentPanel {
                     }
                 }
             }
-            AgentEvent::GoalJudged { outcome, reason } => {
+            // The judge's answer goes into the log whatever came of it, so a
+            // goal that ended, went on or paused can be told apart afterwards.
+            AgentEvent::GoalJudged {
+                outcome,
+                reason,
+                reply,
+            } => {
                 self.end_judging();
+                self.log_goal_verdict(Ok((outcome, &reason)), &reply);
                 self.on_goal_verdict(outcome, &reason);
             }
-            AgentEvent::GoalJudgeFailed { error } => {
+            AgentEvent::GoalJudgeFailed { error, reply } => {
                 self.end_judging();
+                self.log_goal_verdict(Err(&error), &reply);
                 self.on_goal_judge_failed(&error);
             }
             AgentEvent::Handoff { brief } => match brief {
@@ -716,7 +720,10 @@ impl AgentPanel {
         changed |= self.follow_open_sessions();
         changed |= self.check_held();
         changed |= self.poll_parked();
+        changed |= self.poll_terminals();
         changed |= self.drop_withdrawn_card();
+        changed |= self.ask_graphics();
+        changed |= self.pictures_settled();
         if let Some((start, before)) = self.permission_wait {
             if matches!(
                 self.pending,
@@ -901,13 +908,82 @@ impl AgentPanel {
     /// The context fill stays: a review is a call of its own. `true` when
     /// there was anything.
     pub(crate) fn take_reviewer_spent(&mut self) -> bool {
-        let spent = self.reviewer.spent.take();
-        if spent.total() == 0 {
+        let spent = self.reviewer.spent.take_by_model();
+        if spent.is_empty() {
             return false;
         }
-        self.session_input += spent.uncached();
-        self.session_cached += spent.cache_read;
-        self.session_output += spent.output;
+        for (model, usage) in spent {
+            self.log_spent(Spender::Reviewer, &model, usage);
+        }
         true
+    }
+
+    /// Count what a side call of `by`'s spent on `model` with the session's
+    /// totals, and log it so a reopened session counts it again.
+    fn log_spent(&mut self, by: Spender, model: &str, usage: Usage) {
+        if usage.total() == 0 {
+            return;
+        }
+        self.count_spent(&usage);
+        if let Some(session) = &mut self.session {
+            if let Err(error) = session.append_spent(by, model, usage) {
+                log::warn!("agent session write failed: {error}");
+            }
+        }
+    }
+
+    /// Add `usage` to the session's totals: what the cache served apart
+    /// from what is billed in full.
+    pub(crate) fn count_spent(&mut self, usage: &Usage) {
+        self.session_input += usage.uncached();
+        self.session_cached += usage.cache_read;
+        self.session_output += usage.output;
+    }
+
+    /// Log an external agent's context fill as it stands, when it changed
+    /// since it was last logged: a reopened session shows it from there.
+    pub(crate) fn log_context_fill(&mut self) {
+        if !self.external {
+            return;
+        }
+        let Some(fill) = self.runtime.context_usage() else {
+            return;
+        };
+        if self.context_logged == Some(fill) {
+            return;
+        }
+        self.context_logged = Some(fill);
+        if let Some(session) = &mut self.session {
+            if let Err(error) = session.append_context_fill(fill.0, fill.1) {
+                log::warn!("agent session write failed: {error}");
+            }
+        }
+    }
+
+    /// Start the context's fill at how full the log says it last stood, an
+    /// external agent's window with it; nothing known, at nothing.
+    pub(crate) fn seed_context(&mut self) {
+        let fill = self.session.as_ref().and_then(crate::Session::context_fill);
+        self.context_tokens = fill.map_or(0, |(used, _)| used);
+        self.context_logged = None;
+        if let Some((used, Some(size))) = fill {
+            self.context_logged = Some((used, size));
+            if size > 0 {
+                self.model.context_window = size;
+            }
+        }
+    }
+
+    /// Start the session's totals at what its log says it spent, its
+    /// subagents' logs read as the session info reads them.
+    pub(crate) fn seed_spent(&mut self) {
+        let total = self
+            .session
+            .as_ref()
+            .map(|session| session.spending_with_subagents().total())
+            .unwrap_or_default();
+        self.session_input = total.uncached();
+        self.session_cached = total.cache_read;
+        self.session_output = total.output;
     }
 }

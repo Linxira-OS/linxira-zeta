@@ -30,6 +30,9 @@
 `web-app/`（Studio 渲染器）与 `web-ui/`（冻结快照）**都不是** workspace 包：各自带
 `package.json` + 锁文件，按 `npm ci` 安装。落点规则见 `code-locations.md`。
 
+所有 upstream 的固定 tag/commit 与状态见 `document/upstream-baselines.md`；
+`termide/`、OMP、Studio 与冻结的 `web-ui/` 各有一行。
+
 ### `plugins/` — 插件目录（两层）
 
 插件代码/登记一律放 `plugins/`，不放 `packages/`（`packages/` 是随产品一起

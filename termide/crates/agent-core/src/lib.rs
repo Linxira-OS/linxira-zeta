@@ -22,6 +22,7 @@ pub mod acp;
 pub mod agent;
 pub mod approvals;
 pub mod ask;
+pub mod atomic_write;
 pub mod cancel;
 pub mod checkpoints;
 pub mod classifier;
@@ -30,11 +31,14 @@ pub mod compaction;
 pub mod conflicts;
 pub mod context;
 pub mod failure;
+mod fish;
 pub mod fit;
 pub mod goal;
 pub mod handoff;
 pub mod hooks;
 pub mod layers;
+pub mod line_window;
+pub mod load;
 pub mod loop_guard;
 pub mod mcp;
 pub mod message;
@@ -45,23 +49,27 @@ pub mod prune;
 pub mod recall;
 pub mod recap;
 pub mod refusals;
+mod retired_tools;
 pub mod runtime;
 pub mod session;
 pub mod shell;
+pub mod spend;
 pub mod suggest;
+pub mod terminals;
 pub mod tool;
 pub mod tool_text;
 
 pub use acp::{companion_tools, AcpConfig, AcpFlavor, ACP_PROVIDER, COMPANION_TOOLS, MODEL_OPTION};
 pub use agent::{
     execute_tool, judge_tool_call, run_judged_call, unanswered_calls, Agent, AgentConfig,
-    AgentEvent, ChainedHooks, Hooks, JudgedCall, Judgment, NoHooks, QueueHandle, QueueMode,
-    ToolDecision,
+    AgentEvent, ChainedHooks, ContextNote, Hooks, JudgedCall, Judgment, NoHooks, QueueHandle,
+    QueueMode, ToolDecision,
 };
 pub use ask::{
     question_channel, Question, QuestionAnswer, QuestionEnvelope, QuestionOption, QuestionReply,
     UserAsker,
 };
+pub use atomic_write::write_atomic;
 pub use cancel::{CancelToken, PauseGate};
 pub use checkpoints::{Checkpoint, CheckpointHooks, CheckpointStore, SavedFile, Undone};
 pub use classifier::{
@@ -87,6 +95,8 @@ pub use layers::{
     PROMPTS_DIR, SEED_ENGINES, SESSIONS_DIR, SHARED_SKILLS_DIR, SHIMS_DIR, SKILLS_DIR, SKILL_FILE,
     SYSTEM_DIR, WEB_ENGINES_DIR,
 };
+pub use line_window::{read_line_window, LineWindow, WindowLine, WindowSpec};
+pub use load::{ContextLoad, ContextNow, ToolLoad};
 pub use loop_guard::{LoopGuard, LoopPrompt, LoopReport, SEED_LOOP};
 pub use mcp::{
     expand_env, mcp_servers_from_json, McpOAuth, McpReload, McpServerConfig, McpServerState,
@@ -98,14 +108,16 @@ pub use message::{
     SUBAGENT_SESSION_KEY,
 };
 pub use permissions::{
-    is_read_only_call, permission_channel, shell_parts, subject_of, AskedPart, AutoDenyPrompter,
-    ChannelPrompter, DecidedBy, Decision, Lasting, Mode, ModeHandle, PermissionAnswer,
-    PermissionEnvelope, PermissionHooks, PermissionNote, PermissionPrompter, PermissionRequest,
-    PermissionRules, PersistRule, PersistScope, PlanGuard, RuleTables, ShellPart,
+    is_read_only_call, permission_channel, shell_parts, shell_parts_in, subject_of, AskedPart,
+    AutoDenyPrompter, ChannelPrompter, DecidedBy, Decision, Lasting, Mode, ModeHandle,
+    PermissionAnswer, PermissionEnvelope, PermissionHooks, PermissionNote, PermissionPrompter,
+    PermissionRequest, PermissionRules, PersistRule, PersistScope, PlanGuard, RuleTables,
+    ShellPart,
 };
 pub use plan::{PlanPrompt, SEED_PLAN};
 pub use provider::{
-    one_shot, ModelInfo, ModelSpec, Provider, Request, StreamEvent, ThinkingLevel, ToolSpec,
+    one_shot, one_shot_spent, Attribution, ModelInfo, ModelSpec, Provider, Request, StreamEvent,
+    ThinkingLevel, ToolSpec,
 };
 pub use prune::{prune_by, prune_to_decisions};
 pub use recall::{RecallPrompt, SEED_RECALL};
@@ -116,14 +128,23 @@ pub use runtime::{
     HostTools, PromptError,
 };
 pub use session::{
-    Autorun, Entry, EntryKind, ExternalSessionRef, GoalRecord, LastRun, LoggedMessage, LoopRecord,
-    RunMark, Session, SessionHeader, SessionModel, SessionParent, SessionSummary, Timing,
+    Autorun, Entry, EntryKind, ExternalSessionRef, GoalRecord, HistoryStep, LastRun, LoggedMessage,
+    LoopRecord, RunMark, Session, SessionHeader, SessionModel, SessionParent, SessionSummary,
+    Timing,
 };
 pub use shell::{ShellOutput, ShellRunner};
+pub use spend::{Spender, Spending};
 pub use suggest::{
     suggestion_channel, CommandSuggester, Suggestion, SuggestionEnvelope, SuggestionReply,
 };
-pub use tool::{
-    LateTools, Tool, ToolContext, ToolRegistry, ToolTraits, ToolUpdate, PLUGIN_TOOL_SOURCE,
+pub use terminals::{
+    TerminalEntry, TerminalOutput, TerminalRun, TerminalRunEnd, TerminalRunOutcome,
+    TerminalScreenText, TerminalSend, TerminalSendEnd, TerminalSendOutcome, TerminalSessions,
+    TerminalState,
 };
-pub use tool_text::{apply_tool_texts, ToolText, SEED_TOOLS, TOOLS_DIR};
+pub use tool::{
+    canonical_tool_name, de_tool_name, de_tool_names, CallsBeside, LateTools, RunningCall,
+    RunningCalls, ShellSyntax, Tool, ToolContext, ToolRegistry, ToolTraits, ToolUpdate,
+    LEGACY_SHELL_TOOL, PLUGIN_TOOL_SOURCE, SHELL_TOOL,
+};
+pub use tool_text::{apply_tool_texts, is_known_tool_name, ToolText, SEED_TOOLS, TOOLS_DIR};

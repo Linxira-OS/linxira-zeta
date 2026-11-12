@@ -174,6 +174,7 @@ mod tests {
     // Linux leg (`--all-targets`) fails with `cannot find type Cdp` while the
     // Windows leg compiles clean, because `#[cfg(unix)]` removes the only code
     // that would have missed it.
+    #[cfg_attr(not(unix), allow(unused_imports))]
     use super::*;
 
     /// A fake browser on the far end of two pipes: answers every command with

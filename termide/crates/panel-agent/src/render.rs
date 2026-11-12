@@ -11,9 +11,12 @@ use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use termide_core::{RenderContext, SegmentKind, StatusSegment, ThemeColors};
+use termide_panel_image::inline::Graphics;
 use termide_ui::ScrollBar;
 
+use crate::pan::{pan_line, DiagramSpot};
 use crate::toolset::TOOLSET_ACTION;
+use crate::transcript::PictureLayout;
 use crate::{
     format_tokens, provider_label, shorten_path, single_line, transcript, truncate_title,
     AgentEntry, AgentPanel, BannerHit, Phase, RunButton, ViewButton, AGENT_ACTION,
@@ -67,7 +70,125 @@ pub(crate) fn context_bar(percent: u64) -> String {
     bar
 }
 
+/// How long a picture stands still before it is drawn where moving it
+/// costs sending it again.
+pub(crate) const PICTURE_SETTLE: Duration = Duration::from_millis(150);
+
+/// Where a picture was last framed or drawn on screen, since when it has
+/// stood there, and whether it was a frame.
+pub(crate) struct PictureMotion {
+    rect: Rect,
+    since: Instant,
+    framed: bool,
+}
+
+/// The most rows a picture takes in a panel of `area`: as tall as half the
+/// panel's height or half its width, whichever is more, so a picture in a
+/// wide panel is not shrunk to half of a few rows. It leaves the input bar
+/// and a couple of rows in sight, though: a picture is drawn only whole.
+fn picture_max_rows(area: Rect, cell_px: (u16, u16)) -> u16 {
+    let (cw, ch) = (u32::from(cell_px.0.max(1)), u32::from(cell_px.1.max(1)));
+    let half_height = u32::from(area.height / 2);
+    let half_width = u32::from(area.width / 2) * cw / ch;
+    let room = u32::from(area.height.saturating_sub(4)).max(half_height);
+    let rows = half_height.max(half_width).min(room);
+    (rows as u16).max(1)
+}
+
+/// A box of `rect`'s size where a picture goes, drawn while it moves.
+fn draw_picture_frame(rect: Rect, style: Style, buf: &mut Buffer) {
+    let (right, bottom) = (
+        rect.right().saturating_sub(1),
+        rect.bottom().saturating_sub(1),
+    );
+    for y in rect.top()..rect.bottom() {
+        for x in rect.left()..rect.right() {
+            let symbol = match (x == rect.left(), x == right, y == rect.top(), y == bottom) {
+                _ if rect.width == 1 || rect.height == 1 => "░",
+                (true, _, true, _) => "┌",
+                (_, true, true, _) => "┐",
+                (true, _, _, true) => "└",
+                (_, true, _, true) => "┘",
+                (_, _, true, _) | (_, _, _, true) => "─",
+                (true, _, _, _) | (_, true, _, _) => "│",
+                _ => " ",
+            };
+            buf[(x, y)].set_symbol(symbol).set_style(style);
+        }
+    }
+}
+
 impl AgentPanel {
+    /// Ask the terminal for its graphics, once, when the transcript first
+    /// lays out a picture. Called on a tick: the query writes to the terminal
+    /// and reads its answer, which it must not do while a frame is drawn.
+    /// Returns whether the pictures can now be drawn.
+    pub(crate) fn ask_graphics(&mut self) -> bool {
+        if self.graphics_asked || !self.transcript.has_pictures() {
+            return false;
+        }
+        self.graphics_asked = true;
+        self.graphics = Graphics::detect();
+        self.graphics.is_some()
+    }
+
+    /// Whether a picture shown as a frame while it moved has now stood
+    /// still long enough to be drawn, so the panel redraws.
+    pub(crate) fn pictures_settled(&self) -> bool {
+        self.picture_spots
+            .values()
+            .any(|motion| motion.framed && motion.since.elapsed() >= PICTURE_SETTLE)
+    }
+
+    /// Draw the transcript's pictures over the rows held for them, each one
+    /// only while all of its rows are on screen: a picture cut by the edge
+    /// is where terminal graphics leave debris, so it shows its placeholder.
+    /// Where moving a picture means sending it again (Sixel, iTerm2), one
+    /// that has moved since the last frame — scrolled, or pushed up by what
+    /// the agent writes — is a frame until it stands still for
+    /// [`PICTURE_SETTLE`], so a scroll sends rows of text, not pictures.
+    fn draw_pictures(&mut self, area: Rect, height: u16, buf: &mut Buffer) {
+        let Some(graphics) = self.graphics.as_ref() else {
+            return;
+        };
+        self.pictures.next_frame();
+        let (top, bottom) = (self.top, self.top + height as usize);
+        let before = std::mem::take(&mut self.picture_spots);
+        let frame_style = Style::default().fg(self.colors.disabled);
+        for spot in self.transcript.pictures() {
+            if spot.line < top || spot.line + spot.rows as usize > bottom {
+                continue;
+            }
+            let Some(data) = self.transcript.picture_data(spot.item, spot.ordinal) else {
+                continue;
+            };
+            let rect = Rect {
+                x: area.x + spot.col,
+                y: area.y + (spot.line - top) as u16,
+                width: spot.cols,
+                height: spot.rows,
+            };
+            let since = match before.get(&spot.key) {
+                Some(motion) if motion.rect == rect => motion.since,
+                _ => Instant::now(),
+            };
+            let framed = !graphics.moves_cheaply() && since.elapsed() < PICTURE_SETTLE;
+            if framed {
+                draw_picture_frame(rect, frame_style, buf);
+            } else {
+                self.pictures.draw(graphics, spot.key, data, rect, buf);
+            }
+            self.picture_spots.insert(
+                spot.key,
+                PictureMotion {
+                    rect,
+                    since,
+                    framed,
+                },
+            );
+        }
+    }
+
     /// The active goal as a sentence (`Goal: … — turn 3`), for a bare
     /// `/goal`; `None` without one.
     pub(crate) fn goal_status(&self) -> Option<String> {
@@ -885,6 +1006,17 @@ impl AgentPanel {
         // the last block while the agent works, animating on the ~10 fps redraw.
         let footer = self.live_footer_lines(text_width);
         self.transcript.set_live_footer(footer);
+        // A diagram takes at most half the panel, a picture half its height
+        // or half its width (`picture_max_rows`): the work around it stays in
+        // sight. The panel's height rather than the transcript's, which the
+        // input and the strip change as one types.
+        self.transcript
+            .set_artifact_rows(Some((area.height / 2).max(1)));
+        let layout = self.graphics.as_ref().map(|graphics| PictureLayout {
+            cell_px: graphics.cell_px(),
+            max_rows: picture_max_rows(area, graphics.cell_px()),
+        });
+        self.transcript.set_picture_layout(layout);
         let total = self.transcript.lines(text_width, &colors, is_light).len();
         let max_top = total.saturating_sub(transcript_height as usize);
         if self.follow {
@@ -914,6 +1046,16 @@ impl AgentPanel {
                 selected_range = self.transcript.content_lines_of(self.selected);
             }
         }
+        // The wide diagrams on screen, with how far each is panned.
+        let rows_shown = self.top..self.top + transcript_height as usize;
+        let diagrams: Vec<(DiagramSpot, usize)> = self
+            .transcript
+            .wide_diagrams()
+            .iter()
+            .filter(|spot| spot.line <= rows_shown.end && spot.track() >= rows_shown.start)
+            .map(|spot| (*spot, self.transcript.pan_of(spot)))
+            .collect();
+        self.diagram_bars.clear();
         let lines = self.transcript.lines(text_width, &colors, is_light);
         // The block under the chat cursor is shown inverted (text and
         // background swapped), so the selection reads as one solid block.
@@ -939,7 +1081,35 @@ impl AgentPanel {
                 let Some(line) = lines.get(self.top + row) else {
                     break;
                 };
-                buf.set_line(area.x, area.y + row as u16, line, text_width);
+                let at = self.top + row;
+                let y = area.y + row as u16;
+                match diagrams.iter().find(|(spot, _)| spot.covers(at)) {
+                    // A panned diagram's row: the mark and the bar stay put.
+                    Some((spot, pan)) if *pan > 0 && spot.is_row(at) => {
+                        let panned = pan_line(line, usize::from(spot.col), *pan);
+                        buf.set_line(area.x, y, &panned, text_width);
+                    }
+                    // Its track row: the bar, then its own scrollbar.
+                    Some((spot, pan)) if !spot.is_row(at) => {
+                        buf.set_line(area.x, y, line, text_width);
+                        if let Some(bar) = ScrollBar::render_horizontal_tracked(
+                            buf,
+                            area.x + spot.col,
+                            y,
+                            spot.view,
+                            *pan,
+                            usize::from(spot.view),
+                            usize::from(spot.cols),
+                            &colors,
+                            ctx.is_focused,
+                        ) {
+                            self.diagram_bars.push((*spot, bar));
+                        }
+                    }
+                    _ => {
+                        buf.set_line(area.x, y, line, text_width);
+                    }
+                }
                 if selected_range.is_some_and(|(f, l)| self.top + row >= f && self.top + row <= l) {
                     for dx in 0..text_width {
                         let cell = &mut buf[(area.x + dx, area.y + row as u16)];
@@ -981,6 +1151,9 @@ impl AgentPanel {
                     }
                 }
             }
+        }
+        if !banner {
+            self.draw_pictures(area, transcript_height, buf);
         }
         self.scrollbars.vertical = ScrollBar::render_tracked(
             buf,
@@ -1202,6 +1375,12 @@ impl AgentPanel {
             ]);
         }
         segments.push(StatusSegment::spacer());
+        if !self.terminal_list.is_empty() {
+            segments.push(StatusSegment::new(
+                format!("{} ", t.agent_terminals_open_fmt(self.terminal_list.len())),
+                SegmentKind::Inactive,
+            ));
+        }
         let queued = self.queued.0 + self.queued.1;
         if queued > 0 {
             segments.push(StatusSegment::new(
@@ -1219,7 +1398,9 @@ impl AgentPanel {
         }
         // An external agent's window is known once it reports it; until then
         // the configured fallback would mislead.
-        let window_known = !self.external || self.runtime.context_usage().is_some();
+        let window_known = !self.external
+            || self.runtime.context_usage().is_some()
+            || self.context_logged.is_some();
         if window_known && self.model.context_window > 0 {
             let percent = ((self.context_tokens * 100) / self.model.context_window).min(100);
             let kind = if percent >= 80 {

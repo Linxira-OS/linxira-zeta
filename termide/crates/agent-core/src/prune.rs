@@ -137,6 +137,7 @@ mod tests {
                 output: 10,
                 cache_read: 0,
                 cache_write: 0,
+                ..Default::default()
             },
             provider: "fake".into(),
             model: "m".into(),
@@ -197,10 +198,10 @@ mod tests {
             result("s1", "skill", false),
             assistant(vec![
                 text("Two questions."),
-                AssistantContent::ToolCall(call("b1", "bash")),
+                AssistantContent::ToolCall(call("b1", "shell")),
                 AssistantContent::ToolCall(call("q1", "question")),
             ]),
-            result("b1", "bash", false),
+            result("b1", "shell", false),
             result("q1", "question", false),
             assistant(vec![AssistantContent::ToolCall(call("q2", "question"))]),
             result("q2", "question", true),

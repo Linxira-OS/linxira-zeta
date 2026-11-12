@@ -6,13 +6,17 @@ use ratatui::style::{Color, Modifier, Style};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::OnceLock;
+use tree_sitter::Query;
 use tree_sitter_highlight::HighlightConfiguration;
 
 mod cache;
+mod document;
 mod keyword;
 mod languages;
+mod layers;
 
 pub use cache::{HighlightCache, LineHighlighter, WHOLE_DOCUMENT_BYTE_LIMIT};
+pub use document::{DocumentRevision, DocumentSource};
 pub use keyword::KeywordSyntax;
 pub use languages::{detect_language, HIGHLIGHT_NAMES, SUPPORTED_LANGUAGES};
 
@@ -30,6 +34,9 @@ pub fn global_highlighter() -> &'static TreeSitterHighlighter {
 pub struct TreeSitterHighlighter {
     /// Configurations for each supported language
     configs: HashMap<&'static str, HighlightConfiguration>,
+    /// Per language, what incremental highlighting needs beyond the config
+    /// (see [`TreeSitterHighlighter::incremental_highlights`]).
+    queries: HashMap<&'static str, LanguageQueries>,
     /// Highlight category names for mapping to colors
     highlight_names: Vec<String>,
 }
@@ -38,6 +45,7 @@ impl TreeSitterHighlighter {
     /// Create new highlighter with support for all languages
     pub fn new() -> Self {
         let mut configs = HashMap::new();
+        let mut queries = HashMap::new();
 
         // Define highlight category names (standard for tree-sitter)
         let highlight_names = HIGHLIGHT_NAMES
@@ -49,6 +57,7 @@ impl TreeSitterHighlighter {
         // Main programming languages
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "rust",
             tree_sitter_rust::LANGUAGE.into(),
             tree_sitter_rust::HIGHLIGHTS_QUERY,
@@ -58,6 +67,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "python",
             tree_sitter_python::LANGUAGE.into(),
             tree_sitter_python::HIGHLIGHTS_QUERY,
@@ -67,6 +77,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "go",
             tree_sitter_go::LANGUAGE.into(),
             tree_sitter_go::HIGHLIGHTS_QUERY,
@@ -76,6 +87,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "javascript",
             tree_sitter_javascript::LANGUAGE.into(),
             tree_sitter_javascript::HIGHLIGHT_QUERY,
@@ -85,6 +97,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "typescript",
             tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
             tree_sitter_typescript::HIGHLIGHTS_QUERY,
@@ -94,6 +107,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "tsx",
             tree_sitter_typescript::LANGUAGE_TSX.into(),
             tree_sitter_typescript::HIGHLIGHTS_QUERY,
@@ -110,6 +124,7 @@ impl TreeSitterHighlighter {
         );
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "jsx",
             tree_sitter_javascript::LANGUAGE.into(),
             &jsx_query,
@@ -119,6 +134,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "c",
             tree_sitter_c::LANGUAGE.into(),
             tree_sitter_c::HIGHLIGHT_QUERY,
@@ -128,6 +144,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "cpp",
             tree_sitter_cpp::LANGUAGE.into(),
             tree_sitter_cpp::HIGHLIGHT_QUERY,
@@ -137,6 +154,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "java",
             tree_sitter_java::LANGUAGE.into(),
             tree_sitter_java::HIGHLIGHTS_QUERY,
@@ -146,6 +164,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "kotlin",
             tree_sitter_kotlin_ng::LANGUAGE.into(),
             KOTLIN_HIGHLIGHTS,
@@ -155,6 +174,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "ruby",
             tree_sitter_ruby::LANGUAGE.into(),
             tree_sitter_ruby::HIGHLIGHTS_QUERY,
@@ -176,6 +196,7 @@ impl TreeSitterHighlighter {
         );
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "php",
             tree_sitter_php::LANGUAGE_PHP.into(),
             tree_sitter_php::HIGHLIGHTS_QUERY,
@@ -185,6 +206,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "haskell",
             tree_sitter_haskell::LANGUAGE.into(),
             tree_sitter_haskell::HIGHLIGHTS_QUERY,
@@ -194,6 +216,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "nix",
             tree_sitter_nix::LANGUAGE.into(),
             tree_sitter_nix::HIGHLIGHTS_QUERY,
@@ -203,6 +226,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "lua",
             tree_sitter_lua::LANGUAGE.into(),
             tree_sitter_lua::HIGHLIGHTS_QUERY,
@@ -213,6 +237,7 @@ impl TreeSitterHighlighter {
         // Web technologies
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "html",
             tree_sitter_html::LANGUAGE.into(),
             tree_sitter_html::HIGHLIGHTS_QUERY,
@@ -222,6 +247,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "css",
             tree_sitter_css::LANGUAGE.into(),
             tree_sitter_css::HIGHLIGHTS_QUERY,
@@ -231,6 +257,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "json",
             tree_sitter_json::LANGUAGE.into(),
             tree_sitter_json::HIGHLIGHTS_QUERY,
@@ -241,6 +268,7 @@ impl TreeSitterHighlighter {
         // Configuration formats
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "toml",
             tree_sitter_toml_ng::LANGUAGE.into(),
             tree_sitter_toml_ng::HIGHLIGHTS_QUERY,
@@ -250,6 +278,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "yaml",
             tree_sitter_yaml::LANGUAGE.into(),
             tree_sitter_yaml::HIGHLIGHTS_QUERY,
@@ -259,6 +288,7 @@ impl TreeSitterHighlighter {
 
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "bash",
             tree_sitter_bash::LANGUAGE.into(),
             tree_sitter_bash::HIGHLIGHT_QUERY,
@@ -269,6 +299,7 @@ impl TreeSitterHighlighter {
         // Markdown (has separate block and inline grammars)
         Self::load_language_config(
             &mut configs,
+            &mut queries,
             "markdown",
             tree_sitter_md::LANGUAGE.into(),
             tree_sitter_md::HIGHLIGHT_QUERY_BLOCK,
@@ -278,6 +309,7 @@ impl TreeSitterHighlighter {
 
         Self {
             configs,
+            queries,
             highlight_names,
         }
     }
@@ -285,6 +317,7 @@ impl TreeSitterHighlighter {
     /// Helper function to load language configuration
     fn load_language_config(
         configs: &mut HashMap<&'static str, HighlightConfiguration>,
+        queries: &mut HashMap<&'static str, LanguageQueries>,
         name: &'static str,
         language: tree_sitter::Language,
         highlights_query: &str,
@@ -294,7 +327,15 @@ impl TreeSitterHighlighter {
         match HighlightConfiguration::new(language, name, highlights_query, injections_query, "") {
             Ok(mut config) => {
                 config.configure(highlight_names);
-                configs.insert(name, config);
+                // Every loaded language is highlighted incrementally, so one
+                // whose queries do not split is left out like a failed config.
+                match LanguageQueries::new(&config, injections_query, highlight_names) {
+                    Ok(language_queries) => {
+                        queries.insert(name, language_queries);
+                        configs.insert(name, config);
+                    }
+                    Err(e) => log::error!("Failed to load injections for {name}: {e:?}"),
+                }
             }
             Err(e) => {
                 // A failed grammar must not silently disable highlighting for the
@@ -312,6 +353,18 @@ impl TreeSitterHighlighter {
     /// Get configuration for language by name
     pub fn get_config(&self, language: &str) -> Option<&HighlightConfiguration> {
         self.configs.get(language)
+    }
+
+    /// The queries of `language` for incremental highlighting: its highlights
+    /// and injections, the way `tree_sitter_highlight` reads them from the
+    /// language's config. `Some` for every language with a config.
+    pub(crate) fn incremental_highlights(
+        &self,
+        language: &str,
+    ) -> Option<document::QueryHighlights<'_>> {
+        let (&name, config) = self.configs.get_key_value(language)?;
+        let queries = self.queries.get(language)?;
+        Some(queries.highlights(name, config))
     }
 
     /// Convert highlight index to ratatui Style
@@ -417,6 +470,110 @@ impl Default for TreeSitterHighlighter {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// What `HighlightConfiguration` works out from a language's queries but keeps
+/// private, worked out the same way so the incremental path can follow it.
+struct LanguageQueries {
+    /// Highlight index (into `HIGHLIGHT_NAMES`) per capture index.
+    capture_highlights: Vec<Option<usize>>,
+    /// The config's query starts with this many injection patterns (no
+    /// locals query is loaded, so the highlight patterns follow them).
+    injection_patterns: usize,
+    /// The injections marked `injection.combined`, which the config's query
+    /// has disabled: they are matched over a whole tree at once.
+    combined_injections: Option<Query>,
+    content_capture: Option<u32>,
+    language_capture: Option<u32>,
+}
+
+impl LanguageQueries {
+    fn new(
+        config: &HighlightConfiguration,
+        injections_query: &str,
+        highlight_names: &[String],
+    ) -> Result<Self, tree_sitter::QueryError> {
+        let query = &config.query;
+        let injection_patterns = (0..query.pattern_count())
+            .filter(|&i| query.start_byte_for_pattern(i) < injections_query.len())
+            .count();
+        let is_combined = |i: usize| {
+            query
+                .property_settings(i)
+                .iter()
+                .any(|s| &*s.key == "injection.combined")
+        };
+        let combined_injections = if (0..injection_patterns).any(is_combined) {
+            let mut combined = Query::new(&config.language, injections_query)?;
+            for i in (0..injection_patterns).filter(|&i| !is_combined(i)) {
+                combined.disable_pattern(i);
+            }
+            Some(combined)
+        } else {
+            None
+        };
+        let capture = |name: &str| {
+            query
+                .capture_names()
+                .iter()
+                .position(|n| *n == name)
+                .map(|i| i as u32)
+        };
+        Ok(Self {
+            capture_highlights: map_capture_names(query.capture_names(), highlight_names),
+            injection_patterns,
+            combined_injections,
+            content_capture: capture("injection.content"),
+            language_capture: capture("injection.language"),
+        })
+    }
+
+    fn highlights<'a>(
+        &'a self,
+        name: &'a str,
+        config: &'a HighlightConfiguration,
+    ) -> document::QueryHighlights<'a> {
+        document::QueryHighlights {
+            name,
+            language: &config.language,
+            query: &config.query,
+            capture_highlights: &self.capture_highlights,
+            injection_patterns: self.injection_patterns,
+            combined_injections: self.combined_injections.as_ref(),
+            content_capture: self.content_capture,
+            language_capture: self.language_capture,
+        }
+    }
+}
+
+/// The recognised highlight name each capture name maps to, chosen the way
+/// `HighlightConfiguration::configure` does: the name with the most
+/// dot-separated parts that all occur in the capture name.
+fn map_capture_names(capture_names: &[&str], recognized_names: &[String]) -> Vec<Option<usize>> {
+    capture_names
+        .iter()
+        .map(|capture_name| {
+            let parts: Vec<&str> = capture_name.split('.').collect();
+            let mut best = None;
+            let mut best_len = 0;
+            for (i, recognized) in recognized_names.iter().enumerate() {
+                let mut len = 0;
+                let mut matches = true;
+                for part in recognized.split('.') {
+                    len += 1;
+                    if !parts.contains(&part) {
+                        matches = false;
+                        break;
+                    }
+                }
+                if matches && len > best_len {
+                    best = Some(i);
+                    best_len = len;
+                }
+            }
+            best
+        })
+        .collect()
 }
 
 /// Alias for backward compatibility

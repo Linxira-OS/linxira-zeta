@@ -10,7 +10,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::fs::{File, OpenOptions};
 use std::hash::{Hash, Hasher};
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -18,14 +18,16 @@ use std::sync::{Mutex, OnceLock};
 use serde::{Deserialize, Serialize};
 
 use crate::acp::ACP_PROVIDER;
-use crate::compaction::{CompactionCall, CompactionPrompts};
+use crate::compaction::{context_tokens, CompactionCall, CompactionPrompts};
 use crate::context::file_timestamp;
 use crate::failure::Failure;
 use crate::fit::{fit, FitStep};
-use crate::message::{now_millis, Message, StopReason};
+use crate::goal::GoalOutcome;
+use crate::message::{now_millis, Message, StopReason, Usage, UserMessage};
 use crate::permissions::Mode;
 use crate::provider::ThinkingLevel;
 use crate::prune::{prune_by, prune_to_decisions};
+use crate::spend::{Spender, Spending};
 
 /// Bumped when a line shape changes incompatibly.
 pub const SESSION_FORMAT_VERSION: u32 = 1;
@@ -42,6 +44,25 @@ pub struct SessionHeader {
     /// The session that delegated this one's task, for a delegate's session.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<SessionParent>,
+    /// How many of the log's first entries were copied from another log —
+    /// a fork's source branch, whose spend is the source's — `0` for a
+    /// log begun empty. `None` in a log older than the field, which is
+    /// told by its entries' timestamps instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub copied: Option<usize>,
+}
+
+/// Where the entries this log wrote itself begin in `entries`, those
+/// before having been copied from a fork's source: as `header` counts them,
+/// or in an older log, the first entry stamped after the header.
+pub(crate) fn own_start(header: &SessionHeader, entries: &[Entry]) -> usize {
+    match header.copied {
+        Some(copied) => copied.min(entries.len()),
+        None => entries
+            .iter()
+            .position(|entry| entry.timestamp >= header.created)
+            .unwrap_or(entries.len()),
+    }
 }
 
 /// Where a delegate's session came from: the delegating session and call.
@@ -82,6 +103,23 @@ pub struct LoggedMessage {
     /// When the entry was written (millis).
     pub timestamp: u64,
     pub timing: Option<Timing>,
+}
+
+/// A step of the conversation on the current branch, as
+/// [`Session::history_with_times`] gives it.
+#[derive(Debug, Clone, PartialEq)]
+pub enum HistoryStep {
+    Message(LoggedMessage),
+    /// The context was summarised, its last `kept` messages kept as they were.
+    Compacted {
+        tokens_before: u64,
+        kept: usize,
+    },
+    /// The context was cut down by kinds of content, with no summary.
+    Fitted {
+        tokens_before: u64,
+        tokens_after: u64,
+    },
 }
 
 /// Payload of a tree entry.
@@ -153,7 +191,10 @@ pub enum EntryKind {
     /// What the session switched off from here: tools, skills (`skill:<name>`)
     /// and MCP servers (`mcp:<name>`), kept out of the model's context or
     /// refused, so a reopened session comes back with the same set.
-    Toolset { disabled: Vec<String> },
+    Toolset {
+        #[serde(deserialize_with = "crate::tool::de_tool_names")]
+        disabled: Vec<String>,
+    },
     /// The connection (`[ai.connections.<name>]`) the branch runs on from
     /// here, so a reopened session reconnects to the same endpoint.
     ConnectionChange { connection: String },
@@ -206,7 +247,48 @@ pub enum EntryKind {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         failure: Option<Failure>,
     },
+    /// The answers of the tasks handed over in the background that the user
+    /// stopped with a run, kept for the next request rather than starting
+    /// one; empty once they went with it. A reopened session sends them with
+    /// its next request, see [`Session::held_reports`].
+    HeldReports {
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        reports: Vec<UserMessage>,
+    },
+    /// What the `/goal` judge answered: the `outcome` read from it with its
+    /// `reason`, or no outcome and the `error` the check failed on — no
+    /// answer, or one holding no verdict. `reply` is the answer as it came,
+    /// cut to [`JUDGE_REPLY_CHARS`]. Changes nothing on the branch; it is
+    /// there to tell afterwards what the judge said, and so a reopened
+    /// session shows how its goal ended, see [`Session::goal_ending`].
+    GoalVerdict {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        outcome: Option<GoalOutcome>,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        reason: String,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        error: String,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        reply: String,
+    },
+    /// Tokens a model call spent that nothing else in the log records — the
+    /// `auto` reviewer's, the judge's, a handoff brief's — on `model` when
+    /// known. Changes nothing on the branch; see [`crate::spend::Spending`].
+    Spent {
+        by: Spender,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        model: String,
+        usage: Usage,
+    },
+    /// How full an external agent's context stood at a turn's end, `used`
+    /// of `size` tokens, as the agent reported it: its turns' usage is what
+    /// they spent, not the fill, so a reopened session reads it from here.
+    /// Changes nothing on the branch; see [`Session::context_fill`].
+    ContextFill { used: u64, size: u64 },
 }
+
+/// How much of a judge's answer a [`EntryKind::GoalVerdict`] keeps.
+pub const JUDGE_REPLY_CHARS: usize = 4_000;
 
 /// The unattended work a session has going: a `/goal`, a `/loop`, or both.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -318,12 +400,15 @@ enum HeaderTag {
 
 /// The header and every entry of the log at `path`, in file order. Malformed
 /// lines are skipped with a warning so one bad write does not lose a session.
-fn read_file(path: &Path) -> std::io::Result<(SessionHeader, Vec<Entry>)> {
+pub(crate) fn read_file(path: &Path) -> std::io::Result<(SessionHeader, Vec<Entry>)> {
     let reader = BufReader::new(File::open(path)?);
     let mut header = None;
     let mut entries = Vec::new();
-    for (index, line) in reader.lines().enumerate() {
+    // Split on bytes: a write torn inside a character must not make the
+    // whole log unreadable.
+    for (index, line) in reader.split(b'\n').enumerate() {
         let line = line?;
+        let line = String::from_utf8_lossy(&line);
         if line.trim().is_empty() {
             continue;
         }
@@ -333,11 +418,21 @@ fn read_file(path: &Path) -> std::io::Result<(SessionHeader, Vec<Entry>)> {
                 log::warn!("{}: duplicate header at line {}", path.display(), index + 1)
             }
             Ok(Line::Entry(entry)) => entries.push(entry),
-            Err(error) => log::warn!(
-                "{}: skipping malformed line {}: {error}",
-                path.display(),
-                index + 1
-            ),
+            Err(error) => match salvage_entry(&line) {
+                Some(entry) => {
+                    log::warn!(
+                        "{}: line {} starts with a torn write; kept the entry after it",
+                        path.display(),
+                        index + 1
+                    );
+                    entries.push(entry);
+                }
+                None => log::warn!(
+                    "{}: skipping malformed line {}: {error}",
+                    path.display(),
+                    index + 1
+                ),
+            },
         }
     }
     let header = header.ok_or_else(|| {
@@ -347,6 +442,35 @@ fn read_file(path: &Path) -> std::io::Result<(SessionHeader, Vec<Entry>)> {
         )
     })?;
     Ok((header, entries))
+}
+
+/// The entry at the end of a line that does not parse as a whole: a write cut
+/// off by a crash, with the next entry appended to it before the file was
+/// mended (see [`end_with_newline`]). An entry's line starts with `{"id":"`;
+/// inside one, that text is either escaped in a string or a nested object
+/// followed by more of its parent, so only a whole entry at the end parses.
+fn salvage_entry(line: &str) -> Option<Entry> {
+    line.match_indices(r#"{"id":""#)
+        .filter(|(at, _)| *at > 0)
+        .find_map(|(at, _)| serde_json::from_str::<Entry>(&line[at..]).ok())
+}
+
+/// Before appending to a log, finish a last line a crash left without its
+/// newline, so the next entry starts a line of its own instead of being
+/// glued to the torn one and lost with it.
+fn end_with_newline(file: &mut File) -> std::io::Result<()> {
+    if file.metadata()?.len() == 0 {
+        return Ok(());
+    }
+    file.seek(SeekFrom::End(-1))?;
+    let mut last = [0u8; 1];
+    file.read_exact(&mut last)?;
+    if last[0] != b'\n' {
+        // The file is in append mode: the write lands at the end.
+        file.write_all(b"\n")?;
+        file.flush()?;
+    }
+    Ok(())
 }
 
 /// The failed request `branch` last left held, when nothing took it back:
@@ -364,17 +488,39 @@ fn last_retry<'a>(branch: impl IntoIterator<Item = &'a Entry>) -> Option<Failure
 
 /// The entries from the root to `leaf`, oldest first; `path` names the log
 /// in the warning about a dangling parent.
+///
+/// A parent that is not in the log was lost to a torn write. The branch then
+/// carries on from the entry written just before its child — where the lost
+/// one was in a log that was not rewound there — so one lost line does not
+/// cut off everything said before it.
 fn branch_of<'a>(entries: &'a [Entry], leaf: Option<&str>, path: &Path) -> Vec<&'a Entry> {
-    let by_id: HashMap<&str, &Entry> = entries.iter().map(|e| (e.id.as_str(), e)).collect();
+    let by_id: HashMap<&str, usize> = entries
+        .iter()
+        .enumerate()
+        .map(|(index, e)| (e.id.as_str(), index))
+        .collect();
     let mut branch = Vec::new();
     let mut current = leaf;
+    let mut child: Option<usize> = None;
     while let Some(id) = current {
-        let Some(entry) = by_id.get(id) else {
-            log::warn!("{}: dangling parent id {id}", path.display());
-            break;
+        let index = match by_id.get(id) {
+            Some(&index) => index,
+            None => {
+                log::warn!("{}: dangling parent id {id}", path.display());
+                match child.and_then(|child| child.checked_sub(1)) {
+                    Some(before) => before,
+                    None => break,
+                }
+            }
         };
-        branch.push(*entry);
-        current = entry.parent_id.as_deref();
+        // Parents come before their children; anything else is a loop.
+        if child.is_some_and(|child| index >= child) {
+            log::warn!("{}: parent chain loops at {id}", path.display());
+            break;
+        }
+        branch.push(&entries[index]);
+        child = Some(index);
+        current = entries[index].parent_id.as_deref();
     }
     branch.reverse();
     branch
@@ -478,6 +624,43 @@ fn lease_holder_id(path: &Path) -> Option<u32> {
     std::fs::read_to_string(path).ok()?.trim().parse().ok()
 }
 
+/// A brief hold on a session log for rewriting it in place: no panel of this
+/// process, and no other termide, has it open while the claim lasts.
+pub(crate) struct LogClaim {
+    key: PathBuf,
+    _lease: Option<Lease>,
+}
+
+impl Drop for LogClaim {
+    fn drop(&mut self) {
+        open_registry()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&self.key);
+    }
+}
+
+/// Claim the log at `path`; an error when a panel here or another termide
+/// holds it.
+pub(crate) fn claim_log(path: &Path) -> std::io::Result<LogClaim> {
+    let key = lock_key(path);
+    let held = || std::io::Error::new(std::io::ErrorKind::WouldBlock, "the session is open");
+    if !open_registry()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(key.clone())
+    {
+        return Err(held());
+    }
+    let mut claim = LogClaim { key, _lease: None };
+    match take_lease(path) {
+        Leased::Taken(lease) => claim._lease = Some(lease),
+        Leased::Held(_) => return Err(held()),
+        Leased::Unavailable => {}
+    }
+    Ok(claim)
+}
+
 /// Paths currently open exclusively, so the same session log cannot back two
 /// agent panels (which would interleave writes and corrupt it). Process-wide,
 /// which covers every panel of one termide instance.
@@ -552,6 +735,7 @@ impl Session {
             cwd: cwd.to_path_buf(),
             name: None,
             parent,
+            copied: Some(0),
         };
         let path = dir.join(format!("{}_{id}.jsonl", file_timestamp(created)));
         let mut file = OpenOptions::new()
@@ -582,7 +766,8 @@ impl Session {
     pub fn open(path: &Path) -> std::io::Result<Self> {
         let (header, entries) = read_file(path)?;
         let leaf = entries.last().map(|e| e.id.clone());
-        let file = OpenOptions::new().append(true).open(path)?;
+        let mut file = OpenOptions::new().read(true).append(true).open(path)?;
+        end_with_newline(&mut file)?;
         Ok(Self {
             path: path.to_path_buf(),
             header,
@@ -716,6 +901,8 @@ impl Session {
         header.created = created;
         header.cwd = cwd.to_path_buf();
         header.name = name.map(str::to_string);
+        let branch = self.branch();
+        header.copied = Some(branch.len());
         // `create_new` first: the file is removed on a failed copy only once
         // this call has made it, so a name already taken is never touched.
         let mut file = OpenOptions::new()
@@ -730,8 +917,8 @@ impl Session {
                     header: header.clone(),
                 }),
             )?;
-            for entry in self.branch() {
-                write_line(&mut file, &Line::Entry(entry.clone()))?;
+            for entry in &branch {
+                write_line(&mut file, &Line::Entry((*entry).clone()))?;
             }
             if let Some(name) = name {
                 // The copy's own name, hanging off the branch's end: the last
@@ -1017,7 +1204,11 @@ impl Session {
                 | EntryKind::RunStart
                 | EntryKind::RunEnd { .. }
                 | EntryKind::Retry { .. }
+                | EntryKind::HeldReports { .. }
                 | EntryKind::Autorun { .. }
+                | EntryKind::GoalVerdict { .. }
+                | EntryKind::Spent { .. }
+                | EntryKind::ContextFill { .. }
                 | EntryKind::CompactionFailed { .. } => {}
                 EntryKind::Compaction {
                     summary, keep_last, ..
@@ -1064,7 +1255,11 @@ impl Session {
                 | EntryKind::RunStart
                 | EntryKind::RunEnd { .. }
                 | EntryKind::Retry { .. }
+                | EntryKind::HeldReports { .. }
                 | EntryKind::Autorun { .. }
+                | EntryKind::GoalVerdict { .. }
+                | EntryKind::Spent { .. }
+                | EntryKind::ContextFill { .. }
                 | EntryKind::CompactionFailed { .. } => {}
                 EntryKind::Compaction {
                     summary, keep_last, ..
@@ -1118,6 +1313,78 @@ impl Session {
             }
         }
         messages
+    }
+
+    /// The current branch as the conversation went, for showing it again:
+    /// every message, those a compaction or a fitting took out of the
+    /// context included, and a step where the context was cut down. A
+    /// fitting's size after it is replayed from the context, worded by
+    /// `prompts`, as the agent measured it.
+    #[must_use]
+    pub fn history_with_times(&self, prompts: &CompactionPrompts) -> Vec<HistoryStep> {
+        let mut steps: Vec<HistoryStep> = Vec::new();
+        // The context as the model saw it, for what a fitting left of it.
+        let mut context: Vec<Message> = Vec::new();
+        for entry in self.branch() {
+            match &entry.kind {
+                EntryKind::Message { message, timing } => {
+                    context.push(message.clone());
+                    steps.push(HistoryStep::Message(LoggedMessage {
+                        message: message.clone(),
+                        timestamp: entry.timestamp,
+                        timing: *timing,
+                    }));
+                }
+                EntryKind::Compaction {
+                    summary,
+                    keep_last,
+                    tokens_before,
+                    ..
+                } => {
+                    let tail = context.split_off(context.len().saturating_sub(*keep_last));
+                    context = vec![prompts.summary_message(summary)];
+                    context.extend(tail);
+                    steps.push(HistoryStep::Compacted {
+                        tokens_before: *tokens_before,
+                        kept: *keep_last,
+                    });
+                }
+                EntryKind::Fitted {
+                    budget,
+                    keep_tail,
+                    tokens_before,
+                    ..
+                } => {
+                    context = fit(&context, *budget, *keep_tail).messages;
+                    steps.push(HistoryStep::Fitted {
+                        tokens_before: *tokens_before,
+                        tokens_after: context_tokens(&context),
+                    });
+                }
+                EntryKind::Pruned => context = prune_to_decisions(&context),
+                EntryKind::ModelChange { .. }
+                | EntryKind::SessionName { .. }
+                | EntryKind::AgentChange { .. }
+                | EntryKind::Rewind
+                | EntryKind::ReasoningChange { .. }
+                | EntryKind::ThinkingChange { .. }
+                | EntryKind::Toolset { .. }
+                | EntryKind::ConnectionChange { .. }
+                | EntryKind::ModeChange { .. }
+                | EntryKind::ExternalSession { .. }
+                | EntryKind::AgentOption { .. }
+                | EntryKind::RunStart
+                | EntryKind::RunEnd { .. }
+                | EntryKind::Retry { .. }
+                | EntryKind::HeldReports { .. }
+                | EntryKind::Autorun { .. }
+                | EntryKind::GoalVerdict { .. }
+                | EntryKind::Spent { .. }
+                | EntryKind::ContextFill { .. }
+                | EntryKind::CompactionFailed { .. } => {}
+            }
+        }
+        steps
     }
 
     /// The conversation's name: the last one set on the current branch, or
@@ -1242,8 +1509,12 @@ impl Session {
                 | EntryKind::RunStart
                 | EntryKind::RunEnd { .. }
                 | EntryKind::Retry { .. }
+                | EntryKind::HeldReports { .. }
                 | EntryKind::Autorun { .. }
                 | EntryKind::CompactionFailed { .. }
+                | EntryKind::GoalVerdict { .. }
+                | EntryKind::Spent { .. }
+                | EntryKind::ContextFill { .. }
                 | EntryKind::Fitted { .. } => None,
             })
     }
@@ -1377,7 +1648,11 @@ impl Session {
                 | EntryKind::RunStart
                 | EntryKind::RunEnd { .. }
                 | EntryKind::Retry { .. }
+                | EntryKind::HeldReports { .. }
                 | EntryKind::Autorun { .. }
+                | EntryKind::GoalVerdict { .. }
+                | EntryKind::Spent { .. }
+                | EntryKind::ContextFill { .. }
                 | EntryKind::CompactionFailed { .. } => {}
             }
         }
@@ -1418,6 +1693,78 @@ impl Session {
         self.append(EntryKind::RunStart)
     }
 
+    /// Record the tokens a call of `by`'s spent on `model`, see
+    /// [`EntryKind::Spent`].
+    pub fn append_spent(
+        &mut self,
+        by: Spender,
+        model: &str,
+        usage: Usage,
+    ) -> std::io::Result<String> {
+        self.append(EntryKind::Spent {
+            by,
+            model: model.to_string(),
+            usage,
+        })
+    }
+
+    /// Record how full an external agent's context stands, see
+    /// [`EntryKind::ContextFill`].
+    pub fn append_context_fill(&mut self, used: u64, size: u64) -> std::io::Result<String> {
+        self.append(EntryKind::ContextFill { used, size })
+    }
+
+    /// How full the context stood when the branch was last written to, as
+    /// far as the log tells: the latest of an external agent's reported
+    /// fill (with the window it reported), the size a compaction left, or
+    /// the last call of the built-in loop's (its usage is one call's, the
+    /// prompt it sent and the reply). `None` when the branch tells nothing.
+    #[must_use]
+    pub fn context_fill(&self) -> Option<(u64, Option<u64>)> {
+        self.branch()
+            .into_iter()
+            .rev()
+            .find_map(|entry| match &entry.kind {
+                EntryKind::ContextFill { used, size } => Some((*used, Some(*size))),
+                EntryKind::Compaction {
+                    tokens_after: Some(after),
+                    ..
+                } => Some((*after, None)),
+                EntryKind::Message {
+                    message: Message::Assistant(reply),
+                    ..
+                } if reply.usage.total() > 0 && reply.provider != crate::ACP_PROVIDER => {
+                    Some((reply.usage.total(), None))
+                }
+                _ => None,
+            })
+    }
+
+    /// What the whole log spent, by whom and on which model — a fork not
+    /// counting what its source spent before it.
+    #[must_use]
+    pub fn spending(&self) -> Spending {
+        Spending::of_entries(&self.entries, self.own_start())
+    }
+
+    /// [`Self::spending`] with the subagents' logs read, see
+    /// [`Spending::with_subagents`]: files are read, so not for every frame.
+    #[must_use]
+    pub fn spending_with_subagents(&self) -> Spending {
+        Spending::with_subagents(&self.entries, self.own_start())
+    }
+
+    /// The entries this log wrote itself, after those a fork copied from its
+    /// source; see [`SessionHeader::copied`].
+    #[must_use]
+    pub fn own_entries(&self) -> &[Entry] {
+        &self.entries[self.own_start()..]
+    }
+
+    fn own_start(&self) -> usize {
+        own_start(&self.header, &self.entries)
+    }
+
     /// Record that the run ended, `paused` when at a `/pause`.
     pub fn append_run_end(&mut self, paused: bool) -> std::io::Result<String> {
         self.append(EntryKind::RunEnd { paused })
@@ -1430,10 +1777,75 @@ impl Session {
         })
     }
 
+    /// Record what the `/goal` judge answered: the verdict read from `reply`,
+    /// or (`Err`) why the check failed. See [`EntryKind::GoalVerdict`].
+    pub fn append_goal_verdict(
+        &mut self,
+        verdict: Result<(GoalOutcome, &str), &str>,
+        reply: &str,
+    ) -> std::io::Result<String> {
+        let (outcome, reason, error) = match verdict {
+            Ok((outcome, reason)) => (Some(outcome), reason, ""),
+            Err(error) => (None, "", error),
+        };
+        self.append(EntryKind::GoalVerdict {
+            outcome,
+            reason: reason.to_string(),
+            error: error.to_string(),
+            reply: reply.chars().take(JUDGE_REPLY_CHARS).collect(),
+        })
+    }
+
+    /// How the branch's goal ended, when the judge's verdict ending it —
+    /// `DONE` or `IMPOSSIBLE` — is the last word of the conversation, no
+    /// message after it: the outcome and its reason, so a reopened session
+    /// shows the notice the panel showed then.
+    #[must_use]
+    pub fn goal_ending(&self) -> Option<(GoalOutcome, String)> {
+        let branch = self.branch();
+        let last = branch.into_iter().rev().find(|entry| {
+            matches!(
+                entry.kind,
+                EntryKind::GoalVerdict { .. } | EntryKind::Message { .. }
+            )
+        })?;
+        match &last.kind {
+            EntryKind::GoalVerdict {
+                outcome: Some(outcome @ (GoalOutcome::Done | GoalOutcome::Impossible)),
+                reason,
+                ..
+            } => Some((*outcome, reason.clone())),
+            _ => None,
+        }
+    }
+
     /// Record a failed request the panel still holds (`None`: it let it go),
     /// see [`Self::pending_retry`].
     pub fn append_retry(&mut self, failure: Option<Failure>) -> std::io::Result<String> {
         self.append(EntryKind::Retry { failure })
+    }
+
+    /// Record the answers held for the next request (empty: they went with
+    /// it), see [`Self::held_reports`].
+    pub fn append_held_reports(&mut self, reports: &[UserMessage]) -> std::io::Result<String> {
+        self.append(EntryKind::HeldReports {
+            reports: reports.to_vec(),
+        })
+    }
+
+    /// The answers of the background tasks stopped with a run that the
+    /// branch last left held for its next request: see
+    /// [`EntryKind::HeldReports`].
+    #[must_use]
+    pub fn held_reports(&self) -> Vec<UserMessage> {
+        self.branch()
+            .into_iter()
+            .rev()
+            .find_map(|entry| match &entry.kind {
+                EntryKind::HeldReports { reports } => Some(reports.clone()),
+                _ => None,
+            })
+            .unwrap_or_default()
     }
 
     /// The failed request the branch last left held by a card or a wait, when
@@ -1658,8 +2070,12 @@ impl From<&Session> for SessionSummary {
             | EntryKind::RunStart
             | EntryKind::RunEnd { .. }
             | EntryKind::Retry { .. }
+            | EntryKind::HeldReports { .. }
             | EntryKind::Autorun { .. }
             | EntryKind::CompactionFailed { .. }
+            | EntryKind::GoalVerdict { .. }
+            | EntryKind::Spent { .. }
+            | EntryKind::ContextFill { .. }
             | EntryKind::Fitted { .. } => None,
         });
         let first_prompt = messages.clone().find_map(|m| match m {
@@ -1834,6 +2250,28 @@ mod tests {
         assert!(SessionSummary::from(&session).unfinished);
     }
 
+    /// The answers held for the next request survive a reopen, and the
+    /// last record wins: once they went, none is held.
+    #[test]
+    fn held_reports_survive_reopen_until_they_go() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
+        assert!(session.held_reports().is_empty());
+        let report = UserMessage::text("The background task is over");
+        session
+            .append_held_reports(std::slice::from_ref(&report))
+            .unwrap();
+        let path = session.path().to_path_buf();
+        drop(session);
+
+        let mut reopened = Session::open(&path).unwrap();
+        assert_eq!(reopened.held_reports(), vec![report]);
+        assert_eq!(reopened.last_run(), LastRun::Ended, "no run of its own");
+        reopened.append_held_reports(&[]).unwrap();
+        drop(reopened);
+        assert!(Session::open(&path).unwrap().held_reports().is_empty());
+    }
+
     /// A held request survives a reopen and is taken back when it is
     /// retried or given up; the branch's own end says nothing about it.
     #[test]
@@ -1885,7 +2323,7 @@ mod tests {
             .unwrap();
         session.append_message(&agent_reply("answer")).unwrap();
         // What the session holds does not change with these.
-        session.append_toolset(&["bash".into()]).unwrap();
+        session.append_toolset(&["shell".into()]).unwrap();
         session.set_name("named").unwrap();
         let expected = Some(ExternalSessionRef {
             agent: "claude".into(),
@@ -2136,6 +2574,92 @@ mod tests {
         assert!(branch.iter().any(|e| matches!(e.kind, EntryKind::Rewind)));
     }
 
+    /// A crash mid-write leaves a torn last line. Reopening finishes it, so
+    /// the next entry starts its own line, and the conversation before the
+    /// tear stays whole.
+    #[test]
+    fn a_torn_last_line_does_not_swallow_the_next_entry() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/w")).unwrap();
+        for text in ["one", "two"] {
+            session
+                .append_message(&Message::User(UserMessage::text(text)))
+                .unwrap();
+        }
+        let path = session.path().to_path_buf();
+        drop(session);
+        // Torn inside a two-byte character, as a crash may leave it.
+        let mut file = OpenOptions::new().append(true).open(&path).unwrap();
+        file.write_all(b"{\"id\":\"lost\",\"parent_id\":null,\"text\":\"\xd0")
+            .unwrap();
+        drop(file);
+
+        let mut reopened = Session::open(&path).unwrap();
+        assert_eq!(reopened.entries().len(), 2);
+        assert!(std::fs::read(&path).unwrap().ends_with(b"\xd0\n"));
+        reopened
+            .append_message(&Message::User(UserMessage::text("three")))
+            .unwrap();
+        drop(reopened);
+
+        let again = Session::open(&path).unwrap();
+        let texts: Vec<_> = again
+            .context_messages()
+            .iter()
+            .map(|m| match m {
+                Message::User(user) => user.plain_text(),
+                _ => String::new(),
+            })
+            .collect();
+        assert_eq!(texts, ["one", "two", "three"]);
+    }
+
+    /// A log written before the mend has the next entry glued to the torn
+    /// line: that entry is recovered, and when an entry is lost outright the
+    /// branch carries on from the one written before it rather than ending.
+    #[test]
+    fn a_glued_entry_is_recovered_and_a_lost_parent_does_not_cut_the_branch() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/w")).unwrap();
+        let first = session
+            .append_message(&Message::User(UserMessage::text("one")))
+            .unwrap();
+        let path = session.path().to_path_buf();
+        drop(session);
+
+        let entry = |id: &str, parent: &str, text: &str| {
+            let entry = Entry {
+                id: id.into(),
+                parent_id: Some(parent.into()),
+                timestamp: 1,
+                kind: EntryKind::Message {
+                    message: Message::User(UserMessage::text(text)),
+                    timing: None,
+                },
+            };
+            serde_json::to_string(&Line::Entry(entry)).unwrap()
+        };
+        let mut file = OpenOptions::new().append(true).open(&path).unwrap();
+        // A torn write with "two" glued on, then "three" on it.
+        writeln!(file, "{{\"id\":\"torn\",\"pa{}", entry("b", &first, "two")).unwrap();
+        writeln!(file, "{}", entry("c", "b", "three")).unwrap();
+        // "four" lost outright; "five" names it as its parent.
+        writeln!(file, "{{\"id\":\"d\",\"parent_id\":\"c\",\"tim").unwrap();
+        writeln!(file, "{}", entry("e", "d", "five")).unwrap();
+        drop(file);
+
+        let reopened = Session::open(&path).unwrap();
+        let texts: Vec<_> = reopened
+            .context_messages()
+            .iter()
+            .map(|m| match m {
+                Message::User(user) => user.plain_text(),
+                _ => String::new(),
+            })
+            .collect();
+        assert_eq!(texts, ["one", "two", "three", "five"]);
+    }
+
     #[test]
     fn malformed_lines_are_skipped_and_missing_header_is_an_error() {
         let dir = tempfile::tempdir().unwrap();
@@ -2192,7 +2716,7 @@ mod tests {
             duration_ms: 198_000,
             usage: crate::message::Usage::default(),
             thinking_chars: 0,
-            tool_calls: vec!["bash".into()],
+            tool_calls: vec!["shell".into()],
             input_cut: Vec::new(),
         };
         session
@@ -2210,6 +2734,84 @@ mod tests {
                 call: call.clone(),
                 reply: "Looking:".into(),
             }));
+    }
+
+    #[test]
+    fn the_judges_answers_are_logged_and_the_ending_one_survives_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
+        session
+            .append_message(&Message::User(UserMessage::text("work")))
+            .unwrap();
+        session.append_message(&agent_reply("did it")).unwrap();
+        let before = session.context_messages();
+        // A failed check and a verdict to go on end no goal.
+        session
+            .append_goal_verdict(Err("the judge gave no verdict"), "`DONE` if the goal…")
+            .unwrap();
+        assert_eq!(session.goal_ending(), None);
+        session
+            .append_goal_verdict(
+                Ok((GoalOutcome::Continue, "tests fail")),
+                "CONTINUE\ntests fail",
+            )
+            .unwrap();
+        assert_eq!(session.goal_ending(), None);
+        session
+            .append_goal_verdict(Ok((GoalOutcome::Done, "tests pass")), "DONE\ntests pass")
+            .unwrap();
+        session.append_run_end(false).unwrap();
+        let path = session.path().to_path_buf();
+        drop(session);
+
+        let mut session = Session::open(&path).unwrap();
+        // The entries change nothing in the context.
+        assert_eq!(session.context_messages(), before);
+        let logged: Vec<&EntryKind> = session
+            .branch()
+            .into_iter()
+            .map(|e| &e.kind)
+            .filter(|kind| matches!(kind, EntryKind::GoalVerdict { .. }))
+            .collect();
+        assert_eq!(
+            logged,
+            [
+                &EntryKind::GoalVerdict {
+                    outcome: None,
+                    reason: String::new(),
+                    error: "the judge gave no verdict".into(),
+                    reply: "`DONE` if the goal…".into(),
+                },
+                &EntryKind::GoalVerdict {
+                    outcome: Some(GoalOutcome::Continue),
+                    reason: "tests fail".into(),
+                    error: String::new(),
+                    reply: "CONTINUE\ntests fail".into(),
+                },
+                &EntryKind::GoalVerdict {
+                    outcome: Some(GoalOutcome::Done),
+                    reason: "tests pass".into(),
+                    error: String::new(),
+                    reply: "DONE\ntests pass".into(),
+                },
+            ]
+        );
+        assert_eq!(
+            session.goal_ending(),
+            Some((GoalOutcome::Done, "tests pass".into()))
+        );
+        // Once the conversation goes on, the ending is behind it.
+        session
+            .append_message(&Message::User(UserMessage::text("more")))
+            .unwrap();
+        assert_eq!(session.goal_ending(), None);
+
+        // On disk, with a stable tag; an older log has none and reads as before.
+        let line = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            line.contains(r#""type":"goal_verdict","outcome":"done""#),
+            "{line}"
+        );
     }
 
     #[test]
@@ -2282,6 +2884,68 @@ mod tests {
         assert!(matches!(&context[1], Message::User(u) if u.plain_text() == "three"));
         assert!(matches!(&context[3], Message::User(u) if u.plain_text() == "four"));
         assert_eq!(SessionSummary::from(&reopened).message_count, 7);
+    }
+
+    #[test]
+    fn history_keeps_what_a_compaction_or_a_fitting_took_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/w")).unwrap();
+        for text in ["one", "two", "three"] {
+            session
+                .append_message(&Message::User(UserMessage::text(text)))
+                .unwrap();
+            session
+                .append_message(&Message::Assistant(text_reply(&format!("answer {text}"))))
+                .unwrap();
+        }
+        session.append_compaction("the gist", 5000, 2).unwrap();
+        session
+            .append_message(&Message::User(UserMessage::text("four")))
+            .unwrap();
+        session.append_fitted(1_000, 10, Vec::new(), 900).unwrap();
+
+        let reopened = Session::open(session.path()).unwrap();
+        let prompts = CompactionPrompts::default();
+        let steps = reopened.history_with_times(&prompts);
+        let texts: Vec<String> = steps
+            .iter()
+            .map(|step| match step {
+                HistoryStep::Message(logged) => match &logged.message {
+                    Message::User(user) => user.plain_text(),
+                    Message::Assistant(assistant) => assistant.plain_text(),
+                    Message::ToolResult(_) => "tool result".into(),
+                },
+                HistoryStep::Compacted {
+                    tokens_before,
+                    kept,
+                } => {
+                    format!("compacted {tokens_before}, kept {kept}")
+                }
+                HistoryStep::Fitted { tokens_before, .. } => format!("fitted {tokens_before}"),
+            })
+            .collect();
+        assert_eq!(
+            texts,
+            [
+                "one",
+                "answer one",
+                "two",
+                "answer two",
+                "three",
+                "answer three",
+                "compacted 5000, kept 2",
+                "four",
+                "fitted 900"
+            ]
+        );
+        // A fitting's size after it is the context's, as the agent measured it.
+        let Some(HistoryStep::Fitted { tokens_after, .. }) = steps.last() else {
+            panic!("no fitting")
+        };
+        assert_eq!(
+            *tokens_after,
+            context_tokens(&reopened.context_messages_with(&prompts))
+        );
     }
 
     /// Another termide's claim, as this process sees one: the lock of the
@@ -2473,14 +3137,14 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
         assert_eq!(session.current_toolset(), None);
-        session.append_toolset(&["bash".into()]).unwrap();
+        session.append_toolset(&["shell".into()]).unwrap();
         session
-            .append_toolset(&["bash".into(), "mcp:github".into()])
+            .append_toolset(&["shell".into(), "mcp:github".into()])
             .unwrap();
         let reopened = Session::open(session.path()).unwrap();
         assert_eq!(
             reopened.current_toolset(),
-            Some(vec!["bash".to_string(), "mcp:github".to_string()])
+            Some(vec!["shell".to_string(), "mcp:github".to_string()])
         );
     }
 
@@ -2665,5 +3329,31 @@ mod lock_tests {
         drop(session);
         assert!(!Session::is_open(&path));
         assert_ne!(Session::open_generation(), claimed);
+    }
+
+    /// The context's fill reads back from the latest that tells it: an
+    /// external agent's logged fill, a compaction, the built-in loop's call.
+    #[test]
+    fn the_context_fill_reads_back_from_the_log() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
+        assert_eq!(session.context_fill(), None);
+        let mut reply = crate::agent::test_support::text_reply("ok");
+        reply.usage.input = 900;
+        reply.usage.output = 100;
+        session
+            .append_message(&Message::Assistant(reply.clone()))
+            .unwrap();
+        assert_eq!(session.context_fill(), Some((1_000, None)));
+        session.append_context_fill(5_000, 200_000).unwrap();
+        // An external agent's reply is what its turn spent: not the fill.
+        reply.provider = crate::ACP_PROVIDER.to_string();
+        session.append_message(&Message::Assistant(reply)).unwrap();
+        let reopened = Session::open(session.path()).unwrap();
+        assert_eq!(reopened.context_fill(), Some((5_000, Some(200_000))));
+        session
+            .append_compaction_with("summary", 5_000, 0, Some(700), None)
+            .unwrap();
+        assert_eq!(session.context_fill(), Some((700, None)));
     }
 }

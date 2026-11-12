@@ -12,8 +12,8 @@
 ## 快速开始
 
 ```bash
-termide --detached            # 启动实例，打印其 ID
-termide --list-instances       # 查看正在运行的实例
+termide --detached            # 启动实例并接入它
+termide --list-instances      # 查看正在运行的实例
 termide --attach              # 接入最近的实例
 termide --attach my-project   # 接入指定的实例
 ```
@@ -57,7 +57,6 @@ always_detachable = true
 ssh server
 cd ~/src/my-project
 termide --detached
-termide --attach
 # … 工作、启动构建、在终端面板中运行代理 …
 # 按 Alt+D，或者直接关闭 SSH 连接
 ```
@@ -68,6 +67,10 @@ termide --attach
 ssh server
 termide --attach my-project
 ```
+
+在 `~/src/my-project` 中直接运行 `termide` 效果相同：同一时间一个项目只在一个
+Termide 中打开，因此为可分离实例持有的项目启动时，会接入那个实例而不是再启动
+一个。没有可用于接入的终端时，它会打印 `--attach` 命令。
 
 不分离直接关闭 SSH 连接是安全的。实例会察觉客户端已离开并继续运行；下一次
 `--attach` 会重新接上它。
@@ -96,9 +99,10 @@ termide --attach my-project
 
 | 命令 | 作用 |
 |---------|--------------|
-| `termide --detached` | 启动可分离实例并打印其 ID |
+| `termide --detached`（`-d`） | 启动可分离实例并接入它 |
+| `termide --detached --no-attach` | 只启动实例并打印其 ID——用于脚本以及没有终端的启动，此时单独的 `--detached` 会被拒绝 |
 | `termide --detached file.rs` | 同上，并照常打开文件 |
-| `termide --detached --restore`（`-r`） | 同上，并在上次运行所在的项目中重新打开上次运行的项目 |
+| `termide --detached --restore`（`-r`） | 同上，但从上次运行所在的项目开始，而不是当前目录 |
 | `termide --attach` | 接入最近的实例 |
 | `termide --attach <ID>` | 接入指定名称的实例 |
 | `termide --attach <ID> --force`（`-f`） | 接入，并从已接入的客户端手中接管实例 |
@@ -128,9 +132,14 @@ termide --attach my-project
 termide --kill my-project
 ```
 
-实例中的 Termide 会收到 SIGTERM，三秒后仍未退出则收到 SIGKILL；如果宿主进程也没有
-退出，`--kill` 会一并结束它。该实例中未保存的更改会丢失，其中的 shell 和任务也随之
-结束。此时已接入的客户端会被告知实例已结束。
+实例中的 Termide 会收到 SIGTERM，并在不做任何询问的情况下关闭：该实例中未保存的更改
+会连同布局一起保留，在下次打开该项目时恢复（参见
+[从外部结束 termide](editor.md#从外部结束-termide)）。其中的 shell 和任务随之结束。
+三秒后仍未退出则收到 SIGKILL；如果宿主进程也没有退出，`--kill` 会一并结束它。此时
+已接入的客户端会被告知实例已结束。
+
+关闭已接入客户端的终端只会结束该客户端：挂断信号只发给客户端，不会到达实例，实例继续
+以分离状态运行。
 
 ## 同一时间只允许一个客户端
 
@@ -157,4 +166,6 @@ termide --attach my-project --force   # 或 -f
 仅所有者可访问（`0700`），因此本机上的其他账户无法接入您的实例。
 
 那里没有任何需要手动清理的东西：套接字在宿主消失后最多存活到下一次
-`--list-instances` 或 `--detached`，它们会将其清除。
+`--list-instances` 或 `--detached`，它们会将其清除。重启后遗留的套接字也是如此
+（macOS 会保留该目录）：实例除了按 pid 识别，还按宿主进程的启动时间识别，因此
+已被其他程序占用的 pid 视为已结束，`--kill` 也绝不会向那个程序发送信号。

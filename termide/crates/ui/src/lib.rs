@@ -12,6 +12,7 @@ pub mod diff_style;
 pub mod field_edit;
 pub mod fuzzy;
 pub mod grapheme_utils;
+pub mod grid;
 pub mod input_bar;
 pub mod path_utils;
 pub mod scrollbar;
@@ -20,6 +21,7 @@ pub mod suggestion_input;
 pub mod system_monitor;
 pub mod text_utils;
 pub mod textarea;
+pub mod tree_lines;
 pub mod viewport;
 
 pub use checkbox::{checkbox, checkbox_mark};
@@ -32,6 +34,7 @@ pub use field_edit::{edit_text_area, edit_text_input, FieldEdit};
 pub use grapheme_utils::{
     cell_symbol, expand_tabs, grapheme_display_width, render_text_cells, str_display_width,
 };
+pub use grid::{ColumnSort, Grid, GridCell, GridEditor, GridHit, GridRows, GridState, GridWindow};
 pub use input_bar::{Control, Focus, InputBar, InputBarAction};
 pub use path_utils::expand_tilde;
 pub use scrollbar::ScrollBar;
@@ -40,6 +43,7 @@ pub use selection_style::{
 };
 pub use suggestion_input::{DropdownState, SuggestionAction, SuggestionInput};
 pub use textarea::TextArea;
+pub use tree_lines::tree_prefixes;
 pub use viewport::{ensure_offset_visible, wheel_scroll, Viewport};
 
 // Re-exports for convenience

@@ -36,17 +36,19 @@ use crate::tool::{Tool, ToolContext, ToolRegistry, ToolUpdate};
 pub const TOOLS_DIR: &str = "tools";
 
 /// The shipped texts of every built-in tool, by name.
-pub const SEED_TOOLS: [(&str, &str); 14] = [
+pub const SEED_TOOLS: [(&str, &str); 16] = [
     ("read", include_str!("../assets/tools/read.md")),
     ("edit", include_str!("../assets/tools/edit.md")),
     ("write", include_str!("../assets/tools/write.md")),
-    ("bash", include_str!("../assets/tools/bash.md")),
+    ("shell", include_str!("../assets/tools/shell.md")),
     ("question", include_str!("../assets/tools/question.md")),
     (
         "suggest_command",
         include_str!("../assets/tools/suggest_command.md"),
     ),
     ("task", include_str!("../assets/tools/task.md")),
+    ("jobs", include_str!("../assets/tools/jobs.md")),
+    ("terminals", include_str!("../assets/tools/terminals.md")),
     ("skill", include_str!("../assets/tools/skill.md")),
     ("fetch", include_str!("../assets/tools/fetch.md")),
     ("web_search", include_str!("../assets/tools/web_search.md")),
@@ -58,6 +60,33 @@ pub const SEED_TOOLS: [(&str, &str); 14] = [
     ),
     ("debug", include_str!("../assets/tools/debug.md")),
 ];
+
+/// What a rule table, a hook's `tools` or an agent's `tools:` may name
+/// besides the built-in tools: `command`, the rule table of the user's `/`
+/// scripts, and the action kinds an external agent's requests arrive as.
+const OTHER_TOOL_NAMES: [&str; 9] = [
+    "command",
+    "delete",
+    "move",
+    "search",
+    "execute",
+    "think",
+    "fetch",
+    "switch_mode",
+    "other",
+];
+
+/// Whether `name` can stand for a tool where the user names one: a built-in
+/// tool, a name from [`OTHER_TOOL_NAMES`], an MCP server's or a plugin's tool
+/// (`server__tool`), or a pattern with a wildcard. What is none of these
+/// applies to nothing.
+#[must_use]
+pub fn is_known_tool_name(name: &str) -> bool {
+    name.contains("__")
+        || name.contains(['*', '?'])
+        || OTHER_TOOL_NAMES.contains(&name)
+        || SEED_TOOLS.iter().any(|(tool, _)| *tool == name)
+}
 
 /// One tool's texts.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -157,6 +186,14 @@ impl Tool for Retexted {
         self.inner.render_description(template)
     }
 
+    fn traits(&self) -> crate::ToolTraits {
+        self.inner.traits()
+    }
+
+    fn check(&self, call: &ToolCall, ctx: &ToolContext) -> Result<(), String> {
+        self.inner.check(call, ctx)
+    }
+
     fn execute(
         &self,
         call: &ToolCall,
@@ -217,6 +254,12 @@ mod tests {
         fn render_description(&self, template: &str) -> String {
             template.replace("{{who}}", "echo")
         }
+        fn traits(&self) -> crate::ToolTraits {
+            crate::ToolTraits {
+                shell: crate::ShellSyntax::Fish,
+                ..crate::ToolTraits::default()
+            }
+        }
         fn execute(
             &self,
             call: &ToolCall,
@@ -237,6 +280,7 @@ mod tests {
         assert_eq!(recall.guidelines.len(), 2);
         assert!(recall.guidelines[0].starts_with("Use `recall` before"));
         assert!(ToolText::seed("task").description.contains("{{agents}}"));
+        assert!(ToolText::seed("shell").description.contains("{{shell}}"));
         assert!(ToolText::seed("nothing").description.is_empty());
     }
 
@@ -274,6 +318,8 @@ mod tests {
         assert_eq!(tool.description(), "Read, by echo.");
         assert_eq!(tool.prompt_snippet(), Some("look"));
         assert_eq!(tool.prompt_guidelines(), ["Be brief."]);
+        // What the permission checks weigh stays the tool's own.
+        assert_eq!(tool.traits().shell, crate::ShellSyntax::Fish);
         let call = ToolCall {
             id: "c".into(),
             name: "read".into(),

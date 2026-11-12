@@ -132,6 +132,12 @@ pub struct Editor {
     pub(crate) save_gate: bool,
     /// `Ctrl+S` was pressed while the gate was up.
     pub(crate) gated_save: bool,
+    /// Plugins of the project open files for edit and revert them: turning
+    /// editing on for a read-only file, or off for a writable one (saved or
+    /// not), is left to the app ([`Editor::take_gated_edit`]).
+    pub(crate) edit_gate: bool,
+    /// Editing was asked on (`true`) or off behind the gate.
+    pub(crate) gated_edit: Option<bool>,
     /// Updated config after save (for applying in AppState)
     config_update: Option<Config>,
     /// Status message to display to user
@@ -267,6 +273,13 @@ impl Editor {
     /// Assign a filename to this unsaved buffer if it doesn't have one yet.
     /// Called before the layout is saved so that to_state() has a stable name.
     pub fn ensure_unsaved_buffer_file(&mut self) {
+        // A file whose changes are saved needs no backup any more — one kept
+        // from before a Save As, or from an end without asking. Dropping the
+        // name keeps later changes from being backed up behind the user's
+        // back, and the next layout save deletes the file.
+        if self.file_path().is_some() && !self.buffer_is_modified() {
+            self.file_state.unsaved_buffer_file = None;
+        }
         if self.file_path().is_none()
             && self.buffer_is_modified()
             && self.file_state.unsaved_buffer_file.is_none()
@@ -274,6 +287,40 @@ impl Editor {
             self.file_state.unsaved_buffer_file =
                 Some(termide_project::generate_unsaved_filename());
         }
+    }
+
+    /// Assign a backup file name to a buffer with unsaved changes, whether or
+    /// not it has a file of its own, so that the next layout save keeps the
+    /// changes (see `to_state`). For a termide that has to end without
+    /// asking, where an ordinary quit would ask about them.
+    ///
+    /// Returns whether the buffer has changes to keep.
+    pub fn ensure_unsaved_changes_backup(&mut self) -> bool {
+        if !self.buffer_is_modified() {
+            return false;
+        }
+        if self.file_state.unsaved_buffer_file.is_none() {
+            self.file_state.unsaved_buffer_file =
+                Some(termide_project::generate_unsaved_filename());
+        }
+        true
+    }
+
+    /// Put unsaved changes kept in a backup back over the file just opened:
+    /// the buffer becomes `text`, modified, and undo goes back to what is on
+    /// disk.
+    pub fn restore_unsaved_changes(&mut self, text: &str) -> Result<()> {
+        if self.buffer.text() == text {
+            return Ok(());
+        }
+        let (_, end) = crate::selection::select_all(&self.buffer);
+        let start = Cursor::new();
+        self.buffer.delete_range(&start, &end)?;
+        self.buffer.insert(&start, text)?;
+        self.cursor = start;
+        self.selection = None;
+        self.invalidate_cache_after_edit(0, true);
+        Ok(())
     }
 
     /// Check if buffer has unsaved modifications
@@ -655,6 +702,56 @@ impl Editor {
     /// Whether `Ctrl+S` was pressed behind the gate since the last call.
     pub fn take_gated_save(&mut self) -> bool {
         std::mem::take(&mut self.gated_save)
+    }
+
+    /// Leave turning editing on for a file that is read-only on disk, and
+    /// off for one that is writable, to the app, which asks plugins first
+    /// (`p4 edit`, `p4 revert`, what to do with unsaved work).
+    pub fn set_edit_gate(&mut self, on: bool) {
+        self.edit_gate = on;
+    }
+
+    /// Whether editing was asked on (`Some(true)`) or off behind the gate
+    /// since the last call.
+    pub fn take_gated_edit(&mut self) -> Option<bool> {
+        self.gated_edit.take()
+    }
+
+    /// Turn editing on or off, whatever the file's permission: what
+    /// `Ctrl+E` does when no plugin dealt with it.
+    pub fn set_editable(&mut self, editable: bool) {
+        self.config.read_only = !editable;
+    }
+
+    /// Whether the file lives on a remote file system, saved by an upload.
+    pub fn is_remote(&self) -> bool {
+        self.file_state.is_remote()
+    }
+
+    /// `Ctrl+E` or a click on `Edit:`: switch between viewing and editing.
+    /// While the edit gate is up, turning editing on for a file that is
+    /// read-only on disk, or off for one that is writable, goes to the app
+    /// instead. Turning it off over unsaved work in a file is left to the
+    /// app as well, which asks what to do with the work: `true` then.
+    #[must_use]
+    pub(crate) fn toggle_read_only(&mut self) -> bool {
+        let editable = self.config.read_only;
+        let gated = self.edit_gate
+            && !self.file_state.is_remote()
+            && self
+                .buffer
+                .file_path()
+                .and_then(crate::file_io::file_readonly)
+                == Some(editable);
+        if gated {
+            self.gated_edit = Some(editable);
+            return false;
+        }
+        if !editable && self.buffer.is_modified() && self.buffer.file_path().is_some() {
+            return true;
+        }
+        self.config.read_only = !editable;
+        false
     }
 
     /// The local files this editor wrote since the last call, oldest first.

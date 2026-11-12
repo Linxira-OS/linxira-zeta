@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use termide_agent_core::ToolText;
 use termide_agent_core::{CancelToken, Tool, ToolCall, ToolContext, ToolResultMessage, ToolUpdate};
 
-use crate::args::{required_str, resolve_path};
+use crate::args::{ensure_not_special, required_str, resolve_path};
 
 pub struct WriteTool;
 
@@ -56,12 +56,13 @@ fn write(call: &ToolCall, ctx: &ToolContext) -> Result<(String, Value), String> 
     if path.is_dir() {
         return Err(format!("{} is a directory", path.display()));
     }
+    ensure_not_special(&path)?;
     let existed = path.exists();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|error| format!("cannot create {}: {error}", parent.display()))?;
     }
-    std::fs::write(&path, content)
+    termide_agent_core::write_atomic(&path, content.as_bytes())
         .map_err(|error| format!("cannot write {}: {error}", path.display()))?;
     let verb = if existed { "Overwrote" } else { "Created" };
     Ok((
@@ -107,11 +108,55 @@ mod tests {
         assert_eq!(second.details.unwrap()["created"], false);
     }
 
+    /// The file is replaced whole or not at all, through a symlink to its
+    /// target, keeping the target's permissions.
+    #[cfg(unix)]
+    #[test]
+    fn overwrites_atomically_through_a_symlink_keeping_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let real = dir.path().join("run.sh");
+        std::fs::write(&real, "old").unwrap();
+        std::fs::set_permissions(&real, std::fs::Permissions::from_mode(0o750)).unwrap();
+        std::os::unix::fs::symlink("run.sh", dir.path().join("link.sh")).unwrap();
+
+        let result = run(dir.path(), json!({ "path": "link.sh", "content": "new" }));
+        assert!(!result.is_error, "{}", result.plain_text());
+        assert_eq!(std::fs::read_to_string(&real).unwrap(), "new");
+        assert!(std::fs::symlink_metadata(dir.path().join("link.sh"))
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        let mode = std::fs::metadata(&real).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o750);
+        let names: Vec<_> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        assert_eq!(names.len(), 2, "{names:?}");
+    }
+
     #[test]
     fn refuses_directories_and_missing_arguments() {
         let dir = tempfile::tempdir().unwrap();
         assert!(run(dir.path(), json!({ "path": ".", "content": "" })).is_error);
         let missing = run(dir.path(), json!({ "path": "x" }));
         assert!(missing.plain_text().contains("`content`"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_pipe_is_refused_without_blocking() {
+        use crate::args::test_support::{make_fifo, within_seconds};
+        let dir = tempfile::tempdir().unwrap();
+        make_fifo(&dir.path().join("pipe"));
+        let cwd = dir.path().to_path_buf();
+        let result = within_seconds(move || run(&cwd, json!({ "path": "pipe", "content": "x" })));
+        assert!(result.is_error);
+        assert!(
+            result.plain_text().contains("named pipe"),
+            "{}",
+            result.plain_text()
+        );
     }
 }

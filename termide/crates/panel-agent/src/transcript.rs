@@ -9,8 +9,11 @@ use termide_agent_core::{
     DecidedBy, Lasting, PermissionNote, ToolCall, ToolResultMessage, UserMessage,
 };
 use termide_core::ThemeColors;
-use termide_panel_markdown::render_markdown;
-use termide_richtext::{Builder, RowCopy};
+use termide_panel_image::inline::{fit_cells, picture_key, picture_size};
+use termide_panel_markdown::render_markdown_with;
+use termide_richtext::{Builder, DiagramFold, RowCopy};
+
+use crate::pan::DiagramSpot;
 
 /// Lines of tool output shown when a call is expanded.
 const EXPANDED_OUTPUT_LINES: usize = 60;
@@ -84,9 +87,11 @@ fn is_foldable(item: &Item, fold: FoldMode) -> bool {
             command: Some(_),
             ..
         } => !text.trim().is_empty(),
-        Item::User { text, .. } | Item::System { text } => {
-            text.trim().lines().count() > FOLD_THRESHOLD
+        // A picture folds to its card, however short the words with it.
+        Item::User { text, images, .. } => {
+            !images.is_empty() || text.trim().lines().count() > FOLD_THRESHOLD
         }
+        Item::System { text } => text.trim().lines().count() > FOLD_THRESHOLD,
         // Finished reasoning folds to its first line, so any of it has detail
         // worth hiding: the rest of the text and the full cost lines.
         Item::Thinking { text, .. } => !text.trim().is_empty(),
@@ -102,9 +107,39 @@ fn is_foldable(item: &Item, fold: FoldMode) -> bool {
             let command = shell_command(call).map_or(0, |c| c.lines().count());
             output || command > 1
         }
-        // The answer is always shown in full, so it never folds.
-        Item::Assistant { .. } | Item::Notice { .. } | Item::RunEnd { .. } => false,
+        // The answer's text is always shown in full; only the diagrams in it
+        // fold, each to a one-line card. A fence is a cheap first look:
+        // `render_item` confirms a diagram is drawn from it.
+        Item::Assistant { text, .. } => has_mermaid_fence(text),
+        Item::Notice { .. } | Item::RunEnd { .. } => false,
     }
+}
+
+/// Whether `text` opens a ```` ```mermaid ```` code block.
+fn has_mermaid_fence(text: &str) -> bool {
+    text.lines().any(|line| {
+        let line = line.trim_start();
+        line.strip_prefix("```")
+            .or_else(|| line.strip_prefix("~~~"))
+            .is_some_and(|rest| {
+                rest.trim_start_matches(['`', '~'])
+                    .trim()
+                    .eq_ignore_ascii_case("mermaid")
+            })
+    })
+}
+
+/// The card a folded diagram shows in place of its `rows`.
+fn diagram_card(rows: usize) -> String {
+    format!("mermaid {}", termide_i18n::t().agent_more_lines(rows))
+}
+
+/// Fold to a card every diagram of more than `taller_than` rows.
+fn fold_diagrams(taller_than: usize) -> Option<DiagramFold> {
+    Some(DiagramFold {
+        card: diagram_card,
+        taller_than,
+    })
 }
 
 /// Whether `item` is an annotation — a notice or a run's closing line — rather
@@ -134,7 +169,7 @@ pub struct Cost {
 }
 
 /// The call id of a command the user ran by hand. Such a command shows as a
-/// `bash` call block, though the agent never made the call; the id is what
+/// `shell` call block, though the agent never made the call; the id is what
 /// tells the two apart, and no model-issued id takes this form.
 pub(crate) const USER_COMMAND_ID: &str = "user-command";
 
@@ -168,6 +203,10 @@ pub(crate) fn user_item(user: &UserMessage, at: String, duration_ms: Option<u32>
         text: user.plain_text(),
         at,
         command: user.command.clone(),
+        images: user
+            .images()
+            .map(|(media_type, data)| (media_type.to_string(), data.to_string()))
+            .collect(),
     }
 }
 
@@ -215,7 +254,7 @@ pub(crate) fn peer_message_subject(item: &Item) -> Option<String> {
     }
 }
 
-/// The block of a command the user ran by hand: a `bash` call with what it
+/// The block of a command the user ran by hand: a `shell` call with what it
 /// printed, as the agent's own shell calls show. `None` for any message that
 /// is not one.
 pub(crate) fn user_command_item(
@@ -226,7 +265,7 @@ pub(crate) fn user_command_item(
     let command = user.ran.as_ref()?;
     let call = ToolCall {
         id: USER_COMMAND_ID.into(),
-        name: "bash".into(),
+        name: "shell".into(),
         arguments: serde_json::json!({ "command": command }),
         extra_content: None,
     };
@@ -256,6 +295,8 @@ pub enum Item {
         /// The `/name args` typed when a template, script or skill produced
         /// `text`: the block's headline, with `text` folded under it.
         command: Option<String>,
+        /// The pictures sent with it, as `(media type, base64 data)`.
+        images: Vec<(String, String)>,
     },
     /// The system prompt in effect, shown (folded by default) at the start of a
     /// session and whenever it changes before a new message. Marked with `#`.
@@ -328,11 +369,85 @@ struct Cached {
     is_light: bool,
     /// Whether the item folds at this width (see [`render_item`]).
     foldable: bool,
+    /// Whether a diagram shows as a card only for being too tall: the item
+    /// is unfolded, and unfolding it by hand shows the diagram whole.
+    capped: bool,
     lines: Vec<Line<'static>>,
     /// The links the item marks up, on its own lines.
     links: Vec<RowLink>,
     /// How each of `lines` reads when copied.
     copy: Vec<RowCopy>,
+    /// The pictures drawn over its lines, on its own lines.
+    pictures: Vec<PictureSpot>,
+    /// The diagrams too wide for it, on its own lines.
+    wide_diagrams: Vec<DiagramSpot>,
+}
+
+/// How pictures are laid out: the size of a terminal cell in pixels and the
+/// most rows one takes. Without it (no graphics) a picture is a one-row card.
+/// A picture is centred in the columns it may take.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PictureLayout {
+    pub cell_px: (u16, u16),
+    pub max_rows: u16,
+}
+
+/// Columns a picture is drawn in from, under its block's text.
+pub(crate) const PICTURE_INDENT: u16 = 2;
+
+/// Where a picture goes on the rendered lines: `rows` rows from `line`,
+/// `cols` wide from column `col` (at least [`PICTURE_INDENT`]); the rows
+/// hold a placeholder the picture is drawn over.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct PictureSpot {
+    pub line: usize,
+    pub col: u16,
+    pub cols: u16,
+    pub rows: u16,
+    /// The picture's [`termide_panel_image::inline::picture_key`].
+    pub key: u64,
+    /// The item it belongs to, and which of the item's pictures it is.
+    pub item: usize,
+    pub ordinal: usize,
+}
+
+/// How an item is shown: what of it is folded, and how pictures lay out.
+#[derive(Clone, Copy)]
+struct ItemView {
+    collapsed: bool,
+    artifacts_folded: bool,
+    pinned: bool,
+    fold: FoldMode,
+    pictures: Option<PictureLayout>,
+    artifact_rows: Option<u16>,
+}
+
+/// The pictures `item` carries, as `(media type, base64 data)`.
+fn item_pictures(item: &Item) -> Vec<(&str, &str)> {
+    match item {
+        Item::Tool {
+            result: Some(result),
+            ..
+        } => result.images().collect(),
+        Item::User { images, .. } => images
+            .iter()
+            .map(|(media_type, data)| (media_type.as_str(), data.as_str()))
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// What a picture is called on its card: its format and size, `PNG 1280×800`.
+fn picture_label(media_type: &str, size: Option<(u32, u32)>) -> String {
+    let format = media_type
+        .rsplit('/')
+        .next()
+        .unwrap_or(media_type)
+        .to_uppercase();
+    match size {
+        Some((w, h)) => format!("{format} {w}×{h}"),
+        None => format,
+    }
 }
 
 /// A lit stretch of a link: `(line, start, end)`, a `[start, end)` column
@@ -367,6 +482,21 @@ pub struct Transcript {
     /// of a long message). Parallel to `items`. The assistant's answer always
     /// shows; collapsing only folds its thinking away.
     collapsed: Vec<bool>,
+    /// Whether each item's fold was set by hand, parallel to `items`: until
+    /// it is, a diagram too tall for the panel shows as a card
+    /// ([`Transcript::set_artifact_rows`]).
+    pinned: Vec<bool>,
+    /// Whether each item's diagrams and pictures are folded to cards,
+    /// parallel to `items`. A fresh block shows them whatever its own fold;
+    /// they fold with the block when it is folded by hand.
+    artifacts_folded: Vec<bool>,
+    /// How pictures lay out; `None` shows each as a card.
+    picture_layout: Option<PictureLayout>,
+    /// The most rows a diagram takes before it shows as a card instead,
+    /// unless its block was unfolded by hand; `None` sets no limit.
+    artifact_rows: Option<u16>,
+    /// Whether an item laid out so far carries a picture.
+    any_pictures: bool,
     cache: Vec<Option<Cached>>,
     /// Flattened lines of every item, rebuilt when any cache entry changed.
     flat: Vec<Line<'static>>,
@@ -376,6 +506,13 @@ pub struct Transcript {
     flat_copy: Vec<RowCopy>,
     /// The marked-up links on the flattened lines, with their item.
     flat_links: Vec<(usize, RowLink)>,
+    /// The pictures on the flattened lines.
+    flat_pictures: Vec<PictureSpot>,
+    /// The diagrams too wide for the panel, on the flattened lines.
+    flat_diagrams: Vec<DiagramSpot>,
+    /// How far each item's diagrams are panned, by their ordinal in the
+    /// item; parallel to `items`. Kept across widths, clamped when read.
+    pans: Vec<Vec<usize>>,
     flat_dirty: bool,
     /// Live footer lines appended after the last item while the agent works
     /// (the ticking generation and clock meta with the spinner); empty when
@@ -429,9 +566,15 @@ impl Transcript {
         // closing line);
         // an item's primary content still shows, only its detail is hidden.
         // Set never to fold, nothing does.
-        let collapsed = self.fold != FoldMode::Never && !is_annotation(&item);
+        // A fresh answer shows its diagrams; they fold once scrolled away.
+        let collapsed = self.fold != FoldMode::Never
+            && !is_annotation(&item)
+            && !matches!(item, Item::Assistant { .. });
         self.items.push(item);
         self.collapsed.push(collapsed);
+        self.pinned.push(false);
+        self.artifacts_folded.push(false);
+        self.pans.push(Vec::new());
         self.cache.push(None);
         self.flat_dirty = true;
     }
@@ -439,11 +582,17 @@ impl Transcript {
     pub fn clear(&mut self) {
         self.items.clear();
         self.collapsed.clear();
+        self.pinned.clear();
+        self.artifacts_folded.clear();
+        self.pans.clear();
+        self.any_pictures = false;
         self.cache.clear();
         self.flat.clear();
         self.line_item.clear();
         self.flat_copy.clear();
         self.flat_links.clear();
+        self.flat_pictures.clear();
+        self.flat_diagrams.clear();
         self.flat_dirty = true;
     }
 
@@ -565,6 +714,9 @@ impl Transcript {
             if text.trim().is_empty() && error.is_none() {
                 self.items.remove(index);
                 self.collapsed.remove(index);
+                self.pinned.remove(index);
+                self.artifacts_folded.remove(index);
+                self.pans.remove(index);
                 self.cache.remove(index);
                 self.flat_dirty = true;
                 return;
@@ -764,12 +916,118 @@ impl Transcript {
         if !self.foldable(index) {
             return false;
         }
-        let Some(slot) = self.collapsed.get_mut(index) else {
+        if index >= self.collapsed.len() {
             return false;
-        };
-        *slot = !*slot;
+        }
+        // An answer whose diagram is a card for its height unfolds it whole
+        // rather than folding.
+        if !self.capped(index) {
+            self.collapsed[index] = !self.collapsed[index];
+        }
+        self.pin(index);
         self.invalidate(index);
         true
+    }
+
+    /// Mark item `index`'s fold as set by hand: its diagrams and pictures
+    /// follow the fold it was given, whatever their height.
+    fn pin(&mut self, index: usize) {
+        if let Some(slot) = self.pinned.get_mut(index) {
+            *slot = true;
+        }
+        if let Some(slot) = self.artifacts_folded.get_mut(index) {
+            *slot = self.collapsed[index];
+        }
+    }
+
+    /// Whether an item laid out so far carries a picture.
+    #[must_use]
+    pub fn has_pictures(&self) -> bool {
+        self.any_pictures
+    }
+
+    /// Set how pictures lay out, laying out again the items that carry one.
+    pub fn set_picture_layout(&mut self, layout: Option<PictureLayout>) {
+        if self.picture_layout == layout {
+            return;
+        }
+        self.picture_layout = layout;
+        for index in 0..self.items.len() {
+            if !item_pictures(&self.items[index]).is_empty() {
+                self.invalidate(index);
+            }
+        }
+    }
+
+    /// Set the most rows a diagram takes before it shows as a card, laying
+    /// out again the answers that may draw one.
+    pub fn set_artifact_rows(&mut self, rows: Option<u16>) {
+        if self.artifact_rows == rows {
+            return;
+        }
+        self.artifact_rows = rows;
+        for index in 0..self.items.len() {
+            if matches!(&self.items[index], Item::Assistant { text, .. } if has_mermaid_fence(text))
+            {
+                self.invalidate(index);
+            }
+        }
+    }
+
+    /// Whether item `index`, unfolded and never folded by hand, shows a
+    /// diagram as a card only for its height (see [`Cached::capped`]).
+    fn capped(&self, index: usize) -> bool {
+        !self.pinned[index]
+            && !self.collapsed[index]
+            && matches!(self.cache.get(index), Some(Some(cached)) if cached.capped)
+    }
+
+    /// The pictures on the flattened lines, as last laid out.
+    pub(crate) fn pictures(&self) -> &[PictureSpot] {
+        &self.flat_pictures
+    }
+
+    /// The diagrams too wide for the panel on the flattened lines, as last
+    /// laid out.
+    pub(crate) fn wide_diagrams(&self) -> &[DiagramSpot] {
+        &self.flat_diagrams
+    }
+
+    /// How far `spot` is panned, within its width.
+    pub(crate) fn pan_of(&self, spot: &DiagramSpot) -> usize {
+        self.pans
+            .get(spot.item)
+            .and_then(|pans| pans.get(spot.index))
+            .map_or(0, |&pan| pan.min(spot.max_pan()))
+    }
+
+    /// Pan `spot` to `to` columns, within its width. Returns whether it
+    /// moved, so a pan against an edge redraws nothing.
+    pub(crate) fn set_pan(&mut self, spot: &DiagramSpot, to: usize) -> bool {
+        let to = to.min(spot.max_pan());
+        if self.pan_of(spot) == to {
+            return false;
+        }
+        let Some(pans) = self.pans.get_mut(spot.item) else {
+            return false;
+        };
+        if pans.len() <= spot.index {
+            pans.resize(spot.index + 1, 0);
+        }
+        pans[spot.index] = to;
+        true
+    }
+
+    /// Pan `spot` by `delta` columns, as [`Transcript::set_pan`].
+    pub(crate) fn pan_by(&mut self, spot: &DiagramSpot, delta: isize) -> bool {
+        let to = self.pan_of(spot).saturating_add_signed(delta);
+        self.set_pan(spot, to)
+    }
+
+    /// The base64 data of picture `ordinal` of item `item`.
+    pub(crate) fn picture_data(&self, item: usize, ordinal: usize) -> Option<&str> {
+        let item = self.items.get(item)?;
+        item_pictures(item).get(ordinal).map(|(_, data)| *data)
     }
 
     /// Show (`expanded` true) or hide the detail of item `index`; false when
@@ -778,9 +1036,15 @@ impl Transcript {
         if !self.foldable(index) {
             return false;
         }
+        if expanded && self.capped(index) {
+            self.pin(index);
+            self.invalidate(index);
+            return true;
+        }
         match self.collapsed.get_mut(index) {
             Some(slot) if *slot == expanded => {
                 *slot = !expanded;
+                self.pin(index);
                 self.invalidate(index);
                 true
             }
@@ -794,8 +1058,12 @@ impl Transcript {
             if is_annotation(&self.items[index]) {
                 continue;
             }
-            if self.collapsed[index] == value {
+            if self.collapsed[index] == value
+                || self.artifacts_folded[index] == value
+                || (value && self.capped(index))
+            {
                 self.collapsed[index] = !value;
+                self.pin(index);
                 self.invalidate(index);
             }
         }
@@ -893,22 +1161,17 @@ impl Transcript {
                 None => true,
             };
             if stale {
-                let (lines, foldable, links, copy) = render_item(
-                    &self.items[index],
-                    self.collapsed[index],
-                    self.fold,
-                    width,
-                    colors,
-                    is_light,
-                );
-                self.cache[index] = Some(Cached {
-                    width,
-                    is_light,
-                    foldable,
-                    lines,
-                    links,
-                    copy,
-                });
+                let view = ItemView {
+                    collapsed: self.collapsed[index],
+                    artifacts_folded: self.artifacts_folded[index],
+                    pinned: self.pinned[index],
+                    fold: self.fold,
+                    pictures: self.picture_layout,
+                    artifact_rows: self.artifact_rows,
+                };
+                let cached = render_item(&self.items[index], view, width, colors, is_light);
+                self.any_pictures |= !item_pictures(&self.items[index]).is_empty();
+                self.cache[index] = Some(cached);
                 self.flat_dirty = true;
             }
         }
@@ -917,9 +1180,23 @@ impl Transcript {
             self.line_item.clear();
             self.flat_copy.clear();
             self.flat_links.clear();
+            self.flat_pictures.clear();
+            self.flat_diagrams.clear();
             for (index, cached) in self.cache.iter().enumerate() {
                 if let Some(cached) = cached {
                     let base = self.flat.len();
+                    self.flat_diagrams
+                        .extend(cached.wide_diagrams.iter().map(|spot| DiagramSpot {
+                            line: base + spot.line,
+                            item: index,
+                            ..*spot
+                        }));
+                    self.flat_pictures
+                        .extend(cached.pictures.iter().map(|spot| PictureSpot {
+                            line: base + spot.line,
+                            item: index,
+                            ..*spot
+                        }));
                     self.flat_links.extend(cached.links.iter().map(|link| {
                         let line = base + link.line;
                         (
@@ -960,6 +1237,16 @@ impl Transcript {
                 self.items.get(index + 1),
                 Some(Item::Thinking { .. } | Item::Tool { .. } | Item::Notice { .. })
             )
+    }
+
+    /// The file an artifact card on flattened line `line` links to, as its
+    /// call gave the path.
+    #[must_use]
+    pub(crate) fn card_at(&self, line: usize) -> Option<&str> {
+        self.flat_links
+            .iter()
+            .find(|(_, link)| link.line == line && link.id == CARD_LINK)
+            .map(|(_, link)| link.href.as_str())
     }
 
     /// The marked-up link under display column `col` of flattened line
@@ -1116,6 +1403,33 @@ pub(crate) fn fmt_speed(tokens: u64, ms: u32) -> String {
     )
 }
 
+/// Reasoning with the `**` taken off a line that is bold as a whole: Codex
+/// and Gemini CLI head each thought with its subject so (`**Reading the
+/// report**`), which the plain reasoning block would otherwise show as typed.
+fn without_heading_marks(text: &str) -> std::borrow::Cow<'_, str> {
+    let heading = |line: &str| {
+        let line = line.trim();
+        line.len() > 4
+            && line.starts_with("**")
+            && line.ends_with("**")
+            && !line[2..line.len() - 2].contains("**")
+    };
+    if !text.lines().any(heading) {
+        return text.into();
+    }
+    text.lines()
+        .map(|line| {
+            if heading(line) {
+                line.trim().trim_start_matches("**").trim_end_matches("**")
+            } else {
+                line
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        .into()
+}
+
 /// Wrap plain text to `width` with a single style, using the rich-text builder
 /// so long lines fold instead of being clipped at draw time. Each line of
 /// `text` starts a row of its own and a blank line stays blank, so the text
@@ -1193,7 +1507,7 @@ fn fill_bg(lines: &mut [Line<'static>], width: u16, bg: ratatui::style::Color) {
 /// being a single clipped line. A `suggest_command` offer counts: `[Run]`
 /// sends it through the same shell, its output coming back as the call's.
 fn shell_command(call: &ToolCall) -> Option<String> {
-    matches!(call.name.as_str(), "bash" | "shell" | "suggest_command").then(|| {
+    matches!(call.name.as_str(), "shell" | "suggest_command").then(|| {
         call.arguments
             .get("command")
             .and_then(|v| v.as_str())
@@ -1401,15 +1715,91 @@ fn wrapped_row_with_meta(
 }
 
 /// What a tool call's headline subject links to: the file a read, write or
-/// edit touched, the page a fetch loaded.
+/// edit touched, the page a fetch loaded, the file a debug breakpoint or
+/// launch names.
 fn headline_href(call: &ToolCall) -> Option<String> {
     let key = match call.name.as_str() {
         "read" | "write" | "edit" => "path",
         "fetch" => "url",
+        // A launch by command names no file, and links nothing.
+        "debug" if call.arguments.get("command").is_none() => "file",
         _ => return None,
     };
     let href = call.arguments.get(key)?.as_str()?.trim();
     (!href.is_empty()).then(|| href.to_string())
+}
+
+/// The [`RowLink::id`] of an artifact card's link: a plain click on the
+/// card follows it, where any other link takes Ctrl.
+pub(crate) const CARD_LINK: usize = usize::MAX;
+
+/// What kind of artifact the file a call wrote is, by its extension: one
+/// termide renders in a viewer of its own — `HTML`, `Markdown` or
+/// `Mermaid`. A failed write made none.
+fn artifact_kind(call: &ToolCall, result: Option<&ToolResultMessage>) -> Option<&'static str> {
+    if call.name != "write" || result.is_none_or(|result| result.is_error) {
+        return None;
+    }
+    let path = call.arguments.get("path")?.as_str()?;
+    let ext = std::path::Path::new(path.trim())
+        .extension()?
+        .to_str()?
+        .to_ascii_lowercase();
+    match ext.as_str() {
+        "html" | "htm" => Some("HTML"),
+        "md" | "markdown" => Some("Markdown"),
+        "mmd" | "mermaid" => Some("Mermaid"),
+        _ => None,
+    }
+}
+
+/// The file item `item` made that opens in a viewer of its own (see
+/// [`artifact_kind`]), as the call gave its path.
+pub(crate) fn artifact_path(item: &Item) -> Option<String> {
+    match item {
+        Item::Tool { call, result, .. } => {
+            artifact_kind(call, result.as_ref())?;
+            headline_href(call)
+        }
+        _ => None,
+    }
+}
+
+/// The one-row card under the headline of a call that wrote an artifact,
+/// `↗ HTML report.html`, linked to the file; pushed onto `lines`.
+fn push_artifact_card(
+    call: &ToolCall,
+    result: Option<&ToolResultMessage>,
+    width: u16,
+    colors: &ThemeColors,
+    lines: &mut Vec<Line<'static>>,
+    marks: &mut Marks,
+) {
+    let (Some(kind), Some(href)) = (artifact_kind(call, result), headline_href(call)) else {
+        return;
+    };
+    let name = std::path::Path::new(&href)
+        .file_name()
+        .map_or_else(|| href.clone(), |name| name.to_string_lossy().into_owned());
+    // The scrollbar gutter stays free.
+    let label = truncate_spans(
+        vec![Span::styled(
+            format!("↗ {kind} {name}"),
+            Style::default().fg(colors.info),
+        )],
+        usize::from(width).saturating_sub(3),
+    );
+    let end = 2 + label.iter().map(|s| width_of(&s.content)).sum::<usize>();
+    marks.links.push(RowLink {
+        line: lines.len(),
+        start: 2,
+        end,
+        href,
+        id: CARD_LINK,
+    });
+    let mut spans = vec![Span::raw("  ")];
+    spans.extend(label);
+    lines.push(Line::from(spans));
 }
 
 /// The links of a tool headline: its subject's rows, when the subject is a
@@ -1745,8 +2135,8 @@ fn tool_headline(
             action("¿", t.agent_tool_question(), subject)
         }
         // Every exchange with another agent opens with `&`, as a task does;
-        // the verb tells which way it goes. A message to a panel, by its
-        // number: what it is says the verb, then its first line.
+        // the verb tells which way it goes. A message to a session, by its
+        // id: what it is says the verb, then its first line.
         "send_message" => {
             let text = arg("text");
             let first = text.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
@@ -1763,6 +2153,85 @@ fn tool_headline(
             action("&", verb, format!("{to} · {}", first.trim()))
         }
         "agents" => action("&", t.agent_tool_agents(), String::new()),
+        // What the agent set going: listed, or one of it stopped by its id.
+        "jobs" => match arg("stop").trim() {
+            "" => action("&", t.agent_tool_jobs(), String::new()),
+            id => action("&", t.agent_tool_jobs_stop(), id.to_string()),
+        },
+        // The session's terminals, by their name; what was typed into one is
+        // its first line, as a shell command shows its first.
+        "terminals" => {
+            let name = arg("session");
+            match arg("action").as_str() {
+                "read" => action("$", t.agent_tool_terminals_read(), name),
+                "screen" => action("$", t.agent_tool_terminals_screen(), name),
+                "interrupt" => action("$", t.agent_tool_terminals_interrupt(), name),
+                "close" => action("$", t.agent_tool_terminals_close(), name),
+                "send" => {
+                    let typed: String = arg("input").chars().take(60).collect();
+                    let keys = match &call.arguments["keys"] {
+                        Value::Array(keys) => keys
+                            .iter()
+                            .filter_map(|key| key.as_str())
+                            .collect::<Vec<_>>()
+                            .join("+"),
+                        _ => String::new(),
+                    };
+                    let subject = match (typed.trim(), keys.as_str()) {
+                        ("", "") => name,
+                        ("", keys) => format!("{name} · {keys}"),
+                        (typed, "") => format!("{name} · {typed}"),
+                        (typed, keys) => format!("{name} · {typed} · {keys}"),
+                    };
+                    action("$", t.agent_tool_terminals_send(), subject)
+                }
+                // `list`, and an action the tool names differently: listed.
+                _ => action("$", t.agent_tool_terminals(), String::new()),
+            }
+        }
+        // The debugger, in the editor gutter's marks: `●` for a breakpoint,
+        // `→` for whatever moves the program or reads where it is.
+        "debug" => {
+            let breakpoint = || match call.arguments["line"].as_u64() {
+                Some(line) => format!("{}:{line}", arg("file")),
+                None => arg("file"),
+            };
+            match arg("action").as_str() {
+                "start" => {
+                    let target = match arg("command") {
+                        command if command.is_empty() => arg("file"),
+                        command => command,
+                    };
+                    action("→", t.agent_tool_debug_start(), target)
+                }
+                "breakpoint" if call.arguments["set"] == false => {
+                    action("●", t.agent_tool_debug_clear_breakpoint(), breakpoint())
+                }
+                "breakpoint" => action("●", t.agent_tool_debug_set_breakpoint(), breakpoint()),
+                "continue" => action("→", t.agent_tool_debug_continue(), String::new()),
+                "step_over" => action("→", t.agent_tool_debug_step_over(), String::new()),
+                "step_in" => action("→", t.agent_tool_debug_step_in(), String::new()),
+                "step_out" => action("→", t.agent_tool_debug_step_out(), String::new()),
+                "pause" => action("→", t.agent_tool_debug_pause(), String::new()),
+                "stop" => action("→", t.agent_tool_debug_stop(), String::new()),
+                "evaluate" => action(
+                    "→",
+                    t.agent_tool_debug_evaluate(),
+                    arg("expression").replace('\n', " ").trim().to_string(),
+                ),
+                "frame" => action(
+                    "→",
+                    t.agent_tool_debug_frame(),
+                    call.arguments["frame"]
+                        .as_u64()
+                        .map(|n| n.to_string())
+                        .unwrap_or_default(),
+                ),
+                "state" => action("→", t.agent_tool_debug_state(), String::new()),
+                // An action the tool will refuse, named as it was asked.
+                other => action("→", t.agent_tool_debug_start(), other.to_string()),
+            }
+        }
         // Another agent's message to this one: from whom, what it is, and
         // its first line; the rest folds under it.
         PEER_MESSAGE_TOOL if is_peer_message(call) => {
@@ -1831,18 +2300,17 @@ fn inline_args(arguments: &Value) -> String {
         .join(" ")
 }
 
-/// The lines of `item` at `width`, folded when `collapsed` and the item folds,
+/// The lines of `item` at `width`, folded as `view` says when the item folds,
 /// and whether it does. A block whose unfolded form is a single row has
 /// nothing to fold, so it shows that row with no fold marker.
 fn render_item(
     item: &Item,
-    collapsed: bool,
-    fold: FoldMode,
+    view: ItemView,
     width: u16,
     colors: &ThemeColors,
     is_light: bool,
-) -> (Vec<Line<'static>>, bool, Vec<RowLink>, Vec<RowCopy>) {
-    let mut foldable = is_foldable(item, fold);
+) -> Cached {
+    let mut foldable = is_foldable(item, view.fold);
     // Only reasoning can be foldable yet fit one row unfolded: a foldable tool
     // call has output or a second command line below its headline.
     if foldable && matches!(item, Item::Thinking { .. }) {
@@ -1858,7 +2326,41 @@ fn render_item(
         .len()
             > 1;
     }
-    let mut marks = Marks::default();
+    // An answer folds only when a fence in it does draw a diagram.
+    if let (true, Item::Assistant { text, .. }) = (foldable, item) {
+        foldable = render_markdown_with(
+            text.trim(),
+            width.saturating_sub(2),
+            colors,
+            is_light,
+            fold_diagrams(0),
+            false,
+        )
+        .diagrams
+            > 0;
+    }
+    // An answer's fold is its diagrams'.
+    let collapsed = if matches!(item, Item::Assistant { .. }) {
+        view.artifacts_folded
+    } else {
+        view.collapsed
+    };
+    // Folded, an answer shows every diagram as a card; unfolded, one too
+    // tall for the panel — until the answer is unfolded by hand.
+    let diagrams = if !matches!(item, Item::Assistant { .. }) {
+        None
+    } else if collapsed && foldable {
+        fold_diagrams(0)
+    } else if view.pinned || !foldable {
+        None
+    } else {
+        view.artifact_rows
+            .and_then(|rows| fold_diagrams(usize::from(rows)))
+    };
+    let mut marks = Marks {
+        diagrams,
+        ..Marks::default()
+    };
     let mut lines = render_body(
         item,
         collapsed && foldable,
@@ -1868,9 +2370,12 @@ fn render_item(
         is_light,
         &mut marks,
     );
+    let capped = foldable && !collapsed && marks.folded_diagrams > 0;
     let Marks {
         mut links,
         copy: copy_marks,
+        mut wide_diagrams,
+        ..
     } = marks;
     let mut copy = vec![RowCopy::default(); lines.len()];
     for (line, row) in copy_marks {
@@ -1886,8 +2391,88 @@ fn render_item(
         for link in &mut links {
             link.line += 1;
         }
+        for spot in &mut wide_diagrams {
+            spot.line += 1;
+        }
     }
-    (lines, foldable, links, copy)
+    // Under the block's text, inside the gap a message of yours ends with.
+    let mut rows = Vec::new();
+    let mut pictures = picture_rows(item, view, width, colors, &mut rows);
+    let at = if matches!(item, Item::User { .. }) {
+        lines.len().saturating_sub(1)
+    } else {
+        lines.len()
+    };
+    for spot in &mut pictures {
+        spot.line += at;
+    }
+    for link in &mut links {
+        if link.line >= at {
+            link.line += rows.len();
+        }
+    }
+    for spot in &mut wide_diagrams {
+        if spot.line >= at {
+            spot.line += rows.len();
+        }
+    }
+    copy.splice(at..at, std::iter::repeat_n(RowCopy::default(), rows.len()));
+    lines.splice(at..at, rows);
+    Cached {
+        width,
+        is_light,
+        foldable,
+        capped,
+        lines,
+        links,
+        copy,
+        pictures,
+        wide_diagrams,
+    }
+}
+
+/// Put `item`'s pictures under its `lines`: rows held for each picture
+/// shown, a one-row card for each folded one — or each one at all when
+/// there are no graphics to draw it with. Returns where the pictures go.
+fn picture_rows(
+    item: &Item,
+    view: ItemView,
+    width: u16,
+    colors: &ThemeColors,
+    lines: &mut Vec<Line<'static>>,
+) -> Vec<PictureSpot> {
+    let dim = Style::default().fg(colors.disabled);
+    let indent = " ".repeat(PICTURE_INDENT as usize);
+    let mut spots = Vec::new();
+    for (ordinal, (media_type, data)) in item_pictures(item).into_iter().enumerate() {
+        let size = picture_size(data);
+        let label = picture_label(media_type, size);
+        match (view.pictures, size) {
+            (Some(layout), Some(px)) if !view.artifacts_folded => {
+                // The scrollbar gutter stays free.
+                let max_cols = width.saturating_sub(PICTURE_INDENT + 1).max(1);
+                let (cols, rows) = fit_cells(px, layout.cell_px, (max_cols, layout.max_rows));
+                // Centred across the block, the gutter left out.
+                let col = PICTURE_INDENT + (max_cols - cols) / 2;
+                spots.push(PictureSpot {
+                    line: lines.len(),
+                    col,
+                    cols,
+                    rows,
+                    key: picture_key(data),
+                    item: 0,
+                    ordinal,
+                });
+                // Seen only while the picture is not drawn over it.
+                let pad = " ".repeat(usize::from(col));
+                lines.push(Line::styled(format!("{pad}{label}"), dim));
+                lines.extend((1..rows).map(|_| Line::default()));
+            }
+            (Some(_), Some(_)) => lines.push(Line::styled(format!("{indent}▸ {label}"), dim)),
+            _ => lines.push(Line::styled(format!("{indent}{label}"), dim)),
+        }
+    }
+    spots
 }
 
 /// What [`render_body`] marks on the lines it returns: the links, and how
@@ -1896,6 +2481,12 @@ fn render_item(
 struct Marks {
     links: Vec<RowLink>,
     copy: Vec<(usize, RowCopy)>,
+    /// Which diagrams of an answer fold to a card; set by the caller.
+    diagrams: Option<DiagramFold>,
+    /// How many diagrams did.
+    folded_diagrams: usize,
+    /// The diagrams too wide for the block, kept whole to be panned.
+    wide_diagrams: Vec<DiagramSpot>,
 }
 
 /// The lines of `item` itself, without the gap [`render_item`] puts above it;
@@ -1913,7 +2504,9 @@ fn render_body(
     let t = termide_i18n::t();
     let dim = Style::default().fg(colors.disabled);
     match item {
-        Item::User { text, at, command } => {
+        Item::User {
+            text, at, command, ..
+        } => {
             let trimmed = text.trim();
             let all: Vec<&str> = trimmed.lines().collect();
             let mark = Style::default()
@@ -2066,7 +2659,8 @@ fn render_body(
             } else {
                 colors.disabled
             });
-            let reasoning = text.trim();
+            let reasoning = without_heading_marks(text.trim());
+            let reasoning = reasoning.as_ref();
             if reasoning.is_empty() {
                 return Vec::new();
             }
@@ -2134,7 +2728,32 @@ fn render_body(
             if !answer.is_empty() {
                 // Reserve the marker's width and indent wrapped lines under it,
                 // so the accent `›` never pushes the first line over the edge.
-                let body = render_markdown(answer, width.saturating_sub(2), colors, is_light);
+                // A diagram `marks` says folds is a one-line card.
+                let body = render_markdown_with(
+                    answer,
+                    width.saturating_sub(2),
+                    colors,
+                    is_light,
+                    marks.diagrams,
+                    true,
+                );
+                marks.folded_diagrams = body.folded_diagrams;
+                // Past the `› ` mark, a wide diagram's content starts four
+                // columns in and has the rest of the width.
+                marks
+                    .wide_diagrams
+                    .extend(body.wide_diagrams.iter().map(|wide| {
+                        let col = wide.lead + 2;
+                        DiagramSpot {
+                            line: lines.len() + wide.line,
+                            rows: wide.rows,
+                            col,
+                            cols: wide.cols,
+                            view: width.saturating_sub(col),
+                            item: 0,
+                            index: wide.index,
+                        }
+                    }));
                 // Past the `› ` mark the answer's links sit two columns in.
                 // Copied, the mark and the indent under it are decoration.
                 marks
@@ -2314,7 +2933,7 @@ fn render_body(
                 // A shell call's command clips to its first line; any other
                 // call's subject wraps, read in full without unfolding.
                 let meta = if finished { stats } else { clock };
-                return match shell_command(call) {
+                let mut lines = match shell_command(call) {
                     Some(command) => {
                         let mut head = shell_prefix(call, state);
                         head.extend(marker);
@@ -2334,6 +2953,8 @@ fn render_body(
                         lines
                     }
                 };
+                push_artifact_card(call, result.as_ref(), width, colors, &mut lines, marks);
+                return lines;
             }
             let mut lines = match shell_command(call) {
                 Some(command) => command_lines(call, &command, marker, width, state, colors),
@@ -2349,6 +2970,7 @@ fn render_body(
                     lines
                 }
             };
+            push_artifact_card(call, result.as_ref(), width, colors, &mut lines, marks);
             // An edit's result is a unified diff, painted like the git diff
             // panel paints one.
             let kinds = (call.name == "edit").then(|| diff_kinds(&all));
@@ -2541,13 +3163,13 @@ pub(crate) fn run_end_text(elapsed_ms: u32, at: &str) -> String {
     }
 }
 
-/// One-line description of a call's arguments: the command for `bash`, the
+/// One-line description of a call's arguments: the command for `shell`, the
 /// path for file tools, the URL or query for web tools, compact JSON
 /// otherwise.
 #[must_use]
 pub fn summarize_call(call: &ToolCall, max_chars: usize) -> String {
     let text = match call.name.as_str() {
-        "bash" => call.arguments["command"].as_str().unwrap_or("").to_string(),
+        "shell" => call.arguments["command"].as_str().unwrap_or("").to_string(),
         "read" | "edit" | "write" => call.arguments["path"].as_str().unwrap_or("").to_string(),
         "fetch" => call.arguments["url"].as_str().unwrap_or("").to_string(),
         "web_search" => call.arguments["query"].as_str().unwrap_or("").to_string(),
@@ -2623,30 +3245,37 @@ mod tests {
             ),
             "& Delegating to reviewer · check the diff"
         );
-        // Another agent panel: addressed by its number, the verb saying
+        // Another agent's session: addressed by its id (a number, from an
+        // older log, as it was written), the verb saying
         // what the message is, or listed — all with the `&` of a task.
         assert_eq!(
             headline(
                 "send_message",
-                json!({ "to": 7, "kind": "info", "text": "\nI edit submit.rs\nmore" })
+                json!({ "to": "1a2b3c4d", "kind": "info", "text": "\nI edit submit.rs\nmore" })
             ),
-            "& Telling panel 7 · I edit submit.rs"
+            "& Telling session 1a2b3c4d · I edit submit.rs"
         );
         assert_eq!(
             headline(
                 "send_message",
-                json!({ "to": 2, "kind": "question", "text": "Which?" })
+                json!({ "to": "5e6f7a8b", "kind": "question", "text": "Which?" })
             ),
-            "& Asking panel 2 · Which?"
+            "& Asking session 5e6f7a8b · Which?"
         );
         assert_eq!(
             headline(
                 "send_message",
                 json!({ "to": 1, "kind": "reply", "text": "Done" })
             ),
-            "& Replying to panel 1 · Done"
+            "& Replying to session 1 · Done"
         );
         assert_eq!(headline("agents", json!({})), "& Listing agent panels ");
+        // What the agent set going, listed or stopped by its id.
+        assert_eq!(headline("jobs", json!({})), "& Listing background work ");
+        assert_eq!(
+            headline("jobs", json!({ "stop": "call_7" })),
+            "& Stopping call_7"
+        );
         assert_eq!(
             headline(
                 "github__create_issue",
@@ -2673,6 +3302,7 @@ mod tests {
             text: "Review a.rs.\nQuote the lines.".into(),
             at: String::new(),
             command: Some("/review a.rs".into()),
+            images: Vec::new(),
         });
         let folded = text_of(transcript.lines(40, &colors, false)).join("\n");
         assert!(folded.contains("› /review a.rs"), "{folded}");
@@ -2726,6 +3356,7 @@ mod tests {
             text: "first line\n\n- one\n- two and a much longer tail".into(),
             at: String::new(),
             command: None,
+            images: Vec::new(),
         });
         let rows: Vec<String> = text_of(transcript.lines(20, &colors, false))
             .into_iter()
@@ -2746,6 +3377,7 @@ mod tests {
             text: "hi".into(),
             at: String::new(),
             command: None,
+            images: Vec::new(),
         });
         let base = transcript.lines(40, &colors, false).len();
 
@@ -2800,8 +3432,8 @@ mod tests {
         // A finished tool folds to its headline; how long it took (`🕒`) and
         // its status wait under the fold.
         transcript.push(Item::Tool {
-            call: call("bash", json!({ "command": "cargo test" })),
-            result: Some(ToolResultMessage::text(&call("bash", json!({})), "ok")),
+            call: call("shell", json!({ "command": "cargo test" })),
+            result: Some(ToolResultMessage::text(&call("shell", json!({})), "ok")),
             live: None,
             at: "21:03:20".into(),
             duration_ms: Some(1200),
@@ -2841,6 +3473,7 @@ mod tests {
             text: "Fix the bug".into(),
             at: String::new(),
             command: None,
+            images: Vec::new(),
         });
         // Reasoning and the answer stream into their own blocks.
         transcript
@@ -2927,10 +3560,10 @@ mod tests {
         let mut transcript = Transcript::default();
         transcript.set_fold(FoldMode::Never);
         let finished = |note: Option<PermissionNote>| {
-            let mut result = ToolResultMessage::text(&call("bash", json!({})), "ok");
+            let mut result = ToolResultMessage::text(&call("shell", json!({})), "ok");
             result.permission = note.map(Box::new);
             Item::Tool {
-                call: call("bash", json!({ "command": "make" })),
+                call: call("shell", json!({ "command": "make" })),
                 result: Some(result),
                 live: None,
                 at: "12:00".into(),
@@ -2973,13 +3606,14 @@ mod tests {
             text: "hi".into(),
             at: String::new(),
             command: None,
+            images: Vec::new(),
         });
         // A long output is foldable, so autofold-off keeps it open.
         let body = (1..=8).map(|n| format!("line {n}")).collect::<Vec<_>>();
         transcript.push(Item::Tool {
-            call: call("bash", json!({ "command": "ls" })),
+            call: call("shell", json!({ "command": "ls" })),
             result: Some(ToolResultMessage::text(
-                &call("bash", json!({})),
+                &call("shell", json!({})),
                 body.join("\n"),
             )),
             live: None,
@@ -2997,8 +3631,8 @@ mod tests {
         let mut transcript = Transcript::default();
         // A call with no output and a one-line command has nothing to hide.
         transcript.push(Item::Tool {
-            call: call("bash", json!({ "command": "echo hi" })),
-            result: Some(ToolResultMessage::text(&call("bash", json!({})), "")),
+            call: call("shell", json!({ "command": "echo hi" })),
+            result: Some(ToolResultMessage::text(&call("shell", json!({})), "")),
             live: None,
             at: "12:00:00".into(),
             duration_ms: Some(300),
@@ -3032,7 +3666,7 @@ mod tests {
         let mut transcript = Transcript::default();
         let command = "cargo test --workspace --all-features -- --nocapture";
         transcript.push(Item::Tool {
-            call: call("bash", json!({ "command": command })),
+            call: call("shell", json!({ "command": command })),
             result: None,
             live: None,
             at: String::new(),
@@ -3068,8 +3702,8 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         transcript.push(Item::Tool {
-            call: call("bash", json!({ "command": script })),
-            result: Some(ToolResultMessage::text(&call("bash", json!({})), "ok")),
+            call: call("shell", json!({ "command": script })),
+            result: Some(ToolResultMessage::text(&call("shell", json!({})), "ok")),
             live: None,
             at: String::new(),
             duration_ms: None,
@@ -3168,6 +3802,32 @@ mod tests {
         assert!(lines.iter().any(|l| l.contains("↑512")));
     }
 
+    /// Codex and Gemini CLI head a thought with its subject in bold; the
+    /// block shows the subject without the marks, and leaves bold inside a
+    /// line as it is.
+    #[test]
+    fn a_thoughts_bold_subject_shows_without_its_marks() {
+        let colors = ThemeColors::default();
+        let mut transcript = Transcript::default();
+        transcript.set_fold(FoldMode::OnFinish);
+        transcript.stream_thinking("**Reading the report**\nIt has **four** columns.");
+        let lines = text_of(transcript.lines(60, &colors, false));
+        let lines: Vec<&str> = lines.iter().map(|l| l.trim_end()).collect();
+        assert_eq!(
+            lines,
+            vec![
+                "@ Thinking Reading the report",
+                "           It has **four** columns."
+            ]
+        );
+        assert!(transcript.finish_thinking("12:00:00", None));
+        let lines = text_of(transcript.lines(60, &colors, false));
+        assert!(
+            lines[0].starts_with("@ Thinking ▸ Reading the report"),
+            "{lines:?}"
+        );
+    }
+
     #[test]
     fn unfolded_reasoning_keeps_its_line_breaks() {
         let colors = ThemeColors::default();
@@ -3195,12 +3855,13 @@ mod tests {
             text: "go".into(),
             at: String::new(),
             command: None,
+            images: Vec::new(),
         });
         transcript.stream_thinking("a thought\nand more");
         transcript.finish_thinking("12:00:00", None);
         transcript.push(Item::Tool {
-            call: call("bash", json!({ "command": "ls" })),
-            result: Some(ToolResultMessage::text(&call("bash", json!({})), "a\nb")),
+            call: call("shell", json!({ "command": "ls" })),
+            result: Some(ToolResultMessage::text(&call("shell", json!({})), "a\nb")),
             live: None,
             at: "12:00:01".into(),
             duration_ms: Some(100),
@@ -3275,6 +3936,7 @@ mod tests {
             text: "go".into(),
             at: "21:00:00".into(),
             command: None,
+            images: Vec::new(),
         });
         transcript.stream_answer("done");
         transcript.finish_assistant("done".into(), None, None, "21:03:41".into(), false);
@@ -3338,7 +4000,7 @@ mod tests {
         let colors = ThemeColors::default();
         let mut transcript = Transcript::default();
         transcript.push(Item::Tool {
-            call: call("bash", json!({ "command": "true" })),
+            call: call("shell", json!({ "command": "true" })),
             result: None,
             live: None,
             at: String::new(),
@@ -3357,8 +4019,8 @@ mod tests {
         assert_eq!(fg_of(&lines, "$ "), Some(colors.info));
         let mut transcript = Transcript::default();
         transcript.push(Item::Tool {
-            call: call("bash", json!({ "command": "true" })),
-            result: Some(ToolResultMessage::text(&call("bash", json!({})), "")),
+            call: call("shell", json!({ "command": "true" })),
+            result: Some(ToolResultMessage::text(&call("shell", json!({})), "")),
             live: None,
             at: "12:00:00".into(),
             duration_ms: Some(500),
@@ -3393,9 +4055,9 @@ mod tests {
         let colors = ThemeColors::default();
         let mut transcript = Transcript::default();
         transcript.push(Item::Tool {
-            call: call("bash", json!({ "command": "exit 1" })),
+            call: call("shell", json!({ "command": "exit 1" })),
             result: Some(ToolResultMessage::error(
-                &call("bash", json!({})),
+                &call("shell", json!({})),
                 "[exit code 1]",
             )),
             live: None,
@@ -3458,7 +4120,7 @@ mod tests {
         assert_eq!(lines.len(), 1, "{lines:?}");
         assert!(lines[0].contains("▸ the latest one"), "{lines:?}");
         transcript.push(Item::Tool {
-            call: call("bash", json!({ "command": "cargo build" })),
+            call: call("shell", json!({ "command": "cargo build" })),
             result: None,
             live: Some("Compiling a\nCompiling b\n".into()),
             at: String::new(),
@@ -3478,7 +4140,7 @@ mod tests {
         let mut transcript = Transcript::default();
         transcript.set_fold(FoldMode::OnFinish);
         transcript.push(Item::Tool {
-            call: call("bash", json!({ "command": "cargo build" })),
+            call: call("shell", json!({ "command": "cargo build" })),
             result: None,
             live: None,
             at: String::new(),
@@ -3513,7 +4175,7 @@ mod tests {
                 ..
             } = item
             {
-                *result = Some(ToolResultMessage::text(&call("bash", json!({})), &output));
+                *result = Some(ToolResultMessage::text(&call("shell", json!({})), &output));
                 *live = None;
                 *at = "12:00:00".into();
                 *duration_ms = Some(3000);
@@ -3547,7 +4209,7 @@ mod tests {
         let lines = text_of(transcript.lines(40, &colors, false));
         assert!(!lines.last().is_some_and(String::is_empty), "{lines:?}");
         transcript.push(Item::Tool {
-            call: call("bash", json!({ "command": "ls" })),
+            call: call("shell", json!({ "command": "ls" })),
             result: None,
             live: None,
             at: String::new(),
@@ -3859,6 +4521,7 @@ mod tests {
             text: "go".into(),
             at: "21:00:00".into(),
             command: None,
+            images: Vec::new(),
         });
         transcript.push(Item::RunEnd {
             elapsed_ms: 221_000,
@@ -3933,6 +4596,7 @@ mod tests {
             text: "next".into(),
             at: String::new(),
             command: None,
+            images: Vec::new(),
         });
         transcript.push(Item::Notice {
             text: "a long notice that has to wrap onto a second row".into(),
@@ -3964,9 +4628,9 @@ mod tests {
             kind: NoticeKind::Info,
         });
         transcript.push(Item::Tool {
-            call: call("bash", json!({ "command": "exit 1" })),
+            call: call("shell", json!({ "command": "exit 1" })),
             result: Some(ToolResultMessage::error(
-                &call("bash", json!({})),
+                &call("shell", json!({})),
                 "[exit code 1]",
             )),
             live: None,
@@ -4111,11 +4775,109 @@ mod tests {
         );
     }
 
+    /// `debug` heads with a localized verb per action, never the raw
+    /// arguments, and links the file a breakpoint names.
+    #[test]
+    fn debug_calls_head_with_their_action() {
+        let colors = ThemeColors::default();
+        let text = |args: Value| -> String {
+            tool_headline(&call("debug", args), None, 80, colors.info, &colors)
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect()
+        };
+        let t = termide_i18n::t();
+        assert_eq!(
+            text(json!({ "action": "start", "command": "debug-server" })),
+            format!("→ {} debug-server", t.agent_tool_debug_start())
+        );
+        assert_eq!(
+            text(json!({ "action": "start", "file": "main.py" })),
+            format!("→ {} main.py", t.agent_tool_debug_start())
+        );
+        assert_eq!(
+            text(json!({ "action": "breakpoint", "file": "src/a.rs", "line": 42 })),
+            format!("● {} src/a.rs:42", t.agent_tool_debug_set_breakpoint())
+        );
+        assert_eq!(
+            text(json!({ "action": "breakpoint", "file": "src/a.rs", "line": 42, "set": false })),
+            format!("● {} src/a.rs:42", t.agent_tool_debug_clear_breakpoint())
+        );
+        assert_eq!(
+            text(json!({ "action": "step_over" })),
+            format!("→ {} ", t.agent_tool_debug_step_over())
+        );
+        assert_eq!(
+            text(json!({ "action": "evaluate", "expression": " a\n+ 1 " })),
+            format!("→ {} a + 1", t.agent_tool_debug_evaluate())
+        );
+        assert_eq!(
+            text(json!({ "action": "frame", "frame": 2 })),
+            format!("→ {} 2", t.agent_tool_debug_frame())
+        );
+        assert!(!text(json!({ "action": "state" })).contains('{'));
+        assert_eq!(
+            headline_href(&call(
+                "debug",
+                json!({ "action": "breakpoint", "file": "src/a.rs", "line": 4 })
+            ))
+            .as_deref(),
+            Some("src/a.rs")
+        );
+        assert_eq!(
+            headline_href(&call(
+                "debug",
+                json!({ "action": "start", "command": "debug-server" })
+            )),
+            None
+        );
+    }
+
+    /// `terminals` heads with a `$` and a localized verb per action, never
+    /// its raw arguments.
+    #[test]
+    fn terminal_calls_head_with_their_action() {
+        let colors = ThemeColors::default();
+        let text = |args: Value| -> String {
+            tool_headline(&call("terminals", args), None, 80, colors.info, &colors)
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect()
+        };
+        let t = termide_i18n::t();
+        assert_eq!(text(json!({})), format!("$ {} ", t.agent_tool_terminals()));
+        assert_eq!(
+            text(json!({ "action": "list" })),
+            format!("$ {} ", t.agent_tool_terminals())
+        );
+        assert_eq!(
+            text(json!({ "action": "read", "session": "py" })),
+            format!("$ {} py", t.agent_tool_terminals_read())
+        );
+        assert_eq!(
+            text(json!({ "action": "send", "session": "py", "input": "1+1", "keys": ["Enter"] })),
+            format!("$ {} py · 1+1 · Enter", t.agent_tool_terminals_send())
+        );
+        assert_eq!(
+            text(json!({ "action": "send", "session": "py", "keys": ["Ctrl+C"] })),
+            format!("$ {} py · Ctrl+C", t.agent_tool_terminals_send())
+        );
+        assert_eq!(
+            text(json!({ "action": "interrupt", "session": "build" })),
+            format!("$ {} build", t.agent_tool_terminals_interrupt())
+        );
+        assert_eq!(
+            text(json!({ "action": "close", "session": "build" })),
+            format!("$ {} build", t.agent_tool_terminals_close())
+        );
+        assert!(!text(json!({ "action": "screen", "session": "py" })).contains('{'));
+    }
+
     #[test]
     fn call_summaries_truncate_and_flatten() {
         let long = "x".repeat(50);
         let summary = summarize_call(
-            &call("bash", json!({ "command": format!("echo {long}\nls") })),
+            &call("shell", json!({ "command": format!("echo {long}\nls") })),
             20,
         );
         assert_eq!(summary.chars().count(), 20);
@@ -4155,6 +4917,7 @@ mod tests {
             output: 300,
             cache_read: 2000,
             cache_write: 0,
+            ..Default::default()
         };
         transcript.push(Item::Tool {
             call: task.clone(),

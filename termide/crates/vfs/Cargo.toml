@@ -14,8 +14,13 @@ percent-encoding = "2"
 log = "0.4"
 
 # SFTP support — pure-Rust russh stack (no OpenSSL/libssh2 needed).
-russh = "0.64"
+russh = "0.65"
 russh-sftp = "2.2"
+# Hashed known_hosts names (`|1|salt|hash`); the versions russh already uses.
+hmac = "0.13"
+sha1 = "0.11"
+# Salt for hashed known_hosts names; the version russh already uses.
+getrandom = "0.4"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "io-util", "macros", "time", "net", "fs"] }
 
 # FTP support — rustls TLS provider (pure-Rust, enables musl-static builds).
@@ -30,7 +35,7 @@ pavao = { version = "0.2", optional = true }
 # Archive support — pure-Rust decoders only (no C zstd/xz/bzip2), so
 # musl-static builds keep needing no C toolchain. zip's deflate goes
 # through flate2's default miniz_oxide backend.
-zip = { version = "9.0", default-features = false, features = ["deflate-flate2", "deflate64", "bzip2", "lzma", "xz", "aes-crypto"], optional = true }
+zip = { version = "9.1", default-features = false, features = ["deflate-flate2", "deflate64", "bzip2", "lzma", "xz", "aes-crypto"], optional = true }
 tar = { version = "0.4", default-features = false, optional = true }
 flate2 = { version = "1", optional = true }
 bzip2 = { version = "0.6", optional = true }

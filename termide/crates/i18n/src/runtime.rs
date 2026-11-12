@@ -148,7 +148,7 @@ impl Translation for RuntimeTranslation {
         }
     }
 
-    // Generate 405 trivial `fn name(&self) -> &str` wrappers over get_string("name").
+    // Generate 417 trivial `fn name(&self) -> &str` wrappers over get_string("name").
     i18n_get_string_methods! {
         agent_input_placeholder,
         agent_input_placeholder_shell,
@@ -166,6 +166,30 @@ impl Translation for RuntimeTranslation {
         agent_info_tokens,
         agent_info_context,
         agent_info_output_cleaned,
+        agent_info_spent_by,
+        agent_info_by_model,
+        agent_info_cache_hits,
+        agent_info_thinking,
+        agent_spender_main,
+        agent_spender_subagent,
+        agent_spender_reviewer,
+        agent_spender_recall,
+        agent_spender_compaction,
+        agent_spender_goal_judge,
+        agent_spender_handoff,
+        agent_spender_tool,
+        agent_spender_internal,
+        agent_model_unknown,
+        agent_info_context_parts,
+        agent_info_by_tool,
+        agent_context_system,
+        agent_context_tools,
+        agent_context_skills,
+        agent_context_tool_output,
+        agent_context_conversation,
+        agent_context_summary,
+        agent_context_agent,
+        agent_tools_others,
         agent_chip_agent,
         agent_chip_mode,
         agent_chip_reasoning,
@@ -239,6 +263,9 @@ impl Translation for RuntimeTranslation {
         editor_close_unsaved_question,
         editor_save_and_close,
         editor_close_without_saving,
+        editor_stop_editing,
+        editor_save_and_view,
+        editor_view_without_saving,
         editor_cancel,
         editor_close_external,
         editor_close_external_question,
@@ -260,6 +287,13 @@ impl Translation for RuntimeTranslation {
         vfs_reconnect,
         vfs_open_local,
         vfs_close_panel,
+        vfs_host_key_title,
+        vfs_host_key_host,
+        vfs_host_key_type,
+        vfs_host_key_fingerprint,
+        vfs_host_key_remember,
+        vfs_host_key_once,
+        vfs_host_key_changed_title,
         app_quit_confirm,
         app_quit_title,
         help_global_keys,
@@ -367,6 +401,8 @@ impl Translation for RuntimeTranslation {
         lsp_rename_no_identifier,
         lsp_rename_unsaved_file,
         lsp_rename_no_changes,
+        lsp_restart_server,
+        lsp_restart_no_server,
         help_desc_delete_generic,
         help_desc_open_bookmark_add,
         help_desc_command_palette,
@@ -649,7 +685,9 @@ impl Translation for RuntimeTranslation {
         agent_strip_pause,
         agent_strip_after_step,
         agent_strip_paused,
-        agent_strip_keeps_running,
+        agent_strip_terminal,
+        agent_strip_idle,
+        agent_strip_ended,
         agent_notice_no_parent_panel,
         agent_unfinished_delegates_title,
         agent_strip_left_unfinished,
@@ -759,6 +797,14 @@ impl Translation for RuntimeTranslation {
         agent_tool_recall,
         agent_tool_skill,
         agent_tool_task,
+        agent_tool_jobs,
+        agent_tool_jobs_stop,
+        agent_tool_terminals,
+        agent_tool_terminals_read,
+        agent_tool_terminals_send,
+        agent_tool_terminals_screen,
+        agent_tool_terminals_interrupt,
+        agent_tool_terminals_close,
         agent_tool_mcp,
         agent_tool_question,
         agent_tool_suggest,
@@ -767,6 +813,18 @@ impl Translation for RuntimeTranslation {
         agent_tool_send_question,
         agent_tool_send_reply,
         agent_tool_send_info,
+        agent_tool_debug_start,
+        agent_tool_debug_set_breakpoint,
+        agent_tool_debug_clear_breakpoint,
+        agent_tool_debug_continue,
+        agent_tool_debug_step_over,
+        agent_tool_debug_step_in,
+        agent_tool_debug_step_out,
+        agent_tool_debug_pause,
+        agent_tool_debug_stop,
+        agent_tool_debug_evaluate,
+        agent_tool_debug_frame,
+        agent_tool_debug_state,
         agent_peer_reply,
         agent_peer_question,
         agent_peer_info,
@@ -780,6 +838,14 @@ impl Translation for RuntimeTranslation {
         settings_agent_base_url,
         settings_agent_model,
         settings_agent_api_key_env,
+        settings_agent_api_key,
+        settings_api_key_stored,
+        settings_api_key_not_stored,
+        settings_api_key_enter,
+        settings_api_key_replace,
+        settings_api_key_remove,
+        settings_api_key_move_env,
+        settings_api_key_env_misuse,
         settings_agent_context_window,
         settings_agent_max_tokens,
         settings_agent_reasoning,
@@ -810,6 +876,7 @@ impl Translation for RuntimeTranslation {
         settings_ai_connection_subagents_own,
         settings_ai_connection_context_limit,
         settings_ai_connection_max_requests,
+        settings_ai_connection_attribution,
         settings_ai_connection_name_taken,
         settings_web_backend,
         menu_ai_show_browser,
@@ -879,6 +946,7 @@ impl Translation for RuntimeTranslation {
         detach_not_detached_instance,
         detach_failed,
         settings_general_always_detachable,
+        settings_general_restore_projects,
         help_desc_detach_instance,
         directory_picker_create,
         directory_picker_move,
@@ -992,6 +1060,9 @@ impl Translation for RuntimeTranslation {
         op_error_not_found,
         op_error_already_exists,
         op_error_archive,
+        path_field_recent,
+        path_field_mount,
+        pack_format_label,
         pack_compression_label,
         pack_level_store,
         pack_level_fast,
@@ -1013,6 +1084,8 @@ impl Translation for RuntimeTranslation {
         vault_target_ssh_key,
         palette_lock_vault,
         vault_move_bookmark_password,
+        vault_api_key_saved,
+        vault_api_key_removed,
         status_vfs_resolving_link,
         status_vfs_loading,
         status_vfs_connected,
@@ -1183,6 +1256,13 @@ impl Translation for RuntimeTranslation {
         db_copy_tsv,
         db_copy_json,
         db_copy_insert,
+        csv_loading,
+        csv_sorting,
+        csv_copied_cell,
+        csv_copied_row,
+        csv_menu_copy_row,
+        csv_menu_change_delimiter,
+        csv_menu_toggle_header,
         db_filter_operator,
         db_filter_value,
         db_filter_hint,
@@ -1292,6 +1372,10 @@ impl Translation for RuntimeTranslation {
 
     fn agent_stop_command_confirm_fmt(&self, command: &str) -> String {
         self.format("agent_stop_command_confirm_fmt", &[("command", command)])
+    }
+
+    fn agent_close_terminal_confirm_fmt(&self, name: &str) -> String {
+        self.format("agent_close_terminal_confirm_fmt", &[("name", name)])
     }
 
     fn agent_notice_delegates_running_fmt(&self, count: usize) -> String {
@@ -1601,6 +1685,13 @@ impl Translation for RuntimeTranslation {
         )
     }
 
+    fn agent_notice_compacted_summary_fmt(&self, tokens: u64) -> String {
+        self.format(
+            "agent_notice_compacted_summary_fmt",
+            &[("tokens", &tokens.to_string())],
+        )
+    }
+
     fn agent_notice_fitted_fmt(&self, before: u64, after: u64) -> String {
         self.format(
             "agent_notice_fitted_fmt",
@@ -1642,6 +1733,12 @@ impl Translation for RuntimeTranslation {
 
     fn agent_notice_unknown_tool_text_fmt(&self, file: &str) -> String {
         self.format("agent_notice_unknown_tool_text_fmt", &[("file", file)])
+    }
+    fn agent_notice_unknown_tool_name_fmt(&self, file: &str, name: &str) -> String {
+        self.format(
+            "agent_notice_unknown_tool_name_fmt",
+            &[("file", file), ("name", name)],
+        )
     }
 
     fn agent_notice_empty_tool_text_fmt(&self, file: &str) -> String {
@@ -1732,16 +1829,16 @@ impl Translation for RuntimeTranslation {
         )
     }
 
-    fn agent_strip_pause_held_fmt(&self, count: usize) -> String {
+    fn agent_notice_held_messages_fmt(&self, count: usize) -> String {
         self.format(
-            "agent_strip_pause_held_fmt",
+            "agent_notice_held_messages_fmt",
             &[("count", &count.to_string())],
         )
     }
 
-    fn agent_strip_pause_running_fmt(&self, count: usize) -> String {
+    fn agent_strip_pause_held_fmt(&self, count: usize) -> String {
         self.format(
-            "agent_strip_pause_running_fmt",
+            "agent_strip_pause_held_fmt",
             &[("count", &count.to_string())],
         )
     }
@@ -1959,6 +2056,35 @@ impl Translation for RuntimeTranslation {
         self.format("op_pack_failed", &[("name", name), ("error", error)])
     }
 
+    fn vfs_host_key_unknown(&self, host: &str) -> String {
+        self.format("vfs_host_key_unknown", &[("host", host)])
+    }
+
+    fn vfs_host_key_changed(&self, host: &str, location: &str) -> String {
+        self.format(
+            "vfs_host_key_changed",
+            &[("host", host), ("location", location)],
+        )
+    }
+
+    fn vfs_host_key_changed_session(&self, host: &str) -> String {
+        self.format("vfs_host_key_changed_session", &[("host", host)])
+    }
+
+    fn vfs_host_key_revoked(&self, host: &str, location: &str) -> String {
+        self.format(
+            "vfs_host_key_revoked",
+            &[("host", host), ("location", location)],
+        )
+    }
+
+    fn vfs_host_key_strict(&self, host: &str, fingerprint: &str) -> String {
+        self.format(
+            "vfs_host_key_strict",
+            &[("host", host), ("fingerprint", fingerprint)],
+        )
+    }
+
     fn fm_archive_password_prompt(&self, name: &str) -> String {
         self.format("fm_archive_password_prompt", &[("name", name)])
     }
@@ -1981,6 +2107,10 @@ impl Translation for RuntimeTranslation {
 
     fn vault_error(&self, error: &str) -> String {
         self.format("vault_error", &[("error", error)])
+    }
+
+    fn vault_api_key_not_moved(&self, from: &str, to: &str) -> String {
+        self.format("vault_api_key_not_moved", &[("from", from), ("to", to)])
     }
 
     fn git_username_prompt(&self, target: &str) -> String {
@@ -2203,6 +2333,10 @@ impl Translation for RuntimeTranslation {
         self.format("agent_queued_fmt", &[("count", &count.to_string())])
     }
 
+    fn agent_terminals_open_fmt(&self, count: usize) -> String {
+        self.format("agent_terminals_open_fmt", &[("count", &count.to_string())])
+    }
+
     fn settings_value_default_fmt(&self, value: &str) -> String {
         self.format("settings_value_default_fmt", &[("value", value)])
     }
@@ -2224,6 +2358,10 @@ impl Translation for RuntimeTranslation {
 
     fn command_run_failed_fmt(&self, error: &str) -> String {
         self.format("command_run_failed_fmt", &[("error", error)])
+    }
+
+    fn terminal_control_chars_refused_fmt(&self, shell: &str) -> String {
+        self.format("terminal_control_chars_refused_fmt", &[("shell", shell)])
     }
 
     fn command_needs_context_fmt(&self, placeholder: &str) -> String {
@@ -2608,6 +2746,20 @@ impl Translation for RuntimeTranslation {
 
     fn projects_delete_fmt(&self, path: &str) -> String {
         self.format("projects_delete_fmt", &[("path", path)])
+    }
+
+    fn projects_open_elsewhere_fmt(&self, path: &str, pid: &str) -> String {
+        self.format(
+            "projects_open_elsewhere_fmt",
+            &[("path", path), ("pid", pid)],
+        )
+    }
+
+    fn projects_open_in_instance_fmt(&self, path: &str, id: &str) -> String {
+        self.format(
+            "projects_open_in_instance_fmt",
+            &[("path", path), ("id", id)],
+        )
     }
 
     fn app_quit_background_fmt(&self, projects: &str) -> String {

@@ -73,15 +73,57 @@ Copy and move work between panels the way they do in two-pane file managers:
 open a second file manager beside the first, select files in one and press
 `C` / `F5` or `M` / `F6`. The destination is pre-filled with the directory of
 the nearest other file manager (another panel's directory when there is none);
-the source directory is offered only when no panel sits anywhere else. When the
-panels span more than one directory, a dropdown under the field lists them all;
-the path stays editable.
+the source directory is offered only when no panel sits anywhere else. The
+path stays editable, and `Tab` opens a [directory tree](#destination-path)
+under it that starts with the other panels' directories.
 
 Copying or pasting an item into the directory it already lives in makes a
 copy next to it named `name (1).ext` (the next free number) instead of
 asking to overwrite the original; moving an item onto itself does nothing.
 A directory cannot be copied or moved into itself or any of its
 subdirectories — the operation is refused before anything is written.
+
+A local copy is written next to its destination under a hidden temporary
+name and replaces the destination only once it is complete. Overwriting
+a file therefore never loses it: a cancelled or failed copy leaves the
+original as it was. A symbolic link at the destination is replaced by
+the copy, never written through. Copies and moves between filesystems
+keep the permission bits and the modification and access times of files,
+directories and links.
+
+### Destination path
+
+Copy, move, [pack](vfs.md#packing), [unpack](vfs.md#unpacking) and Save As
+ask for a path in a field that opens a directory tree under it: press `Tab`
+or click the `▼` at its right end. While the field still holds the suggested
+path, the tree lists the panels' directories, then the directories this
+project's prompts were recently confirmed with (kept until termide quits,
+never written to disk), then the drives or mount points: the root, disks,
+removable media and network shares. A recent directory is marked *recent*
+at the right end of its row and a mount point *drive*. Once the path is
+edited, the tree lists the directory the path names up to its last `/`,
+narrowed fuzzily by what follows; a name starting with `.` brings in hidden
+directories. The tree takes up to 12 rows, fewer on a short screen.
+
+| Key                                  | In the tree                                             |
+|--------------------------------------|---------------------------------------------------------|
+| `↓` (in the field)                   | Move into the tree                                      |
+| `↑` `↓` `PgUp` `PgDn` `Home` `End`   | Move; the directory under the cursor goes into the field |
+| `→` / `←`                            | Expand / collapse, or step to the parent row            |
+| `.`                                  | Show or hide hidden directories                         |
+| `F7`                                 | Create a directory beside the one under the cursor      |
+| `F2`                                 | Rename the directory under the cursor                   |
+| `F8` / `Delete`                      | Delete the directory under the cursor if it is empty    |
+| `Enter`                              | Close the tree, keeping the path                        |
+| `Esc`                                | Close the tree, restoring the path it opened with       |
+| any other key                        | Typed into the field                                    |
+
+When the path names a file — copying a single item, packing, Save As —
+picking a directory keeps the file name. The directory keys are the file
+manager's own (`toggle_hidden`, `create_dir`, `rename`, `delete`); bindings
+that are plain letters, such as `D` and `R`, are typed into the field
+instead. The directories at the top of the tree are not renamed or deleted;
+those that do not exist yet, or are remote, carry no `▶` and do not expand.
 
 ## Search
 

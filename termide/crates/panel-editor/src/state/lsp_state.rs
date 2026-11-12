@@ -56,6 +56,10 @@ pub struct LspState {
     /// Document version for sync (incremented on each change)
     pub document_version: i32,
 
+    /// Generation of the server the document was last opened in (see
+    /// [`LspManager::server_generation`]); a new one needs `didOpen` again.
+    pub server_generation: Option<u64>,
+
     /// Pending completion request receiver
     pub completion_rx: Option<mpsc::Receiver<Option<CompletionResponse>>>,
 
@@ -108,6 +112,10 @@ pub struct LspState {
 
     /// Whether LSP server is still starting (for spinner display)
     pub server_loading: bool,
+
+    /// The file's language server could not be started; restarting it by
+    /// hand may, and the document is opened in it once it goes live.
+    pub server_start_failed: bool,
 
     /// Flag indicating buffer has changed and LSP needs notification
     pub pending_change: bool,
@@ -176,6 +184,7 @@ impl LspState {
         Self {
             language_id: None,
             document_version: 0,
+            server_generation: None,
             completion_rx: None,
             hover_rx: None,
             definition_rx: None,
@@ -192,6 +201,7 @@ impl LspState {
             diagnostics: Vec::new(),
             enabled: false,
             server_loading: false,
+            server_start_failed: false,
             pending_change: false,
             completion_popup: None,
             code_action_popup: None,
@@ -295,6 +305,7 @@ impl LspState {
             match lsp_manager.ensure_server(lang, file_path) {
                 Ok(()) => {
                     self.enabled = true;
+                    self.server_start_failed = false;
                     self.server_loading = true; // Server is starting, will be set to false when ready
                     log::info!("LSP enabled for {} ({:?})", lang, file_path);
                 }
@@ -303,6 +314,7 @@ impl LspState {
                     // language (`termide_lsp::extra`).
                     self.enabled = termide_lsp::extra::is_set();
                     self.server_loading = false;
+                    self.server_start_failed = lsp_manager.server_start_failed(lang, file_path);
                 }
             }
         }
@@ -316,7 +328,37 @@ impl LspState {
 
         if let Some(ref lang) = self.language_id {
             self.document_version = 1;
-            lsp_manager.did_open(lang, file_path, content);
+            lsp_manager.did_open(lang, file_path, self.document_version, content);
+            self.server_generation = lsp_manager.server_generation(lang, file_path);
+        }
+    }
+
+    /// Whether the server for this file is a newer process than the one
+    /// the document was opened in, and has to be sent it again. A server
+    /// whose start failed and that was started by hand since counts too.
+    pub fn needs_reopen(&self, file_path: &Path, lsp_manager: &LspManager) -> bool {
+        if !self.enabled && !self.server_start_failed {
+            return false;
+        }
+        let Some(ref lang) = self.language_id else {
+            return false;
+        };
+        lsp_manager
+            .server_generation(lang, file_path)
+            .is_some_and(|generation| self.server_generation != Some(generation))
+    }
+
+    /// Open the document in a restarted server: its current text, under the
+    /// version the editor is at, as nothing of it reached the new process.
+    pub fn reopen(&mut self, file_path: &Path, content: &str, lsp_manager: &LspManager) {
+        if let Some(ref lang) = self.language_id {
+            self.enabled = true;
+            self.server_start_failed = false;
+            // Never opened before when its server could not start.
+            self.document_version = self.document_version.max(1);
+            lsp_manager.did_open(lang, file_path, self.document_version, content);
+            self.server_generation = lsp_manager.server_generation(lang, file_path);
+            self.pending_change = false;
         }
     }
 

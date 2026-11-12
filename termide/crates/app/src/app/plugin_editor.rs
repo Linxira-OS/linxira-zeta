@@ -31,6 +31,10 @@ const MAX_EDITS: usize = 10_000;
 /// How long each plugin may take over `file/will_save`.
 const WILL_SAVE_TIMEOUT: Duration = Duration::from_secs(3);
 
+/// How long a plugin may take over `file/will_edit`: long enough for the
+/// questions it asks the user on the way.
+const WILL_EDIT_TIMEOUT: Duration = Duration::from_secs(300);
+
 /// Where a plugin's answer to `file/will_save` arrives.
 type Answer = Receiver<Result<Value, String>>;
 
@@ -42,6 +46,34 @@ pub(crate) struct SaveJob {
     path: PathBuf,
     queue: VecDeque<PluginKey>,
     waiting: Option<(PluginKey, u64, Answer)>,
+    /// Editing turns off once the file is written: a plugin asked for it
+    /// when editing was turned off over unsaved work.
+    then_view: bool,
+}
+
+/// Editing turned on for a read-only file, or off for a writable one,
+/// which the plugins see first: the ones still to ask, and the answer
+/// waited for.
+#[derive(Debug)]
+pub(crate) struct EditJob {
+    project: PathBuf,
+    path: PathBuf,
+    /// Editing asked on, or off.
+    edit: bool,
+    queue: VecDeque<PluginKey>,
+    waiting: Option<(PluginKey, Answer)>,
+    /// What a plugin asked done with unsaved work before editing turns off.
+    buffer: Option<UnsavedWork>,
+}
+
+/// What becomes of unsaved work when editing turns off, as a plugin's
+/// answer to `file/will_edit` says.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UnsavedWork {
+    /// Written first, as `Ctrl+S` would.
+    Save,
+    /// Dropped for the file on disk, which a revert may just have changed.
+    Discard,
 }
 
 /// What the plugins were last told of the current project's editors.
@@ -56,6 +88,8 @@ pub(crate) struct EditorWatch {
     project: Option<PathBuf>,
     /// Saves waiting for the plugins.
     saves: Vec<SaveJob>,
+    /// `Ctrl+E`s waiting for the plugins.
+    edits: Vec<EditJob>,
 }
 
 impl EditorWatch {
@@ -66,6 +100,7 @@ impl EditorWatch {
             *self = Self {
                 project: Some(project.to_path_buf()),
                 saves: std::mem::take(&mut self.saves),
+                edits: std::mem::take(&mut self.edits),
                 ..Self::default()
             };
         }
@@ -276,6 +311,7 @@ impl App {
                 path,
                 queue,
                 waiting: None,
+                then_view: false,
             });
         }
 
@@ -348,6 +384,9 @@ impl App {
             if let Some(lsp_manager) = &lsp_manager {
                 editor.notify_lsp_change(lsp_manager);
             }
+            if job.then_view {
+                editor.set_editable(false);
+            }
         }
         self.state.lsp_manager = lsp_manager;
         match saved {
@@ -362,6 +401,156 @@ impl App {
             Err(e) => self.state.set_error(format!("Save failed: {e}")),
         }
         self.state.needs_redraw = true;
+        false
+    }
+
+    /// Per tick: hold turning editing on for a file that is read-only on
+    /// disk, or off for a saved writable one, for the plugins that open
+    /// files for edit, and ask them one after another. A plugin that dealt
+    /// with it leaves the rest to the file's permission, which the editor
+    /// follows; when none did, editing is turned on or off as it would have
+    /// been.
+    pub(super) fn serve_plugin_edits(&mut self) {
+        let project = self.open_projects.current().to_path_buf();
+        let gate = self.plugins.host.wants(&project, events::FILE_WILL_EDIT);
+        let mut held = Vec::new();
+        for editor in self
+            .layout_manager
+            .iter_all_panels_mut()
+            .filter_map(|panel| panel.as_editor_mut())
+        {
+            editor.set_edit_gate(gate);
+            if let Some(edit) = editor.take_gated_edit() {
+                if let Some(path) = editor.file_path() {
+                    held.push((path.to_path_buf(), edit));
+                }
+            }
+        }
+        for (path, edit) in held {
+            if self
+                .plugins
+                .editors
+                .edits
+                .iter()
+                .any(|job| job.path == path)
+            {
+                continue;
+            }
+            let queue = self
+                .plugins
+                .host
+                .subscribers(&project, events::FILE_WILL_EDIT)
+                .into();
+            self.plugins.editors.edits.push(EditJob {
+                project: project.clone(),
+                path,
+                edit,
+                queue,
+                waiting: None,
+                buffer: None,
+            });
+        }
+
+        let mut jobs = std::mem::take(&mut self.plugins.editors.edits);
+        jobs.retain_mut(|job| self.advance_edit(job));
+        self.plugins.editors.edits.extend(jobs);
+    }
+
+    /// Write the file of `path` as `Ctrl+S` does, through the plugins that
+    /// see it first, and turn editing off once it is written.
+    pub(super) fn save_then_view(&mut self, project: &Path, path: &Path) {
+        if let Some(save) = self
+            .plugins
+            .editors
+            .saves
+            .iter_mut()
+            .find(|save| save.path == path)
+        {
+            save.then_view = true;
+            return;
+        }
+        let queue = self
+            .plugins
+            .host
+            .subscribers(project, events::FILE_WILL_SAVE)
+            .into();
+        self.plugins.editors.saves.push(SaveJob {
+            project: project.to_path_buf(),
+            path: path.to_path_buf(),
+            queue,
+            waiting: None,
+            then_view: true,
+        });
+    }
+
+    /// One step of `job`; `false` once it is done.
+    fn advance_edit(&mut self, job: &mut EditJob) -> bool {
+        if let Some((key, rx)) = &job.waiting {
+            let outcome = match rx.try_recv() {
+                Ok(outcome) => outcome,
+                Err(std::sync::mpsc::TryRecvError::Empty) => return true,
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => Err("no answer".to_string()),
+            };
+            match outcome {
+                Ok(answer) if answer["handled"] == json!(true) => return false,
+                // The plugin settled what becomes of unsaved work: the
+                // others are not asked again.
+                Ok(answer) => {
+                    job.buffer = match answer["buffer"].as_str() {
+                        Some("save") => Some(UnsavedWork::Save),
+                        Some("discard") => Some(UnsavedWork::Discard),
+                        _ => None,
+                    };
+                    if job.buffer.is_some() {
+                        job.queue.clear();
+                    }
+                }
+                Err(e) => log::warn!("plugin {}: {}: {e}", key.name, events::FILE_WILL_EDIT),
+            }
+            job.waiting = None;
+        }
+        if let Some(key) = job.queue.pop_front() {
+            let Some(modified) = self
+                .project_editor_mut(&job.project, &job.path)
+                .map(|editor| editor.buffer().is_modified())
+            else {
+                return false;
+            };
+            if let Some(peer) = self.plugins.host.peer(&key) {
+                let params = json!({ "path": job.path, "edit": job.edit, "modified": modified });
+                let (tx, rx) = std::sync::mpsc::channel();
+                std::thread::spawn(move || {
+                    let _ = tx.send(peer.request(
+                        events::FILE_WILL_EDIT,
+                        params,
+                        WILL_EDIT_TIMEOUT,
+                        &|| false,
+                    ));
+                });
+                job.waiting = Some((key, rx));
+            }
+            return true;
+        }
+        if job.buffer == Some(UnsavedWork::Save) {
+            self.save_then_view(&job.project, &job.path);
+            return false;
+        }
+        // No plugin took it: editing goes on or off as `Ctrl+E` would have,
+        // asking about unsaved work as it does.
+        if let Some(editor) = self.project_editor_mut(&job.project, &job.path) {
+            if !job.edit && job.buffer.is_none() && editor.buffer().is_modified() {
+                self.ask_stop_editing(job.path.clone());
+                return false;
+            }
+            if job.buffer == Some(UnsavedWork::Discard) {
+                if let Err(e) = editor.reload_from_disk() {
+                    self.state.set_error(format!("Reload failed: {e}"));
+                    return false;
+                }
+            }
+            editor.set_editable(job.edit);
+            self.state.needs_redraw = true;
+        }
         false
     }
 
@@ -460,6 +649,7 @@ mod tests {
             path: PathBuf::from("/a/x.rs"),
             queue: VecDeque::new(),
             waiting: None,
+            then_view: false,
         });
         watch.follow_project(Path::new("/b"));
         assert_eq!(watch.project.as_deref(), Some(Path::new("/b")));

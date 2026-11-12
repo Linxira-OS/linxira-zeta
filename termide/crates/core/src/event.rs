@@ -5,10 +5,10 @@
 //! - `EventHandler` - Polling for terminal events
 //! - `PanelEvent` - Events emitted by panels to communicate with the application
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use crossterm::event::{
@@ -59,9 +59,24 @@ pub enum Event {
     Paste(String),
 }
 
+/// How long until the next tick is due, or `None` when it is due now.
+fn until_tick(last_tick: Instant, now: Instant, tick_rate: Duration) -> Option<Duration> {
+    tick_rate
+        .checked_sub(now.saturating_duration_since(last_tick))
+        .filter(|left| !left.is_zero())
+}
+
 /// Event handler for polling terminal events
+///
+/// A tick is due `tick_rate` after the previous one whether input arrived
+/// meanwhile or not: the background work runs on ticks (terminal output,
+/// agent streams, watcher events), and a held key or a moving mouse must not
+/// starve it. With no input the wait for input simply ends at the deadline,
+/// so idling costs nothing more.
 pub struct EventHandler {
     tick_rate: Duration,
+    /// When the last tick was handed out.
+    last_tick: Cell<Instant>,
     /// Events read during coalescing but not yet consumed
     pending_events: RefCell<VecDeque<Event>>,
 }
@@ -71,6 +86,7 @@ impl EventHandler {
     pub fn new(tick_rate: Duration) -> Self {
         Self {
             tick_rate,
+            last_tick: Cell::new(Instant::now()),
             pending_events: RefCell::new(VecDeque::new()),
         }
     }
@@ -80,14 +96,26 @@ impl EventHandler {
         self.tick_rate = rate;
     }
 
-    /// Wait for next event
+    /// Wait for next event: a tick once one is due, otherwise input.
     pub fn next(&self) -> Result<Event> {
+        let event = self.next_event()?;
+        if matches!(event, Event::Tick) {
+            self.last_tick.set(Instant::now());
+        }
+        Ok(event)
+    }
+
+    fn next_event(&self) -> Result<Event> {
+        let Some(wait) = until_tick(self.last_tick.get(), Instant::now(), self.tick_rate) else {
+            return Ok(Event::Tick);
+        };
+
         // Check pending events first (from previous coalescing)
         if let Some(event) = self.pending_events.borrow_mut().pop_front() {
             return Ok(event);
         }
 
-        if event::poll(self.tick_rate)? {
+        if event::poll(wait)? {
             match event::read()? {
                 // Handle Press and Repeat (held-key auto-repeat) so navigation/resize
                 // keeps firing while key is down.
@@ -330,6 +358,46 @@ mod tests {
         ))
     }
 
+    #[test]
+    fn a_tick_is_due_once_its_rate_has_passed() {
+        let rate = Duration::from_millis(42);
+        let last = Instant::now();
+        assert_eq!(until_tick(last, last, rate), Some(rate));
+        assert_eq!(
+            until_tick(last, last + Duration::from_millis(40), rate),
+            Some(Duration::from_millis(2))
+        );
+        assert_eq!(until_tick(last, last + rate, rate), None);
+        assert_eq!(until_tick(last, last + Duration::from_secs(1), rate), None);
+    }
+
+    /// Regression: ticks came only when the wait for input timed out, so a
+    /// steady stream of input (a held arrow key, a moving mouse) starved the
+    /// background work they drive. An overdue tick now goes before input
+    /// already waiting, and the input follows.
+    #[test]
+    fn an_overdue_tick_goes_before_waiting_input() {
+        let rate = Duration::from_millis(42);
+        let handler = EventHandler::new(rate);
+        let key = KeyEvent::new(KeyCode::Down, KeyModifiers::NONE);
+        handler
+            .pending_events
+            .borrow_mut()
+            .push_back(Event::Key(key));
+        handler
+            .pending_events
+            .borrow_mut()
+            .push_back(Event::Key(key));
+        handler
+            .last_tick
+            .set(Instant::now() - Duration::from_millis(100));
+
+        assert!(matches!(handler.next().unwrap(), Event::Tick));
+        // The tick resets the deadline: the input waiting goes next.
+        assert!(matches!(handler.next().unwrap(), Event::Key(_)));
+        assert!(matches!(handler.next().unwrap(), Event::Key(_)));
+    }
+
     /// Regression: held-key auto-repeat. Under the Kitty keyboard protocol
     /// (`REPORT_EVENT_TYPES`) a held key streams `Repeat` events; they must be
     /// delivered as `Press` — so navigation and panel resize keep firing
@@ -530,6 +598,10 @@ pub enum PanelEvent {
     /// Remove every breakpoint of the project.
     ClearBreakpoints,
 
+    /// Restart the language server that handles `file`, with a fresh
+    /// budget of automatic restarts.
+    RestartLanguageServer { file: PathBuf },
+
     /// Preview media file (raster image) using native graphics or xdg-open
     PreviewMedia(PathBuf),
 
@@ -548,6 +620,11 @@ pub enum PanelEvent {
     /// Swap the active panel in place for a read-only text editor of `path`
     SwapActiveToText(PathBuf),
 
+    /// Editing was turned off over unsaved work in the editor of `path`
+    /// (text or hex): ask whether to save it or discard it first, or keep
+    /// editing.
+    StopEditingUnsaved(PathBuf),
+
     /// Open a markdown file in the rendered preview panel (read-only)
     ViewMarkdown(PathBuf),
 
@@ -559,6 +636,12 @@ pub enum PanelEvent {
 
     /// Swap the active panel in place for the Mermaid diagram view of `path`
     SwapActiveToMermaid(PathBuf),
+
+    /// Open a delimited text file (CSV, TSV) in the table viewer (read-only)
+    ViewCsv(PathBuf),
+
+    /// Swap the active panel in place for the table view of `path`
+    SwapActiveToCsv(PathBuf),
 
     /// Request a "Save As" dialog to write in-memory text `content` to a
     /// user-chosen path, seeded with `default_name`. Used by read-only viewers
@@ -838,6 +921,11 @@ pub enum PanelEvent {
     /// it comes to the front, else a new agent panel opens on it. Emitted by
     /// the agent panel for a delegated task's session.
     OpenAgentSession(PathBuf),
+    /// Show the terminal session `name` of the agent session `session` in
+    /// a panel: the one showing it comes to the front, else a terminal panel
+    /// opens on it. Closing that panel hands the terminal back to the agent,
+    /// still running. Emitted by the agent panel for its strip's row.
+    OpenAgentTerminal { session: String, name: String },
     /// The user asked, from the panel that delegated them, to carry these
     /// unfinished delegated tasks on: each runs again out of sight on the
     /// panel's own runner, under the `task` call that handed it over, and

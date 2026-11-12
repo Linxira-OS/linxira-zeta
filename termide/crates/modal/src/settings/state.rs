@@ -47,8 +47,11 @@ impl SettingsModal {
             debugger_edit: None,
             debugger_defaults: Default::default(),
             plugin_names: Vec::new(),
+            builtin_plugins: Default::default(),
             connection_edit: None,
             model_fetch_request: None,
+            stored_api_keys: Default::default(),
+            api_key_changes: Vec::new(),
             kb_mode: KbMode::Bindings,
             kb_section: 0,
             kb_cursor: 0,
@@ -76,8 +79,10 @@ impl SettingsModal {
 
     /// Provide the open connection's model list (fetched off-thread by the
     /// app), so the model field's dropdown lists them; an empty list ends
-    /// the wait with none (the endpoint or agent could not list them).
-    pub fn set_model_options(&mut self, models: Vec<String>) {
+    /// the wait with none (the endpoint or agent could not list them). Each
+    /// model is its id and the name to show for it, the id itself when the
+    /// provider gives none.
+    pub fn set_model_options(&mut self, models: Vec<(String, String)>) {
         self.model_options = models;
         self.models_loading = false;
     }
@@ -524,7 +529,8 @@ impl SettingsModal {
                 Field(8), // resource_monitor_interval
                 Spacer,
                 Header(t.settings_header_instance()),
-                Field(9), // always_detachable
+                Field(9),  // always_detachable
+                Field(10), // restore_projects
             ],
             SettingsTab::Editor => vec![
                 Header(t.settings_header_typing()),
@@ -738,6 +744,14 @@ impl SettingsModal {
             self.editing = false;
             return;
         };
+        // A typed API key goes to the vault, not the config, and is not
+        // kept in the field.
+        if self.is_api_key_field(field_idx) {
+            let key = std::mem::take(&mut self.edit_input);
+            self.store_api_key(key.text());
+            self.editing = false;
+            return;
+        }
         let fields = fields_for_tab(tab);
         let Some(desc) = fields.get(field_idx) else {
             self.editing = false;
@@ -780,6 +794,12 @@ impl SettingsModal {
 
     /// Cancel the current inline edit.
     pub(super) fn cancel_edit(&mut self) {
+        if self
+            .current_field_idx()
+            .is_some_and(|i| self.is_api_key_field(i))
+        {
+            self.edit_input = termide_ui::TextInput::new();
+        }
         self.editing = false;
     }
 
@@ -824,7 +844,7 @@ impl SettingsModal {
             self.field_tab() == SettingsTab::Connection && field_idx == connection::MODEL;
         match desc.field_type {
             FieldType::Bool => return,
-            FieldType::Enum if !is_model => return,
+            FieldType::Enum if !is_model && !self.is_api_key_field(field_idx) => return,
             _ => {}
         }
         let value = if self.field_tab() == SettingsTab::Connection {

@@ -420,12 +420,19 @@ impl AgentPanel {
         self.follow = true;
         self.count_hops(&message);
         if self.is_busy() {
+            let from_user = message.origin.is_none();
             // The message waits in the state strip until the agent takes it,
             // then shows as a user block.
             self.queued_texts
                 .push_back((message.typed(), Instant::now()));
             self.runtime.steer(message);
             self.set_queued(self.runtime.queue_lens());
+            // A task the run waits on would keep the user's message from
+            // the agent until it ends: it goes on in the background instead.
+            // Another agent's message waits, as it would for any call.
+            if from_user {
+                crate::live::ask_aside(self.panel_id);
+            }
         } else {
             // A new request takes over from a failed one, and from a wait to
             // try it again.
@@ -465,7 +472,18 @@ impl AgentPanel {
                     .begin_run(leaf);
             }
             match self.runtime.prompt(message) {
-                Ok(()) => self.busy = true,
+                Ok(()) => {
+                    self.busy = true;
+                    // The answers of the delegates stopped with the last run
+                    // go with this one, as messages queued to it.
+                    let held = std::mem::take(&mut self.held_reports);
+                    if !held.is_empty() {
+                        self.log_held_reports();
+                    }
+                    for report in held {
+                        self.send_message(report);
+                    }
+                }
                 Err(error) => self.notice(
                     termide_i18n::t().agent_notice_cannot_start_fmt(&error.to_string()),
                     NoticeKind::Error,
@@ -796,25 +814,9 @@ impl AgentPanel {
         let t = termide_i18n::t();
         let reason = reason.trim();
         match outcome {
-            GoalOutcome::Done => {
+            GoalOutcome::Done | GoalOutcome::Impossible => {
                 self.goal_task = None;
-                let msg = if reason.is_empty() {
-                    t.agent_notice_goal_reached().to_string()
-                } else {
-                    t.agent_notice_goal_reached_reason_fmt(reason)
-                };
-                self.notice(msg, NoticeKind::Info);
-                self.raise_attention(true);
-                return;
-            }
-            GoalOutcome::Impossible => {
-                self.goal_task = None;
-                let msg = if reason.is_empty() {
-                    t.agent_notice_goal_impossible().to_string()
-                } else {
-                    t.agent_notice_goal_impossible_reason_fmt(reason)
-                };
-                self.notice(msg, NoticeKind::Warn);
+                self.notice_goal_ending(outcome, reason);
                 self.raise_attention(true);
                 return;
             }
@@ -843,6 +845,48 @@ impl AgentPanel {
         }
         let prompt = goal_continuation(&goal, reason);
         let _ = self.send_goal_turn(prompt);
+    }
+
+    /// Record what the judge answered in the session log — while the goal
+    /// it judged still goes: one stopped meanwhile takes no verdict, and a
+    /// reopened session must not show it as reached.
+    pub(crate) fn log_goal_verdict(
+        &mut self,
+        verdict: Result<(GoalOutcome, &str), &str>,
+        reply: &str,
+    ) {
+        if self.goal_task.is_none() {
+            return;
+        }
+        if let Some(session) = &mut self.session {
+            if let Err(error) = session.append_goal_verdict(verdict, reply) {
+                log::warn!("agent session write failed: {error}");
+            }
+        }
+    }
+
+    /// The notice a goal ends on: reached, or out of reach, with the
+    /// judge's reason when it gave one. Shown when the verdict comes, and
+    /// again when a session whose goal ended so is reopened.
+    pub(crate) fn notice_goal_ending(&mut self, outcome: GoalOutcome, reason: &str) {
+        let t = termide_i18n::t();
+        let reason = reason.trim();
+        let (msg, kind) = match (outcome, reason.is_empty()) {
+            (GoalOutcome::Impossible, true) => (
+                t.agent_notice_goal_impossible().to_string(),
+                NoticeKind::Warn,
+            ),
+            (GoalOutcome::Impossible, false) => (
+                t.agent_notice_goal_impossible_reason_fmt(reason),
+                NoticeKind::Warn,
+            ),
+            (_, true) => (t.agent_notice_goal_reached().to_string(), NoticeKind::Info),
+            (_, false) => (
+                t.agent_notice_goal_reached_reason_fmt(reason),
+                NoticeKind::Info,
+            ),
+        };
+        self.notice(msg, kind);
     }
 
     /// A judge call failed: tried again after a wait, a few times; then the
@@ -877,10 +921,10 @@ impl AgentPanel {
     }
 
     pub fn abort(&mut self) {
-        // A task held at the pause is released rather than left waiting: a
-        // sync one stops with this run, one handed over in the background
-        // goes on with it, as it does when nothing held it.
-        crate::live::resume_all(self.panel_id);
+        // The work handed to delegates stops with the run, held at a pause or
+        // not; what those in the background answer waits for the next
+        // request rather than starting a run the user has just stopped.
+        crate::live::stop_with_run(self.panel_id);
         // Stopping also ends any running loop or goal, and withdraws what
         // the loop still has waiting in the queue, so it does not reach the
         // model later as a plain message.
@@ -954,9 +998,9 @@ impl AgentPanel {
         self.runtime.pause();
         self.pause_requested = true;
         self.pause_requested_at = Instant::now();
-        // The work handed to delegates waits with the run. An external
-        // agent's task runs its own program and cannot be held, so the strip
-        // says which of the two it is looking at.
+        // The work handed to delegates waits with the run: the tasks in the
+        // background, and the one the run waits on, which then holds the
+        // run's pause with it until it is let go.
         crate::live::pause_all(self.panel_id);
         true
     }
@@ -1001,9 +1045,8 @@ impl AgentPanel {
     /// abort; the pause ends where it stood, and so do a loop or goal it was
     /// part of. The calls it left unrun are closed by the next request.
     pub(crate) fn stop_paused(&mut self) {
-        // The pause is over with the run: what it held is released, a task
-        // handed over in the background going on as it would have.
-        crate::live::resume_all(self.panel_id);
+        // The pause is over with the run, and so is the work it held.
+        crate::live::stop_with_run(self.panel_id);
         self.paused = false;
         self.restored = None;
         self.run_start = None;
@@ -1059,7 +1102,7 @@ impl AgentPanel {
         }
     }
 
-    /// One warning per front-matter key or tool text nothing reads.
+    /// One warning per front-matter key, tool name or tool text nothing reads.
     pub(crate) fn notice_definition_problems(&mut self) {
         let t = termide_i18n::t();
         for problem in self.catalog.definition_problems() {
@@ -1072,6 +1115,9 @@ impl AgentPanel {
                 }
                 DefinitionProblem::EmptyToolText { file } => {
                     t.agent_notice_empty_tool_text_fmt(&file.display().to_string())
+                }
+                DefinitionProblem::UnknownToolName { file, name } => {
+                    t.agent_notice_unknown_tool_name_fmt(&file.display().to_string(), &name)
                 }
             };
             self.notice(text, NoticeKind::Warn);

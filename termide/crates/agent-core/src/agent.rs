@@ -18,12 +18,13 @@ use crate::goal::{parse_verdict, GoalOutcome, GoalPrompt, GoalVerdict};
 use crate::handoff::HandoffPrompt;
 use crate::loop_guard::{LoopGuard, LoopPrompt, LoopReport};
 use crate::message::{
-    AssistantContent, AssistantMessage, Message, StopReason, ToolCall, ToolResultMessage, Usage,
-    UserMessage,
+    AssistantContent, AssistantMessage, Message, StopReason, ToolCall, ToolResultContent,
+    ToolResultMessage, Usage, UserContent, UserMessage,
 };
 use crate::permissions::{ChannelPrompter, DecidedBy, PermissionNote};
 use crate::provider::{ModelSpec, Provider, Request, StreamEvent, ThinkingLevel};
 use crate::shell::ShellRunner;
+use crate::spend::Spender;
 use crate::suggest::CommandSuggester;
 use crate::tool::{ToolContext, ToolRegistry, ToolUpdate};
 
@@ -242,6 +243,10 @@ pub fn judge_tool_call(
         tool: tool.traits(),
         ..ctx.clone()
     };
+    // A call bound to fail is not worth a prompt or a reviewer's verdict.
+    if let Err(message) = tool.check(call, ctx) {
+        return Judgment::Done(ToolResultMessage::error(call, message));
+    }
     let decision = hooks.before_tool_call(call, ctx);
     let permission = hooks.take_permission().map(Box::new);
     let effective = match decision {
@@ -285,13 +290,20 @@ pub fn run_judged_call(
 /// kind: it changes nothing on this machine — a read, a search, a web page,
 /// a look-only shell command — or hands work to a subagent, and it asks the
 /// user nothing. A call that may change something runs alone, so the model's
-/// order holds between a change and what reads it.
+/// order holds between a change and what reads it. A command is read in
+/// the language of the shell its tool runs it in, from `tools`.
 #[must_use]
-pub fn runs_alongside(call: &ToolCall) -> bool {
+pub fn runs_alongside(call: &ToolCall, tools: &ToolRegistry) -> bool {
     match call.name.as_str() {
         "task" => true,
         "question" | "suggest_command" => false,
-        _ => crate::permissions::is_read_only_call(call),
+        _ => {
+            let shell = tools
+                .get(&call.name)
+                .map(|tool| tool.traits().shell)
+                .unwrap_or_default();
+            crate::permissions::is_read_only_call(call, shell)
+        }
     }
 }
 
@@ -492,16 +504,28 @@ pub enum AgentEvent {
     },
     /// The autonomous-goal judge ran (`/goal`) and returned its verdict: the
     /// goal is reached, cannot be reached, or more work is needed, with a
-    /// one-line reason.
+    /// one-line reason. `reply` is the judge's answer as it came, for the
+    /// session log.
     GoalJudged {
         outcome: GoalOutcome,
         reason: String,
+        reply: String,
     },
     /// The judge call's stream, for its live progress (`/goal`).
     GoalJudgeUpdate(StreamEvent),
-    /// The judge call did not succeed; the goal loop stops.
+    /// The judge call did not succeed, or its answer held no verdict
+    /// (`reply`, empty when there was no answer): the check is tried again,
+    /// then the goal pauses.
     GoalJudgeFailed {
         error: String,
+        reply: String,
+    },
+    /// A side call — the goal judge's, a handoff brief's — spent `usage`
+    /// on `model`; the session log records it. Not part of the transcript.
+    Spent {
+        by: Spender,
+        model: String,
+        usage: Usage,
     },
     /// A `/handoff` brief was produced (or the call failed): the forward-looking
     /// brief for a fresh session, or an error to report.
@@ -574,6 +598,31 @@ pub struct Agent {
     /// or none when nothing else holds it. The loop waits at its step
     /// boundaries while it is set, and goes on where it stood once lifted.
     pause_gate: Option<PauseGate>,
+    /// A note for the model at each call, about the session's state; see
+    /// [`ContextNote`].
+    context_note: Option<ContextNote>,
+}
+
+/// What the model is told at each of its calls about the state of the
+/// session — the terminals the agent left open — given the session's id.
+/// The note goes at the end of the request only, never into the
+/// transcript, so it is always current and the cached prefix stays as it
+/// was. `None` when there is nothing to tell.
+pub type ContextNote = Arc<dyn Fn(Option<&str>) -> Option<String> + Send + Sync>;
+
+/// `messages` with `note` added to the text of the last one.
+fn with_note(messages: &[Message], note: &str) -> Vec<Message> {
+    let mut messages = messages.to_vec();
+    let text = format!("<system-reminder>\n{note}\n</system-reminder>");
+    match messages.last_mut() {
+        Some(Message::User(user)) => user.content.push(UserContent::Text { text }),
+        Some(Message::ToolResult(result)) => {
+            result.content.push(ToolResultContent::Text { text });
+        }
+        // The model's own turn last: no call is made on it.
+        Some(Message::Assistant(_)) | None => {}
+    }
+    messages
 }
 
 impl Agent {
@@ -608,7 +657,15 @@ impl Agent {
             session_id: None,
             panel: None,
             pause_gate: None,
+            context_note: None,
         }
+    }
+
+    /// Tell the model what `note` says at each of its calls.
+    #[must_use]
+    pub fn with_context_note(mut self, note: ContextNote) -> Self {
+        self.context_note = Some(note);
+        self
     }
 
     /// Hold the loop at its step boundaries while `gate` is paused: a panel
@@ -1122,7 +1179,7 @@ impl Agent {
             }
             let together = calls[start..]
                 .iter()
-                .take_while(|call| runs_alongside(call))
+                .take_while(|call| runs_alongside(call, &self.tools))
                 .count();
             let end = start + together.max(1);
             let results = if together > 1 {
@@ -1260,6 +1317,7 @@ impl Agent {
             panel: self.panel,
             tool: crate::ToolTraits::default(),
             resume: None,
+            running: None,
         }
     }
 
@@ -1273,10 +1331,15 @@ impl Agent {
         cancel: &CancelToken,
         emit: &mut dyn FnMut(AgentEvent),
     ) -> (AssistantMessage, Option<LoopReport>) {
+        let noted = self
+            .context_note
+            .as_ref()
+            .and_then(|note| note(self.session_id.as_deref()))
+            .map(|note| with_note(&self.messages, &note));
         let request = Request {
             model: &self.model,
             system_prompt: &self.system_prompt,
-            messages: &self.messages,
+            messages: noted.as_deref().unwrap_or(&self.messages),
             tools: &self.tools.specs(),
             thinking,
         };
@@ -1484,7 +1547,7 @@ impl Agent {
     /// read-only call on a copy of the transcript with the goal prompts and no
     /// tools; the transcript is untouched. Emits [`AgentEvent::GoalJudged`]
     /// with the verdict, or [`AgentEvent::GoalJudgeFailed`] and an `Err` when
-    /// the call does not succeed.
+    /// the call does not succeed or its answer holds no verdict.
     pub fn judge(
         &self,
         goal: &str,
@@ -1508,21 +1571,41 @@ impl Agent {
             &mut |event| emit(AgentEvent::GoalJudgeUpdate(event)),
             cancel,
         );
+        if reply.usage.total() > 0 {
+            emit(AgentEvent::Spent {
+                by: Spender::GoalJudge,
+                model: self.model.id.clone(),
+                usage: reply.usage,
+            });
+        }
         if matches!(reply.stop_reason, StopReason::Error | StopReason::Aborted) {
             let error = reply
                 .error_message
                 .unwrap_or_else(|| "the judge call did not complete".to_string());
             emit(AgentEvent::GoalJudgeFailed {
                 error: error.clone(),
+                reply: String::new(),
             });
             return Err(error);
         }
-        let verdict = parse_verdict(&reply.plain_text());
-        emit(AgentEvent::GoalJudged {
-            outcome: verdict.outcome,
-            reason: verdict.reason.clone(),
-        });
-        Ok(verdict)
+        let text = reply.plain_text();
+        match parse_verdict(&text) {
+            Ok(verdict) => {
+                emit(AgentEvent::GoalJudged {
+                    outcome: verdict.outcome,
+                    reason: verdict.reason.clone(),
+                    reply: text,
+                });
+                Ok(verdict)
+            }
+            Err(error) => {
+                emit(AgentEvent::GoalJudgeFailed {
+                    error: error.clone(),
+                    reply: text,
+                });
+                Err(error)
+            }
+        }
     }
 
     /// Write a handoff brief: a forward-looking summary of the unfinished work
@@ -1542,6 +1625,13 @@ impl Agent {
             thinking: ThinkingLevel::Off,
         };
         let reply = self.provider.stream(&request, &mut |_| {}, cancel);
+        if reply.usage.total() > 0 {
+            emit(AgentEvent::Spent {
+                by: Spender::Handoff,
+                model: self.model.id.clone(),
+                usage: reply.usage,
+            });
+        }
         let brief = reply.plain_text();
         let result = if matches!(reply.stop_reason, StopReason::Error | StopReason::Aborted)
             || brief.trim().is_empty()
@@ -2240,7 +2330,7 @@ mod tests {
         parent.push(IntentEntry::User("publish it".into()));
         parent.push(IntentEntry::Ran("git push".into()));
         parent.push(IntentEntry::Call {
-            tool: "bash".into(),
+            tool: "shell".into(),
             arguments: "{\"command\":\"ls\"}".into(),
         });
         let log = IntentLog::delegated(&parent);
@@ -2326,6 +2416,7 @@ mod tests {
             &AgentEvent::GoalJudged {
                 outcome: GoalOutcome::Continue,
                 reason: "the build still fails".into(),
+                reply: "CONTINUE\nthe build still fails".into(),
             }
         );
         assert!(stream
@@ -2350,6 +2441,27 @@ mod tests {
             .expect("judge succeeds");
         assert_eq!(verdict.outcome, GoalOutcome::Done);
         assert_eq!(verdict.reason, "everything compiles and tests pass");
+    }
+
+    #[test]
+    fn an_echoed_instruction_fails_the_check() {
+        let echo = "`DONE` if the goal is fully achieved";
+        let (agent, _provider) = agent(
+            ScriptedProvider::new(vec![text_reply(echo)]),
+            ToolRegistry::new(),
+        );
+        let mut events = Vec::new();
+        let error = agent
+            .judge("ship it", &CancelToken::new(), &mut |e| events.push(e))
+            .expect_err("no verdict");
+        assert!(error.contains("no verdict"), "{error}");
+        assert_eq!(
+            events.last(),
+            Some(&AgentEvent::GoalJudgeFailed {
+                error,
+                reply: echo.into(),
+            })
+        );
     }
 
     #[test]
@@ -2429,6 +2541,7 @@ mod tests {
                 crate::ToolTraits {
                     mcp: true,
                     read_only: true,
+                    ..Default::default()
                 }
             }
             fn execute(
@@ -2466,8 +2579,70 @@ mod tests {
         let marked = crate::ToolTraits {
             mcp: true,
             read_only: true,
+            ..Default::default()
         };
         assert_eq!(seen.0, [marked, crate::ToolTraits::default()]);
+    }
+
+    /// A call its tool's check refuses fails at once: no hook is asked, so
+    /// no prompt or reviewer waits on a call bound to fail.
+    #[test]
+    fn a_call_its_tool_refuses_skips_the_hooks() {
+        struct Picky;
+        impl crate::Tool for Picky {
+            fn name(&self) -> &str {
+                "picky"
+            }
+            fn description(&self) -> &str {
+                "Picky"
+            }
+            fn parameters(&self) -> Value {
+                json!({ "type": "object" })
+            }
+            fn check(&self, call: &ToolCall, _ctx: &ToolContext) -> Result<(), String> {
+                match call.arguments["what"].as_str() {
+                    Some("known") => Ok(()),
+                    other => Err(format!("no such thing: {other:?}")),
+                }
+            }
+            fn execute(
+                &self,
+                call: &ToolCall,
+                _ctx: &ToolContext,
+                _on_update: &mut dyn FnMut(ToolUpdate),
+                _cancel: &CancelToken,
+            ) -> ToolResultMessage {
+                ToolResultMessage::text(call, "done")
+            }
+        }
+        struct Asked(usize);
+        impl Hooks for Asked {
+            fn before_tool_call(&mut self, _call: &ToolCall, _ctx: &ToolContext) -> ToolDecision {
+                self.0 += 1;
+                ToolDecision::Allow
+            }
+        }
+
+        let mut tools = ToolRegistry::new();
+        tools.insert(Arc::new(Picky));
+        let call = |what: &str| ToolCall {
+            id: "c".into(),
+            name: "picky".into(),
+            arguments: json!({ "what": what }),
+            extra_content: None,
+        };
+        let mut asked = Asked(0);
+        let (ctx, cancel) = (ToolContext::new("/"), CancelToken::new());
+        let run = |what: &str, asked: &mut Asked| {
+            execute_tool(&tools, &call(what), asked, &ctx, &cancel, &mut |_| {})
+        };
+        let refused = run("unknown", &mut asked);
+        assert!(refused.is_error);
+        assert!(refused.plain_text().contains("no such thing"));
+        assert_eq!(asked.0, 0);
+        let done = run("known", &mut asked);
+        assert_eq!(done.plain_text(), "done");
+        assert_eq!(asked.0, 1);
     }
 
     #[test]
@@ -2775,6 +2950,52 @@ OK let me just start implementing and see what happens.\n";
     }
 
     #[test]
+    fn the_context_note_rides_on_each_request_but_stays_out_of_the_transcript() {
+        let mut registry = ToolRegistry::new();
+        registry.insert(Arc::new(EchoTool::default()));
+        let provider = Arc::new(ScriptedProvider::new(vec![
+            tool_reply(
+                vec![("c1", "echo", json!({ "text": "x" }))],
+                StopReason::ToolUse,
+            ),
+            text_reply("done"),
+        ]));
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counted = Arc::clone(&calls);
+        let mut agent = Agent::new(provider.clone(), registry, model(), "/tmp".into())
+            .with_session_id(Some("s1".into()))
+            .with_context_note(Arc::new(move |session| {
+                assert_eq!(session, Some("s1"));
+                let n = counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Some(format!("note {n}"))
+            }));
+
+        collect(&mut agent, "go", &mut NoHooks);
+
+        let requests = provider.seen_requests();
+        let last_text = |messages: &[Message]| match messages.last() {
+            Some(Message::User(user)) => match user.content.last() {
+                Some(UserContent::Text { text }) => text.clone(),
+                _ => String::new(),
+            },
+            Some(Message::ToolResult(result)) => match result.content.last() {
+                Some(ToolResultContent::Text { text }) => text.clone(),
+                _ => String::new(),
+            },
+            _ => String::new(),
+        };
+        assert_eq!(
+            last_text(&requests[0]),
+            "<system-reminder>\nnote 0\n</system-reminder>"
+        );
+        assert_eq!(
+            last_text(&requests[1]),
+            "<system-reminder>\nnote 1\n</system-reminder>"
+        );
+        assert!(!format!("{:?}", agent.messages()).contains("system-reminder"));
+    }
+
+    #[test]
     fn pause_stops_after_the_current_step_and_resume_continues() {
         let mut registry = ToolRegistry::new();
         let provider = Arc::new(ScriptedProvider::new(vec![
@@ -2980,6 +3201,7 @@ OK let me just start implementing and see what happens.\n";
 
     #[test]
     fn what_runs_alongside_is_what_changes_nothing_and_asks_nothing() {
+        let tools = ToolRegistry::new();
         let call = |name: &str, arguments| ToolCall {
             id: "c".into(),
             name: name.into(),
@@ -2990,18 +3212,18 @@ OK let me just start implementing and see what happens.\n";
             call("read", json!({ "path": "a" })),
             call("fetch", json!({ "url": "https://x" })),
             call("task", json!({ "agent": "a", "prompt": "p" })),
-            call("bash", json!({ "command": "rg foo src" })),
+            call("shell", json!({ "command": "rg foo src" })),
         ] {
-            assert!(runs_alongside(&together), "{}", together.name);
+            assert!(runs_alongside(&together, &tools), "{}", together.name);
         }
         for alone in [
             call("edit", json!({})),
             call("write", json!({})),
             call("question", json!({})),
-            call("bash", json!({ "command": "cargo build" })),
+            call("shell", json!({ "command": "cargo build" })),
             call("mcp_tool", json!({})),
         ] {
-            assert!(!runs_alongside(&alone), "{}", alone.name);
+            assert!(!runs_alongside(&alone, &tools), "{}", alone.name);
         }
     }
 
@@ -3220,7 +3442,7 @@ OK let me just start implementing and see what happens.\n";
                 text_reply("first answer"),
                 // The summary call goes on with the work instead.
                 tool_reply(
-                    vec![("c1", "bash", json!({ "command": "ls" }))],
+                    vec![("c1", "shell", json!({ "command": "ls" }))],
                     StopReason::ToolUse,
                 ),
                 text_reply("second answer"),
@@ -3436,7 +3658,7 @@ OK let me just start implementing and see what happens.\n";
         // The model goes on with the work instead of summarising: a line of
         // narration and a call, as in a session where this slipped through.
         let mut went_on = tool_reply(
-            vec![("c1", "bash", json!({ "command": "rg emit_fn" }))],
+            vec![("c1", "shell", json!({ "command": "rg emit_fn" }))],
             StopReason::ToolUse,
         );
         went_on.content.insert(
@@ -3470,7 +3692,7 @@ OK let me just start implementing and see what happens.\n";
         let call = call.expect("a call was made");
         assert_eq!(call.reason, CompactionReason::Threshold);
         assert_eq!(call.stop_reason, StopReason::ToolUse);
-        assert_eq!(call.tool_calls, vec!["bash".to_string()]);
+        assert_eq!(call.tool_calls, vec!["shell".to_string()]);
         assert_eq!(call.thinking_chars, "where is the loop".len());
         assert_eq!(reply, "Found it:");
         assert_eq!(roles(agent.messages()), vec!["user", "assistant"]);
@@ -3627,7 +3849,7 @@ OK let me just start implementing and see what happens.\n";
         }
         let call = |command: &str| ToolCall {
             id: "c".into(),
-            name: "bash".into(),
+            name: "shell".into(),
             arguments: serde_json::json!({ "command": command }),
             extra_content: None,
         };

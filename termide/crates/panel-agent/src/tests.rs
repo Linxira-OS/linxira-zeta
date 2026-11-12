@@ -46,10 +46,12 @@ impl Scripted {
             models: Ok(vec![
                 ModelInfo {
                     id: "big".into(),
+                    name: Some("Big Model".into()),
                     context_window: Some(64_000),
                 },
                 ModelInfo {
                     id: "m".into(),
+                    name: None,
                     context_window: None,
                 },
             ]),
@@ -117,6 +119,7 @@ fn reply(text: &str) -> AssistantMessage {
             output: 20,
             cache_read: 0,
             cache_write: 0,
+            ..Default::default()
         },
         provider: "scripted".into(),
         model: "m".into(),
@@ -222,6 +225,7 @@ fn setup_with(provider: Arc<Scripted>) -> AgentPanelSetup {
         provider_backend: None,
         connections: None,
         connection: "local".into(),
+        connection_settings: termide_config::Connection::default(),
         provider,
         provider_kind: "openai_compatible".into(),
         model: ModelSpec {
@@ -253,6 +257,7 @@ fn setup_with(provider: Arc<Scripted>) -> AgentPanelSetup {
         // No runner by default: a test that exercises `!` installs one that
         // records what reached the shell, so nothing runs for real here.
         shell_run: None,
+        terminals: None,
         fold: FoldMode::OnFinish,
         on_limit: LimitPolicy::Ask,
     }
@@ -628,7 +633,7 @@ fn shortcuts_work_on_a_cyrillic_layout() {
         .join("\n");
     let call = ToolCall {
         id: "t1".into(),
-        name: "bash".into(),
+        name: "shell".into(),
         arguments: serde_json::json!({ "command": "ls" }),
         extra_content: None,
     };
@@ -1135,6 +1140,7 @@ fn the_context_window_is_learned_from_the_provider() {
     // adopts it, overriding the fallback.
     let models = vec![ModelInfo {
         id: panel.model.id.clone(),
+        name: None,
         context_window: Some(48_000),
     }];
     assert!(panel.adopt_listed_models(&models));
@@ -1160,10 +1166,12 @@ fn a_model_left_to_the_provider_is_its_first_listed() {
     let models = vec![
         ModelInfo {
             id: "first".into(),
+            name: None,
             context_window: Some(64_000),
         },
         ModelInfo {
             id: "second".into(),
+            name: None,
             context_window: None,
         },
     ];
@@ -1181,6 +1189,7 @@ fn a_model_without_a_reported_window_keeps_the_fallback() {
     let mut panel = panel(vec![reply("ok")]);
     let models = vec![ModelInfo {
         id: panel.model.id.clone(),
+        name: None,
         context_window: None,
     }];
     assert!(!panel.adopt_listed_models(&models));
@@ -1271,7 +1280,7 @@ fn activity_follows_the_events_and_totals_accumulate() {
     panel.apply(AgentEvent::ToolExecutionStart {
         call: termide_agent_core::ToolCall {
             id: "1".into(),
-            name: "bash".into(),
+            name: "shell".into(),
             arguments: serde_json::json!({}),
             extra_content: None,
         },
@@ -1434,7 +1443,7 @@ fn the_live_footer_shows_generation_meta_and_a_clock() {
     panel.apply(AgentEvent::ToolExecutionStart {
         call: termide_agent_core::ToolCall {
             id: "t1".into(),
-            name: "bash".into(),
+            name: "shell".into(),
             arguments: serde_json::json!({ "command": "sleep 1" }),
             extra_content: None,
         },
@@ -1684,6 +1693,35 @@ fn summary_call() -> CompactionCall {
 }
 
 #[test]
+fn a_compaction_that_kept_nothing_says_so_without_a_count_of_zero() {
+    let mut panel = AgentPanel::new(setup(vec![reply("ok")]));
+    let t = termide_i18n::t();
+    panel.apply(AgentEvent::Compacted {
+        summary: "the gist".into(),
+        kept: 2,
+        tokens_before: 90_000,
+        tokens_after: 3_000,
+        call: summary_call(),
+    });
+    // An external agent keeps nothing verbatim: the summary stands for all.
+    panel.apply(AgentEvent::Compacted {
+        summary: String::new(),
+        kept: 0,
+        tokens_before: 92_000,
+        tokens_after: 0,
+        call: summary_call(),
+    });
+    let shown = notices(&panel);
+    assert_eq!(
+        shown[shown.len() - 2..],
+        [
+            t.agent_notice_compacted_fmt(90_000, 2),
+            t.agent_notice_compacted_summary_fmt(92_000),
+        ]
+    );
+}
+
+#[test]
 fn a_compaction_and_a_refused_summary_call_are_logged_with_how_the_call_went() {
     let dir = tempfile::tempdir().unwrap();
     let mut panel = AgentPanel::new(AgentPanelSetup {
@@ -1697,10 +1735,19 @@ fn a_compaction_and_a_refused_summary_call_are_logged_with_how_the_call_went() {
         tokens_after: 3_000,
         call: summary_call(),
     });
+    // An external agent compacted without saying how: an empty summary
+    // must not replace the history the log rebuilds the context from.
+    panel.apply(AgentEvent::Compacted {
+        summary: String::new(),
+        kept: 0,
+        tokens_before: 92_000,
+        tokens_after: 0,
+        call: summary_call(),
+    });
     // The model went on with the work instead of summarising it.
     let refused = CompactionCall {
         stop_reason: StopReason::ToolUse,
-        tool_calls: vec!["bash".into()],
+        tool_calls: vec!["shell".into()],
         thinking_chars: 1_200,
         ..summary_call()
     };
@@ -1795,6 +1842,7 @@ fn an_external_agents_turn_usage_does_not_fill_the_context_bar() {
         output: 100,
         cache_read: 0,
         cache_write: 0,
+        ..Default::default()
     };
     panel.apply(AgentEvent::MessageEnd(Message::Assistant(own)));
     assert_eq!(panel.context_tokens, 1_000);
@@ -1806,6 +1854,7 @@ fn an_external_agents_turn_usage_does_not_fill_the_context_bar() {
         output: 19_189,
         cache_read: 1_397_173,
         cache_write: 79_138,
+        ..Default::default()
     };
     panel.apply(AgentEvent::MessageEnd(Message::Assistant(external)));
     assert_eq!(panel.context_tokens, 1_000);
@@ -2139,7 +2188,7 @@ fn a_resumed_session_keeps_its_timing() {
     let mut session = Session::create(dir.path(), dir.path()).unwrap();
     let tool_call = ToolCall {
         id: "t1".into(),
-        name: "bash".into(),
+        name: "shell".into(),
         arguments: serde_json::json!({ "command": "ls" }),
         extra_content: None,
     };
@@ -2504,6 +2553,73 @@ fn goal_works_turn_by_turn_until_the_judge_says_done() {
         ));
 }
 
+/// A judge that echoes its instructions gives no verdict: the goal is not
+/// dropped, the check is tried again, and the answer is in the log.
+#[test]
+fn an_echoed_instruction_from_the_judge_keeps_the_goal() {
+    let dir = tempfile::tempdir().unwrap();
+    let echo = "`DONE` if the goal is fully achieved";
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![reply("working"), reply(echo)])
+    });
+    type_text(&mut panel, "/goal get the build green");
+    panel.submit();
+    settle(&mut panel);
+    panel.goal_task.as_mut().unwrap().judge_at = Some(Instant::now());
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while panel.goal_task.as_ref().unwrap().judge_failures == 0 {
+        panel.tick();
+        assert!(Instant::now() < deadline, "the check never came back");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let task = panel.goal_task.as_ref().expect("the goal stays");
+    assert!(task.judge_at.is_some(), "the check is tried again");
+    assert!(!panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|i| matches!(i, Item::Notice { text, .. } if text.contains("goal reached"))));
+    let logged = Session::open_read_only(panel.session.as_ref().unwrap().path()).unwrap();
+    let verdicts: Vec<&EntryKind> = logged
+        .branch()
+        .into_iter()
+        .map(|e| &e.kind)
+        .filter(|k| matches!(k, EntryKind::GoalVerdict { .. }))
+        .collect();
+    assert!(
+        matches!(
+            verdicts.as_slice(),
+            [EntryKind::GoalVerdict { outcome: None, error, reply, .. }]
+                if error.contains("no verdict") && reply == echo
+        ),
+        "{verdicts:?}"
+    );
+}
+
+/// A session whose goal the judge ended shows how it ended when reopened.
+#[test]
+fn a_reached_goal_is_told_again_on_reopen() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![reply("working"), reply("DONE\neverything is green")])
+    });
+    type_text(&mut panel, "/goal get the build green");
+    panel.submit();
+    settle_goal(&mut panel);
+    panel.tick();
+    let path = panel.session.as_ref().unwrap().path().to_path_buf();
+    drop(panel);
+    let panel = reopen(&path, dir.path(), vec![]);
+    let reached = termide_i18n::t().agent_notice_goal_reached_reason_fmt("everything is green");
+    assert!(matches!(
+        panel.transcript().items().last(),
+        Some(Item::Notice { text, .. }) if *text == reached
+    ));
+    assert!(panel.goal_task.is_none());
+}
+
 /// A goal's work turn that the judge takes up next rings no bell, however
 /// long it ran; the goal's end does.
 #[test]
@@ -2520,6 +2636,7 @@ fn a_goal_rings_only_when_it_ends() {
     panel.apply(AgentEvent::GoalJudged {
         outcome: termide_agent_core::GoalOutcome::Done,
         reason: "done".into(),
+        reply: "DONE\ndone".into(),
     });
     assert!(panel.goal_task.is_none());
     assert!(panel.rung);
@@ -3608,6 +3725,7 @@ fn the_reviewers_tokens_join_the_session_totals() {
         output: 4,
         cache_read: 1000,
         cache_write: 0,
+        ..Default::default()
     });
     panel.tick();
     assert_eq!(
@@ -3620,6 +3738,110 @@ fn the_reviewers_tokens_join_the_session_totals() {
     );
     assert_eq!(panel.context_tokens, 500);
     assert!(!panel.take_reviewer_spent());
+}
+
+/// What the reviewer spent is logged by model, so a panel reopening the
+/// session starts its totals where they were, and its info tells who spent
+/// what on which model.
+#[test]
+fn spending_outlives_a_reopen_and_shows_by_whom() {
+    use termide_agent_core::Usage;
+    let dir = tempfile::tempdir().unwrap();
+    let mut answer = reply("ok");
+    answer.usage = Usage {
+        input: 1_000,
+        output: 50,
+        ..Default::default()
+    };
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![answer])
+    });
+    type_text(&mut panel, "do something");
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    settle(&mut panel);
+    panel.reviewer.spent.add_on(
+        "small",
+        &Usage {
+            input: 300,
+            output: 4,
+            cache_read: 1_000,
+            ..Default::default()
+        },
+    );
+    panel.tick();
+    let totals = (
+        panel.session_input,
+        panel.session_cached,
+        panel.session_output,
+    );
+    assert_eq!(totals, (1_300, 1_000, 54));
+    let path = panel.session.as_ref().unwrap().path().to_path_buf();
+    drop(panel);
+
+    let mut reopened = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![])
+    });
+    assert!(reopened.switch_session(Some(Session::open(&path).unwrap())));
+    assert_eq!(
+        (
+            reopened.session_input,
+            reopened.session_cached,
+            reopened.session_output,
+        ),
+        totals
+    );
+    // The context stands where the last call left it, not at nothing.
+    assert_eq!(reopened.context_tokens, 1_050);
+    let Some(PanelEvent::ShowInfo { rows, .. }) = reopened.session_summary().into_iter().next()
+    else {
+        panic!("the session info shows");
+    };
+    let row = |key: &str| {
+        rows.iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.clone())
+            .unwrap_or_default()
+    };
+    // The counts and figures first, then the tokens right before the
+    // context, then the breakdowns.
+    let order = [
+        "Messages",
+        "Compactions",
+        "Cache hits",
+        "Tokens",
+        "Context",
+        "Context holds",
+        "Spent by",
+        "By model",
+    ];
+    let at: Vec<Option<usize>> = order
+        .iter()
+        .map(|key| rows.iter().position(|(k, _)| k == key))
+        .collect();
+    assert!(
+        at.iter().all(Option::is_some) && at.windows(2).all(|w| w[0] < w[1]),
+        "{rows:?}"
+    );
+    let by = row("Spent by");
+    assert!(
+        by.contains("Conversation") && by.contains("Reviewer"),
+        "{by}"
+    );
+    assert!(row("By model").contains("small"), "{rows:?}");
+    // 1000 of the 2300 prompt tokens came from the cache.
+    assert_eq!(row("Cache hits"), "43%");
+    // What the context holds now: the request and the answer.
+    let parts = row("Context holds");
+    assert!(parts.starts_with("Conversation"), "{parts}");
+    // The bars of every breakdown stand in one column.
+    let columns: Vec<usize> = [by, row("By model"), parts]
+        .iter()
+        .flat_map(|cell| cell.lines().map(str::to_string).collect::<Vec<_>>())
+        .map(|line| line.chars().position(|c| c == '█' || c == '░').unwrap())
+        .collect();
+    assert!(columns.windows(2).all(|w| w[0] == w[1]), "{rows:?}");
 }
 
 /// A subagent's tokens join the session's totals when its `task` ends; its
@@ -3642,6 +3864,7 @@ fn a_subagents_tokens_join_the_session_totals() {
             output: 7,
             cache_read: 900,
             cache_write: 2,
+            ..Default::default()
         }),
     });
     assert_eq!(
@@ -3655,31 +3878,54 @@ fn a_subagents_tokens_join_the_session_totals() {
     assert_eq!(panel.context_tokens, 500);
 }
 
+/// What cleaning took out of `shell` output is read from the results in the
+/// log, so a reopened session shows it, right after the compactions.
 #[test]
 fn the_summary_reports_output_cleaning_savings() {
-    use termide_agent_core::ToolCall;
-    let mut panel = panel(vec![]);
+    use termide_agent_core::{Message, ToolCall};
+    let dir = tempfile::tempdir().unwrap();
+    let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
     let call = ToolCall {
         id: "b1".into(),
-        name: "bash".into(),
+        name: "shell".into(),
         arguments: serde_json::json!({ "command": "ls" }),
         extra_content: None,
     };
-    panel.apply(AgentEvent::ToolExecutionStart { call: call.clone() });
-    panel.apply(AgentEvent::ToolExecutionEnd {
-        result: ToolResultMessage::text(&call, "out")
-            .with_details(serde_json::json!({ "raw_bytes": 1000_u64, "cleaned_bytes": 250_u64 })),
+    session
+        .append_message(&Message::ToolResult(
+            ToolResultMessage::text(&call, "out").with_details(
+                serde_json::json!({ "raw_bytes": 100_000_u64, "cleaned_bytes": 25_000_u64 }),
+            ),
+        ))
+        .unwrap();
+    // A newer result counts characters, which its bytes would double.
+    session
+        .append_message(&Message::ToolResult(
+            ToolResultMessage::text(&call, "out").with_details(serde_json::json!({
+                "raw_bytes": 8_000_u64, "cleaned_bytes": 4_000_u64,
+                "raw_chars": 4_000_u64, "cleaned_chars": 2_000_u64,
+            })),
+        ))
+        .unwrap();
+    let path = session.path().to_path_buf();
+    drop(session);
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![])
     });
+    assert!(panel.switch_session(Some(Session::open(&path).unwrap())));
     let events = panel.session_summary();
     let Some(PanelEvent::ShowInfo { rows, .. }) = events.first() else {
         panic!("expected a summary modal, got {events:?}");
     };
-    let cleaned = rows
+    let at = rows
         .iter()
-        .find(|(key, _)| key == "Output cleaned")
-        .map(|(_, value)| value.as_str())
+        .position(|(key, _)| key == "Cleaned shell")
         .unwrap_or_else(|| panic!("no cleaning row: {rows:?}"));
-    assert!(cleaned.contains("−75%"), "{cleaned}");
+    assert_eq!(rows[at + 1].0, "Tokens");
+    assert_eq!(rows[at + 2].0, "Context");
+    // 77 000 of 104 000 taken out: 74%, about 19k tokens.
+    assert_eq!(rows[at].1, "74%  ≈19k");
 }
 
 #[test]
@@ -4252,7 +4498,9 @@ fn f8_in_the_banner_list_deletes_the_picked_session_not_the_fresh_one() {
     let events = panel.handle_key(chord(KeyCode::F(8), KeyModifiers::NONE));
     let (message, action) = confirm(&events);
     assert!(message.contains("first task"), "{message}");
-    panel.handle_command(PanelCommand::Confirmed { action });
+    panel.handle_command(PanelCommand::Confirmed {
+        action: action.clone(),
+    });
     assert!(!first_path.exists());
     assert_eq!(panel.session_path(), Some(fresh.as_path()));
     assert_eq!(panel.recent_sessions.len(), 1);
@@ -4263,7 +4511,9 @@ fn f8_in_the_banner_list_deletes_the_picked_session_not_the_fresh_one() {
     let events = panel.handle_key(chord(KeyCode::Delete, KeyModifiers::NONE));
     let (message, action) = confirm(&events);
     assert!(message.contains("second task"), "{message}");
-    panel.handle_command(PanelCommand::Confirmed { action });
+    panel.handle_command(PanelCommand::Confirmed {
+        action: action.clone(),
+    });
     assert!(panel.recent_sessions.is_empty());
     assert!(!panel.chat_focus);
     assert!(fresh.exists(), "the fresh session is untouched");
@@ -4701,7 +4951,7 @@ fn a_message_of_calls_alone_leaves_no_answer_block() {
     panel.external = true;
     let call = termide_agent_core::ToolCall {
         id: "c".into(),
-        name: "bash".into(),
+        name: "shell".into(),
         arguments: serde_json::json!({ "command": "ls" }),
         extra_content: None,
     };
@@ -4757,11 +5007,11 @@ fn a_withdrawn_permission_question_comes_down() {
     let (prompter, rx) = permission_channel(CancelToken::new());
     panel.permission_rx = rx;
     let request = |command: &str| termide_agent_core::PermissionRequest {
-        tool: "bash".into(),
+        tool: "shell".into(),
         subject: command.into(),
         call: termide_agent_core::ToolCall {
             id: "c".into(),
-            name: "bash".into(),
+            name: "shell".into(),
             arguments: serde_json::json!({ "command": command }),
             extra_content: None,
         },
@@ -4809,11 +5059,11 @@ fn delegates_asking_at_once_take_turns_on_the_card() {
     let ask = |agent: &str, command: &str| {
         let mut delegate = prompter.for_delegate(agent, CancelToken::new());
         let request = termide_agent_core::PermissionRequest {
-            tool: "bash".into(),
+            tool: "shell".into(),
             subject: command.into(),
             call: termide_agent_core::ToolCall {
                 id: "c".into(),
-                name: "bash".into(),
+                name: "shell".into(),
                 arguments: serde_json::json!({ "command": command }),
                 extra_content: None,
             },
@@ -4860,11 +5110,11 @@ fn permission_prompt_is_answered_in_the_panel() {
     panel.permission_rx = rx;
     let worker = std::thread::spawn(move || {
         prompter.ask(&termide_agent_core::PermissionRequest {
-            tool: "bash".into(),
+            tool: "shell".into(),
             subject: "git push".into(),
             call: termide_agent_core::ToolCall {
                 id: "c".into(),
-                name: "bash".into(),
+                name: "shell".into(),
                 arguments: serde_json::json!({ "command": "git push" }),
                 extra_content: None,
             },
@@ -4896,7 +5146,7 @@ fn permission_prompt_is_answered_in_the_panel() {
     }
     {
         let form = panel.pending.as_ref().unwrap().form();
-        assert_eq!(form.title(), "Agent wants to run bash:");
+        assert_eq!(form.title(), "Agent wants to run shell:");
         assert_eq!(form.detail(), Some("git push"));
         assert_eq!(
             form.options()[2],
@@ -4983,11 +5233,11 @@ fn a_compound_command_card_lists_the_parts_it_asks_about() {
     let command = "cd $BUILD && ./run && make install";
     let worker = std::thread::spawn(move || {
         prompter.ask(&termide_agent_core::PermissionRequest {
-            tool: "bash".into(),
+            tool: "shell".into(),
             subject: command.into(),
             call: termide_agent_core::ToolCall {
                 id: "c".into(),
-                name: "bash".into(),
+                name: "shell".into(),
                 arguments: serde_json::json!({ "command": command }),
                 extra_content: None,
             },
@@ -5029,11 +5279,11 @@ fn a_compound_command_card_lists_the_parts_it_asks_about() {
     assert_eq!(
         panel
             .effective_rules()
-            .evaluate_session("bash", "make install x"),
+            .evaluate_session("shell", "make install x"),
         Some(Decision::Allow)
     );
     assert_eq!(
-        panel.effective_rules().evaluate_session("bash", "./run"),
+        panel.effective_rules().evaluate_session("shell", "./run"),
         None
     );
 
@@ -5042,11 +5292,11 @@ fn a_compound_command_card_lists_the_parts_it_asks_about() {
     panel.permission_rx = rx;
     let worker = std::thread::spawn(move || {
         prompter.ask(&termide_agent_core::PermissionRequest {
-            tool: "bash".into(),
+            tool: "shell".into(),
             subject: "cd $BUILD && ./run".into(),
             call: termide_agent_core::ToolCall {
                 id: "d".into(),
-                name: "bash".into(),
+                name: "shell".into(),
                 arguments: serde_json::json!({ "command": "cd $BUILD && ./run" }),
                 extra_content: None,
             },
@@ -5076,11 +5326,11 @@ fn always_is_not_offered_where_the_configured_rules_do_not_count() {
     panel.permission_rx = rx;
     let worker = std::thread::spawn(move || {
         prompter.ask(&termide_agent_core::PermissionRequest {
-            tool: "bash".into(),
+            tool: "shell".into(),
             subject: "make".into(),
             call: termide_agent_core::ToolCall {
                 id: "c".into(),
-                name: "bash".into(),
+                name: "shell".into(),
                 arguments: serde_json::json!({ "command": "make" }),
                 extra_content: None,
             },
@@ -5106,7 +5356,9 @@ fn always_is_not_offered_where_the_configured_rules_do_not_count() {
     panel.handle_key(chord(KeyCode::Char('4'), KeyModifiers::NONE));
     assert_eq!(worker.join().unwrap(), PermissionAnswer::DenySession);
     assert_eq!(
-        panel.effective_rules().evaluate_session("bash", "make all"),
+        panel
+            .effective_rules()
+            .evaluate_session("shell", "make all"),
         Some(Decision::Deny)
     );
 }
@@ -5118,11 +5370,11 @@ fn a_single_click_selects_and_a_double_click_answers_a_permission() {
     panel.permission_rx = rx;
     let worker = std::thread::spawn(move || {
         prompter.ask(&termide_agent_core::PermissionRequest {
-            tool: "bash".into(),
+            tool: "shell".into(),
             subject: "git push".into(),
             call: termide_agent_core::ToolCall {
                 id: "c".into(),
-                name: "bash".into(),
+                name: "shell".into(),
                 arguments: serde_json::json!({ "command": "git push" }),
                 extra_content: None,
             },
@@ -5212,8 +5464,144 @@ impl ConnectionCatalog for Connections {
                 },
                 ..ReviewerSetup::default()
             },
+            settings: termide_config::Connection::default(),
         })
     }
+}
+
+/// An endpoint that answers nothing, named by the build that made it, so a
+/// test sees a panel take a new one or keep the one it has.
+struct Endpoint {
+    tag: String,
+}
+
+impl Provider for Endpoint {
+    fn name(&self) -> &str {
+        &self.tag
+    }
+    fn stream(
+        &self,
+        _request: &Request<'_>,
+        _on_event: &mut dyn FnMut(StreamEvent),
+        _cancel: &CancelToken,
+    ) -> AssistantMessage {
+        AssistantMessage::failed(&self.tag, "m", StopReason::Error, "never asked")
+    }
+}
+
+/// The `local` connection, its settings moved by the test; each build hands
+/// out an endpoint named by its number, so a rebuild is visible.
+struct Moving {
+    settings: std::sync::Mutex<termide_config::Connection>,
+    builds: std::sync::atomic::AtomicUsize,
+}
+
+impl Moving {
+    fn new() -> Self {
+        Self {
+            settings: std::sync::Mutex::new(termide_config::Connection {
+                base_url: "http://127.0.0.1:10000/v1".into(),
+                ..termide_config::Connection::default()
+            }),
+            builds: std::sync::atomic::AtomicUsize::new(0),
+        }
+    }
+
+    fn settings(&self) -> termide_config::Connection {
+        self.settings.lock().unwrap().clone()
+    }
+
+    fn move_to(&self, url: &str) {
+        self.settings.lock().unwrap().base_url = url.into();
+    }
+
+    fn panel(self: &Arc<Self>, dir: &std::path::Path) -> AgentPanel {
+        let catalog = Arc::clone(self);
+        let built = catalog.settings();
+        AgentPanel::new(AgentPanelSetup {
+            session_dir: Some(dir.to_path_buf()),
+            connections: Some(catalog),
+            connection: "local".into(),
+            connection_settings: built,
+            provider: Arc::new(Endpoint { tag: "ep0".into() }),
+            ..setup(vec![])
+        })
+    }
+}
+
+impl ConnectionCatalog for Moving {
+    fn list(&self) -> Vec<ConnectionEntry> {
+        vec![ConnectionEntry {
+            name: "local".into(),
+            kind: "openai_compatible".into(),
+            model: "m".into(),
+        }]
+    }
+
+    fn build(&self, name: &str, _agent: &str) -> Option<ConnectionChoice> {
+        (name == "local").then(|| ConnectionChoice {
+            name: name.into(),
+            kind: "openai_compatible".into(),
+            provider: Arc::new(Endpoint {
+                tag: format!(
+                    "ep{}",
+                    self.builds
+                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+                        + 1
+                ),
+            }),
+            model: "m".into(),
+            context_window: 200_000,
+            backend: None,
+            reviewer: ReviewerSetup::default(),
+            settings: self.settings(),
+        })
+    }
+}
+
+/// A connection edited in the settings reaches the panel already open on it,
+/// without a reopen — and asks for nothing while a run is going on, which
+/// keeps the endpoint it started on and takes the settings when it is over.
+#[test]
+fn an_edited_connection_reaches_the_panels_already_open_on_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let catalog = Arc::new(Moving::new());
+    let mut panel = catalog.panel(dir.path());
+
+    // Nothing moved: the panel keeps its endpoint and asks for no redraw. It
+    // does read the connection to know that, which builds one it then drops;
+    // that happens only on a settings change, which is what this follows.
+    assert!(!panel
+        .handle_command(PanelCommand::RefreshAiConnection)
+        .needs_redraw());
+    assert_eq!(panel.provider.name(), "ep0");
+
+    // The run going on keeps its endpoint; the ask waits for it.
+    catalog.move_to("https://openrouter.ai/api/v1");
+    panel.busy = true;
+    assert!(!panel
+        .handle_command(PanelCommand::RefreshAiConnection)
+        .needs_redraw());
+    assert_eq!(panel.provider.name(), "ep0");
+    assert!(panel.connection_refresh, "kept for the run's end");
+
+    // The run is over: the panel takes an endpoint other than the one it
+    // started on, and the settings the connection now names.
+    panel.apply(AgentEvent::AgentEnd);
+    assert_ne!(panel.provider.name(), "ep0", "a new endpoint");
+    assert_eq!(panel.connection, "local");
+    assert_eq!(
+        panel.connection_settings.base_url,
+        "https://openrouter.ai/api/v1"
+    );
+    assert!(!panel.connection_refresh);
+
+    // Asked again with nothing changed, it keeps the endpoint it took.
+    let taken = panel.provider.name().to_string();
+    assert!(!panel
+        .handle_command(PanelCommand::RefreshAiConnection)
+        .needs_redraw());
+    assert_eq!(panel.provider.name(), taken);
 }
 
 fn connected_panel(dir: &std::path::Path) -> AgentPanel {
@@ -5317,6 +5705,7 @@ fn a_cli_agent_connection_is_taken_on_mid_conversation_and_left_again() {
         text: "go".into(),
         at: String::new(),
         command: None,
+        images: Vec::new(),
     });
     // The CLI agent takes the conversation over (told a recap of it).
     assert!(panel.switch_connection("cli"));
@@ -5341,7 +5730,7 @@ fn a_cli_agent_connection_is_taken_on_mid_conversation_and_left_again() {
 #[test]
 fn the_toolset_guard_refuses_what_is_switched_off_in_context() {
     let blocked: Blocked = Arc::new(RwLock::new(
-        ["bash".to_string(), "skill:review".to_string()].into(),
+        ["shell".to_string(), "skill:review".to_string()].into(),
     ));
     let mut guard = ToolsetGuard { blocked };
     let ctx = ToolContext::new(PathBuf::from("/tmp"));
@@ -5353,7 +5742,7 @@ fn the_toolset_guard_refuses_what_is_switched_off_in_context() {
     };
     let refused = |d: ToolDecision| matches!(d, ToolDecision::Block { .. });
     assert!(refused(
-        guard.before_tool_call(&call("bash", serde_json::json!({})), &ctx)
+        guard.before_tool_call(&call("shell", serde_json::json!({})), &ctx)
     ));
     assert!(refused(guard.before_tool_call(
         &call("skill", serde_json::json!({ "name": "review" })),
@@ -5375,11 +5764,11 @@ fn switching_off_before_the_first_request_keeps_it_out_of_the_context() {
         session_dir: Some(dir.path().to_path_buf()),
         ..setup(vec![])
     });
-    panel.offered_tools = vec!["read".into(), "bash".into()];
+    panel.offered_tools = vec!["read".into(), "shell".into()];
     panel.offered_skills = vec!["review".into()];
     assert!(panel.is_fresh());
     panel.apply_toolset(&["read".to_string()]);
-    let off: BTreeSet<String> = ["bash".to_string(), "skill:review".to_string()].into();
+    let off: BTreeSet<String> = ["shell".to_string(), "skill:review".to_string()].into();
     assert_eq!(panel.toolset_off, off);
     // Rebuilt at once without them: out of the context, nothing to refuse.
     assert_eq!(panel.context_off, off);
@@ -5389,7 +5778,7 @@ fn switching_off_before_the_first_request_keeps_it_out_of_the_context() {
     let session = Session::open(&path).unwrap();
     assert_eq!(
         session.current_toolset(),
-        Some(vec!["bash".to_string(), "skill:review".to_string()])
+        Some(vec!["shell".to_string(), "skill:review".to_string()])
     );
     // Reopened, the session comes back with it, built without it: a new
     // worker has no cache to keep.
@@ -5406,19 +5795,20 @@ fn switching_off_before_the_first_request_keeps_it_out_of_the_context() {
 #[test]
 fn switching_off_mid_session_refuses_until_a_compaction_takes_it_out() {
     let mut panel = panel(vec![]);
-    panel.offered_tools = vec!["read".into(), "bash".into()];
+    panel.offered_tools = vec!["read".into(), "shell".into()];
     panel.transcript.push(Item::User {
         text: "go".into(),
         at: String::new(),
         command: None,
+        images: Vec::new(),
     });
     assert!(!panel.is_fresh());
     panel.apply_toolset(&["read".to_string()]);
     // Still in the context (the prompt cache stays): refused, not gone.
     assert!(panel.context_off.is_empty());
-    assert!(panel.blocked.read().unwrap().contains("bash"));
+    assert!(panel.blocked.read().unwrap().contains("shell"));
     let items = panel.toolset_items();
-    let bash = items.iter().find(|i| i.key == "bash").unwrap();
+    let bash = items.iter().find(|i| i.key == "shell").unwrap();
     assert!(
         bash.enabled && !bash.checked && !bash.note.is_empty(),
         "{bash:?}"
@@ -5433,15 +5823,15 @@ fn switching_off_mid_session_refuses_until_a_compaction_takes_it_out() {
     });
     assert!(panel.context_stale);
     panel.tick();
-    assert!(panel.context_off.contains("bash"));
+    assert!(panel.context_off.contains("shell"));
     assert!(panel.blocked.read().unwrap().is_empty());
     // Out of the context now, it cannot come back in this session.
     let items = panel.toolset_items();
-    let bash = items.iter().find(|i| i.key == "bash").unwrap();
+    let bash = items.iter().find(|i| i.key == "shell").unwrap();
     assert!(!bash.enabled);
-    panel.apply_toolset(&["read".to_string(), "bash".to_string()]);
+    panel.apply_toolset(&["read".to_string(), "shell".to_string()]);
     assert!(
-        panel.toolset_off.contains("bash"),
+        panel.toolset_off.contains("shell"),
         "a locked item keeps its state"
     );
 }
@@ -5536,7 +5926,7 @@ fn a_permission_wait_is_timed_apart_from_the_call() {
     let mut panel = panel(vec![]);
     let call = termide_agent_core::ToolCall {
         id: "c".into(),
-        name: "bash".into(),
+        name: "shell".into(),
         arguments: serde_json::json!({ "command": "cat notes.txt" }),
         extra_content: None,
     };
@@ -5551,7 +5941,7 @@ fn a_permission_wait_is_timed_apart_from_the_call() {
         envelope: PermissionEnvelope {
             id: 1,
             request: termide_agent_core::PermissionRequest {
-                tool: "bash".into(),
+                tool: "shell".into(),
                 subject: "cat notes.txt".into(),
                 call: call.clone(),
                 suggested_pattern: "cat *".into(),
@@ -5612,11 +6002,11 @@ fn a_grant_reaches_the_panel_rules_so_it_survives_a_rebuild() {
             envelope: PermissionEnvelope {
                 id: 1,
                 request: termide_agent_core::PermissionRequest {
-                    tool: "bash".into(),
+                    tool: "shell".into(),
                     subject: "cat notes.txt".into(),
                     call: termide_agent_core::ToolCall {
                         id: "c".into(),
-                        name: "bash".into(),
+                        name: "shell".into(),
                         arguments: serde_json::json!({ "command": "cat notes.txt" }),
                         extra_content: None,
                     },
@@ -5646,14 +6036,14 @@ fn a_grant_reaches_the_panel_rules_so_it_survives_a_rebuild() {
     pending(&mut session);
     assert!(session.answer_permission(PermissionAnswer::AllowSession));
     assert_eq!(
-        session.effective_rules().evaluate_session("bash", "cat x"),
+        session.effective_rules().evaluate_session("shell", "cat x"),
         Some(Decision::Allow)
     );
-    assert_eq!(session.effective_rules().evaluate("bash", "cat x"), None);
+    assert_eq!(session.effective_rules().evaluate("shell", "cat x"), None);
     pending(&mut session);
     assert!(session.answer_permission(PermissionAnswer::DenySession));
     assert_eq!(
-        session.effective_rules().evaluate_session("bash", "cat x"),
+        session.effective_rules().evaluate_session("shell", "cat x"),
         Some(Decision::Deny)
     );
 
@@ -5662,7 +6052,7 @@ fn a_grant_reaches_the_panel_rules_so_it_survives_a_rebuild() {
     pending(&mut always);
     assert!(always.answer_permission(PermissionAnswer::AllowAlways));
     assert_eq!(
-        always.rules.evaluate("bash", "cat x"),
+        always.rules.evaluate("shell", "cat x"),
         Some(Decision::Allow)
     );
 
@@ -5674,7 +6064,7 @@ fn a_grant_reaches_the_panel_rules_so_it_survives_a_rebuild() {
     assert_eq!(
         delegated
             .effective_rules()
-            .evaluate_session("bash", "cat x"),
+            .evaluate_session("shell", "cat x"),
         None
     );
 }
@@ -5780,7 +6170,8 @@ fn model_switches_are_recorded_and_followed_on_resume() {
     assert_eq!(chip(&panel, MODEL_ACTION), "m");
 
     // The chip fetches the list off-thread; the picker marks the current
-    // model and ends with the typed-id entry.
+    // model, names a model by the name the endpoint gives it beside its id,
+    // and ends with the typed-id entry.
     let events = panel.handle_status_action(MODEL_ACTION);
     assert!(matches!(
         events.first(),
@@ -5790,7 +6181,10 @@ fn model_switches_are_recorded_and_followed_on_resume() {
     let PanelEvent::ShowSelect { options, .. } = &picker else {
         unreachable!()
     };
-    assert_eq!(options, &["  big", "● m", "  Enter a model id…"]);
+    assert_eq!(
+        options,
+        &["  Big Model · big", "● m", "  Enter a model id…"]
+    );
     select(&mut panel, &picker, 0);
     assert_eq!(chip(&panel, MODEL_ACTION), "big");
     // The endpoint's context window comes along with the id.
@@ -5948,7 +6342,7 @@ fn a_successful_edit_reports_the_changed_file() {
         result: ToolResultMessage::text(&read, "…")
             .with_details(serde_json::json!({ "path": "/tmp/g.rs" })),
     });
-    let bash = call("bash");
+    let bash = call("shell");
     panel.apply(AgentEvent::ToolExecutionEnd {
         result: ToolResultMessage::text(&bash, "ok"),
     });
@@ -6667,7 +7061,7 @@ fn a_server_s_line_tracks_the_toolset_under_the_banner_and_logs_it_after() {
         ],
     };
     // A built-in tool beside the server's, as an agent offers one.
-    panel.offered_tools = vec!["bash".into()];
+    panel.offered_tools = vec!["shell".into()];
     tx.send(ready()).unwrap();
     panel.tick();
     let keys = |panel: &AgentPanel| -> Vec<String> {
@@ -6775,12 +7169,14 @@ impl AgentCatalog for Servers {
                 status: McpStatus::Ready { tools: 4 },
                 sign_in: McpSignIn::None,
                 launch: "db-server".into(),
+                fingerprint: String::new(),
             },
             McpServerState {
                 name: "plane".into(),
                 status: McpStatus::NeedsLogin,
                 sign_in: McpSignIn::SignedOut,
                 launch: "https://plane.example/mcp".into(),
+                fingerprint: String::new(),
             },
         ]
     }
@@ -7360,7 +7756,7 @@ fn an_external_agent_on_termides_tools_lists_gets_and_refuses_them() {
             late_tools: Some(rx),
             ..setup(vec![])
         });
-        panel.offered_tools = vec!["read".into(), "bash".into()];
+        panel.offered_tools = vec!["read".into(), "shell".into()];
         // An MCP server of termide's connects after the agent started.
         tx.send(LateTools::Ready {
             source: "db".into(),
@@ -7396,17 +7792,17 @@ fn an_external_agent_on_termides_tools_lists_gets_and_refuses_them() {
         panic!("the toolset list opens: {events:?}");
     };
     let keys: Vec<&str> = items.iter().map(|i| i.key.as_str()).collect();
-    assert_eq!(keys, ["read", "bash", "db__query"]);
+    assert_eq!(keys, ["read", "shell", "db__query"]);
 
     // Its session took the tools when it started: switched off, even before
     // the first request, a tool is refused rather than taken out.
     panel.apply_toolset(&["read".to_string(), "db__query".to_string()]);
-    assert!(panel.toolset_off.contains("bash"));
+    assert!(panel.toolset_off.contains("shell"));
     assert!(panel.context_off.is_empty());
-    assert!(panel.blocked.read().unwrap().contains("bash"));
+    assert!(panel.blocked.read().unwrap().contains("shell"));
     assert_eq!(chip(&panel, TOOLSET_ACTION), "2/3");
     let items = panel.toolset_items();
-    let bash = items.iter().find(|i| i.key == "bash").unwrap();
+    let bash = items.iter().find(|i| i.key == "shell").unwrap();
     assert!(
         bash.enabled && !bash.checked && !bash.note.is_empty(),
         "{bash:?}"
@@ -7418,13 +7814,13 @@ fn the_tools_chip_counts_only_what_the_list_offers() {
     // A resumed session switched off the tools of an MCP server that has not
     // connected (yet): they are not in the list, so not in the count either.
     let mut panel = AgentPanel::new(setup(vec![]));
-    panel.offered_tools = vec!["read".into(), "bash".into()];
+    panel.offered_tools = vec!["read".into(), "shell".into()];
     panel.toolset_off = ["gone__a", "gone__b", "gone__c"]
         .into_iter()
         .map(String::from)
         .collect();
     assert_eq!(chip(&panel, TOOLSET_ACTION), "2/2");
-    panel.toolset_off.insert("bash".into());
+    panel.toolset_off.insert("shell".into());
     assert_eq!(chip(&panel, TOOLSET_ACTION), "1/2");
 }
 
@@ -7443,7 +7839,7 @@ fn an_external_agent_on_its_own_tools_gets_and_lists_the_mcp_servers_alone() {
         late_tools: Some(rx),
         ..setup(vec![])
     });
-    panel.offered_tools = vec!["read".into(), "bash".into()];
+    panel.offered_tools = vec!["read".into(), "shell".into()];
     // No MCP tools yet: nothing of termide's to show.
     assert!(!panel
         .status_segments()
@@ -7498,6 +7894,7 @@ fn an_agent_that_lists_its_tools_once_is_told_when_the_mcp_servers_answered() {
         status,
         sign_in: McpSignIn::None,
         launch: String::new(),
+        fingerprint: String::new(),
     };
     let statuses = Arc::new(Mutex::new(vec![state(McpStatus::Connecting)]));
     let served = Arc::new(Mutex::new(Vec::new()));
@@ -7704,6 +8101,7 @@ fn token_totals_keep_the_cache_apart_from_what_is_billed_in_full() {
                 output: 63,
                 cache_read: 919,
                 cache_write: 1009,
+                ..Default::default()
             },
             ..reply("ok")
         },
@@ -8649,7 +9047,7 @@ fn user_command(item: &Item) -> Option<(String, String, bool, Option<u32>)> {
     else {
         return None;
     };
-    (call.id == crate::transcript::USER_COMMAND_ID && call.name == "bash").then(|| {
+    (call.id == crate::transcript::USER_COMMAND_ID && call.name == "shell").then(|| {
         (
             call.arguments["command"].as_str().unwrap_or("").to_string(),
             result.plain_text(),
@@ -8843,7 +9241,7 @@ fn a_suggested_command_shows_on_a_card_with_the_exact_command() {
 fn a_suggested_command_denied_by_a_rule_withholds_run() {
     termide_ui::clipboard::use_fake_clipboard("");
     let mut panel = panel(vec![]);
-    panel.rules.add("bash", "git push*", Decision::Deny);
+    panel.rules.add("shell", "git push*", Decision::Deny);
     let worker = suggest_in_worker(&mut panel, "git push origin main", "publish");
     let form = panel.pending.as_ref().unwrap().form();
     // No `[Run]`, no `[Edit first]`: only the text may be taken away.
@@ -9434,12 +9832,13 @@ fn a_reset_already_past_offers_no_wait() {
 }
 
 /// A running subagent keeps a row in the state strip — its agent, task,
-/// latest progress and clock — and past three the rest fold into `+N`.
+/// latest progress and clock — newest first, and past five the oldest fold
+/// into `+N`.
 #[test]
 fn running_subagents_show_in_the_state_strip() {
     let colors = ThemeColors::default();
     let mut panel = panel(vec![]);
-    for n in 1..=5 {
+    for n in 1..=7 {
         panel.transcript.push(Item::Tool {
             call: ToolCall {
                 id: format!("call-{n}"),
@@ -9463,10 +9862,11 @@ fn running_subagents_show_in_the_state_strip() {
     };
     let rows = panel.strip_rows(80);
     let lines = crate::strip::strip_lines(&rows, 80, &colors);
-    assert_eq!(lines.len(), 4);
+    assert_eq!(lines.len(), 6);
+    // Newest first: the oldest are the ones folded away.
     let first = text(&lines[0]);
     let head = format!(
-        "& {} · search  find thing 1",
+        "& {} · search  find thing 7",
         termide_i18n::t().agent_tool_task()
     );
     assert!(first.starts_with(&head), "{first}");
@@ -9475,7 +9875,8 @@ fn running_subagents_show_in_the_state_strip() {
     let unit = termide_i18n::t().time_unit_secs();
     assert!(first.trim_end().ends_with(unit), "{first}");
     assert!(termide_ui::str_display_width(&first) <= 80, "{first}");
-    assert_eq!(text(&lines[3]).trim_end(), "& +2");
+    assert!(text(&lines[4]).contains("find thing 3"));
+    assert_eq!(text(&lines[5]).trim_end(), "& +2");
 }
 
 /// A session log in `dir` holding one request, as the panel would have left
@@ -9487,6 +9888,54 @@ fn logged_request(dir: &Path, finish: impl FnOnce(&mut Session)) -> PathBuf {
         .unwrap();
     finish(&mut session);
     session.path().to_path_buf()
+}
+
+#[test]
+fn a_reopened_session_shows_what_a_compaction_took_out_of_the_context() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut session = Session::create(dir.path(), Path::new("/w")).unwrap();
+    for text in ["one", "two", "three"] {
+        session
+            .append_message(&Message::User(UserMessage::text(text)))
+            .unwrap();
+        session
+            .append_message(&Message::Assistant(reply(&format!("answer {text}"))))
+            .unwrap();
+    }
+    session.append_compaction("the gist", 5000, 2).unwrap();
+    session
+        .append_message(&Message::User(UserMessage::text("four")))
+        .unwrap();
+    let path = session.path().to_path_buf();
+    drop(session);
+
+    // As the live run showed it: every block, the compaction's notice where
+    // it happened, and no summary posing as a message of the user's.
+    let panel = reopen(&path, dir.path(), vec![]);
+    let shown: Vec<String> = panel
+        .transcript
+        .items()
+        .iter()
+        .filter_map(|item| match item {
+            Item::User { text, .. } | Item::Assistant { text, .. } => Some(text.clone()),
+            Item::Notice { text, .. } => Some(format!("· {text}")),
+            _ => None,
+        })
+        .collect();
+    let notice = format!("· {}", crate::runtime::compacted_notice(5000, 2));
+    assert_eq!(
+        shown,
+        [
+            "one",
+            "answer one",
+            "two",
+            "answer two",
+            "three",
+            "answer three",
+            notice.as_str(),
+            "four"
+        ]
+    );
 }
 
 fn reopen(path: &Path, dir: &Path, replies: Vec<AssistantMessage>) -> AgentPanel {
@@ -9650,7 +10099,7 @@ fn a_call_a_cut_off_run_left_is_closed_not_run_again() {
     let dir = tempfile::tempdir().unwrap();
     let call = ToolCall {
         id: "c1".into(),
-        name: "bash".into(),
+        name: "shell".into(),
         arguments: serde_json::json!({ "command": "git push" }),
         extra_content: None,
     };
@@ -10089,7 +10538,7 @@ fn an_external_agent_closed_in_a_call_leaves_it_logged_cut_off() {
     assert!(panel.external);
     let call = ToolCall {
         id: "c1".into(),
-        name: "bash".into(),
+        name: "shell".into(),
         arguments: serde_json::json!({ "command": "./deploy.sh" }),
         extra_content: None,
     };
@@ -10143,6 +10592,7 @@ fn a_failing_goal_check_is_tried_again_then_pauses_the_goal() {
     settle(&mut panel);
     let fail = || AgentEvent::GoalJudgeFailed {
         error: "session/prompt: Internal error (code -32603)".into(),
+        reply: String::new(),
     };
     // The first failures wait and try again; the goal stays.
     for attempt in 1..=GOAL_JUDGE_RETRIES {
@@ -10179,6 +10629,7 @@ fn a_goal_paused_by_failing_checks_ends_with_goal_stop() {
     for _ in 0..=GOAL_JUDGE_RETRIES {
         panel.apply(AgentEvent::GoalJudgeFailed {
             error: "boom".into(),
+            reply: String::new(),
         });
     }
     assert!(panel.paused);
@@ -10413,6 +10864,7 @@ impl ConnectionCatalog for Switchable {
             context_window: 200_000,
             backend,
             reviewer: ReviewerSetup::default(),
+            settings: termide_config::Connection::default(),
         })
     }
 }
@@ -10744,7 +11196,7 @@ impl Backend for Backgrounded {
         vec![termide_agent_core::BackgroundCall {
             call: ToolCall {
                 id: "t1".into(),
-                name: "bash".into(),
+                name: "shell".into(),
                 arguments: serde_json::json!({ "command": "cargo test --workspace" }),
                 extra_content: None,
             },
@@ -10765,7 +11217,7 @@ fn a_command_moved_to_the_background_shows_in_the_state_strip() {
     let mut panel = panel(vec![]);
     let call = ToolCall {
         id: "t1".into(),
-        name: "bash".into(),
+        name: "shell".into(),
         arguments: serde_json::json!({ "command": "cargo test --workspace" }),
         extra_content: None,
     };
@@ -10825,7 +11277,7 @@ fn a_command_in_the_background_is_stopped_from_its_row() {
     let mut panel = panel(vec![]);
     let call = ToolCall {
         id: "t1".into(),
-        name: "bash".into(),
+        name: "shell".into(),
         arguments: serde_json::json!({ "command": "cargo test --workspace" }),
         extra_content: None,
     };
@@ -10863,7 +11315,9 @@ fn a_command_in_the_background_is_stopped_from_its_row() {
     };
     assert!(message.contains("cargo test --workspace"), "{message}");
     assert!(stopped.lock().unwrap().is_empty(), "asked first");
-    panel.handle_command(PanelCommand::Confirmed { action });
+    panel.handle_command(PanelCommand::Confirmed {
+        action: action.clone(),
+    });
     assert_eq!(*stopped.lock().unwrap(), ["t1"]);
 }
 
@@ -10896,7 +11350,6 @@ fn a_running_task_is_stopped_from_its_row() {
         task: "find the loader",
         session: None,
         background: false,
-        pausable: true,
     });
     let (width, height) = (80, 20);
     let rows = render_text(&mut panel, width, height);
@@ -10921,7 +11374,9 @@ fn a_running_task_is_stopped_from_its_row() {
     };
     assert!(message.contains("search"), "{message}");
     assert!(registration.control().ended_by_user().is_none());
-    panel.handle_command(PanelCommand::Confirmed { action });
+    panel.handle_command(PanelCommand::Confirmed {
+        action: action.clone(),
+    });
     assert_eq!(
         registration.control().ended_by_user(),
         Some("the user stopped the subagent")
@@ -11024,7 +11479,9 @@ fn a_followed_task_shows_its_log_and_opens_when_over() {
     else {
         panic!("no confirmation");
     };
-    panel.handle_command(PanelCommand::Confirmed { action });
+    panel.handle_command(PanelCommand::Confirmed {
+        action: action.clone(),
+    });
     assert_eq!(
         control.ended_by_user(),
         Some("the user stopped the subagent")
@@ -11064,7 +11521,6 @@ fn a_background_task_has_a_row_that_stops_or_follows_it() {
         task: "find the loader\nin src/",
         session: None,
         background: true,
-        pausable: true,
     });
     registration.set_status("· read src/main.rs");
     let (width, height) = (80, 30);
@@ -11116,7 +11572,9 @@ fn a_background_task_has_a_row_that_stops_or_follows_it() {
     };
     assert!(message.contains("search"), "{message}");
     assert!(registration.control().ended_by_user().is_none());
-    panel.handle_command(PanelCommand::Confirmed { action });
+    panel.handle_command(PanelCommand::Confirmed {
+        action: action.clone(),
+    });
     assert_eq!(
         registration.control().ended_by_user(),
         Some("the user stopped the subagent")
@@ -11220,7 +11678,9 @@ fn a_parked_delegate_holds_a_row_and_asks_what_to_do() {
         panic!("no confirmation");
     };
     panel.pending = None;
-    panel.handle_command(PanelCommand::Confirmed { action });
+    panel.handle_command(PanelCommand::Confirmed {
+        action: action.clone(),
+    });
     assert!(crate::live::parked_of(id).is_empty(), "given up");
 }
 
@@ -11262,14 +11722,14 @@ fn a_parked_delegate_asks_nothing_when_the_policy_waits() {
     crate::live::clear_parked_of(id);
 }
 
-/// Past three running subagents the strip counts the rest; a click on the
+/// Past five running subagents the strip counts the oldest; a click on the
 /// count shows them all, and the row after them folds them back.
 #[test]
 fn the_strip_count_of_subagents_unfolds_and_folds_back() {
     let mut panel = panel(vec![]);
     let id = panel.panel_id();
-    let calls: Vec<String> = (0..5).map(|n| format!("more-{n}")).collect();
-    let tasks: Vec<String> = (0..5).map(|n| format!("task number {n}")).collect();
+    let calls: Vec<String> = (0..7).map(|n| format!("more-{n}")).collect();
+    let tasks: Vec<String> = (0..7).map(|n| format!("task number {n}")).collect();
     let registrations: Vec<_> = calls
         .iter()
         .zip(&tasks)
@@ -11282,19 +11742,18 @@ fn the_strip_count_of_subagents_unfolds_and_folds_back() {
                 task,
                 session: None,
                 background: true,
-                pausable: true,
             })
         })
         .collect();
     let (width, height) = (80, 40);
     let shown = |panel: &mut AgentPanel| {
         let rows = render_text(panel, width, height);
-        (0..5)
+        (0..7)
             .filter(|n| {
                 rows.iter()
                     .any(|line| line.contains(&format!("task number {n}")))
             })
-            .count()
+            .collect::<Vec<_>>()
     };
     let click = |panel: &mut AgentPanel| {
         let row = strip_row(panel, crate::strip::StripTarget::MoreTasks);
@@ -11309,7 +11768,8 @@ fn the_strip_count_of_subagents_unfolds_and_folds_back() {
         );
         row
     };
-    assert_eq!(shown(&mut panel), 3);
+    // Folded, the newest stay in sight.
+    assert_eq!(shown(&mut panel), [2, 3, 4, 5, 6]);
     let rows = render_text(&mut panel, width, height);
     let row = strip_row(&panel, crate::strip::StripTarget::MoreTasks);
     assert!(
@@ -11318,7 +11778,7 @@ fn the_strip_count_of_subagents_unfolds_and_folds_back() {
         rows[row as usize]
     );
     click(&mut panel);
-    assert_eq!(shown(&mut panel), 5);
+    assert_eq!(shown(&mut panel).len(), 7);
     let rows = render_text(&mut panel, width, height);
     let row = strip_row(&panel, crate::strip::StripTarget::MoreTasks);
     assert!(
@@ -11327,7 +11787,7 @@ fn the_strip_count_of_subagents_unfolds_and_folds_back() {
         rows[row as usize]
     );
     click(&mut panel);
-    assert_eq!(shown(&mut panel), 3);
+    assert_eq!(shown(&mut panel).len(), 5);
     drop(registrations);
 }
 
@@ -11705,9 +12165,8 @@ fn a_carried_on_delegate_answers_the_panel_that_delegated_it() {
     assert!(panel.carry_back.is_none(), "the answer is owed once");
 }
 
-/// The panel's pause holds the tasks it handed over, and its resume lets
-/// them go; a task an external agent runs keeps going, and the pause's row
-/// says which is which.
+/// The panel's pause holds the tasks it handed over, the one its run waits on
+/// too, and its withdrawal lets them go; the pause's row counts them.
 #[test]
 fn pausing_the_panel_holds_its_delegates_and_resumes_them() {
     let mut panel = panel(vec![]);
@@ -11720,17 +12179,15 @@ fn pausing_the_panel_holds_its_delegates_and_resumes_them() {
         task: "find the loader",
         session: None,
         background: true,
-        pausable: true,
     });
-    let external = crate::live::register(crate::live::LiveTask {
+    let waited = crate::live::register(crate::live::LiveTask {
         panel: Some(id),
-        call: "call-ext",
+        call: "call-sync",
         from: "default",
         agent: "claude",
         task: "review the diff",
         session: None,
-        background: true,
-        pausable: false,
+        background: false,
     });
 
     panel.busy = true;
@@ -11740,8 +12197,8 @@ fn pausing_the_panel_holds_its_delegates_and_resumes_them() {
         "the delegate waits with the run"
     );
     assert!(
-        !external.control().is_paused(),
-        "an external agent runs its own program"
+        waited.control().is_paused(),
+        "so does the one the run waits on"
     );
     let rows = panel.strip_rows(80);
     let notes = &rows
@@ -11749,17 +12206,53 @@ fn pausing_the_panel_holds_its_delegates_and_resumes_them() {
         .find(|r| r.target == crate::strip::StripTarget::Pause)
         .expect("the pause row")
         .notes;
-    assert_eq!(notes.len(), 2, "{notes:?}: one held, one still going");
+    assert_eq!(notes.len(), 1, "{notes:?}: the held ones counted");
 
     panel.cancel_pause();
     assert!(!held.control().is_paused(), "withdrawing frees it");
+    assert!(!waited.control().is_paused());
+}
 
-    panel.request_pause();
-    assert!(held.control().is_paused());
-    panel.stop_paused();
+/// Stopping the run stops the work it handed over, held at a pause or not,
+/// and the answer of a background task stopped with it waits for the next
+/// request rather than starting a run.
+#[test]
+fn stopping_the_run_stops_its_delegates_and_holds_their_answers() {
+    let mut panel = panel(vec![]);
+    let id = panel.panel_id();
+    let background = crate::live::register(crate::live::LiveTask {
+        panel: Some(id),
+        call: "call-bg",
+        from: "default",
+        agent: "search",
+        task: "find the loader",
+        session: None,
+        background: true,
+    });
+    panel.busy = true;
+    assert!(panel.request_pause());
+    panel.abort();
+    assert!(background.control().stop_token().is_cancelled());
+    assert!(!background.control().is_paused(), "stopped, not paused");
+    assert!(crate::live::take_quiet(id, "call-bg"));
+
+    // The run has not ended yet: the answer is held, not queued to it.
+    let answer = UserMessage::text("The background task is over");
+    panel.deliver_held(answer.clone()).unwrap();
+    assert_eq!(panel.held_reports.len(), 1);
+    assert_eq!(panel.queued, (0, 0));
+
+    // The next request takes it along.
+    panel.busy = false;
+    panel.stop_requested = None;
+    panel.send_message(UserMessage::text("go on with the docs"));
+    assert!(panel.held_reports.is_empty());
     assert!(
-        !held.control().is_paused(),
-        "a stopped run frees what it held"
+        panel
+            .queued_texts
+            .iter()
+            .any(|(text, _)| text.contains("background task is over")),
+        "queued to the new run"
     );
 }
 
@@ -11820,7 +12313,6 @@ fn a_delegates_cards_follow_the_view_of_its_task() {
         task: "find it",
         session: Some(std::path::PathBuf::from("/nonexistent/x.jsonl")),
         background: false,
-        pausable: true,
     });
     let watch = crate::live::watch(id, "call-cards").unwrap();
     let mut view = panel(vec![]);
@@ -11831,11 +12323,11 @@ fn a_delegates_cards_follow_the_view_of_its_task() {
         .for_task("call-cards");
     let worker = std::thread::spawn(move || {
         delegate.ask(&termide_agent_core::PermissionRequest {
-            tool: "bash".into(),
+            tool: "shell".into(),
             subject: "git fetch".into(),
             call: termide_agent_core::ToolCall {
                 id: "c".into(),
-                name: "bash".into(),
+                name: "shell".into(),
                 arguments: serde_json::json!({ "command": "git fetch" }),
                 extra_content: None,
             },
@@ -11911,7 +12403,6 @@ fn the_session_waits_for_the_tasks_handed_over_in_the_background() {
         task: "find it",
         session: None,
         background: true,
-        pausable: true,
     });
     assert!(!panel.switch_session(None));
     assert!(panel.transcript.items().iter().any(|item| matches!(
@@ -11922,8 +12413,26 @@ fn the_session_waits_for_the_tasks_handed_over_in_the_background() {
     assert!(panel.switch_session(None));
 }
 
-/// A catalog whose project brings a server and a hook not approved yet.
-struct Untrusted(Arc<Mutex<Vec<String>>>);
+/// A catalog whose project brings a server and a hook not approved yet; the
+/// server's launch is what `ext` holds now, and a test may change it.
+struct Untrusted {
+    asked: Arc<Mutex<Vec<String>>>,
+    ext: Arc<Mutex<&'static str>>,
+}
+
+impl Untrusted {
+    fn new(asked: &Arc<Mutex<Vec<String>>>) -> Self {
+        Self {
+            asked: Arc::clone(asked),
+            ext: Arc::new(Mutex::new("npx ext-server")),
+        }
+    }
+}
+
+/// The mock's fingerprint of a launch.
+fn mock_fingerprint(launch: &str) -> String {
+    format!("fp-{}", launch.replace(' ', "-"))
+}
 
 impl AgentCatalog for Untrusted {
     fn list(&self) -> Vec<AgentEntry> {
@@ -11934,26 +12443,42 @@ impl AgentCatalog for Untrusted {
     }
     fn mcp_status(&self) -> Vec<termide_agent_core::McpServerState> {
         use termide_agent_core::{McpServerState, McpSignIn, McpStatus};
+        let launch = *self.ext.lock().unwrap();
         vec![McpServerState {
             name: "ext".into(),
             status: McpStatus::NeedsApproval,
             sign_in: McpSignIn::None,
-            launch: "npx ext-server".into(),
+            launch: launch.into(),
+            fingerprint: mock_fingerprint(launch),
         }]
     }
-    fn held_hooks(&self) -> Vec<(String, String)> {
-        vec![("check".into(), "./check.sh".into())]
+    fn held_hooks(&self) -> Vec<crate::HeldHook> {
+        vec![crate::HeldHook {
+            name: "check".into(),
+            launch: "./check.sh".into(),
+            fingerprint: mock_fingerprint("./check.sh"),
+        }]
     }
-    fn trust(&self, name: &str) -> Result<Option<termide_agent_core::McpReload>, String> {
-        self.0.lock().unwrap().push(format!("trust {name}"));
-        match name {
-            "ext" => Ok(Some(termide_agent_core::McpReload {
+    fn trust(&self, name: &str, shown: &str) -> Result<crate::Trusted, String> {
+        self.asked.lock().unwrap().push(format!("trust {name}"));
+        let (hook, launch) = match name {
+            "ext" => (false, *self.ext.lock().unwrap()),
+            "check" => (true, "./check.sh"),
+            _ => return Err(format!("Nothing named {name} waits for approval")),
+        };
+        if shown != mock_fingerprint(launch) {
+            return Ok(crate::Trusted::Changed {
+                hook,
+                launch: launch.into(),
+                fingerprint: mock_fingerprint(launch),
+            });
+        }
+        Ok(crate::Trusted::Approved((!hook).then(|| {
+            termide_agent_core::McpReload {
                 started: vec!["ext".into()],
                 ..Default::default()
-            })),
-            "check" => Ok(None),
-            _ => Err(format!("Nothing named {name} waits for approval")),
-        }
+            }
+        })))
     }
 }
 
@@ -11961,7 +12486,7 @@ impl AgentCatalog for Untrusted {
 fn trust_lists_what_the_project_brings_and_approves_it() {
     let asked = Arc::new(Mutex::new(Vec::new()));
     let mut panel = AgentPanel::new(AgentPanelSetup {
-        catalog: Arc::new(Untrusted(Arc::clone(&asked))),
+        catalog: Arc::new(Untrusted::new(&asked)),
         ..setup(vec![])
     });
     // The held hook is said when the panel opens.
@@ -11992,12 +12517,90 @@ fn trust_lists_what_the_project_brings_and_approves_it() {
     assert!(!panel.is_busy());
 }
 
+/// `/trust <name>` approves the launch last shown for it: one never shown,
+/// or changed since, is shown instead, and approved only when asked again.
+#[test]
+fn trust_approves_only_the_launch_that_was_shown() {
+    let asked = Arc::new(Mutex::new(Vec::new()));
+    let catalog = Untrusted::new(&asked);
+    let ext = Arc::clone(&catalog.ext);
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        catalog: Arc::new(catalog),
+        ..setup(vec![])
+    });
+    // Never shown: shown now, not approved.
+    type_text(&mut panel, "/trust ext");
+    panel.submit();
+    // Shown by the listing, then changed before the approval.
+    type_text(&mut panel, "/trust");
+    panel.submit();
+    *ext.lock().unwrap() = "npx evil-server";
+    type_text(&mut panel, "/trust ext");
+    panel.submit();
+    // What was shown last is what this one approves.
+    type_text(&mut panel, "/trust ext");
+    panel.submit();
+    // The hook shown when the panel opened is approved as it was.
+    type_text(&mut panel, "/trust check");
+    panel.submit();
+    assert_eq!(
+        &notices(&panel)[1..],
+        [
+            "mcp ext: from the project, runs `npx ext-server` — /trust ext to start it",
+            "mcp ext: from the project, runs `npx ext-server` — /trust ext to start it",
+            "hook check: from the project, runs `./check.sh` — /trust check to let it run",
+            "mcp ext: from the project, runs `npx evil-server` — /trust ext to start it",
+            "ext: approved for this project",
+            "mcp ext: connecting",
+            "check: approved for this project",
+        ]
+    );
+}
+
+/// A tick on a held server approves the launch shown beside the box: one
+/// changed since is shown instead, and its tools are not switched on.
+#[test]
+fn a_tick_on_a_server_changed_since_the_list_opened_approves_nothing() {
+    let asked = Arc::new(Mutex::new(Vec::new()));
+    let catalog = Untrusted::new(&asked);
+    let ext = Arc::clone(&catalog.ext);
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        catalog: Arc::new(catalog),
+        ..setup(vec![])
+    });
+    let events = panel.handle_status_action(crate::toolset::TOOLSET_ACTION);
+    let Some(PanelEvent::ShowChecklist { groups, .. }) = events.first() else {
+        panic!("the toolset list opens: {events:?}");
+    };
+    let key = groups
+        .iter()
+        .find_map(|g| g.switch.as_ref())
+        .unwrap()
+        .key
+        .clone();
+    *ext.lock().unwrap() = "npx evil-server";
+    panel.handle_command(PanelCommand::ChecklistButton {
+        action: crate::toolset::TOOLSET_ACTION.into(),
+        id: key,
+    });
+    assert_eq!(*asked.lock().unwrap(), ["trust ext"]);
+    assert!(panel.mcp_enable.is_empty());
+    assert_eq!(
+        notices(&panel).last().unwrap(),
+        "mcp ext: from the project, runs `npx evil-server` — /trust ext to start it"
+    );
+    // `/trust ext` now approves what that notice showed.
+    type_text(&mut panel, "/trust ext");
+    panel.submit();
+    assert_eq!(notices(&panel).last().unwrap(), "mcp ext: connecting");
+}
+
 #[test]
 fn a_held_server_ticked_in_the_toolset_list_is_approved_and_comes_on() {
     let asked = Arc::new(Mutex::new(Vec::new()));
     let (tx, rx) = mpsc::channel();
     let mut panel = AgentPanel::new(AgentPanelSetup {
-        catalog: Arc::new(Untrusted(Arc::clone(&asked))),
+        catalog: Arc::new(Untrusted::new(&asked)),
         late_tools: Some(rx),
         ..setup(vec![])
     });
@@ -12010,16 +12613,17 @@ fn a_held_server_ticked_in_the_toolset_list_is_approved_and_comes_on() {
     let Some(PanelEvent::ShowChecklist { groups, .. }) = events.first() else {
         panic!("the toolset list opens: {events:?}");
     };
-    // The held server's heading: a checkbox, unticked, and nothing else.
+    // The held server's heading: a checkbox, unticked, what ticking it
+    // approves beside it, and no buttons.
     let ext = groups.iter().find(|g| g.name == "MCP: ext").unwrap();
     assert_eq!(
         ext.switch,
         Some(termide_core::ChecklistSwitch {
-            key: "mcp-trust:ext".into(),
+            key: "mcp-trust:fp-npx-ext-server:ext".into(),
             checked: false,
         })
     );
-    assert!(ext.note.is_empty(), "{}", ext.note);
+    assert_eq!(ext.note, "npx ext-server");
     assert!(ext.buttons.is_empty(), "{:?}", ext.buttons);
 
     // Left unticked, nothing is approved.
@@ -12036,7 +12640,7 @@ fn a_held_server_ticked_in_the_toolset_list_is_approved_and_comes_on() {
     panel.pending_events.clear();
     panel.handle_command(PanelCommand::ChecklistButton {
         action: crate::toolset::TOOLSET_ACTION.into(),
-        id: "mcp-trust:ext".into(),
+        id: "mcp-trust:fp-npx-ext-server:ext".into(),
     });
     assert_eq!(*asked.lock().unwrap(), ["trust ext"]);
     assert!(panel.toolset_list_open);
@@ -12117,7 +12721,6 @@ fn a_pause_the_run_never_reached_frees_its_delegates() {
         task: "find the loader",
         session: None,
         background: true,
-        pausable: true,
     });
     panel.apply(AgentEvent::AgentStart);
     assert!(panel.request_pause());
@@ -12175,4 +12778,809 @@ fn a_new_session_forgets_the_unfinished_delegates_of_the_last() {
     assert!(panel.switch_session(None));
     assert!(panel.restored_delegates.is_empty());
     assert!(panel.carry_back.is_none());
+}
+
+/// The answers held for the next request are in the session's log: a panel
+/// reopened on it after termide closed still sends them with that request.
+#[test]
+fn held_answers_survive_a_reopen_and_go_with_the_next_request() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = {
+        let mut log = Session::create(dir.path(), Path::new("/tmp")).unwrap();
+        log.append_message(&Message::User(UserMessage::text("hand the search over")))
+            .unwrap();
+        log.path().to_path_buf()
+    };
+    {
+        let mut panel = reopen(&path, dir.path(), vec![]);
+        panel
+            .deliver_held(UserMessage::text("The background task is over"))
+            .unwrap();
+        assert_eq!(panel.held_reports.len(), 1);
+    }
+    let mut panel = reopen(&path, dir.path(), vec![reply("noted")]);
+    assert_eq!(panel.held_reports.len(), 1, "taken up from the log");
+    panel.send_message(UserMessage::text("go on with the docs"));
+    assert!(panel.held_reports.is_empty());
+    assert!(
+        panel.session.as_ref().unwrap().held_reports().is_empty(),
+        "the log no longer holds them"
+    );
+}
+
+/// An answer with a two-node flowchart in it.
+const DIAGRAM_REPLY: &str =
+    "Here:\n\n```mermaid\nflowchart TD\n  A[Start] --> B[Finish]\n```\n\ndone";
+
+/// A reply tall enough to push what came before it out of a short view.
+fn tall_reply() -> AssistantMessage {
+    let long = (1..=40)
+        .map(|n| format!("line {n}"))
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    reply(&long)
+}
+
+/// The transcript as last laid out, one string per line.
+fn transcript_text(panel: &AgentPanel) -> Vec<String> {
+    panel
+        .transcript()
+        .rendered()
+        .iter()
+        .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
+        .collect()
+}
+
+fn shows_diagram(panel: &AgentPanel) -> bool {
+    transcript_text(panel).iter().any(|l| l.contains("Start"))
+}
+
+#[test]
+fn a_diagram_scrolled_out_of_view_stays_whole() {
+    let mut panel = panel(vec![reply(DIAGRAM_REPLY), tall_reply()]);
+    send(&mut panel, "draw");
+    let _ = render_text(&mut panel, 60, 40);
+    assert!(shows_diagram(&panel), "a fresh answer shows its diagram");
+
+    send(&mut panel, "more");
+    let _ = render_text(&mut panel, 60, 40);
+    assert!(shows_diagram(&panel), "scrolled away, it does not fold");
+}
+
+#[test]
+fn a_diagram_taller_than_half_the_panel_is_a_card_until_unfolded() {
+    let mut panel = panel(vec![reply(DIAGRAM_REPLY)]);
+    send(&mut panel, "draw");
+    let _ = render_text(&mut panel, 60, 40);
+    assert!(shows_diagram(&panel), "half a tall panel holds it");
+
+    let _ = render_text(&mut panel, 60, 8);
+    assert!(!shows_diagram(&panel), "half a short one does not");
+    assert!(
+        transcript_text(&panel)
+            .iter()
+            .any(|l| l.contains("▸ mermaid")),
+        "{:?}",
+        transcript_text(&panel)
+    );
+
+    let answer = panel
+        .transcript()
+        .items()
+        .iter()
+        .position(|item| matches!(item, Item::Assistant { .. }))
+        .unwrap();
+    assert!(panel.transcript.toggle_expanded(answer));
+    let _ = render_text(&mut panel, 60, 8);
+    assert!(shows_diagram(&panel), "one click shows it whole");
+    assert!(panel.transcript.toggle_expanded(answer));
+    let _ = render_text(&mut panel, 60, 8);
+    assert!(!shows_diagram(&panel), "the next folds it");
+}
+
+/// An answer with a sequence diagram far wider than a 40-column panel.
+const WIDE_DIAGRAM_REPLY: &str = "Here:\n\n```mermaid\nsequenceDiagram\n\
+    Alice->>Bob: a rather long message that goes on and on and on\n\
+    Bob->>Alice: ok\n```\n\ndone";
+
+/// A 40×40 panel showing [`WIDE_DIAGRAM_REPLY`], its answer selected in
+/// the chat, and the wide diagram on screen.
+fn wide_diagram_panel() -> (AgentPanel, crate::pan::DiagramSpot) {
+    let mut panel = panel(vec![reply(WIDE_DIAGRAM_REPLY)]);
+    send(&mut panel, "draw");
+    let _ = render_text(&mut panel, 40, 40);
+    let spot = match panel.transcript.wide_diagrams() {
+        [spot] => *spot,
+        spots => panic!("one wide diagram expected: {spots:?}"),
+    };
+    panel.chat_focus = true;
+    panel.selected = spot.item;
+    (panel, spot)
+}
+
+/// The screen row flattened line `line` is drawn on.
+fn screen_row(panel: &AgentPanel, line: usize) -> u16 {
+    panel.transcript_area.y + (line - panel.top) as u16
+}
+
+fn wheel(kind: MouseEventKind, column: u16, row: u16, modifiers: KeyModifiers) -> MouseEvent {
+    MouseEvent {
+        kind,
+        column,
+        row,
+        modifiers,
+    }
+}
+
+#[test]
+fn a_wide_diagram_gets_a_scrollbar_row_and_one_that_fits_does_not() {
+    let (mut panel, spot) = wide_diagram_panel();
+    assert_eq!((spot.col, spot.view), (4, 35));
+    assert!(spot.cols > spot.view);
+    let rows = render_text(&mut panel, 40, 40);
+    let track = &rows[screen_row(&panel, spot.track()) as usize];
+    assert!(track.starts_with("  ┊ ━"), "{rows:#?}");
+    assert!(track.contains('─'), "the thumb is shorter than the track");
+    assert_eq!(panel.diagram_bars.len(), 1);
+
+    let mut narrow = panel_with_reply(DIAGRAM_REPLY);
+    let rows = render_text(&mut narrow, 60, 40);
+    assert!(shows_diagram(&narrow));
+    assert!(narrow.transcript.wide_diagrams().is_empty());
+    assert!(narrow.diagram_bars.is_empty());
+    assert!(!rows.iter().any(|row| row.contains('━')), "{rows:#?}");
+}
+
+fn panel_with_reply(text: &str) -> AgentPanel {
+    let mut panel = panel(vec![reply(text)]);
+    send(&mut panel, "draw");
+    panel
+}
+
+#[test]
+fn panning_shifts_the_diagram_but_not_its_bar_and_copies_what_shows() {
+    let (mut panel, spot) = wide_diagram_panel();
+    let before = panel.transcript.rendered().to_vec();
+    let y = screen_row(&panel, spot.line + 1) as usize;
+    let unpanned = render_text(&mut panel, 40, 40)[y].clone();
+
+    let shift = |code| chord(code, KeyModifiers::SHIFT);
+    assert!(!panel.handle_key(shift(KeyCode::Right)).is_empty());
+    assert_eq!(panel.transcript.pan_of(&spot), crate::pan::KEY_STEP);
+    let panned = render_text(&mut panel, 40, 40)[y].clone();
+    let cut = |row: &str, skip: usize| -> String {
+        let chars: Vec<char> = row.chars().collect();
+        chars[..4]
+            .iter()
+            .chain(&chars[4 + skip..39 + skip])
+            .collect()
+    };
+    assert_eq!(&panned[..panned.char_indices().nth(4).unwrap().0], "  ┊ ");
+    let full: String = before[spot.line + 1]
+        .spans
+        .iter()
+        .map(|s| s.content.as_ref())
+        .collect();
+    let full = format!("{full:<200}");
+    assert_eq!(
+        panned.chars().take(39).collect::<String>(),
+        cut(&full, crate::pan::KEY_STEP),
+        "{unpanned:?} → {panned:?}"
+    );
+    // The laid-out lines stay those of the whole diagram: block copy, links
+    // and line mapping read the same as before.
+    assert_eq!(panel.transcript.rendered(), &before[..]);
+    // Left pans back; at the edge it redraws nothing.
+    assert!(!panel.handle_key(shift(KeyCode::Left)).is_empty());
+    assert!(panel.handle_key(shift(KeyCode::Left)).is_empty());
+    assert_eq!(render_text(&mut panel, 40, 40)[y], unpanned);
+
+    // A mouse selection over a panned row copies the cells it covers.
+    panel.handle_key(shift(KeyCode::Right));
+    let _ = render_text(&mut panel, 40, 40);
+    let area = panel.transcript_area;
+    let y = y as u16;
+    panel.handle_mouse(
+        wheel(
+            MouseEventKind::Down(MouseButton::Left),
+            4,
+            y,
+            KeyModifiers::NONE,
+        ),
+        area,
+    );
+    panel.handle_mouse(
+        wheel(
+            MouseEventKind::Drag(MouseButton::Left),
+            38,
+            y,
+            KeyModifiers::NONE,
+        ),
+        area,
+    );
+    panel.handle_mouse(
+        wheel(
+            MouseEventKind::Up(MouseButton::Left),
+            38,
+            y,
+            KeyModifiers::NONE,
+        ),
+        area,
+    );
+    let selection = panel.text_selection.expect("a selection");
+    let copied = selection.text(&panel.shown_rows(), panel.transcript.rendered_copy(), 39);
+    let shown: String = cut(&full, crate::pan::KEY_STEP).chars().skip(4).collect();
+    assert_eq!(copied, shown.trim_end());
+}
+
+#[test]
+fn the_wheel_pans_a_wide_diagram_only_over_it() {
+    let (mut panel, spot) = wide_diagram_panel();
+    let area = panel.transcript_area;
+    let on = screen_row(&panel, spot.line);
+    let off = screen_row(&panel, spot.line) - 2;
+    let none = KeyModifiers::NONE;
+    let step = crate::pan::WHEEL_STEP;
+
+    panel.handle_mouse(wheel(MouseEventKind::ScrollRight, 10, on, none), area);
+    assert_eq!(panel.transcript.pan_of(&spot), step);
+    panel.handle_mouse(wheel(MouseEventKind::ScrollLeft, 10, on, none), area);
+    assert_eq!(panel.transcript.pan_of(&spot), 0);
+    // Off the diagram, a horizontal wheel does nothing.
+    assert!(panel
+        .handle_mouse(wheel(MouseEventKind::ScrollRight, 10, off, none), area)
+        .is_empty());
+    assert_eq!(panel.transcript.pan_of(&spot), 0);
+
+    // Shift+wheel, coalesced or not, pans it — on its scrollbar row too.
+    let track = screen_row(&panel, spot.track());
+    panel.handle_wheel(
+        wheel(MouseEventKind::ScrollDown, 10, track, KeyModifiers::SHIFT),
+        2,
+        area,
+    );
+    assert_eq!(panel.transcript.pan_of(&spot), 2 * step);
+    panel.handle_mouse(
+        wheel(MouseEventKind::ScrollUp, 10, on, KeyModifiers::SHIFT),
+        area,
+    );
+    assert_eq!(panel.transcript.pan_of(&spot), step);
+    // The plain wheel still scrolls the transcript, over the diagram too.
+    let top = panel.top;
+    panel.follow = false;
+    panel.handle_wheel(wheel(MouseEventKind::ScrollUp, 10, on, none), -1, area);
+    assert_eq!(panel.transcript.pan_of(&spot), step);
+    assert!(panel.top < top || top == 0);
+}
+
+#[test]
+fn a_wide_diagrams_scrollbar_pans_it_on_click_and_drag() {
+    let (mut panel, spot) = wide_diagram_panel();
+    let area = panel.transcript_area;
+    let y = screen_row(&panel, spot.track());
+    let none = KeyModifiers::NONE;
+    let right_end = spot.col + spot.view - 1;
+    // A click at the track's far end brings the diagram's end into view.
+    panel.handle_mouse(
+        wheel(MouseEventKind::Down(MouseButton::Left), right_end, y, none),
+        area,
+    );
+    panel.handle_mouse(
+        wheel(MouseEventKind::Up(MouseButton::Left), right_end, y, none),
+        area,
+    );
+    assert_eq!(panel.transcript.pan_of(&spot), spot.max_pan());
+    assert!(panel.text_selection.is_none(), "no text was selected");
+    let _ = render_text(&mut panel, 40, 40);
+    // The thumb dragged back to the start pans back.
+    let thumb = panel.diagram_bars[0].1;
+    let grab = spot.col + thumb.thumb_pos;
+    panel.handle_mouse(
+        wheel(MouseEventKind::Down(MouseButton::Left), grab, y, none),
+        area,
+    );
+    panel.handle_mouse(
+        wheel(MouseEventKind::Drag(MouseButton::Left), spot.col, y, none),
+        area,
+    );
+    panel.handle_mouse(
+        wheel(MouseEventKind::Up(MouseButton::Left), spot.col, y, none),
+        area,
+    );
+    assert_eq!(panel.transcript.pan_of(&spot), 0);
+}
+
+#[test]
+fn a_diagrams_pan_clamps_to_its_width() {
+    let (mut panel, spot) = wide_diagram_panel();
+    for _ in 0..100 {
+        panel.handle_key(chord(KeyCode::Right, KeyModifiers::SHIFT));
+    }
+    assert_eq!(panel.transcript.pan_of(&spot), spot.max_pan());
+    // Wider, the same diagram has less to pan: the offset clamps to it.
+    let _ = render_text(&mut panel, 50, 40);
+    let wider = panel.transcript.wide_diagrams()[0];
+    assert_eq!(wider.key(), spot.key());
+    assert!(wider.max_pan() < spot.max_pan());
+    assert_eq!(panel.transcript.pan_of(&wider), wider.max_pan());
+}
+
+/// A `w`×`h` red PNG as base64.
+fn png(w: u32, h: u32) -> String {
+    use base64::Engine;
+    let image = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+        w,
+        h,
+        image::Rgb([200, 30, 30]),
+    ));
+    let mut bytes = Vec::new();
+    image
+        .write_to(
+            &mut std::io::Cursor::new(&mut bytes),
+            image::ImageFormat::Png,
+        )
+        .unwrap();
+    base64::engine::general_purpose::STANDARD.encode(bytes)
+}
+
+/// A finished `read` that returned a `w`×`h` picture.
+fn picture_read(w: u32, h: u32) -> Item {
+    let call = ToolCall {
+        id: "r1".into(),
+        name: "read".into(),
+        arguments: serde_json::json!({ "path": "shot.png" }),
+        extra_content: None,
+    };
+    let result = ToolResultMessage::text(&call, "Image shot.png")
+        .with_images(vec![("image/png".into(), png(w, h))]);
+    Item::Tool {
+        call,
+        result: Some(result),
+        live: None,
+        at: "12:00:00".into(),
+        duration_ms: Some(10),
+        waited_ms: None,
+        waiting: false,
+    }
+}
+
+/// An answer of 40 short paragraphs, `line 1` to `line 40`.
+fn tall_answer() -> Item {
+    Item::Assistant {
+        text: (1..=40)
+            .map(|n| format!("line {n}"))
+            .collect::<Vec<_>>()
+            .join("\n\n"),
+        streaming: false,
+        error: None,
+        at: String::new(),
+        cost: None,
+        run_ms: None,
+    }
+}
+
+/// A panel drawing pictures in half blocks, without asking the terminal.
+fn picture_panel() -> AgentPanel {
+    let mut panel = panel(vec![]);
+    panel.graphics = Some(Graphics::halfblocks());
+    panel.graphics_asked = true;
+    panel
+}
+
+/// Whether any cell in rows `rows` of `buf` is painted with a colour.
+fn painted(buf: &Buffer, rows: std::ops::Range<u16>) -> bool {
+    rows.flat_map(|y| (0..buf.area.width).map(move |x| (x, y)))
+        .any(|(x, y)| matches!(buf[(x, y)].bg, ratatui::style::Color::Rgb(..)))
+}
+
+#[test]
+fn a_fresh_picture_shows_under_its_folded_block() {
+    let mut panel = picture_panel();
+    panel.transcript.push(picture_read(400, 400));
+    let buf = render_buf(&mut panel, 60, 30);
+    let spots = panel.transcript.pictures().to_vec();
+    assert_eq!(spots.len(), 1);
+    // Half blocks: 10×20 px cells, at most half the panel's 30 rows.
+    assert_eq!(spots[0].rows, 15);
+    assert!(!panel.transcript.is_expanded(0), "the block stays folded");
+    let y = (spots[0].line - panel.top) as u16;
+    assert!(painted(&buf, y..y + spots[0].rows), "the picture is drawn");
+}
+
+#[test]
+fn a_picture_is_centred_across_the_panel() {
+    let mut panel = picture_panel();
+    panel.transcript.push(picture_read(400, 400));
+    let buf = render_buf(&mut panel, 60, 30);
+    let spot = panel.transcript.pictures()[0];
+    // 59 text columns, the gutter left out; 15 rows of 20 px are 30 columns
+    // of 10 px, centred in the 57 after the indent.
+    assert_eq!((spot.cols, spot.rows), (30, 15));
+    assert_eq!(spot.col, crate::transcript::PICTURE_INDENT + 13);
+    let y = (spot.line - panel.top) as u16;
+    let painted_cols: Vec<u16> = (0..60)
+        .filter(|&x| matches!(buf[(x, y)].bg, ratatui::style::Color::Rgb(..)))
+        .collect();
+    assert_eq!(painted_cols.first(), Some(&spot.col));
+    assert_eq!(painted_cols.last(), Some(&(spot.col + spot.cols - 1)));
+}
+
+#[test]
+fn a_wide_panel_lets_a_picture_take_half_its_width() {
+    let mut panel = picture_panel();
+    panel.transcript.push(picture_read(1000, 1000));
+    let _ = render_buf(&mut panel, 120, 30);
+    // Half the width, 60 columns of 10 px, is 30 rows of 20 px: more than
+    // half the height, so the bound, but the input bar stays in sight.
+    assert_eq!(panel.transcript.pictures()[0].rows, 26);
+    let _ = render_buf(&mut panel, 80, 30);
+    // 40 columns are 20 rows: still more than half the height.
+    assert_eq!(panel.transcript.pictures()[0].rows, 20);
+    let _ = render_buf(&mut panel, 20, 30);
+    // A narrow panel keeps half its height, the width bounding it anyway.
+    assert_eq!(panel.transcript.pictures()[0].cols, 16);
+}
+
+#[test]
+fn a_picture_cut_by_the_edge_shows_its_placeholder() {
+    let mut panel = picture_panel();
+    panel.transcript.push(picture_read(400, 400));
+    panel.transcript.push(tall_answer());
+    let _ = render_buf(&mut panel, 60, 200);
+    let spot = panel.transcript.pictures()[0];
+    // Its first row just above the view: the picture's block is still on
+    // screen, so nothing folds, but the picture is not wholly in sight.
+    panel.follow = false;
+    panel.top = spot.line + 1;
+    let buf = render_buf(&mut panel, 60, 30);
+    assert_eq!(panel.transcript.pictures().len(), 1, "not folded");
+    assert!(!painted(&buf, 0..spot.rows - 1), "not drawn cut");
+}
+
+#[test]
+fn a_picture_scrolled_away_stays_until_its_block_is_folded_by_hand() {
+    let mut panel = picture_panel();
+    panel.transcript.push(picture_read(400, 200));
+    panel.transcript.push(tall_answer());
+    let _ = render_buf(&mut panel, 60, 30);
+    let anchor = transcript_text(&panel)
+        .iter()
+        .position(|l| l.trim() == "line 20")
+        .unwrap();
+    panel.follow = false;
+    panel.top = anchor;
+    let rows = render_text(&mut panel, 60, 30);
+    assert!(rows[0].trim_start().starts_with("line 20 "), "{rows:?}");
+    // Out of sight it is not drawn, but it is not folded either.
+    assert_eq!(panel.transcript.pictures().len(), 1);
+    assert!(!transcript_text(&panel).iter().any(|l| l.contains("▸ PNG")));
+
+    // The block unfolded and folded again by hand folds the picture too.
+    assert!(panel.transcript.toggle_expanded(0));
+    assert!(panel.transcript.toggle_expanded(0));
+    let _ = render_buf(&mut panel, 60, 30);
+    assert!(panel.transcript.pictures().is_empty());
+    assert!(
+        transcript_text(&panel)
+            .iter()
+            .any(|l| l.trim() == "▸ PNG 400×200"),
+        "{:?}",
+        transcript_text(&panel)
+    );
+}
+
+#[test]
+fn without_graphics_a_picture_is_a_card() {
+    let mut panel = panel(vec![]);
+    panel.graphics_asked = true;
+    panel.transcript.push(picture_read(400, 300));
+    let _ = render_buf(&mut panel, 60, 30);
+    assert!(panel.transcript.pictures().is_empty());
+    assert!(transcript_text(&panel)
+        .iter()
+        .any(|l| l.trim() == "PNG 400×300"));
+}
+
+#[test]
+fn the_terminal_is_asked_only_once_a_picture_is_laid_out() {
+    let mut panel = panel(vec![]);
+    let _ = render_buf(&mut panel, 60, 30);
+    assert!(!panel.ask_graphics(), "no picture, no question");
+    assert!(!panel.graphics_asked);
+}
+
+#[test]
+fn a_pasted_picture_shows_inside_the_message() {
+    let mut panel = picture_panel();
+    let user = UserMessage::text("look [#1 pasted image 200×100]")
+        .with_images(vec![("image/png".into(), png(200, 100))]);
+    panel
+        .transcript
+        .push(transcript::user_item(&user, "12:00:00".into(), None));
+    let _ = render_buf(&mut panel, 60, 30);
+    let spot = panel.transcript.pictures()[0];
+    let (first, last) = panel.transcript.content_lines_of(0).unwrap();
+    assert!(
+        spot.line > first && spot.line + (spot.rows as usize) <= last + 1,
+        "{spot:?} in {first}..={last}"
+    );
+    // A short message with a picture still folds, to the picture's card.
+    assert!(panel.transcript.toggle_expanded(0));
+    assert!(panel.transcript.toggle_expanded(0));
+    let _ = render_buf(&mut panel, 60, 30);
+    assert!(panel.transcript.pictures().is_empty());
+}
+
+/// Whether `buf` holds a terminal graphics sequence.
+fn has_graphics(buf: &Buffer) -> bool {
+    buf.content
+        .iter()
+        .any(|cell| cell.symbol().starts_with('\x1b'))
+}
+
+#[test]
+fn where_moving_resends_a_picture_it_is_a_frame_until_it_stands_still() {
+    let mut panel = picture_panel();
+    panel.graphics = Some(Graphics::sixel());
+    panel.transcript.push(picture_read(100, 100));
+    panel.transcript.push(tall_answer());
+    panel.follow = false;
+    let _ = render_buf(&mut panel, 60, 40);
+    // A picture just come into view stands nowhere yet: a frame.
+    let buf = render_buf(&mut panel, 60, 40);
+    let spot = panel.transcript.pictures()[0];
+    let (x, y) = (spot.col, spot.line as u16);
+    assert!(!has_graphics(&buf));
+    assert_eq!(buf[(x, y)].symbol(), "┌");
+    assert!(!panel.pictures_settled());
+
+    std::thread::sleep(crate::render::PICTURE_SETTLE);
+    assert!(panel.pictures_settled(), "a tick redraws it");
+    let buf = render_buf(&mut panel, 60, 40);
+    assert!(has_graphics(&buf), "standing still, it is drawn");
+
+    // Moved by a row, it is a frame again.
+    panel.top = 1;
+    let buf = render_buf(&mut panel, 60, 40);
+    assert!(!has_graphics(&buf));
+    assert_eq!(buf[(x, y - 1)].symbol(), "┌");
+}
+
+#[test]
+fn where_moving_is_cheap_a_moving_picture_is_drawn() {
+    let mut panel = picture_panel();
+    panel.transcript.push(picture_read(100, 100));
+    panel.transcript.push(tall_answer());
+    panel.follow = false;
+    let _ = render_buf(&mut panel, 60, 40);
+    panel.top = 1;
+    let buf = render_buf(&mut panel, 60, 40);
+    let spot = panel.transcript.pictures()[0];
+    let y = (spot.line - 1) as u16;
+    assert!(painted(&buf, y..y + spot.rows));
+    assert!(!panel.pictures_settled());
+}
+
+/// A finished `write` of `path`, failed or not.
+fn wrote(path: &str, ok: bool) -> Item {
+    let call = ToolCall {
+        id: "w1".into(),
+        name: "write".into(),
+        arguments: serde_json::json!({ "path": path, "content": "<p>hi</p>" }),
+        extra_content: None,
+    };
+    let mut result = ToolResultMessage::text(&call, "Wrote 9 bytes");
+    result.is_error = !ok;
+    Item::Tool {
+        call,
+        result: Some(result),
+        live: None,
+        at: "12:00:00".into(),
+        duration_ms: Some(10),
+        waited_ms: None,
+        waiting: false,
+    }
+}
+
+#[test]
+fn a_written_page_is_a_card_that_opens_the_file() {
+    let mut panel = panel(vec![]);
+    panel.transcript.push(wrote("out/report.html", true));
+    let rows = render_text(&mut panel, 60, 12);
+    let y = rows
+        .iter()
+        .position(|r| r.contains("↗ HTML report.html"))
+        .unwrap_or_else(|| panic!("{rows:?}")) as u16;
+    let area = panel.transcript_area;
+    let click = |panel: &mut AgentPanel, modifiers| {
+        let mouse = |kind| MouseEvent {
+            kind,
+            column: area.x + 4,
+            row: area.y + y,
+            modifiers,
+        };
+        panel.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left)), area);
+        panel.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left)), area)
+    };
+    let report = panel.cwd.join("out/report.html");
+    let events = click(&mut panel, KeyModifiers::NONE);
+    assert!(
+        matches!(events.as_slice(), [PanelEvent::OpenLink(LinkTarget::Path(p))] if *p == report),
+        "{events:?}"
+    );
+    let events = click(&mut panel, KeyModifiers::ALT);
+    assert!(
+        matches!(events.as_slice(), [PanelEvent::OpenLinkExternal(LinkTarget::Path(p))] if *p == report),
+        "{events:?}"
+    );
+    // `o` on the block opens the file too, not the call's output.
+    panel.selected = 0;
+    let events = panel.open_selected_in_panel();
+    assert!(
+        matches!(events.as_slice(), [PanelEvent::OpenLink(LinkTarget::Path(p))] if *p == report),
+        "{events:?}"
+    );
+}
+
+#[test]
+fn only_a_viewable_file_written_is_a_card() {
+    for (item, card) in [
+        (wrote("notes.md", true), true),
+        (wrote("flow.mmd", true), true),
+        (wrote("logo.svg", true), false),
+        (wrote("main.rs", true), false),
+        (wrote("page.html", false), false),
+    ] {
+        let mut panel = panel(vec![]);
+        panel.transcript.push(item);
+        let rows = render_text(&mut panel, 60, 12);
+        assert_eq!(rows.iter().any(|r| r.contains('↗')), card, "{rows:?}");
+    }
+}
+
+/// Terminals as a test sets them out, recording what the panel asks of them.
+#[derive(Default)]
+struct Terminals {
+    entries: Mutex<Vec<(String, termide_agent_core::TerminalEntry)>>,
+    released: Mutex<Vec<String>>,
+}
+
+impl termide_agent_core::TerminalSessions for Terminals {
+    fn run(
+        &self,
+        _run: &termide_agent_core::TerminalRun<'_>,
+        _on_output: &mut dyn FnMut(&[u8]),
+    ) -> Result<termide_agent_core::TerminalRunOutcome, String> {
+        Err("not in this test".into())
+    }
+    fn free_name(&self, _owner: &str, stem: &str) -> String {
+        stem.to_string()
+    }
+    fn list(&self, owner: &str) -> Vec<termide_agent_core::TerminalEntry> {
+        let entries = self.entries.lock().unwrap();
+        entries
+            .iter()
+            .filter(|(of, _)| of == owner)
+            .map(|(_, entry)| entry.clone())
+            .collect()
+    }
+    fn read(
+        &self,
+        _owner: &str,
+        _name: &str,
+    ) -> Result<termide_agent_core::TerminalOutput, String> {
+        Err("not in this test".into())
+    }
+    fn send(
+        &self,
+        _send: &termide_agent_core::TerminalSend<'_>,
+    ) -> Result<termide_agent_core::TerminalSendOutcome, String> {
+        Err("not in this test".into())
+    }
+    fn screen(
+        &self,
+        _owner: &str,
+        _name: &str,
+    ) -> Result<termide_agent_core::TerminalScreenText, String> {
+        Err("not in this test".into())
+    }
+    fn interrupt(&self, _owner: &str, _name: &str) -> Result<(), String> {
+        Ok(())
+    }
+    fn close(&self, owner: &str, name: &str) -> Result<(), String> {
+        let mut entries = self.entries.lock().unwrap();
+        entries.retain(|(of, entry)| !(of == owner && entry.name == name));
+        Ok(())
+    }
+    fn release(&self, owner: &str) {
+        self.released.lock().unwrap().push(owner.to_string());
+        self.entries.lock().unwrap().retain(|(of, _)| of != owner);
+    }
+}
+
+/// The session's terminals show in the strip and the status bar; a row
+/// opens its terminal, its `✕` closes it once confirmed, and they end with
+/// the session the panel leaves.
+#[test]
+fn the_sessions_terminals_show_in_the_strip_and_end_with_it() {
+    use termide_agent_core::{TerminalEntry, TerminalState};
+    let dir = tempfile::tempdir().unwrap();
+    let session = Session::create(dir.path(), dir.path()).unwrap();
+    let owner = session.id().to_string();
+    let terminals = Arc::new(Terminals::default());
+    let entry = |name: &str, state| TerminalEntry {
+        name: name.into(),
+        state,
+        age: Duration::from_secs(60),
+        log: None,
+    };
+    terminals.entries.lock().unwrap().extend([
+        (
+            owner.clone(),
+            entry(
+                "dev",
+                TerminalState::Running {
+                    command: "npm run dev".into(),
+                    elapsed: Duration::from_secs(5),
+                },
+            ),
+        ),
+        (owner.clone(), entry("tests", TerminalState::Idle)),
+        ("other".to_string(), entry("x", TerminalState::Idle)),
+    ]);
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session: Some(session),
+        terminals: Some(Arc::clone(&terminals) as _),
+        ..setup(vec![])
+    });
+    panel.tick();
+
+    let rows = panel.strip_rows(80);
+    let lines = crate::strip::strip_lines(&rows, 80, &ThemeColors::default());
+    let text: Vec<String> = lines
+        .iter()
+        .map(|line| line.spans.iter().map(|s| s.content.as_ref()).collect())
+        .collect();
+    // Newest first.
+    assert!(text[0].starts_with("$ Terminal · tests · idle"), "{text:?}");
+    assert!(
+        text[1].starts_with("$ Terminal · dev  npm run dev"),
+        "{text:?}"
+    );
+    assert!(text[1].trim_end().ends_with("✕"), "{text:?}");
+    assert_eq!(rows.len(), 2, "another session's terminal is not shown");
+    let status: String = panel.segments().iter().map(|s| s.text.as_str()).collect();
+    assert!(status.contains("terminals: 2"), "{status}");
+
+    // The row opens its terminal in a panel.
+    let events = panel.click_strip(rows[1].target, false);
+    assert!(
+        matches!(&events[..], [PanelEvent::OpenAgentTerminal { session, name }]
+            if *session == owner && name == "dev"),
+        "{events:?}"
+    );
+    // `✕` asks first, then closes it.
+    let events = panel.click_strip(rows[0].target, true);
+    let Some(PanelEvent::ShowConfirm {
+        on_confirm: termide_core::ConfirmAction::Custom(action),
+        ..
+    }) = events.first()
+    else {
+        panic!("a confirmation expected: {events:?}");
+    };
+    panel.handle_command(PanelCommand::Confirmed {
+        action: action.clone(),
+    });
+    assert_eq!(panel.strip_rows(80).len(), 1);
+
+    // Leaving the session ends its terminals; the panel's close does too.
+    assert!(panel.switch_session(None));
+    assert_eq!(*terminals.released.lock().unwrap(), [owner]);
+    assert!(panel.strip_rows(80).is_empty());
+    drop(panel);
+    assert_eq!(
+        terminals.released.lock().unwrap().len(),
+        1,
+        "no session left to end"
+    );
 }
