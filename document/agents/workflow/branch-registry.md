@@ -164,6 +164,7 @@
 
 | `docs/qq-wecom-pause` | docs | 用户要求的 QQ/WeCom 暂停文档；worktree `temp/active-surface-completion` 之外，保留原分支 | user | 2026-11-12 | 合入 sync 后由 owner 决定；不删 |
 | `sync/omp-release/v18.19.0` | sync | OMP v18.19.0 真 merge（`f2ad635e014`），基于 `ddb44711b5d`；worktree `temp/omp-v18.19.0-sync` | agent | 2026-11-12 | 门禁与 CI 绿后合入 `main` 再删（删前记 SHA） |
+| `release/1.5.2-prep` | release | 1.5.2 资产验收准备：`release-scope.json` 17 REQ/5 ADR + 12 approved deferrals、ledger 1.5.2 证据、14 CHANGELOG Unreleased 与 UPDATE-LOG 1.5.2；worktree `temp/release-152-prep` | agent | 2026-11-12 | 1.5.2 资产验收合并后删（删前记 SHA） |
 | `vendor/termide-0.49.0` | vendor | TermIDE 0.49.0 vendor 分支；保留原分支 | user | 2026-11-12 | owner 决定；不删 |
 
 | `archive/web-ui-zetawork-gui-2026-11-12` | archive | 用户侧快照分支；未审查内容，不得合并/删除 | user | 2026-11-12 | owner 决定；不删 |

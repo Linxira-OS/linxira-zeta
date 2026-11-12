@@ -70,6 +70,11 @@ and the npm publisher all consult it.
   override keeps `publishAllowed=false`; npm stays on 1.5.1. Without the
   override, 1.5.2 remains code-only. This exception does not unlock 1.5.3–1.5.10,
   does not rewrite 1.5.1, and does not lower the 1.6.0 stable gate.
+- **1.5.2 asset tag form.** The exact 1.5.2 asset-review release uses the same
+  lightweight `v1.5.2` tag form as the published `v1.5.0` / `v1.5.1` tags.
+  `release-v2.ts` selects that form from `channel=public`; the annotated tag
+  remains mandatory for code-only internal-build tags. The asset tag is never
+  rewritten or moved.
 
 - **Internal build tags are code-only, with one explicit exception.** `release-v2.ts` creates a code-only annotated tag for normal 1.5.2–1.5.10 builds. The only exception is exact 1.5.2 with a matching owner-review override, which may upload the full GitHub asset set while npm remains 1.5.1; without that override 1.5.2 stays code-only. CI still builds/tests; no npm publish is authorized here.
 - **Default is fail-closed.** `release_metadata` evaluates the policy for the

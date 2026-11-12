@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
+
 ## [1.5.1] - 2026-11-10
 
 - Added the Discord channel (official Bot API): Gateway v10 with the
