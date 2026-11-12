@@ -103,13 +103,13 @@ async function openPage(): Promise<Page> {
 	const next = await browser!.newPage();
 	page = next;
 	const problems: string[] = [];
-	next.on("pageerror", error =>
-		problems.push(`pageerror: ${error instanceof Error ? error.message : String(error)}`),
-	);
+	next.on("pageerror", error => problems.push(`pageerror: ${error instanceof Error ? error.message : String(error)}`));
 	next.on("console", message => {
 		if (message.type() === "error") problems.push(`console: ${message.text()}`);
 	});
-	next.on("requestfailed", request => problems.push(`requestfailed: ${request.url()} ${request.failure()?.errorText ?? ""}`));
+	next.on("requestfailed", request =>
+		problems.push(`requestfailed: ${request.url()} ${request.failure()?.errorText ?? ""}`),
+	);
 	try {
 		await next.goto(base);
 		try {
@@ -118,7 +118,7 @@ async function openPage(): Promise<Page> {
 			throw new Error(`driver did not mount: ${problems.join(" | ")}`);
 		}
 		await next.click("#challenge");
-		await next.waitForSelector('[data-auth-stepup]');
+		await next.waitForSelector("[data-auth-stepup]");
 		return next;
 	} catch (error) {
 		await next.close().catch(() => {});
@@ -129,7 +129,7 @@ async function openPage(): Promise<Page> {
 
 async function submit(code: string): Promise<void> {
 	await page!.type('input[autocomplete="one-time-code"]', code);
-	await page!.click('[data-auth-stepup] .sec-actions button:first-of-type');
+	await page!.click("[data-auth-stepup] .sec-actions button:first-of-type");
 	await page!.waitForFunction("document.getElementById('status')?.textContent !== 'idle'", {
 		timeout: 10_000,
 	});

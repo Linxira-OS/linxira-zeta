@@ -321,10 +321,10 @@ export function checkReleaseScope(
 /** Whether a release for `version` is public (publish/assets allowed). */
 export function isPublicRelease(version: string): boolean {
 	const decision = evaluateFromEnv(version);
-	if (decision.publishAllowed) return true;
+	if (decision.publishAllowed || decision.assetsAllowed) return true;
 	// The release_github job knows `assets-allowed` from release_metadata; trust
 	// that flag for a public-line version when the override env is not mapped
-	// into this step. Frozen 1.5.x can never become public this way.
+	// into this step.
 	return process.env.ZETA_RELEASE_SCOPE_PUBLIC === "true" && decision.channel === "public";
 }
 

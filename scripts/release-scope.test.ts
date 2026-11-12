@@ -4,6 +4,7 @@ import {
 	type AdrRecord,
 	evaluateScope,
 	evidenceIsIndependent,
+	isPublicRelease,
 	isVerifiedCiConclusion,
 	type LedgerRequirement,
 	parseAdrs,
@@ -150,16 +151,34 @@ describe("CI evidence and freeze invariants", () => {
 		expect(isVerifiedCiConclusion(null)).toBe(false);
 	});
 
-	it("1.5.x can never unlock assets or npm, even with an override", () => {
-		for (const version of ["1.5.2", "1.5.10"]) {
+	it("1.5.2 assets-only override is public for scope but never npm", () => {
+		const prev = {
+			version: process.env.ZETA_RELEASE_OVERRIDE_VERSION,
+			reason: process.env.ZETA_RELEASE_OVERRIDE_REASON,
+		};
+		try {
+			process.env.ZETA_RELEASE_OVERRIDE_VERSION = "1.5.2";
+			process.env.ZETA_RELEASE_OVERRIDE_REASON = "owner requested asset review";
 			const decision = evaluatePublishPolicy({
-				version,
-				overrideVersion: version,
-				overrideReason: "emergency",
+				version: "1.5.2",
+				overrideVersion: "1.5.2",
+				overrideReason: "owner requested asset review",
 			});
-			expect(decision.tagAllowed).toBe(true);
+			expect(decision.assetsAllowed).toBe(true);
 			expect(decision.publishAllowed).toBe(false);
-			expect(decision.assetsAllowed).toBe(false);
+			expect(isPublicRelease("1.5.2")).toBe(true);
+			const other = evaluatePublishPolicy({
+				version: "1.5.3",
+				overrideVersion: "1.5.3",
+				overrideReason: "owner review",
+			});
+			expect(other.assetsAllowed).toBe(false);
+			expect(other.publishAllowed).toBe(false);
+		} finally {
+			if (prev.version == null) delete process.env.ZETA_RELEASE_OVERRIDE_VERSION;
+			else process.env.ZETA_RELEASE_OVERRIDE_VERSION = prev.version;
+			if (prev.reason == null) delete process.env.ZETA_RELEASE_OVERRIDE_REASON;
+			else process.env.ZETA_RELEASE_OVERRIDE_REASON = prev.reason;
 		}
 	});
 });
