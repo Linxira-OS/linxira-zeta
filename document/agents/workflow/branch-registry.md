@@ -75,6 +75,7 @@
 | `feat/report-mcp` | feat | Embedded MCP recognition：REQ-053；SDK/manager 只交 tool-scope hook，不 race 工具白名单。worktree `temp/report-mcp` | agent | 2026-11-11 | 合入集成分支后删 |
 | `feat/report-memory` | feat | Memory H3：REQ-061–REQ-065；large-session-perf 试发，dead 由父 recover；REQ-066 仍 desktop owner。worktree `temp/report-memory` | agent | 2026-11-11 | 合入集成分支后删 |
 
+| `feat/webui-model-config` | feat | Web UI model-config import parity: shared `parseModelsConfigDocument` accepting block-style YAML and standard JSON with typed errors/no fallback, Work Studio Providers → Import Config dialog wired to `models.yml.write`, parser/dialog tests, `docs/models.md` formats. Worktree `temp/webui-model-config`; base `ddb44711b5d` | agent | 2026-11-12 | 合入 `main` 后删（删前记 SHA） |
 | `chore/release-freeze` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
 | `chore/remove-paused-zetawork` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
 | `chore/report-gov` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-12 | Preserve; owner review |

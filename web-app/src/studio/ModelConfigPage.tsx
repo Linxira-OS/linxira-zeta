@@ -1,5 +1,6 @@
 import { ModelParameterEditor } from "./models/ModelParameterEditor";
 import { createModelParameterDraft, effectiveModelParameters, effectiveParameterSources, modelParameterDraftError, type ModelParameterDraft } from "./models/modelParameterDraft";
+import { ModelsConfigImportDialog } from "./models/ModelsConfigImportDialog";
 import { previewModelAdaptation } from "./preview/modelAdaptationPreview";
 import { thinkingForRoleModel, sameModelParameter, modelParameterValues } from "@linxiraos/studio-contract";
 import { AppSelect } from "./AppSelect";
@@ -2001,6 +2002,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const [showKey, setShowKey] = useState(false);
   const { shown: editor, phase: editorPhase, live: editorLive } = useDeferredPresence(editorState);
   const [modelsYmlDraft, setModelsYmlDraft] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [configYmlDraft, setConfigYmlDraft] = useState<string | null>(null);
   const [providerBaseline, setProviderBaseline] = useState<Draft | null>(null);
   const [roleBaseline, setRoleBaseline] = useState<ModelRoleRecord | null>(null);
@@ -2489,6 +2491,31 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const mergeContentHash = (hash: string | undefined) => {
     if (!hash) return;
     mutateLocal((current) => ({ ...current, contentHash: hash }));
+  };
+
+  /**
+   * Whole-document import: the dialog validated both encodings and handed us
+   * the text to store. YAML goes to the Host as-is; JSON was converted to
+   * block YAML so the panel layer keeps one `.yml` format.
+   */
+  const importModelsConfig = async (text: string) => {
+    if (preview) {
+      mutateLocal((current) => ({ ...current, generatedModelsYml: text }));
+      toast(t("modelConfig.importConfigApplied"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await runWrite(client, "models.yml.write", {
+        text,
+        ...(data?.contentHash ? { expectedHash: data.contentHash } : {}),
+      });
+      toast(result.message ?? t("modelConfig.importConfigApplied"));
+      mergeContentHash(result.contentHash);
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
   };
 
   const persistModelsYml = async (text: string, overlayForm: boolean, close: boolean): Promise<boolean> => {
@@ -4022,6 +4049,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                 </span>
                 <span className="spacer" />
                 <button type="button" className="btn outline" disabled={preview} data-tip={preview ? t("common.demo") : undefined} onClick={() => void refresh()}><Icon name="refresh" extra="sm" />{t("modelConfig.refreshStatus")}</button>
+                <button type="button" className="btn outline" onClick={() => setImportOpen(true)}><Icon name="file-plus" extra="sm" />{t("modelConfig.importConfigAction")}</button>
                 <button type="button" className="btn primary" onClick={() => { setModelEdit(null); setEditor(blankDraft()); setEditExisting(false); setPresetOpen(false); setPresetSel(null); setConfirmDelete(false); setTestResult(null); }}><Icon name="plus" extra="sm" />{t("modelConfig.addProvider")}</button>
               </div>
               {!data && !loadError ? (
@@ -4773,6 +4801,12 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
           )}
         </section>
       </div>
+      <ModelsConfigImportDialog
+        open={importOpen}
+        busy={busy}
+        onClose={() => setImportOpen(false)}
+        onImport={importModelsConfig}
+      />
     </div>
   );
 }
