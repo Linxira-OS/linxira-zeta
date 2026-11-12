@@ -12,7 +12,7 @@
 | **Desktop app**      | `window.piDesktop` (window controls) or `window.zetaStudioChrome` (preload chrome API) | The Electron shell's renderer.                                                                                                                      |
 | **Local browser**    | No desktop bridge, loopback hostname (`localhost`, `127.0.0.1`, `[::1]`)               | A browser on the machine running `zetacode serve`.                                                                                                  |
 | **Remote browser**   | No desktop bridge, non-loopback origin                                                 | A browser reaching the machine through a tunnel/proxy. Being remote is an authorization question (`remote.token` + TOTP), not a capability verdict. |
-| **Mobile / WebView** | No desktop bridge, phone-sized coarse pointer or a mobile user agent                   | Binding-scoped chat client. Chat and the current project's conversations only.                                                                      |
+| **Mobile / WebView** | No desktop bridge, phone-sized coarse pointer or a mobile user agent                   | Binding-scoped chat client. Chat/history plus Settings for the paired-device list, pairing card and read-only TOTP verification; local runtime, credentials and device-admin stay hidden. |
 | **TUI**              | Not a renderer surface                                                                 | Listed in the matrix for completeness: CLI/terminal operations.                                                                                     |
 
 `GET /api/desktop/info` tells whether the _serving process_ was spawned by the
@@ -95,6 +95,12 @@ entry (`set-security`) and a desktop tray item (**Identity & Devices** →
 `set-channels` entry are removed, and tray deep links / saved intents using
 `channels` are aliased to `imRuntime` rather than rendering the unmounted
 legacy pane.
+
+Step-up ownership is single: `AuthStepUpBoundary` only collects the code, and
+`createStepUpFetch` performs one `/api/auth/2fa/verify` then replays the
+challenged request once. The boundary must not verify the code itself; TOTP
+steps are consumed server-side, so a second verify fails and the replay never
+runs.
 
 ## Workspace and session identity (2026-11-11)
 

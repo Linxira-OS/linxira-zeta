@@ -14,7 +14,8 @@
 
 ### 移动端安全入口（未发布）
 - 修复手机 Work Studio 的 Settings 入口缺失：File、侧栏 OMP 菜单与 Zeta 菜单此前在 mobile 上隐藏 Settings，现仅隐藏 diagnostics；手机实际 `surface=mobile`（iPhone UA、390px、coarse=true）可点击进入 Settings → 身份与设备。
-- 安全能力矩阵在 mobile 上保持发布策略：设备列表/pairing pass-through、TOTP read-only（首绑仅本机）、remote token/device revoke/enroll 隐藏；删除 `remote-token=hidden` 时仍渲染 Rotate/Revoke 的错误，配对 QR 在隔离 fixture 实际显示成功；mobile 契约测试 14/0。既有 remote socket 2FA fixture 实跑 2/0（配对设备 403→verify→202；revoke-all 后再次 403）。移动 Tab 的 UI step-up 弹窗与原生设备配对仍未实机验。
+- 安全能力矩阵在 mobile 上保持发布策略：设备列表/pairing pass-through、TOTP read-only（首绑仅本机）、remote token/device revoke/enroll 隐藏；删除 `remote-token=hidden` 时仍渲染 Rotate/Revoke 的错误，配对 QR 在隔离 fixture 实际显示成功；mobile 契约测试 14/0。
+- **2FA step-up 单次验证修复**：真实 mounted `AuthStepUpBoundary` + `createStepUpFetch` + repo-local 远端身份 fixture 实际得到 command 403 → 弹窗 → verify 200（一次）→ replay 202；修复前 boundary 与 wrapper 各 verify 一次，第二次 401 导致命令不重放。boundary 现在只收码，wrapper 独占 verify+replay，server replay protection 不变。既有 remote socket 2FA fixture 2/0；custom-prompt 协议测试 4/0。完整 App 手机 remote 2FA 与原生设备配对仍待 E2E。
 
 ### 本地工作树/缓存清理（2026-11-12，未发布）
 - 在用户授权下只处理仓库内、已合并且 clean 的 3 个旧 worktree/分支：`fix/browser-relay-hello-race`（`c1f6c6c6a79`）、`feat/ci-buckets`（`06671d0b7860`）、`feat/device-account-ux`（`509e4390233b`），no-follow logical 合计 5,116,494,208 B；worktree 数量 120→117、本地 heads 128→125。

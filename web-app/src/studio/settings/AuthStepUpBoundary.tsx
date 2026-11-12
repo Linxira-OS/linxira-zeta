@@ -133,10 +133,7 @@ export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promis
 const defaultInner: FetchLike = (input, init) =>
 	typeof input === "string" ? defaultGatewayFetch(input, init) : fetch(input, init);
 
-export function createStepUpFetch(
-	inner: FetchLike = defaultInner,
-	options: StepUpFetchOptions = {},
-): FetchLike {
+export function createStepUpFetch(inner: FetchLike = defaultInner, options: StepUpFetchOptions = {}): FetchLike {
 	const ask = options.prompt ?? requestCode;
 	return async (input, init) => {
 		const primary: RequestInfo | URL = input instanceof Request ? input.clone() : input;
@@ -144,7 +141,8 @@ export function createStepUpFetch(
 		const challenge = await readChallenge(response);
 		if (challenge === null) return response;
 
-		const replayable = (typeof input === "string" || input instanceof URL || input instanceof Request) &&
+		const replayable =
+			(typeof input === "string" || input instanceof URL || input instanceof Request) &&
 			replayableBody(init as RequestInit | undefined);
 		if (!replayable) return response;
 
@@ -169,8 +167,6 @@ export const stepUpFetch = createStepUpFetch();
 
 export interface AuthStepUpBoundaryProps {
 	readonly children?: ReactNode;
-	/** Override for tests or a transport with its own fetcher. */
-	readonly verify?: (code: string) => Promise<unknown>;
 	readonly labels?: {
 		readonly title: string;
 		readonly description: string;
@@ -178,7 +174,6 @@ export interface AuthStepUpBoundaryProps {
 		readonly placeholder: string;
 		readonly verify: string;
 		readonly cancel: string;
-		readonly invalid: string;
 	};
 }
 
@@ -189,29 +184,21 @@ const DEFAULT_LABELS = {
 	placeholder: "123 456",
 	verify: "验证",
 	cancel: "取消",
-	invalid: "验证码无效",
 };
 
 /**
  * Renders children plus the step-up prompt. Mount it once, above the surfaces
  * that can hit `totp_required` (chat, settings, device actions).
  */
-export function AuthStepUpBoundary({
-	children,
-	verify,
-	labels = DEFAULT_LABELS,
-}: AuthStepUpBoundaryProps): ReactNode {
+export function AuthStepUpBoundary({ children, labels = DEFAULT_LABELS }: AuthStepUpBoundaryProps): ReactNode {
 	const [open, setOpen] = useState(false);
 	const [code, setCode] = useState("");
-	const [error, setError] = useState<string | null>(null);
-	const [busy, setBusy] = useState(false);
 	const pending = useRef<PromptRequest | null>(null);
 
 	useEffect(() => {
 		prompter = request => {
 			pending.current = request;
 			setCode("");
-			setError(null);
 			setOpen(true);
 		};
 		return () => {
@@ -223,27 +210,20 @@ export function AuthStepUpBoundary({
 
 	const close = useCallback((value: PromptResult) => {
 		setOpen(false);
-		setBusy(false);
 		const request = pending.current;
 		pending.current = null;
 		request?.resolve(value);
 		settle(value);
 	}, []);
 
-	const submit = useCallback(async () => {
+	// The wrapper (`createStepUpFetch`) owns the single verify call. The
+	// boundary only collects the code; verifying here would consume the step
+	// before the wrapper replays the challenged request.
+	const submit = useCallback(() => {
 		const trimmed = code.trim();
-		if (trimmed === "" || busy) return;
-		setBusy(true);
-		setError(null);
-		try {
-			if (verify !== undefined) await verify(trimmed);
-			else await verifyTwoFactor(defaultGatewayFetch, { code: trimmed });
-			close(trimmed);
-		} catch (cause) {
-			setBusy(false);
-			setError(cause instanceof Error ? cause.message : labels.invalid);
-		}
-	}, [busy, close, code, labels.invalid, verify]);
+		if (trimmed === "") return;
+		close(trimmed);
+	}, [close, code]);
 
 	if (!open) return children ?? null;
 
@@ -268,12 +248,11 @@ export function AuthStepUpBoundary({
 							if (event.key === "Escape") close(null);
 						}}
 					/>
-					{error !== null ? <p className="sec-error" role="alert">{error}</p> : null}
 					<div className="sec-actions">
-						<button type="button" className="btn small" disabled={busy || code.trim() === ""} onClick={() => void submit()}>
+						<button type="button" className="btn small" disabled={code.trim() === ""} onClick={() => submit()}>
 							{labels.verify}
 						</button>
-						<button type="button" className="btn small outline" disabled={busy} onClick={() => close(null)}>
+						<button type="button" className="btn small outline" onClick={() => close(null)}>
 							{labels.cancel}
 						</button>
 					</div>
