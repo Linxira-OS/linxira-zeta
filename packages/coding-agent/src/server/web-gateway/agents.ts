@@ -35,11 +35,7 @@ import {
 	getExtensionUISelectOptionLabel,
 	timedOutAskDialogResult,
 } from "../../extensibility/extensions/types";
-import {
-	GOAL_CONTINUATION_MODE_WEB,
-	GoalContinuationController,
-	type GoalContinuationOp,
-} from "../../goals/continuation-controller";
+import { RpcGoalController, type RpcGoalOp } from "../../goals/continuation-controller";
 import { RpcLiveBridge } from "../../modes/rpc/rpc-live";
 import { executeAcpBuiltinSlashCommand } from "../../slash-commands/acp-builtins";
 import { type BackendLoopState, LoopContinuationController } from "../../loop/continuation-controller";
@@ -90,7 +86,8 @@ const DRAIN_BLOCKED_COMMANDS = new Set<AgentCommand["type"]>([
 	"guided_goal",
 ]);
 /** Goal ops that arm or resume continuations are new work; get/pause/drop/budget are not. */
-const DRAIN_BLOCKED_GOAL_OPS = new Set<GoalContinuationOp>(["create", "resume"]);
+const GOAL_CONTINUATION_MODE_WEB = "web";
+const DRAIN_BLOCKED_GOAL_OPS = new Set<RpcGoalOp>(["create", "resume"]);
 
 export type AgentCommand =
 	| {
@@ -104,7 +101,7 @@ export type AgentCommand =
 			loopBody?: boolean;
 	  }
 	| { type: "guided_goal"; message?: string; images?: unknown[] }
-	| { type: "goal"; op: GoalContinuationOp; objective?: string; token_budget?: number }
+	| { type: "goal"; op: RpcGoalOp; objective?: string; token_budget?: number }
 	| { type: "remove_queued_message"; message: string; queue: "steering" | "followUp" }
 	| { type: "promote_queued_message"; message: string }
 	| { type: "abort_and_restore_queue" }
@@ -355,7 +352,7 @@ export class AgentSessionWrapper {
 	 * completion/drop exit, reattach across session changes, and the opt-in
 	 * continuation turn (`goal.continuationModes: ["web"]`).
 	 */
-	#goalController: GoalContinuationController;
+	#goalController: RpcGoalController;
 	/** Backend-owned `/loop`; one instance per wrapper, so a loop never crosses sessions. */
 	#loopController: LoopContinuationController;
 	/** Backend-owned live voice; one bridge per wrapper, shared by every attached client. */
@@ -391,7 +388,7 @@ export class AgentSessionWrapper {
 				if (!this.#destroyed) this.#emit({ type: "command_output", text: reason });
 			},
 		});
-		this.#goalController = new GoalContinuationController(inner, {
+		this.#goalController = new RpcGoalController(inner, {
 			continuationMode: GOAL_CONTINUATION_MODE_WEB,
 			continuationSuppressed: () => this.#loopController.active,
 		});
@@ -439,7 +436,7 @@ export class AgentSessionWrapper {
 	}
 
 	/** Shared goal controller; hosted RPC sockets must not create a second one. */
-	getGoalController(): GoalContinuationController {
+	getGoalController(): RpcGoalController {
 		return this.#goalController;
 	}
 

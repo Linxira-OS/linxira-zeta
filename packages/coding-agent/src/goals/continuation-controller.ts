@@ -486,9 +486,4 @@ function reportControllerError(error: unknown): void {
 }
 
 /** Legacy web-gateway aliases retained for the merged call sites. */
-export const GOAL_CONTINUATION_MODE_WEB = "web";
 export const GOAL_CONTINUATION_MODE_RPC = RPC_GOAL_CONTINUATION_MODE;
-export { RpcGoalController as GoalContinuationController };
-export type GoalContinuationOp = RpcGoalOp;
-export type GoalContinuationResult = RpcGoalResult;
-export type GoalContinuationSession = RpcGoalSession;
