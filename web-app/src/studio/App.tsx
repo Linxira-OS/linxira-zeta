@@ -785,9 +785,7 @@ export function AppMenu({ chrome, onRoute }: {
               <MenuItem icon="server" hint={t("menu.modelConfigHint")} onClick={() => run(() => onRoute("model-config"))}>{t("nav.modelConfig")}</MenuItem>
               <MenuItem icon="image" onClick={() => run(() => onRoute("media"))}>{t("media.title")}</MenuItem>
               <div className="menu-sep" />
-              {mobileSurface ? null : (
-                <MenuItem icon="settings" onClick={() => run(() => onRoute("settings"))}>{t("nav.settings")}</MenuItem>
-              )}
+              <MenuItem icon="settings" onClick={() => run(() => onRoute("settings"))}>{t("nav.settings")}</MenuItem>
               <MenuItem icon="keyboard" onClick={() => run(() => chrome.onOpenDialog("shortcuts"))}>{t("nav.shortcuts")}</MenuItem>
               <MenuItem icon="info" onClick={() => run(() => chrome.onOpenDialog("about"))}>{t("nav.about")}</MenuItem>
             </div>,
@@ -3009,9 +3007,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                 {t("shell.checkUpdate")}
               </MenuItem>
               <MenuItem icon="server" onClick={() => { chrome.onToggleOmpMenu(); onRoute("model-config"); }}>{t("shell.openModelConfig")}</MenuItem>
-              {mobileSurface ? null : (
-                <MenuItem icon="settings" onClick={() => { chrome.onToggleOmpMenu(); onRoute("settings"); }}>{t("shell.openSettings")}</MenuItem>
-              )}
+              <MenuItem icon="settings" onClick={() => { chrome.onToggleOmpMenu(); onRoute("settings"); }}>{t("shell.openSettings")}</MenuItem>
               <MenuItem icon="package" onClick={() => { chrome.onToggleOmpMenu(); onRoute("capabilities"); }}>{t("shell.openCapabilities")}</MenuItem>
             </div>,
             document.body,
@@ -9014,11 +9010,9 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               <button className="menu-item" role="menuitem" onClick={() => go("capabilities")}>{t("menu.capabilities")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("model-config")}>{t("menu.modelConfig")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("media")}>{t("media.title")}</button>
+              <button className="menu-item" role="menuitem" onClick={() => go("settings")}>{t("menu.settings")}</button>
               {surface === "mobile" ? null : (
-                <>
-                  <button className="menu-item" role="menuitem" onClick={() => go("settings")}>{t("menu.settings")}</button>
-                  <button className="menu-item" role="menuitem" onClick={() => go("diagnostics")}>{t("menu.diagnostics")}</button>
-                </>
+                <button className="menu-item" role="menuitem" onClick={() => go("diagnostics")}>{t("menu.diagnostics")}</button>
               )}
               <div className="menu-sep" />
               <button className="menu-item" role="menuitem" onClick={() => { setOpenMenu(null); openPalette(); }}>{t("menu.commandPalette")}<span className="kbd">{formatShortcut(SHORTCUTS.commandPalette)}</span></button>

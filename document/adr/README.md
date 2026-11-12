@@ -56,6 +56,7 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0029](0029-im-switch-gateway.md) | IM switch handshake gateway wire | Accepted | 2026-11-12 | — | [Team Studio](../../docs/team-studio.md), [session router](../../packages/coding-agent/src/channels/session-router.ts), [IM gateway](../../packages/coding-agent/src/server/web-gateway/im-instances.ts) |
 | [0030](0030-im-secret-storage.md) | IM credentials use the local web.yml permission boundary | Accepted | 2026-11-12 | — | [IM runtime UI](../../docs/im-runtime-ui.md), [channels docs](../../docs/channels.md) |
 | [0031](0031-team-hub-headless-parity.md) | Team Hub headless/ACP/IM parity uses the existing Team read model | Accepted | 2026-11-12 | — | [Team foundation](../../docs/team.md), [team hub data](../../packages/coding-agent/src/team/hub-data.ts), [slash commands](../../packages/coding-agent/src/slash-commands/builtin-zeta.ts), [Team CLI](../../packages/coding-agent/src/cli/team-cli.ts) |
+| [0032](0032-lead-headless-parity.md) | Lead mode is reachable from headless/ACP/IM slash dispatch | Accepted | 2026-11-12 | — | [Team foundation](../../docs/team.md), [mode service](../../packages/coding-agent/src/session/agent-session.ts), [slash modes](../../packages/coding-agent/src/slash-commands/builtin-modes.ts) |
 
 ## File and numbering rules
 

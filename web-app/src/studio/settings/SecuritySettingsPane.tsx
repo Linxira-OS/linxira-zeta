@@ -607,30 +607,40 @@ export function SecuritySettingsPane({
 						</div>
 						<p className="sec-hint">{t("settings.security.remote.tokenHint")}</p>
 						<div className="sec-actions">
-							<button
-								type="button"
-								className="btn small"
-								disabled={pending === "pairing" || !remoteAccess.tokenActive || pairingAccess.access === "hidden"}
-								onClick={showPairing}
-							>
-								{t("settings.security.remote.pairing")}
-							</button>
-							<button
-								type="button"
-								className="btn small"
-								disabled={pending === "token-rotate" || remoteTokenAccess.access === "read-only"}
-								onClick={rotateToken}
-							>
-								{t("settings.security.remote.rotate")}
-							</button>
-							<button
-								type="button"
-								className="btn small danger"
-								disabled={pending === "token-revoke" || !remoteAccess.tokenActive || remoteTokenAccess.access === "read-only"}
-								onClick={revokeToken}
-							>
-								{t("settings.security.remote.revoke")}
-							</button>
+							{pairingAccess.access === "hidden" ? null : (
+								<button
+									type="button"
+									className="btn small"
+									disabled={pending === "pairing" || !remoteAccess.tokenActive}
+									onClick={showPairing}
+								>
+									{t("settings.security.remote.pairing")}
+								</button>
+							)}
+							{remoteTokenAccess.access === "hidden" ? null : (
+								<>
+									<button
+										type="button"
+										className="btn small"
+										disabled={pending === "token-rotate" || remoteTokenAccess.access === "read-only"}
+										onClick={rotateToken}
+									>
+										{t("settings.security.remote.rotate")}
+									</button>
+									<button
+										type="button"
+										className="btn small danger"
+										disabled={
+											pending === "token-revoke" ||
+											!remoteAccess.tokenActive ||
+											remoteTokenAccess.access === "read-only"
+										}
+										onClick={revokeToken}
+									>
+										{t("settings.security.remote.revoke")}
+									</button>
+								</>
+							)}
 						</div>
 						{pairing !== null ? (
 							<div className="sec-pairing">

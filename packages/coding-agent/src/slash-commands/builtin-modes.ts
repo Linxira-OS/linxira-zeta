@@ -471,6 +471,24 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		aliases: ["pm"],
 		icon: "agents",
 		description: () => M.cmdLead,
+		handle: async (_command, runtime) => {
+			const state = runtime.session.getLeadModeState();
+			try {
+				if (state?.enabled) {
+					await runtime.session.exitLeadMode();
+					await runtime.output("Lead mode disabled.");
+				} else {
+					const next = await runtime.session.enterLeadMode();
+					await runtime.output(
+						`Lead mode enabled for ${next.teamName} (${next.teamId}), PM ${next.pmName} (${next.pmId}).`,
+					);
+				}
+			} catch (error) {
+				await runtime.output(`Could not change lead mode: ${errorMessage(error)}`);
+				return { consumed: true, failed: true };
+			}
+			return commandConsumed();
+		},
 		getTuiAutocompleteDescription: runtime => {
 			if (runtime.ctx.leadModeEnabled) return M.acLeadOn;
 			if (runtime.ctx.planModeEnabled) return M.acLeadBlockedByPlanMode;

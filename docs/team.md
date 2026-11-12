@@ -356,6 +356,12 @@ leaves the session's tools untouched. A bare `zetacode` launch at a PM
 workspace opens the Team Hub; start a session explicitly (`--continue`,
 `--resume`, or with a prompt) to use `/lead`.
 
+`/lead` and `/pm` also have a headless `handle` for ACP/IM dispatch. Entering
+uses the same `AgentSession` mode service as the TUI: it resolves a registered
+PM workspace, rejects plan/goal/vibe conflicts, keeps the previous toolset for
+exit, and installs the coordination tools. Exiting restores that toolset; no
+headless path enables Vibe or invents a Team agent.
+
 - Active tools: `read`, optional parent-owned `todo`, `room_read`, `room_post`,
   `secretary`, `engineer_skills`, and `channel_send` / `board` / `calendar` when
   the session is configured for them. `task`, `edit`, `write`, `bash`, `grep`,

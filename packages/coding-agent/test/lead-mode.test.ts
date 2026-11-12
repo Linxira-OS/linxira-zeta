@@ -24,6 +24,8 @@ import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
+import type { SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
 import { TeamDb } from "@linxiraos/zeta/team/db";
 import { resolveLeadWorkspace } from "@linxiraos/zeta/team/lead";
@@ -194,6 +196,24 @@ describe("Lead (PM) mode", () => {
 		expect(lastMode?.type === "mode_change" ? lastMode.mode : undefined).toBe("none");
 	});
 
+	it("toggles the real session mode through the ACP builtin dispatcher", async () => {
+		const runtime = {
+			session,
+			cwd: fixture.pmRoot,
+			output: async () => {},
+		} as unknown as SlashCommandRuntime;
+
+		const entered = await executeAcpBuiltinSlashCommand("/lead", runtime);
+		expect(entered).toEqual({ consumed: true });
+		expect(session.getLeadModeState()).toMatchObject({ enabled: true, teamId: "acme", pmId: "acme:core" });
+		expect(session.getActiveToolNames().toSorted()).toEqual(LEAD_TOOLS.toSorted());
+
+		const exited = await executeAcpBuiltinSlashCommand("/pm", runtime);
+		expect(exited).toEqual({ consumed: true });
+		expect(session.getLeadModeState()).toBeUndefined();
+		expect(session.getActiveToolNames().toSorted()).toEqual(CODING_TOOLS.toSorted());
+	});
+
 	it("resolves only the PM workspace, not the team root or an engineer worktree", async () => {
 		const worktree = path.join(fixture.teamRoot, "worktrees", "api", "core", "alice", "home");
 		fs.mkdirSync(worktree, { recursive: true });
@@ -252,6 +272,15 @@ describe("Lead (PM) mode", () => {
 			expect(outsideMode.leadModeEnabled).toBe(false);
 			expect(outside.getActiveToolNames().toSorted()).toEqual(CODING_TOOLS.toSorted());
 			expect(showError).toHaveBeenCalledWith(expect.stringContaining("PM workspace"));
+
+			const failed = await executeAcpBuiltinSlashCommand("/lead", {
+				session: outside,
+				cwd: fixture.scratch,
+				output: async () => {},
+			} as unknown as SlashCommandRuntime);
+			expect(failed).toEqual({ consumed: true, failed: true });
+			expect(outside.getLeadModeState()).toBeUndefined();
+			expect(outside.getActiveToolNames().toSorted()).toEqual(CODING_TOOLS.toSorted());
 		} finally {
 			outsideMode.stop();
 			await outside.dispose();

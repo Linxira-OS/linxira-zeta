@@ -10,6 +10,11 @@
 - `/team hub` 新增 headless/ACP/IM 纯文本入口：`resolveTeamEntry` + `createTeamHubDataSource` 复用真实 Team DB 快照（PM/工程师/房间/选中房间事件/任务），不新增 backend、agent 或伪造状态。空 Team 只输出真实 CLI next steps；DB row 缺失保留真实 warning。
 - 新增 `zetacode team room member add/remove`，复用既有 `addRoomMember`/`removeRoomMember` 与 PM ownership 规则；TUI 空 Team 指引补上 member 命令。
 - 实测：真实 fixture 在 PM cwd 无 `--root` 创建房间/成员/发事件/任务；ACP `executeAcpBuiltinSlashCommand` 返回 `{consumed:true}` 并显示真实 row/event/task；团队窄测试 37/0。
+- `/lead`（`/pm`）补 headless `handle`：复用 `AgentSession` 的 Lead mode 服务，进出均走同一 PM workspace/工具集/冲突校验，不启用 Vibe；真实 ACP dispatch + tools 恢复测试 7/0（ADR-0032）。
+
+### 移动端安全入口（未发布）
+- 修复手机 Work Studio 的 Settings 入口缺失：File、侧栏 OMP 菜单与 Zeta 菜单此前在 mobile 上隐藏 Settings，现仅隐藏 diagnostics；手机实际 `surface=mobile`（iPhone UA、390px、coarse=true）可点击进入 Settings → 身份与设备。
+- 安全能力矩阵在 mobile 上保持发布策略：设备列表/pairing pass-through、TOTP read-only（首绑仅本机）、remote token/device revoke/enroll 隐藏；删除 `remote-token=hidden` 时仍渲染 Rotate/Revoke 的错误，配对 QR 在隔离 fixture 实际显示成功；mobile 契约测试 14/0。既有 remote socket 2FA fixture 实跑 2/0（配对设备 403→verify→202；revoke-all 后再次 403）。移动 Tab 的 UI step-up 弹窗与原生设备配对仍未实机验。
 
 ### 本地工作树/缓存清理（2026-11-12，未发布）
 - 在用户授权下只处理仓库内、已合并且 clean 的 3 个旧 worktree/分支：`fix/browser-relay-hello-race`（`c1f6c6c6a79`）、`feat/ci-buckets`（`06671d0b7860`）、`feat/device-account-ux`（`509e4390233b`），no-follow logical 合计 5,116,494,208 B；worktree 数量 120→117、本地 heads 128→125。
