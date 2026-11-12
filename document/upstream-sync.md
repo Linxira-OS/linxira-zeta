@@ -1,13 +1,52 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.18.3
+## Integrated through: v18.19.0
 
-**Integrated through**: `v18.18.3`
+**Integrated through**: `v18.19.0`
 
 _(`v18.18.2` was the header until 2026-11-09; the v18.18.3 round is PR #272 on
 `sync/omp-release/v18.18.3`. Previous headers: `v18.16.0` until 2026-11-08,
 `v18.18.0` until the v18.18.2 round. `v18.18.8` is a later official upstream
 release and is NOT integrated; see the probe below.)_
+
+## v18.19.0 integration (2026-11-12)
+
+- **Merge**: source tag `v18.19.0` (`04cd1a7549a02d62ad1d24826198d52507595683`,
+  lightweight release tag re-checked before fetch; release published
+  2026-11-12T03:35:49Z, draft=false, prerelease=false) onto Zeta starting commit
+  `ddb44711b5d05941801ca42b0d4ceed9704c24a4` (docs/owner-hold head). True merge
+  on `sync/omp-release/v18.19.0`; final merge commit
+  `f2ad635e0142bf9c64b8fe8253683da4430698a7` (parents `ddb44711b5d` +
+  `04cd1a7549a0`). No squash/rebase/cherry-pick/partial diff.
+- **Lineage**: prior baseline `v18.18.3` (`21f1188cf88b2f534c092181968cd5a4d1a9c296`);
+  pre-merge `git merge-base HEAD v18.19.0` = `21f1188c...`; post-merge
+  `git merge-base --is-ancestor 04cd1a75... HEAD` passes;
+  `check-merge-lineage --tag v18.19.0` passes on the merged branch.
+- **Conflicts**: 218 paths at first pass — 168 content conflicts, 38
+  delete/modify (Zeta-retired collab/Tern/build-service paths kept deleted),
+  12 modify/delete (upstream deletions accepted). Resolution used the merge
+  driver for the 13 package manifests, scope rewrite of `@oh-my-pi/*` →
+  Zeta names, brand overlay, removal of revived Tern/WebKit/collab paths,
+  and Zeta-owned restoration for mode/update/browser/agent-session surfaces.
+- **Key decisions**: Zeta keeps its release-asset self-update
+  (`cli/update-cli.ts`), browser architecture (own/relay/cmux; upstream
+  Tern/WebKit surface not adopted), collab retirement, `ZETA_*` env names,
+  Todo blocked/lead extensions, and owner-held scope. Incoming non-Tern
+  upstream changes were kept where they did not conflict with those
+  decisions.
+- **Generated artifacts**: `bun install` regenerated `bun.lock` and
+  `viewer.generated.*`; `set-version 1.5.1` aligned Cargo/package/catalog;
+  `fix-changelogs` promoted/pruned upstream release sections; `Cargo.lock`
+  workspace members pinned to 1.5.1. `MODULE.bazel.lock` retains the merged
+  upstream lock; no bazel run locally.
+- **Gates**: lint/format and version line repaired; brand-check and Zeta
+  sentinels reached 0/118; removed-upstream-files OK after deleting revived
+  collab/Tern paths; scope imports OK. `merge-gate --base ddb44711b5d --tag
+  v18.19.0` was run: the audit/lineage phases pass, but the command remains
+  **RED** on TypeScript/check guards and i18n command-description parity
+  (65 upstream static descriptions vs Zeta i18n); nix-bun freshness also
+  failed on a missing `normalizeLockfileVersion` export before the later
+  export repair. These are recorded as unresolved, not green.
 
 ## Sync cadence: on demand (2026-10-21 ruling)
 
