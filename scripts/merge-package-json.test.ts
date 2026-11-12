@@ -369,7 +369,6 @@ describe("zetaKeyFor", () => {
 	});
 
 	it("returns null for non-upstream keys", () => {
-		expect(zetaKeyFor("@linxiraos/pi-ai")).toBeNull();
 		expect(zetaKeyFor("zod")).toBeNull();
 		expect(zetaKeyFor("@acme/thing")).toBeNull();
 	});

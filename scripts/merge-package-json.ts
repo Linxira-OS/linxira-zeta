@@ -155,6 +155,7 @@ const RENAME_BY_TAIL: Record<string, string> = {
 };
 
 function zetaKeyFor(ompKey: string): string | null {
+	if (ompKey.startsWith(ZETA_SCOPE)) return ompKey;
 	for (const scope of [OMP_SCOPE, LEGACY_AUTHOR_SCOPE] as const) {
 		if (ompKey.startsWith(scope)) {
 			const tail = ompKey.slice(scope.length);
