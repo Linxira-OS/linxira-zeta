@@ -3201,3 +3201,35 @@ observation points moved onto the state each assertion actually depends on.
 - **Environment note**: the local Windows host cannot create symlinks without
   Developer Mode, so `browser-open-options`' UUID-symlink test fails locally
   with `EPERM`; it is not a merge regression and runs on Linux CI.
+
+### v18.19.0 sync gate maintenance record (2026-11-12)
+
+- **Branch**: `sync/omp-release/v18.19.0`; true merge of `v18.19.0`
+  (`04cd1a7549a02d62ad1d24826198d52507595683`) onto
+  `ddb44711b5d05941801ca42b0d4ceed9704c24a4`, initial merge commit
+  `f2ad635e0142bf9c64b8fe8253683da4430698a7`.
+- **Docs merge**: `docs/qq-wecom-pause`
+  (`19cdfa8e3ffcf93498ec8a02a692d68dd7a7a01a`) as `6f831e69739`; ADR-0035
+  and 91 ledger rows landed without rewriting history.
+- **Stats spotlight fix**: `fix/stats-spotlight`
+  (`51c6a275b93e47ea395aedf682f223fbcf9a4641`, "normalize Spotlight read
+  paths against the session cwd") merged with `--no-ff` as
+  `cad02d965c991908019ce176006c4e2a7c19ea72`. Only
+  `packages/stats/src/spotlight-ingest.ts` changed.
+- **Stats result after merge**: `bun test packages/stats/test` — **281 pass,
+  10 skip, 0 fail**. The 10 skips are the Windows platform gate for
+  `startServer port conflicts` (process command-line introspection is not
+  reliable on this host); the suite remains active on Linux CI.
+- **Pricing evidence**: `v18.19.0`'s catalog prices
+  `grok-4.20-multi-agent-0309` at long-context input 2.5 / output 5 /
+  cache-read 0.4. The sync branch's `db-cost.test.ts` expected stale
+  4 / 12 / 0.4, so the test was aligned to the tag catalog rather than
+  changing product prices.
+- **Rust local status**: CI-only on this Windows host. The checkout needs
+  rustc 1.101 (`pi-shell` 1.5.1); installed 1.97.1 is too old, nightly 1.102
+  resolves `link.exe` to GNU `link` instead of MSVC, and the win32
+  `pi-natives` addon is 1.4.4 without the expected `shellBuiltins`. Linux CI
+  runs `bun run test:rs`; local red is not treated as green.
+- **Remaining before full gate**: pi-messenger plugin harness/integration
+  fixes (11 real failures; 3 Windows symlink `EPERM` environment cases).
+- **No push, tag, main merge, or PR was performed.**
