@@ -166,6 +166,11 @@
 | `sync/omp-release/v18.19.0` | sync | OMP v18.19.0 真 merge（`f2ad635e014`），基于 `ddb44711b5d`；worktree `temp/omp-v18.19.0-sync` | agent | 2026-11-12 | 门禁与 CI 绿后合入 `main` 再删（删前记 SHA） |
 | `vendor/termide-0.49.0` | vendor | TermIDE 0.49.0 vendor 分支；保留原分支 | user | 2026-11-12 | owner 决定；不删 |
 
+| `archive/web-ui-zetawork-gui-2026-11-12` | archive | 用户侧快照分支；未审查内容，不得合并/删除 | user | 2026-11-12 | owner 决定；不删 |
+| `docs/maintenance` | docs | 用户侧文档维护分支；未审查内容 | user | 2026-11-12 | owner 决定；不删 |
+| `feat/webui-model-config` | feat | 用户侧 WebUI 模型配置分支；未审查内容 | user | 2026-11-12 | owner 决定；不删 |
+| `fix/favicon-brand` | fix | 用户侧 favicon/brand 分支；未审查内容 | user | 2026-11-12 | owner 决定；不删 |
+
 ## 已退役（删除前登记）
 
 | 分支 | SHA | 退役日期 | 原因 |
