@@ -2,6 +2,13 @@
 
 ## 下一版本（Unreleased）
 
+### 1.5.2（2026-11-12）
+- **性质**：exact owner-review GitHub assets 构建（ADR-0033）；npm 仍为 1.5.1；不是 1.6.0 稳定声明。
+- **上游基线**：OMP `v18.19.0`（tag `04cd1a7549a02d62ad1d24826198d52507595683`，merge `f2ad635e0142bf9c64b8fe8253683da4430698a7`，基于 `ddb44711b5d`）。
+- **发布范围**：17 个 VERIFIED REQ + 5 个 Accepted ADR（0005/0008/0033/0034/0035）；这是资产验收范围，不等于对全部历史 REQ 的重新验证。新增/修复/移除条目见下方各未发布小节。
+- **安全相关**：2FA step-up 单次验证修复；IM 密钥掩码/写入语义与 ADR-0030 权限边界。
+- **未发布/暂挂**：Android、桌面新开发、音频、Work Studio 多终端管理页（ADR-0034）；QQ/WeCom（ADR-0035）；不列入 1.5.2 资产。未验证的 E2E/held 项不作为资产验收证据。
+
 ### 发布勘误（未发布）
 - **已发布的 1.5.1 段落不可改写**：`### 1.5.1` 及其条目保持原样（包括 #297 的 logo 归属），不回填、不搬迁历史；勘误只写在本 Unreleased 段落。
 - **以下变更合并在 1.5.1 tag 之后，并未随 1.5.1 发布**：#304（Studio capability matrix）、#307（desktop window controls）、#318（Electron 45）、#319（html-report 技能）、#320（release freeze）、#321（model visibility）。它们只在后续内部构建/1.6.0 中生效；1.5.2 只在 exact owner-review override 下发布 GitHub assets，npm 仍为 1.5.1；1.5.3–1.5.10 仍是 code-only 内部 tag，不发布资产或 npm 包；1.6.0 仍需 owner 明确批准后才公开发布。

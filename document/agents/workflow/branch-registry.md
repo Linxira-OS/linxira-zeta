@@ -166,12 +166,13 @@
 | `sync/omp-release/v18.18.3` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
 | `sync/omp-release/v18.19.0` | sync | OMP v18.19.0 真 merge（`f2ad635e014`），基于 `ddb44711b5d`；worktree `temp/omp-v18.19.0-sync` | agent | 2026-11-12 | 门禁与 CI 绿后合入 `main` 再删（删前记 SHA） |
 | `docs/qq-wecom-pause` | docs | 用户要求的 QQ/WeCom 暂停文档；worktree `temp/active-surface-completion` 之外，保留原分支 | user | 2026-11-12 | 合入 sync 后由 owner 决定；不删 |
+| `release/1.5.2-prep` | release | 1.5.2 资产验收准备：`release-scope.json` 17 REQ/5 ADR + 12 approved deferrals、ledger 1.5.2 证据、14 CHANGELOG Unreleased 与 UPDATE-LOG 1.5.2；worktree `temp/release-152-prep` | agent | 2026-11-12 | 1.5.2 资产验收合并后删（删前记 SHA） |
 | `vendor/termide-0.49.0` | vendor | TermIDE 0.49.0 vendor 分支；保留原分支 | user | 2026-11-12 | owner 决定；不删 |
 | `archive/web-ui-zetawork-gui-2026-11-12` | archive | 用户侧快照分支；未审查内容，不得合并/删除 | user | 2026-11-12 | owner 决定；不删 |
 | `docs/maintenance` | docs | 用户侧文档维护分支；未审查内容 | user | 2026-11-12 | owner 决定；不删 |
 | `feat/webui-model-config` | feat | 用户侧 WebUI 模型配置分支；未审查内容 | user | 2026-11-12 | owner 决定；不删 |
 | `fix/favicon-brand` | fix | Work Studio 浏览器标签图标对齐官方 `zeta-mark`：`web-app/index.html` 的 tab 链接改为 SVG/PNG32/ICO/apple-touch，并带 `?v=` 内容哈希缓存失效；`web-app/public/favicon.ico` 与 `assets/favicon.ico` 同字节，新增 `zeta-mark-32.png`；`icon.png` 本已与 `assets/icon-512.png` 同字节。worktree `temp/favicon-brand` | agent | 2026-11-12 | 合入 `main` 后删（删前记 SHA） |
-| `release/1.5.2-prep` | release | 用户侧 1.5.2 资产验收准备分支；未审查内容 | user | 2026-11-12 | owner 决定；不删 |
+
 
 | `vendor/termide-0.49.0` | vendor | TermIDE `0.49.0` vendor bump（annotated tag `0.49.0` = `4cc014fb…`，commit `057eb55e…`；base `ddb44711b5d`）；三向重放与测试记录见 `termide/VENDOR.md`；worktree `temp/termide-0.49.0-sync` | agent | 2026-11-12 | 合入 `main` 后删（删前记 SHA） |
 

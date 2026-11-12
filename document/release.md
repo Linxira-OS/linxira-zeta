@@ -69,8 +69,12 @@ and the npm publisher all consult it.
   `ZETA_RELEASE_OVERRIDE_VERSION=1.5.2` and a non-empty audit reason. The same
   override keeps `publishAllowed=false`; npm stays on 1.5.1. Without the
   override, 1.5.2 remains code-only. This exception does not unlock 1.5.3–1.5.10,
-  does not rewrite 1.5.1, and does not lower the 1.6.0 stable gate. Legacy
-  `web-ui` archive/migration status is tracked in
+  does not rewrite 1.5.1, and does not lower the 1.6.0 stable gate.
+- **1.5.2 asset tag form.** The exact 1.5.2 asset-review release uses the same
+  lightweight `v1.5.2` tag form as the published `v1.5.0` / `v1.5.1` tags.
+  `release-v2.ts` selects that form from `channel=public`; the annotated tag
+  remains mandatory for code-only internal-build tags. The asset tag is never
+  rewritten or moved. Legacy `web-ui` archive/migration status is tracked in
   [`legacy-webui-migration.md`](./legacy-webui-migration.md); that is a pointer,
   not a 1.5.2 readiness claim (release readiness stays with the release worker).
 
