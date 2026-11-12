@@ -21,7 +21,7 @@
 - **Android Tier1 CLI**：Gradle 8.9 wrapper、`BUILD SUCCESSFUL` 39s、11 JUnit 0 fail、debug APK 已签名（sha256/证书见 `local://android-cli-build-evidence-20261112.md`）；package `com.zeta.android` min26/target35/compile35。未接 device/emulator，release 仍 unsigned/frozen。
 - **robomp Windows 离线 CLI**：懒加载 POSIX `fcntl`/`grp`、Windows queue-root guard；offline paths/replay/status 19/0、config 31/0、真实 triage/replay SQLite 通过；生产仍按 POSIX/Linux-root 边界，不声称 Windows 生产已验证。
 - **TermIDE walker**：`require_git(false)` 尊重 git root 外 ignore，Windows-only slash normalization；post-fix nextest walk 2/2、三 IDE crates 66/66（3 leaky 已记录），doctest RC0。后续 Esc/JSON/TODO/Git 实测见下条；旧“未打开/早于 fix”表述已由当前实测取代。
-- **TermIDE Esc preview/commit fix**：IdePage 为 transient preview 与 commit box 设置 `captures_escape`；`a189d4385b6` 后 panel-ide 52/52（3 leaky），GNU rebuild RC0 28.84s，doctest RC0 0 examples。实际 pyte 屏幕：JSON tree 值/Esc 退出/折叠、TODO scan/sample jump、独立 Git `[Diff]` hunk 通过；IDE 内部 lower Git pane 与 per-file history 未验，不宣称。
+- **TermIDE Esc preview/commit fix**：IdePage 为 transient preview 与 commit box 设置 `captures_escape`；`a189d4385b6` 后 panel-ide 52/52（3 leaky），GNU rebuild RC0 28.84s，doctest RC0 0 examples。实际 pyte 屏幕：JSON tree 值/Esc 退出/折叠、TODO scan/sample jump、独立 Git `[Diff]` hunk 通过；组件级 inline `OpenGitDiff{README.md}` smoke 通过（只显示 `README change`、不含 `SECOND change`，用后删除），`GitDiffPanel::new_for_commit_file` 真实单提交双文件 smoke 1/1（README hunk 在、第二文件不出现，用后删除）；永久 `panel-git-log` per-file filter 与 1200 commits scrolling 测试通过。完整 App IDE lower Git mouse focus/per-file history UI paging 未验，不宣称。
 
 ### 1.6.0 公开发布准入（2026-11-12）
 - 用户明确：只有全部计划内开发有逐项证据、用户在 1.5.x 亲测全部功能并确认稳定、手机全部开发且真实设备流程验收、SSH 真实目标功能完整、无未解决 known bug 后，才考虑 1.6.0；未验/held/blocked 不能算 100%。当前不授权 tag/bump/publish/PR/main-merge，1.5.1 冻结与 1.5.2–1.5.10 code-only 不变；owner exact-version override 仍是最后机械门，ADR-0006 不改。详见 `document/release.md` §1.6.0 readiness。
@@ -41,7 +41,7 @@
 - **Git 中心逐文件闭环**：History 在切换标签页/关闭标签页/点击标签页时重新指向当前文件（此前只在首次打开历史时设置过滤）；新增 `L` 键按需读取下一批（标题在仍有历史时显示 `L older`），已读行只追加不重建；`panel-git-log` 的 `d` 现在把文件过滤一起交给 diff；新增 `GitDiffPanel::new_for_commit_file`，app 事件按「提交 + 文件」优先匹配，不再退化成工作区 diff。IDE 内的 `OpenGitDiff` 改为在编辑区以预览面板内联渲染，`Esc` 回到文件。二进制 diff 显示 `binary file — no textual diff`，重命名沿用 `rename to` 的新路径，空结果画 `no changes to show`。
 - **JSON Viewer（只读）**：`panel-ide` 新增自包含 JSON 解析器，数字按源码文本保存（大数/指数不经过 `f64`），字符串保留原始转义；树可折叠、语法错误显示行/列，`c` 复制值、`p` 复制 JSON Pointer，绝不写回文件。`Ctrl+J` 打开当前文件。
 - **TODO Scanner**：复用 `termide-walk` 的 git-ignore walker 与 `termide-core::util::is_binary_file`，跳过二进制与超过 1 MiB 的文件，结果上限 2000，支持取消；`Enter` 通过 `OpenFileAt` 跳到真实编辑器行列。`Ctrl+D` 打开。
-- **未验证**：IDE 内部 lower Git pane 与 per-file history 的真实鼠标路径未验（winpty 鼠标焦点不可用、SGR button click inert）；不宣称。完整 App 手机 remote 2FA/native 设备配对与 SSH 真实目标仍待。
+- **未验证**：完整 App IDE lower Git pane 的鼠标焦点与 per-file history UI paging 未验（winpty 鼠标焦点不可用、SGR button click inert）；组件 inline smoke 与永久过滤/滚动测试已过，仍不宣称全 App E2E。完整 App 手机 remote 2FA/native 设备配对与 SSH 真实目标仍待。
 
 ### IM 运行时 UI（未发布）
 
