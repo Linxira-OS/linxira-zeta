@@ -2251,6 +2251,8 @@ export const en = {
 	cmdOpenSessionLocalFileInEditor: "Open a session local:// file in $EDITOR (picker when no name given)",
 	cmdOpenTheGitUiSplitDiffViewerStagingCommitComposer: "Open the git UI (split diff viewer, staging, commit composer)",
 	cmdOpenTheLiveAgentHub: "Open the live Agent Hub",
+	cmdOpenAgentHubDetailed: "Open the live Agent Hub (subagents, including finished ones)",
+	cmdContextAndContent: "Browse context usage and detailed content",
 	cmdOpenThisSessionsTraceInTheStatsDashboard: "Open this session's trace in the stats dashboard",
 	cmdRestoreTheBoundedHudPreview: "Restore the bounded HUD preview",
 	cmdRewindToAPreviousMessageKeepingTheOldPathAsABranch:

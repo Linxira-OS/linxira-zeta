@@ -2248,6 +2248,8 @@ export interface Messages {
 	cmdOpenSessionLocalFileInEditor: string;
 	cmdOpenTheGitUiSplitDiffViewerStagingCommitComposer: string;
 	cmdOpenTheLiveAgentHub: string;
+	cmdOpenAgentHubDetailed: string;
+	cmdContextAndContent: string;
 	cmdOpenThisSessionsTraceInTheStatsDashboard: string;
 	cmdRestoreTheBoundedHudPreview: string;
 	cmdRewindToAPreviousMessageKeepingTheOldPathAsABranch: string;

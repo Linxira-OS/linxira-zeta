@@ -128,6 +128,8 @@ export const zh = {
 		"\u5728 $EDITOR \u4e2d\u6253\u5f00\u4f1a\u8bdd local:// \u6587\u4ef6\uff08\u672a\u7ed9\u51fa\u540d\u79f0\u65f6\u5f39\u51fa\u9009\u62e9\u5668\uff09",
 	cmdOpenTheGitUiSplitDiffViewerStagingCommitComposer:
 		"\u6253\u5f00 Git \u754c\u9762\uff08\u5206\u680f diff\u3001\u6682\u5b58\u3001\u63d0\u4ea4\u7f16\u8f91\u5668\uff09",
+	cmdOpenAgentHubDetailed: "打开实时 Agent Hub（含已结束的子代理）",
+	cmdContextAndContent: "浏览上下文用量与详细内容",
 	cmdOpenTheLiveAgentHub: "打开实时 Agent Hub",
 	cmdRestoreTheBoundedHudPreview: "\u6062\u590d\u6709\u754c HUD \u9884\u89c8",
 	cmdRewindToAPreviousMessageKeepingTheOldPathAsABranch:
