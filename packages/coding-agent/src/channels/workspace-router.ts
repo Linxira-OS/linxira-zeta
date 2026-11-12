@@ -4,8 +4,8 @@
  *
  * | sub-command | action |
  * |---|---|
- * | `@workspace help` | print usage |
- * | `@workspace list` | list workspaces (alias + path) and this chat's binding |
+ * | `!workspace help` | print usage |
+ * | `!workspace list` | list workspaces (alias + path) and this chat's binding |
  * | `@workspace open <path> [alias]` | register an existing directory as a workspace |
  * | `@workspace create <path> [alias]` | mkdir -p the directory and register it |
  * | `@workspace close <alias>` | stop the workspace session and unregister it |
@@ -132,7 +132,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			const label = PLATFORM_LABEL[deps.channelId] ?? deps.channelId;
 			await deps.sendText(
 				`[${label}] Zeta bot is connected. ` +
-					(router ? "Type !help for the command list." : "Type @plan <task> to start."),
+					(router ? "Type !help for the command list." : "Type !plan <task> to start."),
 			);
 			return true;
 		}
@@ -189,7 +189,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 		if (title) {
 			await deps.planRequest(title);
 		} else {
-			await deps.sendText("Usage: @plan <task description>");
+			await deps.sendText("Usage: !plan <task description>");
 		}
 		return true;
 	}
@@ -223,7 +223,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			await deps.sendText(
 				[
 					"!hello                      — verify this bot is connected",
-					"!workspace commands (or @workspace):",
+					"!workspace commands (ASCII !; @workspace remains a legacy alias):",
 					"  list                        — workspaces + this chat's binding",
 					"  open <path> [alias]         — register a directory (alias defaults to folder name)",
 					"  create <path> [alias]       — mkdir -p + register",
@@ -235,9 +235,10 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 					"  unbind                      — remove this chat's binding",
 					"  bindings                    — list bindings for this platform",
 					"Agent / team routing:",
-					"  @agent list                 — agents visible here (local + other workspaces)",
-					"  @agent use <id>             — route this chat to an agent (no id clears it)",
-					"  @team <name>                — hand this chat to a team's host agent",
+					"  !agent list                 — agents visible here (local + other workspaces)",
+					"  !agent use <id>             — route this chat to an agent (no id clears it)",
+					"  !team <name>                — hand this chat to a team's host agent",
+					"  !plan <task>                — start a remote plan request",
 					"Shorthands: *<alias> (direct), *relay / *back / *main (relay)",
 				].join("\n"),
 			);
@@ -303,7 +304,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 				}
 			}
 			if (!dir) {
-				await deps.sendText(`Usage: @workspace ${cmd} <absolute-path> [alias]`);
+				await deps.sendText(`Usage: !workspace ${cmd} <absolute-path> [alias]`);
 				return true;
 			}
 			const resolved = resolvePath(dir);
@@ -328,7 +329,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 					}
 				} catch (error) {
 					if (isEnoent(error)) {
-						await deps.sendText(`Directory does not exist: ${resolved} (use @workspace create to make it)`);
+						await deps.sendText(`Directory does not exist: ${resolved} (use !workspace create to make it)`);
 					} else {
 						logger.error("Failed to stat workspace directory", { dir: resolved, error: String(error) });
 						await deps.sendText(`Failed to access: ${resolved}`);
@@ -352,7 +353,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			}
 			const name = parts[1];
 			if (!name) {
-				await deps.sendText("Usage: @workspace close <alias>");
+				await deps.sendText("Usage: !workspace close <alias>");
 				return true;
 			}
 			const result = await router.close(name);
@@ -372,7 +373,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			const oldName = parts[1];
 			const newName = parts[2];
 			if (!oldName || !newName) {
-				await deps.sendText("Usage: @workspace rename <old-alias> <new-alias>");
+				await deps.sendText("Usage: !workspace rename <old-alias> <new-alias>");
 				return true;
 			}
 			const result = await router.rename(oldName, newName);
@@ -417,7 +418,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 		case "use": {
 			const alias = parts[1];
 			if (!alias) {
-				await deps.sendText("Usage: @workspace use <alias>");
+				await deps.sendText("Usage: !workspace use <alias>");
 				return true;
 			}
 			await switchToWorkspace(deps, alias);
@@ -437,7 +438,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			}
 			const alias = parts[1];
 			if (!alias) {
-				await deps.sendText("Usage: @workspace bind <alias>");
+				await deps.sendText("Usage: !workspace bind <alias>");
 				return true;
 			}
 			await switchToWorkspace(deps, alias);
@@ -454,7 +455,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 				...(deps.userId ? { userId: deps.userId } : {}),
 			});
 			await deps.sendText(
-				"Remove this chat's binding and return to the default target? Reply @workspace confirm or @workspace cancel.",
+				"Remove this chat's binding and return to the default target? Reply !workspace confirm or !workspace cancel.",
 			);
 			return true;
 		}
@@ -489,7 +490,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 					"Workspace relay: type !workspace help for the full command list, or !hello to verify the connection.",
 				);
 			} else {
-				await deps.sendText(`Unknown @workspace command "${cmd}". Type @workspace help for usage.`);
+				await deps.sendText(`Unknown !workspace command "${cmd}". Type !workspace help for usage.`);
 			}
 			return true;
 	}
@@ -513,9 +514,9 @@ async function runAgentCommand(body: string, deps: WorkspaceRouterDeps): Promise
 		case "help":
 			await deps.sendText(
 				[
-					"@agent list              — agents visible here (local + registered workspaces)",
-					"@agent use <id>          — route this chat to that agent",
-					"@agent use               — clear the override (workspace binding resumes)",
+					"!agent list              — agents visible here (local + registered workspaces)",
+					"!agent use <id>          — route this chat to that agent",
+					"!agent use               — clear the override (workspace binding resumes)",
 					"Ids: <workspaceId>/<agentId>, a workspace alias, or a bare local id.",
 				].join("\n"),
 			);
@@ -544,13 +545,13 @@ async function runAgentCommand(body: string, deps: WorkspaceRouterDeps): Promise
 			}
 			await deps.sendText(
 				selector
-					? `Direct mode: this chat now talks to agent [${result.target}]. Send @agent use with no id to clear.`
+					? `Direct mode: this chat now talks to agent [${result.target}]. Send !agent use with no id to clear.`
 					: "Agent override cleared; routing falls back to this chat's workspace binding.",
 			);
 			return;
 		}
 		default:
-			await deps.sendText(`Unknown @agent command "${command}". Type @agent help for usage.`);
+			await deps.sendText(`Unknown !agent command "${command}". Type !agent help for usage.`);
 	}
 }
 
@@ -610,7 +611,7 @@ async function switchToWorkspace(deps: WorkspaceRouterDeps, alias: string): Prom
 		[
 			`Switch this chat from ${preview.current} to ${preview.next}?`,
 			"History and memory are not moved between targets.",
-			"Reply @workspace confirm to apply, or @workspace cancel to keep the current target.",
+			"Reply !workspace confirm to apply, or !workspace cancel to keep the current target.",
 		].join("\n"),
 	);
 }
@@ -629,7 +630,7 @@ async function useRelay(deps: WorkspaceRouterDeps): Promise<void> {
 		return;
 	}
 	await deps.sendText(
-		`Switch this chat from ${preview.current} to ${preview.next}? Reply @workspace confirm or @workspace cancel.`,
+		`Switch this chat from ${preview.current} to ${preview.next}? Reply !workspace confirm or !workspace cancel.`,
 	);
 }
 

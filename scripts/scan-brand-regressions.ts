@@ -21,7 +21,7 @@ const args = process.argv.slice(2);
 const baseIdx = args.indexOf("--base");
 const BASE = baseIdx !== -1 ? args[baseIdx + 1] : "main";
 
-const OMP_TOKEN = /(?<![A-Za-z0-9_])omp(?![A-Za-z0-9_])|~\/\.omp|@linxiraos|\.omp-plugin|omp\.sh/;
+const OMP_TOKEN = /(?<![A-Za-z0-9_])omp(?![A-Za-z0-9_])|~\/\.omp|@oh-my-pi|\.omp-plugin|omp\.sh/;
 const ZETA_TOKEN = /zeta|CLI_BIN_NAME|ZETA_|\.zeta/;
 
 // The trailing `--` is load-bearing: this repo also has a `main/` directory
@@ -56,8 +56,15 @@ for (const line of diff.split("\n")) {
 	}
 	if (line.startsWith("+")) {
 		const added = line.slice(1).trim();
-		if (OMP_TOKEN.test(added) && removedZeta)
-			hits.push({ file, added: removedZeta ? `+ ${added}\n     - ${removedZeta}` : added });
+		const reformatOnly = removedZeta !== null && added.replace(/\s+/g, " ") === removedZeta.replace(/\s+/g, " ");
+		const addedOmp = [...added.matchAll(new RegExp(OMP_TOKEN.source, "g"))].length;
+		const removedOmp = removedZeta === null ? 0 : [...removedZeta.matchAll(new RegExp(OMP_TOKEN.source, "g"))].length;
+		const addedZeta = [...added.matchAll(new RegExp(ZETA_TOKEN.source, "g"))].length;
+		const removedZetaCount =
+			removedZeta === null ? 0 : [...removedZeta.matchAll(new RegExp(ZETA_TOKEN.source, "g"))].length;
+		const lostZeta = removedZeta !== null && removedZetaCount > addedZeta;
+		if (addedOmp > removedOmp && lostZeta && !reformatOnly)
+			hits.push({ file, added: `+ ${added}\n     - ${removedZeta}` });
 		continue;
 	}
 	if (line.trim() === "") removedZeta = null;

@@ -59,16 +59,19 @@ and the npm publisher all consult it.
 | Version | Tag | npm publish | GitHub Release assets / installers / binaries |
 | --- | --- | --- | --- |
 | `1.5.1` | no (already public) | no | no |
-| `1.5.2`–`1.5.10` | **yes, annotated and code-only** | no | no |
+| `1.5.2` | only with exact owner-review override; default annotated code-only | no | only with the same exact `1.5.2` owner-review override (GitHub stable assets; npm remains 1.5.1) |
+| `1.5.3`–`1.5.10` | **yes, annotated and code-only** | no | no |
 | `1.5.11`+ / retired lines | no | no | no |
 | `1.6.0`+ | only with owner override | only with owner override | only with owner override |
 
-- **Internal build tags are code-only.** `scripts/release-v2.ts` creates an
-  annotated tag whose message carries `高速迭代 / 内部构建 / 不发布资产` and
-  states that no npm packages, installers, binaries, or GitHub Release assets
-  are produced. CI still builds, packages, and tests artifacts (Actions
-  artifacts only); the tag annotation is the release note. Public users stay on
-  **1.5.1** until the owner-approved 1.6.0 release.
+- **One 1.5.2 owner-review asset exception (ADR 0033).** The owner may upload
+  GitHub Release assets for exactly `1.5.2` only with matching
+  `ZETA_RELEASE_OVERRIDE_VERSION=1.5.2` and a non-empty audit reason. The same
+  override keeps `publishAllowed=false`; npm stays on 1.5.1. Without the
+  override, 1.5.2 remains code-only. This exception does not unlock 1.5.3–1.5.10,
+  does not rewrite 1.5.1, and does not lower the 1.6.0 stable gate.
+
+- **Internal build tags are code-only, with one explicit exception.** `release-v2.ts` creates a code-only annotated tag for normal 1.5.2–1.5.10 builds. The only exception is exact 1.5.2 with a matching owner-review override, which may upload the full GitHub asset set while npm remains 1.5.1; without that override 1.5.2 stays code-only. CI still builds/tests; no npm publish is authorized here.
 - **Default is fail-closed.** `release_metadata` evaluates the policy for the
   tag at HEAD and exposes `publish-allowed` / `assets-allowed` outputs. Every
   publish job (`release_npm`, `release_native_leaves`, editor/ide/web-ui/main/
@@ -86,9 +89,9 @@ and the npm publisher all consult it.
   `RELEASE_FREEZE_OVERRIDE_VERSION` / `RELEASE_FREEZE_OVERRIDE_REASON`; locally
   `scripts/release-v2.ts` reads `ZETA_RELEASE_OVERRIDE_VERSION` /
   `ZETA_RELEASE_OVERRIDE_REASON`. The override must name exactly the release
-  version, needs a reason, and applies to **1.6.0 and later only** — it can
-  never unlock a 1.5.x build. 1.6.0 is not published until the owner records
-  that approval.
+  version, needs a reason, and for asset uploads applies to the exact 1.5.2
+  owner-review exception or **1.6.0 and later**; it never unlocks npm for
+  1.5.x. 1.6.0 is not published until the owner records that approval.
 - **Guard test.** `scripts/release-freeze.test.ts` pins the version table and
   fails if any publish job loses its policy condition, if an override input
   stops defaulting to empty, or if a 1.5.x path becomes publishable. It runs in
@@ -96,9 +99,10 @@ and the npm publisher all consult it.
 
 ### 1.6.0 public-release readiness (owner-confirmed 2026-11-12)
 
-The 1.5.1 freeze and the `1.5.2`–`1.5.10` code-only line are unchanged; no
-tag, version bump, publish, PR, or merge to main is authorized now. A 1.6.0
-public release may be dispatched only after **all** of the following:
+The 1.5.1 npm line and the normal `1.5.3`–`1.5.10` code-only line remain
+unchanged; exact `1.5.2` is the asset-review exception above. No 1.6.0 tag,
+version bump, publish, PR, or main merge is authorized now. A 1.6.0 public
+release may be dispatched only after **all** of the following:
 
 1. Every planned development item is complete with per-item source and behavior
    evidence; `SCOPED`, held, blocked, or unverified work cannot be counted as

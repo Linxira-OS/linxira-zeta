@@ -53,7 +53,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "initzetateam",
-		description: "Initialize a complete Team with a plan, journal, rollback, and doctor check",
+		description: () => M.cmdInitZetaTeam,
 		icon: "agents",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -78,7 +78,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "teamworker",
-		description: "Start/stop the opt-in Team task worker for this engineer worktree session",
+		description: () => M.cmdTeamWorker,
 		icon: "agents",
 		allowArgs: true,
 		inlineHint: "[on|off|status] [normal|vibe]",

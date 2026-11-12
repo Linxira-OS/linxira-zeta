@@ -55,7 +55,6 @@
 | `perf/tui-subagent-load` | fix | 多子代理 fan-out 下 TUI 响应性：`task` 批次进度更新按 100 ms 合并（leading + trailing，终态立即 flush），消除每 spawn 每 150 ms 的全卡重建/深清洗；含合并正确性与 fan-out 预算测试。worktree `temp/tui-load-perf` | agent | 2026-11-10 | 合入 `main` 后删（删前记 SHA） |
 
 | `feat/team-core` | feat | Team path/DB foundation（第一纵切）：`.zeta/team.json` / `.zeta/pm.json` 解析与上行 resolver、单库 `~/.zeta/data/zeta.db`（teams/team_pms/repos/repo_bindings/engineers/worktrees）、`zetacode team` 的 init/pm/repo/engineer/worktree/doctor（真实 `git worktree add`）；无 UI/房间/graph。worktree `temp/team-core` | agent | 2026-11-09 | 合入 `main` 后删（删前记 SHA） |
-| `docs/jcode-citation-fix` | docs | 去掉评估文档与 roadmap 里对已删除的临时稀疏克隆路径的引用，改为公共仓库 URL + 固定 commit `e5bfa5b8…` 并声明克隆为一次性产物（已用 `bun scripts/safe-remove-tree.ts` 删除并核验无残留引用）；顺带在登记簿退役 `chore/retire-jcode-evaluation`；无代码、无行为改动。worktree `temp/jcode-cite` | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
 | `docs/execution-system` | docs | 需求台账 + 执行契约 + ADR 规范性规则：`document/requirements-ledger.md`（25 条 seeded REQ）、`document/agents/workflow/execution-contract.md`、`scripts/check-requirements-ledger.ts`、`check:adr`/`check:reqs` 接入 `bun check`、`document/release.md` 预打 tag 清单；无产品代码。worktree `temp/execution-system` | agent | 2026-11-11 | 合入 `main` 后删（删前记 SHA） |
 | `feat/report-completion` | feat | 报告完成列车集成分支；ledger delta + matrix/owner seams + ADR reservations；不 push/PR，本地小 lane 合入。worktree `temp/report-completion` | agent | 2026-11-11 | 全部小 lane 合入并独立验收后删（删前记 SHA） |
 | `feat/active-surface-completion` | feat | A core/Team：Team Hub headless/ACP/IM、`/lead` `/pm` headless、mobile Settings+security gating+单次 2FA verify、SSH probe、metadata、permanent mounted step-up browser regression、1.6.0 readiness gate；ADR-0031/0032。worktree `temp/active-surface-completion`；source commits `5c40b5c27ed` + `befef7c8df6` + `ffab8dcb8ab` + `31e8955f933`；merges `52b7c0c08ab` + `bdcd7026b05` | agent | 2026-11-12 | 合入 `feat/report-completion` 并独立验收后删（删前记 SHA；保留 evidence） |
@@ -75,6 +74,91 @@
 | `feat/report-learning` | feat | Context learning window extraction：REQ-056；与 compaction service hook 协调。worktree `temp/report-learning` | agent | 2026-11-11 | 合入集成分支后删 |
 | `feat/report-mcp` | feat | Embedded MCP recognition：REQ-053；SDK/manager 只交 tool-scope hook，不 race 工具白名单。worktree `temp/report-mcp` | agent | 2026-11-11 | 合入集成分支后删 |
 | `feat/report-memory` | feat | Memory H3：REQ-061–REQ-065；large-session-perf 试发，dead 由父 recover；REQ-066 仍 desktop owner。worktree `temp/report-memory` | agent | 2026-11-11 | 合入集成分支后删 |
+
+| `chore/release-freeze` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `chore/remove-paused-zetawork` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `chore/report-gov` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-12 | Preserve; owner review |
+| `docs/adr-records` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `docs/agent-modes` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `docs/agent-team-peer-messaging` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
+| `docs/channel-metadata` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `docs/im-session-status` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `feat/adr-prd-skills` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `feat/cd-directory-picker` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `feat/default-logo-avatar` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `feat/dev-isolation` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `feat/device-2fa` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `feat/im-adapters` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `feat/im-onboarding-ui` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `feat/logo-04-cluster` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `feat/model-visibility` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `feat/official-html-report-skill` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `feat/omp-cleanup` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-07 | Preserve; owner review |
+| `feat/package-linkage` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `feat/pm-skill-control` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `feat/report-android` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-12 | Preserve; owner review |
+| `feat/report-compaction` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-12 | Preserve; owner review |
+| `feat/report-desktop` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-12 | Preserve; owner review |
+| `feat/report-plugins` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-12 | Preserve; owner review |
+| `feat/report-provenance` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-12 | Preserve; owner review |
+| `feat/report-rooms` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-12 | Preserve; owner review |
+| `feat/report-team-studio` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-12 | Preserve; owner review |
+| `feat/report-tracking` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `feat/report-voice` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-12 | Preserve; owner review |
+| `feat/resume-visibility` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `feat/retire-collab` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-07 | Preserve; owner review |
+| `feat/studio-capability-matrix` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `feat/studio-im-settings` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `feat/studio-terminal` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `feat/team-graph` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `feat/team-graph-producer` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `feat/team-hub` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `feat/team-lead` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `feat/team-origin` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `feat/team-rooms` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `feat/team-secretary` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `feat/team-vibe-hardening` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `feat/tern-cleanup` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-07 | Preserve; owner review |
+| `fix/acp-identity` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `fix/channels-project-routing` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `fix/channels-security` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
+| `fix/cli-docs` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `fix/cli-help-inventory` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `fix/desktop-sharp` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
+| `fix/desktop-shell` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
+| `fix/desktop-size-audit` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `fix/desktop-titlebar` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
+| `fix/desktop-window-controls` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `fix/export-viewer-metadata` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-07 | Preserve; owner review |
+| `fix/im-adapters-ci` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `fix/im-session-origin` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `fix/omp-residue` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
+| `fix/omp-ui-residue` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `fix/package-linkage-151` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `fix/plugin-chain-naming` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `fix/plugin-cutover-proof` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `fix/release-1.4.13-leaves` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `fix/release-notes-desktop-browser` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `fix/report-im-config` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-12 | Preserve; owner review |
+| `fix/report-im-fixtures` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `fix/report-models` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-12 | Preserve; owner review |
+| `fix/resume-project-separator` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `fix/runtime-diagnostics` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `fix/server-auth` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
+| `fix/session-path-binding` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `fix/stats-i18n` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `fix/studio-fake-surfaces` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
+| `fix/studio-host-ops` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
+| `fix/studio-rpc` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
+| `fix/ui-naming` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
+| `perf/large-session-load` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `perf/mermaid-lazy-chunk` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `perf/plugin-roots-resolution-cache` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `perf/startup-latency` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `rescue/root-20261110` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
+| `sync/omp-release/v18.18.0` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-08 | Preserve; owner review |
+| `sync/omp-release/v18.18.1-2` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
+| `sync/omp-release/v18.18.3` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
 
 ## 已退役（删除前登记）
 
@@ -121,6 +205,8 @@
 | `fix/browser-relay-hello-race` | `c1f6c6c6a79789ed99e37c42b14f3648e00fe624` | 2026-11-12 | 已合入 `main@381acebe` 与 `feat/report-completion@d0ef54a5c694`（ancestor 验证）；worktree `temp/fix-browser-relay` 已删除（git worktree remove RC0；branch -d was c1f6c6c6a79；0 links）；no-follow logical 580,886,416 B；clean（无 tracked/untracked 改动） |
 | `feat/ci-buckets` | `06671d0b78607b87e17aeb7df8c44d19448f47d8` | 2026-11-12 | 已合入 `main@381acebe` 与 `feat/report-completion@d0ef54a5c694`（ancestor 验证）；worktree `temp/ci-buckets` 已删除（safe-remove-tree 先删 18 links + 3435 dirs + 40017 files；worktree remove RC0；branch -d was 06671d0b786）；no-follow logical 2,663,773,956 B；仅 known-regenerable ignored（node_modules/export-assets/viewer/native node） |
 | `feat/device-account-ux` | `509e4390233b06f3ae861feec39891fe7469fdc7` | 2026-11-12 | 已合入 `main@381acebe` 与 `feat/report-completion@d0ef54a5c694`（ancestor 验证）；worktree `temp/device-account-ux` 已删除（safe-remove-tree 先删 18 links + 2120 dirs + 29314 files；worktree remove RC0；branch -d was 509e4390233）；no-follow logical 1,871,833,836 B；仅 known-regenerable ignored |
+
+| `docs/jcode-citation-fix` | `e5bfa5b8…` (last-known abbreviated original pointer) | 2026-11-12 | Original row cited public URL/commit and a cleanup/worktree removal; this metadata-only pass observed the branch absent from local refs and did not delete any branch/worktree. Row moved to retired without inventing a full SHA |
 
 ## 定期动作
 

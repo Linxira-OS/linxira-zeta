@@ -1912,10 +1912,6 @@ export interface Messages {
 	cmdSettingsReset: string;
 	cmdChannels: string;
 	cmdChannelsStatus: string;
-	cmdChannelsLogin: string;
-	cmdChannelsEnable: string;
-	cmdChannelsDisable: string;
-	cmdChannelsLogout: string;
 	settingsResetConfirmHint: string;
 	settingsResetDoneFmt: string;
 	settingsResetKeyDoneFmt: string;
@@ -2100,6 +2096,8 @@ export interface Messages {
 	cmdAgents: string;
 	cmdTeam: string;
 	cmdTeamHub: string;
+	cmdInitZetaTeam: string;
+	cmdTeamWorker: string;
 	teamHubUsage: string;
 	cmdFork: string;
 	cmdForkPane: string;

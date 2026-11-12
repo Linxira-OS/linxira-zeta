@@ -1893,8 +1893,7 @@ jobs:
          needs.release_metadata.outputs.assets-allowed == 'true' &&
          needs.release_gate.result == 'success' &&
          needs.release_binary.result == 'success' &&
-         needs.release_product_binaries.result == 'success' &&
-         !inputs.skip_npm }}
+         needs.release_product_binaries.result == 'success' }}
       # zetawork is paused (2026-11-05 ruling): this job now uploads only what
       # the release builds — CLI binaries, zetaide, the relay extension, the
       # example-plugin zip and the root texts. The TUI and the desktop archives

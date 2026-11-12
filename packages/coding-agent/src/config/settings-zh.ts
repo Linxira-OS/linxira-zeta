@@ -998,6 +998,16 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"实验性：将大型历史工具结果渲染为密集 PNG 图像而非文本（仅限视觉模型）。在累积的 read/search 输出上节省 token。",
 	},
+	"tools.profile": {
+		label: "工具配置档",
+		description:
+			"当前智能体可用的内置工具范围。超精简：read/write/edit/bash（4）；精简增加 web_search（5）；标准增加 glob/grep/find/task/wait/todo/ask（12）；完整开放所有已启用工具。",
+	},
+	"tools.disabled": {
+		label: "停用工具",
+		description:
+			'永不注册的工具名，例如 ["bash","plugin_manager"]。适用于内置、扩展/自定义/MCP 工具；被拒绝的工具不会出现在 schema 与 xd:// 目录中。',
+	},
 	"tools.format": {
 		label: "工具调用模式",
 		description:
