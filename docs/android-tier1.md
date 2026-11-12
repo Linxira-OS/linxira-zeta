@@ -1,6 +1,6 @@
 # Android Tier 1 client
 
-Status: **source implemented, not built, not device-verified**. No APK/AAB is produced by this change. Local Android build and device acceptance are `OWNER-WAIT` until the owner confirms the Android SDK/tooling environment. Public release remains frozen.
+Status: **source compiled; CLI `testDebugUnitTest` and `assembleDebug` verified on Windows**. A debug APK was produced locally for verification (not committed/released). No device/emulator install or instrumentation was run. Release remains unsigned/frozen.
 
 ## Scope
 
