@@ -55,7 +55,12 @@ export type NixBunDepsGenerator =
 
 /** Resolve the generator needed by releases before they mutate repository state. */
 export function resolveNixBunDepsGenerator(findExecutable: FindExecutable = $which): NixBunDepsGenerator {
-	const localBun2nix = path.join(repoRoot, "node_modules", ".bin", process.platform === "win32" ? "bun2nix.exe" : "bun2nix");
+	const localBun2nix = path.join(
+		repoRoot,
+		"node_modules",
+		".bin",
+		process.platform === "win32" ? "bun2nix.exe" : "bun2nix",
+	);
 	if (existsSync(localBun2nix)) return { kind: "bun2nix", executable: localBun2nix };
 	const bun2nix = findExecutable("bun2nix");
 	if (bun2nix) return { kind: "bun2nix", executable: bun2nix };
