@@ -395,9 +395,9 @@ export function selectedLines(selection: ReadSelection): [number, number][] | nu
 	return selection.ranges.length === 0 && selection.tail === null ? null : selection.ranges;
 }
 
-/** A path as written, resolved against the session's working directory (URLs and absolute paths kept). */
+/** A path as written, resolved and normalized against the session's working directory (URLs kept). */
 export function resolveReadPath(target: string, cwd: string | null): string {
-	if (URL_SCHEME.test(target) || !cwd || path.isAbsolute(target)) return target;
+	if (URL_SCHEME.test(target) || !cwd) return target;
 	return path.resolve(cwd, target);
 }
 
