@@ -259,6 +259,7 @@ interface Finding {
 const dropped: Finding[] = [];
 const explained: Finding[] = [];
 const zetaRemoved: Finding[] = [];
+const migrated: Array<{ file: string; member: string; to: string }> = [];
 
 /**
  * Deliberate Zeta removals that upstream still ships.
@@ -292,6 +293,23 @@ const ZETA_REMOVALS: Record<string, readonly string[] | "*"> = {
 	"packages/coding-agent/src/config.ts": ["export discoverAppendSystemPromptPath"],
 };
 
+/**
+ * Completed old-name -> upstream-v18.19.0 boundary migrations.
+ *
+ * Only add an entry after the Zeta call sites are actually moved and TS plus the
+ * group's narrow behaviour test pass; an unmigrated member stays `dropped`.
+ * This is a reviewed mapping, not a blanket allowlist.
+ */
+const MIGRATED: Record<string, Record<string, string>> = {
+	"packages/coding-agent/src/goals/continuation-controller.ts": {
+		"export GOAL_CONTINUATION_MODE_INTERACTIVE": "RpcGoalController continuation mode/options",
+		"export GoalContinuationCommand": "RpcGoalCommand / RpcGoalOp",
+		"export GoalContinuationController": "RpcGoalController",
+		"export GoalContinuationControllerOptions": "RpcGoalController constructor options",
+		error: "RpcGoalController onContinuationDropped callback",
+	},
+};
+
 /** Whether `member` (or the whole file) is a documented Zeta removal. */
 function isZetaRemoval(file: string, member: string): boolean {
 	const listed = ZETA_REMOVALS[file];
@@ -311,7 +329,9 @@ function classify(file: string, gone: string[]): void {
 	const removedUpstream: string[] = [];
 	const deliberate: string[] = [];
 	for (const member of gone) {
-		if (isZetaRemoval(file, member)) deliberate.push(member);
+		const mapped = MIGRATED[file]?.[member];
+		if (mapped) migrated.push({ file, member, to: mapped });
+		else if (isZetaRemoval(file, member)) deliberate.push(member);
 		else if (tagMembers?.has(member)) lost.push(member);
 		else if (prevMembers?.has(member)) removedUpstream.push(member);
 		else lost.push(member); // no upstream side ever had it: it is Zeta's own
@@ -338,6 +358,7 @@ for (const [file, oldMembers] of before) {
 const total = dropped.reduce((n, d) => n + d.members.length, 0);
 const explainedTotal = explained.reduce((n, d) => n + d.members.length, 0);
 const zetaRemovedTotal = zetaRemoved.reduce((n, d) => n + d.members.length, 0);
+const migratedTotal = migrated.length;
 const compared = [...before.values()].reduce((n, s) => n + s.size, 0);
 dropped.sort((a, b) => a.file.localeCompare(b.file));
 explained.sort((a, b) => a.file.localeCompare(b.file));
@@ -355,7 +376,9 @@ if (JSON_OUT) {
 				total,
 				explainedTotal,
 				zetaRemovedTotal,
+				migratedTotal,
 				compared,
+				migrated,
 				dropped,
 				explained,
 				zetaRemoved,
@@ -382,6 +405,10 @@ if (JSON_OUT) {
 		}
 	} else if (TAG) {
 		console.log(`0 members explained by ${TAG} (nothing was reported and absent from it)`);
+	}
+	if (migrated.length > 0) {
+		console.log(`${migratedTotal} member(s) migrated to an upstream boundary (reviewed MIGRATED map)`);
+		for (const m of migrated) console.log(`  -> ${m.file}: ${m.member} -> ${m.to}`);
 	}
 	if (zetaRemoved.length > 0) {
 		console.log(
