@@ -69,7 +69,10 @@ and the npm publisher all consult it.
   `ZETA_RELEASE_OVERRIDE_VERSION=1.5.2` and a non-empty audit reason. The same
   override keeps `publishAllowed=false`; npm stays on 1.5.1. Without the
   override, 1.5.2 remains code-only. This exception does not unlock 1.5.3–1.5.10,
-  does not rewrite 1.5.1, and does not lower the 1.6.0 stable gate.
+  does not rewrite 1.5.1, and does not lower the 1.6.0 stable gate. Legacy
+  `web-ui` archive/migration status is tracked in
+  [`legacy-webui-migration.md`](./legacy-webui-migration.md); that is a pointer,
+  not a 1.5.2 readiness claim (release readiness stays with the release worker).
 
 - **Internal build tags are code-only, with one explicit exception.** `release-v2.ts` creates a code-only annotated tag for normal 1.5.2–1.5.10 builds. The only exception is exact 1.5.2 with a matching owner-review override, which may upload the full GitHub asset set while npm remains 1.5.1; without that override 1.5.2 stays code-only. CI still builds/tests; no npm publish is authorized here.
 - **Default is fail-closed.** `release_metadata` evaluates the policy for the
