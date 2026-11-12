@@ -14,7 +14,7 @@ Route a problem by where it reproduces. The full protocol is
 | Area | Where to report |
 | --- | --- |
 | OMP runtime, tools, models, or TUI; upstream bot updates | <https://github.com/can1357/oh-my-pi/issues> |
-| OMP Studio renderer or host-contract defect that reproduces without the Zeta fork | <https://github.com/the-snowpear/omp-studio/issues> |
+| Renderer or host-contract defect that reproduces without the Zeta fork | Follow the ownership route in [`document/maintenance-ownership.md`](document/maintenance-ownership.md) |
 | TermIDE terminal/editor/LSP/DAP | <https://github.com/termide/termide/issues> |
 | Zeta-owned behavior: Work Studio, server/Studio host, IM, CLI/TUI product behavior, `zetaide` deviations, `desktop/`, `android/`, plugins, docs | This repository's issue tracker |
 | Security vulnerability | Private advisory via [`SECURITY.md`](.github/SECURITY.md), never a public issue or pull request |
