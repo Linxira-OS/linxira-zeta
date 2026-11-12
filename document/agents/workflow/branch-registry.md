@@ -171,6 +171,8 @@
 | `feat/webui-model-config` | feat | 用户侧 WebUI 模型配置分支；未审查内容 | user | 2026-11-12 | owner 决定；不删 |
 | `fix/favicon-brand` | fix | 用户侧 favicon/brand 分支；未审查内容 | user | 2026-11-12 | owner 决定；不删 |
 
+| `release/1.5.2-prep` | release | 用户侧 1.5.2 资产验收准备分支；未审查内容 | user | 2026-11-12 | owner 决定；不删 |
+
 ## 已退役（删除前登记）
 
 | 分支 | SHA | 退役日期 | 原因 |
