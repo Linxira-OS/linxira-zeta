@@ -60,7 +60,7 @@ const BUNDLED_PACKAGES: readonly BundledPackage[] = [
 ];
 
 const TYPEBOX_MODULE_KEY = "typebox";
-const TYPEBOX_COMPAT_MODULE = "legacy-typebox.ts";
+const TYPEBOX_CZetaAT_MODULE = "legacy-typebox.ts";
 const MAIN_THREAD_UNSAFE_WILDCARD_BASENAMES = new Set(["worker-entry"]);
 
 /** One namespace module the binary must retain for legacy extension imports. */
@@ -257,7 +257,7 @@ export async function collectBundledPiEntries(layout: LegacyPiLayout = DEFAULT_L
 		}
 	}
 
-	addEntry(TYPEBOX_MODULE_KEY, "bundledTypeBoxShim", shimSpecifier(TYPEBOX_COMPAT_MODULE, layout));
+	addEntry(TYPEBOX_MODULE_KEY, "bundledTypeBoxShim", shimSpecifier(TYPEBOX_CZetaAT_MODULE, layout));
 	return entries;
 }
 

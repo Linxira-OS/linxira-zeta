@@ -32,7 +32,7 @@ edition = "2024"
 rust-version = "1.101"
 license = "MIT"
 authors = ["Stencil Labs, Inc."]
-homepage = "https://omp.sh/"
+homepage = "https://linxira-os.github.io"
 repository = "https://github.com/can1357/oh-my-pi"
 
 [patch.crates-io]

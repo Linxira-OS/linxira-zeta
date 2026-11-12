@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "omp",
+      "name": "zeta",
       "devDependencies": {
         "@types/bun": "catalog:",
         "bun2nix": "2.1.2",

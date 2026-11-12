@@ -10,7 +10,7 @@ import { ensureThemeSync, getMarkdownTheme, theme } from "../theme";
 import {
 	attachmentSgr,
 	collapseImageMarkers,
-	COMPOSER_TOKEN_REGEX,
+	CZetaOSER_TOKEN_REGEX,
 	composerTokenRegex,
 	modelChipStyle,
 	modelMentionChipLabel,
@@ -81,7 +81,7 @@ export interface UserBubbleOptions {
  */
 export function userBubbleColor(
 	options: UserBubbleOptions = {},
-	tokenRegex: RegExp = COMPOSER_TOKEN_REGEX,
+	tokenRegex: RegExp = CZetaOSER_TOKEN_REGEX,
 ): (value: string) => string {
 	const { imageLinks, synthetic = false, skillPath } = options;
 	// The Markdown component routes code spans and fenced blocks through its own code styling

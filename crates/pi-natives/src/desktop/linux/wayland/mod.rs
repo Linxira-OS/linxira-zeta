@@ -559,7 +559,7 @@ mod tests {
 	}
 
 	fn with_fake_libei(action: impl FnOnce(&mut WaylandBackend)) -> bool {
-		let socket = std::env::temp_dir().join(format!("omp-libei-test-{}", std::process::id()));
+		let socket = std::env::temp_dir().join(format!("zeta-libei-test-{}", std::process::id()));
 		let _env = LibeiSocket::set(Some(socket.as_os_str()));
 		let _ = std::fs::remove_file(&socket);
 		let listener = UnixListener::bind(&socket).expect("bind fake libei socket");
