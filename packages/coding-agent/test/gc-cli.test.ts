@@ -6,8 +6,8 @@ import * as path from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { withStatsSyncLock } from "@linxiraos/pi-stats/aggregator";
 import {
-	GC_AUTO_CZetaRESS_INTERVAL_MS,
-	GC_AUTO_CZetaRESS_LOG,
+	GC_AUTO_COMPRESS_INTERVAL_MS,
+	GC_AUTO_COMPRESS_LOG,
 	scheduleGcAutoCompress,
 } from "@linxiraos/zeta/cli/gc-auto-compress";
 import { type GcResult, runGcCommand } from "@linxiraos/zeta/cli/gc-cli";
@@ -2816,7 +2816,7 @@ describe("runGcCommand session compression", () => {
 		"the background run compresses idle sessions, then waits a day before running again",
 		async () => {
 			const { file, artifact } = await writeIdleSession(Bun.randomUUIDv7());
-			const logPath = path.join(root, GC_AUTO_CZetaRESS_LOG);
+			const logPath = path.join(root, GC_AUTO_COMPRESS_LOG);
 
 			const child = await scheduleGcAutoCompress(root);
 			expect(await child?.exited).toBe(0);
@@ -2828,7 +2828,7 @@ describe("runGcCommand session compression", () => {
 
 			expect(await scheduleGcAutoCompress(root)).toBeUndefined();
 
-			const lastRun = (Date.now() - GC_AUTO_CZetaRESS_INTERVAL_MS - 60_000) / 1000;
+			const lastRun = (Date.now() - GC_AUTO_COMPRESS_INTERVAL_MS - 60_000) / 1000;
 			await fs.utimes(logPath, lastRun, lastRun);
 			const next = await scheduleGcAutoCompress(root);
 			expect(await next?.exited).toBe(0);
@@ -2841,8 +2841,8 @@ describe("runGcCommand session compression", () => {
 		"simultaneous launches start one background run and keep its summary",
 		async () => {
 			await writeIdleSession(Bun.randomUUIDv7());
-			const logPath = path.join(root, GC_AUTO_CZetaRESS_LOG);
-			const lastRun = (Date.now() - GC_AUTO_CZetaRESS_INTERVAL_MS - 60_000) / 1000;
+			const logPath = path.join(root, GC_AUTO_COMPRESS_LOG);
+			const lastRun = (Date.now() - GC_AUTO_COMPRESS_INTERVAL_MS - 60_000) / 1000;
 			await Bun.write(logPath, "previous run\n");
 			await fs.utimes(logPath, lastRun, lastRun);
 
@@ -2903,7 +2903,7 @@ describe("runGcCommand session compression", () => {
 		const before = await snapshot(file);
 
 		expect(await scheduleGcAutoCompress(root)).toBeUndefined();
-		expect(await Bun.file(path.join(root, GC_AUTO_CZetaRESS_LOG)).text()).toContain("compress skipped: unsupported");
+		expect(await Bun.file(path.join(root, GC_AUTO_COMPRESS_LOG)).text()).toContain("compress skipped: unsupported");
 		expect(await snapshot(file)).toEqual(before);
 	});
 });

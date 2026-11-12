@@ -186,7 +186,7 @@ Request bodies of 1 KiB or more are compressed when sent to a provider's own end
 
 | Variable                 | Behavior                                                                          |
 | ------------------------ | --------------------------------------------------------------------------------- |
-| `PI_REQUEST_CZetaRESSION` | `0`/`false`/`no`/`off` sends every request body uncompressed (enabled by default) |
+| `PI_REQUEST_COMPRESSION` | `0`/`false`/`no`/`off` sends every request body uncompressed (enabled by default) |
 
 ### Anthropic API version
 

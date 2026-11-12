@@ -33,7 +33,7 @@ import { cfgBashDirenvLoadTimeoutMs, cfgShellPath } from "@linxiraos/zeta/exec/s
 // Matches the schema default for `tools.artifactHeadBytes` (20 KB) used by
 // OutputSink when bash-executor pulls settings via resolveOutputSinkHeadBytes.
 const ARTIFACT_HEAD_BYTES_DEFAULT = 20 * 1024;
-const BACKGROUND_CZetaLETION_RACE_MS = 750;
+const BACKGROUND_COMPLETION_RACE_MS = 750;
 // Killed-vs-orphaned proof: the command's marker write is gated on a `release`
 // file the test creates only AFTER the cancel has landed. A truly killed process
 // never reaches the write; an orphan still polling reacts within one poll
@@ -1476,7 +1476,7 @@ exit 64
 		});
 		const timed = await Promise.race([
 			runPromise.then(result => ({ type: "result" as const, result })),
-			Bun.sleep(BACKGROUND_CZetaLETION_RACE_MS).then(() => ({ type: "timeout" as const })),
+			Bun.sleep(BACKGROUND_COMPLETION_RACE_MS).then(() => ({ type: "timeout" as const })),
 		]);
 
 		expect(timed.type).toBe("result");
