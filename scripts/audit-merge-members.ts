@@ -308,6 +308,12 @@ const MIGRATED: Record<string, Record<string, string>> = {
 		"export GoalContinuationControllerOptions": "RpcGoalController constructor options",
 		error: "RpcGoalController onContinuationDropped callback",
 	},
+	"packages/coding-agent/src/irc/bus.ts": {
+		"#bumpMailboxRevision": "#bumpMailboxGeneration",
+		"#mailboxRevision": "#mailboxGeneration",
+		onMailboxChange: "IrcBusApi.onMailboxChange",
+		unsubscribeLiveness: "onMailboxChange unsubscribe",
+	},
 };
 
 /** Whether `member` (or the whole file) is a documented Zeta removal. */
