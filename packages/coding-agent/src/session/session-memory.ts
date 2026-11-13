@@ -364,7 +364,7 @@ export class SessionMemory {
 						modelRegistry: this.#host.modelRegistry,
 						agentDir: this.#memoryAgentDir,
 						namespace:
-							session.sessionManager.getMemoryNamespace() ??
+							session.sessionManager?.getMemoryNamespace?.() ??
 							canonicalMemoryNamespace(session.sessionManager.getCwd()),
 						taskDepth: this.#memoryTaskDepth,
 					});

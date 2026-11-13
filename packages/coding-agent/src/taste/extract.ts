@@ -169,8 +169,8 @@ async function runTasteExtraction(
 		{
 			cwd: session.sessionManager.getCwd(),
 			agentId: session.getAgentId(),
-			...(session.sessionManager.getMemoryNamespace()
-				? { namespace: session.sessionManager.getMemoryNamespace() }
+			...(session.sessionManager?.getMemoryNamespace?.()
+				? { namespace: session.sessionManager?.getMemoryNamespace?.() }
 				: {}),
 		},
 		settings,

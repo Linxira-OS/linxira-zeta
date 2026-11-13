@@ -38,7 +38,7 @@ export const localBackend: MemoryBackend = {
 			context.agentDir,
 			context.cwd,
 			input,
-			context.session?.sessionManager.getMemoryNamespace(),
+			context.session?.sessionManager?.getMemoryNamespace?.(),
 		);
 	},
 	async status() {

@@ -271,7 +271,7 @@ export function encodeMemoryNamespace(namespace: string): string {
 }
 
 function sessionMemoryRoot(agentDir: string, cwd: string, session?: MemoryInstructionSession): string {
-	return getMemoryRoot(agentDir, cwd, session?.sessionManager.getMemoryNamespace?.());
+	return getMemoryRoot(agentDir, cwd, session?.sessionManager?.getMemoryNamespace?.());
 }
 
 interface MemoryToolDeveloperInstructionsSnapshot {

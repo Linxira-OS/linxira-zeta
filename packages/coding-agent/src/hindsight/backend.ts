@@ -283,7 +283,7 @@ async function installPrimaryState(
 	const scope = computeBankScope(
 		config,
 		session.sessionManager.getCwd(),
-		session.sessionManager.getMemoryNamespace?.(),
+		session.sessionManager?.getMemoryNamespace?.(),
 	);
 
 	// Cleanup any stale state for this session (defensive — prevents leaks
@@ -374,7 +374,7 @@ async function reconcilePrimaryState(session: AgentSession): Promise<boolean> {
 	const next = computeBankScope(
 		config,
 		session.sessionManager.getCwd(),
-		session.sessionManager.getMemoryNamespace?.(),
+		session.sessionManager?.getMemoryNamespace?.(),
 	);
 	if (bankScopesEqual(next, current) && hindsightConfigsEqual(current.config, config)) return false;
 

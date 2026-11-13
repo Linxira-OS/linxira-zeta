@@ -68,8 +68,8 @@ export function startTasteSession(options: {
 			modelRegistry: options.modelRegistry,
 			sessionId: session.sessionId,
 			agentId: session.getAgentId(),
-			...(session.sessionManager.getMemoryNamespace()
-				? { namespace: session.sessionManager.getMemoryNamespace() }
+			...(session.sessionManager?.getMemoryNamespace?.()
+				? { namespace: session.sessionManager?.getMemoryNamespace?.() }
 				: {}),
 		});
 		const unsubscribe = session.subscribe(event => {

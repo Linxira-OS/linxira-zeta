@@ -148,7 +148,7 @@ export const mnemopiBackend: MemoryBackend = {
 				modelRegistry,
 				sessionId,
 				session.sessionManager,
-				session.sessionManager.getMemoryNamespace(),
+				session.sessionManager?.getMemoryNamespace?.(),
 			);
 			await Promise.all([loadMnemopi(), loadMnemopiCore()]);
 			await installMnemopiState(session, config, getMnemopiSessionStateFromParent(options));
@@ -188,7 +188,7 @@ export const mnemopiBackend: MemoryBackend = {
 		const config =
 			previous?.config ??
 			(session
-				? loadMnemopiConfig(session.settings, agentDir, session.sessionManager.getMemoryNamespace())
+				? loadMnemopiConfig(session.settings, agentDir, session.sessionManager?.getMemoryNamespace?.())
 				: undefined);
 		if (!config) return;
 		await loadMnemopiCore();
@@ -220,7 +220,7 @@ export const mnemopiBackend: MemoryBackend = {
 					session.modelRegistry,
 					session.sessionId,
 					session.sessionManager,
-					session.sessionManager.getMemoryNamespace(),
+					session.sessionManager?.getMemoryNamespace?.(),
 				);
 				await Promise.all([loadMnemopi(), loadMnemopiCore()]);
 				state = await installMnemopiState(session, config);
@@ -249,7 +249,7 @@ export const mnemopiBackend: MemoryBackend = {
 		const config =
 			state?.config ??
 			(session
-				? loadMnemopiConfig(session.settings, agentDir, session.sessionManager.getMemoryNamespace())
+				? loadMnemopiConfig(session.settings, agentDir, session.sessionManager?.getMemoryNamespace?.())
 				: undefined);
 		if (!config) return undefined;
 		const [{ inspectDatabase }] = await Promise.all([loadMnemopiDiagnose(), loadMnemopiCore()]);
@@ -370,7 +370,7 @@ function collectBankStats(agentDir: string, session: AgentSession | undefined): 
 	const state = getMnemopiSessionState(session);
 	if (state) return withLoopPhase("mnemopi.open", () => state.getScopedStats());
 	if (!session) return [];
-	const config = loadMnemopiConfig(session.settings, agentDir, session.sessionManager.getMemoryNamespace());
+	const config = loadMnemopiConfig(session.settings, agentDir, session.sessionManager?.getMemoryNamespace?.());
 	const owned = withLoopPhase("mnemopi.open", () =>
 		getMnemopiScopedBanks(config).map(bank => ({ bank, memory: createStatsMemory(config, bank) })),
 	);
