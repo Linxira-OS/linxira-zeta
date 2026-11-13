@@ -134,6 +134,7 @@ impl DirectoryPickerModal {
 
     /// Go to the parent directory. On Windows the parent of a volume root
     /// is the drive page the picker started on.
+    #[allow(clippy::needless_return)] // Zeta vendor deviation 29: early returns document the root/drive branches
     fn go_parent(&mut self) {
         if self.tree.has_roots() {
             return;
