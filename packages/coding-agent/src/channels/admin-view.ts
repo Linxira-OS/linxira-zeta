@@ -106,6 +106,29 @@ export function parseAdminInstances(config: unknown): AdminInstance[] | null {
 	return rows;
 }
 
+/**
+ * Human label for a persisted v2 target. Validated configs carry only the
+ * typed target fields (the legacy `display`/`available` decoration is gone),
+ * so synthesize the same `kind:path` form the instance target column uses.
+ */
+function targetLabel(target: Record<string, unknown> | undefined): string | undefined {
+	if (!target) return undefined;
+	const display = text(target.display);
+	if (display !== undefined) return display;
+	const kind = text(target.kind);
+	const workspace = text(target.workspace);
+	const team = text(target.team);
+	const pm = text(target.pm);
+	const engineer = text(target.engineer);
+	if (kind === "workspace" && workspace !== undefined) return `workspace:${workspace}`;
+	if (kind === "team-pm" && team !== undefined && pm !== undefined) return `team-pm:${team}/${pm}`;
+	if (kind === "engineer" && team !== undefined && pm !== undefined && engineer !== undefined) {
+		const repo = text(target.repo);
+		return `engineer:${team}/${pm}/${engineer}${repo !== undefined ? `/${repo}` : ""}`;
+	}
+	return undefined;
+}
+
 export function parseAdminBindings(config: unknown): AdminBinding[] | null {
 	const bindings = field(field(config, "remote"), "imBindings");
 	if (!Array.isArray(bindings)) return null;
@@ -120,7 +143,7 @@ export function parseAdminBindings(config: unknown): AdminBinding[] | null {
 		const threadId = text(entry.threadId);
 		const userId = text(entry.userId);
 		const agentProfileId = text(entry.agentProfileId);
-		const display = text(target?.display);
+		const display = targetLabel(target);
 		const reason = text(target?.reason);
 		rows.push({
 			instanceId,

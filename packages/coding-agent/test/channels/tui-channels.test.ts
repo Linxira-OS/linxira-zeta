@@ -256,6 +256,7 @@ describe("/channels command", () => {
 
 	test("/channels status renders the v2 instances and bindings", async () => {
 		const { dir } = await makeConfig({
+			imAgents: [{ ...PROFILE, id: "pm-work", label: "PM Work" }],
 			channels: {
 				instances: [
 					{
@@ -279,7 +280,7 @@ describe("/channels command", () => {
 						agentProfileId: "pm-work",
 						sessionId: "s1",
 						role: "mention",
-						target: { kind: "workspace", display: "alpha" },
+						target: { kind: "workspace", workspace: "alpha" },
 					},
 				],
 			},

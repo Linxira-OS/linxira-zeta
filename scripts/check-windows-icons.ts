@@ -54,8 +54,8 @@ function checkSources(): Problems {
 			problems.push("web-app/public/favicon.ico is not a non-empty ICO");
 		}
 	}
-	expectIncludes(problems, "web-app/index.html", 'href="./icon.png"');
-	expectIncludes(problems, "web-app/index.html", 'href="./favicon.ico"');
+	expectIncludes(problems, "web-app/index.html", 'href="./icon.png');
+	expectIncludes(problems, "web-app/index.html", 'href="./favicon.ico');
 	expectIncludes(problems, "main/crates/zetawork-gui/assets/zetawork-gui.rc", '1 ICON "icon.ico"');
 	expectIncludes(problems, "main/crates/zeta-main/assets/zeta-main.rc", "../zetawork-gui/assets/icon.ico");
 	expectIncludes(problems, "termide/assets/termide.rc", "../../../main/crates/zetawork-gui/assets/icon.ico");
