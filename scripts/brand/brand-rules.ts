@@ -481,6 +481,14 @@ export const MUST_NOT_CONTAIN: Array<{
 	extraFiles?: boolean;
 }> = [
 	{
+		// The overlay's token rewrites are word-bounded. A blanket OMP→Zeta
+		// substitution instead corrupts words whose uppercase form contains OMP
+		// (PROMPT→PRZetaT, COMPOSITION→CZetaOSITION, COMPRESS→CZetaRESS), so the
+		// uppercase glyph immediately before the brand mark is always a defect.
+		needle: /(?<=[A-Z])Zeta/,
+		why: "shows `Zeta` spliced into an uppercase token: brand sweeps must be word-bounded, never a blanket OMP→Zeta replacement",
+	},
+	{
 		needle: /OMP[- ]Studio|omp-studio/i,
 		why: "Work Studio ships as Zeta: upstream Studio's name may appear only in provenance comments and the legacy IndexedDB keys kept for existing local data",
 		skipCommentLines: true,

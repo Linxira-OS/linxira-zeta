@@ -247,6 +247,7 @@ export const eventDefs = {
 			"ToolStreamUpdateEvent",
 			"ToolExecutionEndEvent",
 			"AutoCompactionStartEvent",
+			"CompactionPhaseEvent",
 			"AutoCompactionEndEvent",
 			"ManualCompactionStartEvent",
 			"ManualCompactionEndEvent",

@@ -85,6 +85,7 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	"Discovery & MCP": "发现与 MCP",
 	Extensions: "扩展",
 	Developer: "开发者",
+	Exposure: "暴露范围",
 	Modes: "模式",
 	Subagents: "子代理",
 	Isolation: "隔离",
@@ -5736,6 +5737,106 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"task.workerThreads::8": {
 		label: "最多 8 个工作线程",
+	},
+	"tools.profile::super-minimal": {
+		label: "超级精简（4）",
+		description: "read、write、edit、bash",
+	},
+	"tools.profile::minimal": {
+		label: "精简（5）",
+		description: "超级精简 + web_search",
+	},
+	"tools.profile::standard": {
+		label: "标准（12）",
+		description: "精简 + glob、grep、find、task、wait、todo、ask",
+	},
+	"tools.profile::full": {
+		label: "完整",
+		description: "所有已启用的内置工具（当前默认）",
+	},
+	"mcp.precedence::native": {
+		label: "原生优先",
+		description: "保留原生工具，并将同能力的 MCP 服务器标记为被压制。",
+	},
+	"mcp.precedence::mcp": {
+		label: "MCP 优先",
+		description: "挂载 MCP 服务器并抑制重叠的原生工具。",
+	},
+	"mcp.precedence::ask": {
+		label: "询问",
+		description: "挂载 MCP 服务器前通过现有审批路径询问。",
+	},
+	"providers.webSearchOrder::sofya": {
+		label: "Sofya",
+	},
+	"providers.webSearchOrder::hackernews": {
+		label: "Hacker News",
+	},
+	"providers.webSearchExclude::sofya": {
+		label: "Sofya",
+	},
+	"providers.webSearchExclude::hackernews": {
+		label: "Hacker News",
+	},
+	"codexResets.autoRedeem5h::unset": {
+		label: "未设置",
+		description: "花费前先询问；没有提示绝不花费。",
+	},
+	"codexResets.autoRedeem5h::yes": {
+		label: "是",
+		description: "无需询问直接花费符合条件的已保存重置。",
+	},
+	"codexResets.autoRedeem5h::no": {
+		label: "否",
+		description: "此窗口绝不花费已保存的重置。",
+	},
+	"codexResets.autoRedeemWeekly::unset": {
+		label: "未设置",
+		description: "花费前先询问；没有提示绝不花费。",
+	},
+	"codexResets.autoRedeemWeekly::yes": {
+		label: "是",
+		description: "无需询问直接花费符合条件的已保存重置。",
+	},
+	"codexResets.autoRedeemWeekly::no": {
+		label: "否",
+		description: "此窗口绝不花费已保存的重置。",
+	},
+	"claudeResets.autoRedeem5h::unset": {
+		label: "未设置",
+		description: "花费前先询问；没有提示绝不花费。",
+	},
+	"claudeResets.autoRedeem5h::yes": {
+		label: "是",
+		description: "无需询问直接花费符合条件的已保存重置。",
+	},
+	"claudeResets.autoRedeem5h::no": {
+		label: "否",
+		description: "此窗口绝不花费已保存的重置。",
+	},
+	"claudeResets.autoRedeemWeekly::unset": {
+		label: "未设置",
+		description: "花费前先询问；没有提示绝不花费。",
+	},
+	"claudeResets.autoRedeemWeekly::yes": {
+		label: "是",
+		description: "无需询问直接花费符合条件的已保存重置。",
+	},
+	"claudeResets.autoRedeemWeekly::no": {
+		label: "否",
+		description: "此窗口绝不花费已保存的重置。",
+	},
+	"claudeResets.autoRedeemFable::unset": {
+		label: "未设置",
+		description: "花费前先询问；没有提示绝不花费。",
+	},
+	"claudeResets.autoRedeemFable::yes": {
+		label: "是",
+		description: "无需询问直接花费符合条件的已保存重置。",
+	},
+	"claudeResets.autoRedeemFable::no": {
+		label: "否",
+		description: "此窗口绝不花费已保存的重置。",
 	},
 };
 

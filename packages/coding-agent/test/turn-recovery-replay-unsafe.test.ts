@@ -1513,7 +1513,7 @@ describe("TurnRecovery replay-unsafe output classification", () => {
 			const codex = getBundledModel("openai-codex", "gpt-6-astra");
 			if (!codex) throw new Error("Expected bundled Codex model");
 			const message = makeMessage(
-				[{ type: "text", text: "RoboZeta's attribution is already in. I'll squash" }],
+				[{ type: "text", text: "RoboOMP's attribution is already in. I'll squash" }],
 				codex,
 			);
 			message.errorMessage =

@@ -62,7 +62,7 @@ const isolatedEnvKeys = [
 	"CLAUDE_CONFIG_DIR",
 	"ZETA_CODING_AGENT_DIR",
 	"ZETA_PROFILE",
-	"ZETA_PROFILE",
+	"ZETA_FOREIGN_PROJECT_SOURCES",
 ] as const;
 const originalEnv: Record<string, string | undefined> = Object.fromEntries(
 	isolatedEnvKeys.map(key => [key, process.env[key]]),
@@ -81,6 +81,10 @@ beforeAll(async () => {
 	}
 	delete process.env.CLAUDE_CONFIG_DIR;
 	delete Bun.env.CLAUDE_CONFIG_DIR;
+	// The collision fixtures place their provider copy under `.claude/skills`, a
+	// foreign project source that needs approval before discovery reads it.
+	process.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude";
+	Bun.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude";
 	setAgentDir(path.join(isolatedHome, ".zeta", "agent"));
 });
 

@@ -365,7 +365,7 @@ export const en: LocaleDictionary = {
     "runningBadge": "Task running",
     "filterLoadedFiles": "Filter loaded files",
     "refreshFileTree": "Refresh file tree",
-    "contextComposition": "CONTEXT CZetaOSITION",
+    "contextComposition": "CONTEXT COMPOSITION",
     "used": "Used",
     "unused": "Unused",
     "branch": "Branch",

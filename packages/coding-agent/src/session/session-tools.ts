@@ -2833,29 +2833,50 @@ export class SessionTools {
 	 */
 	/** Install the Lead/PM tool set (Zeta lead mode). */
 	async activateLeadTools(baseToolNames: string[]): Promise<void> {
-		const createLeadTools = this.#createLeadTools;
-		if (!createLeadTools) throw new Error("Lead tools are unavailable in this session.");
-		await this.runToolRegistryMutation(async () => {
-			for (const tool of createLeadTools()) this.#toolRegistry.set(tool.name, tool);
-			void baseToolNames;
+		return this.runToolRegistryMutation(async () => {
+			const createLeadTools = this.#createLeadTools;
+			if (!createLeadTools) throw new Error("Lead tools are unavailable in this session.");
+
+			const tools = createLeadTools();
+			const leadToolNames = tools.map(tool => tool.name);
+			if (new Set(leadToolNames).size !== leadToolNames.length) {
+				throw new Error("Lead tool names must be unique.");
+			}
+
+			for (const tool of tools) {
+				if (this.#toolRegistry.has(tool.name)) continue;
+				this.#toolRegistry.set(tool.name, this.#wrapRuntimeTool(tool));
+				this.#builtInToolNames.add(tool.name);
+				this.#installedLeadToolNames.add(tool.name);
+			}
+
+			await this.#applyActiveToolsByName([...new Set([...baseToolNames, ...leadToolNames])]);
 		});
 	}
 
-	/** Remove the Lead/PM tool set. */
+	/** Remove the Lead/PM tool set and restore the replacement set. */
 	async deactivateLeadTools(nextToolNames: string[]): Promise<void> {
 		await this.runToolRegistryMutation(async () => {
-			for (const name of this.#installedLeadToolNames) this.#toolRegistry.delete(name);
-			this.#installedLeadToolNames.clear();
-			void nextToolNames;
+			this.#uninstallLeadTools();
+			await this.#applyActiveToolsByName([...nextToolNames]);
 		});
 	}
 
 	/** Remove Lead tools but keep the active tool slate (Zeta lead mode). */
 	async removeLeadToolsPreservingActive(): Promise<void> {
 		await this.runToolRegistryMutation(async () => {
-			for (const name of this.#installedLeadToolNames) this.#toolRegistry.delete(name);
-			this.#installedLeadToolNames.clear();
+			const removed = new Set(this.#installedLeadToolNames);
+			this.#uninstallLeadTools();
+			await this.#applyActiveToolsByName(this.getEnabledToolNames().filter(name => !removed.has(name)));
 		});
+	}
+
+	#uninstallLeadTools(): void {
+		for (const name of this.#installedLeadToolNames) {
+			this.#toolRegistry.delete(name);
+			this.#builtInToolNames.delete(name);
+		}
+		this.#installedLeadToolNames.clear();
 	}
 
 	/** Toggle the private think tool (Zeta). */

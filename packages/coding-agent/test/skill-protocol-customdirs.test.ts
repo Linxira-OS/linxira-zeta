@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -33,8 +33,24 @@ const ALL_DEFAULT_SOURCES_DISABLED = {
 
 describe("skill:// resolution honors skills.customDirectories (#7190)", () => {
 	const tempDirs: string[] = [];
+	let originalForeignSources: string | undefined;
+
+	beforeEach(() => {
+		// The default-path fixtures under `.claude/skills` are foreign project
+		// sources; approve them for these cases.
+		originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude";
+		Bun.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude";
+	});
 
 	afterEach(async () => {
+		if (originalForeignSources === undefined) {
+			delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+			delete Bun.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		} else {
+			process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
+			Bun.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
+		}
 		resetActiveSkillsForTests();
 		for (const dir of tempDirs) await fs.rm(dir, { recursive: true, force: true });
 		tempDirs.length = 0;

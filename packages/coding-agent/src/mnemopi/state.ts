@@ -1013,7 +1013,8 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 	 * error cannot make the backend inert.
 	 */
 	promoteEligibleWorkingMemory(): void {
-		if (this.aliasOf || cfgMemoryExtractionMode.get(this.session.settings) !== "auto") return;
+		if (this.aliasOf || this.config.llmMode === "none" || cfgMemoryExtractionMode.get(this.session.settings) !== "auto")
+			return;
 		const scoped = this.#local();
 		for (const memory of scoped.owned) {
 			try {
@@ -1066,7 +1067,7 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 		}
 		for (const memory of this.#local().owned) {
 			await memory.flushExtractions();
-			if (options.sleep === false) continue;
+			if (options.sleep === false || this.config.llmMode === "none") continue;
 			if (options.full) {
 				memory.sleepAllSessions(false);
 			} else {

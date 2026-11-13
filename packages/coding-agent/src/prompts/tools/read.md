@@ -22,3 +22,4 @@ Sources:
 - PDF/documents: extracted text; notebooks: editable cells; images: decoded inline.
 - Also, with selectors in xd://read/sources (read it before first use):
   - SQLite, archives (ZIP, TAR, 7z, RAR and more), JSON/JSONL by jq filter, {{#if BINARY_VIEWS}}executables, {{/if}}video, SVG as image, merge conflicts.
+- `ssh://host/<path>` reads remote file/dir (UTF-8, ≤1 MiB), writable with `write`, searchable with `grep`; literal `:`/`?`/`#` percent-encode; needs a verified POSIX shell on the remote — otherwise use `bash` with a remote SSH command or mount with `sshfs`.

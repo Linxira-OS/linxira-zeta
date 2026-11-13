@@ -15,6 +15,7 @@ import {
 	markSessionBackfillsComplete,
 	type ParsedSession,
 	prepareSessionSync,
+	pruneOrphanSessions,
 } from "./db";
 import {
 	getSessionEntry,
@@ -310,6 +311,11 @@ async function syncAllSessionsLocked(
 	const replay = prepareSessionSync();
 
 	const files = opts?.files ?? (await orderForIngest(await listAllSessionFiles()));
+	// A full sync knows every live transcript, so rows for deleted files are
+	// stale: prune them before parsing, otherwise an orphaned row keeps
+	// inflating aggregates (and a re-created transcript doubles the usage).
+	// A targeted sync only knows its own files and must never prune the rest.
+	if (!opts?.files) pruneOrphanSessions(files);
 	let totalProcessed = 0;
 	let totalChanges = 0;
 	let filesProcessed = 0;

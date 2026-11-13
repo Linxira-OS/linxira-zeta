@@ -624,6 +624,9 @@ async function useRelay(deps: WorkspaceRouterDeps): Promise<void> {
 		deps.peer,
 		{ kind: "workspace", workspace: COORDINATOR_ALIAS },
 		{ ...(deps.threadId ? { threadId: deps.threadId } : {}), ...(deps.userId ? { userId: deps.userId } : {}) },
+		// Relay is an explicit intent, not merely "the main workspace": the
+		// confirmed binding gets the `relay` sentinel instead of a bot session.
+		{ relay: true },
 	);
 	if (preview.same) {
 		await deps.sendText(`This chat is already on ${preview.current}; nothing changed.`);

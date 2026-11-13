@@ -5154,6 +5154,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		for (const [id, component] of livePendingTools) {
 			this.pendingTools.set(id, component);
 		}
+		this.#eventController.reconcileReadGroupAfterRebuild();
 		// During the pre-streaming window — after `startPendingSubmission` has
 		// optimistically rendered the user's message but before the user
 		// `message_start` event lands it in `session` entries — any rebuild
@@ -7310,6 +7311,9 @@ export class InteractiveMode implements InteractiveModeContext {
 				);
 				if (!confirmed) return false;
 			}
+			// An open review must not outlive the plan mode it approves: a later pick
+			// would autosave and dispatch the plan while plan mode is paused.
+			this.#hidePlanReview();
 			await this.#exitPlanMode({ paused: true, interruptActiveTurn: true });
 			return false;
 		}

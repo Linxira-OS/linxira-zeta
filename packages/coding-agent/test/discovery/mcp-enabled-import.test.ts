@@ -94,9 +94,14 @@ describe("translated MCP importers propagate enabled: false", () => {
 	let tempCwd = "";
 	let tempHome = "";
 	let originalHome: string | undefined;
+	let originalForeignSources: string | undefined;
 
 	beforeEach(async () => {
 		originalHome = process.env.HOME;
+		originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		// These fixtures pin foreign project configs (.claude/.cursor/.gemini/
+		// .windsurf/.vscode) that are native-only unless the provider is approved.
+		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude,cursor,gemini,windsurf,vscode";
 		tempCwd = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-enabled-cwd-"));
 		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-mcp-enabled-home-"));
 		process.env.HOME = tempHome;
@@ -107,6 +112,8 @@ describe("translated MCP importers propagate enabled: false", () => {
 		vi.restoreAllMocks();
 		if (originalHome === undefined) delete process.env.HOME;
 		else process.env.HOME = originalHome;
+		if (originalForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		else process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
 		await removeWithRetries(tempCwd);
 		await removeWithRetries(tempHome);
 	});

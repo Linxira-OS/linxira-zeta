@@ -1723,7 +1723,7 @@ describe("commitToBranch preserves agent commits", () => {
 			await fs.writeFile(path.join(isolation, "my notes.txt"), "agent\n");
 
 			const result = await commitToBranch(isolation, baseline, "spaced-wip", undefined);
-			expect(result?.branchName).toBe("omp/task/spaced-wip");
+			expect(result?.branchName).toBe("zeta/task/spaced-wip");
 
 			const files = (
 				await runGit(parent, [
@@ -1753,7 +1753,7 @@ describe("commitToBranch preserves agent commits", () => {
 			await fs.writeFile(path.join(isolation, "src/new.py"), "WIP header\nagent-edit\n");
 
 			const result = await commitToBranch(isolation, baseline, "spaced-rewind", undefined);
-			expect(result?.branchName).toBe("omp/task/spaced-rewind");
+			expect(result?.branchName).toBe("zeta/task/spaced-rewind");
 
 			const files = (
 				await runGit(parent, [

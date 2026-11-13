@@ -1912,6 +1912,9 @@ export interface Messages {
 	cmdSettingsReset: string;
 	cmdChannels: string;
 	cmdChannelsStatus: string;
+	cmdChannelsInstances: string;
+	cmdChannelsEnableInstance: string;
+	cmdChannelsDisableInstance: string;
 	settingsResetConfirmHint: string;
 	settingsResetDoneFmt: string;
 	settingsResetKeyDoneFmt: string;

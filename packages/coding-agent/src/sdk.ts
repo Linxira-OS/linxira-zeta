@@ -4893,6 +4893,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			}
 			const customPrompt = options.systemPrompt(defaultPrompt.systemPrompt);
 			return {
+				...defaultPrompt,
 				systemPrompt: typeof customPrompt === "string" ? [customPrompt] : customPrompt,
 			};
 		};

@@ -28,7 +28,6 @@ import type { CommandInput } from "../contract/index.js";
 import type { DictationState } from "../protocol/index.js";
 import type { StudioFamily } from "../registry.js";
 import { invalid, unavailable } from "../errors.js";
-import { sessionOps } from "./session.js";
 import { DictationAudioReject, registerDictationAudioSink, type DictationAudioSink } from "../dictation-audio.js";
 
 /** The slice of a live session dictation needs; injectable for tests. */
@@ -548,6 +547,9 @@ const requireSession = (input: CommandInput<"dictation.status">): string => sess
 
 /** Workbench commands return the live operator snapshot with their result. */
 async function withSnapshot(state: DictationState) {
+	// Lazy so `ops/index.ts` can import this family before `session.ts`: the
+	// eager import made `sessionOps` a TDZ read while the family list assembled.
+	const { sessionOps } = await import("./session.js");
 	const read = sessionOps.queries?.["session.state"];
 	if (read === undefined) throw unavailable("session.state is not available");
 	return { snapshot: await read({} as never, {} as never), result: state };

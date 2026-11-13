@@ -39,7 +39,7 @@ function postToGateway(getServiceUrl: () => string): LiveAudioPost {
 				},
 				...(init.body === undefined
 					? {}
-					: { body: typeof init.body === "string" ? init.body : new Blob([init.body]) }),
+					: { body: typeof init.body === "string" ? init.body : new Blob([new Uint8Array(init.body)]) }),
 				signal: AbortSignal.timeout(15_000),
 			});
 			return await gatewayResponse(response);

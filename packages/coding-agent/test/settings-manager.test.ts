@@ -291,6 +291,9 @@ describe("Settings", () => {
 		});
 	});
 
+	// Host file symlinks need Developer Mode on Windows (Bun's symlink otherwise
+	// fails with EPERM), so the link-chain cases below skip there; they still run
+	// on CI's POSIX hosts. Pure path-arithmetic cases run everywhere.
 	describe("config file failure safety", () => {
 		it("moves malformed main config aside and refuses to start with silent defaults", async () => {
 			const configPath = getConfigPath();
@@ -411,7 +414,7 @@ describe("Settings", () => {
 			expect(await Bun.file(backupPath).text()).toBe(corrupted);
 		});
 
-		it("preserves a symlinked main config while atomically updating its target", async () => {
+		it.skipIf(process.platform === "win32")("preserves a symlinked main config while atomically updating its target", async () => {
 			const managedConfigPath = tempDir.join("managed-config.yml");
 			await Bun.write(managedConfigPath, YAML.stringify({ setupVersion: 1 }, null, 2));
 			await fs.promises.symlink(managedConfigPath, getConfigPath(), "file");
@@ -424,7 +427,7 @@ describe("Settings", () => {
 			expect(YAML.parse(await Bun.file(managedConfigPath).text())).toEqual({ setupVersion: 2 });
 		});
 
-		it("writes through a dangling symlink chain to the final target, preserving every link", async () => {
+		it.skipIf(process.platform === "win32")("writes through a dangling symlink chain to the final target, preserving every link", async () => {
 			// config.yml -> mid.yml -> final.yml where final.yml does not exist yet
 			// (first-run into a dotfiles/managed checkout). realpath throws ENOENT at
 			// the missing tail, so the write path must walk the chain hop by hop and
@@ -444,7 +447,7 @@ describe("Settings", () => {
 			expect(YAML.parse(await Bun.file(finalPath).text())).toEqual({ setupVersion: 3 });
 		});
 
-		it("lands on the deepest resolved hop when an intermediate link vanishes mid-walk", async () => {
+		it.skipIf(process.platform === "win32")("lands on the deepest resolved hop when an intermediate link vanishes mid-walk", async () => {
 			// config.yml -> mid.yml -> final.yml (final dangling). The resolver
 			// confirms mid.yml is a symlink via lstat, then a concurrent process
 			// removes mid.yml before readlink(mid.yml) runs. The ENOENT must not
@@ -480,7 +483,7 @@ describe("Settings", () => {
 			expect(fs.existsSync(finalPath)).toBe(false);
 		});
 
-		it("resolves a relative intermediate target against the link's physical parent, not a symlinked alias", async () => {
+		it.skipIf(process.platform === "win32")("resolves a relative intermediate target against the link's physical parent, not a symlinked alias", async () => {
 			// config.yml -> alias/sub/mid.yml, where `alias` is a symlinked
 			// directory (alias -> physical/deep) and mid.yml is a dangling link
 			// whose relative target has enough `..` to climb out of the alias.
@@ -513,7 +516,7 @@ describe("Settings", () => {
 			expect(fs.lstatSync(midPath).isSymbolicLink()).toBe(true);
 		});
 
-		it("throws a bounded ELOOP when the chain turns cyclic after realpath reports ENOENT", async () => {
+		it.skipIf(process.platform === "win32")("throws a bounded ELOOP when the chain turns cyclic after realpath reports ENOENT", async () => {
 			// config.yml -> mid.yml -> final.yml (final missing), so the initial
 			// realpath() reports ENOENT and the manual chain walk runs. A
 			// concurrent process then retargets mid.yml back at the chain head, so
@@ -549,7 +552,7 @@ describe("Settings", () => {
 			expect(readlinkCalls).toBeLessThanOrEqual(safetyValve);
 		});
 
-		it("lands a relative `alias/..` target where the filesystem resolves it", async () => {
+		it.skipIf(process.platform === "win32")("lands a relative `alias/..` target where the filesystem resolves it", async () => {
 			// config.yml -> alias/../final.yml, where `alias` is a symlinked
 			// directory (alias -> elsewhere/deep) and final.yml is missing. POSIX
 			// follows `alias` first and then pops its PHYSICAL parent, landing on
@@ -584,7 +587,7 @@ describe("Settings", () => {
 			expect(fs.lstatSync(getConfigPath()).isSymbolicLink()).toBe(true);
 		});
 
-		it("lands an absolute `alias/..` target where the filesystem resolves it", async () => {
+		it.skipIf(process.platform === "win32")("lands an absolute `alias/..` target where the filesystem resolves it", async () => {
 			// config.yml -> /base/alias/../final.yml (ABSOLUTE target), where
 			// `alias` is a symlinked directory (alias -> elsewhere/deep) and
 			// final.yml is missing. POSIX stores the target verbatim, follows
@@ -626,7 +629,7 @@ describe("Settings", () => {
 			expect(fs.lstatSync(getConfigPath()).isSymbolicLink()).toBe(true);
 		});
 
-		it("does not write to an unrelated sibling when a non-final component is missing before ..", async () => {
+		it.skipIf(process.platform === "win32")("does not write to an unrelated sibling when a non-final component is missing before ..", async () => {
 			// config.yml -> missing/../final.yml, where `missing` does not exist.
 			// POSIX lookup fails at `missing`, so a following `..` must NOT pop a
 			// component that was never entered. Collapsing the target lexically
@@ -654,7 +657,7 @@ describe("Settings", () => {
 			expect(fs.lstatSync(getConfigPath()).isSymbolicLink()).toBe(true);
 		});
 
-		it("does not mislocate when a dangling symlink component is followed by ..", async () => {
+		it.skipIf(process.platform === "win32")("does not mislocate when a dangling symlink component is followed by ..", async () => {
 			// config.yml -> link/.., where `link -> missing` and `missing` does
 			// not exist. POSIX follows `link` to its missing referent, so looking
 			// up `link/..` fails: there is no parent of a path that was never
@@ -685,7 +688,7 @@ describe("Settings", () => {
 			expect(fs.lstatSync(getConfigPath()).isSymbolicLink()).toBe(true);
 		});
 
-		it("lands a dangling `missing/child/..` target only where the filesystem resolves it", async () => {
+		it.skipIf(process.platform === "win32")("lands a dangling `missing/child/..` target only where the filesystem resolves it", async () => {
 			// config.yml -> missing/child/.., where `missing` does not exist. On
 			// POSIX the walk freezes at `missing`, appends `child` lexically, then
 			// hits `..`. `missing` was never entered, so `child` is not a real
@@ -713,7 +716,7 @@ describe("Settings", () => {
 			expect(fs.lstatSync(getConfigPath()).isSymbolicLink()).toBe(true);
 		});
 
-		it("still pops correctly when a real child/.. was actually traversed", async () => {
+		it.skipIf(process.platform === "win32")("still pops correctly when a real child/.. was actually traversed", async () => {
 			// config.yml -> realdir/child/final.yml, where realdir and
 			// realdir/child both exist on disk and final.yml is missing. The `..`
 			// after `child` pops a component that WAS entered, so the write must
@@ -734,7 +737,7 @@ describe("Settings", () => {
 			expect(fs.lstatSync(getConfigPath()).isSymbolicLink()).toBe(true);
 		});
 
-		it("does not mislocate when a dangling target ends in a trailing slash", async () => {
+		it.skipIf(process.platform === "win32")("does not mislocate when a dangling target ends in a trailing slash", async () => {
 			// config.yml -> missing/, where `missing` does not exist. The trailing
 			// slash demands `missing` be a traversable directory. Dropping the
 			// terminal empty segment and returning `missing` would land a regular
@@ -753,7 +756,7 @@ describe("Settings", () => {
 			expect(fs.lstatSync(getConfigPath()).isSymbolicLink()).toBe(true);
 		});
 
-		it("rejects with ENOTDIR when a trailing-slash target is created as a regular file mid-walk", async () => {
+		it.skipIf(process.platform === "win32")("rejects with ENOTDIR when a trailing-slash target is created as a regular file mid-walk", async () => {
 			// config.yml -> racetarget/, where `racetarget` does not exist when the
 			// initial realpath(config.yml) runs, so it reports ENOENT and the manual
 			// segment walk begins. A concurrent process then creates `racetarget` as
@@ -790,7 +793,7 @@ describe("Settings", () => {
 			expect(fs.lstatSync(getConfigPath()).isSymbolicLink()).toBe(true);
 		});
 
-		it("lands a `..` target only where the filesystem resolves it when a component turns into a regular file mid-walk", async () => {
+		it.skipIf(process.platform === "win32")("lands a `..` target only where the filesystem resolves it when a component turns into a regular file mid-walk", async () => {
 			// config.yml -> racetarget/../victim.yml, where `racetarget` does not
 			// exist when the initial realpath(config.yml) runs, so on POSIX it
 			// reports ENOENT and the manual segment walk begins. A concurrent
@@ -840,7 +843,7 @@ describe("Settings", () => {
 			expect(fs.lstatSync(getConfigPath()).isSymbolicLink()).toBe(true);
 		});
 
-		it("rejects with ENOTDIR when a trailing-slash target's directory is removed before the validation stat", async () => {
+		it.skipIf(process.platform === "win32")("rejects with ENOTDIR when a trailing-slash target's directory is removed before the validation stat", async () => {
 			// config.yml -> racetarget/, where `racetarget` does not exist when the
 			// initial realpath(config.yml) runs, so the manual segment walk begins.
 			// A concurrent process creates `racetarget` as a real DIRECTORY before
@@ -892,7 +895,7 @@ describe("Settings", () => {
 			expect(fs.lstatSync(getConfigPath()).isSymbolicLink()).toBe(true);
 		});
 
-		it("lands a `..` target only where the filesystem resolves it when its directory is removed before the validation stat", async () => {
+		it.skipIf(process.platform === "win32")("lands a `..` target only where the filesystem resolves it when its directory is removed before the validation stat", async () => {
 			// config.yml -> racetarget/../victim.yml, where `racetarget` does not
 			// exist when the initial realpath(config.yml) runs, so on POSIX the
 			// manual walk begins. A concurrent process creates `racetarget` as a
@@ -2824,9 +2827,17 @@ describe("Settings", () => {
 			fs.mkdirSync(path.dirname(claudeSettings), { recursive: true });
 			fs.writeFileSync(claudeSettings, JSON.stringify({ extensions: ["../claude-ext"] }));
 
-			const settings = await Settings.init({ cwd: projectDir, agentDir });
-			expect(cfgExtensions.get(settings)).toContain("../claude-ext");
-			expect(settings.extensionsSourceLevel()).toBe("project");
+			// `.claude/settings.json` is a foreign project source; approve it for this fixture.
+			const originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+			process.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude";
+			try {
+				const settings = await Settings.init({ cwd: projectDir, agentDir });
+				expect(cfgExtensions.get(settings)).toContain("../claude-ext");
+				expect(settings.extensionsSourceLevel()).toBe("project");
+			} finally {
+				if (originalForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+				else process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
+			}
 		});
 
 		it("reports user for a user-only setting and for runtime overrides", async () => {

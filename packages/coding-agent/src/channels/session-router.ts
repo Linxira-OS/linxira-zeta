@@ -309,7 +309,15 @@ export class SessionRouter {
 	readonly #sessionSelectorState = createImSessionSelectorState();
 	readonly #pendingWorkspaceSwitch = new Map<
 		string,
-		| { action: "target"; target: ImTarget; at: number; requestId: string; control?: ImSwitchControlRecord }
+		| {
+				action: "target";
+				target: ImTarget;
+				/** `@workspace relay` intent: a main-workspace target means the coordinator. */
+				relay: boolean;
+				at: number;
+				requestId: string;
+				control?: ImSwitchControlRecord;
+		  }
 		| { action: "unbind"; at: number; requestId: string; control?: ImSwitchControlRecord }
 	>();
 	/** Cross-process agent roster; defaults to the mesh node plus this process's registry. */
@@ -846,6 +854,7 @@ export class SessionRouter {
 		peer: string,
 		target: ImTarget,
 		context: { threadId?: string; userId?: string } = {},
+		options: { relay?: boolean } = {},
 	): Promise<{ current: string; next: string; same: boolean }> {
 		const key = this.#workspaceSwitchKey(instanceId, peer, context);
 		const binding = this.#webConfig.findImBinding(instanceId, peer, context);
@@ -908,6 +917,7 @@ export class SessionRouter {
 		this.#pendingWorkspaceSwitch.set(key, {
 			action: "target",
 			target,
+			relay: options.relay === true,
 			at: Date.now(),
 			requestId,
 			...(control ? { control } : {}),
@@ -976,8 +986,12 @@ export class SessionRouter {
 							targetKey(entry.target) === targetKey(pending.target) &&
 							entry.bindingId === targetScopedBindingId({ id: current.id, target: pending.target }),
 					);
+			// Only an explicit `@workspace relay` request collapses a main-workspace
+			// target to the coordinator sentinel. A plain switch to the main
+			// workspace is a target-scoped bot session like every other project.
 			const relayTarget =
 				pending.action === "target" &&
+				pending.relay &&
 				pending.target.kind === "workspace" &&
 				pending.target.workspace === COORDINATOR_ALIAS;
 			await this.#webConfig.patchImBinding(
@@ -1126,7 +1140,14 @@ export class SessionRouter {
 		peer: string,
 		context: { threadId?: string; userId?: string },
 	): Promise<
-		| { action: "target"; target: ImTarget; at: number; requestId: string; control?: ImSwitchControlRecord }
+		| {
+				action: "target";
+				target: ImTarget;
+				relay: boolean;
+				at: number;
+				requestId: string;
+				control?: ImSwitchControlRecord;
+		  }
 		| { action: "unbind"; at: number; requestId: string; control?: ImSwitchControlRecord }
 		| undefined
 	> {
@@ -1183,6 +1204,10 @@ export class SessionRouter {
 		return {
 			action: "target",
 			target: { kind: "workspace", workspace: alias },
+			// The durable im_control row records only the target, so a restored
+			// handshake applies the workspace itself; the live relay intent is
+			// re-staged by the next `@workspace relay`.
+			relay: false,
 			at: latest.at,
 			requestId: latest.metadata.requestId,
 			control,
@@ -1246,6 +1271,7 @@ export class SessionRouter {
 		// Every instance has a default profile; the first message creates the
 		// persistent binding, so a chat never borrows another chat's session.
 		let imBinding = this.#webConfig.findImBinding(channelId, peer, context);
+		let createdBinding = false;
 		if (!imBinding) {
 			// No configured instance means there is no per-chat profile to
 			// materialize; the default-workspace relay coordinator is the only
@@ -1265,6 +1291,7 @@ export class SessionRouter {
 					{ role: hasAnswer ? "mention" : "answer" },
 					context,
 				);
+				createdBinding = true;
 			} catch (error) {
 				return {
 					kind: "unavailable",
@@ -1274,12 +1301,13 @@ export class SessionRouter {
 			}
 		}
 		if (imBinding.sessionId === "relay") return { kind: "relay" };
-		if (imBinding.target?.kind === "workspace" && imBinding.target.workspace === COORDINATOR_ALIAS) {
-			return { kind: "relay" };
-		}
-		// A workspace binding is the chat's repository target; a sessionId left by
-		// an older bot selection must not override it unless that session exists.
+		// A persisted workspace binding is the chat's repository target: a
+		// sessionId left by an older bot selection must not override it unless
+		// that session exists. A binding created just now from the instance
+		// profile is different: its default location (the main workspace) is a
+		// bot target and materializes below, never a silent relay.
 		if (
+			!createdBinding &&
 			imBinding.target?.kind === "workspace" &&
 			imBinding.target.workspace !== COORDINATOR_ALIAS &&
 			!(imBinding.sessionId && this.#webConfig.getBotSession(imBinding.sessionId))

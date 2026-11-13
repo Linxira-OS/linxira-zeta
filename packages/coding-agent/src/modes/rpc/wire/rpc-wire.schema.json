@@ -2447,7 +2447,8 @@
 				"pending",
 				"in_progress",
 				"completed",
-				"abandoned"
+				"abandoned",
+				"blocked"
 			],
 			"type": "string"
 		},
@@ -2555,6 +2556,10 @@
 				},
 				"status": {
 					"$ref": "#/$defs/TodoStatus"
+				},
+				"blocker": {
+					"type": "string",
+					"description": "What a `blocked` task is waiting on."
 				},
 				"details": {
 					"type": "string"
@@ -4859,6 +4864,9 @@
 				},
 				{
 					"$ref": "#/$defs/AutoCompactionStartEvent"
+				},
+				{
+					"$ref": "#/$defs/CompactionPhaseEvent"
 				},
 				{
 					"$ref": "#/$defs/AutoCompactionEndEvent"

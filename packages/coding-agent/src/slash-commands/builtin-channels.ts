@@ -27,9 +27,9 @@ import type { ParsedSlashCommand, SlashCommandSpec } from "./types";
 
 const SUBCOMMANDS = [
 	{ name: "status", description: () => M.cmdChannelsStatus },
-	{ name: "instances", description: () => "instances / targets / bindings" },
-	{ name: "enable-instance", description: () => "enable-instance <instance-id>" },
-	{ name: "disable-instance", description: () => "disable-instance <instance-id>" },
+	{ name: "instances", description: () => M.cmdChannelsInstances },
+	{ name: "enable-instance", description: () => M.cmdChannelsEnableInstance },
+	{ name: "disable-instance", description: () => M.cmdChannelsDisableInstance },
 ] as const;
 
 const USAGE = [

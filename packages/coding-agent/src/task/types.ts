@@ -80,6 +80,7 @@ export const taskItemSchema = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
+	"model?": "string",
 	"+": "delete",
 });
 const taskItemSchemaIsolated = type({
@@ -90,6 +91,7 @@ const taskItemSchemaIsolated = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
+	"model?": "string",
 	"isolated?": "boolean",
 	"+": "delete",
 });
@@ -102,6 +104,7 @@ export const taskSchema = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
+	"model?": "string",
 	"isolated?": "boolean",
 	"+": "delete",
 });
@@ -113,6 +116,7 @@ const taskSchemaNoIsolation = type({
 	"outputSchema?": outputSchemaInputSchema,
 	"schemaMode?": '"permissive" | "strict"',
 	"tools?": "string[]",
+	"model?": "string",
 	"+": "delete",
 });
 function guardBatchAgent(schema: BaseType): BaseType {
@@ -284,13 +288,16 @@ export function getTaskSchema(options: {
 	const steps = options.steps ?? false;
 	const perCallModel = options.perCallModel ?? false;
 	const seanceFields = options.seanceFields ?? {};
+	// The exported single/batch schemas always advertise the per-call `model`
+	// field (v18.14.2 wire contract); a schema built for a call that may not
+	// send one omits it, so the fast path serves only model-enabled calls.
 	if (
 		defaultAgent === "task" &&
 		!effortEnabled &&
 		evalToolsEnabled &&
 		structured &&
 		!steps &&
-		!perCallModel &&
+		perCallModel &&
 		!options.seanceFields
 	) {
 		if (options.batchEnabled) return options.isolationEnabled ? taskSchemaBatch : taskSchemaBatchNoIsolation;

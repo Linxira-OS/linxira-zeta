@@ -208,34 +208,37 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "todo",
 		icon: "todo",
-		description: M.cmdTodo,
-		acpDescription: M.cmdTodoAcp,
+		description: () => M.cmdTodo,
+		acpDescription: () => M.cmdTodoAcp,
 		acpInputHint: "<subcommand>",
 		subcommands: [
-			{ name: "edit", description: M.cmdTodoEdit },
-			{ name: "copy", description: M.cmdTodoCopy },
-			{ name: "expand", description: M.cmdShowEveryPhaseAndTaskInTheHud },
-			{ name: "collapse", description: M.cmdRestoreTheBoundedHudPreview },
-			{ name: "export", description: M.cmdTodoExport, usage: "[<path>]" },
-			{ name: "import", description: M.cmdTodoImport, usage: "[<path>]" },
+			{ name: "edit", description: () => M.cmdTodoEdit },
+			{ name: "copy", description: () => M.cmdTodoCopy },
+			{ name: "expand", description: () => M.cmdShowEveryPhaseAndTaskInTheHud },
+			{ name: "collapse", description: () => M.cmdRestoreTheBoundedHudPreview },
+			{ name: "export", description: () => M.cmdTodoExport, usage: "[<path>]" },
+			{ name: "import", description: () => M.cmdTodoImport, usage: "[<path>]" },
 			{
 				name: "append",
-				description: M.cmdTodoAppend,
+				description: () => M.cmdTodoAppend,
 				usage: "[<phase>] <task...>",
 			},
-			{ name: "start", description: M.cmdTodoStart, usage: "<task>" },
-			{ name: "done", description: M.cmdTodoDone, usage: "[<task|phase>]" },
-			{ name: "drop", description: M.cmdTodoDrop, usage: "[<task|phase>]" },
-			{ name: "rm", description: M.cmdTodoRm, usage: "[<task|phase>]" },
+			{ name: "start", description: () => M.cmdTodoStart, usage: "<task>" },
+			{ name: "done", description: () => M.cmdTodoDone, usage: "[<task|phase>]" },
+			{ name: "drop", description: () => M.cmdTodoDrop, usage: "[<task|phase>]" },
+			{ name: "rm", description: () => M.cmdTodoRm, usage: "[<task|phase>]" },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const tasks = runtime.ctx.todoPhases.flatMap(phase => phase.tasks);
-			if (tasks.length === 0) return "Todos: none";
+			if (tasks.length === 0) return M.acTodosNone;
 			const pending = tasks.filter(task => task.status === "pending").length;
 			const inProgress = tasks.filter(task => task.status === "in_progress").length;
 			const completed = tasks.filter(task => task.status === "completed").length;
-			return `Todos: ${pending + inProgress} open (${inProgress} in progress, ${completed} done)`;
+			return M.acTodosFmt
+				.replace("%s", String(pending + inProgress))
+				.replace("%s", String(inProgress))
+				.replace("%s", String(completed));
 		},
 		handle: handleTodoAcp,
 		handleTui: async (command, runtime) => {
@@ -246,15 +249,15 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "session",
 		icon: "session",
-		description: M.cmdSession,
-		acpDescription: M.cmdSessionAcp,
+		description: () => M.cmdSession,
+		acpDescription: () => M.cmdSessionAcp,
 		acpInputHint: "[info|delete|pin [account]]",
 		subcommands: [
-			{ name: "info", description: M.cmdSessionInfo },
-			{ name: "delete", description: M.cmdSessionDelete },
+			{ name: "info", description: () => M.cmdSessionInfo },
+			{ name: "delete", description: () => M.cmdSessionDelete },
 			{
 				name: "pin",
-				description: M.cmdSessionPin,
+				description: () => M.cmdSessionPin,
 				usage: "[account]",
 			},
 		],
@@ -329,18 +332,20 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "jobs",
 		icon: "jobs",
-		description: M.cmdJobs,
-		acpDescription: M.cmdJobsAcp,
+		description: () => M.cmdJobs,
+		acpDescription: () => M.cmdJobsAcp,
 		acpInputHint: "[full|kill <id>|kill all]",
 		subcommands: [
-			{ name: "full", description: M.cmdJobsFull },
-			{ name: "kill", description: M.cmdJobsKill, usage: "<id>|all" },
+			{ name: "full", description: () => M.cmdJobsFull },
+			{ name: "kill", description: () => M.cmdJobsKill, usage: "<id>|all" },
 		],
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime => {
 			const snapshot = runtime.ctx.session.getAsyncJobSnapshot({ recentLimit: 5 });
-			if (!snapshot || (snapshot.running.length === 0 && snapshot.recent.length === 0)) return "Jobs: none";
-			return `Jobs: ${snapshot.running.length} running, ${snapshot.recent.length} recent`;
+			if (!snapshot || (snapshot.running.length === 0 && snapshot.recent.length === 0)) return M.acJobsNone;
+			return M.acJobsFmt
+				.replace("%s", String(snapshot.running.length))
+				.replace("%s", String(snapshot.recent.length));
 		},
 		handle: async (command, runtime) => {
 			const { verb, rest } = parseSubcommand(command.args);
@@ -405,14 +410,14 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "usage",
 		icon: "gauge",
-		description: M.cmdUsage,
-		acpDescription: M.cmdUsageAcp,
+		description: () => M.cmdUsage,
+		acpDescription: () => M.cmdUsageAcp,
 		acpInputHint: "[show|reset [provider/credential-id|provider/active]]",
 		subcommands: [
-			{ name: "show", description: M.cmdUsage },
+			{ name: "show", description: () => M.cmdUsage },
 			{
 				name: "reset",
-				description: M.cmdUsageReset,
+				description: () => M.cmdUsageReset,
 				usage: "[provider/credential-id|provider/active]",
 			},
 		],
@@ -452,7 +457,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "stats",
 		icon: "stats",
-		description: M.cmdStats,
+		description: () => M.cmdStats,
 		inlineHint: "[--port <port>] [--host <host>]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -490,12 +495,12 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "changelog",
 		icon: "news",
-		description: M.cmdChangelog,
-		acpDescription: M.cmdChangelogAcp,
+		description: () => M.cmdChangelog,
+		acpDescription: () => M.cmdChangelogAcp,
 		acpInputHint: "[full|last [N]]",
 		subcommands: [
-			{ name: "full", description: M.cmdChangelogFull },
-			{ name: "last", description: M.cmdChangelogLast, usage: "[N]" },
+			{ name: "full", description: () => M.cmdChangelogFull },
+			{ name: "last", description: () => M.cmdChangelogLast, usage: "[N]" },
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -519,7 +524,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "hotkeys",
 		icon: "keyboard",
-		description: M.cmdHotkeys,
+		description: () => M.cmdHotkeys,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.handleHotkeysCommand();
 			clearSubmittedText(runtime);
@@ -528,12 +533,12 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "tools",
 		icon: "tools",
-		description: M.cmdTools,
-		acpDescription: M.cmdToolsAcp,
+		description: () => M.cmdTools,
+		acpDescription: () => M.cmdToolsAcp,
 		getTuiAutocompleteDescription: runtime => {
 			const active = runtime.ctx.session.getActiveToolNames().length;
 			const all = runtime.ctx.session.getAllToolNames().length;
-			return all === 0 ? "Tools: none available" : `Tools: ${active} active / ${all} available`;
+			return all === 0 ? M.acToolsNone : M.acToolsFmt.replace("%s", String(active)).replace("%s", String(all));
 		},
 		handle: async (_command, runtime) => {
 			const active = runtime.session.getActiveToolNames();
@@ -557,12 +562,15 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "context",
 		icon: "context",
-		description: M.cmdContextAndContent,
-		acpDescription: M.cmdContextAcp,
+		description: () => M.cmdContextAndContent,
+		acpDescription: () => M.cmdContextAcp,
 		getTuiAutocompleteDescription: runtime => {
 			const usage = runtime.ctx.session.getContextUsage();
-			if (!usage) return "Context: unavailable";
-			return `Context: ${Math.round(usage.percent)}% (${formatTokenCount(usage.tokens)}/${formatTokenCount(usage.contextWindow)})`;
+			if (!usage) return M.acContextUnavailable;
+			return M.acContextFmt
+				.replace("%s", String(Math.round(usage.percent)))
+				.replace("%s", formatTokenCount(usage.tokens))
+				.replace("%s", formatTokenCount(usage.contextWindow));
 		},
 		handle: async (_command, runtime) => {
 			await runtime.output(buildContextReportText(runtime));
@@ -576,7 +584,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "extensions",
 		icon: "extension",
-		description: M.cmdExtensions,
+		description: () => M.cmdExtensions,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showExtensionsDashboard();
 			clearSubmittedText(runtime);
@@ -585,7 +593,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "agents",
 		icon: "agents",
-		description: M.cmdAgents,
+		description: () => M.cmdAgents,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showAgentsDashboard();
 			clearSubmittedText(runtime);
@@ -594,7 +602,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "git",
 		icon: "branch",
-		description: M.cmdOpenTheGitUiSplitDiffViewerStagingCommitComposer,
+		description: () => M.cmdOpenTheGitUiSplitDiffViewerStagingCommitComposer,
 		inlineHint: "[revision]",
 		allowArgs: true,
 		handleTui: (command, runtime) => {
@@ -605,7 +613,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "local",
 		icon: "pencil",
-		description: M.cmdOpenSessionLocalFileInEditor,
+		description: () => M.cmdOpenSessionLocalFileInEditor,
 		inlineHint: "[name]",
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
@@ -617,7 +625,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "hub",
 		aliases: ["subagents"],
 		icon: "agents",
-		description: M.cmdOpenAgentHubDetailed,
+		description: () => M.cmdOpenAgentHubDetailed,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showAgentHub({ initialSection: "activity" });
 			clearSubmittedText(runtime);
@@ -627,7 +635,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "branch",
 		aliases: ["rewind"],
 		icon: "branch",
-		description: M.cmdRewindToAPreviousMessageKeepingTheOldPathAsABranch,
+		description: () => M.cmdRewindToAPreviousMessageKeepingTheOldPathAsABranch,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showUserMessageSelector();
 			clearSubmittedText(runtime);
@@ -636,11 +644,11 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "fork",
 		icon: "branch",
-		description: M.cmdFork,
+		description: () => M.cmdFork,
 		subcommands: [
-			{ name: "pane", description: M.cmdForkPane },
-			{ name: "window", description: M.cmdForkWindow },
-			{ name: "tab", description: M.cmdForkTab },
+			{ name: "pane", description: () => M.cmdForkPane },
+			{ name: "window", description: () => M.cmdForkWindow },
+			{ name: "tab", description: () => M.cmdForkTab },
 		],
 		subcommandOptional: true,
 		allowArgs: true,
@@ -676,7 +684,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "tree",
 		icon: "tree",
-		description: M.cmdTree,
+		description: () => M.cmdTree,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showTreeSelector();
 			clearSubmittedText(runtime);
@@ -685,7 +693,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "login",
 		icon: "signIn",
-		description: M.cmdLogin,
+		description: () => M.cmdLogin,
 		inlineHint: "[provider|redirect URL]",
 		allowArgs: true,
 		getTuiAutocompleteDescription: runtime =>
@@ -738,7 +746,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "logout",
 		icon: "signOut",
-		description: M.cmdLogout,
+		description: () => M.cmdLogout,
 		inlineHint: "[provider]",
 		allowArgs: true,
 		handleTui: (command, runtime) => {
@@ -761,28 +769,28 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "mcp",
 		icon: "mcp",
-		description: M.cmdMcp,
-		acpDescription: M.cmdMcpAcp,
+		description: () => M.cmdMcp,
+		acpDescription: () => M.cmdMcpAcp,
 		inlineHint: "<subcommand>",
 		subcommands: [
 			{
 				name: "add",
-				description: M.cmdMcpAdd,
+				description: () => M.cmdMcpAdd,
 				usage: "<name> [--scope project|user] [--url <url>] [-- <command...>]",
 			},
-			{ name: "list", description: M.cmdMcpList },
-			{ name: "remove", description: M.cmdMcpRemove, usage: "<name> [--scope project|user]" },
-			{ name: "test", description: M.cmdMcpTest, usage: "<name>" },
-			{ name: "reauth", description: M.cmdMcpReauth, usage: "<name>" },
-			{ name: "unauth", description: M.cmdMcpUnauth, usage: "<name>" },
-			{ name: "enable", description: M.cmdMcpEnable, usage: "<name>" },
-			{ name: "disable", description: M.cmdMcpDisable, usage: "<name>" },
-			{ name: "reconnect", description: M.cmdMcpReconnect, usage: "<name>" },
-			{ name: "reload", description: M.cmdMcpReload },
-			{ name: "resources", description: M.cmdMcpResources },
-			{ name: "prompts", description: M.cmdMcpPrompts },
-			{ name: "notifications", description: M.cmdMcpNotifications },
-			{ name: "help", description: M.cmdMcpHelp },
+			{ name: "list", description: () => M.cmdMcpList },
+			{ name: "remove", description: () => M.cmdMcpRemove, usage: "<name> [--scope project|user]" },
+			{ name: "test", description: () => M.cmdMcpTest, usage: "<name>" },
+			{ name: "reauth", description: () => M.cmdMcpReauth, usage: "<name>" },
+			{ name: "unauth", description: () => M.cmdMcpUnauth, usage: "<name>" },
+			{ name: "enable", description: () => M.cmdMcpEnable, usage: "<name>" },
+			{ name: "disable", description: () => M.cmdMcpDisable, usage: "<name>" },
+			{ name: "reconnect", description: () => M.cmdMcpReconnect, usage: "<name>" },
+			{ name: "reload", description: () => M.cmdMcpReload },
+			{ name: "resources", description: () => M.cmdMcpResources },
+			{ name: "prompts", description: () => M.cmdMcpPrompts },
+			{ name: "notifications", description: () => M.cmdMcpNotifications },
+			{ name: "help", description: () => M.cmdMcpHelp },
 		],
 		allowArgs: true,
 		handle: handleMcpAcp,

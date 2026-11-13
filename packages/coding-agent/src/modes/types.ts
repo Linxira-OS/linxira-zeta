@@ -33,6 +33,7 @@ import type {
 import type { Skill } from "../extensibility/skills";
 import type { MCPManager } from "../mcp";
 import type { PlanApprovalDetails } from "../plan-mode/approved-plan";
+import type { AgentRegistry } from "../registry/agent-registry";
 import type { AgentSession } from "../session/agent-session";
 import type { AgentViewSession } from "../session/agent-session-handle";
 import type { CompactMode } from "../session/compact-modes";
@@ -298,6 +299,8 @@ export interface InteractiveModeContext {
 	lspServers?: LspStartupServerInfo[];
 	backendAttach?: BackendAttachLink;
 	backendQueue?: { steering: string[]; followUp: string[]; liveSteered: number };
+	/** Registry shown by the Agent Hub; defaults to the process-global registry. */
+	agentRegistry?: AgentRegistry;
 	eventController: EventController;
 	eventBus?: EventBus;
 	/** Root-scoped bus carrying this session tree's `task:subagent:*` frames. */

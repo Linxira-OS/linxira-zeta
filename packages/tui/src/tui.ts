@@ -3035,17 +3035,20 @@ export class TUI extends Container {
 	 * content changes must keep calling {@link requestRender} or
 	 * {@link requestComponentRender}.
 	 */
-	requestDecorativeRender(_component?: Component): void {
+	requestDecorativeRender(component?: Component): void {
 		if (this.#stopped) return;
 		const remaining = this.decorativePauseRemainingMs();
 		if (remaining <= 0) {
-			this.#requestOrdinaryRender();
+			if (component) this.requestComponentRender(component);
+			else this.#requestOrdinaryRender();
 			return;
 		}
 		if (this.#decorativeDeferredTimer) return;
 		this.#decorativeDeferredTimer = setTimeout(() => {
 			this.#decorativeDeferredTimer = undefined;
-			if (!this.#stopped) this.#requestOrdinaryRender();
+			if (this.#stopped) return;
+			if (component) this.requestComponentRender(component);
+			else this.#requestOrdinaryRender();
 		}, remaining);
 		this.#decorativeDeferredTimer.unref?.();
 	}

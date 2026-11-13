@@ -250,7 +250,7 @@ export class EventController {
 	#detachToolApprovalPreviewWaiter: (() => void) | undefined;
 	#readToolCallArgs = new Map<string, Record<string, unknown>>();
 	#readToolCallAssistantComponents = new Map<string, AssistantMessageComponent>();
-	#toolTimelineComponents = new Map<string, Component>();
+	#toolTimelineComponents = new Map<string, ToolExecutionHandle>();
 	// Stable identity for a streamed tool call while its assistant message is
 	// live: maps the tool-call block's position in the streaming message to the
 	// id last seen at that position. A streamed id can CHANGE across cumulative
@@ -373,6 +373,8 @@ export class EventController {
 	#dispatchTail: Promise<void> = Promise.resolve();
 	/** Whether a chained run is currently in flight (awaiting its own awaits). */
 	#dispatchInFlight = false;
+	/** Bumped whenever the view is reset; a run resumed after an await checks it still owns the view. */
+	#dispatchGeneration = 0;
 	// Deltas already fed to speech at arrival by the coalescer. `#handleMessageUpdate`
 	// also vocalizes so the direct `handleEvent` path (tests, session focus replay)
 	// keeps working — the WeakSet makes the coalesced path speak each delta exactly
@@ -543,6 +545,13 @@ export class EventController {
 	#resetReadGroup(): void {
 		this.#lastReadGroup?.finalize();
 		this.#lastReadGroup = undefined;
+	}
+
+	/** A rebuild may replace settled read groups while preserving groups with in-flight reads. */
+	reconcileReadGroupAfterRebuild(): void {
+		if (this.#lastReadGroup && !this.ctx.chatContainer.children.includes(this.#lastReadGroup)) {
+			this.#resetReadGroup();
+		}
 	}
 	/** Freeze foreground tool cards once no live agent turn can complete them. */
 	#sealAbandonedForegroundTools(): void {
@@ -1069,6 +1078,7 @@ export class EventController {
 		}
 		this.#pendingMessageUpdate = undefined;
 		this.#pendingMessageRestart = false;
+		this.#dispatchGeneration++;
 		this.#resetReadGroup();
 		this.#lastVisibleBlockCount = 0;
 		this.#renderedCustomMessages.clear();
@@ -1639,6 +1649,7 @@ export class EventController {
 	}
 
 	async #handleMessageUpdate(event: Extract<AgentSessionEvent, { type: "message_update" }>): Promise<void> {
+		const generation = this.#dispatchGeneration;
 		this.#ensureWorkingLoaderWhileStreaming();
 		if (!this.#vocalizedMessageUpdates.delete(event)) {
 			this.#vocalizeDelta(event);
@@ -1646,11 +1657,15 @@ export class EventController {
 		if (event.assistantMessageEvent?.type === "start") {
 			await this.#restartAssistantStream(event.message);
 		}
+		// A focus switch reset the view while the restart was in flight: this
+		// update belongs to the previous session's stream.
+		if (generation !== this.#dispatchGeneration) return;
 		if (event.message.role === "assistant") await this.syncAssistantMessage(event.message);
 	}
 
 	/** Resync a cumulative snapshot without replay cleanup or speech side effects. */
 	async syncAssistantMessage(message: AssistantMessage): Promise<void> {
+		const generation = this.#dispatchGeneration;
 		if (this.ctx.streamingComponent) {
 			const unlockedThinkingVisibility = this.ctx.noteDisplayableThinkingContent(message);
 			if (unlockedThinkingVisibility) {
@@ -1685,6 +1700,10 @@ export class EventController {
 				!this.ctx.streamingComponent.isTranscriptBlockFinalized()
 			) {
 				const linkTargets = await refreshAssistantMessageLinkTargets(this.ctx, [timeline.beforeTools]);
+				// A focus switch reset the view during link resolution (it waits
+				// behind this run): the streaming state below is gone or the next
+				// session's, so none of this snapshot may be drawn into it.
+				if (generation !== this.#dispatchGeneration || !this.ctx.streamingComponent) return;
 				this.ctx.streamingComponent.setLinkTargets(assistantMessageLinkTargets(timeline.beforeTools, linkTargets));
 				this.ctx.streamingComponent.markTranscriptBlockFinalized();
 			}
@@ -1794,6 +1813,7 @@ export class EventController {
 				if (this.#postToolAssistantComponents.get(toolCallId)?.isTranscriptBlockFinalized()) continue;
 				const closed = toolCallId !== timeline.lastToolCallId;
 				const linkTargets = closed ? await refreshAssistantMessageLinkTargets(this.ctx, [segment]) : undefined;
+				if (generation !== this.#dispatchGeneration || !this.ctx.streamingMessage) return;
 				const component = this.#upsertPostToolAssistantSegment(
 					toolCallId,
 					segment,
@@ -1878,6 +1898,7 @@ export class EventController {
 			}
 		}
 		if (this.ctx.streamingComponent && event.message.role === "assistant") {
+			const generation = this.#dispatchGeneration;
 			this.ctx.streamingMessage = event.message;
 			this.#streamingReveal.stop();
 			this.#toolArgsReveal.flushAll();
@@ -1907,6 +1928,7 @@ export class EventController {
 				: this.ctx.streamingMessage;
 			const displayTimeline = splitAssistantMessageToolTimeline(displayMessage);
 			const linkTargets = await refreshAssistantMessageLinkTargets(this.ctx, [displayMessage]);
+			if (generation !== this.#dispatchGeneration || !this.ctx.streamingComponent) return;
 			if (!this.ctx.streamingComponent.isTranscriptBlockFinalized()) {
 				this.ctx.streamingComponent.setLinkTargets(
 					assistantMessageLinkTargets(displayTimeline.beforeTools, linkTargets),
@@ -2056,7 +2078,7 @@ export class EventController {
 			this.#blockingPrompts.set(event.toolCallId, blocked);
 		}
 		this.#resolveDisplaceablePoll(renderToolName);
-		if (!this.ctx.pendingTools.has(event.toolCallId)) {
+		if (!this.ctx.pendingTools.has(event.toolCallId) && !this.#toolTimelineComponents.has(event.toolCallId)) {
 			const stale = this.#priorTurnToolComponents.get(event.toolCallId);
 			if (stale) {
 				this.#priorTurnToolComponents.delete(event.toolCallId);
@@ -2067,13 +2089,11 @@ export class EventController {
 			}
 			if (renderToolName === "read" && readArgsCollapseIntoGroup(event.args)) {
 				this.#trackReadToolCall(event.toolCallId, event.args);
-				if (!this.#toolTimelineComponents.has(event.toolCallId)) {
-					const group = this.#getReadGroup();
-					group.updateArgs(event.args, event.toolCallId);
-					this.ctx.pendingTools.set(event.toolCallId, group);
-					this.#toolTimelineComponents.set(event.toolCallId, group);
-					this.#settleHeldCompletionIfPresent(event.toolCallId, group);
-				}
+				const group = this.#getReadGroup();
+				group.updateArgs(event.args, event.toolCallId);
+				this.ctx.pendingTools.set(event.toolCallId, group);
+				this.#toolTimelineComponents.set(event.toolCallId, group);
+				this.#settleHeldCompletionIfPresent(event.toolCallId, group);
 				this.#startToolApprovalPreview(event.toolCallId);
 				this.ctx.ui.requestRender();
 				return;
@@ -2113,7 +2133,8 @@ export class EventController {
 			// re-truncate them: tool_execution_start is the one event every
 			// execution path emits with the full args immediately before the result.
 			this.#toolArgsReveal.finish(event.toolCallId);
-			const component = this.ctx.pendingTools.get(event.toolCallId);
+			const component =
+				this.ctx.pendingTools.get(event.toolCallId) ?? this.#toolTimelineComponents.get(event.toolCallId);
 			if (component && typeof component.updateArgs === "function") {
 				component.updateArgs(renderArgsWithIntent(event.args, event.intent), event.toolCallId);
 				if (typeof component.setArgsComplete === "function") {

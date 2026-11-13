@@ -310,7 +310,7 @@ describe("executeBash", () => {
 	});
 
 	it("applies non-interactive environment defaults", async () => {
-		const result = await executeBash('echo "$AGENT:$GIT_TERMINAL_PRZetaT:$PI_TEST_ENV"', {
+		const result = await executeBash('echo "$AGENT:$GIT_TERMINAL_PROMPT:$PI_TEST_ENV"', {
 			cwd: tempDir,
 			timeout: 5000,
 			env: { PI_TEST_ENV: "hello" },

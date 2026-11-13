@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CONFIG_DIR_NAME, getAgentDir, getProjectDir } from "@linxiraos/pi-utils";
+import { CONFIG_DIR_NAME, getConfigAgentDirName, getProjectDir } from "@linxiraos/pi-utils";
 import { isUserSourceEnabled } from "./capability";
 import { resolveClaudePaths } from "./config/claude-paths";
 import { expandTilde } from "./tools/path-utils";
@@ -10,12 +10,13 @@ export * from "./config/config-file";
 
 /**
  * Config sources, highest priority first. `userBase` overrides the default
- * `~/<dir>` user-level location: omp's own user dir follows `getAgentDir()`
- * (profile, `ZETA_CONFIG_DIR`, and `ZETA_CODING_AGENT_DIR` aware), Claude's follows
- * its active config directory.
+ * `~/<dir>` user-level location: omp's own user dir follows
+ * `getConfigAgentDirName()` (profile and `ZETA_CONFIG_DIR` aware), read on
+ * every call so an env change is not masked by the cached `getAgentDir()`;
+ * Claude's follows its active config directory.
  */
 const priorityList: Array<{ dir: string; userBase?: () => string }> = [
-	{ dir: CONFIG_DIR_NAME, userBase: getAgentDir },
+	{ dir: CONFIG_DIR_NAME, userBase: () => path.join(os.homedir(), getConfigAgentDirName()) },
 	{ dir: ".claude", userBase: () => resolveClaudePaths().configDir },
 	{ dir: ".codex" },
 	{ dir: ".gemini" },

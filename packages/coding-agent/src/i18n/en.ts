@@ -1892,6 +1892,9 @@ export const en = {
 	cmdSettingsReset: "Reset settings to defaults",
 	cmdChannels: "Inspect, pair, and toggle IM channels (operator entry)",
 	cmdChannelsStatus: "Show channel runtime, credentials, and routing",
+	cmdChannelsInstances: "instances / targets / bindings",
+	cmdChannelsEnableInstance: "enable-instance <instance-id>",
+	cmdChannelsDisableInstance: "disable-instance <instance-id>",
 	settingsResetConfirmHint:
 		"This will reset %s configured setting(s) to defaults. Run /settings reset confirm to proceed.",
 	settingsResetDoneFmt: "Reset %s setting(s) to defaults.",

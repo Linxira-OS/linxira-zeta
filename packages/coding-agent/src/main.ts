@@ -151,7 +151,12 @@ import { shouldShowStartupSplash } from "./startup-splash";
 import { AgentRegistry } from "./registry/agent-registry";
 import { deliverPendingRoomEvents } from "./team/room-delivery";
 import { isTeamHubEntry, resolveTeamEntry } from "./team/entry";
-import { discoverTitleSystemPromptFile, loadSystemPromptTemplateFile, resolvePromptInput } from "./system-prompt";
+import {
+	discoverSystemPromptOverride,
+	discoverTitleSystemPromptFile,
+	loadSystemPromptTemplateFile,
+	resolvePromptInput,
+} from "./system-prompt";
 import { createPersistedSubagentReviverFactory } from "./task/persisted-revive";
 import { type RestoreOutcome, restoreSession } from "./task/restore";
 import { createTelemetryExportConfig, initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
@@ -1543,9 +1548,15 @@ export async function buildSessionOptions(
 		throw new Error("--system-prompt and --system-prompt-template cannot be combined");
 	}
 	const cwd = options.cwd;
-	// Discovered SYSTEM.md/template stays on the buildSystemPrompt discovery path:
-	// it re-reads the source on every prompt rebuild. Only explicit CLI inputs
-	// are frozen into options here (an explicit flag is a one-shot value).
+	// Explicit prompt inputs win over discovered SYSTEM_TEMPLATE.md/SYSTEM.md.
+	// A discovered literal (SYSTEM.md) stays on buildSystemPrompt's discovery
+	// path so it is re-read on every prompt rebuild; a discovered template is
+	// frozen here because buildSystemPrompt cannot distinguish it from an
+	// explicit one.
+	const discoveredPromptOverride =
+		parsed.systemPrompt === undefined && parsed.systemPromptTemplate === undefined
+			? await discoverSystemPromptOverride(cwd)
+			: undefined;
 	const explicitTemplatePath = parsed.systemPromptTemplate;
 	const discoveredAppendSource =
 		parsed.appendSystemPrompt === undefined ? discoverAppendSystemPromptPath() : undefined;
@@ -1559,9 +1570,11 @@ export async function buildSessionOptions(
 				? Promise.resolve(undefined)
 				: resolvePromptInput(parsed.appendSystemPrompt, "append system prompt"),
 			resolvePromptInput(titleSystemPromptSource, "title system prompt"),
-			explicitTemplatePath === undefined
-				? Promise.resolve(undefined)
-				: loadSystemPromptTemplateFile(explicitTemplatePath),
+			explicitTemplatePath !== undefined
+				? loadSystemPromptTemplateFile(explicitTemplatePath)
+				: discoveredPromptOverride?.kind === "template"
+					? Promise.resolve(discoveredPromptOverride.content)
+					: Promise.resolve(undefined),
 		]);
 	if (discoveredAppendSource !== undefined) {
 		options.appendSystemPromptSource = discoveredAppendSource;

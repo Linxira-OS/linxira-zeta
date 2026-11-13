@@ -6,7 +6,12 @@ import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings"
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { getProjectAgentDir, removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
-import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
+import {
+	beginSettingsTest,
+	restoreEnvValue,
+	restoreSettingsTestState,
+	type SettingsTestState,
+} from "./helpers/settings-test-state";
 
 import { cfgCompactionEnabled } from "@linxiraos/zeta/session/context-settings";
 import { cfgEnabledModels, cfgModelRoleStorage } from "@linxiraos/zeta/config/model-settings";
@@ -208,9 +213,14 @@ describe("Settings.reloadForCwd", () => {
 		let startDir: string;
 		let scopedProject: string;
 		let bareProject: string;
+		let originalForeignSources: string | undefined;
 
 		beforeEach(() => {
 			resetSettingsForTest();
+			// `.claude/settings.json` is a foreign project source; these cases pin its
+			// precedence against the native project layer.
+			originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+			process.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude";
 			testDir = path.join(os.tmpdir(), "test-reload-cwd", Snowflake.next());
 			agentDir = path.join(testDir, "agent");
 			startDir = path.join(testDir, "start");
@@ -228,6 +238,7 @@ describe("Settings.reloadForCwd", () => {
 		});
 
 		afterEach(() => {
+			restoreEnvValue("ZETA_FOREIGN_PROJECT_SOURCES", originalForeignSources);
 			resetSettingsForTest();
 			// Persisted instances open agent.db under testDir; close it before the directory goes away.
 			AgentStorage.close();

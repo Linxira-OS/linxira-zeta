@@ -2996,8 +2996,7 @@ export class SelectorController {
 		const hub = new AgentHubOverlayComponent({
 			...createAgentHubRuntime({
 				settings: this.ctx.settings,
-				registry: undefined,
-				remote: undefined,
+				registry: this.ctx.agentRegistry,
 				sessionFile: this.ctx.sessionManager.getSessionFile() ?? null,
 			}),
 			observers,

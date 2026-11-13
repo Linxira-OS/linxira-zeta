@@ -2230,8 +2230,6 @@ agrpMatchOne
 agrpMatchManyFmt
 agrpFileOne
 agrpFileManyFmt
-statusFailedToApplyMemoryBackendFmt
-statusFailedToApplyExternalThinkingFmt
 gpNoMatches
 gpSkippedMissingFmt
 glUnknownError
@@ -2240,14 +2238,6 @@ cmdSmitherySearch
 cmdSmitheryLogin
 cmdSmitheryLogout
 cmdOpenTheLiveAgentHub
-acJobsNone
-acJobsFmt
-acToolsNone
-acToolsFmt
-acContextUnavailable
-acContextFmt
-acTodosNone
-acTodosFmt
 grepTruncated
 grepItemOne
 grepItemManyFmt

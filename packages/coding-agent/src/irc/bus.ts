@@ -11,9 +11,20 @@
 
 import { type IrcDeliveryReceipt, type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
-import { getMeshNode } from "../mesh/global";
+import * as path from "node:path";
 import { type AgentLifecycleApi, AgentLifecycleManager } from "../registry/agent-lifecycle";
-import { AgentRegistry, type AgentRegistryApi, MAIN_AGENT_ID } from "../registry/agent-registry";
+import {
+	AgentRegistry,
+	type AgentRegistryApi,
+	isMainAgentAlias,
+	MAIN_AGENT_ID,
+	type AgentRef,
+} from "../registry/agent-registry";
+import { getMeshNode } from "../mesh/global";
+import { formatMeshAddress, tryParseMeshAddress } from "../mesh/envelope";
+import { evaluateGearCall, gearsFromSettings, type GearParty } from "../mesh/gears";
+import type { MeshNode } from "../mesh/mesh-node";
+import { isDefaultWorkspace } from "../default-workspace";
 import type { CustomMessage } from "../session/messages";
 
 interface IrcWaiter {
@@ -57,7 +68,10 @@ const MAILBOX_CAP = 100;
 /** Public surface of the process-global IRC bus, implemented locally on main and by a proxy in workers. */
 export interface IrcBusApi {
 	/** Fire-and-forget delivery; the receipt reports how the message reached the recipient. */
-	send(msg: Omit<IrcMessage, "id" | "ts">): Promise<IrcDeliveryReceipt>;
+	send(
+		msg: Omit<IrcMessage, "id" | "ts">,
+		opts?: { expectsReply?: boolean; suppressRelay?: boolean },
+	): Promise<IrcDeliveryReceipt>;
 	/** Whether `from` successfully sent `to` anything, progress included, at or after `sinceTs`. */
 	sentSince(from: string, to: string, sinceTs: number): boolean;
 	/** Agents `from` messaged directly at or after `sinceTs` that have not answered since. */
@@ -68,7 +82,7 @@ export interface IrcBusApi {
 		filter: IrcWaitFilter,
 		timeoutMs: number,
 		signal?: AbortSignal,
-		options?: { drainPending?: boolean; liveness?: unknown },
+		options?: { drainPending?: boolean; liveness?: { registry: AgentRegistryApi; senderId: string } },
 	): Promise<IrcMessage | null>;
 	/** Consume the oldest pending message for `agentId` (optionally from `from`). */
 	take(agentId: string, from?: string): IrcMessage | undefined;
@@ -159,13 +173,23 @@ export class IrcBus implements IrcBusApi {
 	 * context, so buffering it too would double-deliver via a later
 	 * `wait`/`inbox` and inflate unread counts. Only a failed live hand-off
 	 * is buffered for the recipient to drain later.
+	 *
+	 * `opts.expectsReply` marks sends whose caller is blocked on an answer
+	 * (`send await:true`). It is forwarded to the recipient session so a
+	 * mid-turn recipient that cannot reach a step boundary can generate an
+	 * ephemeral auto-reply instead of stranding the sender until timeout.
+	 *
+	 * `opts.suppressRelay` skips the display-only main-UI relay for this leg.
 	 */
-	async send(msg: Omit<IrcMessage, "id" | "ts">): Promise<IrcDeliveryReceipt> {
+	async send(
+		msg: Omit<IrcMessage, "id" | "ts">,
+		opts?: { expectsReply?: boolean; suppressRelay?: boolean },
+	): Promise<IrcDeliveryReceipt> {
 		const message: IrcMessage = { ...msg, id: Snowflake.next(), ts: Date.now() };
 		// Taken before delivery: a reply sent while this message is still being
 		// delivered must still order after it.
 		const mark: SendMark = { ts: message.ts, seq: ++this.#sendSeq };
-		const receipt = await this.#deliver(message);
+		const receipt = await this.#deliver(message, opts);
 		if (receipt.outcome !== "failed") {
 			if (message.progress) {
 				this.#record(this.#lastProgress, message.from, message.to, mark);
@@ -227,44 +251,71 @@ export class IrcBus implements IrcBusApi {
 		return unanswered;
 	}
 
-	async #deliver(message: IrcMessage): Promise<IrcDeliveryReceipt> {
+	async #deliver(
+		message: IrcMessage,
+		opts?: { expectsReply?: boolean; suppressRelay?: boolean },
+	): Promise<IrcDeliveryReceipt> {
 		// Cross-process addressing is opt-in by shape: an unprefixed id is
 		// resolved in this process exactly as before, and with no mesh node
 		// installed (CLI, single-process hosts) nothing here changes.
 		const mesh = getMeshNode();
 		// `agent://<id>` is accepted anywhere agent ids are; strip the scheme
 		// before the local lookup so a scheme-prefixed local id still resolves.
-		const requested = message.to.startsWith("agent://") ? message.to.slice("agent://".length) : message.to;
+		const requestedRaw = message.to.startsWith("agent://") ? message.to.slice("agent://".length) : message.to;
+		// A workspace-qualified target can name another workspace hosted by this
+		// same process (`serve` runs sessions for several roots). Resolve it
+		// locally first: it is not remote, so it must not fall through to an
+		// offline mailbox. This is separate from the mesh's own-workspace strip.
+		let requested = requestedRaw;
+		const parsedRequested = tryParseMeshAddress(requestedRaw);
+		if (parsedRequested?.workspace) {
+			const local = this.#localWorkspaceRef(parsedRequested.workspace, parsedRequested.agent);
+			if (local) requested = local.id;
+		}
+		// `main` names the main agent of the caller's own workspace — not a
+		// same-named root of another workspace, and not a silent self-delivery
+		// when the caller is that main. Resolve locally first; a workspace whose
+		// main lives in another process is addressed through the mesh by id.
+		if (isMainAgentAlias(requestedRaw)) {
+			const caller = this.#registry.get(message.from);
+			const main = this.#registry.workspaceMain(caller?.workspaceId);
+			if (main) {
+				requested = main.id;
+			} else if (mesh) {
+				const address = formatMeshAddress(caller?.workspaceId ?? mesh.workspaceId, "main");
+				// Routing back into this process would re-enter this same alias,
+				// find no live main, and bounce through the mailbox drain queue
+				// forever. A local workspace with no live main is a local failure.
+				if (mesh.stripLocalAddress(address) === undefined) {
+					return await this.#sendOverMesh(mesh, message, address);
+				}
+			}
+		}
 		const localTarget = mesh?.stripLocalAddress(requested);
 		const target = localTarget ?? requested;
 		const ref = this.#registry.get(target);
+		const senderRef = this.#registry.get(message.from);
+		const subagentError = this.#subagentSendError(senderRef, ref, requested);
+		if (subagentError) return { to: target, outcome: "failed", error: subagentError };
 		if (!ref) {
 			if (mesh && localTarget === undefined && mesh.isCrossProcessAddress(requested)) {
-				const result = await mesh.send({
-					from: message.from,
-					to: requested,
-					body: message.body,
-					...(message.replyTo !== undefined && { replyTo: message.replyTo }),
-				});
-				return result.outcome === "failed"
-					? { to: requested, outcome: "failed", error: result.error }
-					: { to: requested, outcome: result.outcome };
+				return await this.#sendOverMesh(mesh, message, requested);
 			}
 			return {
-				to: target,
+				to: message.to,
 				outcome: "failed",
 				error: `Unknown agent "${requested}" — check the subagent roster or read history:// for known peers.`,
 			};
 		}
-		// An address qualified with this workspace is delivered under the local
-		// id so the recipient sees the same id it uses in-process.
-		const deliveryMessage = target === message.to ? message : { ...message, to: target };
+		if (target === message.from) {
+			return { to: target, outcome: "failed", error: "Cannot send a message to yourself." };
+		}
 		// Advisor refs are observability-only transcripts, never messageable peers.
 		if (ref.kind === "advisor") {
 			return {
 				to: target,
 				outcome: "failed",
-				error: `Agent "${message.to}" is a read-only advisor transcript and cannot be messaged.`,
+				error: `Agent "${target}" is a read-only advisor transcript and cannot be messaged.`,
 			};
 		}
 
@@ -302,24 +353,31 @@ export class IrcBus implements IrcBusApi {
 			}
 		}
 
-		// A pending bus wait from the recipient consumes the message directly
-		// and never hits the inbox; the `wait` tool hands it to its own session,
-		// which injects it as a user turn.
+		const gearError = await this.#gearError(senderRef, this.#registry.get(target) ?? ref, target);
+		if (gearError) return { to: target, outcome: "failed", error: gearError };
+
+		// An address qualified with this workspace is delivered under the local
+		// id so the recipient sees the same id it uses in-process.
+		const deliveryMessage = target === message.to ? message : { ...message, to: target };
+
+		// A pending `wait` from the recipient consumes the message directly —
+		// it is returned from their irc tool call and never hits the inbox or
+		// the session injection path.
 		const waiter = this.#takeMatchingWaiter(deliveryMessage);
 		if (waiter) {
 			waiter.resolve(deliveryMessage);
-			this.#relayToMainUi(deliveryMessage);
+			if (!opts?.suppressRelay) this.#relayToMainUi(deliveryMessage);
 			return { to: target, outcome: revived ? "revived" : "injected" };
 		}
 
 		const session = this.#registry.get(target)?.session;
 		if (!session) {
-			return { to: target, outcome: "failed", error: `Agent "${message.to}" has no live session.` };
+			return { to: target, outcome: "failed", error: `Agent "${target}" has no live session.` };
 		}
 
 		try {
 			const delivery = await session.deliverIrcMessage(deliveryMessage);
-			this.#relayToMainUi(deliveryMessage);
+			if (!opts?.suppressRelay) this.#relayToMainUi(deliveryMessage);
 			return { to: target, outcome: revived ? "revived" : delivery };
 		} catch (error) {
 			// Live hand-off failed (e.g. recipient disposed mid-shutdown): buffer
@@ -336,6 +394,106 @@ export class IrcBus implements IrcBusApi {
 	}
 
 	/**
+	 * The main agent that spawned `ref`: walk nested `parentId` links to the
+	 * root, which is the only agent a subagent may message.
+	 */
+	#spawningMainId(ref: AgentRef): string | undefined {
+		const seen = new Set<string>();
+		let current = ref;
+		while (current.parentId !== undefined && !seen.has(current.parentId)) {
+			seen.add(current.parentId);
+			const parent = this.#registry.get(current.parentId);
+			if (!parent) return current.parentId;
+			current = parent;
+		}
+		return current.kind === "main" && current.parentId === undefined ? current.id : undefined;
+	}
+
+	/** Hard rule 1: a subagent may only message the main agent that spawned it. */
+	#subagentSendError(
+		sender: AgentRef | undefined,
+		targetRef: AgentRef | undefined,
+		requested: string,
+	): string | undefined {
+		if (!sender || sender.kind !== "sub" || sender.parentId === undefined) return undefined;
+		const mainId = this.#spawningMainId(sender);
+		if (mainId === undefined) {
+			return `Subagent "${sender.id}" has no resolvable spawning main agent, so it may not message "${requested}".`;
+		}
+		const sameWorkspace =
+			sender.workspaceId === undefined ||
+			targetRef?.workspaceId === undefined ||
+			sender.workspaceId === targetRef.workspaceId;
+		// Upstream v18.13 peer messaging (18.13.0 #16583) lets a subagent reach any
+		// peer in its own workspace; only cross-workspace addressing stays behind
+		// Zeta's mesh isolation rule.
+		if (sameWorkspace) return undefined;
+		return (
+			`Subagent "${sender.id}" may only message its spawning main agent "${mainId}"; ` +
+			`sending to "${requested}" is not allowed.`
+		);
+	}
+
+	/** A ref for `workspace`/`agentId` when that workspace is hosted by this process. */
+	#localWorkspaceRef(workspace: string, agentId: string): AgentRef | undefined {
+		const ref = this.#registry.get(agentId);
+		if (!ref?.workspaceId) return undefined;
+		if (ref.workspaceId === workspace) return ref;
+		const cwd = ref.session?.settings?.getCwd();
+		if (cwd && path.basename(cwd) === workspace) return ref;
+		return undefined;
+	}
+
+	/**
+	 * Gear failure for a local main→main call. A source without a project layer
+	 * (an extension-provided session, a test fake) has no gears, so the
+	 * historical in-process behavior is preserved.
+	 */
+	async #gearError(
+		sender: AgentRef | undefined,
+		target: AgentRef | undefined,
+		targetId: string,
+	): Promise<string | undefined> {
+		if (!sender || !target || sender.kind !== "main" || target.kind !== "main") return undefined;
+		if (!sender.workspaceId || !target.workspaceId) return undefined;
+		const senderGears = gearsFromSettings(sender.session?.settings);
+		const targetGears = gearsFromSettings(target.session?.settings);
+		if (!senderGears || !targetGears) return undefined;
+		const senderParty: GearParty = {
+			workspaceId: sender.workspaceId,
+			isDefaultWorkspace: isDefaultWorkspace(sender.session?.settings?.getCwd()),
+			role: "main",
+			address: sender.id,
+		};
+		const targetParty: GearParty = {
+			workspaceId: target.workspaceId,
+			isDefaultWorkspace: isDefaultWorkspace(target.session?.settings?.getCwd()),
+			role: "main",
+			address: targetId,
+		};
+		const decision = evaluateGearCall({
+			sender: senderParty,
+			target: targetParty,
+			senderOutbound: senderGears.outbound,
+			targetInbound: targetGears.inbound,
+		});
+		return decision.allowed ? undefined : decision.error;
+	}
+
+	/** Send one message through the mesh and normalize the receipt. */
+	async #sendOverMesh(mesh: MeshNode, message: IrcMessage, to: string): Promise<IrcDeliveryReceipt> {
+		const result = await mesh.send({
+			from: message.from,
+			to,
+			body: message.body,
+			...(message.replyTo !== undefined && { replyTo: message.replyTo }),
+		});
+		return result.outcome === "failed"
+			? { to, outcome: "failed", error: result.error }
+			: { to, outcome: result.outcome };
+	}
+
+	/**
 	 * Block until a message for `agentId` that `filter` accepts arrives;
 	 * consume + return it. Null on timeout (`timeoutMs <= 0` waits
 	 * forever). Rejects when `signal` aborts. By default, already-buffered
@@ -347,7 +505,10 @@ export class IrcBus implements IrcBusApi {
 		filter: IrcWaitFilter,
 		timeoutMs: number,
 		signal?: AbortSignal,
-		options?: { drainPending?: boolean; liveness?: unknown },
+		options?: {
+			drainPending?: boolean;
+			liveness?: { registry: AgentRegistryApi; senderId: string };
+		},
 	): Promise<IrcMessage | null> {
 		if (signal?.aborted) {
 			throw signal.reason instanceof Error ? signal.reason : new Error("IRC wait aborted");
@@ -362,6 +523,12 @@ export class IrcBus implements IrcBusApi {
 		const { promise, resolve, reject } = Promise.withResolvers<IrcMessage | null>();
 		let timer: NodeJS.Timeout | undefined;
 		let onAbort: (() => void) | undefined;
+		let unsubscribeLiveness: (() => void) | undefined;
+
+		const liveness = options?.liveness;
+		const livenessReason = filter.from
+			? `IRC wait aborted: agent "${filter.from}" is not running`
+			: "IRC wait aborted: no running peers remain";
 
 		const settle = (
 			outcome: { kind: "message"; msg: IrcMessage } | { kind: "timeout" } | { kind: "abort"; error: Error },
@@ -380,6 +547,7 @@ export class IrcBus implements IrcBusApi {
 			this.#removeWaiter(agentId, waiter);
 			clearTimeout(timer);
 			if (signal && onAbort) signal.removeEventListener("abort", onAbort);
+			unsubscribeLiveness?.();
 		};
 
 		const waiter: IrcWaiter = {
@@ -407,6 +575,21 @@ export class IrcBus implements IrcBusApi {
 			this.#waiters.set(agentId, waiters);
 		}
 		waiters.push(waiter);
+
+		if (liveness) {
+			const { registry, senderId } = liveness;
+			const hasRunningSender = (from?: string): boolean =>
+				registry.listVisibleTo(senderId).some(ref => registry.isRunning(ref) && (!from || ref.id === from));
+			const check = filter.from ? () => hasRunningSender(filter.from) : () => hasRunningSender();
+			unsubscribeLiveness = registry.onChange(() => {
+				if (!check()) {
+					settle({ kind: "abort", error: new Error(livenessReason) });
+				}
+			});
+			if (!check()) {
+				settle({ kind: "abort", error: new Error(livenessReason) });
+			}
+		}
 
 		return promise;
 	}
