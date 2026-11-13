@@ -33,7 +33,13 @@ import type { AgentSession } from "../../session/agent-session";
 import { getRpcSession } from "./agents";
 
 /** Category ids, in panel/legend order. Stable wire contract. */
-export type ContextUsageCategoryId = "systemPrompt" | "systemTools" | "systemContext" | "skills" | "messages";
+export type ContextUsageCategoryId =
+	| "systemPrompt"
+	| "systemTools"
+	| "systemContext"
+	| "instructionFiles"
+	| "skills"
+	| "messages";
 
 export interface ContextUsageCategory {
 	id: ContextUsageCategoryId;

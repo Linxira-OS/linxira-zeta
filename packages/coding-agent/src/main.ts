@@ -62,6 +62,7 @@ import {
 	stopActiveSessionChannels,
 } from "./channels/session-host";
 import { SessionRouter } from "./channels/session-router";
+import { discoverAppendSystemPromptPath } from "./config";
 import { ModelRegistry } from "./config/model-registry";
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import {
@@ -1546,6 +1547,8 @@ export async function buildSessionOptions(
 	// it re-reads the source on every prompt rebuild. Only explicit CLI inputs
 	// are frozen into options here (an explicit flag is a one-shot value).
 	const explicitTemplatePath = parsed.systemPromptTemplate;
+	const discoveredAppendSource =
+		parsed.appendSystemPrompt === undefined ? discoverAppendSystemPromptPath() : undefined;
 	const titleSystemPromptSource = discoverTitleSystemPromptFile(cwd);
 	const [resolvedSystemPrompt, resolvedAppendPrompt, titleSystemPrompt, resolvedSystemPromptTemplate] =
 		await Promise.all([
@@ -1560,6 +1563,9 @@ export async function buildSessionOptions(
 				? Promise.resolve(undefined)
 				: loadSystemPromptTemplateFile(explicitTemplatePath),
 		]);
+	if (discoveredAppendSource !== undefined) {
+		options.appendSystemPromptSource = discoveredAppendSource;
+	}
 	if (sessionManager) {
 		options.sessionManager = sessionManager;
 	}

@@ -179,6 +179,11 @@ export interface ConfigFileResult<T> {
  * Find the first existing config file (for non-JSON files like SYSTEM.md).
  * Returns just the path, or undefined if not found.
  */
+/** Discover APPEND_SYSTEM.md (project first, then user); the rebuild re-reads it. */
+export function discoverAppendSystemPromptPath(): string | undefined {
+	return findConfigFile("APPEND_SYSTEM.md", { user: false }) ?? findConfigFile("APPEND_SYSTEM.md", { user: true });
+}
+
 export function findConfigFile(subpath: string, options: GetConfigDirsOptions = {}): string | undefined {
 	const dirs = getConfigDirs("", { ...options, existingOnly: false });
 

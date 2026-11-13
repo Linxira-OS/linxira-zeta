@@ -64,6 +64,7 @@ import {
 } from "./capability/rule";
 import { bucketRules } from "./capability/rule-buckets";
 import type { EffectiveExtensionRoots } from "./capability/types";
+import { discoverAppendSystemPromptPath } from "./config";
 import { type OAuthAccountPools, SessionAccountPoolScope } from "./config/account-pools";
 import { shouldEnableAppendOnlyContext } from "./config/append-only-context-mode";
 import { shouldInlineToolDescriptors } from "./config/inline-tool-descriptors-mode";
@@ -4795,7 +4796,9 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				}
 			}
 			const personaAppend = agentProfile?.persona?.appendSystemPrompt?.trim();
-			const appendSource = options.appendSystemPromptSource;
+			const appendSource =
+				options.appendSystemPromptSource ??
+				(options.appendSystemPrompt === undefined ? discoverAppendSystemPromptPath() : undefined);
 			const appendText =
 				options.appendSystemPrompt ??
 				(appendSource === undefined ? undefined : await resolvePromptInput(appendSource, "append system prompt"));
