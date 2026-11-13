@@ -285,16 +285,36 @@ describe("IM project routing", () => {
 		expect(harness.createdCwds.at(-1)).toBe(repoB);
 	});
 
-	test("channel_send from a project session rejects a peer outside allowedPeers", async () => {
+	test("channel_send from a project session rejects a peer outside the instance allowlist", async () => {
 		const { harness } = await setup();
-		await harness.webConfig.set("channels.allowedPeers", ["owner-chat"]);
+		await harness.webConfig.setImAgents([
+			{
+				id: "default",
+				label: "Default",
+				persona: { mode: "workspace" },
+				location: { kind: "workspace", workspace: "main" },
+				tools: { builtin: [], extensions: [], customTools: [], mcpServers: [], skills: [], commands: [] },
+				memory: {},
+			},
+		]);
+		await harness.webConfig.setChannelInstances([
+			{
+				id: "telegram",
+				platform: "telegram",
+				label: "Telegram",
+				enabled: false,
+				agentProfile: "default",
+				allow: { peers: ["owner-chat"] },
+				credentials: {},
+			},
+		]);
 
 		await expect(
 			harness.router.push(
 				{ text: "leak", to: "stranger-chat", channel: "telegram" },
 				{ sessionKey: "bot-x", projectDir: "/tmp", workspaceAlias: "x" },
 			),
-		).rejects.toThrow("not in channels.allowedPeers");
+		).rejects.toThrow("not in the telegram instance allowlist");
 
 		await harness.router.push({ text: "ok", to: "owner-chat", channel: "telegram" });
 		expect(harness.sent.at(-1)).toEqual({

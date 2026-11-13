@@ -1914,7 +1914,11 @@ export class SessionRouter {
 		await this.#webConfig.patchImBinding(channelId, peer, {
 			sessionId: id,
 			...(entry.agentProfileId ? { agentProfileId: entry.agentProfileId } : {}),
-			...(entry.target ? { target: entry.target } : {}),
+			...(entry.target
+				? { target: entry.target }
+				: entry.workspaceAlias
+					? { target: { kind: "workspace" as const, workspace: entry.workspaceAlias } }
+					: {}),
 		});
 		this.#runtimeBindings.delete(`${channelId}:${peer}`);
 		await this.#rememberBotChat(id, channelId, peer);

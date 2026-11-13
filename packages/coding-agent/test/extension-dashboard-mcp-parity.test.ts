@@ -24,9 +24,14 @@ import { loadAllExtensions } from "@linxiraos/zeta/modes/components/extensions/s
 describe("loadAllExtensions MCP parity with /mcp list (issue #3827)", () => {
 	let projectDir = "";
 	let userAgentDir = "";
+	let originalForeignSources: string | undefined;
 
 	beforeEach(async () => {
 		resetSettingsForTest();
+		originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		// `opencode.json` is a foreign project source; these dashboard parity
+		// cases exercise its MCP rows, so consent to it for the fixture repo.
+		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "opencode";
 		projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-3827-project-"));
 		userAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-3827-user-"));
 
@@ -63,6 +68,8 @@ describe("loadAllExtensions MCP parity with /mcp list (issue #3827)", () => {
 
 	afterEach(async () => {
 		resetSettingsForTest();
+		if (originalForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		else process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
 		__resetDirsFromEnvForTests();
 		await removeWithRetries(projectDir);
 		await removeWithRetries(userAgentDir);

@@ -30,14 +30,20 @@ function writeSkill(root: string, name: string, description: string | null): voi
 
 describe("github discovery — skills", () => {
 	let tempDir!: string;
+	let originalForeignSources: string | undefined;
 
 	beforeEach(() => {
 		clearCache();
+		originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		// `.github/skills` is a foreign project source; these cases pin its discovery.
+		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "github";
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-github-skills-"));
 	});
 
 	afterEach(() => {
 		clearCache();
+		if (originalForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		else process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
 		removeSyncWithRetries(tempDir);
 	});
 

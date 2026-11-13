@@ -15,6 +15,7 @@ describe("Claude Code custom tool discovery", () => {
 	let project = "";
 	let originalHome: string | undefined;
 	let originalClaudeConfigDir: string | undefined;
+	let originalForeignSources: string | undefined;
 
 	beforeEach(async () => {
 		resetSettingsForTest();
@@ -22,6 +23,9 @@ describe("Claude Code custom tool discovery", () => {
 		clearFsCache();
 		originalHome = process.env.HOME;
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
+		originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		// `.claude/tools` is a foreign project source; these cases pin its discovery.
+		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude";
 		delete process.env.CLAUDE_CONFIG_DIR;
 		root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-claude-tools-"));
 		home = path.join(root, "home");
@@ -42,6 +46,8 @@ describe("Claude Code custom tool discovery", () => {
 		else process.env.HOME = originalHome;
 		if (originalClaudeConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
 		else process.env.CLAUDE_CONFIG_DIR = originalClaudeConfigDir;
+		if (originalForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		else process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
 		await removeWithRetries(root);
 	});
 

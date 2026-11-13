@@ -435,9 +435,12 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		credential = result.credential;
 	}
 
-	// CSRF: the request's own origin (or no origin) only. A loopback origin is
-	// accepted only for a genuinely local caller, never for a remote cookie.
-	if (!isAllowedRequestOrigin(req.headers.get("origin"), req.url, local)) {
+	// CSRF: the request's own origin (or no origin) for browser-ambient
+	// credentials. A presented token already authenticates the request and
+	// cannot be forged by a hostile page, so an authenticated remote caller's
+	// Origin header cannot authorize anything extra (M2). A device-bound
+	// session cookie stays ambient and is checked against the request origin.
+	if ((local || credential.kind === "session") && !isAllowedRequestOrigin(req.headers.get("origin"), req.url, local)) {
 		return json({ error: "Forbidden origin" }, 403);
 	}
 

@@ -249,7 +249,6 @@ async function loadImpl<T>(
 			const foreignProjectSource =
 				itemWithSource._source.level === "project" &&
 				isForeignProjectProvider(provider.id) &&
-				!ctx.explicitProviders?.has(provider.id) &&
 				!isForeignProjectSourceAllowed(provider.id, ctx.cwd, ctx.agentDir);
 			// A foreign SYSTEM.md never replaces the native prompt, consented or not.
 			const foreignSystemPrompt = capability.id === "system-prompt" && isForeignProjectProvider(provider.id);
