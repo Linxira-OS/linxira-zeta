@@ -11,12 +11,19 @@ export * from "./config/config-file";
 /**
  * Config sources, highest priority first. `userBase` overrides the default
  * `~/<dir>` user-level location: omp's own user dir follows
- * `getConfigAgentDirName()` (profile and `ZETA_CONFIG_DIR` aware), read on
- * every call so an env change is not masked by the cached `getAgentDir()`;
- * Claude's follows its active config directory.
+ * `getConfigAgentDirName()` (profile and `ZETA_CONFIG_DIR` aware) or an
+ * explicit `ZETA_CODING_AGENT_DIR`, read on every call so an env change is
+ * not masked by the cached `getAgentDir()`; Claude's follows its active
+ * config directory.
  */
+function nativeUserBase(): string {
+	const explicit = process.env.ZETA_CODING_AGENT_DIR?.trim();
+	if (explicit) return path.resolve(expandTilde(explicit));
+	return path.join(os.homedir(), getConfigAgentDirName());
+}
+
 const priorityList: Array<{ dir: string; userBase?: () => string }> = [
-	{ dir: CONFIG_DIR_NAME, userBase: () => path.join(os.homedir(), getConfigAgentDirName()) },
+	{ dir: CONFIG_DIR_NAME, userBase: nativeUserBase },
 	{ dir: ".claude", userBase: () => resolveClaudePaths().configDir },
 	{ dir: ".codex" },
 	{ dir: ".gemini" },

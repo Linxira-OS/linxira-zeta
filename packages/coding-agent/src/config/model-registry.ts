@@ -139,11 +139,7 @@ import {
 	type ProviderValidationModel,
 	validateProviderConfiguration,
 } from "./models-config";
-import {
-	loadModelsLayers,
-	mergeModelsConfigs,
-	modelsWebConfigPath,
-} from "./models-config-layers";
+import { loadModelsLayers, mergeModelsConfigs, modelsWebConfigPath } from "./models-config-layers";
 import type { ModelOverride, ModelsConfig, ProviderAuthMode } from "./models-config-schema";
 import { type Settings, settings } from "./settings";
 

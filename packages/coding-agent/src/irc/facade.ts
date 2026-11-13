@@ -56,9 +56,7 @@ export function createAgentMessenger(bus: AgentMessengerBus = IrcBus.global()): 
 			if (opts?.wakeRelay) message.wakeRelay = true;
 			return bus.send(
 				message,
-				opts === undefined
-					? undefined
-					: { expectsReply: opts.expectsReply, suppressRelay: opts.suppressRelay },
+				opts === undefined ? undefined : { expectsReply: opts.expectsReply, suppressRelay: opts.suppressRelay },
 			);
 		},
 		wait: (agentId, filter, timeoutMs, signal) => bus.wait(agentId, filter, timeoutMs, signal),
