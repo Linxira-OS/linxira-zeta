@@ -92,9 +92,9 @@ describe("ask native view", () => {
 			opts,
 		);
 		const sections = nodes(view?.body).filter(node => node.k === "section");
-		expect(nodes(sections[0]!.c).some(node => node.p?.role === "zeta.$1.answer.note")).toBe(false);
+		expect(nodes(sections[0]!.c).some(node => node.p?.role === "zeta.tool.answer.note")).toBe(false);
 		const note = nodes(sections[1]!.c).at(-1)!;
-		expect(note.p?.role).toBe("zeta.$1.answer.note");
+		expect(note.p?.role).toBe("zeta.tool.answer.note");
 		expect(JSON.stringify(note)).toContain("Second: Team standard");
 	});
 

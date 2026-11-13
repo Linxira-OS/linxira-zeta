@@ -87,8 +87,8 @@ export class StatusNotice extends Container {
 		this.#native = node(
 			"toast",
 			action
-				? { text: plain, action: action.act, label: action.label, role: "zeta.$1.status" }
-				: { text: plain, ttl: TOAST_TTL, role: "zeta.$1.status" },
+				? { text: plain, action: action.act, label: action.label, role: "zeta.toast.status" }
+				: { text: plain, ttl: TOAST_TTL, role: "zeta.toast.status" },
 		);
 		return this.#native;
 	}

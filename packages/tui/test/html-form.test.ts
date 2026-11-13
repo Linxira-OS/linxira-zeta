@@ -841,7 +841,7 @@ describe("html form", () => {
 		it("natively: one tab per question with Next, and Submit on the Review tab sends the answers", () => {
 			const { form, onSubmit } = dialog(DB_FORM);
 			let root = form.describe(CX);
-			expect(root.p).toMatchObject({ role: "zeta.$1.ask" });
+			expect(root.p).toMatchObject({ role: "zeta.editor.ask" });
 			const tabs = findPath(root, node => node.k === "tabs")!;
 			// The Database tab shows only its own question.
 			expect(findPath(root, node => node.k === "list" && node.key === "f1")).toBeUndefined();
@@ -1015,11 +1015,11 @@ describe("html form", () => {
 			const root = form.describe(CX);
 			const children = (root.c ?? []).filter(isNode);
 			expect(children.some(child => child.k === "tabs" || child.key === "head")).toBe(false);
-			// Tern's stylesheet lets an `zeta.$1.options` list shrink and scroll inside the 60vh card;
+			// Tern's stylesheet lets an `zeta.ask.options` list shrink and scroll inside the 60vh card;
 			// a capped `col` would only clip.
-			const scroller = children.find(child => child.k === "list" && child.p?.role === "zeta.$1.options");
-			expect((scroller?.c ?? []).filter(isNode).map(child => child.p?.role)).toEqual(["zeta.$1.form"]);
-			expect(children.at(-1)?.p).toMatchObject({ role: "zeta.$1" });
+			const scroller = children.find(child => child.k === "list" && child.p?.role === "zeta.ask.options");
+			expect((scroller?.c ?? []).filter(isNode).map(child => child.p?.role)).toEqual(["zeta.ask.form"]);
+			expect(children.at(-1)?.p).toMatchObject({ role: "zeta.actions" });
 		});
 
 		it("hides to one row and back, by key in rows and by Hide/Show natively; answers survive", () => {
@@ -1031,9 +1031,9 @@ describe("html form", () => {
 			expect(form.render(100).length).toBeGreaterThan(1);
 			expect(form.data()).toMatchObject({ db: "sqlite" });
 			form.handleNativeEvent({ type: "action", key: "actions/hide", act: "hide", mods: [] });
-			expect(form.describe(CX).p).toMatchObject({ role: "zeta.$1.ask.hidden" });
+			expect(form.describe(CX).p).toMatchObject({ role: "zeta.editor.ask.hidden" });
 			form.handleNativeEvent({ type: "action", key: "actions/show", act: "show", mods: [] });
-			expect(form.describe(CX).p).toMatchObject({ role: "zeta.$1.ask" });
+			expect(form.describe(CX).p).toMatchObject({ role: "zeta.editor.ask" });
 			form.handleInput(ESC);
 			expect(onCancel).toHaveBeenCalled();
 		});
@@ -1056,13 +1056,13 @@ describe("html form", () => {
 			});
 			try {
 				expect(harness.errors).toEqual([]);
-				const root = harness.region("dock")!.c?.find(node => node.p?.role === "zeta.$1.ask");
+				const root = harness.region("dock")!.c?.find(node => node.p?.role === "zeta.editor.ask");
 				expect(root).toBeDefined();
 				// The tab's scroller and the Database radios inside it.
-				expect(harness.findAll(node => node.k === "list" && node.p?.role === "zeta.$1.options")).toHaveLength(2);
+				expect(harness.findAll(node => node.k === "list" && node.p?.role === "zeta.ask.options")).toHaveLength(2);
 				// Focus is on a radio: no editor node, so the terminal keeps sending keys to the form.
 				expect(harness.findAll(node => node.k === "input" || node.k === "editor")).toEqual([]);
-				expect(harness.findAll(node => node.p?.role === "zeta.$1.well")).toEqual([]);
+				expect(harness.findAll(node => node.p?.role === "zeta.ask.well")).toEqual([]);
 				// Clicking the workers well (field 3) focuses it: its tab opens and it becomes the one live input.
 				form.handleNativeEvent({ type: "action", key: "x", act: "edit:3", mods: [] });
 				await harness.render();

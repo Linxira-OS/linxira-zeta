@@ -72,7 +72,7 @@ async function bundleLegacyPiModules(layout: LegacyPiLayout, host: string): Prom
 	await Bun.write(
 		entry,
 		[
-			'import { BUNDLED_PI_MODULE_LOADERS } from "omp-legacy-pi-modules";',
+			'import { BUNDLED_PI_MODULE_LOADERS } from "zeta-legacy-pi-modules";',
 			'export const loadAgent = BUNDLED_PI_MODULE_LOADERS["@linxiraos/pi-agent-core"];',
 			'export const loadOauth = BUNDLED_PI_MODULE_LOADERS["@linxiraos/pi-agent-core/oauth"];',
 		].join("\n"),
@@ -97,7 +97,7 @@ async function bundleLegacyPiModules(layout: LegacyPiLayout, host: string): Prom
 describe("legacy pi virtual module package layout (issue #15208)", () => {
 	it("resolves the bundled packages from a hoisted npm install", async () => {
 		using temp = TempDir.createSync("@omp-legacy-pi-hoisted-");
-		const scopeDir = path.join(temp.path(), "node_modules", "@zeta");
+		const scopeDir = path.join(temp.path(), "node_modules", "@linxiraos");
 		for (const [npmDir, name] of NPM_PACKAGES) {
 			await writeInstalledPackage(path.join(scopeDir, npmDir), name);
 		}
@@ -124,11 +124,11 @@ describe("legacy pi virtual module package layout (issue #15208)", () => {
 
 	it("resolves the bundled packages from a nested npm install", async () => {
 		using temp = TempDir.createSync("@omp-legacy-pi-nested-");
-		const packageDir = path.join(temp.path(), "node_modules", "@zeta", "pi-coding-agent");
+		const packageDir = path.join(temp.path(), "node_modules", "@linxiraos", "pi-coding-agent");
 		// `--install-strategy=nested` keeps the dependencies inside the package
 		// that needs them, so no sibling copy exists to fall back to.
 		for (const [npmDir, name] of NPM_PACKAGES) {
-			await writeInstalledPackage(path.join(packageDir, "node_modules", "@zeta", npmDir), name);
+			await writeInstalledPackage(path.join(packageDir, "node_modules", "@linxiraos", npmDir), name);
 		}
 		const layout: LegacyPiLayout = {
 			packageDir,
@@ -149,9 +149,9 @@ describe("legacy pi virtual module package layout (issue #15208)", () => {
 	it("bundles the packages of a nested npm install", async () => {
 		using temp = TempDir.createSync("@omp-legacy-pi-nested-build-");
 		const host = temp.path();
-		const packageDir = path.join(host, "node_modules", "@zeta", "pi-coding-agent");
+		const packageDir = path.join(host, "node_modules", "@linxiraos", "pi-coding-agent");
 		for (const [npmDir, name] of NPM_PACKAGES) {
-			await writeInstalledPackage(path.join(packageDir, "node_modules", "@zeta", npmDir), name, `nested:${npmDir}`);
+			await writeInstalledPackage(path.join(packageDir, "node_modules", "@linxiraos", npmDir), name, `nested:${npmDir}`);
 		}
 		await writeInstalledCodingAgent(packageDir);
 		const layout: LegacyPiLayout = { packageDir, repoRoot: path.join(host, "node_modules") };
@@ -165,9 +165,9 @@ describe("legacy pi virtual module package layout (issue #15208)", () => {
 	it("bundles the packages of a hoisted npm install", async () => {
 		using temp = TempDir.createSync("@omp-legacy-pi-hoisted-build-");
 		const host = temp.path();
-		const packageDir = path.join(host, "node_modules", "@zeta", "pi-coding-agent");
+		const packageDir = path.join(host, "node_modules", "@linxiraos", "pi-coding-agent");
 		for (const [npmDir, name] of NPM_PACKAGES) {
-			await writeInstalledPackage(path.join(host, "node_modules", "@zeta", npmDir), name, `hoisted:${npmDir}`);
+			await writeInstalledPackage(path.join(host, "node_modules", "@linxiraos", npmDir), name, `hoisted:${npmDir}`);
 		}
 		await writeInstalledCodingAgent(packageDir);
 		const layout: LegacyPiLayout = { packageDir, repoRoot: path.join(host, "node_modules") };

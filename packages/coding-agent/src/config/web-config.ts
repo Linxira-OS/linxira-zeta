@@ -20,6 +20,7 @@ import { withFileLock } from "./file-lock";
 export const WEB_CONFIG_FILENAME = "web.yml";
 
 import {
+	CHANNEL_PLATFORMS,
 	ImConfigError,
 	bindingKey,
 	isPersistableKeyText,
@@ -962,7 +963,34 @@ export class WebConfig {
 		opts: { threadId?: string; userId?: string } = {},
 	): Promise<ImBinding> {
 		return this.#mutate(data => {
-			const instance = data.channels.instances.find(instance => instance.id === instanceId);
+			let instance = data.channels.instances.find(instance => instance.id === instanceId);
+			if (!instance && (CHANNEL_PLATFORMS as readonly string[]).includes(instanceId)) {
+				// A chat can bind before an operator configures that platform's account:
+				// provision a disabled default instance and its workspace-main profile
+				// so the binding has a stable instance namespace to hang off.
+				const profileId = "default";
+				if (!data.imAgents.some(profile => profile.id === profileId)) {
+					data.imAgents = validateImAgentProfiles([
+						{ id: profileId, label: "Default", location: { kind: "workspace", workspace: "main" } },
+						...data.imAgents,
+					]);
+				}
+				instance = validateChannelInstances(
+					[
+						{
+							id: instanceId,
+							platform: instanceId as ChannelInstanceConfig["platform"],
+							label: instanceId,
+							enabled: false,
+							agentProfile: profileId,
+							allow: { peers: [chatId] },
+							credentials: {},
+						},
+					],
+					data.imAgents,
+				)[0]!;
+				data.channels.instances = [...data.channels.instances, instance];
+			}
 			if (!instance) throw new Error(`Unknown channel instance: ${instanceId}`);
 			const key = [instanceId, chatId, opts.threadId ?? "", opts.userId ?? ""].join("\u0000");
 			const current = data.remote.imBindings ?? [];
@@ -1166,14 +1194,29 @@ export class WebConfig {
 	/** Drop every chat's `sessionId` pointer to a deleted bot session. */
 	async clearChatSessionReferences(sessionId: string): Promise<void> {
 		await this.#mutate(data => {
-			const entries = data.remote.sessionMappings ?? [];
-			if (!entries.some(entry => entry.sessionId === sessionId)) return { changed: false, value: undefined };
-			data.remote.sessionMappings = entries.map(entry => {
-				if (entry.sessionId !== sessionId) return entry;
-				const { sessionId: _drop, ...rest } = entry;
-				return rest;
-			});
-			return { changed: true, value: undefined };
+			let changed = false;
+			const mappings = data.remote.sessionMappings ?? [];
+			if (mappings.some(entry => entry.sessionId === sessionId)) {
+				data.remote.sessionMappings = mappings.map(entry => {
+					if (entry.sessionId !== sessionId) return entry;
+					const { sessionId: _drop, ...rest } = entry;
+					return rest;
+				});
+				changed = true;
+			}
+			// Current bindings own the chat pointer; a deleted session must not stay
+			// selected there after its transcript is gone.
+			const bindings = data.remote.imBindings ?? [];
+			const referenced = bindings.some(binding => binding.sessionId === sessionId);
+			if (referenced) {
+				data.remote.imBindings = bindings.map(binding => {
+					if (binding.sessionId !== sessionId) return binding;
+					const { sessionId: _drop, ...rest } = binding;
+					return rest;
+				});
+				changed = true;
+			}
+			return { changed, value: undefined };
 		});
 	}
 

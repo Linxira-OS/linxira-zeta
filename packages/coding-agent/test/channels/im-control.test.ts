@@ -25,24 +25,32 @@ function makeDeps(overrides: Partial<ImControlDeps> = {}): ImControlDeps {
 	};
 }
 
+const BOT_SESSIONS = [
+	{
+		id: "relay",
+		name: "Zeta Bot (Relay)",
+		tag: "relay",
+		sessionFile: "/tmp/zeta-bot.jsonl",
+		createdAt: "2026-01-01",
+	},
+	{ id: "abc123", name: "Test", tag: "draft", sessionFile: "/tmp/test-abc123.jsonl", createdAt: "2026-01-01" },
+];
+
 function makeRouter(overrides: Partial<SessionRouter> = {}): SessionRouter {
 	return {
 		resolveImControlChat: () => ({ channelId: "wechat" as const, peer: "peer-1" }),
 		list: () => [{ alias: "web", path: "/repo/web" }],
 		listWorkspaceSessions: async () => [{ id: "s1", title: "Web Dev", path: "/repo/web/s1.jsonl" }],
 		bindingFor: async () => null,
-		listBotSessions: () => [
-			{
-				id: "relay",
-				name: "Zeta Bot (Relay)",
-				tag: "relay",
-				sessionFile: "/tmp/zeta-bot.jsonl",
-				createdAt: "2026-01-01",
-			},
-			{ id: "abc123", name: "Test", tag: "draft", sessionFile: "/tmp/test-abc123.jsonl", createdAt: "2026-01-01" },
-		],
+		listBotSessions: () => BOT_SESSIONS,
 		activeBotSessionIdFor: async () => "relay",
-		botSession: () => undefined,
+		resolveSessionSelector: (selector: string) => {
+			const cleaned = selector.trim().replace(/^\{|\}$/g, "").replace(/^\[|\]$/g, "");
+			const nth = /^(\d+)$/.exec(cleaned);
+			if (nth) return BOT_SESSIONS[Number(nth[1]) - 1]?.id ?? null;
+			return BOT_SESSIONS.find(entry => entry.id === cleaned)?.id ?? null;
+		},
+		botSession: (id: string) => BOT_SESSIONS.find(entry => entry.id === id),
 		setActiveBotSession: async (_c: string, _p: string, id: string) => ({ ok: true, id }),
 		createBotSession: async (name: string) => ({
 			ok: true,

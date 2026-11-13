@@ -121,6 +121,7 @@ describe("workspace routing persistence", () => {
 		expect(await router.activeBotSessionIdFor("feishu", "peer-1")).toBe("abc123");
 
 		expect(await routeWorkspaceCommand("@workspace relay", "peer-1", deps())).toBe(true);
+		expect(await routeWorkspaceCommand("@workspace confirm", "peer-1", deps())).toBe(true);
 		// Relay is an explicit sentinel, never a silent fallback to a bot session.
 		expect(await router.activeBotSessionIdFor("feishu", "peer-1")).toBe("relay");
 		// The inbound bridge's two decisions after a relay switch.
@@ -130,9 +131,11 @@ describe("workspace routing persistence", () => {
 
 	test("@workspace use then relay then !lang round-trips through a full-array PUT", async () => {
 		expect(await routeWorkspaceCommand("@workspace use repo", "peer-1", deps())).toBe(true);
+		expect(await routeWorkspaceCommand("@workspace confirm", "peer-1", deps())).toBe(true);
 		expect(await router.resolveChatTarget("feishu", "peer-1")).toEqual({ kind: "workspace", alias: "repo" });
 
 		expect(await routeWorkspaceCommand("@workspace relay", "peer-1", deps())).toBe(true);
+		expect(await routeWorkspaceCommand("@workspace confirm", "peer-1", deps())).toBe(true);
 		expect(await router.resolveChatTarget("feishu", "peer-1")).toEqual({ kind: "relay" });
 
 		expect(await routeWorkspaceCommand("!lang zh", "peer-1", deps())).toBe(true);
@@ -161,8 +164,10 @@ describe("workspace routing persistence", () => {
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({ ok: true });
 
-		// `@workspace use` still wins over the persisted binding on the next message.
+		// `@workspace use` still wins over the persisted binding on the next message
+		// once the operator confirms the staged switch.
 		expect(await routeWorkspaceCommand("@workspace use repo", "peer-1", deps())).toBe(true);
+		expect(await routeWorkspaceCommand("@workspace confirm", "peer-1", deps())).toBe(true);
 		expect(await router.resolveChatTarget("feishu", "peer-1")).toEqual({ kind: "workspace", alias: "repo" });
 	});
 

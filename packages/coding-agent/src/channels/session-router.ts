@@ -852,7 +852,12 @@ export class SessionRouter {
 		const currentTarget =
 			binding?.target ??
 			this.#webConfig.getImAgent(this.#webConfig.getChannelInstance(instanceId)?.agentProfile ?? "")?.location;
-		const current = this.agentTargetFor(instanceId, peer) ?? (currentTarget ? targetKey(currentTarget) : "unbound");
+		// A chat pointed at a bot session is not already on that session's project
+		// target: relay must still be able to clear the pointer.
+		const botPointer = binding?.sessionId;
+		const current =
+			this.agentTargetFor(instanceId, peer) ??
+			(botPointer && botPointer !== "relay" ? `bot:${botPointer}` : currentTarget ? targetKey(currentTarget) : "unbound");
 		const next = targetKey(target);
 		if (current === next) {
 			// "Already there" also supersedes an earlier staged target, otherwise
@@ -967,18 +972,24 @@ export class SessionRouter {
 							targetKey(entry.target) === targetKey(pending.target) &&
 							entry.bindingId === targetScopedBindingId({ id: current.id, target: pending.target }),
 					);
+			const relayTarget =
+				pending.action === "target" &&
+				pending.target.kind === "workspace" &&
+				pending.target.workspace === COORDINATOR_ALIAS;
 			await this.#webConfig.patchImBinding(
 				instanceId,
 				peer,
 				{
 					target: pending.target,
-					...(previous
-						? { sessionId: previous.id }
-						: current
-							? {
-									sessionId: `im-${targetScopedBindingId({ id: current.id, target: pending.target }).replace(/[^a-z0-9-]+/gi, "-")}`,
-								}
-							: {}),
+					...(relayTarget
+						? { sessionId: "relay" }
+						: previous
+							? { sessionId: previous.id }
+							: current
+								? {
+										sessionId: `im-${targetScopedBindingId({ id: current.id, target: pending.target }).replace(/[^a-z0-9-]+/gi, "-")}`,
+									}
+								: {}),
 				},
 				context,
 			);
@@ -1259,6 +1270,18 @@ export class SessionRouter {
 			}
 		}
 		if (imBinding.sessionId === "relay") return { kind: "relay" };
+		if (imBinding.target?.kind === "workspace" && imBinding.target.workspace === COORDINATOR_ALIAS) {
+			return { kind: "relay" };
+		}
+		// A workspace binding is the chat's repository target; a sessionId left by
+		// an older bot selection must not override it unless that session exists.
+		if (
+			imBinding.target?.kind === "workspace" &&
+			imBinding.target.workspace !== COORDINATOR_ALIAS &&
+			!(imBinding.sessionId && this.#webConfig.getBotSession(imBinding.sessionId))
+		) {
+			return this.#workspaceTarget(imBinding.target.workspace);
+		}
 		const ensured = await this.ensureImBindingSession(imBinding);
 		if (!ensured.ok) return { kind: "unavailable", alias: imBinding.agentProfileId, error: ensured.error };
 		return { kind: "bot", id: ensured.id };
@@ -1476,7 +1499,9 @@ export class SessionRouter {
 
 	/** Remove a chat's persisted + runtime binding. */
 	async unbindChat(channelId: ChannelInstanceId, peer: string): Promise<boolean> {
-		this.#runtimeBindings.delete(`${channelId}:${peer}`);
+		// An explicit unbind is a relay decision, not a gap the next lookup fills
+		// with a fresh default bot session.
+		this.#runtimeBindings.set(`${channelId}:${peer}`, COORDINATOR_ALIAS);
 		this.#agentBindings.delete(`${channelId}:${peer}`);
 		return this.#webConfig.removeImBindingByChat(channelId, peer);
 	}
@@ -1854,6 +1879,7 @@ export class SessionRouter {
 
 	/** The bot session id this chat currently uses ("" / null → relay). */
 	async activeBotSessionIdFor(channelId: ChannelInstanceId, peer: string): Promise<string | null> {
+		// `relay` is the explicit sentinel; a removed field is the implicit default.
 		return this.#webConfig.findImBinding(channelId, peer)?.sessionId ?? null;
 	}
 
@@ -1865,13 +1891,11 @@ export class SessionRouter {
 		id: string,
 	): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
 		if (id === "relay") {
-			// Relay means the coordinator: drop the session pointer and any
-			// persisted project/direct binding that would keep answering for a repo.
-			await this.#webConfig.patchImBinding(channelId, peer, {
-				sessionId: "relay",
-				target: { kind: "workspace", workspace: COORDINATOR_ALIAS },
-			});
-			this.#runtimeBindings.delete(`${channelId}:${peer}`);
+			// Relay means the coordinator: drop the chat's row entirely so the
+			// active-session pointer reads null, and pin the runtime route to relay
+			// until a later switch writes a new binding.
+			await this.#webConfig.removeImBindingByChat(channelId, peer);
+			this.#runtimeBindings.set(`${channelId}:${peer}`, COORDINATOR_ALIAS);
 			return { ok: true, id: "relay" };
 		}
 		const entry = this.#webConfig.getBotSession(id);

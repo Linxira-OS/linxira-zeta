@@ -242,13 +242,13 @@ function describeAnswer(answer: FormAnswer, shown: string, key: string, notes: r
 		? row([node("icon", { name: "check", tone: "success" }), text([span(shown, "toolOutput")], { wrap: "word" })], {
 				gap: "sm",
 				align: "baseline",
-				role: "zeta.$1.answer",
+				role: "zeta.tool.answer",
 			})
-		: text([span(NO_ANSWER, "dim")], { role: "zeta.$1.answer.off" });
+		: text([span(NO_ANSWER, "dim")], { role: "zeta.tool.answer.off" });
 	const noteRows = notesForAnswer(answer, notes).map(note =>
 		text([span("✎ ", "dim"), span(`${oneLine(note.option)}: ${clean(note.text)}`, "em")], {
 			wrap: "word",
-			role: "zeta.$1.answer.note",
+			role: "zeta.tool.answer.note",
 		}),
 	);
 	return node("section", {}, [text([span(oneLine(answer.question))], { wrap: "word" }), body, ...noteRows], key);
@@ -273,7 +273,7 @@ function describeAskResult(result: ToolRenderResult<AskToolDetails>, args: AskRe
 		tone: timedOut ? "warning" : undefined,
 		body: compact<NativeChild>([
 			...answers.map((answer, index) => describeAnswer(answer, answerShown(answer, passwords), `${index}`, notes)),
-			timedOut ? text([span(TIMED_OUT_NOTE, "muted")], { wrap: "word", role: "zeta.$1.notice" }) : undefined,
+			timedOut ? text([span(TIMED_OUT_NOTE, "muted")], { wrap: "word", role: "zeta.tool.notice" }) : undefined,
 		]),
 	};
 }

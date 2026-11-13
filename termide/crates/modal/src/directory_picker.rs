@@ -18,7 +18,9 @@ use ratatui::{
 };
 
 use crate::base::render_modal_block;
-use crate::dir_tree::{DirTree, TreeRoot};
+use crate::dir_tree::DirTree;
+#[cfg(windows)]
+use crate::dir_tree::TreeRoot;
 use std::path::PathBuf;
 use unicode_width::UnicodeWidthStr;
 

@@ -193,7 +193,7 @@ describe("native transcript redesign", () => {
 		harness = await TspHarness.start();
 		harness.tui.addChild(new UserMessageComponent("Fix the build", { timestamp: at }));
 		await harness.render();
-		const card = harness.find(node => node.k === "card" && node.p?.role === "zeta.$1")!;
+		const card = harness.find(node => node.k === "card" && node.p?.role === "zeta.user")!;
 		const hold = (prop(card, "actions") as { hold: { id: string }[] }).hold;
 		expect(hold.map(entry => entry.id)).toEqual([
 			"copy-message",
@@ -227,7 +227,7 @@ describe("native transcript redesign", () => {
 		harness = await TspHarness.start();
 		harness.tui.addChild(component);
 		await harness.render();
-		const reply = () => harness!.find(node => node.p?.role === "zeta.$1")!;
+		const reply = () => harness!.find(node => node.p?.role === "zeta.assistant")!;
 		expect(prop(reply(), "actions")).toBeUndefined();
 
 		component.setTurnUsage({ elapsedMs: 1_000, input: 10, output: 5, cost: 0 });

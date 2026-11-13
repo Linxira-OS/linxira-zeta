@@ -15,12 +15,19 @@ function writeClaude(filePath: string, content: string): void {
 
 describe("standalone CLAUDE.md discovery", () => {
 	let tempDir!: string;
+	let previousForeignSources: string | undefined;
 
 	beforeEach(() => {
+		previousForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		// The .claude provider is a foreign project source; these cases pin
+		// provider precedence, so consent to it for the fixture repo.
+		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude";
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-claude-md-"));
 	});
 
 	afterEach(() => {
+		if (previousForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		else process.env.ZETA_FOREIGN_PROJECT_SOURCES = previousForeignSources;
 		removeSyncWithRetries(tempDir);
 	});
 

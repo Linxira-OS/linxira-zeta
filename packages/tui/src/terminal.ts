@@ -52,6 +52,12 @@ const WIN32_RELAYED_ESCAPE_TIMEOUT_MS = 75;
  * of the event loop longer than 75 ms fires the timer before the queued tail is read.
  */
 const WIN32_RELAYED_STRING_TIMEOUT_MS = 5000;
+/** Focus reporting: lets the app re-assert input modes after the window regains focus. */
+const FOCUS_REPORTING_ON = "\x1b[?1004h";
+const FOCUS_REPORTING_OFF = "\x1b[?1004l";
+/** Win32-input-mode (ConPTY keyboard records): always reset on entry, enable only for the fallback. */
+const WIN32_INPUT_MODE_ON = "\x1b[?9001h";
+const WIN32_INPUT_MODE_OFF = "\x1b[?9001l";
 
 /** How long a TSP hello waits for its reply inside tmux, which answers DA1 itself. */
 const TSP_TMUX_HELLO_TIMEOUT_MS = 1000;
@@ -479,6 +485,7 @@ export function emergencyTerminalRestore(): void {
 					"\x1b[?7h" + // Restore autowrap
 					"\x1b[?1l\x1b>" + // Restore normal cursor-key + keypad mode (rmkx, #6374)
 					"\x1b[?2004l" + // Disable bracketed paste
+					"\x1b[?1004l" + // Disable focus reporting
 					"\x1b[?2031l" + // Disable Mode 2031 appearance notifications
 					"\x1b[?2048l" + // Disable in-band resize notifications
 					"\x1b[?5522l" + // Disable enhanced paste notifications
@@ -588,6 +595,13 @@ export interface Terminal {
 	 * pi-tui versions keep working.
 	 */
 	enableInput?(): void;
+
+	/**
+	 * Re-apply input state a focus transition may have dropped (raw mode,
+	 * console VT-input flags, bracketed paste, focus reporting, an active
+	 * win32-input-mode). Optional so custom Terminals need not implement it.
+	 */
+	reassertInputModes?(): void;
 
 	// Stop the terminal and restore state
 	stop(): void;
@@ -875,6 +889,10 @@ export class ProcessTerminal implements Terminal {
 	// win32-input-mode sequences and are decoded before reaching the handler.
 	#win32InputDecoder?: Win32InputModeDecoder;
 	#win32PasteNormalizer?: Win32PasteMarkerNormalizer;
+	// Whether this process asked the console host for win32-input-mode. The
+	// decoder itself stays installed for pass-through and for records left in
+	// the input queue by a previous process (see #ensureWin32Decoding).
+	#win32ModeActive = false;
 	// Releases a relayed lone ESC the decoder held for a sequence tail that never came.
 	#win32PendingFlushTimer?: Timer;
 	#stdinBuffer?: StdinBuffer;
@@ -1231,8 +1249,21 @@ export class ProcessTerminal implements Terminal {
 		process.stdin.on("error", this.#stdinErrorHandler);
 		process.stdin.resume();
 
+		// A crashed or killed prior process can leave the console host in
+		// win32-input-mode (DECSET 9001). Its key records are not VT keys, so an
+		// app without a decoder ignores every keystroke — including IME commits —
+		// while the cursor still blinks. Reset the mode before any probe, and
+		// keep a pass-through decoder installed so a record already queued by
+		// the previous process still decodes.
+		this.#ensureWin32Decoding();
+		this.#win32ModeActive = false;
+		this.#safeWrite(WIN32_INPUT_MODE_OFF);
+
 		// Enable bracketed paste mode - terminal will wrap pastes in \x1b[200~ ... \x1b[201~
 		this.#safeWrite("\x1b[?2004h");
+		// Focus reporting lets a focus-in re-assert raw/VT input; a lost focus
+		// can leave conhost's input mode (and the IME composition state) wedged.
+		this.#safeWrite(FOCUS_REPORTING_ON);
 		this.#rearmBracketedPaste =
 			terminalMultiplexerSessions($env).some(multiplexer => multiplexer.gatesBracketedPaste) ||
 			classifyTerminalMultiplexerModule($env)?.gatesBracketedPaste === true;
@@ -1429,12 +1460,7 @@ export class ProcessTerminal implements Terminal {
 				this.#tspReplyBuffer = "";
 				for (const key of win32Keys) this.#stdinSequenceHandler?.(key);
 				if (decoder.hasPendingSequence) {
-					this.#win32PendingFlushTimer = setTimeout(
-						() => {
-							// An overdue timer runs before poll delivers relayed tail records.
-							// Give stdin one poll pass before releasing a held ESC or string.
-							this.#win32PendingFlushTimer = setTimeout(() => this.#releaseWin32PendingSequence());
-						},
+					this.#armWin32PendingFlush(
 						decoder.hasPendingString ? WIN32_RELAYED_STRING_TIMEOUT_MS : WIN32_RELAYED_ESCAPE_TIMEOUT_MS,
 					);
 				}
@@ -2117,8 +2143,52 @@ export class ProcessTerminal implements Terminal {
 		}
 	}
 
+	/**
+	 * Install the pass-through win32-input-mode decoder for ConPTY hosts.
+	 *
+	 * It is deliberately independent of requesting DECSET 9001: a previous
+	 * process can leave the console host in that mode, so records may arrive
+	 * before (or without) this process ever requesting it. `decode()` returns
+	 * undefined for ordinary VT, leaving the normal input path untouched.
+	 */
+	#ensureWin32Decoding(): void {
+		if (!this.#conpty && process.platform !== "win32") return;
+		this.#win32InputDecoder ??= new Win32InputModeDecoder();
+		if (this.#win32PasteNormalizer) return;
+		// The normalizer restores paste delimiters the console host encoded as
+		// key records before StdinBuffer looks for them. Its expiry defers one
+		// poll pass so a tail queued by a stalled loop still completes.
+		this.#win32PasteNormalizer = new Win32PasteMarkerNormalizer(
+			data => this.#stdinBuffer?.process(data),
+			() => {
+				if (!this.#win32InputDecoder?.hasPendingString) this.#releaseWin32PendingSequence();
+			},
+		);
+	}
+
+	/**
+	 * Re-apply the state that a terminal/focus transition can drop: raw mode,
+	 * console VT-input flags, bracketed paste, focus reporting, and an active
+	 * win32-input-mode. Called on focus-in by the TUI.
+	 */
+	reassertInputModes(): void {
+		if (this.#headless || this.#dead || !this.#active) return;
+		if (process.platform === "win32") {
+			try {
+				process.stdin.setRawMode?.(true);
+			} catch {
+				// A revoked console fails below; keep the app alive.
+			}
+			this.#enableWindowsVTInput();
+			this.#ensureWin32Decoding();
+			this.#safeWrite(this.#win32ModeActive ? WIN32_INPUT_MODE_ON : WIN32_INPUT_MODE_OFF);
+		}
+		this.#safeWrite("\x1b[?2004h");
+		this.#safeWrite(FOCUS_REPORTING_ON);
+	}
+
 	#enableModifyOtherKeysFallback(): void {
-		if (this.#kittyProtocolActive || this.#modifyOtherKeysActive || this.#win32InputDecoder) return;
+		if (this.#kittyProtocolActive || this.#modifyOtherKeysActive) return;
 		const ssh = isSshSession();
 		if (this.#conpty && !ssh) {
 			// The Windows console host ignores modifyOtherKeys and folds Shift+Enter
@@ -2127,17 +2197,11 @@ export class ProcessTerminal implements Terminal {
 			// terminal, and under WSL through the `wsl.exe` relay's console host too.
 			// Under sshd the console host is fed the remote terminal's VT stream,
 			// and the mode splits arrow keys into Escape plus literal text (#14034).
-			this.#safeWrite("\x1b[?9001h");
-			this.#win32InputDecoder = new Win32InputModeDecoder();
-			// The normalizer's expiry already spent the ESC wait; release the decoder's hold
-			// at once instead of starting a second window. A held string keeps its own
-			// longer timer: releasing it here would type the rest of it as text.
-			this.#win32PasteNormalizer = new Win32PasteMarkerNormalizer(
-				data => this.#stdinBuffer?.process(data),
-				() => {
-					if (!this.#win32InputDecoder?.hasPendingString) this.#releaseWin32PendingSequence();
-				},
-			);
+			this.#ensureWin32Decoding();
+			if (!this.#win32ModeActive) {
+				this.#safeWrite(WIN32_INPUT_MODE_ON);
+				this.#win32ModeActive = true;
+			}
 			// A WSL pty is not always relayed by a console host (tmux, VS Code
 			// Remote-WSL, WSLg terminals). Those ignore 9001 and keep sending plain
 			// VT, which the decoder passes through, so also ask for modifyOtherKeys.
@@ -2149,6 +2213,20 @@ export class ProcessTerminal implements Terminal {
 		this.#modifyOtherKeysActive = true;
 	}
 
+	/**
+	 * Release a held win32 sequence after `delayMs`, then after one extra poll
+	 * pass. An overdue timer runs before stdin's poll phase, so a tail the
+	 * stalled loop queued after the deadline would otherwise be delivered after
+	 * the hold was released — a lone ESC aborts the turn and the tail types as
+	 * text. The nested zero-delay timer gives poll one pass to deliver it.
+	 */
+	#armWin32PendingFlush(delayMs: number): void {
+		clearTimeout(this.#win32PendingFlushTimer);
+		this.#win32PendingFlushTimer = setTimeout(() => {
+			this.#win32PendingFlushTimer = setTimeout(() => this.#releaseWin32PendingSequence(), 0);
+		}, delayMs);
+	}
+
 	/** Deliver relayed VT text the decoder is holding (a lone ESC becomes Escape). */
 	#releaseWin32PendingSequence(): void {
 		clearTimeout(this.#win32PendingFlushTimer);
@@ -2158,13 +2236,16 @@ export class ProcessTerminal implements Terminal {
 	}
 
 	#disableWin32InputMode(): void {
-		if (!this.#win32InputDecoder) return;
+		// Clearing the mode is idempotent and must also clear one leaked by an
+		// earlier process even when this process never requested it. The decoder
+		// stays installed as a pass-through for records already queued.
+		const canSpeakWin32 = this.#conpty || process.platform === "win32";
+		if (!canSpeakWin32) return;
 		this.#win32PasteNormalizer?.flush();
-		this.#win32PasteNormalizer = undefined;
 		// Held input still belongs to the user (e.g. Escape before a late kitty reply).
 		this.#releaseWin32PendingSequence();
-		this.#safeWrite("\x1b[?9001l");
-		this.#win32InputDecoder = undefined;
+		this.#safeWrite(WIN32_INPUT_MODE_OFF);
+		this.#win32ModeActive = false;
 	}
 
 	/**
@@ -2505,6 +2586,7 @@ export class ProcessTerminal implements Terminal {
 			this.#modifyOtherKeysActive = false;
 		}
 		this.#disableWin32InputMode();
+		this.#safeWrite(FOCUS_REPORTING_OFF);
 
 		this.#restoreWindowsVTInput();
 		// Clean up StdinBuffer

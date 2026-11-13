@@ -14,7 +14,7 @@ const QUARANTINE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** Undelivered events per destination; past it, writes fail instead of evicting. */
 const MAX_EVENTS = 1000;
 const BATCH_SIZE = 16;
-const EVENT_FILE = /^zeta-retain-[a-f0-9]{32}\.json$/;
+const EVENT_FILE = /^(?:zeta|omp)-retain-[a-f0-9]{32}\.json$/;
 /** Statuses that refuse the request body itself; every other failure is retried. */
 const REJECTED_PAYLOAD_STATUSES = new Set([400, 413, 422]);
 

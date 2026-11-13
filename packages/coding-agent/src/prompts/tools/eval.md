@@ -1,4 +1,7 @@
 One cell per call; top-level state persists, including across compaction.{{#if spawns}} Subagents have separate kernels.{{/if}}
+
+## Batching independent calls
+When a task needs 2+ independent calls, bulk classification, or tabular aggregation, prefer one cell over many separate assistant/tool-result turns: intermediate data stays in the kernel instead of being re-sent each turn. This is not a reason to batch a single trivial call. Normal failure and approval rules still apply; never use a cell to bypass them.
 {{#if spawns}}
 {{#if eagerDelegation}}
 For 2+ independent items, use a named `workpool()`; results auto-deliver.

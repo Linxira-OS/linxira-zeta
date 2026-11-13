@@ -218,7 +218,7 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 					"icon",
 					{
 						name: "copy",
-						role: "zeta.$1.tool",
+						role: "zeta.user.tool",
 						title: "Copy message",
 						aria: "Copy message",
 						actions: { click: "copy-message" },
@@ -230,7 +230,7 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 					"icon",
 					{
 						name: "rewind",
-						role: "zeta.$1.tool",
+						role: "zeta.user.tool",
 						title: "Rewind the conversation to an earlier message",
 						aria: "Rewind",
 						actions: { click: "rewind" },
@@ -243,13 +243,13 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 				const at = new Date(this.#timestamp);
 				tools.push(
 					node("text", { text: "·" }, undefined, "dot"),
-					text([span(at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12 }), "dim mono")], {
-						role: "zeta.$1.time",
-						title: at.toLocaleString([], { hour12 }),
+					text([span(at.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12 }), "dim mono")], {
+						role: "zeta.user.time",
+						title: at.toLocaleString("en-US", { hour12 }),
 					}),
 				);
 			}
-			children.push(node("row", { gap: "xs", align: "center", role: "zeta.$1.tools" }, tools, "tools"));
+			children.push(node("row", { gap: "xs", align: "center", role: "zeta.user.tools" }, tools, "tools"));
 		}
 		// Videos keep their chip only: the native image node decodes stills.
 		const thumbs: NativeNode[] = [];
@@ -262,7 +262,7 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 			});
 		}
 		if (thumbs.length > 0) {
-			children.push(row(thumbs, { gap: "sm", wrap: true, align: "start", role: "zeta.$1.images" }));
+			children.push(row(thumbs, { gap: "sm", wrap: true, align: "start", role: "zeta.user.images" }));
 		}
 		const marks = this.#synthetic ? [] : tokenMarks(this.#text, this.#tokens, this.#imageLinks);
 		children.push(md(this.#text, marks.length > 0 ? { marks } : undefined));
@@ -276,9 +276,9 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 				}),
 			);
 		}
-		if (this.#reaction !== undefined) badges.push(node("badge", { text: this.#reaction, role: "zeta.$1" }));
+		if (this.#reaction !== undefined) badges.push(node("badge", { text: this.#reaction, role: "zeta.reaction" }));
 		if (badges.length > 0)
-			children.push(node("row", { gap: "xs", justify: "end", role: "zeta.$1.badges" }, badges, "badges"));
+			children.push(node("row", { gap: "xs", justify: "end", role: "zeta.user.badges" }, badges, "badges"));
 		// A phone's long press lists the turn's actions (a desktop keeps the hover toolbar): they need the
 		// prompt's timestamp to find its entry.
 		const hold =
@@ -291,7 +291,7 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 				: {};
 		this.#native = card(
 			{
-				role: this.#synthetic ? "zeta.$1.synthetic" : "zeta.$1",
+				role: this.#synthetic ? "zeta.user.synthetic" : "zeta.user",
 				tone: this.#synthetic ? "muted" : "user",
 				...hold,
 			},
@@ -483,7 +483,7 @@ export class CollapsedSyntheticMessageComponent implements Component {
 		return this.#native.get([this.#expanded], () =>
 			card(
 				{
-					role: "zeta.$1.synthetic",
+					role: "zeta.user.synthetic",
 					tone: "muted",
 					head: [span(summarizeSyntheticInput(this.#text), "dim")],
 					collapsible: true,

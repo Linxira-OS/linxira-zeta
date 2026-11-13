@@ -85,6 +85,7 @@ import {
 	scanFileForConflicts,
 } from "./conflict-detect";
 import { executeReadUrl, fetchReadUrl, parseReadUrlTarget } from "./fetch";
+import { readTargetsPlan, readTargetsPlanArtifact } from "../plan-mode/plan-protection";
 import { approvalDirectoryKey } from "./approval-cache";
 import { approvalTargetKey, approvalTargetNamesFile, isApprovalPublicUrl } from "./approval-targets";
 import {
@@ -845,6 +846,8 @@ interface FilesystemReadOptions {
 	toolContext?: AgentToolContext;
 	/** Page a whole-file read as the plain result does, though the session shapes output (a held-out result). */
 	plainWindow?: boolean;
+	/** The read targeted the session plan URL: raise the default line window to the full cap. */
+	planTargetedRead?: boolean;
 }
 
 /**
@@ -1321,6 +1324,22 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 	}
 
 	/**
+	 * True when `readPath` targets the session plan file: the canonical
+	 * `local://PLAN.md` alias, the session plan reference path, or the
+	 * pre-approval `local://<slug>-plan.md` artifact. Plan reads without an
+	 * explicit selector get the full default window so incremental plan
+	 * amendments never operate on a truncated view.
+	 */
+	#isPlanRead(readPath: string): boolean {
+		const reference = this.session.getPlanReferencePath?.() ?? "local://PLAN.md";
+		return (
+			readTargetsPlan(readPath, "local://PLAN.md") ||
+			readTargetsPlan(readPath, reference) ||
+			readTargetsPlanArtifact(readPath)
+		);
+	}
+
+	/**
 	 * Recover the active approved plan when a model rewrites its internal URL
 	 * as a same-basename path in the working-directory root.
 	 *
@@ -1684,6 +1703,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		selectorBase: string,
 		signal: AbortSignal | undefined,
 		allowBridge = true,
+		planTargetedRead = false,
 	): Promise<{
 		outputText: string;
 		columnCut: ColumnCut | undefined;
@@ -1732,7 +1752,8 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 
 		for (const range of ranges) {
 			const rangeStart = range.startLine - 1; // 0-indexed
-			const requestedLength = range.endLine !== undefined ? range.endLine - range.startLine + 1 : this.#defaultLimit;
+			const requestedLength =
+				range.endLine !== undefined ? range.endLine - range.startLine + 1 : planTargetedRead ? DEFAULT_MAX_LINES : this.#defaultLimit;
 			const maxLines = Math.min(requestedLength, DEFAULT_MAX_LINES);
 
 			// The file is already in memory for everything within the snapshot byte
@@ -1942,6 +1963,9 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			readPath = expandPath(readPath);
 		}
 		readPath = recoverConflictUriPrefix(readPath).path;
+		// Captured before scheme resolution rewrites `readPath`: the plan-aware
+		// read window keys on the `local://` spelling.
+		const planTargetedRead = this.#isPlanRead(readPath);
 		// A `;` list mixing URLs with local paths must split before URL detection
 		// claims the whole string as one fetch or one internal/MCP resource.
 		const mixedParts = await splitMixedUrlPathList(
@@ -2046,6 +2070,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			return this.#readFilesystemPath(readPath, {
 				question,
 				signal,
+				planTargetedRead,
 				onBufferedFile,
 				onConflictMarkers,
 				lexicalAbsolutePath,
@@ -2060,6 +2085,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			question,
 			questionPath: readPath,
 			signal,
+			planTargetedRead,
 			toolContext,
 			plainWindow,
 		});
@@ -2111,6 +2137,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			lexicalAbsolutePath,
 			toolContext,
 			plainWindow,
+			planTargetedRead = false,
 		} = options;
 		let { question } = options;
 		const rawImages = toolContext?.rawImages === true;
@@ -2620,6 +2647,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 						selectorBase,
 						undefined, // plain-file read: deterministic and fast, never abort mid-read
 						!located, // located URLs read their backing file directly, as their handlers do
+						planTargetedRead,
 					);
 					if (multiResult.bridgeResult) return multiResult.bridgeResult;
 					content = [{ type: "text", text: multiResult.outputText }];
@@ -2682,7 +2710,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 						shapesOutput(this.session, "read");
 					const lineCap = wholeFileShaping ? MAX_SUMMARY_LINES : DEFAULT_MAX_LINES;
 					const DEFAULT_LIMIT = wholeFileShaping ? MAX_SUMMARY_LINES : this.#defaultLimit;
-					const effectiveLimit = limit ?? DEFAULT_LIMIT;
+					const effectiveLimit = limit ?? (planTargetedRead ? DEFAULT_MAX_LINES : DEFAULT_LIMIT);
 					let maxLinesToCollect = Math.min(effectiveLimit + leadingContext + trailingContext, lineCap);
 					let selectedLineLimit = effectiveLimit + leadingContext + trailingContext;
 					// Scale byte budget with line limit so the configured line count actually fits

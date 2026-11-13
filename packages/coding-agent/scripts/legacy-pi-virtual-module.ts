@@ -135,7 +135,17 @@ async function resolveInstalledPackage(
 	pkg: BundledPackage,
 	layout: LegacyPiLayout,
 ): Promise<{ root: string; manifest: unknown }> {
-	const specifier = `@zeta/${pkg.npmDir}`;
+	const specifier = `@linxiraos/${pkg.npmDir}`;
+	// The installed coding-agent package is this script's own package (published
+	// as `@linxiraos/zeta`); its manifest names it, so read it from the layout.
+	if (pkg.npmDir === "pi-coding-agent") {
+		try {
+			const manifest: unknown = await Bun.file(path.join(layout.packageDir, "package.json")).json();
+			if (isRecord(manifest)) return { root: layout.packageDir, manifest };
+		} catch (error) {
+			if (!isEnoent(error)) throw error;
+		}
+	}
 	let entry: string;
 	try {
 		entry = Bun.resolveSync(specifier, path.join(layout.packageDir, "package.json"));
@@ -147,7 +157,9 @@ async function resolveInstalledPackage(
 	while (true) {
 		try {
 			const manifest: unknown = await Bun.file(path.join(dir, "package.json")).json();
-			if (isRecord(manifest) && manifest.name === specifier) return { root: dir, manifest };
+			// The install directory names the package even when its published name
+			// uses a different scope than the resolution specifier.
+			if (isRecord(manifest) && path.basename(dir) === pkg.npmDir) return { root: dir, manifest };
 		} catch (error) {
 			if (!isEnoent(error)) throw error;
 		}

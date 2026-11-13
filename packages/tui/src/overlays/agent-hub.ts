@@ -560,6 +560,15 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 
 		this.#unsubscribers.push(this.#registry.onChange(() => this.#scheduleDataChange()));
 		this.#unsubscribers.push(this.#observers.onChange(() => this.#scheduleDataChange()));
+		const unsubscribeMailbox = this.#irc.onMailboxChange?.(() => {
+			// A queued message changes an unread badge with no roster or observer
+			// event; drop the picker and native caches so the next description
+			// reflects the new count instead of waiting out the age tick.
+			this.#agentItems = undefined;
+			this.#native = undefined;
+			this.#scheduleDataChange(true);
+		});
+		if (unsubscribeMailbox) this.#unsubscribers.push(unsubscribeMailbox);
 		this.#ageTimer = setInterval(() => {
 			if (this.#hasFallbackLiveSessions) {
 				this.#refreshAggregate(true);
@@ -740,10 +749,8 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		}
 	}
 
-	// ========================================================================
-	// Native description
-	// ========================================================================
-
+	// =================================================================	// Native description
+	// =================================================================
 	/** A `picker` is its own sheet: the backend mounts it in `layer` without an `overlay` wrapper. */
 	nativeSheet(cx: DescribeContext): boolean {
 		return cx.supports("picker");
@@ -762,7 +769,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		}
 		const tabs = node("tabs", { items: SECTION_TABS, active: this.#section }, undefined, "section");
 		const body = this.#section === "activity" ? this.#describeActivity() : this.#describeAgents(nativeTree);
-		this.#native = overlayCard("zeta.$1.agentHub", "Agent Hub", [tabs, ...body]);
+		this.#native = overlayCard("zeta.overlay.agentHub", "Agent Hub", [tabs, ...body]);
 		return this.#native;
 	}
 
@@ -1086,10 +1093,10 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		const out: NativeChild[] = [
 			node(
 				"row",
-				{ role: "zeta.$1.title", gap: "sm", align: "center" },
+				{ role: "zeta.hub.title", gap: "sm", align: "center" },
 				[
 					text(sanitizeDisplaySingleLine(ref.displayName || ref.id), {
-						role: "zeta.$1.title",
+						role: "zeta.hub.title",
 						truncate: "end",
 					}),
 					node("badge", { text: ref.status, tone: statusDot(ref.status) }),
@@ -1113,7 +1120,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			}
 			facts.splice(facts[0]?.k === "Task" ? 1 : 0, 0, { k: "Model", v: model });
 		}
-		out.push(node("kv", { items: facts, layout: "grid", role: "zeta.$1.kv" }, undefined, "facts"));
+		out.push(node("kv", { items: facts, layout: "grid", role: "zeta.hub.kv" }, undefined, "facts"));
 		if (metrics?.contextTokens !== undefined && metrics.contextWindow) {
 			const ratio = Math.max(0, Math.min(1, metrics.contextTokens / metrics.contextWindow));
 			const label = `${formatNumber(metrics.contextTokens)} / ${formatNumber(metrics.contextWindow)} · ${Math.round(ratio * 100)}%`;
@@ -1142,7 +1149,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			return node(
 				"row",
 				{
-					role: "zeta.$1.activity.row",
+					role: "zeta.hub.activity.row",
 					gap: "sm",
 					align: "baseline",
 					actions: { click: "transcript" },
@@ -1158,7 +1165,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			);
 		});
 		if (rows.length === 0) rows.push(text([span("No response or tool activity yet", "dim")]));
-		out.push(node("section", { head: "Recent activity", role: "zeta.$1.activity" }, rows, "recentActivity"));
+		out.push(node("section", { head: "Recent activity", role: "zeta.hub.activity" }, rows, "recentActivity"));
 		return out;
 	}
 
@@ -1408,7 +1415,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 			grow: 2,
 			min: { w: `${DETAIL_MIN_WIDTH}ch` },
 			gap: "sm",
-			role: "zeta.$1.agentHub.detail",
+			role: "zeta.overlay.agentHub.detail",
 		} as const;
 		if (!ref) return node("col", layout, [text([span("Select an agent to inspect", "dim")])], "detail");
 		const observed = this.#observableFor(ref.id);
@@ -1615,16 +1622,20 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		];
 	}
 
-	// ========================================================================
-	// Live data plumbing
-	// ========================================================================
-
-	#scheduleDataChange(): void {
-		if (this.#dataChangeTimer) return;
+	// =================================================================	// Live data plumbing
+	// =================================================================
+	#scheduleDataChange(immediate = false): void {
+		if (this.#dataChangeTimer) {
+			if (!immediate) return;
+			// A later status/message change supersedes a queued progress batch: render
+			// on the next tick instead of finishing the old window with stale data.
+			clearTimeout(this.#dataChangeTimer);
+			this.#dataChangeTimer = undefined;
+		}
 		this.#dataChangeTimer = setTimeout(() => {
 			this.#dataChangeTimer = undefined;
 			this.#onDataChange();
-		}, this.#dataChangeDelay());
+		}, immediate ? 0 : this.#dataChangeDelay());
 		this.#dataChangeTimer.unref?.();
 	}
 
@@ -1722,6 +1733,7 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		this.#refreshActivityData(rosterRows);
 		// The 2,000-row activity query only feeds the Activity tab; switching to it refreshes.
 		if (this.#section === "activity") this.#refreshActivityRows();
+		this.#agentItems = undefined;
 	}
 
 	#refreshActivityData(refs: readonly TRecord[]): void {
@@ -1801,10 +1813,8 @@ export class AgentHubOverlayComponent<TRecord extends AgentRecordLike = AgentRec
 		return hubRowMetrics(ref, observed, this.#sessionMetrics);
 	}
 
-	// ========================================================================
-	// Table view
-	// ========================================================================
-
+	// =================================================================	// Table view
+	// =================================================================
 	#sectionTabs(): string {
 		const tab = (section: AgentHubSection, label: string): string =>
 			this.#section === section

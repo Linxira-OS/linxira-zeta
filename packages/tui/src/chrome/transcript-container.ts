@@ -1349,7 +1349,7 @@ export class TranscriptContainer extends Container {
 	/** Embedded as a child (transcript viewers): a stack of the {@link nativeBlocks}. */
 	override describe(cx: DescribeContext): NativeNode {
 		const blocks = this.nativeBlocks(cx);
-		this.#nativeNode ??= col(blocks, { role: "zeta.$1" });
+		this.#nativeNode ??= col(blocks, { role: "zeta.transcript" });
 		return this.#nativeNode;
 	}
 

@@ -1754,8 +1754,8 @@ export class HtmlFormDialog implements Component, Focusable {
 
 	/**
 	 * Tern's stylesheet caps the ask card at 60vh, clips what overflows, and lets only a few of
-	 * its direct children shrink and scroll: a `list` in the `zeta.$1.options` role and a `kv` in
-	 * `zeta.$1.answers`. A tab's content therefore sits in one such list (a `col` capped by `max`
+	 * its direct children shrink and scroll: a `list` in the `zeta.ask.options` role and a `kv` in
+	 * `zeta.ask.answers`. A tab's content therefore sits in one such list (a `col` capped by `max`
 	 * only clips), so it scrolls inside the card and the action bar below stays in view.
 	 */
 	#describeForm(blocked: boolean): NativeNode {
@@ -1768,16 +1768,16 @@ export class HtmlFormDialog implements Component, Focusable {
 		} else {
 			const form = col(this.#describeParts(this.#tabs[this.#tab]?.parts ?? []), {
 				gap: "lg",
-				role: "zeta.$1.form",
+				role: "zeta.ask.form",
 			});
 			// Keyed per tab, so a tab switch mounts a fresh scroller that opens at its top. The key
 			// stays clear of `f<index>`, the option lists' keys `handleNativeEvent` reads.
-			children.push(list([form], { role: "zeta.$1.options" }, `body${this.#tab}`));
+			children.push(list([form], { role: "zeta.ask.options" }, `body${this.#tab}`));
 		}
 		const next = tabbed && !review;
 		const submit = !next || this.#tab === this.#tabs.length - 1;
 		children.push(this.#describeActions(blocked, next, submit));
-		return col(children, { role: "zeta.$1.ask", gap: "md" });
+		return col(children, { role: "zeta.editor.ask", gap: "md" });
 	}
 
 	/** One tab per question, checked once the user has left it with no field failing validation, then Review. */
@@ -1798,14 +1798,14 @@ export class HtmlFormDialog implements Component, Focusable {
 			{
 				items,
 				active,
-				role: "zeta.$1.questions",
+				role: "zeta.ask.questions",
 				title: "Previous/next question  ←/→",
 				actions: { click: "select" },
 			},
 			undefined,
 			"tabs",
 		);
-		return keyed(row([tabs], { role: "zeta.$1.head", align: "center" }), "head");
+		return keyed(row([tabs], { role: "zeta.ask.head", align: "center" }), "head");
 	}
 
 	#describeParts(parts: readonly TabPart[]): NativeChild[] {
@@ -1814,14 +1814,14 @@ export class HtmlFormDialog implements Component, Focusable {
 			const blocks = section.blocks.slice(start, end).map(block => this.#describeBlock(block));
 			const key = start === 0 ? `s${index}` : `s${index}.${start}`;
 			return section.title.length > 0
-				? node("section", { head: nativeSpans(section.title), role: "zeta.$1.section" }, blocks, key)
-				: keyed(col(blocks, { gap: "md", role: "zeta.$1.section" }), key);
+				? node("section", { head: nativeSpans(section.title), role: "zeta.ask.section" }, blocks, key)
+				: keyed(col(blocks, { gap: "md", role: "zeta.ask.section" }), key);
 		});
 	}
 
 	/**
 	 * Review tab: whether anything still needs fixing, then every answer under its question. The
-	 * answers sit straight in the card as `zeta.$1.answers`, the list Tern's stylesheet lets shrink
+	 * answers sit straight in the card as `zeta.ask.answers`, the list Tern's stylesheet lets shrink
 	 * and scroll inside the card.
 	 */
 	#describeReview(): NativeChild[] {
@@ -1843,8 +1843,8 @@ export class HtmlFormDialog implements Component, Focusable {
 			return { k: sanitize(answer.question), v: shown ? [span(shown)] : [span("—", "dim")] };
 		});
 		return [
-			text(notice, { wrap: "word", role: "zeta.$1.notice" }),
-			node("kv", { items, role: "zeta.$1.answers" }, undefined, REVIEW_ID),
+			text(notice, { wrap: "word", role: "zeta.ask.notice" }),
+			node("kv", { items, role: "zeta.ask.answers" }, undefined, REVIEW_ID),
 		];
 	}
 
@@ -1856,7 +1856,7 @@ export class HtmlFormDialog implements Component, Focusable {
 	#describeActions(blocked: boolean, next: boolean, submit: boolean): NativeNode {
 		if (this.#noteEditor) {
 			return actionBar([
-				text(this.#noteEditHint(), { role: "zeta.$1.note" }),
+				text(this.#noteEditHint(), { role: "zeta.ask.note" }),
 				actionButton("Keep", "cancel", { keys: "escape" }),
 				actionButton("Save", "save-note", { keys: "enter" }),
 			]);
@@ -1872,7 +1872,7 @@ export class HtmlFormDialog implements Component, Focusable {
 		const [noteKey] = this.#noteKeys(this.#stops[this.#focus]!.kind === "select");
 		return actionBar([
 			actionButton("Hide", "hide", hideKey ? { keys: hideKey } : {}),
-			lead ? text([span(lead, "muted")], { truncate: "end", role: "zeta.$1.summary" }) : null,
+			lead ? text([span(lead, "muted")], { truncate: "end", role: "zeta.ask.summary" }) : null,
 			...(lead ? [null] : []),
 			actionButton("Cancel", "cancel", { keys: "escape" }),
 			...(next ? [actionButton("Next", "next", submit ? {} : { tone: "accent" })] : []),
@@ -1899,12 +1899,12 @@ export class HtmlFormDialog implements Component, Focusable {
 		const items: NativeNode[] = [];
 		if (this.#remaining !== undefined) items.push(text([span(`${this.#remaining}s`, "muted")]));
 		items.push(
-			// The summary grows (`zeta.$1.summary`), end-aligning Cancel and Show.
-			text([span("Question  ", "muted"), span(this.#hiddenSummary())], { truncate: "end", role: "zeta.$1.summary" }),
+			// The summary grows (`zeta.ask.summary`), end-aligning Cancel and Show.
+			text([span("Question  ", "muted"), span(this.#hiddenSummary())], { truncate: "end", role: "zeta.ask.summary" }),
 			actionButton("Cancel", "cancel", { keys: "escape" }),
 			actionButton("Show", "show", { tone: "accent", ...(hideKey ? { keys: hideKey } : {}) }),
 		);
-		return col([actionBar(items)], { role: "zeta.$1.ask.hidden", gap: "md" });
+		return col([actionBar(items)], { role: "zeta.editor.ask.hidden", gap: "md" });
 	}
 
 	#describeBlock(block: FormBlock): NativeChild {
@@ -1912,25 +1912,25 @@ export class HtmlFormDialog implements Component, Focusable {
 			case "text":
 				return text(nativeSpans(block.spans), {
 					wrap: "word",
-					role: block.heading ? "zeta.$1.heading" : "zeta.$1.text",
+					role: block.heading ? "zeta.ask.heading" : "zeta.ask.text",
 				});
 			case "list":
 				return col(
 					block.items.map((entry, index) =>
 						text([span(block.ordered ? `${index + 1}.` : "•", "muted"), span(" "), ...nativeSpans(entry)], {
 							wrap: "word",
-							role: "zeta.$1.text",
+							role: "zeta.ask.text",
 						}),
 					),
-					{ gap: "xs", role: "zeta.$1.bullets" },
+					{ gap: "xs", role: "zeta.ask.bullets" },
 				);
 			case "pre":
-				return code(sanitize(block.text), { role: "zeta.$1.pre" });
+				return code(sanitize(block.text), { role: "zeta.ask.pre" });
 			case "image":
 			case "svg": {
 				const slot = this.#media.get(block)!;
 				if (slot.state === "ready") return slot.native;
-				return text([span(this.#mediaNote(block, slot), "muted")], { role: "zeta.$1.text", truncate: "end" });
+				return text([span(this.#mediaNote(block, slot), "muted")], { role: "zeta.ask.text", truncate: "end" });
 			}
 			case "table": {
 				const count = Math.max(0, ...block.rows.map(row => row.length));
@@ -1943,7 +1943,7 @@ export class HtmlFormDialog implements Component, Focusable {
 					id: `r${index}`,
 					cells: Object.fromEntries(cols.map((column, cell) => [column.id, nativeSpans(row[cell] ?? [])])),
 				}));
-				return node("table", { cols, rows, role: "zeta.$1.table" });
+				return node("table", { cols, rows, role: "zeta.ask.table" });
 			}
 			case "field":
 				return this.#describeField(block.field);
@@ -1968,7 +1968,7 @@ export class HtmlFormDialog implements Component, Focusable {
 			wrap: field.multiline ? "word" : "none",
 			truncate: field.multiline ? undefined : "end",
 			lines: field.multiline ? this.#textareaRows(field) : 1,
-			role: field.multiline ? "zeta.$1.well.multi" : "zeta.$1.well",
+			role: field.multiline ? "zeta.ask.well.multi" : "zeta.ask.well",
 			actions: { click: `${EDIT_ACT}${index}` },
 		});
 	}
@@ -1979,7 +1979,7 @@ export class HtmlFormDialog implements Component, Focusable {
 		const children: NativeChild[] = [];
 		if (field.label.length > 0) {
 			const required = field.required ? [span(" *", "error")] : [];
-			children.push(text([...nativeSpans(field.label), ...required], { wrap: "word", role: "zeta.$1.label" }));
+			children.push(text([...nativeSpans(field.label), ...required], { wrap: "word", role: "zeta.ask.label" }));
 		}
 		if (field.kind === "text") {
 			children.push(this.#describeTextControl(field, index));
@@ -1994,7 +1994,7 @@ export class HtmlFormDialog implements Component, Focusable {
 							? OTHER_ITEM
 							: null;
 			const checked = this.#checked.get(field)!;
-			const role = field.multi ? "zeta.$1.check" : "zeta.$1.option";
+			const role = field.multi ? "zeta.ask.check" : "zeta.ask.option";
 			const items = field.options.map((option, optionIndex) => {
 				const isChecked = checked.has(optionIndex);
 				const note = this.#notes.get(field)?.get(optionIndex);
@@ -2022,11 +2022,11 @@ export class HtmlFormDialog implements Component, Focusable {
 					}),
 				);
 			}
-			children.push(list(items, { selected: focusedOption, role: "zeta.$1.options" }, `f${index}`));
+			children.push(list(items, { selected: focusedOption, role: "zeta.ask.options" }, `f${index}`));
 			if (this.#noteEditor?.field === field) {
 				children.push(
 					text(`Note for ${optionText(field.options[this.#noteEditor.option]!)}`, {
-						role: "zeta.$1.note",
+						role: "zeta.ask.note",
 						wrap: "word",
 					}),
 					this.#noteEditor.editor,
@@ -2035,7 +2035,7 @@ export class HtmlFormDialog implements Component, Focusable {
 			// Typing the Other answer: its input is the form's one live editor, so the terminal focuses it.
 			if (focusedOption === OTHER_ITEM) children.push(this.#others.get(field)!);
 		}
-		if (error) children.push(text([span(error, "error")], { role: "zeta.$1.error" }));
-		return col(children, { gap: "xs", role: "zeta.$1.field" });
+		if (error) children.push(text([span(error, "error")], { role: "zeta.ask.error" }));
+		return col(children, { gap: "xs", role: "zeta.ask.field" });
 	}
 }
