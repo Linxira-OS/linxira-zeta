@@ -6256,7 +6256,7 @@ dependencies = [
 
 [[package]]
 name = "pi-ast"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "anyhow",
  "ast-grep-core",
@@ -6298,7 +6298,7 @@ dependencies = [
 
 [[package]]
 name = "pi-builtins"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "ansi-width",
  "anyhow",
@@ -6384,7 +6384,7 @@ dependencies = [
 
 [[package]]
 name = "pi-diff"
-version = "1.5.1"
+version = "1.5.2"
 
 [[package]]
 name = "pi-edit"
@@ -6569,7 +6569,7 @@ dependencies = [
 
 [[package]]
 name = "pi-vcs"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "futures",
  "gix",
@@ -6585,7 +6585,7 @@ dependencies = [
 
 [[package]]
 name = "pi-vfs"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "async-trait",
  "libc",
@@ -6612,7 +6612,7 @@ dependencies = [
 
 [[package]]
 name = "pi-walker"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "async-trait",
  "flume",

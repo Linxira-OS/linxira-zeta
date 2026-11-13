@@ -30,25 +30,29 @@
 import { Glob } from "bun";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { mainWorkspaceMembers, pinnedWorkspaceVersions } from "./cargo-workspace-lock";
+import { mainWorkspaceMembers, pinnedWorkspaceVersions, workspaceMemberManifests } from "./cargo-workspace-lock";
 import { distributionManifests, distributionPins, NPM_DISTRIBUTIONS, NPM_MANIFEST_GLOB } from "./npm-distributions";
 
 const root = path.resolve(import.meta.dir, "..");
 
 /**
- * Rust workspace members whose version rides the single Zeta line, so
- * `Cargo.lock` must pin them the same way `Cargo.toml` does. Vendored crates
- * (`crates/vendor/**`) are deliberately absent — they keep their own upstream
- * version, and `brush-core` rides 0.5.0 while we ride 1.1.x.
+ * Root workspace members whose version rides the single Zeta line, so
+ * `Cargo.lock` must pin them the same way `Cargo.toml` does. Enumerated from
+ * the workspace manifest and each member's own `version.workspace = true`
+ * flag — a hand-maintained subset missed six members after a version bump.
+ * Vendored crates (`crates/vendor/**`) are left alone: they keep their own
+ * upstream version, and `brush-core` rides 0.5.0 while we ride 1.1.x.
  */
-const RUST_MEMBERS = [
-	"crates/pi-edit/Cargo.toml",
-	"crates/pi-natives/Cargo.toml",
-	"crates/pi-voice/Cargo.toml",
-	"crates/pi-predict/Cargo.toml",
-	"crates/pi-iso/Cargo.toml",
-	"crates/pi-shell/Cargo.toml",
-];
+function rustWorkspaceMembers(): string[] {
+	const workspaceManifest = fs.readFileSync(path.join(root, "Cargo.toml"), "utf8");
+	return workspaceMemberManifests(workspaceManifest, "").filter(manifest => {
+		const manifestPath = path.join(root, manifest);
+		return (
+			fs.existsSync(manifestPath) &&
+			/^\s*version\.workspace\s*=\s*true$/m.test(fs.readFileSync(manifestPath, "utf8"))
+		);
+	});
+}
 
 // Must match ALL_PACKAGES in scripts/release-v2.ts / set-version.ts. Entries are
 // repo-relative package directories — official plugins (plugins/official/<id>)
@@ -188,7 +192,7 @@ function main(): void {
 	if (fs.existsSync(lockPath)) {
 		const lock = fs.readFileSync(lockPath, "utf8");
 		const lockLines = lock.split(/\r?\n/);
-		for (const manifest of RUST_MEMBERS) {
+		for (const manifest of rustWorkspaceMembers()) {
 			const manifestPath = path.join(root, manifest);
 			if (!fs.existsSync(manifestPath)) continue;
 			const name = /^name\s*=\s*"([^"]+)"/m.exec(fs.readFileSync(manifestPath, "utf8"))?.[1];
