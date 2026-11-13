@@ -17,7 +17,7 @@
     },
     "packages/agent": {
       "name": "@linxiraos/pi-agent-core",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "dependencies": {
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
@@ -36,7 +36,7 @@
     },
     "packages/ai": {
       "name": "@linxiraos/pi-ai",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "dependencies": {
         "@linxiraos/pi-catalog": "catalog:",
         "@linxiraos/pi-natives": "catalog:",
@@ -58,7 +58,7 @@
     },
     "packages/catalog": {
       "name": "@linxiraos/pi-catalog",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "dependencies": {
         "@linxiraos/pi-utils": "catalog:",
         "@linxiraos/zeta-schema": "catalog:",
@@ -71,7 +71,7 @@
     },
     "packages/channels": {
       "name": "@linxiraos/pi-channels",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "dependencies": {
         "@larksuiteoapi/node-sdk": "^1.71.1",
         "@linxiraos/pi-utils": "catalog:",
@@ -86,7 +86,7 @@
     },
     "packages/coding-agent": {
       "name": "@linxiraos/zeta",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "bin": {
         "zetacode": "src/cli.ts",
       },
@@ -167,7 +167,7 @@
     },
     "packages/mnemopi": {
       "name": "@linxiraos/pi-mnemopi",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "bin": {
         "mnemopi": "src/cli.ts",
       },
@@ -193,7 +193,7 @@
     },
     "packages/natives": {
       "name": "@linxiraos/pi-natives",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "devDependencies": {
         "@napi-rs/cli": "catalog:",
         "@types/bun": "catalog:",
@@ -207,7 +207,7 @@
     },
     "packages/omptype": {
       "name": "@linxiraos/zeta-schema",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "devDependencies": {
         "@sinclair/typebox": "^0.34.0",
         "@types/bun": "catalog:",
@@ -217,7 +217,7 @@
     },
     "packages/snapcompact": {
       "name": "@linxiraos/zeta-compact",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "dependencies": {
         "@linxiraos/pi-ai": "catalog:",
         "@linxiraos/pi-catalog": "catalog:",
@@ -232,7 +232,7 @@
     },
     "packages/stats": {
       "name": "@linxiraos/pi-stats",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "bin": {
         "zeta-stats": "./src/index.ts",
       },
@@ -252,7 +252,7 @@
     },
     "packages/tui": {
       "name": "@linxiraos/pi-tui",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "dependencies": {
         "@linxiraos/pi-agent-core": "catalog:",
         "@linxiraos/pi-ai": "catalog:",
@@ -292,7 +292,7 @@
     },
     "packages/utils": {
       "name": "@linxiraos/pi-utils",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "dependencies": {
         "@linxiraos/pi-natives": "catalog:",
         "@linxiraos/zeta-schema": "catalog:",
@@ -303,7 +303,7 @@
     },
     "packages/wire": {
       "name": "@linxiraos/pi-wire",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "devDependencies": {
         "@types/bun": "catalog:",
       },
@@ -335,19 +335,19 @@
     "@babel/parser": "^7.29.7",
     "@babel/traverse": "^7.29.7",
     "@babel/types": "^7.29.7",
-    "@linxiraos/pi-agent-core": "1.5.1",
-    "@linxiraos/pi-ai": "1.5.1",
-    "@linxiraos/pi-catalog": "1.5.1",
-    "@linxiraos/pi-channels": "1.5.1",
-    "@linxiraos/pi-mnemopi": "1.5.1",
-    "@linxiraos/pi-natives": "1.5.1",
-    "@linxiraos/pi-stats": "1.5.1",
-    "@linxiraos/pi-tui": "1.5.1",
-    "@linxiraos/pi-utils": "1.5.1",
-    "@linxiraos/pi-wire": "1.5.1",
-    "@linxiraos/zeta": "1.5.1",
-    "@linxiraos/zeta-compact": "1.5.1",
-    "@linxiraos/zeta-schema": "1.5.1",
+    "@linxiraos/pi-agent-core": "1.5.2",
+    "@linxiraos/pi-ai": "1.5.2",
+    "@linxiraos/pi-catalog": "1.5.2",
+    "@linxiraos/pi-channels": "1.5.2",
+    "@linxiraos/pi-mnemopi": "1.5.2",
+    "@linxiraos/pi-natives": "1.5.2",
+    "@linxiraos/pi-stats": "1.5.2",
+    "@linxiraos/pi-tui": "1.5.2",
+    "@linxiraos/pi-utils": "1.5.2",
+    "@linxiraos/pi-wire": "1.5.2",
+    "@linxiraos/zeta": "1.5.2",
+    "@linxiraos/zeta-compact": "1.5.2",
+    "@linxiraos/zeta-schema": "1.5.2",
     "@napi-rs/cli": "3.7.2",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/api-logs": "^0.220.0",

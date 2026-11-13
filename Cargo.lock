@@ -6388,7 +6388,7 @@ version = "1.5.1"
 
 [[package]]
 name = "pi-edit"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "async-trait",
  "parking_lot",
@@ -6407,7 +6407,7 @@ dependencies = [
 
 [[package]]
 name = "pi-iso"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "async-trait",
  "libc",
@@ -6419,7 +6419,7 @@ dependencies = [
 
 [[package]]
 name = "pi-natives"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "anyhow",
  "arboard",
@@ -6513,7 +6513,7 @@ dependencies = [
 
 [[package]]
 name = "pi-predict"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "anyhow",
  "candle-core",
@@ -6531,7 +6531,7 @@ dependencies = [
 
 [[package]]
 name = "pi-shell"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6598,7 +6598,7 @@ dependencies = [
 
 [[package]]
 name = "pi-voice"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "bytes",
  "flume",
@@ -10830,3 +10830,4 @@ dependencies = [
  "syn 3.0.6",
  "winnow",
 ]
+
