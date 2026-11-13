@@ -1610,6 +1610,16 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"当 cmux socket 可用时，使用 cmux WKWebView 表面进行浏览器自动化。可设置 PI_BROWSER_CMUX=0 或 PI_BROWSER_CMUX=1 覆盖。",
 	},
+	"browser.webkit": {
+		label: "WebKit 浏览器",
+		description:
+			'引擎已安装时，使用 zeta 自带的 headless WebKit 引擎打开浏览器标签页，而不是托管的 Chromium（未安装浏览器时，zeta 会先下载到 ~/.o2/lib/abkit，再回退到 Chrome for Testing；参见“浏览器 WebKit 路径”）。引擎不提供查看器时 Chromium 仍会打开可见浏览器，引擎启动失败也会回退；显式 app、relay、浏览器 CDP URL、Tern 和 cmux 优先；app "chromium" 可让单次打开跳过。可设置 PI_BROWSER_WEBKIT=0 或 PI_BROWSER_WEBKIT=1 覆盖。',
+	},
+	"browser.webkitPath": {
+		label: "浏览器 WebKit 路径",
+		description:
+			"zeta 的 WebKit 引擎：其宿主可执行文件，或 ABKit 引擎目录（其中包含 ABHost；Windows 上为 ABHost.exe）。未设置时，zeta 运行已安装的引擎 ~/.o2/lib/abkit/ABHost（Windows 上为 ABHost.exe）。支持 ~。PI_BROWSER_WEBKIT_PATH 可覆盖。",
+	},
 	"browser.freezeOnTurnEnd": {
 		label: "轮结束时冻结浏览器标签页",
 		description:
