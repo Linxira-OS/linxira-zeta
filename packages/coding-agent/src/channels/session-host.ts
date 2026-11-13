@@ -99,8 +99,8 @@ export async function startSessionChannels(options: StartSessionChannelsOptions)
 				started: false,
 				reason: "unpaired",
 				message:
-					`WeChat instance(s) ${[...unpairedIds].join(", ")} are not paired: run ` +
-					`\`${CLI_BIN_NAME} channels login wechat --instance <id>\`, then retry.`,
+					`WeChat instance(s) ${[...unpairedIds].join(", ")} are not paired: run \`/channels login wechat\` in this session ` +
+					`(or \`${CLI_BIN_NAME} channels login wechat --instance <id>\`), then retry.`,
 				instances: [],
 			};
 		}
