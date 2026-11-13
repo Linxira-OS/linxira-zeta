@@ -480,7 +480,7 @@
           "REPO_MAPPING:rules_rust+,bazel_skylib bazel_skylib+",
           "REPO_MAPPING:rules_rust+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_rust+,rules_cc rules_cc+",
-          "FILE:@@//Cargo.lock ece1a315069d2c666f05db8cdb25f519d66219ae53cb185f87f406c7fa96d7f7",
+          "FILE:@@//Cargo.lock efaab0260ebf134bf3e195fd0f32b4686982b3802f2033cb349c67b00cfd24ac",
           "FILE:@@//Cargo.toml 6a5db462ec602647f04abc3ff8ba60fc542e0dab95dff326dc84961e912ee26c",
           "FILE:@@//crates/pi-ast/Cargo.toml 7a1b7c236ca50b96982f56c47081e9b77e079ebaa7a90895d030089717ed2e17",
           "FILE:@@//crates/pi-vfs/Cargo.toml 8f02ad320d6c06f421ade554c7dedaa2e31debfa93df05f7442871ab60b3526c",
