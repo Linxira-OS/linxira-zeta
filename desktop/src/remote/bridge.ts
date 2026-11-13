@@ -62,14 +62,17 @@ export class RemoteBridge {
 		const state = this.#store.snapshot();
 		return {
 			profiles: state.profiles,
-			statuses: state.profiles.map(profile => this.#statuses.get(profile.id) ?? { id: profile.id, state: "disconnected" as const }),
+			statuses: state.profiles.map(
+				profile => this.#statuses.get(profile.id) ?? { id: profile.id, state: "disconnected" as const },
+			),
 			activeId: state.activeId,
 		};
 	}
 
 	save(draft: RemoteConnectionDraft): RemoteConnectionProfile {
 		const profile = this.#store.upsert(draft);
-		if (!this.#statuses.has(profile.id)) this.#statuses.set(profile.id, { id: profile.id, state: "disconnected", generation: 0 });
+		if (!this.#statuses.has(profile.id))
+			this.#statuses.set(profile.id, { id: profile.id, state: "disconnected", generation: 0 });
 		this.#changed();
 		return profile;
 	}
@@ -117,7 +120,9 @@ export class RemoteBridge {
 				platform: probe.platform,
 				arch: probe.arch,
 				installRoot: profile.installRoot,
-				message: probe.zetaPath ? `已找到远端 zeta：${probe.zetaPath}` : "远端未找到 zeta；请先安装 Runtime",
+				message: probe.zetaPath
+					? `已找到远端 ${probe.binary ?? "zeta"}${probe.version ? ` ${probe.version}` : ""}：${probe.zetaPath}`
+					: "远端未找到 zetacode/zeta；请先安装 Runtime",
 			});
 			const localPort = await freeLoopbackPort();
 			const opened = await openTunnel(profile, credentials, this.#deps.userData, localPort, REMOTE_STUDIO_PORT);
@@ -215,7 +220,10 @@ export class RemoteBridge {
 			path: current,
 			parent: body.parentPath ?? path.posix.dirname(current),
 			directories: (body.directories ?? [])
-				.filter((entry): entry is { name: string; path: string } => typeof entry.name === "string" && typeof entry.path === "string")
+				.filter(
+					(entry): entry is { name: string; path: string } =>
+						typeof entry.name === "string" && typeof entry.path === "string",
+				)
 				.map(entry => ({ name: entry.name, path: entry.path })),
 		};
 	}
@@ -259,7 +267,8 @@ export class RemoteBridge {
 				message: `没有为 ${target} 配置 Remote Runtime 包（设置 ZETA_REMOTE_RUNTIME_${target.toUpperCase()}）。SSH 目标可继续使用远端已有的 zeta。`,
 			};
 		}
-		const installRoot = profile.installRoot ?? (target === "win32" ? "C:/ProgramData/Zeta/remote" : "~/.local/share/zeta/remote");
+		const installRoot =
+			profile.installRoot ?? (target === "win32" ? "C:/ProgramData/Zeta/remote" : "~/.local/share/zeta/remote");
 		const current = this.#statuses.get(id) ?? { id, state: "connected" as const, generation: 0 };
 		this.#setStatus({ ...current, operation: "installing-runtime", stage: "upload" });
 		await runRemote(profile, {}, this.#deps.userData, `mkdir -p ${remoteShellPath(installRoot)}`);
@@ -271,7 +280,13 @@ export class RemoteBridge {
 			`cd ${remoteShellPath(installRoot)} && ./${shellQuote(path.basename(artifact))} --version`,
 			30_000,
 		);
-		this.#setStatus({ id, state: "connected", generation: session.generation, stage: "verify", message: "Remote Runtime 已上传并验证" });
+		this.#setStatus({
+			id,
+			state: "connected",
+			generation: session.generation,
+			stage: "verify",
+			message: "Remote Runtime 已上传并验证",
+		});
 		return { installed: true };
 	}
 
@@ -286,7 +301,9 @@ export class RemoteBridge {
 				message: `远端可达：${probe.platform}/${probe.arch}`,
 				platform: probe.platform,
 				arch: probe.arch,
-				networkMessage: probe.zetaPath ? `zeta: ${probe.zetaPath}` : "未找到远端 zeta",
+				networkMessage: probe.zetaPath
+					? `${probe.binary ?? "zeta"}${probe.version ? ` ${probe.version}` : ""}: ${probe.zetaPath}`
+					: "未找到远端 zetacode/zeta",
 			});
 		} catch (error) {
 			const current = this.#statuses.get(id) ?? { id, state: "failed" as const, generation: 0 };
