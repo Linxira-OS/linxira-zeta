@@ -139,7 +139,7 @@ export function PluginPageHost({ client, plugin, page, title, onBack, sessionId,
 
 	const callTool = useCallback(
 		async (request: PluginToolRequest): Promise<PluginToolOutcome> => {
-			if (client === null) return { ok: false, code: "CALL_FAILED", message: "Studio client unavailable" };
+			if (client === null) return { ok: false, code: "CALL_FAILED", message: "Z Work Studio client unavailable" };
 			const explicitSession = sessionIdRef.current;
 			const session = explicitSession ?? (await ensureBootstrap())?.selected.sessionId;
 			return await runPluginToolCall({
@@ -196,7 +196,7 @@ export function PluginPageHost({ client, plugin, page, title, onBack, sessionId,
 			setNotice({
 				level: "error",
 				message: zh
-					? "插件页面与 Studio 不同源，页面桥接无法挂载。"
+					? "插件页面与 Z Work Studio 不同源，页面桥接无法挂载。"
 					: "Plugin page is not same-origin; the bridge cannot attach.",
 			});
 		}
