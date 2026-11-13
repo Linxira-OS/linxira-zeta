@@ -19,22 +19,16 @@ import * as path from "node:path";
 import {
 	normalizeHost,
 	normalizePort,
-	platformFromProbe,
 	safeSshToken,
 	type RemoteConnectionProfile,
 	type RemoteCredentials,
-	type RemotePlatform,
 } from "./protocol";
+import { type ProbeResult, parseProbeOutput, REMOTE_PROBE_COMMAND } from "./probe";
 
 const CONNECT_TIMEOUT_SECONDS = 15;
 const PROBE_TIMEOUT_MS = 25_000;
 
-export interface ProbeResult {
-	readonly platform: RemotePlatform;
-	readonly arch: string;
-	readonly zetaPath: string | null;
-	readonly raw: string;
-}
+export type { ProbeResult } from "./probe";
 
 export interface Tunnel {
 	readonly localPort: number;
@@ -88,7 +82,10 @@ interface Askpass {
 function askpass(userData: string, password: string | undefined): Askpass {
 	if (!password) return { env: {}, available: true, cleanup() {} };
 	if (process.platform === "win32") return { env: {}, available: false, cleanup() {} };
-	const helper = path.join(userData, `ssh-askpass-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.sh`);
+	const helper = path.join(
+		userData,
+		`ssh-askpass-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.sh`,
+	);
 	fs.mkdirSync(userData, { recursive: true, mode: 0o700 });
 	fs.writeFileSync(helper, '#!/bin/sh\nprintf %s "$ZETA_SSH_ASKPASS_SECRET"\n', { encoding: "utf8", mode: 0o700 });
 	fs.chmodSync(helper, 0o700);
@@ -129,7 +126,8 @@ function exitMessage(stderr: string, code: number | null): string {
 		return "SSH host key is not trusted yet. Run `ssh <host>` once in a terminal, verify the fingerprint, then retry.";
 	}
 	if (/Permission denied/i.test(text)) return "SSH authentication failed. Check the configured key or ssh-agent.";
-	if (/Connection refused|Could not resolve|timed out|No route to host/i.test(text)) return `SSH connection failed: ${text.split("\n")[0]}`;
+	if (/Connection refused|Could not resolve|timed out|No route to host/i.test(text))
+		return `SSH connection failed: ${text.split("\n")[0]}`;
 	return text || `SSH exited with code ${code ?? "unknown"}`;
 }
 
@@ -158,11 +156,15 @@ export function runRemote(
 	};
 	let child: ChildProcess;
 	try {
-		child = spawn(sshBinary(), [...commonOptions(profile), ...(auth ? [] : ["-o", "BatchMode=yes"]), "--", target(profile), command], {
-			stdio: ["ignore", "pipe", "pipe"],
-			windowsHide: true,
-			env: { ...process.env, ...helper.env },
-		});
+		child = spawn(
+			sshBinary(),
+			[...commonOptions(profile), ...(auth ? [] : ["-o", "BatchMode=yes"]), "--", target(profile), command],
+			{
+				stdio: ["ignore", "pipe", "pipe"],
+				windowsHide: true,
+				env: { ...process.env, ...helper.env },
+			},
+		);
 	} catch (error) {
 		finish(error instanceof Error ? error : new Error(String(error)));
 		return promise;
@@ -181,23 +183,13 @@ export function runRemote(
 }
 
 /** Probe OS/arch and whether a `zeta` binary is reachable on PATH. */
-export async function probeRemote(profile: RemoteConnectionProfile, credentials: RemoteCredentials, userData: string): Promise<ProbeResult> {
-	const raw = await runRemote(
-		profile,
-		credentials,
-		userData,
-		"printf '__ZETA_PROBE__\\n'; uname -s 2>/dev/null || echo unknown; uname -m 2>/dev/null || echo unknown; command -v zeta 2>/dev/null || true",
-	);
-	const lines = raw
-		.split(/\r?\n/)
-		.map(line => line.trim())
-		.filter(line => line !== "");
-	const start = lines.indexOf("__ZETA_PROBE__");
-	const body = start >= 0 ? lines.slice(start + 1) : lines;
-	const system = body[0] ?? "unknown";
-	const arch = body[1] ?? "unknown";
-	const zetaPath = body.slice(2).find(line => line.includes("/") || line.endsWith("zeta") || line.endsWith("zeta.exe")) ?? null;
-	return { platform: platformFromProbe(system), arch, zetaPath, raw };
+export async function probeRemote(
+	profile: RemoteConnectionProfile,
+	credentials: RemoteCredentials,
+	userData: string,
+): Promise<ProbeResult> {
+	const raw = await runRemote(profile, credentials, userData, REMOTE_PROBE_COMMAND);
+	return { ...parseProbeOutput(raw), raw };
 }
 
 /** Wait until a loopback port accepts a connection or the child dies. */
@@ -283,7 +275,9 @@ export async function openTunnel(
 	} catch (error) {
 		child.kill();
 		helper.cleanup();
-		throw new Error(stderr.trim() ? exitMessage(stderr, child.exitCode) : error instanceof Error ? error.message : String(error));
+		throw new Error(
+			stderr.trim() ? exitMessage(stderr, child.exitCode) : error instanceof Error ? error.message : String(error),
+		);
 	}
 	return { localPort, remotePort, child, closed: closed.promise };
 }
@@ -343,5 +337,10 @@ export async function uploadRuntime(
 	child.once("error", error => finish(error));
 	child.once("exit", code => finish(code === 0 ? undefined : new Error(exitMessage(stderr, code))));
 	await promise;
-	await runRemote(profile, credentials, userData, `chmod 700 ${remoteShellPath(remoteDirectory, path.basename(localFile))}`);
+	await runRemote(
+		profile,
+		credentials,
+		userData,
+		`chmod 700 ${remoteShellPath(remoteDirectory, path.basename(localFile))}`,
+	);
 }

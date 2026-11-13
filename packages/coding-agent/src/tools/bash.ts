@@ -700,7 +700,10 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 			hasLaunch: this.#launchEnabled,
 			hasEval: isToolActive("eval", evalBackends.python || evalBackends.js),
 			// The embedded shell's session env is the shell config env (see bash-executor).
-			builtins: shellBuiltins(this.session.settings.getShellConfig().env),
+			// Optional prompt hint: an installed addon older than the source may lack
+			// shellBuiltins; degrade to an empty list instead of crashing bash tool
+			// description (CI/PR artifact pipelines can lag the Rust source).
+			builtins: typeof shellBuiltins === "function" ? shellBuiltins(this.session.settings.getShellConfig().env) : [],
 			isWindows: process.platform === "win32",
 		});
 	}
