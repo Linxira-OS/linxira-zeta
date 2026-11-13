@@ -243,10 +243,13 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 				const at = new Date(this.#timestamp);
 				tools.push(
 					node("text", { text: "·" }, undefined, "dot"),
-					text([span(at.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12 }), "dim mono")], {
-						role: "zeta.user.time",
-						title: at.toLocaleString("en-US", { hour12 }),
-					}),
+					text(
+						[span(at.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12 }), "dim mono")],
+						{
+							role: "zeta.user.time",
+							title: at.toLocaleString("en-US", { hour12 }),
+						},
+					),
 				);
 			}
 			children.push(node("row", { gap: "xs", align: "center", role: "zeta.user.tools" }, tools, "tools"));

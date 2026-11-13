@@ -132,6 +132,7 @@ export {
 } from "./model-provider-discovery";
 
 import {
+	formatUnknownCompatKeyWarnings,
 	getUnknownCompatKeys,
 	ModelsConfigFile,
 	type ProviderValidationModel,
@@ -2090,13 +2091,16 @@ export class ModelRegistry {
 			};
 		}
 
-		for (const unknown of getUnknownCompatKeys(value)) {
-			const keyPath = unknown.paths[0] ?? unknown.key;
-			if (this.#warnedCompatKeys.has(keyPath)) continue;
-			this.#warnedCompatKeys.add(keyPath);
-			this.#configWarnings.push(
-				`Unknown compat key in ${this.#modelsConfigFile.path()}: ${keyPath} (configuration still loaded).`,
-			);
+		const unknownCompatKeys = getUnknownCompatKeys(value);
+		const freshCompatKeys = unknownCompatKeys.filter(unknown => !this.#warnedCompatKeys.has(unknown.key));
+		for (const unknown of freshCompatKeys) {
+			this.#warnedCompatKeys.add(unknown.key);
+			// The rendered warning folds repeated occurrences; the debug log keeps
+			// the complete dotted paths so nothing is lost.
+			logger.debug("unknown compat keys in models config", { key: unknown.key, paths: unknown.paths });
+		}
+		if (freshCompatKeys.length > 0) {
+			this.#configWarnings.push(...formatUnknownCompatKeyWarnings(this.#modelsConfigFile.path(), freshCompatKeys));
 		}
 
 		const overrides = new Map<string, ProviderOverride>();

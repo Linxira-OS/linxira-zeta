@@ -857,7 +857,11 @@ export class SessionRouter {
 		const botPointer = binding?.sessionId;
 		const current =
 			this.agentTargetFor(instanceId, peer) ??
-			(botPointer && botPointer !== "relay" ? `bot:${botPointer}` : currentTarget ? targetKey(currentTarget) : "unbound");
+			(botPointer && botPointer !== "relay"
+				? `bot:${botPointer}`
+				: currentTarget
+					? targetKey(currentTarget)
+					: "unbound");
 		const next = targetKey(target);
 		if (current === next) {
 			// "Already there" also supersedes an earlier staged target, otherwise

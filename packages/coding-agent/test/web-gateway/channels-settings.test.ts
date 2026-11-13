@@ -29,7 +29,7 @@ const PROFILE = {
 };
 
 const BASE_BINDING = {
-	id: "b_existing",
+	id: "b_0123456789abcdef",
 	instanceId: "wechat",
 	platform: "wechat",
 	chatId: "wx-peer",
@@ -160,7 +160,7 @@ describe("remote.imBindings through PUT /api/im/bindings", () => {
 	test("add, edit and remove keep the fields the router owns", async () => {
 		const added = {
 			...BASE_BINDING,
-			id: "b_added",
+			id: "b_fedcba9876543210",
 			chatId: "oc_1",
 			threadId: "t1",
 			userId: "u1",

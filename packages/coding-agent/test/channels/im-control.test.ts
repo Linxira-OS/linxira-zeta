@@ -45,7 +45,10 @@ function makeRouter(overrides: Partial<SessionRouter> = {}): SessionRouter {
 		listBotSessions: () => BOT_SESSIONS,
 		activeBotSessionIdFor: async () => "relay",
 		resolveSessionSelector: (selector: string) => {
-			const cleaned = selector.trim().replace(/^\{|\}$/g, "").replace(/^\[|\]$/g, "");
+			const cleaned = selector
+				.trim()
+				.replace(/^\{|\}$/g, "")
+				.replace(/^\[|\]$/g, "");
 			const nth = /^(\d+)$/.exec(cleaned);
 			if (nth) return BOT_SESSIONS[Number(nth[1]) - 1]?.id ?? null;
 			return BOT_SESSIONS.find(entry => entry.id === cleaned)?.id ?? null;

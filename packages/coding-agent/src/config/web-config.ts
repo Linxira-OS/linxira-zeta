@@ -1205,15 +1205,13 @@ export class WebConfig {
 				changed = true;
 			}
 			// Current bindings own the chat pointer; a deleted session must not stay
-			// selected there after its transcript is gone.
+			// selected there after its transcript is gone. A binding cannot exist
+			// without its sessionId (the schema rejects a stripped row), so the
+			// route is dropped and the chat falls back to its instance default.
 			const bindings = data.remote.imBindings ?? [];
-			const referenced = bindings.some(binding => binding.sessionId === sessionId);
-			if (referenced) {
-				data.remote.imBindings = bindings.map(binding => {
-					if (binding.sessionId !== sessionId) return binding;
-					const { sessionId: _drop, ...rest } = binding;
-					return rest;
-				});
+			const remaining = bindings.filter(binding => binding.sessionId !== sessionId);
+			if (remaining.length !== bindings.length) {
+				data.remote.imBindings = remaining;
 				changed = true;
 			}
 			return { changed, value: undefined };

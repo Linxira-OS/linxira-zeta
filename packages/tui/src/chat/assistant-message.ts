@@ -1107,7 +1107,12 @@ export class AssistantMessageComponent extends Container {
 		children.push(...this.#markerSlot.children);
 		if (this.#rewound) {
 			children.push(
-				node("badge", { text: "↺ rewound", tone: "muted", role: "zeta.assistant.rewound-tag" }, undefined, "rewound"),
+				node(
+					"badge",
+					{ text: "↺ rewound", tone: "muted", role: "zeta.assistant.rewound-tag" },
+					undefined,
+					"rewound",
+				),
 			);
 		}
 		if (this.#turnUsage) {
@@ -1134,7 +1139,12 @@ export class AssistantMessageComponent extends Container {
 			}
 			line.push(node("text", { text: usage.text }, undefined, "text"));
 			children.push(
-				node("row", { role: "zeta.turn.usage", gap: "xs", align: "center", title: usage.title }, line, "turn-usage"),
+				node(
+					"row",
+					{ role: "zeta.turn.usage", gap: "xs", align: "center", title: usage.title },
+					line,
+					"turn-usage",
+				),
 			);
 		}
 		// A phone's long press on a turn's answer lists its actions (a desktop keeps the usage line's Copy).

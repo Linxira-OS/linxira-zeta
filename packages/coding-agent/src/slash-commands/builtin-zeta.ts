@@ -237,7 +237,8 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
-			const { text, notice } = await resolveTrackingCommand(runtime.settings, command, runtime.cwd);
+			const { text, notice, changed } = await resolveTrackingCommand(runtime.settings, command, runtime.cwd);
+			if (changed === false) return commandConsumed();
 			if (notice) {
 				await runtime.session.sendCustomMessage(
 					{ customType: TRACKING_TOGGLE_NOTICE_TYPE, content: notice, display: false },
@@ -248,11 +249,15 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			return commandConsumed();
 		},
 		handleTui: async (command, runtime) => {
-			const { text, notice } = await resolveTrackingCommand(
+			const { text, notice, changed } = await resolveTrackingCommand(
 				runtime.ctx.settings,
 				command,
 				runtime.ctx.sessionManager.getCwd(),
 			);
+			if (changed === false) {
+				runtime.ctx.editor.setText("");
+				return;
+			}
 			if (notice) {
 				await runtime.ctx.session.sendCustomMessage(
 					{ customType: TRACKING_TOGGLE_NOTICE_TYPE, content: notice, display: false },
@@ -329,6 +334,8 @@ interface TrackingCommandOutcome {
 	text: string;
 	/** Model-visible notice; present only when `tracking.enabled` actually flipped. */
 	notice?: string;
+	/** `false` when `on`/`off` was already in that state: no notice and no output. */
+	changed?: boolean;
 }
 
 /**
@@ -346,7 +353,7 @@ async function resolveTrackingCommand(
 	if (arg === "on" || arg === "off") {
 		const enabled = arg === "on";
 		if (cfgTrackingEnabled.get(settings) === enabled) {
-			return { text: M.cmdTrackingUnchanged };
+			return { text: M.cmdTrackingUnchanged, changed: false };
 		}
 		settings.writeValue(cfgTrackingEnabled, enabled, "global");
 		const dir = getProjectTrackingDir(cwd);

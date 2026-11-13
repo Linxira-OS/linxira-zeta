@@ -151,7 +151,11 @@ describe("legacy pi virtual module package layout (issue #15208)", () => {
 		const host = temp.path();
 		const packageDir = path.join(host, "node_modules", "@linxiraos", "pi-coding-agent");
 		for (const [npmDir, name] of NPM_PACKAGES) {
-			await writeInstalledPackage(path.join(packageDir, "node_modules", "@linxiraos", npmDir), name, `nested:${npmDir}`);
+			await writeInstalledPackage(
+				path.join(packageDir, "node_modules", "@linxiraos", npmDir),
+				name,
+				`nested:${npmDir}`,
+			);
 		}
 		await writeInstalledCodingAgent(packageDir);
 		const layout: LegacyPiLayout = { packageDir, repoRoot: path.join(host, "node_modules") };

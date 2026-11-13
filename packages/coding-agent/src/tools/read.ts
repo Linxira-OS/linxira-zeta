@@ -1753,7 +1753,11 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		for (const range of ranges) {
 			const rangeStart = range.startLine - 1; // 0-indexed
 			const requestedLength =
-				range.endLine !== undefined ? range.endLine - range.startLine + 1 : planTargetedRead ? DEFAULT_MAX_LINES : this.#defaultLimit;
+				range.endLine !== undefined
+					? range.endLine - range.startLine + 1
+					: planTargetedRead
+						? DEFAULT_MAX_LINES
+						: this.#defaultLimit;
 			const maxLines = Math.min(requestedLength, DEFAULT_MAX_LINES);
 
 			// The file is already in memory for everything within the snapshot byte

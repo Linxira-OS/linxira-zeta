@@ -1900,7 +1900,10 @@ export class HtmlFormDialog implements Component, Focusable {
 		if (this.#remaining !== undefined) items.push(text([span(`${this.#remaining}s`, "muted")]));
 		items.push(
 			// The summary grows (`zeta.ask.summary`), end-aligning Cancel and Show.
-			text([span("Question  ", "muted"), span(this.#hiddenSummary())], { truncate: "end", role: "zeta.ask.summary" }),
+			text([span("Question  ", "muted"), span(this.#hiddenSummary())], {
+				truncate: "end",
+				role: "zeta.ask.summary",
+			}),
 			actionButton("Cancel", "cancel", { keys: "escape" }),
 			actionButton("Show", "show", { tone: "accent", ...(hideKey ? { keys: hideKey } : {}) }),
 		);

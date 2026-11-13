@@ -141,6 +141,9 @@ class LazyFakeSession {
 	getActiveToolNames(): string[] {
 		return [];
 	}
+	getEnabledToolNames(): string[] {
+		return [];
+	}
 	getAllToolNames(): string[] {
 		return [];
 	}

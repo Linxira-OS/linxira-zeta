@@ -78,6 +78,10 @@ export class RpcGoalController {
 	#sessionBeforeChange: string | undefined;
 	/** A goal turn was waiting or became due during the change; report busy until it ends. */
 	#heldDuringChange = false;
+	/** `goal.continuationModes` value this host answers to (`rpc` or `web`). */
+	readonly #continuationMode: string;
+	/** A sibling host owns the session (e.g. `/loop`); its continuation decides. */
+	readonly #continuationSuppressed: (() => boolean) | undefined;
 	/** Reconciles run one at a time, each against the transcript current when it starts. */
 	#reconcileTask: Promise<void> = Promise.resolve();
 	/** Reconciles queued or running. */
@@ -101,8 +105,11 @@ export class RpcGoalController {
 			| { continuationMode?: string; continuationSuppressed?: () => boolean; onContinuationDropped?: () => void },
 	) {
 		this.#session = session;
+		const options = typeof optionsOrCallback === "function" ? undefined : optionsOrCallback;
+		this.#continuationMode = options?.continuationMode ?? RPC_GOAL_CONTINUATION_MODE;
+		this.#continuationSuppressed = options?.continuationSuppressed;
 		this.#onContinuationDropped =
-			typeof optionsOrCallback === "function" ? optionsOrCallback : optionsOrCallback?.onContinuationDropped;
+			typeof optionsOrCallback === "function" ? optionsOrCallback : options?.onContinuationDropped;
 	}
 
 	/**
@@ -411,7 +418,8 @@ export class RpcGoalController {
 	 */
 	#continuationWanted(): boolean {
 		const session = this.#session;
-		if (!cfgGoalContinuationModes.get(session.settings).includes(RPC_GOAL_CONTINUATION_MODE)) return false;
+		if (!cfgGoalContinuationModes.get(session.settings).includes(this.#continuationMode)) return false;
+		if (this.#continuationSuppressed?.()) return false;
 		if (this.#hostStopped || this.#suppressContinuation || session.isDisposed) return false;
 		if (session.getPlanModeState()?.enabled) return false;
 		const state = session.getGoalModeState();
