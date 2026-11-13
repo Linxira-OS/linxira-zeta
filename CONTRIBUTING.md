@@ -6,6 +6,25 @@ change.
 
 ## Before you start
 
+### Where to report
+
+Route a problem by where it reproduces. The full protocol is
+[`document/maintenance-ownership.md`](document/maintenance-ownership.md).
+
+| Area | Where to report |
+| --- | --- |
+| OMP runtime, tools, models, or TUI; upstream bot updates | <https://github.com/can1357/oh-my-pi/issues> |
+| Renderer or host-contract defect that reproduces without the Zeta fork | Follow the ownership route in [`document/maintenance-ownership.md`](document/maintenance-ownership.md) |
+| TermIDE terminal/editor/LSP/DAP | <https://github.com/termide/termide/issues> |
+| Zeta-owned behavior: Work Studio, server/Studio host, IM, CLI/TUI product behavior, `zetaide` deviations, `desktop/`, `android/`, plugins, docs | This repository's issue tracker |
+| Security vulnerability | Private advisory via [`SECURITY.md`](.github/SECURITY.md), never a public issue or pull request |
+
+Upstream bot triage and release sync are maintainer workflows: syncs are
+on-demand and enter Zeta only through a named official release tag, never an
+upstream branch. OMP Web is frozen and is not a report or sync surface; Pi / Pi
+Web are semantic port sources, not raw merge sources. Upstream should not be
+asked to own Zeta product behavior or usage differences.
+
 ### Small changes
 
 Bug fixes, documentation updates, and narrowly scoped improvements can go

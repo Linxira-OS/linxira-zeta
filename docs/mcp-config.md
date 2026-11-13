@@ -21,7 +21,7 @@ Zeta can discover MCP servers from multiple tools (`.claude/`, `.cursor/`, `.vsc
 
 The native provider also reads `.zeta/.mcp.json` and `~/.zeta/agent/.mcp.json` for compatibility, but Zeta writes to the primary `mcp.json` paths above.
 
-These user paths are defaults: `PI_CONFIG_DIR` changes the home config root, and `ZETA_CODING_AGENT_DIR` can override the default-profile agent directory. Named profiles derive their own agent directory rather than inheriting that override. Project config remains in `.zeta/`.
+These user paths are defaults: `PI_CONFIG_DIR` changes the home config root, and `PI_CODING_AGENT_DIR` can override the default-profile agent directory. Named profiles derive their own agent directory rather than inheriting that override. Project config remains in `.zeta/`.
 
 Zeta also accepts fallback standalone files in the project root:
 
@@ -29,8 +29,6 @@ Zeta also accepts fallback standalone files in the project root:
 - `.mcp.json`
 
 Use `.zeta/mcp.json` or `~/.zeta/agent/mcp.json` when you want Zeta to own the configuration. Use root `mcp.json` / `.mcp.json` only when you want a portable fallback file that other MCP clients may also read.
-
-The workspace-scoped OpenDesign bridge is separate: it does not write `.zeta/mcp.json` and does not register its 22 MCP tools individually. See [design](./design.md).
 
 ### Imported tool configs
 
@@ -56,7 +54,7 @@ Named profiles (`zetacode --profile <name>` or `ZETA_PROFILE`/`PI_PROFILE`) isol
 
 Discovery, the `/mcp` commands, and the config writer all follow the active profile, so a profile sees **only** its own user-level servers — never the default profile's `~/.zeta/agent/mcp.json`. Add a server to a profile by launching under it (`zetacode --profile <name>`) and running `/mcp add` → User level, or by editing `~/.zeta/profiles/<name>/agent/mcp.json` directly.
 
-Project-scoped MCP config (`.zeta/mcp.json`) is keyed to the working directory, not the profile, so it applies under every profile. External-tool configs (`.claude/`, `.cursor/`, etc.) are also profile-independent because they belong to those tools rather than to a Zeta profile.
+Project-scoped MCP config (`.zeta/mcp.json`) is keyed to the working directory, not the profile, so it applies under every profile. External-tool configs (`.claude/`, `.cursor/`, etc.) are also profile-independent because they belong to those tools rather than to an Zeta profile.
 
 MCP follows the same profile rules as the rest of Zeta-native config; see [Configuration Discovery → Profiles](./config-usage.md#profiles).
 
@@ -66,12 +64,12 @@ Add this line at the top of the file for editor autocomplete and validation:
 
 ```json
 {
-	"$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+	"$schema": "https://raw.githubusercontent.com/can1357/zeta/main/packages/coding-agent/src/config/mcp-schema.json",
 	"mcpServers": {}
 }
 ```
 
-Zeta now writes this automatically when `/mcp add`, `/mcp enable`, `/mcp disable`, `/mcp reauth`, or other config-writing flows create or update a Zeta-managed MCP file.
+Zeta now writes this automatically when `/mcp add`, `/mcp enable`, `/mcp disable`, `/mcp reauth`, or other config-writing flows create or update an Zeta-managed MCP file.
 
 ## File shape
 
@@ -79,7 +77,7 @@ Zeta supports this top-level structure:
 
 ```json
 {
-	"$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+	"$schema": "https://raw.githubusercontent.com/can1357/zeta/main/packages/coding-agent/src/config/mcp-schema.json",
 	"mcpServers": {
 		"server-name": {
 			"type": "stdio",
@@ -144,7 +142,7 @@ Example:
 
 ```json
 {
-	"$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+	"$schema": "https://raw.githubusercontent.com/can1357/zeta/main/packages/coding-agent/src/config/mcp-schema.json",
 	"mcpServers": {
 		"filesystem": {
 			"command": "npx",
@@ -171,7 +169,7 @@ Example:
 
 ```json
 {
-	"$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+	"$schema": "https://raw.githubusercontent.com/can1357/zeta/main/packages/coding-agent/src/config/mcp-schema.json",
 	"mcpServers": {
 		"github": {
 			"type": "http",
@@ -198,7 +196,7 @@ Example:
 
 ```json
 {
-	"$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+	"$schema": "https://raw.githubusercontent.com/can1357/zeta/main/packages/coding-agent/src/config/mcp-schema.json",
 	"mcpServers": {
 		"legacy-remote": {
 			"type": "sse",
@@ -279,7 +277,7 @@ Example:
 
 ```json
 {
-	"$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+	"$schema": "https://raw.githubusercontent.com/can1357/zeta/main/packages/coding-agent/src/config/mcp-schema.json",
 	"mcpServers": {
 		"slack": {
 			"type": "http",
@@ -311,7 +309,7 @@ Relevant Slack endpoints from Slack's docs:
 
 ```json
 {
-	"$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+	"$schema": "https://raw.githubusercontent.com/can1357/zeta/main/packages/coding-agent/src/config/mcp-schema.json",
 	"mcpServers": {
 		"filesystem": {
 			"command": "npx",
@@ -325,7 +323,7 @@ Relevant Slack endpoints from Slack's docs:
 
 ```json
 {
-	"$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+	"$schema": "https://raw.githubusercontent.com/can1357/zeta/main/packages/coding-agent/src/config/mcp-schema.json",
 	"mcpServers": {
 		"github": {
 			"type": "http",
@@ -339,7 +337,7 @@ Relevant Slack endpoints from Slack's docs:
 
 ```json
 {
-	"$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+	"$schema": "https://raw.githubusercontent.com/can1357/zeta/main/packages/coding-agent/src/config/mcp-schema.json",
 	"mcpServers": {
 		"github": {
 			"command": "docker",
@@ -358,7 +356,7 @@ This matches GitHub's official local Docker image `ghcr.io/github/github-mcp-ser
 
 ```json
 {
-	"$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+	"$schema": "https://raw.githubusercontent.com/can1357/zeta/main/packages/coding-agent/src/config/mcp-schema.json",
 	"mcpServers": {
 		"slack": {
 			"type": "http",
@@ -408,7 +406,7 @@ Portable Agent Plugins use different secret semantics: only `${PLUGIN_ROOT}` and
 
 Before Zeta launches a stdio server or makes an HTTP/SSE request, it resolves stdio `env` values and HTTP/SSE `headers` values like this:
 
-1. If a value starts with `!`, Zeta runs the rest as a shell command in the project directory with a 10s timeout and uses trimmed stdout. Successful results are process-cached until invalidated; concurrent resolutions share the same command execution.
+1. If a value starts with `!`, Zeta runs the rest as a shell command in the project directory with a 10s timeout and uses trimmed stdout. Successful results are process-cached; concurrent resolutions share the same command execution. A server's commands run again when it reconnects (`/mcp reconnect`, an automatic reconnect, `/mcp reload`) and, for HTTP/SSE `headers`, when the server answers 401/403 — the request is then retried once with the new values. This keeps commands that mint short-lived tokens working past expiry.
 2. If the command fails, times out, or prints only whitespace, that `env`/`headers` entry is omitted. Failed commands are retried on a later resolution after a 30s backoff.
 3. Otherwise Zeta checks whether the whole value names an environment variable.
 4. If that environment variable is set to a non-empty value, Zeta uses the environment value; otherwise it uses the string literally.
@@ -441,13 +439,13 @@ The active profile's user file supplies two cross-source overrides:
 
 ```json
 {
-	"$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
+	"$schema": "https://raw.githubusercontent.com/can1357/zeta/main/packages/coding-agent/src/config/mcp-schema.json",
 	"disabledServers": ["github"],
 	"enabledServers": ["tool-owned-server"]
 }
 ```
 
-`/mcp enable` and `/mcp disable` update `enabled` directly when the definition is in a Zeta-owned writable file. Zeta does not mutate another tool's config: for such sources, those commands maintain the user-level allowlist or denylist instead and remove a conflicting stale override.
+`/mcp enable` and `/mcp disable` update `enabled` directly when the definition is in an Zeta-owned writable file. Zeta does not mutate another tool's config: for such sources, those commands maintain the user-level allowlist or denylist instead and remove a conflicting stale override.
 
 ## `/mcp add` vs editing JSON directly
 
@@ -500,7 +498,7 @@ Across providers, the first definition wins. Duplicate names are not merged; Ope
 
 Within Zeta native config, project `.zeta/mcp.json` precedes `.zeta/.mcp.json`, then the active profile's user `mcp.json` and `.mcp.json`. Root fallback `mcp.json` precedes root `.mcp.json`. In practice:
 
-- prefer `.zeta/mcp.json` or the active profile's user `mcp.json` for a Zeta-specific override
+- prefer `.zeta/mcp.json` or the active profile's user `mcp.json` for an Zeta-specific override
 - keep names and endpoint definitions unique across tools when possible
 - use the user `disabledServers` list when a third-party config keeps reintroducing an unwanted server
 - set `mcp.enableProjectConfig: false` to exclude every project-level source before deduplication, allowing a same-named user entry to survive

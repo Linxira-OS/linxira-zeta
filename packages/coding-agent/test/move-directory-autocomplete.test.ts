@@ -10,7 +10,7 @@ const originalProjectDir = getProjectDir();
 describe("/move directory autocomplete", () => {
 	let root = "";
 	let projectDir = "";
-	const complete = buildDirectoryArgumentCompletions();
+	const complete = buildDirectoryArgumentCompletions({ pins: [], roots: [] });
 	const values = async (prefix: string) => (await complete(prefix))?.map(item => item.value) ?? null;
 
 	beforeEach(async () => {

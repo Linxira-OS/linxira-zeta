@@ -144,8 +144,31 @@ For each command:
 4. compute a display source string like `via Claude Code Project`
 5. preserve `argumentHint` from discovery, or parse `argumentHint`/`argument-hint` frontmatter for autocomplete ghost text and ACP input hints
 6. set `side` when the frontmatter has the boolean `side: true` (a quoted `"true"` does not count)
+7. carry `agent`, `model` and `template` execution metadata unchanged; `template` replaces the body, while `agent` and `model` are resolved at execution time
 
-Codex/OpenCode providers strip frontmatter before this stage. Their discovered argument hints and `side` flags survive, but the runtime description currently falls back to the body rather than using the separately discovered description.
+Codex/OpenCode providers strip frontmatter before this stage. Their discovered description, argument hint, `side`, `agent`, `model` and `template` fields survive instead of falling back to the body.
+
+### Execution selectors
+
+A Markdown command may name an agent, a model, or both:
+
+```markdown
+---
+description: Review the pending diff
+argument-hint: "[path]"
+agent: reviewer
+model: anthropic/claude-sonnet-4-5
+template: Review $ARGUMENTS and report blocking findings only.
+---
+```
+
+- `agent` must name a discovered agent (project `.zeta/agents`, user roots, extension roots, then bundled). The command turn runs with that agent's system prompt appended to the session prompt and its tool list intersected with the tools this session may already use. `task` survives when the agent declares `spawns`; the allowlist is supplied to the task tool's existing spawn policy, so a child outside the list is rejected instead of inheriting the session's broader policy.
+- `model` resolves through the same selector path as `--model` (roles, aliases, scoped models, match preferences). Precedence is command `model` > selected agent's `model` list > the session's current model.
+- `template` replaces the Markdown body so a command can keep prose frontmatter and execution fields while shipping a different executable prompt.
+- Unknown agent names and unresolved model selectors fail explicitly before the command handler or the model request runs.
+- Precedence inside one turn: command `model` > selected agent's model list > the session's current model. The prior model, thinking level, persona and tool presentation are restored when the command turn settles, including handler and dispatch failures.
+- Selector commands require an idle session outside plan, goal, vibe and lead modes; those modes already own the execution policy and do not merge implicitly.
+- TypeScript custom commands accept the same `agent`, `model` and `template` fields. A command with a `template` and no `execute` handler runs the template through the normal argument substitution path.
 
 Frontmatter parse severity is level-dependent:
 
@@ -218,6 +241,8 @@ After that boundary, `AgentSession.prompt(...)` processes slash input in this or
    - streaming: prompt is queued according to `streamingBehavior` (`steer`, `followUp`, or `aside`)
 
 `runCommands: false` skips extension/custom handlers but still expands file commands and prompt templates. `expandPromptTemplates: false` bypasses all four expansion stages. Normal user prompts then undergo model-mention expansion and magic-keyword matching; synthetic prompts do not trigger magic notices.
+
+When the winning custom or file command carries `agent`/`model`, the whole command turn — handler, expansion and the model request it starts — runs under that execution policy. Extension commands keep their precedence and have no selectors. The policy is rejected before any mutation while the session streams or a plan/goal/vibe/lead mode is active, and is restored when the turn settles.
 
 This is why built-ins reserve their names before file commands are considered, slash command expansion sits before prompt-template expansion, and custom commands can transform away the leading slash before file-command matching.
 
@@ -306,6 +331,28 @@ TUI and ACP/RPC dispatch the shared built-in registry before `session.prompt(...
    - items explicitly marked `level: "native"` and bundled templates: fatal parse error bubbles
    - discovered user/project commands (including the native Zeta provider): warning + fallback key/value parse
 - Extension/custom command handler exceptions are caught and reported via extension error channel (or logger fallback for custom commands without extension runner), and treated as handled (no unintended fallback execution).
+
+### Directory switching: `/cd` and `/move`
+
+`/cd` is a normal, visible command for frequent directory changes. With no
+argument it opens the TUI folder picker; `/cd <path>` switches this session to
+an existing directory. `/cd /` selects the real POSIX filesystem root, and
+Windows drive roots use the shell's directory rules rather than tool path
+aliases. Missing paths and files are rejected. `/move <path>` retains its
+existing option to create a missing destination; headless/ACP `/cd <path>` uses
+the same existing-directory check as TUI.
+
+The picker lists directories, pinned folders and available roots/volumes.
+Roots load asynchronously, refresh after a 30-second cache lifetime, and can be
+refreshed explicitly with `r`. `Ctrl+P` pins/unpins and `Ctrl+R` opens resume in
+the selected directory. Unavailable pins remain visible so they can be removed.
+Empty, unreadable and already-current directories give explicit feedback.
+Tab completion for `/cd` and `/move` suggests directories, roots and pins;
+an empty directory match never falls back to files.
+
+Directory changes keep the existing session relocation and project resource
+reload behavior. Starting from the home directory still uses the temporary
+workspace and tells the operator to use `/cd`; this startup policy is unchanged.
 
 ## 10) Built-in command note: `/pause`
 
@@ -506,9 +553,11 @@ Without an interactive UI, `code-review` delegates to `/review` instead of openi
 
 ## 14) Built-in command note: `/context`
 
-`/context` opens a read-only Context Viewer over a snapshot of the active system prompt, tool definitions, and messages, with estimated tokens per entry and per category. The snapshot is taken on open and does not refresh; close and reopen to update. It does not run extension hooks (`context`, `before_provider_request`), so inspecting context cannot trigger their side effects. Messages go through the same per-message conversion as `convertToLlm`, with steering wrapped by `wrapSteeringForModel` and provider refusals dropped as live replay drops them, but not image blocking, obfuscation, request normalization, provider encoding, or provider transforms, so content and token counts can differ from the provider request.
+`/context` opens a read-only Context Viewer over a snapshot of the active system prompt, loaded instruction files and skill listings, tool definitions, and messages, with estimated tokens per entry and per category. The snapshot is taken on open and does not refresh; close and reopen to update. It does not run extension hooks (`context`, `before_provider_request`), so inspecting context cannot trigger their side effects. Messages go through the same per-message conversion as `convertToLlm`, with steering wrapped by `wrapSteeringForModel` and provider refusals dropped as live replay drops them, but not image blocking, obfuscation, request normalization, provider encoding, or provider transforms, so content and token counts can differ from the provider request.
 
-Estimate rules: Overview category and per-tool rows split the reported Used total by each row's estimated share, while entry headers show their own unscaled estimates, so the entries in a category need not add up to its Overview row; the Overview notes this under its legend. Skills is its own estimate-only row (the skill listing in the system prompt) and is subtracted from the System Prompt weight to avoid double counting. Multiple thinking blocks in one message share a total shown on a group heading, and grouped entries show `—`; empty interrupted thinking without usage shows `N/A · Interrupted`, not zero. Retained Anthropic web-search and tool-search calls and results appear in Tool Calls and Tool Output as JSON; opaque provider data (thinking signatures, `encrypted_content`, `encrypted_index`) is shown only as its size, such as `signature · 1,024 chars`, while still counted.
+Instruction files and skill listings stay in the provider-facing system prompt but are shown in their own categories, also under a literal custom prompt or a custom template. `buildSystemPrompt` renders its blocks with `prompt.renderTracked`, passing the context file and skill objects as tracked items: the template engine records the output range of every `{{#each}}` iteration over one of them, and each iteration that covers whole lines is formatted on its own and joined into the formatted template as one block, so its block index and range are known by construction. The session commits these sources together with the base prompt (rebuilds, prepared commits, and session-switch rollback). When the viewer opens, it attributes the sources of every block that is unchanged at the same index in the effective prompt. System Prompt entries show an attributed source as a `[Shown in <category>: <source>]` marker at its original position, colored with that category's theme color; markers carry no tokens. Sources in a block that changed or moved after the build stay in System Prompt, and the Overview says how many instruction files and skills stayed there because the prompt changed after it was built; an extension `before_agent_start` hook or SDK `systemPrompt` callback that appends to block 0 leaves every skill there. An iteration inside a helper block such as `{{#list}}`, sharing a line with other text, or inside a code fence the template opened is formatted in place and not attributed, so that source stays in System Prompt without a note. The status line's context breakdown counts Instruction files and Skills through the same attribution (`claimPromptSources` in `pi-tui`), so its figures match `/context`. A file that leaves a code fence open has it closed at its end, so the rest of the prompt is formatted as usual.
+
+Estimate rules: Overview category and per-tool rows split the reported Used total by each row's estimated share, while entry headers show their own unscaled estimates, so the entries in a category need not add up to its Overview row; the Overview notes this under its legend. Multiple thinking blocks in one message share a total shown on a group heading, and grouped entries show `—`; empty interrupted thinking without usage shows `N/A · Interrupted`, not zero. Retained Anthropic web-search and tool-search calls and results appear in Tool Calls and Tool Output as JSON; opaque provider data (thinking signatures, `encrypted_content`, `encrypted_index`) is shown only as its size, such as `signature · 1,024 chars`, while still counted.
 
 Navigation uses the `tui.select.*` bindings: up/down select and scroll, confirm opens an entry, cancel goes back or closes, and page up/down scroll full-content view (see [keybindings](./keybindings.md)). In Tern, click selects, double-click opens, and the mouse wheel scrolls. Categories without entries cannot be opened. Opening the viewer does not submit the composer draft or interrupt a background turn.
 

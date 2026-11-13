@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
 
 import * as path from "node:path";
+import { existsSync } from "node:fs";
 import { $ } from "bun";
 import { $which } from "../packages/utils/src/which";
 
 const repoRoot = path.join(import.meta.dir, "..");
 
 /** Pinned npm package matching flake.lock's bun2nix revision (`0f2a1f…`). */
-export const BUN2NIX_NPM_SPEC = "bun2nix@2.1.2";
+const BUN2NIX_NPM_SPEC = "bun2nix@2.1.2";
 /**
  * Restamp a `bun.lock` whose `lockfileVersion` is 2 back to 1 so the pinned
  * bun2nix (which rejects anything but version 1) can parse it.
@@ -32,7 +33,7 @@ export function normalizeLockfileVersion(contents: string): string {
 }
 
 /** Canonicalize generated Nix output to exactly one trailing LF. */
-export function normalizeGeneratedNix(contents: string): string {
+function normalizeGeneratedNix(contents: string): string {
 	return `${contents.replace(/[\r\n]+$/, "")}\n`;
 }
 
@@ -54,6 +55,13 @@ export type NixBunDepsGenerator =
 
 /** Resolve the generator needed by releases before they mutate repository state. */
 export function resolveNixBunDepsGenerator(findExecutable: FindExecutable = $which): NixBunDepsGenerator {
+	const localBun2nix = path.join(
+		repoRoot,
+		"node_modules",
+		".bin",
+		process.platform === "win32" ? "bun2nix.exe" : "bun2nix",
+	);
+	if (existsSync(localBun2nix)) return { kind: "bun2nix", executable: localBun2nix };
 	const bun2nix = findExecutable("bun2nix");
 	if (bun2nix) return { kind: "bun2nix", executable: bun2nix };
 

@@ -76,6 +76,7 @@ import {
 } from "./shellMemory";
 import type { ApprovalMode, OperatorStateSnapshot, SessionTelemetrySnapshot, StudioAgentSnapshot } from "@linxiraos/studio-protocol";
 import type { OperatorCommandManifest } from "@linxiraos/studio-protocol";
+import { DICTATION_KINDS } from "@linxiraos/studio-protocol";
 import { AppIcon, Icon } from "./icons";
 import { FileRowMenu, MenuItem, type FileMenuAction, type FileMenuController, type FileMenuTarget, type FileOpenerOption } from "./menus";
 import { I18nProvider, useI18n, type TranslationParams } from "./i18n";
@@ -86,7 +87,8 @@ import { WindowControls } from "./windowControls";
 import { HomePage, ProfileEditDialog, SecondaryPage } from "./HomePage";
 import { HistoryPage } from "./HistoryPage";
 import { AgentHubPage, setHubIntent } from "./AgentHub";
-import { TeamPage } from "./TeamPage";
+import { TeamWorkspacePage } from "./TeamWorkspacePage";
+import { RoomsPage } from "./RoomsPage";
 import { CapabilitiesPage, setCapIntent, type CapTab } from "./CapabilitiesPage";
 import { ModelConfigPage, modelConfigHasUnsavedChanges, setModelConfigIntent } from "./ModelConfigPage";
 import { approvalPickerDisabled, ComposerApprovalPicker } from "./ComposerApprovalPicker";
@@ -142,7 +144,7 @@ import { SessionModelRecovery } from "./models/SessionModelRecovery";
 import { RuntimeQueueBar } from "./composer/RuntimeQueueBar";
 import { MessageQueueBar, type QueuedMessage } from "./MessageQueueBar";
 import { injectMagicKeyword, type MagicKeyword } from "./composerMode";
-import { SettingsPage, isSettingsGroupId, setSettingsIntent, type RuntimeSettingsApi } from "./SettingsPage";
+import { SettingsPage, normalizeSettingsGroupId, setSettingsIntent, type RuntimeSettingsApi } from "./SettingsPage";
 import { detectSurface, navAllowedOnSurface } from "./surfaces";
 import { DiagnosticsPage, setDiagnosticsIntent } from "./DiagnosticsPage";
 import { RuntimeLossBanner } from "./RuntimeLossBanner";
@@ -278,13 +280,17 @@ import {
 } from "./sidebar/useProjectHistories";
 import { createResumeGenerationGate, ensureSelectedSessionActive, type NewSessionWaitResult } from "./sessionLifecycle";
 import { createSerialTaskQueue } from "./workspaceActionQueue";
+import { historyWorkspaceId, reconcileWorkspaceSelection, workspaceLabel } from "./workspaces/workspaceSelection";
+import { AuthStepUpBoundary } from "./settings/AuthStepUpBoundary";
+import { PluginPageHost } from "./plugins/PluginPageHost";
+import { parsePluginViewRoute, type PluginViewRoute } from "./plugins/pluginRoute";
 import { isNewConversationSurface, shouldShowConversationWelcome } from "./conversation/welcomeGate";
 import { GitStatusPanel, useGitRepository } from "./git/GitStatusPanel";
 import { buildGitStatusLookup, GIT_STATUS_META, type TreeGitStatus } from "./git/treeStatus";
 
 const PREVIEW_PLAN_TITLE = PREVIEW_DECK_ITEMS.find((item) => item.kind === "plan")?.title ?? "Plan";
 
-const KNOWN_ROUTES: ReadonlyArray<Route> = ["home", "workbench", "history", "agent-hub", "team", "capabilities", "model-config", "settings", "diagnostics", "media", "evaluation", "statistics"];
+const KNOWN_ROUTES: ReadonlyArray<Route> = ["home", "workbench", "history", "agent-hub", "team", "rooms", "capabilities", "model-config", "settings", "diagnostics", "media", "evaluation", "statistics"];
 
 function parseStoredRoute(value: string | undefined): Route | undefined {
   return value !== undefined && (KNOWN_ROUTES as readonly string[]).includes(value) ? (value as Route) : undefined;
@@ -333,11 +339,11 @@ type ClientStateSource = StudioClient & {
   onState?: (listener: (state: ClientState) => void) => Unsubscribe;
 };
 
-type Route = "home" | "workbench" | "history" | "agent-hub" | "team" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics";
+type Route = "home" | "workbench" | "history" | "agent-hub" | "team" | "rooms" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics";
 type SecondaryRoute = Exclude<Route, "workbench">;
 
 function isSecondary(route: Route): route is SecondaryRoute {
-  return route === "home" || route === "history" || route === "agent-hub" || route === "team" || route === "capabilities" || route === "model-config" || route === "settings" || route === "diagnostics" || route === "media" || route === "evaluation" || route === "statistics";
+  return route === "home" || route === "history" || route === "agent-hub" || route === "team" || route === "rooms" || route === "capabilities" || route === "model-config" || route === "settings" || route === "diagnostics" || route === "media" || route === "evaluation" || route === "statistics";
 }
 
 const SECONDARY_META: Record<SecondaryRoute, { titleKey: string; icon: string }> = {
@@ -346,6 +352,7 @@ const SECONDARY_META: Record<SecondaryRoute, { titleKey: string; icon: string }>
   history: { titleKey: "nav.history", icon: "history" },
   "agent-hub": { titleKey: "nav.agentHub", icon: "bot" },
   team: { titleKey: "nav.team", icon: "network" },
+  rooms: { titleKey: "nav.rooms", icon: "message" },
   capabilities: { titleKey: "nav.capabilities", icon: "package" },
   "model-config": { titleKey: "nav.modelConfig", icon: "server" },
   settings: { titleKey: "nav.settings", icon: "settings" },
@@ -778,9 +785,7 @@ export function AppMenu({ chrome, onRoute }: {
               <MenuItem icon="server" hint={t("menu.modelConfigHint")} onClick={() => run(() => onRoute("model-config"))}>{t("nav.modelConfig")}</MenuItem>
               <MenuItem icon="image" onClick={() => run(() => onRoute("media"))}>{t("media.title")}</MenuItem>
               <div className="menu-sep" />
-              {mobileSurface ? null : (
-                <MenuItem icon="settings" onClick={() => run(() => onRoute("settings"))}>{t("nav.settings")}</MenuItem>
-              )}
+              <MenuItem icon="settings" onClick={() => run(() => onRoute("settings"))}>{t("nav.settings")}</MenuItem>
               <MenuItem icon="keyboard" onClick={() => run(() => chrome.onOpenDialog("shortcuts"))}>{t("nav.shortcuts")}</MenuItem>
               <MenuItem icon="info" onClick={() => run(() => chrome.onOpenDialog("about"))}>{t("nav.about")}</MenuItem>
             </div>,
@@ -2428,7 +2433,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                       <span className="tw-folder"><Icon name={open ? "folder-open" : "folder"} extra="sm" /></span>
                       <span className="tw-chev"><Icon name={open ? "chevron-d" : "chevron-r"} extra="sm" /></span>
                     </span>
-                    <span className="p-name">{project.name}</span>
+                    <span className="p-name ellipsis" data-tip={project.name}>{project.name}</span>
                     <span className="project-flags">
                       {project.running ? <span className="dot green pulse" aria-hidden="true" /> : null}
                       {project.dirty > 0 ? <span className="muted tiny">{project.dirty}</span> : null}
@@ -2548,7 +2553,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                         <span className="tw-folder"><Icon name={open ? "folder-open" : "folder"} extra="sm" /></span>
                         <span className="tw-chev"><Icon name={open ? "chevron-d" : "chevron-r"} extra="sm" /></span>
                       </span>
-                      <span className="p-name ellipsis">{workspace.name}</span>
+                      <span className="p-name ellipsis" data-tip={workspace.name}>{workspace.name}</span>
                       <span className="project-flags">
                         {runningCount > 0 ? <span className="chip green xs" aria-label={`运行 ${runningCount}`}>{runningCount}</span> : null}
                         {waitingCount > 0 ? <span className="chip amber xs" aria-label={`等待 ${waitingCount}`}>{waitingCount}</span> : null}
@@ -3002,9 +3007,7 @@ export function AppSidebar({ state, chrome, client, onRoute, onOpenAppUpdateDial
                 {t("shell.checkUpdate")}
               </MenuItem>
               <MenuItem icon="server" onClick={() => { chrome.onToggleOmpMenu(); onRoute("model-config"); }}>{t("shell.openModelConfig")}</MenuItem>
-              {mobileSurface ? null : (
-                <MenuItem icon="settings" onClick={() => { chrome.onToggleOmpMenu(); onRoute("settings"); }}>{t("shell.openSettings")}</MenuItem>
-              )}
+              <MenuItem icon="settings" onClick={() => { chrome.onToggleOmpMenu(); onRoute("settings"); }}>{t("shell.openSettings")}</MenuItem>
               <MenuItem icon="package" onClick={() => { chrome.onToggleOmpMenu(); onRoute("capabilities"); }}>{t("shell.openCapabilities")}</MenuItem>
             </div>,
             document.body,
@@ -3184,7 +3187,7 @@ function AppTopbar({ state, client, chrome, onRoute, threadTitle, sideOpen, onTo
       : compactUnavailableReason;
   const previewProject = findPreviewProject(chrome.previewProjectId);
   const previewHit = findPreviewThread(chrome.previewThreadId);
-  const realActiveWorkspace = state.model.workspaces?.workspaces.find((workspace) => workspace.active);
+  const realActiveWorkspace = chrome.selectedProject === null ? undefined : { workspaceId: chrome.selectedProject.id as WorkspaceId, name: chrome.selectedProject.name };
   // 与侧栏项目树同一顺序，避免「切换项目」菜单在每次切换后重排。
   const switchProjectOptions = useMemo(
     () => sidebarProjectOrder(state.model.workspaces),
@@ -3193,7 +3196,7 @@ function AppTopbar({ state, client, chrome, onRoute, threadTitle, sideOpen, onTo
   const realGit = useGitRepository(client, preview ? undefined : realActiveWorkspace?.workspaceId);
   const crumbProject = preview
     ? (previewProject?.name ?? "zeta-web")
-    : (realActiveWorkspace?.name ?? t("conversation.noProjectSelected"));
+    : (workspaceLabel(chrome.selectedProject, state.model.workspaces, t("conversation.defaultWorkspace")) ?? t("conversation.noProjectSelected"));
   const crumbBranch = preview ? (previewProject?.branch ?? "main") : (realGit.repository?.branch ?? (realGit.repository?.detached ? "detached HEAD" : "—"));
   const crumbThread = preview ? (previewHit?.thread.title ?? threadTitle) : threadTitle;
   const titleTarget = viewedSessionId ?? liveSnapshot?.sessionId;
@@ -3248,6 +3251,7 @@ function AppTopbar({ state, client, chrome, onRoute, threadTitle, sideOpen, onTo
                     key={project.id}
                     icon="folder-open"
                     current={project.id === chrome.previewProjectId}
+                    title={project.name}
                     hint={project.id === chrome.previewProjectId ? t("shell.current") : project.branch}
                     onClick={() => run(() => chrome.onSelectPreviewProject(project.id))}
                   >
@@ -3259,8 +3263,9 @@ function AppTopbar({ state, client, chrome, onRoute, threadTitle, sideOpen, onTo
                       <MenuItem
                         key={workspace.workspaceId}
                         icon="folder-open"
-                        current={workspace.active}
-                        {...(workspace.active ? { hint: t("shell.current") } : {})}
+                        current={chrome.selectedProject?.id === workspace.workspaceId}
+                        title={workspace.name}
+                        {...(chrome.selectedProject?.id === workspace.workspaceId ? { hint: t("shell.current") } : {})}
                         onClick={() => run(() => chrome.onSelectProject({ id: workspace.workspaceId, name: workspace.name }))}
                       >
                         {workspace.name}
@@ -3551,7 +3556,7 @@ const PROMPT_SEND_PHASE_LABEL: Record<PromptSendPhase, string> = {
   initiating: "Initiating",
 };
 
-function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, selectedSessionId, viewedAgents, selectedThreadId, viewIdentity, previewProjectId, previewThreadId, sessionCreating, waitForNewSession, ensureNewSession, onSelectProject, onSelectPreviewProject, onSelectPreviewThread, onSelectThread, onBranchedSession, hiddenPreviewThreads, onPreviewDeckWait, sideOpen, onCloseSide, sideTab, onSideTabChange, panelWidth, onResizePanel, bottomOpen, onBottomOpenChange, bottomVisible, onBottomVisibleChange, bottomHeight, onResizeBottom, bottomTab, onBottomTabChange, onRoute, onOpenChanges, onOpenGit, composerRef, workspaceId, onSlashUi, onDraftSkillsChange, onUsedSkillsChange, onSessionTitleMaybeChanged, onProvisionalSessionChange, onPinCompleted, btwWindow, btwSession, btwSideHeadRect, onBtwDemoNext, onBtwPreviewAsk, createProjectNonce, compactPending, onCompactPending, onViewedTelemetryRefresh, composerDraft, onComposerDraftChange }: {
+function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, selectedSessionId, viewedAgents, selectedThreadId, viewIdentity, previewProjectId, previewThreadId, sessionCreating, freshWorkspaceView, waitForNewSession, ensureNewSession, onSelectProject, onWorkspacesChange, onSelectPreviewProject, onSelectPreviewThread, onSelectThread, onBranchedSession, hiddenPreviewThreads, onPreviewDeckWait, sideOpen, onCloseSide, sideTab, onSideTabChange, panelWidth, onResizePanel, bottomOpen, onBottomOpenChange, bottomVisible, onBottomVisibleChange, bottomHeight, onResizeBottom, bottomTab, onBottomTabChange, onRoute, onOpenChanges, onOpenGit, composerRef, workspaceId, workspaceName, onSlashUi, onDraftSkillsChange, onUsedSkillsChange, onSessionTitleMaybeChanged, onProvisionalSessionChange, onPinCompleted, btwWindow, btwSession, btwSideHeadRect, onBtwDemoNext, onBtwPreviewAsk, createProjectNonce, compactPending, onCompactPending, onViewedTelemetryRefresh, composerDraft, onComposerDraftChange }: {
   state: ViewState;
   client: ClientStateSource;
   onOpenWorktree?: ((workspaceId: string) => Promise<void>) | undefined;
@@ -3562,6 +3567,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
   viewIdentity?: string;
   /** 后台 session.create 进行中：欢迎区照常显示，发送前再等就绪。 */
   sessionCreating?: boolean;
+  freshWorkspaceView?: boolean;
   waitForNewSession?: () => Promise<NewSessionWaitResult>;
   /** Start session.create when sending from an empty workbench with no live session. */
   ensureNewSession?: () => void;
@@ -3569,6 +3575,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
   previewThreadId?: string;
   onPreviewDeckWait?: (kind: ThreadWaitKind | undefined) => void;
   onSelectProject: (project: SelectedProject) => void;
+  onWorkspacesChange: (workspaces: WorkspaceListReadModel) => void;
   onSelectPreviewProject: (id: string) => void;
   onSelectPreviewThread?: (id: string) => void;
   onSelectThread?: (entry: SessionHistoryEntry) => void;
@@ -3598,6 +3605,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
   onOpenGit: () => void;
   composerRef: { current: ChipComposerHandle | null };
   workspaceId?: string;
+  workspaceName?: string;
   onSlashUi: (ui: SlashNativeUi) => void;
   onDraftSkillsChange?: (names: ReadonlySet<string>) => void;
   onUsedSkillsChange?: (identityKey: string, names: ReadonlySet<string>) => void;
@@ -3804,6 +3812,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
   const [contextProjectQuery, setContextProjectQuery] = useState("");
   const [contextBranchMenuOpen, setContextBranchMenuOpen] = useState(false);
   const [branchListState, setBranchListState] = useState<{ status: "idle" | "loading" | "ready" | "error"; branches: ReadonlyArray<GitBranchRecord>; error?: string }>({ status: "idle", branches: [] });
+  const branchGeneration = useRef(0);
   const [branchSwitchName, setBranchSwitchName] = useState<string | undefined>(undefined);
   const [branchNotice, setBranchNotice] = useState<{ tone: "ok" | "error"; text: string } | undefined>(undefined);
   // 流式对话（或有 pending interaction）期间请求的分支操作先排队，本轮结束后由 effect 执行。
@@ -3923,11 +3932,11 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
   const submittedPromptTitle = submittedPrompt !== undefined && submittedPrompt.sessionId === snapshot?.sessionId
     ? submittedPrompt.title
     : undefined;
-  const rosterAgents = viewedAgents ?? snapshot?.agents;
+  const rosterAgents = viewedAgents ?? (freshWorkspaceView ? undefined : snapshot?.agents);
   const connection = state.clientState?.connection;
   const runtime = connection?.runtime ?? state.bootstrap?.runtime;
   const commands = state.clientState?.commands ?? {};
-  const pendingInteraction = state.clientState?.interaction.pending ?? null;
+  const pendingInteraction = freshWorkspaceView ? null : state.clientState?.interaction.pending ?? null;
   const askDeckLive = isAskDeckInteraction(pendingInteraction);
   if (askDeckLive && pendingInteraction) lastAskDeckRef.current = pendingInteraction;
   useEffect(() => {
@@ -3977,6 +3986,8 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     if (runtime?.classification === "limited-system") return false;
     return true;
   };
+  /** Dictation mounts only when the Host advertises every command it polls. */
+  const dictationCapable = DICTATION_KINDS.every(id => can(id));
   const conversationClient = useMemo(() => asConversationClient(client), [client]);
   const runtimeConnected = runtime?.status === "connected";
   // A resident session is activated asynchronously after history selection.
@@ -3986,7 +3997,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     ? undefined
     : residentForSession(state.clientState?.entities.residents, selectedSessionId);
   const deferResidentHydrate = selectedResident !== undefined && snapshot?.sessionId !== selectedSessionId;
-  const conversationIdentity = selectedSessionId === undefined
+  const conversationIdentity = freshWorkspaceView === true || (viewIdentity?.startsWith("history:") && selectedSessionId === undefined) ? null : selectedSessionId === undefined
     ? sessionCreating === true || snapshot === undefined
       ? null
       : { runtimeEpoch: snapshot.runtimeEpoch, sessionId: snapshot.sessionId }
@@ -4007,7 +4018,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     ...(previewThreadId === undefined ? {} : { previewThreadId }),
   });
   const [compactReloadHold, setCompactReloadHold] = useState(false);
-  const compactingNow = compactPending === true || snapshot?.isCompacting === true || compactReloadHold;
+  const compactingNow = !freshWorkspaceView && (compactPending === true || snapshot?.isCompacting === true || compactReloadHold);
   const wasCompactPending = useRef(false);
   const reloadConversation = useRef(convo.reload);
   reloadConversation.current = convo.reload;
@@ -4110,16 +4121,28 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
   }, [convo.rows, isNewConversation, preview]);
   const testRuns = useMemo(() => preview ? [] : projectAgentTestRuns(convo.rows), [convo.rows, preview]);
   const testSummary = useMemo(() => agentTestRunSummary(testRuns), [testRuns]);
-  const activeWorkspace = state.model.workspaces?.workspaces.find((workspace) => workspace.active);
+  const activeWorkspace = workspaceId === undefined ? undefined : { workspaceId: workspaceId as WorkspaceId, name: workspaceName ?? state.model.workspaces?.workspaces.find(workspace => workspace.workspaceId === workspaceId)?.name };
   const gitWorkspaceId = preview ? undefined : activeWorkspace?.workspaceId;
   const realGit = useGitRepository(client, gitWorkspaceId);
+  useEffect(() => {
+    branchGeneration.current += 1;
+    setBranchListState({ status: "idle", branches: [] });
+    setContextBranchMenuOpen(false);
+    setBranchNotice(undefined);
+    setPendingBranchAction(undefined);
+    setSwitchBlock(undefined);
+    return () => { branchGeneration.current += 1; };
+  }, [gitWorkspaceId]);
   const loadBranches = useCallback(async () => {
     if (gitWorkspaceId === undefined) return;
+    const generation = ++branchGeneration.current;
     setBranchListState({ status: "loading", branches: [] });
     try {
       const value = await client.query("git.branches.list", { workspaceId: gitWorkspaceId });
+      if (generation !== branchGeneration.current) return;
       setBranchListState({ status: "ready", branches: value.branches });
     } catch (cause) {
+      if (generation !== branchGeneration.current) return;
       setBranchListState({ status: "error", branches: [], error: hostErrorMessage(cause, "无法读取分支列表") });
     }
   }, [client, gitWorkspaceId]);
@@ -4142,8 +4165,8 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
   const remoteBranches = useMemo(() => branchListState.branches.filter((branch) => branch.remote), [branchListState.branches]);
   const activePreviewProject = preview ? findPreviewProject(previewProjectId ?? "") : undefined;
   const contextProjectName = preview
-    ? (previewCreatedProject?.name ?? activePreviewProject?.name ?? "未选择项目")
-    : (activeWorkspace?.name ?? "未选择项目");
+    ? (previewCreatedProject?.name ?? activePreviewProject?.name ?? t("conversation.noProjectSelected"))
+    : (activeWorkspace === undefined ? t("conversation.noProjectSelected") : workspaceLabel({ id: activeWorkspace.workspaceId, name: activeWorkspace.name ?? t("conversation.localWorkspace") }, state.model.workspaces, t("conversation.defaultWorkspace")) ?? t("conversation.noProjectSelected"));
   const normalizedProjectQuery = contextProjectQuery.trim().toLocaleLowerCase();
   const previewProjectOptions = PREVIEW_PROJECTS.filter((project) => project.name.toLocaleLowerCase().includes(normalizedProjectQuery));
   // 项目选择器同样按稳定顺序，切换后列表不重排。
@@ -4170,21 +4193,18 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     if (!preview && executionTarget.id) { setCreateProjectOpen(false); executionTarget.openDirectory(); return; }
     setCreateProjectBusy(true);
     try {
-      // Desktop: native folder dialog + gateway registration. Browser keeps the
-      // host picker command, which is the only directory surface there.
+      // Desktop: native folder dialog + gateway registration returns the exact
+      // chosen workspace identity. A browser has no directory surface here.
       const pickNative = globalThis.zetaStudioChrome?.pickWorkspace;
-      const model = pickNative !== undefined
-        ? await pickNative(name ? { alias: name } : {}).then(async (picked) => {
-            if (picked.cancelled) return null;
-            return await client.query("projects.list", {});
-          })
-        : await client.command("workspace.pick", name ? { name } : {}).then(
-            async (handle) => await waitReceipt<WorkspaceListReadModel>(client, handle.requestId, null),
-          );
-      if (model === null) return;
-      const active = model.workspaces.find((workspace) => workspace.active) ?? model.workspaces[0];
-      if (!active) throw new Error("选择的文件夹未注册为项目");
-      onSelectProject({ id: active.workspaceId, name: active.name });
+      if (pickNative === undefined) throw new Error(t("common.unsupportedByRuntime"));
+      const picked = await pickNative(name ? { alias: name } : {});
+      if (picked.cancelled) return;
+      if (picked.workspaceId === undefined) throw new Error("选择的文件夹未返回工作区身份");
+      const model = await client.query("projects.list", {});
+      const pickedProject = model.workspaces.find(workspace => workspace.workspaceId === picked.workspaceId);
+      if (pickedProject === undefined) throw new Error("选择的文件夹未注册为项目");
+      onWorkspacesChange(model);
+      onSelectProject({ id: pickedProject.workspaceId, name: pickedProject.name });
       setCreateProjectOpen(false);
     } catch (error) {
       const message = hostErrorMessage(error, "");
@@ -4215,8 +4235,8 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     if (optimistic === undefined) return;
     convoRef.current.trackPending(optimistic.pending);
   }, [convo.engine, optimisticPrompt?.pending.requestId]);
-  const selectedTargetRef = useRef({ selectedSessionId, selectedThreadId });
-  selectedTargetRef.current = { selectedSessionId, selectedThreadId };
+  const selectedTargetRef = useRef({ selectedSessionId, selectedThreadId, workspaceId });
+  selectedTargetRef.current = { selectedSessionId, selectedThreadId, workspaceId };
   const run = useCallback(async <T extends CommandName>(name: T, input: CommandInput<T>): Promise<boolean> => {
     const concurrent = isLiveSessionPreferenceCommand(name) || name === "interaction.respond";
     if (busy && !concurrent) return false;
@@ -4370,7 +4390,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
   // the only fallback drafts/queue rows/active-row marks may use.
   // Preview is a display-layer story (its t1 run has no real session.create) and
   // keeps the old verdict; its queue is a local fixture, never a Host write.
-  const composerTarget = { selectedSessionId, sessionCreating, liveSessionId: snapshot?.sessionId };
+  const composerTarget = { selectedSessionId, sessionCreating, liveSessionId: freshWorkspaceView ? undefined : snapshot?.sessionId };
   const composerOwner = composerOwnerSessionId(composerTarget) as SessionId | undefined;
   const snapshotIsViewedSession = preview || composerOwnsLiveSnapshot(composerTarget);
   const executionMatches = snapshotIsViewedSession;
@@ -4396,7 +4416,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     resyncRequired: Boolean(connection?.resyncRequired),
     runtimeConnected,
   });
-  const planReview = !preview && snapshot?.plan?.status === "review" ? snapshot.plan : undefined;
+  const planReview = !preview && executionMatches && snapshot?.plan?.status === "review" ? snapshot.plan : undefined;
   const planReviewDisabled = planReviewDeckDisabled({
     resyncRequired: Boolean(connection?.resyncRequired),
     runtimeConnected,
@@ -4795,7 +4815,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     textReady,
     sending,
     running: composerRunning,
-    pendingInteraction: pendingInteraction !== null,
+    pendingInteraction: executionMatches && pendingInteraction !== null,
     promptChannelReady,
     sessionCreating,
     newConversation: !preview && isNewConversation,
@@ -5078,6 +5098,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     let readySessionId: SessionId | undefined;
     const targetSessionId = selectedSessionId as SessionId | undefined;
     const targetThreadId = selectedThreadId;
+    const targetWorkspaceId = workspaceId;
     setComposerSubmitted(true);
     try {
       if (plan.kind === "execute") {
@@ -5097,6 +5118,10 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
       }
       if (plan.kind === "follow-up") {
         outboundPayload = plan.snapshot;
+      }
+      if (viewIdentity?.startsWith("history:") === true && targetSessionId === undefined) {
+        setComposerError("当前历史会话缺少 sessionId，无法安全发送。");
+        return false;
       }
       const trimmed = outboundPayload.text.trim();
       if (!trimmed && outboundPayload.images.length === 0) return false;
@@ -5128,7 +5153,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
         knownItemIds: convoRef.current.state.items.map((item) => item.itemId),
         doc: outboundPayload.doc,
       };
-      const initialPhase: PromptSendPhase = sessionCreating === true || (targetSessionId === undefined && snapshot === undefined) || resumed
+      const initialPhase: PromptSendPhase = sessionCreating === true || (targetSessionId === undefined && (freshWorkspaceView || snapshot === undefined)) || resumed
         ? "starting"
         : "sending";
       convoRef.current.trackPending(pending);
@@ -5137,6 +5162,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
       if (options?.waitForReady === true && waitForNewSession !== undefined) {
         const ready = await waitForNewSession();
         if (!ready.ok) throw { code: "SESSION_CREATE_FAILED", message: ready.error };
+        if (freshWorkspaceView && ready.sessionId === undefined) throw { code: "SESSION_CREATE_FAILED", message: "新建对话未返回会话身份。" };
         readySessionId = ready.sessionId;
         rememberSubmittedPrompt(readySessionId);
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -5158,7 +5184,8 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
       const currentTarget = selectedTargetRef.current;
       if (
         currentTarget.selectedSessionId !== targetSessionId ||
-        currentTarget.selectedThreadId !== targetThreadId
+        currentTarget.selectedThreadId !== targetThreadId ||
+        currentTarget.workspaceId !== targetWorkspaceId
       ) {
         throw { code: "STATE_VERSION_CONFLICT", message: "发送期间已切换会话，本次发送已取消，草稿已恢复。" };
       }
@@ -5238,7 +5265,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
     setComposerError(undefined);
     composerInputRef.current?.clear();
     commitDraft(emptySnapshot());
-    if (!preview && selectedSessionId === undefined && snapshot === undefined) {
+    if (!preview && selectedSessionId === undefined && (freshWorkspaceView || snapshot === undefined)) {
       ensureNewSession?.();
     }
     if (!(await dispatchPrompt(payload, { waitForReady: waitForNewSession !== undefined }))) {
@@ -5638,7 +5665,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
                 <ConversationEmpty
                   client={client}
                   {...(state.model.history === undefined ? {} : { history: state.model.history })}
-                  projectName={contextProjectName}
+                  {...(state.model.workspaces === undefined ? {} : { workspaces: state.model.workspaces })}
                   {...(snapshot?.isStreaming === true && snapshot.sessionId !== undefined ? { runningSessionId: snapshot.sessionId } : {})}
                   {...(pendingInteraction?.sessionId === undefined ? {} : { waitingSessionId: pendingInteraction.sessionId })}
                   {...(hiddenPreviewThreads === undefined ? {} : { hiddenPreviewThreadIds: hiddenPreviewThreads })}
@@ -5711,7 +5738,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
                   data-tip={t("shell.project")}
                 >
                   <Icon name="folder-open" extra="sm" />
-                  <span>{contextProjectName}</span>
+                  <span data-tip={contextProjectName}>{contextProjectName}</span>
                   <Icon name="chevron-d" extra="sm" />
                 </button>
                 {contextProjectMenuOpen ? (
@@ -5740,6 +5767,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
                           key={project.id}
                           icon="folder-open"
                           current={!previewCreatedProject && project.id === previewProjectId}
+                          title={project.name}
                           hint={!previewCreatedProject && project.id === previewProjectId ? t("common.current") : project.branch}
                           onClick={() => {
                             setContextProjectMenuOpen(false);
@@ -5751,8 +5779,9 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
                         <MenuItem
                           key={workspace.workspaceId}
                           icon="folder-open"
-                          current={workspace.active}
-                          {...(workspace.active ? { hint: t("common.current") } : {})}
+                          current={workspace.workspaceId === workspaceId}
+                          title={workspace.name}
+                          {...(workspace.workspaceId === workspaceId ? { hint: t("common.current") } : {})}
                           onClick={() => {
                             setContextProjectMenuOpen(false);
                             onSelectProject({ id: workspace.workspaceId, name: workspace.name });
@@ -5923,7 +5952,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
                     <label className="create-project-name">
                       <span className="sr-only">{t("shell.projectNamePlaceholder")}</span>
                       <Icon name="folder-open" />
-                      <input autoFocus value={createProjectName} placeholder={t("shell.projectNamePlaceholder")} maxLength={80} onChange={(event) => setCreateProjectName(event.target.value)} />
+                      <input autoFocus value={createProjectName} placeholder={t("shell.projectNamePlaceholder")} maxLength={200} onChange={(event) => setCreateProjectName(event.target.value)} />
                     </label>
                     <div className="create-project-label">{t("shell.sourceFolder")}</div>
                     <button
@@ -6154,7 +6183,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
                 }}
                 onError={setComposerError}
               />
-              <DictationControl client={client} sessionId={composerOwner} available={runtimeConnected && executionMatches && !worktreeGated} onText={text => {
+              <DictationControl client={client} sessionId={composerOwner} available={runtimeConnected && executionMatches && !worktreeGated} capabilityAvailable={dictationCapable} onText={text => {
                 const current = composerInputRef.current?.getSnapshot() ?? draftPublisher.live;
                 const next = snapshotFromDoc({ nodes: [...current.doc.nodes, { type: "text", value: `${current.text.trim() ? "\n" : ""}${text}` }] });
                 composerInputRef.current?.setSnapshot(next);
@@ -6428,7 +6457,7 @@ function WorkbenchCanvas({ layoutOverlayDismiss, state, client, onOpenWorktree, 
             </div>
             <div className={`sp-page${sideTab === "git" ? " active" : ""}`} id="spGit" role="tabpanel">
               <SessionWorktreesPane launcher onOpenWorkspace={onOpenWorktree} client={client} context={{ sessionId: snapshot?.sessionId, available: runtimeConnected && executionMatches && !connection?.resyncRequired, capabilities }} visible={sideOpen && sideContentMounted && sideTab === "git"} />
-              {sideContentMounted && sideTab === "git" ? (preview ? <PreviewGitPanel /> : <GitStatusPanel client={client} {...(activeWorkspace === undefined ? {} : { workspaceId: activeWorkspace.workspaceId })} />) : null}
+              {sideContentMounted && sideTab === "git" ? (preview ? <PreviewGitPanel /> : <GitStatusPanel key={activeWorkspace?.workspaceId ?? "none"} client={client} {...(activeWorkspace === undefined ? {} : { workspaceId: activeWorkspace.workspaceId })} />) : null}
             </div>
             <div className={`sp-page${sideTab === "preview" ? " active" : ""}`} id="spPreview" role="tabpanel">
               <BrowserPane client={client} sessionId={snapshot?.sessionId} available={runtimeConnected && executionMatches && !connection?.resyncRequired} visible={sideOpen && sideContentMounted && sideTab === "preview"} capabilities={capabilities} />
@@ -6674,7 +6703,8 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     () => (expandedProjectsMemory.restored ? expandedProjectsMemory.ids : new Set<string>()),
   );
   const [projectListExpanded, setProjectListExpanded] = useState(true);
-  const [selectedProject, setSelectedProject] = useState<SelectedProject | null>(() => previewOn() ? CURRENT_PROJECT : null);
+  const [selectedProject, setSelectedProject] = useTargetMemory<SelectedProject | null>("workspace-selection", () => previewOn() ? CURRENT_PROJECT : null);
+  const [freshWorkspaceView, setFreshWorkspaceView] = useTargetMemory<boolean>("fresh-workspace-view", () => false);
   const composerRef = useRef<ChipComposerHandle | null>(null);
   const [selectedProvisionalSessionId, setSelectedProvisionalSessionId] = useTargetMemory<string | undefined>("provisional-session", () => undefined);
   /* 每个会话的草稿快照不进 React state：击键时写 state 会把整个 AppShell
@@ -6963,7 +6993,18 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     ?? historyAll?.entries.find((entry) => entry.historyId === selectedHistoryId)
     ?? Object.values(projectHistoryCache).flatMap((historyState) => historyState.model?.entries ?? [])
       .find((entry) => entry.historyId === selectedHistoryId);
-  const viewedSessionId = selected?.sessionId ?? snapshot?.sessionId;
+  const viewedSessionId = selectedHistoryId !== null ? selected?.sessionId : selectedProvisionalSessionId ?? (freshWorkspaceView ? undefined : snapshot?.sessionId);
+  const liveHistoryEntry = state.model.history?.entries.find(entry => entry.sessionId === snapshot?.sessionId)
+    ?? historyAll?.entries.find(entry => entry.sessionId === snapshot?.sessionId)
+    ?? Object.values(projectHistoryCache).flatMap(history => history.model?.entries ?? []).find(entry => entry.sessionId === snapshot?.sessionId);
+  const viewedHistoryEntry = selectedHistoryId !== null ? selected : viewedSessionId === snapshot?.sessionId ? liveHistoryEntry : undefined;
+  const viewedWorkspaceId = residentForSession(residentModel, viewedSessionId)?.workspaceId ?? viewedHistoryEntry?.workspaceId;
+  const viewedWorkspace = viewedWorkspaceId === undefined ? undefined : {
+    workspaceId: viewedWorkspaceId,
+    ...(viewedHistoryEntry?.workspaceName === undefined ? {} : { workspaceName: viewedHistoryEntry.workspaceName }),
+  };
+  const unknownHistoryWorkspace = selected !== undefined && selected.workspaceId === undefined;
+  const currentProject = previewMode.preview ? selectedProject : unknownHistoryWorkspace ? null : reconcileWorkspaceSelection(selectedProject, state.model.workspaces, viewedWorkspace);
   const { agents: viewedAgents, ready: persistedAgentsReady } = usePersistedSessionAgents({
     preview: previewMode.preview,
     client,
@@ -7005,7 +7046,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
       进行中的会话也可以归档：Host 会先停止再移走文件。 */
   const residentSessionId = snapshot?.sessionId;
   const archiveTargetBase = selected
-    ?? state.model.history?.entries.find((entry) => entry.sessionId !== undefined && entry.sessionId === residentSessionId);
+    ?? (freshWorkspaceView ? undefined : state.model.history?.entries.find((entry) => entry.sessionId !== undefined && entry.sessionId === residentSessionId));
   const archiveTargetReason = archiveTargetBase === undefined
     ? t("shell.archiveUnavailable")
     : archiveTargetBase.status === "archived"
@@ -7019,7 +7060,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
   const activeComposerOwner = composerOwnerSessionId({
     selectedSessionId: selectedProvisionalSessionId ?? selected?.sessionId,
     sessionCreating: creatingSession,
-    liveSessionId: snapshot?.sessionId,
+    liveSessionId: freshWorkspaceView ? undefined : snapshot?.sessionId,
   });
   const activeComposerOwnsSnapshot = snapshot?.sessionId !== undefined && activeComposerOwner === snapshot.sessionId;
   /** Restore boundary only: read, never subscribe (see `composer/draftStore.ts`). */
@@ -7042,7 +7083,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     : t("conversation.untitledSession");
   const threadTitle = previewMode.preview
     ? (previewThread?.thread.title ?? "跟踪上游 pi-web 更新到 zeta-web")
-    : currentThreadTitle ?? (state.route === "history" ? t("menu.history") : state.route === "home" ? t("menu.home") : state.route === "agent-hub" ? "Agent Hub" : state.route === "team" ? t("nav.team") : state.route === "capabilities" ? t("menu.capabilities") : state.route === "model-config" ? t("menu.modelConfig") : untitledThreadTitle);
+    : currentThreadTitle ?? (state.route === "history" ? t("menu.history") : state.route === "home" ? t("menu.home") : state.route === "agent-hub" ? "Agent Hub" : state.route === "team" ? t("nav.team") : state.route === "rooms" ? t("nav.rooms") : state.route === "capabilities" ? t("menu.capabilities") : state.route === "model-config" ? t("menu.modelConfig") : untitledThreadTitle);
   const onProvisionalSessionChange = useCallback((change: {
     readonly sessionId?: SessionId;
     readonly workspaceId?: WorkspaceId;
@@ -7085,26 +7126,18 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
       if (project) setSelectedProject({ id: project.id, name: project.name });
       return;
     }
-    const active = state.model.workspaces?.workspaces.find((workspace) => workspace.active);
-    if (active) {
-      setSelectedProject((current) =>
-        current?.id === active.workspaceId && current?.name === active.name
-          ? current
-          : { id: active.workspaceId, name: active.name });
-      setExplorerOpen(true);
-      if (expandedProjectsMemory.restored) {
-        /* 有本地记忆：按恢复的展开集加载各项目会话历史，不再强制展开活动项目。 */
-        for (const workspaceId of expandedProjects) {
-          void loadProjectHistory(workspaceId as WorkspaceId);
-        }
-      } else {
-        expandProject(active.workspaceId);
-        void loadProjectHistory(active.workspaceId);
-      }
+    setSelectedProject(current => unknownHistoryWorkspace ? null : reconcileWorkspaceSelection(current, state.model.workspaces, viewedWorkspace));
+    setExplorerOpen(true);
+    if (expandedProjectsMemory.restored) {
+      for (const workspaceId of expandedProjects) void loadProjectHistory(workspaceId as WorkspaceId);
     } else {
-      setSelectedProject(null);
+      const initial = currentProject;
+      if (initial !== null) {
+        expandProject(initial.id);
+        void loadProjectHistory(initial.id as WorkspaceId);
+      }
     }
-  }, [expandProject, expandedProjects, expandedProjectsMemory, loadProjectHistory, previewMode.preview, previewProjectId, state.model.workspaces]);
+  }, [expandProject, expandedProjects, expandedProjectsMemory, loadProjectHistory, previewMode.preview, previewProjectId, state.model.workspaces, unknownHistoryWorkspace, currentProject?.id, viewedWorkspace?.workspaceId, viewedWorkspace?.workspaceName]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", appSettings.theme);
@@ -7113,8 +7146,8 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
 
   /* 布局记忆（App 级，非 Host）：按 scope（全局 / project:<id>）恢复与
      持久化；预览模式不参与，避免与演示默认布局互相覆盖。 */
-  const layoutScope = appSettings.rememberLayout && appSettings.perProjectLayout && selectedProject
-    ? `project:${selectedProject.id}`
+  const layoutScope = appSettings.rememberLayout && appSettings.perProjectLayout && currentProject
+    ? `project:${currentProject.id}`
     : "global";
   const appliedLayoutScope = useRef<string | null>(null);
   const skipNextLayoutPersist = useRef(false);
@@ -7289,6 +7322,10 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
       return;
     }
     const generation = navigationGate.next();
+    const previousProject = selectedProject;
+    setFreshWorkspaceView(true);
+    onNewThread();
+    setSelectedProvisionalSessionId(undefined);
     setSelectedProject(project);
     setExplorerOpen(true);
     expandProject(project.id);
@@ -7303,8 +7340,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     }).catch((error) => {
       if (!navigationGate.isCurrent(generation)) return;
       setShellNotice({ text: hostErrorMessage(error, "切换项目失败"), icon: "alert" });
-      const active = state.model.workspaces?.workspaces.find((workspace) => workspace.active);
-      setSelectedProject(active === undefined ? null : { id: active.workspaceId, name: active.name });
+      setSelectedProject(previousProject);
     });
   };
 
@@ -7319,40 +7355,29 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     const generation = navigationGate.next();
     try {
       // The desktop preload owns the native folder picker and registers the
-      // chosen directory with the gateway; a browser keeps the host command.
+      // chosen directory; its response names that exact workspace. A browser
+      // has no directory surface here, so never select an inventory row by guess.
       const pickNative = globalThis.zetaStudioChrome?.pickWorkspace;
-      const result = pickNative !== undefined
-        ? await pickNative().then(async (picked) => {
-            if (picked.cancelled) return null;
-            const model = await client.query("projects.list", {});
-            const first = model.workspaces[0];
-            return first === undefined ? null : { workspaces: model.workspaces, activeWorkspaceId: first.workspaceId };
-          })
-        : await workspaceActionQueue.enqueue(async () => {
-            const handle = await client.command("workspace.pick", {});
-            return await waitReceipt<WorkspaceListReadModel>(client, handle.requestId, null);
-          });
-      if (result === null || !navigationGate.isCurrent(generation)) return;
-      onWorkspacesChange(result);
-      const active = result.workspaces.find((workspace) => workspace.active);
-      if (active) {
-        setSelectedProject({ id: active.workspaceId, name: active.name });
-        setExplorerOpen(true);
-        expandProject(active.workspaceId);
-        setProjectListExpanded(true);
-        void loadProjectHistory(active.workspaceId);
-        go("workbench");
-      }
+      if (pickNative === undefined) throw new Error(t("common.unsupportedByRuntime"));
+      const picked = await pickNative();
+      if (picked.cancelled || !navigationGate.isCurrent(generation)) return;
+      if (picked.workspaceId === undefined) throw new Error("选择的文件夹未返回工作区身份");
+      const model = await client.query("projects.list", {});
+      onWorkspacesChange(model);
+      const pickedProject = model.workspaces.find(workspace => workspace.workspaceId === picked.workspaceId);
+      if (pickedProject === undefined) throw new Error("选择的文件夹未注册为项目");
+      selectProject({ id: pickedProject.workspaceId, name: pickedProject.name });
+      go("workbench");
     } catch (error) {
       setShellNotice({ text: hostErrorMessage(error, "选择项目失败"), icon: "alert" });
     }
   };
 
-  /** Enter the workbench selecting the active workspace (or the empty explorer state). */
+  /** Enter the workbench without replacing the current project selection. */
   const enterWorkbench = () => {
-    const active = state.model.workspaces?.workspaces.find((workspace) => workspace.active);
-    if (active) {
-      selectProject({ id: active.workspaceId, name: active.name });
+    if (currentProject !== null) {
+      setExplorerOpen(true);
+      expandProject(currentProject.id);
     } else {
       setExplorerOpen(true);
     }
@@ -7375,17 +7400,10 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
       next = "workbench";
     }
     if (next === "home") {
-      setSelectedProject(null);
       setExplorerOpen(false);
       setProjectListExpanded(false);
     } else if (next === "workbench") {
-      const active = state.model.workspaces?.workspaces.find((workspace) => workspace.active);
-      if (active) {
-        setSelectedProject({ id: active.workspaceId, name: active.name });
-        setExplorerOpen(true);
-      } else {
-        setExplorerOpen(true);
-      }
+      setExplorerOpen(true);
     }
     if (next === trail[trailAt]) {
       onRoute(next);
@@ -7399,7 +7417,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     });
     setTrailAt((value) => Math.min(value + 1, TRAIL_MAX - 1));
     onRoute(next);
-  }, [onRoute, trail, trailAt, state.model.workspaces, surface, t]);
+  }, [onRoute, trail, trailAt, surface, t]);
 
   // A deep link or restored route can point at a surface this client does not
   // offer (mobile has chat/history only); land on chat instead of a dead page.
@@ -7456,11 +7474,8 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     const cached = projectHistoryCache[projectId];
     if (cached?.model !== undefined && (next <= cached.model.entries.length || cached.model.entries.length >= cached.model.total)) return;
     void loadMoreProjectHistory(projectId as WorkspaceId).then((refreshed) => {
-      // Keep the legacy global model useful to Home/History consumers, but
-      // only mirror the currently active workspace; other cache keys stay
-      // independent and are rendered directly from projectHistories.
-      const active = state.model.workspaces?.workspaces.find((workspace) => workspace.active);
-      if (refreshed !== undefined && active?.workspaceId === projectId) onHistoryChange(refreshed);
+      // Per-project pages never replace the cross-project recent/history list.
+      void refreshed;
     });
   };
 
@@ -7505,10 +7520,8 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     const cachedWorkspaceId = Object.entries(projectHistoryCache).find(([, value]) =>
       value.model?.entries.some((candidate) => candidate.historyId === entry.historyId),
     )?.[0] as WorkspaceId | undefined;
-    const inferredWorkspaceId = workspaceId
-      ?? residentForSession(residentModel, entry.sessionId)?.workspaceId
-      ?? cachedWorkspaceId
-      ?? (selectedProject?.id as WorkspaceId | undefined);
+    const inferredWorkspaceId = residentForSession(residentModel, entry.sessionId)?.workspaceId
+      ?? entry.workspaceId ?? workspaceId ?? cachedWorkspaceId;
     const resident = residentForSession(residentModel, entry.sessionId);
     setArchivePending({
       kind: "real",
@@ -7525,8 +7538,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
   const refreshHistoryModels = useCallback(async (workspaceId?: WorkspaceId): Promise<SessionHistoryReadModel | undefined> => {
     if (workspaceId !== undefined) {
       const refreshed = await refreshProjectHistory(workspaceId);
-      const active = state.model.workspaces?.workspaces.find((workspace) => workspace.active);
-      if (refreshed !== undefined && active?.workspaceId === workspaceId) onHistoryChange(refreshed);
+      // Keep the global history list cross-project.
       return refreshed;
     }
     const loaded = state.model.history?.entries.length ?? 20;
@@ -7566,9 +7578,8 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
 
   const refreshPinnedHistory = useCallback(async (): Promise<void> => {
     await refreshHistoryModels();
-    const activeWorkspace = state.model.workspaces?.workspaces.find((workspace) => workspace.active);
-    if (activeWorkspace !== undefined) await refreshProjectHistory(activeWorkspace.workspaceId);
-  }, [refreshHistoryModels, refreshProjectHistory, state.model.workspaces]);
+    if (currentProject !== null) await refreshProjectHistory(currentProject.id as WorkspaceId);
+  }, [refreshHistoryModels, refreshProjectHistory, currentProject?.id]);
 
   const recoveryHistoryRefresh = useRef(() => {});
   recoveryHistoryRefresh.current = () => {
@@ -7595,28 +7606,12 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     ? JSON.stringify([snapshot.sessionId, snapshot.sessionTitle, snapshot.sessionTitleSource])
     : undefined;
   const currentResidentWorkspaceId = residentForSession(residentModel, snapshot?.sessionId)?.workspaceId;
-  const currentActiveWorkspaceId = state.model.workspaces?.workspaces.find((workspace) => workspace.active)?.workspaceId;
-  const currentSessionWorkspaceId = workspaceForSession({
-    ...(snapshot?.sessionId === undefined ? {} : { sessionId: snapshot.sessionId }),
-    ...(currentResidentWorkspaceId === undefined
-      ? {}
-      : { residentWorkspaceId: currentResidentWorkspaceId }),
-    projectHistoryCache,
-    ...(selectedProject?.id === undefined ? {} : { selectedWorkspaceId: selectedProject.id as WorkspaceId }),
-    ...(currentActiveWorkspaceId === undefined
-      ? {}
-      : { activeWorkspaceId: currentActiveWorkspaceId }),
-  });
-  const renameTargetSessionId = selected?.sessionId ?? snapshot?.sessionId;
+  const currentSessionWorkspaceId = currentResidentWorkspaceId ?? liveHistoryEntry?.workspaceId;
+  const renameTargetSessionId = freshWorkspaceView ? undefined : selected?.sessionId ?? snapshot?.sessionId;
   const renameTargetResidentWorkspaceId = residentForSession(residentModel, renameTargetSessionId)?.workspaceId;
-  const renameTargetWorkspaceId = workspaceForSession({
+  const renameTargetWorkspaceId = renameTargetResidentWorkspaceId ?? selected?.workspaceId ?? workspaceForSession({
     ...(renameTargetSessionId === undefined ? {} : { sessionId: renameTargetSessionId }),
-    ...(renameTargetResidentWorkspaceId === undefined
-      ? {}
-      : { residentWorkspaceId: renameTargetResidentWorkspaceId }),
     projectHistoryCache,
-    ...(selectedProject?.id === undefined ? {} : { selectedWorkspaceId: selectedProject.id as WorkspaceId }),
-    ...(currentActiveWorkspaceId === undefined ? {} : { activeWorkspaceId: currentActiveWorkspaceId }),
   });
   useEffect(() => {
     if (semanticTitleKey === undefined || snapshot?.sessionId === undefined || snapshot.sessionTitle === undefined) return;
@@ -7636,7 +7631,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
   const refreshSessionTitles = useCallback((workspaceId?: WorkspaceId) => {
     if (previewMode.preview) return;
     const targetWorkspaceId = workspaceId
-      ?? state.model.workspaces?.workspaces.find((workspace) => workspace.active)?.workspaceId;
+      ?? currentProject?.id as WorkspaceId | undefined;
     for (const id of sessionTitleRefreshTimers.current) window.clearTimeout(id);
     sessionTitleRefreshTimers.current = [0, 2_000, 8_000].map((delay) =>
       window.setTimeout(() => {
@@ -7644,10 +7639,8 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
         if (targetWorkspaceId !== undefined) void refreshProjectHistory(targetWorkspaceId);
       }, delay),
     );
-  }, [previewMode.preview, refreshHistoryModels, refreshProjectHistory, state.model.workspaces]);
-  const streamingHistoryWorkspaceId = residentForSession(residentModel, snapshot?.sessionId)?.workspaceId
-    ?? (selectedProject?.id as WorkspaceId | undefined)
-    ?? state.model.workspaces?.workspaces.find((workspace) => workspace.active)?.workspaceId;
+  }, [previewMode.preview, refreshHistoryModels, refreshProjectHistory, currentProject?.id]);
+  const streamingHistoryWorkspaceId = currentSessionWorkspaceId;
   const streamingHistoryKey = streamingProjectHistoryRefreshKey({
     preview: previewMode.preview,
     isStreaming: snapshot?.isStreaming,
@@ -7737,7 +7730,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
         const cachedWorkspaceId = Object.entries(projectHistoryCache).find(([, value]) =>
           value.model?.entries.some((candidate) => candidate.historyId === entry.historyId),
         )?.[0] as WorkspaceId | undefined;
-        const targetWorkspaceId = cachedWorkspaceId
+        const targetWorkspaceId = entry.workspaceId ?? cachedWorkspaceId
           ?? residentForSession(residentModel, entry.sessionId)?.workspaceId;
         await ensureWorkspaceActive(targetWorkspaceId);
         const handle = await client.command("session.unarchive", { threadId: entry.threadId });
@@ -7766,7 +7759,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
         const cachedWorkspaceId = Object.entries(projectHistoryCache).find(([, value]) =>
           value.model?.entries.some((candidate) => candidate.historyId === entry.historyId),
         )?.[0] as WorkspaceId | undefined;
-        const targetWorkspaceId = cachedWorkspaceId
+        const targetWorkspaceId = entry.workspaceId ?? cachedWorkspaceId
           ?? residentForSession(residentModel, entry.sessionId)?.workspaceId;
         await ensureWorkspaceActive(targetWorkspaceId);
         const handle = await client.command("session.delete", { threadId: entry.threadId, deleteManagedArtifacts });
@@ -7942,14 +7935,15 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     () => sessionCreateWaitRef.current ?? Promise.resolve({ ok: true } as const),
     [],
   );
-  const runSessionCreate = useCallback((work: () => Promise<OperatorStateSnapshot | void>) => {
+  const runSessionCreate = useCallback((work: () => Promise<OperatorStateSnapshot | void>, generation = navigationGate.next()) => {
     if (sessionCreateWaitRef.current) return;
     setCreatingSession(true);
     const pending = work()
-      .then((created): NewSessionWaitResult => ({
-        ok: true,
-        ...(created?.sessionId === undefined ? {} : { sessionId: created.sessionId as SessionId }),
-      }))
+      .then((created): NewSessionWaitResult => {
+        if (!navigationGate.isCurrent(generation)) return { ok: false, error: "会话切换已取消" };
+        if (created?.sessionId !== undefined) setFreshWorkspaceView(false);
+        return { ok: true, ...(created?.sessionId === undefined ? {} : { sessionId: created.sessionId as SessionId }) };
+      })
       .catch((error): NewSessionWaitResult => {
         const message = hostErrorMessage(error, "新建对话失败");
         setShellNotice({ text: message, icon: "alert" });
@@ -7960,16 +7954,18 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
         if (sessionCreateWaitRef.current === pending) sessionCreateWaitRef.current = null;
       });
     sessionCreateWaitRef.current = pending;
-  }, []);
+  }, [navigationGate, setFreshWorkspaceView]);
   const ensureNewSession = useCallback(() => {
     if (previewMode.preview || sessionCreateWaitRef.current) return;
     runSessionCreate(() => workspaceActionQueue.enqueue(async () => {
-      const handle = await client.command("session.create", {});
+      const workspaceId = currentProject?.id as WorkspaceId | undefined;
+      if (workspaceId === undefined) throw new Error(t("conversation.noProjectSelected"));
+      const handle = await client.command("session.create", { workspaceId });
       const created = await waitReceipt<OperatorStateSnapshot>(client, handle.requestId);
-      refreshSessionTitles();
+      refreshSessionTitles(workspaceId);
       return created;
     }));
-  }, [client, previewMode.preview, runSessionCreate, refreshSessionTitles, workspaceActionQueue]);
+  }, [client, currentProject?.id, t, previewMode.preview, runSessionCreate, refreshSessionTitles, workspaceActionQueue]);
 
   const startNewChat = useCallback((noContextFiles?: boolean) => {
     if (previewMode.preview) {
@@ -7978,17 +7974,20 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     }
     if (sessionCreateWaitRef.current) return;
     navigationGate.next();
+    setFreshWorkspaceView(true);
     setSessionActionError(undefined);
     setSelectedProvisionalSessionId(undefined);
     onNewThread();
     go("workbench");
     runSessionCreate(() => workspaceActionQueue.enqueue(async () => {
-      const handle = await client.command("session.create", noContextFiles ? { noContextFiles: true } : {});
+      const workspaceId = currentProject?.id as WorkspaceId | undefined;
+      if (workspaceId === undefined) throw new Error(t("conversation.noProjectSelected"));
+      const handle = await client.command("session.create", { workspaceId, ...(noContextFiles ? { noContextFiles: true } : {}) });
       const created = await waitReceipt<OperatorStateSnapshot>(client, handle.requestId);
       refreshSessionTitles();
       return created;
     }));
-  }, [client, go, navigationGate, onNewThread, previewMode.preview, runSessionCreate, refreshSessionTitles, workspaceActionQueue]);
+  }, [client, currentProject?.id, t, go, navigationGate, onNewThread, previewMode.preview, runSessionCreate, refreshSessionTitles, workspaceActionQueue]);
 
   const applySlashUi = (ui: SlashNativeUi): void => {
     if (ui === "settings") { go("settings"); return; }
@@ -8099,9 +8098,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     return false;
   };
 
-  /** 项目行「＋」：在指定项目下新建会话。非激活项目先 workspace.open
-   * 并等待回执（Host 在回执前完成 Runtime 重绑），再 session.create，
-   * 否则会话会建到旧项目的 cwd 里。 */
+  /** A new session always names its actual workspace; opening does not rebind Runtime cwd. */
   const startNewChatInProject = useCallback((project: SelectedProject) => {
     if (previewMode.preview) {
       // 预览模式：只切换本地演示状态，不调 Host。
@@ -8117,6 +8114,8 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     setSessionActionError(undefined);
     if (sessionCreateWaitRef.current) return;
     const generation = navigationGate.next();
+    setFreshWorkspaceView(true);
+    setSelectedProject(project);
     setSelectedProvisionalSessionId(undefined);
     onNewThread();
     go("workbench");
@@ -8130,11 +8129,10 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
       expandProject(project.id);
       setProjectListExpanded(true);
       void loadProjectHistory(project.id as WorkspaceId);
-      const handle = await client.command("session.create", {});
-      await waitReceipt(client, handle.requestId);
-      refreshSessionTitles(project.id as WorkspaceId);
-    }));
-  }, [client, expandProject, loadProjectHistory, navigationGate, previewMode.preview, go, onNewThread, onWorkspacesChange, runSessionCreate, refreshSessionTitles, workspaceActionQueue]);
+      const handle = await client.command("session.create", { workspaceId: project.id as WorkspaceId });
+      return await waitReceipt<OperatorStateSnapshot>(client, handle.requestId);
+    }), generation);
+  }, [client, expandProject, loadProjectHistory, navigationGate, previewMode.preview, go, onNewThread, onWorkspacesChange, runSessionCreate, workspaceActionQueue]);
 
   const openManagedWorktree = useCallback(async (workspaceId: string) => {
     await waitForNewSession();
@@ -8149,20 +8147,19 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
   /** opts.resumeForAction：行级「打开并执行」——即使无驻留也 resume，让目标会话
       真正成为 Runtime 活动会话；失败时向上抛出，由调用方统一报告并中止后续动作。 */
   const openHistoryEntry = (entry: SessionHistoryEntry, workspaceId?: WorkspaceId, opts?: { resumeForAction?: boolean; skipQueue?: boolean }): Promise<void> => {
+    setFreshWorkspaceView(false);
     const generation = navigationGate.next();
     setSelectedProvisionalSessionId(undefined);
     if (previewMode.preview) {
       onSelectThread(entry);
       return Promise.resolve();
     }
-    const active = state.model.workspaces?.workspaces.find((workspace) => workspace.active);
     const resident = residentForSession(residentModel, entry.sessionId);
-    const targetWorkspaceId = resident?.workspaceId ?? workspaceId ?? active?.workspaceId;
-    const workspaceSwitchPending = targetWorkspaceId !== undefined && active?.workspaceId !== targetWorkspaceId && resident === undefined;
-    // Same-workspace navigation and resident activation can update the identity
-    // immediately. For a cold cross-workspace archive row, wait for workspace.open
-    // so the Host archive reader is never asked to scan the old cwd first.
-    if (!workspaceSwitchPending) onSelectThread(entry);
+    const targetWorkspaceId = historyWorkspaceId(entry, resident?.workspaceId, workspaceId);
+    const workspaceSwitchPending = targetWorkspaceId !== undefined && selectedProject?.id !== targetWorkspaceId;
+    const targetProject = targetWorkspaceId === undefined ? null : reconcileWorkspaceSelection(null, state.model.workspaces, { workspaceId: targetWorkspaceId, ...(entry.workspaceName === undefined ? {} : { workspaceName: entry.workspaceName }) });
+    setSelectedProject(targetProject);
+    onSelectThread(entry);
     const run = async () => {
       try {
         if (!navigationGate.isCurrent(generation)) {
@@ -8228,6 +8225,8 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     // JSONL tail is still being flushed and the history catalog has no row yet.
     // Do not turn that normal live state into the misleading "仍在写入" error.
     if (shouldOpenLiveProvisional(thread.sessionId, snapshot?.sessionId)) {
+      setFreshWorkspaceView(false);
+      setSelectedProject({ id: thread.workspaceId, name: state.model.workspaces?.workspaces.find(workspace => workspace.workspaceId === thread.workspaceId)?.name ?? t("conversation.localWorkspace") });
       setSessionActionError(undefined);
       setSelectedProvisionalSessionId(thread.sessionId);
       onNewThread();
@@ -8235,6 +8234,8 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
       return;
     }
     if (!thread.submitted) {
+      setFreshWorkspaceView(false);
+      setSelectedProject({ id: thread.workspaceId, name: state.model.workspaces?.workspaces.find(workspace => workspace.workspaceId === thread.workspaceId)?.name ?? t("conversation.localWorkspace") });
       setSelectedProvisionalSessionId(thread.sessionId);
       onNewThread();
       setSessionActionError(undefined);
@@ -8311,10 +8312,6 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
           const { [workspaceId]: _hidden, ...rest } = current;
           return rest;
         });
-        if (selectedProject?.id === workspaceId) {
-          const active = workspaces.workspaces.find((workspace) => workspace.active) ?? workspaces.workspaces[0];
-          setSelectedProject(active === undefined ? null : { id: active.workspaceId, name: active.name });
-        }
         setShellNotice({ text: t("shell.hideFolderDone", { name }), icon: "eye-off" });
       } catch (error) {
         setShellNotice({ text: hostErrorMessage(error, t("shell.hideFolderFailed")), icon: "alert" });
@@ -8480,14 +8477,14 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     untitledTitle: t("conversation.untitledSession"),
     historyEntries: state.model.history?.entries ?? [],
     workspaces: sidebarProjectOrder(state.model.workspaces),
-    ...(selectedProject ? { activeProjectName: selectedProject.name } : {}),
+    ...(currentProject ? { activeProjectName: currentProject.name } : {}),
     inventory: paletteInventory,
     query: paletteQuery,
     ...(previewMode.preview ? {} : {
       supports: (id: string) => supportsCapability(capabilities, id),
       canPickProject: workspacePickSupported || executionTarget.id !== undefined,
     }),
-  }), [previewMode.preview, state.model.history, state.model.workspaces, selectedProject, paletteInventory, paletteQuery, t, capabilities, workspacePickSupported, executionTarget.id]);
+  }), [previewMode.preview, state.model.history, state.model.workspaces, currentProject, paletteInventory, paletteQuery, t, capabilities, workspacePickSupported, executionTarget.id]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -8547,8 +8544,9 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     // the shared Work Studio settings page; the bare form opens the page.
     if (command.startsWith("app.settings:")) {
       const group = command.slice("app.settings:".length);
-      if (isSettingsGroupId(group)) {
-        setSettingsIntent(group);
+      const resolved = normalizeSettingsGroupId(group);
+      if (resolved !== null) {
+        setSettingsIntent(resolved);
         setSettingsNonce((value) => value + 1);
         go("settings");
         return;
@@ -8649,7 +8647,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
       }
     });
   };
-  const realActiveWorkspace = state.model.workspaces?.workspaces.find((workspace) => workspace.active);
+  const realActiveWorkspace = currentProject === null ? undefined : { workspaceId: currentProject.id as WorkspaceId, name: currentProject.name };
   // 预览模式只是显示层：桌面 shell 操作仍走真实 API。若已注册过真实
   // workspace，就允许在预览态下对当前真实项目执行；没有真实 workspace
   // 时保持禁用并给出原因，绝不使用 preview fixture 里的演示路径。
@@ -8797,7 +8795,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
     sidebarWidth,
     splitRatio,
     selectedHistoryId,
-    selectedProject,
+    selectedProject: currentProject,
     skillsEnabledCount,
     previewProjectId,
     previewThreadId,
@@ -9008,14 +9006,13 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               <button className="menu-item" role="menuitem" onClick={() => go("history")}>{t("menu.history")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("agent-hub")}>Agent Hub</button>
               <button className="menu-item" role="menuitem" onClick={() => go("team")}>{t("nav.team")}</button>
+              <button className="menu-item" role="menuitem" onClick={() => go("rooms")}>{t("nav.rooms")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("capabilities")}>{t("menu.capabilities")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("model-config")}>{t("menu.modelConfig")}</button>
               <button className="menu-item" role="menuitem" onClick={() => go("media")}>{t("media.title")}</button>
+              <button className="menu-item" role="menuitem" onClick={() => go("settings")}>{t("menu.settings")}</button>
               {surface === "mobile" ? null : (
-                <>
-                  <button className="menu-item" role="menuitem" onClick={() => go("settings")}>{t("menu.settings")}</button>
-                  <button className="menu-item" role="menuitem" onClick={() => go("diagnostics")}>{t("menu.diagnostics")}</button>
-                </>
+                <button className="menu-item" role="menuitem" onClick={() => go("diagnostics")}>{t("menu.diagnostics")}</button>
               )}
               <div className="menu-sep" />
               <button className="menu-item" role="menuitem" onClick={() => { setOpenMenu(null); openPalette(); }}>{t("menu.commandPalette")}<span className="kbd">{formatShortcut(SHORTCUTS.commandPalette)}</span></button>
@@ -9090,6 +9087,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               {...(state.model.home ? { home: state.model.home } : {})}
               {...(state.model.history ? { history: state.model.history } : {})}
               {...(state.model.workspaces ? { workspaces: state.model.workspaces } : {})}
+              {...(currentProject === null ? {} : { selectedWorkspaceId: currentProject.id })}
               {...(capabilities ? { capabilities } : {})}
               client={client}
               {...(previewMode.preview || workspacePickSupported || executionTarget.id
@@ -9140,7 +9138,9 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
               onOpenMain={() => go("workbench")}
             />
           ) : pageRoute === "team" ? (
-            <TeamPage client={client} />
+            <TeamWorkspacePage client={client} />
+          ) : pageRoute === "rooms" ? (
+            <RoomsPage client={client} />
           ) : pageRoute === "media" ? (
             <MediaPage client={client} workspaceId={hubWorkspaceId} sessionId={snapshot?.sessionId} runtimeAvailable={hubRuntimeConnected} {...(capabilities ? { capabilities } : {})} onInsert={insertPreparedPrompt} />
           ) : pageRoute === "evaluation" ? (
@@ -9227,16 +9227,18 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
             state={state}
             client={client}
             viewIdentity={selectedProvisionalSessionId === undefined
-              ? (selectedHistoryId === null ? "live" : `history:${selectedHistoryId}`)
+              ? (selectedHistoryId === null ? `workspace:${currentProject?.id ?? "none"}` : `history:${selectedHistoryId}`)
               : `draft:${selectedProvisionalSessionId}`}
-             {...((selectedProvisionalSessionId ?? selected?.sessionId) === undefined ? {} : { selectedSessionId: selectedProvisionalSessionId ?? selected?.sessionId as string })}
+            {...((selectedProvisionalSessionId ?? selected?.sessionId) === undefined ? {} : { selectedSessionId: selectedProvisionalSessionId ?? selected?.sessionId as string })}
             viewedAgents={viewedAgents}
             {...(selected?.threadId === undefined ? {} : { selectedThreadId: selected.threadId })}
             waitForNewSession={waitForNewSession}
             ensureNewSession={ensureNewSession}
             {...(creatingSession ? { sessionCreating: true } : {})}
+            freshWorkspaceView={freshWorkspaceView}
             {...(previewMode.preview ? { previewProjectId: chrome.previewProjectId, previewThreadId: chrome.previewThreadId, onPreviewDeckWait: setPreviewDeckWait } : {})}
             onSelectProject={chrome.onSelectProject}
+            onWorkspacesChange={onWorkspacesChange}
             onSelectPreviewProject={chrome.onSelectPreviewProject}
             onSelectPreviewThread={chrome.onSelectPreviewThread}
             onSelectThread={openHistoryEntry}
@@ -9277,7 +9279,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
             onCompactPending={setCompactPending}
             onViewedTelemetryRefresh={refreshViewedTelemetry}
             {...(createProjectNonce === 0 ? {} : { createProjectNonce })}
-            {...(selectedProject?.id === undefined ? {} : { workspaceId: selectedProject.id })}
+            {...(currentProject === null ? {} : { workspaceId: currentProject.id, workspaceName: currentProject.name })}
           />
           <span className="sr-only">client contract v{CLIENT_CONTRACT_VERSION}{snapshot ? ` · session ${snapshot.sessionId}` : ""}</span>
         </div>
@@ -9482,6 +9484,20 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
   const [state, dispatch] = useReducer(reduce, { loading: true, model: {}, events: [], route: "workbench" });
   const [route, setRoute] = useTargetMemory<Route>("route", initialRouteFromSettings);
   const [selectedHistoryId, setSelectedHistoryId] = useTargetMemory<string | null>("selected-history", () => null);
+  const [pluginView, setPluginView] = useState<PluginViewRoute | undefined>(() => parsePluginViewRoute(window.location.pathname));
+  useEffect(() => {
+    const onPopState = () => setPluginView(parsePluginViewRoute(window.location.pathname));
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+  /** The plugin host is a real top-level route; return to the remembered app route. */
+  const closePluginView = useCallback(() => {
+    window.history.replaceState(null, "", "/");
+    setPluginView(undefined);
+  }, []);
+  const pluginSessionId = selectedHistoryId === null
+    ? state.clientState?.entities.snapshot?.sessionId
+    : state.model.history?.entries.find(entry => entry.historyId === selectedHistoryId)?.sessionId;
 
   useEffect(() => {
     let cancelled = false;
@@ -9603,6 +9619,14 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
         </div>
       </div>
     </div>
+  ) : pluginView !== undefined ? (
+    <PluginPageHost
+      client={client}
+      plugin={pluginView.plugin}
+      page={pluginView.page}
+      {...(pluginSessionId === undefined ? {} : { sessionId: String(pluginSessionId) })}
+      onBack={closePluginView}
+    />
   ) : (
     <AppShell
       state={routedState}
@@ -9621,7 +9645,7 @@ function TargetApp({ client: inputClient }: { readonly client: StudioClient }) {
       <ConversationWidthProvider>
       <I18nProvider>
         <RemoteScopeNotice />
-        {body}
+        <AuthStepUpBoundary>{body}</AuthStepUpBoundary>
         {initialModelCommitted && !state.loading ? <WorkbenchHealth /> : null}
         {onboardingOpen ? (
           <ProfileEditDialog

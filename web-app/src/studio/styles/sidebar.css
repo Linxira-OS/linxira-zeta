@@ -214,9 +214,7 @@
 .project-head .p-name {
   font-weight: var(--fw-semibold);
   font-size: var(--fs-12);
-  display: flex;
-  align-items: center;
-  gap: var(--sp-6);
+  display: block;
   min-width: 0;
   flex: 1;
 }
@@ -348,8 +346,15 @@
 .thread .t-scroll {
   display: inline-block;
   white-space: nowrap;
+  /* REQ-003: the visible text is this atomic inline box, so the ellipsis must
+     be rendered here. max-width lets it fit its title box in the static state;
+     hover removes the cap so the existing translate can reveal the full title. */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .thread-row:hover .t-scroll {
+  max-width: none;
   transform: translateX(min(100cqw - 100% - 58px, 0px));
   transition: transform 3s linear 800ms;
 }
@@ -376,6 +381,9 @@
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
+  /* REQ-003: a truncated recent-session title ends in an ellipsis, not a bare
+     clip. The inner .t-scroll carries the same rule for its atomic inline box. */
+  text-overflow: ellipsis;
   font-size: var(--fs-12);
   /* 容器上下文：给 .t-scroll 的 100cqw 提供标题盒宽。宽度本就来自
      flex 分配（flex:1 1 0 + min-width:0），不依赖内容，inline-size

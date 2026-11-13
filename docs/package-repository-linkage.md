@@ -17,7 +17,7 @@ authoritative for install and upgrade.
 
 | Repository | Visibility | Role | Current state |
 | --- | --- | --- | --- |
-| `Linxira-OS/linxira-zeta` | public | Source + GitHub release for the product (`v<version>` tags) | `v1.5.1` published 2026-11-10T13:10:33Z at tag `54b0ffeb658` (18 assets incl. `package-linkage.json`); `v1.5.0` remains as the previous release |
+| `Linxira-OS/linxira-zeta` | public | Source + GitHub release for the product (`v<version>` tags) | `v1.5.1` published 2026-11-10T13:10:33Z at tag `54b0ffeb658` (18 assets incl. `package-linkage.json`); `v1.5.0` remains as the previous release. Planned 2026-11-12 owner-review asset exception is exact `v1.5.2` only (ADR 0033); GitHub stable assets and npm versions can differ because npm remains on 1.5.1 until a separately authorized npm release. |
 | `Linxira-OS/packages` | public | Arch PKGBUILDs for Linxira packages; CI builds, signs and publishes pacman repositories | `[linxira-zeta]` rolling release tag `zeta-repo`, updated 2026-11-10T13:18:15Z with 1.5.1 |
 | `Linxira-OS/linxira-packages` | public | Signed `[linxira]` pacman repository database + packages on GitHub Pages | `linxira-catalog 3.6.0-1` and the system stack; **no** `linxira-zeta` |
 | `Linxira-OS/linxira-catalog` | public | Compiles/publishes the reviewed software catalog database (`catalog-v2.json`, `catalog-v3.json`) | `VERSION` 3.6.0, tag `v3.6.0`; packaged as `linxira-catalog` |

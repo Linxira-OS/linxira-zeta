@@ -148,6 +148,7 @@ export const mnemopiBackend: MemoryBackend = {
 				modelRegistry,
 				sessionId,
 				session.sessionManager,
+				session.sessionManager?.getMemoryNamespace?.(),
 			);
 			await Promise.all([loadMnemopi(), loadMnemopiCore()]);
 			await installMnemopiState(session, config, getMnemopiSessionStateFromParent(options));
@@ -184,7 +185,11 @@ export const mnemopiBackend: MemoryBackend = {
 	async clear(agentDir, _cwd, session): Promise<void> {
 		const previous = session ? setMnemopiSessionState(session, undefined) : undefined;
 		await previous?.dispose({ consolidate: false });
-		const config = previous?.config ?? (session ? loadMnemopiConfig(session.settings, agentDir) : undefined);
+		const config =
+			previous?.config ??
+			(session
+				? loadMnemopiConfig(session.settings, agentDir, session.sessionManager?.getMemoryNamespace?.())
+				: undefined);
 		if (!config) return;
 		await loadMnemopiCore();
 		// Close the cached default Mnemopi instance so its SQLite handle doesn't
@@ -215,6 +220,7 @@ export const mnemopiBackend: MemoryBackend = {
 					session.modelRegistry,
 					session.sessionId,
 					session.sessionManager,
+					session.sessionManager?.getMemoryNamespace?.(),
 				);
 				await Promise.all([loadMnemopi(), loadMnemopiCore()]);
 				state = await installMnemopiState(session, config);
@@ -223,6 +229,12 @@ export const mnemopiBackend: MemoryBackend = {
 		} catch (error) {
 			logger.warn("Mnemopi: enqueue failed.", { error: String(error) });
 		}
+	},
+
+	async learnWindow({ session }, input): Promise<void> {
+		const state = getMnemopiSessionState(session);
+		if (!state) throw new Error("Mnemopi backend is not initialised for window learning.");
+		await state.learnWindow(input);
 	},
 
 	async stats(agentDir, _cwd, session): Promise<string | undefined> {
@@ -234,7 +246,11 @@ export const mnemopiBackend: MemoryBackend = {
 
 	async diagnose(agentDir, _cwd, session): Promise<string | undefined> {
 		const state = getMnemopiSessionState(session);
-		const config = state?.config ?? (session ? loadMnemopiConfig(session.settings, agentDir) : undefined);
+		const config =
+			state?.config ??
+			(session
+				? loadMnemopiConfig(session.settings, agentDir, session.sessionManager?.getMemoryNamespace?.())
+				: undefined);
 		if (!config) return undefined;
 		const [{ inspectDatabase }] = await Promise.all([loadMnemopiDiagnose(), loadMnemopiCore()]);
 		const banks = getMnemopiScopedBanks(config);
@@ -354,7 +370,7 @@ function collectBankStats(agentDir: string, session: AgentSession | undefined): 
 	const state = getMnemopiSessionState(session);
 	if (state) return withLoopPhase("mnemopi.open", () => state.getScopedStats());
 	if (!session) return [];
-	const config = loadMnemopiConfig(session.settings, agentDir);
+	const config = loadMnemopiConfig(session.settings, agentDir, session.sessionManager?.getMemoryNamespace?.());
 	const owned = withLoopPhase("mnemopi.open", () =>
 		getMnemopiScopedBanks(config).map(bank => ({ bank, memory: createStatsMemory(config, bank) })),
 	);
@@ -488,8 +504,9 @@ async function loadMnemopiConfigWithProviders(
 	modelRegistry: ModelRegistry,
 	sessionId: string,
 	usageLedger: Partial<JudgmentUsageLedger>,
+	memoryNamespace?: string,
 ): Promise<MnemopiBackendConfig> {
-	const config = loadMnemopiConfig(settings, agentDir);
+	const config = loadMnemopiConfig(settings, agentDir, memoryNamespace);
 	config.providerOptions = await resolveMnemopiProviderOptions(
 		config,
 		settings,

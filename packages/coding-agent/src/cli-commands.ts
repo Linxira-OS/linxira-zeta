@@ -281,6 +281,11 @@ export const commands: CommandEntry[] = [
 		help: commandHelp.sshHelp,
 	},
 	{
+		name: "sources",
+		load: () => import("./commands/sources").then(m => m.default),
+		help: { description: "List, approve, or revoke foreign project sources" },
+	},
+	{
 		name: "stats",
 		load: () => import("./commands/stats").then(m => m.default),
 		help: commandHelp.statsHelp,

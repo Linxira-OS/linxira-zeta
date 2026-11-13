@@ -404,7 +404,9 @@ describe("selector setting side effects", () => {
 		try {
 			hub.handleInput("\x1b[A"); // All models → Roles.
 			hub.handleInput("\n"); // Enter the role rows.
-			const taskOffset = MODEL_ROLE_IDS.indexOf("task") - MODEL_ROLE_IDS.indexOf("default");
+			// Each role row is followed by the fixed two-slot fallback editor, so
+			// stepping over one role takes three rows (role + Fallback 1 + Fallback 2).
+			const taskOffset = (MODEL_ROLE_IDS.indexOf("task") - MODEL_ROLE_IDS.indexOf("default")) * 3;
 			for (let i = 0; i < taskOffset; i++) hub.handleInput("\x1b[B"); // Default → task.
 			hub.handleInput("t");
 

@@ -6,6 +6,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { holdTeamDbEnv } from "../test-db-env";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -110,12 +111,13 @@ describe("PM → engineer skill assignment", () => {
 	let aliceHome: string;
 	let bobHome: string;
 	let carolHome: string;
+	let releaseEnv: (() => void) | undefined;
 
 	beforeAll(async () => {
 		scratch = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-engineer-skills-"));
 		teamRoot = path.join(scratch, "acme-team");
 		dbPath = path.join(scratch, "team.db");
-		process.env.ZETA_TEAM_DB = dbPath;
+		releaseEnv = await holdTeamDbEnv(dbPath);
 		const fixtureRepo = makeFixtureRepo(scratch, "api-base");
 
 		await initTeam({ name: "Acme", root: teamRoot, dbPath });
@@ -130,7 +132,7 @@ describe("PM → engineer skill assignment", () => {
 	}, 120_000);
 
 	afterAll(() => {
-		delete process.env.ZETA_TEAM_DB;
+		releaseEnv?.();
 		try {
 			fs.rmSync(scratch, { recursive: true, force: true });
 		} catch {

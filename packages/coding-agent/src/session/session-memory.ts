@@ -11,6 +11,8 @@ import type { MemoryBackendStartOptions } from "../memory-backend/types";
 import type { MnemopiSessionState } from "../mnemopi/state";
 import { releaseSharpshooterSession } from "../sharpshooter/backend";
 import { releaseTasteSession, startTasteSession } from "../taste/lifecycle";
+import { canonicalMemoryNamespace } from "../memories";
+import { startWindowLearning, type WindowLearningHandle } from "../memory-backend/window-learning";
 
 import { cfgMemoryBackend } from "../memory-backend/settings";
 
@@ -51,7 +53,8 @@ export interface SessionMemoryHost {
 	setHindsightSessionState(state: HindsightSessionState | undefined): void;
 	getMnemopiSessionState(): MnemopiSessionState | undefined;
 	takeMnemopiSessionState(): MnemopiSessionState | undefined;
-	setBaseSystemPrompt(prompt: string[]): void;
+	/** Restores the base prompt captured before a memory promotion; the committed prompt sources stay. */
+	restoreBaseSystemPromptBeforeMemoryPromotion(prompt: string[]): void;
 	refreshBaseSystemPrompt(): Promise<void>;
 	replaceMemoryTools(tools: AgentTool[]): Promise<void>;
 }
@@ -61,6 +64,7 @@ export class SessionMemory {
 	readonly #host: SessionMemoryHost;
 	readonly #memoryAgentDir: string | undefined;
 	readonly #memoryTaskDepth: number;
+	#windowLearning?: WindowLearningHandle;
 	readonly #createMemoryTools: (() => Promise<AgentTool[]>) | undefined;
 	#memoryBackendTransition: Promise<void> = Promise.resolve();
 	#localMemoryStartupAbort: AbortController | undefined;
@@ -233,7 +237,7 @@ export class SessionMemory {
 		const resetHindsight = this.#resetHindsightConversationTrackingIfHindsight();
 		const resetMnemopi = this.#resetMnemopiConversationTrackingIfMnemopi();
 		if (hadPromotedMemoryPrompt) {
-			this.#host.setBaseSystemPrompt(this.#baseSystemPromptBeforeMemoryPromotion!);
+			this.#host.restoreBaseSystemPromptBeforeMemoryPromotion(this.#baseSystemPromptBeforeMemoryPromotion!);
 			this.#baseSystemPromptBeforeMemoryPromotion = undefined;
 		}
 		if (resetHindsight || resetMnemopi || hadPromotedMemoryPrompt) {
@@ -262,6 +266,13 @@ export class SessionMemory {
 
 	async #disposeMemoryBackendState(consolidateMnemopi = true, retainMnemopi = true): Promise<void> {
 		this.cancelLocalMemoryStartup();
+		try {
+			await this.#windowLearning?.stop();
+		} catch (error) {
+			logger.warn("Memory lifecycle: window learning stop failed", { error: String(error) });
+		} finally {
+			this.#windowLearning = undefined;
+		}
 		try {
 			releaseSharpshooterSession(this.#host.memoryBackendSession());
 		} catch (error) {
@@ -345,6 +356,21 @@ export class SessionMemory {
 					agentDir: this.#memoryAgentDir,
 					taskDepth: this.#memoryTaskDepth,
 				});
+				try {
+					const session = this.#host.memoryBackendSession();
+					this.#windowLearning = await startWindowLearning({
+						session,
+						settings: this.#host.settings,
+						modelRegistry: this.#host.modelRegistry,
+						agentDir: this.#memoryAgentDir,
+						namespace:
+							session.sessionManager?.getMemoryNamespace?.() ??
+							canonicalMemoryNamespace(session.sessionManager.getCwd()),
+						taskDepth: this.#memoryTaskDepth,
+					});
+				} catch (error) {
+					logger.warn("Memory lifecycle: window learning startup failed", { error: String(error) });
+				}
 				// The taste layer is not a backend: it refines whichever one just
 				// started, so it follows the backend lifecycle exactly (same agent
 				// dir, same task-depth gate) and stops when the backend is torn down.

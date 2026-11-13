@@ -102,6 +102,10 @@ class ReplayTestSession {
 
 	setMcpServerInstructionsSource(_source: unknown): void {}
 
+	getEnabledToolNames(): string[] {
+		return [];
+	}
+
 	registerSessionChangeCallback(_callback: () => void): () => void {
 		return () => {};
 	}

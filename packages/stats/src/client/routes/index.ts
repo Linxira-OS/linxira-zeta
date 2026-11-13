@@ -9,4 +9,5 @@ export * from "./ProvidersRoute";
 export * from "./RequestsRoute";
 export * from "./SpotlightRoute";
 export * from "./ToolsRoute";
+export * from "./TrackingRoute";
 export * from "./TracesRoute";

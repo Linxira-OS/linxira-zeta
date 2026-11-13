@@ -33,7 +33,13 @@ import type { AgentSession } from "../../session/agent-session";
 import { getRpcSession } from "./agents";
 
 /** Category ids, in panel/legend order. Stable wire contract. */
-export type ContextUsageCategoryId = "systemPrompt" | "systemTools" | "systemContext" | "skills" | "messages";
+export type ContextUsageCategoryId =
+	| "systemPrompt"
+	| "systemTools"
+	| "systemContext"
+	| "instructionFiles"
+	| "skills"
+	| "messages";
 
 export interface ContextUsageCategory {
 	id: ContextUsageCategoryId;
@@ -182,7 +188,10 @@ export function buildContextUsageReport(session: AgentSession): ContextUsageRepo
 		contextWindow: breakdown.contextWindow,
 		usedTokens: breakdown.usedTokens,
 		percent: breakdown.contextWindow > 0 ? (breakdown.usedTokens / breakdown.contextWindow) * 100 : 0,
-		categories: breakdown.categories.map(category => ({ id: category.id, tokens: category.tokens })),
+		categories: breakdown.categories.map(category => ({
+			id: category.id as ContextUsageCategoryId,
+			tokens: category.tokens,
+		})),
 		tools: computeToolOccupancy(session),
 		freeTokens: breakdown.freeTokens,
 		autoCompactBufferTokens: breakdown.autoCompactBufferTokens,

@@ -41,7 +41,7 @@ pub struct LaunchSpec {
     pub cwd: PathBuf,
     /// A shell command run first; the adapter starts only if it succeeds.
     pub build: Option<String>,
-    /// Environment of the build and the adapter.
+    /// Environment of the build, the adapter and the program.
     pub env: Vec<(String, String)>,
     /// What the session is called in the panel.
     pub label: String,
@@ -530,9 +530,18 @@ impl Session {
         let tx = self.inbox_tx.clone();
         std::thread::spawn(move || {
             let mut reader = BufReader::new(stream);
-            while let Ok(Some(message)) = read_message(&mut reader) {
-                if tx.send(Incoming::Message(message)).is_err() {
-                    return;
+            loop {
+                match read_message(&mut reader) {
+                    Ok(Some(message)) => {
+                        if tx.send(Incoming::Message(message)).is_err() {
+                            return;
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(e) => {
+                        log::warn!("Debug session: dropping the adapter connection: {e}");
+                        break;
+                    }
                 }
             }
             let _ = tx.send(Incoming::Closed);
@@ -609,6 +618,11 @@ impl Session {
             "command": command,
             "arguments": arguments,
         }));
+        if self.writer.is_none() {
+            // Never sent, so never answered: left in, it would keep the
+            // session looking busy.
+            self.pending.remove(&seq);
+        }
     }
 
     /// Apply what arrived from the adapter and the build. Returns whether
@@ -645,6 +659,8 @@ impl Session {
                 }
                 Incoming::Closed => {
                     self.writer = None;
+                    // Nothing more will be answered.
+                    self.pending.clear();
                     self.flush_partial();
                     if self.status == Status::Starting {
                         self.failed_to_start(&mut queue);
@@ -858,6 +874,7 @@ impl Session {
                     &self.spec.cwd,
                     self.spec.console,
                     self.spec.tty.as_deref(),
+                    &self.spec.env,
                 );
                 self.request("launch", arguments, Pending::Launch);
             }

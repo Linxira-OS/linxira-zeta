@@ -183,6 +183,30 @@ Loading is automatic — there is no need to instruct the agent to search for `A
 
 When workspace-tree scanning is enabled (`includeWorkspaceTree`), deeper-directory `AGENTS.md` files that were _not_ auto-loaded (for example, ones below the current directory) are surfaced separately in a `<dir-context>` block that lists their paths and tells the agent to read them before editing those directories. Those files are pointers, not full injected content.
 
+## Editing a context file while a session runs
+
+A context file or `SYSTEM.md` can be edited, replaced, renamed or deleted while a session
+runs; the next provider request carries the new bytes without restarting.
+
+- At the start of each turn the session re-checks **the files this session actually
+  rendered from** (bounded `stat`, at most 64 files per turn, rotating when the set is
+  larger): a changed, replaced, deleted, or newly discovered file triggers one rebuild of
+  the base system prompt before the request is assembled. A byte-identical file is not a
+  change.
+- The check never walks the tree. It also watches the directories those files live in (the
+  cwd's ancestor chain and the agent directory) at depth 0, so a context or custom-prompt
+  file created or removed in a parent native directory is noticed; events are debounced and
+  only mark the session dirty.
+- A turn that is already streaming is never altered: the change applies at the next turn.
+- Because the rendered system prompt is part of the prompt-cache key, a rebuild that
+  changes its bytes invalidates the key once; an unchanged rebuild keeps it.
+- Files that were never discovered — foreign sources that were not opted in, disabled
+  providers, or files filtered out for this session — stay out of the prompt. Hot reload
+  observes the session's own discovered set, so provenance and consent are unchanged.
+
+The mechanism reuses the ordinary refresh path (the same one a `/clear` or a cwd change
+uses); there is no separate hot-reload configuration.
+
 ## `@` imports
 
 Inside any context file, an `@path` token expands inline to the referenced file's content before injection:

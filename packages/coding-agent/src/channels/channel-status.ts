@@ -1,42 +1,44 @@
 /**
- * Config/flag resolution, `channels status` snapshots, and credential toggles
- * shared by the `zetacode channels` command and the session host.
+ * Config/flag resolution and `channels status` snapshots for IM instances.
  *
- * `web.yml` remains the single source of truth for enabled channels and their
- * credentials. The lock file only describes who is currently hosting the
- * runtime (see `instance-lock.ts`), so the gateway and the CLI observe the
- * same state rather than keeping parallel registries.
+ * `web.yml` is the only truth source. The lock file says which process hosts
+ * which instance ids; it is not a second config store.
  */
 
 import * as path from "node:path";
-import type { ChannelId } from "@linxiraos/pi-channels";
-import { WeChatChannel } from "@linxiraos/pi-channels";
+import type { ChannelInstanceConfig, ChannelPlatform, ImAgentProfile } from "../channels/im-config";
+import { INSTANCE_ID_RE, credentialFields } from "../channels/im-config";
+import { WeChatChannel, type WeChatCredentialSink } from "@linxiraos/pi-channels";
 import type { WebConfig, WebConfigData } from "../config/web-config";
 import { channelLockPath, type ChannelLockSnapshot, readChannelLock } from "./instance-lock";
+import { resolveTeamDbPath, TeamDb } from "../team/db";
 
-export const CHANNEL_IDS: readonly ChannelId[] = ["wechat", "feishu", "telegram", "discord", "qq"];
+export const CHANNEL_PLATFORMS: readonly ChannelPlatform[] = ["wechat", "feishu", "telegram", "discord", "qq"];
 
-export function isChannelId(value: string): value is ChannelId {
-	return CHANNEL_IDS.includes(value as ChannelId);
+export function isChannelInstanceId(value: string): boolean {
+	return INSTANCE_ID_RE.test(value);
+}
+
+export function isChannelPlatform(value: string): value is ChannelPlatform {
+	return (CHANNEL_PLATFORMS as readonly string[]).includes(value);
 }
 
 export type ChannelHostingSource = "none" | "web.yml" | "flag" | "flag+web.yml";
 
 export interface ChannelHostingPlan {
 	shouldStart: boolean;
-	/** Which input(s) requested the runtime; useful for diagnostics and tests. */
 	source: ChannelHostingSource;
-	/** Channels enabled in `web.yml` (the runtime starts exactly these). */
-	enabled: ChannelId[];
+	enabled: string[];
 }
 
-/** Decide whether a normal session should host channels. */
 export function resolveChannelHosting(
 	webConfig: Pick<WebConfig, "getData">,
 	channelsFlag: boolean,
 ): ChannelHostingPlan {
-	const data = webConfig.getData();
-	const enabled = CHANNEL_IDS.filter(id => data.channels[id].enabled);
+	const enabled = webConfig
+		.getData()
+		.channels.instances.filter(instance => instance.enabled)
+		.map(instance => instance.id);
 	const source: ChannelHostingSource =
 		channelsFlag && enabled.length > 0
 			? "flag+web.yml"
@@ -48,25 +50,19 @@ export function resolveChannelHosting(
 	return { shouldStart: channelsFlag || enabled.length > 0, source, enabled };
 }
 
-export interface ChannelWorkspaceRoute {
-	/** Channel-specific default workspace from `web.yml`, if configured. */
-	workspaceRoot: string | null;
-	/** Registered alias for that path, when `remote.workspaces` names it. */
-	alias: string | null;
-	source: "config" | "default";
-}
-
 export interface ChannelStatusEntry {
-	id: ChannelId;
+	id: string;
+	platform: ChannelPlatform;
+	label: string;
 	enabled: boolean;
-	/** Required credentials are present (WeChat can pair by QR instead). */
 	configured: boolean;
-	/** Live runtime membership, read from the hosting lock. */
 	running: boolean;
-	/** Distinct chats currently bound to this channel. */
 	boundPeers: number;
-	workspaceRoute: ChannelWorkspaceRoute;
-	/** How this channel authenticates. */
+	agentProfileId: string;
+	agentProfileLabel: string;
+	targetDisplay: string;
+	targetAvailable: boolean;
+	targetReason?: string;
 	login: "qr" | "credentials" | "endpoint";
 }
 
@@ -76,60 +72,114 @@ export interface ChannelRuntimeStatus {
 	host: "serve" | "cli" | null;
 	startedAt: string | null;
 	sessionId: string | null;
-	channels: ChannelId[];
+	instances: string[];
 	stale: boolean;
 }
 
 export interface ChannelsStatusJson {
 	configPath: string;
 	runtime: ChannelRuntimeStatus;
-	channels: ChannelStatusEntry[];
+	instances: ChannelStatusEntry[];
 }
 
-function normalizedPathKey(value: string): string {
-	const normalized = path.normalize(value);
-	return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+function cred(instance: ChannelInstanceConfig, key: string): unknown {
+	return instance.credentials[key];
 }
 
-function channelConfigured(data: WebConfigData, id: ChannelId): boolean {
-	switch (id) {
+function configuredFor(instance: ChannelInstanceConfig): boolean {
+	switch (instance.platform) {
 		case "wechat":
-			return Boolean(data.channels.wechat.botToken);
+			return Boolean(cred(instance, "botToken"));
 		case "feishu":
-			return Boolean(data.channels.feishu.appId && data.channels.feishu.appSecret);
+			return Boolean(cred(instance, "appId") && cred(instance, "appSecret"));
 		case "telegram":
-			return Boolean(data.channels.telegram.botToken);
+			return Boolean(cred(instance, "botToken"));
 		case "discord":
-			return Boolean(data.channels.discord.botToken);
+			return Boolean(cred(instance, "botToken"));
 		case "qq":
-			// Reverse mode needs a port + token; forward mode needs an endpoint.
-			return data.channels.qq.mode === "reverse"
-				? Boolean(data.channels.qq.token)
-				: Boolean(data.channels.qq.endpoint);
+			return cred(instance, "mode") === "reverse"
+				? Boolean(cred(instance, "token"))
+				: Boolean(cred(instance, "endpoint"));
 	}
 }
 
-function boundPeerCount(data: WebConfigData, id: ChannelId): number {
+function boundPeers(data: WebConfigData, instanceId: string): number {
 	const peers = new Set<string>();
-	for (const mapping of data.remote.sessionMappings ?? []) {
-		if (mapping.platform === id && mapping.chatId) peers.add(mapping.chatId);
+	for (const binding of data.remote.imBindings ?? []) {
+		if (binding.instanceId === instanceId) peers.add(binding.chatId);
 	}
-	if (id === "wechat") {
-		for (const peer of Object.keys(data.channels.wechat.peerTokens ?? {})) peers.add(peer);
-	}
+	const instance = data.channels.instances.find(candidate => candidate.id === instanceId);
+	for (const peer of Object.keys(instance?.options?.peerTokens ?? {})) peers.add(peer);
 	return peers.size;
 }
 
-function workspaceRouteFor(webConfig: WebConfig, workspaceRoot: string | undefined): ChannelWorkspaceRoute {
-	if (!workspaceRoot) return { workspaceRoot: null, alias: null, source: "default" };
-	const key = normalizedPathKey(workspaceRoot);
-	const entry = webConfig.getWorkspaces().find(workspace => normalizedPathKey(workspace.path) === key);
-	return { workspaceRoot, alias: entry?.alias ?? null, source: "config" };
+async function targetDisplay(
+	profile: ImAgentProfile | undefined,
+): Promise<{ display: string; available: boolean; reason?: string }> {
+	if (!profile) return { display: "missing agent profile", available: false, reason: "unknown-profile" };
+	const target = profile.location;
+	if (target.kind === "workspace") return { display: `workspace:${target.workspace}`, available: true };
+	let db: TeamDb | null = null;
+	try {
+		db = new TeamDb(resolveTeamDbPath());
+		const team = db.listTeams().find(candidate => candidate.name === target.team || candidate.id === target.team);
+		if (!team) return { display: `Team ${target.team}`, available: false, reason: "unknown-team" };
+		const pm = db.listPms(team.id).find(candidate => candidate.name === target.pm || candidate.id === target.pm);
+		if (!pm) return { display: `Team ${team.name} · PM ${target.pm}`, available: false, reason: "unknown-pm" };
+		if (target.kind === "team-pm") return { display: `Team ${team.name} · PM ${pm.name}`, available: true };
+		const engineer = db
+			.listEngineers(team.id)
+			.find(
+				candidate =>
+					candidate.pmId === pm.id && (candidate.name === target.engineer || candidate.id === target.engineer),
+			);
+		if (!engineer) {
+			return {
+				display: `Team ${team.name} · PM ${pm.name} · engineer ${target.engineer}`,
+				available: false,
+				reason: "unknown-engineer",
+			};
+		}
+		let worktrees = db
+			.listWorktrees(team.id)
+			.filter(candidate => candidate.engineerId === engineer.id && candidate.kind === "home");
+		if (target.repo) {
+			const repo = db.getRepo(team.id, target.repo) ?? db.getRepoById(target.repo);
+			if (!repo)
+				return {
+					display: `Team ${team.name} · engineer ${engineer.name}`,
+					available: false,
+					reason: "unknown-repo",
+				};
+			worktrees = worktrees.filter(candidate => candidate.repoId === repo.id);
+		}
+		if (worktrees.length === 0)
+			return {
+				display: `Team ${team.name} · engineer ${engineer.name}`,
+				available: false,
+				reason: "no-home-worktree",
+			};
+		if (worktrees.length > 1)
+			return {
+				display: `Team ${team.name} · engineer ${engineer.name}`,
+				available: false,
+				reason: "ambiguous-repo",
+			};
+		return { display: `Team ${team.name} · PM ${pm.name} · engineer ${engineer.name}`, available: true };
+	} catch (error) {
+		return {
+			display: `Team ${target.team}`,
+			available: false,
+			reason: `team-db-unavailable: ${error instanceof Error ? error.message : String(error)}`,
+		};
+	} finally {
+		db?.close();
+	}
 }
 
 function runtimeFromLock(lock: ChannelLockSnapshot | null): ChannelRuntimeStatus {
 	if (!lock) {
-		return { hosting: false, pid: null, host: null, startedAt: null, sessionId: null, channels: [], stale: false };
+		return { hosting: false, pid: null, host: null, startedAt: null, sessionId: null, instances: [], stale: false };
 	}
 	const live = lock.alive && lock.metadata.pid !== 0;
 	return {
@@ -138,17 +188,11 @@ function runtimeFromLock(lock: ChannelLockSnapshot | null): ChannelRuntimeStatus
 		host: lock.metadata.host,
 		startedAt: lock.metadata.startedAt || null,
 		sessionId: lock.metadata.sessionId ?? null,
-		channels: live ? lock.metadata.channels : [],
+		instances: live ? lock.metadata.instances.map(instance => instance.id) : [],
 		stale: !lock.alive,
 	};
 }
 
-/**
- * Snapshot every channel for `zetacode channels status --json`.
- *
- * `lock` is injectable for tests; production reads `<agent dir>/run/channels.lock`
- * next to the loaded `web.yml`.
- */
 export async function collectChannelStatus(
 	webConfig: WebConfig,
 	options: { lock?: ChannelLockSnapshot | null } = {},
@@ -157,102 +201,98 @@ export async function collectChannelStatus(
 	const lock =
 		options.lock !== undefined ? options.lock : await readChannelLock(channelLockPath(path.dirname(webConfig.path)));
 	const runtime = runtimeFromLock(lock);
-	const channels = CHANNEL_IDS.map((id): ChannelStatusEntry => {
-		const channel = data.channels[id];
-		return {
-			id,
-			enabled: channel.enabled,
-			configured: channelConfigured(data, id),
-			running: runtime.hosting && runtime.channels.includes(id),
-			boundPeers: boundPeerCount(data, id),
-			workspaceRoute: workspaceRouteFor(webConfig, channel.workspaceRoot),
-			login: id === "wechat" ? "qr" : id === "qq" ? "endpoint" : "credentials",
-		};
-	});
-	return { configPath: webConfig.path, runtime, channels };
+	const instances: ChannelStatusEntry[] = [];
+	for (const instance of data.channels.instances) {
+		const profile = data.imAgents.find(candidate => candidate.id === instance.agentProfile);
+		const target = await targetDisplay(profile);
+		instances.push({
+			id: instance.id,
+			platform: instance.platform,
+			label: instance.label,
+			enabled: instance.enabled,
+			configured: configuredFor(instance),
+			running: runtime.hosting && runtime.instances.includes(instance.id),
+			boundPeers: boundPeers(data, instance.id),
+			agentProfileId: instance.agentProfile,
+			agentProfileLabel: profile?.label ?? instance.agentProfile,
+			targetDisplay: target.display,
+			targetAvailable: target.available,
+			...(target.reason ? { targetReason: target.reason } : {}),
+			login: instance.platform === "wechat" ? "qr" : instance.platform === "qq" ? "endpoint" : "credentials",
+		});
+	}
+	return { configPath: webConfig.path, runtime, instances };
 }
 
-/** Persist `channels.<id>.enabled` through the same config API the GUI uses. */
 export async function setChannelEnabled(
 	webConfig: WebConfig,
-	channel: ChannelId,
+	instanceId: string,
 	enabled: boolean,
-): Promise<{ channel: ChannelId; enabled: boolean }> {
-	await webConfig.set(`channels.${channel}.enabled`, enabled);
-	return { channel, enabled };
+): Promise<{ instanceId: string; enabled: boolean }> {
+	await webConfig.setInstance(instanceId, { enabled });
+	return { instanceId, enabled };
 }
 
 export interface ChannelLogoutResult {
-	channel: ChannelId;
+	instanceId: string;
 	cleared: string[];
 }
 
-/** Minimal adapter seam so tests can drive logout without a network. */
 export interface WechatLogoutChannel {
 	unbind(): Promise<void>;
 }
 
 export interface LogoutChannelOptions {
 	createWechatChannel?: (options: ConstructorParameters<typeof WeChatChannel>[0]) => WechatLogoutChannel;
-	/** Test seam for the adapter's `channel_reset` request (failure still clears local credentials). */
 	customFetch?: typeof globalThis.fetch;
 }
 
-/**
- * Clear a channel's credentials. WeChat goes through the adapter's `unbind`,
- * exactly like the gateway's unbind route, so `channel_reset`, peer tokens and
- * every persisted credential field stay in lockstep. Feishu/Telegram have no
- * adapter-side logout and only need their secret fields emptied.
- */
+/** Clear one instance's credentials; WeChat also asks iLink to reset. */
 export async function logoutChannel(
 	webConfig: WebConfig,
-	channel: ChannelId,
+	instanceId: string,
 	options: LogoutChannelOptions = {},
 ): Promise<ChannelLogoutResult> {
-	const data = webConfig.getData();
-	if (channel === "wechat") {
+	const instance = webConfig.getChannelInstance(instanceId);
+	if (!instance) throw new Error(`Unknown channel instance: ${instanceId}`);
+	const fields = credentialFields(instance.platform);
+	if (instance.platform === "wechat") {
+		const sink: WeChatCredentialSink = {
+			setField: async (field, value) => {
+				await webConfig.setInstance(instanceId, {
+					credentials: { ...(instance.credentials as Record<string, unknown>), [field]: value },
+				});
+			},
+			setPeerTokens: async peerTokens => {
+				await webConfig.setInstance(instanceId, { options: { ...instance.options, peerTokens } });
+			},
+			clear: async () => {
+				await webConfig.setInstance(instanceId, {
+					credentials: {},
+					options: { ...instance.options, peerTokens: {} },
+				});
+			},
+		};
 		const create =
 			options.createWechatChannel ??
 			((channelOptions: ConstructorParameters<typeof WeChatChannel>[0]) => new WeChatChannel(channelOptions));
 		const adapter = create({
+			instanceId,
 			config: {
-				botToken: data.channels.wechat.botToken,
-				ilinkBotId: data.channels.wechat.ilinkBotId,
-				ilinkUserId: data.channels.wechat.ilinkUserId,
-				baseUrl: data.channels.wechat.baseUrl,
-				endpoint: data.channels.wechat.endpoint,
-				peerTokens: data.channels.wechat.peerTokens,
+				botToken: cred(instance, "botToken") as string | undefined,
+				ilinkBotId: cred(instance, "ilinkBotId") as string | undefined,
+				ilinkUserId: cred(instance, "ilinkUserId") as string | undefined,
+				baseUrl: cred(instance, "baseUrl") as string | undefined,
+				endpoint: cred(instance, "endpoint") as string | undefined,
+				peerTokens: instance.options?.peerTokens,
 			},
-			webConfig,
+			credentialSink: sink,
 			onMessage: () => {},
 			...(options.customFetch ? { customFetch: options.customFetch } : {}),
 		});
 		await adapter.unbind();
-		return {
-			channel,
-			cleared: [
-				"channels.wechat.botToken",
-				"channels.wechat.ilinkBotId",
-				"channels.wechat.ilinkUserId",
-				"channels.wechat.peerTokens",
-			],
-		};
+		return { instanceId, cleared: fields };
 	}
-	if (channel === "telegram") {
-		await webConfig.set("channels.telegram.botToken", "");
-		return { channel, cleared: ["channels.telegram.botToken"] };
-	}
-	if (channel === "discord") {
-		await webConfig.set("channels.discord.botToken", "");
-		return { channel, cleared: ["channels.discord.botToken"] };
-	}
-	if (channel === "qq") {
-		await webConfig.set("channels.qq.endpoint", "");
-		await webConfig.set("channels.qq.token", "");
-		await webConfig.set("channels.qq.selfId", "");
-		return { channel, cleared: ["channels.qq.endpoint", "channels.qq.token", "channels.qq.selfId"] };
-	}
-	await webConfig.set("channels.feishu.appId", "");
-	await webConfig.set("channels.feishu.appSecret", "");
-	return { channel, cleared: ["channels.feishu.appId", "channels.feishu.appSecret"] };
+	await webConfig.setInstance(instanceId, { credentials: {} });
+	return { instanceId, cleared: fields };
 }

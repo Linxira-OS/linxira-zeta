@@ -92,6 +92,9 @@ pub trait Translation: Send + Sync {
     fn editor_close_unsaved_question(&self) -> &str;
     fn editor_save_and_close(&self) -> &str;
     fn editor_close_without_saving(&self) -> &str;
+    fn editor_stop_editing(&self) -> &str;
+    fn editor_save_and_view(&self) -> &str;
+    fn editor_view_without_saving(&self) -> &str;
     fn editor_cancel(&self) -> &str;
     fn editor_close_external(&self) -> &str;
     fn editor_close_external_question(&self) -> &str;
@@ -114,6 +117,21 @@ pub trait Translation: Send + Sync {
     fn vfs_reconnect(&self) -> &str;
     fn vfs_open_local(&self) -> &str;
     fn vfs_close_panel(&self) -> &str;
+    /// SSH server key verification: the unknown-key question and the
+    /// refusals of a changed or revoked key. `host` is `host` or
+    /// `[host]:port`, the form `known_hosts` records.
+    fn vfs_host_key_title(&self) -> &str;
+    fn vfs_host_key_unknown(&self, host: &str) -> String;
+    fn vfs_host_key_host(&self) -> &str;
+    fn vfs_host_key_type(&self) -> &str;
+    fn vfs_host_key_fingerprint(&self) -> &str;
+    fn vfs_host_key_remember(&self) -> &str;
+    fn vfs_host_key_once(&self) -> &str;
+    fn vfs_host_key_changed_title(&self) -> &str;
+    fn vfs_host_key_changed(&self, host: &str, location: &str) -> String;
+    fn vfs_host_key_changed_session(&self, host: &str) -> String;
+    fn vfs_host_key_revoked(&self, host: &str, location: &str) -> String;
+    fn vfs_host_key_strict(&self, host: &str, fingerprint: &str) -> String;
     fn db_reconnect(&self) -> &str;
     fn db_close_panel(&self) -> &str;
     fn connection_timeout_title(&self) -> &str;
@@ -241,6 +259,8 @@ pub trait Translation: Send + Sync {
     fn lsp_rename_no_identifier(&self) -> &str;
     fn lsp_rename_unsaved_file(&self) -> &str;
     fn lsp_rename_no_changes(&self) -> &str;
+    fn lsp_restart_server(&self) -> &str;
+    fn lsp_restart_no_server(&self) -> &str;
     fn lsp_rename_result(&self, count: usize) -> String;
 
     fn help_desc_word_nav(&self) -> &str;
@@ -380,6 +400,9 @@ pub trait Translation: Send + Sync {
     fn vault_stored_refused(&self, target: &str) -> String;
     fn vault_password_refused(&self, target: &str) -> String;
     fn vault_error(&self, error: &str) -> String;
+    /// A renamed connection's API key could not follow it: the vault was
+    /// not unlocked.
+    fn vault_api_key_not_moved(&self, from: &str, to: &str) -> String;
     fn git_username_prompt(&self, target: &str) -> String;
     fn status_vfs_connecting(&self, host: &str) -> String;
     /// Status while an archive's table of contents is read.
@@ -754,6 +777,9 @@ pub trait Translation: Send + Sync {
     /// Nowhere to return a carried-on delegate's answer: no panel holds the
     /// session that delegated it.
     fn agent_notice_no_parent_panel(&self) -> &str;
+    /// Agent panel notice: a session opened with messages from other agents
+    /// waiting in its log for the next request.
+    fn agent_notice_held_messages_fmt(&self, count: usize) -> String;
     fn agent_unfinished_continue(&self) -> &str;
     fn agent_unfinished_drop(&self) -> &str;
     fn agent_unfinished_later(&self) -> &str;
@@ -776,12 +802,14 @@ pub trait Translation: Send + Sync {
     fn agent_strip_after_step(&self) -> &str;
     /// Agent panel state strip: a delegated task held at the panel's pause.
     fn agent_strip_paused(&self) -> &str;
-    /// Agent panel state strip: a delegated task a pause cannot hold.
-    fn agent_strip_keeps_running(&self) -> &str;
+    /// Agent panel state strip: an agent's terminal session.
+    fn agent_strip_terminal(&self) -> &str;
+    /// Agent panel state strip: a terminal running nothing.
+    fn agent_strip_idle(&self) -> &str;
+    /// Agent panel state strip: a terminal whose shell has exited.
+    fn agent_strip_ended(&self) -> &str;
     /// Agent panel state strip: the delegates held at the panel's pause.
     fn agent_strip_pause_held_fmt(&self, count: usize) -> String;
-    /// Agent panel state strip: the delegated tasks still going at it.
-    fn agent_strip_pause_running_fmt(&self, count: usize) -> String;
     /// Agent panel state strip: a goal's judge deciding whether it is reached.
     fn agent_strip_checking(&self) -> &str;
     /// Agent panel state strip: when a failed request is tried again; the
@@ -807,6 +835,30 @@ pub trait Translation: Send + Sync {
     fn agent_info_tokens(&self) -> &str;
     fn agent_info_context(&self) -> &str;
     fn agent_info_output_cleaned(&self) -> &str;
+    fn agent_info_spent_by(&self) -> &str;
+    fn agent_info_by_model(&self) -> &str;
+    fn agent_info_cache_hits(&self) -> &str;
+    fn agent_info_thinking(&self) -> &str;
+    fn agent_spender_main(&self) -> &str;
+    fn agent_spender_subagent(&self) -> &str;
+    fn agent_spender_reviewer(&self) -> &str;
+    fn agent_spender_recall(&self) -> &str;
+    fn agent_spender_compaction(&self) -> &str;
+    fn agent_spender_goal_judge(&self) -> &str;
+    fn agent_spender_handoff(&self) -> &str;
+    fn agent_spender_tool(&self) -> &str;
+    fn agent_spender_internal(&self) -> &str;
+    fn agent_model_unknown(&self) -> &str;
+    fn agent_info_context_parts(&self) -> &str;
+    fn agent_info_by_tool(&self) -> &str;
+    fn agent_context_system(&self) -> &str;
+    fn agent_context_tools(&self) -> &str;
+    fn agent_context_skills(&self) -> &str;
+    fn agent_context_tool_output(&self) -> &str;
+    fn agent_context_conversation(&self) -> &str;
+    fn agent_context_summary(&self) -> &str;
+    fn agent_context_agent(&self) -> &str;
+    fn agent_tools_others(&self) -> &str;
     fn agent_chip_agent(&self) -> &str;
     fn agent_chip_mode(&self) -> &str;
     fn agent_chip_reasoning(&self) -> &str;
@@ -885,6 +937,8 @@ pub trait Translation: Send + Sync {
     fn agent_running_command_fmt(&self, name: &str) -> String;
     fn agent_notice_external_failed_fmt(&self, error: &str) -> String;
     fn agent_queued_fmt(&self, count: usize) -> String;
+    /// Agent panel status bar: how many terminals the session has open.
+    fn agent_terminals_open_fmt(&self, count: usize) -> String;
     fn settings_value_default_fmt(&self, value: &str) -> String;
     /// Settings modal: a CLI agent's context window limit below the least
     /// it takes.
@@ -892,6 +946,9 @@ pub trait Translation: Send + Sync {
     fn projects_delete_failed_fmt(&self, error: &str) -> String;
     fn command_edit_title_fmt(&self, name: &str) -> String;
     fn command_run_failed_fmt(&self, error: &str) -> String;
+    /// A terminal refused to type a line holding control characters: its
+    /// shell has no safe way to escape them.
+    fn terminal_control_chars_refused_fmt(&self, shell: &str) -> String;
     fn command_needs_context_fmt(&self, placeholder: &str) -> String;
     fn command_needs_editor_fmt(&self, placeholder: &str) -> String;
     fn debug_current_file_fmt(&self, file: &str, debugger: &str) -> String;
@@ -993,6 +1050,8 @@ pub trait Translation: Send + Sync {
     fn agent_close_confirm_delegates_fmt(&self, count: usize) -> String;
     fn agent_stop_task_confirm_fmt(&self, agent: &str) -> String;
     fn agent_stop_command_confirm_fmt(&self, command: &str) -> String;
+    /// Agent panel: closing an agent's terminal session from its strip row.
+    fn agent_close_terminal_confirm_fmt(&self, name: &str) -> String;
     fn agent_take_over_confirm_fmt(&self, agent: &str) -> String;
     /// Agent transcript: who sent a message, and from which panel.
     fn agent_peer_from_panel_fmt(&self, agent: &str, panel: &str) -> String;
@@ -1078,6 +1137,7 @@ pub trait Translation: Send + Sync {
         error: &str,
     ) -> String;
     fn agent_notice_compacted_fmt(&self, tokens: u64, kept: usize) -> String;
+    fn agent_notice_compacted_summary_fmt(&self, tokens: u64) -> String;
     fn agent_notice_fitted_fmt(&self, before: u64, after: u64) -> String;
     fn agent_notice_handoff_written_fmt(&self, path: &str) -> String;
     fn agent_notice_no_command_fmt(&self, name: &str, available: &str) -> String;
@@ -1089,6 +1149,7 @@ pub trait Translation: Send + Sync {
     fn agent_notice_unknown_key_fmt(&self, file: &str, key: &str) -> String;
     /// A tool text named after no built-in tool.
     fn agent_notice_unknown_tool_text_fmt(&self, file: &str) -> String;
+    fn agent_notice_unknown_tool_name_fmt(&self, file: &str, name: &str) -> String;
     /// A tool text with no body, passed over whole.
     fn agent_notice_empty_tool_text_fmt(&self, file: &str) -> String;
     fn agent_notice_loop_stopped_max_fmt(&self, count: usize) -> String;
@@ -1166,6 +1227,30 @@ pub trait Translation: Send + Sync {
     fn agent_tool_skill(&self) -> &str;
     /// Agent transcript: the action words for a `task` call (a subagent).
     fn agent_tool_task(&self) -> &str;
+    /// Agent transcript: the action words for a `jobs` call listing what the
+    /// agent set going.
+    fn agent_tool_jobs(&self) -> &str;
+    /// Agent transcript: the action words for a `jobs` call stopping one of
+    /// them, before its id.
+    fn agent_tool_jobs_stop(&self) -> &str;
+    /// Agent transcript: the action words for a `terminals` call listing the
+    /// session's terminals.
+    fn agent_tool_terminals(&self) -> &str;
+    /// Agent transcript: the action words for a `terminals` call reading one,
+    /// before its name.
+    fn agent_tool_terminals_read(&self) -> &str;
+    /// Agent transcript: the action words for a `terminals` call typing into
+    /// one, before its name and what was typed.
+    fn agent_tool_terminals_send(&self) -> &str;
+    /// Agent transcript: the action words for a `terminals` call looking at
+    /// one's screen, before its name.
+    fn agent_tool_terminals_screen(&self) -> &str;
+    /// Agent transcript: the action words for a `terminals` call sending one
+    /// Ctrl+C, before its name.
+    fn agent_tool_terminals_interrupt(&self) -> &str;
+    /// Agent transcript: the action words for a `terminals` call closing one,
+    /// before its name.
+    fn agent_tool_terminals_close(&self) -> &str;
     /// Agent transcript: the action words for an MCP server's tool call.
     fn agent_tool_mcp(&self) -> &str;
     /// Agent transcript: the action words for a `question` call.
@@ -1186,6 +1271,31 @@ pub trait Translation: Send + Sync {
     /// Agent transcript: the action words for a `send_message` note, before
     /// the panel number.
     fn agent_tool_send_info(&self) -> &str;
+    /// Agent transcript: the action words for a `debug` call starting a
+    /// session, before the command or file.
+    fn agent_tool_debug_start(&self) -> &str;
+    /// Agent transcript: `debug` setting a breakpoint, before `file:line`.
+    fn agent_tool_debug_set_breakpoint(&self) -> &str;
+    /// Agent transcript: `debug` removing a breakpoint, before `file:line`.
+    fn agent_tool_debug_clear_breakpoint(&self) -> &str;
+    /// Agent transcript: `debug` resuming the stopped program.
+    fn agent_tool_debug_continue(&self) -> &str;
+    /// Agent transcript: `debug` stepping over the current line.
+    fn agent_tool_debug_step_over(&self) -> &str;
+    /// Agent transcript: `debug` stepping into a call.
+    fn agent_tool_debug_step_in(&self) -> &str;
+    /// Agent transcript: `debug` stepping out of the current function.
+    fn agent_tool_debug_step_out(&self) -> &str;
+    /// Agent transcript: `debug` pausing the running program.
+    fn agent_tool_debug_pause(&self) -> &str;
+    /// Agent transcript: `debug` ending the session.
+    fn agent_tool_debug_stop(&self) -> &str;
+    /// Agent transcript: `debug` evaluating an expression, before it.
+    fn agent_tool_debug_evaluate(&self) -> &str;
+    /// Agent transcript: `debug` selecting a stack frame, before its index.
+    fn agent_tool_debug_frame(&self) -> &str;
+    /// Agent transcript: `debug` reading the session as it stands.
+    fn agent_tool_debug_state(&self) -> &str;
     /// Agent transcript: the action words for another agent's answer, before
     /// its name.
     fn agent_peer_reply(&self) -> &str;
@@ -1212,6 +1322,17 @@ pub trait Translation: Send + Sync {
     fn settings_agent_base_url(&self) -> &str;
     fn settings_agent_model(&self) -> &str;
     fn settings_agent_api_key_env(&self) -> &str;
+    /// Settings modal: the connection's API key kept in the password vault,
+    /// its state and the dropdown's actions.
+    fn settings_agent_api_key(&self) -> &str;
+    fn settings_api_key_stored(&self) -> &str;
+    fn settings_api_key_not_stored(&self) -> &str;
+    fn settings_api_key_enter(&self) -> &str;
+    fn settings_api_key_replace(&self) -> &str;
+    fn settings_api_key_remove(&self) -> &str;
+    fn settings_api_key_move_env(&self) -> &str;
+    /// Settings modal: `api_key_env` holds a key rather than a name.
+    fn settings_api_key_env_misuse(&self) -> &str;
     fn settings_agent_context_window(&self) -> &str;
     fn settings_agent_max_tokens(&self) -> &str;
     fn settings_agent_reasoning(&self) -> &str;
@@ -1252,6 +1373,9 @@ pub trait Translation: Send + Sync {
     fn settings_ai_connection_context_limit(&self) -> &str;
     /// Settings modal: how many requests a connection serves at once.
     fn settings_ai_connection_max_requests(&self) -> &str;
+    /// Settings modal: the switch that identifies termide to an endpoint that
+    /// files usage by the app that sent it.
+    fn settings_ai_connection_attribution(&self) -> &str;
     /// Settings modal: a connection left without a name, or with another's.
     fn settings_ai_connection_name_taken(&self) -> &str;
     /// Settings modal: the permission mode new agent sessions start in.
@@ -1457,6 +1581,8 @@ pub trait Translation: Send + Sync {
     fn projects_change_root(&self) -> &str;
     fn projects_delete_title(&self) -> &str;
     fn projects_delete_fmt(&self, path: &str) -> String;
+    fn projects_open_elsewhere_fmt(&self, path: &str, pid: &str) -> String;
+    fn projects_open_in_instance_fmt(&self, path: &str, id: &str) -> String;
     fn app_quit_background_fmt(&self, projects: &str) -> String;
     fn project_created(&self) -> &str;
     fn project_moved(&self) -> &str;
@@ -1471,6 +1597,7 @@ pub trait Translation: Send + Sync {
     fn detach_not_detached_instance(&self) -> &str;
     fn detach_failed(&self) -> &str;
     fn settings_general_always_detachable(&self) -> &str;
+    fn settings_general_restore_projects(&self) -> &str;
     fn help_desc_detach_instance(&self) -> &str;
 
     // Directory picker
@@ -1637,6 +1764,12 @@ pub trait Translation: Send + Sync {
     fn op_error_not_found(&self) -> &str;
     fn op_error_already_exists(&self) -> &str;
     fn op_error_archive(&self) -> &str;
+    /// Mark of a recent destination among the roots of a path field's tree.
+    fn path_field_recent(&self) -> &str;
+    /// Mark of a drive or mount point among the roots of a path field's tree.
+    fn path_field_mount(&self) -> &str;
+    /// Label of the pack modal's archive format row.
+    fn pack_format_label(&self) -> &str;
     /// Label of the pack modal's compression level row.
     fn pack_compression_label(&self) -> &str;
     fn pack_level_store(&self) -> &str;
@@ -1659,6 +1792,8 @@ pub trait Translation: Send + Sync {
     fn vault_target_ssh_key(&self) -> &str;
     fn palette_lock_vault(&self) -> &str;
     fn vault_move_bookmark_password(&self) -> &str;
+    fn vault_api_key_saved(&self) -> &str;
+    fn vault_api_key_removed(&self) -> &str;
     fn status_vfs_resolving_link(&self) -> &str;
     fn status_vfs_loading(&self) -> &str;
     fn status_vfs_connected(&self) -> &str;
@@ -1791,6 +1926,15 @@ pub trait Translation: Send + Sync {
     fn db_copy_tsv(&self) -> &str;
     fn db_copy_json(&self) -> &str;
     fn db_copy_insert(&self) -> &str;
+
+    // CSV table viewer
+    fn csv_loading(&self) -> &str;
+    fn csv_sorting(&self) -> &str;
+    fn csv_copied_cell(&self) -> &str;
+    fn csv_copied_row(&self) -> &str;
+    fn csv_menu_copy_row(&self) -> &str;
+    fn csv_menu_change_delimiter(&self) -> &str;
+    fn csv_menu_toggle_header(&self) -> &str;
     fn db_filter_operator(&self) -> &str;
     fn db_filter_value(&self) -> &str;
     fn db_filter_hint(&self) -> &str;

@@ -74,9 +74,43 @@ describe("channel message flow with SessionRouter routing", () => {
 	test("!hello and a plain message both produce a channel reply through the relay", async () => {
 		const agentDir = await mkdtemp(join(tmpdir(), "zeta-flow-"));
 		cleanups.push(() => rm(agentDir, { recursive: true, force: true }));
+		await Bun.write(
+			join(agentDir, "web.yml"),
+			JSON.stringify({
+				channels: {
+					instances: [
+						{
+							id: "telegram",
+							platform: "telegram",
+							label: "Telegram",
+							enabled: true,
+							agentProfile: "companion",
+							allow: { peers: ["1001"] },
+							credentials: { botToken: "tok" },
+						},
+					],
+				},
+				imAgents: [
+					{
+						id: "companion",
+						label: "Companion",
+						persona: { mode: "workspace" },
+						location: { kind: "workspace", workspace: "main" },
+						tools: {
+							builtin: [],
+							extensions: [],
+							customTools: [],
+							mcpServers: [],
+							skills: [],
+							commands: [],
+						},
+						memory: {},
+					},
+				],
+				remote: {},
+			}),
+		);
 		const webConfig = await WebConfig.load(join(agentDir, "web.yml"));
-		await webConfig.set("channels.telegram.enabled", true);
-		await webConfig.set("channels.telegram.botToken", "tok");
 
 		// Delivered outbound messages (channel.sendText → mocked fetch).
 		const sent: Array<{ to: string; text: string }> = [];

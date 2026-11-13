@@ -23,10 +23,12 @@ describe("surface matrix table", () => {
 		expect(html).toContain('data-action="ssh-targets" data-access="unavailable"');
 	});
 
-	test("a mobile matrix offers no local action", () => {
+	test("a mobile matrix hides local actions but keeps 2FA verification", () => {
 		const html = renderToStaticMarkup(<SurfaceMatrixTable surface="mobile" />);
 		expect(html).toContain('data-action="im-credentials" data-access="hidden"');
-		expect(html).toContain('data-action="totp" data-access="hidden"');
+		// Verification is allowed on a phone (enrollment stays local); the pane
+		// hides enroll/disable via the read-only reason.
+		expect(html).toContain('data-action="totp" data-access="read-only"');
 		expect(html).toContain('data-action="runtime-install" data-access="hidden"');
 	});
 });
@@ -45,16 +47,18 @@ describe("discoverability", () => {
 	const settings = readFileSync(join(HERE, "..", "SettingsPage.tsx"), "utf8");
 	const palette = readFileSync(join(HERE, "..", "commandPaletteCatalog.ts"), "utf8");
 
-	test("both IM channels and identity & devices are first-class settings groups", () => {
-		expect(settings).toContain('"channels"');
+	test("IM runtime is the single IM settings group", () => {
+		expect(settings).toContain('"imRuntime"');
 		expect(settings).toContain('"security"');
 		expect(settings).toContain("SecuritySettingsPane");
-		expect(settings).toContain("ImChannelsPane");
+		expect(settings).toContain("ImRuntimePage");
+		expect(settings.includes("ImChannelsPane")).toBe(false);
 	});
 
 	test("the command palette can jump straight to either group", () => {
-		expect(palette).toContain('group: "channels"');
+		expect(palette).toContain('group: "imRuntime"');
 		expect(palette).toContain('group: "security"');
+		expect(palette.includes('group: "channels"')).toBe(false);
 	});
 
 	test("the IM pane no longer owns the device/TOTP sections", () => {

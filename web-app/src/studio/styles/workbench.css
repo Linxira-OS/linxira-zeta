@@ -6701,6 +6701,7 @@ button.compact-rule.is-open .compact-rule-chev { transform: rotate(180deg); }
   font-size: var(--fs-11);
   color: var(--text-faint);
 }
+.ce-meta-proj { min-width: 0; max-width: min(12em, 28vw); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ce-meta-sep { width: 1px; height: 10px; background: var(--border-strong); }
 
 :root[data-theme="dark"] .convo-empty {

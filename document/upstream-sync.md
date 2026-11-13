@@ -1,11 +1,73 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.18.2
+## Integrated through: v18.19.0
 
-_(`v18.16.0` was the header until 2026-11-08; the v18.18.0 round below is
-merged onto `sync/omp-release/v18.18.0`, and post-PR-#245 `main` is merged in
-on top. Previous headers: `v18.15.0` until 2026-11-05, `v18.16.0` until this
-round.)_
+**Integrated through**: `v18.19.0`
+
+_(`v18.18.2` was the header until 2026-11-09; the v18.18.3 round is PR #272 on
+`sync/omp-release/v18.18.3`. Previous headers: `v18.16.0` until 2026-11-08,
+`v18.18.0` until the v18.18.2 round. `v18.18.8` is a later official upstream
+release and is NOT integrated; see the probe below.)_
+
+## v18.19.0 integration (2026-11-12)
+
+- **Merge**: source tag `v18.19.0` (`04cd1a7549a02d62ad1d24826198d52507595683`,
+  lightweight release tag re-checked before fetch; release published
+  2026-11-12T03:35:49Z, draft=false, prerelease=false) onto Zeta starting commit
+  `ddb44711b5d05941801ca42b0d4ceed9704c24a4` (docs/owner-hold head). True merge
+  on `sync/omp-release/v18.19.0`; final merge commit
+  `f2ad635e0142bf9c64b8fe8253683da4430698a7` (parents `ddb44711b5d` +
+  `04cd1a7549a0`). No squash/rebase/cherry-pick/partial diff.
+- **Lineage**: prior baseline `v18.18.3` (`21f1188cf88b2f534c092181968cd5a4d1a9c296`);
+  pre-merge `git merge-base HEAD v18.19.0` = `21f1188c...`; post-merge
+  `git merge-base --is-ancestor 04cd1a75... HEAD` passes;
+  `check-merge-lineage --tag v18.19.0` passes on the merged branch.
+- **Conflicts**: 218 paths at first pass — 168 content conflicts, 38
+  delete/modify (Zeta-retired collab/Tern/build-service paths kept deleted),
+  12 modify/delete (upstream deletions accepted). Resolution used the merge
+  driver for the 13 package manifests, scope rewrite of `@oh-my-pi/*` →
+  Zeta names, brand overlay, removal of revived Tern/WebKit/collab paths,
+  and Zeta-owned restoration for mode/update/browser/agent-session surfaces.
+- **Key decisions**: Zeta keeps its release-asset self-update
+  (`cli/update-cli.ts`), browser architecture (own/relay/cmux; upstream
+  Tern/WebKit surface not adopted), collab retirement, `ZETA_*` env names,
+  Todo blocked/lead extensions, and owner-held scope. Incoming non-Tern
+  upstream changes were kept where they did not conflict with those
+  decisions.
+- **Generated artifacts**: `bun install` regenerated `bun.lock` and
+  `viewer.generated.*`; `set-version 1.5.1` aligned Cargo/package/catalog;
+  `fix-changelogs` promoted/pruned upstream release sections; `Cargo.lock`
+  workspace members pinned to 1.5.1. `MODULE.bazel.lock` retains the merged
+  upstream lock; no bazel run locally.
+
+- **Final gate truth (2026-11-12)**: the full `merge-gate --base ddb44711b5d --tag
+  v18.19.0` run finished **RED**: 29 pass / 9 fail / 1 skip. Green: version,
+  type check, brand, Tern/OMP compat, sentinels, shared-infra, host parity,
+  removed files, scope imports, CI surface, asset names, license map, ports,
+  workbench bundles, LSP tables, export viewer, i18n catalogue/commands,
+  serve-discovery, robomp contract, local-ci parity, nix-bun freshness,
+  relay assets, package.json merge, merge-contract regressions, branch registry,
+  cargo fmt, lineage. Red: Bazel lock input hashes (fixed after the run by
+  `--inputs-only`), merge member loss (68 Zeta-only members across 16 files),
+  upstream test/fixture import (Zeta-deleted WebKit/Tern tests), brand regression
+  scan (190 upstream `omp`/`.omp` additions in the merge diff), guard regression
+  tests, TS behaviour suites, stats orphan suite (29 failures), pi-messenger
+  orphan suite (88 failures), Rust nextest (not installed; shallow-clone
+  `test:rs` refusal). The stats/pi-messenger/nextest reds are host/tooling
+  reds; member/brand/audit reds are merge-restoration gaps and are NOT green.
+
+- **Docs follow-up merge**: `docs/qq-wecom-pause` (`19cdfa8e3ffcf93498ec8a02a692d68dd7a7a01a`)
+  merged as `6f831e69739` (docs/ADR-0035/ledger/roadmap/channels); `check:adr` 23 records and
+  `check:reqs` 91 rows pass. Branch registry now covers 134 local branches.
+
+- **Gates**: lint/format and version line repaired; brand-check and Zeta
+  sentinels reached 0/118; removed-upstream-files OK after deleting revived
+  collab/Tern paths; scope imports OK. `merge-gate --base ddb44711b5d --tag
+  v18.19.0` was run: the audit/lineage phases pass, but the command remains
+  **RED** on TypeScript/check guards and i18n command-description parity
+  (65 upstream static descriptions vs Zeta i18n); nix-bun freshness also
+  failed on a missing `normalizeLockfileVersion` export before the later
+  export repair. These are recorded as unresolved, not green.
 
 ## Sync cadence: on demand (2026-10-21 ruling)
 
@@ -2986,6 +3048,33 @@ observation points moved onto the state each assertion actually depends on.
   cleanup with `EBUSY` on Windows only; the four `judgment-chain` cache tests time
   out on `main` as well.
 
+## v18.18.3 integration (2026-11-09)
+
+- **Merge**: PR **#272** `91d36c798785bb84f7771157b7beac20fc78b267`
+  (`Merge pull request #272 from Linxira-OS/sync/omp-release/v18.18.3`) has
+  first parent `b24a09b0d5a54b7c6f67b9b85acfc7d5e2ad9c37` (`main`) and second
+  parent `bdcc8274717307ad9529610aeaa2493332e1143b`
+  (`sync/omp-release/v18.18.3`).
+- **Source tag**: `v18.18.3` = `21f1188cf88b2f534c092181968cd5a4d1a9c296`.
+  Both `git merge-base --is-ancestor v18.18.3 91d36c79878` and
+  `git merge-base --is-ancestor v18.18.3 main` are true; tag-to-tag from the
+  `v18.18.2` baseline (`cb4801a7d6db`) is 55 commits. True merge, no
+  squash/rebase/cherry-pick.
+- **Status**: integrated on `main`; this corrects the earlier header that
+  stopped at `v18.18.2`. `v18.18.8` is **not** integrated.
+
+### Probe 2026-11-11 (read-only, no sync)
+
+- Latest official upstream release: `v18.18.8`
+  (`679691a78141de0dd6ba1b7a5d5c1b1d7d967a63`, published
+  2026-11-11T03:31:40Z), verified with `git ls-remote --tags omp-upstream`
+  and `gh release view`.
+- **Not integrated**: `v18.18.8` is a candidate for a future user-named tag
+  sync, not a baseline. No merge/cherry-pick was performed for this probe.
+- Agent-policy delta: `AGENTS.md` and `CONTRIBUTING.md` are byte-identical from
+  `v18.18.2` through `v18.18.8`; the window's changes are runtime code/docs,
+  not agent rules.
+
 ## v18.18.2 integration (2026-11-09)
 
 - **Merge**: source tag `v18.18.2` (`cb4801a7d6d`) onto the Zeta baseline
@@ -3112,3 +3201,117 @@ observation points moved onto the state each assertion actually depends on.
 - **Environment note**: the local Windows host cannot create symlinks without
   Developer Mode, so `browser-open-options`' UUID-symlink test fails locally
   with `EPERM`; it is not a merge regression and runs on Linux CI.
+
+### v18.19.0 sync gate maintenance record (2026-11-12)
+
+- **Branch**: `sync/omp-release/v18.19.0`; true merge of `v18.19.0`
+  (`04cd1a7549a02d62ad1d24826198d52507595683`) onto
+  `ddb44711b5d05941801ca42b0d4ceed9704c24a4`, initial merge commit
+  `f2ad635e0142bf9c64b8fe8253683da4430698a7`.
+- **Docs merge**: `docs/qq-wecom-pause`
+  (`19cdfa8e3ffcf93498ec8a02a692d68dd7a7a01a`) as `6f831e69739`; ADR-0035
+  and 91 ledger rows landed without rewriting history.
+- **Stats spotlight fix**: `fix/stats-spotlight`
+  (`51c6a275b93e47ea395aedf682f223fbcf9a4641`, "normalize Spotlight read
+  paths against the session cwd") merged with `--no-ff` as
+  `cad02d965c991908019ce176006c4e2a7c19ea72`. Only
+  `packages/stats/src/spotlight-ingest.ts` changed.
+- **Stats result after merge**: `bun test packages/stats/test` — **281 pass,
+  10 skip, 0 fail**. The 10 skips are the Windows platform gate for
+  `startServer port conflicts` (process command-line introspection is not
+  reliable on this host); the suite remains active on Linux CI.
+- **Pricing evidence**: `v18.19.0`'s catalog prices
+  `grok-4.20-multi-agent-0309` at long-context input 2.5 / output 5 /
+  cache-read 0.4. The sync branch's `db-cost.test.ts` expected stale
+  4 / 12 / 0.4, so the test was aligned to the tag catalog rather than
+  changing product prices.
+- **Rust local status**: CI-only on this Windows host. The checkout needs
+  rustc 1.101 (`pi-shell` 1.5.1); installed 1.97.1 is too old, nightly 1.102
+  resolves `link.exe` to GNU `link` instead of MSVC, and the win32
+  `pi-natives` addon is 1.4.4 without the expected `shellBuiltins`. Linux CI
+  runs `bun run test:rs`; local red is not treated as green.
+- **Remaining before full gate**: pi-messenger plugin harness/integration
+  fixes (11 real failures; 3 Windows symlink `EPERM` environment cases).
+- **No push, tag, main merge, or PR was performed.**
+
+### v18.19.0 final branch consolidation (2026-11-13)
+
+Source branches merged into `sync/omp-release/v18.19.0` in order, all as
+`--no-ff` merges:
+
+| Source branch | Head | Merge commit |
+|---|---|---|
+| `fix/stats-spotlight` | `51c6a275b93` | `cad02d965c9` |
+| `fix/pi-messenger` | `ea6a387d603` | `3115afde31f` |
+| `docs/maintenance` | `8e194bc9caf` | `97619ce4592` |
+| `fix/favicon-brand` | `fa54e4eab24` | `478ec4a6183` |
+| `feat/webui-model-config` | `44320ab644c` | `2ca58e0f3ae` |
+| `vendor/termide-0.49.0` | `9027ee09770` | `747890dad35` |
+| `release/1.5.2-prep` | `bb069a2b7cd` | `a89beca5c3e` |
+
+Conflict decisions:
+
+- `document/adr/README.md`: kept both ADR-0035 and ADR-0036.
+- `document/agents/workflow/branch-registry.md`: kept the current sync row,
+  the source-branch rows, and removed the duplicate `release/1.5.2-prep`
+  row introduced by the favicon merge.
+- `document/release.md`: combined the 1.5.2 lightweight asset-tag form from
+  `release/1.5.2-prep` with the sync-side legacy `web-ui` pointer, keeping
+  both statements and not rewriting 1.5.1.
+- No product-side old behavior was restored; termide stayed vendored only
+  (no local rebuild), with VENDOR/baselines retained.
+
+Narrow results after consolidation:
+
+- `bun test packages/stats/test`: 281 pass / 10 skip / 0 fail.
+- pi-messenger `npx vitest run`: 50 files, 450 pass / 0 fail.
+- `check:adr` 24 records, `check:reqs` 91 rows, branch registry 137 branches
+  (136 live), version consistency 1.5.1 — all green.
+- `bun run --cwd web-app build`: green after `npm ci` in `web-app`.
+- Full `bun run merge-gate --base ddb44711b5d --tag v18.19.0` is the
+  remaining gate; Rust remains CI-only on this Windows host
+  (`local-rust: CI-only`, Linux CI runs `bun run test:rs`).
+- **No push, tag, main merge, or PR was performed.**
+
+### Final local gate truth (2026-11-13, after consolidation)
+
+Source-level reds found by the full gate were fixed on the branch:
+
+- `packages/ai/src/auth/cascade.ts`: the upstream v18.19.0 rewrite dropped
+  Zeta's lowest-priority compat mirror tier while the mirror test and
+  `KeysApi` type still required it; the tier is restored on top of upstream's
+  pause guards / `resolveAfterRotation` policy.
+- `packages/ai/test/auth-storage-oauth-refresh-race.test.ts`: stored refreshes
+  go through `AuthStorageOptions.refreshOAuthCredential` now, not
+  `getOAuthApiKey`; the race tests drive that seam and reload the fresh pool.
+- `packages/mnemopi/test/optional-embeddings.test.ts`: upstream's new
+  assertions named `zetacode/` and `https://zeta.sh/`; Zeta ships
+  `zeta/<version>` and `https://linxira-os.github.io/zeta/`.
+- Windows timing bounds (`provider-inflight` cleanup, `ptree-timeout`,
+  natives provider-pool probe, completion-retention probe) use
+  `removeWithRetries` / load-tolerant Windows limits; Linux keeps the tight
+  bounds that carry the regression signal.
+- pi-messenger vitest pins one isolated fork so a parallel worker cannot
+  import the real module graph while another file's `vi.mock` factories are
+  installed.
+
+Narrow results: `ci:test:ts:workspace` (CI's fast bucket, concurrency 4)
+7/8 commands pass; the only red is `.zeta/tests/tui.test.ts` because this
+host has no usable ConPTY ("PTY creation timed out (5s)"). The full
+`merge-gate` guard and audit phases pass; the remaining local reds are
+host/tooling, not source:
+
+- **Native addon:** `shellBuiltins` (added by v18.19.0's
+  `crates/pi-natives/src/shell.rs`) is absent from the untracked prebuilt
+  `packages/natives/native/pi_natives.win32-x64-*.node`; `.node` is
+  `.gitignore`d and this host has no MSVC (`vswhere`/`cl.exe` absent), so
+  `bun run build:native` cannot rebuild it. CI's `native_addons` job builds
+  the addons from source and every test job downloads them.
+- **Windows host:** symlink fixtures fail `EPERM` without Developer Mode
+  (canonicalProjectDir, lsp same-file rename); ovnfs daemon and Chromium
+  browser suites are Linux/CI-only; `.zeta/tests/tui.test.ts` needs ConPTY.
+- **Rust:** `cargo nextest` is not installed; `test:rs` refuses on this
+  shallow clone. Linux CI is authoritative for Rust.
+
+The remaining local blockers above are host/tooling; the PR CI run builds the
+native addons and is the authoritative verification for them.

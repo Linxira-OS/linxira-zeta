@@ -7,14 +7,22 @@
 //! narrow ones), every mode keeps their `deny` and `ask`, and answers given
 //! "for this session" count everywhere but in `all`. In `auto` a reviewer
 //! model decides what would otherwise be a prompt. Reading inside the project, loading a skill and a short list
-//! of read-only shell commands never prompt.
+//! of read-only shell commands never prompt, so long as those commands read
+//! inside the project too.
 //!
-//! Shell commands are split on `&&`, `||`, `;`, `|` and newlines; every part
+//! Shell commands are split on `&&`, `||`, `;`, `|`, a background `&` and
+//! newlines; every part
 //! must be allowed for the whole to pass, while a `deny` or `ask` on any part
 //! applies to the whole. Command substitution (`$(...)`, backticks) is never
 //! auto-allowed by an `allow` rule.
+//!
+//! A command is read in the language of the shell that runs it
+//! ([`ShellSyntax`]): a fish command as the POSIX one it means, and one the
+//! checks cannot read that way as a substitution, which nothing allows
+//! without asking.
 
-use std::collections::BTreeMap;
+use std::borrow::Cow;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -29,7 +37,7 @@ use crate::cancel::CancelToken;
 use crate::classifier::{Classifier, Verdict};
 use crate::message::ToolCall;
 use crate::refusals::Refusals;
-use crate::tool::ToolContext;
+use crate::tool::{canonical_tool_name, ShellSyntax, ToolContext, SHELL_TOOL};
 
 /// Which rules count and what happens to calls none covers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -148,27 +156,34 @@ pub enum Lasting {
 }
 
 /// Whether a call can change nothing: a read, a skill, or a shell command
-/// made only of read-only parts without substitution.
+/// made only of read-only parts without substitution, read as `shell` reads
+/// it.
 #[must_use]
-pub fn is_read_only_call(call: &ToolCall) -> bool {
-    not_read_only(call).is_none()
+pub fn is_read_only_call(call: &ToolCall, shell: ShellSyntax) -> bool {
+    not_read_only(call, shell).is_none()
 }
 
 /// Why a call could change something, or `None` when it cannot: for a shell
 /// command, what in it is not look-only, so a refusal can name it; empty for
 /// any other tool.
-fn not_read_only(call: &ToolCall) -> Option<String> {
+fn not_read_only(call: &ToolCall, shell: ShellSyntax) -> Option<String> {
     match call.name.as_str() {
         // The web tools read the web; nothing on this machine changes. A
         // question to the user changes nothing either, nor does `recall`,
         // which only reads the project's history and code, or `agents`,
         // which lists the panels.
         "read" | "skill" | "fetch" | "web_search" | "question" | "recall" | "agents" => None,
+        // Listing what the agent set going changes nothing; stopping it does.
+        "jobs" if call.arguments.get("stop").is_none() => None,
         // Reading the debug session changes nothing; every other action runs
         // or stops the program.
         "debug" if call.arguments["action"] == "state" => None,
-        "bash" => {
-            let parsed = split_shell(call.arguments["command"].as_str().unwrap_or(""));
+        SHELL_TOOL => {
+            let Some((_, parsed)) =
+                parse_in(call.arguments["command"].as_str().unwrap_or(""), shell)
+            else {
+                return Some("a command that cannot be read as a whole".to_string());
+            };
             if parsed.has_substitution {
                 return Some("a command substitution".to_string());
             }
@@ -183,6 +198,25 @@ fn not_read_only(call: &ToolCall) -> Option<String> {
         }
         _ => Some(String::new()),
     }
+}
+
+/// Whether a `debug` call only moves on or looks at a program already
+/// launched: anything but `start` and `evaluate`.
+fn debug_moves_only(call: &ToolCall) -> bool {
+    matches!(
+        call.arguments["action"].as_str(),
+        Some(
+            "state"
+                | "breakpoint"
+                | "continue"
+                | "step_over"
+                | "step_in"
+                | "step_out"
+                | "pause"
+                | "stop"
+                | "frame"
+        )
+    )
 }
 
 /// Refuses every call that could change something while the shared mode is
@@ -225,12 +259,12 @@ impl PlanGuard {
 impl Hooks for PlanGuard {
     fn before_tool_call(&mut self, call: &ToolCall, ctx: &ToolContext) -> ToolDecision {
         if self.mode.get() != Mode::Plan
-            || matches!(call.name.as_str(), "task" | "suggest_command")
+            || matches!(call.name.as_str(), "task" | "suggest_command" | "jobs")
             || ctx.tool.mcp
         {
             return ToolDecision::Allow;
         }
-        let Some(what) = not_read_only(call) else {
+        let Some(what) = not_read_only(call, ctx.tool.shell) else {
             return ToolDecision::Allow;
         };
         self.refused = true;
@@ -346,7 +380,7 @@ impl PermissionRules {
     pub fn evaluate_narrow(&self, tool: &str, subject: &str) -> Option<Decision> {
         [&self.tools, &self.granted]
             .into_iter()
-            .filter_map(|tables| tables.get(tool))
+            .flat_map(|tables| tool_tables(tables, tool))
             .flatten()
             .filter(|(pattern, decision)| {
                 **decision != Decision::Allow || !broad_allow(tool, pattern)
@@ -375,7 +409,7 @@ fn broad_allow(tool: &str, pattern: &str) -> bool {
         return true;
     }
     // What the pattern fixes, followed by an argument its wildcard would take.
-    tool == "bash" && delegating_command(&format!("{fixed} x"))
+    canonical_tool_name(tool) == SHELL_TOOL && delegating_command(&format!("{fixed} x"))
 }
 
 fn add_rule(tables: &mut RuleTables, tool: &str, pattern: &str, decision: Decision) {
@@ -385,10 +419,22 @@ fn add_rule(tables: &mut RuleTables, tool: &str, pattern: &str, decision: Decisi
         .insert(pattern.to_string(), decision);
 }
 
-fn evaluate_rules(tables: &RuleTables, tool: &str, subject: &str) -> Option<Decision> {
+/// The tables of `tool`: its own and any kept under a name it had before,
+/// which the user's config and granted rules may still use.
+fn tool_tables<'a>(
+    tables: &'a RuleTables,
+    tool: &'a str,
+) -> impl Iterator<Item = &'a BTreeMap<String, Decision>> {
+    let tool = canonical_tool_name(tool);
     tables
-        .get(tool)?
         .iter()
+        .filter(move |(name, _)| canonical_tool_name(name) == tool)
+        .map(|(_, table)| table)
+}
+
+fn evaluate_rules(tables: &RuleTables, tool: &str, subject: &str) -> Option<Decision> {
+    tool_tables(tables, tool)
+        .flatten()
         .filter(|(pattern, _)| wildcard_match(pattern, subject))
         .map(|(_, decision)| *decision)
         .max()
@@ -470,7 +516,7 @@ impl PermissionRequest {
     /// shell command.
     #[must_use]
     pub fn patterns(&self) -> Vec<String> {
-        if self.tool == "bash" {
+        if self.tool == SHELL_TOOL {
             self.parts
                 .iter()
                 .filter_map(|p| p.pattern.clone())
@@ -821,6 +867,12 @@ impl PermissionHooks {
         self.mode.clone()
     }
 
+    /// Whether `call` edits under `.git` in a mode that asks about it: every
+    /// mode but `all`.
+    fn guards_git_dir(&self, call: &ToolCall, subject: &str) -> bool {
+        self.mode.get() != Mode::All && writes_git_dir(call, subject)
+    }
+
     /// The verdict before any prompt: the rules that count in the mode
     /// (the strictest wins), then the mode's own answer and the built-in
     /// safe defaults.
@@ -828,8 +880,20 @@ impl PermissionHooks {
     pub fn decide(&self, call: &ToolCall, ctx: &ToolContext) -> Decision {
         let subject = subject_of(call, ctx);
         let mode = self.mode.get();
-        if call.name == "bash" {
+        if call.name == SHELL_TOOL {
             return self.judge_command(&subject, ctx).decision;
+        }
+        // What git keeps under `.git` — its config, its hooks — names programs
+        // that a look-only `git status` then runs, so no `allow` rule or
+        // answer for the session lets an edit there through unasked. `all`
+        // runs any shell command unasked anyway, so a prompt there guards
+        // nothing the user has not chosen to give away.
+        if self.guards_git_dir(call, &subject) {
+            return match self.rule_for(call, &subject, ctx) {
+                Some(Decision::Deny) => Decision::Deny,
+                _ if mode == Mode::Plan => Decision::Deny,
+                _ => Decision::Ask,
+            };
         }
 
         if let Some(decision) = self.rule_for(call, &subject, ctx) {
@@ -848,6 +912,14 @@ impl PermissionHooks {
             // logs (under the configuration directory), its git history and
             // its code, and writes nothing.
             (_, "skill" | "question" | "suggest_command" | "recall") => Decision::Allow,
+            // `jobs` lists and stops only what the agent itself set going:
+            // its own work, which it is not asked about in any mode.
+            (_, "jobs") => Decision::Allow,
+            // Stepping, pausing or stopping a program, setting a breakpoint,
+            // reading the session: the program's launch was the decision, and
+            // these only move it on or look at it. `start`, and `evaluate`,
+            // which can call the program's own functions, stay with the mode.
+            (mode, "debug") if mode != Mode::Plan && debug_moves_only(call) => Decision::Allow,
             (Mode::Plan | Mode::Edit, "fetch" | "web_search") => Decision::Allow,
             // The subagent is held to plan mode too, so it only reads.
             (Mode::Plan, "task") => Decision::Allow,
@@ -915,11 +987,14 @@ impl PermissionHooks {
     /// loosen it, since each part must earn its own allow.
     fn judge_command(&self, command: &str, ctx: &ToolContext) -> CommandVerdict {
         let mode = self.mode.get();
-        let parts = shell_parts(command, &ctx.cwd);
+        let parts = shell_parts_in(command, ctx.tool.shell, &ctx.cwd);
         let mut verdict = Decision::Allow;
         let mut forced = false;
         if parts.len() > 1 {
-            if let Some(whole) = self.rule("bash", command).filter(|d| *d != Decision::Allow) {
+            if let Some(whole) = self
+                .rule(SHELL_TOOL, command)
+                .filter(|d| *d != Decision::Allow)
+            {
                 forced |= whole == Decision::Ask;
                 verdict = verdict.max(whole);
             }
@@ -927,11 +1002,12 @@ impl PermissionHooks {
         let mut asked = Vec::new();
         for part in parts {
             let matched = self
-                .rule("bash", &part.text)
+                .rule(SHELL_TOOL, &part.text)
                 .into_iter()
-                .chain(self.rule("bash", &part.resolved))
+                .chain(self.rule(SHELL_TOOL, &part.resolved))
                 .max();
             forced |= matched == Some(Decision::Ask);
+            let mut reads_out = false;
             let decision = match matched {
                 // A rule cannot vouch for a substitution, nor for a program
                 // whose directory is unknown; the parts beside them, which a
@@ -939,16 +1015,31 @@ impl PermissionHooks {
                 Some(Decision::Allow) if part.substituted || !part.savable => Decision::Ask,
                 Some(decision) => decision,
                 None if mode == Mode::All => Decision::Allow,
-                None if !part.substituted && is_read_only_command(&part.text) => Decision::Allow,
+                // A look-only command reading beyond the project asks, as
+                // the `read` tool does there, in plan mode too.
+                None if !part.substituted && is_read_only_command(&part.text) => {
+                    if reads_outside(&part, &ctx.cwd) {
+                        reads_out = true;
+                        Decision::Ask
+                    } else {
+                        Decision::Allow
+                    }
+                }
                 // Plan mode refuses a command that could change something.
                 None if mode == Mode::Plan => Decision::Deny,
                 None => Decision::Ask,
             };
             if decision == Decision::Ask {
+                // A rule for a read beyond the project names that one
+                // command: `cat *` would let every file on the machine out.
                 asked.push(AskedPart {
-                    pattern: part
-                        .savable
-                        .then(|| suggested_pattern("bash", &part.resolved)),
+                    pattern: part.savable.then(|| {
+                        if reads_out {
+                            part.resolved.clone()
+                        } else {
+                            suggested_pattern(SHELL_TOOL, &part.resolved)
+                        }
+                    }),
                     text: part.text,
                 });
             }
@@ -1068,13 +1159,14 @@ impl PermissionHooks {
             ),
             Decision::Ask => {
                 let subject = subject_of(call, ctx);
-                let (parts, forced) = if call.name == "bash" {
+                let (parts, forced) = if call.name == SHELL_TOOL {
                     let verdict = self.judge_command(&subject, ctx);
                     (verdict.asked, verdict.forced)
                 } else {
                     (
                         Vec::new(),
-                        self.rule_for(call, &subject, ctx) == Some(Decision::Ask),
+                        self.rule_for(call, &subject, ctx) == Some(Decision::Ask)
+                            || self.guards_git_dir(call, &subject),
                     )
                 };
                 if let Some(judged) = self.review(call, ctx, forced, &parts) {
@@ -1087,7 +1179,9 @@ impl PermissionHooks {
                 // touches, and not one that runs some other program a rule for
                 // it would vouch for blindly.
                 let bundle = parts.len() > 1;
-                let destructive = parts.iter().any(|p| destructive_command(&p.text));
+                // An edit under `.git` asks every time, so no answer outlasts it.
+                let destructive = parts.iter().any(|p| destructive_command(&p.text))
+                    || self.guards_git_dir(call, &subject);
                 let delegating = parts.iter().any(|p| delegating_command(&p.text));
                 // In plan mode an MCP tool counts its configured `allow`, so
                 // a lasting answer about one is worth keeping there too.
@@ -1098,12 +1192,15 @@ impl PermissionHooks {
                     && !bundle
                     && !destructive
                     && !delegating
-                    && (call.name != "bash" || parts[0].pattern.is_some());
+                    // A whole-command `ask` rule can ask about a command
+                    // whose every part is settled, which leaves no part, and
+                    // so no rule, to record.
+                    && (call.name != SHELL_TOOL || parts.first().is_some_and(|p| p.pattern.is_some()));
                 // A destructive call is allowed once at a time; `all` is the
                 // mode that lets a run through without asking. Denying for the
                 // session stays on offer: it trusts nothing.
                 let can_allow_session = !destructive;
-                let suggested = if call.name == "bash" {
+                let suggested = if call.name == SHELL_TOOL {
                     parts
                         .iter()
                         .filter_map(|p| p.pattern.clone())
@@ -1210,15 +1307,15 @@ impl PermissionHooks {
     }
 }
 
-/// The text rules are matched against: the command for `bash`, the
+/// The text rules are matched against: the command for `shell`, the
 /// project-relative path for file tools, empty otherwise.
 #[must_use]
 pub fn subject_of(call: &ToolCall, ctx: &ToolContext) -> String {
     match call.name.as_str() {
-        "bash" => call.arguments["command"].as_str().unwrap_or("").to_string(),
+        SHELL_TOOL => call.arguments["command"].as_str().unwrap_or("").to_string(),
         "read" | "edit" | "write" => {
             let raw = call.arguments["path"].as_str().unwrap_or("");
-            relative_to_project(raw, &ctx.cwd)
+            real_relative_to_project(raw, &ctx.cwd)
         }
         "fetch" => call.arguments["url"]
             .as_str()
@@ -1226,6 +1323,24 @@ pub fn subject_of(call: &ToolCall, ctx: &ToolContext) -> String {
             .trim()
             .to_string(),
         "web_search" => call.arguments["query"].as_str().unwrap_or("").to_string(),
+        // What runs: `start debug-server`, `start src/main.py` (the file as
+        // the file tools give it), `evaluate len(items)`; the bare action
+        // otherwise.
+        "debug" => {
+            let arg = |key: &str| call.arguments[key].as_str().unwrap_or("").trim();
+            let action = arg("action");
+            let what = match action {
+                "start" if !arg("command").is_empty() => arg("command").to_string(),
+                "start" if !arg("file").is_empty() => relative_to_project(arg("file"), &ctx.cwd),
+                "evaluate" => arg("expression").replace('\n', " "),
+                _ => String::new(),
+            };
+            if what.is_empty() {
+                action.to_string()
+            } else {
+                format!("{action} {what}")
+            }
+        }
         _ => match &call.arguments {
             Value::Object(map) => map
                 .values()
@@ -1252,6 +1367,54 @@ fn relative_to_project(raw: &str, cwd: &Path) -> String {
     }
 }
 
+/// [`relative_to_project`] for the file a file tool acts on, with symlinks
+/// resolved: the file the system opens, which a link in the project (`docs`
+/// pointing at the home directory) may put outside it, or a link to `.env`
+/// may hide from the rule that guards it. A path outside the project that
+/// stays outside keeps the spelling it was given (`/etc/hosts`, not the
+/// `/private/etc/hosts` macOS resolves it to).
+fn real_relative_to_project(raw: &str, cwd: &Path) -> String {
+    let real = real_path(&cwd.join(raw));
+    match real.strip_prefix(real_path(cwd)) {
+        Ok(relative) if !relative.as_os_str().is_empty() => relative.to_string_lossy().into_owned(),
+        Ok(_) => ".".to_string(),
+        Err(_) => {
+            let lexical = relative_to_project(raw, cwd);
+            if Path::new(&lexical).is_absolute() {
+                lexical
+            } else {
+                real.to_string_lossy().into_owned()
+            }
+        }
+    }
+}
+
+/// `path` as the file system resolves it, symlinks included, so far as it
+/// exists; the part that does not yet exist (a file to create) is appended
+/// as written. A `..` steps out of what the link before it points at, as
+/// the system's own lookup does.
+fn real_path(path: &Path) -> std::path::PathBuf {
+    let mut out = std::path::PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                out.pop();
+            }
+            std::path::Component::CurDir => {}
+            std::path::Component::Normal(name) => {
+                out.push(name);
+                // Each existing prefix is made real before the next step, so
+                // a `..` after a link leaves its target, not the link.
+                if let Ok(real) = dunce::canonicalize(&out) {
+                    out = real;
+                }
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
 /// Resolve `.` and `..` lexically; the file need not exist.
 fn normalize(path: &Path) -> std::path::PathBuf {
     let mut out = std::path::PathBuf::new();
@@ -1267,13 +1430,23 @@ fn normalize(path: &Path) -> std::path::PathBuf {
     out
 }
 
+/// Whether `call` edits or writes a file under a `.git` directory, or the
+/// `.git` file of a worktree, its `subject` being the real path. The match
+/// ignores case, which file systems such as macOS's ignore too.
+fn writes_git_dir(call: &ToolCall, subject: &str) -> bool {
+    matches!(call.name.as_str(), "edit" | "write")
+        && Path::new(subject)
+            .components()
+            .any(|c| c.as_os_str().eq_ignore_ascii_case(".git"))
+}
+
 fn inside_project(call: &ToolCall, ctx: &ToolContext) -> bool {
     let subject = subject_of(call, ctx);
     !Path::new(&subject).is_absolute() && !subject.starts_with("..")
 }
 
 /// Pattern offered when the user allows a call for longer than once: the
-/// command's leading words for `bash`, the exact path for file tools.
+/// command's leading words for `shell`, the exact path for file tools.
 #[must_use]
 pub fn suggested_pattern(tool: &str, subject: &str) -> String {
     match tool {
@@ -1291,7 +1464,7 @@ pub fn suggested_pattern(tool: &str, subject: &str) -> String {
         "web_search" => return "*".to_string(),
         _ => {}
     }
-    if tool != "bash" {
+    if tool != SHELL_TOOL {
         return if subject.is_empty() {
             "*".to_string()
         } else {
@@ -1326,26 +1499,61 @@ struct ParsedShell {
     substituted: Vec<bool>,
     /// Whether any part expands.
     has_substitution: bool,
+    /// The loops each part runs in, as indices into `loops`, outermost
+    /// first.
+    enclosing: Vec<Vec<usize>>,
+    /// Every `for`, `select`, `while` and `until` loop of the line, each
+    /// with the variable a `for NAME in WORDS` header binds and its words,
+    /// their quotes taken off; `None` for the rest, and for a header whose
+    /// words expand other than as paths.
+    loops: Vec<Option<(String, Vec<ShellWord>)>>,
+    /// The loops open where the reading has got to.
+    open_loops: Vec<usize>,
+}
+
+/// `command` as the POSIX reading takes it — the text itself, or the POSIX a
+/// fish command means — and what that reading made of it; `None` for a fish
+/// command that cannot be read that way.
+fn parse_in(command: &str, shell: ShellSyntax) -> Option<(Cow<'_, str>, ParsedShell)> {
+    match shell {
+        ShellSyntax::Posix => Some((Cow::Borrowed(command), split_posix(command, false))),
+        ShellSyntax::Zsh => Some((Cow::Borrowed(command), split_posix(command, true))),
+        ShellSyntax::Fish => {
+            let posix = crate::fish::as_posix(command)?;
+            let parsed = split_posix(&posix, false);
+            Some((Cow::Owned(posix), parsed))
+        }
+    }
+}
+
+/// [`split_posix`] for bash and the POSIX shells.
+fn split_shell(command: &str) -> ParsedShell {
+    split_posix(command, false)
 }
 
 /// Split a command line into its simple commands, honouring quotes,
 /// backslash escapes and here-documents: the text of a `<<EOF` body is data
 /// for the command before it, not commands of its own, so it is skipped —
-/// though an unquoted delimiter's body still expands substitutions.
-fn split_shell(command: &str) -> ParsedShell {
+/// though an unquoted delimiter's body still expands substitutions. With
+/// `zsh`, a parenthesis inside a command's words expands too: zsh runs code
+/// from a glob qualifier `*(e:…:)`, an expansion flag `${(e)…}` and `=(…)`.
+fn split_posix(command: &str, zsh: bool) -> ParsedShell {
     let mut parsed = ParsedShell::default();
     let mut current = String::new();
     // Whether the command being read expands; carried to the part it becomes,
     // or to the next one when this segment is not a command at all.
     let mut expands = false;
     let mut quote: Option<char> = None;
-    // An open `$(…)` or `` `…` ``: its operators belong to the substitution,
-    // so they are not separators of the line around it.
-    let mut depth = 0usize;
+    // The substitutions open here, innermost last: `(` for `$(…)`, `` ` ``
+    // for a backquoted one. Their operators belong to the substitution, so
+    // they are not separators of the line around it. A backquote closes the
+    // backquoted substitution it is in and opens one otherwise.
+    let mut open: Vec<char> = Vec::new();
     // Here-documents opened on the current line: delimiter, whether tabs
     // are stripped (`<<-`), whether the body expands (unquoted delimiter).
     let mut heredocs: Vec<(String, bool, bool)> = Vec::new();
     let chars: Vec<char> = command.chars().collect();
+    let flags = if zsh { "${(" } else { "" };
     let mut i = 0;
     while i < chars.len() {
         let c = chars[i];
@@ -1359,7 +1567,11 @@ fn split_shell(command: &str) -> ParsedShell {
             }
             if c == q {
                 quote = None;
-            } else if q == '"' && (c == '`' || (c == '$' && chars.get(i + 1) == Some(&'('))) {
+            } else if q == '"'
+                && (c == '`'
+                    || (c == '$' && opens_substitution(&chars, i))
+                    || (zsh && c == '$' && chars.get(i + 1..i + 3) == Some(&['{', '('])))
+            {
                 // Double quotes still expand substitutions.
                 expands = true;
             }
@@ -1383,16 +1595,30 @@ fn split_shell(command: &str) -> ParsedShell {
             }
             '`' => {
                 expands = true;
-                depth += 1;
+                if open.last() == Some(&'`') {
+                    open.pop();
+                } else {
+                    open.push('`');
+                }
                 current.push(c);
             }
-            '$' if chars.get(i + 1) == Some(&'(') => {
+            '$' if opens_substitution(&chars, i) => {
                 expands = true;
-                depth += 1;
+                open.push(if chars[i + 1] == '(' { '(' } else { '{' });
                 current.push(c);
             }
-            ')' if depth > 0 => {
-                depth -= 1;
+            ')' if open.last() == Some(&'(') => {
+                open.pop();
+                current.push(c);
+            }
+            '}' if open.last() == Some(&'{') => {
+                open.pop();
+                current.push(c);
+            }
+            // A subshell opens a command; a parenthesis later in it is zsh's.
+            '(' if zsh && !current.trim().is_empty() => {
+                expands = true;
+                open.push('(');
                 current.push(c);
             }
             '<' if chars.get(i + 1) == Some(&'<') && chars.get(i + 2) != Some(&'<') => {
@@ -1402,24 +1628,34 @@ fn split_shell(command: &str) -> ParsedShell {
                 i = end;
                 continue;
             }
-            '&' if chars.get(i + 1) == Some(&'&') && depth == 0 => {
+            '&' if chars.get(i + 1) == Some(&'&') && open.is_empty() => {
                 expands = !push_part(&mut parsed, &mut current, expands) && expands;
                 i += 1;
             }
-            '|' if depth == 0 => {
+            // A lone `&` sends the command before it to the background and
+            // starts the next one, a separator like `;`. It is part of a
+            // redirection in `&>`, `&>>`, `>&2`, `2>&1` and `<&0`.
+            '&' if open.is_empty()
+                && chars.get(i + 1) != Some(&'>')
+                && !matches!(i.checked_sub(1).map(|p| chars[p]), Some('>' | '<')) =>
+            {
                 expands = !push_part(&mut parsed, &mut current, expands) && expands;
-                if chars.get(i + 1) == Some(&'|') {
+            }
+            '|' if open.is_empty() => {
+                expands = !push_part(&mut parsed, &mut current, expands) && expands;
+                // `||`, and `|&`, which pipes standard error too.
+                if matches!(chars.get(i + 1), Some('|' | '&')) {
                     i += 1;
                 }
             }
             '\n' if !heredocs.is_empty() => {
                 // The bodies feed the command just ended, so they are read
                 // while its segment is still open and mark it when they expand.
-                i = skip_heredocs(&chars, i + 1, &mut heredocs, &mut expands);
+                i = skip_heredocs(&chars, i + 1, &mut heredocs, flags, &mut expands);
                 expands = !push_part(&mut parsed, &mut current, expands) && expands;
                 continue;
             }
-            ';' | '\n' if depth == 0 => {
+            ';' | '\n' if open.is_empty() => {
                 expands = !push_part(&mut parsed, &mut current, expands) && expands;
             }
             _ => current.push(c),
@@ -1433,6 +1669,19 @@ fn split_shell(command: &str) -> ParsedShell {
     }
     parsed.has_substitution = parsed.substituted.iter().any(|e| *e);
     parsed
+}
+
+/// Whether the `$` at `at` starts a command substitution: `$(…)`, or the
+/// `${ …; }` and `${|…; }` forms of bash 5.3, ksh93 and mksh, which run the
+/// command in the shell itself. `${NAME}` is a parameter.
+fn opens_substitution(chars: &[char], at: usize) -> bool {
+    match chars.get(at + 1) {
+        Some('(') => true,
+        Some('{') => chars
+            .get(at + 2)
+            .is_some_and(|c| c.is_whitespace() || *c == '|'),
+        _ => false,
+    }
 }
 
 /// The here-document `<<` at `start` opens, and where its operator and
@@ -1485,6 +1734,7 @@ fn skip_heredocs(
     chars: &[char],
     start: usize,
     heredocs: &mut Vec<(String, bool, bool)>,
+    flags: &str,
     expands: &mut bool,
 ) -> usize {
     let mut i = start;
@@ -1504,7 +1754,13 @@ fn skip_heredocs(
             if line == delimiter {
                 break;
             }
-            if body_expands && (line.contains("$(") || line.contains('`')) {
+            let line_chars: Vec<char> = line.chars().collect();
+            let substitutes = line_chars
+                .iter()
+                .enumerate()
+                .any(|(at, c)| *c == '`' || (*c == '$' && opens_substitution(&line_chars, at)));
+            let flagged = !flags.is_empty() && line.contains(flags);
+            if body_expands && (substitutes || flagged) {
                 *expands = true;
             }
         }
@@ -1530,25 +1786,66 @@ pub struct ShellPart {
     /// about the parts beside it, so a `cd && ls && echo $(date)` line asks
     /// about the one unknown command instead of listing all three.
     pub substituted: bool,
+    /// The directory it runs in, as the `cd`s before it left it; `None` when
+    /// that cannot be told.
+    pub dir: Option<std::path::PathBuf>,
+    /// The variables of the `for NAME in WORDS` loops it runs in, innermost
+    /// last, with the words each takes in turn — only where nothing else
+    /// on the line can give that variable another value or move the loop
+    /// to another directory between its turns. A word that is a pattern
+    /// takes, as in the shell, the paths it matches.
+    pub loop_values: Vec<(String, Vec<ShellWord>)>,
 }
 
-/// Split `command` into its parts, following `cd`, `pushd` and `popd` from
-/// `cwd` so each part's program resolves against the directory it runs in.
-/// A `cd` that cannot be followed (a variable, `-`, a substitution, a
-/// subshell) leaves the directory unknown for the parts after it.
+/// [`shell_parts_in`] for bash and the POSIX shells.
 #[must_use]
 pub fn shell_parts(command: &str, cwd: &Path) -> Vec<ShellPart> {
+    shell_parts_in(command, ShellSyntax::Posix, cwd)
+}
+
+/// Split `command`, in the language of `shell`, into its parts, following
+/// `cd`, `pushd` and `popd` from `cwd` so each part's program resolves
+/// against the directory it runs in. A `cd` that cannot be followed (a
+/// variable, `-`, a substitution, a subshell) leaves the directory unknown
+/// for the parts after it. A fish command's parts are those of the POSIX it
+/// means, in POSIX words; one that cannot be read that way is one part, a
+/// substitution no rule can stand for.
+#[must_use]
+pub fn shell_parts_in(command: &str, shell: ShellSyntax, cwd: &Path) -> Vec<ShellPart> {
+    let Some((command, parsed)) = parse_in(command, shell) else {
+        return vec![ShellPart {
+            text: command.to_string(),
+            resolved: command.to_string(),
+            savable: false,
+            substituted: true,
+            dir: None,
+            loop_values: Vec::new(),
+        }];
+    };
+    let command = command.as_ref();
     let mut dir = Some(normalize(cwd));
     let mut stack: Vec<Option<std::path::PathBuf>> = Vec::new();
-    let parsed = split_shell(command);
+    let bindings = loop_bindings(command, &parsed);
+    let moving = moving_loops(&parsed);
     parsed
         .parts
         .iter()
         .zip(parsed.substituted.iter())
-        .map(|(text, &substituted)| {
+        .zip(parsed.enclosing.iter())
+        .map(|((text, &substituted), enclosing)| {
             let mut words = text.split_whitespace();
             let head = words.next().unwrap_or("");
             let rest = &text.trim_start()[head.len()..];
+            // A loop that changes directory runs each turn but the first
+            // somewhere else, and leaves after any number of turns: from
+            // its first part on the directory, and every one `pushd` kept,
+            // is unknown until an absolute `cd` after the loop.
+            let in_moving_loop = enclosing.iter().any(|&l| moving[l]);
+            if in_moving_loop {
+                dir = None;
+                stack.iter_mut().for_each(|kept| *kept = None);
+            }
+            let runs_in = dir.clone();
             let (resolved, known) = match resolve_program(head, dir.as_deref(), cwd) {
                 Some(program) => (format!("{program}{rest}"), true),
                 None if head.contains('/') => (text.clone(), false),
@@ -1564,7 +1861,7 @@ pub fn shell_parts(command: &str, cwd: &Path) -> Vec<ShellPart> {
                 _ => {}
             }
             // A subshell's `cd` may or may not last; do not guess.
-            if text.starts_with('(') || text.ends_with(')') {
+            if text.starts_with('(') || text.ends_with(')') || in_moving_loop {
                 dir = None;
             }
             ShellPart {
@@ -1572,9 +1869,405 @@ pub fn shell_parts(command: &str, cwd: &Path) -> Vec<ShellPart> {
                 substituted,
                 text: text.clone(),
                 resolved,
+                dir: runs_in,
+                loop_values: enclosing
+                    .iter()
+                    .filter_map(|&l| bindings[l].clone())
+                    .collect(),
             }
         })
         .collect()
+}
+
+/// Whether each loop of `parsed` runs a `cd`, `pushd` or `popd`, in its
+/// header, its body or a loop nested in it.
+fn moving_loops(parsed: &ParsedShell) -> Vec<bool> {
+    let mut moving = vec![false; parsed.loops.len()];
+    for (text, enclosing) in parsed.parts.iter().zip(&parsed.enclosing) {
+        let head = text.split_whitespace().next().unwrap_or("");
+        if matches!(head, "cd" | "pushd" | "popd") {
+            for &l in enclosing {
+                moving[l] = true;
+            }
+        }
+    }
+    moving
+}
+
+/// The binding of each loop of `parsed` that a part in it can rely on: its
+/// header's, while every part the loop runs is a look-only command of its
+/// own (no `cd`, no substitution, no subshell) and `command` names the
+/// variable nowhere but in a `for` header and as a plain `$NAME` or
+/// `${NAME}`, so no assignment, `read`, `${NAME:=…}` or function changes
+/// it. A line that touches `IFS` binds nothing, its words splitting
+/// differently.
+fn loop_bindings(command: &str, parsed: &ParsedShell) -> Vec<Option<(String, Vec<ShellWord>)>> {
+    parsed
+        .loops
+        .iter()
+        .enumerate()
+        .map(|(index, binding)| {
+            let (name, _) = binding.as_ref()?;
+            let body_looks_only = parsed
+                .parts
+                .iter()
+                .zip(&parsed.substituted)
+                .zip(&parsed.enclosing)
+                .filter(|(_, enclosing)| enclosing.contains(&index))
+                .all(|((text, &substituted), _)| {
+                    let head = text.split_whitespace().next().unwrap_or("");
+                    !substituted
+                        && !matches!(head, "cd" | "pushd" | "popd")
+                        && !text.starts_with('(')
+                        && !text.ends_with(')')
+                        && is_read_only_command(text)
+                });
+            (body_looks_only
+                && !command.contains("IFS")
+                && names_only_as_loop_variable(command, name))
+            .then(|| binding.clone())
+            .flatten()
+        })
+        .collect()
+}
+
+/// Whether `command` names the variable `name` only in a `for` header and
+/// in plain expansions of it.
+fn names_only_as_loop_variable(command: &str, name: &str) -> bool {
+    let is_name_char = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    command.match_indices(name).all(|(at, _)| {
+        let before = &command[..at];
+        let after = &command[at + name.len()..];
+        if before.ends_with(is_name_char) || after.starts_with(is_name_char) {
+            return true; // part of a longer word
+        }
+        before.ends_with('$')
+            || (before.ends_with("${") && after.starts_with('}'))
+            || (before.ends_with(char::is_whitespace)
+                && before
+                    .trim_end()
+                    .strip_suffix("for")
+                    .is_some_and(|b| b.is_empty() || b.ends_with(|c: char| !is_name_char(c))))
+    })
+}
+
+/// The look-only commands that read the files their arguments name.
+const FILE_READERS: [&str; 20] = [
+    "ls", "cat", "head", "tail", "wc", "grep", "egrep", "fgrep", "stat", "du", "cut", "sort",
+    "tree", "uniq", "rg", "file", "find", "sed", "git", "date",
+];
+
+/// Whether a look-only `part` reads beyond `project`, so that it asks where
+/// the `read` tool would: a path argument or an input redirection that leads
+/// outside it (absolute, `~`, a `..` or a symlink stepping out, a glob that
+/// could match `..` or matches such a path — or more paths than
+/// [`MAX_GLOB_MATCHES`], or one taken for an option), a file reader run in
+/// a directory outside it or in one that cannot be told, a variable whose
+/// value cannot be seen, or the whole environment dumped (`env`,
+/// `printenv`), secrets and all.
+fn reads_outside(part: &ShellPart, project: &Path) -> bool {
+    let text = without_harmless_redirections(&part.text);
+    let head = text.split_whitespace().next().unwrap_or("");
+    let reader = FILE_READERS.contains(&head);
+    let project = real_path(project);
+    let dir = part.dir.as_deref();
+    let reads_files = reader || text.contains('<');
+    // The globs take the paths they match, as the shell expands them, each
+    // pattern once however many turns the loops take.
+    let mut globs = GlobExpansion::new(dir);
+    // A loop variable counts when each word it takes is one the command
+    // could name itself: a path inside the project, no option, nothing the
+    // shell would split. The command is then judged with every value in.
+    let mut loop_values: Vec<(&str, Vec<String>)> = Vec::new();
+    for (name, words) in &part.loop_values {
+        let values: Option<Vec<String>> = words.iter().try_fold(Vec::new(), |mut all, word| {
+            all.extend(globs.expand(word)?);
+            Some(all)
+        });
+        let Some(values) = values else { continue };
+        let usable = values.iter().all(|value| {
+            !value.is_empty()
+                && !value.starts_with('-')
+                && !value.contains(char::is_whitespace)
+                && !path_outside(value, dir, &project)
+        });
+        if usable {
+            loop_values.push((name.as_str(), values));
+        }
+    }
+    let turns: usize = loop_values.iter().map(|(_, v)| v.len()).product();
+    if turns > MAX_LOOP_TURNS {
+        return reads_files;
+    }
+    (0..turns).any(|turn| {
+        let mut rest = turn;
+        let values: Vec<(&str, &str)> = loop_values
+            .iter()
+            .map(|(name, values)| {
+                let value = values[rest % values.len()].as_str();
+                rest /= values.len();
+                (*name, value)
+            })
+            .collect();
+        // A variable expands to a path no one can see beforehand.
+        let Some(words) = globbing_words(&text, &values) else {
+            return reads_files;
+        };
+        let mut expanded = Vec::with_capacity(words.len());
+        for (index, word) in words.iter().enumerate() {
+            if index == 0 || !reads_files {
+                expanded.push(word.text.clone());
+                continue;
+            }
+            match globs.expand(word) {
+                Some(paths) => expanded.extend(paths),
+                None => return true,
+            }
+        }
+        words_read_outside(head, reader, &expanded, dir, &project)
+    })
+}
+
+/// The glob expansions of the words of one look-only command run in `dir`,
+/// remembered by pattern and sharing one [`MAX_GLOB_MATCHES`] budget.
+struct GlobExpansion<'d> {
+    dir: Option<&'d Path>,
+    budget: usize,
+    seen: HashMap<String, Option<Vec<String>>>,
+}
+
+impl<'d> GlobExpansion<'d> {
+    fn new(dir: Option<&'d Path>) -> Self {
+        Self {
+            dir,
+            budget: MAX_GLOB_MATCHES,
+            seen: HashMap::new(),
+        }
+    }
+
+    /// The words `word` becomes (see [`expand_glob`]); `None` when the
+    /// command should ask instead: the matches pass the budget, or one
+    /// starts with `-` and would be taken for an option. An input
+    /// redirection (`<*`, `0<src/*`) expands its target.
+    fn expand(&mut self, word: &ShellWord) -> Option<Vec<String>> {
+        let Some(pattern) = &word.glob else {
+            return Some(vec![word.text.clone()]);
+        };
+        if let Some(cached) = self.seen.get(pattern) {
+            return cached.clone();
+        }
+        let digits = word.text.len()
+            - word
+                .text
+                .trim_start_matches(|c: char| c.is_ascii_digit())
+                .len();
+        let redirect = word.text[digits..].starts_with('<')
+            && !word.text[digits..].starts_with("<<")
+            && !word.text[digits..].starts_with("<&");
+        // The prefix holds no glob character, so it is spelled alike in the
+        // text and the pattern.
+        let prefix = if redirect { digits + 1 } else { 0 };
+        let target = ShellWord {
+            text: word.text[prefix..].to_string(),
+            glob: pattern.get(prefix..).map(str::to_string),
+        };
+        let expanded = expand_glob(&target, self.dir, &mut self.budget).and_then(|paths| {
+            let literal = paths.len() == 1 && paths[0] == target.text;
+            if !literal && paths.iter().any(|p| p.starts_with('-')) {
+                return None;
+            }
+            Some(
+                paths
+                    .into_iter()
+                    .map(|path| format!("{}{path}", &word.text[..prefix]))
+                    .collect(),
+            )
+        });
+        self.seen.insert(pattern.clone(), expanded.clone());
+        expanded
+    }
+}
+
+/// The most turns of the loops around a command [`reads_outside`] judges it
+/// for, one by one; beyond that it asks.
+const MAX_LOOP_TURNS: usize = 256;
+
+/// Whether the look-only command `head` with the shell `words` reads beyond
+/// `project` (a real path), run in `dir`; `reader` when it is one of
+/// [`FILE_READERS`].
+fn words_read_outside(
+    head: &str,
+    reader: bool,
+    words: &[String],
+    dir: Option<&Path>,
+    project: &Path,
+) -> bool {
+    if matches!(head, "env" | "printenv") && words.len() == 1 {
+        return true;
+    }
+    let outside = |word: &str| path_outside(word, dir, project);
+    // The first operand of these is a pattern or a script, not a file,
+    // unless an option gives that.
+    let patterned = matches!(head, "grep" | "egrep" | "fgrep" | "rg" | "sed");
+    let args: Vec<&str> = words[1..].iter().map(String::as_str).collect();
+    if follows_symlinks(head, &args) {
+        return true;
+    }
+    let mut pattern_pending = patterned
+        && !has_short_flag(&args, 'e')
+        && !has_short_flag(&args, 'f')
+        && !args.iter().any(|a| {
+            ["--regexp", "--expression", "--file"]
+                .iter()
+                .any(|o| a.split_once('=').map_or(*a, |(name, _)| name) == *o)
+        });
+    // Options whose separate value is a pattern, never a file.
+    let pattern_value: &[&str] = match head {
+        "grep" | "egrep" | "fgrep" => &["-e", "--regexp"],
+        "sed" => &["-e", "--expression"],
+        "rg" => &[
+            "-e",
+            "--regexp",
+            "-g",
+            "--glob",
+            "--iglob",
+            "-r",
+            "--replace",
+            "-t",
+            "--type",
+            "-T",
+            "--type-not",
+            "--type-add",
+        ],
+        _ => &[],
+    };
+    let mut operands_only = false;
+    let mut operands = 0;
+    let mut i = 0;
+    while i < args.len() {
+        let word = args[i];
+        i += 1;
+        // An input redirection, which any command reads: `< file`, `<file`,
+        // `0<file`; `<&3` and here-documents and -strings read no file.
+        if let Some(target) = word
+            .trim_start_matches(|c: char| c.is_ascii_digit())
+            .strip_prefix('<')
+        {
+            if target.starts_with(['<', '&']) {
+                continue;
+            }
+            let target = if target.is_empty() {
+                i += 1;
+                args.get(i - 1).copied().unwrap_or("")
+            } else {
+                target
+            };
+            if outside(target) {
+                return true;
+            }
+            continue;
+        }
+        if !reader {
+            continue;
+        }
+        if !operands_only && word == "--" {
+            operands_only = true;
+            continue;
+        }
+        if !operands_only && word.starts_with('-') && word.len() > 1 {
+            if pattern_value.contains(&word) {
+                i += 1;
+            } else if let Some((_, value)) = word.strip_prefix("--").and_then(|w| w.split_once('='))
+            {
+                if outside(value) {
+                    return true;
+                }
+            }
+            continue;
+        }
+        if pattern_pending {
+            pattern_pending = false;
+            continue;
+        }
+        if outside(word) {
+            return true;
+        }
+        operands += 1;
+    }
+    // Without a file to read the others read standard input; these read
+    // the directory they run in, and `git` that repository's config.
+    let reads_dir = match head {
+        "ls" | "du" | "tree" | "find" | "git" => true,
+        "rg" => operands == 0,
+        "grep" | "egrep" | "fgrep" => {
+            operands == 0
+                && (has_short_flag(&args, 'r')
+                    || has_short_flag(&args, 'R')
+                    || has_long_option(&args, "recursive")
+                    || has_long_option(&args, "dereference-recursive"))
+        }
+        _ => false,
+    };
+    reads_dir && dir.is_none_or(|dir| !real_path(dir).starts_with(project))
+}
+
+/// Whether the look-only command `head` with `args` follows the symlinks it
+/// meets while walking a tree: an in-project link can lead it anywhere, so
+/// such a walk counts as a read beyond the project. A symlink named as an
+/// operand is not meant here — [`path_outside`] already judges where it
+/// leads.
+fn follows_symlinks(head: &str, args: &[&str]) -> bool {
+    match head {
+        "rg" => has_short_flag(args, 'L') || has_long_option(args, "follow"),
+        "grep" | "egrep" | "fgrep" => {
+            has_short_flag(args, 'R') || has_long_option(args, "dereference-recursive")
+        }
+        "ls" | "du" => has_short_flag(args, 'L') || has_long_option(args, "dereference"),
+        "tree" => has_short_flag(args, 'l'),
+        // `-H` and `-L` lead the arguments, alone or together (`-HL`);
+        // `-follow` is an expression.
+        "find" => args.iter().any(|a| {
+            *a == "-follow"
+                || a.strip_prefix('-').is_some_and(|flags| {
+                    !flags.is_empty()
+                        && flags.chars().all(|c| matches!(c, 'H' | 'L' | 'P'))
+                        && flags.contains(['H', 'L'])
+                })
+        }),
+        _ => false,
+    }
+}
+
+/// Whether the shell word `word`, a path run from `dir`, leads outside
+/// `project` (a real path); `/dev/null` and `-` (standard input) do not.
+fn path_outside(word: &str, dir: Option<&Path>, project: &Path) -> bool {
+    if word.is_empty() || word == "-" || word == "/dev/null" {
+        return false;
+    }
+    // `.*` and `.?` match `..` in some shells, `{..,x}` spells it out.
+    let dotted_glob = word
+        .split('/')
+        .any(|c| c.starts_with('.') && c.contains(['*', '?', '[']));
+    if dotted_glob || (word.contains('{') && word.contains("..")) {
+        return true;
+    }
+    let path = if word == "~" || word.starts_with("~/") {
+        match home() {
+            Some(home) => home.join(word[1..].trim_start_matches('/')),
+            None => return true,
+        }
+    } else if word.starts_with('~') {
+        // Another user's home.
+        return true;
+    } else if Path::new(word).is_absolute() {
+        std::path::PathBuf::from(word)
+    } else {
+        match dir {
+            Some(dir) => dir.join(word),
+            None => return true,
+        }
+    };
+    !real_path(&path).starts_with(project)
 }
 
 /// The home directory, for `~`.
@@ -1632,16 +2325,71 @@ fn resolve_program(head: &str, dir: Option<&Path>, project: &Path) -> Option<Str
 /// what it expanded is still run, so `expands` is left set for the command
 /// that follows it to carry.
 fn push_part(parsed: &mut ParsedShell, current: &mut String, expands: bool) -> bool {
+    track_loops(parsed, current.trim());
     let kept = match without_shell_keywords(current.trim()) {
         Some(part) => {
             parsed.substituted.push(expands);
             parsed.parts.push(part.to_string());
+            parsed.enclosing.push(parsed.open_loops.clone());
             true
         }
         None => false,
     };
     current.clear();
     kept
+}
+
+/// Open the loops the segment `part` starts — a `while` or `until` among its
+/// leading reserved words, a `for` or `select` header — and close the one a
+/// `done` ends.
+fn track_loops(parsed: &mut ParsedShell, part: &str) {
+    let words: Vec<&str> = part.split_whitespace().collect();
+    let leading = words
+        .iter()
+        .take_while(|w| {
+            matches!(
+                **w,
+                "if" | "then" | "else" | "elif" | "do" | "while" | "until" | "!" | "{" | "time"
+            )
+        })
+        .count();
+    for word in &words[..leading] {
+        if matches!(*word, "while" | "until") {
+            parsed.open_loops.push(parsed.loops.len());
+            parsed.loops.push(None);
+        }
+    }
+    match words.get(leading) {
+        Some(&"done") => {
+            parsed.open_loops.pop();
+        }
+        Some(&head @ ("for" | "select")) => {
+            // The reserved words before the header are plain words, so the
+            // header's words start where they end.
+            let binding = (head == "for")
+                .then(|| globbing_words(part, &[]))
+                .flatten()
+                .and_then(|words| match words.get(leading + 1..)? {
+                    [name, keyword, values @ ..]
+                        if keyword.text == "in"
+                            && is_shell_name(&name.text)
+                            && !values.is_empty() =>
+                    {
+                        Some((name.text.clone(), values.to_vec()))
+                    }
+                    _ => None,
+                });
+            parsed.open_loops.push(parsed.loops.len());
+            parsed.loops.push(binding);
+        }
+        _ => {}
+    }
+}
+
+/// Whether `word` can name a shell variable.
+fn is_shell_name(word: &str) -> bool {
+    word.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+        && word.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
 /// `part` without the shell's reserved words, which run nothing of their
@@ -1714,7 +2462,23 @@ pub fn is_read_only_command(part: &str) -> bool {
     if part.contains('>') || part.contains("<(") {
         return false;
     }
-    let words: Vec<&str> = part.split_whitespace().collect();
+    // An array subscript is arithmetic in bash, and arithmetic runs the
+    // substitutions in it however they were quoted: `test -v 'a[$(rm x)]'`.
+    if part.contains('[') && (part.contains("$(") || part.contains('`')) {
+        return false;
+    }
+    if evaluates_a_value(&part) {
+        return false;
+    }
+    // Quotes and backslashes only join a word for the program: `-del''ete`
+    // reaches `find` as `-delete`. Without them an option is seen as the
+    // program gets it; a quoted space splitting a word in two can only make
+    // a command look less read-only.
+    let bare: String = part
+        .chars()
+        .filter(|c| !matches!(c, '\'' | '"' | '\\'))
+        .collect();
+    let words: Vec<&str> = bare.split_whitespace().collect();
     let Some((&head, args)) = words.split_first() else {
         return false;
     };
@@ -1725,6 +2489,9 @@ pub fn is_read_only_command(part: &str) -> bool {
         "stat", "du", "cut", "tr", "basename", "dirname", "realpath", "printenv", "whoami",
         "uname", "true", "false", "cd", "pushd", "popd", "[", "[[", "test",
     ];
+    if matches!(head, "[" | "[[" | "test") && evaluates_an_operand(args) {
+        return false;
+    }
     if PLAIN.contains(&head) {
         return true;
     }
@@ -1732,20 +2499,28 @@ pub fn is_read_only_command(part: &str) -> bool {
         // `env <command>` runs that command.
         "env" => args.is_empty(),
         "date" => !args.iter().any(|a| *a == "-s" || a.starts_with("--set")),
-        "sort" => !has_short_flag(args, 'o') && !args.iter().any(|a| a.starts_with("--output")),
+        // `--compress-program` runs a program on the temporary files.
+        "sort" => {
+            !has_short_flag(args, 'o')
+                && !has_long_option(args, "output")
+                && !has_long_option(args, "compress-program")
+        }
         // `-o` writes the listing to a file, `-R` writes one per directory.
         "tree" => !has_short_flag(args, 'o') && !has_short_flag(args, 'R'),
         // A second operand is the file `uniq` writes to.
         "uniq" => args.iter().filter(|a| !a.starts_with('-')).count() <= 1,
-        // `--pre` runs a program on every file searched.
-        "rg" => !args
-            .iter()
-            .any(|a| *a == "--pre" || a.starts_with("--pre=")),
+        // `--pre` runs a program on every file searched (`--pre-glob` picks
+        // the files), `--hostname-bin` one to name the host for hyperlinks.
+        // ripgrep takes no abbreviated long options.
+        "rg" => !args.iter().any(|a| {
+            let name = a.split_once('=').map_or(*a, |(name, _)| name);
+            matches!(name, "--pre" | "--pre-glob" | "--hostname-bin")
+        }),
         // `-C` compiles a magic file next to the source.
         "file" => !args.iter().any(|a| *a == "-C" || *a == "--compile"),
         "find" => !["-delete", "-exec", "-ok", "-fprint", "-fls"]
             .iter()
-            .any(|action| part.contains(action)),
+            .any(|action| bare.contains(action)),
         "git" => is_read_only_git(args),
         "gh" | "glab" | "tea" => is_read_only_forge(head, args),
         "sed" => shell_words(&part).is_some_and(|words| is_print_only_sed(&words[1..])),
@@ -1753,43 +2528,298 @@ pub fn is_read_only_command(part: &str) -> bool {
     }
 }
 
+/// Whether a `${…}` in `part` takes a variable's value as code: bash
+/// evaluates the value of a name in arithmetic — an array subscript
+/// (`${a[i]}`) or a substring's offset and length (`${s:i:n}`) — as an
+/// expression, running the substitutions in it, and runs them in what
+/// `${!x}` names and in the prompt `${x@P}` expands. A session keeps the
+/// variables an earlier command set, so the value cannot be told from the
+/// command alone. Quotes are not looked at: asking about a `${…}` single
+/// quotes keep literal costs little.
+fn evaluates_a_value(part: &str) -> bool {
+    let mut rest = part;
+    while let Some(at) = rest.find("${") {
+        rest = &rest[at + 2..];
+        let body = &rest[..rest.find('}').unwrap_or(rest.len())];
+        if body.starts_with('!') {
+            return true;
+        }
+        let name = body.strip_prefix('#').unwrap_or(body);
+        let name_end = name
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+            .unwrap_or(name.len());
+        let mut after = &name[name_end..];
+        if let Some(index) = after.strip_prefix('[') {
+            let end = index.find(']').unwrap_or(index.len());
+            let index_is_code = !(index[..end] == *"@"
+                || index[..end] == *"*"
+                || index[..end].chars().all(|c| c.is_ascii_digit()));
+            if index_is_code {
+                return true;
+            }
+            after = index.get(end + 1..).unwrap_or("");
+        }
+        let offset_is_code = after.strip_prefix(':').is_some_and(|offset| {
+            !offset.starts_with(['-', '=', '?', '+'])
+                && !offset
+                    .chars()
+                    .all(|c| c.is_ascii_digit() || matches!(c, ':' | ' ' | '-'))
+        });
+        if after.starts_with('@') || offset_is_code {
+            return true;
+        }
+    }
+    false
+}
+
+/// Whether a test (`[`, `[[`, `test`) evaluates an operand as code: one
+/// beside an arithmetic comparison that is not a number, which bash takes
+/// as an expression — a name's value included, and the substitutions in
+/// it — or the variable `-v` asks about, given by a value or with a
+/// subscript.
+fn evaluates_an_operand(args: &[&str]) -> bool {
+    let number = |word: &str| {
+        let digits = word.strip_prefix(['-', '+']).unwrap_or(word);
+        !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit())
+    };
+    args.iter().enumerate().any(|(i, word)| match *word {
+        "-eq" | "-ne" | "-lt" | "-le" | "-gt" | "-ge" => {
+            let before = i.checked_sub(1).and_then(|i| args.get(i));
+            let after = args.get(i + 1);
+            !before.is_some_and(|w| number(w)) || !after.is_some_and(|w| number(w))
+        }
+        "-v" => args
+            .get(i + 1)
+            .is_some_and(|name| name.contains(['$', '[', '`'])),
+        _ => false,
+    })
+}
+
 /// The words of a simple command with their quotes taken off, or `None`
-/// where a word would expand (`$`, a backquote, a glob in double quotes is
-/// fine) or a quote is left open.
+/// where a word would expand (a parameter, a substitution, a backquote; a
+/// glob in double quotes is fine) or a quote is left open. A `$` that starts
+/// no expansion, as in `rg "foo$"`, is the character itself.
 fn shell_words(part: &str) -> Option<Vec<String>> {
+    shell_words_with(part, &[])
+}
+
+/// [`shell_words`] with the variables in `values` expanded, `$NAME` and
+/// `${NAME}` alike, to the value given (the last one for a name given
+/// twice); any other expansion still gives `None`.
+fn shell_words_with(part: &str, values: &[(&str, &str)]) -> Option<Vec<String>> {
+    Some(
+        globbing_words(part, values)?
+            .into_iter()
+            .map(|word| word.text)
+            .collect(),
+    )
+}
+
+/// A word of a simple command: its text with the quotes taken off and,
+/// when an unquoted `*`, `?` or `[` makes the shell expand it into the
+/// paths it matches, the pattern it is matched as — every quoted character
+/// escaped, a run of `*` taken for one (no `globstar`), `[^…]` for `[!…]`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ShellWord {
+    pub text: String,
+    pub glob: Option<String>,
+}
+
+impl ShellWord {
+    /// A word the shell takes as written.
+    #[must_use]
+    pub fn literal(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            glob: None,
+        }
+    }
+}
+
+/// A [`ShellWord`] being read.
+#[derive(Default)]
+struct WordBuilder {
+    text: String,
+    pattern: String,
+    globbed: bool,
+    /// The last character, when it was unquoted.
+    last_unquoted: Option<char>,
+}
+
+impl WordBuilder {
+    fn quoted(&mut self, c: char) {
+        self.text.push(c);
+        self.pattern
+            .push_str(&glob::Pattern::escape(c.encode_utf8(&mut [0; 4])));
+        self.last_unquoted = None;
+    }
+
+    fn unquoted(&mut self, c: char) {
+        self.text.push(c);
+        match c {
+            '*' if self.last_unquoted == Some('*') => {}
+            '^' if self.last_unquoted == Some('[') => self.pattern.push('!'),
+            c => self.pattern.push(c),
+        }
+        self.globbed |= matches!(c, '*' | '?' | '[');
+        self.last_unquoted = Some(c);
+    }
+
+    fn finish(self) -> ShellWord {
+        ShellWord {
+            text: self.text,
+            glob: self.globbed.then_some(self.pattern),
+        }
+    }
+}
+
+/// [`shell_words_with`] keeping, for each word, the pattern it expands as.
+/// A variable's value counts as unquoted where the `$` is, as the shell
+/// expands it.
+fn globbing_words(part: &str, values: &[(&str, &str)]) -> Option<Vec<ShellWord>> {
     let mut words = Vec::new();
-    let mut word: Option<String> = None;
-    let mut chars = part.chars();
+    let mut word: Option<WordBuilder> = None;
+    let mut chars = part.chars().peekable();
     while let Some(c) = chars.next() {
         match c {
-            c if c.is_whitespace() => words.extend(word.take()),
+            c if c.is_whitespace() => words.extend(word.take().map(WordBuilder::finish)),
             '\'' => {
-                let current = word.get_or_insert_with(String::new);
+                let current = word.get_or_insert_with(WordBuilder::default);
                 loop {
                     match chars.next()? {
                         '\'' => break,
-                        c => current.push(c),
+                        c => current.quoted(c),
                     }
                 }
             }
             '"' => {
-                let current = word.get_or_insert_with(String::new);
+                let current = word.get_or_insert_with(WordBuilder::default);
                 loop {
                     match chars.next()? {
                         '"' => break,
-                        '$' | '`' => return None,
-                        '\\' => current.push(chars.next()?),
-                        c => current.push(c),
+                        '$' if starts_expansion(chars.peek().copied(), true) => {
+                            expand_variable(&mut chars, values)?
+                                .chars()
+                                .for_each(|c| current.quoted(c));
+                        }
+                        '`' => return None,
+                        '\\' => current.quoted(chars.next()?),
+                        c => current.quoted(c),
                     }
                 }
             }
-            '$' | '`' => return None,
-            '\\' => word.get_or_insert_with(String::new).push(chars.next()?),
-            c => word.get_or_insert_with(String::new).push(c),
+            '$' if starts_expansion(chars.peek().copied(), false) => {
+                let current = word.get_or_insert_with(WordBuilder::default);
+                expand_variable(&mut chars, values)?
+                    .chars()
+                    .for_each(|c| current.unquoted(c));
+            }
+            '`' => return None,
+            '\\' => word
+                .get_or_insert_with(WordBuilder::default)
+                .quoted(chars.next()?),
+            c => word.get_or_insert_with(WordBuilder::default).unquoted(c),
         }
     }
-    words.extend(word);
+    words.extend(word.map(WordBuilder::finish));
     Some(words)
+}
+
+/// The most paths the globs of a look-only command may match before it
+/// asks instead of judging each.
+const MAX_GLOB_MATCHES: usize = 1024;
+
+/// The words the shell turns `word` into in `dir`: the paths its pattern
+/// matches, sorted and spelled as the shell spells them (relative to `dir`
+/// for a relative pattern), or the word itself when it has no pattern or
+/// nothing matches, as `shell` leaves it by default. A dotfile matches only
+/// a pattern that names its leading `.`. A pattern left as it is: a
+/// relative one when `dir` is unknown, one with a component like `.*`
+/// (which some shells let match `..`), `~user/…` — [`path_outside`] asks
+/// about each. `None` once the matches would pass `budget`, which they
+/// take from.
+fn expand_glob(word: &ShellWord, dir: Option<&Path>, budget: &mut usize) -> Option<Vec<String>> {
+    let literal = || Some(vec![word.text.clone()]);
+    let Some(pattern) = &word.glob else {
+        return literal();
+    };
+    let dotted = word
+        .text
+        .split('/')
+        .any(|c| c.starts_with('.') && c.contains(['*', '?', '[']));
+    if dotted {
+        return literal();
+    }
+    let escaped = |path: &Path| path.to_str().map(glob::Pattern::escape);
+    let (full, strip) = if Path::new(pattern).is_absolute() {
+        (pattern.clone(), None)
+    } else if let Some(rest) = pattern.strip_prefix("~/") {
+        match home() {
+            Some(home) => (format!("{}/{rest}", escaped(&home)?), None),
+            None => return literal(),
+        }
+    } else if pattern.starts_with('~') {
+        return literal();
+    } else {
+        match dir {
+            Some(dir) => (format!("{}/{pattern}", escaped(dir)?), Some(dir)),
+            None => return literal(),
+        }
+    };
+    let options = glob::MatchOptions {
+        case_sensitive: true,
+        require_literal_separator: true,
+        require_literal_leading_dot: true,
+    };
+    let Ok(paths) = glob::glob_with(&full, options) else {
+        return literal(); // an unclosed `[` is a plain character
+    };
+    let mut matches = Vec::new();
+    for path in paths.flatten() {
+        *budget = budget.checked_sub(1)?;
+        let shown = strip
+            .and_then(|dir| path.strip_prefix(dir).ok())
+            .unwrap_or(&path);
+        matches.push(shown.to_str()?.to_string());
+    }
+    if matches.is_empty() {
+        return literal();
+    }
+    matches.sort();
+    Some(matches)
+}
+
+/// The value in `values` of the variable `chars` names just after a `$`,
+/// as `NAME` or `{NAME}`; `None` for any other expansion or a name without
+/// a value given.
+fn expand_variable<'v>(
+    chars: &mut std::iter::Peekable<std::str::Chars>,
+    values: &[(&str, &'v str)],
+) -> Option<&'v str> {
+    let braced = chars.next_if_eq(&'{').is_some();
+    let mut name = String::new();
+    while let Some(c) = chars.next_if(|c| c.is_ascii_alphanumeric() || *c == '_') {
+        name.push(c);
+    }
+    if !is_shell_name(&name) || (braced && chars.next() != Some('}')) {
+        return None;
+    }
+    values
+        .iter()
+        .rev()
+        .find(|(n, _)| *n == name)
+        .map(|(_, value)| *value)
+}
+
+/// Whether a `$` followed by `next` expands: a name, a positional or special
+/// parameter, `${…}`, `$(…)` or `$[…]`. Outside double quotes `$'…'` and
+/// `$"…"` are quotes of their own whose escapes can spell any text.
+fn starts_expansion(next: Option<char>, in_double_quotes: bool) -> bool {
+    next.is_some_and(|c| {
+        c.is_ascii_alphanumeric()
+            || "_@*#?$!-{([".contains(c)
+            || (!in_double_quotes && (c == '\'' || c == '"'))
+    })
 }
 
 /// `sed` that only prints: no in-place edit, no script file, and every
@@ -2118,6 +3148,17 @@ fn destructive_command(part: &str) -> bool {
     }
 }
 
+/// Whether a long option `--name`, or an abbreviation of it, is among
+/// `args`, alone or with `=value`: GNU tools and git take any unambiguous
+/// prefix of a long option's name (`--out=x` for `--output=x`).
+fn has_long_option(args: &[&str], name: &str) -> bool {
+    args.iter().any(|a| {
+        a.strip_prefix("--")
+            .map(|a| a.split_once('=').map_or(a, |(key, _)| key))
+            .is_some_and(|key| !key.is_empty() && name.starts_with(key))
+    })
+}
+
 /// Whether a short-option word such as `-ro` carries `flag`.
 fn has_short_flag(args: &[&str], flag: char) -> bool {
     args.iter()
@@ -2283,7 +3324,7 @@ fn is_read_only_git(mut args: &[&str]) -> bool {
         "status" | "blame" | "rev-parse" | "ls-files" | "ls-tree" | "cat-file" | "describe"
         | "merge-base" | "for-each-ref" | "show-ref" | "name-rev" | "count-objects" => true,
         // `-O` opens the matches in a pager program of its choosing.
-        "grep" => !has_short_flag(rest, 'O') && !rest.iter().any(|a| a.starts_with("--open-files")),
+        "grep" => !has_short_flag(rest, 'O') && !has_long_option(rest, "open-files-in-pager"),
         "stash" => matches!(rest.first(), Some(&("list" | "show"))),
         "worktree" => matches!(rest.first(), Some(&"list")),
         // `expire` and `delete` rewrite the log; a ref name shows it, but is
@@ -2325,7 +3366,7 @@ fn is_read_only_git(mut args: &[&str]) -> bool {
             reads && !rest.iter().any(|a| WRITE.contains(a))
         }
         "diff" | "log" | "show" | "rev-list" | "shortlog" | "cherry" | "range-diff" => {
-            !rest.iter().any(|a| a.starts_with("--output"))
+            !has_long_option(rest, "output")
         }
         // Without `--list`, a bare name creates a tag; `-d`, `-a`, `-s`,
         // `-f` and the rest are left out.
@@ -2442,7 +3483,7 @@ mod tests {
     }
 
     fn bash(command: &str) -> ToolCall {
-        call("bash", json!({ "command": command }))
+        call("shell", json!({ "command": command }))
     }
 
     fn rules(toml_text: &str) -> PermissionRules {
@@ -2486,7 +3527,7 @@ mod tests {
         let rules = rules(
             r#"
             mode = "edit"
-            [bash]
+            [shell]
             "git status*" = "allow"
             "git push*" = "ask"
             "rm -rf *" = "deny"
@@ -2497,7 +3538,7 @@ mod tests {
         );
         assert_eq!(rules.mode, Mode::Edit);
         assert_eq!(
-            rules.evaluate("bash", "git push origin main"),
+            rules.evaluate("shell", "git push origin main"),
             Some(Decision::Ask)
         );
         assert_eq!(rules.evaluate("edit", "src/lib.rs"), Some(Decision::Allow));
@@ -2518,16 +3559,16 @@ mod tests {
     #[test]
     fn strictest_matching_rule_wins() {
         let mut rules = PermissionRules::default();
-        rules.add("bash", "git *", Decision::Allow);
-        rules.add("bash", "git push*", Decision::Ask);
-        rules.add("bash", "*--force*", Decision::Deny);
-        assert_eq!(rules.evaluate("bash", "git status"), Some(Decision::Allow));
+        rules.add("shell", "git *", Decision::Allow);
+        rules.add("shell", "git push*", Decision::Ask);
+        rules.add("shell", "*--force*", Decision::Deny);
+        assert_eq!(rules.evaluate("shell", "git status"), Some(Decision::Allow));
         assert_eq!(
-            rules.evaluate("bash", "git push origin"),
+            rules.evaluate("shell", "git push origin"),
             Some(Decision::Ask)
         );
         assert_eq!(
-            rules.evaluate("bash", "git push --force"),
+            rules.evaluate("shell", "git push --force"),
             Some(Decision::Deny)
         );
     }
@@ -2593,7 +3634,7 @@ mod tests {
                 mode,
                 ..Default::default()
             };
-            rules.add("bash", "cargo *", Decision::Allow);
+            rules.add("shell", "cargo *", Decision::Allow);
             rules.add("edit", "src/**", Decision::Allow);
             rules.add("edit", "**/.env*", Decision::Deny);
             let (hooks, _) = hooks(rules, vec![]);
@@ -2602,14 +3643,68 @@ mod tests {
         }
     }
 
+    /// Moving on a launched program asks no one outside plan mode; a launch
+    /// and an evaluation stay with the mode, and a rule still wins. Their
+    /// subject names what runs, so "allow always" trusts that command.
+    #[test]
+    fn debug_steps_go_through_and_launches_stay_with_the_mode() {
+        let step = call("debug", json!({ "action": "step_over" }));
+        let start = call(
+            "debug",
+            json!({ "action": "start", "command": "debug-server", "params": { "port": "1" } }),
+        );
+        let evaluate = call(
+            "debug",
+            json!({ "action": "evaluate", "expression": "f(\n1)" }),
+        );
+        for (mode, expected) in [
+            (Mode::Ask, [Decision::Allow, Decision::Ask, Decision::Ask]),
+            (Mode::Auto, [Decision::Allow, Decision::Ask, Decision::Ask]),
+            (Mode::Plan, [Decision::Deny, Decision::Deny, Decision::Deny]),
+        ] {
+            let (hooks, _) = hooks(
+                PermissionRules {
+                    mode,
+                    ..Default::default()
+                },
+                vec![],
+            );
+            let got = [&step, &start, &evaluate].map(|c| hooks.decide(c, &ctx()));
+            assert_eq!(got, expected, "{mode:?}");
+        }
+        let mut rules = PermissionRules {
+            mode: Mode::Configured,
+            ..Default::default()
+        };
+        rules.add("debug", "step_over", Decision::Deny);
+        rules.add("debug", "start debug-server", Decision::Allow);
+        let (hooks, _) = hooks(rules, vec![]);
+        assert_eq!(hooks.decide(&step, &ctx()), Decision::Deny);
+        assert_eq!(hooks.decide(&start, &ctx()), Decision::Allow);
+
+        assert_eq!(subject_of(&start, &ctx()), "start debug-server");
+        assert_eq!(
+            subject_of(
+                &call(
+                    "debug",
+                    json!({ "action": "start", "file": "/proj/app/main.py" })
+                ),
+                &ctx()
+            ),
+            "start app/main.py"
+        );
+        assert_eq!(subject_of(&evaluate, &ctx()), "evaluate f( 1)");
+        assert_eq!(subject_of(&step, &ctx()), "step_over");
+    }
+
     #[test]
     fn session_answers_count_in_every_mode_but_all() {
         let mut rules = PermissionRules {
             mode: Mode::Ask,
             ..Default::default()
         };
-        rules.add_session("bash", "make *", Decision::Allow);
-        rules.add_session("bash", "rm *", Decision::Deny);
+        rules.add_session("shell", "make *", Decision::Allow);
+        rules.add_session("shell", "rm *", Decision::Deny);
         let (hooks, _) = hooks(rules, vec![]);
         let handle = hooks.mode_handle();
         // `make *` is a broad pattern, yet in `auto` too an answer the user
@@ -2628,8 +3723,8 @@ mod tests {
     #[test]
     fn shell_commands_are_split_and_each_part_judged() {
         let mut rules = PermissionRules::default();
-        rules.add("bash", "cargo *", Decision::Allow);
-        rules.add("bash", "git push*", Decision::Ask);
+        rules.add("shell", "cargo *", Decision::Allow);
+        rules.add("shell", "git push*", Decision::Ask);
         let (hooks, _) = hooks(rules, vec![]);
         let decide = |cmd: &str| hooks.decide(&bash(cmd), &ctx());
 
@@ -2673,6 +3768,8 @@ mod tests {
             Decision::Allow
         );
         assert_eq!(decide("[ -d target ] && cargo test"), Decision::Allow);
+        assert_eq!(decide("for f in a b; do echo $f; done"), Decision::Allow);
+        // The header is no part, but it tells what `$f` reads.
         assert_eq!(decide("for f in a b; do cat $f; done"), Decision::Allow);
         assert_eq!(decide("if true; then rm -rf x; fi"), Decision::Ask);
         assert_eq!(
@@ -2680,6 +3777,139 @@ mod tests {
             Decision::Ask,
             "substitution in a loop header"
         );
+    }
+
+    #[test]
+    fn commands_run_through_a_back_door_are_not_look_only() {
+        let (hooks, _) = hooks(PermissionRules::default(), vec![]);
+        let decide = |cmd: &str| hooks.decide(&bash(cmd), &ctx());
+        for command in [
+            // bash 5.3, ksh93 and mksh run a command in `${ …; }`.
+            "echo ${ touch x; }",
+            "echo \"${ touch x; }\"",
+            "echo ${|touch x; }",
+            "cat <<EOF\n${ touch x; }\nEOF",
+            // An array subscript is arithmetic, which substitutes even what
+            // single quotes kept from the shell.
+            "test -v 'a[$(touch x)]'",
+            "[ -v 'a[$(touch x)]' ]",
+            "[[ 'a[$(touch x)]' -eq 0 ]]",
+            // Quotes and backslashes join an option back together.
+            "find . -del''ete",
+            "find . -de\\lete",
+            "find . '-exec' rm {} +",
+            "sort -'o' out in",
+            "rg --'pre'=sh x",
+        ] {
+            assert_eq!(decide(command), Decision::Ask, "{command}");
+        }
+        // A value set by an earlier command of a session, taken as code.
+        for command in [
+            "[[ $x -eq 0 ]]",
+            "[[ x -gt 3 ]]",
+            "[ \"$n\" -lt 2 ]",
+            "test 1 -ne \"$n\"",
+            "test -v \"$x\"",
+            "[[ -v $x ]]",
+            "[ -v 'a[i]' ]",
+            "echo ${x@P}",
+            "echo ${a[@]@P}",
+            "echo \"${!x}\"",
+            "echo ${a[i]}",
+            "echo ${a[$i]}",
+            "echo ${s:i}",
+            "echo ${s:0:n}",
+        ] {
+            assert_eq!(decide(command), Decision::Ask, "{command}");
+        }
+        for command in [
+            "[ 1 -eq 1 ]",
+            "[[ -10 -lt +3 ]]",
+            "[ -v HOME ]",
+            "[ -z \"$x\" ] && ls",
+            "echo ${a[0]} ${a[@]} ${a[*]} ${#a[@]}",
+            "echo ${s:1:2} ${s:-x} ${s:=y} ${s:+z}",
+        ] {
+            assert_eq!(decide(command), Decision::Allow, "{command}");
+        }
+        assert_eq!(decide("echo ${HOME} \"${PWD}\""), Decision::Allow);
+        assert_eq!(decide("[ -n \"${PWD}\" ] && ls"), Decision::Allow);
+        assert_eq!(decide("grep 'a[0-9]' src/x"), Decision::Allow);
+    }
+
+    fn ctx_in(shell: ShellSyntax) -> ToolContext {
+        ToolContext {
+            tool: crate::ToolTraits {
+                shell,
+                ..crate::ToolTraits::default()
+            },
+            ..ctx()
+        }
+    }
+
+    #[test]
+    fn a_fish_command_is_judged_as_fish_runs_it() {
+        let mut rules = PermissionRules::default();
+        rules.add("shell", "ls *", Decision::Allow);
+        rules.add("shell", "echo *", Decision::Allow);
+        rules.add("shell", "rm *", Decision::Deny);
+        let (hooks, _) = hooks(rules, vec![]);
+        let fish = ctx_in(ShellSyntax::Fish);
+        let decide = |cmd: &str| hooks.decide(&bash(cmd), &fish);
+        for command in [
+            // `(…)` substitutes in fish: no `allow` vouches for it.
+            "ls (touch x)",
+            "ls a(touch x)b",
+            "cat (ls)",
+            // `\'` keeps a fish string open past what POSIX takes for its end.
+            r"echo 'a\' b' ; touch x",
+            // An escape standing for another character.
+            r"find . \x2ddelete",
+            // What the reading cannot vouch for.
+            "switch $x; case a; touch a; end",
+            "cat <<EOF",
+        ] {
+            assert_eq!(decide(command), Decision::Ask, "{command}");
+        }
+        for command in [
+            "ls -la",
+            "git status; and git log -1",
+            "test -f Cargo.toml; or echo missing",
+            "for f in src/*.rs; wc -l $f; end",
+            "begin; ls; echo done; end",
+            "if test -d target; ls target; else; echo none; end",
+            "echo `ls` '(x)'",
+        ] {
+            assert_eq!(decide(command), Decision::Allow, "{command}");
+        }
+        assert_eq!(decide("ls; and rm -r x"), Decision::Deny);
+        assert_eq!(
+            hooks.decide(&bash("ls (touch x)"), &ctx()),
+            Decision::Allow,
+            "POSIX reads the parenthesis as text"
+        );
+        assert!(!is_read_only_call(&bash("ls (touch x)"), ShellSyntax::Fish));
+        assert!(!is_read_only_call(&bash("ls; end"), ShellSyntax::Fish));
+        assert!(is_read_only_call(&bash("ls; and pwd"), ShellSyntax::Fish));
+    }
+
+    #[test]
+    fn a_zsh_parenthesis_inside_a_command_may_run_code() {
+        let (hooks, _) = hooks(PermissionRules::default(), vec![]);
+        let zsh = ctx_in(ShellSyntax::Zsh);
+        let decide = |cmd: &str| hooks.decide(&bash(cmd), &zsh);
+        for command in [
+            "ls *(e:'touch x':)",
+            "ls (e:'touch x':)",
+            "echo =(touch x)",
+            "echo ${(e)x}",
+            "echo \"${(e)x}\"",
+            "cat <<EOF\n${(e)x}\nEOF",
+        ] {
+            assert_eq!(decide(command), Decision::Ask, "{command}");
+        }
+        assert_eq!(decide("ls src | wc -l"), Decision::Allow);
+        assert_eq!(decide("echo \"${HOME}\""), Decision::Allow);
     }
 
     #[test]
@@ -2782,7 +4012,7 @@ mod tests {
         );
         // And a rule written for the text cannot vouch for it.
         let mut rules = PermissionRules::default();
-        rules.add("bash", "./run*", Decision::Allow);
+        rules.add("shell", "./run*", Decision::Allow);
         let (hooks, _) = super::tests::hooks(rules, vec![]);
         assert_eq!(
             hooks.decide(&bash("cd $BUILD && ./run"), &ctx()),
@@ -2820,6 +4050,8 @@ mod tests {
             "uniq -c words.txt",
             "rg TODO src",
             "rg --pretty TODO",
+            "rg --pretty --hyperlink-format=default TODO",
+            "git log --oneline --one",
             "file README.md",
             "find . -name '*.rs' -print",
             "git status",
@@ -2850,10 +4082,25 @@ mod tests {
             "uniq in.txt out.txt",
             "rg --pre ./run.sh TODO",
             "rg --pre=./run.sh TODO",
+            "rg --pre-glob '*.pdf' TODO",
+            "rg --hostname-bin=./name.sh --hyperlink-format=default TODO",
+            "rg --hostname-bin ./name.sh TODO",
+            "sort --compress-program=./run.sh big.txt",
+            "sort --compress-prog ./run.sh big.txt",
+            "sort --out=out.txt in.txt",
+            "git diff --out=patch.diff",
+            "git grep --open=vim foo",
             "file -C -m magic",
             "find . -fprint list.txt",
             "find . -fls list.txt",
             "find . -execdir rm {} +",
+            "find . -okdir rm {} ;",
+            "find . -fprintf list.txt %p",
+            "find . -fprint0 list.txt",
+            "find . -delete",
+            "git -c core.pager=./run.sh log",
+            "git --exec-path=./bin status",
+            "git --output=x diff",
             "git diff --output=patch.diff",
             "git log --output=log.txt",
             "git branch feature",
@@ -3080,7 +4327,7 @@ mod tests {
     fn a_plan_mode_refusal_names_what_is_not_look_only() {
         let mut guard = PlanGuard::new(ModeHandle::new(Mode::Plan));
         let reason = match guard.before_tool_call(
-            &call("bash", json!({ "command": "rg x src && sed -i 1d f" })),
+            &call("shell", json!({ "command": "rg x src && sed -i 1d f" })),
             &ctx(),
         ) {
             ToolDecision::Block { reason } => reason,
@@ -3146,6 +4393,581 @@ mod tests {
         assert_eq!(split_shell("   ").parts, vec![""]);
     }
 
+    /// A look-only command that reads beyond the project asks, in the modes
+    /// where the `read` tool does, plan mode included, while one reading
+    /// inside it does not; a rule kept for it names the one command.
+    #[test]
+    fn look_only_commands_reading_outside_the_project_ask() {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let outside = [
+            "cat /etc/passwd",
+            "head -n 5 ~/.ssh/id_rsa",
+            "cat ~",
+            "cat ~root/.profile",
+            "grep -r token /Users/someone",
+            "grep token ../other/.env",
+            "grep -e x /etc/hosts",
+            "rg secret ..",
+            "rg --ignore-file=/etc/x y",
+            "cat src/../../x",
+            "cat .*/x",
+            "cat {..,x}/y",
+            "tr a b < /etc/passwd",
+            "wc -l </etc/passwd",
+            "cat -- /etc/passwd",
+            "cat $HOME/.netrc",
+            "cd .. && ls",
+            "cd /etc && cat passwd",
+            "cd $X && ls",
+            "cd /tmp && git status",
+            "find / -name id_rsa",
+            "ls /",
+            "env",
+            "printenv",
+            "date -f /etc/shadow",
+        ];
+        let inside = [
+            "cat src/main.rs",
+            "cat /proj/src/main.rs",
+            "head -n 5 README.md",
+            "grep -rn /api/ src",
+            "grep -e /api/ src",
+            "rg '/etc/passwd' src",
+            "rg -g '!/target' TODO",
+            "sed -n '/^fn/p' src/lib.rs",
+            "ls",
+            "ls -la src",
+            "git log --oneline -5",
+            "cat < README.md",
+            "grep x 2>/dev/null",
+            "cat /dev/null",
+            "cd src && cat lib.rs",
+            "echo $HOME",
+            "pwd",
+            "printenv PATH",
+            "cd /tmp && echo hi | tail -3",
+        ];
+        for mode in [
+            Mode::Ask,
+            Mode::Plan,
+            Mode::Edit,
+            Mode::Configured,
+            Mode::Auto,
+        ] {
+            let (hooks, _) = hooks(
+                PermissionRules {
+                    mode,
+                    ..PermissionRules::default()
+                },
+                vec![],
+            );
+            for command in outside {
+                if home.is_empty() && command.contains('~') {
+                    continue;
+                }
+                assert_eq!(
+                    hooks.decide(&bash(command), &ctx()),
+                    Decision::Ask,
+                    "{mode:?} {command}"
+                );
+                // Still look-only: plan mode lets it reach the question.
+                assert!(
+                    is_read_only_call(&bash(command), ShellSyntax::Posix),
+                    "{command}"
+                );
+            }
+            for command in inside {
+                assert_eq!(
+                    hooks.decide(&bash(command), &ctx()),
+                    Decision::Allow,
+                    "{mode:?} {command}"
+                );
+            }
+        }
+        let (all, _) = hooks(rules("mode = \"all\""), vec![]);
+        assert_eq!(
+            all.decide(&bash("cat /etc/passwd"), &ctx()),
+            Decision::Allow
+        );
+
+        let (hooks, asked) = hooks(rules("mode = \"configured\""), vec![]);
+        let mut hooks = hooks.with_persist(Box::new(|_, _, _, _| {}));
+        hooks.before_tool_call(&bash("cat /etc/hosts"), &ctx());
+        let request = asked.lock().unwrap()[0].clone();
+        assert_eq!(request.patterns(), vec!["cat /etc/hosts"]);
+    }
+
+    /// A `$` expands only before a name, a parameter, a brace, a parenthesis
+    /// or a bracket (and outside double quotes before a quote, `$'…'` being a
+    /// quote of its own); anywhere else it is a plain character, so a pattern
+    /// anchored with `$` is no variable whose value cannot be seen.
+    #[test]
+    fn a_dollar_that_expands_nothing_is_no_variable() {
+        let words = |part: &str| shell_words(part);
+        assert_eq!(
+            words("rg \"foo$\" src"),
+            Some(vec!["rg".into(), "foo$".into(), "src".into()])
+        );
+        assert_eq!(
+            words("grep a$ x"),
+            Some(vec!["grep".into(), "a$".into(), "x".into()])
+        );
+        assert_eq!(
+            words("echo $ \"$\""),
+            Some(vec!["echo".into(), "$".into(), "$".into()])
+        );
+        assert_eq!(
+            words("sed 's/x$//'"),
+            Some(vec!["sed".into(), "s/x$//".into()])
+        );
+        assert_eq!(
+            words("echo \"a$'\""),
+            Some(vec!["echo".into(), "a$'".into()])
+        );
+        for expanding in [
+            "cat $HOME/x",
+            "cat \"$HOME\"",
+            "cat ${HOME}/x",
+            "cat $1",
+            "cat \"$@\"",
+            "cat $_x",
+            "cat $$",
+            "cat $(ls)",
+            "cat \"$(ls)\"",
+            "cat $[1]",
+            "cat $'\\x2e\\x2e/x'",
+            "cat $\"x\"",
+        ] {
+            assert_eq!(words(expanding), None, "{expanding}");
+        }
+
+        let (hooks, _) = hooks(rules("mode = \"edit\""), vec![]);
+        for command in [
+            "rg \"foo$\" src",
+            "rg 'foo$' src",
+            "grep \"a$\" src/lib.rs",
+            "grep -rn 'end$' src",
+            "sed -n \"/x$/p\" src/lib.rs",
+        ] {
+            assert_eq!(
+                hooks.decide(&bash(command), &ctx()),
+                Decision::Allow,
+                "{command}"
+            );
+        }
+        for command in ["cat $HOME/x", "cat \"${HOME}/x\"", "cat $'\\x2e\\x2e/x'"] {
+            assert_eq!(
+                hooks.decide(&bash(command), &ctx()),
+                Decision::Ask,
+                "{command}"
+            );
+        }
+    }
+
+    /// A `for` loop over words that each name a path inside the project lets
+    /// its variable stand for them in a look-only read; a variable bound any
+    /// other way, or one the line could change, still asks.
+    #[test]
+    fn loop_variables_over_paths_in_the_project_read_inside_it() {
+        let (hooks, _) = hooks(rules("mode = \"edit\""), vec![]);
+        let inside = [
+            "for f in *.rs src/*.toml; do wc -l $f; done",
+            "for f in a b c; do cat $f; done",
+            "for f in a b c; do cat ${f}; done",
+            "for f in a b c; do cat \"$f\"; done",
+            "for f in a b\ndo\n  head -n 3 src/$f.rs\ndone",
+            "for f in src/*.rs; do grep -n TODO $f | head -5; done",
+            "for d in src docs; do ls $d; done",
+            "for p in foo bar; do rg $p src; done",
+            "for f in a b; do for g in c d; do cat $f/$g; done; done",
+            "for f in a; do wc -l < $f; done",
+            "cd src && for f in *.rs; do cat $f; done",
+            "for f in /proj/src/a; do cat $f; done",
+            "for f in a; do cat $f; done; for f in b; do cat $f; done",
+        ];
+        for command in inside {
+            assert_eq!(
+                hooks.decide(&bash(command), &ctx()),
+                Decision::Allow,
+                "{command}"
+            );
+        }
+        let home = std::env::var("HOME").unwrap_or_default();
+        let outside = [
+            // A word outside the project, or one that could become one.
+            "for f in ~/*; do cat $f; done",
+            "for f in /etc/passwd; do cat $f; done",
+            "for f in a ../b; do cat $f; done",
+            "for f in .*; do cat $f; done",
+            "for f in --files-from=x; do wc $f; done",
+            "for f in 'a b' c; do cat $f; done",
+            // A list that cannot be seen.
+            "for f in $(ls ~); do cat $f; done",
+            "for f in `ls ~`; do cat $f; done",
+            "for f in $LIST; do cat $f; done",
+            "for f; do cat $f; done",
+            "while read f; do cat $f; done < list",
+            "ls | while read f; do cat $f; done",
+            // The value goes out, or another variable is read.
+            "for f in a; do cat /etc/$f; done",
+            "for f in a; do cat ../$f; done",
+            "for f in a; do cat $g; done",
+            "for f in a; do cat $HOME/$f; done",
+            "for f in a; do cat ${f:-/etc/passwd}; done",
+            "for f in a; do cat ${f}x; cat $SECRET_FILE; done",
+            // Something on the line can give it another value.
+            "for f in a; do f=/etc/passwd; cat $f; done",
+            "for f in a; do echo ${f:=x}; cat $f; done",
+            "for f in a; do read f; cat $f; done",
+            "g() { f=/etc/passwd; }; for f in a; do g; cat $f; done",
+            "for f in a; do cd /etc; cat $f; done",
+            "for f in a; do cat $f; cd ..; done",
+            "IFS=/; for f in a/b; do cat $f; done",
+            // The loop is over: the variable keeps its last value unseen.
+            "for f in a; do echo $f; done; cat $f",
+            "cat $HOME/x",
+        ];
+        for command in outside {
+            if home.is_empty() && command.contains('~') {
+                continue;
+            }
+            assert_eq!(
+                hooks.decide(&bash(command), &ctx()),
+                Decision::Ask,
+                "{command}"
+            );
+        }
+
+        let values = |command: &str| -> Vec<Vec<(String, Vec<ShellWord>)>> {
+            shell_parts(command, Path::new("/proj"))
+                .into_iter()
+                .map(|p| p.loop_values)
+                .collect()
+        };
+        let bound = |name: &str, words: &[&str]| {
+            (
+                name.to_string(),
+                words.iter().map(|w| ShellWord::literal(*w)).collect(),
+            )
+        };
+        assert_eq!(
+            values("for f in a 'b c'; do cat $f; done; ls"),
+            vec![vec![bound("f", &["a", "b c"])], vec![]]
+        );
+        // A `while` inside is a loop of its own, closed by its own `done`.
+        assert_eq!(
+            values("for f in a; do while true; do cat $f; done; wc $f; done"),
+            vec![
+                vec![bound("f", &["a"])],
+                vec![bound("f", &["a"])],
+                vec![bound("f", &["a"])]
+            ]
+        );
+        assert_eq!(
+            values("for f in a; do while read g; do cat $f; done; done"),
+            vec![vec![], vec![]]
+        );
+    }
+
+    /// A symlink in the project leading out of it carries a look-only read
+    /// out too.
+    #[cfg(unix)]
+    #[test]
+    fn a_look_only_read_through_a_symlink_out_of_the_project_asks() {
+        let outside = tempfile::tempdir().unwrap();
+        let project = tempfile::tempdir().unwrap();
+        std::fs::write(outside.path().join("secret"), "x").unwrap();
+        std::fs::write(project.path().join("notes"), "x").unwrap();
+        std::os::unix::fs::symlink(outside.path(), project.path().join("docs")).unwrap();
+        let ctx = ToolContext::new(project.path().to_path_buf());
+        let (hooks, _) = hooks(rules("mode = \"edit\""), vec![]);
+        for command in ["cat docs/secret", "cd docs && cat secret", "cd docs && ls"] {
+            assert_eq!(
+                hooks.decide(&bash(command), &ctx),
+                Decision::Ask,
+                "{command}"
+            );
+        }
+        assert_eq!(hooks.decide(&bash("cat notes"), &ctx), Decision::Allow);
+    }
+
+    /// A glob in a look-only command reads what it matches, as the shell
+    /// expands it: a symlink out of the project among the matches asks.
+    #[cfg(unix)]
+    #[test]
+    fn a_glob_matching_a_symlink_out_of_the_project_asks() {
+        use std::os::unix::fs::symlink;
+        let outside = tempfile::tempdir().unwrap();
+        let project = tempfile::tempdir().unwrap();
+        let root = project.path();
+        std::fs::write(outside.path().join("secret"), "x").unwrap();
+        std::fs::write(root.join("notes"), "x").unwrap();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("src/a.rs"), "x").unwrap();
+        symlink(outside.path(), root.join("docs")).unwrap();
+        symlink(outside.path().join("secret"), root.join("src/lnk")).unwrap();
+        // A dotfile matches only a pattern naming its dot.
+        std::fs::create_dir_all(root.join("hid")).unwrap();
+        std::fs::write(root.join("hid/plain"), "x").unwrap();
+        symlink(outside.path().join("secret"), root.join("hid/.out")).unwrap();
+        // A match that would be taken for an option.
+        std::fs::create_dir_all(root.join("opt")).unwrap();
+        std::fs::write(root.join("opt/-n"), "x").unwrap();
+        // More matches than are judged one by one.
+        std::fs::create_dir_all(root.join("many")).unwrap();
+        for i in 0..=MAX_GLOB_MATCHES {
+            std::fs::write(root.join(format!("many/{i}")), "").unwrap();
+        }
+        let ctx = ToolContext::new(root.to_path_buf());
+        let (hooks, _) = hooks(rules("mode = \"edit\""), vec![]);
+        let absolute = format!("cat {}/d*/secret", root.display());
+        let unknown_dir = format!("cd $X && cat {}/src/*", root.display());
+        for command in [
+            "cat *",
+            "cat d*",
+            "head */secret",
+            "cat ?ocs/secret",
+            "cat [d]ocs/secret",
+            "cat [^n]ocs/secret",
+            "cat **/secret",
+            "cat src/*",
+            "cat src/l?k",
+            "cat \"src\"/*",
+            "cd src && cat *",
+            "wc -l <src/l*",
+            "wc -l < src/l*",
+            "for f in *; do cat $f; done",
+            "for f in src/*; do cat $f; done",
+            "for f in s; do cat ${f}rc/*; done",
+            "cat hid/.*",
+            "cd opt && cat *",
+            "cat many/*",
+            "for f in many/*; do cat $f; done",
+            &absolute,
+            &unknown_dir,
+        ] {
+            assert_eq!(
+                hooks.decide(&bash(command), &ctx),
+                Decision::Ask,
+                "{command}"
+            );
+        }
+        for command in [
+            "cat no*",
+            "cat src/*.rs",
+            "cat hid/*",
+            "cat opt/*",
+            "cat '*'",
+            "cat \"d*\"",
+            "cat d\\*",
+            "cat *.zzz",
+            "ls n?tes",
+            "grep -n x src/[a]*",
+            "for f in src/*.rs; do cat $f; done",
+            "wc -l <n*",
+            "ls many",
+            "echo many/*",
+            "for f in many/*; do echo $f; done",
+        ] {
+            assert_eq!(
+                hooks.decide(&bash(command), &ctx),
+                Decision::Allow,
+                "{command}"
+            );
+        }
+
+        let words = |part: &str| globbing_words(part, &[]).unwrap();
+        assert_eq!(
+            words("cat 'a*'b* \"[x]\"? c***d [^z]")[1..],
+            [
+                ShellWord {
+                    text: "a*b*".into(),
+                    glob: Some("a[*]b*".into())
+                },
+                ShellWord {
+                    text: "[x]?".into(),
+                    glob: Some("[[]x[]]?".into())
+                },
+                ShellWord {
+                    text: "c***d".into(),
+                    glob: Some("c*d".into())
+                },
+                ShellWord {
+                    text: "[^z]".into(),
+                    glob: Some("[!z]".into())
+                },
+            ]
+        );
+        assert_eq!(words("cat \\*")[1], ShellWord::literal("*"));
+    }
+
+    /// A loop that changes directory reads its second turn somewhere else,
+    /// so its body and what follows it run in an unknown directory.
+    #[test]
+    fn a_loop_that_changes_directory_leaves_it_unknown() {
+        let (hooks, _) = hooks(rules("mode = \"edit\""), vec![]);
+        for command in [
+            "for x in a b; do cat src/lib.rs; cd ..; done",
+            "for x in a b; do cd ..; done; cat src/lib.rs",
+            "while true; do ls; cd ..; done",
+            "until false; do pushd ..; done; ls",
+            "select x in a b; do cat f; cd sub; done",
+            "for x in a; do for y in b; do cat f; done; cd ..; done",
+            "pushd src; for x in a b; do popd; done; popd; cat f",
+            "while cd ..; do cat f; done",
+            "for x in a b; do cd ..; done; cd src && cat f",
+        ] {
+            assert_eq!(
+                hooks.decide(&bash(command), &ctx()),
+                Decision::Ask,
+                "{command}"
+            );
+        }
+        for command in [
+            // No directory change in the loop, or an absolute one after it.
+            "for x in a b; do cat src/lib.rs; done; cat f",
+            "for x in a b; do cd ..; done; cd /proj && cat f",
+            "cd src; for f in a b; do cat $f; done",
+        ] {
+            assert_eq!(
+                hooks.decide(&bash(command), &ctx()),
+                Decision::Allow,
+                "{command}"
+            );
+        }
+        let dirs: Vec<_> = shell_parts(
+            "cd src; for x in a; do ls; cd ..; done; cat f",
+            Path::new("/proj"),
+        )
+        .into_iter()
+        .map(|p| p.dir)
+        .collect();
+        assert_eq!(dirs, vec![Some(PathBuf::from("/proj")), None, None, None]);
+    }
+
+    /// The tree walks that follow symlinks can be led out of the project by
+    /// one inside it, so they ask wherever an outside read asks.
+    #[test]
+    fn a_tree_walk_following_symlinks_asks() {
+        let (edit, _) = hooks(rules("mode = \"edit\""), vec![]);
+        let (plan, _) = hooks(rules("mode = \"plan\""), vec![]);
+        let (all, _) = hooks(rules("mode = \"all\""), vec![]);
+        for command in [
+            "rg -L foo",
+            "rg --follow foo src",
+            "rg -iL foo",
+            "grep -R foo .",
+            "grep -rnR foo src",
+            "grep --dereference-recursive foo",
+            "find -L . -name x",
+            "find -H src",
+            "find -HL .",
+            "find . -follow -name x",
+            "ls -L src",
+            "ls -laL",
+            "ls --dereference",
+            "du -L",
+            "du -shL src",
+            "du --dereference .",
+            "tree -l",
+            "tree -al src",
+        ] {
+            assert_eq!(
+                edit.decide(&bash(command), &ctx()),
+                Decision::Ask,
+                "{command}"
+            );
+            assert_eq!(
+                plan.decide(&bash(command), &ctx()),
+                Decision::Ask,
+                "{command}"
+            );
+            assert_eq!(
+                all.decide(&bash(command), &ctx()),
+                Decision::Allow,
+                "{command}"
+            );
+        }
+        for command in [
+            "rg foo",
+            "grep -rn foo src",
+            "find . -name x",
+            "find -P .",
+            "ls -la src",
+            "du -sh",
+            "tree -L 2",
+        ] {
+            assert_eq!(
+                edit.decide(&bash(command), &ctx()),
+                Decision::Allow,
+                "{command}"
+            );
+        }
+    }
+
+    /// A backquote closes the substitution it opened, so the separators
+    /// after it split the line again and a removal behind it is seen.
+    #[test]
+    fn a_closing_backquote_ends_its_substitution() {
+        let parsed = split_shell("echo `true`; rm -rf ~");
+        assert_eq!(parsed.parts, vec!["echo `true`", "rm -rf ~"]);
+        assert_eq!(parsed.substituted, vec![true, false]);
+        assert_eq!(
+            split_shell("a `b; c` && d `e && f`").parts,
+            vec!["a `b; c`", "d `e && f`"]
+        );
+        assert_eq!(
+            split_shell("a $(b `c; d` e; f) ; g").parts,
+            vec!["a $(b `c; d` e; f)", "g"]
+        );
+        assert_eq!(
+            split_shell("a `b $(c; d)` ; e").parts,
+            vec!["a `b $(c; d)`", "e"]
+        );
+        let home = std::env::var("HOME").unwrap_or_default();
+        if !home.is_empty() {
+            let parts = shell_parts("echo `true`; rm -rf ~", Path::new("/proj"));
+            assert!(parts
+                .iter()
+                .any(|p| critical_removal(&p.text, Path::new("/proj"))));
+        }
+    }
+
+    /// A lone `&` backgrounds a command and starts the next, so each side
+    /// is judged on its own; the `&` of a redirection splits nothing.
+    #[test]
+    fn a_background_ampersand_separates_commands() {
+        let parts = |command: &str| split_shell(command).parts;
+        assert_eq!(
+            parts("ls & touch /tmp/pwned"),
+            vec!["ls", "touch /tmp/pwned"]
+        );
+        assert_eq!(parts("sleep 5 &"), vec!["sleep 5"]);
+        assert_eq!(parts("a&b"), vec!["a", "b"]);
+        assert_eq!(parts("cargo test 2>&1"), vec!["cargo test 2>&1"]);
+        assert_eq!(parts("ls >&2 && pwd"), vec!["ls >&2", "pwd"]);
+        assert_eq!(parts("ls &>/dev/null"), vec!["ls &>/dev/null"]);
+        assert_eq!(parts("ls &>> log"), vec!["ls &>> log"]);
+        assert_eq!(parts("cat <&3"), vec!["cat <&3"]);
+        assert_eq!(parts("make |& tee log"), vec!["make", "tee log"]);
+        assert_eq!(parts("echo 'a & b' \\& c"), vec!["echo 'a & b' \\& c"]);
+
+        // Each side earns its own verdict, in plan mode and under an allow
+        // rule for the first side.
+        let (plan, _) = hooks(rules("mode = \"plan\""), vec![]);
+        assert_eq!(
+            plan.decide(&bash("ls & touch /tmp/pwned"), &ctx()),
+            Decision::Deny
+        );
+        let mut configured = rules("mode = \"configured\"");
+        configured.add("shell", "cargo test*", Decision::Allow);
+        let (configured, _) = hooks(configured, vec![]);
+        assert_eq!(
+            configured.decide(&bash("cargo test & rm -rf src"), &ctx()),
+            Decision::Ask
+        );
+    }
+
     /// The shell's reserved words are not commands: the part is the command
     /// after them, and closing words and loop headers run nothing.
     #[test]
@@ -3180,10 +5002,10 @@ mod tests {
     #[test]
     fn a_substitution_asks_about_its_own_part_only() {
         let mut rules = PermissionRules::default();
-        rules.add("bash", "cd *", Decision::Allow);
-        rules.add("bash", "ls *", Decision::Allow);
-        rules.add("bash", "echo *", Decision::Allow);
-        rules.add("bash", "head *", Decision::Allow);
+        rules.add("shell", "cd *", Decision::Allow);
+        rules.add("shell", "ls *", Decision::Allow);
+        rules.add("shell", "echo *", Decision::Allow);
+        rules.add("shell", "head *", Decision::Allow);
         let (hooks, _) = hooks(rules, vec![]);
 
         let CommandVerdict {
@@ -3325,8 +5147,8 @@ mod tests {
             ToolDecision::Allow
         );
         assert!(persisted.lock().unwrap().is_empty());
-        assert_eq!(hooks.rules().evaluate("bash", "rm x"), None);
-        assert_eq!(hooks.rules().evaluate_session("bash", "rm x"), None);
+        assert_eq!(hooks.rules().evaluate("shell", "rm x"), None);
+        assert_eq!(hooks.rules().evaluate_session("shell", "rm x"), None);
         assert_eq!(hooks.decide(&bash("rm -rf target"), &ctx()), Decision::Ask);
     }
 
@@ -3352,6 +5174,38 @@ mod tests {
             }
         );
         assert_eq!(hooks.decide(&bash("rm -rf target"), &ctx()), Decision::Deny);
+    }
+
+    /// A whole-command `ask` rule over parts that are all look-only asks
+    /// with no part listed and no rule to keep, instead of panicking.
+    #[test]
+    fn a_whole_command_ask_over_look_only_parts_asks_without_parts() {
+        let (hooks, asked) = hooks(
+            rules(
+                r#"
+                mode = "configured"
+                [shell]
+                "*&&*" = "ask"
+                "#,
+            ),
+            vec![PermissionAnswer::AllowAlways],
+        );
+        let persisted = Arc::new(Mutex::new(Vec::new()));
+        let sink = persisted.clone();
+        let mut hooks = hooks.with_persist(Box::new(move |tool, pattern, _, _| {
+            sink.lock()
+                .unwrap()
+                .push((tool.to_string(), pattern.to_string()));
+        }));
+        assert_eq!(
+            hooks.before_tool_call(&bash("ls && pwd"), &ctx()),
+            ToolDecision::Allow
+        );
+        let asked = asked.lock().unwrap();
+        assert_eq!(asked.len(), 1);
+        assert!(asked[0].parts.is_empty());
+        assert!(!asked[0].can_persist);
+        assert!(persisted.lock().unwrap().is_empty());
     }
 
     #[test]
@@ -3399,14 +5253,14 @@ mod tests {
         assert_eq!(
             *persisted.lock().unwrap(),
             vec![(
-                "bash".to_string(),
+                "shell".to_string(),
                 "npm test *".to_string(),
                 Decision::Allow,
                 PersistScope::Project
             )]
         );
         assert_eq!(
-            hooks.rules().evaluate("bash", "npm test -- x"),
+            hooks.rules().evaluate("shell", "npm test -- x"),
             Some(Decision::Allow)
         );
         // 4. deny
@@ -3458,7 +5312,7 @@ mod tests {
             hooks.decide(&bash("cargo build --release"), &ctx()),
             Decision::Allow
         );
-        assert_eq!(hooks.rules().evaluate("bash", "cargo build"), None);
+        assert_eq!(hooks.rules().evaluate("shell", "cargo build"), None);
     }
 
     #[test]
@@ -3477,13 +5331,13 @@ mod tests {
     #[test]
     fn suggested_patterns() {
         assert_eq!(
-            suggested_pattern("bash", "git push origin main"),
+            suggested_pattern("shell", "git push origin main"),
             "git push *"
         );
-        assert_eq!(suggested_pattern("bash", "ls -la"), "ls *");
-        assert_eq!(suggested_pattern("bash", "git -C x status"), "git *");
+        assert_eq!(suggested_pattern("shell", "ls -la"), "ls *");
+        assert_eq!(suggested_pattern("shell", "git -C x status"), "git *");
         assert_eq!(
-            suggested_pattern("bash", "cargo test && cargo fmt"),
+            suggested_pattern("shell", "cargo test && cargo fmt"),
             "cargo test *"
         );
         assert_eq!(suggested_pattern("edit", "src/lib.rs"), "src/lib.rs");
@@ -3505,8 +5359,159 @@ mod tests {
         assert_eq!(subject_of(&fetch, &ctx()), "https://docs.rs/a");
         let search = call("web_search", json!({ "query": "rust tui", "limit": 3 }));
         assert_eq!(subject_of(&search, &ctx()), "rust tui");
-        assert!(is_read_only_call(&fetch));
-        assert!(is_read_only_call(&search));
+        assert!(is_read_only_call(&fetch, ShellSyntax::Posix));
+        assert!(is_read_only_call(&search, ShellSyntax::Posix));
+    }
+
+    /// A symlink in the project does not carry a file tool past its edge: the
+    /// subject is the file the system opens, outside the project when the
+    /// link points out, and the edit asks.
+    #[cfg(unix)]
+    #[test]
+    fn a_symlink_out_of_the_project_is_outside_it() {
+        let outside = tempfile::tempdir().unwrap();
+        let project = tempfile::tempdir().unwrap();
+        std::fs::create_dir(project.path().join("src")).unwrap();
+        std::fs::write(project.path().join(".env"), "SECRET=1").unwrap();
+        std::os::unix::fs::symlink(outside.path(), project.path().join("docs")).unwrap();
+        std::os::unix::fs::symlink(project.path().join(".env"), project.path().join("env.txt"))
+            .unwrap();
+        let ctx = ToolContext::new(project.path().to_path_buf());
+        let real_outside = dunce::canonicalize(outside.path()).unwrap();
+        let path = |p: &str| json!({ "path": p, "content": "x" });
+
+        let write = call("write", path("docs/.zshrc"));
+        assert_eq!(
+            subject_of(&write, &ctx),
+            real_outside.join(".zshrc").to_string_lossy()
+        );
+        // `..` after the link leaves its target, as the system's lookup does.
+        let up = call("write", path("docs/../escape"));
+        assert_eq!(
+            subject_of(&up, &ctx),
+            real_outside
+                .parent()
+                .unwrap()
+                .join("escape")
+                .to_string_lossy()
+        );
+        // A file not yet there, inside, stays inside.
+        assert_eq!(
+            subject_of(&call("write", path("src/new.rs")), &ctx),
+            "src/new.rs"
+        );
+        assert_eq!(
+            subject_of(&call("write", path("new/../src/x.rs")), &ctx),
+            "src/x.rs"
+        );
+        // A link to a guarded file is judged as that file.
+        assert_eq!(subject_of(&call("read", path("env.txt")), &ctx), ".env");
+
+        let mut rules = rules("mode = \"edit\"");
+        rules.add("read", ".env", Decision::Deny);
+        let (hooks, _) = hooks(rules, vec![]);
+        assert_eq!(hooks.decide(&write, &ctx), Decision::Ask);
+        assert_eq!(hooks.decide(&up, &ctx), Decision::Ask);
+        assert_eq!(
+            hooks.decide(&call("write", path("src/new.rs")), &ctx),
+            Decision::Allow
+        );
+        assert_eq!(
+            hooks.decide(&call("read", path("env.txt")), &ctx),
+            Decision::Deny
+        );
+        for mode in [Mode::Auto, Mode::Plan] {
+            hooks.set_mode(mode);
+            assert_ne!(hooks.decide(&write, &ctx), Decision::Allow, "{mode:?}");
+            assert_ne!(
+                hooks.decide(&call("read", path("docs/secret")), &ctx),
+                Decision::Allow,
+                "{mode:?}"
+            );
+        }
+    }
+
+    /// An edit or a write under `.git` (its config can name a program that a
+    /// look-only `git status` runs) asks in every mode, whatever the rules
+    /// allow; a `deny` still refuses, plan mode still refuses, and no answer
+    /// outlasts the call.
+    #[test]
+    fn writing_under_git_asks_in_every_mode_but_all() {
+        let edit = |path: &str| call("edit", json!({ "path": path }));
+        for mode in [Mode::Ask, Mode::Edit, Mode::Configured, Mode::Auto] {
+            let mut rules = PermissionRules {
+                mode,
+                ..PermissionRules::default()
+            };
+            rules.add("edit", "**", Decision::Allow);
+            rules.add_session("edit", ".git/config", Decision::Allow);
+            let (hooks, _) = hooks(rules, vec![]);
+            for path in [
+                ".git/config",
+                ".git/hooks/pre-commit",
+                "/proj/.git/config",
+                ".GIT/config",
+                "sub/.git",
+                "/elsewhere/repo/.git/config",
+            ] {
+                assert_eq!(
+                    hooks.decide(&edit(path), &ctx()),
+                    Decision::Ask,
+                    "{mode:?} {path}"
+                );
+            }
+            assert_eq!(
+                hooks.decide(&call("write", json!({ "path": ".git/config" })), &ctx()),
+                Decision::Ask
+            );
+            // Reading git's files, and a file merely named like it, are not
+            // held back.
+            assert_ne!(
+                hooks.decide(&call("read", json!({ "path": ".git/config" })), &ctx()),
+                Decision::Deny
+            );
+            if matches!(mode, Mode::Edit | Mode::Auto) {
+                assert_eq!(hooks.decide(&edit(".gitignore"), &ctx()), Decision::Allow);
+                assert_eq!(
+                    hooks.decide(&edit("src/.github/x"), &ctx()),
+                    Decision::Allow
+                );
+            }
+        }
+        let (plan, _) = hooks(rules("mode = \"plan\""), vec![]);
+        assert_eq!(plan.decide(&edit(".git/config"), &ctx()), Decision::Deny);
+        // `all` never asks, and runs any shell command anyway; its rules
+        // still count.
+        let mut all = rules("mode = \"all\"");
+        all.add("edit", ".git/hooks/**", Decision::Ask);
+        let (all, _) = hooks(all, vec![]);
+        for path in [".git/config", "/elsewhere/repo/.git/config", "sub/.git"] {
+            assert_eq!(all.decide(&edit(path), &ctx()), Decision::Allow, "{path}");
+        }
+        assert_eq!(
+            all.decide(&edit(".git/hooks/pre-commit"), &ctx()),
+            Decision::Ask
+        );
+        let mut denied = rules("mode = \"all\"");
+        denied.add("edit", ".git/**", Decision::Deny);
+        let (denied, _) = hooks(denied, vec![]);
+        assert_eq!(denied.decide(&edit(".git/config"), &ctx()), Decision::Deny);
+
+        // The reviewer is not asked, and no answer outlasts the call.
+        let (hooks, judged, asked) = auto_hooks(
+            "",
+            vec![allow("fine")],
+            vec![PermissionAnswer::AllowSession],
+        );
+        let mut hooks = hooks.with_persist(Box::new(|_, _, _, _| {}));
+        assert_eq!(
+            hooks.before_tool_call(&edit(".git/config"), &ctx()),
+            ToolDecision::Allow
+        );
+        assert!(judged.lock().unwrap().is_empty());
+        let request = asked.lock().unwrap()[0].clone();
+        assert!(!request.can_persist && !request.can_allow_session);
+        assert_eq!(hooks.decide(&edit(".git/config"), &ctx()), Decision::Ask);
     }
 
     #[test]
@@ -3610,12 +5615,12 @@ mod tests {
             json!({ "questions": [{ "question": "Which?" }] }),
         );
         assert_eq!(hooks.decide(&question, &ctx()), Decision::Allow);
-        assert!(is_read_only_call(&question));
+        assert!(is_read_only_call(&question, ShellSyntax::Posix));
     }
     #[test]
     fn recall_never_asks_and_passes_plan_mode() {
         let recall = call("recall", json!({ "queries": ["why no tokio"] }));
-        assert!(is_read_only_call(&recall));
+        assert!(is_read_only_call(&recall, ShellSyntax::Posix));
         for mode in Mode::ALL {
             let hooks = PermissionHooks::new(
                 PermissionRules {
@@ -3667,6 +5672,7 @@ mod tests {
             tool: crate::ToolTraits {
                 mcp: true,
                 read_only,
+                ..Default::default()
             },
             ..ctx()
         }
@@ -3767,21 +5773,24 @@ mod tests {
         ));
         assert!(!blocked(
             &mut guard,
-            &call("bash", json!({ "command": "git status && rg TODO src" }))
+            &call("shell", json!({ "command": "git status && rg TODO src" }))
         ));
         assert!(blocked(
             &mut guard,
-            &call("bash", json!({ "command": "cat $(ls)" }))
+            &call("shell", json!({ "command": "cat $(ls)" }))
         ));
         assert!(blocked(
             &mut guard,
-            &call("bash", json!({ "command": "ls > out" }))
+            &call("shell", json!({ "command": "ls > out" }))
         ));
         assert!(blocked(
             &mut guard,
-            &call("bash", json!({ "command": "git status; cargo build" }))
+            &call("shell", json!({ "command": "git status; cargo build" }))
         ));
-        assert!(blocked(&mut guard, &call("bash", json!({ "command": "" }))));
+        assert!(blocked(
+            &mut guard,
+            &call("shell", json!({ "command": "" }))
+        ));
         assert!(blocked(
             &mut guard,
             &call("edit", json!({ "path": "src/main.rs" }))
@@ -3888,7 +5897,7 @@ mod tests {
             mode: Mode::Configured,
             ..rules(
                 r#"
-                [bash]
+                [shell]
                 "sudo*" = "deny"
                 "#,
             )
@@ -3956,7 +5965,7 @@ mod tests {
     fn auto_mode_reviews_what_the_rules_leave_open() {
         let (mut hooks, judged, asked) = auto_hooks(
             r#"
-            [bash]
+            [shell]
             "cargo test*" = "allow"
             "python3*" = "allow"
             "git push*" = "ask"
@@ -4077,23 +6086,23 @@ mod tests {
     #[test]
     fn broad_allows_are_those_that_run_any_program() {
         for (tool, pattern) in [
-            ("bash", "*"),
-            ("bash", "python3*"),
-            ("bash", "python *"),
-            ("bash", "npm run *"),
-            ("bash", "env *"),
-            ("bash", "sh -c*"),
-            ("bash", "make*"),
+            ("shell", "*"),
+            ("shell", "python3*"),
+            ("shell", "python *"),
+            ("shell", "npm run *"),
+            ("shell", "env *"),
+            ("shell", "sh -c*"),
+            ("shell", "make*"),
             ("task", "reviewer"),
             ("mcp__db__query", "*"),
         ] {
             assert!(broad_allow(tool, pattern), "{tool} {pattern}");
         }
         for (tool, pattern) in [
-            ("bash", "cargo test*"),
-            ("bash", "git status*"),
-            ("bash", "npm run build"),
-            ("bash", "python3 --version"),
+            ("shell", "cargo test*"),
+            ("shell", "git status*"),
+            ("shell", "npm run build"),
+            ("shell", "python3 --version"),
             ("edit", "src/**"),
         ] {
             assert!(!broad_allow(tool, pattern), "{tool} {pattern}");
@@ -4140,11 +6149,11 @@ mod prompter_tests {
 
     fn request() -> PermissionRequest {
         PermissionRequest {
-            tool: "bash".into(),
+            tool: "shell".into(),
             subject: "git push".into(),
             call: ToolCall {
                 id: "c".into(),
-                name: "bash".into(),
+                name: "shell".into(),
                 arguments: json!({ "command": "git push" }),
                 extra_content: None,
             },
@@ -4215,17 +6224,37 @@ mod granted_tests {
     #[test]
     fn granted_rules_count_beside_the_configured_ones_and_stay_out_of_the_file() {
         let mut rules = PermissionRules::default();
-        rules.add("bash", "rm *", Decision::Deny);
-        add_rule(&mut rules.granted, "bash", "cargo *", Decision::Allow);
-        add_rule(&mut rules.granted, "bash", "*", Decision::Allow);
-        assert_eq!(rules.evaluate("bash", "cargo test"), Some(Decision::Allow));
+        rules.add("shell", "rm *", Decision::Deny);
+        add_rule(&mut rules.granted, "shell", "cargo *", Decision::Allow);
+        add_rule(&mut rules.granted, "shell", "*", Decision::Allow);
+        assert_eq!(rules.evaluate("shell", "cargo test"), Some(Decision::Allow));
         // The strictest still wins.
-        assert_eq!(rules.evaluate("bash", "rm -rf x"), Some(Decision::Deny));
+        assert_eq!(rules.evaluate("shell", "rm -rf x"), Some(Decision::Deny));
         assert_eq!(
-            rules.evaluate_narrow("bash", "cargo test"),
+            rules.evaluate_narrow("shell", "cargo test"),
             Some(Decision::Allow)
         );
         let text = toml::to_string(&rules).unwrap();
         assert!(!text.contains("cargo"), "{text}");
+    }
+
+    #[test]
+    fn rules_kept_under_the_shell_tools_old_name_still_apply() {
+        let mut rules: PermissionRules =
+            toml::from_str("[bash]\n\"git push*\" = \"deny\"\n\"cargo *\" = \"allow\"\n").unwrap();
+        add_rule(&mut rules.granted, "bash", "make *", Decision::Allow);
+        assert_eq!(rules.evaluate("shell", "git push"), Some(Decision::Deny));
+        assert_eq!(rules.evaluate("shell", "make all"), Some(Decision::Allow));
+        assert_eq!(
+            rules.evaluate_narrow("shell", "cargo test"),
+            Some(Decision::Allow)
+        );
+        // A rule the user adds now goes under the new name, beside the old.
+        rules.add("shell", "rm *", Decision::Deny);
+        assert_eq!(rules.evaluate("shell", "rm x"), Some(Decision::Deny));
+        assert_eq!(
+            rules.evaluate("shell", "cargo build"),
+            Some(Decision::Allow)
+        );
     }
 }

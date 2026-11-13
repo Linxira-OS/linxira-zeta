@@ -1499,6 +1499,145 @@ const FOUNDATION_OPERATIONS: Readonly<Record<string, OperationShape>> = {
 			}
 		},
 	},
+	"rooms.list": {
+		keys: ["kind", "viewerId"],
+		validate: operation => {
+			if (operation.viewerId !== undefined) nonEmptyString(operation.viewerId, "$request.operation.viewerId");
+		},
+	},
+	"room.get": {
+		keys: ["kind", "roomId"],
+		validate: operation => nonEmptyString(operation.roomId, "$request.operation.roomId"),
+	},
+	"room.log.read": {
+		keys: ["kind", "roomId", "afterSeq", "limit"],
+		validate: operation => {
+			nonEmptyString(operation.roomId, "$request.operation.roomId");
+			if (operation.afterSeq !== undefined) nonNegativeInteger(operation.afterSeq, "$request.operation.afterSeq");
+			if (operation.limit !== undefined) positiveInteger(operation.limit, "$request.operation.limit");
+		},
+	},
+	"room.contacts.list": {
+		keys: ["kind", "roomId"],
+		validate: operation => nonEmptyString(operation.roomId, "$request.operation.roomId"),
+	},
+	"room.create": {
+		keys: ["kind", "roomKind", "name", "repoRoot"],
+		validate: operation => {
+			if (!["super", "repo", "main"].includes(operation.roomKind as string)) {
+				throw new ContractValidationError("unsupported room kind", "$request.operation.roomKind");
+			}
+			nonEmptyString(operation.name, "$request.operation.name");
+			if (operation.repoRoot !== undefined) nonEmptyString(operation.repoRoot, "$request.operation.repoRoot");
+		},
+	},
+	"room.member.add": {
+		keys: ["kind", "roomId", "memberId", "role", "displayName", "repoRoot", "homeSessionId"],
+		validate: operation => {
+			nonEmptyString(operation.roomId, "$request.operation.roomId");
+			nonEmptyString(operation.memberId, "$request.operation.memberId");
+			if (!["super", "repo", "main", "resident"].includes(operation.role as string)) {
+				throw new ContractValidationError("unsupported room role", "$request.operation.role");
+			}
+			for (const key of ["displayName", "repoRoot", "homeSessionId"] as const) {
+				if (operation[key] !== undefined) nonEmptyString(operation[key], `$request.operation.${key}`);
+			}
+		},
+	},
+	"room.member.remove": {
+		keys: ["kind", "roomId", "memberId"],
+		validate: operation => {
+			nonEmptyString(operation.roomId, "$request.operation.roomId");
+			nonEmptyString(operation.memberId, "$request.operation.memberId");
+		},
+	},
+	"room.post": {
+		keys: ["kind", "roomId", "body", "mode", "mentions", "replyTo"],
+		validate: operation => {
+			nonEmptyString(operation.roomId, "$request.operation.roomId");
+			nonEmptyString(operation.body, "$request.operation.body");
+			if (operation.mode !== undefined && !["parallel", "serial", "mention"].includes(operation.mode as string)) {
+				throw new ContractValidationError("unsupported room delivery mode", "$request.operation.mode");
+			}
+			if (operation.mentions !== undefined) {
+				if (!Array.isArray(operation.mentions))
+					throw new ContractValidationError("expected an array", "$request.operation.mentions");
+				for (const [index, value] of operation.mentions.entries())
+					nonEmptyString(value, `$request.operation.mentions[${index}]`);
+			}
+			if (operation.replyTo !== undefined) positiveInteger(operation.replyTo, "$request.operation.replyTo");
+		},
+	},
+	"room.reply": {
+		keys: ["kind", "roomId", "memberId", "body", "replyTo", "roundId"],
+		validate: operation => {
+			nonEmptyString(operation.roomId, "$request.operation.roomId");
+			nonEmptyString(operation.memberId, "$request.operation.memberId");
+			nonEmptyString(operation.body, "$request.operation.body");
+			if (operation.replyTo !== undefined) positiveInteger(operation.replyTo, "$request.operation.replyTo");
+			if (operation.roundId !== undefined) nonEmptyString(operation.roundId, "$request.operation.roundId");
+		},
+	},
+	"room.markRead": {
+		keys: ["kind", "roomId", "memberId", "seq"],
+		validate: operation => {
+			nonEmptyString(operation.roomId, "$request.operation.roomId");
+			if (operation.memberId !== undefined) nonEmptyString(operation.memberId, "$request.operation.memberId");
+			nonNegativeInteger(operation.seq, "$request.operation.seq");
+		},
+	},
+	"room.round.stop": {
+		keys: ["kind", "roomId", "roundId"],
+		validate: operation => {
+			nonEmptyString(operation.roomId, "$request.operation.roomId");
+			nonEmptyString(operation.roundId, "$request.operation.roundId");
+		},
+	},
+	"room.resident.promote": {
+		keys: ["kind", "roomId", "agentId", "ownerMemberId"],
+		validate: operation => {
+			nonEmptyString(operation.roomId, "$request.operation.roomId");
+			nonEmptyString(operation.agentId, "$request.operation.agentId");
+			if (operation.ownerMemberId !== undefined)
+				nonEmptyString(operation.ownerMemberId, "$request.operation.ownerMemberId");
+		},
+	},
+	"room.resident.park": {
+		keys: ["kind", "roomId", "agentId"],
+		validate: operation => {
+			nonEmptyString(operation.roomId, "$request.operation.roomId");
+			nonEmptyString(operation.agentId, "$request.operation.agentId");
+		},
+	},
+	"room.resident.revive": {
+		keys: ["kind", "roomId", "agentId"],
+		validate: operation => {
+			nonEmptyString(operation.roomId, "$request.operation.roomId");
+			nonEmptyString(operation.agentId, "$request.operation.agentId");
+		},
+	},
+	"room.proposal.create": {
+		keys: ["kind", "roomId", "targetRepo", "targetMemberId", "decisionId", "body"],
+		validate: operation => {
+			nonEmptyString(operation.roomId, "$request.operation.roomId");
+			nonEmptyString(operation.targetRepo, "$request.operation.targetRepo");
+			nonEmptyString(operation.body, "$request.operation.body");
+			for (const key of ["targetMemberId", "decisionId"] as const) {
+				if (operation[key] !== undefined) nonEmptyString(operation[key], `$request.operation.${key}`);
+			}
+		},
+	},
+	"room.proposal.respond": {
+		keys: ["kind", "roomId", "proposalId", "accept", "decisionId", "body"],
+		validate: operation => {
+			nonEmptyString(operation.roomId, "$request.operation.roomId");
+			nonEmptyString(operation.proposalId, "$request.operation.proposalId");
+			booleanValue(operation.accept, "$request.operation.accept");
+			for (const key of ["decisionId", "body"] as const) {
+				if (operation[key] !== undefined) nonEmptyString(operation[key], `$request.operation.${key}`);
+			}
+		},
+	},
 	"agent.spawn": {
 		keys: ["kind", "definition", "assignment", "context", "async", "isolation", "effort", "model", "solutionSpace"],
 		validate: operation => {

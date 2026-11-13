@@ -1,0 +1,101 @@
+{
+	"$comment": "Release scope manifest (REQ-021, ADR draft local://release-preconditions-contract-adr-draft.md). Populate `releases[<version>]` before an owner-approved public release. An empty `releases` map is intentional: no public release is scoped yet, and scripts/release-scope.ts fails closed instead of publishing an unscoped version. 1.5.x internal tags do not use this file.",
+	"releases": {
+		"1.5.2": {
+			"requirements": [
+				"REQ-020",
+				"REQ-028",
+				"REQ-029",
+				"REQ-050",
+				"REQ-051",
+				"REQ-054",
+				"REQ-056",
+				"REQ-057",
+				"REQ-058",
+				"REQ-063",
+				"REQ-068",
+				"REQ-076",
+				"REQ-084",
+				"REQ-085",
+				"REQ-086",
+				"REQ-087",
+				"REQ-088"
+			],
+			"adrs": ["0005", "0008", "0033", "0034", "0035"],
+			"approvedDeferrals": [
+				{
+					"id": "REQ-018",
+					"approvedBy": "owner",
+					"reason": "Android native development and formal release assets are owner-held (ADR-0034, 2026-11-12).",
+					"reentryTrigger": "Owner explicitly reopens Android."
+				},
+				{
+					"id": "REQ-019",
+					"approvedBy": "owner",
+					"reason": "Android Tier 2 full device control has no code/distribution path and is not a product promise.",
+					"reentryTrigger": "Owner approves a separate Android Tier 2 product decision."
+				},
+				{
+					"id": "REQ-022",
+					"approvedBy": "owner",
+					"reason": "No exact upstream tag was named; v18.18.8 is superseded by the integrated v18.19.0.",
+					"reentryTrigger": "Owner explicitly names/reopens the exact upstream tag."
+				},
+				{
+					"id": "REQ-044",
+					"approvedBy": "owner",
+					"reason": "Team remains local single-user; cross-machine/auth is out of scope.",
+					"reentryTrigger": "Owner reopens cross-machine Team with a new ADR."
+				},
+				{
+					"id": "REQ-048",
+					"approvedBy": "owner",
+					"reason": "Host computer-use has no Android backend; Tier 2 autonomous control is not a product promise.",
+					"reentryTrigger": "Owner approves an Android Tier 2 computer-use decision."
+				},
+				{
+					"id": "REQ-071",
+					"approvedBy": "owner",
+					"reason": "jcode is evaluation-only; implementation is not authorized.",
+					"reentryTrigger": "Owner schedules jcode implementation."
+				},
+				{
+					"id": "REQ-072",
+					"approvedBy": "owner",
+					"reason": "PR #281 (retired zetawork workbench/packaging) is open and not part of this train.",
+					"reentryTrigger": "Owner schedules or merges PR #281."
+				},
+				{
+					"id": "REQ-073",
+					"approvedBy": "owner",
+					"reason": "macOS work (including C3 /Volumes) is out of scope this train.",
+					"reentryTrigger": "Owner reopens macOS work."
+				},
+				{
+					"id": "REQ-074",
+					"approvedBy": "owner",
+					"reason": "Cross-machine Team is out of scope; Team stays local single-user.",
+					"reentryTrigger": "Owner reopens cross-machine Team with a new ADR."
+				},
+				{
+					"id": "REQ-089",
+					"approvedBy": "owner",
+					"reason": "Audio compatibility (STT/TTS, system mic, desktop audio) is owner-held (ADR-0034, 2026-11-12).",
+					"reentryTrigger": "Owner explicitly reopens audio."
+				},
+				{
+					"id": "REQ-090",
+					"approvedBy": "owner",
+					"reason": "Work Studio multi-terminal manager is owner-held; architecture is undecided (ADR-0034).",
+					"reentryTrigger": "Owner chooses zetaide expansion vs zetawork TUI rendering."
+				},
+				{
+					"id": "REQ-091",
+					"approvedBy": "owner",
+					"reason": "QQ/WeCom channel work is owner-paused (ADR-0035).",
+					"reentryTrigger": "A new ADR supersedes ADR-0035."
+				}
+			]
+		}
+	}
+}

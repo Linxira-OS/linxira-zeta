@@ -17,15 +17,25 @@
  */
 
 import { logger } from "@linxiraos/pi-utils";
-import type { ChannelId } from "./channel";
+import type { ChannelInstanceId } from "./channel";
+
+/** Conversation scope within the chat, pinned at delivery time. */
+export interface ChatReplyScope {
+	threadId?: string;
+	userId?: string;
+}
 
 /** A reply that goes back to one IM chat. */
 export interface ChatReplyTarget {
 	kind: "chat";
-	channelId: ChannelId;
+	instanceId: ChannelInstanceId;
 	peer: string;
 	/** Platform message id being answered, when the platform provided one. */
 	messageId?: string;
+	/** Repo/agent that produced this reply, pinned at delivery time. */
+	originLabel?: string;
+	/** Thread/sender scope of the delivered message; keeps late-reply checks isolated. */
+	context?: ChatReplyScope;
 }
 
 /** A reply consumed by an in-process caller instead of an IM chat. */
@@ -188,15 +198,17 @@ export class ReplyCorrelator {
 					this.#options.sendText(
 						{
 							kind: "chat",
-							channelId: target.channelId,
+							instanceId: target.instanceId,
 							peer: target.peer,
 							...(target.messageId === undefined ? {} : { messageId: target.messageId }),
+							...(target.originLabel === undefined ? {} : { originLabel: target.originLabel }),
+							...(target.context === undefined ? {} : { context: target.context }),
 						},
 						text,
 					),
 				).catch(error => {
 					logger.warn("Channel reply delivery failed", {
-						channel: target.channelId,
+						instance: target.instanceId,
 						error: error instanceof Error ? error.message : String(error),
 					});
 				});

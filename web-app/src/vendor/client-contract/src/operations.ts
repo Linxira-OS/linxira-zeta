@@ -78,11 +78,22 @@ import type {
   ModelWebSearchSetInput,
   ModelWebSearchCredentialSetInput,
   ModelWebSearchCredentialRemoveInput,
+  PluginCallToolResult,
+  PluginPagesReadModel,
   RuntimeConnection,
   RuntimeInstallState,
   ResidentsReadModel,
   SessionHistoryReadModel,
   SessionHistoryStatus,
+  LocalRoomContactsReadModel,
+  LocalRoomEventReadModel,
+  LocalRoomMemberReadModel,
+  LocalRoomPostReadModel,
+  LocalRoomProposalReadModel,
+  LocalRoomReplyReadModel,
+  LocalRoomResidentReadModel,
+  LocalRoomSnapshotReadModel,
+  LocalRoomSummaryReadModel,
   TeamGraphReadModel,
   TeamNodeLifetime,
   TokenUsageReadModel,
@@ -91,12 +102,18 @@ import type {
   WorkspaceFileTreeReadModel,
   WorkspaceFileMutationResult,
 } from "./read-models.js";
+import type {
+	TeamCommandInputMap,
+	TeamCommandResultMap,
+	TeamQueryInputMap,
+	TeamQueryResultMap,
+} from "./team.js";
 
 /** Empty input shape for queries that take no arguments. */
 export type EmptyInput = Readonly<Record<string, never>>;
 
 type ContextViewQueryMap = { [K in ContextViewOperation["kind"]]: Omit<Extract<ContextViewOperation, { kind: K }>, "kind"> };
-export interface QueryInputMap extends ContextViewQueryMap {
+export interface QueryInputMap extends ContextViewQueryMap, TeamQueryInputMap {
   "prediction.query": PredictionQuery;
   "artifacts.text.read": { readonly artifactId: string };
   "artifacts.list": import("@linxiraos/studio-protocol").ArtifactListInput;
@@ -117,13 +134,20 @@ export interface QueryInputMap extends ContextViewQueryMap {
   "residents.list": EmptyInput;
   "session.state": EmptyInput;
   "home.get": EmptyInput;
-  "models.get": EmptyInput;
+  "models.get": { readonly workspaceId?: WorkspaceId };
   "models.adaptation.resolve": ModelAdaptationInput;
   "skills.get": EmptyInput;
+  /** Manifest-declared plugin html pages (`ui.panels` kind `html`). */
+  "plugins.pages": { readonly cwd?: string };
   "mcp.get": EmptyInput;
   /** Recent Host-owned probe log for one configured MCP server. */
   "mcp.logs.get": { readonly name: string };
   "agents.definitions.get": EmptyInput;
+  /** Local Super/Repo/Main rooms (contacts layer), independent of Team DB rooms. */
+  "rooms.list": { readonly viewerId?: string };
+  "room.get": { readonly roomId: string };
+  "room.log.read": { readonly roomId: string; readonly afterSeq?: number; readonly limit?: number };
+  "room.contacts.list": { readonly roomId: string };
   /** Team topology from live main agents, spawn parentage, and their rosters. */
   "team.graph.get": {
     readonly workspaceId?: WorkspaceId;
@@ -173,7 +197,7 @@ export interface QueryInputMap extends ContextViewQueryMap {
   "github.pr.checks": { readonly workspaceId: WorkspaceId; readonly number: number };
 }
 
-export interface QueryResultMap extends ContextViewResultMap {
+export interface QueryResultMap extends ContextViewResultMap, TeamQueryResultMap {
   "prediction.query": PredictionResult;
   "artifacts.text.read": import("@linxiraos/studio-protocol").ArtifactTextResult;
   "artifacts.list": import("@linxiraos/studio-protocol").ArtifactPage;
@@ -193,12 +217,22 @@ export interface QueryResultMap extends ContextViewResultMap {
   "models.adaptation.resolve": ModelAdaptationResult;
   /** Configured OMP skills + plugins. Not Runtime CapabilityManifest. */
   "skills.get": ExtensibilityReadModel;
+  /** Plugin html pages declared by package manifests, with gateway asset URLs. */
+  "plugins.pages": PluginPagesReadModel;
   /** Configured OMP MCP servers. Disk scan, not MCPManager connection state. */
   "mcp.get": McpReadModel;
   /** Last Host probe lines for one MCP server. Never connection secrets. */
   "mcp.logs.get": McpLogsReadModel;
   /** Configured OMP task-agent definitions. Disk scan, not Agent Hub. */
   "agents.definitions.get": AgentDefinitionsReadModel;
+  "rooms.list": { readonly rooms: ReadonlyArray<LocalRoomSummaryReadModel> };
+  "room.get": LocalRoomSnapshotReadModel;
+  "room.log.read": {
+    readonly roomId: string;
+    readonly events: ReadonlyArray<LocalRoomEventReadModel>;
+    readonly lastSeq: number;
+  };
+  "room.contacts.list": LocalRoomContactsReadModel;
   /** Team nodes/edges/clusters; empty arrays plus `gaps` when producers are missing. */
   "team.graph.get": TeamGraphReadModel;
   /** Host workspace inventory. Paths never leave the Host registry. */
@@ -526,8 +560,8 @@ interface CoreCommandInputMap {
    * `force: true` stops the live process and launches a new one.
    */
   "runtime.ensure": { readonly force?: boolean };
-  /** Start a fresh Runtime session in the active workspace. */
-  "session.create": { readonly noContextFiles?: boolean };
+  /** Start a fresh session in this registered workspace; never infer another cwd. */
+  "session.create": { readonly workspaceId: WorkspaceId; readonly noContextFiles?: boolean };
   /** Resume a thread from history or the home page. */
   "session.resume": { readonly threadId: ThreadId; readonly model?: string };
   /** Drop a thread. Destructive: the Host issues a one-time confirmation. */
@@ -636,6 +670,17 @@ interface CoreCommandInputMap {
     readonly scope?: "user" | "project";
   };
   /**
+   * Execute one tool a live plugin session exposed. The Host answers only when
+   * the tool is active, registered by the addressed plugin's package, and the
+   * session is live; approval and `tool_call` handlers run as for a model turn.
+   */
+  "plugins.callTool": {
+    readonly plugin: string;
+    readonly tool: string;
+    readonly arguments?: unknown;
+    readonly sessionId?: SessionId;
+  };
+  /**
    * Whole-skill enable/disable: toggles the SKILL.md frontmatter `enabled`
    * field of the winning skill record. `skills.get` reflects the change
    * immediately; builtin skills cannot be toggled.
@@ -703,12 +748,64 @@ interface CoreCommandInputMap {
   "git.execute": GitExecuteInput;
   /** Execute one strictly typed GitHub CLI operation. */
   "github.execute": GitHubExecuteInput;
+  /** Local room commands. Delivery uses the existing session queue, never a new scheduler. */
+  "room.create": {
+    readonly roomKind: "super" | "repo" | "main";
+    readonly name: string;
+    readonly repoRoot?: string;
+  };
+  "room.member.add": {
+    readonly roomId: string;
+    readonly memberId: string;
+    readonly role: "super" | "repo" | "main" | "resident";
+    readonly displayName?: string;
+    readonly repoRoot?: string;
+    readonly homeSessionId?: string;
+  };
+  "room.member.remove": { readonly roomId: string; readonly memberId: string };
+  "room.post": {
+    readonly roomId: string;
+    readonly body: string;
+    readonly mode?: "parallel" | "serial" | "mention";
+    readonly mentions?: ReadonlyArray<string>;
+    readonly replyTo?: number;
+  };
+  "room.reply": {
+    readonly roomId: string;
+    readonly memberId: string;
+    readonly body: string;
+    readonly replyTo?: number;
+    readonly roundId?: string;
+  };
+  "room.markRead": { readonly roomId: string; readonly memberId?: string; readonly seq: number };
+  "room.round.stop": { readonly roomId: string; readonly roundId: string };
+  "room.resident.promote": {
+    readonly roomId: string;
+    readonly agentId: string;
+    readonly ownerMemberId?: string;
+  };
+  "room.resident.park": { readonly roomId: string; readonly agentId: string };
+  "room.resident.revive": { readonly roomId: string; readonly agentId: string };
+  "room.proposal.create": {
+    readonly roomId: string;
+    readonly targetRepo: string;
+    readonly targetMemberId?: string;
+    readonly decisionId?: string;
+    readonly body: string;
+  };
+  "room.proposal.respond": {
+    readonly roomId: string;
+    readonly proposalId: string;
+    readonly accept: boolean;
+    readonly decisionId?: string;
+    readonly body?: string;
+  };
   // Runtime control commands share the same accepted/receipt lifecycle. Their
   // terminal state is observed through events, so the result is the current
   // public Runtime snapshot.
 }
 
-export type CommandInputMap = CoreCommandInputMap & RuntimeCommandInputMap;
+export type CommandInputMap = CoreCommandInputMap & RuntimeCommandInputMap & TeamCommandInputMap;
 
 interface CoreCommandResultMap {
   "artifacts.saveText": import("@linxiraos/studio-protocol").ArtifactRecord;
@@ -756,6 +853,7 @@ interface CoreCommandResultMap {
   "workspace.file.create": WorkspaceFileMutationResult;
   "workspace.directory.create": WorkspaceFileMutationResult;
   "plugins.setEnabled": ConfigWriteResult;
+  "plugins.callTool": PluginCallToolResult;
   "skills.setEnabled": ConfigWriteResult;
   "skills.reveal": ConfigWriteResult;
   "skills.revealRoot": ConfigWriteResult;
@@ -769,6 +867,18 @@ interface CoreCommandResultMap {
   "usage.openDashboard": ConfigWriteResult;
   "git.execute": GitOperationResult;
   "github.execute": GitHubOperationResult;
+  "room.create": LocalRoomSummaryReadModel;
+  "room.member.add": LocalRoomMemberReadModel;
+  "room.member.remove": { readonly removed: true };
+  "room.post": LocalRoomPostReadModel;
+  "room.reply": LocalRoomReplyReadModel;
+  "room.markRead": { readonly roomId: string; readonly seq: number };
+  "room.round.stop": LocalRoomEventReadModel;
+  "room.resident.promote": LocalRoomMemberReadModel;
+  "room.resident.park": LocalRoomResidentReadModel;
+  "room.resident.revive": LocalRoomResidentReadModel;
+  "room.proposal.create": LocalRoomProposalReadModel;
+  "room.proposal.respond": LocalRoomProposalReadModel;
 }
 
 /**
@@ -868,7 +978,7 @@ export type CommandResultMap = CoreCommandResultMap & {
   "runtime.settings.set": StudioRuntimeSettingsSetResult;
   "mode.plan.review.saveAndQuit": StudioPlanSaveAndQuitResult;
   "core.continue": ContinueTurnOutcome;
-};
+} & TeamCommandResultMap;
 
 export type EvaluationCommandOutcome = { readonly snapshot: OperatorStateSnapshot; readonly result: unknown };
 

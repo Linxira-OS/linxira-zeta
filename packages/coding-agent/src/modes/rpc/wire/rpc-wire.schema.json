@@ -3927,6 +3927,90 @@
 			],
 			"type": "string"
 		},
+		"CompactionTriggerType": {
+			"enum": [
+				"manual",
+				"auto",
+				"speculation"
+			],
+			"type": "string"
+		},
+		"CompactionPhaseName": {
+			"enum": [
+				"plan",
+				"summarize",
+				"archive",
+				"commit",
+				"failed",
+				"aborted"
+			],
+			"type": "string"
+		},
+		"CompactionPhaseMethod": {
+			"enum": [
+				"remote",
+				"snapcompact",
+				"handoff",
+				"shake",
+				"soft",
+				"experimental",
+				"extension"
+			],
+			"type": "string"
+		},
+		"CompactionFidelityCounts": {
+			"type": "object",
+			"properties": {
+				"qa": {
+					"type": "integer"
+				},
+				"paths": {
+					"type": "integer"
+				},
+				"ids": {
+					"type": "integer"
+				},
+				"constraints": {
+					"type": "integer"
+				},
+				"unfinished": {
+					"type": "integer"
+				}
+			},
+			"required": [
+				"qa",
+				"paths",
+				"ids",
+				"constraints",
+				"unfinished"
+			]
+		},
+		"CompactionPhaseDetail": {
+			"type": "object",
+			"properties": {
+				"tokensBefore": {
+					"type": "integer"
+				},
+				"tokensAfter": {
+					"type": "integer"
+				},
+				"entryId": {
+					"type": "string"
+				},
+				"durationMs": {
+					"type": "integer"
+				},
+				"summaryChars": {
+					"type": "integer"
+				},
+				"errorMessage": {
+					"type": "string"
+				},
+				"fidelity": {
+					"$ref": "#/$defs/CompactionFidelityCounts"
+				}
+			}
+		},
 		"AutoCompactionAction": {
 			"enum": [
 				"context-full",
@@ -4223,6 +4307,46 @@
 				"reason",
 				"action"
 			]
+		},
+		"CompactionPhaseEvent": {
+			"type": "object",
+			"properties": {
+				"type": {
+					"const": "compaction_phase"
+				},
+				"passId": {
+					"type": "string",
+					"description": "Stable per compaction pass; constant across method fallbacks."
+				},
+				"trigger": {
+					"$ref": "#/$defs/CompactionTriggerType"
+				},
+				"phase": {
+					"$ref": "#/$defs/CompactionPhaseName",
+					"description": "`plan` may repeat in one pass when a method fallback begins; `aborted` means cancellation only."
+				},
+				"at": {
+					"type": "integer",
+					"description": "Emission time (epoch ms)."
+				},
+				"method": {
+					"$ref": "#/$defs/CompactionPhaseMethod"
+				},
+				"reason": {
+					"type": "string"
+				},
+				"detail": {
+					"$ref": "#/$defs/CompactionPhaseDetail"
+				}
+			},
+			"required": [
+				"type",
+				"passId",
+				"trigger",
+				"phase",
+				"at"
+			],
+			"description": "Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`."
 		},
 		"AutoCompactionEndEvent": {
 			"type": "object",
@@ -4740,6 +4864,9 @@
 				},
 				{
 					"$ref": "#/$defs/AutoCompactionStartEvent"
+				},
+				{
+					"$ref": "#/$defs/CompactionPhaseEvent"
 				},
 				{
 					"$ref": "#/$defs/AutoCompactionEndEvent"
@@ -5617,7 +5744,7 @@
 				"method",
 				"questions"
 			],
-			"description": "Every question of one `ask` tool call; sent only after `set_ask_dialog` enables it."
+			"description": "Every question of one extension `ui.askDialog` call; sent only after `set_ask_dialog` enables it."
 		},
 		"CancelUiRequest": {
 			"type": "object",
@@ -5864,7 +5991,7 @@
 				"id",
 				"selectedOptions"
 			],
-			"description": "Answer to one `ask` question: exact option labels, plus optional free text."
+			"description": "Answer to one `ui.askDialog` question: exact option labels, plus optional free text."
 		},
 		"ValueUiResponse": {
 			"type": "object",
@@ -5927,7 +6054,7 @@
 				"id",
 				"cancelled"
 			],
-			"description": "Dismisses a dialog; `timedOut` reports the host's own deadline (an `ask` then takes its recommended answers)."
+			"description": "Dismisses a dialog; `timedOut` reports the host's own deadline (an `ask` dialog then takes its recommended answers)."
 		},
 		"AnswersUiResponse": {
 			"type": "object",

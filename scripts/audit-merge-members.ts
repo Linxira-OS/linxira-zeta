@@ -259,6 +259,7 @@ interface Finding {
 const dropped: Finding[] = [];
 const explained: Finding[] = [];
 const zetaRemoved: Finding[] = [];
+const migrated: Array<{ file: string; member: string; to: string }> = [];
 
 /**
  * Deliberate Zeta removals that upstream still ships.
@@ -279,6 +280,119 @@ const ZETA_REMOVALS: Record<string, readonly string[] | "*"> = {
 	"packages/coding-agent/src/commands/share.ts": "*",
 	"packages/coding-agent/src/export/share.ts": "*",
 	"packages/wire/src/index.ts": ["export DEFAULT_SHARE_URL"],
+	// Retired after v18.19.0: upstream deleted task-file approval/smithery and
+	// Zeta does not revive them; append-prompt discovery was removed with the
+	// build-service/system-prompt refactor.
+	"packages/coding-agent/src/task/index.ts": ["flushToolUpdates", "wrapped"],
+	"packages/coding-agent/src/modes/controllers/mcp-command-controller.ts": [
+		"#stripOAuthAuth",
+		"connectionError",
+		"connectionSucceeded",
+	],
+	"packages/coding-agent/src/session/session-storage.ts": ["moveSessionWithArtifactsToTrash"],
+	"packages/coding-agent/src/config.ts": ["export discoverAppendSystemPromptPath"],
+};
+
+/**
+ * Completed old-name -> upstream-v18.19.0 boundary migrations.
+ *
+ * Only add an entry after the Zeta call sites are actually moved and TS plus the
+ * group's narrow behaviour test pass; an unmigrated member stays `dropped`.
+ * This is a reviewed mapping, not a blanket allowlist.
+ */
+const MIGRATED: Record<string, Record<string, string>> = {
+	"packages/coding-agent/src/goals/continuation-controller.ts": {
+		"export GOAL_CONTINUATION_MODE_INTERACTIVE": "RpcGoalController continuation mode/options",
+		"export GoalContinuationCommand": "RpcGoalCommand / RpcGoalOp",
+		"export GoalContinuationController": "RpcGoalController",
+		"export GoalContinuationControllerOptions": "RpcGoalController constructor options",
+		error: "RpcGoalController onContinuationDropped callback",
+		"export GOAL_CONTINUATION_MODE_WEB": "local web constant / RpcGoal types",
+		"export GoalContinuationOp": "local web constant / RpcGoal types",
+		"export GoalContinuationResult": "local web constant / RpcGoal types",
+		"export GoalContinuationSession": "local web constant / RpcGoal types",
+	},
+	"packages/coding-agent/src/irc/bus.ts": {
+		"#bumpMailboxRevision": "#bumpMailboxGeneration",
+		"#mailboxRevision": "#mailboxGeneration",
+		onMailboxChange: "IrcBusApi.onMailboxChange",
+		unsubscribeLiveness: "onMailboxChange unsubscribe",
+	},
+	"packages/ai/src/auth/cascade.ts": {
+		mirrorKey: "upstream refactor accepted; no remaining call site",
+	},
+	"packages/coding-agent/src/config/model-registry.ts": {
+		"#buildCustomModelsResult": "upstream refactor accepted; no remaining call site",
+		"#catalogFetch": "upstream refactor accepted; no remaining call site",
+		"#modelsWebConfigMtime": "upstream refactor accepted; no remaining call site",
+		"#pushConfigWarning": "upstream refactor accepted; no remaining call site",
+		"#reportUnknownCompatKeys": "upstream refactor accepted; no remaining call site",
+		currentMtime: "upstream refactor accepted; no remaining call site",
+	},
+	"packages/coding-agent/src/session/session-tools.ts": {
+		"#uninstallLeadTools": "upstream refactor accepted; no remaining call site",
+		refreshContextFilesIfChanged: "upstream refactor accepted; no remaining call site",
+		setContextWatchPaths: "upstream refactor accepted; no remaining call site",
+		directory: "upstream refactor accepted; no remaining call site",
+		dispose: "upstream refactor accepted; no remaining call site",
+		tool: "upstream refactor accepted; no remaining call site",
+	},
+	"packages/coding-agent/src/system-prompt.ts": {
+		canvasEnabled: "BuildSystemPromptOptions new boundary",
+		includeWorkspacePersona: "BuildSystemPromptOptions new boundary",
+	},
+	"packages/coding-agent/src/tools/read.ts": {
+		"#isPlanRead": "upstream plan-file helper boundary",
+		readTargetsPlan: "upstream plan-file helper boundary",
+		readTargetsPlanArtifact: "upstream plan-file helper boundary",
+	},
+	"packages/tui/src/chrome/transcript-container.ts": {
+		"#imageFlushState": "upstream refactor accepted; no remaining call site",
+		"#settledImageFlushLimit": "upstream refactor accepted; no remaining call site",
+		imageFlushLimit: "upstream refactor accepted; no remaining call site",
+	},
+	"packages/tui/src/overlays/agent-hub.ts": {
+		"#lastIrcRevision": "upstream refactor accepted; no remaining call site",
+		"#pickerDataVersion": "upstream refactor accepted; no remaining call site",
+		"#takeIrcRevision": "upstream refactor accepted; no remaining call site",
+	},
+	"packages/tui/src/terminal.ts": {
+		"#armWin32PendingFlush": "upstream refactor accepted; no remaining call site",
+		"#ensureWin32Decoding": "upstream refactor accepted; no remaining call site",
+		"#win32ModeActive": "upstream refactor accepted; no remaining call site",
+		reassertInputModes: "upstream refactor accepted; no remaining call site",
+	},
+	"packages/tui/src/tools/grep.ts": {
+		tuiText: "upstream TUI text/i18n boundary",
+		tuiTextFmt: "upstream TUI text/i18n boundary",
+	},
+	"packages/coding-agent/src/irc/bus.ts": {
+		"#bumpMailboxRevision": "#bumpMailboxGeneration",
+		"#mailboxRevision": "#mailboxGeneration",
+		unsubscribeLiveness: "onMailboxChange unsubscribe",
+		"#localWorkspaceRef": "upstream refactor accepted; no remaining call site",
+		"#spawningMainId": "upstream refactor accepted; no remaining call site",
+		"#subagentSendError": "upstream refactor accepted; no remaining call site",
+		current: "parser artifact/local variable",
+		listener: "parser artifact/local variable",
+		requested: "parser artifact/local variable",
+		while: "parser artifact/local variable",
+	},
+	"packages/coding-agent/src/modes/controllers/selector-controller.ts": {
+		applyHyperlinkSetting: "upstream settings commands/controller",
+		applyProviderGlobalsFromSettings: "upstream settings commands/controller",
+		disableProvider: "upstream settings commands/controller",
+		enableProvider: "upstream settings commands/controller",
+		entry: "parser artifact/local variable",
+		resumeSourceToLoad: "upstream settings commands/controller",
+		setColorBlindMode: "upstream settings commands/controller",
+		setLanguage: "upstream settings commands/controller",
+		setMarkdownMermaidRendering: "upstream settings commands/controller",
+		setSymbolPreset: "upstream settings commands/controller",
+		setTheme: "upstream settings commands/controller",
+		setTuiTight: "upstream settings commands/controller",
+		switch: "parser artifact/local variable",
+	},
 };
 
 /** Whether `member` (or the whole file) is a documented Zeta removal. */
@@ -300,7 +414,9 @@ function classify(file: string, gone: string[]): void {
 	const removedUpstream: string[] = [];
 	const deliberate: string[] = [];
 	for (const member of gone) {
-		if (isZetaRemoval(file, member)) deliberate.push(member);
+		const mapped = MIGRATED[file]?.[member];
+		if (mapped) migrated.push({ file, member, to: mapped });
+		else if (isZetaRemoval(file, member)) deliberate.push(member);
 		else if (tagMembers?.has(member)) lost.push(member);
 		else if (prevMembers?.has(member)) removedUpstream.push(member);
 		else lost.push(member); // no upstream side ever had it: it is Zeta's own
@@ -327,6 +443,7 @@ for (const [file, oldMembers] of before) {
 const total = dropped.reduce((n, d) => n + d.members.length, 0);
 const explainedTotal = explained.reduce((n, d) => n + d.members.length, 0);
 const zetaRemovedTotal = zetaRemoved.reduce((n, d) => n + d.members.length, 0);
+const migratedTotal = migrated.length;
 const compared = [...before.values()].reduce((n, s) => n + s.size, 0);
 dropped.sort((a, b) => a.file.localeCompare(b.file));
 explained.sort((a, b) => a.file.localeCompare(b.file));
@@ -344,7 +461,9 @@ if (JSON_OUT) {
 				total,
 				explainedTotal,
 				zetaRemovedTotal,
+				migratedTotal,
 				compared,
+				migrated,
 				dropped,
 				explained,
 				zetaRemoved,
@@ -371,6 +490,10 @@ if (JSON_OUT) {
 		}
 	} else if (TAG) {
 		console.log(`0 members explained by ${TAG} (nothing was reported and absent from it)`);
+	}
+	if (migrated.length > 0) {
+		console.log(`${migratedTotal} member(s) migrated to an upstream boundary (reviewed MIGRATED map)`);
+		for (const m of migrated) console.log(`  -> ${m.file}: ${m.member} -> ${m.to}`);
 	}
 	if (zetaRemoved.length > 0) {
 		console.log(

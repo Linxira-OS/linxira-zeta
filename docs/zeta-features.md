@@ -179,8 +179,14 @@ Structure lives in one SQLite database (`~/.zeta/data/zeta.db`); markers are
 discovery hints and `team doctor` reports drift. The TUI adds path entry, the
 Team Hub, and database-only rooms; `/lead` (alias `/pm`) runs a PM main agent in
 a PM workspace with `room_read`/`room_post` and one PM-owned persistent
-Secretary subagent, and no coding tools. Board rows, channel bindings, the graph
-UI, and Vibe auto-start are not included. See [team.md](./team.md).
+Secretary subagent, and no coding tools. Work Studio adds the Team pane:
+dry-run bootstrap/apply/resume/rollback, doctor, PM/repo/engineer setup, the
+task queue with leases and review, room member/kind management, incremental
+room events with subscription/ack cursors, and the real relationship graph. Its
+IM chat tab consumes the IM backend selector candidates and the canonical
+gateway transcript; it keeps no second transcript or local numbering. See
+[team.md](./team.md) and [team-studio.md](./team-studio.md). Board rows, channel
+bindings, and Vibe auto-start are not included.
 
 ## Plugin registry
 
@@ -196,6 +202,31 @@ and the Work Studio Plugins page toggles the same store. See
 `127.0.0.1:43147`: year-long activity heatmap, per-model breakdown with legend,
 today's hourly series, and deep links (`range=all`) from Work Studio. Reading
 `GET /api/usage/daily` covers the same 400-day window.
+
+## zetaide
+
+`zetaide` is the terminal IDE (TermIDE): one fixed page with a file-tab strip, a
+file tree over the git pane, an editor, and a status line. The left column
+switches between Changes, History, Board and Ports; the editor area can host a
+read-only preview instead of the file.
+
+- `Ctrl+I` — History. Pages stream in as you move toward the end and `L` reads
+  the next batch on demand (`L older` in the title while history remains); already-loaded
+  commits stay, and a refresh keeps the selected commit. The view follows the
+  active file, so each tab answers "what changed in *this* file". `d` opens the
+  selected commit's diff inline in the editor area, narrowed to that file; `Esc`
+  returns to the file. Binary files say `binary file — no textual diff`, a rename
+  shows its new path, and an empty result says `no changes to show`.
+- Changes keeps the commit box and stages/unstages only the selected paths.
+- `Ctrl+D` — TODO/FIXME/HACK/XXX list for the workspace. It honours
+  `.gitignore`, skips binary and large files, can be cancelled, and `Enter`
+  opens the hit in the editor at its line and column.
+- `Ctrl+J` — read-only JSON tree for the active file. Nodes fold, numbers keep
+  their exact source text (no float rounding), syntax errors name the line and
+  column, `c` copies the value and `p` the JSON Pointer; the file is never
+  written.
+- `Ctrl+O` ports, `Ctrl+T` board, `Ctrl+M` format the active file, `Ctrl+B`
+  spell-check it.
 
 ## Companions and config
 

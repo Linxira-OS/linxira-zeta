@@ -287,6 +287,13 @@ const QUERY_INPUTS = {
   "mcp.logs.get": { name: "filesystem" },
   "agents.definitions.get": {},
   "team.graph.get": {},
+  "team.list": {},
+  "team.read": { teamId: "team-fixture" },
+  "team.doctor": { teamId: "team-fixture" },
+  "team.room.events": { teamId: "team-fixture", room: "room-fixture" },
+  "team.task.show": { teamId: "team-fixture", task: "TASK-1" },
+  "team.bootstrap.plan": { name: "fixture", root: "/fixture/team", pms: [] },
+  "team.bootstrap.runs": { teamId: "team-fixture" },
   "projects.list": {},
   "workspace.fileTree": { workspaceId: WORKSPACE_ID },
   "usage.get": {},
@@ -311,6 +318,11 @@ const QUERY_INPUTS = {
   "github.pr.list": { workspaceId: WORKSPACE_ID, state: "open" },
   "github.pr.get": { workspaceId: WORKSPACE_ID, number: 1 },
   "github.pr.checks": { workspaceId: WORKSPACE_ID, number: 1 },
+  "rooms.list": {},
+  "room.get": { roomId: "room-fixture" },
+  "room.log.read": { roomId: "room-fixture", limit: 50 },
+  "room.contacts.list": { roomId: "room-fixture" },
+  "plugins.pages": {},
 } satisfies { readonly [K in QueryName]: QueryInput<K> };
 
 const QUERY_RESPONSES = {
@@ -419,6 +431,85 @@ const QUERY_RESPONSES = {
       clusters: [],
       gaps: [],
     },
+  },
+  "team.list": {
+    ok: true,
+    queryName: "team.list",
+    result: { teams: [] },
+  },
+  "team.read": {
+    ok: true,
+    queryName: "team.read",
+    result: {
+      team: { id: "team-fixture", name: "Fixture Team", createdAt: 0 },
+      pms: [],
+      engineers: [],
+      repos: [],
+      bindings: [],
+      worktrees: [],
+      rooms: [],
+      roomMembers: {},
+      tasks: [],
+      bootstrapRuns: [],
+      warnings: [],
+    },
+  },
+  "team.doctor": {
+    ok: true,
+    queryName: "team.doctor",
+    result: { teamId: "team-fixture", ok: true, checks: [] },
+  },
+  "team.room.events": {
+    ok: true,
+    queryName: "team.room.events",
+    result: {
+      room: { id: "room-fixture", name: "fixture", kind: "room", pmId: null, memberCount: 0, lastSeq: null, lastSentAt: null },
+      members: [],
+      events: [],
+    },
+  },
+  "team.task.show": {
+    ok: true,
+    queryName: "team.task.show",
+    result: {
+      task: {
+        id: "task-fixture",
+        taskKey: "TASK-1",
+        title: "Fixture task",
+        body: "",
+        status: "pending",
+        assignedPmId: "pm-fixture",
+        assigneeAgentId: null,
+        ownerAgentId: null,
+        ownerRole: null,
+        leaseExpiresAt: null,
+        reqIds: [],
+        revision: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+      events: [],
+    },
+  },
+  "team.bootstrap.plan": {
+    ok: true,
+    queryName: "team.bootstrap.plan",
+    result: {
+      plan: {
+        version: 1,
+        mode: "team",
+        teamId: "team-fixture",
+        displayName: "Fixture Team",
+        steps: [],
+        preflight: { ok: true, errors: [], warnings: [], checks: [] },
+      },
+      preflight: { ok: true, errors: [], warnings: [], checks: [] },
+    },
+  },
+  "team.bootstrap.runs": {
+    ok: true,
+    queryName: "team.bootstrap.runs",
+    result: { runs: [] },
   },
   "projects.list": {
     ok: true,
@@ -611,6 +702,25 @@ const QUERY_RESPONSES = {
     queryName: "github.pr.checks",
     result: { workspaceId: WORKSPACE_ID, pullRequestNumber: 1, checks: [], overall: "neutral" },
   },
+  "rooms.list": { ok: true, queryName: "rooms.list", result: { rooms: [] } },
+  "room.get": {
+    ok: true,
+    queryName: "room.get",
+    result: {
+      room: { roomId: "room-fixture", kind: "repo", name: "Room", createdAt: T0, updatedAt: T0 },
+      members: [],
+      events: [],
+      rounds: [],
+      lastSeq: 0,
+    },
+  },
+  "room.log.read": { ok: true, queryName: "room.log.read", result: { roomId: "room-fixture", events: [], lastSeq: 0 } },
+  "room.contacts.list": {
+    ok: true,
+    queryName: "room.contacts.list",
+    result: { roomId: "room-fixture", contacts: [], generatedAt: T0 },
+  },
+  "plugins.pages": { ok: true, queryName: "plugins.pages", result: { plugins: [] } },
 } satisfies { readonly [K in QueryName]: ClientQueryResponse<K> };
 
 const COMMAND_RUNTIME_INSTALL: ClientCommandRequest<"runtime.install"> = {

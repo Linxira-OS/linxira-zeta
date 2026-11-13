@@ -6,11 +6,11 @@ Everything on this page was verified by running the commands against a source ch
 
 ## The three plugin shapes
 
-| Shape | Identified by | Installed by | Managed by |
-| --- | --- | --- | --- |
-| **Zeta plugin** (npm, git, local link, or marketplace install) | `package.json` with a `zeta`/`pi` manifest block, and an entry in the plugin lockfile | `zetacode plugin install …`, `zetacode plugin link …`, `/marketplace install name@marketplace` | `zetacode plugin …`, `/plugins …` |
-| **Agent Plugins package** | a root `plugin.json` whose `$schema` is `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json` | dropped into any plugin root by a marketplace or by hand | discovered only; contributes `skills/` and `mcp.json` |
-| **Extension package** | a directory named in the `extensions` setting (or `-e`/`--extension`, or the desktop "packages" UI) | `zetacode config set extensions …`, the desktop UI, `-e` | `settings.extensions` / `settings.disabledExtensions` |
+| Shape                                                          | Identified by                                                                                        | Installed by                                                                                   | Managed by                                            |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **Zeta plugin** (npm, git, local link, or marketplace install) | `package.json` with a `zeta`/`pi` manifest block, and an entry in the plugin lockfile                | `zetacode plugin install …`, `zetacode plugin link …`, `/marketplace install name@marketplace` | `zetacode plugin …`, `/plugins …`                     |
+| **Agent Plugins package**                                      | a root `plugin.json` whose `$schema` is `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json` | dropped into any plugin root by a marketplace or by hand                                       | discovered only; contributes `skills/` and `mcp.json` |
+| **Extension package**                                          | a directory named in the `extensions` setting (or `-e`/`--extension`, or the desktop "packages" UI)  | `zetacode config set extensions …`, the desktop UI, `-e`                                       | `settings.extensions` / `settings.disabledExtensions` |
 
 Only the first shape has enable/disable state and a lockfile; the other two are pure discovery surfaces.
 
@@ -67,13 +67,13 @@ A plugin ships message catalogues as flat `Record<string, string>` JSON files an
 
 ```json
 {
-  "name": "@linxiraos/example-plugin",
-  "version": "1.0.0",
-  "zeta": {
-    "version": "1.0.0",
-    "extensions": ["./index.ts"],
-    "locales": { "zh": "locales/zh.json", "en": "locales/en.json" }
-  }
+	"name": "@linxiraos/example-plugin",
+	"version": "1.0.0",
+	"zeta": {
+		"version": "1.0.0",
+		"extensions": ["./index.ts"],
+		"locales": { "zh": "locales/zh.json", "en": "locales/en.json" }
+	}
 }
 ```
 
@@ -198,11 +198,11 @@ docx pdf pi-messenger-crew pptx semantic-compression system-prompts tool-prompt-
 
 ## Scopes
 
-| Install route | User scope | Project scope |
-| --- | --- | --- |
-| npm package, `github:`/git URL | always | — |
-| local directory (`link`, `install ./path`) | always | — |
-| `name@marketplace` | default | `--scope project` |
+| Install route                              | User scope | Project scope     |
+| ------------------------------------------ | ---------- | ----------------- |
+| npm package, `github:`/git URL             | always     | —                 |
+| local directory (`link`, `install ./path`) | always     | —                 |
+| `name@marketplace`                         | default    | `--scope project` |
 
 `--scope` is silently ignored (with a warning) for anything that is not a marketplace install:
 
@@ -255,7 +255,7 @@ It builds a synthetic root (`<name>@__local__`, origin `plugin-dir`, name read f
 An enabled plugin contributes through two independent channels:
 
 1. **Directory convention.** The plugin's package directory is an extension-package root, so the sibling directories are scanned: `skills/<name>/SKILL.md` (verified end-to-end), and — per `packages/coding-agent/src/discovery/zeta-plugins.ts` — `hooks/pre/`, `hooks/post/`, `commands/`, `rules/`, `prompts/`, `tools/`, `.mcp.json`. Skills only load from an immediate child directory; `pi-messenger`'s `skills/pi-messenger-crew/SKILL.md` is what shows up as the `pi-messenger-crew` skill.
-2. **`extensions` entry points.** Each `extensions` path is imported as an extension module and its default factory registers tools, slash commands, hooks, renderers, and shortcuts. A failure to import one module does not stop other plugins from loading, but it does mean *none* of that plugin's registered surface exists — the plugin stays listed as installed while contributing nothing, and only the extension-error list says why. `zetacode plugin doctor` checks that each declared entry exists on disk, not that it imports.
+2. **`extensions` entry points.** Each `extensions` path is imported as an extension module and its default factory registers tools, slash commands, hooks, renderers, and shortcuts. A failure to import one module does not stop other plugins from loading, but it does mean _none_ of that plugin's registered surface exists — the plugin stays listed as installed while contributing nothing, and only the extension-error list says why. `zetacode plugin doctor` checks that each declared entry exists on disk, not that it imports.
 
 The provider that serves channel 1 for installed plugins is `zeta-plugins` (priority 90, formerly `zeta-plugins`); `--plugin-dir` and marketplace-registry roots are served by `claude-plugins` (70); a root `plugin.json` with the Agent Plugins `$schema` hands `skills/` and `mcp.json` to `agent-plugins` (75). See [`skills.md`](./skills.md#built-in-skill-providers-and-precedence) for the full skill precedence table.
 
@@ -284,7 +284,7 @@ This surface is **the extension-package model, not the Zeta-plugin model**: `GET
 - A configured package is reported with `status: "installed"`/`"loaded"` and resource counts. `DefaultPackageManager.resolve()` (`packages/coding-agent/src/extensibility/legacy-pi-coding-agent-shim.ts:857`) returns `skills: []`, `prompts: []`, `themes: []` unconditionally, so only **extension modules** can ever be counted.
 - Configuring a plugin **directory** reports `counts` all zero and `resources: []`, because resource keys are matched against the configured path exactly. Configuring the module **file** (`…/pi-messenger/index.ts`) reports `extensions: 1`. Practical upshot: point the desktop at an extension module, not a package directory, if you want the count to be non-zero.
 
-`settings.extensions` is read by discovery in a *separate* process, so a package installed from the desktop UI shows up in the next `zetacode` session (a fresh process), not necessarily in the desktop's own process.
+`settings.extensions` is read by discovery in a _separate_ process, so a package installed from the desktop UI shows up in the next `zetacode` session (a fresh process), not necessarily in the desktop's own process.
 
 ## Known issues
 
@@ -304,7 +304,7 @@ per-plugin runtime state (enabled flag, feature selection, versions).
 - Only `zeta-plugins.lock.json` is read. The pre-rename `zeta-plugins.lock.json`
   is not consulted.
 - Every writer targets the canonical name, so `zetacode plugin link/install/
-  enable/disable/config` and marketplace installs all record into
+enable/disable/config` and marketplace installs all record into
   `zeta-plugins.lock.json`.
 - Nothing needs to be done by hand. A tree that still holds only the legacy file
   lists and loads its plugins normally; the next session migrates it.
@@ -314,14 +314,14 @@ is `~/.zeta/plugins/zeta-plugins.lock.json`:
 
 ```json
 {
-  "plugins": {
-    "@linxiraos/pi-messenger": {
-      "version": "1.2.1",
-      "enabledFeatures": null,
-      "enabled": true
-    }
-  },
-  "settings": {}
+	"plugins": {
+		"@linxiraos/pi-messenger": {
+			"version": "1.2.1",
+			"enabledFeatures": null,
+			"enabled": true
+		}
+	},
+	"settings": {}
 }
 ```
 
@@ -333,6 +333,58 @@ A main-agent session also gets two built-ins that wrap the manager described abo
 - [`tools/plugin-inspect.md`](./tools/plugin-inspect.md) — `plugin_inspect`: manifest identity, features, capabilities, resolved entries, dependencies, settings schema, and static validation errors without importing plugin code.
 
 Both report `restart-required` for mutations: the plugin surface is collected at session start, and only the discovery channels (skills, task agents, slash commands) refresh without a restart.
+
+## Agent-authored development plugins
+
+A main agent can create and load a plugin without touching the repository or
+global settings. The lifecycle lives entirely in the user's agent directory:
+
+```text
+<agentDir>/plugins-dev/<session-id>/<plugin-name>/
+  package.json   # zeta manifest: extensions: ["./index.ts"]
+  plugin.json    # optional catalogue: id, pages, declarative panels
+  index.ts       # extension factory
+  pages/…        # optional .html pages declared by plugin.json
+```
+
+The `plugin_manager` tool exposes only the agent side: `scaffold`, `validate`,
+`load_dev`, `reload`, `list_dev`, and `discard`. They work in an interactive
+main session; print, RPC, headless, and subagent sessions refuse. Files are
+created, replaced, and removed only under the session's dev root; names, manifest
+entries, and relative imports are checked both lexically and after `realpath`,
+so a junction or symlink that escapes the plugin root is rejected. `load_dev`
+binds the module into the live extension runner, so its tools and commands join
+the same session. The manifest must declare at least one `extensions` entry:
+`tools`/`hooks` are installed-plugin providers, not dev entries, and `validate`
+rejects a tools/hooks-only package instead of passing it to `load_dev`. After an
+edit, `reload` (or the automatic end-of-turn check) re-imports the module and
+removes the previous runner registration; if the new version fails to import or
+validate, the previous registrations stay live.
+
+Declared dev pages are validated for containment but are **not** listed by the
+page host before promotion; the page host serves installed/promoted packages.
+
+**Promotion is a user action.** The agent cannot promote or export. A promoted
+plugin is copied to the dropped-in root and needs a restart:
+
+```bash
+zetacode plugin promote <name> [--session <id>] [--force]
+zetacode plugin export <name> <destination-dir> [--session <id>] [--force]
+zetacode plugin dev list
+zetacode plugin dev discard <name> [--session <id>]
+zetacode plugin dev cleanup
+```
+
+`promote` validates the dev package, copies it to
+`~/.zeta/agent/plugins/<name>` (staging directory then rename), and refuses to
+replace an existing copy unless `--force` is given. `export` copies the same
+validated tree to a directory you name. `dev cleanup` removes session
+directories untouched for seven days; the current session is never removed.
+
+The development root is scratch, not an install: it has no lockfile entry, does
+not change `settings.extensions`, and does not survive cleanup unless promoted.
+Plugin code runs with the session's own permissions (YOLO is still the default);
+the lifecycle adds no new approval mode, sandbox, or install path.
 
 ## See also
 

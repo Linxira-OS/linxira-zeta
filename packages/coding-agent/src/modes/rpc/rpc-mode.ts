@@ -75,7 +75,7 @@ import {
 	formatPersistenceFailure,
 	formatPersistenceNotice,
 } from "../persistence-failure";
-import { GoalContinuationController, GOAL_CONTINUATION_MODE_RPC } from "../../goals/continuation-controller";
+import { RpcGoalController, RPC_GOAL_CONTINUATION_MODE } from "../../goals/continuation-controller";
 import { LoopContinuationController } from "../../loop/continuation-controller";
 import { initializeExtensions } from "../runtime-init";
 import { cfgSpellingAutocomplete } from "../settings";
@@ -1350,7 +1350,7 @@ export interface RpcModeOptions {
 	 * every attached socket reads and writes one goal state; without it each
 	 * host would own a second controller and schedule duplicate continuations.
 	 */
-	goalController?: GoalContinuationController;
+	goalController?: RpcGoalController;
 	/**
 	 * Live-voice bridge owned by the caller. Live voice is session state; a
 	 * per-socket bridge would let two clients start two live sessions.
@@ -1442,8 +1442,8 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 	const ownsGoalController = options.goalController === undefined;
 	const goalController =
 		options.goalController ??
-		new GoalContinuationController(session, {
-			continuationMode: GOAL_CONTINUATION_MODE_RPC,
+		new RpcGoalController(session, {
+			continuationMode: RPC_GOAL_CONTINUATION_MODE,
 			// Same precedence as the TUI: an active loop owns the next turn.
 			continuationSuppressed: () => loopController.active,
 			onContinuationDropped: () => void settleWatcher.check(),

@@ -26,13 +26,13 @@
 import type { AssistantMessage, TextContent } from "@linxiraos/pi-ai";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
 import { CHANNEL_PEER_REFUSED_TEXT, isPeerAllowedFor, type ChannelAllowlists, type PeerIdentity } from "./auth";
-import type { ChannelId, ChannelSendOptions } from "./channel";
+import type { ChannelInstanceId, ChannelSendOptions } from "./channel";
 import { ReplyCorrelator } from "./reply-correlator";
 import type { ChannelSession, ChannelSessionEvent, IrcMessage } from "./types";
 
 /** Outbound sink: resolves a channel + peer to a `sendText` call. */
 export type ChannelSendFn = (
-	channelId: ChannelId,
+	instanceId: ChannelInstanceId,
 	to: string,
 	text: string,
 	options?: ChannelSendOptions,
@@ -44,10 +44,6 @@ export type ChannelDeliveryResult = { ok: true } | { ok: false; reason: "peer-no
 /** One refusal per unauthorized peer per minute — enough to be explicit, not a spam vector. */
 const REFUSAL_COOLDOWN_MS = 60_000;
 
-/** Distinguish the legacy bare allowlist from the channel-aware policy. */
-function isLegacyAllowlist(value: ChannelAllowlists | readonly string[]): value is readonly string[] {
-	return Array.isArray(value);
-}
 /** Second-line in-memory dedupe (routeInbound owns the durable per-channel state). */
 const DELIVERED_ID_TTL_MS = 24 * 60 * 60_000;
 const MAX_DELIVERED_IDS = 512;
@@ -70,16 +66,16 @@ export class ChannelHost {
 	readonly #refusedAt = new Map<string, number>();
 	#unsubscribe: (() => void) | null = null;
 	#observerInstalled = false;
-	#lastInbound: { channelId: ChannelId; peer: string } | null = null;
+	#lastInbound: { instanceId: ChannelInstanceId; peer: string } | null = null;
 
-	constructor(session: ChannelSession, send: ChannelSendFn, allow?: ChannelAllowlists | readonly string[]) {
+	constructor(session: ChannelSession, send: ChannelSendFn, allow: ChannelAllowlists) {
 		this.#session = session;
 		this.#send = send;
-		this.#allow = allow === undefined ? {} : isLegacyAllowlist(allow) ? { legacy: allow } : allow;
+		this.#allow = allow;
 		this.#replies = new ReplyCorrelator({
 			sendText: (target, text) =>
 				this.#send(
-					target.channelId,
+					target.instanceId,
 					target.peer,
 					text,
 					target.messageId ? { replyToMessageId: target.messageId } : undefined,
@@ -93,7 +89,7 @@ export class ChannelHost {
 
 	/** Most recent successfully injected inbound (channel, peer) — the default
 	 *  target for `channel_send` calls that omit `to`/`channel`. */
-	get lastInbound(): { channelId: ChannelId; peer: string } | null {
+	get lastInbound(): { instanceId: ChannelInstanceId; peer: string } | null {
 		return this.#lastInbound;
 	}
 
@@ -136,22 +132,23 @@ export class ChannelHost {
 	 * bind the sender so the turn's final reply returns to them.
 	 */
 	async deliver(
-		channelId: ChannelId,
+		instanceId: ChannelInstanceId,
 		peer: string,
 		body: string,
 		messageId?: string,
 		identity?: Omit<PeerIdentity, "peer">,
+		metadata?: Record<string, unknown>,
 	): Promise<ChannelDeliveryResult> {
 		// Authorization is the FIRST inbound check, mirroring `routeInbound`:
 		// an unauthorized sender must never reach dispatch or start a turn.
-		if (!isPeerAllowedFor(channelId, { peer, ...identity }, this.#allow)) {
-			logger.warn("Channel message refused: peer not in allowedPeers", { channel: channelId, peer });
-			this.#refuse(channelId, peer);
+		if (!isPeerAllowedFor(instanceId, { peer, ...identity }, this.#allow)) {
+			logger.warn("Channel message refused: peer not in instance allowlist", { instance: instanceId, peer });
+			this.#refuse(instanceId, peer);
 			return { ok: false, reason: "peer-not-allowed" };
 		}
-		const dedupeKey = messageId ? `${channelId}\u0000${messageId}` : undefined;
+		const dedupeKey = messageId ? `${instanceId}\u0000${messageId}` : undefined;
 		if (dedupeKey && this.#hasDelivered(dedupeKey)) {
-			logger.debug("Duplicate channel message ignored", { channel: channelId, messageId });
+			logger.debug("Duplicate channel message ignored", { instance: instanceId, messageId });
 			return { ok: false, reason: "duplicate" };
 		}
 		const agentId = this.#session.getAgentId();
@@ -163,19 +160,20 @@ export class ChannelHost {
 			to: agentId,
 			body,
 			ts: Date.now(),
+			...(metadata ? { metadata } : {}),
 		};
 		// Registered before delivery: a wake turn can start synchronously inside
 		// `deliverIrcMessage`, and the observer must find the expectation.
 		this.#replies.expect(recordId, {
 			kind: "chat",
-			channelId,
+			instanceId,
 			peer,
 			...(messageId !== undefined && messageId !== "" ? { messageId } : {}),
 		});
 		if (dedupeKey) this.#rememberDelivered(dedupeKey);
 		try {
 			await this.#session.deliverIrcMessage(msg, { expectsReply: true });
-			this.#lastInbound = { channelId, peer };
+			this.#lastInbound = { instanceId, peer };
 			return { ok: true };
 		} catch (error) {
 			this.#replies.forget(recordId);
@@ -185,15 +183,15 @@ export class ChannelHost {
 	}
 
 	/** Explicit refusal for an unauthorized sender, rate limited per peer. */
-	#refuse(channelId: ChannelId, peer: string): void {
-		const key = `${channelId}\u0000${peer}`;
+	#refuse(instanceId: ChannelInstanceId, peer: string): void {
+		const key = `${instanceId}\u0000${peer}`;
 		const now = Date.now();
 		const last = this.#refusedAt.get(key) ?? 0;
 		if (now - last < REFUSAL_COOLDOWN_MS) return;
 		this.#refusedAt.set(key, now);
-		void this.#send(channelId, peer, CHANNEL_PEER_REFUSED_TEXT).catch(error => {
+		void this.#send(instanceId, peer, CHANNEL_PEER_REFUSED_TEXT).catch(error => {
 			logger.warn("Channel refusal delivery failed", {
-				channel: channelId,
+				instance: instanceId,
 				error: error instanceof Error ? error.message : String(error),
 			});
 		});
@@ -229,9 +227,9 @@ export class ChannelHost {
 		if (!target || target.kind !== "chat") return;
 		const body = replyText.trim();
 		if (!body) return;
-		void this.#send(target.channelId, target.peer, body).catch(error => {
+		void this.#send(target.instanceId, target.peer, body).catch(error => {
 			logger.warn("Channel auto-reply delivery failed", {
-				channel: target.channelId,
+				instance: target.instanceId,
 				error: error instanceof Error ? error.message : String(error),
 			});
 		});

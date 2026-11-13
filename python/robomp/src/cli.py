@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
+import os
 import sys
+from pathlib import Path
 
 import click
 import uvicorn
 
-from robomp.config import Settings, get_settings
+from robomp.config import Settings, get_settings, reset_settings_cache
 from robomp.db import INACTIVE_EVENT_STATES, get_database
+from robomp.git_ops import GitCommandError
 from robomp.logging_config import configure_logging
 from robomp.manual_triage import (
     InvalidIssueRef,
@@ -20,12 +24,22 @@ from robomp.manual_triage import (
     enqueue_manual_triage,
     parse_issue_ref,
 )
+from robomp.offline import (
+    OfflineFixtureError,
+    OfflineReplayConflict,
+    load_fixture,
+    replay_offline,
+    seed_fixture,
+)
 from robomp.proxy_client import GitHubProxyClient
 from robomp.sandbox import SandboxManager
 from robomp.server import create_app
 
 
-def _settings_or_die() -> Settings:
+def _settings_or_die(*, offline: bool = False) -> Settings:
+    if offline:
+        os.environ["ROBOMP_OFFLINE"] = "1"
+        reset_settings_cache()
     try:
         return get_settings()
     except Exception as exc:
@@ -65,6 +79,8 @@ def main() -> None:
 def serve() -> None:
     """Run the webhook receiver + worker pool."""
     cfg = _settings_or_die()
+    if cfg.offline:
+        raise SystemExit("serve requires GitHub webhook mode; unset ROBOMP_OFFLINE")
     configure_logging(cfg.log_dir)
     cfg.ensure_paths()
     app = create_app(cfg)
@@ -72,18 +88,52 @@ def serve() -> None:
 
 
 @main.command()
-@click.argument("issue_ref")
+@click.argument("issue_ref", required=False)
+@click.option(
+    "--fixture",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="Recorded issues.opened payload for --offline replay.",
+)
+@click.option("--offline", is_flag=True, help="Run the local fixture pipeline; no GitHub client or network.")
 @click.option(
     "--wait-timeout",
     type=click.FloatRange(min=0.1),
     default=None,
     help="Seconds to wait for a terminal state before returning non-zero (default: task timeout + hard grace + 30).",
 )
-def triage(issue_ref: str, wait_timeout: float | None) -> None:
+def triage(issue_ref: str | None, fixture: Path | None, offline: bool, wait_timeout: float | None) -> None:
     """Fetch a live issue and queue it as if a webhook arrived.
 
-    ISSUE_REF is `owner/repo#NN`.
+    ISSUE_REF is `owner/repo#NN`. With `--offline --fixture`, ISSUE_REF may be
+    omitted and the fixture supplies the repo/number.
     """
+    if offline:
+        if fixture is None:
+            click.echo("--offline requires --fixture", err=True)
+            sys.exit(2)
+        cfg = _settings_or_die(offline=True)
+        cfg.ensure_paths()
+        try:
+            recorded = load_fixture(fixture)
+            if issue_ref is not None:
+                repo_full, number = parse_issue_ref(issue_ref)
+                if (repo_full.lower(), number) != (recorded.repo.lower(), recorded.number):
+                    raise OfflineFixtureError(
+                        f"fixture is {recorded.repo}#{recorded.number}, not {repo_full}#{number}"
+                    )
+            db = get_database(cfg.sqlite_path)
+            seed_fixture(db, recorded)
+            result = replay_offline(settings=cfg, db=db, delivery_id=recorded.delivery_id)
+        except (InvalidIssueRef, OfflineFixtureError, OfflineReplayConflict, GitCommandError) as exc:
+            click.echo(f"offline replay failed: {exc}", err=True)
+            sys.exit(2)
+        click.echo(json.dumps(result.as_dict(), indent=2))
+        return
+
+    if issue_ref is None:
+        click.echo("ISSUE_REF is required unless --offline --fixture is used", err=True)
+        sys.exit(2)
     cfg = _settings_or_die()
     configure_logging(cfg.log_dir)
     cfg.ensure_paths()
@@ -141,13 +191,51 @@ def triage(issue_ref: str, wait_timeout: float | None) -> None:
 @main.command()
 @click.argument("delivery_id")
 @click.option(
+    "--fixture",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="Seed a missing recorded event before replaying.",
+)
+@click.option("--offline", is_flag=True, help="Run claim → local worktree → result; no GitHub client or network.")
+@click.option("--force", is_flag=True, help="Replay a terminal (done/failed/skipped) delivery.")
+@click.option(
     "--wait-timeout",
     type=click.FloatRange(min=0.1),
     default=None,
     help="Seconds to wait for a terminal state before returning non-zero (default: task timeout + hard grace + 30).",
 )
-def replay(delivery_id: str, wait_timeout: float | None) -> None:
-    """Re-enqueue a stored event so the running `serve` pool can pick it up."""
+def replay(
+    delivery_id: str,
+    fixture: Path | None,
+    offline: bool,
+    force: bool,
+    wait_timeout: float | None,
+) -> None:
+    """Re-enqueue a stored event so the running `serve` pool can pick it up.
+
+    With `--offline`, run the deterministic local pipeline instead and never
+    contact GitHub.
+    """
+    if offline:
+        cfg = _settings_or_die(offline=True)
+        cfg.ensure_paths()
+        db = get_database(cfg.sqlite_path)
+        try:
+            if fixture is not None:
+                recorded = load_fixture(fixture)
+                if recorded.delivery_id != delivery_id:
+                    raise OfflineFixtureError(
+                        f"fixture delivery is {recorded.delivery_id}, not {delivery_id}"
+                    )
+                if db.get_event(delivery_id) is None:
+                    seed_fixture(db, recorded)
+            result = replay_offline(settings=cfg, db=db, delivery_id=delivery_id, force=force)
+        except (OfflineFixtureError, OfflineReplayConflict, GitCommandError) as exc:
+            click.echo(f"offline replay failed: {exc}", err=True)
+            sys.exit(2)
+        click.echo(json.dumps(result.as_dict(), indent=2))
+        return
+
     cfg = _settings_or_die()
     configure_logging(cfg.log_dir)
     cfg.ensure_paths()
@@ -190,12 +278,28 @@ def replay(delivery_id: str, wait_timeout: float | None) -> None:
 
 
 @main.command()
-def status() -> None:
+@click.option("--offline", is_flag=True, help="Read local state without requiring GitHub credentials.")
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable queue/issue/release state.")
+def status(offline: bool, as_json: bool) -> None:
     """Dump issue and release state."""
-    cfg = _settings_or_die()
+    cfg = _settings_or_die(offline=offline)
     cfg.ensure_paths()
     db = get_database(cfg.sqlite_path)
     issue_rows = db.list_issues()
+    release_rows = db.list_releases()
+    if as_json:
+        click.echo(
+            json.dumps(
+                {
+                    "events": [dataclasses.asdict(row) for row in db.list_events(limit=50)],
+                    "issues": [dataclasses.asdict(row) for row in issue_rows],
+                    "releases": [dataclasses.asdict(row) for row in release_rows],
+                },
+                indent=2,
+                default=str,
+            )
+        )
+        return
     for row in issue_rows:
         click.echo(
             f"{row.key:<40} state={row.state:<12} pr={row.pr_number or '-'} "

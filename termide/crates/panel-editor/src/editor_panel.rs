@@ -22,11 +22,25 @@ use termide_state::PendingAction;
 use termide_theme::Theme;
 
 use crate::keyboard;
-use crate::{CLEAR_BREAKPOINTS_ACTION, CONFIGURE_DEBUG_ACTION, START_DEBUG_ACTION};
+use crate::{
+    CLEAR_BREAKPOINTS_ACTION, CONFIGURE_DEBUG_ACTION, RESTART_LANGUAGE_SERVER_ACTION,
+    START_DEBUG_ACTION,
+};
 
 use super::{build_editor_hotkey_table, Editor};
 
 impl Editor {
+    /// `Ctrl+E` or a click on `Edit:`, as events: the app asks about unsaved
+    /// work before editing turns off over it.
+    fn toggle_edit_events(&mut self) -> Vec<PanelEvent> {
+        if self.toggle_read_only() {
+            if let Some(path) = self.file_path() {
+                return vec![PanelEvent::StopEditingUnsaved(path.to_path_buf())];
+            }
+        }
+        vec![PanelEvent::NeedsRedraw]
+    }
+
     /// Apply a config-defined keyword highlighter when this file's extension
     /// has no tree-sitter grammar (e.g. an in-development language). Tree-sitter
     /// grammars always win; a no-match clears any previous custom syntax.
@@ -56,7 +70,7 @@ impl Editor {
     }
 
     /// The swap event when this editor holds a previewable source file
-    /// (Markdown or Mermaid). Used to make the view/edit toggle (Ctrl+E / Edit
+    /// (Markdown, Mermaid, HTML or CSV). Used to make the view/edit toggle (Ctrl+E / Edit
     /// chip) swap to the rendered view instead of flipping read-only.
     fn preview_swap_event(&self) -> Option<PanelEvent> {
         let path = self.file_path()?;
@@ -68,6 +82,7 @@ impl Editor {
             "md" | "markdown" => Some(PanelEvent::SwapActiveToMarkdown(path.to_path_buf())),
             "mmd" | "mermaid" => Some(PanelEvent::SwapActiveToMermaid(path.to_path_buf())),
             "html" | "htm" => Some(PanelEvent::SwapActiveToHtml(path.to_path_buf())),
+            "csv" | "tsv" => Some(PanelEvent::SwapActiveToCsv(path.to_path_buf())),
             _ => None,
         }
     }
@@ -357,7 +372,7 @@ impl Panel for Editor {
 
     fn context_menu_items(&self) -> Vec<(String, String)> {
         let t = t();
-        vec![
+        let mut items = vec![
             (
                 t.menu_view_as_diagram().to_string(),
                 "view_as_diagram".into(),
@@ -374,7 +389,14 @@ impl Panel for Editor {
                 t.help_desc_clear_breakpoints().to_string(),
                 CLEAR_BREAKPOINTS_ACTION.into(),
             ),
-        ]
+        ];
+        if (self.lsp.enabled || self.lsp.server_start_failed) && self.file_path().is_some() {
+            items.push((
+                t.lsp_restart_server().to_string(),
+                RESTART_LANGUAGE_SERVER_ACTION.into(),
+            ));
+        }
+        items
     }
 
     fn handle_status_action(&mut self, action: &str) -> Vec<PanelEvent> {
@@ -411,8 +433,7 @@ impl Panel for Editor {
                     }
                     return vec![ev];
                 }
-                self.config.read_only = !self.config.read_only;
-                vec![PanelEvent::NeedsRedraw]
+                self.toggle_edit_events()
             }
             "to_hex" => {
                 if let Some(path) = self.file_path().map(|p| p.to_path_buf()) {
@@ -436,6 +457,12 @@ impl Panel for Editor {
                 vec![PanelEvent::ConfigureDebug { file }]
             }
             CLEAR_BREAKPOINTS_ACTION => vec![PanelEvent::ClearBreakpoints],
+            RESTART_LANGUAGE_SERVER_ACTION => match self.file_path() {
+                Some(file) => vec![PanelEvent::RestartLanguageServer {
+                    file: file.to_path_buf(),
+                }],
+                None => vec![],
+            },
             "view_as_diagram" => {
                 let source = self.buffer.text();
                 let language = self
@@ -498,7 +525,7 @@ impl Panel for Editor {
             }
             PanelCommand::CheckExternalModification => {
                 self.check_external_modification();
-                CommandResult::None
+                CommandResult::NeedsRedraw(self.follow_disk_permissions())
             }
             PanelCommand::GetFsWatchInfo => {
                 // For Editor, return file path info for watcher registration
@@ -531,6 +558,7 @@ impl Panel for Editor {
                     if file_changed {
                         self.update_git_diff();
                         self.check_external_modification();
+                        self.follow_disk_permissions();
                         return CommandResult::NeedsRedraw(true);
                     }
                 }
@@ -582,6 +610,7 @@ impl Panel for Editor {
                 if self.is_stale {
                     self.is_stale = false;
                     self.check_external_modification();
+                    self.follow_disk_permissions();
                     self.update_git_diff();
                     CommandResult::NeedsRedraw(true)
                 } else {
@@ -657,7 +686,8 @@ impl Panel for Editor {
             | PanelCommand::InputSubmitted { .. }
             | PanelCommand::Confirmed { .. }
             | PanelCommand::UpdateRepoPaths { .. }
-            | PanelCommand::ShowGitLog { .. } => CommandResult::None,
+            | PanelCommand::ShowGitLog { .. }
+            | PanelCommand::RefreshAiConnection => CommandResult::None,
         }
     }
 
@@ -688,10 +718,25 @@ impl Panel for Editor {
 
     fn to_state(&self, project_dir: &std::path::Path) -> Option<PanelState> {
         if let Some(path) = self.file_path() {
-            // Named file - save path
+            // Named file - save its path, and its unsaved changes when it was
+            // given a backup file for them (`ensure_unsaved_changes_backup`).
+            // Empty content is a change like any other here.
+            let unsaved_buffer_file = self
+                .unsaved_buffer_file()
+                .filter(|_| self.buffer_is_modified())
+                .and_then(|filename| {
+                    let content = self.buffer.text();
+                    match termide_project::save_unsaved_buffer(project_dir, filename, &content) {
+                        Ok(()) => Some(filename.to_string()),
+                        Err(e) => {
+                            log::warn!("Failed to save the unsaved changes: {e}");
+                            None
+                        }
+                    }
+                });
             Some(PanelState::Editor {
                 path: Some(path.to_path_buf()),
-                unsaved_buffer_file: None,
+                unsaved_buffer_file,
             })
         } else if self.buffer_is_modified() {
             // Unnamed buffer with unsaved content - save to the project dir
@@ -814,8 +859,7 @@ impl Editor {
                 }
                 return vec![ev];
             }
-            self.config.read_only = !self.config.read_only;
-            return vec![PanelEvent::NeedsRedraw];
+            return self.toggle_edit_events();
         }
 
         // The inline find/replace bar (before vim / command processing). Tab

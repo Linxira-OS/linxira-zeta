@@ -29,6 +29,8 @@ import {
 } from "../memory-backend/recall-entry";
 import { memoryToolRefs } from "../memory-backend/tool-names";
 import type { MemoryPromptPreparation } from "../memory-backend/types";
+import type { MemoryLearningWindow } from "../memory-backend/window-types";
+import { cfgMemoryExtractionMode } from "../memory-backend/settings";
 import { redactMemorySecrets, redactRememberWrite } from "../memory-backend/redact";
 import type { AgentSession, AgentSessionEvent } from "../session/agent-session";
 import type { AgentSessionHandle } from "../session/agent-session-handle";
@@ -805,7 +807,8 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 	}
 
 	async maybeRetainOnAgentEnd(_messages: AgentMessage[]): Promise<void> {
-		if (!this.config.autoRetain || this.aliasOf) return;
+		if (!this.config.autoRetain || this.aliasOf || cfgMemoryExtractionMode.get(this.session.settings) !== "auto")
+			return;
 		const userTurns = withLoopPhase("mnemopi.retain", () => {
 			this.#restoreRetainedTurnCursor();
 			// Cheap gate first: most agent_end events are not retain turns, so skip text extraction.
@@ -837,6 +840,40 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 		this.lastRetainedTurn = Math.max(this.lastRetainedTurn, userTurns);
 	}
 
+	/** Persist only the delivered region; storage errors must reach the durable consumer. */
+	async learnWindow(input: MemoryLearningWindow): Promise<void> {
+		if (this.aliasOf) throw new Error("Mnemopi window learning requires the primary session state.");
+		const sourceId = `window:${input.id}`;
+		using existing = this.memory.beam.db.prepare(`
+			SELECT id FROM working_memory
+			WHERE source = 'coding-agent-window' AND json_extract(metadata_json, '$.source_id') = ?
+			UNION ALL
+			SELECT id FROM episodic_memory
+			WHERE source = 'coding-agent-window' AND json_extract(metadata_json, '$.source_id') = ?
+			LIMIT 1
+		`);
+		if (existing.get(sourceId, sourceId)) return;
+		const { transcript, messageCount } = prepareRetentionTranscript(input.messages, true, {
+			includeTimestamps: true,
+		});
+		if (!transcript) return;
+		const { transcript: extractText } = prepareUserRetentionTranscript(input.messages);
+		const { transcript: embedText } = prepareEmbeddableRetentionTranscript(input.messages);
+		const extract = this.config.llmMode !== "none" && extractText !== null;
+		this.rememberScoped(transcript, {
+			source: "coding-agent-window",
+			importance: 0.65,
+			metadata: { session_id: this.sessionId, source_id: sourceId, message_count: messageCount },
+			scope: "bank",
+			extract,
+			extractEntities: extract,
+			extractText: extract ? extractText : null,
+			embedText,
+			veracity: "unknown",
+			memoryType: "episode",
+		});
+	}
+
 	async retainMessages(
 		messages: Array<{ role: string; content: string }>,
 		sourceId: string,
@@ -849,7 +886,7 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 			if (!transcript) return;
 			const { transcript: extractText } = prepareUserRetentionTranscript(messages);
 			const { transcript: embedText } = prepareEmbeddableRetentionTranscript(messages);
-			const shouldExtract = options.extract !== false && extractText !== null;
+			const shouldExtract = this.config.llmMode !== "none" && options.extract !== false && extractText !== null;
 			this.rememberInScope(transcript, {
 				source: "coding-agent-transcript",
 				importance: 0.65,
@@ -976,7 +1013,7 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 	 * error cannot make the backend inert.
 	 */
 	promoteEligibleWorkingMemory(): void {
-		if (this.aliasOf) return;
+		if (this.aliasOf || cfgMemoryExtractionMode.get(this.session.settings) !== "auto") return;
 		const scoped = this.#local();
 		for (const memory of scoped.owned) {
 			try {
@@ -1029,7 +1066,7 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 		}
 		for (const memory of this.#local().owned) {
 			await memory.flushExtractions();
-			if (options.sleep === false) continue;
+			if (options.sleep === false || (this.config.llmMode === "none" && !options.full)) continue;
 			if (options.full) {
 				memory.sleepAllSessions(false);
 			} else {
@@ -1095,7 +1132,10 @@ export class MnemopiSessionState implements MnemopiSessionStateApi {
 			full: false,
 			extract: false,
 			sleep: false,
-			retain: this.config.autoRetain && options.retain !== false,
+			retain:
+				this.config.autoRetain &&
+				options.retain !== false &&
+				cfgMemoryExtractionMode.get(this.session.settings) === "auto",
 		}).catch((error: unknown) => {
 			logger.warn("Mnemopi: consolidation on dispose failed.", { error: String(error) });
 		});

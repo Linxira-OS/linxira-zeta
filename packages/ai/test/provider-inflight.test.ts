@@ -13,6 +13,7 @@ import {
 	streamSimple,
 } from "@linxiraos/pi-ai/stream";
 import type { Context, Model, RawSseEvent } from "@linxiraos/pi-ai/types";
+import { removeWithRetries } from "../../utils/src/temp";
 
 function context(): Context {
 	return {
@@ -37,7 +38,7 @@ afterEach(async () => {
 	__providerInFlightForTesting.setLockPlatformOverride(undefined);
 	__providerInFlightForTesting.setLockRetryTimings(undefined);
 	if (limiterRoot !== undefined) {
-		await fs.rm(limiterRoot, { recursive: true, force: true });
+		await removeWithRetries(limiterRoot);
 		limiterRoot = undefined;
 	}
 });

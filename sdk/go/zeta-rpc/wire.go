@@ -3742,6 +3742,134 @@ func (v *AutoCompactionReason) UnmarshalJSON(data []byte) error {
 	return unknownValue("AutoCompactionReason", s)
 }
 
+type CompactionTriggerType string
+
+const (
+	CompactionTriggerTypeManual      CompactionTriggerType = "manual"
+	CompactionTriggerTypeAuto        CompactionTriggerType = "auto"
+	CompactionTriggerTypeSpeculation CompactionTriggerType = "speculation"
+)
+
+func (v *CompactionTriggerType) UnmarshalJSON(data []byte) error {
+	s, err := decodeString(data, "CompactionTriggerType")
+	if err != nil {
+		return err
+	}
+	switch value := CompactionTriggerType(s); value {
+	case CompactionTriggerTypeManual, CompactionTriggerTypeAuto, CompactionTriggerTypeSpeculation:
+		*v = value
+		return nil
+	}
+	return unknownValue("CompactionTriggerType", s)
+}
+
+type CompactionPhaseName string
+
+const (
+	CompactionPhaseNamePlan      CompactionPhaseName = "plan"
+	CompactionPhaseNameSummarize CompactionPhaseName = "summarize"
+	CompactionPhaseNameArchive   CompactionPhaseName = "archive"
+	CompactionPhaseNameCommit    CompactionPhaseName = "commit"
+	CompactionPhaseNameFailed    CompactionPhaseName = "failed"
+	CompactionPhaseNameAborted   CompactionPhaseName = "aborted"
+)
+
+func (v *CompactionPhaseName) UnmarshalJSON(data []byte) error {
+	s, err := decodeString(data, "CompactionPhaseName")
+	if err != nil {
+		return err
+	}
+	switch value := CompactionPhaseName(s); value {
+	case CompactionPhaseNamePlan, CompactionPhaseNameSummarize, CompactionPhaseNameArchive, CompactionPhaseNameCommit, CompactionPhaseNameFailed, CompactionPhaseNameAborted:
+		*v = value
+		return nil
+	}
+	return unknownValue("CompactionPhaseName", s)
+}
+
+type CompactionPhaseMethod string
+
+const (
+	CompactionPhaseMethodRemote       CompactionPhaseMethod = "remote"
+	CompactionPhaseMethodSnapcompact  CompactionPhaseMethod = "snapcompact"
+	CompactionPhaseMethodHandoff      CompactionPhaseMethod = "handoff"
+	CompactionPhaseMethodShake        CompactionPhaseMethod = "shake"
+	CompactionPhaseMethodSoft         CompactionPhaseMethod = "soft"
+	CompactionPhaseMethodExperimental CompactionPhaseMethod = "experimental"
+	CompactionPhaseMethodExtension    CompactionPhaseMethod = "extension"
+)
+
+func (v *CompactionPhaseMethod) UnmarshalJSON(data []byte) error {
+	s, err := decodeString(data, "CompactionPhaseMethod")
+	if err != nil {
+		return err
+	}
+	switch value := CompactionPhaseMethod(s); value {
+	case CompactionPhaseMethodRemote, CompactionPhaseMethodSnapcompact, CompactionPhaseMethodHandoff, CompactionPhaseMethodShake, CompactionPhaseMethodSoft, CompactionPhaseMethodExperimental, CompactionPhaseMethodExtension:
+		*v = value
+		return nil
+	}
+	return unknownValue("CompactionPhaseMethod", s)
+}
+
+type CompactionFidelityCounts struct {
+	Qa          int64 `json:"qa"`
+	Paths       int64 `json:"paths"`
+	Ids         int64 `json:"ids"`
+	Constraints int64 `json:"constraints"`
+	Unfinished  int64 `json:"unfinished"`
+}
+
+func (v *CompactionFidelityCounts) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "CompactionFidelityCounts", v.decodeFrom)
+}
+
+func (v *CompactionFidelityCounts) decodeFrom(raw map[string]json.RawMessage) error {
+	var out CompactionFidelityCounts
+	d := fieldDecoder{raw: raw, owner: "CompactionFidelityCounts"}
+	d.required("qa", &out.Qa)
+	d.required("paths", &out.Paths)
+	d.required("ids", &out.Ids)
+	d.required("constraints", &out.Constraints)
+	d.required("unfinished", &out.Unfinished)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
+type CompactionPhaseDetail struct {
+	TokensBefore *int64                    `json:"tokensBefore,omitempty"`
+	TokensAfter  *int64                    `json:"tokensAfter,omitempty"`
+	EntryID      *string                   `json:"entryId,omitempty"`
+	DurationMs   *int64                    `json:"durationMs,omitempty"`
+	SummaryChars *int64                    `json:"summaryChars,omitempty"`
+	ErrorMessage *string                   `json:"errorMessage,omitempty"`
+	Fidelity     *CompactionFidelityCounts `json:"fidelity,omitempty"`
+}
+
+func (v *CompactionPhaseDetail) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "CompactionPhaseDetail", v.decodeFrom)
+}
+
+func (v *CompactionPhaseDetail) decodeFrom(raw map[string]json.RawMessage) error {
+	var out CompactionPhaseDetail
+	d := fieldDecoder{raw: raw, owner: "CompactionPhaseDetail"}
+	d.optional("tokensBefore", &out.TokensBefore)
+	d.optional("tokensAfter", &out.TokensAfter)
+	d.optional("entryId", &out.EntryID)
+	d.optional("durationMs", &out.DurationMs)
+	d.optional("summaryChars", &out.SummaryChars)
+	d.optional("errorMessage", &out.ErrorMessage)
+	d.optional("fidelity", &out.Fidelity)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
 type AutoCompactionAction string
 
 const (
@@ -4178,6 +4306,47 @@ func (v *AutoCompactionStartEvent) decodeFrom(raw map[string]json.RawMessage) er
 func (v AutoCompactionStartEvent) MarshalJSON() ([]byte, error) {
 	type plain AutoCompactionStartEvent
 	return encodeObject(plain(v), `"type":"auto_compaction_start"`, nil)
+}
+
+// Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`.
+type CompactionPhaseEvent struct {
+	// Stable per compaction pass; constant across method fallbacks.
+	PassID  string                `json:"passId"`
+	Trigger CompactionTriggerType `json:"trigger"`
+	// `plan` may repeat in one pass when a method fallback begins; `aborted` means cancellation only.
+	Phase CompactionPhaseName `json:"phase"`
+	// Emission time (epoch ms).
+	At     int64                  `json:"at"`
+	Method *CompactionPhaseMethod `json:"method,omitempty"`
+	Reason *string                `json:"reason,omitempty"`
+	Detail *CompactionPhaseDetail `json:"detail,omitempty"`
+}
+
+func (v *CompactionPhaseEvent) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "CompactionPhaseEvent", v.decodeFrom)
+}
+
+func (v *CompactionPhaseEvent) decodeFrom(raw map[string]json.RawMessage) error {
+	var out CompactionPhaseEvent
+	d := fieldDecoder{raw: raw, owner: "CompactionPhaseEvent"}
+	d.constant("type", "compaction_phase")
+	d.required("passId", &out.PassID)
+	d.required("trigger", &out.Trigger)
+	d.required("phase", &out.Phase)
+	d.required("at", &out.At)
+	d.optional("method", &out.Method)
+	d.optional("reason", &out.Reason)
+	d.optional("detail", &out.Detail)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
+func (v CompactionPhaseEvent) MarshalJSON() ([]byte, error) {
+	type plain CompactionPhaseEvent
+	return encodeObject(plain(v), `"type":"compaction_phase"`, nil)
 }
 
 type AutoCompactionEndEvent struct {
@@ -4829,6 +4998,7 @@ func (ToolExecutionUpdateEvent) isRpcAgentEvent()    {}
 func (ToolStreamUpdateEvent) isRpcAgentEvent()       {}
 func (ToolExecutionEndEvent) isRpcAgentEvent()       {}
 func (AutoCompactionStartEvent) isRpcAgentEvent()    {}
+func (CompactionPhaseEvent) isRpcAgentEvent()        {}
 func (AutoCompactionEndEvent) isRpcAgentEvent()      {}
 func (ManualCompactionStartEvent) isRpcAgentEvent()  {}
 func (ManualCompactionEndEvent) isRpcAgentEvent()    {}
@@ -4896,6 +5066,8 @@ func (v *RpcAgentEvent) decodeFrom(raw map[string]json.RawMessage) error {
 		value, err = decodeVariant[ToolExecutionEndEvent](raw)
 	case "auto_compaction_start":
 		value, err = decodeVariant[AutoCompactionStartEvent](raw)
+	case "compaction_phase":
+		value, err = decodeVariant[CompactionPhaseEvent](raw)
 	case "auto_compaction_end":
 		value, err = decodeVariant[AutoCompactionEndEvent](raw)
 	case "manual_compaction_start":
@@ -6024,7 +6196,7 @@ func (v EditorUiRequest) MarshalJSON() ([]byte, error) {
 	return encodeObject(plain(v), `"type":"extension_ui_request","method":"editor"`, nil)
 }
 
-// Every question of one `ask` tool call; sent only after `set_ask_dialog` enables it.
+// Every question of one extension `ui.askDialog` call; sent only after `set_ask_dialog` enables it.
 type AskUiRequest struct {
 	ID        string        `json:"id"`
 	Questions []AskQuestion `json:"questions"`
@@ -6338,7 +6510,7 @@ func (v *ExtensionUiRequest) decodeFrom(raw map[string]json.RawMessage) error {
 	return nil
 }
 
-// Answer to one `ask` question: exact option labels, plus optional free text.
+// Answer to one `ui.askDialog` question: exact option labels, plus optional free text.
 type AskAnswer struct {
 	ID              string   `json:"id"`
 	SelectedOptions []string `json:"selectedOptions"`
@@ -6418,7 +6590,7 @@ func (v ConfirmUiResponse) MarshalJSON() ([]byte, error) {
 	return encodeObject(plain(v), `"type":"extension_ui_response"`, nil)
 }
 
-// Dismisses a dialog; `timedOut` reports the host's own deadline (an `ask` then takes its recommended answers).
+// Dismisses a dialog; `timedOut` reports the host's own deadline (an `ask` dialog then takes its recommended answers).
 type CancelUiResponse struct {
 	ID       string `json:"id"`
 	TimedOut *bool  `json:"timedOut,omitempty"`
@@ -7011,6 +7183,7 @@ func (ToolExecutionUpdateEvent) isRpcNotification()     {}
 func (ToolStreamUpdateEvent) isRpcNotification()        {}
 func (ToolExecutionEndEvent) isRpcNotification()        {}
 func (AutoCompactionStartEvent) isRpcNotification()     {}
+func (CompactionPhaseEvent) isRpcNotification()         {}
 func (AutoCompactionEndEvent) isRpcNotification()       {}
 func (ManualCompactionStartEvent) isRpcNotification()   {}
 func (ManualCompactionEndEvent) isRpcNotification()     {}
@@ -7115,6 +7288,8 @@ func (v *RpcNotification) UnmarshalJSON(data []byte) error {
 		value, err = decodeVariant[ToolExecutionEndEvent](raw)
 	case "auto_compaction_start":
 		value, err = decodeVariant[AutoCompactionStartEvent](raw)
+	case "compaction_phase":
+		value, err = decodeVariant[CompactionPhaseEvent](raw)
 	case "auto_compaction_end":
 		value, err = decodeVariant[AutoCompactionEndEvent](raw)
 	case "manual_compaction_start":
@@ -7219,6 +7394,7 @@ func (ToolExecutionUpdateEvent) isRpcServerFrame()     {}
 func (ToolStreamUpdateEvent) isRpcServerFrame()        {}
 func (ToolExecutionEndEvent) isRpcServerFrame()        {}
 func (AutoCompactionStartEvent) isRpcServerFrame()     {}
+func (CompactionPhaseEvent) isRpcServerFrame()         {}
 func (AutoCompactionEndEvent) isRpcServerFrame()       {}
 func (ManualCompactionStartEvent) isRpcServerFrame()   {}
 func (ManualCompactionEndEvent) isRpcServerFrame()     {}
@@ -7333,6 +7509,8 @@ func (v *RpcServerFrame) UnmarshalJSON(data []byte) error {
 		value, err = decodeVariant[ToolExecutionEndEvent](raw)
 	case "auto_compaction_start":
 		value, err = decodeVariant[AutoCompactionStartEvent](raw)
+	case "compaction_phase":
+		value, err = decodeVariant[CompactionPhaseEvent](raw)
 	case "auto_compaction_end":
 		value, err = decodeVariant[AutoCompactionEndEvent](raw)
 	case "manual_compaction_start":

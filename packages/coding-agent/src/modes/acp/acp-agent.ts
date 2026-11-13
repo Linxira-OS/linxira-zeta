@@ -57,6 +57,8 @@ import { runExtensionCompact } from "../../extensibility/extensions/compact-hand
 import { getSessionSlashCommands } from "../../extensibility/extensions/get-commands-handler";
 import { parseSkillInvocation } from "../../extensibility/skills";
 import { PYTHON_KERNEL_CANCEL_BUDGET_MS } from "../../eval/py/kernel";
+import { createAnalysisMcpApprovalAdapter } from "../../mcp/analysis-precedence-approval";
+import { buildAnalysisMcpRefreshInputFromRuntime } from "../../mcp/analysis-precedence-hook";
 import { MCPManager } from "../../mcp/manager";
 import { reconnectMcpManagerServer } from "../../mcp/oauth-reauth";
 import type { MCPServerConfig } from "../../mcp/types";
@@ -2634,6 +2636,7 @@ export class AcpAgent implements Agent {
 		session.setPlanReferencePath(planFilePath);
 		session.setPlanProposalHandler?.(null);
 		session.setPlanModeState(undefined);
+		session.sessionManager.appendModeChange("none", { approvedPlanFilePath: planFilePath });
 		let autosaveFailed = false;
 		try {
 			await autosaveApprovedPlan({
@@ -3384,7 +3387,12 @@ export class AcpAgent implements Agent {
 		record.mcpRefreshChain = undefined;
 		if (servers.length === 0) {
 			record.mcpManager = undefined;
-			await record.session.refreshMCPTools([]);
+			const analysis = await buildAnalysisMcpRefreshInputFromRuntime({
+				settings: record.session.settings,
+				cwd: record.session.sessionManager.getCwd(),
+				activeNativeTools: record.session.getEnabledToolNames(),
+			});
+			await record.session.refreshMCPTools([], analysis);
 			return;
 		}
 
@@ -3393,6 +3401,11 @@ export class AcpAgent implements Agent {
 		// auth storage the manager cannot resolve them on reconnect and a
 		// successful reauthorization would leave the live server disconnected.
 		manager.setAuthStorage(record.session.modelRegistry.authStorage);
+		const approve = createAnalysisMcpApprovalAdapter(
+			this.#clientCapabilities?.elicitation?.form != null
+				? createAcpExtensionUiContext(this.#connection, () => record.protocolSessionId, this.#clientCapabilities)
+				: undefined,
+		);
 		// MCP servers connect and reconnect independently, so `onToolsChanged` can fire
 		// several times back to back. Each firing is chained onto `record.mcpRefreshChain`
 		// so refreshes apply in order, and each one re-reads `manager.getTools()` at the
@@ -3406,7 +3419,19 @@ export class AcpAgent implements Agent {
 		const enqueueMcpToolsRefresh = (): Promise<void> => {
 			const run = (record.mcpRefreshChain ?? Promise.resolve()).then(async () => {
 				if (record.mcpManager !== manager) return;
-				await record.session.refreshMCPTools(manager.getTools());
+				// One snapshot feeds both the precedence decision and the bind, so the
+				// analysis can never describe a different tool list than the one bound.
+				const tools = manager.getTools();
+				const analysis = await buildAnalysisMcpRefreshInputFromRuntime({
+					manager,
+					tools,
+					settings: record.session.settings,
+					cwd: record.session.sessionManager.getCwd(),
+					activeNativeTools: record.session.getEnabledToolNames(),
+					approve,
+				});
+				if (record.mcpManager !== manager) return;
+				await record.session.refreshMCPTools(tools, analysis);
 			});
 			record.mcpRefreshChain = run.catch(error => {
 				logger.warn("ACP MCP tool refresh failed", {

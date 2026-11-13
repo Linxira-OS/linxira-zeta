@@ -346,13 +346,12 @@ impl SettingsModal {
                     if self.editing && is_focused {
                         let width = max_value_width.saturating_sub(1) as u16;
                         let field = Rect::new(value_x as u16, y, width, 1);
-                        crate::base::render_text_input(
-                            buf,
-                            field,
-                            &mut self.edit_input,
-                            true,
-                            theme,
-                        );
+                        let render = if self.is_api_key_field(field_idx) {
+                            crate::base::render_masked_text_input
+                        } else {
+                            crate::base::render_text_input
+                        };
+                        render(buf, field, &mut self.edit_input, true, theme);
                         self.edit_area = Some(field);
                         continue;
                     }
@@ -375,7 +374,12 @@ impl SettingsModal {
                     let refused = self
                         .page_error()
                         .filter(|(field, _)| *field == field_idx && !self.editing)
-                        .map(|(_, error)| error.as_str());
+                        .map(|(_, error)| error.as_str())
+                        .or_else(|| {
+                            (self.field_tab() == SettingsTab::Connection)
+                                .then(|| self.connection_warning(field_idx))
+                                .flatten()
+                        });
                     if let Some(error) = refused {
                         let x = value_x + display_value.width() + 2;
                         let room = (area.x as usize + area.width as usize).saturating_sub(x);
@@ -881,6 +885,9 @@ impl SettingsModal {
 
         let visible = ENUM_PICKER_MAX_VISIBLE.min(options.labels.len());
         let height = visible as u16 + 2; // borders
+
+        // The longest label whole: the borders, " ● " before it and a space
+        // after it to match.
         let width = options
             .labels
             .iter()
@@ -888,7 +895,7 @@ impl SettingsModal {
             .max()
             .unwrap_or(10)
             .max(12) as u16
-            + 4;
+            + 6;
         let width = width.min(inner.width.max(12));
 
         // Below the field if it fits, above it otherwise.

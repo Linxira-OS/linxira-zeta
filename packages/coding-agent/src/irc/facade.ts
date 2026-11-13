@@ -38,7 +38,14 @@ export interface AgentMessenger {
 }
 
 /** Bus slice the messenger delegates to; lets callers inject a private bus or a stub. */
-export type AgentMessengerBus = Pick<IrcBus, "send" | "wait" | "inbox">;
+export type AgentMessengerBus = {
+	send(
+		msg: Omit<IrcMessage, "id" | "ts">,
+		opts?: { expectsReply?: boolean; suppressRelay?: boolean },
+	): Promise<IrcDeliveryReceipt>;
+	wait: IrcBus["wait"];
+	inbox: IrcBus["inbox"];
+};
 
 /** Build a messenger over `bus` (defaults to the process-global bus). */
 export function createAgentMessenger(bus: AgentMessengerBus = IrcBus.global()): AgentMessenger {
@@ -47,11 +54,10 @@ export function createAgentMessenger(bus: AgentMessengerBus = IrcBus.global()): 
 			const message: Omit<IrcMessage, "id" | "ts"> = { from, to, body };
 			if (opts?.replyTo !== undefined) message.replyTo = opts.replyTo;
 			if (opts?.wakeRelay) message.wakeRelay = true;
-			const delivery =
-				opts?.expectsReply === undefined && opts?.suppressRelay === undefined
-					? undefined
-					: { expectsReply: opts.expectsReply, suppressRelay: opts.suppressRelay };
-			return bus.send(message, delivery);
+			return bus.send(
+				message,
+				opts === undefined ? undefined : { expectsReply: opts.expectsReply, suppressRelay: opts.suppressRelay },
+			);
 		},
 		wait: (agentId, filter, timeoutMs, signal) => bus.wait(agentId, filter, timeoutMs, signal),
 		inbox: (agentId, opts) => bus.inbox(agentId, opts),

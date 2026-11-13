@@ -1,0 +1,21 @@
+.schema-settings { padding: var(--sp-24) 0; border-top: 1px solid var(--line, var(--border)); }
+.schema-settings-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-20); margin-bottom: var(--sp-20); }
+.schema-settings-head h3 { margin: var(--sp-6) 0 0; font-size: var(--fs-16, 16px); font-weight: 600; }
+.schema-settings-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-12); margin-bottom: var(--sp-16); }
+.schema-settings-tabs { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
+.schema-settings-tabs button { padding: var(--sp-6) var(--sp-10); border: 1px solid transparent; border-radius: var(--r-8); background: transparent; color: var(--text-muted, var(--muted)); font-size: var(--fs-12, 12px); cursor: pointer; }
+.schema-settings-tabs button:hover { background: var(--surface-hover); color: var(--text); }
+.schema-settings-tabs button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.schema-settings-toolbar input { margin-left: auto; min-width: 220px; }
+.schema-settings-body { display: flex; flex-direction: column; gap: var(--sp-16); }
+.schema-settings-group h4 { margin: 0 0 var(--sp-6); font-size: var(--fs-11, 11px); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted, var(--muted)); }
+.schema-settings-control { display: grid; gap: var(--sp-6); min-width: 220px; max-width: 420px; }
+.schema-settings-wide { display: grid; gap: var(--sp-6); min-width: 300px; max-width: 620px; }
+.schema-settings-json { display: grid; gap: var(--sp-6); }
+.schema-settings-json textarea { width: 100%; resize: vertical; }
+.schema-settings-json input { width: 100%; }
+.schema-settings-json button { justify-self: start; }
+.schema-settings-checks { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+.schema-settings-check { display: flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-12, 12px); }
+.schema-settings-path { color: var(--text-dim, var(--muted)); font-size: var(--fs-10, 10px); overflow-wrap: anywhere; }
+@media (max-width: 900px) { .schema-settings-head { flex-direction: column; } .schema-settings-toolbar input { margin-left: 0; width: 100%; } .schema-settings-wide, .schema-settings-control { min-width: 0; max-width: none; } }

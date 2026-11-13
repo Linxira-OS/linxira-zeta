@@ -27,13 +27,13 @@ import type { NativeToolView, ToolRenderResult } from "./renderer";
 export type TodoStatus = "pending" | "in_progress" | "completed" | "abandoned" | "blocked";
 
 /** Operation names accepted by the todo tool and echoed in successful result details. */
-export type TodoOperation = "init" | "start" | "done" | "rm" | "drop" | "block" | "unblock" | "append" | "view";
+export type TodoOperation = "init" | "start" | "done" | "rm" | "drop" | "append" | "view";
 
 /** A task displayed within a todo phase. */
 export interface TodoItem {
 	content: string;
 	status: TodoStatus;
-	/** When `status === "blocked"`, an optional note on what the task is waiting for. */
+	/** What blocks a `blocked` item (Zeta-only). */
 	blocker?: string;
 	details?: string;
 	notes?: string[];
@@ -384,10 +384,6 @@ function formatTodoLine(
 			return uiTheme.fg("accent", `${prefix}${checkbox.unchecked} ${text}`);
 		case "abandoned":
 			return uiTheme.fg("error", `${prefix}${checkbox.unchecked} ${strikethroughText(text)}`);
-		case "blocked": {
-			const note = item.blocker ? `blocked: ${forDisplay(item.blocker)}` : "blocked";
-			return uiTheme.fg("warning", `${prefix}${checkbox.unchecked} ${text} (${note})`);
-		}
 		default:
 			// A pending todo lit by a live subagent match renders accent, matching
 			// the sticky HUD's convention (#5873).
@@ -471,16 +467,13 @@ const CHECKLIST_STATUS: Record<TodoStatus, TspChecklistItem["status"]> = {
 	in_progress: "active",
 	completed: "done",
 	abandoned: "dropped",
-	blocked: "blocked",
+	blocked: "pending",
 };
 
 /** Checklist item for one todo; a pending todo an in-flight subagent executes reads as active. */
 function checklistItem(task: TodoItem, id: string, matched = false): TspChecklistItem {
 	const status = task.status === "pending" && matched ? "active" : CHECKLIST_STATUS[task.status];
-	const note = task.status === "blocked" && task.blocker ? forDisplay(task.blocker) : undefined;
-	return note === undefined
-		? { id, text: forDisplay(task.content), status }
-		: { id, text: forDisplay(task.content), status, note };
+	return { id, text: forDisplay(task.content), status };
 }
 
 /**

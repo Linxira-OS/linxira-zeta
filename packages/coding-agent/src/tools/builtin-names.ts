@@ -1,3 +1,5 @@
+import type { AgentTool } from "@linxiraos/pi-agent-core";
+
 export const BUILTIN_TOOL_NAMES = [
 	"read",
 	"bash",
@@ -25,6 +27,9 @@ export const BUILTIN_TOOL_NAMES = [
 	"todo",
 	"board",
 	"room_read",
+	"local_room_read",
+	"local_room_post",
+	"local_room_reply",
 	"mode",
 	"web_search",
 	"time",
@@ -58,7 +63,15 @@ const CANONICAL_TOOL_NAMES: Record<string, true> = Object.fromEntries(
 	[...BUILTIN_TOOL_NAMES, ...HIDDEN_TOOL_NAMES].map(name => [name, true]),
 );
 
-/** Canonicalize built-in IDs and legacy aliases. Leave plugin names unchanged. */
+/** Whether `name` is a built-in or hidden built-in tool name (case-insensitive). */
+export function isBuiltinToolName(name: string): boolean {
+	return Object.hasOwn(CANONICAL_TOOL_NAMES, name.toLowerCase());
+}
+
+/**
+ * Canonicalize built-in IDs and legacy aliases. Leave plugin names unchanged.
+ */
+
 export function normalizeToolName(name: string): string {
 	const lower = name.toLowerCase();
 	return LEGACY_BUILTIN_TOOL_NAME_ALIASES.get(lower) ?? (Object.hasOwn(CANONICAL_TOOL_NAMES, lower) ? lower : name);
@@ -75,6 +88,12 @@ export function normalizeToolNames(names: Iterable<string>): string[] {
 		out.push(normalized);
 	}
 	return out;
+}
+
+/** The name the model calls tool `name` by (its custom wire name when it declares one), for prompts that reference it. */
+export function toolWireName(registry: ReadonlyMap<string, AgentTool>, name: string): string {
+	const tool = registry.get(name);
+	return typeof tool?.customWireName === "string" ? tool.customWireName : name;
 }
 
 /** MCP tool names carry the `mcp__<server>_<tool>` prefix minted by `createMCPToolName`. */

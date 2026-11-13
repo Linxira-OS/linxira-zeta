@@ -22,8 +22,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type * as natives from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
-import { prompt } from "@linxiraos/pi-utils";
-
+import { postmortem, prompt } from "@linxiraos/pi-utils";
 import isolationErrorTemplate from "../prompts/tools/isolation-error.md" with { type: "text" };
 import isolationSummaryTemplate from "../prompts/tools/isolation-summary.md" with { type: "text" };
 import { AgentLifecycleManager } from "../registry/agent-lifecycle";
@@ -35,7 +34,6 @@ import type { ExecutorOptions } from "./executor";
 import { runSubprocess } from "./executor";
 import { needsNativeTeardown, writeRetainedBackend } from "./isolation-ownership";
 import type { NestedRepoPatch, SingleResult } from "@linxiraos/pi-tui/tools/task";
-
 import {
 	applyNestedPatches,
 	captureDeltaPatch,
@@ -461,7 +459,7 @@ function renderIsolationError(context: IsolationErrorContext): string {
 /**
  * Run a subagent inside an isolation worktree and capture its changes.
  *
- * Branch mode: on success, commits the diff onto `zeta/task/${agentId}` and
+ * Branch mode: on success, commits the diff onto `zetacode/task/${agentId}` and
  * returns `branchName` + `nestedPatches` (+ `nestedPatchPaths`). On commit
  * failure the still-live isolation diff is written to
  * `${artifactsDir}/${agentId}.patch`, the task branch is kept when it already
@@ -506,7 +504,8 @@ export async function runIsolatedSubprocess(opts: IsolatedRunOptions): Promise<S
 		return cleanupPromise;
 	};
 	const releaseIsolation = (): Promise<void> => {
-		releasePromise ??= (async () => {
+		if (releasePromise) return releasePromise;
+		releasePromise = (async () => {
 			if (!workspace || !changes || retainWorkspace) {
 				await cleanupHandle();
 				return;
@@ -552,6 +551,15 @@ export async function runIsolatedSubprocess(opts: IsolatedRunOptions): Promise<S
 				await cleanupHandle();
 			}
 		})();
+		// Session teardown has only a short grace period. Once the session has
+		// stopped, let a signal exit wait for the final capture and backend stop
+		// rather than abandoning a large sandbox when that grace period expires.
+		const unregister = postmortem.register(`isolation-release:${opts.agentId}`, () => releasePromise, {
+			exitOnly: true,
+			deadlineMs: 120_000,
+			waitMessage: "Finishing isolated task cleanup",
+		});
+		void releasePromise.then(unregister, unregister);
 		return releasePromise;
 	};
 	try {
@@ -602,7 +610,7 @@ export async function runIsolatedSubprocess(opts: IsolatedRunOptions): Promise<S
 			} catch (mergeErr) {
 				// Agent succeeded but the branch commit failed. `commitToBranch`
 				// is not atomic: the clean-baseline path fetches the agent's
-				// commits into the parent ODB and creates `zeta/task/<id>` before
+				// commits into the parent ODB and creates `zetacode/task/<id>` before
 				// it commits the leftover working-tree delta, so a throw from
 				// that trailing step leaves behind a branch that already holds
 				// every commit the agent made. The isolation worktree — the only
@@ -611,7 +619,7 @@ export async function runIsolatedSubprocess(opts: IsolatedRunOptions): Promise<S
 				// recoverable merge conflict into permanent loss of committed
 				// work (#8868). Delete only when nothing is at stake. Without a
 				// baseline no branch was started.
-				const branchName = `zeta/task/${opts.agentId}`;
+				const branchName = `zetacode/task/${opts.agentId}`;
 				const rescueBranch = baseline
 					? await rescueTaskBranch(opts.context.repoRoot, branchName, baseline.root.headCommit)
 					: undefined;

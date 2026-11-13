@@ -4,14 +4,15 @@
  *
  * | sub-command | action |
  * |---|---|
- * | `@workspace help` | print usage |
- * | `@workspace list` | list workspaces (alias + path) and this chat's binding |
+ * | `!workspace help` | print usage |
+ * | `!workspace list` | list workspaces (alias + path) and this chat's binding |
  * | `@workspace open <path> [alias]` | register an existing directory as a workspace |
  * | `@workspace create <path> [alias]` | mkdir -p the directory and register it |
  * | `@workspace close <alias>` | stop the workspace session and unregister it |
  * | `@workspace rename <old> <new>` | change a workspace alias |
- * | `@workspace use <alias>` | direct-mode: talk to that workspace now |
- * | `@workspace relay` | switch this chat back to the relay coordinator |
+ * | `@workspace use <alias>` | preview a switch to that workspace |
+ * | `@workspace confirm` / `cancel` | apply or discard the pending switch |
+ * | `@workspace relay` | preview a switch back to the relay coordinator |
  * | `@workspace bind <alias>` | persist this chat → workspace binding |
  * | `@workspace unbind` | remove this chat's binding, back to relay |
  * | `@workspace bindings` | list every persisted binding for this platform |
@@ -34,8 +35,13 @@ export interface WorkspaceRouterDeps {
 	router: SessionRouter | null;
 	/** Channel id of the current inbound (wechat | feishu | telegram). */
 	channelId: string;
+	/** Instance id owning the inbound when several accounts share a platform. */
+	instanceId?: string;
 	/** Peer (chat id) of the current inbound. */
 	peer: string;
+	/** Thread/topic and sender identity; a pending switch is scoped to these. */
+	threadId?: string;
+	userId?: string;
 	sendText(text: string): Promise<void>;
 	/** Called when the message is NOT a control command. */
 	fallback(body: string, peer: string): Promise<void>;
@@ -126,7 +132,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			const label = PLATFORM_LABEL[deps.channelId] ?? deps.channelId;
 			await deps.sendText(
 				`[${label}] Zeta bot is connected. ` +
-					(router ? "Type !help for the command list." : "Type @plan <task> to start."),
+					(router ? "Type !help for the command list." : "Type !plan <task> to start."),
 			);
 			return true;
 		}
@@ -183,7 +189,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 		if (title) {
 			await deps.planRequest(title);
 		} else {
-			await deps.sendText("Usage: @plan <task description>");
+			await deps.sendText("Usage: !plan <task description>");
 		}
 		return true;
 	}
@@ -217,7 +223,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			await deps.sendText(
 				[
 					"!hello                      — verify this bot is connected",
-					"!workspace commands (or @workspace):",
+					"!workspace commands (ASCII !; @workspace remains a legacy alias):",
 					"  list                        — workspaces + this chat's binding",
 					"  open <path> [alias]         — register a directory (alias defaults to folder name)",
 					"  create <path> [alias]       — mkdir -p + register",
@@ -229,9 +235,10 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 					"  unbind                      — remove this chat's binding",
 					"  bindings                    — list bindings for this platform",
 					"Agent / team routing:",
-					"  @agent list                 — agents visible here (local + other workspaces)",
-					"  @agent use <id>             — route this chat to an agent (no id clears it)",
-					"  @team <name>                — hand this chat to a team's host agent",
+					"  !agent list                 — agents visible here (local + other workspaces)",
+					"  !agent use <id>             — route this chat to an agent (no id clears it)",
+					"  !team <name>                — hand this chat to a team's host agent",
+					"  !plan <task>                — start a remote plan request",
 					"Shorthands: *<alias> (direct), *relay / *back / *main (relay)",
 				].join("\n"),
 			);
@@ -297,7 +304,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 				}
 			}
 			if (!dir) {
-				await deps.sendText(`Usage: @workspace ${cmd} <absolute-path> [alias]`);
+				await deps.sendText(`Usage: !workspace ${cmd} <absolute-path> [alias]`);
 				return true;
 			}
 			const resolved = resolvePath(dir);
@@ -322,7 +329,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 					}
 				} catch (error) {
 					if (isEnoent(error)) {
-						await deps.sendText(`Directory does not exist: ${resolved} (use @workspace create to make it)`);
+						await deps.sendText(`Directory does not exist: ${resolved} (use !workspace create to make it)`);
 					} else {
 						logger.error("Failed to stat workspace directory", { dir: resolved, error: String(error) });
 						await deps.sendText(`Failed to access: ${resolved}`);
@@ -346,7 +353,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			}
 			const name = parts[1];
 			if (!name) {
-				await deps.sendText("Usage: @workspace close <alias>");
+				await deps.sendText("Usage: !workspace close <alias>");
 				return true;
 			}
 			const result = await router.close(name);
@@ -366,7 +373,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			const oldName = parts[1];
 			const newName = parts[2];
 			if (!oldName || !newName) {
-				await deps.sendText("Usage: @workspace rename <old-alias> <new-alias>");
+				await deps.sendText("Usage: !workspace rename <old-alias> <new-alias>");
 				return true;
 			}
 			const result = await router.rename(oldName, newName);
@@ -378,10 +385,40 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			return true;
 		}
 
+		case "confirm": {
+			if (!router) {
+				await deps.sendText("No workspace router in this mode.");
+				return true;
+			}
+			const result = await router.confirmWorkspaceSwitch(deps.channelId as never, deps.peer, {
+				...(deps.threadId ? { threadId: deps.threadId } : {}),
+				...(deps.userId ? { userId: deps.userId } : {}),
+			});
+			await deps.sendText(result.ok ? `Workspace switch applied: ${targetLabel(result.target)}.` : result.error);
+			return true;
+		}
+
+		case "cancel": {
+			if (!router) {
+				await deps.sendText("No workspace router in this mode.");
+				return true;
+			}
+			const cancelled = await router.cancelWorkspaceSwitch(deps.channelId as never, deps.peer, {
+				...(deps.threadId ? { threadId: deps.threadId } : {}),
+				...(deps.userId ? { userId: deps.userId } : {}),
+			});
+			await deps.sendText(
+				cancelled
+					? "Workspace switch cancelled; this chat keeps its current target."
+					: "No pending workspace switch.",
+			);
+			return true;
+		}
+
 		case "use": {
 			const alias = parts[1];
 			if (!alias) {
-				await deps.sendText("Usage: @workspace use <alias>");
+				await deps.sendText("Usage: !workspace use <alias>");
 				return true;
 			}
 			await switchToWorkspace(deps, alias);
@@ -401,17 +438,10 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			}
 			const alias = parts[1];
 			if (!alias) {
-				await deps.sendText("Usage: @workspace bind <alias>");
+				await deps.sendText("Usage: !workspace bind <alias>");
 				return true;
 			}
-			const result = await router.bindChat(deps.channelId as never, deps.peer, alias);
-			if (result.ok) {
-				await deps.sendText(
-					`This chat is now bound to [${alias}] (direct mode). Use @workspace relay to switch back.`,
-				);
-			} else {
-				await deps.sendText(result.error);
-			}
+			await switchToWorkspace(deps, alias);
 			return true;
 		}
 
@@ -420,11 +450,12 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 				await deps.sendText("No workspace router in this mode.");
 				return true;
 			}
-			const removed = await router.unbindChat(deps.channelId as never, deps.peer);
+			await router.requestWorkspaceUnbind(deps.channelId as never, deps.peer, {
+				...(deps.threadId ? { threadId: deps.threadId } : {}),
+				...(deps.userId ? { userId: deps.userId } : {}),
+			});
 			await deps.sendText(
-				removed
-					? "Binding removed; this chat now goes through the relay coordinator."
-					: "No binding for this chat.",
+				"Remove this chat's binding and return to the default target? Reply !workspace confirm or !workspace cancel.",
 			);
 			return true;
 		}
@@ -459,7 +490,7 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 					"Workspace relay: type !workspace help for the full command list, or !hello to verify the connection.",
 				);
 			} else {
-				await deps.sendText(`Unknown @workspace command "${cmd}". Type @workspace help for usage.`);
+				await deps.sendText(`Unknown !workspace command "${cmd}". Type !workspace help for usage.`);
 			}
 			return true;
 	}
@@ -483,9 +514,9 @@ async function runAgentCommand(body: string, deps: WorkspaceRouterDeps): Promise
 		case "help":
 			await deps.sendText(
 				[
-					"@agent list              — agents visible here (local + registered workspaces)",
-					"@agent use <id>          — route this chat to that agent",
-					"@agent use               — clear the override (workspace binding resumes)",
+					"!agent list              — agents visible here (local + registered workspaces)",
+					"!agent use <id>          — route this chat to that agent",
+					"!agent use               — clear the override (workspace binding resumes)",
 					"Ids: <workspaceId>/<agentId>, a workspace alias, or a bare local id.",
 				].join("\n"),
 			);
@@ -514,13 +545,13 @@ async function runAgentCommand(body: string, deps: WorkspaceRouterDeps): Promise
 			}
 			await deps.sendText(
 				selector
-					? `Direct mode: this chat now talks to agent [${result.target}]. Send @agent use with no id to clear.`
+					? `Direct mode: this chat now talks to agent [${result.target}]. Send !agent use with no id to clear.`
 					: "Agent override cleared; routing falls back to this chat's workspace binding.",
 			);
 			return;
 		}
 		default:
-			await deps.sendText(`Unknown @agent command "${command}". Type @agent help for usage.`);
+			await deps.sendText(`Unknown !agent command "${command}". Type !agent help for usage.`);
 	}
 }
 
@@ -562,34 +593,56 @@ async function switchToWorkspace(deps: WorkspaceRouterDeps, alias: string): Prom
 		await deps.sendText("No workspace router in this mode.");
 		return;
 	}
-	if (alias === COORDINATOR_ALIAS) {
-		await useRelay(deps);
-		return;
-	}
 	if (!deps.router.resolveDir(alias)) {
 		await deps.sendText(`Unknown workspace [${alias}]. Use @workspace list to see available workspaces.`);
 		return;
 	}
-	const result = await deps.router.setRuntimeBinding(deps.channelId as never, deps.peer, alias);
-	if (result.ok) {
-		// Direct workspace mode supersedes any default-space bot session pointer.
-		await deps.router.clearActiveBotSession(deps.channelId as never, deps.peer);
-		await deps.sendText(
-			`Direct mode: this chat now talks to [${alias}]. Send @workspace relay (or *relay) to switch back.`,
-		);
-	} else {
-		await deps.sendText(result.error);
+	const preview = await deps.router.requestWorkspaceSwitch(
+		deps.channelId as never,
+		deps.peer,
+		{ kind: "workspace", workspace: alias },
+		{ ...(deps.threadId ? { threadId: deps.threadId } : {}), ...(deps.userId ? { userId: deps.userId } : {}) },
+	);
+	if (preview.same) {
+		await deps.sendText(`This chat is already on ${preview.current}; nothing changed.`);
+		return;
 	}
+	await deps.sendText(
+		[
+			`Switch this chat from ${preview.current} to ${preview.next}?`,
+			"History and memory are not moved between targets.",
+			"Reply !workspace confirm to apply, or !workspace cancel to keep the current target.",
+		].join("\n"),
+	);
 }
 
-/** Switch this chat back to the relay coordinator. */
+/** Switch this chat back to the relay coordinator (also confirm-gated). */
 async function useRelay(deps: WorkspaceRouterDeps): Promise<void> {
 	if (!deps.router) return;
-	await deps.router.setRuntimeBinding(deps.channelId as never, deps.peer, COORDINATOR_ALIAS);
-	// Relay means the coordinator, so an active default-space bot session must
-	// not keep capturing this chat's next message.
-	await deps.router.clearActiveBotSession(deps.channelId as never, deps.peer);
-	await deps.sendText("Relay mode: messages now go through the coordinator (main).");
+	const preview = await deps.router.requestWorkspaceSwitch(
+		deps.channelId as never,
+		deps.peer,
+		{ kind: "workspace", workspace: COORDINATOR_ALIAS },
+		{ ...(deps.threadId ? { threadId: deps.threadId } : {}), ...(deps.userId ? { userId: deps.userId } : {}) },
+		// Relay is an explicit intent, not merely "the main workspace": the
+		// confirmed binding gets the `relay` sentinel instead of a bot session.
+		{ relay: true },
+	);
+	if (preview.same) {
+		await deps.sendText(`This chat is already on ${preview.current}; nothing changed.`);
+		return;
+	}
+	await deps.sendText(
+		`Switch this chat from ${preview.current} to ${preview.next}? Reply !workspace confirm or !workspace cancel.`,
+	);
+}
+
+function targetLabel(target: import("./im-config").ImTarget): string {
+	return target.kind === "workspace"
+		? `[${target.workspace}]`
+		: target.kind === "team-pm"
+			? `Team ${target.team} / PM ${target.pm}`
+			: `Team ${target.team} / PM ${target.pm} / engineer ${target.engineer}`;
 }
 
 /** One-line summary of this chat's current routing target. */
@@ -689,19 +742,24 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 	const cmd = parts[1]?.toLowerCase();
 	switch (cmd) {
 		case "list": {
-			const entries = router.listBotSessions();
+			const snapshot = await router.listSessionCandidates();
 			const activeId = await router.activeBotSessionIdFor(deps.channelId as never, deps.peer);
-			if (entries.length === 0) {
-				await deps.sendText("No default-space sessions. Try !session new <name>.");
+			if (snapshot.candidates.length === 0) {
+				await deps.sendText(
+					"近 3 天没有可选会话。更早的会话请在电脑上的 Studio 查看；!session new <name> 可新建。",
+				);
 				return;
 			}
-			const lines = entries.map((entry, index) => {
-				const mark = entry.id === activeId ? " [当前]" : "";
-				const project = ` → [${entry.workspaceAlias ?? COORDINATOR_ALIAS}]`;
-				const chat = entry.chatId ? ` (${entry.platform ?? "?"}:${entry.chatId})` : "";
-				return `{${index + 1}} [${entry.id}] — ${entry.name} [${entry.tag}]${project}${chat}${mark}`;
+			const lines = snapshot.candidates.map(candidate => {
+				const mark = candidate.canonicalSessionId === activeId ? " [当前]" : "";
+				const summary = candidate.latestTaskSummary ? ` — ${candidate.latestTaskSummary}` : "";
+				return `${candidate.selector} ${candidate.label}${summary} [${candidate.workspaceAlias}]${mark}`;
 			});
-			await deps.sendText(["Bot 会话:", ...lines, "回复 !session use {n} 或 [id] 切换"].join("\n"));
+			await deps.sendText(
+				["Bot 会话（近 3 天）:", ...lines, "回复 !session use 01-00001 切换；更早会话请在电脑 Studio 查看"].join(
+					"\n",
+				),
+			);
 			return;
 		}
 		case "new": {
@@ -722,7 +780,7 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 			if (result.ok) {
 				const where = result.entry.workspaceAlias ?? COORDINATOR_ALIAS;
 				await deps.sendText(
-					`会话 [${result.entry.name}] 已创建 (id [${result.entry.id}], 项目 [${where}])。回复 !session use [${result.entry.id}] 切换。`,
+					`会话 [${result.entry.name}] 已创建 (项目 [${where}])。回复 !session list 获取短 selector 后切换。`,
 				);
 			} else {
 				await deps.sendText(result.error);
@@ -754,9 +812,10 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 				await deps.sendText("Usage: !session use <id|n>");
 				return;
 			}
-			const entry = resolveBotSession(router, selector);
+			const canonicalId = router.resolveSessionSelector(selector);
+			const entry = canonicalId ? router.botSession(canonicalId) : undefined;
 			if (!entry) {
-				await deps.sendText(`Unknown bot session "${selector}". Type !session list to see them.`);
+				await deps.sendText(`Unknown session selector "${selector}". Type !session list to refresh.`);
 				return;
 			}
 			const result = await router.setActiveBotSession(deps.channelId as never, deps.peer, entry.id);
@@ -774,9 +833,10 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 				await deps.sendText("Usage: !session rename <id|n> <name>");
 				return;
 			}
-			const entry = resolveBotSession(router, selector);
+			const canonicalId = router.resolveSessionSelector(selector);
+			const entry = canonicalId ? router.botSession(canonicalId) : undefined;
 			if (!entry) {
-				await deps.sendText(`Unknown bot session "${selector}". Type !session list to see them.`);
+				await deps.sendText(`Unknown session selector "${selector}". Type !session list to refresh.`);
 				return;
 			}
 			const result = await router.renameBotSession(entry.id, name);
@@ -793,9 +853,10 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 				await deps.sendText("Usage: !session delete <id|n>");
 				return;
 			}
-			const entry = resolveBotSession(router, selector);
+			const canonicalId = router.resolveSessionSelector(selector);
+			const entry = canonicalId ? router.botSession(canonicalId) : undefined;
 			if (!entry) {
-				await deps.sendText(`Unknown bot session "${selector}". Type !session list to see them.`);
+				await deps.sendText(`Unknown session selector "${selector}". Type !session list to refresh.`);
 				return;
 			}
 			const result = await router.deleteBotSession(entry.id);
@@ -814,21 +875,10 @@ async function runSessionCommand(body: string, deps: WorkspaceRouterDeps): Promi
 	}
 }
 
-/** Resolve a `!session` selector: `[id]` / `{n}` / bare id / 1-based list index. */
-export function resolveBotSession(
-	router: SessionRouter,
-	selector: string,
-): { id: string; name: string; tag: string; chatId?: string; platform?: string } | undefined {
-	const entries = router.listBotSessions();
-	// Strip `{…}` / `[…]` wrappers so `!session use {1}` / `[relay]` work as typed.
-	const clean = selector.replace(/[{}[\]]/g, "");
-	const byId = entries.find(entry => entry.id === clean);
-	if (byId) return byId;
-	const index = Number(clean);
-	if (Number.isInteger(index) && index >= 1 && index <= entries.length) {
-		return entries[index - 1];
-	}
-	return undefined;
+/** Resolve a `!session` selector against the pinned list snapshot or a canonical id. */
+export function resolveBotSession(router: SessionRouter, selector: string): ReturnType<SessionRouter["botSession"]> {
+	const canonicalId = router.resolveSessionSelector(selector);
+	return canonicalId ? router.botSession(canonicalId) : undefined;
 }
 
 /** `!lang <zh|en>` — per-chat reply language (zero AI). */

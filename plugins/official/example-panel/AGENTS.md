@@ -1,3 +1,7 @@
+> **Frozen — teaching example only (2026-11-11, REQ-049).** This nested file
+> covers `plugins/official/example-panel/` and is not product routing. It does
+> not override the root `AGENTS.md` and must not be used to plan product work.
+
 # AGENTS.md — example-panel
 
 Scope: everything under `plugins/official/example-panel/`. This file is the

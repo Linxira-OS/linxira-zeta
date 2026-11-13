@@ -3,108 +3,63 @@
  *
  * pi-channels intentionally depends on zeta only through these shapes: the
  * real `AgentSession` and `WebConfig` satisfy them without importing this
- * package's types. Fields below mirror exactly what host.ts / index.ts /
- * wechat.ts read off the zeta objects.
+ * package's types.
  */
+
+import type { ChannelInstanceId, ChannelPlatform } from "./channel";
 
 /** Message shape carried over from zeta's src/irc/bus.ts IrcMessage. */
 export interface IrcMessage {
 	id: string;
-	/** Sender agent id. */
 	from: string;
-	/** Recipient agent id. */
 	to: string;
 	body: string;
 	ts: number;
-	/** Message id being answered. */
 	replyTo?: string;
+	/** Platform origin metadata for IM ingress. */
+	metadata?: Record<string, unknown>;
 }
 
-/**
- * host.ts/index.ts structured consumption surface of the coordinator session
- * (zeta's `AgentSession` satisfies this structurally). `getAgentId` matches
- * the real return type (`string | undefined`), and `subscribe`'s listener is
- * a supertype of zeta's `AgentSessionEvent` so method bivariance lets the
- * real session satisfy it.
- */
 export interface ChannelSession {
 	getAgentId(): string | undefined;
 	deliverIrcMessage(msg: IrcMessage, opts?: { expectsReply?: boolean }): Promise<unknown>;
 	subscribe(handler: (event: ChannelSessionEvent) => void): () => void;
 	setIrcAutoReplyListener(listener: ((msg: IrcMessage, replyText: string) => void) | null): void;
-	/**
-	 * Optional: the IRC wake-turn observer zeta's `AgentSession` exposes. It is
-	 * called with exactly the records a wake turn answers and returns a finish
-	 * callback, which is how replies are correlated per delivered message
-	 * instead of by turn order (see `ReplyCorrelator`).
-	 */
 	setIrcWakeTurnObserver?(
 		observer: ((records: readonly unknown[]) => ((error?: unknown) => void | Promise<void>) | undefined) | undefined,
 	): void;
 }
 
-/**
- * host.ts #onSessionEvent only reads `event.type` and then casts
- * `event.message` to `AssistantMessage`; every zeta `AgentSessionEvent`
- * variant is assignable to this loose shape.
- */
 export interface ChannelSessionEvent {
 	type: string;
 	message?: unknown;
 }
 
-/**
- * index.ts/wechat.ts consumption surface of the web config. Fields match the
- * `data.channels.*` reads in `startChannels` plus the `set` calls WeChat uses
- * to persist credentials.
- */
+/** One platform account. `credentials` is a platform-shaped object. */
+export interface ChannelInstanceConfig {
+	id: ChannelInstanceId;
+	platform: ChannelPlatform;
+	label: string;
+	note?: string;
+	enabled: boolean;
+	agentProfile: string;
+	allow: {
+		peers: string[];
+		users?: string[];
+	};
+	credentials: Record<string, unknown>;
+	options?: {
+		peerTokens?: Record<string, string>;
+	};
+}
+
 export interface ChannelsWebConfig {
 	getData(): {
-		channels: {
-			wechat: {
-				enabled: boolean;
-				botToken?: string;
-				ilinkBotId?: string;
-				ilinkUserId?: string;
-				baseUrl?: string;
-				endpoint?: string;
-				peerTokens?: Record<string, string>;
-			};
-			feishu: {
-				enabled: boolean;
-				appId?: string;
-				appSecret?: string;
-				domain?: "feishu" | "lark";
-			};
-			telegram: { enabled: boolean; botToken?: string };
-			discord: {
-				enabled: boolean;
-				botToken?: string;
-				workspaceRoot?: string;
-				/** Channel ids (or `guild:<id>`) allowed to reach the agent. */
-				allowedChannels?: string[];
-				/** Optional sender-id restriction applied inside those channels. */
-				allowedUsers?: string[];
-			};
-			qq: {
-				enabled: boolean;
-				workspaceRoot?: string;
-				/** Forward mode: the bridge's ws:// endpoint. */
-				endpoint?: string;
-				/** OneBot access token (required for reverse mode). */
-				token?: string;
-				mode?: "forward" | "reverse";
-				/** Reverse mode listen port (loopback). */
-				port?: number;
-				/** Bot QQ number, when known. */
-				selfId?: string;
-				/** Group numbers allowed to reach the agent. */
-				allowedGroups?: string[];
-				/** QQ numbers allowed in private chat. */
-				allowedUsers?: string[];
-			};
-			allowedPeers?: string[];
-		};
+		channels: { instances: ChannelInstanceConfig[] };
+		imAgents?: readonly unknown[];
+		remote?: { imBindings?: readonly unknown[] };
 	};
 	set(path: string, value: unknown): Promise<void>;
+	/** Persist one instance's credentials/options without rewriting the array. */
+	setInstance?(instanceId: ChannelInstanceId, patch: Partial<ChannelInstanceConfig>): Promise<unknown>;
 }

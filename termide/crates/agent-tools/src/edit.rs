@@ -13,7 +13,7 @@ use similar::{DiffOp, TextDiff};
 use termide_agent_core::ToolText;
 use termide_agent_core::{CancelToken, Tool, ToolCall, ToolContext, ToolResultMessage, ToolUpdate};
 
-use crate::args::{optional_bool, required_str, resolve_path};
+use crate::args::{ensure_not_special, optional_bool, required_str, resolve_path};
 
 /// Diffs longer than this stay in `details` only.
 const INLINE_DIFF_LIMIT: usize = 4 * 1024;
@@ -78,6 +78,7 @@ fn edit(call: &ToolCall, ctx: &ToolContext) -> Result<(String, Value), String> {
         return Err("`old_string` and `new_string` are identical".into());
     }
 
+    ensure_not_special(&path)?;
     let original = std::fs::read_to_string(&path).map_err(|error| {
         format!(
             "cannot read {}: {error}. `edit` needs an existing text file; use `write` for new files",
@@ -133,7 +134,7 @@ fn edit(call: &ToolCall, ctx: &ToolContext) -> Result<(String, Value), String> {
     } else {
         updated
     });
-    std::fs::write(&path, output)
+    termide_agent_core::write_atomic(&path, output.as_bytes())
         .map_err(|error| format!("cannot write {}: {error}", path.display()))?;
 
     let strategy = matches[0].strategy.label();
@@ -336,6 +337,30 @@ mod tests {
         path
     }
 
+    /// An edit replaces the file whole through a symlink and keeps the
+    /// target's permissions (an executable script stays executable).
+    #[cfg(unix)]
+    #[test]
+    fn edits_atomically_through_a_symlink_keeping_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let real = file(dir.path(), "echo old\n");
+        std::fs::set_permissions(&real, std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::os::unix::fs::symlink("f.rs", dir.path().join("link.rs")).unwrap();
+        let result = run(
+            dir.path(),
+            json!({ "path": "link.rs", "old_string": "old", "new_string": "new" }),
+        );
+        assert!(!result.is_error, "{}", result.plain_text());
+        assert_eq!(std::fs::read_to_string(&real).unwrap(), "echo new\n");
+        assert!(std::fs::symlink_metadata(dir.path().join("link.rs"))
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        let mode = std::fs::metadata(&real).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o755);
+    }
+
     #[test]
     fn exact_unique_match_is_replaced_and_diffed() {
         let dir = tempfile::tempdir().unwrap();
@@ -457,6 +482,27 @@ mod tests {
         assert_eq!(
             std::fs::read_to_string(path).unwrap(),
             "\u{feff}one\r\n2\r\nthree\r\n"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_pipe_is_refused_without_blocking() {
+        use crate::args::test_support::{make_fifo, within_seconds};
+        let dir = tempfile::tempdir().unwrap();
+        make_fifo(&dir.path().join("pipe"));
+        let cwd = dir.path().to_path_buf();
+        let result = within_seconds(move || {
+            run(
+                &cwd,
+                json!({ "path": "pipe", "old_string": "a", "new_string": "b" }),
+            )
+        });
+        assert!(result.is_error);
+        assert!(
+            result.plain_text().contains("named pipe"),
+            "{}",
+            result.plain_text()
         );
     }
 }

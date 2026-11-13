@@ -94,10 +94,12 @@ describe("landing rules (D8c)", () => {
 		};
 
 		expect(await routeWorkspaceCommand("@workspace use repo", "im-peer", deps)).toBe(true);
+		expect(await routeWorkspaceCommand("@workspace confirm", "im-peer", deps)).toBe(true);
 		expect(await router.resolveRoute("feishu", "im-peer")).toBe("direct");
 		expect((await router.statusSnapshot("feishu", "im-peer")).workspaceDir).toBe(path.resolve(repo));
 
 		expect(await routeWorkspaceCommand("@workspace relay", "im-peer", deps)).toBe(true);
+		expect(await routeWorkspaceCommand("@workspace confirm", "im-peer", deps)).toBe(true);
 		expect(await router.resolveRoute("feishu", "im-peer")).toBe("relay");
 	});
 

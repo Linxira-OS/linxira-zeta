@@ -75,11 +75,23 @@ describe("device inventory", () => {
 		expect(message).toContain("malformed");
 	});
 
-	test("pairing drops the plaintext token", async () => {
+	test("pairing returns the one-time code and drops any token field", async () => {
 		const { fetcher } = fakeFetch(() =>
-			Response.json({ url: "http://host:43141", token: "secret", payload: "p", svg: "<svg/>" }),
+			Response.json({
+				url: "http://host:43141",
+				token: "secret",
+				code: "123456",
+				expiresAt: "2026-11-11T00:00:00.000Z",
+				payload: "http://host:43141/#zeta-pair=123456",
+				svg: "<svg/>",
+			}),
 		);
-		expect(await fetchPairingQr(fetcher)).toEqual({ url: "http://host:43141", svg: "<svg/>" });
+		expect(await fetchPairingQr(fetcher)).toEqual({
+			url: "http://host:43141",
+			svg: "<svg/>",
+			code: "123456",
+			expiresAt: "2026-11-11T00:00:00.000Z",
+		});
 	});
 });
 

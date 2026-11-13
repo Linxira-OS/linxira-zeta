@@ -1,24 +1,18 @@
 /**
- * `zetacode channels` — inspect, pair, and toggle IM channels without a
- * browser or a running web server.
+ * `zetacode channels` — inspect, pair, and toggle IM channel instances.
  *
- * `status`, `logout`, `enable`, and `disable` read/write the same `web.yml`
- * the GUI and `zeta serve` use. `login wechat` prints the QR in the terminal
- * and drives the same adapter that persists credentials during serve. The
- * command never hosts the runtime itself; a normal CLI/TUI session does that
- * when a channel is enabled (see `channels/session-host.ts`).
+ * Every action names an instance id from `channels.instances`. The platform is
+ * inferred from that instance; there is no platform-wide credential path.
  */
 
 import * as path from "node:path";
-import type { ChannelId } from "@linxiraos/pi-channels";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { Args, CliUsageError, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { CLI_BIN_NAME } from "@linxiraos/pi-utils/dirs";
 import { channelsHelp } from "../cli/command-help";
 import {
-	CHANNEL_IDS,
 	collectChannelStatus,
-	isChannelId,
+	isChannelInstanceId,
 	logoutChannel,
 	setChannelEnabled,
 } from "../channels/channel-status";
@@ -47,22 +41,20 @@ function isChannelsAction(value: string): value is ChannelsAction {
 
 const USAGE: Record<ChannelsAction, string> = {
 	status: `${CLI_BIN_NAME} channels status [--json]`,
-	login: `${CLI_BIN_NAME} channels login <channel> [--json] [--timeout <seconds>]`,
-	logout: `${CLI_BIN_NAME} channels logout <channel> [--json]`,
-	enable: `${CLI_BIN_NAME} channels enable <channel> [--json]`,
-	disable: `${CLI_BIN_NAME} channels disable <channel> [--json]`,
+	login: `${CLI_BIN_NAME} channels login <instance-id> [--json] [--timeout <seconds>]`,
+	logout: `${CLI_BIN_NAME} channels logout <instance-id> [--json]`,
+	enable: `${CLI_BIN_NAME} channels enable <instance-id> [--json]`,
+	disable: `${CLI_BIN_NAME} channels disable <instance-id> [--json]`,
 };
 
 function writeJson(value: unknown): void {
 	process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
-function requireChannel(action: ChannelsAction, channel: string | undefined): ChannelId {
-	if (!channel) throw new CliUsageError(`Missing channel. Usage: ${USAGE[action]}`);
-	if (!isChannelId(channel)) {
-		throw new CliUsageError(`Unknown channel "${channel}". Expected one of: ${CHANNEL_IDS.join(", ")}`);
-	}
-	return channel;
+function requireInstance(action: ChannelsAction, value: string | undefined): string {
+	if (!value) throw new CliUsageError(`Missing instance id. Usage: ${USAGE[action]}`);
+	if (!isChannelInstanceId(value)) throw new CliUsageError(`Invalid instance id "${value}".`);
+	return value;
 }
 
 function loginStateLabel(state: WechatLoginState): string {
@@ -78,11 +70,6 @@ function loginStateLabel(state: WechatLoginState): string {
 	}
 }
 
-/**
- * Read one line from the terminal, without echoing it when `secret` is true.
- * A non-interactive stdin yields `""`; the caller turns that into a usage
- * error instead of hanging on a pipe that will never answer.
- */
 async function promptFor(label: string, secret: boolean): Promise<string> {
 	const stdin = process.stdin;
 	if (!stdin.isTTY) return "";
@@ -131,7 +118,7 @@ export default class Channels extends Command {
 			options: ACTIONS,
 		}),
 		channel: Args.string({
-			description: "Channel id: wechat, feishu, telegram, discord, or qq (login/logout/enable/disable)",
+			description: "Channel instance id (login/logout/enable/disable)",
 			required: false,
 		}),
 	};
@@ -142,31 +129,21 @@ export default class Channels extends Command {
 			description: "Seconds to wait for a WeChat scan (login; default 180)",
 			default: 180,
 		}),
-		"app-id": Flags.string({ description: "Feishu app id (login feishu)" }),
-		"app-secret": Flags.string({ description: "Feishu app secret (login feishu)" }),
-		domain: Flags.string({
-			description: "Feishu deployment: feishu or lark (login feishu)",
-			options: ["feishu", "lark"],
-		}),
-		token: Flags.string({ description: "Bot token (login telegram / discord / qq)" }),
-		endpoint: Flags.string({ description: "OneBot WebSocket URL (login qq, forward mode)" }),
-		mode: Flags.string({
-			description: "OneBot transport (login qq): forward or reverse",
-			options: ["forward", "reverse"],
-		}),
-		port: Flags.integer({ description: "Reverse OneBot listen port (login qq; default 8082)" }),
+		"app-id": Flags.string({ description: "Feishu app id (login feishu instance)" }),
+		"app-secret": Flags.string({ description: "Feishu app secret (login feishu instance)" }),
+		domain: Flags.string({ description: "Feishu deployment: feishu or lark", options: ["feishu", "lark"] }),
+		token: Flags.string({ description: "Bot token / OneBot access token" }),
+		endpoint: Flags.string({ description: "OneBot WebSocket URL (forward mode)" }),
+		mode: Flags.string({ description: "OneBot transport: forward or reverse", options: ["forward", "reverse"] }),
+		port: Flags.integer({ description: "Reverse OneBot listen port" }),
 	};
 
 	static examples = [
-		`# Is a bot running, and which channels are enabled?\n  ${CLI_BIN_NAME} channels status --json`,
-		`# Pair WeChat from this terminal (no browser)\n  ${CLI_BIN_NAME} channels login wechat`,
-		`# Validate a Feishu app credential, then save it\n  ${CLI_BIN_NAME} channels login feishu --app-id cli_… --app-secret …`,
-		`# Validate a Telegram bot token with getMe, then save it\n  ${CLI_BIN_NAME} channels login telegram --token 123:ABC`,
-		`# Validate a Discord bot token, then save it\n  ${CLI_BIN_NAME} channels login discord --token MTIz…`,
-		`# Validate an OneBot bridge endpoint (NapCat/LLBot/SnowLuma)\n  ${CLI_BIN_NAME} channels login qq --endpoint ws://127.0.0.1:3001 --token abc`,
-		`# Reverse OneBot: listen on loopback and wait for the bridge\n  ${CLI_BIN_NAME} channels login qq --mode reverse --port 8082 --token abc`,
-		`# Forget WeChat credentials and peer bindings\n  ${CLI_BIN_NAME} channels logout wechat`,
-		`# Enable a channel for the next CLI/TUI session or serve run\n  ${CLI_BIN_NAME} channels enable telegram`,
+		`# Instance status\n  ${CLI_BIN_NAME} channels status --json`,
+		`# Pair a WeChat instance\n  ${CLI_BIN_NAME} channels login wx-main`,
+		`# Validate a Feishu instance\n  ${CLI_BIN_NAME} channels login fs-roleplay --app-id cli_… --app-secret …`,
+		`# Validate a Discord instance\n  ${CLI_BIN_NAME} channels login dc-roleplay --token MTIz…`,
+		`# Validate an OneBot instance\n  ${CLI_BIN_NAME} channels login qq-pm --endpoint ws://127.0.0.1:3001 --token abc`,
 	];
 
 	async run(): Promise<void> {
@@ -176,7 +153,6 @@ export default class Channels extends Command {
 		if (argv.length > (action === "status" ? 1 : 2)) {
 			throw new CliUsageError(`Unexpected argument "${argv.at(-1)}". Usage: ${USAGE[action]}`);
 		}
-
 		const webConfig = await WebConfig.load();
 
 		switch (action) {
@@ -186,20 +162,16 @@ export default class Channels extends Command {
 					writeJson(status);
 					return;
 				}
-				console.log(chalk.bold(`\n  IM channels (${status.configPath})\n`));
+				console.log(chalk.bold(`\n  IM instances (${status.configPath})\n`));
 				if (status.runtime.hosting) {
-					console.log(
-						chalk.green(
-							`  Hosted by pid ${status.runtime.pid} (${status.runtime.host}, started ${status.runtime.startedAt})`,
-						),
-					);
+					console.log(chalk.green(`  Hosted by pid ${status.runtime.pid} (${status.runtime.host})`));
 				} else if (status.runtime.stale) {
 					console.log(chalk.yellow(`  Stale lock from pid ${status.runtime.pid}; no live host.`));
 				} else {
 					console.log(chalk.dim("  No CLI session or serve process is hosting channels."));
 				}
 				console.log("");
-				for (const entry of status.channels) {
+				for (const entry of status.instances) {
 					const state = [
 						entry.enabled ? chalk.green("enabled") : chalk.dim("disabled"),
 						entry.running ? chalk.green("running") : chalk.dim("stopped"),
@@ -207,11 +179,8 @@ export default class Channels extends Command {
 					]
 						.filter(Boolean)
 						.join(", ");
-					const route = entry.workspaceRoute.workspaceRoot
-						? `${entry.workspaceRoute.workspaceRoot}${entry.workspaceRoute.alias ? ` [${entry.workspaceRoute.alias}]` : ""}`
-						: "session default";
 					console.log(
-						`  ${entry.id.padEnd(9)} ${state}  peers=${entry.boundPeers}  route=${route}  login=${entry.login}`,
+						`  ${entry.id.padEnd(14)} ${entry.platform.padEnd(9)} ${state}  agent=${entry.agentProfileId}  target=${entry.targetDisplay}  peers=${entry.boundPeers}  login=${entry.login}`,
 					);
 				}
 				console.log("");
@@ -219,35 +188,33 @@ export default class Channels extends Command {
 			}
 			case "enable":
 			case "disable": {
-				const channel = requireChannel(action, args.channel);
-				const result = await setChannelEnabled(webConfig, channel, action === "enable");
+				const instanceId = requireInstance(action, args.channel);
+				const result = await setChannelEnabled(webConfig, instanceId, action === "enable");
 				if (flags.json) {
 					writeJson(result);
 					return;
 				}
-				console.log(
-					`${channel} ${result.enabled ? "enabled" : "disabled"} in ${webConfig.path}. ` +
-						(result.enabled
-							? `The next \`${CLI_BIN_NAME}\` session or \`${CLI_BIN_NAME} serve\` will start it.`
-							: "Running hosts keep it until they restart."),
-				);
+				console.log(`${instanceId} ${result.enabled ? "enabled" : "disabled"} in ${webConfig.path}.`);
 				return;
 			}
 			case "logout": {
-				const channel = requireChannel(action, args.channel);
-				const result = await logoutChannel(webConfig, channel);
+				const instanceId = requireInstance(action, args.channel);
+				const result = await logoutChannel(webConfig, instanceId);
 				if (flags.json) {
-					writeJson({ channel: result.channel, loggedOut: true, cleared: result.cleared });
+					writeJson({ instanceId: result.instanceId, loggedOut: true, cleared: result.cleared });
 					return;
 				}
-				console.log(`${channel}: logged out; cleared ${result.cleared.join(", ")}.`);
+				console.log(`${instanceId}: logged out; cleared ${result.cleared.join(", ")}.`);
 				return;
 			}
 			case "login": {
-				const channel = requireChannel(action, args.channel);
-				if (channel !== "wechat") {
+				const instanceId = requireInstance(action, args.channel);
+				const instance = webConfig.getChannelInstance(instanceId);
+				if (!instance) throw new CliUsageError(`Unknown channel instance "${instanceId}".`);
+				if (instance.platform !== "wechat") {
 					await this.#loginCredentials(
-						channel,
+						instanceId,
+						instance.platform,
 						{
 							json: flags.json === true,
 							appId: flags["app-id"],
@@ -262,22 +229,18 @@ export default class Channels extends Command {
 					);
 					return;
 				}
-				// Pairing is not hosting. A separate lock serializes two logins,
-				// while a live host that only owns other channels stays up: the
-				// token written here is picked up by its next restart. A host that
-				// already owns WeChat is refused instead of racing its connection.
 				const configDir = path.dirname(webConfig.path);
 				const acquired = await acquireChannelLock({
-					lockPath: channelPairingLockPath(configDir),
+					lockPath: `${channelPairingLockPath(configDir)}.${instanceId}`,
 					metadata: {
 						pid: process.pid,
 						host: "cli",
 						cwd: process.cwd(),
-						channels: [channel],
+						instances: [{ id: instanceId, platform: "wechat" }],
 					},
 				});
 				if (!acquired.ok) {
-					if (flags.json) writeJson({ channel, state: "locked", error: acquired.message });
+					if (flags.json) writeJson({ instanceId, state: "locked", error: acquired.message });
 					else process.stderr.write(chalk.red(`${acquired.message}\n`));
 					process.exitCode = 1;
 					return;
@@ -285,12 +248,12 @@ export default class Channels extends Command {
 				try {
 					const hostCheck = await wechatPairingBlockedByHost(channelLockPath(configDir));
 					if (!hostCheck.ok) {
-						if (flags.json) writeJson({ channel, state: "locked", error: hostCheck.message });
+						if (flags.json) writeJson({ instanceId, state: "locked", error: hostCheck.message });
 						else process.stderr.write(chalk.red(`${hostCheck.message}\n`));
 						process.exitCode = 1;
 						return;
 					}
-					await this.#loginWechat(channel, flags.json === true, Math.max(1, flags.timeout ?? 180), webConfig);
+					await this.#loginWechat(instanceId, flags.json === true, Math.max(1, flags.timeout ?? 180), webConfig);
 				} finally {
 					await acquired.lock.release();
 				}
@@ -299,13 +262,13 @@ export default class Channels extends Command {
 		}
 	}
 
-	/** The WeChat QR login body (lock already held by {@link run}). */
-	async #loginWechat(channel: ChannelId, json: boolean, timeoutSeconds: number, webConfig: WebConfig): Promise<void> {
+	async #loginWechat(instanceId: string, json: boolean, timeoutSeconds: number, webConfig: WebConfig): Promise<void> {
 		let lastRendered = "";
 		let result: WechatLoginResult;
 		try {
 			result = await runWechatLogin({
 				webConfig,
+				instanceId,
 				timeoutMs: timeoutSeconds * 1_000,
 				onQrCode: payload => {
 					if (json) return;
@@ -321,28 +284,25 @@ export default class Channels extends Command {
 							columns: process.stdout.columns,
 							color: Boolean(process.stdout.isTTY) && !process.env.NO_COLOR,
 						});
-						process.stdout.write(`\nScan this QR code with WeChat:\n\n${qr.lines.join("\n")}\n\n`);
-						if (qr.kind === "fallback") {
-							process.stderr.write(chalk.dim(`(rendered as text: ${qr.reason})\n`));
-						}
+						process.stdout.write(
+							`\nScan this QR code with WeChat (${instanceId}):\n\n${qr.lines.join("\n")}\n\n`,
+						);
 					}
 				},
 				onState: state => {
-					if (!json && state === "scanned") {
-						process.stderr.write(chalk.dim("Scanned — confirm in WeChat.\n"));
-					}
+					if (!json && state === "scanned") process.stderr.write(chalk.dim("Scanned — confirm in WeChat.\n"));
 				},
 			});
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			if (json) writeJson({ channel, state: "error", timeoutSeconds, error: message });
+			if (json) writeJson({ instanceId, state: "error", timeoutSeconds, error: message });
 			else process.stderr.write(chalk.red(`WeChat login failed: ${message}\n`));
 			process.exitCode = 1;
 			return;
 		}
 		if (json) {
 			writeJson({
-				channel,
+				instanceId,
 				state: result.state,
 				qrcode: result.qrcode ? wechatQrDisplayPayload(result.qrcode) : null,
 				timeoutSeconds,
@@ -350,20 +310,16 @@ export default class Channels extends Command {
 				...(result.error ? { error: result.error } : {}),
 			});
 		} else if (result.state === "connected") {
-			console.log(chalk.green(`\nWeChat connected. Credentials saved to ${webConfig.path}.`));
+			console.log(chalk.green(`\nWeChat instance ${instanceId} connected. Credentials saved to ${webConfig.path}.`));
 		} else {
 			process.stderr.write(chalk.red(`\nWeChat login ${loginStateLabel(result.state)}.\n`));
 		}
 		if (result.state !== "connected") process.exitCode = 1;
 	}
 
-	/**
-	 * Feishu / Telegram pair with a pasted credential, not a QR code. The
-	 * platform validates it before anything is written; the same words as the
-	 * WeChat flow are used (`connected`, `error`, `timeout`).
-	 */
 	async #loginCredentials(
-		channel: Exclude<ChannelId, "wechat">,
+		instanceId: string,
+		platform: "feishu" | "telegram" | "discord" | "qq",
 		options: {
 			json: boolean;
 			appId?: string;
@@ -376,96 +332,86 @@ export default class Channels extends Command {
 		},
 		webConfig: WebConfig,
 	): Promise<void> {
-		const stored = webConfig.getData();
+		const instance = webConfig.getChannelInstance(instanceId);
+		if (!instance) throw new CliUsageError(`Unknown channel instance "${instanceId}".`);
 		const label =
-			channel === "feishu" ? "Feishu" : channel === "discord" ? "Discord" : channel === "qq" ? "QQ" : "Telegram";
+			platform === "feishu" ? "Feishu" : platform === "discord" ? "Discord" : platform === "qq" ? "QQ" : "Telegram";
+		const stored = instance.credentials;
+		const field = (key: string): string => (typeof stored[key] === "string" ? (stored[key] as string) : "");
 		let result: CredentialLoginResult;
 
-		if (channel === "feishu") {
-			const saved = stored.channels.feishu;
+		if (platform === "feishu") {
 			const appId =
-				options.appId?.trim() ||
-				saved.appId?.trim() ||
-				(options.json ? "" : await promptFor("Feishu App ID: ", false));
+				options.appId?.trim() || field("appId") || (options.json ? "" : await promptFor("Feishu App ID: ", false));
 			const appSecret =
 				options.appSecret?.trim() ||
-				saved.appSecret?.trim() ||
+				field("appSecret") ||
 				(options.json ? "" : await promptFor("Feishu App Secret: ", true));
 			if (!appId || !appSecret) {
 				throw new CliUsageError(
-					`Missing Feishu credentials. Usage: ${CLI_BIN_NAME} channels login feishu --app-id <id> --app-secret <secret>`,
+					`Missing Feishu credentials. Usage: ${CLI_BIN_NAME} channels login ${instanceId} --app-id <id> --app-secret <secret>`,
 				);
 			}
 			if (!options.json) process.stdout.write(chalk.dim("Validating with Feishu…\n"));
-			result = await runCredentialLogin(channel, {
+			result = await runCredentialLogin(platform, {
 				webConfig,
+				instanceId,
 				appId,
 				appSecret,
-				domain: options.domain ?? saved.domain ?? "feishu",
+				domain: options.domain ?? (field("domain") as "feishu" | "lark") ?? "feishu",
 			});
-		} else if (channel === "discord") {
-			const saved = stored.channels.discord;
+		} else if (platform === "discord") {
 			const token =
 				options.token?.trim() ||
-				saved.botToken?.trim() ||
+				field("botToken") ||
 				(options.json ? "" : await promptFor("Discord bot token: ", true));
-			if (!token) {
+			if (!token)
 				throw new CliUsageError(
-					`Missing Discord bot token. Usage: ${CLI_BIN_NAME} channels login discord --token <token>`,
+					`Missing Discord bot token. Usage: ${CLI_BIN_NAME} channels login ${instanceId} --token <token>`,
 				);
-			}
 			if (!options.json) process.stdout.write(chalk.dim("Validating with Discord (/users/@me)…\n"));
-			result = await runCredentialLogin(channel, { webConfig, botToken: token });
-		} else if (channel === "qq") {
-			const saved = stored.channels.qq;
-			const mode = options.mode ?? saved.mode ?? "forward";
-			const token = options.token?.trim() || saved.token?.trim() || "";
+			result = await runCredentialLogin(platform, { webConfig, instanceId, botToken: token });
+		} else if (platform === "qq") {
+			const mode = options.mode ?? (field("mode") as "forward" | "reverse") ?? "forward";
+			const token = options.token?.trim() || field("token") || "";
 			const endpoint =
 				options.endpoint?.trim() ||
-				saved.endpoint?.trim() ||
+				field("endpoint") ||
 				(mode === "forward" && !options.json
 					? await promptFor("OneBot endpoint (ws://127.0.0.1:3001): ", false)
 					: "");
-			const port = options.port ?? saved.port ?? 8082;
+			const port = options.port ?? (typeof stored.port === "number" ? stored.port : 8082);
 			if (mode === "forward" && !endpoint) {
 				throw new CliUsageError(
-					`Missing OneBot endpoint. Usage: ${CLI_BIN_NAME} channels login qq --endpoint ws://127.0.0.1:3001 [--token <token>]`,
+					`Missing OneBot endpoint. Usage: ${CLI_BIN_NAME} channels login ${instanceId} --endpoint ws://…`,
 				);
 			}
-			if (!options.json) {
-				process.stdout.write(
-					chalk.dim(
-						mode === "reverse"
-							? `Validating reverse OneBot on 127.0.0.1:${port}…\n`
-							: "Validating the OneBot endpoint (get_login_info)…\n",
-					),
-				);
-			}
-			result = await runCredentialLogin(channel, {
+			if (!options.json) process.stdout.write(chalk.dim(`Validating OneBot (${mode})…\n`));
+			result = await runCredentialLogin(platform, {
 				webConfig,
+				instanceId,
 				endpoint: endpoint || undefined,
 				token: token || undefined,
 				mode,
 				port,
 			});
 		} else {
-			const saved = stored.channels.telegram;
 			const token =
 				options.token?.trim() ||
-				saved.botToken?.trim() ||
+				field("botToken") ||
 				(options.json ? "" : await promptFor("Telegram bot token: ", true));
-			if (!token) {
+			if (!token)
 				throw new CliUsageError(
-					`Missing Telegram bot token. Usage: ${CLI_BIN_NAME} channels login telegram --token <token>`,
+					`Missing Telegram bot token. Usage: ${CLI_BIN_NAME} channels login ${instanceId} --token <token>`,
 				);
-			}
 			if (!options.json) process.stdout.write(chalk.dim("Validating with Telegram (getMe)…\n"));
-			result = await runCredentialLogin(channel, { webConfig, botToken: token });
+			result = await runCredentialLogin(platform, { webConfig, instanceId, botToken: token });
 		}
 
 		if (options.json) {
 			writeJson({
-				channel,
+				instanceId,
+				platform,
 				state: result.state,
 				identity: result.identity,
 				credentialsPersisted: result.credentialsPersisted,
@@ -473,9 +419,7 @@ export default class Channels extends Command {
 			});
 		} else if (result.state === "connected") {
 			const who = formatCredentialIdentity(result.identity);
-			console.log(
-				chalk.green(`\n${label} connected${who ? ` as ${who}` : ""}. Credentials saved to ${webConfig.path}.`),
-			);
+			console.log(chalk.green(`\n${label} instance ${instanceId} connected${who ? ` as ${who}` : ""}.`));
 		} else {
 			process.stderr.write(
 				chalk.red(`\n${label} login ${result.state === "timeout" ? "timed out" : "failed"}: ${result.error}\n`),

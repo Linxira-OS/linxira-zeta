@@ -25,7 +25,7 @@ import { WebConfig } from "../src/config/web-config";
 import { StudioHost, StudioOperations } from "../src/server/studio-host/index.js";
 import { resetRemoteAccessForTests } from "../src/server/web-gateway/remote-access";
 
-const ORIGIN = "http://127.0.0.1:43150";
+const ORIGIN = "http://127.0.0.1";
 const ENV_KEYS = ["ZETA_CODING_AGENT_DIR"];
 const savedEnv = new Map<string, string | undefined>();
 const cleanups: Array<() => Promise<void>> = [];
@@ -127,21 +127,26 @@ describe("Studio /api/v1 remote-access gate", () => {
 		await setup("remote:\n  token: studio-secret\n");
 		const host = newHost();
 
-		const denied = await host.handle(request("/api/v1/pair", { method: "POST", body: "{}" }), "203.0.113.9");
+		// Reads still need the machine token from a non-loopback peer.
+		const denied = await host.handle(request("/api/v1/bootstrap"), "203.0.113.9");
 		expect(denied.status).toBe(401);
 		expect(denied.headers.get("www-authenticate")).toContain("Bearer");
 
+		// A phone's page origin is the host it dials; here the request URL is the
+		// bare loopback authority, so the matching origin is the same value.
 		const paired = await pair(host, "203.0.113.9", { "x-zeta-token": "studio-secret" });
 		expect(paired.status).toBe(200);
 		const cookie = paired.headers.get("set-cookie");
 		expect(cookie).toContain("studio_session=");
 
-		// A token-authenticated remote peer still has no implicit bootstrap.
+		// A token-authenticated remote peer may read (header exchange) but gets no
+		// ambient cookie from a read: sessions are minted by pairing only.
 		const bare = await host.handle(
 			request("/api/v1/bootstrap", {}, { "x-zeta-token": "studio-secret" }),
 			"203.0.113.9",
 		);
-		expect(bare.status).toBe(401);
+		expect(bare.status).toBe(200);
+		expect(bare.headers.get("set-cookie")).toBeNull();
 
 		const bootstrapped = await host.handle(
 			request("/api/v1/bootstrap", {}, { "x-zeta-token": "studio-secret", cookie: cookie! }),

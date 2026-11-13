@@ -176,13 +176,13 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	},
 	{
 		file: "packages/channels/src/index.ts",
-		symbol: "export function getPendingWechatQr(): WeChatQrStatus | null {",
-		why: "WeChat QR login status bridge (gateway route)",
+		symbol: "export function getPendingWechatQr(instanceId: ChannelInstanceId): WeChatQrStatus | null {",
+		why: "per-instance WeChat QR login status bridge (gateway route)",
 	},
 	{
 		file: "packages/channels/src/index.ts",
-		symbol: "export function triggerWechatReconnect(): Promise<void> | null {",
-		why: "WeChat reconnect trigger bridge (gateway route)",
+		symbol: "export function triggerWechatReconnect(instanceId: ChannelInstanceId): Promise<void> | null {",
+		why: "per-instance WeChat reconnect trigger bridge (gateway route)",
 	},
 	// -- Tracking ---------------------------------------------------------------
 	{
@@ -357,8 +357,8 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	},
 	{
 		file: "packages/coding-agent/src/session/session-manager.ts",
-		symbol: "client: options?.client ?? this.#header?.client,",
-		why: "the /new, branch and fork inheritance rule: a session created from inside a client stays that client's. Without it every /new would lose its provenance even though the field still exists.",
+		symbol: "client: options?.client ?? this.#client ?? this.#header?.client,",
+		why: "the /new, branch and fork inheritance rule: explicit client, then the manager's current client, then the creator header; without it a session started inside a client could lose provenance.",
 	},
 	{
 		file: "packages/coding-agent/src/main.ts",

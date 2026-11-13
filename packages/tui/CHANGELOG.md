@@ -1,24 +1,6 @@
 ## [Unreleased]
 
-### Fixed
-
-- The resume picker draws a full-width, muted rule between project groups in the all-projects scope, so a long list no longer runs one repository's conversations into the next project's header. The dim rule under each project header and every workspace row stay as they were.
-
-## [1.5.1] - 2026-11-10
-
-### Added
-
-- `/channels` opens the IM operator surface in the TUI: list configured channels and their live health (`state`, `detail`, `lastError`, `since`, `lastInboundAt`), run `login`/`status`/`logout`/`unbind`, and take a per-channel pairing lock so two processes cannot pair the same account at once. The command is refused on a backend-attached client, where the owning process owns pairing.
-- `/cd` is a session command with a folder-only picker: real Windows volumes (drive type and volume label; A:/B: only when the system reports them) or POSIX mount points from `/proc/mounts`, pinned folders, type-to-filter, keyboard and mouse selection, `Ctrl+P` to pin, and `Ctrl+R` to open `/resume` on the highlighted folder instead of switching to it. A `/cd <path>` argument moves directly like `/move`.
-
-### Changed
-
-- Large transcript replays on resume now hydrate a bounded window instead of the whole session, so a multi-thousand-entry transcript no longer freezes the TUI before the first frame; scrolling past the window pages the rest in on demand.
-- Starting in the home directory keeps the `~/tmp` (or OS temp) workspace and reports the switch in a startup notice instead of failing silently.
-
-### Fixed
-
-- A `task` batch coalesces spawn progress into at most one cumulative snapshot per 100 ms (matching the subagent HUD cadence), so a wide fan-out no longer rebuilds and deep-sanitizes the transcript card once per spawn report on the TUI thread; terminal spawn snapshots still publish immediately.
+- Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
 
 ## [8.4.1] - 2026-01-25
 
@@ -111,6 +93,22 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.5.1] - 2026-11-10
+
+### Added
+
+- `/channels` opens the IM operator surface in the TUI: list configured channels and their live health (`state`, `detail`, `lastError`, `since`, `lastInboundAt`), run `login`/`status`/`logout`/`unbind`, and take a per-channel pairing lock so two processes cannot pair the same account at once. The command is refused on a backend-attached client, where the owning process owns pairing.
+- `/cd` is a session command with a folder-only picker: real Windows volumes (drive type and volume label; A:/B: only when the system reports them) or POSIX mount points from `/proc/mounts`, pinned folders, type-to-filter, keyboard and mouse selection, `Ctrl+P` to pin, and `Ctrl+R` to open `/resume` on the highlighted folder instead of switching to it. A `/cd <path>` argument moves directly like `/move`.
+
+### Changed
+
+- Large transcript replays on resume now hydrate a bounded window instead of the whole session, so a multi-thousand-entry transcript no longer freezes the TUI before the first frame; scrolling past the window pages the rest in on demand.
+- Starting in the home directory keeps the `~/tmp` (or OS temp) workspace and reports the switch in a startup notice instead of failing silently.
+
+### Fixed
+
+- A `task` batch coalesces spawn progress into at most one cumulative snapshot per 100 ms (matching the subagent HUD cadence), so a wide fan-out no longer rebuilds and deep-sanitizes the transcript card once per spawn report on the TUI thread; terminal spawn snapshots still publish immediately.
 
 ## [1.5.0] - 2026-11-09
 
@@ -387,3 +385,9 @@ Older entries are archived in [packages/tui/CHANGELOG.md@89ad0a77d575](https://g
 - Fixed Windows ConPTY hosts (Windows Terminal, Tabby, Hyper, VS Code) parking the viewport at the top of a full paint after a `/resume` or any long-session repaint. `ProcessTerminal#safeWrite` now splits oversized writes into ≤ 8 KiB pieces at line boundaries on `win32` and inside WSL (where stdout still crosses ConPTY at the `wslhost` boundary) so each underlying `WriteFile` stays below the ~32 KiB threshold where ConPTY stops tracking the cursor; the data was always delivered, but the host UI's scroll position would not follow until any focus event forced a re-query. ([#2034](https://github.com/can1357/oh-my-pi/issues/2034))
 
 Older entries are archived in [packages/tui/CHANGELOG.md@bdbb5c920f69](https://github.com/can1357/oh-my-pi/blob/bdbb5c920f693caff287c50996c116e42e37992b/packages/tui/CHANGELOG.md).
+
+### Fixed
+
+- Fixed TUI renders repeatedly clearing terminal scrollback after content filled the viewport. Unknown viewport probes no longer let foreground-streaming offscreen growth take the destructive `historyRebuild` path on every frame; newly appended tail rows stay reachable while stale history waits for a safe checkpoint. ([#2154](https://github.com/can1357/oh-my-pi/issues/2154))
+
+Older entries are archived in [packages/tui/CHANGELOG.md@7049d1b1afeb](https://github.com/can1357/oh-my-pi/blob/7049d1b1afeb8e421e7f9fba5c1dcebd7c382232/packages/tui/CHANGELOG.md).

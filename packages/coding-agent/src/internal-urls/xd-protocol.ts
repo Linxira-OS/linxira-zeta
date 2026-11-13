@@ -19,6 +19,8 @@ import type {
 	WriteContext,
 } from "./types";
 
+const ENABLE_DEVICE_NAME = "enable";
+
 const NOT_MOUNTED = "xd:// is not mounted in this session.";
 
 /**
@@ -92,6 +94,23 @@ export class XdProtocolHandler implements ProtocolHandler {
 		const xdev = session.xdev;
 		if (!xdev) throw new ToolError(NOT_MOUNTED);
 		if (!name) throw new ToolError(`Cannot write to xd:// itself — pick a device:\n${xdevListing(xdev)}`);
+		if (name === ENABLE_DEVICE_NAME) {
+			const requested = content.trim();
+			if (!requested) throw new ToolError("write xd://enable needs a tool name in the body");
+			if (!session.enableToolByName) throw new ToolError("This host cannot enable tools at runtime.");
+			const outcome = await session.enableToolByName(requested);
+			return {
+				content: [
+					{
+						type: "text",
+						text: outcome.enabled
+							? `Enabled tool "${requested}" for this session.`
+							: `Cannot enable "${requested}": ${outcome.reason ?? "not available"}`,
+					},
+				],
+				isError: !outcome.enabled,
+			};
+		}
 		const toolCall = context.toolCall;
 		if (!toolCall) throw new ToolError(`xd://${name} can only be written by the write tool.`);
 		const { result, xdev: dispatch } = await dispatchXdevTool(

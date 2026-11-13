@@ -5,9 +5,9 @@ import * as path from "node:path";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { RpcClient } from "@linxiraos/zeta/modes/rpc/rpc-client";
 import {
-	GOAL_CONTINUATION_MODE_RPC,
-	GoalContinuationController,
-	type GoalContinuationSession,
+	RPC_GOAL_CONTINUATION_MODE,
+	RpcGoalController,
+	type RpcGoalSession,
 } from "@linxiraos/zeta/goals/continuation-controller";
 import { RpcSessionSettleWatcher, watchedScheduledTurnProbe } from "@linxiraos/zeta/modes/rpc/rpc-session-settle";
 import type { RpcSessionState } from "@linxiraos/zeta/modes/rpc/rpc-types";
@@ -421,7 +421,7 @@ describe("RPC goal command", () => {
 	}, 30_000);
 });
 
-describe("GoalContinuationController continuation gate", () => {
+describe("RpcGoalController continuation gate", () => {
 	const agentEnd = { type: "agent_end", messages: [], isTerminal: true } as unknown as AgentSessionEvent;
 	const hostInput = { type: "message_start", message: { role: "user", content: [] } } as unknown as AgentSessionEvent;
 
@@ -519,8 +519,8 @@ describe("GoalContinuationController continuation gate", () => {
 			waitForIdle: () => idle.promise,
 		};
 		let dropped = 0;
-		const controller = new GoalContinuationController(session as unknown as GoalContinuationSession, {
-			continuationMode: GOAL_CONTINUATION_MODE_RPC,
+		const controller = new RpcGoalController(session as unknown as RpcGoalSession, {
+			continuationMode: RPC_GOAL_CONTINUATION_MODE,
 			onContinuationDropped: () => dropped++,
 		});
 		return {

@@ -102,6 +102,7 @@ import type {
 	ResourcesDiscoverResult,
 	SessionBeforeBranchResult,
 	SessionBeforeCompactResult,
+	SessionBeforeShutdownResult,
 	SessionBeforeSwitchResult,
 	SessionBeforeTreeResult,
 	SessionCompactingResult,
@@ -194,6 +195,31 @@ const SESSION_IDENTITY_EVENTS: Record<string, true> = {
 	session_start: true,
 	session_switch: true,
 	session_branch: true,
+};
+
+/**
+ * Cancellable pre-events. Each may veto its operation, so — like `tool_call` —
+ * each is a gate whose handlers may consult the operator: time spent in host
+ * dialogs does not count against the handler budget.
+ */
+const SESSION_BEFORE_EVENTS: Record<string, true> = {
+	session_before_switch: true,
+	session_before_branch: true,
+	session_before_compact: true,
+	session_before_tree: true,
+	session_before_shutdown: true,
+};
+
+/**
+ * Events whose `signal` releases the dispatch: on abort the emitter stops
+ * waiting, pending handler dialogs close, and late results are dropped. Other
+ * events' signals (`session_before_compact`, `session_before_tree`) are
+ * cooperative: handlers should honor them, but their operation still awaits
+ * the handlers so nothing runs alongside a handler that ignores the abort.
+ */
+const RELEASING_SIGNAL_EVENTS: Record<string, true> = {
+	session_stop: true,
+	session_before_shutdown: true,
 };
 
 interface HandlerTimeoutBudget {
@@ -423,16 +449,20 @@ async function raceHandlerWithTimeout<T>(
 
 /**
  * Wait for an extension's earlier deliveries until `deadline` (a
- * `performance.now()` instant). Resolves `false` when the deadline passes
- * first; an already-settled `ready` wins even at a past deadline.
+ * `performance.now()` instant). Resolves `false` when the deadline passes or
+ * `signal` aborts first; an already-settled `ready` wins even at a past deadline.
  */
-async function awaitDeliveryTurn(ready: Promise<void>, deadline: number): Promise<boolean> {
+async function awaitDeliveryTurn(ready: Promise<void>, deadline: number, signal?: AbortSignal): Promise<boolean> {
+	if (signal?.aborted) return false;
 	const { promise: expired, resolve } = Promise.withResolvers<boolean>();
 	const timer = setTimeout(resolve, Math.max(0, deadline - performance.now()), false);
+	const onAbort = () => resolve(false);
+	signal?.addEventListener("abort", onAbort, { once: true });
 	try {
 		return await Promise.race([ready.then(() => true), expired]);
 	} finally {
 		clearTimeout(timer);
+		signal?.removeEventListener("abort", onAbort);
 	}
 }
 
@@ -466,14 +496,22 @@ type RunnerEmitEvent = Exclude<
 
 type SessionBeforeEvent = Extract<
 	RunnerEmitEvent,
-	{ type: "session_before_switch" | "session_before_branch" | "session_before_compact" | "session_before_tree" }
+	{
+		type:
+			| "session_before_switch"
+			| "session_before_branch"
+			| "session_before_compact"
+			| "session_before_tree"
+			| "session_before_shutdown";
+	}
 >;
 
 type SessionBeforeEventResult =
 	| SessionBeforeSwitchResult
 	| SessionBeforeBranchResult
 	| SessionBeforeCompactResult
-	| SessionBeforeTreeResult;
+	| SessionBeforeTreeResult
+	| SessionBeforeShutdownResult;
 
 type RunnerEmitResult<TEvent extends RunnerEmitEvent> = TEvent extends { type: "session_before_switch" }
 	? SessionBeforeSwitchResult | undefined
@@ -483,11 +521,13 @@ type RunnerEmitResult<TEvent extends RunnerEmitEvent> = TEvent extends { type: "
 			? SessionBeforeCompactResult | undefined
 			: TEvent extends { type: "session_before_tree" }
 				? SessionBeforeTreeResult | undefined
-				: TEvent extends { type: "session.compacting" }
-					? SessionCompactingResult | undefined
-					: TEvent extends { type: "session_stop" }
-						? SessionStopEventResult | undefined
-						: undefined;
+				: TEvent extends { type: "session_before_shutdown" }
+					? SessionBeforeShutdownResult | undefined
+					: TEvent extends { type: "session.compacting" }
+						? SessionCompactingResult | undefined
+						: TEvent extends { type: "session_stop" }
+							? SessionStopEventResult | undefined
+							: undefined;
 
 // Session-lifecycle handler types live once in session-handler-types (imported
 // above for local use); re-exported here to keep this module's public API stable.
@@ -589,6 +629,8 @@ export class ExtensionRunner {
 	#toolApprovalPreviewWaiter?: (toolCallId: string) => Promise<void>;
 	/** Grant keys (see `sessionApprovalScope`) approved "for this session", each prefixed by the session it covers. */
 	#sessionApprovals = new Set<string>();
+	/** Per-agent extension-command admission; undefined admits every registered command. */
+	#commandAdmission?: (name: string) => boolean;
 	#trackUserWait?: UserWaitTracker;
 	#errorListeners: Set<ExtensionErrorListener> = new Set();
 	#getModel: () => Model | undefined = () => undefined;
@@ -1183,14 +1225,6 @@ export class ExtensionRunner {
 		this.#sessionApprovals.add(`${this.sessionId}\0${key}`);
 	}
 
-	/** Every key {@link hasSessionApproval} holds for the current session, in grant order. */
-	sessionApprovalKeys(): string[] {
-		const prefix = `${this.sessionId}\0`;
-		const keys: string[] = [];
-		for (const entry of this.#sessionApprovals) if (entry.startsWith(prefix)) keys.push(entry.slice(prefix.length));
-		return keys;
-	}
-
 	getUIContext(): ExtensionUIContext {
 		return this.#uiContext;
 	}
@@ -1321,6 +1355,15 @@ export class ExtensionRunner {
 		return this.extensions.map(e => e.path);
 	}
 
+	/**
+	 * The session-scoped runtime newly bound extensions join. Agent-authored dev
+	 * plugins are bound with it so their `ctx.*` actions and flag defaults are
+	 * the live session's, not a throwaway stub set.
+	 */
+	getRuntime(): ExtensionRuntime {
+		return this.runtime;
+	}
+
 	/** Every extension this runner loaded, in load order, including suspended ones. */
 	getLoadedExtensions(): readonly Extension[] {
 		return this.#loadOrder ?? this.extensions;
@@ -1329,6 +1372,34 @@ export class ExtensionRunner {
 	/** Whether the extension loaded from `extensionPath` is present and not suspended. */
 	isExtensionActive(extensionPath: string): boolean {
 		return this.extensions.some(ext => ext.path === extensionPath);
+	}
+
+	/**
+	 * Remove loaded extensions from the runner's load order and active set.
+	 *
+	 * Used by session-local replacements that have already acquired their new
+	 * extension (agent-authored dev plugin reload). The caller removes the
+	 * extension-owned tools through its own registry first; this method only
+	 * drops the runner's references so suspended objects do not accumulate
+	 * across repeated reloads. Presenter and suspension listeners are notified
+	 * exactly like {@link setSuspendedExtensions}.
+	 */
+	removeExtensions(shouldRemove: (extension: Extension) => boolean): Extension[] {
+		this.#loadOrder ??= [...this.extensions];
+		const removed = this.#loadOrder.filter(extension => shouldRemove(extension));
+		if (removed.length === 0) return removed;
+		for (const extension of removed) {
+			this.#suspendedExtensions.delete(extension);
+			this.#deliveryTails.delete(extension);
+		}
+		this.#loadOrder = this.#loadOrder.filter(extension => !removed.includes(extension));
+		const active = this.#loadOrder.filter(extension => !this.#suspendedExtensions.has(extension));
+		this.extensions.splice(0, this.extensions.length, ...active);
+		if (removed.some(extension => extension.transcriptPresenters.length > 0)) {
+			notifyTranscriptPresentersChanged();
+		}
+		for (const listener of this.#suspensionListeners) listener();
+		return removed;
 	}
 
 	/**
@@ -1779,12 +1850,18 @@ export class ExtensionRunner {
 		return true;
 	}
 
+	/** Restrict which extension commands this session may list or execute. */
+	setCommandAdmission(admission: ((name: string) => boolean) | undefined): void {
+		this.#commandAdmission = admission;
+	}
+
 	getRegisteredCommands(reserved?: ReadonlySet<string>): RegisteredCommand[] {
 		this.#commandDiagnostics = [];
 
 		const commands = new Map<string, RegisteredCommand>();
 		for (const ext of this.extensions) {
 			for (const command of ext.commands.values()) {
+				if (this.#commandAdmission !== undefined && !this.#commandAdmission(command.name)) continue;
 				if (reserved?.has(command.name)) {
 					const message = `Extension command '${command.name}' from ${ext.path} conflicts with built-in commands. Skipping.`;
 					this.#commandDiagnostics.push({ type: "warning", message, path: ext.path });
@@ -1805,6 +1882,7 @@ export class ExtensionRunner {
 	}
 
 	getCommand(name: string): RegisteredCommand | undefined {
+		if (this.#commandAdmission !== undefined && !this.#commandAdmission(name)) return undefined;
 		for (let index = this.extensions.length - 1; index >= 0; index -= 1) {
 			const command = this.extensions[index]?.commands.get(name);
 			if (command) {
@@ -2004,12 +2082,7 @@ export class ExtensionRunner {
 	}
 
 	#isSessionBeforeEvent(event: RunnerEmitEvent): event is SessionBeforeEvent {
-		return (
-			event.type === "session_before_switch" ||
-			event.type === "session_before_branch" ||
-			event.type === "session_before_compact" ||
-			event.type === "session_before_tree"
-		);
+		return SESSION_BEFORE_EVENTS[event.type] === true;
 	}
 	#isSessionShutdownEvent(event: RunnerEmitEvent): event is Extract<RunnerEmitEvent, { type: "session_shutdown" }> {
 		return event.type === "session_shutdown";
@@ -2023,15 +2096,16 @@ export class ExtensionRunner {
 		onFailure?: (kind: "timeout" | "error", message: string) => R,
 		outerSignal?: AbortSignal,
 	): Promise<R | undefined> {
-		// `session_stop` carries its own signal on the event; `tool_call` receives
-		// the outer dispatch signal (loop request or wrapper execute) so an abort
-		// while a handler awaits a human dialog cancels the dialog and settles the
-		// gate without executing the underlying tool. Compose whichever apply.
-		const sessionStopSignal =
-			event.type === "session_stop" && "signal" in event && event.signal instanceof AbortSignal
+		// Releasing events (RELEASING_SIGNAL_EVENTS) carry their own signal;
+		// `tool_call` receives the outer dispatch signal (loop request or wrapper
+		// execute). Either way an abort while a handler awaits a human dialog
+		// cancels the dialog and settles the dispatch even when the handler
+		// ignores the signal.
+		const ownSignal =
+			RELEASING_SIGNAL_EVENTS[event.type] && "signal" in event && event.signal instanceof AbortSignal
 				? event.signal
 				: undefined;
-		const signals = [outerSignal, sessionStopSignal].filter((s): s is AbortSignal => s !== undefined);
+		const signals = [outerSignal, ownSignal].filter((s): s is AbortSignal => s !== undefined);
 		const signal = signals.length === 0 ? undefined : signals.length === 1 ? signals[0] : AbortSignal.any(signals);
 		if (signal?.aborted) return undefined;
 		const registrationScope: ToolRegistrationScope = { pending: new Set(), closed: false };
@@ -2047,7 +2121,7 @@ export class ExtensionRunner {
 							const handlerContext = createHandlerContext(
 								withExtensionCatalog(ctx, ext),
 								handlerSignal,
-								event.type === "tool_call" ? budget : undefined,
+								event.type === "tool_call" || SESSION_BEFORE_EVENTS[event.type] === true ? budget : undefined,
 							);
 							result = await this.#toolRegistrationScope.run(registrationScope, () =>
 								handler(event, handlerContext),
@@ -2138,13 +2212,17 @@ export class ExtensionRunner {
 		}
 
 		const timeoutMs = handlerTimeoutForEvent(event.type);
+		const signal =
+			RELEASING_SIGNAL_EVENTS[event.type] && "signal" in event && event.signal instanceof AbortSignal
+				? event.signal
+				: undefined;
 		const turns = this.#reserveDeliveryTurns(extensions, event.type, timeoutMs);
 		try {
 			for (const ext of extensions) {
 				const handlers = ext.handlers.get(event.type);
 				if (!handlers || handlers.length === 0) continue;
 				const turn = turns?.get(ext);
-				if (turn?.ready && !(await awaitDeliveryTurn(turn.ready, turn.deadline))) {
+				if (turn?.ready && !(await awaitDeliveryTurn(turn.ready, turn.deadline, signal)) && !signal?.aborted) {
 					logger.warn("Extension still handling an earlier event; delivering out of order", {
 						extensionPath: ext.path,
 						event: event.type,

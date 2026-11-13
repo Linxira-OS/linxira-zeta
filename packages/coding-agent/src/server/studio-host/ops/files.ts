@@ -47,7 +47,6 @@
  * compact serialized form (same values, normalized whitespace). Every other
  * text artifact is returned byte for byte.
  */
-import { createHash } from "node:crypto";
 import * as path from "node:path";
 import { isRecord } from "@linxiraos/pi-utils";
 import type { CommandInput, QueryInput, WorkspaceFileMutationResult } from "../contract/index.js";
@@ -61,8 +60,8 @@ import {
 	type ArtifactTextResult,
 } from "../protocol/index.js";
 import type { StudioFamily } from "../registry.js";
+import { resolveWorkspacePath } from "./workspace.js";
 
-const PROJECTS_ROUTE = "/api/projects";
 const SESSIONS_ROUTE = "/api/sessions";
 const DIRECTORIES_ROUTE = "/api/fs/directories";
 
@@ -238,36 +237,6 @@ function toArtifactRecord(sessionId: string, entry: GatewayArtifact): ArtifactRe
 // ---------------------------------------------------------------------------
 // Workspace resolution
 // ---------------------------------------------------------------------------
-
-/**
- * Stable, path-free `WorkspaceId` for a canonical workspace key. The formula
- * matches `ops/workspace.ts`, which owns `projects.list` and therefore owns the
- * ids every other family receives.
- */
-function workspaceIdOf(key: string): string {
-	const digest = createHash("sha256").update(`zeta-workspace\u0000${key}`).digest("hex");
-	return `ws-${digest.slice(0, 16)}`;
-}
-
-/** Resolve an opaque `WorkspaceId` to the canonical workspace path it names. */
-async function resolveWorkspacePath(workspaceId: string): Promise<string> {
-	const payload = await gatewayJson<unknown>(PROJECTS_ROUTE);
-	if (!isRecord(payload) || !Array.isArray(payload.projects)) {
-		throw unavailable(`${PROJECTS_ROUTE} returned an unexpected payload`);
-	}
-	for (const project of payload.projects) {
-		if (!isRecord(project) || !Array.isArray(project.workspaces)) continue;
-		for (const workspace of project.workspaces) {
-			if (!isRecord(workspace)) continue;
-			const key = stringField(workspace, "key");
-			const workspacePath = stringField(workspace, "path");
-			if (key !== undefined && workspacePath !== undefined && workspaceIdOf(key) === workspaceId) {
-				return workspacePath;
-			}
-		}
-	}
-	throw invalid(`workspace ${workspaceId} is not registered`);
-}
 
 /** True when `candidate` is `root` or sits below it (platform path semantics). */
 function isWithinWorkspace(root: string, candidate: string): boolean {

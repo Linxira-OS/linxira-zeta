@@ -150,6 +150,41 @@ docker compose exec robomp robomp cleanup owner/repo#123   # force workspace rem
 lifecycle commands (`robomp:dev`, `robomp:build`, `robomp:up`, `robomp:down`,
 `robomp:logs`, `robomp:restart`, `robomp:reset`).
 
+### Offline fixture replay (host, no GitHub)
+
+The local operator path does not need a PAT, gh-proxy, webhook, or network:
+
+```bash
+robomp triage --offline --fixture tests/fixtures/issue-opened.json
+robomp replay fixture-1 --offline --fixture tests/fixtures/issue-opened.json
+robomp status --offline --json
+```
+
+Offline mode records/claims a real SQLite event, creates a real git worktree
+from the fixture's **local** `clone_url`, writes
+`<workspace>/artifacts/offline-result.json`, and marks the event `done` (or
+`failed` with a redacted error). It never spawns `zetacode`, never creates a
+GitHub client, and rejects `http(s)://`/`ssh://` clone URLs. A process crash
+after claim leaves the row `running`; the next offline replay recovers it.
+Terminal rows require `--force`; duplicate delivery ids dedupe by primary key.
+
+Host data defaults are user-scoped: `ROBOMP_DATA_DIR`, else
+`%LOCALAPPDATA%\Zeta\robomp` on Windows, else `$XDG_STATE_HOME/zeta/robomp`,
+else `~/.zeta/robomp`. `.env` is read with the same cwd-relative precedence as
+`Settings` (process env wins over `.env`), and explicit
+`ROBOMP_WORKSPACE_ROOT` / `ROBOMP_SQLITE_PATH` / `ROBOMP_LOG_DIR` still win.
+Compose keeps its `/data` volume.
+
+**Production bot is not enabled by this path.** `ROBOMP_RELEASE_SENTINEL_ENABLED`
+remains `false`; offline replay performs no comments, PRs, pushes, or tags.
+
+Windows host CLI can import and run the offline paths above without loading
+POSIX-only orchestration modules: `fcntl` and `grp` remain lazy imports used
+only by the Linux-root cache/worker code. The production `WorkerPool`, sandbox,
+and native cache remain POSIX/Linux-root targets; Windows is not a deployment
+target. `.omp-session` / `.omp-*` scratch names are unchanged baseline
+identifiers in this pass.
+
 ## Tests
 
 ```bash

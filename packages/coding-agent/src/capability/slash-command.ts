@@ -6,16 +6,37 @@
 import { defineCapability } from ".";
 import type { SourceMeta } from "./types";
 
+/** Execution selectors shared by Markdown and TypeScript commands. */
+export interface CommandExecutionMetadata {
+	agent?: string;
+	model?: string;
+}
+
+/** Preserve execution fields when a provider strips Markdown frontmatter. */
+export function commandFrontmatterExecution(
+	frontmatter: Record<string, unknown>,
+): CommandExecutionMetadata & { template?: string } {
+	const fields: CommandExecutionMetadata & { template?: string } = {};
+	for (const key of ["agent", "model", "template"] as const) {
+		const value = frontmatter[key];
+		if (typeof value !== "string" || !value.trim()) continue;
+		fields[key] = value;
+	}
+	return fields;
+}
+
 /**
  * A file-based slash command.
  */
-export interface SlashCommand {
+export interface SlashCommand extends CommandExecutionMetadata {
 	/** Command name (without leading slash) */
 	name: string;
 	/** Absolute path to command file */
 	path: string;
 	/** Command content (markdown template) */
 	content: string;
+	/** Explicit template, when discovery stripped frontmatter. */
+	template?: string;
 	/** Source level */
 	level: "user" | "project" | "native";
 	/** Already-parsed display description, when discovery stripped frontmatter from `content`. */

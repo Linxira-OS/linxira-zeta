@@ -1,12 +1,13 @@
 import type { Dirent } from "node:fs";
 import * as fs from "node:fs/promises";
-import * as path from "node:path";
+import * as nodePath from "node:path";
 import { isEnoent, logger, ZETA_STATS_PORT } from "@linxiraos/pi-utils";
 import { $, type Server } from "bun";
 import {
 	getCostDashboardStats,
 	getDashboardStats,
 	getFolderStats,
+	getKnownProjectFolders,
 	getModelDashboardStats,
 	getOverviewStats,
 	getProviderDashboardStats,
@@ -39,11 +40,13 @@ import {
 	STATS_DASHBOARD_HOSTNAME_HEADER,
 	STATS_DASHBOARD_SECURITY_VERSION,
 } from "./port-conflict";
-import { getStatsByModel, getTimeSeries } from "./rollup";
+import { getProjectSessionFile, getStatsByModel, getTimeSeries } from "./rollup";
 import { getSpotlightDashboardStats, getSpotlightSessionContext } from "./spotlight-aggregator";
+import { isTrackableProject, readTrackingSnapshot } from "./tracking";
 import {
 	buildSessionTrace,
 	getTraceEntry,
+	readSessionMetadata,
 	listSessionSummaries,
 	TRACE_ETAG_VERSION,
 	type TraceFingerprint,
@@ -52,8 +55,8 @@ import {
 	TracePathError,
 } from "./trace";
 
-const CLIENT_DIR = path.join(import.meta.dir, "client");
-const STATIC_DIR = path.join(import.meta.dir, "..", "dist", "client");
+const CLIENT_DIR = nodePath.join(import.meta.dir, "client");
+const STATIC_DIR = nodePath.join(import.meta.dir, "..", "dist", "client");
 const IS_BUN_COMPILED =
 	Boolean(process.env.PI_COMPILED || Bun.env.PI_COMPILED) ||
 	import.meta.url.includes("$bunfs") ||
@@ -109,7 +112,7 @@ async function getLatestMtime(dir: string): Promise<number> {
 
 	const promises = [];
 	for (const entry of entries) {
-		const fullPath = path.join(dir, entry.name);
+		const fullPath = nodePath.join(dir, entry.name);
 		if (entry.isDirectory()) {
 			promises.push(getLatestMtime(fullPath));
 		} else if (entry.isFile()) {
@@ -130,8 +133,8 @@ async function getLatestMtime(dir: string): Promise<number> {
 
 const ensureClientBuild = async () => {
 	if (USE_EMBEDDED_CLIENT) return;
-	const indexPath = path.join(STATIC_DIR, "index.html");
-	const cssPath = path.join(STATIC_DIR, "index.css");
+	const indexPath = nodePath.join(STATIC_DIR, "index.html");
+	const cssPath = nodePath.join(STATIC_DIR, "index.css");
 	const sourceMtime = await getLatestMtime(CLIENT_DIR);
 	let shouldBuild = true;
 	try {
@@ -153,7 +156,7 @@ const ensureClientBuild = async () => {
 	await fs.rm(STATIC_DIR, { recursive: true, force: true });
 
 	logger.debug("Building stats client");
-	const packageRoot = path.join(import.meta.dir, "..");
+	const packageRoot = nodePath.join(import.meta.dir, "..");
 	const buildResult = await $`bun run build.ts`.cwd(packageRoot).quiet().nothrow();
 	if (buildResult.exitCode !== 0) {
 		const output = buildResult.text().trim();
@@ -218,6 +221,29 @@ export async function handleApi(req: Request): Promise<Response> {
 
 	// Stats reads are DB-only; ingest runs in the background (see `live.ts`).
 	const range = url.searchParams.get("range");
+
+	// Read-only project tracking snapshot. The project must be an exact label
+	// from the stats registry: there is no arbitrary `cwd`/path input to escape.
+	if (path === "/api/tracking/projects") {
+		if (req.method !== "GET") return Response.json({ error: "GET required" }, { status: 405 });
+		return Response.json({ projects: await getKnownProjectFolders() });
+	}
+
+	if (path === "/api/tracking") {
+		if (req.method !== "GET") return Response.json({ error: "GET required" }, { status: 405 });
+		const project = url.searchParams.get("project")?.trim();
+		if (!project) return Response.json({ error: "project required" }, { status: 400 });
+		const known = await getKnownProjectFolders();
+		if (!isTrackableProject(project, known)) return Response.json({ error: "unknown project" }, { status: 404 });
+		// Registry labels are encoded session-folder names, not paths; the newest
+		// session header carries the real cwd. Never derive a path from the label.
+		const sessionFile = getProjectSessionFile(project);
+		const cwd = sessionFile ? (await readSessionMetadata(sessionFile)).cwd : null;
+		if (!cwd || !nodePath.isAbsolute(cwd)) {
+			return Response.json({ error: "project path unavailable" }, { status: 409 });
+		}
+		return Response.json(await readTrackingSnapshot(cwd, project));
+	}
 
 	if (path === "/api/status") {
 		return Response.json(statsLive().status());
@@ -418,7 +444,7 @@ async function handleStatic(requestPath: string): Promise<Response> {
 	}
 
 	const filePath = requestPath === "/" ? "/index.html" : requestPath;
-	const fullPath = path.join(STATIC_DIR, filePath);
+	const fullPath = nodePath.join(STATIC_DIR, filePath);
 
 	const file = Bun.file(fullPath);
 	if (await file.exists()) {
@@ -426,7 +452,7 @@ async function handleStatic(requestPath: string): Promise<Response> {
 	}
 
 	// SPA fallback
-	const index = Bun.file(path.join(STATIC_DIR, "index.html"));
+	const index = Bun.file(nodePath.join(STATIC_DIR, "index.html"));
 	if (await index.exists()) {
 		return shellResponse(await index.text());
 	}

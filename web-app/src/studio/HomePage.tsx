@@ -33,7 +33,7 @@ import { useAxisCrossfade, useTokenChartMorph, type TokenChartModelPts } from ".
 
 import { useI18n } from "./i18n";
 
-export type PageRoute = "home" | "workbench" | "history" | "agent-hub" | "team" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics";
+export type PageRoute = "home" | "workbench" | "history" | "agent-hub" | "team" | "rooms" | "capabilities" | "model-config" | "settings" | "diagnostics" | "media" | "evaluation" | "statistics";
 
 const PAGE_NAV_DEFS: ReadonlyArray<{ id: PageRoute; icon: string; key: string }> = [
   { id: "workbench", icon: "layout", key: "nav.workbench" },
@@ -48,7 +48,7 @@ const PAGE_NAV_DEFS: ReadonlyArray<{ id: PageRoute; icon: string; key: string }>
 ];
 
 function isAppRoute(id: string): id is Exclude<PageRoute, "agent-hub"> {
-  return id === "home" || id === "workbench" || id === "history" || id === "capabilities" || id === "model-config" || id === "settings" || id === "diagnostics" || id === "media" || id === "evaluation" || id === "statistics";
+  return id === "home" || id === "workbench" || id === "history" || id === "rooms" || id === "capabilities" || id === "model-config" || id === "settings" || id === "diagnostics" || id === "media" || id === "evaluation" || id === "statistics";
 }
 
 export function SecondaryPage({
@@ -981,6 +981,7 @@ export function HomePage({
   home,
   history,
   workspaces,
+  selectedWorkspaceId,
   capabilities,
   client,
   onPickFolder,
@@ -992,6 +993,7 @@ export function HomePage({
   home?: HomeReadModel;
   history?: SessionHistoryReadModel;
   workspaces?: WorkspaceListReadModel;
+  selectedWorkspaceId?: string;
   capabilities?: ClientBootstrap["capabilityManifest"];
   client?: StudioClient;
   onPickFolder?: () => void;
@@ -1128,16 +1130,16 @@ export function HomePage({
               onRoute("workbench");
             }}
           >
-            <span className="pc-name"><Icon name="folder-open" /><span className="ellipsis">{workspace.name}</span></span>
+            <span className="pc-name"><Icon name="folder-open" /><span className="ellipsis" data-tip={workspace.name}>{workspace.name}</span></span>
             {/* Never a path: the Host registry is the only path holder. */}
             <span className="pc-path ellipsis">—</span>
             <span className="pc-flags">
-              {workspace.active ? <span className="chip blue">{t("home.currentProject")}</span> : <span className="chip gray">{t("home.idle")}</span>}
+              {workspace.workspaceId === selectedWorkspaceId ? <span className="chip blue">{t("home.currentProject")}</span> : <span className="chip gray">{t("home.idle")}</span>}
             </span>
             <span className="pc-foot">
-              <span className="ellipsis">{workspace.active ? t("home.openedAndRecentlyUsed") : t("home.recentlyUsed")}</span>
+              <span className="ellipsis">{workspace.workspaceId === selectedWorkspaceId ? t("home.openedAndRecentlyUsed") : t("home.recentlyUsed")}</span>
               <span className="spacer" />
-              <span>{relativeTime(workspace.lastOpenedAt, resolvedLanguage, t)}</span>
+              <span>{workspace.lastOpenedAt === null ? "—" : relativeTime(workspace.lastOpenedAt, resolvedLanguage, t)}</span>
             </span>
           </button>
         )) : (

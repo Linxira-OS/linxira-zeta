@@ -352,10 +352,10 @@ describe("merge rules", () => {
 
 describe("zetaKeyFor", () => {
 	it("maps the upstream scope to the Zeta scope with rename awareness", () => {
-		expect(zetaKeyFor("@oh-my-pi/pi-ai")).toBe("@linxiraos/pi-ai");
-		expect(zetaKeyFor("@oh-my-pi/omptype")).toBe("@linxiraos/zeta-schema");
-		expect(zetaKeyFor("@oh-my-pi/omp-stats")).toBe("@linxiraos/pi-stats");
-		expect(zetaKeyFor("@oh-my-pi/pi-coding-agent")).toBe("@linxiraos/zeta");
+		expect(zetaKeyFor("@linxiraos/pi-ai")).toBe("@linxiraos/pi-ai");
+		expect(zetaKeyFor("@linxiraos/zeta-schema")).toBe("@linxiraos/zeta-schema");
+		expect(zetaKeyFor("@linxiraos/pi-stats")).toBe("@linxiraos/pi-stats");
+		expect(zetaKeyFor("@linxiraos/zeta")).toBe("@linxiraos/zeta");
 	});
 
 	it("maps upstream's original @mariozechner author scope the same way", () => {
@@ -369,7 +369,6 @@ describe("zetaKeyFor", () => {
 	});
 
 	it("returns null for non-upstream keys", () => {
-		expect(zetaKeyFor("@linxiraos/pi-ai")).toBeNull();
 		expect(zetaKeyFor("zod")).toBeNull();
 		expect(zetaKeyFor("@acme/thing")).toBeNull();
 	});

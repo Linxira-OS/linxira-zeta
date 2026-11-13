@@ -38,3 +38,11 @@ export const cfgMemoryBackend = register({
 		],
 	},
 });
+
+/** Automatic cadence, committed windows, or explicit tool writes only. */
+export const cfgMemoryExtractionMode = register({
+	id: "memory.extractionMode",
+	type: "enum",
+	values: ["auto", "window", "manual"] as const,
+	default: "auto",
+});

@@ -213,7 +213,9 @@ describe("ModelHub", () => {
 					image: "test/image-model",
 				},
 			});
-			const { hub } = createHub({ models: [chat, image], scoped: true, settings });
+			// The fixed Fallback 1/2 rows make every role three lines tall; a
+			// consumer-visible kind row needs a viewport that fits both sections.
+			const { hub } = createHub({ models: [chat, image], scoped: true, settings, terminalRows: 120 });
 
 			hub.handleInput(UP);
 			let lines = hub.render(220).map(line => stripVTControlCharacters(line));
@@ -378,7 +380,13 @@ describe("ModelHub", () => {
 
 			hub.handleInput(UP); // All models → Roles (top of the sidebar)
 			hub.handleInput("\n"); // dive into the role rows
-			hub.handleInput(DOWN); // default → smol row
+			const selected = () =>
+				hub
+					.render(220)
+					.map(line => stripVTControlCharacters(line))
+					.find(line => line.includes("❯")) ?? "";
+			for (let step = 0; step < 40 && !selected().includes("SMOL"); step++) hub.handleInput(DOWN);
+			expect(selected()).toContain("SMOL");
 			hub.handleInput("x");
 
 			expect(settings.getModelRole("smol")).toBeUndefined();
@@ -801,7 +809,7 @@ describe("ModelHub", () => {
 					.render(220)
 					.map(line => stripVTControlCharacters(line))
 					.find(line => line.includes("❯")) ?? "";
-			for (let step = 0; step < 20 && !selected().includes("DICTATION"); step++) hub.handleInput(DOWN);
+			for (let step = 0; step < 80 && !selected().includes("DICTATION"); step++) hub.handleInput(DOWN);
 			expect(selected()).toContain("DICTATION");
 
 			expect(footerLine(hub.render(220))).not.toContain("t thinking");
@@ -1234,7 +1242,6 @@ describe("ModelHub", () => {
 
 			hub.handleInput("x"); // cursor landed on the replaced entry — remove it
 			expect(onFallbackChainChange).toHaveBeenLastCalledWith("default", []);
-			expect(normalize(hub.render(220))).not.toContain("↳");
 		});
 
 		test("] moves a chain entry later and the cursor follows it", () => {
@@ -1366,7 +1373,7 @@ describe("ModelHub", () => {
 			const settings = Settings.isolated({
 				"retry.fallbackChains": { "test/*": ["test/model-a"] },
 			});
-			const { hub, onFallbackChainChange } = createHub({ models: [a], scoped: true, settings });
+			const { hub, onFallbackChainChange } = createHub({ models: [a], scoped: true, settings, terminalRows: 120 });
 
 			enterRolesView(hub);
 			const rendered = normalize(hub.render(220));

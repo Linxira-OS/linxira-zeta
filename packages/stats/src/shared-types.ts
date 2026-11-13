@@ -694,6 +694,18 @@ export interface SpotlightGapCount {
 	holdout: number;
 }
 
+/**
+ * Failed results by why their Spotlight calls failed: `no_credential` (no Stencil sign-in), `timeout`, `transport`,
+ * `rate_limited`, `bad_reply`, `http_<status>`, or `unrecorded` for results journaled before pi recorded causes.
+ */
+export interface SpotlightFailureCause {
+	cause: string;
+	/** Results with a call that failed this way (a result with calls failing two ways counts under both). */
+	results: number;
+	/** Of the results that called Spotlight. */
+	share: number;
+}
+
 /** What shaping costs in time and reliability (all evaluated results, held-out ones included). */
 export interface SpotlightOverhead {
 	results: number;
@@ -705,6 +717,8 @@ export interface SpotlightOverhead {
 	spotlightMsP90: number | null;
 	/** Results whose Spotlight calls failed or timed out (shaped by the no-score fallback). */
 	failureRate: number | null;
+	/** The failed results by cause, most first. */
+	failureCauses: SpotlightFailureCause[];
 	/** Wall time tool calls spent shaping results whose Spotlight calls failed (mostly the 5 s timeout per call). */
 	failedWaitMs: number;
 	spotlightUsd: number;
@@ -1240,4 +1254,88 @@ export interface SessionTrace {
 	/** DFS order, main first. */
 	tracks: TraceTrack[];
 	summary: TraceSummary;
+}
+
+// ---------------------------------------------------------------------------
+// Project tracking snapshot (`/api/tracking`)
+// ---------------------------------------------------------------------------
+
+/**
+ * What a tracking read actually found for one file or file family. The
+ * dashboard renders these states instead of guessing: a missing status file is
+ * not a zero-progress project.
+ */
+export type TrackingSnapshotState = "present" | "missing" | "partial" | "corrupt" | "error";
+
+/** Parsed `status.json`; every field is optional in the file, so defaults are explicit. */
+export interface TrackingStatusValue {
+	phase: string;
+	progress: string;
+	blockers: string[];
+	decisions: string[];
+	lastUpdated: string;
+	/** Current todo phase name (Tracking v2 sync_todo). */
+	stage?: string;
+	/** Ordered todo-phase mirror (Tracking v2 sync_todo). */
+	phases?: { name: string; status: string }[];
+	/** Session that last wrote tracking state. */
+	lastSessionId?: string | null;
+}
+
+export interface TrackingStatusSnapshot {
+	state: TrackingSnapshotState;
+	/** Null unless `state` is `present` or `partial` and the JSON parsed. */
+	value: TrackingStatusValue | null;
+	truncated: boolean;
+	error: string | null;
+}
+
+export interface TrackingTextSnapshot {
+	state: TrackingSnapshotState;
+	content: string | null;
+	truncated: boolean;
+	error: string | null;
+}
+
+export interface TrackingActionRow {
+	timestamp: string;
+	action: string;
+	detail?: string;
+}
+
+export interface TrackingActionsSnapshot {
+	state: TrackingSnapshotState;
+	/** Oldest first, as written. */
+	rows: TrackingActionRow[];
+	truncated: boolean;
+	/** JSONL rows that did not parse; they are skipped, never invented. */
+	invalidRows: number;
+	error: string | null;
+}
+
+export interface TrackingSessionSnapshot {
+	name: string;
+	state: TrackingSnapshotState;
+	content: string | null;
+	truncated: boolean;
+	error: string | null;
+}
+
+/** Read-only snapshot of `<project>/.zeta/tracking/`; independent of any agent package type. */
+export interface TrackingSnapshot {
+	/** Exact project folder from the stats registry, never a caller-supplied path. */
+	project: string;
+	/** Resolved tracking directory the reads targeted. */
+	trackingDir: string;
+	/** Whether the tracking directory itself exists. */
+	exists: boolean;
+	/** Newest mtime among the files read, ISO; null when nothing exists. */
+	updatedAt: string | null;
+	status: TrackingStatusSnapshot;
+	index: TrackingTextSnapshot;
+	actions: TrackingActionsSnapshot;
+	/** Newest first, at most the read limit. */
+	sessions: TrackingSessionSnapshot[];
+	/** State of the `sessions/` directory itself. */
+	sessionsState: TrackingSnapshotState;
 }

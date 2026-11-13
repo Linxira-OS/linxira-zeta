@@ -26,10 +26,12 @@ _termide_instances() {
 _arguments \
   '--log-level[Minimum log level]:level:(trace debug info warn error)' \
   '--no-lsp[Disable LSP support]' \
-  '(-r --restore)'{-r,--restore}'[Reopen the projects of the last run where that run was]' \
+  '(-r --restore --no-restore)'{-r,--restore}'[Start in the last run'"'"'s project instead of this directory]' \
+  '(-r --restore)--no-restore[Start with this directory'"'"'s project alone this time]' \
   '--config[Path to config file]:path:_files' \
   '--diagnostics[Run pre-flight diagnostics and exit]' \
-  '--detached[Start a detached instance and print its id]' \
+  '(-d --detached)'{-d,--detached}'[Start a detached instance and attach to it]' \
+  '--no-attach[With --detached, only start the instance and print its id]' \
   '--attach[Attach to a detached instance, the most recent without an id]::instance:_termide_instances' \
   '(-f --force)'{-f,--force}'[With --attach, take the instance over from the attached client]' \
   '--kill[End a detached instance and exit]:instance:_termide_instances' \

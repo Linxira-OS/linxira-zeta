@@ -17,14 +17,7 @@
 import * as os from "node:os";
 import * as path from "node:path";
 import { refreshDirsFromEnv, ZETA_GATEWAY_PORT } from "@linxiraos/pi-utils";
-import {
-	getChannelStatus,
-	getMainSessionId,
-	getPendingWechatQr,
-	triggerWechatReconnect,
-	triggerWechatUnbind,
-} from "../channels";
-import { WebConfig } from "../config/web-config";
+import { getMainSessionId } from "../channels";
 import { scheduleTrashSweep } from "../session/session-trash";
 import {
 	handleAgentCommand,
@@ -62,9 +55,14 @@ import {
 	handleBoardMove,
 	handleBoardUpdate,
 } from "./web-gateway/board";
-import { checkRemoteAccess } from "./web-gateway/remote-access";
-import { isRemoteTokenAccepted } from "../utils/remote-token";
-import { deviceRegistry } from "./auth/device-registry";
+import {
+	authenticateRemote,
+	credentialScopes,
+	isGenuinelyLocalRequest,
+	type RemoteCredential,
+	resolveCredential,
+} from "./web-gateway/remote-access";
+import { sessionStore } from "./auth/session-store";
 import { handleDeviceDelete, handleDevicesGet, handleDevicesRevokeAllPost } from "./auth/device-auth";
 import {
 	forgetAllVerifications,
@@ -79,6 +77,24 @@ import {
 	handleTwoFactorVerifyPost,
 } from "./auth/two-factor-auth";
 import { handleChannelCredentials, handleChannelSend, renderWechatLoginQrSvg } from "./web-gateway/channels";
+import {
+	handleChannelInstanceToggle,
+	handleChannelInstancesGet,
+	handleChannelInstancesPut,
+	handleChannelValidate,
+	handleChannelsStatus,
+	handleImAgentsGet,
+	handleImAgentsPut,
+	handleImBindingsGet,
+	handleImBindingsPut,
+	handleImCommands,
+	handleImSessions,
+	handleImSwitchCancel,
+	handleImSwitchConfirm,
+	handleImSwitchGet,
+	handleWechatAction,
+	handleWechatQr,
+} from "./web-gateway/im-instances";
 import { handleAgentContextUsage } from "./web-gateway/context-usage";
 import {
 	handleCwdBrowseGet,
@@ -88,6 +104,7 @@ import {
 	handleFsDirectoriesPost,
 } from "./web-gateway/cwd";
 import { handleDesktopInfoGet } from "./web-gateway/desktop";
+import { handleDictationAudio } from "./web-gateway/dictation-audio";
 import { handleDocsGet } from "./web-gateway/docs";
 import { handleFileIndexGet } from "./web-gateway/file-index";
 import { handleFilesGet, handleFilesPost } from "./web-gateway/files";
@@ -128,6 +145,7 @@ import { handleOpenGet, handleOpenPost } from "./web-gateway/open";
 import { handleGetPlan } from "./web-gateway/plan";
 import { handleProjectsGet, handleProjectsPut } from "./web-gateway/projects";
 import { handlePluginsGet, handlePluginsPost } from "./web-gateway/plugins";
+import { handlePluginAssetGet, handlePluginPagesGet } from "./web-gateway/assets";
 import { getRunningSessionIds } from "./web-gateway/running-sessions";
 import { isGatewayDraining, setGatewayDraining } from "./web-gateway/draining";
 import {
@@ -176,6 +194,7 @@ import {
 	handleRemoteTokenRotatePost,
 } from "./web-gateway/pairing";
 import {
+	dropDeviceTerminalSockets,
 	handleTerminalCreate,
 	handleTerminalDelete,
 	handleTerminalEnsure,
@@ -190,7 +209,9 @@ import {
 	type TerminalWsData,
 } from "./web-gateway/terminal";
 import { handleRpcWsUpgrade, isRpcWsUpgradeRequest, rpcWebSocketHandler, type RpcWsData } from "./web-gateway/rpc-ws";
-import { hostIsLoopback, isAllowedOrigin } from "./web-gateway/origin";
+import { hostIsLoopback, isAllowedOrigin, isAllowedRequestOrigin } from "./web-gateway/origin";
+import { bindingDecision, bindingScopeResponse } from "./web-gateway/binding-guard";
+import { classifyOperation, scopeSatisfies } from "./web-gateway/scope";
 import { isStudioRequest, isStudioWsUpgradeRequest, studioHost } from "./studio-host";
 
 /** Both data planes share one listener; `kind` routes a socket to its handler. */
@@ -277,6 +298,11 @@ const UPDATE_CHECK_RE = /^\/api\/update\/check$/;
 const UPDATE_DOWNLOAD_RE = /^\/api\/update\/download$/;
 const UPDATE_INSTALL_RE = /^\/api\/update\/install$/;
 const PLUGINS_RE = /^\/api\/plugins$/;
+// Plugin page host: the manifest inventory and the package's own static
+// assets. The asset tail is decoded one segment at a time by the handler
+// (`web-gateway/assets.ts`), which also owns root resolution and containment.
+const PLUGIN_PAGES_RE = /^\/api\/plugin-pages$/;
+const PLUGIN_ASSETS_RE = /^\/api\/plugin-assets\/([^/]+)\/(.+)$/;
 const SETTINGS_RE = /^\/api\/settings$/;
 const SETTINGS_RELOAD_RE = /^\/api\/settings\/reload$/;
 const SETTINGS_VALUES_RE = /^\/api\/settings\/values$/;
@@ -306,6 +332,19 @@ const REMOTE_DEVICE_ID_PART = "[A-Za-z0-9_-]{1,64}";
 const REMOTE_DEVICE_RE = new RegExp(`^/api/remote/devices/(${REMOTE_DEVICE_ID_PART})$`);
 const DOCS_RE = /^\/api\/docs\/([A-Za-z0-9._/-]+)$/;
 const BLOB_RE = /^\/api\/blobs\/([^/]+)$/;
+const CHANNELS_INSTANCES_RE = /^\/api\/channels\/instances$/;
+const CHANNELS_INSTANCE_RE = /^\/api\/channels\/instances\/([a-z0-9][a-z0-9_-]{1,31})$/;
+const CHANNELS_INSTANCE_ACTION_RE =
+	/^\/api\/channels\/instances\/([a-z0-9][a-z0-9_-]{1,31})\/(validate|enable|disable)$/;
+const CHANNELS_INSTANCE_WECHAT_RE =
+	/^\/api\/channels\/instances\/([a-z0-9][a-z0-9_-]{1,31})\/wechat\/(qrcode|reconnect|unbind)$/;
+const IM_AGENTS_RE = /^\/api\/im\/agents$/;
+const IM_BINDINGS_RE = /^\/api\/im\/bindings$/;
+const IM_COMMANDS_RE = /^\/api\/im\/commands$/;
+const IM_SESSIONS_RE = /^\/api\/im\/sessions$/;
+const IM_SWITCH_RE = /^\/api\/im\/switch$/;
+const IM_SWITCH_CONFIRM_RE = /^\/api\/im\/switch\/confirm$/;
+const IM_SWITCH_CANCEL_RE = /^\/api\/im\/switch\/cancel$/;
 const CHANNELS_WECHAT_QR_RE = /^\/api\/channels\/wechat\/qrcode$/;
 const CHANNELS_WECHAT_RECONNECT_RE = /^\/api\/channels\/wechat\/reconnect$/;
 const CHANNELS_WECHAT_UNBIND_RE = /^\/api\/channels\/wechat\/unbind$/;
@@ -373,11 +412,8 @@ export { hostIsLoopback, isAllowedOrigin };
  * credential-only check used where a boolean answer is enough (the stats route).
  */
 export async function authorizedForAccess(req: Request, remoteAddr?: string): Promise<boolean> {
-	if (hostIsLoopback(req, remoteAddr)) return true;
-	const config = await WebConfig.load();
-	const provided = req.headers.get("authorization") ?? req.headers.get("x-zeta-token");
-	if (isRemoteTokenAccepted(config.getData().remote, provided)) return true;
-	return (await deviceRegistry().resolve(provided ?? "")) !== undefined;
+	if (isGenuinelyLocalRequest(req, remoteAddr)) return true;
+	return (await resolveCredential(req)) !== null;
 }
 
 /** In-process fetch handler; ZetaServer dispatches to this directly. */
@@ -387,22 +423,42 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	// timers are unref'd and the guard keeps it once-per-process).
 	scheduleTrashSweep();
 
-	// Access control: non-loopback clients need the remote token. The gate adds
-	// rate limiting and revocation on top (see web-gateway/remote-access.ts).
-	const loopback = hostIsLoopback(req, remoteAddr);
-	if (!loopback) {
-		const denied = await checkRemoteAccess(req, remoteAddr ?? "unknown");
-		if (denied) return denied;
+	// Access control: a genuine loopback socket passes; everything else needs a
+	// credential (device-bound session cookie, device token, or machine token).
+	// Forwarding headers make a loopback socket remote — a reverse proxy must
+	// never turn the control plane into an unauthenticated surface.
+	const local = isGenuinelyLocalRequest(req, remoteAddr);
+	let credential: RemoteCredential = { kind: "local" };
+	if (!local) {
+		const result = await authenticateRemote(req, remoteAddr ?? "unknown");
+		if (result.denial !== null) return result.denial;
+		credential = result.credential;
 	}
 
-	// CSRF: reject cross-site browser requests before any side effect. A valid
-	// remote token already authenticates the caller (an attacker's page cannot
-	// read or send it), so the Origin guard only guards unauthenticated
-	// loopback browsers.
-	if (loopback && !isAllowedOrigin(req.headers.get("origin"))) {
+	// CSRF: the request's own origin (or no origin) for browser-ambient
+	// credentials. A presented token already authenticates the request and
+	// cannot be forged by a hostile page, so an authenticated remote caller's
+	// Origin header cannot authorize anything extra (M2). A device-bound
+	// session cookie stays ambient and is checked against the request origin.
+	if ((local || credential.kind === "session") && !isAllowedRequestOrigin(req.headers.get("origin"), req.url, local)) {
 		return json({ error: "Forbidden origin" }, 403);
 	}
-	const pathname = new URL(req.url).pathname;
+
+	const url = new URL(req.url);
+	const pathname = url.pathname;
+
+	// Operation scope: decided by what the route does, not by its verb, so a
+	// read-only device cannot mutate through a POST that merely looks like a
+	// query and cannot open a terminal through a ticket.
+	const operation = classifyOperation(pathname, req.method);
+	if (!scopeSatisfies(credentialScopes(credential), operation)) {
+		return json({ error: "insufficient_scope" }, 403);
+	}
+
+	// Binding scope: a device bound to one conversation/workspace reaches only
+	// that resource; a request that names nothing is refused rather than allowed.
+	const binding = await bindingDecision(credential, pathname, url, req);
+	if (!binding.allowed) return bindingScopeResponse();
 
 	// 2FA step-up for device/token mutations. Reads and unrelated writes pass;
 	// a genuinely local caller is never challenged (see auth/two-factor-auth.ts).
@@ -452,6 +508,19 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		if (req.method === "PUT") return handleProjectsPut(req);
 		if (req.method === "DELETE") return handleDeleteProject(req);
 		return json({ error: "Method not allowed" }, 405);
+	}
+
+	// Desktop dictation transport: the Renderer's Worklet frames are forwarded
+	// by Electron Main. Only a prepared `dictation.*` audioId has a sink, and
+	// only the local shell may post audio: a paired remote browser is rejected
+	// even with a valid token.
+	if (
+		pathname === "/api/dictation/audio" ||
+		pathname === "/api/dictation/audio/attach" ||
+		pathname === "/api/dictation/audio/detach"
+	) {
+		if (!local) return json({ error: "Forbidden" }, 403);
+		return handleDictationAudio(req);
 	}
 
 	if (pathname === "/api/git/branches") {
@@ -938,6 +1007,21 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return handleUpdateInstall(req);
 	}
 
+	// Plugin page host. The pages inventory is a literal route; the asset
+	// route owns its own segment decoding and package containment.
+	if (PLUGIN_PAGES_RE.test(pathname)) {
+		if (req.method === "GET") return handlePluginPagesGet(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const pluginAsset = capture(pathname, PLUGIN_ASSETS_RE);
+	if (pluginAsset) {
+		if (req.method === "GET" || req.method === "HEAD") {
+			return handlePluginAssetGet(req, pluginAsset[0], pluginAsset[1]);
+		}
+		return json({ error: "Method not allowed" }, 405);
+	}
+
 	if (PLUGINS_RE.test(pathname)) {
 		if (req.method === "GET") return handlePluginsGet(req);
 		if (req.method === "POST") return handlePluginsPost(req);
@@ -1022,7 +1106,7 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	}
 
 	if (REMOTE_PAIRING_RE.test(pathname)) {
-		if (req.method === "GET") return handleRemotePairingGet(req);
+		if (req.method === "GET") return await handleRemotePairingGet(req, remoteAddr, credential);
 		return json({ error: "Method not allowed" }, 405);
 	}
 
@@ -1037,7 +1121,15 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (REMOTE_DEVICES_REVOKE_ALL_RE.test(pathname)) {
 		if (req.method === "POST") {
 			const response = await handleDevicesRevokeAllPost(req);
-			if (response.ok) forgetAllVerifications();
+			if (response.ok) {
+				// Revoking a device must also destroy the authority already granted
+				// to it: its persisted sessions, its live Studio sockets, and its
+				// 2FA grants. Otherwise an upgraded WebSocket keeps receiving events.
+				const dropped = await sessionStore().deleteAll();
+				forgetAllVerifications();
+				dropDeviceTerminalSockets();
+				for (const deviceId of dropped.deviceIds) studioHost().dropDeviceSessions(deviceId);
+			}
 			return response;
 		}
 		return json({ error: "Method not allowed" }, 405);
@@ -1052,8 +1144,10 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 			// essential when it was active: the gate stops its token, and this stops
 			// an already-upgraded socket from receiving more events.
 			if (response.ok) {
+				await sessionStore().deleteByDevice(deviceId[0]);
 				studioHost().dropDeviceSessions(deviceId[0]);
 				forgetDeviceVerification(deviceId[0]);
+				dropDeviceTerminalSockets(deviceId[0]);
 			}
 			return response;
 		}
@@ -1081,7 +1175,88 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (CHANNELS_STATUS_RE.test(pathname)) {
 		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
-		return json({ channels: getChannelStatus() });
+		return handleChannelsStatus();
+	}
+
+	if (CHANNELS_INSTANCES_RE.test(pathname)) {
+		if (req.method === "GET") return handleChannelInstancesGet();
+		if (req.method === "PUT") return handleChannelInstancesPut(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const instanceAction = capture(pathname, CHANNELS_INSTANCE_ACTION_RE);
+	if (instanceAction) {
+		const [instanceId, action] = instanceAction;
+		if (action === "validate") {
+			if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+			return handleChannelValidate(req, instanceId!);
+		}
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return handleChannelInstanceToggle(instanceId!, action === "enable");
+	}
+
+	const instanceWechat = capture(pathname, CHANNELS_INSTANCE_WECHAT_RE);
+	if (instanceWechat) {
+		const [instanceId, action] = instanceWechat;
+		if (action === "qrcode") {
+			if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+			const response = await handleWechatQr(instanceId!);
+			const payload = await response
+				.clone()
+				.json()
+				.catch(() => null);
+			if (
+				payload &&
+				typeof payload === "object" &&
+				"pending" in payload &&
+				payload.pending === true &&
+				"qrcodeUrl" in payload &&
+				typeof payload.qrcodeUrl === "string"
+			) {
+				const svg = renderWechatLoginQrSvg(payload.qrcodeUrl);
+				return json({ ...payload, ...(svg === undefined ? {} : { svg }) });
+			}
+			return response;
+		}
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return handleWechatAction(instanceId!, action === "reconnect" ? "reconnect" : "unbind");
+	}
+
+	if (IM_AGENTS_RE.test(pathname)) {
+		if (req.method === "GET") return handleImAgentsGet();
+		if (req.method === "PUT") return handleImAgentsPut(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (IM_BINDINGS_RE.test(pathname)) {
+		if (req.method === "GET") return handleImBindingsGet(req);
+		if (req.method === "PUT") return handleImBindingsPut(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (IM_COMMANDS_RE.test(pathname)) {
+		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+		return handleImCommands(req);
+	}
+
+	if (IM_SESSIONS_RE.test(pathname)) {
+		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+		return handleImSessions();
+	}
+
+	if (IM_SWITCH_RE.test(pathname)) {
+		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+		return handleImSwitchGet(req);
+	}
+
+	if (IM_SWITCH_CONFIRM_RE.test(pathname)) {
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return handleImSwitchConfirm(req);
+	}
+
+	if (IM_SWITCH_CANCEL_RE.test(pathname)) {
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return handleImSwitchCancel(req);
 	}
 
 	if (CHANNELS_SEND_RE.test(pathname)) {
@@ -1094,39 +1269,12 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		return handleChannelCredentials(req);
 	}
 
-	if (CHANNELS_WECHAT_QR_RE.test(pathname)) {
-		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
-		const qr = getPendingWechatQr();
-		if (!qr) return json({ pending: false });
-		// `svg` is the same payload the terminal renders as block characters, so a
-		// browser surface needs no QR library (and never sends the login URL to an
-		// external image service). Image payloads leave it out.
-		const svg = renderWechatLoginQrSvg(qr.qrcodeUrl);
-		return json({ pending: true, qrcodeUrl: qr.qrcodeUrl, status: qr.status, ...(svg === undefined ? {} : { svg }) });
-	}
-
-	if (CHANNELS_WECHAT_RECONNECT_RE.test(pathname)) {
-		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-		const trigger = triggerWechatReconnect();
-		if (!trigger) return json({ error: "WeChat channel is not running" }, 404);
-		try {
-			await trigger;
-			return json({ ok: true });
-		} catch (error) {
-			return json({ error: error instanceof Error ? error.message : String(error) }, 500);
-		}
-	}
-
-	if (CHANNELS_WECHAT_UNBIND_RE.test(pathname)) {
-		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-		const unbind = triggerWechatUnbind();
-		if (!unbind) return json({ error: "WeChat channel is not running" }, 404);
-		try {
-			await unbind;
-			return json({ ok: true });
-		} catch (error) {
-			return json({ error: error instanceof Error ? error.message : String(error) }, 500);
-		}
+	if (
+		CHANNELS_WECHAT_QR_RE.test(pathname) ||
+		CHANNELS_WECHAT_RECONNECT_RE.test(pathname) ||
+		CHANNELS_WECHAT_UNBIND_RE.test(pathname)
+	) {
+		return json({ error: "Use /api/channels/instances/:id/wechat/{qrcode,reconnect,unbind}" }, 410);
 	}
 
 	if (BOARD_RE.test(pathname)) {

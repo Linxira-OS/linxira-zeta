@@ -10,6 +10,14 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from robomp.paths import (
+    default_log_dir,
+    default_natives_cache_root,
+    default_sqlite_path,
+    default_workspace_root,
+    resolve_data_dir,
+)
+
 ThinkingLevel = Literal["off", "low", "medium", "high", "xhigh", "max"]
 
 
@@ -32,12 +40,15 @@ class Settings(BaseSettings):
     # the orchestrator then talks to gh-proxy over HMAC RPC and never sees
     # the PAT. Validated end-to-end in `_validate_proxy_or_pat` below.
     github_token: SecretStr | None = Field(None, alias="GITHUB_TOKEN")
-    github_webhook_secret: SecretStr = Field(..., alias="GITHUB_WEBHOOK_SECRET")
-    bot_login: str = Field(..., alias="ROBOMP_BOT_LOGIN")
+    github_webhook_secret: SecretStr | None = Field(None, alias="GITHUB_WEBHOOK_SECRET")
+    bot_login: str = Field("", alias="ROBOMP_BOT_LOGIN")
     git_author_name: str | None = Field(None, alias="ROBOMP_GIT_AUTHOR_NAME")
-    git_author_email: str = Field(..., alias="ROBOMP_GIT_AUTHOR_EMAIL")
+    git_author_email: str = Field("", alias="ROBOMP_GIT_AUTHOR_EMAIL")
     repo_allowlist_raw: str = Field("", alias="ROBOMP_REPO_ALLOWLIST")
     pr_review_enabled: bool = Field(True, alias="ROBOMP_PR_REVIEW_ENABLED")
+    # Offline mode is local-only: no PAT/proxy and no GitHub client. `serve`
+    # refuses it; `triage`/`replay`/`status` use it for fixture replay.
+    offline: bool = Field(False, alias="ROBOMP_OFFLINE")
 
     # Release sentinel
     release_sentinel_enabled: bool = Field(False, alias="ROBOMP_RELEASE_SENTINEL_ENABLED")
@@ -109,9 +120,10 @@ class Settings(BaseSettings):
     shutdown_kill_timeout_seconds: float = Field(5.0, alias="ROBOMP_SHUTDOWN_KILL_TIMEOUT_SECONDS")
 
     # Paths
-    workspace_root: Path = Field(Path("./data/workspaces"), alias="ROBOMP_WORKSPACE_ROOT")
-    sqlite_path: Path = Field(Path("./data/robomp.sqlite"), alias="ROBOMP_SQLITE_PATH")
-    log_dir: Path = Field(Path("./data/logs"), alias="ROBOMP_LOG_DIR")
+    data_dir: Path = Field(default_factory=resolve_data_dir, alias="ROBOMP_DATA_DIR")
+    workspace_root: Path = Field(default_factory=default_workspace_root, alias="ROBOMP_WORKSPACE_ROOT")
+    sqlite_path: Path = Field(default_factory=default_sqlite_path, alias="ROBOMP_SQLITE_PATH")
+    log_dir: Path = Field(default_factory=default_log_dir, alias="ROBOMP_LOG_DIR")
 
     # Server
     bind_host: str = Field("0.0.0.0", alias="ROBOMP_BIND_HOST")
@@ -162,7 +174,7 @@ class Settings(BaseSettings):
     # finishes successfully has fresh artifacts. Disable to fall back to
     # per-workspace builds.
     natives_cache_enabled: bool = Field(True, alias="ROBOMP_NATIVES_CACHE_ENABLED")
-    natives_cache_root: Path = Field(Path("/data/natives-cache"), alias="ROBOMP_NATIVES_CACHE_ROOT")
+    natives_cache_root: Path = Field(default_factory=default_natives_cache_root, alias="ROBOMP_NATIVES_CACHE_ROOT")
     natives_cache_max_entries_per_repo: int = Field(8, alias="ROBOMP_NATIVES_CACHE_MAX_ENTRIES_PER_REPO")
     natives_cache_max_bytes: int = Field(4 * 1024**3, alias="ROBOMP_NATIVES_CACHE_MAX_BYTES")
     natives_cache_gc_interval_seconds: float = Field(3600.0, alias="ROBOMP_NATIVES_CACHE_GC_INTERVAL_SECONDS")
@@ -178,13 +190,22 @@ class Settings(BaseSettings):
 
     @field_validator("bot_login", mode="after")
     @classmethod
-    def _require_bot_login(cls, value: str) -> str:
+    def _normalize_bot_login(cls, value: str) -> str:
         cleaned = value.strip().removeprefix("@").lower()
         if cleaned.endswith("[bot]"):
             cleaned = cleaned[:-5]
-        if not cleaned:
-            raise ValueError("ROBOMP_BOT_LOGIN must be a non-empty GitHub login")
         return cleaned
+
+    @field_validator("github_webhook_secret", mode="before")
+    @classmethod
+    def _blank_webhook_secret_disables(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        if hasattr(value, "get_secret_value"):
+            inner = value.get_secret_value()  # type: ignore[attr-defined]
+            if isinstance(inner, str) and not inner.strip():
+                return None
+        return value
 
     @field_validator("replay_token", mode="before")
     @classmethod
@@ -244,6 +265,16 @@ class Settings(BaseSettings):
         has_token = self.github_token is not None
         has_url = bool(self.gh_proxy_url)
         has_key = self.gh_proxy_hmac_key is not None
+        if self.offline:
+            # Local-only commands never construct a GitHub client; keep the
+            # credential fields untouched but do not require them.
+            return self
+        if not self.bot_login:
+            raise ValueError("ROBOMP_BOT_LOGIN must be a non-empty GitHub login")
+        if not self.git_author_email.strip():
+            raise ValueError("ROBOMP_GIT_AUTHOR_EMAIL must be a non-empty git author email")
+        if self.github_webhook_secret is None:
+            raise ValueError("GITHUB_WEBHOOK_SECRET is required unless ROBOMP_OFFLINE=1")
         if has_token and has_url:
             raise ValueError(
                 "GITHUB_TOKEN and ROBOMP_GH_PROXY_URL are mutually exclusive — "
@@ -393,7 +424,7 @@ class Settings(BaseSettings):
         return (self.git_author_name or self.bot_login).strip()
 
     def ensure_paths(self) -> None:
-        for path in (self.workspace_root, self.sqlite_path.parent, self.log_dir):
+        for path in (self.data_dir, self.workspace_root, self.sqlite_path.parent, self.log_dir):
             path.mkdir(parents=True, exist_ok=True)
 
 
@@ -429,8 +460,8 @@ class _ProxyEnvLoader(BaseSettings):
     gh_proxy_hmac_key: SecretStr = Field(..., alias="ROBOMP_GH_PROXY_HMAC_KEY")
     gh_proxy_bind_host: str = Field("0.0.0.0", alias="ROBOMP_GH_PROXY_BIND_HOST")
     gh_proxy_bind_port: int = Field(8081, alias="ROBOMP_GH_PROXY_BIND_PORT")
-    workspace_root: Path = Field(Path("./data/workspaces"), alias="ROBOMP_WORKSPACE_ROOT")
-    log_dir: Path = Field(Path("./data/logs"), alias="ROBOMP_LOG_DIR")
+    workspace_root: Path = Field(default_factory=default_workspace_root, alias="ROBOMP_WORKSPACE_ROOT")
+    log_dir: Path = Field(default_factory=default_log_dir, alias="ROBOMP_LOG_DIR")
     gh_proxy_max_body_bytes: int = Field(1 << 20, alias="ROBOMP_GH_PROXY_MAX_BODY_BYTES")
     gh_proxy_git_timeout_seconds: float = Field(60.0, alias="ROBOMP_GH_PROXY_GIT_TIMEOUT_SECONDS")
 

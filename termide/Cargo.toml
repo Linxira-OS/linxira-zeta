@@ -6,7 +6,7 @@ resolver = "2"
 unicode-width = { path = "crates/unicode-width-fix" }
 
 [workspace.package]
-version = "0.46.0"
+version = "0.49.0"
 edition = "2021"
 authors = ["Nick Nizovtsev"]
 license = "MIT"
@@ -42,7 +42,7 @@ nucleo-matcher = "0.3"
 # Snowball stemming (English, Russian) for the agent's `recall` ranking.
 rust-stemmers = "1.2"
 sysinfo = "0.31"
-starship-battery = "0.11"
+starship-battery = "0.12"
 chrono = { version = "0.4", features = ["serde"] }
 portable-pty = "0.8"
 vte = "0.13"
@@ -51,6 +51,9 @@ base64 = "0.22"
 tempfile = "3.12"
 log = "0.4"
 libc = "0.2"
+# Termination signals (SIGHUP, SIGTERM) for a clean shutdown; already in the
+# tree through crossterm.
+signal-hook = "0.3"
 glob = "0.3"
 similar = "2.7"
 serde_json = "1.0"
@@ -148,6 +151,8 @@ termide-logger = { path = "crates/logger" }
 termide-panel-editor = { path = "crates/panel-editor" }
 termide-panel-file-manager = { path = "crates/panel-file-manager" }
 termide-panel-terminal = { path = "crates/panel-terminal" }
+termide-plugin-perforce = { path = "crates/plugin-perforce" }
+termide-plugins = { path = "crates/plugins" }
 termide-project = { path = "crates/project" }
 termide-theme = { path = "crates/theme" }
 termide-ui-render = { path = "crates/ui-render" }

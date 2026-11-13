@@ -41,6 +41,9 @@ describe("github discovery — Copilot user-global surface", () => {
 
 	beforeEach(() => {
 		clearCache();
+		savedEnv.ZETA_FOREIGN_PROJECT_SOURCES = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		// `.github/*` is a foreign project source; these cases pin its discovery.
+		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "github";
 		for (const key of ENV_KEYS) savedEnv[key] = process.env[key];
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-github-copilot-"));
 		cwd = path.join(tempDir, "project");
@@ -58,6 +61,8 @@ describe("github discovery — Copilot user-global surface", () => {
 			if (savedEnv[key] === undefined) delete process.env[key];
 			else process.env[key] = savedEnv[key];
 		}
+		if (savedEnv.ZETA_FOREIGN_PROJECT_SOURCES === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		else process.env.ZETA_FOREIGN_PROJECT_SOURCES = savedEnv.ZETA_FOREIGN_PROJECT_SOURCES;
 		if (tempDir) removeSyncWithRetries(tempDir);
 	});
 

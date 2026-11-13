@@ -7,14 +7,17 @@
 //! stream — to warrant its own provider rather than another `Compat` dialect.
 
 use std::collections::HashMap;
+use std::sync::PoisonError;
 use std::time::Duration;
 
 use serde_json::{json, Map, Value};
 use termide_agent_core::{
-    now_millis, AssistantContent, AssistantMessage, CancelToken, Message, ModelInfo, Provider,
-    Request, StopReason, StreamEvent, ThinkingLevel, ToolCall, Usage,
+    now_millis, AssistantContent, AssistantMessage, Attribution, CancelToken, Message, ModelInfo,
+    Provider, Request, StopReason, StreamEvent, ThinkingLevel, ToolCall, Usage,
 };
 
+use crate::attribution;
+use crate::openai::{names_field, refusals_of, Refusals};
 use crate::retry::{with_retries, Failure, RetryPolicy};
 
 /// The Messages API version pinned in the request header.
@@ -26,6 +29,12 @@ pub struct AnthropicProvider {
     name: String,
     base_url: String,
     api_key: Option<String>,
+    /// How to identify termide to this endpoint, when it files usage by app
+    /// and the user asked for it; `None` sends no such header.
+    attribution: Option<Attribution>,
+    /// The optional fields the endpoint refused (a gateway that takes no
+    /// `cache_control`), shared by every provider talking to it.
+    refused: Refusals,
     pub retry: RetryPolicy,
     pub read_timeout: Duration,
     pub connect_timeout: Duration,
@@ -48,14 +57,17 @@ impl AnthropicProvider {
             .trim_end_matches("/v1")
             .trim_end_matches('/')
             .to_string();
+        let base_url = if base.is_empty() {
+            DEFAULT_BASE_URL.to_string()
+        } else {
+            base
+        };
         Self {
             name: name.into(),
-            base_url: if base.is_empty() {
-                DEFAULT_BASE_URL.to_string()
-            } else {
-                base
-            },
+            refused: refusals_of(&base_url),
+            base_url,
             api_key: None,
+            attribution: None,
             retry: RetryPolicy::default(),
             read_timeout,
             connect_timeout,
@@ -66,6 +78,14 @@ impl AnthropicProvider {
     #[must_use]
     pub fn with_api_key(mut self, key: Option<String>) -> Self {
         self.api_key = key.filter(|k| !k.is_empty());
+        self
+    }
+
+    /// Identify termide to the endpoint with `attribution`'s headers; `None`
+    /// leaves the request unattributed, as Anthropic's own API sees it.
+    #[must_use]
+    pub fn with_attribution(mut self, attribution: Option<Attribution>) -> Self {
+        self.attribution = attribution;
         self
     }
 
@@ -99,6 +119,13 @@ impl AnthropicProvider {
         let max_tokens = request.model.max_tokens.unwrap_or(UNLIMITED_MAX_TOKENS);
         body.insert("max_tokens".into(), json!(max_tokens));
         body.insert("stream".into(), json!(true));
+        // Automatic prompt caching: the conversation up to its last block is
+        // cached, and the breakpoint moves along as it grows, so each step of
+        // a run reads the steps before it from the cache. The API caches
+        // nothing unasked.
+        if !self.refuses(CACHE_CONTROL) {
+            body.insert(CACHE_CONTROL.into(), json!({ "type": "ephemeral" }));
+        }
         if !request.system_prompt.is_empty() {
             body.insert("system".into(), json!(request.system_prompt));
         }
@@ -152,6 +179,7 @@ impl AnthropicProvider {
         if let Some(key) = &self.api_key {
             http = http.set("x-api-key", key);
         }
+        let http = attribution::apply(http, self.attribution);
         let response = match http.send_string(body) {
             Ok(response) => response,
             Err(ureq::Error::Status(code, response)) => {
@@ -243,6 +271,7 @@ impl Provider for AnthropicProvider {
         if let Some(key) = &self.api_key {
             http = http.set("x-api-key", key);
         }
+        let http = attribution::apply(http, self.attribution);
         let body = match http.call() {
             Ok(response) => response
                 .into_string()
@@ -268,28 +297,43 @@ impl Provider for AnthropicProvider {
         on_event: &mut dyn FnMut(StreamEvent),
         cancel: &CancelToken,
     ) -> AssistantMessage {
-        let body = self.body(request, true).to_string();
-        let stripped = self.body(request, false).to_string();
         let model = request.model.id.as_str();
-        // A replayed block is refused when the conversation before it changed
-        // (a compaction, a rebuilt system prompt): the documented recovery is
-        // to send the history once more without its reasoning.
-        let mut current = &body;
+        let mut replay = true;
+        let mut current = self.body(request, replay).to_string();
         with_retries(
             &self.name,
             model,
             self.retry,
             cancel,
             on_event,
-            |on_event| match self.attempt(current, model, on_event, cancel) {
-                Err(failure)
-                    if current != &stripped && is_signature_rejection(&failure.message) =>
-                {
-                    log::warn!("{model} refused the replayed reasoning; retrying without it");
-                    current = &stripped;
-                    self.attempt(current, model, on_event, cancel)
+            |on_event| loop {
+                match self.attempt(&current, model, on_event, cancel) {
+                    // A replayed block is refused when the conversation
+                    // before it changed (a compaction, a rebuilt system
+                    // prompt): the documented recovery is to send the
+                    // history once more without its reasoning.
+                    Err(failure) if replay && is_signature_rejection(&failure.message) => {
+                        log::warn!("{model} refused the replayed reasoning; retrying without it");
+                        replay = false;
+                    }
+                    // A gateway that takes no `cache_control` is asked again
+                    // without it, and never again after.
+                    Err(failure)
+                        if !self.refuses(CACHE_CONTROL)
+                            && names_refused(&failure, CACHE_CONTROL) =>
+                    {
+                        log::warn!(
+                            "{} refused {CACHE_CONTROL}; retrying without it",
+                            self.base_url
+                        );
+                        self.refused
+                            .lock()
+                            .unwrap_or_else(PoisonError::into_inner)
+                            .insert(CACHE_CONTROL);
+                    }
+                    other => return other,
                 }
-                other => other,
+                current = self.body(request, replay).to_string();
             },
         )
     }
@@ -513,6 +557,26 @@ fn thinking_param(
 }
 
 /// Whether an error is the API refusing a replayed reasoning block.
+/// The request field that asks for prompt caching.
+const CACHE_CONTROL: &str = "cache_control";
+
+impl AnthropicProvider {
+    fn refuses(&self, field: &str) -> bool {
+        self.refused
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .contains(field)
+    }
+}
+
+/// Whether `failure` is a 400 or 422 that names `field` as a word of its own.
+fn names_refused(failure: &Failure, field: &str) -> bool {
+    ["HTTP 400", "HTTP 422"]
+        .iter()
+        .any(|status| failure.message.starts_with(status))
+        && (names_field(&failure.message, field) || names_field(&failure.detail, field))
+}
+
 fn is_signature_rejection(message: &str) -> bool {
     message.starts_with("HTTP 400") && message.contains("signature")
 }
@@ -775,6 +839,7 @@ fn parse_model_list(body: &str) -> Result<Vec<ModelInfo>, String> {
             let id = item.get("id").and_then(Value::as_str)?;
             Some(ModelInfo {
                 id: id.to_string(),
+                name: None,
                 context_window: None,
             })
         })
@@ -849,6 +914,56 @@ mod tests {
             acc.finish("anthropic", "claude-x", None, &mut |e| seen.push(e)),
             seen,
         )
+    }
+
+    #[test]
+    fn the_conversation_is_cached_unless_the_endpoint_refuses_it() {
+        use crate::openai::tests::{serve, sse, status};
+        let done = sse(concat!(
+            "data: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":1}}}\n\n",
+            "data: {\"type\":\"message_stop\"}\n\n",
+        ));
+        let refusal = status(
+            400,
+            r#"{"type":"error","error":{"type":"invalid_request_error","message":"cache_control: Extra inputs are not permitted"}}"#,
+        );
+        let (url, bodies) = serve(vec![refusal, done.clone(), done]);
+        let model = model("claude-sonnet-5");
+        let messages = vec![Message::User(UserMessage::text("hi"))];
+        let request = Request {
+            model: &model,
+            system_prompt: "",
+            messages: &messages,
+            tools: &[],
+            thinking: ThinkingLevel::Off,
+        };
+        let cached = |body: &str| {
+            serde_json::from_str::<Value>(body).unwrap()["cache_control"]
+                == json!({ "type": "ephemeral" })
+        };
+        assert!(cached(
+            &AnthropicProvider::new("anthropic")
+                .build_body(&request)
+                .to_string()
+        ));
+
+        let gateway = AnthropicProvider::with_base_url("gateway", url.clone());
+        let message = gateway.stream(&request, &mut |_| {}, &CancelToken::new());
+        assert!(
+            message.error_message.is_none(),
+            "{:?}",
+            message.error_message
+        );
+        // The next provider on that endpoint does not ask again.
+        AnthropicProvider::with_base_url("gateway", url).stream(
+            &request,
+            &mut |_| {},
+            &CancelToken::new(),
+        );
+        let bodies = bodies.lock().unwrap();
+        assert_eq!(bodies.len(), 3);
+        assert!(cached(&bodies[0]));
+        assert!(!cached(&bodies[1]) && !cached(&bodies[2]));
     }
 
     #[test]

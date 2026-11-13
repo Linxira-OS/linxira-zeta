@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test";
 import {
 	disposeProgramStatus,
+	holdBlockedStatus,
 	initProgramStatus,
 	resendProgramStatus,
 	setProgramStatusEnabled,
@@ -56,7 +57,7 @@ describe("run status OSC 7501 reporting", () => {
 	it("writes each transition as a whole root record, once, with kind only when blocked and msg as one clean line", () => {
 		setRunStatus({ state: "working" });
 		setRunStatus({ state: "working" });
-		setRunStatus({ state: "blocked", kind: "question", msg: "\x1b[1mWhich branch?\x1b[0m\n\tmain or dev?" });
+		holdBlockedStatus({ state: "blocked", kind: "question", msg: "\x1b[1mWhich branch?\x1b[0m\n\tmain or dev?" })();
 		setRunStatus({ state: "done" });
 		setRunStatus({ state: "error", msg: "boom" });
 		setRunStatus({ state: "error", msg: " \n " });
@@ -66,6 +67,7 @@ describe("run status OSC 7501 reporting", () => {
 			report(
 				`state=blocked:kind=question:app=zeta:msg=${Buffer.from("Which branch? main or dev?").toString("base64")}`,
 			),
+			report("state=working:app=zeta"),
 			report("state=done:app=zeta"),
 			report(`state=error:app=zeta:msg=${Buffer.from("boom").toString("base64")}`),
 			report("state=error:app=zeta"),
@@ -102,7 +104,7 @@ describe("run status OSC 7501 reporting", () => {
 		writes.length = 0;
 
 		setProgramStatusEnabled(false);
-		setRunStatus({ state: "blocked", kind: "permission" });
+		holdBlockedStatus({ state: "blocked", kind: "permission" });
 		setProgramStatusEnabled(true);
 
 		expect(writes).toEqual([CLEAR, report("state=blocked:kind=permission:app=zeta")]);
@@ -111,8 +113,9 @@ describe("run status OSC 7501 reporting", () => {
 	it("re-sends prompt-invalidated working and blocked records but never repeats a done result", () => {
 		setRunStatus({ state: "working" });
 		resendProgramStatus();
-		setRunStatus({ state: "blocked", kind: "permission", msg: "Approve the command?" });
+		const release = holdBlockedStatus({ state: "blocked", kind: "permission", msg: "Approve the command?" });
 		resendProgramStatus();
+		release();
 		setRunStatus({ state: "done" });
 		resendProgramStatus();
 
@@ -121,6 +124,27 @@ describe("run status OSC 7501 reporting", () => {
 			report("state=working:app=zeta"),
 			report(`state=blocked:kind=permission:app=zeta:msg=${Buffer.from("Approve the command?").toString("base64")}`),
 			report(`state=blocked:kind=permission:app=zeta:msg=${Buffer.from("Approve the command?").toString("base64")}`),
+			report("state=working:app=zeta"),
+			report("state=done:app=zeta"),
+		]);
+	});
+
+	it("reports the newest open wait over the run's own transitions, then the run's current status", () => {
+		const blocked = (msg: string) =>
+			report(`state=blocked:kind=question:app=zeta:msg=${Buffer.from(msg).toString("base64")}`);
+		setRunStatus({ state: "working" });
+		const first = holdBlockedStatus({ state: "blocked", kind: "question", msg: "Use Postgres?" });
+		// The run ends under the open wait: the user is still being asked.
+		setRunStatus({ state: "done" });
+		const second = holdBlockedStatus({ state: "blocked", kind: "question", msg: "Deploy now?" });
+		second();
+		first();
+
+		expect(writes).toEqual([
+			report("state=working:app=zeta"),
+			blocked("Use Postgres?"),
+			blocked("Deploy now?"),
+			blocked("Use Postgres?"),
 			report("state=done:app=zeta"),
 		]);
 	});

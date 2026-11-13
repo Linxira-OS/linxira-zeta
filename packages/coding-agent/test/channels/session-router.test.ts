@@ -79,8 +79,51 @@ describe("SessionRouter", () => {
 		await Promise.all(cleanups.splice(0).map(fn => fn()));
 	});
 
+	/** A config with the `wechat` instance every chat-scoped test binds to. */
+	async function loadConfig(prefix: string): Promise<WebConfig> {
+		const configDir = await mkdtemp(join(tmpdir(), prefix));
+		cleanups.push(() => rm(configDir, { recursive: true, force: true }));
+		await Bun.write(
+			join(configDir, "web.yml"),
+			JSON.stringify({
+				channels: {
+					instances: [
+						{
+							id: "wechat",
+							platform: "wechat",
+							label: "WeChat",
+							enabled: true,
+							agentProfile: "companion",
+							allow: { peers: ["peer-a", "peer-b", "peer-c"] },
+							credentials: { botToken: "tok" },
+						},
+					],
+				},
+				imAgents: [
+					{
+						id: "companion",
+						label: "Companion",
+						persona: { mode: "workspace" },
+						location: { kind: "workspace", workspace: "main" },
+						tools: {
+							builtin: [],
+							extensions: [],
+							customTools: [],
+							mcpServers: [],
+							skills: [],
+							commands: [],
+						},
+						memory: {},
+					},
+				],
+				remote: {},
+			}),
+		);
+		return WebConfig.load(join(configDir, "web.yml"));
+	}
+
 	async function makeRouter(dirs: string[]): Promise<SessionRouter> {
-		webConfig = await WebConfig.load(join(await mkdtemp(join(tmpdir(), "zeta-router-")), "web.yml"));
+		webConfig = await loadConfig("zeta-router-");
 		const coordinator = { getAgentId: () => "coordinator" } as unknown as AgentSession;
 		const router = new SessionRouter({
 			coordinator,
@@ -166,7 +209,7 @@ describe("SessionRouter", () => {
 		const dir1 = await mkdtemp(join(tmpdir(), "zeta-repo1-"));
 		cleanups.push(() => rm(dir1, { recursive: true, force: true }));
 
-		webConfig = await WebConfig.load(join(await mkdtemp(join(tmpdir(), "zeta-router-")), "web.yml"));
+		webConfig = await loadConfig("zeta-router-");
 		const router = new SessionRouter({
 			coordinator: { getAgentId: () => "coordinator" } as unknown as AgentSession,
 			webConfig,
@@ -241,26 +284,29 @@ describe("SessionRouter", () => {
 		expect(await router2.resolveRoute("wechat", "peer-b")).toBe("relay");
 	});
 
-	test("mode: relay on a persisted mapping outranks its alias", async () => {
+	test("a persisted binding routes direct until the chat is cleared back to relay", async () => {
 		const dir1 = await mkdtemp(join(tmpdir(), "zeta-repo1-"));
 		cleanups.push(() => rm(dir1, { recursive: true, force: true }));
 
 		const router = await makeRouter([dir1]);
 		const alias = path.basename(dir1);
-		await webConfig.setSessionMapping({
-			platform: "wechat",
-			chatId: "peer-c",
-			workspaceAlias: alias,
-			mode: "relay",
+		await webConfig.patchImBinding("wechat", "peer-c", {
+			target: { kind: "workspace", workspace: alias },
+			sessionId: "s-peer-c",
 		});
 
+		expect(await router.resolveRoute("wechat", "peer-c")).toBe("direct");
+		expect(await router.resolveChatTarget("wechat", "peer-c")).toEqual({ kind: "workspace", alias });
+
+		// A runtime switch (`@workspace relay`) wins immediately; clearing the
+		// persisted binding is what makes it durable.
+		await router.setRuntimeBinding("wechat", "peer-c", "main");
 		expect(await router.resolveRoute("wechat", "peer-c")).toBe("relay");
 		expect(await router.resolveChatTarget("wechat", "peer-c")).toEqual({ kind: "relay" });
 
-		// An explicit runtime switch (`@workspace use`) still wins.
-		await router.setRuntimeBinding("wechat", "peer-c", alias);
-		expect(await router.resolveRoute("wechat", "peer-c")).toBe("direct");
-		expect(await router.resolveChatTarget("wechat", "peer-c")).toEqual({ kind: "workspace", alias });
+		await router.unbindChat("wechat", "peer-c");
+		expect(await router.resolveRoute("wechat", "peer-c")).toBe("relay");
+		expect(await router.resolveChatTarget("wechat", "peer-c")).toEqual({ kind: "relay" });
 	});
 
 	test("deliverDirect injects into the bound session and routes its reply to the chat", async () => {
@@ -268,7 +314,7 @@ describe("SessionRouter", () => {
 		cleanups.push(() => rm(dir1, { recursive: true, force: true }));
 
 		const sent: Array<{ channelId: string; peer: string; text: string }> = [];
-		webConfig = await WebConfig.load(join(await mkdtemp(join(tmpdir(), "zeta-router-")), "web.yml"));
+		webConfig = await loadConfig("zeta-router-");
 		const router = new SessionRouter({
 			coordinator: { getAgentId: () => "coordinator" } as unknown as AgentSession,
 			webConfig,
@@ -345,7 +391,7 @@ describe("SessionRouter", () => {
 	}
 
 	async function makeBotRouter(): Promise<{ router: SessionRouter; config: WebConfig }> {
-		const config = await WebConfig.load(join(await mkdtemp(join(tmpdir(), "zeta-bot-")), "web.yml"));
+		const config = await loadConfig("zeta-bot-");
 		const router = new SessionRouter({
 			coordinator: { getAgentId: () => "coordinator" } as unknown as AgentSession,
 			webConfig: config,
@@ -388,7 +434,7 @@ describe("SessionRouter", () => {
 
 	test("!session use routes the chat to the bot session; deliverToBotSession returns its reply", async () => {
 		const sent: string[] = [];
-		const config = await WebConfig.load(join(await mkdtemp(join(tmpdir(), "zeta-bot-")), "web.yml"));
+		const config = await loadConfig("zeta-bot-");
 		const router = new SessionRouter({
 			coordinator: { getAgentId: () => "coordinator" } as unknown as AgentSession,
 			webConfig: config,

@@ -25,6 +25,14 @@ export const cfgTasteEnabled = register({
 	},
 });
 
+/** Window learning runs only after a committed boundary or session stop. */
+export const cfgTasteExtractionMode = register({
+	id: "taste.extractionMode",
+	type: "enum",
+	values: ["prompt", "window", "off"] as const,
+	default: "prompt",
+});
+
 /** Storage scope: `global` shares one store across projects, `per-project` keeps them apart. */
 export const cfgTasteScoping = register({
 	id: "taste.scoping",

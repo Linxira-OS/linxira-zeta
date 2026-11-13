@@ -248,7 +248,8 @@ impl App {
         for (group_idx, group) in self.layout_manager.panel_groups.iter_mut().enumerate() {
             for (panel_idx, panel) in group.panels().iter().enumerate() {
                 if let Some(diff) = panel.as_any().downcast_ref::<GitDiffPanel>() {
-                    if diff.repo_path() == repo_path
+                    if diff.loads_from_git()
+                        && diff.repo_path() == repo_path
                         && diff.commit_hash() == commit_hash.as_deref()
                         && diff.file_filter() == file_filter_str.as_deref()
                     {
@@ -261,6 +262,9 @@ impl App {
         }
 
         let panel = match (&commit_hash, &file_path) {
+            (Some(hash), Some(file)) => {
+                GitDiffPanel::new_for_commit_file(repo_path, hash.clone(), file.clone())
+            }
             (_, Some(file)) => GitDiffPanel::new_with_file_filter(repo_path, file.clone()),
             (Some(hash), None) => GitDiffPanel::new_for_commit(repo_path, hash.clone()),
             (None, None) => GitDiffPanel::new(repo_path),

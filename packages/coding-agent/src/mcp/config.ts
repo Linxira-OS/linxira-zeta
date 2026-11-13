@@ -22,6 +22,8 @@ export interface LoadMCPConfigsOptions {
 	filterBrowser?: boolean;
 	/** Session-local extension roots for post-startup rediscovery (explicit + mode + configured). */
 	extensionRoots?: EffectiveExtensionRoots;
+	/** Server allowlist for a per-agent profile; unlisted servers are never connected. */
+	serverNames?: readonly string[];
 }
 
 /** Result of loading MCP configs */
@@ -177,6 +179,19 @@ export async function loadAllMCPConfigs(cwd: string, options?: LoadMCPConfigsOpt
 		const browserResult = filterBrowserMCPServers(configs, sources);
 		configs = browserResult.configs;
 		sources = browserResult.sources;
+	}
+
+	if (options?.serverNames !== undefined) {
+		const allowed = new Set(options.serverNames);
+		const allowedConfigs: Record<string, MCPServerConfig> = {};
+		const allowedSources: Record<string, SourceMeta> = {};
+		for (const [name, config] of Object.entries(configs)) {
+			if (!allowed.has(name)) continue;
+			allowedConfigs[name] = config;
+			if (sources[name] !== undefined) allowedSources[name] = sources[name];
+		}
+		configs = allowedConfigs;
+		sources = allowedSources;
 	}
 
 	return { configs, exaApiKeys, sources };

@@ -6,12 +6,13 @@
  * phone or a CD is distinguishable from an internal disk); POSIX shows mount
  * points read from `/proc/mounts`, with the removable/media mounts marked.
  *
- * Both enumerations are synchronous and cached: the picker repaints on every
- * key, and a PowerShell round trip or a `/proc` read belongs once per process,
- * not once per frame. Every function takes its platform inputs as optional
- * arguments so tests can drive `win32` shapes on any host.
+ * Both enumerations are cached with a short TTL, not for the process lifetime:
+ * media can be inserted after the first picker open, and the picker offers an
+ * explicit refresh. Roots are enumerated asynchronously so opening the picker
+ * never waits on a PowerShell round trip. Every function takes its platform
+ * inputs as optional arguments so tests can drive `win32` shapes on any host.
  */
-import { spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -45,6 +46,7 @@ export interface MountInfo extends PickerDirectory {
 }
 
 const DIR_CACHE_TTL_MS = 500;
+const ROOTS_CACHE_TTL_MS = 30_000;
 const dirCache = new Map<string, { time: number; entries: PickerDirectory[] }>();
 
 /**
@@ -68,7 +70,12 @@ export function entryIsDirectory(dir: string, entry: fs.Dirent): boolean {
 /** Subdirectories of `directory`, sorted by name; files are never returned. */
 export function listChildDirectories(
 	directory: string,
-	options: { includeHidden?: boolean; max?: number } = {},
+	options: {
+		includeHidden?: boolean;
+		max?: number;
+		/** Called once when this call had to read the directory and it failed. */
+		onError?: (error: unknown) => void;
+	} = {},
 ): PickerDirectory[] {
 	const max = options.max ?? Number.POSITIVE_INFINITY;
 	const now = Date.now();
@@ -77,7 +84,8 @@ export function listChildDirectories(
 		let dirents: fs.Dirent[] = [];
 		try {
 			dirents = fs.readdirSync(directory, { withFileTypes: true });
-		} catch {
+		} catch (error) {
+			options.onError?.(error);
 			dirents = [];
 		}
 		const entries = dirents
@@ -171,16 +179,59 @@ export const WINDOWS_DRIVE_QUERY =
 	"[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; " +
 	"Get-CimInstance -ClassName Win32_LogicalDisk | Select-Object DeviceID,DriveType,VolumeName | ConvertTo-Json -Compress";
 
-let windowsDrivesCache: DriveInfo[] | undefined;
+let windowsDrivesCache: { time: number; drives: DriveInfo[] } | undefined;
+
+function freshWindowsDrives(): DriveInfo[] | undefined {
+	if (!windowsDrivesCache || Date.now() - windowsDrivesCache.time >= ROOTS_CACHE_TTL_MS) return undefined;
+	return windowsDrivesCache.drives;
+}
+
+function windowsDriveProbeSync(): DriveInfo[] {
+	const drives: DriveInfo[] = [];
+	for (let code = 65; code <= 90; code++) {
+		const letter = String.fromCharCode(code);
+		const root = `${letter}:\\`;
+		try {
+			if (fs.existsSync(root)) drives.push({ name: root, path: root, kind: "unknown" });
+		} catch {
+			// unreadable drive: not a picker row
+		}
+	}
+	return drives;
+}
+
+async function windowsDriveProbe(): Promise<DriveInfo[]> {
+	const probes = await Promise.all(
+		Array.from({ length: 26 }, async (_entry, index): Promise<DriveInfo | undefined> => {
+			const letter = String.fromCharCode(65 + index);
+			const root = `${letter}:\\`;
+			try {
+				return (await fs.promises.stat(root)).isDirectory()
+					? { name: root, path: root, kind: "unknown" }
+					: undefined;
+			} catch {
+				return undefined;
+			}
+		}),
+	);
+	return probes.filter((drive): drive is DriveInfo => drive !== undefined);
+}
+
+function parseDriveQuery(output: string | null | undefined): DriveInfo[] {
+	const drives = output ? parseWindowsLogicalDisks(output) : [];
+	return drives.length > 0 ? drives : windowsDriveProbeSync();
+}
 
 /**
  * The real Windows volumes. Prefers Win32_LogicalDisk (drive type + label);
  * when that query is unavailable (PowerShell missing, locked-down host, test
  * runner) it degrades to probing A:..Z: for a readable root, which still never
- * reports a drive that does not exist.
+ * reports a drive that does not exist. Synchronous compatibility entry point;
+ * the picker uses {@link refreshWindowsDrives}.
  */
 export function listWindowsDrives(options: { query?: () => string | null } = {}): DriveInfo[] {
-	if (windowsDrivesCache) return windowsDrivesCache;
+	const cached = freshWindowsDrives();
+	if (cached) return cached;
 	const query =
 		options.query ??
 		(() => {
@@ -195,21 +246,34 @@ export function listWindowsDrives(options: { query?: () => string | null } = {})
 				return null;
 			}
 		});
-	let drives: DriveInfo[] = [];
-	const output = query();
-	if (output) drives = parseWindowsLogicalDisks(output);
-	if (drives.length === 0) {
-		for (let code = 65; code <= 90; code++) {
-			const letter = String.fromCharCode(code);
-			const root = `${letter}:\\`;
-			try {
-				if (fs.existsSync(root)) drives.push({ name: root, path: root, kind: "unknown" });
-			} catch {
-				// unreadable drive: not a picker row
-			}
-		}
+	const drives = parseDriveQuery(query());
+	windowsDrivesCache = { time: Date.now(), drives };
+	return drives;
+}
+
+function queryWindowsDrivesAsync(): Promise<string | null> {
+	const { promise, resolve } = Promise.withResolvers<string | null>();
+	execFile(
+		"powershell.exe",
+		["-NoProfile", "-NonInteractive", "-Command", WINDOWS_DRIVE_QUERY],
+		{ encoding: "utf8", timeout: 4000, windowsHide: true, maxBuffer: 1024 * 1024 },
+		(error, stdout) => resolve(error || stdout == null ? null : String(stdout)),
+	);
+	return promise;
+}
+
+/** Enumerate Windows volumes without blocking the UI; uses the shared TTL cache. */
+export async function refreshWindowsDrives(
+	options: { query?: () => string | null | Promise<string | null>; force?: boolean } = {},
+): Promise<DriveInfo[]> {
+	if (options.force !== true) {
+		const cached = freshWindowsDrives();
+		if (cached) return cached;
 	}
-	windowsDrivesCache = drives;
+	const output = await (options.query ?? queryWindowsDrivesAsync)();
+	let drives = output ? parseWindowsLogicalDisks(output) : [];
+	if (drives.length === 0) drives = await windowsDriveProbe();
+	windowsDrivesCache = { time: Date.now(), drives };
 	return drives;
 }
 
@@ -274,8 +338,11 @@ export function decodeMountPath(encoded: string): string {
 
 /** Whether a mount point belongs in the picker's mount list. */
 function isPickerMount(mountPoint: string, fstype: string): boolean {
-	if (PSEUDO_FILESYSTEMS[fstype]) return false;
+	// The root is always navigable, even when its fstype is overlay/squashfs
+	// in a container; dropping it leaves the roots screen without the tree
+	// every other mount hangs off.
 	if (mountPoint === "/") return true;
+	if (PSEUDO_FILESYSTEMS[fstype]) return false;
 	// Nested kernel/container trees are noise: only the roots users navigate from.
 	if (mountPoint.startsWith("/snap/")) return false;
 	if (mountPoint.startsWith("/var/lib/")) return false;
@@ -303,7 +370,7 @@ export function parseLinuxMounts(text: string): MountInfo[] {
 		mounts.push({
 			name: path.basename(mountPoint) || mountPoint,
 			path: mountPoint,
-			source,
+			source: decodeMountPath(source),
 			fstype,
 			external:
 				Boolean(REMOVABLE_FILESYSTEMS[fstype]) ||
@@ -316,11 +383,21 @@ export function parseLinuxMounts(text: string): MountInfo[] {
 	return mounts.sort((left, right) => left.path.localeCompare(right.path));
 }
 
-let linuxMountsCache: MountInfo[] | undefined;
+let linuxMountsCache: { time: number; mounts: MountInfo[] } | undefined;
 
-/** The POSIX mount points worth showing: read `/proc/mounts` once per process. */
+function freshLinuxMounts(): MountInfo[] | undefined {
+	if (!linuxMountsCache || Date.now() - linuxMountsCache.time >= ROOTS_CACHE_TTL_MS) return undefined;
+	return linuxMountsCache.mounts;
+}
+
+function fallbackMounts(): MountInfo[] {
+	return [{ name: "/", path: "/", source: "/", fstype: "unknown", external: false }];
+}
+
+/** The POSIX mount points worth showing; synchronous compatibility entry point. */
 export function listLinuxMounts(options: { read?: () => string | null } = {}): MountInfo[] {
-	if (linuxMountsCache) return linuxMountsCache;
+	const cached = freshLinuxMounts();
+	if (cached) return cached;
 	const read =
 		options.read ??
 		(() => {
@@ -332,9 +409,50 @@ export function listLinuxMounts(options: { read?: () => string | null } = {}): M
 		});
 	const text = read();
 	const mounts = text ? parseLinuxMounts(text) : [];
-	linuxMountsCache =
-		mounts.length > 0 ? mounts : [{ name: "/", path: "/", source: "/", fstype: "unknown", external: false }];
-	return linuxMountsCache;
+	const result = mounts.length > 0 ? mounts : fallbackMounts();
+	linuxMountsCache = { time: Date.now(), mounts: result };
+	return result;
+}
+
+/**
+ * Refresh the POSIX mount list without blocking the UI. Mount points that are
+ * files (bind-mounted `/etc/hosts` in containers) or no longer resolve as
+ * directories are dropped; `validate: false` keeps the parse-only behavior for
+ * fixture-driven tests.
+ */
+export async function refreshLinuxMounts(
+	options: { read?: () => string | null | Promise<string | null>; validate?: boolean; force?: boolean } = {},
+): Promise<MountInfo[]> {
+	if (options.force !== true) {
+		const cached = freshLinuxMounts();
+		if (cached) return cached;
+	}
+	const text = await (
+		options.read ??
+		(async () => {
+			try {
+				return await fs.promises.readFile("/proc/mounts", "utf8");
+			} catch {
+				return null;
+			}
+		})
+	)();
+	let mounts = text ? parseLinuxMounts(text) : [];
+	if (options.validate !== false && mounts.length > 0) {
+		const checked = await Promise.all(
+			mounts.map(async (mount): Promise<MountInfo | undefined> => {
+				try {
+					return (await fs.promises.stat(mount.path)).isDirectory() ? mount : undefined;
+				} catch {
+					return undefined;
+				}
+			}),
+		);
+		mounts = checked.filter((mount): mount is MountInfo => mount !== undefined);
+	}
+	const result = mounts.length > 0 ? mounts : fallbackMounts();
+	linuxMountsCache = { time: Date.now(), mounts: result };
+	return result;
 }
 
 /** Reset the process-level mount cache (tests). */

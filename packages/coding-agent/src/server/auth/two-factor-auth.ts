@@ -28,7 +28,13 @@
 import type { DeviceRecord } from "./device-registry";
 import { deviceRegistry } from "./device-registry";
 import { renderQrSvg } from "../pairing";
-import { getRemoteAuthLimiter, isGenuinelyLocalRequest, rateLimitedRemoteResponse } from "../web-gateway/remote-access";
+import {
+	getRemoteAuthLimiter,
+	isGenuinelyLocalRequest,
+	rateLimitedRemoteResponse,
+	readCookie,
+} from "../web-gateway/remote-access";
+import { sessionStore } from "./session-store";
 import { twoFactorStore, type TwoFactorStore } from "./two-factor-store";
 
 /** Ordinary remote writes stay authorized for this long after a verify. */
@@ -74,6 +80,14 @@ export function forgetAllVerifications(): void {
  * address is the only stable handle the gateway already trusts.
  */
 async function grantKey(req: Request, remoteAddr?: string): Promise<string> {
+	// A cookie session is the strongest identity available (it is device-bound and
+	// revocable), so its device owns the grant. Then a device token, then the
+	// machine token, which has no id and can only be keyed by peer address.
+	const cookie = readCookie(req, "studio_session");
+	if (cookie !== undefined) {
+		const session = await sessionStore().get(cookie);
+		if (session !== undefined) return `device:${session.deviceId}`;
+	}
 	const provided = req.headers.get("authorization") ?? req.headers.get("x-zeta-token") ?? "";
 	const device: DeviceRecord | undefined = await deviceRegistry().findByToken(provided);
 	if (device !== undefined) return `device:${device.id}`;
@@ -167,13 +181,18 @@ export async function guardGatewayTwoFactor(
 	return null;
 }
 
-/** Gate used inside `StudioHost` for pairing (step-up) and commands (write). */
+/**
+ * Gate used inside `StudioHost` for commands (the twelve-hour write window).
+ *
+ * Pairing is deliberately absent: a pairing code is a single-use, 60-second
+ * presence credential, and a freshly paired device still has to pass 2FA for
+ * every write it attempts afterwards.
+ */
 export async function guardStudioTwoFactor(
 	req: Request,
 	remoteAddr: string | undefined,
 	pathname: string,
 ): Promise<Response | null> {
-	if (pathname === "/api/v1/pair") return twoFactorStepUpDenial(req, remoteAddr);
 	if (pathname === "/api/v1/command") return twoFactorWriteDenial(req, remoteAddr);
 	return null;
 }

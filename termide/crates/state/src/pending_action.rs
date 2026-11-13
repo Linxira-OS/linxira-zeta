@@ -85,6 +85,10 @@ pub enum PendingAction {
     /// Open the encrypted archive at `archive` (its root) with the password
     /// the modal answers with.
     ArchivePassword { archive: termide_vfs::VfsPath },
+    /// Whether to trust the SSH server key with `fingerprint` that stopped
+    /// the connection to `url`. The modal answers with a button id; the
+    /// file manager waiting on that key acts on it.
+    HostKey { url: String, fingerprint: String },
     /// A password-vault prompt (master password, a login password, a git
     /// user name). The app's vault controller holds what it is for, so no
     /// secret travels in a pending action.
@@ -104,6 +108,9 @@ pub enum PendingAction {
     ClosePanel,
     /// Close editor with choice: save, don't save, cancel
     CloseEditorWithSave,
+    /// Editing turned off over unsaved work in the editor of `path`, text or
+    /// hex: save it, discard it, or keep editing.
+    StopEditing { path: PathBuf },
     /// A selection a panel raised with `SelectAction::Custom`; the chosen
     /// index is delivered back to the panels as `PanelCommand::SelectionMade`
     /// with this action string.

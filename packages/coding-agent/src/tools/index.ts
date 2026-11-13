@@ -20,6 +20,7 @@ import type {
 	BeforeSubagentSpawnEventResult,
 	PreparedExtension,
 } from "../extensibility/extensions/types";
+import type { DevPluginRuntime } from "../extensibility/plugins/dev";
 import type { Skill, SkillRediscoveryHost } from "../extensibility/skills";
 import type { GoalModeState, GoalRuntime } from "../goals";
 import { GoalTool } from "../goals/tools/goal-tool";
@@ -46,6 +47,7 @@ import type { UsageStatistics } from "../session/session-entries";
 import type { SessionManager } from "../session/session-manager";
 import type { ToolChoiceQueue } from "../session/tool-choice-queue";
 import { TaskTool } from "../task";
+import type { PerCallModelAdvertisement } from "../task/model-approval";
 import type { AgentOutputManager } from "../task/output-manager";
 import { type AgentDefinition, canSpawnAtDepth } from "../task/types";
 import type { WorkPoolYieldItem } from "../task/workpool-yield";
@@ -59,7 +61,9 @@ import { BashTool } from "./bash";
 import { BoardTool } from "./board";
 import { CalendarTool } from "./calendar";
 import { RoomReadTool } from "./room";
+import { LocalRoomPostTool, LocalRoomReadTool, LocalRoomReplyTool } from "./local-rooms";
 import { type BuiltinToolName, type HiddenToolName, normalizeToolNames } from "./builtin-names";
+import { isBuiltinAllowedByToolProfile } from "./tool-policy";
 import { ChannelSendTool } from "./channel-send";
 import { type CheckpointState, CheckpointTool, type CompletedRewindState, RewindTool } from "./checkpoint";
 import { ContextNotesTool, NewContextTool } from "./context-notes";
@@ -173,6 +177,7 @@ export * from "./read";
 export * from "./report-tool-issue";
 export * from "./resolve";
 export * from "./room";
+export * from "./local-rooms";
 export * from "./secretary";
 export * from "./security-scan";
 export * from "./think";
@@ -318,6 +323,12 @@ export interface ToolSession {
 	/** Imported extension factories safe to rebind in child sessions. */
 	preparedExtensions?: PreparedExtension[];
 	/**
+	 * Session-local lifecycle for agent-authored dev plugins. Supplied only by
+	 * an interactive main session; absent in print/RPC/subagent/headless
+	 * sessions, so the lifecycle tool refuses instead of guessing a session.
+	 */
+	devPlugins?: () => DevPluginRuntime;
+	/**
 	 * Session-local extension roots for post-startup sub-discovery: explicit SDK
 	 * roots, discovery mode, and configured `extensions:`. A provider (not a
 	 * stored value) so it is materialized live per discovery call — a runtime
@@ -369,6 +380,24 @@ export interface ToolSession {
 	 * required yield tool). Suppresses automatic tool-set expansion.
 	 */
 	restrictToolNames?: boolean;
+	/**
+	 * Per-agent MCP tool admission. Applied on every MCP refresh — startup,
+	 * `tools/list_changed`, reconnect, `/mcp reload` — so a live catalog cannot
+	 * widen an allowlist.
+	 */
+	mcpToolFilter?: (tool: { name: string; mcpServerName?: string }) => boolean;
+	/** Per-agent skill admission, applied after discovery and on rediscovery. */
+	skillFilter?: (name: string) => boolean;
+	/** Per-runtime approval cache directory; undefined uses the agent directory. */
+	approvalCacheDir?: string;
+	/** Per-session memory namespace; persisted on the session header by the SDK. */
+	memoryNamespace?: string;
+	/**
+	 * Enable one registered tool through `write xd://enable`. The write tool's
+	 * approval gate has already run before the handler calls this; the SDK
+	 * re-checks `tools.disabled` and the profile/extension admission.
+	 */
+	enableToolByName?: (name: string) => Promise<{ enabled: boolean; reason?: string }>;
 	/** Seance forks: the consulted session's artifacts dir, read in place by history://, artifact://, agent://. */
 	readonly seanceSourceArtifactsDir?: string;
 	/** Task recursion depth (0 = top-level, 1 = first child, etc.) */
@@ -463,6 +492,13 @@ export interface ToolSession {
 	 * hidden notice. Absent when the embedder has no base-prompt surface.
 	 */
 	advertisedSessionAgents?: () => readonly AgentDefinition[];
+	/**
+	 * Per-call model roles baked into the current base prompt surface. The task
+	 * and eval descriptions list these instead of live settings so another
+	 * instance's role edit does not mutate the provider tool prefix; a real
+	 * rebuild absorbs the delta. Absent when the embedder has no surface.
+	 */
+	advertisedPerCallModel?: () => PerCallModelAdvertisement | undefined;
 	/** Get resolved model string if explicitly set for this session */
 	getModelString?: () => string | undefined;
 	/** Get the current session model string, regardless of how it was chosen */
@@ -669,6 +705,9 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	todo: s => new TodoTool(s),
 	board: s => new BoardTool(s),
 	room_read: s => new RoomReadTool(s),
+	local_room_read: s => new LocalRoomReadTool(s),
+	local_room_post: s => new LocalRoomPostTool(s),
+	local_room_reply: s => new LocalRoomReplyTool(s),
 	mode: s => new ModeTool(s),
 	web_search: s => new WebSearchTool(s),
 	time: s => new TimeTool(s.settings),
@@ -834,6 +873,7 @@ export async function resolveBuiltinToolPlan(session: ToolSession, toolNames?: s
 	}
 	const editDisabled = cfgEditMode.get(session.settings) === "none";
 	const isToolAllowed = (name: string) => {
+		if (!isBuiltinAllowedByToolProfile(name, session.settings)) return false;
 		// Never in the default set. Explicitly activatable while goal.enabled and
 		// no goal record exists yet — /guided-goal enables it so the agent can
 		// finish the interview with `goal create`, which turns goal mode on. Once

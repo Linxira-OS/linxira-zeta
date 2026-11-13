@@ -73,6 +73,8 @@ export type WorkerInitPayload =
 			downloadsPath?: string;
 			/** Explicit tab user agent applied during worker initialization. */
 			userAgent?: string;
+			/** Allow the tab to ignore invalid certificates. */
+			insecure?: boolean;
 			/** Ignore invalid HTTPS certificates for this page. */
 			ignoreHttpsErrors?: boolean;
 	  }
@@ -93,6 +95,8 @@ export type WorkerInitPayload =
 			downloadsPath?: string;
 			/** Explicit tab user agent applied during worker initialization. */
 			userAgent?: string;
+			/** Allow the tab to ignore invalid certificates. */
+			insecure?: boolean;
 			/** Ignore invalid HTTPS certificates for this page. */
 			ignoreHttpsErrors?: boolean;
 			/**
@@ -148,6 +152,8 @@ export interface RunErrorPayload {
 	navigationTimeout?: boolean;
 	/** The page's renderer crashed; the worker runs nothing more and must be recycled. */
 	rendererCrashed?: boolean;
+	/** The run referenced a missing page global. */
+	missingPageGlobal?: boolean;
 	/**
 	 * Chrome ended the debugger attachment the page is driven through (omp browser relay) `during` this run, after
 	 * its code started, or `before` it, so nothing ran; the worker runs nothing more. `reason` is Chrome's
@@ -185,4 +191,9 @@ export interface Transport {
 	send(msg: WorkerOutbound | WorkerInbound, transferList?: Transferable[]): void;
 	onMessage(handler: (msg: WorkerOutbound | WorkerInbound) => void): () => void;
 	close(): void;
+}
+
+export function isMissingPageGlobal(error: unknown): boolean {
+	const message = error instanceof Error ? error.message : String(error);
+	return /page.*global|global.*page/i.test(message);
 }

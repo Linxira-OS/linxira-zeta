@@ -85,6 +85,7 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	"Discovery & MCP": "发现与 MCP",
 	Extensions: "扩展",
 	Developer: "开发者",
+	Exposure: "暴露范围",
 	Modes: "模式",
 	Subagents: "子代理",
 	Isolation: "隔离",
@@ -108,6 +109,42 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
  * `description` is omitted only when the schema entry has no description.
  */
 export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; description?: string }>> = {
+	"task.steps": {
+		label: "顺序任务步骤",
+		description:
+			"子代理按有序 steps 执行而不是单个 task：先拿到第一步，每完成一步再拿下一步；超过 4 步时较早消息会携带两步或更多。最后一步的结果就是任务结果。",
+	},
+	"codexResets.autoRedeem5h": {
+		label: "Codex 自动兑换已保存重置（5 小时）",
+		description:
+			"在仅 5 小时的限流块和可用聊天窗口最长为 5 小时的到期额度上使用已保存的 Codex 重置。unset 会先询问，无提示绝不花费；yes 不询问直接花费；no 从不花费。",
+	},
+	"codexResets.autoRedeemWeekly": {
+		label: "Codex 自动兑换已保存重置（每周）",
+		description:
+			"在每周限流块和可用聊天窗口为每周的到期额度上使用已保存的 Codex 重置；仅从短暂 429 等待得知的块需要两个 Codex 窗口。unset 会先询问，无提示绝不花费；yes 不询问直接花费；no 从不花费。",
+	},
+	"claudeResets.autoRedeem5h": {
+		label: "Claude 自动兑换已保存重置（5 小时）",
+		description:
+			"在仅 5 小时的限流块和可用覆盖限制最长为 5 小时的到期额度上使用 Claude Cedar 或 Juniper 重置。unset 会先询问，无提示绝不花费；yes 不询问直接花费；no 从不花费。",
+	},
+	"claudeResets.autoRedeemWeekly": {
+		label: "Claude 自动兑换已保存重置（每周）",
+		description:
+			"在每周或模型范围的限流块和可用覆盖限制为每周的到期额度上使用 Claude Cedar 重置。unset 会先询问，无提示绝不花费；yes 不询问直接花费；no 从不花费。",
+	},
+	"claudeResets.autoRedeemFable": {
+		label: "Claude 自动兑换 Fable 重置",
+		description:
+			"使用 Claude Fable 启动重置，它会恢复 Fable 每周用量和 5 小时窗口；只有此设置控制它们。unset 会先询问，无提示绝不花费；yes 不询问直接花费；no 从不花费。",
+	},
+
+	"task.autoParallel": {
+		label: "自动并行",
+		description:
+			"让通过 judge 角色解析的原生裁判判断每个新的顶层提示中哪些部分可以并行运行；需要原生裁判和 task 工具，否则不做判断。",
+	},
 	autoResume: {
 		label: "自动恢复",
 		description: "自动恢复当前目录中的最近会话",
@@ -998,6 +1035,16 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"实验性：将大型历史工具结果渲染为密集 PNG 图像而非文本（仅限视觉模型）。在累积的 read/search 输出上节省 token。",
 	},
+	"tools.profile": {
+		label: "工具配置档",
+		description:
+			"当前智能体可用的内置工具范围。超精简：read/write/edit/bash（4）；精简增加 web_search（5）；标准增加 glob/grep/find/task/wait/todo/ask（12）；完整开放所有已启用工具。",
+	},
+	"tools.disabled": {
+		label: "停用工具",
+		description:
+			'永不注册的工具名，例如 ["bash","plugin_manager"]。适用于内置、扩展/自定义/MCP 工具；被拒绝的工具不会出现在 schema 与 xd:// 目录中。',
+	},
 	"tools.format": {
 		label: "工具调用模式",
 		description:
@@ -1617,6 +1664,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"mcp.enableProjectConfig": {
 		label: "MCP 项目配置",
 		description: "从项目根目录加载 .mcp.json/mcp.json",
+	},
+	"mcp.precedence": {
+		label: "MCP 工具优先级",
+		description:
+			"原生工具与 MCP 服务器提供同一分析能力时：优先原生、优先 MCP，或通过现有审批路径询问。禁用的原生工具不会压制允许的 MCP 服务器。",
 	},
 	"mcp.renderMarkdownResults": {
 		label: "MCP Markdown 结果",
@@ -2385,6 +2437,15 @@ export type ZetaSettingsZhOverlay = typeof ZH_SETTING_TEXTS;
  * `description` is omitted only when the schema entry has no description.
  */
 export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; description?: string }>> = {
+	"task.autoParallel::off": { label: "关闭", description: "从不拆分提示" },
+	"task.autoParallel::suggest": {
+		label: "建议",
+		description: "判断每个提示并报告拆分方案，但不执行",
+	},
+	"task.autoParallel::on": {
+		label: "开启",
+		description: "当提示可拆为独立子任务时，让代理并行委派",
+	},
 	"prewalk.auto::off": {
 		label: "关闭",
 		description: "从不为预遍历分类提示",
@@ -5676,6 +5737,106 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"task.workerThreads::8": {
 		label: "最多 8 个工作线程",
+	},
+	"tools.profile::super-minimal": {
+		label: "超级精简（4）",
+		description: "read、write、edit、bash",
+	},
+	"tools.profile::minimal": {
+		label: "精简（5）",
+		description: "超级精简 + web_search",
+	},
+	"tools.profile::standard": {
+		label: "标准（12）",
+		description: "精简 + glob、grep、find、task、wait、todo、ask",
+	},
+	"tools.profile::full": {
+		label: "完整",
+		description: "所有已启用的内置工具（当前默认）",
+	},
+	"mcp.precedence::native": {
+		label: "原生优先",
+		description: "保留原生工具，并将同能力的 MCP 服务器标记为被压制。",
+	},
+	"mcp.precedence::mcp": {
+		label: "MCP 优先",
+		description: "挂载 MCP 服务器并抑制重叠的原生工具。",
+	},
+	"mcp.precedence::ask": {
+		label: "询问",
+		description: "挂载 MCP 服务器前通过现有审批路径询问。",
+	},
+	"providers.webSearchOrder::sofya": {
+		label: "Sofya",
+	},
+	"providers.webSearchOrder::hackernews": {
+		label: "Hacker News",
+	},
+	"providers.webSearchExclude::sofya": {
+		label: "Sofya",
+	},
+	"providers.webSearchExclude::hackernews": {
+		label: "Hacker News",
+	},
+	"codexResets.autoRedeem5h::unset": {
+		label: "未设置",
+		description: "花费前先询问；没有提示绝不花费。",
+	},
+	"codexResets.autoRedeem5h::yes": {
+		label: "是",
+		description: "无需询问直接花费符合条件的已保存重置。",
+	},
+	"codexResets.autoRedeem5h::no": {
+		label: "否",
+		description: "此窗口绝不花费已保存的重置。",
+	},
+	"codexResets.autoRedeemWeekly::unset": {
+		label: "未设置",
+		description: "花费前先询问；没有提示绝不花费。",
+	},
+	"codexResets.autoRedeemWeekly::yes": {
+		label: "是",
+		description: "无需询问直接花费符合条件的已保存重置。",
+	},
+	"codexResets.autoRedeemWeekly::no": {
+		label: "否",
+		description: "此窗口绝不花费已保存的重置。",
+	},
+	"claudeResets.autoRedeem5h::unset": {
+		label: "未设置",
+		description: "花费前先询问；没有提示绝不花费。",
+	},
+	"claudeResets.autoRedeem5h::yes": {
+		label: "是",
+		description: "无需询问直接花费符合条件的已保存重置。",
+	},
+	"claudeResets.autoRedeem5h::no": {
+		label: "否",
+		description: "此窗口绝不花费已保存的重置。",
+	},
+	"claudeResets.autoRedeemWeekly::unset": {
+		label: "未设置",
+		description: "花费前先询问；没有提示绝不花费。",
+	},
+	"claudeResets.autoRedeemWeekly::yes": {
+		label: "是",
+		description: "无需询问直接花费符合条件的已保存重置。",
+	},
+	"claudeResets.autoRedeemWeekly::no": {
+		label: "否",
+		description: "此窗口绝不花费已保存的重置。",
+	},
+	"claudeResets.autoRedeemFable::unset": {
+		label: "未设置",
+		description: "花费前先询问；没有提示绝不花费。",
+	},
+	"claudeResets.autoRedeemFable::yes": {
+		label: "是",
+		description: "无需询问直接花费符合条件的已保存重置。",
+	},
+	"claudeResets.autoRedeemFable::no": {
+		label: "否",
+		description: "此窗口绝不花费已保存的重置。",
 	},
 };
 

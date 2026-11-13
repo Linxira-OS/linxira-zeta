@@ -1,7 +1,8 @@
 # Team durable work queue (schema v5) and bootstrap design
 
-- **Status:** Queue implemented in this slice (schema v5); `/initzetateam` is a
-  design only and is not shipped.
+- **Status:** Queue + transactional `/initzetateam` implemented (schema v5/v6);
+  room delivery and the opt-in engineer task worker are implemented. Automatic
+  Vibe start and IM per-agent binding remain out of scope.
 - **Scope:** `packages/coding-agent/src/team/tasks.ts`, the Team database, the
   `zetacode team task …` CLI, and `team doctor`.
 - **Not in scope:** the `/initzetateam` wizard, Vibe auto-start, and any
@@ -182,7 +183,7 @@ mode's toolset (Lead has no bash/edit); it belongs to the engineer main-agent
 session in its worktree. Auto-start stays off until the bootstrap wizard and
 worker crash/reclaim path are exercised end to end.
 
-## 9. `/initzetateam` bootstrap design (not implemented)
+## 9. `/initzetateam` bootstrap design (implemented)
 
 The current commands are safe steps, not a wizard: `team init` only creates the
 root, and every later step can fail independently. A one-shot wizard must be a

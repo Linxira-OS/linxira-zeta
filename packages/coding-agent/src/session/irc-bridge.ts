@@ -1,4 +1,5 @@
 import type { Agent, AgentMessage } from "@linxiraos/pi-agent-core";
+import type { Message } from "@linxiraos/pi-ai";
 import { isRecord, prompt } from "@linxiraos/pi-utils";
 import { type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import parentIrcSteerTemplate from "../prompts/steering/parent-irc.md" with { type: "text" };
@@ -6,6 +7,7 @@ import ircIncomingTemplate from "../prompts/system/irc-incoming.md" with { type:
 import { AgentRegistry, isRootAgentRef } from "../registry/agent-registry";
 import type { AgentSessionEvent } from "./agent-session-events";
 import { escapeHarnessTags } from "./harness-tags";
+import { normalizeImMessageMetadata } from "./session-im";
 import type { CustomMessage } from "./messages";
 import type { SessionManager } from "./session-manager";
 
@@ -176,59 +178,6 @@ export class IrcBridge {
 		return records;
 	}
 
-	/** Surfaces and consumes every queued incoming record before automatic injection; with
-	 *  `ifAny`, takes nothing unless at least one of them satisfies it. */
-	drainInboxMessages(agentId: string, opts?: { ifAny?: (msg: IrcMessage) => boolean }): IrcMessage[] {
-		const messages: IrcMessage[] = [];
-		const remainingInterrupts: AgentMessage[] = [];
-		const remainingAsides: AgentMessage[] = [];
-		const queues = [
-			{ records: this.#interrupts, remaining: remainingInterrupts },
-			{ records: this.#asides, remaining: remainingAsides },
-		];
-		for (const queue of queues) {
-			for (const record of queue.records) {
-				if (record.role !== "custom") {
-					queue.remaining.push(record);
-					continue;
-				}
-				if (record.customType !== "irc:incoming") {
-					queue.remaining.push(record);
-					continue;
-				}
-				const details = record.details;
-				if (!details || typeof details !== "object") {
-					queue.remaining.push(record);
-					continue;
-				}
-				const id = Reflect.get(details, "id");
-				const from = Reflect.get(details, "from");
-				const body = Reflect.get(details, "message");
-				const replyTo = Reflect.get(details, "replyTo");
-				const broadcast = Reflect.get(details, "broadcast") === true;
-				const progress = Reflect.get(details, "progress") === true;
-				if (typeof id !== "string" || typeof from !== "string" || typeof body !== "string") {
-					queue.remaining.push(record);
-					continue;
-				}
-				messages.push({
-					id,
-					from,
-					to: agentId,
-					body,
-					ts: record.timestamp,
-					...(typeof replyTo === "string" ? { replyTo } : {}),
-					...(broadcast ? { broadcast: true } : {}),
-					...(progress ? { progress: true } : {}),
-				});
-			}
-		}
-		if (opts?.ifAny && !messages.some(opts.ifAny)) return [];
-		this.#interrupts = remainingInterrupts;
-		this.#asides = remainingAsides;
-		return messages;
-	}
-
 	/** Delivers an IRC message into the recipient session without awaiting any wake turn. */
 	async deliver(msg: IrcMessage): Promise<"injected" | "woken"> {
 		if (this.#host.isDisposed()) throw new Error("Recipient session is disposed.");
@@ -275,17 +224,34 @@ export class IrcBridge {
 		// harness envelope it is rendered into or open a forged one, e.g. a parent
 		// steer. `details.message` keeps the raw body for the transcript card and inbox.
 		const envelopeBody = escapeHarnessTags(msg.body);
+		// IM ingress is a real user turn with entry-level provenance. The custom
+		// record remains the wake/correlation carrier, but carries no duplicate
+		// prompt text once the user entry exists.
+		const imMetadata = normalizeImMessageMetadata(msg.metadata);
+		const isImUserTurn = imMetadata !== undefined && !("replyToMessageId" in imMetadata);
+		if (isImUserTurn) {
+			this.#host.sessionManager.appendMessage(
+				{
+					role: "user",
+					content: [{ type: "text", text: msg.body }],
+					timestamp: msg.ts,
+				} as Message,
+				imMetadata,
+			);
+		}
 		const record: CustomMessage = {
 			role: "custom",
 			customType: "irc:incoming",
-			content: prompt.render(ircIncomingTemplate, {
-				from: msg.from,
-				message: envelopeBody,
-				replyTo: msg.replyTo ?? "",
-				progress: msg.progress === true,
-				interrupting: streaming && !quiet,
-				relayOnStop,
-			}),
+			content: isImUserTurn
+				? ""
+				: prompt.render(ircIncomingTemplate, {
+						from: msg.from,
+						message: envelopeBody,
+						replyTo: msg.replyTo ?? "",
+						progress: msg.progress === true,
+						interrupting: streaming && !quiet,
+						relayOnStop,
+					}),
 			// The parent steer becomes the transcript card when consumed; keep this
 			// observation available to listeners without also painting a live card.
 			display: !(streaming && fromParent && !peerMessage),
@@ -298,6 +264,7 @@ export class IrcBridge {
 				...(msg.broadcast ? { broadcast: true } : {}),
 				...(msg.progress ? { progress: true } : {}),
 				...(fromParent ? { fromParent: true } : {}),
+				...(msg.metadata ? { metadata: msg.metadata } : {}),
 			},
 			attribution: "agent",
 			timestamp: msg.ts,

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { SessionHistoryEntry, SessionHistoryReadModel, StudioClient, TokenUsageReadModel } from "@linxiraos/studio-contract";
+import type { SessionHistoryEntry, SessionHistoryReadModel, StudioClient, TokenUsageReadModel, WorkspaceListReadModel } from "@linxiraos/studio-contract";
 import { Icon } from "../icons";
 import { useI18n } from "../i18n";
 import { usePreviewMode } from "../preview/PreviewContext";
@@ -28,7 +28,7 @@ export function greetingPart(now = new Date(), lang: "zh" | "en" = "zh"): string
 export function ConversationEmpty({
   client,
   history,
-  projectName,
+  workspaces,
   runningSessionId,
   waitingSessionId,
   hiddenPreviewThreadIds,
@@ -40,7 +40,7 @@ export function ConversationEmpty({
 }: {
   client?: StudioClient;
   history?: SessionHistoryReadModel;
-  projectName?: string;
+  workspaces?: WorkspaceListReadModel;
   runningSessionId?: string;
   waitingSessionId?: string;
   hiddenPreviewThreadIds?: ReadonlySet<string>;
@@ -52,7 +52,6 @@ export function ConversationEmpty({
   onOpenDiagnostics?: () => void;
 }) {
   const { t, resolvedLanguage } = useI18n();
-  const effectiveProjectName = projectName ?? t("conversation.noProjectSelected");
   const { preview } = usePreviewMode();
   const { profile } = useOperatorProfile();
   const previewUsage = useMemo(() => buildPreviewUsage(), []);
@@ -111,12 +110,12 @@ export function ConversationEmpty({
     const entries = (history ?? fetchedHistory)?.entries ?? [];
     return collectHistoryRecents({
       entries,
-      projectName: effectiveProjectName,
+      workspaces,
       ...(runningSessionId === undefined ? {} : { runningSessionId }),
       ...(waitingSessionId === undefined ? {} : { waitingSessionId }),
       lang: resolvedLanguage,
     });
-  }, [effectiveProjectName, fetchedHistory, hiddenPreviewThreadIds, history, resolvedLanguage, preview, runningSessionId, waitingSessionId]);
+  }, [workspaces, fetchedHistory, hiddenPreviewThreadIds, history, resolvedLanguage, preview, runningSessionId, waitingSessionId]);
 
   const greet = `${greetingPart(new Date(), resolvedLanguage)}，${profile.displayName}`;
   const usageReason = !preview && liveUsage?.unavailableReason ? liveUsage.unavailableReason : undefined;
@@ -228,8 +227,7 @@ export function ConversationEmpty({
                 <span className={`dot ${dot}`} aria-hidden="true" />
                 <span className="ce-row-title">{row.title}</span>
                 <span className="ce-row-meta">
-                  <span className="ce-meta-proj">{row.project}</span>
-                  <span className="ce-meta-sep" aria-hidden="true" />
+                  {row.project ? <><span className="ce-meta-proj" data-tip={row.project}>{row.project}</span><span className="ce-meta-sep" aria-hidden="true" /></> : null}
                   {row.time}
                 </span>
               </button>

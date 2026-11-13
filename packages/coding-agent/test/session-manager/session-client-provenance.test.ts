@@ -116,9 +116,62 @@ describe("session client provenance", () => {
 		await manager?.close();
 	});
 
-	it("names the client a serve process represents", () => {
-		expect(serveSessionClient({ ZETA_DESKTOP: "1" })).toBe("desktop");
-		expect(serveSessionClient({ ZETA_DESKTOP: "0" })).toBe("automation");
-		expect(serveSessionClient({})).toBe("automation");
+	it("records run_init on open while leaving the creator header untouched", async () => {
+		const source = SessionManager.create(cwd, sessionDir(), undefined, { client: "cli" });
+		await source.ensureOnDisk();
+		const file = source.getSessionFile();
+		expect(file).toBeTruthy();
+		await source.close();
+		const headerLine = fs.readFileSync(file!, "utf8").split("\n")[0]!;
+
+		const opened = await SessionManager.open(file!, sessionDir(), undefined, { client: "web" });
+		expect(opened.getHeader()?.client).toBe("cli");
+		const runInits = opened.getEntries().filter(entry => entry.type === "run_init");
+		expect(runInits).toHaveLength(1);
+		expect(runInits[0]).toMatchObject({ client: "web" });
+		await opened.close();
+
+		// The creator header line stays byte-identical; the run is a new entry.
+		expect(fs.readFileSync(file!, "utf8").split("\n")[0]).toBe(headerLine);
+
+		const reopened = await SessionManager.open(file!, sessionDir(), undefined, { client: "desktop" });
+		expect(reopened.getHeader()?.client).toBe("cli");
+		const runInitClients = reopened
+			.getEntries()
+			.filter(entry => entry.type === "run_init")
+			.map(entry => entry.client);
+		expect(runInitClients).toEqual(["web", "desktop"]);
+		await reopened.close();
+	});
+
+	it("stamps a fresh open as creator and records no run_init", async () => {
+		const file = path.join(sessionDir(), "empty-open.jsonl");
+		fs.mkdirSync(sessionDir(), { recursive: true });
+		fs.writeFileSync(file, "", "utf8");
+
+		const opened = await SessionManager.open(file, sessionDir(), undefined, { client: "web" });
+		expect(opened.getHeader()?.client).toBe("web");
+		expect(opened.getEntries().some(entry => entry.type === "run_init")).toBe(false);
+		await opened.close();
+	});
+
+	it("keeps the source memory namespace and stamps the fork initiator", async () => {
+		const source = SessionManager.create(cwd, sessionDir(), undefined, {
+			client: "cli",
+			memoryNamespace: "runtime-ns",
+		});
+		await source.ensureOnDisk();
+		const sourceFile = source.getSessionFile();
+		const sourceId = source.getHeader()?.id;
+		expect(sourceFile).toBeTruthy();
+		await source.close();
+
+		const forked = await SessionManager.forkFrom(sourceFile!, cwd, path.join(root, "forks"), undefined, {
+			client: "desktop",
+		});
+		expect(forked.getHeader()?.client).toBe("desktop");
+		expect(forked.getHeader()?.memoryNamespace).toBe("runtime-ns");
+		expect(forked.getHeader()?.parentSession).toBe(sourceId);
+		await forked.close();
 	});
 });

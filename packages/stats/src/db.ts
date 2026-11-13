@@ -384,6 +384,7 @@ export async function initDb(): Promise<Database> {
 			artifacts TEXT,
 			sp_calls INTEGER,
 			sp_failures INTEGER,
+			sp_failure_causes TEXT,
 			sp_ms REAL,
 			sp_cost REAL,
 			shape_ms REAL,
@@ -457,6 +458,8 @@ export async function initDb(): Promise<Database> {
 		["kept", "TEXT"],
 		// No read was gated before this existed: the default is exact.
 		["gated", "INTEGER NOT NULL DEFAULT 0"],
+		// Failed calls by cause (JSON); shape entries before pi journaled it leave it NULL.
+		["sp_failure_causes", "TEXT"],
 	] as const) {
 		if (!spotlightResultColumns.some(existing => existing.name === column)) {
 			db.run(`ALTER TABLE spotlight_results ADD COLUMN ${column} ${type}`);
@@ -1761,6 +1764,79 @@ export function markSessionBackfillsComplete(): void {
 	apply();
 }
 
+/** Tables keyed by transcript path; orphans are purged from all of them. */
+const SESSION_FILE_TABLES = [
+	"messages",
+	"user_messages",
+	"assistant_text",
+	"tool_calls",
+	"file_offsets",
+	"spotlight_sessions",
+	"spotlight_results",
+	"spotlight_calls",
+	"spotlight_requests",
+	"spotlight_needs",
+] as const;
+
+export interface PruneOrphanResult {
+	/** Distinct session files whose rows were removed. */
+	prunedFiles: number;
+	/** Total rows removed across all session-keyed tables. */
+	deletedRows: number;
+}
+
+/**
+ * Comparison key for stored transcript paths: separators unified and case
+ * folded on Windows, where lookups are case-insensitive.
+ */
+function normalizeSessionFilePath(sessionFile: string): string {
+	const unified = sessionFile.replaceAll("\\", "/");
+	return process.platform === "win32" ? unified.toLowerCase() : unified;
+}
+
+/**
+ * Delete every row whose `session_file` no longer exists on disk. Deleted
+ * projects (wiped transcripts, throwaway test suites) otherwise keep surfacing
+ * in the feed and every aggregate, and a re-created transcript under a new
+ * path would double-count the usage its predecessor recorded. Runs in one
+ * transaction; the existing-file set is collected by the caller before any
+ * DELETE so the comparison is a single in-memory set probe per stored path.
+ */
+export function pruneOrphanSessionsInDb(database: Database, existingFiles: readonly string[]): PruneOrphanResult {
+	const existing = new Set(existingFiles.map(normalizeSessionFilePath));
+	const orphans = new Set<string>();
+	for (const table of SESSION_FILE_TABLES) {
+		const rows = database.prepare(`SELECT DISTINCT session_file FROM ${table}`).all() as {
+			session_file: string;
+		}[];
+		for (const row of rows) {
+			if (!existing.has(normalizeSessionFilePath(row.session_file))) orphans.add(row.session_file);
+		}
+	}
+	if (orphans.size === 0) return { prunedFiles: 0, deletedRows: 0 };
+
+	let deletedRows = 0;
+	const apply = database.transaction(() => {
+		for (const sessionFile of orphans) {
+			for (const table of SESSION_FILE_TABLES) {
+				const result = database.prepare(`DELETE FROM ${table} WHERE session_file = ?`).run(sessionFile);
+				deletedRows += Number(result.changes);
+			}
+		}
+	});
+	apply();
+	return { prunedFiles: orphans.size, deletedRows };
+}
+
+/**
+ * {@link pruneOrphanSessionsInDb} against the module DB handle. No-op when
+ * {@link initDb} has not run.
+ */
+export function pruneOrphanSessions(existingFiles: readonly string[]): PruneOrphanResult {
+	if (!db) return { prunedFiles: 0, deletedRows: 0 };
+	return pruneOrphanSessionsInDb(db, existingFiles);
+}
+
 /**
  * Insert user-message stats. Idempotent via UNIQUE(session_file, entry_id).
  * The fork guard matches {@link insertMessageStats}: forks copy user entries
@@ -2389,6 +2465,7 @@ export function upsertSpotlightShapes(rows: Iterable<SpotlightShapeRow>): number
 			"artifacts",
 			"sp_calls",
 			"sp_failures",
+			"sp_failure_causes",
 			"sp_ms",
 			"sp_cost",
 			"shape_ms",
@@ -2403,7 +2480,7 @@ export function upsertSpotlightShapes(rows: Iterable<SpotlightShapeRow>): number
 		identity: ["tool_call_id"],
 		upsert: `ON CONFLICT(session_file, tool_call_id) DO UPDATE SET
 			${["tool", "in_chars", "out_chars", "in_tokens", "out_tokens", "steps", "hidden_lines"].map(fromDetails).join(",\n")},
-			${["original_url", "path", "start_line", "lines", "hidden", "artifacts", "sp_calls", "sp_failures", "sp_ms", "sp_cost", "shape_ms", "plain_chars", "plain_tokens", "capped_tokens", "heat", "kept"].map(coalesce).join(",\n")},
+			${["original_url", "path", "start_line", "lines", "hidden", "artifacts", "sp_calls", "sp_failures", "sp_failure_causes", "sp_ms", "sp_cost", "shape_ms", "plain_chars", "plain_tokens", "capped_tokens", "heat", "kept"].map(coalesce).join(",\n")},
 			has_details = MAX(spotlight_results.has_details, excluded.has_details),
 			holdout = MAX(spotlight_results.holdout, excluded.holdout),
 			score_free = MAX(spotlight_results.score_free, excluded.score_free),
@@ -2436,6 +2513,7 @@ export function upsertSpotlightShapes(rows: Iterable<SpotlightShapeRow>): number
 					r.artifacts ? JSON.stringify(r.artifacts) : null,
 					r.spotlight?.calls ?? null,
 					r.spotlight?.failures ?? null,
+					r.spotlight?.failureCauses ? JSON.stringify(r.spotlight.failureCauses) : null,
 					r.spotlight?.ms ?? null,
 					r.spotlight?.costUsd ?? null,
 					r.shapeMs,

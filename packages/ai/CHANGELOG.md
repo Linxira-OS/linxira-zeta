@@ -1,8 +1,8 @@
 ## [Unreleased]
 
-## [1.5.1] - 2026-11-10
+- Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
 
-- Released as part of Zeta 1.5.1; no package-specific user-visible changes.
+## [1.5.1] - 2026-11-10
 
 ## [1.5.0] - 2026-11-09
 
@@ -173,3 +173,5 @@
 - When a DeepSeek model writes a broken DSML tool call (for example with the opening `<｜DSML｜tool_calls>` and `<｜DSML｜invoke>` tags missing), its closing tags are now kept in the streamed text instead of being dropped. This lets the agent remove exactly the broken call while keeping any text after it ([#14202](https://github.com/can1357/oh-my-pi/pull/14202) by [@H4vC](https://github.com/H4vC)).
 
 Older entries are archived in [packages/ai/CHANGELOG.md@a20cc0d04b64](https://github.com/can1357/oh-my-pi/blob/a20cc0d04b64f4a68fcc559cbd258743d984c50e/packages/ai/CHANGELOG.md).
+
+Older entries are archived in [packages/ai/CHANGELOG.md@b81a844b520a](https://github.com/can1357/oh-my-pi/blob/b81a844b520af43d1d190a99fcdc8928e242b315/packages/ai/CHANGELOG.md).

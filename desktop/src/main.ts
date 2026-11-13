@@ -9,7 +9,7 @@
  * opened and no terminal window appears.
  */
 
-import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, Notification, screen, shell, Tray } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, Notification, protocol, screen, shell, Tray } from "electron";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -24,8 +24,12 @@ import {
 	type EditorId,
 	type OpenTargetId,
 } from "./open-bridge";
-import { classifyDroppedPath, findWorkspace, firstEditorTarget, isPathWithin, resolveWorkspaceFile, type WorkspaceLocation } from "./workspace-actions";
+import { classifyDroppedPath, findWorkspace, firstEditorTarget, isPathWithin, resolveWorkspaceFile, workspaceIdFor, type WorkspaceLocation } from "./workspace-actions";
 import { fieldOf } from "./json";
+import { registerRemoteBridge } from "./remote/ipc";
+import type { RemoteBridge } from "./remote/bridge";
+import { registerTerminalBridge } from "./terminal/ipc";
+import type { TerminalBridge } from "./terminal/bridge";
 import { mapUpdateCheck } from "./update-check";
 import { WINDOW_CONTROL_CHANNELS, runWindowControl, windowState } from "./window-controls";
 import { resolveToolIn, type ToolResolutionDeps } from "./tool-resolution";
@@ -74,6 +78,7 @@ import {
 	type ServeCommand,
 	type ServeResolutionDeps,
 } from "./serve-resolution";
+import { installLiveAudioIpc } from "./live-audio-main";
 
 // Must match packages/utils/src/ports.ts (this standalone package cannot import
 // the workspace); `scripts/check-service-ports.ts` fails CI when they drift.
@@ -180,20 +185,47 @@ ipcMain.handle("pi:select-directory", async (_event, startPath?: unknown): Promi
  * project with the gateway (`PUT /api/projects`), which is the same registry
  * the CLI resume picker reads. The renderer then re-reads `projects.list`.
  */
-ipcMain.handle("pi:pick-workspace", async (_event, input: unknown): Promise<{ cancelled: boolean; name?: string }> => {
+ipcMain.handle("pi:pick-workspace", async (_event, input: unknown): Promise<{ cancelled: boolean; workspaceId?: string; name?: string }> => {
 	const picked = await showDirectoryDialog(fieldOf(input, "startPath"));
 	if (picked === null) return { cancelled: true };
 	const alias = fieldOf(input, "alias");
 	const body: { path: string; alias?: string } = { path: picked };
 	if (typeof alias === "string" && alias.trim() !== "") body.alias = alias.trim();
-	await gatewayJson("/api/projects", {
+	const inventory = await gatewayJson("/api/projects", {
 		method: "PUT",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(body),
 	});
-	return { cancelled: false, name: path.basename(picked) };
+	const canonicalPath = (value: string): string => {
+		const real = fs.realpathSync.native(value);
+		return process.platform === "win32" ? real.toLowerCase() : real;
+	};
+	const pickedKey = canonicalPath(picked);
+	const projects = fieldOf(inventory, "projects");
+	if (Array.isArray(projects)) {
+		for (const project of projects) {
+			const workspaces = fieldOf(project, "workspaces");
+			if (!Array.isArray(workspaces)) continue;
+			for (const row of workspaces) {
+				const key = fieldOf(row, "key");
+				const directory = fieldOf(row, "path");
+				if (typeof key !== "string" || typeof directory !== "string") continue;
+				try {
+					if (canonicalPath(directory) !== pickedKey) continue;
+				} catch {
+					continue;
+				}
+				const workspace = findWorkspace(inventory, workspaceIdFor(key));
+				if (workspace !== null) return { cancelled: false, workspaceId: workspace.workspaceId, ...(workspace.name === undefined ? {} : { name: workspace.name }) };
+			}
+		}
+	}
+	throw new Error("Selected directory was not registered as a workspace");
 });
 let mainWindow: BrowserWindow | null = null;
+/** SSH execution targets and the desktop terminal/recording surface. */
+let remoteBridge: RemoteBridge | null = null;
+let terminalBridge: TerminalBridge | null = null;
 /** Launch preferences kept for recreating the window after a real close. */
 let activePrefs: TrayPrefs | null = null;
 /** Boot has finished; window recreation is safe and tray menus are live. */
@@ -421,6 +453,11 @@ async function gatewayJson(pathname: string, init?: RequestInit): Promise<unknow
 	return await response.json();
 }
 
+// Desktop dictation: the preload bridge streams Worklet frames here and this
+// relays them to the prepared Host capture. Registered once; the service URL
+// is resolved per request so a restarted/adopted service keeps working.
+installLiveAudioIpc(() => webUiUrl);
+
 async function workspaceLocation(workspaceId: unknown): Promise<WorkspaceLocation> {
 	if (typeof workspaceId !== "string" || !workspaceId.startsWith("ws-")) throw new Error("Invalid workspace id");
 	const location = findWorkspace(await gatewayJson("/api/projects"), workspaceId);
@@ -618,7 +655,12 @@ ipcMain.handle(
 	},
 );
 
-ipcMain.handle("pi:sample-memory", () => {
+type MemoryPhase = "boot" | "heartbeat" | "on-demand";
+const memoryHistory: Array<{ capturedAt: string; totalWorkingSetKb: number; phase: MemoryPhase }> = [];
+let memoryHeartbeat: NodeJS.Timeout | undefined;
+
+/** One projection of `app.getAppMetrics()`; the only sampler in the shell. */
+function sampleProcessMemory(phase: MemoryPhase) {
 	const metrics = app.getAppMetrics();
 	if (metrics.length === 0) return null;
 	const rows = metrics.map((metric, index) => ({
@@ -627,12 +669,24 @@ ipcMain.handle("pi:sample-memory", () => {
 		workingSetKb: Math.round(metric.memory.workingSetSize),
 		...(metric.memory.peakWorkingSetSize > 0 ? { peakWorkingSetKb: Math.round(metric.memory.peakWorkingSetSize) } : {}),
 	}));
-	return {
+	const sample = {
 		capturedAt: new Date().toISOString(),
 		totalWorkingSetKb: rows.reduce((total, row) => total + row.workingSetKb, 0),
 		rows,
 	};
-});
+	memoryHistory.push({ capturedAt: sample.capturedAt, totalWorkingSetKb: sample.totalWorkingSetKb, phase });
+	// One hour of heartbeat at 60s; boot/on-demand share the same bounded ring.
+	while (memoryHistory.length > 60) memoryHistory.shift();
+	return { ...sample, phase, history: memoryHistory.map(entry => ({ ...entry })) };
+}
+
+function startMemoryHeartbeat(): void {
+	if (memoryHeartbeat) return;
+	sampleProcessMemory("boot");
+	memoryHeartbeat = setInterval(() => sampleProcessMemory("heartbeat"), 60_000);
+}
+
+ipcMain.handle("pi:sample-memory", () => sampleProcessMemory("on-demand"));
 
 // ---------------------------------------------------------------------------
 // Session completion monitor.
@@ -1576,6 +1630,12 @@ function handleLaunchArguments(argv: readonly string[]): void {
 	}
 }
 
+// Terminal recordings are played by the renderer through `zeta-artifact://`;
+// the scheme must be privileged before app ready so fetch/CORS work.
+protocol.registerSchemesAsPrivileged([
+	{ scheme: "zeta-artifact", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+]);
+
 app.setName("Zeta");
 app.setAppUserModelId("com.zeta.desktop");
 
@@ -1606,6 +1666,21 @@ if (!app.hasSingleInstanceLock()) {
 			// registration (electron-builder `protocols`); dev registers Electron.
 			if (app.isPackaged) app.setAsDefaultProtocolClient("zeta");
 			else app.setAsDefaultProtocolClient("zeta", process.execPath, [path.resolve(process.argv[1] ?? "")]);
+			remoteBridge = registerRemoteBridge({ userData: app.getPath("userData"), log: writeDesktopLog });
+			terminalBridge = registerTerminalBridge({
+				userData: app.getPath("userData"),
+				localBase: () => webUiUrl,
+				remoteBase: id => remoteBridge?.baseUrl(id),
+			});
+			protocol.handle("zeta-artifact", request => {
+				const name = decodeURIComponent(new URL(request.url).pathname.replace(/^\/+/, ""));
+				const file = terminalBridge?.artifactPath(name);
+				if (!file) return new Response("Recording not found", { status: 404 });
+				return new Response(fs.readFileSync(file), {
+					headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+				});
+			});
+			startMemoryHeartbeat();
 			return boot();
 		})
 		.catch((err: unknown) => {
@@ -1614,6 +1689,10 @@ if (!app.hasSingleInstanceLock()) {
 
 	app.on("before-quit", () => {
 		quitting = true;
+		clearInterval(memoryHeartbeat);
+		memoryHeartbeat = undefined;
+		void remoteBridge?.dispose();
+		terminalBridge = null;
 		stopSessionMonitor();
 		if (mainWindow && !mainWindow.isDestroyed()) captureCurrentBounds(mainWindow);
 		saveWorkspaceState();

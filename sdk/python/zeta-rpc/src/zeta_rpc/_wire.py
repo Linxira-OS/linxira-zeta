@@ -156,6 +156,21 @@ _AUTO_COMPACTION_REASON_VALUES: Final[frozenset[str]] = frozenset({"threshold", 
 _decode_auto_compaction_reason = cast("Decoder[AutoCompactionReason]", literal(_AUTO_COMPACTION_REASON_VALUES))
 
 
+CompactionTriggerType: TypeAlias = Literal["manual", "auto", "speculation"]
+_COMPACTION_TRIGGER_TYPE_VALUES: Final[frozenset[str]] = frozenset({"manual", "auto", "speculation"})
+_decode_compaction_trigger_type = cast("Decoder[CompactionTriggerType]", literal(_COMPACTION_TRIGGER_TYPE_VALUES))
+
+
+CompactionPhaseName: TypeAlias = Literal["plan", "summarize", "archive", "commit", "failed", "aborted"]
+_COMPACTION_PHASE_NAME_VALUES: Final[frozenset[str]] = frozenset({"plan", "summarize", "archive", "commit", "failed", "aborted"})
+_decode_compaction_phase_name = cast("Decoder[CompactionPhaseName]", literal(_COMPACTION_PHASE_NAME_VALUES))
+
+
+CompactionPhaseMethod: TypeAlias = Literal["remote", "snapcompact", "handoff", "shake", "soft", "experimental", "extension"]
+_COMPACTION_PHASE_METHOD_VALUES: Final[frozenset[str]] = frozenset({"remote", "snapcompact", "handoff", "shake", "soft", "experimental", "extension"})
+_decode_compaction_phase_method = cast("Decoder[CompactionPhaseMethod]", literal(_COMPACTION_PHASE_METHOD_VALUES))
+
+
 AutoCompactionAction: TypeAlias = Literal["context-full", "remote", "handoff", "shake", "snapcompact"]
 _AUTO_COMPACTION_ACTION_VALUES: Final[frozenset[str]] = frozenset({"context-full", "remote", "handoff", "shake", "snapcompact"})
 _decode_auto_compaction_action = cast("Decoder[AutoCompactionAction]", literal(_AUTO_COMPACTION_ACTION_VALUES))
@@ -1037,6 +1052,26 @@ class PromptAck:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
+class CompactionFidelityCounts:
+    qa: int
+    paths: int
+    ids: int
+    constraints: int
+    unfinished: int
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class CompactionPhaseDetail:
+    tokens_before: int | None = None
+    tokens_after: int | None = None
+    entry_id: str | None = None
+    duration_ms: int | None = None
+    summary_chars: int | None = None
+    error_message: str | None = None
+    fidelity: CompactionFidelityCounts | None = None
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class AgentStartEvent:
     type: Literal["agent_start"] = "agent_start"
     resumed_tool_call_ids: tuple[str, ...] | None = None
@@ -1137,6 +1172,22 @@ class AutoCompactionStartEvent:
     type: Literal["auto_compaction_start"] = "auto_compaction_start"
     reason: AutoCompactionReason
     action: AutoCompactionAction
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class CompactionPhaseEvent:
+    """Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`."""
+    type: Literal["compaction_phase"] = "compaction_phase"
+    pass_id: str
+    """Stable per compaction pass; constant across method fallbacks."""
+    trigger: CompactionTriggerType
+    phase: CompactionPhaseName
+    """`plan` may repeat in one pass when a method fallback begins; `aborted` means cancellation only."""
+    at: int
+    """Emission time (epoch ms)."""
+    method: CompactionPhaseMethod | None = None
+    reason: str | None = None
+    detail: CompactionPhaseDetail | None = None
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -1599,7 +1650,7 @@ class EditorUiRequest:
 
 @dataclass(slots=True, frozen=True, kw_only=True)
 class AskUiRequest:
-    """Every question of one `ask` tool call; sent only after `set_ask_dialog` enables it."""
+    """Every question of one extension `ui.askDialog` call; sent only after `set_ask_dialog` enables it."""
     type: Literal["extension_ui_request"] = "extension_ui_request"
     id: str
     method: Literal["ask"] = "ask"
@@ -1703,7 +1754,7 @@ class ExtensionUiRequest(ExtensionUiRequestMixin):
 
 @dataclass(slots=True, frozen=True, kw_only=True)
 class AskAnswer:
-    """Answer to one `ask` question: exact option labels, plus optional free text."""
+    """Answer to one `ui.askDialog` question: exact option labels, plus optional free text."""
     id: str
     selected_options: tuple[str, ...]
     custom_input: str | None = None
@@ -1809,7 +1860,7 @@ UsageLimitState: TypeAlias = UsageLimitLowPriority | UsageLimitWrapUp
 """Provider-neutral state of an account past its usage limit, discriminated by `stage`."""
 
 
-RpcAgentEvent: TypeAlias = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | AutoCompactionEndEvent | ManualCompactionStartEvent | ManualCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent | StateVersionChangedEvent
+RpcAgentEvent: TypeAlias = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | CompactionPhaseEvent | AutoCompactionEndEvent | ManualCompactionStartEvent | ManualCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent | StateVersionChangedEvent
 """A session event, discriminated by `type`; `set_event_filter` selects which are sent."""
 
 
@@ -2540,6 +2591,30 @@ def parse_prompt_ack(value: object, path: str = "PromptAck") -> PromptAck:
     )
 
 
+def parse_compaction_fidelity_counts(value: object, path: str = "CompactionFidelityCounts") -> CompactionFidelityCounts:
+    payload = expect_object(value, path)
+    return CompactionFidelityCounts(
+        qa=required(payload, "qa", decode_int, path),
+        paths=required(payload, "paths", decode_int, path),
+        ids=required(payload, "ids", decode_int, path),
+        constraints=required(payload, "constraints", decode_int, path),
+        unfinished=required(payload, "unfinished", decode_int, path),
+    )
+
+
+def parse_compaction_phase_detail(value: object, path: str = "CompactionPhaseDetail") -> CompactionPhaseDetail:
+    payload = expect_object(value, path)
+    return CompactionPhaseDetail(
+        tokens_before=optional(payload, "tokensBefore", decode_int, path),
+        tokens_after=optional(payload, "tokensAfter", decode_int, path),
+        entry_id=optional(payload, "entryId", decode_str, path),
+        duration_ms=optional(payload, "durationMs", decode_int, path),
+        summary_chars=optional(payload, "summaryChars", decode_int, path),
+        error_message=optional(payload, "errorMessage", decode_str, path),
+        fidelity=optional(payload, "fidelity", parse_compaction_fidelity_counts, path),
+    )
+
+
 def parse_agent_start_event(value: object, path: str = "AgentStartEvent") -> AgentStartEvent:
     payload = expect_object(value, path)
     required(payload, "type", cast('Decoder[Literal["agent_start"]]', literal(frozenset({"agent_start"}))), path)
@@ -2655,6 +2730,20 @@ def parse_auto_compaction_start_event(value: object, path: str = "AutoCompaction
     return AutoCompactionStartEvent(
         reason=required(payload, "reason", _decode_auto_compaction_reason, path),
         action=required(payload, "action", _decode_auto_compaction_action, path),
+    )
+
+
+def parse_compaction_phase_event(value: object, path: str = "CompactionPhaseEvent") -> CompactionPhaseEvent:
+    payload = expect_object(value, path)
+    required(payload, "type", cast('Decoder[Literal["compaction_phase"]]', literal(frozenset({"compaction_phase"}))), path)
+    return CompactionPhaseEvent(
+        pass_id=required(payload, "passId", decode_str, path),
+        trigger=required(payload, "trigger", _decode_compaction_trigger_type, path),
+        phase=required(payload, "phase", _decode_compaction_phase_name, path),
+        at=required(payload, "at", decode_int, path),
+        method=optional(payload, "method", _decode_compaction_phase_method, path),
+        reason=optional(payload, "reason", decode_str, path),
+        detail=optional(payload, "detail", parse_compaction_phase_detail, path),
     )
 
 
@@ -3446,6 +3535,7 @@ _RPC_AGENT_EVENT_CASES: Final[dict[str, Decoder[RpcAgentEvent]]] = {
         "tool_stream_update": parse_tool_stream_update_event,
         "tool_execution_end": parse_tool_execution_end_event,
         "auto_compaction_start": parse_auto_compaction_start_event,
+        "compaction_phase": parse_compaction_phase_event,
         "auto_compaction_end": parse_auto_compaction_end_event,
         "manual_compaction_start": parse_manual_compaction_start_event,
         "manual_compaction_end": parse_manual_compaction_end_event,
@@ -3506,6 +3596,7 @@ _RPC_NOTIFICATION_CASES: Final[dict[str, Decoder[RpcNotification]]] = {
         "tool_stream_update": parse_rpc_agent_event,
         "tool_execution_end": parse_rpc_agent_event,
         "auto_compaction_start": parse_rpc_agent_event,
+        "compaction_phase": parse_rpc_agent_event,
         "auto_compaction_end": parse_rpc_agent_event,
         "manual_compaction_start": parse_rpc_agent_event,
         "manual_compaction_end": parse_rpc_agent_event,
@@ -4201,6 +4292,10 @@ class WireClient:
         """Subscribe to `auto_compaction_start` frames."""
         return self._listen("auto_compaction_start", listener)
 
+    def on_compaction_phase(self, listener: Callable[[CompactionPhaseEvent], None]) -> Callable[[], None]:
+        """Subscribe to `compaction_phase`: Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`."""
+        return self._listen("compaction_phase", listener)
+
     def on_auto_compaction_end(self, listener: Callable[[AutoCompactionEndEvent], None]) -> Callable[[], None]:
         """Subscribe to `auto_compaction_end` frames."""
         return self._listen("auto_compaction_end", listener)
@@ -4346,8 +4441,14 @@ __all__ = [
     "CancelUiRequest",
     "CancellationResult",
     "CommandOutputEvent",
+    "CompactionFidelityCounts",
+    "CompactionPhaseDetail",
+    "CompactionPhaseEvent",
+    "CompactionPhaseMethod",
+    "CompactionPhaseName",
     "CompactionResult",
     "CompactionSummaryMessage",
+    "CompactionTriggerType",
     "ComponentId",
     "ComponentInfo",
     "ComponentListResult",
@@ -4555,6 +4656,9 @@ __all__ = [
     "parse_cancel_ui_request",
     "parse_cancellation_result",
     "parse_command_output_event",
+    "parse_compaction_fidelity_counts",
+    "parse_compaction_phase_detail",
+    "parse_compaction_phase_event",
     "parse_compaction_result",
     "parse_compaction_summary_message",
     "parse_component_info",

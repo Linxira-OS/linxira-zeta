@@ -1,4 +1,3 @@
-import * as path from "node:path";
 import { isRecord } from "@linxiraos/pi-utils";
 import type { Component } from "../tui";
 import { Text } from "../components/text";
@@ -16,17 +15,8 @@ import { footnoteText, inlineErrorView, resultText } from "./native-view";
 import { ensureThemeSync, highlightCode, type Theme } from "../theme/theme";
 import type { OutputMeta } from "./output-meta";
 import type { TruncationResult } from "./streaming-output";
+import { fileHyperlink, renderStatusLine, renderTreeList } from "../render";
 import {
-	fileHyperlink,
-	getTreeBranch,
-	getTreeContinuePrefix,
-	renderStatusLine,
-	renderTreeList,
-	uriHyperlink,
-} from "../render";
-import { tuiText, tuiTextFmt } from "../i18n";
-import {
-	toPathList,
 	createCachedComponent,
 	fitHeaderedRows,
 	formatCount,
@@ -34,6 +24,7 @@ import {
 	formatErrorDetail,
 	PREVIEW_LIMITS,
 	replaceTabs,
+	toPathList,
 } from "../render/render-utils";
 import {
 	classifyGroupedLines,
@@ -177,10 +168,7 @@ export const grepToolRenderer = {
 		const description = grepSubject(pattern, args, uiTheme, details, searchPath);
 
 		if (result.isError || details?.error) {
-			const errorText =
-				details?.error ||
-				result.content?.find(c => c.type === "text")?.text ||
-				tuiText("glUnknownError", "Unknown error");
+			const errorText = details?.error || result.content?.find(c => c.type === "text")?.text || "Unknown error";
 			const header = renderStatusLine(
 				{ icon: "error", title: "Grep", titleColor: "toolTitle", description },
 				uiTheme,
@@ -193,7 +181,7 @@ export const grepToolRenderer = {
 		if (!hasDetailedData) {
 			const textContent = result.details?.displayContent ?? result.content?.find(c => c.type === "text")?.text;
 			if (!textContent || textContent === "No matches found") {
-				return new Text(formatEmptyMessage(tuiText("gpNoMatches", "No matches found"), uiTheme), 1, 0);
+				return new Text(formatEmptyMessage("No matches found", uiTheme), 0, 0);
 			}
 			const lines = textContent.split("\n").filter(line => line.trim() !== "");
 			const header = renderStatusLine(
@@ -202,10 +190,7 @@ export const grepToolRenderer = {
 					title: "Grep",
 					titleColor: "toolTitle",
 					description,
-					meta:
-						lines.length === 1
-							? [tuiText("grepItemOne", "1 item")]
-							: [tuiTextFmt("grepItemManyFmt", "%d items", lines.length)],
+					meta: [formatCount("item", lines.length)],
 				},
 				uiTheme,
 			);
@@ -237,24 +222,21 @@ export const grepToolRenderer = {
 		const missingPathsList = details?.missingPaths ?? [];
 		const missingNote =
 			missingPathsList.length > 0
-				? uiTheme.fg(
-						"warning",
-						tuiTextFmt(
-							"gpSkippedMissingFmt",
-							`skipped missing: ${missingPathsList.join(", ")}`,
-							missingPathsList.join(", "),
-						),
-					)
+				? uiTheme.fg("warning", `skipped missing: ${missingPathsList.join(", ")}`)
 				: undefined;
 
 		if (matchCount === 0) {
 			const header = renderStatusLine(
-				{ icon: "warning", title: "Grep", titleColor: "toolTitle", description, meta: ["0 matches"] },
+				{
+					icon: "warning",
+					title: "Grep",
+					titleColor: "toolTitle",
+					description,
+					meta: [uiTheme.fg("warning", "0 matches")],
+				},
 				uiTheme,
 			);
-			const lines = [header, formatEmptyMessage(tuiText("gpNoMatches", "No matches found"), uiTheme)];
-			if (missingNote) lines.push(missingNote);
-			return new Text(lines.join("\n"), 0, 0);
+			return new Text(missingNote ? `${header}\n${missingNote}` : header, 0, 0);
 		}
 
 		const textContent = result.details?.displayContent ?? result.content?.find(c => c.type === "text")?.text ?? "";
@@ -267,7 +249,7 @@ export const grepToolRenderer = {
 		const singleFileScope = hasScope && fileCount === 1 && !allLines.some(isGroupedHeader);
 		const meta = [formatCount("match", matchCount)];
 		if (!singleFileScope) meta.push(formatCount("file", fileCount));
-		if (truncated) meta.push(uiTheme.fg("warning", tuiText("grepTruncated", "truncated")));
+		if (truncated) meta.push(uiTheme.fg("warning", "truncated"));
 		const header = renderStatusLine(
 			{
 				...(truncated ? { icon: "warning" as const } : { iconOverride: grepStatusIcon(uiTheme) }),

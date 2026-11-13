@@ -1,5 +1,5 @@
-import { clearSubmittedText } from "./helpers/draft";
 import { M } from "../i18n";
+import { clearSubmittedText } from "./helpers/draft";
 import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
 import { journalJudgmentUsage, resolveJudge, sharedJudgmentCache } from "../judgment";
 import type { AgentSession } from "../session/agent-session";
@@ -278,18 +278,23 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 				if (runtime.session.isStreaming) return usage("Cannot delete the session while streaming.", runtime);
 				const sessionFile = runtime.sessionManager.getSessionFile();
 				if (!sessionFile) return usage("No session file to delete (in-memory session).", runtime);
-				// Route through the active SessionManager so the persist writer is
-				// closed before the file is deleted. Constructing a fresh
-				// FileSessionStorage and calling deleteSessionWithArtifacts leaves
-				// the active writer attached to the now-deleted path, so the next
-				// prompt would silently resurrect or corrupt the "deleted" file.
+				// Detach the live agent before deleting its file; the next prompt must
+				// belong to a fresh session with a valid header and no old history.
+				try {
+					if (!(await runtime.session.newSession())) return usage("Session deletion cancelled.", runtime);
+				} catch (err) {
+					return usage(`Failed to start a new session: ${errorMessage(err)}`, runtime);
+				}
 				try {
 					await runtime.sessionManager.dropSession(sessionFile);
 				} catch (err) {
-					return usage(`Failed to delete session: ${errorMessage(err)}`, runtime);
+					return usage(
+						`Started new session ${runtime.session.sessionId}, but failed to delete ${sessionFile}: ${errorMessage(err)}`,
+						runtime,
+					);
 				}
 				await runtime.output(
-					`Session deleted: ${sessionFile}. Use ACP \`session/load\` to switch to another session.`,
+					`Session deleted: ${sessionFile}. New session: ${runtime.session.sessionId} (${runtime.session.sessionFile}).`,
 				);
 				return commandConsumed();
 			}
@@ -557,7 +562,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "context",
 		icon: "context",
-		description: () => M.cmdContext,
+		description: () => M.cmdContextAndContent,
 		acpDescription: () => M.cmdContextAcp,
 		getTuiAutocompleteDescription: runtime => {
 			const usage = runtime.ctx.session.getContextUsage();
@@ -620,7 +625,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "hub",
 		aliases: ["subagents"],
 		icon: "agents",
-		description: () => M.cmdOpenTheLiveAgentHub,
+		description: () => M.cmdOpenAgentHubDetailed,
 		handleTui: (_command, runtime) => {
 			runtime.ctx.showAgentHub({ initialSection: "activity" });
 			clearSubmittedText(runtime);
@@ -780,13 +785,6 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			{ name: "unauth", description: () => M.cmdMcpUnauth, usage: "<name>" },
 			{ name: "enable", description: () => M.cmdMcpEnable, usage: "<name>" },
 			{ name: "disable", description: () => M.cmdMcpDisable, usage: "<name>" },
-			{
-				name: "smithery-search",
-				description: () => M.cmdSmitherySearch,
-				usage: "<keyword> [--scope project|user] [--limit <1-100>] [--semantic]",
-			},
-			{ name: "smithery-login", description: () => M.cmdSmitheryLogin },
-			{ name: "smithery-logout", description: () => M.cmdSmitheryLogout },
 			{ name: "reconnect", description: () => M.cmdMcpReconnect, usage: "<name>" },
 			{ name: "reload", description: () => M.cmdMcpReload },
 			{ name: "resources", description: () => M.cmdMcpResources },

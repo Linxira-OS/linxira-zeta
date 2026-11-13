@@ -2230,3 +2230,14 @@ agrpMatchOne
 agrpMatchManyFmt
 agrpFileOne
 agrpFileManyFmt
+gpNoMatches
+gpSkippedMissingFmt
+glUnknownError
+cmdContext
+cmdSmitherySearch
+cmdSmitheryLogin
+cmdSmitheryLogout
+cmdOpenTheLiveAgentHub
+grepTruncated
+grepItemOne
+grepItemManyFmt

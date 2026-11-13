@@ -155,6 +155,7 @@ const RENAME_BY_TAIL: Record<string, string> = {
 };
 
 function zetaKeyFor(ompKey: string): string | null {
+	if (ompKey.startsWith(ZETA_SCOPE)) return ompKey;
 	for (const scope of [OMP_SCOPE, LEGACY_AUTHOR_SCOPE] as const) {
 		if (ompKey.startsWith(scope)) {
 			const tail = ompKey.slice(scope.length);
@@ -266,7 +267,7 @@ function sectionEntries(value: unknown): Record<string, string> {
 
 /**
  * Section keys as they are comparable across the three sides: an upstream-scope
- * key (`@oh-my-pi/pi-ai`, `@mariozechner/pi-ai`) is the same entry as its Zeta
+ * key (`@linxiraos/pi-ai`, `@mariozechner/pi-ai`) is the same entry as its Zeta
  * rename, so both sides must be read through `zetaKeyFor` before deciding.
  */
 function effectiveSectionKeys(manifest: Record<string, string>): Map<string, string> {

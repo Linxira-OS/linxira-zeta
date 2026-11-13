@@ -454,6 +454,13 @@ jobs:
               set -euo pipefail
               cargo fetch --locked
               cargo deny --locked check licenses sources
+         # 同 GitHub `check`：release 模式跳过 ci:check:full，但 ADR 索引、
+         # 台账结构与 release scope 结构必须始终跑（纯文件解析，不是测试套件）。
+         - name: ADR, requirements and release-scope traceability
+           run: |
+              bun run check:adr
+              bun run check:reqs
+              bun scripts/release-scope.ts structural
          - name: Type check workspace
            run: bun run ci:check:full
          - name: Brand residue guard
@@ -560,6 +567,9 @@ jobs:
          # 同 GitHub：冻结策略的单元测试 + 对 ci.yml / 独立发布 workflow 的静态断言。
          - name: Unit-test the release freeze policy
            run: bun test scripts/release-freeze.test.ts
+         # ADR 索引守卫的结构测试：单调缺口通过，重复 ID / 缺索引行 / 非法编号 / 空占位失败。
+         - name: Unit-test the ADR index guard
+           run: bun test scripts/check-adr-index.test.ts
          - name: Unit-test the package linkage contract
            run: bun test scripts/check-package-linkage.test.ts
          # 镜像 GitHub `check` job：pi-messenger 的 vitest 套件在 bun workspace 之外
@@ -925,6 +935,12 @@ jobs:
               # 不跑 `test:scripts`：scripts/musl-release.test.ts 在 main 上就是红的
               #（install.sh 冒烟会执行假二进制），与本 job 无关。与 GitHub 同款拆分。
               bun test scripts/ci-test-ts.test.ts scripts/release.test.ts
+         # 镜像 GitHub `test_workspace` 的 REQ-065 内存守卫：消费层 retained-byte
+         # 测试是真正的门禁；180s soak 只出报告，不在未实测的 runner 上设 RSS 预算。
+         - name: Test memory retention caps
+           run: bun test packages/tui/test/render-cache-consumer-bounds.test.ts packages/tui/test/render-cache-pressure-restore.test.ts
+         - name: Run bounded memory soak (report-only)
+           run: bun scripts/memory-soak.ts --seconds=180 --sample-ms=500 --commit-ms=5000 --out=temp/memory-soak.json
          # 镜像 GitHub `test_workspace`：`packages/stats` 不属于任何 ci-test-ts bucket，
          # 此前 CI 与本地 `bun run test:ts` 都没跑过它。放在这个 job（而非 `check`）是
          # 因为它的用例经 `@linxiraos/pi-utils` → `@linxiraos/pi-natives` 在 import

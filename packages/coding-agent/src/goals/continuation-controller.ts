@@ -1,6 +1,5 @@
 /**
- * Goal mode for hosts that run outside the TUI (`--mode rpc`, the web/desktop
- * gateway, the IM serve path).
+ * Goal mode for RPC hosts (`--mode rpc` and `--mode rpc-ui`).
  *
  * The durable lifecycle (create/resume/pause/drop, accounting, persistence) is
  * `GoalRuntime`, shared with the TUI and the `goal` tool. This controller adds
@@ -11,32 +10,27 @@
  */
 import type { Goal } from "@linxiraos/pi-tui/tools/goal";
 import { logger } from "@linxiraos/pi-utils";
-import type { AgentSession, AgentSessionEvent } from "../session/agent-session";
-import { nextActionableTask } from "../tools/todo";
 import { cfgGoalContinuationModes, cfgGoalEnabled } from "./settings";
 import { type GoalModeState, goalContinuationActivity, goalFromModeData } from "./state";
+import type { AgentSession, AgentSessionEvent } from "../session/agent-session";
 
-/** `goal.continuationModes` value that enables automatic continuation for interactive (TUI) sessions. */
-export const GOAL_CONTINUATION_MODE_INTERACTIVE = "interactive";
-/** `goal.continuationModes` value that enables automatic continuation for RPC hosts (`--mode rpc`, `--mode rpc-ui`). */
-export const GOAL_CONTINUATION_MODE_RPC = "rpc";
-/** `goal.continuationModes` value that enables automatic continuation for web/desktop gateway sessions. */
-export const GOAL_CONTINUATION_MODE_WEB = "web";
+/** `goal.continuationModes` value that enables automatic continuation for RPC hosts. */
+export const RPC_GOAL_CONTINUATION_MODE = "rpc";
 
-export type GoalContinuationOp = "get" | "create" | "resume" | "pause" | "drop" | "budget";
+export type RpcGoalOp = "get" | "create" | "resume" | "pause" | "drop" | "budget";
 
-export interface GoalContinuationCommand {
-	op: GoalContinuationOp;
+export interface RpcGoalCommand {
+	op: RpcGoalOp;
 	objective?: string;
 	token_budget?: number;
 }
 
-export interface GoalContinuationResult {
+export interface RpcGoalResult {
 	goal: Goal | null;
 	state: GoalModeState | null;
 }
 
-export type GoalContinuationSession = Pick<
+export type RpcGoalSession = Pick<
 	AgentSession,
 	| "settings"
 	| "sessionManager"
@@ -57,29 +51,8 @@ export type GoalContinuationSession = Pick<
 	| "queuedMessageCount"
 >;
 
-export interface GoalContinuationControllerOptions {
-	/**
-	 * `goal.continuationModes` entry this host answers to. A host that omits it
-	 * still drives goal lifecycle and reattach, it just never starts a hidden
-	 * continuation turn.
-	 */
-	continuationMode?: string;
-	/**
-	 * Called when a pending continuation is abandoned (a gate closed while it
-	 * waited), so settle reporting can re-check.
-	 */
-	onContinuationDropped?: () => void;
-	/**
-	 * Another continuation driver (the `/loop` controller) currently owns the
-	 * next turn. The TUI's loop takes precedence over goal continuation; hosts
-	 * with both controllers pass this so a goal never races a loop prompt.
-	 */
-	continuationSuppressed?: () => boolean;
-}
-
-export class GoalContinuationController {
-	readonly #session: GoalContinuationSession;
-	readonly #continuationMode: string | undefined;
+export class RpcGoalController {
+	readonly #session: RpcGoalSession;
 	/** Active tool set before goal mode added `goal`; restored when the goal ends. */
 	#previousTools: string[] | undefined;
 	/** Continuation turns submitted whose terminal `agent_end` has not arrived. */
@@ -105,6 +78,10 @@ export class GoalContinuationController {
 	#sessionBeforeChange: string | undefined;
 	/** A goal turn was waiting or became due during the change; report busy until it ends. */
 	#heldDuringChange = false;
+	/** `goal.continuationModes` value this host answers to (`rpc` or `web`). */
+	readonly #continuationMode: string;
+	/** A sibling host owns the session (e.g. `/loop`); its continuation decides. */
+	readonly #continuationSuppressed: (() => boolean) | undefined;
 	/** Reconciles run one at a time, each against the transcript current when it starts. */
 	#reconcileTask: Promise<void> = Promise.resolve();
 	/** Reconciles queued or running. */
@@ -116,13 +93,23 @@ export class GoalContinuationController {
 	 */
 	#changeOverlappedReconcile = false;
 	readonly #onContinuationDropped: (() => void) | undefined;
-	readonly #continuationSuppressed: (() => boolean) | undefined;
 
-	constructor(session: GoalContinuationSession, options: GoalContinuationControllerOptions = {}) {
+	/**
+	 * @param onContinuationDropped called when a pending continuation is abandoned
+	 *   (a gate closed while it waited), so settle reporting can re-check.
+	 */
+	constructor(
+		session: RpcGoalSession,
+		optionsOrCallback?:
+			| (() => void)
+			| { continuationMode?: string; continuationSuppressed?: () => boolean; onContinuationDropped?: () => void },
+	) {
 		this.#session = session;
-		this.#continuationMode = options.continuationMode;
-		this.#onContinuationDropped = options.onContinuationDropped;
-		this.#continuationSuppressed = options.continuationSuppressed;
+		const options = typeof optionsOrCallback === "function" ? undefined : optionsOrCallback;
+		this.#continuationMode = options?.continuationMode ?? RPC_GOAL_CONTINUATION_MODE;
+		this.#continuationSuppressed = options?.continuationSuppressed;
+		this.#onContinuationDropped =
+			typeof optionsOrCallback === "function" ? optionsOrCallback : options?.onContinuationDropped;
 	}
 
 	/**
@@ -147,7 +134,7 @@ export class GoalContinuationController {
 		this.#continuationGeneration++;
 	}
 
-	get #state(): GoalContinuationResult {
+	get #state(): RpcGoalResult {
 		const state = this.#session.getGoalModeState();
 		return { goal: state?.goal ?? null, state: state ?? null };
 	}
@@ -166,7 +153,7 @@ export class GoalContinuationController {
 	}
 
 	/**
-	 * Call before any session change or tree navigation (host command or extension
+	 * Call before any session change or tree navigation (RPC command or extension
 	 * action). Waits for a pending goal exit so it cannot land in the next session,
 	 * voids a waiting continuation, and holds new goal turns until
 	 * {@link endSessionChange}.
@@ -229,7 +216,7 @@ export class GoalContinuationController {
 		this.#exitTask = this.#exitTask.then(exit).catch(reportControllerError);
 	}
 
-	async handle(command: GoalContinuationCommand): Promise<GoalContinuationResult> {
+	async handle(command: RpcGoalCommand): Promise<RpcGoalResult> {
 		await this.settled();
 		switch (command.op) {
 			case "get":
@@ -248,8 +235,6 @@ export class GoalContinuationController {
 				await this.#exitTask;
 				return this.#state;
 			case "budget":
-				// `token_budget` absent clears the limit, matching `/goal budget off`.
-				await this.#session.goalRuntime.onBudgetMutated(command.token_budget);
 				return this.#state;
 			default: {
 				const op: never = command.op;
@@ -267,7 +252,7 @@ export class GoalContinuationController {
 		}
 	}
 
-	async #create(command: GoalContinuationCommand): Promise<GoalContinuationResult> {
+	async #create(command: RpcGoalCommand): Promise<RpcGoalResult> {
 		this.#assertCanEnter();
 		const objective = command.objective?.trim();
 		if (!objective) throw new Error("objective is required when op=create");
@@ -284,7 +269,7 @@ export class GoalContinuationController {
 		return this.#state;
 	}
 
-	async #resume(): Promise<GoalContinuationResult> {
+	async #resume(): Promise<RpcGoalResult> {
 		this.#assertCanEnter();
 		const current = this.#session.getGoalModeState();
 		if (current?.enabled) return this.#state;
@@ -385,7 +370,7 @@ export class GoalContinuationController {
 	}
 
 	/**
-	 * Feed session events. Must run before any settle watcher observes the same
+	 * Feed session events. Must run before the RPC settle watcher observes the same
 	 * event so a continuation is admitted before settlement is evaluated.
 	 */
 	observe(event: AgentSessionEvent): void {
@@ -399,8 +384,7 @@ export class GoalContinuationController {
 			if (status === "dropped") {
 				this.#queueExit(() => this.#exit());
 			} else if (event.state?.enabled && this.#previousTools === undefined) {
-				// Created by the agent's `goal` tool (or a host mode entry) rather than
-				// this controller.
+				// Created by the agent's `goal` tool rather than this controller.
 				this.#previousTools = this.#session.getEnabledToolNames();
 			}
 			return;
@@ -434,17 +418,13 @@ export class GoalContinuationController {
 	 */
 	#continuationWanted(): boolean {
 		const session = this.#session;
-		if (this.#continuationMode === undefined) return false;
-		if (this.#continuationSuppressed?.() === true) return false;
 		if (!cfgGoalContinuationModes.get(session.settings).includes(this.#continuationMode)) return false;
+		if (this.#continuationSuppressed?.()) return false;
 		if (this.#hostStopped || this.#suppressContinuation || session.isDisposed) return false;
 		if (session.getPlanModeState()?.enabled) return false;
 		const state = session.getGoalModeState();
 		if (!state?.enabled || state.goal.status !== "active") return false;
-		const phases = session.getTodoPhases();
-		return !(
-			!nextActionableTask(phases) && phases.some(phase => phase.tasks.some(task => task.status === "blocked"))
-		);
+		return true;
 	}
 
 	/**
@@ -496,7 +476,7 @@ export class GoalContinuationController {
 				dispatched => {
 					if (!dispatched) unclaim();
 				},
-				error => {
+				(error: unknown) => {
 					unclaim();
 					reportControllerError(error);
 				},
@@ -510,7 +490,8 @@ export class GoalContinuationController {
 }
 
 function reportControllerError(error: unknown): void {
-	logger.warn("Goal continuation controller failed", {
-		error: error instanceof Error ? error.message : String(error),
-	});
+	logger.warn("RPC goal controller failed", { error: error instanceof Error ? error.message : String(error) });
 }
+
+/** Legacy web-gateway aliases retained for the merged call sites. */
+export const GOAL_CONTINUATION_MODE_RPC = RPC_GOAL_CONTINUATION_MODE;

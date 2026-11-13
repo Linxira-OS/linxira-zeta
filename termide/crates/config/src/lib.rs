@@ -15,6 +15,7 @@ pub mod lsp_servers_generated;
 mod overrides;
 mod placeholders;
 mod plugins;
+mod retired_tools;
 mod settings;
 mod words;
 mod xdg;
@@ -38,7 +39,8 @@ pub use placeholders::{
     expand_placeholder_line, expand_placeholders, placeholder_names, PlaceholderValue, Quoting,
     CONTEXT_PLACEHOLDERS,
 };
-pub use plugins::{plugin_enabled, PluginMode, PluginSettings};
+pub use plugins::{builtin_plugin_enabled, plugin_enabled, PluginMode, PluginSettings};
+pub use settings::{attribution_of, url_host, ATTRIBUTION_HOSTS};
 pub use settings::{builtin_web_engines, WEB_BACKENDS, WEB_DISPLAYS};
 pub use settings::{is_cli_provider, permission_modes};
 pub use settings::{
@@ -236,6 +238,7 @@ fn granted_rules_from(
     path: &Path,
     warnings: &mut Vec<String>,
 ) -> termide_agent_core::permissions::RuleTables {
+    retired_tools::rename_in_file(path);
     let text = match std::fs::read_to_string(path) {
         Ok(text) => text,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Default::default(),
@@ -285,12 +288,23 @@ fn overlay_file(value: &mut toml::Value, path: &Path, layer: Layer, warnings: &m
     if !path.exists() {
         return;
     }
+    if layer == Layer::Global {
+        retired_tools::rename_in_file(path);
+    }
     let parsed = std::fs::read_to_string(path)
         .map_err(|e| e.to_string())
         .and_then(|text| toml::from_str::<toml::Value>(&text).map_err(|e| e.to_string()));
     let problem = match parsed {
         Ok(mut overlay) => {
             migrate_legacy(&mut overlay);
+            let unknown = unknown_rule_tables(&overlay);
+            if !unknown.is_empty() {
+                warnings.push(format!(
+                    "Config {}: no tool has the name in {}",
+                    path.display(),
+                    unknown.join(", ")
+                ));
+            }
             let dropped = layer_rules::restrict_layer(&mut overlay, layer);
             if !dropped.is_empty() {
                 warnings.push(format!(
@@ -319,6 +333,23 @@ fn overlay_file(value: &mut toml::Value, path: &Path, layer: Layer, warnings: &m
             path.display()
         ),
     });
+}
+
+/// The `[ai.permissions.<tool>]` tables of `overlay` named after no tool,
+/// as `ai.permissions.<tool>`: their rules apply to nothing.
+fn unknown_rule_tables(overlay: &toml::Value) -> Vec<String> {
+    let Some(permissions) = overlay
+        .get("ai")
+        .and_then(|ai| ai.get("permissions"))
+        .and_then(toml::Value::as_table)
+    else {
+        return Vec::new();
+    };
+    permissions
+        .iter()
+        .filter(|(name, rules)| rules.is_table() && !termide_agent_core::is_known_tool_name(name))
+        .map(|(name, _)| format!("ai.permissions.{name}"))
+        .collect()
 }
 
 /// Whether `text` is a TOML document without any table: the flat format
@@ -417,6 +448,7 @@ impl Config {
         let config_path = Self::config_file_path()?;
 
         if config_path.exists() {
+            retired_tools::rename_in_file(&config_path);
             let original_content = std::fs::read_to_string(&config_path)?;
 
             // Try parsing as new structured format first
@@ -740,6 +772,36 @@ mod save_baseline_tests {
 }
 
 #[cfg(test)]
+mod unknown_rule_table_tests {
+    use super::*;
+
+    #[test]
+    fn a_rule_table_named_after_no_tool_is_reported() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let text = "[ai.permissions]\nmode = \"ask\"\n\n[ai.permissions.shell]\n\"ls *\" = \"allow\"\n\n\
+                    [ai.permissions.bash]\n\"ls *\" = \"allow\"\n\n[ai.permissions.mcp__docs__search]\n\"*\" = \"allow\"\n";
+        std::fs::write(&path, text).unwrap();
+        let mut value = toml::Value::try_from(Config::default()).unwrap();
+        let mut warnings = Vec::new();
+        overlay_file(&mut value, &path, Layer::Project, &mut warnings);
+        let unknown: Vec<_> = warnings
+            .iter()
+            .filter(|warning| warning.contains("no tool"))
+            .collect();
+        assert_eq!(
+            unknown,
+            [&format!(
+                "Config {}: no tool has the name in ai.permissions.bash",
+                path.display()
+            )]
+        );
+        // Reported only: a project's file is not rewritten.
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), text);
+    }
+}
+
+#[cfg(test)]
 mod ai_connection_migration_tests {
     use super::*;
 
@@ -897,6 +959,20 @@ mod layered_load_tests {
         assert_eq!(loaded.warnings.len(), 2, "{:?}", loaded.warnings);
         assert!(loaded.warnings[0].contains("plugins.deploy.enabled"));
         assert!(loaded.warnings[1].contains("plugins.risky.mode"));
+    }
+
+    #[test]
+    fn a_project_alone_cannot_wake_a_builtin_plugin() {
+        let (loaded, _dir) = layered(
+            "[plugins.p4]\nmode = \"opt-in\"\n",
+            Some(
+                "[plugins.p4]\nenabled = true\n\
+                 [plugins.other]\nmode = \"on\"\nenabled = true\n",
+            ),
+        );
+        let plugins = &loaded.effective.plugins;
+        assert!(builtin_plugin_enabled(plugins, "p4"));
+        assert!(!builtin_plugin_enabled(plugins, "other"));
     }
 
     #[test]

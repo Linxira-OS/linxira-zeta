@@ -8,6 +8,9 @@
 > **编号来源**：`scripts/*.ts` 与 `scripts/brand/*.ts` 的注释里仍写着
 > "AGENTS.md damage class N"——那些编号指的是**本文件**（原表在根 AGENTS.md，
 > 2026-10-25 移到这里）。改脚本注释时顺手改成指向本文件即可，不必批量扫。
+>
+> 上游重命名/移动/删除共享接口时，按 [ADR 0036](../../adr/0036-upstream-interface-alignment.md)
+> 对齐新边界：迁移调用点、删除旧 member，不恢复旧名，不用 blanket allowlist。
 
 ## Post-Merge Release-Surface Checklist (merge damage classes)
 

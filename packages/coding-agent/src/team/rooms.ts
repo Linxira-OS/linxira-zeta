@@ -21,7 +21,9 @@ import {
 	type RoomRecord,
 	type RoomSummaryRecord,
 } from "./db";
+import { AgentRegistry } from "../registry/agent-registry";
 import { TeamError } from "./errors";
+import { deliverRoomEvent } from "./room-delivery";
 import { loadContext, validateSegment, type TeamContext, type TeamContextOptions } from "./service";
 
 /** Newest N events are returned by default; pass `limit` to read more or fewer. */
@@ -59,13 +61,13 @@ export function parseRoomMemberTokens(value: string | readonly string[] | undefi
 	return result;
 }
 
-interface ResolvedMember {
+export interface ResolvedMember {
 	agentId: string;
 	role: string;
 }
 
 /** Resolve a member token to a registered PM or engineer row. */
-function resolveMember(ctx: TeamContext, token: string): ResolvedMember {
+export function resolveMember(ctx: TeamContext, token: string): ResolvedMember {
 	const pmById = ctx.db.getPmById(token);
 	if (pmById && pmById.teamId === ctx.team.id) return { agentId: pmById.id, role: ROLE_PM };
 	const engineerById = ctx.db.getEngineerById(token);
@@ -75,6 +77,10 @@ function resolveMember(ctx: TeamContext, token: string): ResolvedMember {
 	const agentById = ctx.db.getAgentById(token);
 	if (agentById && agentById.teamId === ctx.team.id) {
 		return { agentId: agentById.id, role: agentById.role };
+	}
+	const registered = AgentRegistry.global().get(token);
+	if (registered) {
+		return { agentId: registered.id, role: registered.kind === "main" ? "relay" : "agent" };
 	}
 
 	if (token === "secretary") {
@@ -148,6 +154,23 @@ export interface CreateRoomResult {
 	members: RoomMemberRecord[];
 }
 
+export interface AddRoomMemberOptions extends TeamContextOptions {
+	room: string;
+	member: string;
+	role?: string;
+}
+
+export interface RemoveRoomMemberOptions extends TeamContextOptions {
+	room: string;
+	member: string;
+}
+
+export interface SetRoomKindOptions extends TeamContextOptions {
+	room: string;
+	kind: RoomKind;
+	pm?: string;
+}
+
 /**
  * Create a room. Without `members`, a PM room holds its PM and that PM's
  * engineers, and a coordination room holds every PM and engineer in the team.
@@ -217,6 +240,77 @@ export async function createRoom(options: CreateRoomOptions): Promise<CreateRoom
 			throw error;
 		}
 		return { room, members };
+	} finally {
+		ctx.db.close();
+	}
+}
+
+/** Add one resolved PM, engineer, Secretary, or live registered main/relay. */
+export async function addRoomMember(options: AddRoomMemberOptions): Promise<RoomMemberRecord> {
+	const ctx = await loadContext(options);
+	try {
+		const room = findRoom(ctx, options.room);
+		const member = resolveMember(ctx, options.member);
+		if (ctx.db.getRoomMember(room.id, member.agentId)) {
+			throw new TeamError(`Agent "${member.agentId}" is already a member of room "${room.name}"`);
+		}
+		const record: RoomMemberRecord = {
+			roomId: room.id,
+			agentId: member.agentId,
+			role: options.role?.trim() || member.role,
+			createdAt: Math.floor(Date.now() / 1000),
+		};
+		ctx.db.insertRoomMember(record);
+		return record;
+	} finally {
+		ctx.db.close();
+	}
+}
+
+/** Remove a member; a PM room keeps its owning PM. */
+export async function removeRoomMember(options: RemoveRoomMemberOptions): Promise<boolean> {
+	const ctx = await loadContext(options);
+	try {
+		const room = findRoom(ctx, options.room);
+		const token = options.member.trim();
+		const member =
+			ctx.db.getRoomMember(room.id, token) ?? ctx.db.getRoomMember(room.id, resolveMember(ctx, token).agentId);
+		if (!member) throw new TeamError(`Agent "${token}" is not a member of room "${room.name}"`);
+		if (room.kind === "pm" && room.pmId === member.agentId) {
+			throw new TeamError("A PM room cannot remove its owning PM");
+		}
+		ctx.db.deleteRoomMember(room.id, member.agentId);
+		return true;
+	} finally {
+		ctx.db.close();
+	}
+}
+
+/** Switch room kind; a pm room restores its owner and membership. */
+export async function setRoomKind(options: SetRoomKindOptions): Promise<RoomRecord> {
+	if (!ROOM_KINDS.includes(options.kind)) throw new TeamError(`Unknown room kind "${options.kind}"`);
+	const ctx = await loadContext(options);
+	try {
+		const room = findRoom(ctx, options.room);
+		if (room.kind === options.kind && (options.kind !== "pm" || room.pmId === options.pm)) return room;
+		let pmId: string | null = null;
+		if (options.kind === "pm") {
+			const token = options.pm ?? (room.pmId ? ctx.db.getPmById(room.pmId)?.name : undefined);
+			if (!token) throw new TeamError("A pm room needs --pm <pm>");
+			const pm = ctx.db.getPm(ctx.team.id, token);
+			if (!pm) throw new TeamError(`Unknown PM "${token}" in team "${ctx.team.id}"`);
+			pmId = pm.id;
+			if (!ctx.db.getRoomMember(room.id, pm.id)) {
+				ctx.db.insertRoomMember({
+					roomId: room.id,
+					agentId: pm.id,
+					role: "pm",
+					createdAt: Math.floor(Date.now() / 1000),
+				});
+			}
+		}
+		ctx.db.updateRoom(room.id, { kind: options.kind, pmId });
+		return { ...room, kind: options.kind, pmId };
 	} finally {
 		ctx.db.close();
 	}
@@ -370,6 +464,9 @@ export async function postRoomEvent(options: PostRoomEventOptions): Promise<Post
 			replyTo,
 			mentions: extractMentions(body),
 		});
+		// Delivery is best-effort: the durable event is already committed and
+		// offline subscribers keep their cursor for the next session start.
+		await deliverRoomEvent(event, options.dbPath).catch(() => []);
 		return { event, room };
 	} finally {
 		ctx.db.close();

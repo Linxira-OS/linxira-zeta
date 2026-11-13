@@ -118,7 +118,7 @@ termide/
 │   ├── agent-hooks/          # Командные хуки: внешние программы на вызовы инструментов
 │   ├── agent-mcp/            # MCP-клиент (инструменты серверов) и собственный MCP-сервер termide
 │   ├── agent-providers/      # Провайдеры моделей (OpenAI-совместимые chat completions)
-│   ├── agent-tools/          # Встроенные инструменты агента: read, edit, write, bash
+│   ├── agent-tools/          # Встроенные инструменты агента: read, edit, write, shell
 │   ├── agent-web/            # Веб-инструменты: fetch и web_search, по HTTP или через локальный Chrome
 │   ├── app/                  # Оркестратор приложения, обработка событий, управление панелями
 │   ├── app-core/             # Базовые трейты (LayoutController, PanelProvider)
@@ -143,6 +143,7 @@ termide/
 │   ├── modal/                # Система модальных диалогов
 │   ├── panel-agent/          # Панель агента (транскрипт, ввод, запросы разрешений)
 │   ├── panel-binary/         # Панель просмотра и редактирования бинарных файлов (hex/ASCII)
+│   ├── panel-csv/            # Панель просмотра CSV/TSV в виде таблицы
 │   ├── panel-db/             # Панель просмотра баз данных
 │   ├── panel-diagnostics/    # Панель LSP-диагностик
 │   ├── panel-editor/         # Панель текстового редактора

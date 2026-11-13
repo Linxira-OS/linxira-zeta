@@ -45,7 +45,7 @@ Landlock) and optionally in Claude Code and Gemini CLI. Output limits: pi keeps
 the last 2000 lines / 50 KB, Claude Code about 30 000 characters, Codex keeps
 head and tail *(unverified)*.
 
-Decision: `bash` with a timeout, cooperative cancel that kills the process
+Decision: a `shell` tool (named `bash` until it was renamed) with a timeout, cooperative cancel that kills the process
 group, **head-and-tail truncation** (the command echo and the final error both
 survive) and the full output saved to a file whose path is returned.
 
@@ -242,6 +242,28 @@ while steered ones join it) and zero from anything the user sends. A panel
 running a delegated task refuses messages. Codex and Gemini CLI get only
 `COMPANION_TOOLS`, which leave these two out for now.
 
+Changed after: a message goes to a session, not a panel. Addressed by panel
+number, an answer for a session the user had left — gone back to the
+banner's list, or opened another — started a new session in that panel, or
+landed in an unrelated one. A conversation is between sessions; the panel
+is only where one is shown at the moment. So `agents` lists sessions (id,
+agent, state, cwd, and the panel for reference) and `send_message` takes a
+session id; the frame carries `session="…"` and no longer `panel`, which
+stays in `MessageOrigin` for the transcript's `(panel N)`. Every panel
+holds a session from the start (`Session::create_exclusive`), a free one
+included, and the built-in loop and an external agent's host tools both
+carry its id in `ToolContext::session`, so every sender has one. The app
+finds the panel by session (`App::panel_of_session`); with none, it writes
+the message to the session's log as a held report (`EntryKind::HeldReports`,
+found by `find_log`, opened exclusively so a session another termide holds
+is refused), and the session sends it with its next request once reopened,
+the panel saying how many wait. A background task's answer goes the same
+way, to the delegating session (`ctx.session`, or the delegate log's
+`SessionParent::session` when carried on), the panel number only a
+fallback. Considered: binding by panel and refusing when its session
+changed — the answer was then lost; waking a closed session by reopening
+it — that would change the layout under the user.
+
 Not planned: automatic isolation. Two agents in one tree may edit the same
 file; rather than guessing when to isolate or how to merge, the first step
 is to detect it exactly — an edit of a file another live session changed
@@ -252,7 +274,7 @@ which runs under its parent's panel number. A process-wide ledger orders
 every successful `read`, `edit` and `write` by panel; an `edit` or `write`
 of a file whose last change is another panel's and later than this panel's
 last read of it, or that this panel never read, is blocked. Paths are keyed
-canonically (a new file by its directory). Changes through `bash` or from
+canonically (a new file by its directory). Changes through `shell` or from
 outside are not seen. A git worktree per
 delegate may come later only as an explicit choice (`isolation =
 "worktree"`), its result the branch and a diff summary, merged by the
@@ -428,7 +450,7 @@ window**: it flips a flag on the shared service and relaunches the browser on
 a thread of its own, so the window appears or goes at once without blocking
 the UI behind a call in progress; the idle shutdown leaves a watched browser
 alone. "Show me this page" is a different request, answered in the user's
-own browser (`open <url>` through `bash`), not in the agent's. Without a display server the browser runs headless
+own browser (`open <url>` through `shell`), not in the agent's. Without a display server the browser runs headless
 whatever the setting says.
 
 When an engine answers with a challenge anyway, its window is restored and
@@ -505,7 +527,7 @@ actionability waits, not screenshots and coordinates.
 | ACP | `session/request_permission` with `allow_once`, `allow_always`, `reject_once`, `reject_always` options |
 
 Decision: **rules plus a mode**. Rules are `deny`, `ask`, `allow` lists keyed by
-tool and an argument pattern (`bash: "git push *"`, `edit: "src/**"`), evaluated
+tool and an argument pattern (`shell: "git push *"`, `edit: "src/**"`), evaluated
 deny → ask → allow. The mode decides which rules count and what unresolved
 calls do: `ask` (everything asks, configured `allow` rules set aside), `plan`
 (reads and the web pass, changes are refused), `edit` (edits inside the
@@ -538,7 +560,7 @@ Chosen TOML shape (OpenCode-style tables, so "allow always" appends one key):
 [ai.permissions]
 mode = "auto" # ask | plan | edit | configured | auto | all
 
-[ai.permissions.bash]
+[ai.permissions.shell]
 "git status*" = "allow"
 "git push*"   = "ask"
 "rm -rf *"    = "deny"
@@ -550,14 +572,22 @@ mode = "auto" # ask | plan | edit | configured | auto | all
 
 Implementation (`crates/agent-core/src/permissions.rs`): `*` spans any text
 including slashes, a leading `**/` is optional. Subjects are the command for
-`bash` and the project-relative path for file tools. Shell commands are split
-on `&&`, `||`, `;`, `|` and newlines with quote awareness, as Claude Code
+`shell` and the project-relative path for file tools. Shell commands are split
+on `&&`, `||`, `;`, `|`, a background `&` and newlines with quote awareness, as Claude Code
 does: every part needs its own allow, a deny or ask on any part wins, and
 command substitution is never auto-allowed. A built-in read-only command list
 (`ls`, `cat`, `rg`, `git status`, `find` without `-delete`/`-exec`, ...)
 skips the prompt in every mode, the way Claude Code's read-only Bash set and
-Codex's `is_safe_command` do; redirections disqualify. Reads inside the
-project never prompt. Suggested rule for "allow always": `git push *` style
+Codex's `is_safe_command` do; redirections disqualify. That holds only while
+it reads inside the project: a path argument, input redirection or working
+directory that resolves outside it (symlinks followed; globs expanded
+against the file system as the shell would, `expand_glob`, capped at
+`MAX_GLOB_MATCHES`), an unseen variable
+(a `for` variable over in-project literals or globs is seen, `loop_bindings`;
+a loop whose body changes directory leaves it unknown in the body and after,
+`moving_loops`), a tree walk that follows symlinks (`follows_symlinks`),
+and `env`/`printenv` without arguments ask wherever the `read` tool would
+(`reads_outside`). Reads inside the project never prompt. Suggested rule for "allow always": `git push *` style
 for shell (first two words for `git`, `cargo`, `npm`, ...), the exact path for
 files.
 
@@ -1204,7 +1234,8 @@ endpoint's own `GET /models` (every OpenAI-compatible server answers it),
 fetched on a helper thread and shown when it arrives, with a typed-id entry
 last and as the whole picker when the endpoint cannot list; a config-side
 model list would be a second place to keep in sync with the server. vLLM and
-omlx put `max_model_len` on each entry, and the panel takes it as the context
+omlx put `max_model_len` on each entry (OpenRouter `context_length`, with a
+`name` the picker shows beside the id), and the panel takes it as the context
 window of the model it switches to, since the configured figure belongs to
 the configured model. The mode
 is a `ModeHandle` — an atomic shared with the hooks on the agent thread, the
@@ -1251,7 +1282,7 @@ page can ask to be remembered); what must always apply is already in
 Decision (`crates/agent-recall`): no memory store; a read-only built-in tool
 that searches the project's session logs, git history and files. Built in
 rather than an agent, a skill or an MCP server: those reach the logs through
-`bash` or an unknown tool name, which plan mode refuses and a subagent's
+`shell` or an unknown tool name, which plan mode refuses and a subagent's
 `AutoDenyPrompter` denies, and the log format belongs to `session.rs`
 (`Session::read_branch` walks the live branch, so a rewind's dead entries stay
 out and a compaction's originals stay in). `recall` sits on the read-only lists
@@ -1331,9 +1362,11 @@ agent's requests are served in the client: `session/request_permission`
 through the same `ChannelPrompter` as the built-in prompt (answers mapped
 onto the offered `allow_once`/`allow_always`/`reject_once` options),
 `fs/read_text_file` and `fs/write_text_file` from the working directory (a
-write surfaces as a `write` tool call for the editor reload); `terminal/*` is
-advertised and served by a headless process for the agent's non-PTY `bash`
-calls. Switching between engines rebuilds the runtime on the same session log.
+write surfaces as a `write` tool call for the editor reload; a range read
+streams the file and a whole-file read is refused past 16 MiB; a write
+replaces the file atomically); `terminal/*` is advertised and served by a
+headless process for the agent's non-PTY `bash` calls. Switching between
+engines rebuilds the runtime on the same session log.
 
 Settings: ACP's session config options are the client-facing knobs, changeable
 "at any point, whether the agent is idle or generating". The backend keeps the

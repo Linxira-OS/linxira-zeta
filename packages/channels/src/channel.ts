@@ -12,10 +12,17 @@
  * shape into the IRC body the agent sees (see `inboundBody` in `index.ts`).
  */
 
-export type ChannelId = "wechat" | "feishu" | "telegram" | "discord" | "qq";
+/** A platform. Not unique in a runtime: several instances may share one. */
+export type ChannelPlatform = "wechat" | "feishu" | "telegram" | "discord" | "qq";
 
-/** Channels that refuse to start without a non-empty peer allowlist. */
-export const DENY_BY_DEFAULT_CHANNELS: readonly ChannelId[] = ["discord", "qq"];
+/** Compatibility name for the platform type (no runtime authority of its own). */
+export type ChannelId = ChannelPlatform;
+
+/** Stable, immutable instance id; the namespace for every runtime key. */
+export type ChannelInstanceId = string;
+
+/** Every instance is deny-by-default; the allowlist must be non-empty. */
+export const DENY_BY_DEFAULT_CHANNELS: readonly ChannelPlatform[] = ["wechat", "feishu", "telegram", "discord", "qq"];
 
 export interface ChatImage {
 	data: Uint8Array;
@@ -44,6 +51,8 @@ export interface InboundMessage {
 	chatType: "dm" | "group" | "channel" | "thread";
 	/** Platform user id of the sender, when known. */
 	senderId?: string;
+	/** Thread/topic id when the platform separates one chat into threads. */
+	threadId?: string;
 	/** Display name, when the platform provides one. */
 	senderName?: string;
 	/** Text the user sent, with mentions and reply markers removed. */
@@ -61,6 +70,10 @@ export interface InboundMessage {
 	ts?: number;
 }
 
+export interface InboundContext {
+	threadId?: string;
+	userId?: string;
+}
 export type ChannelInboundHandler = (message: InboundMessage) => void;
 
 export interface ChannelCapabilities {
@@ -70,6 +83,28 @@ export interface ChannelCapabilities {
 	supportsFiles: boolean;
 	supportsTyping: boolean;
 }
+
+/**
+ * Read-only capability model for config/UI surfaces. It must match the adapter
+ * instances; tests assert every shipped adapter reports the same values.
+ */
+export const CHANNEL_PLATFORM_CAPABILITIES: Record<ChannelPlatform, ChannelCapabilities> = {
+	wechat: {
+		maxTextLength: Number.POSITIVE_INFINITY,
+		supportsImages: true,
+		supportsFiles: false,
+		supportsTyping: false,
+	},
+	feishu: {
+		maxTextLength: Number.POSITIVE_INFINITY,
+		supportsImages: true,
+		supportsFiles: false,
+		supportsTyping: false,
+	},
+	telegram: { maxTextLength: 4_096, supportsImages: true, supportsFiles: false, supportsTyping: false },
+	discord: { maxTextLength: 2_000, supportsImages: true, supportsFiles: true, supportsTyping: true },
+	qq: { maxTextLength: 4_500, supportsImages: true, supportsFiles: false, supportsTyping: false },
+};
 
 export type ChannelHealthState = "connecting" | "ready" | "degraded" | "auth-failed" | "stopped";
 
@@ -90,7 +125,9 @@ export interface ChannelSendOptions {
 }
 
 export interface ChatChannel {
-	readonly id: ChannelId;
+	/** Instance id (unique), not the platform. */
+	readonly id: ChannelInstanceId;
+	readonly platform: ChannelPlatform;
 	readonly capabilities: ChannelCapabilities;
 	start(): Promise<void>;
 	stop(): Promise<void>;

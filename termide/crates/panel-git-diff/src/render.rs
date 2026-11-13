@@ -32,6 +32,16 @@ impl GitDiffPanel {
 
         self.visible_height = content_area.height as usize;
 
+        if self.diffs.is_empty() && !self.is_loading {
+            buf.set_string(
+                content_area.x,
+                content_area.y,
+                "no changes to show",
+                Style::default().fg(theme.disabled),
+            );
+            return;
+        }
+
         // Colors for diff - blend theme colors with background for adaptive styling
         let added_bg = diff_line_bg(theme.success, theme.bg);
         let removed_bg = diff_line_bg(theme.error, theme.bg);

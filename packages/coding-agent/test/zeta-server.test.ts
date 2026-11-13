@@ -82,12 +82,12 @@ describe("ZetaServer routing", () => {
 		expect(classify("/api/agent/running/events").type).toBe("gateway");
 	});
 
-	it("keeps the plugin page host in the Web UI child", () => {
-		// Both routes are Next-owned filesystem reads (page discovery and the
-		// plugin package's own assets). The gateway has no handler for either,
-		// so routing them there turned every HTML plugin page into a 404.
-		expect(classify("/api/plugin-pages").type).toBe("webui");
-		expect(classify("/api/plugin-assets/pi-messenger/ui/board.html").type).toBe("webui");
+	it("serves the plugin page host in-process now that the gateway owns it", () => {
+		// Discovery (`/api/plugin-pages`) and the plugin package's own assets are
+		// served by `web-gateway/assets.ts`; the renderer no longer depends on a
+		// Next child for manifest-declared plugin HTML.
+		expect(classify("/api/plugin-pages").type).toBe("gateway");
+		expect(classify("/api/plugin-assets/pi-messenger/ui/board.html").type).toBe("gateway");
 	});
 
 	it("reports the stats dashboard on its own route", () => {
@@ -100,7 +100,7 @@ describe("ZetaServer routing", () => {
 		// and `attach` use keeps working.
 		const degraded = (path: string) => classifyRequest(new Request(`http://127.0.0.1:30141${path}`), 0, true);
 		expect(degraded("/").type).toBe("unavailable");
-		expect(degraded("/api/plugin-pages").type).toBe("unavailable");
+		expect(degraded("/api/plugin-pages").type).toBe("gateway");
 		expect(degraded("/api/fs/directories").type).toBe("gateway");
 		expect(degraded("/api/sessions").type).toBe("gateway");
 		expect(degraded("/api/agent/running/events").type).toBe("gateway");

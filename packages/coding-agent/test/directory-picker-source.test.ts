@@ -95,7 +95,21 @@ describe("directory picker source", () => {
 		expect(source.list(tempDir).pins.map(entry => entry.path)).toEqual(["/srv/work"]);
 
 		expect(await source.togglePin("/srv/other")).toBe(true);
-		expect(source.list(tempDir).pins.map(entry => entry.path)).toEqual(["/srv/other", "/srv/work"]);
+		// A whole-list canonicalization resolves every local pin through the host path module.
+		expect(source.list(tempDir).pins.map(entry => entry.path)).toEqual([
+			path.resolve("/srv/other"),
+			path.resolve("/srv/work"),
+		]);
+	});
+
+	it("keeps a Windows drive pin canonical on win32", () => {
+		if (process.platform !== "win32") return;
+		const source = createDirectoryPickerSource({
+			platform: "win32",
+			mounts: [],
+			pins: [String.raw`C:\srv\work`],
+		});
+		expect(source.list(null).pins.map(entry => entry.path)).toEqual([path.resolve(String.raw`C:\srv\work`)]);
 	});
 
 	it("keeps the pin store out of the home directory", async () => {

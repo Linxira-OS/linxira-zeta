@@ -11,6 +11,7 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import { ExtensionRunner, loadExtensionFromFactory, loadExtensions } from "@linxiraos/zeta/extensibility/extensions";
 import { SecretObfuscator } from "@linxiraos/zeta/secrets";
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { COMPACTION_FIDELITY_PRESERVE_KEY } from "@linxiraos/zeta/session/compaction-contract";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { SessionMaintenance } from "@linxiraos/zeta/session/session-maintenance";
@@ -577,9 +578,13 @@ describe("AgentSession handoff", () => {
 			await localSession.compact();
 			const compactionEntry = localSessionManager.getEntries().find(entry => entry.type === "compaction");
 			if (compactionEntry?.type !== "compaction") throw new Error("Expected persisted compaction entry");
-			expect(compactionEntry.preserveData).toEqual({
+			expect(compactionEntry.preserveData).toMatchObject({
 				otherState: "keep-me",
 				resultState: "keep-result",
+			});
+			expect(compactionEntry.preserveData?.[COMPACTION_FIDELITY_PRESERVE_KEY]).toMatchObject({
+				version: 1,
+				qa: [{ question: "old" }],
 			});
 			expect(compactionEntry.preserveData).not.toHaveProperty(snapcompact.PRESERVE_KEY);
 		} finally {
@@ -652,9 +657,13 @@ describe("AgentSession handoff", () => {
 			expect(compactSpy.mock.calls[0]?.[5]?.promptCacheKey).toBe(promptCacheKey);
 			const compactionEntry = localSessionManager.getEntries().find(entry => entry.type === "compaction");
 			if (compactionEntry?.type !== "compaction") throw new Error("Expected persisted compaction entry");
-			expect(compactionEntry.preserveData).toEqual({
+			expect(compactionEntry.preserveData).toMatchObject({
 				otherState: "keep-me",
 				resultState: "keep-result",
+			});
+			expect(compactionEntry.preserveData?.[COMPACTION_FIDELITY_PRESERVE_KEY]).toMatchObject({
+				version: 1,
+				qa: [{ question: "old" }],
 			});
 			expect(compactionEntry.preserveData).not.toHaveProperty(snapcompact.PRESERVE_KEY);
 		} finally {

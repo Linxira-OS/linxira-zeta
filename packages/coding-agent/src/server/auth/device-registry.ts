@@ -26,6 +26,7 @@ import * as path from "node:path";
 import { getAgentDir, logger } from "@linxiraos/pi-utils";
 import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import { type } from "@linxiraos/zeta-schema";
+import { parseBinding, type DeviceBinding } from "./binding";
 
 /** Prefix that identifies a device token (and keeps it out of legacy-token parsing). */
 export const DEVICE_TOKEN_PREFIX = "zdt_";
@@ -56,6 +57,8 @@ export interface DeviceRecord {
 	label: string;
 	platform: DevicePlatform;
 	machineId?: string;
+	/** Optional binding scope (one conversation/workspace) enforced by the host. */
+	binding?: DeviceBinding;
 	scopes: DeviceScope[];
 	tokenHash: string;
 	createdAt: string;
@@ -70,6 +73,7 @@ export interface PublicDevice {
 	readonly id: string;
 	readonly label: string;
 	readonly platform: DevicePlatform;
+	readonly binding: DeviceBinding | null;
 	readonly scopes: DeviceScope[];
 	readonly createdAt: string;
 	readonly lastSeenAt: string | null;
@@ -91,6 +95,7 @@ export interface IssueDeviceInput {
 	/** Client-supplied; normalized by {@link normalizePlatform}. */
 	platform?: string;
 	machineId?: string;
+	binding?: DeviceBinding;
 	scopes?: DeviceScope[];
 }
 
@@ -195,6 +200,7 @@ export function publicDevice(record: DeviceRecord): PublicDevice {
 		id: record.id,
 		label: record.label,
 		platform: record.platform,
+		binding: record.binding ?? null,
 		scopes: [...record.scopes],
 		createdAt: record.createdAt,
 		lastSeenAt: record.lastSeenAt,
@@ -211,6 +217,7 @@ const deviceRecordSchema = type({
 	"label?": "string",
 	"platform?": "string",
 	"machineId?": "string",
+	"binding?": { "sessionId?": "string", "workspaceId?": "string" },
 	"scopes?": "string[]",
 	tokenHash: "string",
 	"createdAt?": "string",
@@ -224,6 +231,17 @@ const deviceFileSchema = type({
 	devices: "unknown[]",
 });
 
+/**
+ * A binding field for a record. A malformed value is **not** "unbound": the
+ * record is dropped by {@link parseRecord}, because turning a damaged
+ * restriction into an unrestricted device is the one failure we cannot accept.
+ */
+function bindingField(raw: unknown): { binding?: DeviceBinding } {
+	const parsed = parseBinding(raw);
+	if (!parsed.ok) throw new Error("invalid_binding");
+	return parsed.binding !== undefined ? { binding: parsed.binding } : {};
+}
+
 /** Defensive parse of one stored record; `null` for anything malformed. */
 function parseRecord(raw: unknown): DeviceRecord | null {
 	const parsed = deviceRecordSchema(raw);
@@ -233,6 +251,13 @@ function parseRecord(raw: unknown): DeviceRecord | null {
 	const platform: DevicePlatform =
 		parsed.platform !== undefined && parsed.platform in PLATFORMS ? (parsed.platform as DevicePlatform) : "unknown";
 	const scopes = (parsed.scopes ?? []).filter((scope): scope is DeviceScope => scope in SCOPES);
+	let bindingFieldValue: { binding?: DeviceBinding };
+	try {
+		bindingFieldValue = bindingField(parsed.binding);
+	} catch {
+		// Present but unusable: drop the record so its token cannot be used.
+		return null;
+	}
 	return {
 		id: parsed.id.trim(),
 		label: normalizeLabel(parsed.label, platform),
@@ -240,7 +265,9 @@ function parseRecord(raw: unknown): DeviceRecord | null {
 		...(parsed.machineId !== undefined && parsed.machineId.trim() !== ""
 			? { machineId: parsed.machineId.trim() }
 			: {}),
-		scopes: scopes.length > 0 ? [...new Set(scopes)] : ["read", "write"],
+		...bindingFieldValue,
+		// Missing scopes retain the legacy default; explicit empty grants deny all.
+		scopes: parsed.scopes !== undefined ? [...new Set(scopes)] : ["read", "write"],
 		tokenHash,
 		createdAt: parsed.createdAt ?? new Date(0).toISOString(),
 		lastSeenAt: parsed.lastSeenAt ?? null,
@@ -360,8 +387,10 @@ export class DeviceRegistry {
 			...(input.machineId !== undefined && input.machineId.trim() !== ""
 				? { machineId: input.machineId.trim() }
 				: {}),
+			...bindingField(input.binding),
+			// Default only when omitted: an explicit empty grant must never widen.
 			scopes:
-				input.scopes !== undefined && input.scopes.length > 0
+				input.scopes !== undefined
 					? [...new Set(input.scopes.filter(scope => scope in SCOPES))]
 					: ["read", "write"],
 			tokenHash: hashDeviceToken(token),

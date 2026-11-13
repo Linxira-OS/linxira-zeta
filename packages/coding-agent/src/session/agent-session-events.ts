@@ -9,6 +9,7 @@ import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import type { TodoItem } from "@linxiraos/pi-tui/tools/todo";
 import type { CustomMessage } from "./messages";
 import type { CacheWarmingRefreshEnd, CacheWarmingRefreshStart } from "./cache-warmer";
+import type { CompactionPhaseEvent } from "./compaction/service";
 
 /** Session-specific events that extend the core AgentEvent. */
 export type AgentSessionEvent =
@@ -62,6 +63,10 @@ export type AgentSessionEvent =
 			skipped?: boolean;
 			errorMessage?: string;
 	  }
+	// Fine-grained progress for one compaction pass (service split). Additive to the
+	// start/end pairs above: consumers that only know the pairs keep working, and
+	// the terminal phase here is `aborted` for cancellation only, `failed` otherwise.
+	| CompactionPhaseEvent
 	| {
 			type: "auto_retry_start";
 			attempt: number;

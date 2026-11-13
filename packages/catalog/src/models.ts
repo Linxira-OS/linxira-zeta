@@ -273,6 +273,12 @@ export function isModelHiddenBySelectors(
 		const pattern = raw.trim();
 		if (!pattern) continue;
 		if (pattern === "*") return true;
+		// Match the literal id first: a real catalog id may itself end in
+		// `:high`/`:low`, and stripping it before the exact test would make a
+		// per-provider bulk selector unable to hide that row. The normalized
+		// comparison below still supports a copied role's thinking suffix.
+		if (pattern === `${model.provider}/${model.id}`) return true;
+		if (!pattern.includes("/") && pattern === model.id) return true;
 		const base = stripHiddenThinkingSuffix(pattern);
 		if (base === `${model.provider}/${model.id}`) return true;
 		if (!base.includes("/") && base === model.id) return true;

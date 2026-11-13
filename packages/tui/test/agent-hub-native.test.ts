@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import type { TspKind, TspPickerProps } from "@linxiraos/pi-wire";
 import type { DescribeContext, NativeChild, NativeNode } from "../src/native/node";
 import { AgentHubOverlayComponent } from "../src/overlays/agent-hub";
-import type { AgentRecordLike } from "../src/overlays/agent-hub-types";
+import type { AgentRecordLike, IrcBusLike } from "../src/overlays/agent-hub-types";
 import {
 	type EventBusLike,
 	SessionObserverRegistry,
@@ -51,6 +51,7 @@ function createHub(
 	agents: AgentRecordLike[],
 	focused: string[] = [],
 	observers = new SessionObserverRegistry(),
+	irc: IrcBusLike = { unreadCount: () => 0 },
 ): AgentHubOverlayComponent {
 	return new AgentHubOverlayComponent({
 		observers,
@@ -67,7 +68,7 @@ function createHub(
 		lifecycle: () => {
 			throw new Error("lifecycle is not used by selection");
 		},
-		irc: { unreadCount: () => 0 },
+		irc,
 		activity: { setLive() {}, sync: async () => {}, query: () => [], recent: () => [] },
 		focusAgent: async id => {
 			focused.push(id);
@@ -150,7 +151,6 @@ test("the By parent action and the t key both switch the picker to the parent tr
 	}
 });
 
-/** An observer registry fed by a fake bus, with one running `Worker` progress frame of `durationMs` at t=1_000_000. */
 function observedWorker(durationMs: number) {
 	const listeners = new Map<string, (data: unknown) => void>();
 	const bus: EventBusLike = {
@@ -200,6 +200,21 @@ test.each([60_000, 0])(
 	},
 );
 
+test("a selection change re-sends no roster rows, so large hubs stay responsive in Tern", () => {
+	const { hub, now } = observedWorker(60_000);
+	try {
+		const before = pickerProps(hub).items;
+		now.mockReturnValue(1_000_200);
+		hub.handleNativeEvent({ type: "select", key: "", item: "Idle" });
+		const after = pickerProps(hub);
+		expect(after.selected).toBe("Idle");
+		// The reconciler sends `items` whenever it differs; the running clock keeps ticking terminal-side.
+		expect(after.items).toEqual(before);
+	} finally {
+		hub.dispose();
+	}
+});
+
 test("a follow-up turn does not age the previous turn's snapshot across the idle gap", () => {
 	const { hub, now, emit } = observedWorker(60_000);
 	const lifecycle = { id: "Worker", agent: "task", agentSource: "bundled", index: 0 };
@@ -210,6 +225,32 @@ test("a follow-up turn does not age the previous turn's snapshot across the idle
 		emit(TASK_SUBAGENT_LIFECYCLE_CHANNEL, { ...lifecycle, status: "started" });
 		hub.handleNativeEvent({ type: "select", key: "", item: "Idle" });
 		expect(pickerProps(hub).items?.find(item => item.id === "Worker")?.facts?.time).toBe(60_000);
+	} finally {
+		hub.dispose();
+	}
+});
+
+test("unread badges follow the IRC mailbox generation", () => {
+	let unread = 2;
+	let revision = 7;
+	let notifyMailbox: (() => void) | undefined;
+	const hub = createHub([agent("alpha", 3_000)], [], undefined, {
+		unreadCount: () => unread,
+		revision: () => revision,
+		onMailboxChange: listener => {
+			notifyMailbox = listener;
+			return () => {};
+		},
+	});
+	try {
+		expect(pickerProps(hub).items?.[0]?.badges?.map(badge => badge.text)).toContain("2 unread");
+
+		// A queued message can arrive with no registry/observer event; the mailbox
+		// generation must refresh the badge without waiting out the age window.
+		unread = 5;
+		revision += 1;
+		notifyMailbox?.();
+		expect(pickerProps(hub).items?.[0]?.badges?.map(badge => badge.text)).toContain("5 unread");
 	} finally {
 		hub.dispose();
 	}

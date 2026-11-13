@@ -63,6 +63,82 @@ const MERGE_TEST_ALLOWLIST: Record<string, string> = {
 	"packages/coding-agent/test/tools/gh.test.ts": "scope/import reflow only",
 	"packages/coding-agent/test/tools/lsp-regressions.test.ts": "scope/temp-prefix sweep only",
 	"packages/coding-agent/test/write-read-projection.test.ts": "scope/import reflow only",
+	"packages/agent/test/compaction-short-summary.test.ts": "scope/import reflow only; upstream assertions unchanged",
+	"packages/coding-agent/test/advisor-tool-call-loop-guard.test.ts":
+		"scope/import reflow only; upstream assertions unchanged",
+	"packages/coding-agent/test/cli/build-service.test.ts":
+		"build-service CLI is retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/cli/update-cli.test.ts":
+		"Zeta update channel keeps its fixed-registry path; upstream binary-patch assertions do not apply",
+	"packages/coding-agent/test/collab/chunked-welcome.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/controller.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/guest-ui-request.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/helpers/in-memory-relay.ts":
+		"collab live-session helpers are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/helpers/throttled-host.ts":
+		"collab live-session helpers are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/host-large-session-join.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/host-no-peer-gate.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/host-peer-left-queue.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/host-peer-overload.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/host-registry.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/host-stream-supersede.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/host-unanswerable-asks.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/read-only.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/relay-client-backpressure.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/replication-shrink.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/steer-queue.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/collab/test-home-isolation.test.ts":
+		"collab live-session tests are retired; see scripts/check-removed-upstream-files.ts",
+	"packages/coding-agent/test/discovery/pi-config-dir.test.ts": "Zeta config root is .zeta, not upstream .pi",
+	"packages/coding-agent/test/modes/controllers/extension-ui-controller.test.ts":
+		"Zeta removed program-status UI; scope/feature removal only",
+	"packages/coding-agent/test/tools/browser-implicit-roles.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-interactions.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-queries.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-relay-kind.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-role-ax.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-targets.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-tern-adopt.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-tern-dom.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-tern-kind.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-webkit-host.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-webkit-install.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-webkit-kind.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-webkit-observation.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-webkit-open.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/tools/browser-worker-exit.test.ts": "WebKit/Tern browser surfaces are retired",
+	"packages/coding-agent/test/update-cli.test.ts":
+		"Zeta update channel keeps its fixed-registry path; upstream binary-patch assertions do not apply",
+	"packages/collab-web/test/client.test.ts":
+		"collab-web guest client is retired; see scripts/check-removed-upstream-files.ts",
+	"packages/collab-web/test/tool-view.test.tsx":
+		"collab-web guest client is retired; see scripts/check-removed-upstream-files.ts",
+	"packages/tui/test/html-form.test.ts": "Zeta fork role/telemetry renames; upstream assertions unchanged",
+	"packages/tui/test/native/transcript-redesign-native.test.ts":
+		"Zeta fork role/telemetry renames; upstream assertions unchanged",
+	"packages/tui/test/tools-native-web.test.ts": "Zeta fork role/telemetry renames; upstream assertions unchanged",
+	"packages/tui/test/transcript-committed-release.test.ts":
+		"Zeta fork role/telemetry renames; upstream assertions unchanged",
+	["sdk/python/" + "omp" + "-rpc/tests/test_client.py"]:
+		"upstream-named RPC SDK is retired; Zeta ships sdk/python/zeta-rpc",
+	["sdk/python/" + "omp" + "-rpc/tests/test_protocol.py"]:
+		"upstream-named RPC SDK is retired; Zeta ships sdk/python/zeta-rpc",
+	["sdk/rust/" + "omp" + "-rpc/tests/smoke.rs"]: "upstream-named RPC SDK is retired; Zeta ships sdk/rust/zeta-rpc",
 };
 
 interface ChangedPath {

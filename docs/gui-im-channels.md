@@ -1,13 +1,25 @@
 # IM channels in Work Studio
 
-> **Status (2026-11-10).** The shipped surface is **Settings → IM 渠道** in Work
-> Studio (`web-app/src/studio/settings/ImChannelsPane.tsx`), served by
-> `zetacode serve`. The desktop shell shows the same page in its window; the
-> tray's **IM 渠道** item sends `app.settings:channels` and the renderer opens
-> that group. Neither the paused Rust GUI (`main/crates/zetawork-gui`) nor the
-> frozen `web-ui/` snapshot is a channel settings surface.
+> **Status (2026-11-12).** The shipped surface is **Settings → IM 运行时**
+> (`web-app/src/studio/settings/ImRuntimePage.tsx`), served by `zetacode serve`.
+> It is the only advertised IM settings page: instances, credentials, bindings,
+> profiles and bot commands all use the instance editor. The desktop tray's
+> legacy **IM 渠道** item (`app.settings:channels`) is aliased to this group.
+> `ImChannelsPane.tsx` remains only as a legacy component and is not mounted;
+> QQ/Discord credentials are configured on the runtime instance, not through
+> the removed legacy credential section. Neither the paused Rust GUI
+> (`main/crates/zetawork-gui`) nor the frozen `web-ui/` snapshot is a channel
+> settings surface.
 
-The pane is a front-end over `/api/channels/*` and `/api/web-config`. Device,
+> **Owner pause (2026-11-12).** QQ (OneBot v11) and WeCom (企业微信) are
+> owner-paused ([ADR-0035](../document/adr/0035-pause-qq-wecom-channels.md)).
+> The retained QQ adapter is still registered, so a QQ row can appear in this
+> UI; that is **not** a support or release promise, no bridge is bundled, and
+> there is no official QQ Bot API adapter or live validation. WeCom has no
+> adapter. Feishu remains the existing enterprise channel. Existing UI code is
+> retained unchanged.
+
+The pane is a front-end over `/api/channels/instances` and `/api/im/*`. Device,
 pairing, remote-token and TOTP actions live next door in **Settings → 身份与设备**
 (`SecuritySettingsPane.tsx`); the surface matrix shared by both pages is
 documented in [Work Studio surfaces](./studio-surfaces.md). It keeps no state store of its own: `~/.zeta/agent/web.yml` and
@@ -17,20 +29,22 @@ write re-reads it, and nothing renders a value the gateway did not send.
 
 ## Routes used
 
-| Surface | Route | What the pane does with it |
-|---|---|---|
-| Runtime state | `GET /api/channels/status` | `{id, running}` per channel the runtime started; polled every 2 s |
-| Configuration | `GET /api/web-config` | Enabled flags, masked secrets, `remote.workspaces`, `remote.sessionMappings`, `remote.botSessions` |
-| Toggles / defaults | `PUT /api/web-config` | `channels.<id>.enabled`, `channels.<id>.workspaceRoot`, whole-array `remote.sessionMappings` |
-| Credentials | `POST /api/channels/credentials` | Validate against the platform, then save; never stores an unvalidated secret |
-| WeChat login | `GET /api/channels/wechat/qrcode`, `POST …/reconnect`, `POST …/unbind` | QR + state, fresh login, logout |
-| One test message | `POST /api/channels/send` | `{channelId, to, text}` through the running channel |
-
+| Surface            | Route                                                                                 | What the page does with it                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Runtime state      | `GET /api/channels/status`                                                            | `{id, running}` per instance; polled while the page is visible                                               |
+| Instances          | `GET/PUT /api/channels/instances`                                                     | Per-platform instances, note, enabled, profile, model and masked credentials; writes preserve stored secrets |
+| Instance lifecycle | `POST /api/channels/instances/<id>/enable`, `…/disable`, `…/validate`                 | Toggle one instance, validate its credential bag against the platform                                        |
+| WeChat login       | `GET /api/channels/instances/<id>/wechat/qrcode`, `POST …/reconnect`, `POST …/unbind` | Per-instance QR + state, fresh login, logout                                                                 |
+| Agent profiles     | `GET/PUT /api/im/agents`                                                              | Persona, model, location, tool allowlists and memory backend                                                 |
+| Bindings           | `GET/PUT /api/im/bindings`                                                            | Instance + chat + profile + target + session + answer/mention/observe                                        |
+| Bot commands       | `GET /api/im/commands`                                                                | Backend-resolved binding/session/model/role/voice/examples                                                   |
+| One test message   | `POST /api/channels/send`                                                             | `{channelId, to, text}` through the running channel                                                          |
 
 ## Channels and runtime words
 
-One row per adapter — 微信, 飞书 / Lark, Telegram, Discord, QQ (OneBot v11) —
-each with an enable switch and two chips:
+One row per adapter — 微信, 飞书 / Lark, Telegram, Discord, QQ (OneBot v11,
+retained/owner-paused) — each with an enable switch and two chips. WeCom has no
+adapter row because no adapter exists:
 
 - **运行中** — the status list reports the channel running;
 - **已停止** — the config disables it;
@@ -40,13 +54,15 @@ each with an enable switch and two chips:
   either neighbour.
 
 Rows follow the runtime's own channel registry, so a Discord or QQ binding is
-never hidden from the table. `PUT channels.<id>.enabled` restarts the `serve`
-channel runtime, so the toggle takes effect immediately. Disabling never deletes
-credentials. Discord is deny-by-default until `channels.discord.allowedChannels`
-is non-empty and QQ needs `allowedGroups`/`allowedUsers`; that is why an enabled
-row can still read **错误：运行时未启动**. Discord and QQ have no validate-and-save
-route yet: the credentials section says so and points at the raw web config
-(`channels.discord.*`, `channels.qq.*`) instead of faking an editor.
+never hidden from the table. `POST /api/channels/instances/<id>/enable|disable`
+restarts the `serve` channel runtime, so the toggle takes effect immediately.
+Disabling never deletes credentials. Discord is deny-by-default until
+`channels.discord.allowedChannels` is non-empty and QQ needs
+`allowedGroups`/`allowedUsers`; that is why an enabled row can still read
+**错误：运行时未启动**. Discord and QQ credentials are edited on the runtime
+instance through the shared credential fields and validated by
+`POST /api/channels/instances/<id>/validate`; the removed legacy pane's
+raw-config note is no longer a user-facing path.
 
 ## WeChat login
 
@@ -58,13 +74,13 @@ library and the login URL is never sent to an external QR image service. Image
 payloads (`data:image/…`, an image URL) are shown as an `<img>` instead and the
 route omits `svg`.
 
-| Stage | Source | Shown as |
-|---|---|---|
-| `pending` | `{pending:true,status:"wait"}` | 请用微信扫码 |
-| `scanned` | `status:"scaned"` | 已扫码，请在手机上确认 |
+| Stage       | Source                                                            | Shown as                      |
+| ----------- | ----------------------------------------------------------------- | ----------------------------- |
+| `pending`   | `{pending:true,status:"wait"}`                                    | 请用微信扫码                  |
+| `scanned`   | `status:"scaned"`                                                 | 已扫码，请在手机上确认        |
 | `connected` | `status:"confirmed"`, or a stored bot token with no pending login | 已连接 / 已登录（凭据已保存） |
-| `expired` | `status:"expired"` | 二维码已过期，请重新连接 |
-| `unbound` | `{pending:false}` and no stored token | 尚未登录 |
+| `expired`   | `status:"expired"`                                                | 二维码已过期，请重新连接      |
+| `unbound`   | `{pending:false}` and no stored token                             | 尚未登录                      |
 
 重新连接 and 解绑 are disabled unless the channel is enabled and running (the
 routes answer 404 otherwise); 解绑 asks for confirmation because it clears the

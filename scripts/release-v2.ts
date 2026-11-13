@@ -31,6 +31,7 @@ import { mainWorkspaceMembers, pinnedWorkspaceVersions, rewriteWorkspaceVersions
 import { distributionManifests, distributionPins, NPM_DISTRIBUTIONS } from "./npm-distributions";
 import { selectLatestZetaTag, validateExplicitVersion, watchCI } from "./release";
 import { assertTagAllowed, INTERNAL_BUILD_MARKER, internalBuildTagMessage } from "./release-policy";
+import { checkReleaseScope, formatProblems, isVerifiedCiConclusion } from "./release-scope";
 import type { PublishPolicyDecision } from "./release-policy";
 
 // All published packages ride the release version in lock-step. Entries are
@@ -368,6 +369,19 @@ export async function waitForPushRunGreen(
 		console.error(`Push run ${runId} on ${what} ${sha} did not succeed (exit ${exitCode}).`);
 		return false;
 	}
+	// `gh run watch --exit-status` is not the evidence: a cancelled/skipped run
+	// must never count as a green source commit. Read the run's final verdict.
+	const verdict = JSON.parse((await $`gh run view ${runId} --json status,conclusion`.text()) as string) as {
+		status?: string;
+		conclusion?: string | null;
+	};
+	if (verdict.status !== "completed" || !isVerifiedCiConclusion(verdict.conclusion)) {
+		console.error(
+			`Push run ${runId} on ${what} ${sha} ended ${verdict.status ?? "unknown"}/${verdict.conclusion ?? "unknown"}; ` +
+				"only a completed success proves the source commit (cancelled/skipped do not count).",
+		);
+		return false;
+	}
 	return true;
 }
 
@@ -436,6 +450,35 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 		);
 	} else {
 		console.log(`  Freeze policy: owner-approved public release — ${policy.reason}\n`);
+	}
+
+	// Step 1c: mechanical release scope (REQ-021). A public release needs every
+	// shipped REQ at VERIFIED/RELEASED with independent evidence, every deferred
+	// row approved with a re-entry trigger, and its contract ADRs Accepted and
+	// indexed. Internal 1.5.x tags only run the cheap structural pass — they
+	// publish nothing, so no release scope applies.
+	const scope = checkReleaseScope(version, { structuralOnly: internalBuild });
+	if (!scope.ok) {
+		console.error(`Error: release scope gate failed for ${version}:`);
+		console.error(formatProblems(scope));
+		process.exit(1);
+	}
+	console.log(
+		internalBuild
+			? "  Release scope: structural checks only (code-only internal tag)."
+			: `  Release scope: ${scope.requirements.length} REQ(s), ${scope.adrs.length} ADR(s) verified.`,
+	);
+
+	// Step 1d: a PUBLIC release must not pack a stale local dist — otherwise a
+	// bundle built from another commit could be published as this tag
+	// (REQ-036). Code-only 1.5.x tags publish nothing, so a pre-existing dist
+	// is not a release input and must not falsely block the tag.
+	if (!internalBuild && (await Bun.file("packages/coding-agent/dist/cli.js").exists())) {
+		const artifact = await $`bun scripts/check-release-artifact.ts --staged`.nothrow();
+		if (artifact.exitCode !== 0) {
+			console.error("Error: the staged coding-agent dist is not built from this commit (REQ-036).");
+			process.exit(1);
+		}
 	}
 
 	// Step 0: pre-flight.

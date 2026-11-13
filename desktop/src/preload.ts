@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from "electron";
+import { liveAudioBridge } from "./live-audio-preload";
 
 interface DesktopOpenTarget {
 	id: string;
@@ -93,7 +94,7 @@ const bridge = {
 	/** Open the OS directory picker; resolves to the chosen path or null on cancel. */
 	selectDirectory: (startPath?: string): Promise<string | null> => ipcRenderer.invoke("pi:select-directory", startPath),
 	/** Pick a directory and register it as a project (native "Open Folder"). */
-	pickWorkspace: (input?: { startPath?: string; alias?: string }): Promise<{ cancelled: boolean; name?: string }> =>
+	pickWorkspace: (input?: { startPath?: string; alias?: string }): Promise<{ cancelled: boolean; workspaceId?: string; name?: string }> =>
 		ipcRenderer.invoke("pi:pick-workspace", input),
 	/** Host-defined open targets; IDs are opaque to the renderer. */
 	getOpenTargets: (): Promise<DesktopOpenTarget[]> => ipcRenderer.invoke("pi:open-targets"),
@@ -193,5 +194,80 @@ const bridge = {
 
 export type PiDesktopApi = typeof bridge;
 
+// Dictation keeps its own module (channels, validation, macOS TCC); spreading
+// it in keeps the desktop capability surface one object under both globals.
+Object.assign(bridge, liveAudioBridge);
+type RemoteUnsubscribe = () => void;
+
+/**
+ * SSH execution targets. Every call is keyed by a saved connection id; the
+ * renderer never sees a path to execute or a persisted password. When this
+ * object is absent, Work Studio keeps its browser/local path.
+ */
+const remoteBridge = {
+	list: (): Promise<unknown> => ipcRenderer.invoke("pi:remote-list"),
+	save: (draft: unknown): Promise<unknown> => ipcRenderer.invoke("pi:remote-save", draft),
+	remove: (id: string): Promise<void> => ipcRenderer.invoke("pi:remote-remove", id),
+	connect: (id: string, credentials?: { password?: string }): Promise<void> => ipcRenderer.invoke("pi:remote-connect", id, credentials),
+	disconnect: (id: string): Promise<void> => ipcRenderer.invoke("pi:remote-disconnect", id),
+	approveDeployment: (id: string): Promise<void> => ipcRenderer.invoke("pi:remote-approve", id),
+	select: (id: string | null): Promise<void> => ipcRenderer.invoke("pi:remote-select", id),
+	directories: (id: string, path?: string): Promise<unknown> => ipcRenderer.invoke("pi:remote-directories", id, path),
+	register: (id: string, path: string): Promise<void> => ipcRenderer.invoke("pi:remote-register", id, path),
+	bootstrap: (id: string): Promise<unknown> => ipcRenderer.invoke("pi:remote-bootstrap", id),
+	query: (id: string, request: unknown): Promise<unknown> => ipcRenderer.invoke("pi:remote-query", id, request),
+	command: (id: string, request: unknown): Promise<unknown> => ipcRenderer.invoke("pi:remote-command", id, request),
+	installRuntime: (id: string): Promise<{ readonly installed: boolean; readonly message?: string }> =>
+		ipcRenderer.invoke("pi:remote-install-runtime", id),
+	retryNetwork: (id: string): Promise<void> => ipcRenderer.invoke("pi:remote-retry-network", id),
+	onChanged: (listener: () => void): RemoteUnsubscribe => {
+		const handler = (): void => listener();
+		ipcRenderer.on("pi:remote-changed", handler);
+		return () => ipcRenderer.removeListener("pi:remote-changed", handler);
+	},
+	onEvent: (listener: (envelope: unknown) => void): RemoteUnsubscribe => {
+		const handler = (_event: IpcRendererEvent, envelope: unknown): void => listener(envelope);
+		ipcRenderer.on("pi:remote-event", handler);
+		return () => ipcRenderer.removeListener("pi:remote-event", handler);
+	},
+};
+
+type TerminalRecording = {
+	readonly terminalId: string;
+	readonly state: "idle" | "recording" | "saving" | "saved" | "failed";
+	readonly elapsedMs: number;
+	readonly bytes: number;
+	readonly artifactId?: string;
+	readonly notice?: string;
+};
+
+const terminalBridge = {
+	create: (size?: { cols?: number; rows?: number; targetId?: string; workspaceId?: string; profileId?: string; cwd?: string }): Promise<unknown> =>
+		ipcRenderer.invoke("pi:terminal-create", size),
+	write: (id: string, data: string): Promise<void> => ipcRenderer.invoke("pi:terminal-write", id, data),
+	resize: (id: string, cols: number, rows: number): Promise<void> => ipcRenderer.invoke("pi:terminal-resize", id, cols, rows),
+	dispose: (id: string): Promise<void> => ipcRenderer.invoke("pi:terminal-dispose", id),
+	profiles: (targetId?: string): Promise<unknown> => ipcRenderer.invoke("pi:terminal-profiles", targetId),
+	list: (targetId?: string): Promise<unknown> => ipcRenderer.invoke("pi:terminal-list", targetId),
+	recordingStart: (input: { id: string; workspaceId?: string; sessionId?: string }): Promise<TerminalRecording> =>
+		ipcRenderer.invoke("pi:terminal-recording-start", input),
+	recordingStop: (id: string): Promise<TerminalRecording> => ipcRenderer.invoke("pi:terminal-recording-stop", id),
+	recordingStatus: (id: string): Promise<TerminalRecording> => ipcRenderer.invoke("pi:terminal-recording-status", id),
+	recordingExport: (artifactId: string): Promise<{ exported: boolean; path?: string }> =>
+		ipcRenderer.invoke("pi:terminal-recording-export", artifactId),
+	onData: (listener: (event: { id: string; data: string }) => void): RemoteUnsubscribe => {
+		const handler = (_event: IpcRendererEvent, payload: { id: string; data: string }): void => listener(payload);
+		ipcRenderer.on("pi:terminal-data", handler);
+		return () => ipcRenderer.removeListener("pi:terminal-data", handler);
+	},
+	onExit: (listener: (event: { id: string }) => void): RemoteUnsubscribe => {
+		const handler = (_event: IpcRendererEvent, payload: { id: string }): void => listener(payload);
+		ipcRenderer.on("pi:terminal-exit", handler);
+		return () => ipcRenderer.removeListener("pi:terminal-exit", handler);
+	},
+};
+
 contextBridge.exposeInMainWorld("piDesktop", bridge);
 contextBridge.exposeInMainWorld("zetaStudioChrome", bridge);
+contextBridge.exposeInMainWorld("zetaStudioRemote", remoteBridge);
+contextBridge.exposeInMainWorld("zetaStudioTerminal", terminalBridge);

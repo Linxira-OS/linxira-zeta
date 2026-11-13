@@ -93,6 +93,7 @@ export interface WechatLoginResult {
 
 export interface WechatLoginOptions {
 	webConfig: WebConfig;
+	instanceId: string;
 	/** Defaults to 180 s (the WeChat server also expires QR codes). */
 	timeoutMs?: number;
 	onQrCode?: (payload: WeChatQrStatus, state: WechatLoginState) => void;
@@ -112,7 +113,8 @@ const DEFAULT_LOGIN_TIMEOUT_MS = 180_000;
 export async function runWechatLogin(options: WechatLoginOptions): Promise<WechatLoginResult> {
 	const timeoutMs = options.timeoutMs ?? DEFAULT_LOGIN_TIMEOUT_MS;
 	const tracker = new WechatLoginTracker(timeoutMs);
-	const data = options.webConfig.getData();
+	const instance = options.webConfig.getChannelInstance(options.instanceId);
+	if (!instance) throw new Error(`Unknown channel instance: ${options.instanceId}`);
 	let lastQr: WeChatQrStatus | null = null;
 	let settled = false;
 	let settle: (result: WechatLoginResult) => void = () => {};
@@ -126,15 +128,32 @@ export async function runWechatLogin(options: WechatLoginOptions): Promise<Wecha
 		settle(result);
 	};
 
+	const sink = {
+		setField: async (field: string, value: string) => {
+			await options.webConfig.setInstance(options.instanceId, {
+				credentials: { ...instance.credentials, [field]: value },
+			});
+		},
+		setPeerTokens: async (peerTokens: Record<string, string>) => {
+			await options.webConfig.setInstance(options.instanceId, { options: { ...instance.options, peerTokens } });
+		},
+		clear: async () => {
+			await options.webConfig.setInstance(options.instanceId, {
+				credentials: {},
+				options: { ...instance.options, peerTokens: {} },
+			});
+		},
+	};
 	const config = {
+		instanceId: options.instanceId,
 		config: {
 			// A fresh login always starts without the old token; the QR flow then
-			// persists the replacement through `webConfig`.
-			baseUrl: data.channels.wechat.baseUrl,
-			endpoint: data.channels.wechat.endpoint,
-			peerTokens: data.channels.wechat.peerTokens,
+			// persists the replacement through the instance sink.
+			baseUrl: typeof instance.credentials.baseUrl === "string" ? instance.credentials.baseUrl : undefined,
+			endpoint: typeof instance.credentials.endpoint === "string" ? instance.credentials.endpoint : undefined,
+			peerTokens: instance.options?.peerTokens,
 		},
-		webConfig: options.webConfig,
+		credentialSink: sink,
 		onMessage: () => {},
 		onQrCode: (payload: WeChatQrStatus) => {
 			lastQr = payload;

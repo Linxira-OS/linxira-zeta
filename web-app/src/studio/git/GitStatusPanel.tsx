@@ -79,7 +79,8 @@ export function useGitRepository(client: StudioClient, workspaceId?: WorkspaceId
     };
   }, [client, refresh, workspaceId, syncRevision]);
 
-  return { ...(repository === undefined ? {} : { repository }), loading, ...(error === undefined ? {} : { error }), refresh };
+  const currentRepository = repository?.workspaceId === workspaceId ? repository : undefined;
+  return { ...(currentRepository === undefined ? {} : { repository: currentRepository }), loading, ...(error === undefined ? {} : { error }), refresh };
 }
 
 function ask(label: string, initial = ""): string | undefined {

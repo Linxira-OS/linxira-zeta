@@ -283,6 +283,10 @@
       "types": "./src/extensibility/plugins/marketplace/*.ts",
       "import": "./src/extensibility/plugins/marketplace/*.ts"
     },
+    "./extensibility/plugins/dev": {
+      "types": "./src/extensibility/plugins/dev/index.ts",
+      "import": "./src/extensibility/plugins/dev/index.ts"
+    },
     "./ida": {
       "types": "./src/ida/index.ts",
       "import": "./src/ida/index.ts"

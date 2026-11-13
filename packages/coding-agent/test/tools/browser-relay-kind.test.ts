@@ -1,12 +1,12 @@
-import { describe, expect, it, afterEach, beforeEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import {
-	DEFAULT_RELAY_URL,
-	resolveRelayKind,
 	createBrowserPrelude,
+	DEFAULT_RELAY_URL,
 	resolveBrowserKind,
+	resolveRelayKind,
 } from "@linxiraos/zeta/tools/browser";
 import type { BrowserKindTag } from "@linxiraos/zeta/tools/browser/registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
 
 describe("resolveRelayKind", () => {
@@ -46,7 +46,16 @@ describe("resolveRelayKind", () => {
 });
 
 describe("browser prelude relay guidance", () => {
-	const ENV_KEYS = ["PI_BROWSER_RELAY", "PI_BROWSER_CMUX", "CMUX_SOCKET_PATH"] as const;
+	const ENV_KEYS = [
+		"PI_BROWSER_RELAY",
+		"PI_BROWSER_TERN",
+		"PI_BROWSER_CMUX",
+		"TERN_PANE_SOCKET",
+		"TERN_PANE",
+		"CMUX_SOCKET_PATH",
+		// Inherited from an interactive omp when the tests run from its bash tool.
+		"PI_TERMINAL_OWNER_PID",
+	] as const;
 	const savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
 	beforeEach(() => {
 		for (const key of ENV_KEYS) delete process.env[key];
@@ -80,11 +89,11 @@ describe("browser prelude relay guidance", () => {
 			const onRelay = resolveBrowserKind({ action: "open" }, session).kind === "relay";
 			const guidance = createBrowserPrelude(session).guidance;
 			expect(guidance !== undefined).toBe(onRelay);
-			if (onRelay) expect(guidance).toContain("`app: { relay: false }` for a throwaway managed browser");
+			if (onRelay) expect(guidance).toContain('`app: "auto"` for a throwaway managed browser');
 		}
 	});
 
-	it("names the browser app.relay:false falls through to", () => {
+	it('names the browser app: "auto" falls through to', () => {
 		const cases: {
 			settings: Record<string, unknown>;
 			env: Record<string, string>;
@@ -109,7 +118,7 @@ describe("browser prelude relay guidance", () => {
 			for (const key of ENV_KEYS) delete process.env[key];
 			Object.assign(process.env, env);
 			const session = sessionWith({ "browser.relay": true, ...settings });
-			expect(resolveBrowserKind({ action: "open", app: { relay: false } }, session).kind).toBe(kind);
+			expect(resolveBrowserKind({ action: "open" }, session).kind).toBe(kind);
 			const guidance = createBrowserPrelude(session).guidance;
 			expect(guidance).toContain(says);
 			expect(guidance).not.toContain("throwaway");

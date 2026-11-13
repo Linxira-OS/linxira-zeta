@@ -83,6 +83,7 @@ export const BUILTIN_SLASH_COMMAND_DEFS: ReadonlyArray<BuiltinSlashCommand> = BU
 		aliases: command.aliases,
 		allowArgs: command.allowArgs === true,
 		hidden: command.hidden === true,
+		argumentCompletionOnly: command.argumentCompletionOnly === true,
 		// Keep the thunk itself: resolving here would re-freeze the locale that
 		// happens to be active when this module is imported.
 		get description(): string | (() => string) {

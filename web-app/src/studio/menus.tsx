@@ -35,7 +35,7 @@ export function MenuItem({ icon, children, hint, kbd, disabled, title, current, 
       onClick={onClick}
     >
       {icon ? <Icon name={icon} extra="sm" /> : null}
-      <span>{children}</span>
+      <span className="menu-item-label">{children}</span>
       {hint ? <span className="hint">{hint}</span> : null}
       {kbd ? <span className="kbd" aria-hidden="true">{kbd}</span> : null}
     </button>

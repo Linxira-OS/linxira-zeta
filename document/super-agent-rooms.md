@@ -1,6 +1,6 @@
 # Super agent rooms: contacts, ordered chat, and resident agents
 
-> 状态：实验性设计，未实现。适用范围：Zeta 的 super agent / 多仓库协作层。
+> 状态：实验性实现（source-only，见 `docs/rooms.md`）；本设计仍为产品/边界依据。适用范围：Zeta 的 super agent / 多仓库协作层。
 > 目标：把“用户 ↔ 多个仓库主代理 ↔ 各自团队/子代理”做成一个真正的联系人式
 > 聊天系统；Room 是基建，Tracking 是每个仓库的事实锚点。
 >

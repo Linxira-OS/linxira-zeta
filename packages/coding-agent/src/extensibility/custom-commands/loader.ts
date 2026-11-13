@@ -85,8 +85,20 @@ async function loadCommandModule(
 			if (!cmd.description || (typeof cmd.description !== "string" && typeof cmd.description !== "function")) {
 				return { commands: null, error: `Command "${cmd.name}" must have a description` };
 			}
-			if (typeof cmd.execute !== "function") {
-				return { commands: null, error: `Command "${cmd.name}" must have an execute function` };
+			for (const [field, value] of [
+				["agent", cmd.agent],
+				["model", cmd.model],
+				["template", cmd.template],
+			] as const) {
+				if (value !== undefined && (typeof value !== "string" || !value.trim())) {
+					return { commands: null, error: `Command "${cmd.name}" ${field} must be a non-empty string` };
+				}
+			}
+			if (cmd.execute !== undefined && typeof cmd.execute !== "function") {
+				return { commands: null, error: `Command "${cmd.name}" execute must be a function` };
+			}
+			if (cmd.execute === undefined && cmd.template === undefined) {
+				return { commands: null, error: `Command "${cmd.name}" must have an execute function or template` };
 			}
 		}
 

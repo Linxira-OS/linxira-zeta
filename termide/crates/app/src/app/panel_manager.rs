@@ -49,22 +49,6 @@ impl App {
             }
         }
 
-        // Before closing, unwatch filesystem if this is a FileManager panel
-        if let Some(panel) = self.layout_manager.active_panel_mut() {
-            if let Some(fm) = panel.as_file_manager_mut() {
-                // Unwatch the filesystem root for this FileManager
-                if let Some(watched_root) = fm.take_watched_root() {
-                    if let Some(watcher) = &mut self.state.watcher {
-                        if termide_git::find_repo_root(&watched_root).is_some() {
-                            watcher.unwatch_repository(&watched_root);
-                        } else {
-                            watcher.unwatch_directory(&watched_root);
-                        }
-                    }
-                }
-            }
-        }
-
         // An agent panel's delegated tasks are its own: they stop with it.
         // One following another agent's task gives the cards it holds back
         // to the panel that delegated it.
@@ -86,8 +70,13 @@ impl App {
         // Calculate available width for panel groups
         let terminal_width = self.state.terminal.width;
 
-        // Close active panel (LayoutManager handles active panel tracking)
-        let _ = self.layout_manager.close_active_panel(terminal_width);
+        // Close active panel (LayoutManager handles active panel tracking);
+        // an agent's terminal goes back to the agent, still running.
+        if !self.collapse_agent_terminal() {
+            let _ = self.layout_manager.close_active_panel(terminal_width);
+        }
+        // Release the watch the closed panel held.
+        self.state.needs_watcher_registration = true;
         if let Some((parent, cards)) = cards {
             self.give_cards(parent, cards);
         }
@@ -226,7 +215,7 @@ impl App {
     /// Find all panels that have working directories
     /// Returns deduplicated and sorted list of paths from all panel types (FM, Terminal, Editor)
     /// For remote file managers, returns full URLs (e.g., sftp://user@host/path)
-    pub(super) fn find_all_other_panel_paths(&self) -> Vec<termide_modal::SelectOption> {
+    pub(super) fn find_all_other_panel_paths(&self) -> Vec<String> {
         use std::collections::HashSet;
 
         let mut unique_paths: HashSet<String> = HashSet::new();
@@ -241,26 +230,19 @@ impl App {
             }
         }
 
-        // Convert to SelectOptions (add trailing slash for directories)
-        let mut options: Vec<_> = unique_paths
+        // Directories end in a slash; sorted for a steady order.
+        let mut paths: Vec<String> = unique_paths
             .into_iter()
-            .map(|path_str| {
-                let with_slash = if path_str.ends_with('/') {
-                    path_str
+            .map(|path| {
+                if path.ends_with('/') {
+                    path
                 } else {
-                    format!("{}/", path_str)
-                };
-                termide_modal::SelectOption {
-                    value: with_slash.clone(),
-                    display: with_slash,
+                    format!("{path}/")
                 }
             })
             .collect();
-
-        // Sort by value for consistent ordering
-        options.sort_by(|a, b| a.value.cmp(&b.value));
-
-        options
+        paths.sort();
+        paths
     }
 
     /// Working directories of the file managers other than the focused panel,

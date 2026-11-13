@@ -35,13 +35,15 @@ export interface StudioTerminalApi {
 	dispose(id: string): Promise<void> | void;
 	onData(listener: (event: { id: string; data: string }) => void): () => void;
 	onExit(listener: (event: { id: string }) => void): () => void;
-	/** Browser-only: local shell catalog for the picker. */
+	/** Optional local shell catalog shared by desktop and browser hosts. */
 	profiles?(): Promise<TerminalProfileCatalog>;
 	list?(): Promise<{ terminals: Array<Record<string, unknown>> }>;
 }
 
-/** Adapt the Electron preload object (no profiles, no list) to the surface. */
+/** Adapt the Electron preload object to the surface. */
 export function preloadTerminalApi(bridge: NonNullable<typeof globalThis.zetaStudioTerminal>): StudioTerminalApi {
+	const profiles = bridge.profiles?.bind(bridge);
+	const list = bridge.list?.bind(bridge);
 	return {
 		create: input => bridge.create(input),
 		write: (id, data) => bridge.write(id, data),
@@ -49,5 +51,7 @@ export function preloadTerminalApi(bridge: NonNullable<typeof globalThis.zetaStu
 		dispose: id => bridge.dispose(id),
 		onData: listener => bridge.onData(listener),
 		onExit: listener => bridge.onExit(listener),
+		...(profiles ? { profiles } : {}),
+		...(list ? { list } : {}),
 	};
 }

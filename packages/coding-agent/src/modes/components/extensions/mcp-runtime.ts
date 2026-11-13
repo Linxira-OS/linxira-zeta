@@ -1,4 +1,11 @@
 import type { SourceMeta } from "../../../capability/types";
+import type { ScopeLike } from "../../../config/registry";
+import {
+	buildAnalysisMcpRefreshInputFromRuntime,
+	type AnalysisMcpAdmission,
+	type AnalysisMcpConfigSource,
+	type AnalysisMcpRefreshInput,
+} from "../../../mcp/analysis-precedence-hook";
 import type { CustomTool } from "../../../extensibility/custom-tools/types";
 import { type LoadMCPConfigsOptions, loadAllMCPConfigs } from "../../../mcp/config";
 import type { MCPLoadResult } from "../../../mcp/manager";
@@ -6,7 +13,7 @@ import type { McpConnectionStatusEvent } from "../../../mcp/startup-events";
 import type { MCPServerConfig } from "../../../mcp/types";
 
 /** Manager methods `/extensions` needs to match `/mcp enable` / `/mcp disable`. */
-export interface MCPToggleManager {
+export interface MCPToggleManager extends AnalysisMcpConfigSource {
 	getConnectionStatus(name: string): "connected" | "connecting" | "disconnected";
 	getTools(): CustomTool[];
 	disconnectServer(name: string): Promise<void>;
@@ -18,7 +25,7 @@ export interface MCPToggleManager {
 }
 
 export interface MCPToggleSession {
-	refreshMCPTools(tools: CustomTool[]): Promise<void> | void;
+	refreshMCPTools(tools: CustomTool[], analysis?: AnalysisMcpRefreshInput): Promise<void> | void;
 }
 
 export interface ApplyMcpToggleRuntimeOptions {
@@ -27,6 +34,9 @@ export interface ApplyMcpToggleRuntimeOptions {
 	cwd: string;
 	manager?: MCPToggleManager;
 	session?: MCPToggleSession;
+	settings?: ScopeLike;
+	activeNativeTools?: () => readonly string[];
+	admission?: AnalysisMcpAdmission;
 	/** Same discovery filters as session startup (`sdk.ts` / `/mcp reload`). */
 	discovery?: LoadMCPConfigsOptions;
 	loadConfigs?: typeof loadAllMCPConfigs;
@@ -41,25 +51,41 @@ export interface ApplyMcpToggleRuntimeOptions {
 export async function applyMcpToggleRuntime(options: ApplyMcpToggleRuntimeOptions): Promise<void> {
 	const { name, enabled, cwd, manager, session, discovery, loadConfigs = loadAllMCPConfigs, onStatus } = options;
 	if (!manager) return;
+	const refresh = async (): Promise<void> => {
+		if (!session) return;
+		// Pin one snapshot for the precedence decision and the bind.
+		const tools = manager.getTools();
+		const analysis = options.settings
+			? await buildAnalysisMcpRefreshInputFromRuntime({
+					manager,
+					tools,
+					settings: options.settings,
+					cwd,
+					activeNativeTools: options.activeNativeTools?.() ?? [],
+					admission: options.admission,
+				})
+			: undefined;
+		await session.refreshMCPTools(tools, analysis);
+	};
 
 	if (!enabled) {
 		await manager.disconnectServer(name);
-		await session?.refreshMCPTools(manager.getTools());
+		await refresh();
 		return;
 	}
 
 	if (manager.getConnectionStatus(name) !== "disconnected") {
-		await session?.refreshMCPTools(manager.getTools());
+		await refresh();
 		return;
 	}
 
 	const { configs, sources } = await loadConfigs(cwd, discovery);
 	const config = configs[name];
 	if (!config) {
-		await session?.refreshMCPTools(manager.getTools());
+		await refresh();
 		return;
 	}
 	const source = sources[name];
 	await manager.connectServers({ [name]: config }, source ? { [name]: source } : {}, onStatus);
-	await session?.refreshMCPTools(manager.getTools());
+	await refresh();
 }

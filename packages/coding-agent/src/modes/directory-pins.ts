@@ -16,6 +16,31 @@ import { replaceFileAtomically } from "../utils/atomic-file";
 
 export const DIRECTORY_PINS_FILENAME = "directory-pins.json";
 
+/** Canonical stored form: absolute, normalized separators/`..`. */
+export function canonicalDirectoryPin(pin: string): string {
+	return path.resolve(pin);
+}
+
+/** Comparison key for a pin; Windows drive-letter case is not a distinct pin. */
+export function directoryPinKey(pin: string): string {
+	const canonical = canonicalDirectoryPin(pin);
+	return process.platform === "win32" ? canonical.toLowerCase() : canonical;
+}
+
+function normalizePins(values: readonly string[]): string[] {
+	const pins: string[] = [];
+	const seen = new Set<string>();
+	for (const value of values) {
+		if (!path.isAbsolute(value)) continue;
+		const canonical = canonicalDirectoryPin(value);
+		const key = directoryPinKey(canonical);
+		if (seen.has(key)) continue;
+		seen.add(key);
+		pins.push(canonical);
+	}
+	return pins;
+}
+
 /** Absolute path of the pins file. */
 export function directoryPinsPath(agentDir: string = getAgentDir()): string {
 	return path.join(agentDir, DIRECTORY_PINS_FILENAME);
@@ -27,7 +52,7 @@ export async function loadDirectoryPins(agentDir: string = getAgentDir()): Promi
 		const content: unknown = JSON.parse(await fs.readFile(directoryPinsPath(agentDir), "utf-8"));
 		const pins = Array.isArray(content) ? content : (content as { pins?: unknown } | null)?.pins;
 		if (!Array.isArray(pins)) return [];
-		return pins.filter((entry): entry is string => typeof entry === "string" && path.isAbsolute(entry));
+		return normalizePins(pins.filter((entry): entry is string => typeof entry === "string"));
 	} catch (error) {
 		if (!isEnoent(error)) logger.debug("Ignoring an unreadable directory-pins file", { error: String(error) });
 		return [];
@@ -49,13 +74,14 @@ async function writeDirectoryPins(pins: readonly string[], agentDir: string): Pr
 
 /** Pin or unpin `directory`; returns whether it is pinned afterwards. */
 export async function toggleDirectoryPin(directory: string, agentDir: string = getAgentDir()): Promise<boolean> {
-	const target = path.resolve(directory);
+	const target = canonicalDirectoryPin(directory);
+	const targetKey = directoryPinKey(target);
 	const filePath = directoryPinsPath(agentDir);
 	return withFileLock(filePath, async () => {
 		const pins = await loadDirectoryPins(agentDir);
-		const alreadyPinned = pins.some(pin => pin === target);
-		const next = alreadyPinned ? pins.filter(pin => pin !== target) : [target, ...pins];
-		await writeDirectoryPins(next, agentDir);
+		const alreadyPinned = pins.some(pin => directoryPinKey(pin) === targetKey);
+		const next = alreadyPinned ? pins.filter(pin => directoryPinKey(pin) !== targetKey) : [target, ...pins];
+		await writeDirectoryPins(normalizePins(next), agentDir);
 		return !alreadyPinned;
 	});
 }

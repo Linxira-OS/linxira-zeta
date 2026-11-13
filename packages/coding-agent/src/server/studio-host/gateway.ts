@@ -10,6 +10,7 @@
 import { webGatewayFetch } from "../web-gateway";
 import { getRpcSession } from "../web-gateway/agents";
 import type { ClientErrorCode } from "./contract/index.js";
+import { StudioOpError, invalid, unavailable } from "./errors.js";
 
 /** The gateway's answer, with a parsed JSON body when it sent one. */
 export interface GatewayReply {
@@ -17,27 +18,7 @@ export interface GatewayReply {
 	readonly body: unknown;
 }
 
-/**
- * A semantic failure the Renderer can map; carries a contract error code, or
- * this host's own `"unsupported"` for an operation it does not implement.
- */
-export class StudioOpError extends Error {
-	readonly code: ClientErrorCode | "unsupported";
-
-	constructor(code: ClientErrorCode | "unsupported", message: string) {
-		super(message);
-		this.name = "StudioOpError";
-		this.code = code;
-	}
-}
-
-export function invalid(message: string): StudioOpError {
-	return new StudioOpError("INVALID_ARGUMENT", message);
-}
-
-export function unavailable(message: string): StudioOpError {
-	return new StudioOpError("UNAVAILABLE", message);
-}
+export { invalid, StudioOpError, unavailable } from "./errors.js";
 
 /** The loopback origin the gateway expects on its own requests. */
 const GATEWAY_ORIGIN = "http://127.0.0.1";

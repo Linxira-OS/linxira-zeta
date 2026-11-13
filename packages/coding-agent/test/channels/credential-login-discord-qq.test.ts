@@ -15,6 +15,28 @@ import { WebConfig } from "../../src/config/web-config";
 const tempDirs: string[] = [];
 const DISCORD_TOKEN = "MTIz.discord.secret-token";
 
+const PROFILE = {
+	id: "companion",
+	label: "Companion",
+	persona: { mode: "workspace" },
+	location: { kind: "workspace", workspace: "main" },
+	tools: { builtin: [], extensions: [], customTools: [], mcpServers: [], skills: [], commands: [] },
+	memory: {},
+};
+
+function instance(id: string, platform: string, overrides: Record<string, unknown> = {}): Record<string, unknown> {
+	return {
+		id,
+		platform,
+		label: id,
+		enabled: false,
+		agentProfile: PROFILE.id,
+		allow: { peers: [`${id}-peer`] },
+		credentials: {},
+		...overrides,
+	};
+}
+
 afterEach(async () => {
 	while (tempDirs.length > 0) {
 		const dir = tempDirs.pop();
@@ -26,8 +48,22 @@ async function makeConfig(): Promise<WebConfig> {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-credentials-im-"));
 	tempDirs.push(dir);
 	const file = path.join(dir, "web.yml");
-	await Bun.write(file, "{}\n");
+	await Bun.write(
+		file,
+		JSON.stringify({
+			channels: { instances: [instance("discord", "discord"), instance("qq", "qq")] },
+			imAgents: [PROFILE],
+			remote: {},
+		}),
+	);
 	return await WebConfig.load(file);
+}
+
+/** One instance's stored credentials, by instance id. */
+function credentialsOf(config: WebConfig, instanceId: string): Record<string, unknown> {
+	const found = config.getData().channels.instances.find(entry => entry.id === instanceId);
+	if (!found) throw new Error(`missing instance ${instanceId}`);
+	return found.credentials;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -128,22 +164,28 @@ describe("Discord credential validation", () => {
 		const config = await makeConfig();
 		const ok = await runCredentialLogin("discord", {
 			webConfig: config,
+			instanceId: "discord",
 			botToken: DISCORD_TOKEN,
 			customFetch: (async () => jsonResponse({ id: "42", username: "zeta" })) as unknown as typeof globalThis.fetch,
 		});
 		expect(ok.state).toBe("connected");
-		expect(config.getData().channels.discord.botToken).toBe(DISCORD_TOKEN);
-		expect(config.getMasked().channels.discord.botToken).not.toBe(DISCORD_TOKEN);
+		expect(credentialsOf(config, "discord").botToken).toBe(DISCORD_TOKEN);
+		expect(
+			config.getMasked().channels.instances.find(entry => entry.id === "discord")?.credentials.botToken,
+		).not.toBe(DISCORD_TOKEN);
+		// The other instance is not touched by a Discord credential write.
+		expect(credentialsOf(config, "qq")).toEqual({});
 
 		const rejectedConfig = await makeConfig();
 		const rejected = await runCredentialLogin("discord", {
 			webConfig: rejectedConfig,
+			instanceId: "discord",
 			botToken: DISCORD_TOKEN,
 			customFetch: (async () => jsonResponse({ message: "401" }, 401)) as unknown as typeof globalThis.fetch,
 		});
 		expect(rejected.state).toBe("error");
 		expect(rejected.error).not.toContain(DISCORD_TOKEN);
-		expect(rejectedConfig.getData().channels.discord.botToken).toBeUndefined();
+		expect(credentialsOf(rejectedConfig, "discord").botToken).toBeUndefined();
 	});
 });
 
@@ -152,14 +194,14 @@ describe("QQ (OneBot) endpoint validation", () => {
 		const config = await makeConfig();
 		const result = await runCredentialLogin("qq", {
 			webConfig: config,
+			instanceId: "qq",
 			endpoint: "ws://127.0.0.1:3001",
 			token: "onebot-token",
 			createSocket: loginSocketFactory({ user_id: 10001, nickname: "zeta-bot" }),
 		});
 		expect(result.state).toBe("connected");
 		expect(result.identity).toEqual({ id: "10001", name: "zeta-bot" });
-		const qq = config.getData().channels.qq;
-		expect(qq).toMatchObject({
+		expect(credentialsOf(config, "qq")).toMatchObject({
 			mode: "forward",
 			endpoint: "ws://127.0.0.1:3001",
 			token: "onebot-token",
@@ -176,20 +218,21 @@ describe("QQ (OneBot) endpoint validation", () => {
 		};
 		const result = await runCredentialLogin("qq", {
 			webConfig: config,
+			instanceId: "qq",
 			endpoint: "ws://127.0.0.1:3999",
 			createSocket: factory,
 		});
 		expect(result.state).toBe("error");
 		expect(result.error).toContain("unreachable");
-		expect(config.getData().channels.qq.endpoint).toBeUndefined();
+		expect(credentialsOf(config, "qq").endpoint).toBeUndefined();
 	});
 
 	test("forward mode without an endpoint is a usage error, not a network call", async () => {
 		const config = await makeConfig();
-		const result = await runCredentialLogin("qq", { webConfig: config, mode: "forward" });
+		const result = await runCredentialLogin("qq", { webConfig: config, instanceId: "qq", mode: "forward" });
 		expect(result.state).toBe("error");
 		expect(result.error).toContain("endpoint");
-		expect(config.getData().channels.qq.endpoint).toBeUndefined();
+		expect(credentialsOf(config, "qq").endpoint).toBeUndefined();
 	});
 
 	test("reverse mode validates the port and requires a token", async () => {
@@ -203,6 +246,7 @@ describe("QQ (OneBot) endpoint validation", () => {
 		});
 		const result = await runCredentialLogin("qq", {
 			webConfig: config,
+			instanceId: "qq",
 			mode: "reverse",
 			port: 18084,
 			token: "reverse-token",
@@ -210,7 +254,7 @@ describe("QQ (OneBot) endpoint validation", () => {
 		});
 		expect(result.state).toBe("connected");
 		expect(stopped).toBe(true);
-		expect(config.getData().channels.qq).toMatchObject({
+		expect(credentialsOf(config, "qq")).toMatchObject({
 			mode: "reverse",
 			port: 18084,
 			token: "reverse-token",
@@ -218,6 +262,7 @@ describe("QQ (OneBot) endpoint validation", () => {
 
 		const missing = await runCredentialLogin("qq", {
 			webConfig: await makeConfig(),
+			instanceId: "qq",
 			mode: "reverse",
 			port: 18085,
 		});

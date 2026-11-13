@@ -176,11 +176,12 @@ impl GitLogPanel {
             return vec![];
         };
 
-        // Open Git Diff panel for this commit
+        // Open Git Diff panel for this commit, narrowed to the file the
+        // history view was filtered to (the per-file perspective).
         vec![PanelEvent::OpenGitDiff {
             repo_path: repo.to_path_buf(),
             commit_hash: Some(commit.hash.clone()),
-            file_path: None,
+            file_path: self.file_filter.clone(),
         }]
     }
 }

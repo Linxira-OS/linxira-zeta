@@ -40,6 +40,8 @@ export interface DirectoryPickerEntry {
 	detail?: string;
 	/** Named icon for the row. */
 	icon?: string;
+	/** A pin whose directory is missing or no longer accessible. */
+	unavailable?: boolean;
 }
 
 /** What the picker shows at one level. */
@@ -58,6 +60,12 @@ export interface DirectoryPickerListing {
 	directories: DirectoryPickerEntry[];
 	/** Whether `current` itself can become the session directory. */
 	selectable: boolean;
+	/** Roots are being enumerated in the background. */
+	rootsLoading?: boolean;
+	/** Roots enumeration failed (user-visible message). */
+	rootsError?: string;
+	/** The current directory could not be read (user-visible message). */
+	error?: string;
 }
 
 /** Host filesystem access; synchronous so a repaint never waits on I/O. */
@@ -65,6 +73,8 @@ export interface DirectoryPickerSource {
 	list(directory: string | null): DirectoryPickerListing;
 	/** Persist a pin change; resolves to the new pinned state. */
 	togglePin(directory: string): Promise<boolean>;
+	/** Reload pins and roots for the explicit refresh action (optional test doubles). */
+	refresh?(directory?: string | null, options?: { force?: boolean }): Promise<void>;
 }
 
 export interface DirectoryPickerOptions {
@@ -81,7 +91,7 @@ export interface DirectoryPickerOptions {
 }
 
 interface Row {
-	kind: "use" | "parent" | "pin" | "root" | "dir";
+	kind: "use" | "parent" | "pin" | "root" | "dir" | "note";
 	entry: DirectoryPickerEntry;
 }
 
@@ -121,6 +131,9 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 		});
 		this.#rebuild();
 		this.#hint();
+		// Volumes/mounts are enumerated asynchronously; the overlay is usable
+		// immediately and its roots screen fills in when the refresh lands.
+		void this.#refresh(true);
 	}
 
 	/** Directories listed at the current level (tests and hosts). */
@@ -150,7 +163,7 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 		if (event.leftClick && (event.button & 16) !== 0) {
 			const index = this.#selectList.hitTest(line - 1);
 			const row = index === undefined ? undefined : this.#rows[index];
-			if (row) {
+			if (row && row.kind !== "note") {
 				this.#resume(row.entry.path);
 				return;
 			}
@@ -167,7 +180,7 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 		}
 		if (matchesKey(data, "ctrl+r")) {
 			const row = this.#selectedRow();
-			if (row) this.#resume(row.entry.path);
+			if (row && row.kind !== "note") this.#resume(row.entry.path);
 			return;
 		}
 		if (this.#filtering) {
@@ -187,7 +200,12 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 			return;
 		}
 		// Navigation mode: vim keys move, and typing starts a filter. `/` starts one
-		// explicitly, which is how a filter may begin with `j` or `k`.
+		// explicitly, which is how a filter may begin with `j` or `k`. `r` refreshes
+		// the level outside a filter, so a failed/empty listing can be retried.
+		if (matchesKey(data, "r")) {
+			void this.#refresh(false);
+			return;
+		}
 		if (matchesKey(data, "j")) {
 			this.#selectList.handleInput("\x1b[B");
 			this.invalidate();
@@ -223,7 +241,7 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 					? tuiText("cdPickerFilterHint", "type to filter · Enter open · Esc clear filter")
 					: tuiText(
 							"cdPickerNavHint",
-							"j/k move · type or / to filter · Enter open · ⌫ up · Ctrl+P pin · Ctrl+R resume",
+							"j/k move · type or / to filter · Enter open · ⌫ up · r refresh · Ctrl+P pin · Ctrl+R resume",
 						),
 			),
 		);
@@ -305,6 +323,22 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 		for (const directory of this.#listing.directories) {
 			push({ kind: "dir", entry: directory }, { label: `${directory.name}/`, description: directory.detail });
 		}
+		const pushNote = (label: string, description: string) =>
+			push({ kind: "note", entry: { name: label, path: "" } }, { label, description, disabled: true });
+		const retry = tuiText("cdPickerRetryHint", "press r to retry");
+		if (this.#current === null) {
+			if (this.#listing.rootsLoading) {
+				pushNote(tuiText("cdPickerRootsLoading", "Loading volumes…"), retry);
+			} else if (this.#listing.rootsError) {
+				pushNote(tuiTextFmt("cdPickerRootsErrorFmt", "Cannot list volumes: %s", this.#listing.rootsError), retry);
+			} else if (this.#listing.roots.length === 0 && this.#listing.pins.length === 0) {
+				pushNote(tuiText("cdPickerRootsEmpty", "No volumes found"), retry);
+			}
+		} else if (this.#listing.error) {
+			pushNote(tuiTextFmt("cdPickerUnreadableFmt", "Cannot read this folder: %s", this.#listing.error), retry);
+		} else if (this.#listing.directories.length === 0) {
+			pushNote(tuiText("cdPickerEmptyFolder", "This folder is empty"), retry);
+		}
 
 		this.#rows = rows;
 		this.#selectList.setItems(items);
@@ -318,8 +352,22 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 		const row = this.#rows[index];
 		if (!row) return;
 		switch (row.kind) {
+			case "note":
+				return;
 			case "use":
+				this.#select(row.entry.path);
+				return;
 			case "pin":
+				if (row.entry.unavailable) {
+					this.#statusText.setText(
+						theme.fg(
+							"error",
+							tuiTextFmt("cdPickerUnavailableFmt", "Unavailable: %s · Ctrl+P to unpin", row.entry.path),
+						),
+					);
+					this.invalidate();
+					return;
+				}
 				// A pin acts immediately: choosing it switches the workspace.
 				this.#select(row.entry.path);
 				return;
@@ -349,8 +397,52 @@ export class DirectoryPickerOverlay extends OverlayPanel {
 
 	#select(directory: string): void {
 		if (this.#closed) return;
+		const target = path.resolve(directory);
+		const initial = path.resolve(this.#options.initialPath);
+		const alreadyHere =
+			process.platform === "win32" ? target.toLowerCase() === initial.toLowerCase() : target === initial;
+		if (alreadyHere) {
+			this.#statusText.setText(
+				theme.fg("dim", tuiTextFmt("cdPickerAlreadyHereFmt", "Already in %s", this.#abbreviate(directory))),
+			);
+			this.invalidate();
+			return;
+		}
 		this.#closed = true;
 		this.#options.onSelect(directory);
+	}
+
+	async #refresh(background: boolean): Promise<void> {
+		const refresh = this.#source.refresh;
+		if (!refresh) return;
+		const selectedPath = this.#selectedRow()?.entry.path;
+		const filter = this.#selectList.getFilter();
+		const filtering = this.#filtering;
+		if (!background) this.#statusText.setText(theme.fg("dim", tuiText("cdPickerRefreshing", "Refreshing…")));
+		try {
+			await refresh.call(this.#source, this.#current, { force: !background });
+			if (this.#closed) return;
+			this.#rebuild();
+			this.#restoreAfterRefresh(selectedPath, filter, filtering);
+			if (!background) {
+				this.#statusText.setText(theme.fg("dim", tuiText("cdPickerRefreshed", "Refreshed")));
+				this.invalidate();
+			}
+		} catch (error) {
+			if (this.#closed) return;
+			this.#statusText.setText(theme.fg("error", String(error instanceof Error ? error.message : error)));
+			this.#rebuild();
+			this.#restoreAfterRefresh(selectedPath, filter, filtering);
+		}
+	}
+
+	#restoreAfterRefresh(selectedPath: string | undefined, filter: string, filtering: boolean): void {
+		if (filter) this.#selectList.setFilter(filter);
+		this.#filtering = filtering;
+		if (selectedPath) {
+			const index = this.#rows.findIndex(row => row.entry.path === selectedPath);
+			if (index >= 0) this.#selectList.setSelectedIndex(index);
+		}
 	}
 
 	#resume(directory: string): void {

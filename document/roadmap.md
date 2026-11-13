@@ -21,6 +21,65 @@ carries only a technical `tui-plan.md`). We track upstream release tags, not
 feature plans; re-check for roadmaps at each release sync and adjust if the
 upstream position changes.
 
+## Owner holds (2026-11-12)
+
+This is the only authoritative hold list. The decision records are
+[ADR 0034](adr/0034-owner-scope-holds-2026-11-12.md) (Android, desktop, audio,
+multi-terminal) and [ADR 0035](adr/0035-pause-qq-wecom-channels.md) (QQ/WeCom
+channels); the ledger carries the same holds in
+REQ-018/REQ-030/REQ-066/REQ-089/REQ-090/REQ-091. A held item is not complete,
+not release evidence, and not a promise; re-entry needs an explicit owner
+instruction naming that item.
+
+- **Android native development + formal release asset — held.** Exact owner
+  wording: 「安卓这边可以先挂着，等我后面开，反正现在接口有就行了。我们安卓什么时候开发都没问题」.
+  Existing Android source, CLI interface, Gradle/unit/debug-build evidence stay
+  in the tree and remain available. No further native development, device or
+  emulator install, release keystore, or formal release asset while held;
+  re-entry is **owner reopens Android**.
+- **Desktop new development — held.** The existing Electron 45 shell,
+  packaging source, and SSH bridge source are preserved; implemented source is
+  not reclassified as missing. SSH real-target acceptance may continue as its
+  own lane. Re-entry is **owner reopens desktop development**.
+- **Audio / TTS / STT / system microphone / desktop audio — held.** Exact owner
+  wording: 「STT TTS、系统麦克风与桌面音频一直暂挂，暂不开发」. Existing
+  capability gates, host bridge code, and their evidence are preserved; no new
+  media features or provider installs. Re-entry is **owner reopens audio**.
+- **Work Studio multi-terminal manager page + ELYTerminal reference — held, no
+  architecture chosen.** The requested page is a dedicated Work Studio surface
+  with a left list of multiple terminals (Orca-like). The owner also asked
+  whether to extend `zetaide` or reuse the old `zetawork` TUI with proper
+  front/back rendering, and referenced
+  [`ELY-Open-Source/ELYTerminal`](https://github.com/ELY-Open-Source/ELYTerminal)
+  (public reference only; MIT, Rust/GPUI, v0.2.4 released 2026-11-10 — not a
+  chosen stack or dependency). The existing multi-tab terminal
+  (`TerminalPane` / `terminalSessions`, up to four restored tabs) stays
+  available, but no Orca-like manager page exists. No manager page, refactor,
+  or architecture decision starts now. Re-entry is **owner chooses `zetaide`
+  expansion vs the old `zetawork` TUI rendering architecture**; see REQ-090.
+- **Old TY/TUI PR — held and unmerged.** No merge, review, comment, or branch
+  cleanup. The only open PR matching the paused zetawork surface is #281
+  (`chore/remove-paused-zetawork`); the hold does not authorize work on it.
+- **QQ and WeCom channels — owner-paused 2026-11-12.** Third-party OneBot
+  bridges are treated as unavailable/blocked; the official QQ Bot API requires
+  a public callback and a fixed egress-IP allowlist that a personal machine on
+  a dynamic IP cannot provide; and both WeCom interface families require
+  IP/enterprise/developer/user-admission allowlists. The existing OneBot v11
+  source is retained without behavior changes, but it is unsupported and not a
+  release asset; no bridge is bundled/auto-installed, no official QQ adapter
+  and no WeCom adapter are added, and there is no live validation. Feishu is
+  the existing enterprise channel; TIM remains PLANNED. Re-entry needs a new
+  explicit owner ruling and a new ADR superseding ADR-0035; see REQ-091.
+
+## Legacy migration
+
+- **Legacy `web-ui` / `zetawork-gui`:** the single tracker is
+  [`document/legacy-webui-migration.md`](./legacy-webui-migration.md). Archive
+  `archive/web-ui-zetawork-gui-2026-11-12` is an orphan at `e528e6c18dea`;
+  `main@381acebe` still carries `web-ui/` (1,081 files) and
+  `main/crates/zetawork-gui/` (92 files). Migration status and deletion gates
+  live in that ledger. This is a legacy migration record, not an owner hold.
+
 ## Shipped (Zeta-originated capabilities)
 
 These exist today (headline capabilities are marked in the root `README.md`):

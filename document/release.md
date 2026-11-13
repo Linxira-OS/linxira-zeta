@@ -59,16 +59,26 @@ and the npm publisher all consult it.
 | Version | Tag | npm publish | GitHub Release assets / installers / binaries |
 | --- | --- | --- | --- |
 | `1.5.1` | no (already public) | no | no |
-| `1.5.2`–`1.5.10` | **yes, annotated and code-only** | no | no |
+| `1.5.2` | only with exact owner-review override; default annotated code-only | no | only with the same exact `1.5.2` owner-review override (GitHub stable assets; npm remains 1.5.1) |
+| `1.5.3`–`1.5.10` | **yes, annotated and code-only** | no | no |
 | `1.5.11`+ / retired lines | no | no | no |
 | `1.6.0`+ | only with owner override | only with owner override | only with owner override |
 
-- **Internal build tags are code-only.** `scripts/release-v2.ts` creates an
-  annotated tag whose message carries `高速迭代 / 内部构建 / 不发布资产` and
-  states that no npm packages, installers, binaries, or GitHub Release assets
-  are produced. CI still builds, packages, and tests artifacts (Actions
-  artifacts only); the tag annotation is the release note. Public users stay on
-  **1.5.1** until the owner-approved 1.6.0 release.
+- **One 1.5.2 owner-review asset exception (ADR 0033).** The owner may upload
+  GitHub Release assets for exactly `1.5.2` only with matching
+  `ZETA_RELEASE_OVERRIDE_VERSION=1.5.2` and a non-empty audit reason. The same
+  override keeps `publishAllowed=false`; npm stays on 1.5.1. Without the
+  override, 1.5.2 remains code-only. This exception does not unlock 1.5.3–1.5.10,
+  does not rewrite 1.5.1, and does not lower the 1.6.0 stable gate.
+- **1.5.2 asset tag form.** The exact 1.5.2 asset-review release uses the same
+  lightweight `v1.5.2` tag form as the published `v1.5.0` / `v1.5.1` tags.
+  `release-v2.ts` selects that form from `channel=public`; the annotated tag
+  remains mandatory for code-only internal-build tags. The asset tag is never
+  rewritten or moved. Legacy `web-ui` archive/migration status is tracked in
+  [`legacy-webui-migration.md`](./legacy-webui-migration.md); that is a pointer,
+  not a 1.5.2 readiness claim (release readiness stays with the release worker).
+
+- **Internal build tags are code-only, with one explicit exception.** `release-v2.ts` creates a code-only annotated tag for normal 1.5.2–1.5.10 builds. The only exception is exact 1.5.2 with a matching owner-review override, which may upload the full GitHub asset set while npm remains 1.5.1; without that override 1.5.2 stays code-only. CI still builds/tests; no npm publish is authorized here.
 - **Default is fail-closed.** `release_metadata` evaluates the policy for the
   tag at HEAD and exposes `publish-allowed` / `assets-allowed` outputs. Every
   publish job (`release_npm`, `release_native_leaves`, editor/ide/web-ui/main/
@@ -86,13 +96,37 @@ and the npm publisher all consult it.
   `RELEASE_FREEZE_OVERRIDE_VERSION` / `RELEASE_FREEZE_OVERRIDE_REASON`; locally
   `scripts/release-v2.ts` reads `ZETA_RELEASE_OVERRIDE_VERSION` /
   `ZETA_RELEASE_OVERRIDE_REASON`. The override must name exactly the release
-  version, needs a reason, and applies to **1.6.0 and later only** — it can
-  never unlock a 1.5.x build. 1.6.0 is not published until the owner records
-  that approval.
+  version, needs a reason, and for asset uploads applies to the exact 1.5.2
+  owner-review exception or **1.6.0 and later**; it never unlocks npm for
+  1.5.x. 1.6.0 is not published until the owner records that approval.
 - **Guard test.** `scripts/release-freeze.test.ts` pins the version table and
   fails if any publish job loses its policy condition, if an override input
   stops defaulting to empty, or if a 1.5.x path becomes publishable. It runs in
   the `check` job on GitHub and in the Gitea `local-ci` mirror.
+
+### 1.6.0 public-release readiness (owner-confirmed 2026-11-12)
+
+The 1.5.1 npm line and the normal `1.5.3`–`1.5.10` code-only line remain
+unchanged; exact `1.5.2` is the asset-review exception above. No 1.6.0 tag,
+version bump, publish, PR, or main merge is authorized now. A 1.6.0 public
+release may be dispatched only after **all** of the following:
+
+1. Every planned development item is complete with per-item source and behavior
+   evidence; `SCOPED`, held, blocked, or unverified work cannot be counted as
+   100% complete.
+2. The owner has personally exercised every feature on the 1.5.x line and
+   confirmed the complete set is stable.
+3. Mobile development is fully complete and the real-device flow (pairing,
+   device, and 2FA) has been accepted on physical hardware.
+4. SSH works against a real target with the full feature set.
+5. No unresolved known bug remains.
+
+The existing exact-version `release_override_version` remains the final
+mechanical gate; the readiness list is the owner acceptance that override must
+cite, not a second unlock path. ADR-0006 is superseded only for exact 1.5.2 by
+ADR-0033; its 1.6.0 gate is unchanged. The owner has explicitly asked to
+proceed with the upstream tag merge and the 1.5.2 asset review first; that is
+not a 1.6.0 tag, bump, publish, PR, or main-merge authorization.
 
 ## CI and Release
 
@@ -404,19 +438,41 @@ Rules:
   `push` on `refs/heads/main`), so even a mistaken second push keeps both
   verdicts. Branch dispatches still supersede each other.
 
-### ADR and requirements gate (pre-tag)
+### ADR and requirements gate (pre-tag, mechanical)
 
-Before tagging, run `bun run check:adr` and `bun run check:reqs`, then verify by
-hand:
+The gate is enforced by `scripts/release-scope.ts`, not by hand:
 
-- every REQ in the release scope is `VERIFIED` or `RELEASED` in
-  `document/requirements-ledger.md`;
-- every item not shipping is `DEFERRED` with an approval record and a re-entry
-  trigger;
-- every contract, architecture, data-model, security, migration, dependency, or
-  release-scope change has an **Accepted** ADR, an index row, and links to its
-  PR/tests/assets;
-- release notes cite the ADR IDs and the completed REQ IDs.
+```bash
+bun run check:adr
+bun run check:reqs
+bun scripts/release-scope.ts structural          # cheap, both CI modes
+bun scripts/release-scope.ts check --version X.Y.Z
+bun scripts/release-scope.ts check --version X.Y.Z --notes release-notes.md
+```
+
+- `release-scope.json` declares `releases[X.Y.Z]` with `requirements`, `adrs`
+  and `approvedDeferrals`. An empty/missing entry **fails closed**: no public
+  version publishes without a declared scope.
+- Every listed REQ must be `VERIFIED` or `RELEASED` in
+  `document/requirements-ledger.md`, and its evidence must name an independent
+  verification surface (`bun test`/`bun run`/a named check/CI run/workflow).
+  A bare `PR #123` is a code pointer, not verification; `pending` evidence
+  fails. `RELEASED` additionally needs a tag pointer.
+- Every ledger row that is `DEFERRED` or `BLOCKED` but not in the scope must be
+  listed in `approvedDeferrals` with `approvedBy`, `reason` and
+  `reentryTrigger`.
+- Every contract ADR listed for the release must be **Accepted**, present in
+  `document/adr/README.md`, and cited as `ADR-NNNN` in the generated release
+  notes; every scoped `REQ-NNN` must be cited too.
+- `scripts/ci-release-notes.ts` prepends the traceability block and refuses to
+  write notes for an unscoped public release.
+
+Wiring (no second framework): `scripts/release-v2.ts` runs the gate before the
+bump; the CI `release_gate` runs `check --version`; the `check` job runs the
+structural pass in **both** modes (release runs skip `ci:check:full`, so ADR /
+ledger / scope checks are separate cheap steps); `release_github` re-checks the
+generated notes. `check:adr` keeps its structural schema — the full audit lives
+here.
 
 A missing ADR, an unverified REQ, or an unapproved deferral is a release blocker,
 not follow-up work. The operating contract is

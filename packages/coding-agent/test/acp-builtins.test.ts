@@ -14,15 +14,16 @@ import { PluginManager } from "@linxiraos/zeta/extensibility/plugins";
 import { MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace";
 import type { AgentSession, AsyncJobTree } from "@linxiraos/zeta/session/agent-session";
 import type { SessionDumpArchive } from "@linxiraos/zeta/session/session-dump-format";
-import type { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { executeAcpBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/acp-builtins";
-import { getProjectDir, removeWithRetries, setProjectDir } from "@linxiraos/pi-utils";
+import { getProjectDir, removeWithRetries, setProjectDir, TempDir } from "@linxiraos/pi-utils";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 
 import { cfgBrowserEnabled, cfgBrowserHeadless } from "@linxiraos/zeta/tools/browser/settings";
 import { cfgExtendedContext } from "@linxiraos/zeta/session/context-settings";
 import { cfgMemoryBackend } from "@linxiraos/zeta/memory-backend/settings";
 import { cfgWorktreeCleanSource } from "@linxiraos/zeta/task/settings";
+import { makeAssistantMessage } from "./session-manager/helpers";
 
 interface FakeAcpBuiltinSession {
 	fastMode: boolean;
@@ -883,6 +884,48 @@ describe("session lifecycle commands", () => {
 		const result = await executeAcpBuiltinSlashCommand("/session delete", runtime);
 		expect(result).toEqual({ consumed: true, failed: true });
 		expect(output[0]).toContain("streaming");
+	});
+
+	it("/session delete moves the live session and keeps the next turn resumable", async () => {
+		using tempDir = TempDir.createSync("@pi-acp-session-delete-");
+		const manager = SessionManager.create(tempDir.path(), tempDir.path());
+		try {
+			manager.appendMessage({ role: "user", content: "first turn", timestamp: 1 });
+			manager.appendMessage(makeAssistantMessage());
+			await manager.flush();
+			const deletedFile = manager.getSessionFile();
+			const deletedId = manager.getSessionId();
+			if (!deletedFile) throw new Error("Expected a persisted session");
+
+			const { output, session, runtime } = createRuntime();
+			runtime.sessionManager = manager;
+			session.newSession = async options => {
+				await manager.newSession(options);
+				session.sessionId = manager.getSessionId();
+				session.sessionFile = manager.getSessionFile();
+				return true;
+			};
+			expect(await executeAcpBuiltinSlashCommand("/session delete", runtime)).toEqual({ consumed: true });
+			expect(await Bun.file(deletedFile).exists()).toBe(false);
+			expect(manager.getSessionId()).not.toBe(deletedId);
+			expect(output[0]).toContain(manager.getSessionId());
+			const nextFile = manager.getSessionFile();
+			if (!nextFile) throw new Error("Expected a new session path");
+			expect(output[0]).toContain(nextFile);
+
+			manager.appendMessage({ role: "user", content: "second turn", timestamp: 2 });
+			manager.appendMessage(makeAssistantMessage());
+			await manager.flush();
+			const resumed = await SessionManager.open(nextFile);
+			try {
+				expect(resumed.buildSessionContext().messages.map(message => message.role)).toEqual(["user", "assistant"]);
+				expect(resumed.buildSessionContext().messages[0]).toMatchObject({ content: "second turn" });
+			} finally {
+				await resumed.close();
+			}
+		} finally {
+			await manager.close();
+		}
 	});
 
 	it("/rename: renames and calls notifyTitleChanged on success", async () => {

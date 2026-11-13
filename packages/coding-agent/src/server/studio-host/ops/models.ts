@@ -47,15 +47,14 @@
  *   hands the browser an auth URL and waits for a code POSTed back with a
  *   token. The Studio contract has an operation for neither half, so the Host
  *   cannot drive the flow and must not report a login it did not complete.
- * - `models.roles.create` / `models.roles.delete` — both write `modelTags`,
- *   which has no gateway write route; deleting only the assignment would leave
- *   the custom role visible.
- * - `models.roleStorage.set`, `models.webSearch.*`, `models.adaptation.resolve`
- *   — C-class in the host spec (no Zeta backend).
+ * - `models.roles.create` / `models.roles.delete` / `models.roleStorage.set`
+ *   → `GET/PUT /api/settings` for `modelTags`, `modelRoles`, `modelRoleStorage`.
+ * - `models.webSearch.*`, `models.adaptation.resolve` — C-class in the host
+ *   spec (no Zeta backend).
  */
 import { createHash } from "node:crypto";
 import { YAML } from "bun";
-import { isRecord } from "@linxiraos/pi-utils";
+import { getProjectDir, isRecord } from "@linxiraos/pi-utils";
 import type {
 	AvailableModelRecord,
 	CommandInput,
@@ -67,7 +66,9 @@ import type {
 	ModelProviderRecord,
 	ModelProviderTestResult,
 	ModelProviderUpsertInput,
+	ModelRoleCreateInput,
 	ModelRoleRecord,
+	QueryInput,
 	ProviderYamlDraft,
 	WebSearchConfigReadModel,
 } from "../contract/index.js";
@@ -90,6 +91,10 @@ import {
 } from "../gateway.js";
 import type { StudioFamily } from "../registry.js";
 import { MODEL_ROLE_IDS, MODEL_ROLES } from "../../../config/model-roles.js";
+import { findAgentRoleReferences, findRoleAssignmentReferences } from "../../../config/role-references.js";
+import { discoverAgents } from "../../../task/discovery.js";
+import type { AgentDefinition } from "../../../task/types.js";
+import { resolveWorkspaceCwd } from "./git.js";
 
 const MODELS_CONFIG_ROUTE = "/api/models-config";
 const MODELS_CONFIG_TEST_ROUTE = "/api/models-config/test";
@@ -843,9 +848,9 @@ async function putSetting(path: string, value: unknown): Promise<void> {
  * by path. `GET /api/settings` is a UI document and omits hidden rows, so a
  * handler that composes state must ask here instead.
  */
-async function readSettingValues(paths: readonly string[]): Promise<Readonly<Record<string, unknown>>> {
+async function readSettingValues(paths: readonly string[], cwd?: string): Promise<Readonly<Record<string, unknown>>> {
 	const query = paths.map(path => `path=${encodeURIComponent(path)}`).join("&");
-	const body = await gatewayJson<unknown>(SETTINGS_VALUES_ROUTE, { query });
+	const body = await gatewayJson<unknown>(SETTINGS_VALUES_ROUTE, cwd === undefined ? { query } : { query, cwd });
 	if (!isRecord(body) || !isRecord(body.values)) {
 		throw unavailable("GET /api/settings/values returned no value map");
 	}
@@ -1048,6 +1053,98 @@ async function setHiddenModels(input: CommandInput<"models.hidden.set">): Promis
 	};
 }
 
+/** `models.roles.create` handler → `PUT /api/settings` (`modelTags`, then `modelRoles`). */
+async function createRole(input: CommandInput<"models.roles.create">): Promise<ConfigWriteResult> {
+	const id = requiredString(input, "id").trim();
+	if (id === "") throw invalid("id must be a non-empty string");
+	if (MODEL_ROLE_IDS.some(role => role === id)) throw invalid(`${id} is a built-in role`);
+	const name = requiredString(input, "name").trim();
+	if (name === "") throw invalid("name must be a non-empty string");
+	const values = await readSettingValues(["modelTags", "modelRoles"]);
+	const tags = isRecord(values.modelTags) ? { ...values.modelTags } : {};
+	const roles = isRecord(values.modelRoles) ? { ...values.modelRoles } : {};
+	const existing = isRecord(tags[id]) ? tags[id] : undefined;
+	const color = optionalString(input, "color")?.trim();
+	tags[id] = {
+		...(existing ?? {}),
+		name,
+		...(color ? { color } : {}),
+	};
+	await putSetting("modelTags", tags);
+	const selector = optionalString(input, "selector")?.trim() ?? "";
+	if (selector !== "") {
+		try {
+			roles[id] = selector;
+			await putSetting("modelRoles", roles);
+		} catch (error) {
+			throw unavailable(
+				`Role ${id} was created but its model assignment was not saved: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+	}
+	return {
+		applied: true,
+		runtimeEffect: "new-session",
+		message: selector === "" ? `Custom role ${id} created.` : `Custom role ${id} created with ${selector}.`,
+	};
+}
+
+/** `models.roles.delete` handler → `PUT /api/settings` (`modelTags` + `modelRoles` + chains). */
+async function deleteRole(input: CommandInput<"models.roles.delete">): Promise<ConfigWriteResult> {
+	const id = requiredString(input, "roleId").trim();
+	if (id === "") throw invalid("roleId must be a non-empty string");
+	if (MODEL_ROLE_IDS.some(role => role === id)) throw invalid(`${id} is a built-in role`);
+	const values = await readSettingValues([
+		"modelTags",
+		"modelRoles",
+		"retry.fallbackChains",
+		"task.agentModelOverrides",
+	]);
+	const tags = isRecord(values.modelTags) ? { ...values.modelTags } : {};
+	const roles = isRecord(values.modelRoles) ? { ...values.modelRoles } : {};
+	const chains = isRecord(values["retry.fallbackChains"]) ? { ...values["retry.fallbackChains"] } : {};
+	const overrides = isRecord(values["task.agentModelOverrides"]) ? values["task.agentModelOverrides"] : {};
+
+	// Never orphan an agent on a deleted purpose role: the agent would silently
+	// fall through to default at runtime. The caller must reassign or inherit.
+	let agents: AgentDefinition[] = [];
+	try {
+		agents = (await discoverAgents(getProjectDir())).agents;
+	} catch {
+		// Discovery is best-effort; the settings overlay still catches configured
+		// overrides when the agent roots cannot be scanned.
+		agents = [];
+	}
+	const agentRefs = findAgentRoleReferences(agents, overrides, id);
+	const roleRefs = findRoleAssignmentReferences(roles, id).filter(name => name !== id);
+	const references = [...agentRefs.map(name => `agent:${name}`), ...roleRefs.map(name => `role:${name}`)];
+	if (references.length > 0) {
+		throw invalid(
+			`Role @${id} is still referenced by ${references.join(", ")}. Reassign those agents or switch them to inherit before deleting.`,
+		);
+	}
+
+	delete tags[id];
+	delete roles[id];
+	delete chains[id];
+	await putSetting("modelTags", tags);
+	await putSetting("modelRoles", roles);
+	await putSetting("retry.fallbackChains", chains);
+	return { applied: true, runtimeEffect: "new-session", message: `Custom role ${id} deleted.` };
+}
+
+/** `models.roleStorage.set` handler → `PUT /api/settings` (`modelRoleStorage`). */
+async function setRoleStorage(input: CommandInput<"models.roleStorage.set">): Promise<ConfigWriteResult> {
+	const storage = input.storage;
+	if (storage !== "global" && storage !== "project") throw invalid("storage must be global or project");
+	await putSetting("modelRoleStorage", storage);
+	return {
+		applied: true,
+		runtimeEffect: "new-session",
+		message: `Role assignments now save to ${storage}.`,
+	};
+}
+
 /** `models.providerOrder.set` handler → `PUT /api/settings` (`modelProviderOrder`). */
 async function setProviderOrder(input: CommandInput<"models.providerOrder.set">): Promise<ConfigWriteResult> {
 	const order = precedenceOrder(input.order, "order");
@@ -1241,34 +1338,38 @@ function providerRecord(
 }
 
 /** Build `models.get` from the gateway's model listing, filter limits, and settings. */
-async function getModelConfig(): Promise<ModelConfigReadModel> {
-	const settings = await readSettingValues([
-		"modelRoles",
-		"modelTags",
-		"cycleOrder",
-		"modelProviderOrder",
-		"retry.fallbackChains",
-		"retry.fallbackRevertPolicy",
-		"modelRoleStorage",
-		"hiddenModels",
-		"disabledProviders",
-		"web_search.enabled",
-		"providers.webSearchOrder",
-		"providers.webSearchExclude",
-		"providers.webSearchTimeoutSeconds",
-		"providers.webSearchGeminiModel",
-		"searxng.endpoint",
-		"searxng.basicUsername",
-		"searxng.categories",
-		"searxng.engines",
-		"searxng.language",
-		"searxng.safesearch",
-		"exa.enabled",
-		"exa.searchDelayMs",
-	]);
+async function getModelConfig(input: QueryInput<"models.get">): Promise<ModelConfigReadModel> {
+	const cwd = await resolveWorkspaceCwd(input.workspaceId);
+	const settings = await readSettingValues(
+		[
+			"modelRoles",
+			"modelTags",
+			"cycleOrder",
+			"modelProviderOrder",
+			"retry.fallbackChains",
+			"retry.fallbackRevertPolicy",
+			"modelRoleStorage",
+			"hiddenModels",
+			"disabledProviders",
+			"web_search.enabled",
+			"providers.webSearchOrder",
+			"providers.webSearchExclude",
+			"providers.webSearchTimeoutSeconds",
+			"providers.webSearchGeminiModel",
+			"searxng.endpoint",
+			"searxng.basicUsername",
+			"searxng.categories",
+			"searxng.engines",
+			"searxng.language",
+			"searxng.safesearch",
+			"exa.enabled",
+			"exa.searchDelayMs",
+		],
+		cwd,
+	);
 	const [modelBody, configBody] = await Promise.all([
-		gatewayJson<unknown>(MODELS_ROUTE),
-		gatewayJson<unknown>(MODELS_CONFIG_ROUTE),
+		gatewayJson<unknown>(MODELS_ROUTE, cwd === undefined ? {} : { cwd }),
+		gatewayJson<unknown>(MODELS_CONFIG_ROUTE, cwd === undefined ? {} : { cwd }),
 	]);
 	const modelRows = readGatewayModels(modelBody);
 	const configuredProviders = isRecord(configBody) && isRecord(configBody.providers) ? configBody.providers : {};
@@ -1402,6 +1503,9 @@ export const modelsOps: StudioFamily = {
 		"models.login.logout": logoutProvider,
 		"models.roles.set": setRole,
 		"models.roles.write": writeRoles,
+		"models.roles.create": createRole,
+		"models.roles.delete": deleteRole,
+		"models.roleStorage.set": setRoleStorage,
 		"models.fallback.set": setFallback,
 		"models.yml.write": writeModelsYaml,
 	},

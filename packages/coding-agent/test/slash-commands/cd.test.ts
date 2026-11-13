@@ -52,6 +52,7 @@ describe("/cd", () => {
 		expect(command).toBeDefined();
 		expect(command?.aliases).toContain("chdir");
 		expect(command?.allowArgs).toBe(true);
+		expect(command?.argumentCompletionOnly).toBe(true);
 		expect(M.cmdCd.length).toBeGreaterThan(0);
 		expect(M.cmdCdAcp.length).toBeGreaterThan(0);
 	});
@@ -82,7 +83,7 @@ describe("/cd", () => {
 	it("moves directly when a path is given", async () => {
 		const { ctx, showDirectoryPicker, handleMoveCommand } = runtime();
 		expect(await executeBuiltinSlashCommand("/cd /work/project", { ctx })).toBe(true);
-		expect(handleMoveCommand).toHaveBeenCalledWith("/work/project");
+		expect(handleMoveCommand).toHaveBeenCalledWith("/work/project", { allowCreate: false });
 		expect(showDirectoryPicker).not.toHaveBeenCalled();
 	});
 

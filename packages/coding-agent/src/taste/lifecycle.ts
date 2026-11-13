@@ -68,6 +68,9 @@ export function startTasteSession(options: {
 			modelRegistry: options.modelRegistry,
 			sessionId: session.sessionId,
 			agentId: session.getAgentId(),
+			...(session.sessionManager?.getMemoryNamespace?.()
+				? { namespace: session.sessionManager?.getMemoryNamespace?.() }
+				: {}),
 		});
 		const unsubscribe = session.subscribe(event => {
 			// `message_start` is the only event carrying the committed prompt itself,

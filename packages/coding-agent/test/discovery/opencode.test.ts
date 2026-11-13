@@ -25,14 +25,21 @@ async function loadOpenCodeSettings(cwd: string): Promise<Settings[]> {
 
 describe("OpenCode MCP discovery", () => {
 	let tempDir = "";
+	let originalForeignSources: string | undefined;
 
 	beforeEach(async () => {
+		originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		// `.opencode` / `opencode.json` are foreign project sources; these cases
+		// pin their precedence and parsing.
+		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "opencode";
 		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-opencode-mcp-"));
 		vi.spyOn(os, "homedir").mockReturnValue(tempDir);
 	});
 
 	afterEach(async () => {
 		vi.restoreAllMocks();
+		if (originalForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		else process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
 		await removeWithRetries(tempDir);
 	});
 

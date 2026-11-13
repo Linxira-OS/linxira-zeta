@@ -10,6 +10,7 @@ import { createAgentSession } from "@linxiraos/zeta/sdk";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { buildSessionContextView } from "@linxiraos/zeta/session/context-view";
 import * as repoContext from "@linxiraos/zeta/utils/active-repo-context";
 import { TempDir } from "@linxiraos/pi-utils";
 
@@ -63,12 +64,22 @@ async function expectContextReload(reset: (session: AgentSession) => Promise<unk
 		await session.refreshBaseSystemPrompt();
 		expect(session.systemPrompt.join("\n")).toContain(original);
 
+		// Attribution follows the committed prompt: the initial build, then the rebuild.
+		const instructionText = () =>
+			buildSessionContextView(session)
+				.categories.find(category => category.id === "instruction-files")!
+				.entries.map(entry => entry.text)
+				.join("\n");
+		expect(instructionText()).toContain(original);
+
 		await fs.writeFile(agentsMd, updated);
 		expect(await reset(session)).toBeTruthy();
 
 		const rebuilt = session.systemPrompt.join("\n");
 		expect(rebuilt).toContain(updated);
 		expect(rebuilt).not.toContain(original);
+		expect(instructionText()).toContain(updated);
+		expect(instructionText()).not.toContain(original);
 	} finally {
 		await session.dispose();
 		authStorage.close();

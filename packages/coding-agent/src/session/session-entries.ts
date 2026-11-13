@@ -14,6 +14,8 @@ import type { CompactionMethod } from "./compaction-methods";
 import type { WorkPoolYieldItem } from "../task/workpool-yield";
 import type { RetryFallbackRole } from "./retry-fallback-chains";
 import type { RuntimeIdentity } from "./runtime-identity";
+import type { SessionClient } from "./session-client";
+import type { ImMessageMetadata, ImSwitchControlMetadata } from "./session-im";
 import type { SessionOrigin } from "./session-origin";
 
 export const CURRENT_SESSION_VERSION = 3;
@@ -27,13 +29,11 @@ export const TITLE_CHANGE_ENTRY_TYPE = "title_change";
 export type SessionTitleSource = "auto" | "user";
 
 /**
- * Which client created a session — the provenance stamp every durable header
- * carries. `cli` covers the terminal CLI and its ACP host, `web` the browser
- * workbench, `desktop` the Electron shell's serve process, and `automation`
- * a serve process with no interactive client attached (IM channels, cron-ish
- * relay work).
+ * Which client created a session — see {@link SessionClient} in
+ * `./session-client`. Re-exported here because every durable header/entry type
+ * in this module references it.
  */
-export type SessionClient = "cli" | "web" | "desktop" | "automation";
+export type { SessionClient } from "./session-client";
 
 /** Fixed-width first-line slot carrying the mutable current session title. */
 export interface SessionTitleSlotEntry {
@@ -77,6 +77,12 @@ export interface SessionHeader {
 	 */
 	origin?: SessionOrigin;
 	/**
+	 * Per-agent memory namespace. Keys local memory roots, Mnemopi/hindsight
+	 * banks, and taste scopes; persisted so a restart keeps the same scope.
+	 * Absent on personal sessions (project scope).
+	 */
+	memoryNamespace?: string;
+	/**
 	 * Additional workspace directories beyond `cwd` (multi-root workspace).
 	 * Absolute, normalized, deduplicated. Absent on legacy single-cwd sessions.
 	 * See {@link SessionWorkspace} in `./session-workspace`.
@@ -116,6 +122,8 @@ export interface NewSessionOptions {
 	 * stamp unless a caller passes another.
 	 */
 	origin?: SessionOrigin;
+	/** Memory namespace carried into the new session; omitted keeps the current one. */
+	memoryNamespace?: string;
 	/** Provider prompt-cache identity to seed on the new session header. */
 	providerPromptCacheKey?: string;
 	taskPromptCacheKey?: string;
@@ -153,6 +161,22 @@ export interface SessionEntryBase {
 export interface SessionMessageEntry extends SessionEntryBase {
 	type: "message";
 	message: AgentMessage;
+	/**
+	 * IM provenance for this row: the real inbound user message or the assistant
+	 * reply that answers it. Entry-level so it never enters the provider payload;
+	 * immutable after append (a later binding switch must not rewrite it).
+	 */
+	metadata?: ImMessageMetadata;
+}
+
+/**
+ * A workspace/agent switch handshake (`request`/`confirm`/`cancel`). It is not
+ * a user prompt and not an assistant message: readers that build LLM context
+ * MUST skip it, while a transcript viewer may render its metadata.
+ */
+export interface ImControlEntry extends SessionEntryBase {
+	type: "im_control";
+	metadata: unknown;
 }
 
 /** Usage from a model call that does not belong in the conversation transcript. */
@@ -330,6 +354,11 @@ export interface SessionInitEntry extends SessionEntryBase {
 	modelRole?: string;
 	/** Initially resolved provider/model selector for historical display. */
 	resolvedModel?: string;
+	/**
+	 * Client that initiated this subagent run. Absent on legacy files (unknown,
+	 * never guessed from the parent or the process). See `./session-client`.
+	 */
+	client?: SessionClient;
 	/** The model came from a per-call `model`; cold revival re-checks it against the current operator grants. */
 	perCallModel?: boolean;
 	/** Exact canonical provider/id[@upstream] identity, without a thinking suffix; required for per-call revival. */
@@ -358,6 +387,20 @@ export interface SessionInitEntry extends SessionEntryBase {
 	isolated?: boolean;
 	/** Work-pool yield items of the last model call; revival restores them so the yield tool matches. Absent when none. */
 	workPoolYieldItems?: WorkPoolYieldItem[];
+}
+
+/**
+ * Durable provenance of one run of an existing session (resume/attach).
+ *
+ * A cross-client view must never rewrite the creator's header; a later run
+ * appends this entry instead, carrying the same `client` field name. Readers
+ * take the newest `run_init.client` as the current run's initiator and keep the
+ * header's `client` as the creator. Absent on legacy files.
+ */
+export interface SessionRunInitEntry extends SessionEntryBase {
+	type: "run_init";
+	/** Client that started this run. Absent only for an unknown legacy writer. */
+	client?: SessionClient;
 }
 
 /** Mode change entry - tracks agent mode transitions (e.g. plan mode). */
@@ -394,6 +437,7 @@ export interface CustomMessageEntry<T = unknown> extends SessionEntryBase {
 /** Session entry - has id/parentId for tree structure (returned by "read" methods in SessionManager) */
 export type SessionEntry =
 	| SessionMessageEntry
+	| ImControlEntry
 	| ModelUsageEntry
 	| ThinkingLevelChangeEntry
 	| ModelChangeEntry
@@ -406,6 +450,7 @@ export type SessionEntry =
 	| TitleChangeEntry
 	| TtsrInjectionEntry
 	| SessionInitEntry
+	| SessionRunInitEntry
 	| ModeChangeEntry
 	| CredentialPinEntry
 	| ResetBoundaryEntry;

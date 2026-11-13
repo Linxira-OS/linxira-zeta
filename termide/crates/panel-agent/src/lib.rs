@@ -13,6 +13,7 @@ mod held;
 mod input;
 pub mod live;
 mod mcp;
+mod pan;
 mod parked;
 mod peers;
 mod pending;
@@ -24,6 +25,7 @@ mod select;
 mod session_ops;
 mod session_search;
 mod slash;
+mod spending;
 mod strip;
 mod submit;
 mod toolset;
@@ -38,7 +40,7 @@ use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
-use crossterm::event::MouseEvent;
+use crossterm::event::{KeyModifiers, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use termide_agent_core::{
@@ -48,13 +50,16 @@ use termide_agent_core::{
     ModeHandle, ModelInfo, ModelSpec, PermissionEnvelope, PermissionRules, PersistScope,
     PlanPrompt, PromptError, PromptTemplate, Provider, QuestionEnvelope, Refusals, ReviewerSetup,
     Session, SessionSummary, ShellOutput, ShellRunner, SkillInfo, SuggestionEnvelope, Tool,
-    ToolRegistry, DEFAULT_AGENT,
+    ToolRegistry, UserMessage, DEFAULT_AGENT,
 };
 use termide_config::Config;
 use termide_core::{
     CommandResult, InputAction, KeyChord, Panel, PanelCommand, PanelEvent, RenderContext,
     ScrollAxis, ScrollBars, SelectAction, StatusSegment, ThemeColors, TitleCut, WidthPreference,
 };
+use termide_panel_image::inline::{Graphics, InlinePictures};
+
+use crate::render::PictureMotion;
 use termide_theme::Theme;
 use termide_ui::{ClickTracker, CompletionList, InputBar};
 
@@ -95,6 +100,9 @@ const STOP_TASK_ACTION: &str = "agent_stop_task:";
 /// Stop a call the agent moved to the background, once confirmed; its id
 /// follows the colon.
 const STOP_CALL_ACTION: &str = "agent_stop_call:";
+/// Close one of the session's terminals, once confirmed; its name follows
+/// the colon.
+const CLOSE_TERMINAL_ACTION: &str = "agent_close_terminal:";
 /// Give up a delegate's task parked at a limit, once confirmed; the `task`
 /// call's id follows the colon.
 const GIVE_UP_PARKED_ACTION: &str = "agent_give_up_parked:";
@@ -244,6 +252,9 @@ pub struct AgentPanelSetup {
     pub connections: Option<Arc<dyn ConnectionCatalog>>,
     /// The connection in use.
     pub connection: String,
+    /// That connection as the settings give it, the provider built from; the
+    /// panel compares a later change against it.
+    pub connection_settings: termide_config::Connection,
     pub provider: Arc<dyn Provider>,
     /// The provider's wire-protocol type (e.g. `openai_compatible`), recorded
     /// in the session log so a resume can rebuild the right provider.
@@ -284,8 +295,12 @@ pub struct AgentPanelSetup {
     /// How a command the user ran by hand (`$` in the input) or confirmed on
     /// a card reaches the shell; `None` when there is no way to run one, and
     /// then both are refused with a notice. Built by the app over the same
-    /// `bash` tool the agent uses.
+    /// `shell` tool the agent uses.
     pub shell_run: Option<ShellRunner>,
+    /// The agent sessions' terminals: what the agent is told of its open
+    /// ones at each model call, and ended with the session when the panel
+    /// leaves it. `None` where there are none.
+    pub terminals: Option<Arc<dyn termide_agent_core::TerminalSessions>>,
     /// What to do when a run stops on a limit or an outage (`[ai]
     /// on_limit`); kept in step with the configuration as it changes.
     pub on_limit: LimitPolicy,
@@ -324,6 +339,9 @@ pub struct ConnectionChoice {
     pub backend: Option<BackendFactory>,
     /// Who reviews its sessions' calls in `auto` mode.
     pub reviewer: ReviewerSetup,
+    /// The connection as the settings give it, built from: what the panel
+    /// keeps to tell a later change of it from the same one.
+    pub settings: termide_config::Connection,
 }
 
 /// The app's connections (`[ai.connections.<name>]`); the
@@ -375,6 +393,31 @@ pub struct AgentProfile {
     pub offered: Vec<String>,
     /// Every skill the agent has, by name.
     pub skills: Vec<String>,
+}
+
+/// A hook the project brings that is held back until approved.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HeldHook {
+    pub name: String,
+    /// What it runs, for a person to read.
+    pub launch: String,
+    /// The fingerprint of that launch, which approving it must carry.
+    pub fingerprint: String,
+}
+
+/// What [`AgentCatalog::trust`] did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Trusted {
+    /// Approved: a server with the report of its connecting, a hook with
+    /// none.
+    Approved(Option<McpReload>),
+    /// Not approved: what is configured now is not the launch that was
+    /// shown. This is the launch to show instead, a hook's when `hook`.
+    Changed {
+        hook: bool,
+        launch: String,
+        fingerprint: String,
+    },
 }
 
 /// The app's view of the agent definitions (`agents/<name>/` across the
@@ -472,20 +515,23 @@ pub trait AgentCatalog: Send + Sync {
     fn mcp_logout(&self, server: &str) -> Result<bool, String> {
         Err(format!("no MCP server named {server}"))
     }
-    /// The hooks the project brings that are held back until approved, by
-    /// name, with what each runs.
-    fn held_hooks(&self) -> Vec<(String, String)> {
+    /// The hooks the project brings that are held back until approved, with
+    /// what each runs.
+    fn held_hooks(&self) -> Vec<HeldHook> {
         Vec::new()
     }
     /// Approve the MCP server or hook `name` the project brings, as it is
-    /// configured now. A server is connected at once, and its report comes
-    /// back; a hook runs from the next run on.
+    /// configured now, when that is the launch the user was shown: `shown`
+    /// is the fingerprint the notice or checkbox carried. A server is
+    /// connected at once, and its report comes back; a hook runs from the
+    /// next run on. A launch changed since is not approved but returned.
     ///
     /// # Errors
     ///
     /// When nothing of that name waits for approval, or the approval cannot
     /// be kept.
-    fn trust(&self, name: &str) -> Result<Option<McpReload>, String> {
+    fn trust(&self, name: &str, shown: &str) -> Result<Trusted, String> {
+        let _ = shown;
         Err(termide_i18n::t().agent_notice_trust_unknown_fmt(name))
     }
 }
@@ -684,6 +730,8 @@ pub struct AgentPanel {
     /// How a hand-run command and a confirmed card reach the shell; `None`
     /// refuses both.
     shell_run: Option<ShellRunner>,
+    /// The agent sessions' terminals; the session's end with it here.
+    terminals: Option<Arc<dyn termide_agent_core::TerminalSessions>>,
     /// A command the user ran by hand, on a thread: the command with what it
     /// printed, or why it could not run, and how long it took in ms.
     shell_job: Option<Receiver<ShellJobDone>>,
@@ -775,6 +823,10 @@ pub struct AgentPanel {
     /// Servers approved by a tick in the toolset list: their tools come on
     /// when they arrive, whatever the session had switched off.
     mcp_enable: BTreeSet<String>,
+    /// The fingerprint of the launch last shown for each server or hook
+    /// that waits for approval: `/trust <name>` approves that one and no
+    /// other.
+    shown_launches: std::collections::HashMap<String, String>,
     /// Whether this panel is the one whose toolset checklist stands open.
     /// Only then does a tick ask the app to refresh it: with two agent panels
     /// open, the other one has nothing to say about this one's list. It is
@@ -844,6 +896,12 @@ pub struct AgentPanel {
     connections: Option<Arc<dyn ConnectionCatalog>>,
     /// The connection in use.
     connection: String,
+    /// That connection as the settings gave it when `provider` was built: a
+    /// later change of it is told from the same one by comparing against this.
+    connection_settings: termide_config::Connection,
+    /// A change asked for while a run was going on, kept for when it is over:
+    /// a turn is never switched to another endpoint mid-flight.
+    connection_refresh: bool,
     /// The connections the picker last offered, in its order.
     connection_choices: Vec<ConnectionEntry>,
     provider: Arc<dyn Provider>,
@@ -985,6 +1043,9 @@ pub struct AgentPanel {
     /// When a stop was asked for, while the run has not ended yet: the stop
     /// control is red and the live line ticks how long the stop takes.
     stop_requested: Option<Instant>,
+    /// The answers of the background tasks stopped with the user's stop of
+    /// a run: they go with the next request rather than start one.
+    held_reports: Vec<UserMessage>,
     /// When the current pause began, while the run is paused: its closing
     /// line ticks the pause's length until `/continue`.
     pause_start: Option<Instant>,
@@ -1034,6 +1095,10 @@ pub struct AgentPanel {
     /// The calls of the delegates parked at a limit, as the strip last listed
     /// them; their card has been asked of the user for these tries.
     strip_parked: Vec<String>,
+    /// The session's terminals as last looked at, for the strip and the
+    /// status bar, and when that was: they are looked at once a second.
+    terminal_list: Vec<termide_agent_core::TerminalEntry>,
+    terminals_polled: Option<Instant>,
     /// Which parked tasks have had their card raised, by `task` call and the
     /// try it was parked at: a later park asks again.
     parked_asked: Vec<(String, u32)>,
@@ -1073,6 +1138,10 @@ pub struct AgentPanel {
     queued: (usize, usize),
     /// Tokens of the last reported context, for the status chip.
     context_tokens: u64,
+    /// An external agent's context fill and window as last logged, or read
+    /// from the log on opening it, so it is logged only when it changed and
+    /// a reopened session shows it before the agent reports again.
+    context_logged: Option<(u64, u64)>,
     /// What the agent is doing right now; `None` when idle.
     activity: Option<Activity>,
     /// Session token totals from `Usage`: input (prefill) and output.
@@ -1080,10 +1149,6 @@ pub struct AgentPanel {
     /// Prompt tokens the cache served this session.
     session_cached: u64,
     session_output: u64,
-    /// Bytes of shell output before and after cleaning, summed over the
-    /// session, for the "output cleaned" diagnostic in the summary.
-    clean_raw_bytes: u64,
-    clean_out_bytes: u64,
     /// When each running tool started, to report how long it took (`🕒`).
     tool_starts: HashMap<String, Instant>,
     /// Throttles the animation redraws requested while busy.
@@ -1094,11 +1159,26 @@ pub struct AgentPanel {
     transcript_area: Rect,
     input_area: Rect,
     scrollbars: ScrollBars,
+    /// The scrollbars drawn under wide diagrams this frame, for clicks and
+    /// drags on them.
+    diagram_bars: Vec<(pan::DiagramSpot, termide_core::ScrollBarGeometry)>,
+    /// A diagram's scrollbar thumb being dragged: which diagram, and where
+    /// in the thumb it was grabbed.
+    diagram_drag: Option<(pan::DiagramKey, u16)>,
     /// Clickable rows drawn in the welcome banner, each with what a click on
     /// it does (re-pick the model or the agent, open a recent session).
     /// Rebuilt every render; empty once the session has content and the
     /// banner is gone.
     banner_hits: Vec<(Rect, BannerHit)>,
+    /// The terminal's graphics, for the pictures in the transcript; asked
+    /// for once the first picture is laid out (see `ask_graphics`).
+    graphics: Option<Graphics>,
+    graphics_asked: bool,
+    /// The pictures encoded for the terminal, kept across frames.
+    pictures: InlinePictures,
+    /// Where each picture on screen was last framed or drawn, and since
+    /// when it has stood there (see `draw_pictures`).
+    picture_spots: HashMap<u64, PictureMotion>,
 }
 
 impl AgentPanel {
@@ -1223,6 +1303,7 @@ impl AgentPanel {
             session.as_ref(),
             &blocked,
             setup.shell_run.clone(),
+            setup.terminals.as_ref(),
             served_skills(setup.catalog.as_ref(), &offered_skills, &context_off),
             panel_id,
         );
@@ -1240,6 +1321,7 @@ impl AgentPanel {
             question_rx,
             suggestion_rx,
             shell_run: setup.shell_run,
+            terminals: setup.terminals,
             shell_job: None,
             shell_cancel: None,
             shell_mode: false,
@@ -1278,6 +1360,7 @@ impl AgentPanel {
             mcp_lines: std::collections::HashMap::new(),
             mcp_reconnecting: BTreeSet::new(),
             mcp_enable: BTreeSet::new(),
+            shown_launches: std::collections::HashMap::new(),
             toolset_list_open: false,
             mcp_settled_told: false,
             toolset_off,
@@ -1303,6 +1386,8 @@ impl AgentPanel {
             provider_backend: setup.provider_backend.clone(),
             connections: setup.connections.clone(),
             connection: setup.connection.clone(),
+            connection_settings: setup.connection_settings.clone(),
+            connection_refresh: false,
             connection_choices: Vec::new(),
             provider: setup.provider,
             provider_kind: setup.provider_kind,
@@ -1370,6 +1455,7 @@ impl AgentPanel {
             resuming: false,
             restored: None,
             restored_delegates: Vec::new(),
+            held_reports: Vec::new(),
             carry_back: None,
             held,
             logged_autorun: Autorun::default(),
@@ -1380,6 +1466,8 @@ impl AgentPanel {
             strip_hits: Vec::new(),
             strip_delegates: Vec::new(),
             strip_parked: Vec::new(),
+            terminal_list: Vec::new(),
+            terminals_polled: None,
             parked_asked: Vec::new(),
             parked_shown: String::new(),
             strip_tasks_open: false,
@@ -1395,12 +1483,11 @@ impl AgentPanel {
             agent_hops: 0,
             queued: (0, 0),
             context_tokens: 0,
+            context_logged: None,
             activity: None,
             session_input: 0,
             session_cached: 0,
             session_output: 0,
-            clean_raw_bytes: 0,
-            clean_out_bytes: 0,
             tool_starts: HashMap::new(),
             last_anim: Instant::now(),
             colors: ThemeColors::default(),
@@ -1408,7 +1495,13 @@ impl AgentPanel {
             transcript_area: Rect::default(),
             input_area: Rect::default(),
             scrollbars: ScrollBars::default(),
+            diagram_bars: Vec::new(),
+            diagram_drag: None,
             banner_hits: Vec::new(),
+            graphics: None,
+            graphics_asked: false,
+            pictures: InlinePictures::default(),
+            picture_spots: HashMap::new(),
         };
         // Names defined twice and definitions with what nothing reads are
         // reported once, when the panel opens; under
@@ -1417,6 +1510,8 @@ impl AgentPanel {
         panel.notice_definition_problems();
         panel.notice_held_hooks();
         panel.refresh_recent_sessions();
+        panel.seed_spent();
+        panel.seed_context();
         // The other termide's run may be going on right now: none is offered
         // to carry on here until this panel takes the session up.
         if panel.held.is_some() {
@@ -1521,8 +1616,57 @@ impl Drop for AgentPanel {
         self.log_cut_off_calls();
         self.sync_autorun();
         if let Some(session) = self.session.take() {
+            self.release_terminals(&session);
             discard_if_empty(session);
         }
+    }
+}
+
+impl AgentPanel {
+    /// End the terminal sessions `session`'s agent left open: they live as
+    /// long as the session is open in a panel.
+    fn release_terminals(&mut self, session: &Session) {
+        if let Some(terminals) = &self.terminals {
+            terminals.release(session.id());
+        }
+        self.terminal_list.clear();
+        self.terminals_polled = None;
+    }
+
+    /// Look at the session's terminals again, once a second at most.
+    /// Whether what the strip shows of them changed.
+    pub(crate) fn poll_terminals(&mut self) -> bool {
+        if self
+            .terminals_polled
+            .is_some_and(|at| at.elapsed() < Duration::from_secs(1))
+        {
+            return false;
+        }
+        self.terminals_polled = Some(Instant::now());
+        let list = match (&self.terminals, &self.session) {
+            (Some(terminals), Some(session)) => terminals.list(session.id()),
+            _ => Vec::new(),
+        };
+        // How long one has been open is not shown; a running command's time is.
+        let shown = |list: &[termide_agent_core::TerminalEntry]| {
+            list.iter()
+                .map(|entry| (entry.name.clone(), entry.state.clone()))
+                .collect::<Vec<_>>()
+        };
+        let changed = shown(&list) != shown(&self.terminal_list);
+        self.terminal_list = list;
+        changed
+    }
+
+    /// Close the session's terminal `name`, as the user asked from its row.
+    fn close_terminal(&mut self, name: &str) {
+        if let (Some(terminals), Some(session)) = (&self.terminals, &self.session) {
+            if let Err(error) = terminals.close(session.id(), name) {
+                log::warn!("cannot close terminal {name}: {error}");
+            }
+        }
+        self.terminals_polled = None;
+        self.poll_terminals();
     }
 }
 
@@ -1892,6 +2036,16 @@ impl Panel for AgentPanel {
         vec![PanelEvent::NeedsRedraw]
     }
 
+    fn handle_wheel(&mut self, event: MouseEvent, delta: i32, panel_area: Rect) -> Vec<PanelEvent> {
+        // Shift+wheel over a diagram too wide for the panel pans it.
+        if event.modifiers.contains(KeyModifiers::SHIFT) {
+            if let Some(spot) = self.diagram_under(event.column, event.row) {
+                return self.pan_diagram(&spot, delta as isize * pan::WHEEL_STEP as isize);
+            }
+        }
+        self.handle_scroll(delta, panel_area)
+    }
+
     fn handle_mouse(&mut self, event: MouseEvent, _panel_area: Rect) -> Vec<PanelEvent> {
         self.on_mouse(event)
     }
@@ -1917,6 +2071,12 @@ impl Panel for AgentPanel {
             return result;
         }
         match cmd {
+            // The settings moved the connection this panel runs on: take them,
+            // or wait for the run to end. Redraw only when something moved, so
+            // a panel on an untouched connection stays put.
+            PanelCommand::RefreshAiConnection => {
+                CommandResult::NeedsRedraw(self.refresh_connection())
+            }
             // The session search's query takes a paste as plain text, on one
             // line, and the list follows it.
             PanelCommand::Paste if self.session_search_on() => {
@@ -2112,6 +2272,10 @@ impl Panel for AgentPanel {
             PanelCommand::Confirmed { action } if action.starts_with(GIVE_UP_PARKED_ACTION) => {
                 let call = &action[GIVE_UP_PARKED_ACTION.len()..];
                 self.give_up_parked(call);
+                CommandResult::Handled(true)
+            }
+            PanelCommand::Confirmed { action } if action.starts_with(CLOSE_TERMINAL_ACTION) => {
+                self.close_terminal(&action[CLOSE_TERMINAL_ACTION.len()..]);
                 CommandResult::Handled(true)
             }
             PanelCommand::Confirmed { action } if action.starts_with(STOP_CALL_ACTION) => {

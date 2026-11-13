@@ -42,6 +42,7 @@ import { splitText } from "./text";
 export type DiscordInboundHandler = (message: InboundMessage) => void;
 
 export interface DiscordChannelOptions {
+	instanceId?: string;
 	botToken: string;
 	onMessage: DiscordInboundHandler;
 	/** Gateway URL override (tests). */
@@ -146,7 +147,8 @@ function readyResumeUrl(d: unknown): string | undefined {
 }
 
 export class DiscordChannel implements ChatChannel {
-	readonly id = "discord" as const;
+	readonly id: string;
+	readonly platform = "discord" as const;
 	readonly capabilities: ChannelCapabilities = {
 		maxTextLength: MAX_TEXT,
 		supportsImages: true,
@@ -183,6 +185,7 @@ export class DiscordChannel implements ChatChannel {
 	#health: ChannelHealth = { state: "stopped", since: Date.now() };
 
 	constructor(options: DiscordChannelOptions) {
+		this.id = options.instanceId ?? "discord";
 		this.#botToken = options.botToken;
 		this.#onMessage = options.onMessage;
 		this.#gatewayUrl = options.gatewayUrl ?? DEFAULT_GATEWAY;

@@ -22,6 +22,7 @@ import { type BotSessionEntry, WebConfig } from "../../config/web-config";
 import { exportFromFile } from "../../export/html";
 import type { SessionEntry as RuntimeSessionEntry } from "../../session/session-entries";
 import { listAllSessions as listRuntimeSessions } from "../../session/session-listing";
+import { normalizeImMessageMetadata, normalizeImSwitchControlMetadata } from "../../session/session-im";
 import { parseSessionContent } from "../../session/session-loader";
 import { SessionManager } from "../../session/session-manager";
 import { BLOB_EXTERNALIZE_THRESHOLD } from "../../session/session-persistence";
@@ -248,6 +249,9 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
 			...(project?.isWorktree && project.branch ? { worktreeBranch: project.branch } : {}),
 			...(tag ? { tag } : {}),
 			...(origin ? { origin } : {}),
+			...(s.client ? { client: s.client } : {}),
+			...(s.runClient ? { runClient: s.runClient } : {}),
+			...(s.taskSummary ? { taskSummary: s.taskSummary } : {}),
 			...(s.cwd && isTempCwd(s.cwd) ? { temp: true } : {}),
 		} satisfies SessionInfo;
 	});
@@ -508,16 +512,31 @@ function projectContextWindow(
 ): SessionContext {
 	const messages: AgentMessage[] = [];
 	const entryIds: string[] = [];
+	const messageMetadata: NonNullable<SessionContext["messageMetadata"]> = [];
+	const controlEvents: NonNullable<SessionContext["controlEvents"]> = [];
 	for (let index = start; index < end; index += 1) {
 		const entry = branch.contextEntries[index];
 		if (entry === undefined) continue;
+		if (entry.type === "im_control") {
+			const metadata = normalizeImSwitchControlMetadata(entry.metadata);
+			if (metadata) controlEvents.push({ entryId: entry.id, metadata });
+			continue;
+		}
 		const message = entryToUiMessage(entry, options);
 		if (message) {
 			messages.push(message);
 			entryIds.push(entry.id);
+			messageMetadata.push(entry.type === "message" ? (normalizeImMessageMetadata(entry.metadata) ?? null) : null);
 		}
 	}
-	return { messages, entryIds, thinkingLevel: branch.thinkingLevel, model: branch.model };
+	return {
+		messages,
+		entryIds,
+		thinkingLevel: branch.thinkingLevel,
+		model: branch.model,
+		...(messageMetadata.some(metadata => metadata !== null) ? { messageMetadata } : {}),
+		...(controlEvents.length > 0 ? { controlEvents } : {}),
+	};
 }
 
 /**

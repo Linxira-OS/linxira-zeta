@@ -72,6 +72,8 @@ export interface TasteState {
 	tombstones: TasteTombstone[];
 	/** Epoch millis of the last consolidation, for the scheduler's interval. */
 	lastConsolidatedAt: number;
+	/** Durable window observations already counted, including retired topics. */
+	processedSources?: string[];
 }
 
 /** One entry as stored: everything {@link TasteEntry} carries except the key and statement. */
@@ -174,6 +176,7 @@ export async function readTasteState(agentDir: string, key: TasteScopeKey): Prom
 			entries: parsed.entries ?? {},
 			tombstones: Array.isArray(parsed.tombstones) ? parsed.tombstones : [],
 			lastConsolidatedAt: typeof parsed.lastConsolidatedAt === "number" ? parsed.lastConsolidatedAt : 0,
+			processedSources: Array.isArray(parsed.processedSources) ? parsed.processedSources : [],
 		};
 	} catch (error) {
 		// A hand-edited or truncated state must not block a session: keep a copy
@@ -274,6 +277,7 @@ export async function writeTasteScope(
 		entries: persistedEntries,
 		tombstones: state.tombstones.slice(-TOMBSTONE_LIMIT),
 		lastConsolidatedAt: state.lastConsolidatedAt,
+		processedSources: state.processedSources ?? [],
 	};
 	const markdown = formatTasteFile(
 		entries.map(entry => ({ statement: entry.statement, confidence: entry.confidence })),

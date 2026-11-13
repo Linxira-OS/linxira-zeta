@@ -37,6 +37,7 @@ impl App {
                 is_current: project.root == self.project_root,
                 is_open: project.open,
                 attention: project.attention,
+                taken: project.taken,
                 project_path: project.root,
             })
             .collect();
@@ -303,7 +304,7 @@ impl App {
             }
             ProjectsTarget::Reopen => {
                 self.state.close_menu();
-                self.reopen_previous_projects();
+                self.reopen_previous_projects(true);
             }
             ProjectsTarget::Action(PROJECTS_SUBMENU_NEW) => {
                 self.state.close_menu();

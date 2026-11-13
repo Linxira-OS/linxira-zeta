@@ -79,6 +79,7 @@ Session files are JSONL: one JSON object per line. Current files physically begi
 	"cwd": "/work/pi",
 	"title": "optional session title",
 	"titleSource": "auto",
+	"client": "web",
 	"additionalDirectories": ["/work/shared"],
 	"previousSessionFiles": ["/old/location/session.jsonl"],
 	"providerPromptCacheKey": "optional inherited cache identity",
@@ -113,6 +114,9 @@ Notes:
 - `parentSession` is an opaque lineage string. Current code writes either a session id or a session path depending on flow (`fork`, `forkFrom`, `createBranchedSession`, or explicit `newSession({ parentSession })`). Treat it as metadata, not a typed foreign key.
 
 - `titleSource` is `auto` or `user`; automatic renames cannot overwrite a user title.
+- `client` is the closed client kind that **created** the session: `cli`, `web`, `desktop`, or `automation`. It is metadata, never an authorization signal. An absent field is a legacy transcript and reads as **unknown**; readers must not infer it from `cwd`, a URL, or the process shape, and must not default it to `cli`.
+- A later **run** of the same session never rewrites this creator stamp. It appends a `run_init` entry (below) whose `client` is the client that actually initiated that run, so a session created in the CLI and resumed in Studio keeps `client: "cli"` on the header while its latest `run_init.client` is `"web"`. A fork writes the fork initiator's `client` on the new header and keeps the source in `parentSession`.
+- Transports may declare the client they actually are with the `x-zeta-client` header (`cli`/`web`/`desktop`/`automation`). Unknown or missing values stay unknown for run metadata; the web gateway's own default is `web`, and a serve process uses `desktop` (`ZETA_DESKTOP=1`) or `automation`. The SDK leaves `client` absent unless its caller passes one explicitly; that is an explicit unknown, not a guessed CLI.
 - `origin` marks a conversation that belongs to an IM/bot/relay channel or to a Team checkout rather than a personal coding session. It is optional and additive: an absent or malformed field reads as personal, and an IM transcript written before the field existed is still recognized through its `relay`/`bot`/`draft` web.yml registry tag. `agentId` and `bindingId` are reserved for a default workspace that hosts several main agents (personal, WeChat, Feishu, …), each with its own channel/chat binding; a mobile client scoped to one binding filters by them. Studio, the resume picker and `history.list` hide IM conversations by default and expose them only through an explicit "IM / Bot" filter; the transcript itself stays fully usable as a personal agent. A `kind: "team"` stamp carries `teamId` and the optional deterministic row ids `pmId` / `engineerId` / `repoId` / `roomId` plus a name-only `workspaceAlias`; created inside a resolved Team location, it is hidden from the default current-folder/all-projects scopes and from `history.list` unless `includeTeam` is set, and grouped as Team → PM → engineer → repo → conversation. `--resume <id>` bypasses that filter. Team transcripts stay in the same per-cwd JSONL buckets; nothing is moved.
 
 ### Visibility and deletion
@@ -357,7 +361,7 @@ Current core-owned values include:
 | `session_exit`           | `{ reason: string, kind: "normal" \| "signal" \| "fatal" \| "process_exit", recordedAt: string, pendingToolCalls?: Array<{ toolCallId?: string, toolName: string, args?: unknown, intent?: string, assistantTimestamp?: number, startedAt?: string }> }` | Normal disposal and postmortem teardown record the exit when the session has assistant history or pending tool calls. The writer immediately calls `flushSync()` so a subsequent process can inspect the last durable turn; a flush failure is logged. Resume diagnostics consume the latest valid record.                                                                                                                                                             |
 | `user_todo_edit`         | `{ phases: TodoPhase[] }`                                                                                                                                                                                                                                | SDK/UI todo editing persists the complete phase snapshot. Todo restoration scans backward for the latest snapshot (or a successful `todo` tool result) and restores its phases.                                                                                                                                                                                                                                                                                        |
 | `vibe-session-lifecycle` | Version-1 event with `{ version: 1, id, ownerId, parentSessionId, action, ... }`; `spawn` adds `cli`, `agent`, `childSessionFile`, and `createdAt`; turn events add `turn`; tombstone events add `reason`.                                               | Vibe runtime persists and replays child spawn, turn-started/settled, tombstone, and tombstone-revoked transitions to recover owned child sessions and in-flight state. Invalid or out-of-scope events are ignored.                                                                                                                                                                                                                                                     |
-| `autoresearch-control`   | `{ mode: "on" \| "off" \| "clear", goal?: string }`                                                                                                                                                                                                      | The built-in autoresearch command writes mode/goal changes, and experiment-limit shutdown writes `mode: "off"`. `reconstructControlState()` replays valid records on resume to restore whether autoresearch is active and its goal; `clear` removes the goal.                                                                                                                                                                                                          |
+| `autoresearch-control`   | `{ mode: "on" \| "off" \| "clear", goal?: string }`                                                                                                                                                                                                      | The built-in autoresearch command writes mode/goal changes, and experiment-limit shutdown writes `mode: "off"`. `reconstructControlState()` replays valid records on resume to restore whether autoresearch is active and its goal; `clear` removes the goal. See [Autoresearch](./autoresearch.md).                                                                                                                                                                   |
 | `system-prompt-digest`   | Hexadecimal string: a hash of the base system prompt blocks (before a per-turn hook override)                                                                                                                                                            | `AgentSession` appends it just before a primary assistant reply with provider output whose prompt differs from the branch's latest record, and carries it onto a rewind branch with the reparented sibling reply. Before a resumed session's first model call, a prefix-bound tool-list rebuild commits only if it reproduces that prompt; without a record it freezes. Memory recall injected into the base prompt is part of the hash, so such sessions stay frozen. |
 
 On resume, a valid latest `session_exit` after a non-terminal conversation tail causes `AgentSession`/SDK initialization to append a synthetic assistant message with `stopReason: "aborted"` and rebuild the display/agent context. A normal exit only triggers that transition when it recorded pending tool calls; abnormal exit kinds can trigger it without that list. This prevents the restored transcript from presenting an interrupted turn as still live.
@@ -418,6 +422,81 @@ Append-only audit entry for a session rename. It records `title`, `source` (`aut
 ### `credential_pin`
 
 Records the provider and a pseudonymous SHA-256 account/scope hash used to re-pin resumed OAuth traffic to the serving account and preserve account-scoped prompt-cache reuse. It does not store the raw account identity; exported hashes remain linkable and are not anonymous.
+
+### IM message provenance
+
+An IM inbound message is persisted as the real `role: "user"` entry (never re-written as an assistant/system summary). The entry carries `metadata` with the canonical set:
+
+```jsonc
+{
+	"source": "im",
+	"platform": "wechat",
+	"instance": "optional bot instance",
+	"chatId": "chat-1",
+	"threadId": "optional thread",
+	"senderId": "platform user id",
+	"senderName": "display name",
+	"messageId": "platform message id",
+	"sentAt": "2026-07-01T09:00:00.000Z",
+	"attachments": [{ "id": "...", "name": "...", "mimeType": "image/jpeg", "size": 42 }],
+	"route": { "workspaceAlias": "alpha", "agentId": "agent-a", "sessionId": "...", "botSessionId": "...", "bindingId": "..." }
+}
+```
+
+- `route` is a snapshot of the workspace/agent/session that actually received the message. It is immutable: a later `!workspace` switch must not rewrite an earlier row. The assistant entry that answers it carries `replyToMessageId` plus the same sender/chat/instance identity.
+- Metadata lives on the entry, not inside the provider payload, so it never changes the LLM prompt and needs no second transcript store. The Team IM chat page reads these entries through the normal session/context routes.
+- `!workspace` handshakes are `type: "im_control"` entries with `metadata.action` = `switch_request` | `switch_confirm` | `switch_cancel`, `requestId`, and `from`/`to` route snapshots. They are not user prompts and must be skipped by LLM context builders; a transcript viewer may render them. Pending request state and its per-chat key isolation belong to the IM channel layer, not the transcript.
+- Visibility: an IM-bound session (origin `kind: "im"`) is hidden from ordinary home/recent/history lists by default and exposed through the explicit IM/Bot filter. Ordinary Agent sessions, including a Team-origin session, are unaffected. Looking at the transcript never rewrites it.
+
+### Task summary projection
+
+A session row may carry `taskSummary` from the same bounded window the listing already reads (4 KB prefix + 32 KB tail); it is never a full-file scan and never an LLM call:
+
+```jsonc
+{
+	"status": "completed",           // completed | incomplete | unknown
+	"intent": "latest task user intent, single-line plain excerpt",
+	"result": "last assistant result of that completed turn",
+	"at": "2026-07-01T09:01:30.000Z",
+	"source": "completed_turn"       // completed_turn | open_turn | none
+}
+```
+
+- `completed_turn` requires the bounded window's final turn to be cleanly finished; `intent`/`result` are short single-line excerpts.
+- An open/interrupted/aborted/errored turn is `incomplete` with `intent` only (`open_turn`); it never borrows a previous turn's result and never presents `firstMessage`, a branch summary, or the latest IM inbound as a completed summary.
+- No reliable window/messages means the field is absent (or `status: "unknown"`); viewers show “no summary” rather than a fake one. Rows written before this projection existed have no field.
+- The projection lives in the existing scan cache, which invalidates on the file's mtime/size, so a normal session append updates it; no second store or authority.
+- Display name stays `sessionDisplayName(info)`: explicit title, else the short first-prompt rule, else `Untitled · <time>`; the raw session id is never used.
+
+Source APIs: `listSessions`/`listAllSessions` (`SessionInfo.taskSummary`), `GET /api/sessions`, `history.list` (`SessionHistoryEntry.taskSummary`), and `sessionDisplayName` for the name.
+
+### Read-model field names (Team IM / selector)
+
+- `SessionInfo` (and the gateway `SessionInfo` DTO): `client`, `runClient`, `taskSummary`, `origin`, plus the existing `title`/`firstMessage`/`status`.
+- `SessionHistoryEntry` (`history.list`): the same `client`, `runClient`, `taskSummary`, `origin`.
+- `SessionContext` (session/context and conversation reads): `messageMetadata` is parallel to `messages` (`null` for a row without IM metadata) and `controlEvents` is `Array<{ entryId, metadata }>` in transcript order. Control events are never in `messages`.
+- `sessionDisplayName(info)` is the only name rule: explicit title, else the short first-prompt fallback, else `Untitled · <time>`; raw ids are never a fallback.
+
+These fields are projections over the one durable transcript; the Team UI/selector must not create a second store or a parallel authority.
+
+### `run_init`
+
+Durable provenance of one run of an existing session (resume/attach), appended by the process that starts that run. It carries the same `client` field name as the header, so there is no parallel `initiatedBy` authority; the header keeps the creator and the newest `run_init` names the current run.
+
+```json
+{
+	"type": "run_init",
+	"id": "8-char-id",
+	"parentId": "active-leaf-id",
+	"timestamp": "2026-02-16T10:21:00.000Z",
+	"runtime": { "version": "1.4.13" },
+	"client": "web"
+}
+```
+
+- Absent on legacy transcripts and on writers that could not name themselves. Readers report the latest run's client as unknown rather than guessing.
+- Writing one must not modify the header, the title, or any earlier entry, so a read-only cross-client view never rewrites the original transcript.
+- `session_init.client` (below) records the initiator of a subagent run; top-level runs use `run_init`.
 
 ### `session_init`
 
@@ -550,7 +629,7 @@ Algorithm:
    - mode/modeData from latest `mode_change` (default mode `"none"`)
 4. Choose the emission boundary:
    - a later `reset_boundary` hides everything through that boundary from model context and collapsed live transcript
-   - otherwise the latest compaction emits its summary plus kept/post-compaction messages (provider-native replacement history may supply the kept model context); for model context, `options.model` skips compactions whose OpenAI payload that model cannot replay, so the history behind them is emitted
+   - otherwise the latest compaction emits its summary plus kept/post-compaction messages (provider-native replacement history may supply the kept model context)
    - full transcript export retains pre-reset history and renders compactions chronologically
 5. Convert `message`, `custom_message`, and `branch_summary` entries into messages. Other entry types only affect replay state or metadata.
 6. Remove dangling tool calls from replay (unless explicitly retained for a mid-turn transcript), neutralizing protected reasoning metadata on rewritten turns; drop unsafe aborted/error assistant turns and their paired tool results from model context.
@@ -610,7 +689,7 @@ These projections leave the live entries unchanged. On load, ordinary persisted 
 
 ## Storage Abstractions
 
-`SessionStorage` owns filesystem-like operations used by `SessionManager`: synchronous directory/existence/write/stat/list operations; async read, sliced read, write, guarded atomic write, rename, unlink, artifact-aware deletion, title update, writer creation, and backend drain. Optional capabilities include synchronous reads, confirmed remote writes, line scans (`scanLines`), file locking, session ownership claims, and conditional artifact-aware deletion.
+`SessionStorage` owns filesystem-like operations used by `SessionManager`: synchronous directory/existence/write/stat/list operations; async read, sliced read, write, guarded atomic write, rename, unlink, artifact-aware deletion, title update, writer creation, and backend drain. Optional capabilities include synchronous reads, confirmed remote writes, assistant-turn scans, file locking, session ownership claims, and conditional artifact-aware deletion.
 
 Implementations and adapters:
 
@@ -635,7 +714,7 @@ The compress phase is opt-in as well: `--compress` or `gc.compress` (default off
 
 Other filesystems report the phase as unsupported.
 
-The strip phase is opt-in too: `--strip` or `gc.strip` (default off). Providers return state only they can read back, which omp persists so a resumed turn replays natively: signed and encrypted reasoning, the verbatim wire response kept for prompt caching, request controls, uploaded-file references. Once a transcript has been idle for `gc.stripAfterDays` (default 30, `--strip-after-days`), past every provider's cache and response retention, the phase rewrites it without that state: incremental OpenAI Responses histories, Cursor and Gemini native histories, `requestControls`, `inputTransformations`, opaque `thinkingSignature`s, `itemId`s, `redactedThinking` blocks, tool-call `thoughtSignature`s and leftover streaming state, and image `providerFile` references. Each turn then reads like one recorded by another model, which every provider already replays (reasoning as plain text, or not at all). The latest surviving assistant turn keeps everything, since a resumed tool loop must replay the most recent response's reasoning unmodified. State with no copy elsewhere also stays: reasoning source markers (`reasoning_content`), text signatures (OpenAI message phase), Anthropic message controls and native compaction blocks, OpenAI snapshot histories, and compaction entries (an OpenAI remote compaction's stored summary is only a placeholder for its encrypted history). It covers each session's transcript and the subagent transcripts in its artifact tree, under the same ownership-lease rules as compression, and archived `.jsonl.gz` sessions, which are recompressed. Lines without replay data keep their bytes, the title slot included, and the transcript keeps its mtime, so session ordering is unchanged; the stats database reparses a rewritten transcript once. The phase runs before archiving and compression so both store the stripped transcripts.
+The strip phase is opt-in too: `--strip` or `gc.strip` (default off). Providers return state only they can read back, which omp persists so a resumed turn replays natively: signed and encrypted reasoning, the verbatim wire response kept for prompt caching, request controls, uploaded-file references. Once a transcript has been idle for `gc.stripAfterDays` (default 30, `--strip-after-days`), past every provider's cache and response retention, the phase rewrites it without that state: incremental OpenAI Responses histories, Cursor and Gemini native histories, `requestControls`, `inputTransformations`, opaque `thinkingSignature`s, `itemId`s, `redactedThinking` blocks, tool-call `thoughtSignature`s and leftover streaming state, and image `providerFile` references. Each turn then reads like one recorded by another model, which every provider already replays (reasoning as plain text, or not at all). The latest replay turn keeps everything: its run of assistant responses joined by tool results, which a provider replays as one assistant message and validates as a unit, since a resumed tool loop must replay every one of those responses' reasoning unmodified. State with no copy elsewhere also stays: reasoning source markers (`reasoning_content`), text signatures (OpenAI message phase), Anthropic message controls and native compaction blocks, OpenAI snapshot histories, and compaction entries (an OpenAI remote compaction's stored summary is only a placeholder for its encrypted history). It covers each session's transcript and the subagent transcripts in its artifact tree, under the same ownership-lease rules as compression, and archived `.jsonl.gz` sessions, which are recompressed. Lines without replay data keep their bytes, the title slot included, and the transcript keeps its mtime, so session ordering is unchanged; the stats database reparses a rewritten transcript once. The phase runs before archiving and compression so both store the stripped transcripts.
 
 To compress without running the command, enable `gc.autoCompress` (default off). Once an interactive session has painted its first frame, omp starts a detached `omp gc --compress --apply` at low CPU priority when the last background run is at least a day old and the sessions directory supports compression. Support is checked by compressing a throwaway probe file in the sessions directory, so a volume whose compressor stores files uncompressed (macOS 27's `ditto --hfsCompression`, #16244) is not copied and hashed every day; when the check fails, `gc-auto-compress.log` records why and the next check is a day later. Launches claim the run under an OS lock keyed on the log and recheck the interval while holding it, so simultaneous launches start one child. The child outlives the launching session, writes its summary to `gc-auto-compress.log` in the agent dir, and that file's mtime marks the last run; a spawn that fails removes the log so the next launch retries. The child takes `gc.lock` like any other gc run, so a run that finds gc already running exits with that error in the log and is retried a day later. A file that compresses but does not shrink stays a candidate and is copied again on later runs. Print, RPC, and ACP launches never start it.
 
@@ -656,7 +735,7 @@ Discovery helpers live in `session-listing.ts`; `SessionManager` exposes project
 - `SessionManager.listForPicker(...)` / `listAllForPicker()` -> pinned-first lists with untitled, prompt-less zero-turn stubs removed; pinned stubs remain selectable
 - `resolveResumableSession(...)` -> local lookup then optional global fallback
 
-`getRecentSessions()` sorts file stats and first looks up titles in `history.db`'s `session_titles` index; unindexed files fall back to content scanning and backfill their title. `findMostRecentSession()` reads a 4 KiB prefix. Status-enabled full/non-empty scans read that prefix plus a bounded 32 KiB tail. When those windows hold no text prompt or no assistant record, one `scanLines` pass over the file recovers them, so a prompt behind a large memory recall or attachment still previews (capped at 4 KiB of text); backends without `scanLines` keep the window evidence. Scans are stat-keyed and cached; large full lists use bounded parallel workers. Normal per-directory scans also recover the newest orphaned EPERM backup when its primary JSONL is missing.
+`getRecentSessions()` sorts file stats and first looks up titles in `history.db`'s `session_titles` index; unindexed files fall back to content scanning and backfill their title. `findMostRecentSession()` reads a 4 KiB prefix. Status-enabled full/non-empty scans read that prefix plus a bounded 32 KiB tail. Scans are stat-keyed and cached; large full lists use bounded parallel workers. Normal per-directory scans also recover the newest orphaned EPERM backup when its primary JSONL is missing.
 
 `SessionManager.list()`/`listAll()` sort pinned sessions first; raw listing helpers sort newest first. Empty filtering is picker/continue-specific, not applied to id lookup or maintenance. Resume matching is case-insensitive and accepts session id prefixes, full filename prefixes, or the id suffix after the timestamp. Explicit `sessionDir` disables global fallback unless `allowGlobalFallback: true` is requested.
 

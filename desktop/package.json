@@ -4,13 +4,13 @@
   "private": true,
   "packageManager": "npm@12.0.1",
   "author": "Zeta Contributors",
-  "description": "Zeta desktop shell: embedded Web UI + Stats dashboard with local service (no terminal, no system browser)",
+  "description": "Zeta desktop shell: Electron 45 hosting the Work Studio and Stats UI from the standalone Zeta kernel, with SSH execution targets (no system browser)",
   "homepage": "https://linxira-os.github.io/zeta/",
   "main": "dist/main.js",
   "scripts": {
     "dev": "npm run build && electron .",
     "build": "node scripts/generate-icon.mjs && tsc -p tsconfig.json",
-    "test": "tsc -p tsconfig.json && node --test scripts/*.test.mjs",
+    "test": "tsc -p tsconfig.json && node --test scripts/*.test.mjs test/*.test.mjs",
     "prepare:runtime": "node scripts/prepare-runtime.mjs",
     "smoke": "node scripts/smoke.mjs",
     "dist": "npm run build && npm run prepare:runtime && node scripts/package-desktop.mjs"

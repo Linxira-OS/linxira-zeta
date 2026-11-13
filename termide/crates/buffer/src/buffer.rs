@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use unicode_segmentation::UnicodeSegmentation;
 
 use super::{Action, Cursor, History};
+use crate::edit_log::{EditLog, EditRevision, SyntaxEdit};
 use crate::line_marks::{shift_marks, LineEdit};
 use crate::LineEnding;
 
@@ -38,6 +39,10 @@ pub struct TextBuffer {
     file_path: Option<PathBuf>,
     /// Modified flag
     modified: bool,
+    /// The content as last loaded or saved. Undo and redo compare against it
+    /// to tell whether the buffer is back to that state; cloning a rope
+    /// shares its nodes, so keeping it costs only what edits replace.
+    saved: Rope,
     /// Line ending type (for saving)
     line_ending: LineEnding,
     /// Edit history for undo/redo
@@ -54,6 +59,8 @@ pub struct TextBuffer {
     line_marks: BTreeSet<usize>,
     /// Incremented whenever `line_marks` changes.
     line_marks_version: u64,
+    /// Recent edits in byte/point terms, for incremental syntax parsing.
+    edit_log: EditLog,
 }
 
 impl TextBuffer {
@@ -63,6 +70,7 @@ impl TextBuffer {
             rope: Rope::new(),
             file_path: None,
             modified: false,
+            saved: Rope::new(),
             line_ending: LineEnding::LF,
             history: History::new(),
             edit_version: 0,
@@ -70,12 +78,14 @@ impl TextBuffer {
             lsp_needs_full_sync: false,
             line_marks: BTreeSet::new(),
             line_marks_version: 0,
+            edit_log: EditLog::new(),
         }
     }
 
     /// Create buffer from Rope (for use from Editor::from_text)
     pub fn from_rope(rope: Rope) -> Self {
         Self {
+            saved: rope.clone(),
             rope,
             file_path: None,
             modified: false,
@@ -86,13 +96,16 @@ impl TextBuffer {
             lsp_needs_full_sync: false,
             line_marks: BTreeSet::new(),
             line_marks_version: 0,
+            edit_log: EditLog::new(),
         }
     }
 
     /// Create buffer from text string.
     pub fn from_text(text: &str) -> Self {
+        let rope = Rope::from_str(text);
         Self {
-            rope: Rope::from_str(text),
+            saved: rope.clone(),
+            rope,
             file_path: None,
             modified: false,
             line_ending: LineEnding::LF,
@@ -102,6 +115,7 @@ impl TextBuffer {
             lsp_needs_full_sync: false,
             line_marks: BTreeSet::new(),
             line_marks_version: 0,
+            edit_log: EditLog::new(),
         }
     }
 
@@ -111,17 +125,12 @@ impl TextBuffer {
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read file: {}", path.display()))?;
 
-        // Determine line ending type
-        let line_ending = if contents.contains("\r\n") {
-            LineEnding::CRLF
-        } else {
-            LineEnding::LF
-        };
+        let line_ending = dominant_line_ending(&contents);
 
-        // Normalize CRLF to LF for internal storage.
-        // The original line ending type is preserved in `line_ending`
-        // and restored when saving to disk.
-        let contents = if line_ending == LineEnding::CRLF {
+        // Normalize CRLF to LF for internal storage. The dominant line ending
+        // is kept in `line_ending` and used for every line on save, so a
+        // mixed file is written with the ending most of its lines had.
+        let contents = if contents.contains("\r\n") {
             contents.replace("\r\n", "\n")
         } else {
             contents
@@ -130,6 +139,7 @@ impl TextBuffer {
         let rope = Rope::from_str(&contents);
 
         Ok(Self {
+            saved: rope.clone(),
             rope,
             file_path: Some(path.to_path_buf()),
             modified: false,
@@ -140,6 +150,7 @@ impl TextBuffer {
             lsp_needs_full_sync: false,
             line_marks: BTreeSet::new(),
             line_marks_version: 0,
+            edit_log: EditLog::new(),
         })
     }
 
@@ -179,33 +190,13 @@ impl TextBuffer {
             }
         }
 
-        std::fs::write(path, contents)
+        crate::write::write_file(path, contents.as_bytes())
             .with_context(|| format!("Failed to write file: {}", path.display()))?;
 
         self.file_path = Some(path.to_path_buf());
         self.modified = false;
+        self.saved = self.rope.clone();
         Ok(())
-    }
-
-    /// Check if buffer content differs from file on disk
-    fn is_content_modified(&self) -> Result<bool> {
-        // If no file path, use current modified flag
-        let Some(path) = &self.file_path else {
-            return Ok(self.modified);
-        };
-
-        // Try to read file content
-        match std::fs::read_to_string(path) {
-            Ok(file_content) => {
-                // Compare buffer content with file content
-                let buffer_content = self.rope.to_string();
-                Ok(buffer_content != file_content)
-            }
-            Err(_) => {
-                // If can't read file (deleted, permissions, etc.), keep current flag
-                Ok(self.modified)
-            }
-        }
     }
 
     /// Get line count
@@ -327,6 +318,7 @@ impl TextBuffer {
         if !self.line_marks.is_empty() {
             self.shift_line_marks(chars.clone(), text);
         }
+        self.edit_log.record(&self.rope, chars.clone(), text);
         self.record_lsp_change(chars, text);
     }
 
@@ -437,6 +429,31 @@ impl TextBuffer {
     /// Get all text
     pub fn text(&self) -> String {
         self.rope.to_string()
+    }
+
+    /// The text itself, for readers that walk it in chunks (a parser) rather
+    /// than copy it.
+    pub fn rope(&self) -> &Rope {
+        &self.rope
+    }
+
+    /// Where the text stands in its edit history; see
+    /// [`TextBuffer::syntax_edits_since`].
+    pub fn edit_revision(&self) -> EditRevision {
+        self.edit_log.revision()
+    }
+
+    /// The edits that turned the text at `since` into the current text,
+    /// oldest first, in the coordinates of the text before each.
+    ///
+    /// `None` when they are no longer all known — `since` belongs to another
+    /// buffer (a reload replaces the buffer) or lies further back than the
+    /// log keeps — and the consumer has to start over from the whole text.
+    pub fn syntax_edits_since(
+        &self,
+        since: EditRevision,
+    ) -> Option<impl Iterator<Item = &SyntaxEdit>> {
+        self.edit_log.since(since)
     }
 
     /// Total length of the buffer in bytes (O(1) via the rope).
@@ -625,9 +642,13 @@ impl TextBuffer {
     /// Append text to the end of buffer (for log viewer, no history tracking)
     pub fn append(&mut self, text: &str) {
         let len = self.rope.len_chars();
+        self.edit_log.record(&self.rope, len..len, text);
         self.rope.insert(len, text);
         self.edit_version += 1;
         // Don't mark as modified - this is for internal use (log viewer)
+        if !self.modified {
+            self.saved = self.rope.clone();
+        }
     }
 
     /// Line ending type detected on file load.
@@ -655,8 +676,8 @@ impl TextBuffer {
     pub fn undo(&mut self) -> Result<Option<Cursor>> {
         if let Some(action) = self.history.undo() {
             let cursor = self.apply_action(&action)?;
-            // Check if buffer content actually differs from file
-            self.modified = self.is_content_modified()?;
+            // Back at the saved content means nothing is left to save.
+            self.modified = self.rope != self.saved;
             Ok(Some(cursor))
         } else {
             Ok(None)
@@ -667,8 +688,8 @@ impl TextBuffer {
     pub fn redo(&mut self) -> Result<Option<Cursor>> {
         if let Some(action) = self.history.redo() {
             let cursor = self.apply_action(&action)?;
-            // Check if buffer content actually differs from file
-            self.modified = self.is_content_modified()?;
+            // Back at the saved content means nothing is left to save.
+            self.modified = self.rope != self.saved;
             Ok(Some(cursor))
         } else {
             Ok(None)
@@ -704,6 +725,19 @@ impl TextBuffer {
     }
 }
 
+/// The line ending most lines of `contents` end with: CRLF only when CRLF
+/// lines outnumber bare LF lines, LF otherwise (ties and files without line
+/// breaks included).
+fn dominant_line_ending(contents: &str) -> LineEnding {
+    let crlf = contents.matches("\r\n").count();
+    let lf = contents.matches('\n').count() - crlf;
+    if crlf > lf {
+        LineEnding::CRLF
+    } else {
+        LineEnding::LF
+    }
+}
+
 impl Default for TextBuffer {
     fn default() -> Self {
         Self::new()
@@ -729,6 +763,69 @@ mod tests {
         assert_eq!(buffer.text(), "one two three");
         buffer.redo().unwrap();
         assert_eq!(buffer.text(), ">> one 2 three");
+    }
+
+    /// Every mutation path logs one edit per change, and each edit maps the
+    /// text before it onto the text after: same prefix, same suffix, lengths
+    /// adding up.
+    #[test]
+    fn syntax_edits_describe_every_mutation() {
+        let mut buf = TextBuffer::from_text("fn main() {\n    let ц = 1;\n}\n");
+        let steps: [fn(&mut TextBuffer); 9] = [
+            |b| {
+                b.insert(&Cursor::at(1, 8), "дё").unwrap();
+            },
+            |b| {
+                b.insert(&Cursor::at(0, 0), "// x\n\n").unwrap();
+            },
+            |b| {
+                b.delete_char(&Cursor::at(2, 0)).unwrap();
+            },
+            |b| {
+                b.backspace(&Cursor::at(3, 0)).unwrap();
+            },
+            |b| {
+                b.delete_range(&Cursor::at(0, 2), &Cursor::at(2, 4))
+                    .unwrap();
+            },
+            |b| {
+                b.undo().unwrap();
+            },
+            |b| {
+                b.undo().unwrap();
+            },
+            |b| {
+                b.redo().unwrap();
+            },
+            |b| b.append("tail\n"),
+        ];
+        for step in steps {
+            let before = buf.text();
+            let since = buf.edit_revision();
+            step(&mut buf);
+            let after = buf.text();
+            let edits: Vec<SyntaxEdit> = buf.syntax_edits_since(since).unwrap().copied().collect();
+            assert_eq!(edits.len(), 1, "{before:?} -> {after:?}");
+            let e = edits[0];
+            assert_eq!(before[..e.start_byte], after[..e.start_byte]);
+            assert_eq!(before[e.old_end_byte..], after[e.new_end_byte..]);
+            let line_of = |text: &str, byte: usize| Rope::from_str(text).byte_to_line(byte);
+            assert_eq!(e.start_position.row, line_of(&before, e.start_byte));
+            assert_eq!(e.old_end_position.row, line_of(&before, e.old_end_byte));
+            assert_eq!(e.new_end_position.row, line_of(&after, e.new_end_byte));
+            let column =
+                |text: &str, byte: usize| byte - text[..byte].rfind('\n').map_or(0, |n| n + 1);
+            assert_eq!(e.old_end_position.column, column(&before, e.old_end_byte));
+            assert_eq!(e.new_end_position.column, column(&after, e.new_end_byte));
+        }
+    }
+
+    #[test]
+    fn a_new_buffer_is_a_new_document() {
+        let a = TextBuffer::from_text("x");
+        let b = TextBuffer::from_text("x");
+        assert!(b.syntax_edits_since(a.edit_revision()).is_none());
+        assert!(a.clone().syntax_edits_since(a.edit_revision()).is_none());
     }
 
     #[test]
@@ -1149,5 +1246,79 @@ mod lsp_change_tests {
         assert!(!buf.toggle_line_mark(9));
         assert!(!buf.toggle_line_mark(1));
         assert!(!buf.has_line_mark(1));
+    }
+
+    fn round_trip(disk: &str) -> (LineEnding, String) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("f.txt");
+        std::fs::write(&path, disk).unwrap();
+        let mut buf = TextBuffer::from_file(&path).unwrap();
+        buf.save().unwrap();
+        (buf.line_ending(), std::fs::read_to_string(&path).unwrap())
+    }
+
+    #[test]
+    fn a_mostly_lf_file_stays_lf() {
+        let (ending, saved) = round_trip("a\nb\r\nc\nd\n");
+        assert_eq!(ending, LineEnding::LF);
+        assert_eq!(saved, "a\nb\nc\nd\n");
+    }
+
+    #[test]
+    fn a_mostly_crlf_file_stays_crlf() {
+        let (ending, saved) = round_trip("a\r\nb\nc\r\n");
+        assert_eq!(ending, LineEnding::CRLF);
+        assert_eq!(saved, "a\r\nb\r\nc\r\n");
+    }
+
+    #[test]
+    fn pure_files_keep_their_line_endings() {
+        assert_eq!(round_trip("a\r\nb"), (LineEnding::CRLF, "a\r\nb".into()));
+        assert_eq!(round_trip("a\nb\n"), (LineEnding::LF, "a\nb\n".into()));
+    }
+
+    #[test]
+    fn undo_back_to_the_loaded_content_of_a_crlf_file_clears_modified() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("f.txt");
+        std::fs::write(&path, "a\r\nb\r\n").unwrap();
+        let mut buf = TextBuffer::from_file(&path).unwrap();
+
+        buf.insert(&Cursor::at(0, 1), "x").unwrap();
+        assert!(buf.is_modified());
+        buf.undo().unwrap();
+        assert!(!buf.is_modified());
+        buf.redo().unwrap();
+        assert!(buf.is_modified());
+    }
+
+    #[test]
+    fn undo_compares_with_the_last_save_not_the_disk() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("f.txt");
+        std::fs::write(&path, "one").unwrap();
+        let mut buf = TextBuffer::from_file(&path).unwrap();
+        buf.insert(&Cursor::at(0, 3), " two").unwrap();
+        buf.save().unwrap();
+
+        // The disk changing behind the buffer's back does not matter.
+        std::fs::write(&path, "one").unwrap();
+        buf.undo().unwrap();
+        assert!(buf.is_modified());
+        buf.redo().unwrap();
+        assert!(!buf.is_modified());
+    }
+
+    #[test]
+    fn undo_back_to_the_initial_text_of_an_untitled_buffer_clears_modified() {
+        let mut buf = TextBuffer::new();
+        buf.insert(&Cursor::at(0, 0), "hi").unwrap();
+        buf.undo().unwrap();
+        assert!(!buf.is_modified());
+    }
+
+    #[test]
+    fn a_tie_between_line_endings_is_saved_as_lf() {
+        assert_eq!(round_trip("a\r\nb\n").0, LineEnding::LF);
     }
 }

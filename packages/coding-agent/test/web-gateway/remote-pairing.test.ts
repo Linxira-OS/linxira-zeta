@@ -126,22 +126,38 @@ describe("pairing base URL resolution", () => {
 });
 
 describe("REST endpoints", () => {
-	test("GET /api/remote/pairing returns url, token, payload and QR svg", async () => {
+	test("GET /api/remote/pairing returns the one-time code and QR, never a token", async () => {
 		await setup("remote:\n  token: paired-token\n");
 		const res = await call("/api/remote/pairing?url=https%3A%2F%2Fphone.example%3A30141");
 		expect(res.status).toBe(200);
 		expect(res.headers.get("cache-control")).toBe("no-store");
-		const body = (await res.json()) as { url: string; token: string; payload: string; svg: string };
+		const body = (await res.json()) as {
+			url: string;
+			code: string;
+			expiresAt: string | null;
+			payload: string;
+			svg: string;
+			token?: string;
+		};
 		expect(body.url).toBe("https://phone.example:30141");
-		expect(body.token).toBe("paired-token");
-		expect(parsePairingPayload(body.payload)).toEqual({ url: "https://phone.example:30141", token: "paired-token" });
+		expect(body.code.length).toBeGreaterThan(0);
+		expect(body.payload).toContain("#zeta-pair=");
+		expect(body.token).toBeUndefined();
+		expect(JSON.stringify(body)).not.toContain("paired-token");
+		expect(parsePairingPayload(body.payload)).toMatchObject({
+			url: "https://phone.example:30141",
+			code: body.code,
+		});
 		expect(body.svg).toContain("<svg");
 	});
 
-	test("pairing without a token is 409", async () => {
+	test("pairing works without a machine token: the code is the credential", async () => {
 		await setup("remote: {}\n");
 		const res = await call("/api/remote/pairing");
-		expect(res.status).toBe(409);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { code: string; payload: string };
+		expect(body.code.length).toBeGreaterThan(0);
+		expect(body.payload).toContain("#zeta-pair=");
 	});
 
 	test("POST rotate mints, persists, and revokes the previous token", async () => {
@@ -171,7 +187,8 @@ describe("REST endpoints", () => {
 		const saved = await readConfigFile();
 		expect(saved.remote?.token).toBeUndefined();
 		expect(saved.remote?.revokedTokens).toContain(hashRemoteToken("doomed-token"));
-		expect((await call("/api/remote/pairing")).status).toBe(409);
+		// The machine token is gone, but a phone can still pair with a fresh code.
+		expect((await call("/api/remote/pairing")).status).toBe(200);
 	});
 
 	test("POST revoke without a token or all is 400", async () => {

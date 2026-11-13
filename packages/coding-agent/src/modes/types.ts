@@ -1,11 +1,14 @@
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { CompactionOutcome } from "@linxiraos/pi-agent-core/compaction";
 import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "@linxiraos/pi-ai";
-import type { Component, Container, EditorTheme, KeyId, Loader, TUI, Spacer, Text } from "@linxiraos/pi-tui";
+import type { Component, Container, EditorTheme, KeyId, Loader, TUI } from "@linxiraos/pi-tui";
 import type { TspText } from "@linxiraos/pi-wire";
-import type { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
+import type { StatusNotice, StatusNoticeAction } from "@linxiraos/pi-tui/chrome/status-notice";
 import type { BackendAttachLink } from "../backend/attach-link";
-import type { AgentRegistry } from "../registry/agent-registry";
+import type { DroppedPrompt } from "../session/agent-session-types";
+import type { ResumeScopeKindLike } from "@linxiraos/pi-tui/overlays/resume-picker";
+import type { HookSelectorSlider } from "@linxiraos/pi-tui/overlays/hook-selector";
+import type { ExtensionAskDialogQuestion, ExtensionAskDialogResult } from "../extensibility/extensions/types";
 import type { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import type { TrackSegment } from "@linxiraos/pi-tui/chrome/segment-track";
 import type { Composer } from "@linxiraos/pi-tui/prompt/composer";
@@ -21,8 +24,6 @@ import type {
 } from "../extensibility/extensions";
 import type {
 	CompactOptions,
-	ExtensionAskDialogQuestion,
-	ExtensionAskDialogResult,
 	ExtensionLiveSession,
 	ExtensionLiveStartOptions,
 	ExtensionSessionModes,
@@ -32,11 +33,11 @@ import type {
 import type { Skill } from "../extensibility/skills";
 import type { MCPManager } from "../mcp";
 import type { PlanApprovalDetails } from "../plan-mode/approved-plan";
+import type { AgentRegistry } from "../registry/agent-registry";
 import type { AgentSession } from "../session/agent-session";
 import type { AgentViewSession } from "../session/agent-session-handle";
 import type { CompactMode } from "../session/compact-modes";
 import type { ForeignSessionSource } from "../session/foreign-session-store";
-import type { ResumeScopeKindLike } from "@linxiraos/pi-tui/overlays/resume-picker";
 import type { HistoryStorage } from "../session/history-storage";
 import type { SessionContext } from "../session/session-context";
 import type { SessionManager } from "../session/session-manager";
@@ -60,12 +61,10 @@ import type { ServedModelTracker } from "@linxiraos/pi-tui/chat/served-model-mar
 import type { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
 import type { ToolExecutionHandle } from "@linxiraos/pi-tui/chat/tool-execution";
 import type { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
-
 import type { EventController } from "./controllers/event-controller";
 import type { LoopConditionConfig, LoopLimitRuntime } from "@linxiraos/pi-tui/status-line/loop";
 import type { ContextUsage } from "@linxiraos/pi-tui/status-line/types";
 import type { OAuthManualInputManager } from "./oauth-manual-input";
-import type { SidebarComponent } from "./components/sidebar";
 import type { ConversationPosition } from "./utils/conversation-position";
 import type { Theme } from "@linxiraos/pi-tui/theme";
 import type { TodoItem, TodoPhase } from "@linxiraos/pi-tui/tools/todo";
@@ -102,6 +101,8 @@ export type SubmittedUserInput = {
 	 *  it). Normal user Enter carries "steer" to match the streaming-branch Enter;
 	 *  background/continuation submits omit it and default to "followUp". */
 	streamingBehavior?: "steer" | "followUp";
+	/** Prompts sent after this one, in order, as the session prompt's `followUps`. */
+	followUps?: string[];
 	/** Set by `submitInteractiveInput` for a custom-message submission: the session took it (started a turn or queued it into one). */
 	dispatched?: boolean;
 	cancelled: boolean;
@@ -144,12 +145,26 @@ export interface RenderSessionContextOptions {
 	preservedLiveToolCallIds?: ReadonlySet<string>;
 }
 
+export interface RenderInitialMessagesOptions {
+	preserveExistingChat?: boolean;
+	clearTerminalHistory?: boolean;
+	/** Replay every message instead of the recent display window (benchmarks and tests). */
+	limitTranscript?: boolean;
+	/**
+	 * Called synchronously, once, with the session context the committed transcript was built from.
+	 * Not called when a newer replay supersedes this one.
+	 */
+	onCommit?: (context: SessionContext) => void;
+}
+
 /** How {@link InteractiveModeContext.showStatus} shows a notice. */
 export interface ShowStatusOptions {
 	/** Dims the ANSI line (default true). */
 	dim?: boolean;
 	/** Toasts it on a native terminal (default true); false keeps it to the ANSI transcript. */
 	toast?: boolean;
+	/** A button on the native toast (Undo); the ANSI line has none. */
+	action?: StatusNoticeAction;
 }
 
 export interface SelectOnlyModelSelectorOptions {
@@ -191,9 +206,6 @@ export interface InteractiveModeContext {
 	hookWidgetContainerAbove: Container;
 	hookWidgetContainerBelow: Container;
 	statusLine: StatusLineComponent;
-	sidebar: SidebarComponent;
-	/** Re-wire the engine's sidebar/main-width override from the `tui.sidebar` setting. */
-	applySidebar(): void;
 	/** Show a pin change already written to the pins file; supersedes any in-flight pins-file reload. */
 	applySessionPin(sessionId: string, pinned: boolean): void;
 	syncComposerShape(): void;
@@ -210,8 +222,6 @@ export interface InteractiveModeContext {
 	readonly sessionName: string | undefined;
 	/** Session the transcript/editor/status are attached to: the focused agent's, else `session`. */
 	readonly viewSession: AgentViewSession;
-	/** Rebuild the scoped-model picker after an interactive login or logout. */
-	refreshScopedModelsAfterLogin?: () => Promise<void>;
 	/** Bind idle maintenance to the given view (default: the current one), or release the UI activity binding on null. */
 	syncIdleMaintenanceView(target?: AgentViewSession | null): void;
 	/** Id of the focused agent, undefined when the main session is attached. */
@@ -287,12 +297,10 @@ export interface InteractiveModeContext {
 	historyStorage?: HistoryStorage;
 	mcpManager?: MCPManager;
 	lspServers?: LspStartupServerInfo[];
-	/** Live client link to a session owned by a running `zetacode serve` backend. */
 	backendAttach?: BackendAttachLink;
+	backendQueue?: { steering: string[]; followUp: string[]; liveSteered: number };
 	/** Registry shown by the Agent Hub; defaults to the process-global registry. */
 	agentRegistry?: AgentRegistry;
-	/** Queue chips owned by the backend while attached; `undefined` reads the local session. */
-	backendQueue?: { steering: string[]; followUp: string[]; liveSteered: number };
 	eventController: EventController;
 	eventBus?: EventBus;
 	/** Root-scoped bus carrying this session tree's `task:subagent:*` frames. */
@@ -316,7 +324,6 @@ export interface InteractiveModeContext {
 	hideToolActivity: boolean;
 	todoExpanded: boolean;
 	planModeEnabled: boolean;
-	leadModeEnabled: boolean;
 	vibeModeEnabled: boolean;
 	goalModeEnabled: boolean;
 	goalModePaused: boolean;
@@ -405,7 +412,8 @@ export interface InteractiveModeContext {
 	// Lifecycle
 	init(options?: InteractiveModeInitOptions): Promise<void>;
 	playWelcomeIntro(): void;
-	shutdown(): Promise<void>;
+	/** Close and quit. Operator quits are cancellable by extensions; pass `cancellable: false` for forced closes. */
+	shutdown(options?: { cancellable?: boolean }): Promise<void>;
 	/** Tear down like {@link shutdown}, then relaunch the CLI with the original launch flags, resuming this session. */
 	restart(): Promise<void>;
 	/** Request graceful shutdown at the next fully settled boundary, including background turns. */
@@ -492,10 +500,12 @@ export interface InteractiveModeContext {
 			customType?: string;
 			display?: boolean;
 			streamingBehavior?: "steer" | "followUp";
+			followUps?: string[];
 		},
 		options?: { preserveDraft?: boolean; clearEditor?: boolean },
 	): SubmittedUserInput;
 	cancelPendingSubmission(): boolean;
+	/** Put a prompt that never reached the agent (and its unsent follow-ups, as one `=>` list) back in an empty editor. */
 	markPendingSubmissionStarted(input: SubmittedUserInput): boolean;
 	finishPendingSubmission(input: SubmittedUserInput): void;
 	/**
@@ -544,11 +554,7 @@ export interface InteractiveModeContext {
 		options: RenderSessionContextOptions,
 		renderChunk?: () => void,
 	): Promise<void>;
-	renderInitialMessages(options?: {
-		preserveExistingChat?: boolean;
-		clearTerminalHistory?: boolean;
-		limitTranscript?: boolean;
-	}): Promise<void>;
+	renderInitialMessages(options?: RenderInitialMessagesOptions): Promise<void>;
 	/**
 	 * In-place transcript rewind: drop the rendered components at/after
 	 * `message` when none of their rows reached native scrollback. Returns
@@ -568,7 +574,6 @@ export interface InteractiveModeContext {
 	setTodoExpanded(expanded: boolean): void;
 	// Command handling
 	handleExportCommand(text: string): Promise<void>;
-	handleSidebarToggle(): void;
 	handleTraceCommand(): Promise<void>;
 	handleTodoCommand(args: string): Promise<void>;
 	handleSessionCommand(): Promise<void>;
@@ -603,9 +608,7 @@ export interface InteractiveModeContext {
 	): Promise<CompactionOutcome>;
 	handleHandoffCommand(customInstructions?: string): Promise<void>;
 	handleShakeCommand(mode: ShakeMode): Promise<void>;
-	handleMoveCommand(targetPath?: string): Promise<void>;
-	/** `/cd`: open the folder picker and switch the session there (or resume from it). */
-	showDirectoryPicker(): Promise<void>;
+	handleMoveCommand(targetPath?: string, options?: { allowCreate?: boolean }): Promise<void>;
 	/** `/wt`: fork the checkout into a new worktree (keeping changes unless `keepChanges` is false) and move there. */
 	handleWorktreeCommand(branch?: string, options?: { keepChanges?: boolean }): Promise<void>;
 	withBtwSessionMove(operation: () => Promise<boolean>): Promise<boolean>;
@@ -645,11 +648,23 @@ export interface InteractiveModeContext {
 	/** Session-only switch to an already-resolved model (`/switch <selector>`); compacts first when over context. */
 	switchSessionModel(model: Model, thinkingLevel?: ConfiguredThinkingLevel): Promise<void>;
 	showPluginSelector(mode?: "install" | "uninstall"): void;
-	showUserMessageSelector(): void;
+	showUserMessageSelector(startAt?: string): void;
 	showCopySelector(): void;
 	showTreeSelector(): void;
 	/** Open the `/effort` picker over the levels the current model accepts. */
 	showThinkingSelector(): void;
+	refreshScopedModelsAfterLogin?(): Promise<void> | void;
+	applySidebar(): void;
+	showDirectoryPicker(): Promise<void>;
+	showTeamHub(): void;
+	leadModeEnabled: boolean;
+	handleLeadModeCommand(): Promise<boolean>;
+	handlePlanUltraCommand(
+		initialPrompt?: string,
+		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
+	): Promise<boolean>;
+	handleSidebarToggle(): void;
+	restoreDroppedPrompt(prompt: DroppedPrompt): void;
 	showSessionSelector(
 		source?: ForeignSessionSource,
 		onSelect?: SessionPickHandler,
@@ -666,8 +681,6 @@ export interface InteractiveModeContext {
 	showHookConfirm(title: string, message: string, dialogOptions?: InteractiveSelectorDialogOptions): Promise<boolean>;
 	showDebugSelector(): Promise<void>;
 	showAgentHub(options?: AgentHubOpenOptions): void;
-	/** Open the Team Hub overlay for the Team containing the session cwd. */
-	showTeamHub(): void;
 	resetObserverRegistry(): void;
 
 	// Input handling
@@ -737,11 +750,6 @@ export interface InteractiveModeContext {
 		initialPrompt?: string,
 		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
 	): Promise<boolean>;
-	handlePlanUltraCommand(
-		initialPrompt?: string,
-		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
-	): Promise<boolean>;
-	handleLeadModeCommand(): Promise<boolean>;
 	handleVibeModeCommand(
 		initialPrompt?: string,
 		input?: Pick<SubmittedUserInput, "images" | "imageLinks">,
@@ -753,13 +761,13 @@ export interface InteractiveModeContext {
 	/** Mirror the backend interview flag into the attached TUI. */
 	setGuidedGoalInterviewActive(active: boolean): void;
 	handleLoopCommand(args?: string): Promise<string | undefined>;
-	setLoopPrompt(prompt: string): void;
 	/** Render a backend-owned loop's status; never arms the local scheduler. */
 	setBackendLoopStatus(
 		status:
 			| { state: "waiting" | "running" | "paused"; limit?: LoopLimitRuntime; condition?: LoopConditionConfig }
 			| undefined,
 	): void;
+	setLoopPrompt(prompt: string): void;
 	armLoopAutoSubmit(): void;
 	disableLoopMode(message?: string): void;
 	cancelGoalContinuation(): void;
@@ -769,6 +777,13 @@ export interface InteractiveModeContext {
 	resolvePlanReview(reviewId: string, choice: PlanReviewChoice, input?: { feedback?: string; role?: string }): boolean;
 	getPendingPlanReview(): PlanReviewRequestedEvent | undefined;
 	openPlanReview(options?: { fromExtension?: boolean }): Promise<boolean>;
+	/** Plan review overlay used by a local proposal and by the attach client for the backend's. */
+	showPlanReview(
+		planContent: string,
+		title: string,
+		options: string[],
+		dialogOptions?: { helpText?: string; disabledIndices?: number[] },
+	): Promise<string | undefined>;
 	readonly sessionModes: ExtensionSessionModes;
 
 	// Hook UI methods
@@ -790,18 +805,13 @@ export interface InteractiveModeContext {
 		title: string,
 		options: ExtensionUISelectItem[],
 		dialogOptions?: InteractiveSelectorDialogOptions,
+		extra?: { slider?: HookSelectorSlider },
 	): Promise<string | undefined>;
+	showAskDialog(
+		questions: ExtensionAskDialogQuestion[],
+		dialogOptions?: ExtensionUIDialogOptions,
+	): Promise<ExtensionAskDialogResult | undefined>;
 	hideHookSelector(): void;
-	/**
-	 * Plan review overlay (plan content + approve/compact/refine/cancel). Used
-	 * by a local plan proposal and by the attach client for the backend's.
-	 */
-	showPlanReview(
-		planContent: string,
-		title: string,
-		options: string[],
-		dialogOptions?: { helpText?: string; disabledIndices?: number[] },
-	): Promise<string | undefined>;
 	showHookInput(title: string, placeholder?: string): Promise<string | undefined>;
 	hideHookInput(): void;
 	showHookEditor(
@@ -810,11 +820,6 @@ export interface InteractiveModeContext {
 		dialogOptions?: ExtensionUIDialogOptions,
 		editorOptions?: { promptStyle?: boolean },
 	): Promise<string | undefined>;
-	/** Present the structured `ask` dialog used by backend/remote extension requests. */
-	showAskDialog(
-		questions: ExtensionAskDialogQuestion[],
-		dialogOptions?: ExtensionUIDialogOptions,
-	): Promise<ExtensionAskDialogResult | undefined>;
 	hideHookEditor(): void;
 	showHookNotify(message: string, type?: "info" | "warning" | "error"): void;
 	showHookCustom<T>(

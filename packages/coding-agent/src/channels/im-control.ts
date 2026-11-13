@@ -10,9 +10,11 @@
  * the final answer.
  */
 
-import type { ChannelId } from "@linxiraos/pi-channels";
 import { COORDINATOR_ALIAS, type SessionRouter } from "./session-router";
 import { resolveBotSession } from "./workspace-router";
+
+/** Instance id, never a platform. */
+type ChannelId = string;
 
 export type ImControlOperation =
 	| "list_workspaces"
@@ -208,7 +210,7 @@ export async function runImControl(
 				lines.push(`当前路由: 工作区 [${binding}] (直达)`);
 			} else {
 				const activeId = await router.activeBotSessionIdFor(channelId, peer);
-				const active = activeId ? router.botSession(activeId) : undefined;
+				const active = activeId && activeId !== "relay" ? router.botSession(activeId) : undefined;
 				lines.push(
 					active
 						? `当前路由: bot 会话 [${active.name}] → [${active.workspaceAlias ?? COORDINATOR_ALIAS}]`

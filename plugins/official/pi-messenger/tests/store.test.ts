@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AgentRegistration, Dirs, MessengerState } from "../lib.ts";
 import { getActiveAgents, invalidateAgentsCache, processAllPendingMessages, register } from "../store.ts";
+import { linkDirectory } from "./helpers/temp-dirs.ts";
 
 const roots = new Set<string>();
 const initialCwd = process.cwd();
@@ -93,7 +94,7 @@ describe("store.getActiveAgents cwd scoping", () => {
 		const aliasProject = path.join(root, "project-alias");
 
 		fs.mkdirSync(actualProject, { recursive: true });
-		fs.symlinkSync(actualProject, aliasProject, "dir");
+		linkDirectory(actualProject, aliasProject);
 
 		writeRegistration(dirs.registry, "Peer", actualProject);
 

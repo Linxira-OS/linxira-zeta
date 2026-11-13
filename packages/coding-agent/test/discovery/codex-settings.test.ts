@@ -16,11 +16,16 @@ describe("Codex config.toml settings", () => {
 	let home = "";
 	let project = "";
 	let originalHome: string | undefined;
+	let originalForeignSources: string | undefined;
 
 	beforeEach(async () => {
 		clearFsCache();
 		resetSettingsForTest();
 		originalHome = process.env.HOME;
+		originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		// `.codex/config.toml` is a foreign project source; these cases pin its
+		// settings discovery, so consent to it for the fixture repo.
+		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "codex";
 		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-codex-settings-"));
 		home = path.join(root, "home");
 		project = path.join(root, "project");
@@ -37,6 +42,8 @@ describe("Codex config.toml settings", () => {
 		vi.restoreAllMocks();
 		if (originalHome === undefined) delete process.env.HOME;
 		else process.env.HOME = originalHome;
+		if (originalForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		else process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
 		await removeWithRetries(root);
 	});
 

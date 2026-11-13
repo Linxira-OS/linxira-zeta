@@ -5,10 +5,10 @@ runtime. Both carry Zeta's own kernel — the compiled `zeta` binary (the same
 CLI as `zetacode`), the native addons, and the Work Studio renderer
 (`web-app/dist`). Neither needs Bun, Node, or a separately installed CLI.
 
-| Edition | What it bundles | Download |
-| --- | --- | --- |
-| **Full (Electron)** | Chromium, the kernel, the renderer, tray and window chrome | Windows NSIS installer / portable zip, Linux AppImage / deb / tar.gz |
-| **Browser** | The kernel and the renderer only; no browser engine | Windows zip, Linux tar.gz, with a launcher that starts `zetacode serve` and opens the default browser |
+| Edition             | What it bundles                                            | Download                                                                                              |
+| ------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Full (Electron)** | Chromium, the kernel, the renderer, tray and window chrome | Windows NSIS installer / portable zip, Linux AppImage / deb / tar.gz                                  |
+| **Browser**         | The kernel and the renderer only; no browser engine        | Windows zip, Linux tar.gz, with a launcher that starts `zetacode serve` and opens the default browser |
 
 The Electron shell spawns the bundled `zetacode serve` and loads it inside its
 window; the browser edition's launcher does the same but hands the URL to the
@@ -51,11 +51,11 @@ packaging instead of silently bloating the download.
 
 ## Naming
 
-* **Work Studio** is the product surface, in the browser and in both desktop
+- **Work Studio** is the product surface, in the browser and in both desktop
   editions.
-* `web-app/` is the renderer; `zetacode serve` is its host.
-* `web-ui/` is an abandoned third-party snapshot and ships nothing.
-* `zetawork` (Rust TUI/GUI) is paused; no desktop asset comes from it.
+- `web-app/` is the renderer; `zetacode serve` is its host.
+- `web-ui/` is an abandoned third-party snapshot and ships nothing.
+- `zetawork` (Rust TUI/GUI) is paused; no desktop asset comes from it.
 
 ## Building locally
 
@@ -84,27 +84,54 @@ neither global.
 
 Capabilities the shell owns (paths never cross into the renderer):
 
-* window controls — `minimize`, `maximize` (toggle), `close`, `isMaximized`,
+- window controls — `minimize`, `maximize` (toggle), `close`, `isMaximized`,
   `onWindowState`;
-* project picker — `selectDirectory`, and `pickWorkspace` (native folder
+- project picker — `selectDirectory`, and `pickWorkspace` (native folder
   dialog + `PUT /api/projects` registration);
-* host opens — `getOpenTargets`, `openTarget`, `spawnTool` (zetacode / zetaide);
-* file shell actions — `openProjectInEditor`, `openProjectDirectory`,
+- host opens — `getOpenTargets`, `openTarget`, `spawnTool` (zetacode / zetaide);
+- file shell actions — `openProjectInEditor`, `openProjectDirectory`,
   `openFile`, `openFileWith`, `revealFileInFileManager`,
   `resolveFileAbsolutePath`, `listFileOpeners`, `getPathForFile`,
   `resolveDroppedPaths`, `pickPlanSavePath`;
 * app chrome — `getAppVersion`, `checkUpdates`, `openUrl`, `notify`,
-  `openLogDir`, `exportLogs`, `sampleProcessMemory`, `onMenuCommand`.
+  `openLogDir`, `exportLogs`, `sampleProcessMemory`, `onMenuCommand`;
+* SSH execution targets — `window.zetaStudioRemote` (`list`/`save`/`connect`/
+  `disconnect`/`query`/`command`/`events`/`browse`/`probe`/`prepare`). It uses
+  the system OpenSSH client and an `ssh -L` tunnel to the remote loopback
+  Studio host; profiles never persist a password, unknown host keys are not
+  auto-accepted, and a disconnected generation rejects writes instead of
+  falling back to the local service;
+* terminal — `window.zetaStudioTerminal` owns the gateway socket, forwards PTY
+  bytes, and records `.studiocast` files (`recordingStart`/`Stop`/`Status`/
+  `Export`); playback is served by `zeta-artifact://`.
+
+* draft dictation — `attachLiveAudio`, `appendLiveAudio`, `detachLiveAudio`,
+  `requestMicrophoneAccess`, `openMicrophoneSettings`.
+
+Draft dictation is desktop-only. Chromium captures the microphone through
+`getUserMedia` + an AudioWorklet (ordered 16 kHz mono Float32 frames); the
+preload hands each frame to Main, which serializes it per `audioId` and POSTs it
+to the loopback-only `/api/dictation/audio*` route. The Studio Host binds that
+`audioId` to the requesting session in `dictation.prepare`, rejects unattached,
+out-of-order or wrong-session frames, flushes queued audio on `dictation.stop`,
+and uses the existing `STTController`/model-role cache for transcription. The
+renderer shows no dictation control in a browser tab, a remote target or a Host
+that does not advertise `dictation.*`; there is no fallback capture path.
 
 Workspace ids are opaque (`ws-*`). Every action resolves them through the
 gateway's `GET /api/projects` inventory and re-checks containment with
 `realpath`, so a renderer cannot point an open at a path outside its workspace.
 
+The renderer terminal adapter forwards the preload's optional `profiles` and
+`list` capabilities. Hosts without them keep those controls unavailable; the
+adapter does not fabricate a catalog or terminal inventory.
+
 Window lifecycle: closing to the tray hides the window; a real close (or
 `activate` with no window) recreates it from the persisted bounds instead of
 leaving the process windowless. Tray **Open Settings** sends the Studio
 `app.settings` menu command rather than reloading a query-only URL; tray
-**IM Channels** sends `app.settings:channels` and **Identity & Devices** sends
+**IM Channels** sends `app.settings:channels`, which the renderer aliases to
+**Settings → IM 运行时**, and **Identity & Devices** sends
 `app.settings:security`; both open the same Work Studio settings groups as the
 browser. There is no separate desktop channel or security UI.
 
@@ -118,8 +145,8 @@ caption buttons and keeps the usual modal dimming.
 Launch integration: the shell registers the `zeta://` scheme, handles
 `open-url`/`open-file`, and treats a second-instance `--cwd=<dir>` as a request
 to register that folder in the project list. Login autostart passes `--hidden`
-(Windows args / Linux autostart entry) or `openAsHidden` (macOS) so the app
-starts in the tray.
+on Windows and writes the XDG autostart entry on Linux; Electron 44 removed the
+macOS `openAsHidden` attribute, so macOS uses a plain login item.
 
 Icons: Windows packages `icon.ico`; Linux and macOS use `icon.png` (an ICO is
 not a valid GTK/AppKit icon), and the Linux installer's `.desktop` entry points

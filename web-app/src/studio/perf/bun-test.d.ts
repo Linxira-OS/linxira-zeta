@@ -22,7 +22,9 @@ declare module "bun:test" {
 		toEqual(expected: unknown): void;
 		toContain(expected: unknown): void;
 		toMatch(expected: RegExp | string): void;
-		toThrow(): void;
+		toHaveLength(expected: number): void;
+		toMatchObject(expected: object): void;
+		toThrow(expected?: RegExp | string): void;
 		toHaveBeenCalled(): void;
 		toHaveBeenCalledTimes(count: number): void;
 	}

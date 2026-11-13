@@ -10,6 +10,7 @@
  * Pins live in `<agent dir>/directory-pins.json` (see `directory-pins.ts`), so a
  * pin made here survives restarts and never writes into the home directory.
  */
+import * as fs from "node:fs";
 import * as path from "node:path";
 import type {
 	DirectoryPickerEntry,
@@ -19,13 +20,14 @@ import type {
 import {
 	type DriveInfo,
 	type MountInfo,
+	invalidateDirectoryListing,
 	listChildDirectories,
-	listLinuxMounts,
-	listWindowsDrives,
 	parentDirectory,
+	refreshLinuxMounts,
+	refreshWindowsDrives,
 	volumeKindLabel,
 } from "../utils/directory-listing";
-import { loadDirectoryPins, toggleDirectoryPin } from "./directory-pins";
+import { canonicalDirectoryPin, directoryPinKey, loadDirectoryPins, toggleDirectoryPin } from "./directory-pins";
 
 export interface DirectoryPickerSourceOptions {
 	/** Platform to build the roots screen for; defaults to the process platform. */
@@ -36,6 +38,8 @@ export interface DirectoryPickerSourceOptions {
 	drives?: readonly DriveInfo[];
 	/** Pre-fetched mounts (tests); defaults to `/proc/mounts`. */
 	mounts?: readonly MountInfo[];
+	/** Pre-validated pin directories that should render as unavailable. */
+	unavailablePins?: readonly string[];
 }
 
 /** `~` for the home directory, and `~/sub` beneath it. */
@@ -71,56 +75,147 @@ function mountEntry(mount: MountInfo): DirectoryPickerEntry {
 	};
 }
 
-function pinEntry(pin: string): DirectoryPickerEntry {
-	return { name: path.basename(pin) || pin, path: pin, detail: pin };
+function pinEntry(pin: string, unavailable: boolean): DirectoryPickerEntry {
+	return {
+		name: path.basename(pin) || pin,
+		path: pin,
+		detail: unavailable ? `${pin} · unavailable` : pin,
+		...(unavailable ? { unavailable: true } : {}),
+	};
 }
 
 /**
- * Build the picker's synchronous source. `pins` is read once here; a pin toggle
- * updates the internal list and the file, so the picker can rebuild immediately
- * without another async load.
+ * Build the picker's synchronous source. Pins and roots are read once here;
+ * {@link DirectoryPickerSource.refresh} reloads both (the overlay runs it in
+ * the background on open and on the explicit `r` action), so a pin toggle or a
+ * newly attached volume is visible without rebuilding the source.
  */
 export function createDirectoryPickerSource(options: DirectoryPickerSourceOptions = {}): DirectoryPickerSource {
 	const platform = options.platform ?? process.platform;
-	const pins = [...(options.pins ?? [])];
+	let pins = options.pins ? [...options.pins] : [];
+	const unavailable = new Set((options.unavailablePins ?? []).map(directoryPinKey));
+	let drives = options.drives ? [...options.drives] : undefined;
+	let mounts = options.mounts ? [...options.mounts] : undefined;
+	const fixedRoots = options.drives !== undefined || options.mounts !== undefined;
+	let rootsLoading = !fixedRoots;
+	let rootsError: string | undefined;
+	let refreshing: Promise<void> | undefined;
 
 	const rootsFor = (): DirectoryPickerEntry[] => {
-		if (platform === "win32") {
-			return (options.drives ?? listWindowsDrives()).map(driveEntry);
+		if (platform === "win32") return (drives ?? []).map(driveEntry);
+		return (mounts ?? []).map(mountEntry);
+	};
+
+	const replacePins = (next: readonly string[]) => {
+		pins = [];
+		const seen = new Set<string>();
+		for (const pin of next) {
+			const canonical = canonicalDirectoryPin(pin);
+			const key = directoryPinKey(canonical);
+			if (seen.has(key)) continue;
+			seen.add(key);
+			pins.push(canonical);
 		}
-		return (options.mounts ?? listLinuxMounts()).map(mountEntry);
+	};
+
+	const pinEntries = (): DirectoryPickerEntry[] =>
+		pins.map(pin => pinEntry(pin, unavailable.has(directoryPinKey(pin))));
+
+	const loadRoots = async (force: boolean): Promise<void> => {
+		if (fixedRoots) return;
+		if (platform === "win32") {
+			drives = await refreshWindowsDrives({ force });
+			return;
+		}
+		mounts = await refreshLinuxMounts({ force });
+	};
+
+	const refresh = async (directory?: string | null, options: { force?: boolean } = {}): Promise<void> => {
+		if (refreshing) {
+			await refreshing;
+			if (options.force !== true) return;
+		}
+		rootsLoading = true;
+		rootsError = undefined;
+		refreshing = (async () => {
+			try {
+				replacePins(await loadDirectoryPins());
+				const checked = await Promise.all(
+					pins.map(async pin => {
+						try {
+							return (await fs.promises.stat(pin)).isDirectory() ? null : pin;
+						} catch {
+							return pin;
+						}
+					}),
+				);
+				unavailable.clear();
+				for (const pin of checked) {
+					if (pin !== null) unavailable.add(directoryPinKey(pin));
+				}
+			} catch {
+				// A pins read failure leaves the last known pins in place.
+			}
+			try {
+				await loadRoots(options.force === true);
+			} catch (error) {
+				rootsError = error instanceof Error ? error.message : String(error);
+			} finally {
+				rootsLoading = false;
+			}
+			if (directory) invalidateDirectoryListing(directory);
+		})().finally(() => {
+			refreshing = undefined;
+		});
+		await refreshing;
 	};
 
 	return {
 		list(directory: string | null): DirectoryPickerListing {
-			const pinEntries = pins.map(pinEntry);
+			const pinsHere = pinEntries();
 			if (directory === null) {
 				return {
 					current: null,
 					parent: null,
 					rootsKind: platform === "win32" ? "drives" : "mounts",
 					roots: rootsFor(),
-					pins: pinEntries,
+					pins: pinsHere,
 					directories: [],
 					selectable: false,
+					rootsLoading,
+					...(rootsError ? { rootsError } : {}),
 				};
 			}
+			let error: string | undefined;
+			const directories = listChildDirectories(directory, {
+				onError: caught => {
+					error = caught instanceof Error ? caught.message : String(caught);
+				},
+			});
 			return {
 				current: directory,
 				parent: parentDirectory(directory),
-				pins: pinEntries,
+				pins: pinsHere,
 				roots: [],
-				directories: listChildDirectories(directory).map(child => ({ name: child.name, path: child.path })),
+				directories: directories.map(child => ({ name: child.name, path: child.path })),
 				selectable: true,
+				...(error ? { error } : {}),
 			};
 		},
 		async togglePin(directory: string): Promise<boolean> {
 			const pinned = await toggleDirectoryPin(directory);
-			const index = pins.indexOf(directory);
-			if (pinned && index === -1) pins.unshift(directory);
-			if (!pinned && index !== -1) pins.splice(index, 1);
+			const canonical = canonicalDirectoryPin(directory);
+			const key = directoryPinKey(canonical);
+			replacePins(pins.filter(pin => directoryPinKey(pin) !== key));
+			if (pinned) {
+				pins.unshift(canonical);
+				unavailable.delete(key);
+			} else {
+				unavailable.delete(key);
+			}
 			return pinned;
 		},
+		refresh,
 	};
 }
 

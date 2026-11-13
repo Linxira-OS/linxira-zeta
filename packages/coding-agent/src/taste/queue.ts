@@ -22,6 +22,8 @@ export interface TasteCandidate {
 	/** Epoch millis; also the queue file's sort key. */
 	ts: number;
 	sessionId: string;
+	/** Stable identity for a window candidate, retained by the host after consolidation. */
+	sourceId?: string;
 	category: TasteCategory;
 	statement: string;
 	polarity: TastePolarity;
@@ -56,7 +58,7 @@ export async function appendTasteCandidate(
 ): Promise<string> {
 	const dir = path.join(tasteQueueDir(agentDir, key), sanitizeTasteSessionId(candidate.sessionId));
 	await fs.mkdir(dir, { recursive: true });
-	const file = path.join(dir, queueFileName(candidate.ts));
+	const file = path.join(dir, candidate.sourceId ? `window-${candidate.sourceId}.json` : queueFileName(candidate.ts));
 	await Bun.write(file, `${JSON.stringify(candidate)}\n`);
 	return file;
 }

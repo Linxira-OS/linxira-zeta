@@ -7,6 +7,7 @@
  * the Team database, registry, and bundled definition are real.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import { holdTeamDbEnv } from "../test-db-env";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -89,13 +90,14 @@ describe("PM-owned Secretary", () => {
 	let pmRoot: string;
 	let dbPath: string;
 	let workspace: LeadWorkspace;
+	let releaseEnv: (() => void) | undefined;
 
 	beforeEach(async () => {
 		AgentRegistry.resetGlobalForTests();
 		scratch = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-secretary-"));
 		teamRoot = path.join(scratch, "acme-team");
 		dbPath = path.join(scratch, "team.db");
-		process.env.ZETA_TEAM_DB = dbPath;
+		releaseEnv = await holdTeamDbEnv(dbPath);
 		await initTeam({ name: "Acme", root: teamRoot, dbPath });
 		await addPm({ pm: "core", teamRoot, dbPath });
 		pmRoot = path.join(teamRoot, "pms", "core");
@@ -111,7 +113,8 @@ describe("PM-owned Secretary", () => {
 
 	afterEach(() => {
 		AgentRegistry.resetGlobalForTests();
-		delete process.env.ZETA_TEAM_DB;
+		releaseEnv?.();
+		releaseEnv = undefined;
 		vi.restoreAllMocks();
 		try {
 			fs.rmSync(scratch, { recursive: true, force: true });

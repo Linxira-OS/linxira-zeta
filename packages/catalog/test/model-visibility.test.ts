@@ -36,4 +36,19 @@ describe("hidden model selectors", () => {
 	it("hides everything with a star", () => {
 		expect(isModelHiddenBySelectors(sonnet, ["*"])).toBe(true);
 	});
+
+	it("matches exact selectors whose real id ends in a thinking-looking suffix", () => {
+		// Real nanogpt catalog rows: a bulk per-provider hide writes the literal id.
+		const codingRouterHigh = { provider: "nanogpt", id: "nanogpt/coding-router:high" };
+		const opusThinkingLow = { provider: "nanogpt", id: "anthropic/claude-opus-4.6:thinking:low" };
+		expect(isModelHiddenBySelectors(codingRouterHigh, ["nanogpt/nanogpt/coding-router:high"])).toBe(true);
+		expect(isModelHiddenBySelectors(opusThinkingLow, ["nanogpt/anthropic/claude-opus-4.6:thinking:low"])).toBe(true);
+		const bareLiteral = { provider: "nanogpt", id: "coding-router:high" };
+		const bareBase = { provider: "nanogpt", id: "coding-router" };
+		expect(isModelHiddenBySelectors(bareLiteral, ["coding-router:high"])).toBe(true);
+		// The copied-thinking selector keeps its old base-model behavior.
+		expect(isModelHiddenBySelectors(sonnet, ["anthropic/claude-sonnet-4-5:high"])).toBe(true);
+		expect(isModelHiddenBySelectors(bareBase, ["coding-router:high"])).toBe(true);
+		expect(isModelHiddenBySelectors(sonnet, ["anthropic/claude-opus-4-5:high"])).toBe(false);
+	});
 });

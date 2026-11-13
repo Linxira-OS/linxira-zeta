@@ -19,61 +19,26 @@ import { withFileLock } from "./file-lock";
 
 export const WEB_CONFIG_FILENAME = "web.yml";
 
-export interface WebConfigChannelBase {
-	enabled: boolean;
-	/** Default workspace root (absolute path) for messages on this channel. */
-	workspaceRoot?: string;
-}
+import {
+	CHANNEL_PLATFORMS,
+	ImConfigError,
+	bindingKey,
+	isPersistableKeyText,
+	type ChannelInstanceConfig,
+	type ImAgentProfile,
+	type ImBinding,
+	validateChannelInstances,
+	validateImAgentProfiles,
+	validateImBindings,
+} from "../channels/im-config";
 
-export interface WeChatChannelConfig extends WebConfigChannelBase {
-	botToken?: string;
-	ilinkBotId?: string;
-	ilinkUserId?: string;
-	baseUrl?: string;
-	/** New `/api/v1/wechat` API host (defaults to the shared ilink host). */
-	endpoint?: string;
-	/** Persisted peer → context_token map so bindings survive restarts. */
-	peerTokens?: Record<string, string>;
-}
-
-export interface FeishuChannelConfig extends WebConfigChannelBase {
-	appId?: string;
-	appSecret?: string;
-	domain?: "feishu" | "lark";
-}
-
-export interface TelegramChannelConfig extends WebConfigChannelBase {
-	botToken?: string;
-}
-
-/**
- * Discord (official Bot API). `allowedChannels` is required for the adapter to
- * start: an empty list is deny-by-default, never "everyone". Entries are
- * channel ids, or `guild:<id>` to allow every channel in one guild.
- */
-export interface DiscordChannelConfig extends WebConfigChannelBase {
-	botToken?: string;
-	allowedChannels?: string[];
-	/** Optional sender-id restriction applied inside the allowed channels. */
-	allowedUsers?: string[];
-}
-
-/**
- * QQ over a user-supplied OneBot v11 bridge (NapCat / LLBot / SnowLuma …).
- * Zeta stores only the endpoint, the token and the optional bot uin; login and
- * QR belong to the bridge. `allowedGroups`/`allowedUsers` are required for the
- * adapter to start and hold bare QQ numbers.
- */
-export interface QqChannelConfig extends WebConfigChannelBase {
-	endpoint?: string;
-	token?: string;
-	mode?: "forward" | "reverse";
-	/** Reverse-mode loopback listen port (default 8082). */
-	port?: number;
-	selfId?: string;
-	allowedGroups?: string[];
-	allowedUsers?: string[];
-}
+export type {
+	ChannelInstanceConfig,
+	ChannelPlatform,
+	ImAgentProfile,
+	ImBinding,
+	ImTarget,
+} from "../channels/im-config";
 
 /** A registered remote workspace with a user-facing alias. */
 export interface RemoteWorkspace {
@@ -81,28 +46,6 @@ export interface RemoteWorkspace {
 	alias: string;
 	/** Absolute directory of the workspace session. */
 	path: string;
-}
-
-/** Per-chat binding: route one remote chat directly to a workspace. */
-export interface SessionMapping {
-	platform: "wechat" | "feishu" | "telegram" | "discord" | "qq";
-	/** Optional connection id (separates multiple bots on one platform). */
-	connectionId?: string;
-	/** Optional chat type (dm | group | …). Empty matches any. */
-	chatType?: string;
-	chatId: string;
-	/** Optional user id; empty matches any user in the chat. */
-	userId?: string;
-	/** The workspace alias this chat is bound to. Absent on the session-only
-	 *  rows `!lang` / `!session use` write (a chat can remember its language
-	 *  and bot-session pointer without being bound to a workspace). */
-	workspaceAlias?: string;
-	/** "direct" = talk to the bound workspace directly; "relay" = go through the coordinator. */
-	mode?: "direct" | "relay";
-	/** Default-space bot session this chat is currently using (see `remote.botSessions`). */
-	sessionId?: string;
-	/** Reply language for this chat (`!lang zh|en`). */
-	lang?: "zh" | "en";
 }
 
 /**
@@ -136,6 +79,16 @@ export interface BotSessionEntry {
 	platform?: string;
 	/** Reply language for this session (`!lang`). */
 	lang?: "zh" | "en";
+	/** IM instance that owns this binding (new model). */
+	instanceId?: string;
+	/** Binding row id (new model). */
+	bindingId?: string;
+	/** Agent profile id (new model). */
+	agentProfileId?: string;
+	/** Resolved target snapshot (new model). */
+	target?: import("../channels/im-config").ImTarget;
+	/** Binding-level model override (new model). */
+	model?: { provider: string; model: string };
 	createdAt: string;
 }
 
@@ -156,15 +109,11 @@ export interface WebConfigData {
 		autostart: boolean;
 	};
 	channels: {
-		wechat: WeChatChannelConfig;
-		feishu: FeishuChannelConfig;
-		telegram: TelegramChannelConfig;
-		discord: DiscordChannelConfig;
-		qq: QqChannelConfig;
-		/** Optional allowlist of peers (channel-agnostic ids) allowed to talk to
-		 *  the agent; empty = everyone (default, unchanged behavior). */
-		allowedPeers?: string[];
+		/** One entry per platform account; instance id is the runtime namespace. */
+		instances: ChannelInstanceConfig[];
 	};
+	/** Agent profiles referenced by instances and bindings. */
+	imAgents: ImAgentProfile[];
 	remote: {
 		host?: string;
 		token?: string;
@@ -184,10 +133,13 @@ export interface WebConfigData {
 		/** Registered remote workspaces — legacy entries are bare paths,
 		 *  current entries are `{ alias, path }` objects. */
 		workspaces?: Array<string | RemoteWorkspace>;
-		/** Persistent per-chat → workspace bindings. */
-		sessionMappings?: SessionMapping[];
+		/** Persistent per-instance/chat → agent-profile bindings. */
+		imBindings?: ImBinding[];
 		/** Default-space bot session registry (see `BotSessionEntry`). */
 		botSessions?: BotSessionEntry[];
+		/** Legacy pre-instance-schema chat rows, kept only so the delete cleanup
+		 *  can read/write a not-yet-migrated file; the loader migrates them. */
+		sessionMappings?: Array<{ chatId?: string; instanceId?: string; sessionId?: string }>;
 		/** Show relay/bot sessions in the web-ui sidebar (default false = hidden). */
 		showBotSessions?: boolean;
 	};
@@ -195,64 +147,22 @@ export interface WebConfigData {
 
 const DEFAULT_DATA: WebConfigData = {
 	tray: { minimizeToTray: true, autostart: false },
-	channels: {
-		wechat: { enabled: false },
-		feishu: { enabled: false },
-		telegram: { enabled: false },
-		discord: { enabled: false, allowedChannels: [], allowedUsers: [] },
-		qq: { enabled: false, mode: "forward", port: 8082, allowedGroups: [], allowedUsers: [] },
-	},
+	channels: { instances: [] },
+	imAgents: [],
 	remote: {},
 };
 
 /** Paths that must never be revealed through the gateway; masked as "••••". */
 const SECRET_PATHS: Record<string, true> = {
-	"channels.wechat.botToken": true,
-	"channels.wechat.peerTokens": true,
-	"channels.feishu.appSecret": true,
-	"channels.telegram.botToken": true,
-	"channels.discord.botToken": true,
-	"channels.qq.token": true,
 	"remote.token": true,
 };
 
-type LeafType = "boolean" | "string" | "number" | "domain" | "mode" | "strings" | "record" | "workspaces" | "mappings";
+type LeafType = "boolean" | "string" | "number" | "domain" | "mode" | "strings" | "record" | "workspaces";
 
 /** Known dot paths → expected leaf type (for PUT validation). */
 const KNOWN_PATHS: Record<string, LeafType> = {
 	"tray.minimizeToTray": "boolean",
 	"tray.autostart": "boolean",
-	"channels.wechat.enabled": "boolean",
-	"channels.wechat.workspaceRoot": "string",
-	"channels.wechat.botToken": "string",
-	"channels.wechat.ilinkBotId": "string",
-	"channels.wechat.ilinkUserId": "string",
-	"channels.wechat.baseUrl": "string",
-	"channels.wechat.endpoint": "string",
-	"channels.wechat.peerTokens": "record",
-	"channels.allowedPeers": "strings",
-	"channels.feishu.enabled": "boolean",
-	"channels.feishu.workspaceRoot": "string",
-	"channels.feishu.appId": "string",
-	"channels.feishu.appSecret": "string",
-	"channels.feishu.domain": "domain",
-	"channels.telegram.enabled": "boolean",
-	"channels.telegram.workspaceRoot": "string",
-	"channels.telegram.botToken": "string",
-	"channels.discord.enabled": "boolean",
-	"channels.discord.workspaceRoot": "string",
-	"channels.discord.botToken": "string",
-	"channels.discord.allowedChannels": "strings",
-	"channels.discord.allowedUsers": "strings",
-	"channels.qq.enabled": "boolean",
-	"channels.qq.workspaceRoot": "string",
-	"channels.qq.endpoint": "string",
-	"channels.qq.token": "string",
-	"channels.qq.mode": "mode",
-	"channels.qq.port": "number",
-	"channels.qq.selfId": "string",
-	"channels.qq.allowedGroups": "strings",
-	"channels.qq.allowedUsers": "strings",
 	"remote.host": "string",
 	"remote.token": "string",
 	"remote.publicUrl": "string",
@@ -261,7 +171,6 @@ const KNOWN_PATHS: Record<string, LeafType> = {
 	"remote.tls.cert": "string",
 	"remote.tls.key": "string",
 	"remote.workspaces": "workspaces",
-	"remote.sessionMappings": "mappings",
 	"remote.showBotSessions": "boolean",
 };
 
@@ -316,9 +225,6 @@ function validateValue(leafType: LeafType, value: unknown): void {
 		case "workspaces":
 			validateWorkspaces(value);
 			return;
-		case "mappings":
-			validateSessionMappings(value);
-			return;
 	}
 }
 
@@ -359,63 +265,6 @@ function validateWorkspaces(value: unknown): void {
 	}
 }
 
-/** The channel ids a mapping may name (the router's `SessionMapping.platform`). */
-const CHANNEL_PLATFORMS: Record<string, true> = {
-	wechat: true,
-	feishu: true,
-	telegram: true,
-	discord: true,
-	qq: true,
-};
-
-/**
- * `remote.sessionMappings`: the per-chat bindings the router consults. A row
- * needs a known platform, a chat id, and at least one of a workspace alias (a
- * routing binding), a reply language, or a bot-session pointer — the
- * session-only rows `!lang` / `!session use` write are legitimate and must
- * survive a GUI whole-array PUT, while a row carrying none of them is
- * rejected. The optional fields (`userId`, `chatType`, `connectionId`, `mode`,
- * `lang`, `sessionId`) keep their types, and unknown keys are preserved.
- */
-function mappingProblem(entry: unknown): string | null {
-	if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
-		return "Expected a session mapping object";
-	}
-	const record = entry as Record<string, unknown>;
-	if (typeof record.platform !== "string" || !Object.hasOwn(CHANNEL_PLATFORMS, record.platform)) {
-		return 'Expected platform "wechat", "feishu", "telegram", "discord" or "qq"';
-	}
-	if (!requiredText(record.chatId)) return "Each binding needs a chatId";
-	if (record.workspaceAlias !== undefined && record.workspaceAlias !== "" && !requiredText(record.workspaceAlias)) {
-		return "Expected workspaceAlias to be a non-empty string";
-	}
-	const hasAlias = requiredText(record.workspaceAlias) !== null;
-	if (!hasAlias && !requiredText(record.lang) && !requiredText(record.sessionId)) {
-		return "Each binding needs a workspaceAlias, lang or sessionId";
-	}
-	for (const key of ["connectionId", "chatType", "userId", "sessionId"]) {
-		const field = record[key];
-		if (field !== undefined && typeof field !== "string") {
-			return `Expected ${key} to be a string`;
-		}
-	}
-	if (record.mode !== undefined && record.mode !== "direct" && record.mode !== "relay") {
-		return 'Expected mode to be "direct" or "relay"';
-	}
-	if (record.lang !== undefined && record.lang !== "zh" && record.lang !== "en") {
-		return 'Expected lang to be "zh" or "en"';
-	}
-	return null;
-}
-
-function validateSessionMappings(value: unknown): void {
-	if (!Array.isArray(value)) throw new Error("Expected an array of session mappings");
-	for (const entry of value) {
-		const problem = mappingProblem(entry);
-		if (problem !== null) throw new Error(problem);
-	}
-}
-
 /** The live remote token in a data snapshot, or `undefined` when none is configured. */
 function liveRemoteToken(data: WebConfigData): string | undefined {
 	const token = data.remote.token?.trim();
@@ -436,21 +285,6 @@ function workspaceEntries(data: WebConfigData): RemoteWorkspace[] {
 			? { alias: path.basename(entry), path: entry }
 			: { alias: entry.alias, path: entry.path },
 	);
-}
-
-/**
- * Drop mapping rows this version can no longer validate (an older build wrote
- * session-only rows the GUI's whole-array PUT rejects) so a write heals the
- * file instead of carrying invalid rows forward.
- */
-function dropUnpersistableMappings(data: WebConfigData): boolean {
-	const mappings = data.remote.sessionMappings;
-	if (!mappings) return false;
-	const kept = mappings.filter(entry => mappingProblem(entry) === null);
-	if (kept.length === mappings.length) return false;
-	if (kept.length === 0) delete data.remote.sessionMappings;
-	else data.remote.sessionMappings = kept;
-	return true;
 }
 
 function setByPath(obj: Record<string, unknown>, segments: readonly string[], value: unknown): void {
@@ -488,6 +322,342 @@ function deepMerge(base: WebConfigData, overlay: unknown): WebConfigData {
 	return result;
 }
 
+const LEGACY_BUILTIN_TOOLS = [
+	"read",
+	"write",
+	"edit",
+	"bash",
+	"glob",
+	"grep",
+	"task",
+	"todo",
+	"channel_send",
+	"workspace_run",
+	"im_control",
+];
+
+/**
+ * Validate binding rows one at a time, keeping every row that is legal on its
+ * own and under the accumulated set (duplicate ids/keys/sessions drop only the
+ * later row). A single malformed legacy row must never sink the whole config.
+ */
+function repairImBindings(
+	value: unknown,
+	instances: readonly ChannelInstanceConfig[],
+	profiles: readonly ImAgentProfile[],
+): { bindings: ImBinding[]; healed: boolean } {
+	if (value === undefined) return { bindings: [], healed: false };
+	const rows = Array.isArray(value) ? value : [];
+	let healed = !Array.isArray(value);
+	const kept: unknown[] = [];
+	for (const row of rows) {
+		try {
+			const validated = validateImBindings([...kept, row], instances, profiles);
+			if (validated.length === kept.length + 1) {
+				kept.push(row);
+				continue;
+			}
+			healed = true;
+		} catch {
+			healed = true;
+		}
+	}
+	if (kept.length !== rows.length) healed = true;
+	return { bindings: validateImBindings(kept, instances, profiles), healed };
+}
+
+/**
+ * Drop legacy chat keys that cannot be persisted/validated: `sessionMappings`
+ * is a pre-v2 shape that may survive when no instance could be matched, and
+ * legacy `botSessions` may carry a malformed chat key. Legal items are kept.
+ */
+function cleanLegacyImChatKeys(data: WebConfigData): boolean {
+	let healed = false;
+	const remote = data.remote as unknown as Record<string, unknown>;
+	const mappings = remote.sessionMappings;
+	if (Array.isArray(mappings)) {
+		const kept = mappings.filter(entry => {
+			if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return false;
+			const row = entry as Record<string, unknown>;
+			if (!isPersistableKeyText(row.chatId)) return false;
+			if (row.threadId !== undefined && !isPersistableKeyText(row.threadId)) return false;
+			if (row.userId !== undefined && !isPersistableKeyText(row.userId)) return false;
+			return true;
+		});
+		if (kept.length !== mappings.length) {
+			healed = true;
+			if (kept.length === 0) delete remote.sessionMappings;
+			else remote.sessionMappings = kept;
+		}
+	}
+	for (const entry of data.remote.botSessions ?? []) {
+		const row = entry as unknown as Record<string, unknown>;
+		if (row.chatId !== undefined && !isPersistableKeyText(row.chatId)) {
+			delete row.chatId;
+			healed = true;
+		}
+		if (row.instanceId !== undefined && !isPersistableKeyText(row.instanceId)) {
+			delete row.instanceId;
+			delete row.bindingId;
+			healed = true;
+		}
+	}
+	return healed;
+}
+
+/** Drop binding rows this version can no longer validate; return true when healed. */
+function healUnpersistableImBindings(data: WebConfigData): boolean {
+	const repaired = repairImBindings(data.remote.imBindings, data.channels.instances, data.imAgents);
+	let healed = repaired.healed;
+	if (healed) data.remote.imBindings = repaired.bindings;
+	if (cleanLegacyImChatKeys(data)) healed = true;
+	return healed;
+}
+
+/** Legacy `channels.<platform>` block, kept only inside the one-shot migrator. */
+function migrateLegacyConfig(raw: Record<string, unknown>): { changed: boolean; data: Record<string, unknown> } {
+	const channels = raw.channels;
+	if (typeof channels !== "object" || channels === null || Array.isArray(channels))
+		return { changed: false, data: raw };
+	const legacy = channels as Record<string, unknown>;
+	const platforms = ["wechat", "feishu", "telegram", "discord", "qq"] as const;
+	if (!platforms.some(platform => typeof legacy[platform] === "object" && legacy[platform] !== null)) {
+		return { changed: false, data: raw };
+	}
+	const instances: ChannelInstanceConfig[] = [];
+	const profiles: ImAgentProfile[] = [];
+	const legacyGlobalPeers = Array.isArray(legacy.allowedPeers)
+		? (legacy.allowedPeers as unknown[]).filter((peer): peer is string => typeof peer === "string")
+		: [];
+	const remote =
+		typeof raw.remote === "object" && raw.remote !== null && !Array.isArray(raw.remote)
+			? (raw.remote as Record<string, unknown>)
+			: {};
+	const legacyMappings = Array.isArray(remote.sessionMappings) ? (remote.sessionMappings as unknown[]) : [];
+	const bindings: ImBinding[] = [];
+	const legacyWorkspaces: RemoteWorkspace[] = [];
+	const now = new Date().toISOString();
+
+	for (const platform of platforms) {
+		const block = legacy[platform];
+		if (typeof block !== "object" || block === null || Array.isArray(block)) continue;
+		const rec = block as Record<string, unknown>;
+		const profileId = `legacy-${platform}`;
+		const workspaceRoot =
+			typeof rec.workspaceRoot === "string" && rec.workspaceRoot !== "" ? rec.workspaceRoot : undefined;
+		const workspaceAlias = workspaceRoot ? `legacy-${platform}` : "main";
+		if (workspaceRoot) legacyWorkspaces.push({ alias: workspaceAlias, path: workspaceRoot });
+		const peers = Array.isArray(rec.allowedChannels)
+			? (rec.allowedChannels as unknown[]).filter((peer): peer is string => typeof peer === "string")
+			: Array.isArray(rec.allowedGroups)
+				? (rec.allowedGroups as unknown[]).map(group => `group:${String(group)}`)
+				: legacyGlobalPeers;
+		const users = Array.isArray(rec.allowedUsers)
+			? (rec.allowedUsers as unknown[]).filter((user): user is string => typeof user === "string")
+			: undefined;
+		profiles.push({
+			id: profileId,
+			label: `${platform} (migrated)`,
+			persona: { mode: "workspace" },
+			location: { kind: "workspace", workspace: workspaceAlias },
+			tools: {
+				preset: "companion",
+				builtin: [...LEGACY_BUILTIN_TOOLS],
+				extensions: [],
+				customTools: [],
+				mcpServers: [],
+				skills: [],
+				commands: [],
+				approvalMode: "yolo",
+			},
+			memory: { backend: "mnemopi", workspaceContext: true },
+		});
+		const credentials: Record<string, unknown> = {};
+		for (const key of [
+			"botToken",
+			"ilinkBotId",
+			"ilinkUserId",
+			"baseUrl",
+			"endpoint",
+			"appId",
+			"appSecret",
+			"domain",
+			"token",
+			"mode",
+			"port",
+			"selfId",
+		]) {
+			if (rec[key] !== undefined) credentials[key] = rec[key];
+		}
+		const peerTokens =
+			typeof rec.peerTokens === "object" && rec.peerTokens !== null && !Array.isArray(rec.peerTokens)
+				? (rec.peerTokens as Record<string, string>)
+				: undefined;
+		instances.push({
+			id: platform,
+			platform,
+			label: platform,
+			...(workspaceRoot ? { note: `migrated workspaceRoot ${workspaceRoot}` } : {}),
+			enabled: rec.enabled === true,
+			agentProfile: profileId,
+			allow: { peers, ...(users && users.length > 0 ? { users } : {}) },
+			credentials,
+			...(peerTokens ? { options: { peerTokens } } : {}),
+		});
+	}
+
+	const legacyAnswerKeys = new Set<string>();
+	const legacySessionIds = new Set<string>();
+	for (const [index, entry] of legacyMappings.entries()) {
+		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
+		const rec = entry as Record<string, unknown>;
+		const platform =
+			typeof rec.platform === "string" && (platforms as readonly string[]).includes(rec.platform)
+				? (rec.platform as ChannelInstanceConfig["platform"])
+				: undefined;
+		if (!platform) continue;
+		const connectionId = typeof rec.connectionId === "string" ? rec.connectionId : undefined;
+		const instanceId =
+			connectionId && instances.some(instance => instance.id === connectionId) ? connectionId : platform;
+		const chatId = typeof rec.chatId === "string" ? rec.chatId : "";
+		if (!chatId || !isPersistableKeyText(chatId)) continue;
+		const workspaceAlias =
+			typeof rec.workspaceAlias === "string" && rec.workspaceAlias !== "" ? rec.workspaceAlias : undefined;
+		const target: ImBinding["target"] = {
+			kind: "workspace",
+			workspace:
+				workspaceAlias ??
+				(profiles.find(profile => profile.id === `legacy-${platform}`)?.location.kind === "workspace"
+					? (profiles.find(profile => profile.id === `legacy-${platform}`)!.location as { workspace: string })
+							.workspace
+					: "main"),
+		};
+		const originalSessionId =
+			typeof rec.sessionId === "string" && rec.sessionId !== "" ? rec.sessionId : `legacy-${index}`;
+		const duplicateSession = legacySessionIds.has(originalSessionId);
+		const sessionId = duplicateSession ? `legacy-${index}` : originalSessionId;
+		legacySessionIds.add(sessionId);
+		const answerKey = `${platform}\u0000${chatId}`;
+		const duplicateAnswer = legacyAnswerKeys.has(answerKey);
+		if (!duplicateAnswer) legacyAnswerKeys.add(answerKey);
+		const needsReview =
+			!connectionId ||
+			(connectionId !== undefined &&
+				instanceId === platform &&
+				!instances.some(instance => instance.id === connectionId)) ||
+			duplicateAnswer ||
+			duplicateSession;
+		bindings.push({
+			id: `b_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
+			instanceId,
+			platform,
+			chatId,
+			agentProfileId: `legacy-${platform}`,
+			sessionId,
+			target,
+			role: duplicateAnswer ? "mention" : "answer",
+			...(rec.lang === "zh" || rec.lang === "en" ? { lang: rec.lang } : {}),
+			createdAt: now,
+			...(needsReview
+				? {
+						needsReview: true,
+						needsReviewReason: duplicateAnswer
+							? "another legacy mapping already answers this platform/chat; this binding is mention-only"
+							: duplicateSession
+								? "legacy mappings shared one session; this binding got its own"
+								: "legacy connectionId/instance mapping needs review",
+					}
+				: {}),
+		});
+	}
+
+	// Existing bot sessions keep their transcript, but gain the binding identity
+	// so the runtime never treats them as unowned/legacy.
+	const legacyBotSessions = Array.isArray(remote.botSessions) ? (remote.botSessions as unknown[]) : [];
+	for (const entry of legacyBotSessions) {
+		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
+		const rec = entry as Record<string, unknown>;
+		if (typeof rec.instanceId === "string" && typeof rec.bindingId === "string") continue;
+		const platform = typeof rec.platform === "string" ? rec.platform : undefined;
+		const chatId = typeof rec.chatId === "string" ? rec.chatId : undefined;
+		const instance = platform ? instances.find(candidate => candidate.platform === platform) : undefined;
+		if (!instance || !chatId || !isPersistableKeyText(chatId)) continue;
+		let binding =
+			bindings.find(candidate => candidate.instanceId === instance.id && candidate.chatId === chatId) ??
+			bindings.find(candidate => candidate.platform === platform && candidate.chatId === chatId);
+		if (!binding) {
+			const hasAnswer = bindings.some(
+				candidate => candidate.platform === platform && candidate.chatId === chatId && candidate.role === "answer",
+			);
+			binding = {
+				id: `b_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
+				instanceId: instance.id,
+				platform: instance.platform,
+				chatId,
+				agentProfileId: instance.agentProfile,
+				sessionId: typeof rec.id === "string" && rec.id !== "" ? rec.id : `legacy-${randomUUID().slice(0, 8)}`,
+				target: { kind: "workspace", workspace: "main" },
+				role: hasAnswer ? "mention" : "answer",
+				createdAt: now,
+				needsReview: true,
+				needsReviewReason: "legacy bot session had no persisted binding; target defaults to the main workspace",
+			};
+			bindings.push(binding);
+		}
+		rec.instanceId = instance.id;
+		rec.bindingId = binding.id;
+		rec.agentProfileId = binding.agentProfileId;
+		rec.target = binding.target;
+	}
+	const next = structuredClone(raw);
+	next.channels = { instances };
+	next.imAgents = profiles;
+	if (bindings.length > 0 || legacyWorkspaces.length > 0) {
+		next.remote = {
+			...remote,
+			...(bindings.length > 0 ? { imBindings: bindings } : {}),
+			...(legacyWorkspaces.length > 0
+				? {
+						workspaces: [
+							...(Array.isArray(remote.workspaces) ? (remote.workspaces as unknown[]) : []),
+							...legacyWorkspaces,
+						],
+					}
+				: {}),
+		};
+		if (bindings.length > 0) delete (next.remote as Record<string, unknown>).sessionMappings;
+	}
+	return { changed: true, data: next };
+}
+
+/** One-shot migration serialized with runtime writers, with an owner-only backup. */
+export async function migrateLegacyWebConfigFile(filePath: string): Promise<boolean> {
+	return withFileLock(filePath, () => migrateLegacyWebConfigFileUnlocked(filePath));
+}
+
+async function migrateLegacyWebConfigFileUnlocked(filePath: string): Promise<boolean> {
+	let raw: unknown = {};
+	try {
+		raw = YAML.parse(await Bun.file(filePath).text()) as unknown;
+	} catch (error) {
+		if (isEnoent(error)) return false;
+		throw error;
+	}
+	if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return false;
+	const migrated = migrateLegacyConfig(raw as Record<string, unknown>);
+	if (!migrated.changed) return false;
+	const backup = `${filePath}.bak-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+	await fs.promises.writeFile(backup, YAML.stringify(raw), { flag: "wx", mode: 0o600 });
+	const temp = `${filePath}.${randomUUID()}.tmp`;
+	try {
+		await fs.promises.writeFile(temp, YAML.stringify(migrated.data), { flag: "wx", mode: 0o600 });
+		await fs.promises.rename(temp, filePath);
+	} finally {
+		await fs.promises.rm(temp, { force: true });
+	}
+	return true;
+}
+
 /**
  * Loads and persists `~/.zeta/agent/web.yml`.
  *
@@ -518,7 +688,8 @@ export class WebConfig {
 
 	/** Load from disk, deep-merging defaults; a missing/corrupt file falls back to defaults. */
 	static async load(filePath = WebConfig.defaultPath()): Promise<WebConfig> {
-		return new WebConfig(filePath, await WebConfig.#read(filePath));
+		const { data } = await withFileLock(filePath, () => WebConfig.#read(filePath));
+		return new WebConfig(filePath, data);
 	}
 
 	/**
@@ -539,7 +710,13 @@ export class WebConfig {
 		WebConfig.#shared.clear();
 	}
 
-	static async #read(filePath: string): Promise<WebConfigData> {
+	static async #read(filePath: string): Promise<{ data: WebConfigData; healed: boolean }> {
+		await migrateLegacyWebConfigFileUnlocked(filePath).catch(error => {
+			logger.warn("web.yml legacy migration failed; continuing without migration", {
+				filePath,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		});
 		let raw: unknown = {};
 		try {
 			const readPath = resolveYamlConfigReadPath(filePath);
@@ -558,7 +735,15 @@ export class WebConfig {
 				});
 			}
 		}
-		return deepMerge(DEFAULT_DATA, raw);
+		const merged = deepMerge(DEFAULT_DATA, raw);
+		merged.imAgents = validateImAgentProfiles(merged.imAgents);
+		merged.channels.instances = validateChannelInstances(merged.channels.instances, merged.imAgents);
+		// One bad legacy row must not sink the config: validate each row on its
+		// own and keep every legal binding. #mutate writes the repaired file.
+		const repaired = repairImBindings(merged.remote.imBindings, merged.channels.instances, merged.imAgents);
+		merged.remote.imBindings = repaired.bindings;
+		const healedLegacy = cleanLegacyImChatKeys(merged);
+		return { data: merged, healed: repaired.healed || healedLegacy };
 	}
 
 	get path(): string {
@@ -573,6 +758,17 @@ export class WebConfig {
 	/** Merged data with every secret path masked. */
 	getMasked(): WebConfigData {
 		const masked = this.getData();
+		for (const instance of masked.channels.instances) {
+			for (const key of Object.keys(instance.credentials)) {
+				const value = instance.credentials[key];
+				if (typeof value === "string" && value !== "") instance.credentials[key] = MASKED_TOKEN;
+			}
+			if (instance.options?.peerTokens) {
+				for (const peer of Object.keys(instance.options.peerTokens)) {
+					instance.options.peerTokens[peer] = MASKED_TOKEN;
+				}
+			}
+		}
 		for (const secretPath of Object.keys(SECRET_PATHS)) {
 			const segments = secretPath.split(".");
 			let current: Record<string, unknown> = masked as unknown as Record<string, unknown>;
@@ -615,6 +811,233 @@ export class WebConfig {
 		await this.#mutate(data => {
 			setByPath(data as unknown as Record<string, unknown>, pathToSet.split("."), value);
 			return { changed: true, value: undefined };
+		});
+	}
+
+	// ------------------------------------------------------------------
+	// IM instances / agent profiles / bindings
+	// ------------------------------------------------------------------
+
+	getChannelInstances(): ChannelInstanceConfig[] {
+		return structuredClone(this.#data.channels.instances);
+	}
+
+	getChannelInstance(id: string): ChannelInstanceConfig | undefined {
+		return this.#data.channels.instances.find(instance => instance.id === id);
+	}
+
+	/** Whole-array replacement; masked gateway secrets are resolved under the same lock. */
+	async setChannelInstances(
+		value: unknown,
+		options: { preserveSecrets?: boolean } = {},
+	): Promise<ChannelInstanceConfig[]> {
+		return this.#mutate(data => {
+			let incoming = value;
+			if (options.preserveSecrets && Array.isArray(value)) {
+				incoming = value.map(entry => {
+					if (!entry || typeof entry !== "object" || Array.isArray(entry)) return entry;
+					const stored = data.channels.instances.find(instance => instance.id === entry.id);
+					const merge = (next: Record<string, unknown>, previous: Record<string, unknown> = {}) => {
+						const merged = { ...previous, ...next };
+						for (const key of Object.keys(merged)) {
+							if (merged[key] === MASKED_TOKEN) merged[key] = previous[key];
+							if (merged[key] === null || merged[key] === undefined) delete merged[key];
+						}
+						return merged;
+					};
+					return {
+						...entry,
+						credentials: merge(entry.credentials ?? {}, stored?.credentials),
+						...(entry.options?.peerTokens
+							? {
+									options: {
+										...entry.options,
+										peerTokens: merge(entry.options.peerTokens, stored?.options?.peerTokens),
+									},
+								}
+							: entry.options === undefined && stored?.options
+								? { options: stored.options }
+								: {}),
+					};
+				});
+			}
+			const instances = validateChannelInstances(incoming, data.imAgents);
+			data.channels.instances = instances;
+			return { changed: true, value: structuredClone(instances) };
+		});
+	}
+
+	/** Patch one instance against the latest committed snapshot. */
+	async setInstance(id: string, patch: Partial<ChannelInstanceConfig>): Promise<ChannelInstanceConfig> {
+		return this.#mutate(data => {
+			const current = data.channels.instances.find(instance => instance.id === id);
+			if (!current) throw new Error(`Unknown channel instance: ${id}`);
+			const next = { ...current, ...patch, id: current.id, platform: current.platform };
+			data.channels.instances = validateChannelInstances(
+				data.channels.instances.map(instance => (instance.id === id ? next : instance)),
+				data.imAgents,
+			);
+			return {
+				changed: true,
+				value: structuredClone(data.channels.instances.find(instance => instance.id === id)!),
+			};
+		});
+	}
+
+	/** Remove one instance and every binding that referenced it. */
+	async removeChannelInstance(id: string): Promise<boolean> {
+		return this.#mutate(data => {
+			if (!data.channels.instances.some(instance => instance.id === id)) return { changed: false, value: false };
+			data.channels.instances = data.channels.instances.filter(instance => instance.id !== id);
+			data.remote.imBindings = (data.remote.imBindings ?? []).filter(binding => binding.instanceId !== id);
+			return { changed: true, value: true };
+		});
+	}
+
+	getImAgents(): ImAgentProfile[] {
+		return structuredClone(this.#data.imAgents);
+	}
+
+	getImAgent(id: string): ImAgentProfile | undefined {
+		return this.#data.imAgents.find(profile => profile.id === id);
+	}
+
+	async setImAgents(value: unknown): Promise<ImAgentProfile[]> {
+		return this.#mutate(data => {
+			const profiles = validateImAgentProfiles(value);
+			const referenced = new Set([
+				...data.channels.instances.map(instance => instance.agentProfile),
+				...(data.remote.imBindings ?? []).map(binding => binding.agentProfileId),
+			]);
+			for (const id of referenced) {
+				if (!profiles.some(profile => profile.id === id)) {
+					throw new ImConfigError([
+						{ path: "imAgents", message: `profile ${id} is referenced by an instance or binding` },
+					]);
+				}
+			}
+			data.imAgents = profiles;
+			return { changed: true, value: structuredClone(profiles) };
+		});
+	}
+
+	getImBindings(): ImBinding[] {
+		return structuredClone(this.#data.remote.imBindings ?? []);
+	}
+
+	findImBinding(
+		instanceId: string,
+		chatId: string,
+		opts: { threadId?: string; userId?: string } = {},
+	): ImBinding | undefined {
+		const key = [instanceId, chatId, opts.threadId ?? "", opts.userId ?? ""].join("\u0000");
+		return (this.#data.remote.imBindings ?? []).find(binding => bindingKey(binding) === key);
+	}
+
+	async setImBindings(value: unknown): Promise<ImBinding[]> {
+		return this.#mutate(data => {
+			const bindings = validateImBindings(value, data.channels.instances, data.imAgents);
+			data.remote.imBindings = bindings;
+			return { changed: true, value: structuredClone(bindings) };
+		});
+	}
+
+	async upsertImBinding(binding: ImBinding): Promise<ImBinding> {
+		return this.#mutate(data => {
+			const next = [
+				...(data.remote.imBindings ?? []).filter(
+					entry => entry.id !== binding.id && bindingKey(entry) !== bindingKey(binding),
+				),
+				binding,
+			];
+			data.remote.imBindings = validateImBindings(next, data.channels.instances, data.imAgents);
+			return { changed: true, value: structuredClone(data.remote.imBindings.at(-1)!) };
+		});
+	}
+
+	/** Merge fields into one chat binding; creates it from the instance default when absent. */
+	async patchImBinding(
+		instanceId: string,
+		chatId: string,
+		patch: Partial<Pick<ImBinding, "target" | "agentProfileId" | "sessionId" | "lang" | "model" | "role">>,
+		opts: { threadId?: string; userId?: string } = {},
+	): Promise<ImBinding> {
+		return this.#mutate(data => {
+			let instance = data.channels.instances.find(instance => instance.id === instanceId);
+			if (!instance && (CHANNEL_PLATFORMS as readonly string[]).includes(instanceId)) {
+				// A chat can bind before an operator configures that platform's account:
+				// provision a disabled default instance and its workspace-main profile
+				// so the binding has a stable instance namespace to hang off.
+				const profileId = "default";
+				if (!data.imAgents.some(profile => profile.id === profileId)) {
+					data.imAgents = validateImAgentProfiles([
+						{ id: profileId, label: "Default", location: { kind: "workspace", workspace: "main" } },
+						...data.imAgents,
+					]);
+				}
+				instance = validateChannelInstances(
+					[
+						{
+							id: instanceId,
+							platform: instanceId as ChannelInstanceConfig["platform"],
+							label: instanceId,
+							enabled: false,
+							agentProfile: profileId,
+							allow: { peers: [chatId] },
+							credentials: {},
+						},
+					],
+					data.imAgents,
+				)[0]!;
+				data.channels.instances = [...data.channels.instances, instance];
+			}
+			if (!instance) throw new Error(`Unknown channel instance: ${instanceId}`);
+			const key = [instanceId, chatId, opts.threadId ?? "", opts.userId ?? ""].join("\u0000");
+			const current = data.remote.imBindings ?? [];
+			const existing = current.find(binding => bindingKey(binding) === key);
+			const profileId = patch.agentProfileId ?? existing?.agentProfileId ?? instance.agentProfile;
+			const profile = data.imAgents.find(profile => profile.id === profileId);
+			if (!profile) throw new Error(`Unknown agent profile: ${profileId}`);
+			const next: ImBinding = existing
+				? { ...existing, ...patch }
+				: {
+						id: `b_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
+						instanceId,
+						platform: instance.platform,
+						chatId,
+						...(opts.threadId ? { threadId: opts.threadId } : {}),
+						...(opts.userId ? { userId: opts.userId } : {}),
+						agentProfileId: profileId,
+						sessionId: randomUUID().slice(0, 8),
+						target: profile.location,
+						role: "answer",
+						createdAt: new Date().toISOString(),
+						...patch,
+					};
+			data.remote.imBindings = validateImBindings(
+				[...current.filter(entry => entry.id !== next.id && bindingKey(entry) !== key), next],
+				data.channels.instances,
+				data.imAgents,
+			);
+			return { changed: true, value: structuredClone(data.remote.imBindings.at(-1)!) };
+		});
+	}
+
+	async removeImBindingByChat(instanceId: string, chatId: string): Promise<boolean> {
+		return this.#mutate(data => {
+			const current = data.remote.imBindings ?? [];
+			const next = current.filter(binding => !(binding.instanceId === instanceId && binding.chatId === chatId));
+			data.remote.imBindings = next;
+			return { changed: next.length !== current.length, value: next.length !== current.length };
+		});
+	}
+
+	async removeImBinding(id: string): Promise<boolean> {
+		return this.#mutate(data => {
+			const current = data.remote.imBindings ?? [];
+			const next = current.filter(binding => binding.id !== id);
+			data.remote.imBindings = next;
+			return { changed: next.length !== current.length, value: next.length !== current.length };
 		});
 	}
 
@@ -723,115 +1146,6 @@ export class WebConfig {
 	}
 
 	/** Persisted per-chat session mappings. */
-	getSessionMappings(): SessionMapping[] {
-		return this.#data.remote.sessionMappings ?? [];
-	}
-
-	/** Find the binding for one remote chat; most specific match wins. */
-	findSessionMapping(
-		platform: SessionMapping["platform"],
-		chatId: string,
-		opts: { userId?: string; chatType?: string; connectionId?: string } = {},
-	): SessionMapping | undefined {
-		const candidates = this.getSessionMappings().filter(
-			mapping => mapping.platform === platform && mapping.chatId === chatId,
-		);
-		if (candidates.length === 0) return undefined;
-		const withUser = candidates.find(
-			mapping =>
-				mapping.userId !== undefined &&
-				mapping.userId !== "" &&
-				mapping.userId === opts.userId &&
-				(!mapping.connectionId || mapping.connectionId === opts.connectionId),
-		);
-		if (withUser) return withUser;
-		const withConn = candidates.find(
-			mapping => !mapping.userId && (!mapping.connectionId || mapping.connectionId === opts.connectionId),
-		);
-		return withConn ?? candidates[0];
-	}
-
-	/** Add or replace one session mapping and persist. */
-	async setSessionMapping(mapping: SessionMapping): Promise<void> {
-		validateSessionMappings([mapping]);
-		await this.#mutate(data => {
-			const entries = data.remote.sessionMappings ?? [];
-			const next = entries.filter(
-				entry =>
-					!(
-						entry.platform === mapping.platform &&
-						entry.chatId === mapping.chatId &&
-						entry.userId === mapping.userId
-					),
-			);
-			next.push(mapping);
-			data.remote.sessionMappings = next;
-			return { changed: true, value: undefined };
-		});
-	}
-
-	/** Remove a session mapping and persist. */
-	async removeSessionMapping(platform: SessionMapping["platform"], chatId: string, userId?: string): Promise<boolean> {
-		return this.#mutate(data => {
-			const entries = data.remote.sessionMappings ?? [];
-			const next = entries.filter(
-				entry => !(entry.platform === platform && entry.chatId === chatId && entry.userId === userId),
-			);
-			if (next.length === entries.length) return { changed: false, value: false };
-			data.remote.sessionMappings = next;
-			return { changed: true, value: true };
-		});
-	}
-
-	/**
-	 * Merge fields into a chat's session mapping, creating a chat-level mapping
-	 * (no user id) when none exists. `null` deletes a field, `undefined` leaves
-	 * it untouched. Used by `!session use` / `!lang` and the workspace router.
-	 *
-	 * A row that ends up carrying only its platform and chat id says nothing,
-	 * so it is dropped rather than persisted as a row the GUI's whole-array PUT
-	 * would reject.
-	 */
-	async updateChatMapping(
-		platform: SessionMapping["platform"],
-		chatId: string,
-		patch: {
-			sessionId?: string | null;
-			lang?: "zh" | "en" | null;
-			workspaceAlias?: string | null;
-			mode?: "direct" | "relay" | null;
-		},
-	): Promise<void> {
-		await this.#mutate(data => {
-			const entries = data.remote.sessionMappings ?? [];
-			const existing = entries.find(
-				entry => entry.platform === platform && entry.chatId === chatId && entry.userId === undefined,
-			);
-			const next = entries.filter(
-				entry => !(entry.platform === platform && entry.chatId === chatId && entry.userId === undefined),
-			);
-			const merged = { ...(existing ?? { platform, chatId }) };
-			for (const [key, value] of Object.entries(patch)) {
-				if (value === undefined) continue;
-				if (value === null) {
-					delete (merged as Record<string, unknown>)[key];
-				} else {
-					(merged as Record<string, unknown>)[key] = value;
-				}
-			}
-			if (mappingProblem(merged) !== null) {
-				// Nothing left worth remembering: drop the row (if it existed).
-				if (!existing) return { changed: false, value: undefined };
-				data.remote.sessionMappings = next;
-				return { changed: true, value: undefined };
-			}
-			next.push(merged as SessionMapping);
-			data.remote.sessionMappings = next;
-			return { changed: true, value: undefined };
-		});
-	}
-
-	/** Registered default-space bot sessions. */
 	getBotSessions(): BotSessionEntry[] {
 		return this.#data.remote.botSessions ?? [];
 	}
@@ -880,21 +1194,34 @@ export class WebConfig {
 	/** Drop every chat's `sessionId` pointer to a deleted bot session. */
 	async clearChatSessionReferences(sessionId: string): Promise<void> {
 		await this.#mutate(data => {
-			const entries = data.remote.sessionMappings ?? [];
-			if (!entries.some(entry => entry.sessionId === sessionId)) return { changed: false, value: undefined };
-			data.remote.sessionMappings = entries.map(entry => {
-				if (entry.sessionId !== sessionId) return entry;
-				const { sessionId: _drop, ...rest } = entry;
-				return rest;
-			});
-			return { changed: true, value: undefined };
+			let changed = false;
+			const mappings = data.remote.sessionMappings ?? [];
+			if (mappings.some(entry => entry.sessionId === sessionId)) {
+				data.remote.sessionMappings = mappings.map(entry => {
+					if (entry.sessionId !== sessionId) return entry;
+					const { sessionId: _drop, ...rest } = entry;
+					return rest;
+				});
+				changed = true;
+			}
+			// Current bindings own the chat pointer; a deleted session must not stay
+			// selected there after its transcript is gone. A binding cannot exist
+			// without its sessionId (the schema rejects a stripped row), so the
+			// route is dropped and the chat falls back to its instance default.
+			const bindings = data.remote.imBindings ?? [];
+			const remaining = bindings.filter(binding => binding.sessionId !== sessionId);
+			if (remaining.length !== bindings.length) {
+				data.remote.imBindings = remaining;
+				changed = true;
+			}
+			return { changed, value: undefined };
 		});
 	}
 
 	/** Re-read the file from disk (under the config lock), discarding in-memory changes. */
 	async reload(): Promise<void> {
 		await withFileLock(this.#filePath, async () => {
-			this.#data = await WebConfig.#read(this.#filePath);
+			this.#data = (await WebConfig.#read(this.#filePath)).data;
 		});
 	}
 
@@ -906,9 +1233,9 @@ export class WebConfig {
 	 */
 	async #mutate<T>(mutation: (data: WebConfigData) => { changed: boolean; value: T }): Promise<T> {
 		return withFileLock(this.#filePath, async () => {
-			const data = await WebConfig.#read(this.#filePath);
+			const { data, healed: readHealed } = await WebConfig.#read(this.#filePath);
 			const { changed, value } = mutation(data);
-			const healed = dropUnpersistableMappings(data);
+			const healed = healUnpersistableImBindings(data) || readHealed;
 			if (changed || healed) await this.#write(data);
 			this.#data = data;
 			return value;

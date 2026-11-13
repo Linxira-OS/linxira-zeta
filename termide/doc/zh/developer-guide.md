@@ -113,7 +113,7 @@ termide/
 │   ├── agent-hooks/          # 命令钩子：在工具调用时运行的外部程序
 │   ├── agent-mcp/            # MCP 客户端（来自服务器的工具）及 termide 自身的 MCP 服务器
 │   ├── agent-providers/      # 模型提供商（OpenAI 兼容的 chat completions）
-│   ├── agent-tools/          # 内置智能体工具：read、edit、write、bash
+│   ├── agent-tools/          # 内置智能体工具：read、edit、write、shell
 │   ├── agent-web/            # 网络工具：fetch 和 web_search，经 HTTP 或本地 Chrome
 │   ├── app/                  # 应用编排器、事件处理、面板管理
 │   ├── app-core/             # 核心应用 trait（LayoutController、PanelProvider）
@@ -138,6 +138,7 @@ termide/
 │   ├── modal/                # 模态对话框系统
 │   ├── panel-agent/          # 编程智能体面板（对话记录、输入、权限提示）
 │   ├── panel-binary/         # 二进制文件查看/编辑面板（hex/ASCII）
+│   ├── panel-csv/            # CSV/TSV 表格查看面板
 │   ├── panel-db/             # 数据库查看面板
 │   ├── panel-diagnostics/    # LSP 诊断面板
 │   ├── panel-editor/         # 文本编辑器面板

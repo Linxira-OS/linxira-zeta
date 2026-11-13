@@ -1,5 +1,6 @@
 /** Context maintenance for an active coding-agent session. */
 
+import * as path from "node:path";
 import { scheduler } from "node:timers/promises";
 import {
 	type Agent,
@@ -24,7 +25,6 @@ import {
 	canReplayRemoteCompactionFrom,
 	collectShakeRegions,
 	COMPACTION_RECOVERY_BAND,
-	compact,
 	compactionContextTokens,
 	countResponsesHistoryTokens,
 	createCompactionSummaryMessage,
@@ -70,7 +70,7 @@ import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
 import { resolvePromptCacheLookback } from "@linxiraos/pi-catalog/compat/prompt-cache-lookback";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import type { CatalogPolicyInputs } from "@linxiraos/pi-catalog/types";
-import { isRecord, logger, prompt, Snowflake, toError } from "@linxiraos/pi-utils";
+import { getProjectTrackingDir, isRecord, logger, prompt, Snowflake, toError } from "@linxiraos/pi-utils";
 import * as snapcompact from "@linxiraos/zeta-compact";
 import { writeArtifact } from "./artifacts";
 import type { ModelRegistry } from "../config/model-registry";
@@ -85,8 +85,12 @@ import { customMessageEntryMessage } from "@linxiraos/pi-tui/chat/transcript-ent
 import { computeNonMessageTokens, type NonMessageTokenSource } from "@linxiraos/pi-tui/status-line/context-usage";
 import { createPlanReadMatcher } from "../plan-mode/plan-protection";
 import { isCompleteReadResult } from "../tools/read-supersede";
+import { cfgTrackingEnabled } from "../tools/settings";
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import type { AgentSessionEvent } from "./agent-session-events";
+import { CompactionAgent } from "./compaction/agent";
+import { fidelityCounts, readCompactionFidelity, type FidelityTracking } from "./compaction/fidelity";
+import { CompactionService, type CompactionCommitListener, type CompactionPass } from "./compaction/service";
 import type { ContextUsageBreakdown, HandoffResult, SessionHandoffOptions } from "./agent-session-types";
 import { findCompactMode } from "./compact-modes";
 import {
@@ -153,6 +157,11 @@ const COMPACTION_CHECK_BLOCK_AUTOMATIC_CONTINUATION: CompactionCheckResult = {
 	continuationScheduled: false,
 	automaticContinuationBlocked: true,
 };
+
+const FIXED_CONTEXT_DEAD_END_WARNING =
+	"Compaction cannot create headroom — pausing automatic maintenance. " +
+	"The system prompt and always-sent tool schemas alone exceed the recovery band; " +
+	"reduce fixed context or adjust compaction.modelThresholds.";
 
 /**
  * Consecutive `response.incomplete` (length-stop) recoveries that deliver no
@@ -343,6 +352,8 @@ const PAYLOAD_REJECTION_OCCUPANCY_CEILING = 0.9;
 
 /** A speculation-produced compaction result, ready to commit at threshold. */
 interface ArmedSpeculation {
+	/** Pass that produced this summary; the applying auto pass reports it as `sourcePassId`. */
+	passId?: string;
 	result: CompactionResult;
 	action: "context-full" | "handoff" | "remote";
 	method: CompactionMethod;
@@ -366,6 +377,9 @@ type CompactionProjectionArgs = {
 
 /** One background speculative-compaction run and (once resolved) its armed result. */
 interface SpeculationRun {
+	/** Progress pass for this background attempt (no commit: the applying pass commits). */
+	passId?: string;
+	pass?: CompactionPass;
 	controller: AbortController;
 	promise: Promise<void>;
 	contextTokensAtStart: number;
@@ -633,6 +647,15 @@ export class SessionMaintenance {
 		{ key: string; length: number; first: AgentMessage | undefined }
 	>();
 	readonly #host: SessionMaintenanceHost;
+	/** Owns compaction pass progress (`compaction_phase`) and commit notification. */
+	readonly #compactionService: CompactionService;
+	/** Produces the summary artifact for one summarizer attempt. */
+	readonly #compactionAgent = new CompactionAgent();
+	/**
+	 * The pass currently owning progress for a manual or automatic compaction.
+	 * A method fallback inside one pass reuses it (one `passId`, re-emitted `plan`).
+	 */
+	#activeCompactionPass: CompactionPass | undefined;
 
 	get #model(): Model | undefined {
 		return this.#host.model();
@@ -662,6 +685,34 @@ export class SessionMaintenance {
 
 	constructor(host: SessionMaintenanceHost) {
 		this.#host = host;
+		this.#compactionService = new CompactionService(event => this.#emitLifecycleEvent(event, false));
+	}
+
+	/**
+	 * Subscribe to committed compactions. Stable consumer contract:
+	 * `@linxiraos/zeta/session/compaction-contract`. Fires exactly once per
+	 * appended compaction entry, after the entry is durable, before the
+	 * `session_compact` extension emit; listener errors are isolated.
+	 */
+	onCommit(listener: CompactionCommitListener): () => void {
+		return this.#compactionService.onCommit(listener);
+	}
+
+	/**
+	 * Tracking references for the fidelity artifact. Present only when project
+	 * tracking is enabled, so a disabled tracker never sees (or causes a read of)
+	 * user files.
+	 */
+	#compactionTracking(): FidelityTracking | undefined {
+		if (cfgTrackingEnabled.get(this.#host.settings) !== true) return undefined;
+		const dir = getProjectTrackingDir(this.#host.sessionManager.getCwd());
+		return {
+			dir,
+			index: path.join(dir, "INDEX.md"),
+			status: path.join(dir, "status.json"),
+			summaries: path.join(dir, "summaries"),
+			sessionId: this.#host.sessionId(),
+		};
 	}
 
 	/** Experimental rollover is safe only when the current effective tool surface can recover its state. */
@@ -1303,6 +1354,12 @@ export class SessionMaintenance {
 		// A manual pass supersedes any background speculation; running both would
 		// double-bill the summarizer and race the commit.
 		this.cancelSpeculation();
+		// One pass per owning manual compaction; a nested method fallback reuses it
+		// so the whole fallback chain shares one `passId` and one terminal phase.
+		const pass = ownsCompactionController
+			? this.#compactionService.beginPass({ trigger: "manual", reason: "user_requested" })
+			: this.#activeCompactionPass;
+		if (ownsCompactionController) this.#activeCompactionPass = pass;
 
 		try {
 			if (ownsCompactionController) {
@@ -1342,6 +1399,7 @@ export class SessionMaintenance {
 					compactionAbortController,
 					markCommitted,
 				);
+				await pass?.commit({ tokensBefore: result.tokensBefore, summaryChars: result.summary.length });
 				options?.onComplete?.(result);
 				return finish(result);
 			}
@@ -1431,6 +1489,12 @@ export class SessionMaintenance {
 				throw new ManualCompactionNoOpError("Nothing to compact (session too small)");
 			}
 
+			await pass?.plan({
+				method: selectedMethod,
+				reason: "user_requested",
+				tokensBefore: preparation.tokensBefore,
+			});
+
 			let hookCompaction: CompactionResult | undefined;
 			let fromExtension = false;
 			let preserveData: Record<string, unknown> | undefined;
@@ -1507,6 +1571,7 @@ export class SessionMaintenance {
 			// this method, allowing the configured preference order to continue.
 			let snapcompactResult: snapcompact.CompactionResult | undefined;
 			if (snapcompactReady) {
+				await pass?.enter("archive", { tokensBefore: preparation.tokensBefore });
 				const maxFrames = this.#computeSnapcompactMaxFrames(preparation, effectiveSettings, 0);
 				if (maxFrames < 1) {
 					logger.warn("Snapcompact skipped: kept history alone exceeds the context budget", {
@@ -1607,6 +1672,7 @@ export class SessionMaintenance {
 				// for an unrelated reason. Assignments live inside the try
 				// block because every catch path throws — the post-try reads
 				// of the result-derived locals are reachable only on success.
+				await pass?.enter("summarize", { tokensBefore: preparation.tokensBefore });
 				try {
 					const result = await this.#compactWithFallbackModel(
 						preparation,
@@ -1655,7 +1721,7 @@ export class SessionMaintenance {
 			}
 
 			markCommitted();
-			await this.#commitCompactionEntry({
+			const committedEntry = await this.#commitCompactionEntry({
 				summary,
 				shortSummary,
 				firstKeptEntryId,
@@ -1667,6 +1733,13 @@ export class SessionMaintenance {
 				codexCompaction,
 				providerReplayThroughEntryId,
 				advisorResetReason: "compact",
+			});
+			const fidelity = fidelityCounts(readCompactionFidelity(preserveData));
+			await pass?.commit({
+				...(committedEntry ? { entryId: committedEntry.id } : {}),
+				tokensBefore,
+				summaryChars: summary.length,
+				...(fidelity ? { fidelity } : {}),
 			});
 
 			const compactionResult: CompactionResult = {
@@ -1717,6 +1790,20 @@ export class SessionMaintenance {
 			throw error;
 		} finally {
 			if (ownsCompactionController) {
+				// Cancellation is the only `aborted`; every other non-commit is `failed`.
+				const cancelled =
+					manualCompactionError instanceof CompactionCancelledError || compactionAbortController.signal.aborted;
+				await pass?.settle(cancelled ? "aborted" : "failed", {
+					...(cancelled
+						? {}
+						: {
+								errorMessage:
+									manualCompactionError === undefined
+										? "compaction did not commit"
+										: toError(manualCompactionError).message,
+							}),
+				});
+				if (this.#activeCompactionPass === pass) this.#activeCompactionPass = undefined;
 				if (manualCompactionStarted) {
 					await this.#emitManualCompactionEnd(
 						manualCompactionResult,
@@ -1891,22 +1978,6 @@ export class SessionMaintenance {
 		const model = this.#model;
 		if (!model || this.isCompacting) return COMPACTION_CHECK_NONE;
 		const settings = this.#compactionSettings;
-		if (reason === "threshold" && !options.explicitNewContextRequest) {
-			const fixedContextExceedsBand = this.#fixedContextExceedsRecoveryBand();
-			if (fixedContextExceedsBand) {
-				const sessionId = this.#host.sessionManager.getSessionId();
-				if (this.#fixedContextDeadEndNotifiedSessionId !== sessionId) {
-					this.#host.emitNotice(
-						"warning",
-						this.#compactionDeadEndWarning("clear large tool output"),
-						"compaction",
-					);
-					this.#fixedContextDeadEndNotifiedSessionId = sessionId;
-				}
-				return COMPACTION_CHECK_BLOCK_AUTOMATIC_CONTINUATION;
-			}
-			this.#fixedContextDeadEndNotifiedSessionId = undefined;
-		}
 		const branch = this.#host.sessionManager.getBranch();
 		const preparation = prepareCompaction(branch, settings, model, this.#tokenizer);
 		if (!preparation) return COMPACTION_CHECK_BLOCK_AUTOMATIC_CONTINUATION;
@@ -1925,6 +1996,12 @@ export class SessionMaintenance {
 		const terminalTextAnswer =
 			options.terminalTextAnswer ?? isTerminalTextAssistantAnswer(this.#host.findLastAssistantMessage());
 		const detachPostCommit = options.detachPostCommit === true;
+		const ownsRolloverPass = this.#activeCompactionPass === undefined;
+		const rolloverPass = ownsRolloverPass
+			? this.#compactionService.beginPass({ trigger: "auto", method: "experimental", reason })
+			: this.#activeCompactionPass;
+		await rolloverPass?.plan({ method: "experimental", reason });
+		if (ownsRolloverPass) this.#activeCompactionPass = rolloverPass;
 		try {
 			await this.#emitLifecycleEvent({ type: "auto_compaction_start", reason, action: "context-full" }, false);
 			if (controller.signal.aborted) {
@@ -2028,13 +2105,19 @@ export class SessionMaintenance {
 							details: { kind: "experimental-context-rollover", version: 1 },
 							preserveData: prepared.preserveData,
 						};
-			await this.#commitCompactionEntry({
+			await rolloverPass?.enter("archive", { tokensBefore: result.tokensBefore });
+			const rolloverEntry = await this.#commitCompactionEntry({
 				...result,
 				fromExtension,
 				method: undefined,
 				codexCompaction: undefined,
 				advisorResetReason: "experimental-context-rollover",
 				detachExtensionEmit: detachPostCommit,
+			});
+			await rolloverPass?.commit({
+				...(rolloverEntry ? { entryId: rolloverEntry.id } : {}),
+				tokensBefore: result.tokensBefore,
+				summaryChars: result.summary.length,
 			});
 			this.#experimentalNotesReminderBoundaryId = undefined;
 
@@ -2097,6 +2180,12 @@ export class SessionMaintenance {
 		} finally {
 			if (this.#autoCompactionAbortController === controller) {
 				this.#autoCompactionAbortController = undefined;
+			}
+			if (ownsRolloverPass) {
+				await rolloverPass?.settle(controller.signal.aborted ? "aborted" : "failed", {
+					...(controller.signal.aborted ? {} : { errorMessage: "context rollover did not commit" }),
+				});
+				if (this.#activeCompactionPass === rolloverPass) this.#activeCompactionPass = undefined;
 			}
 		}
 	}
@@ -2359,7 +2448,10 @@ export class SessionMaintenance {
 		// Keyed now: the session can switch before the run settles.
 		const nativeKey = model && this.#nativeSpeculationKey(model);
 		this.#speculation = run;
-		run.promise = this.#runSpeculation(run, method, contextTokens).catch(error => {
+		run.promise = this.#runSpeculation(run, method, contextTokens).catch(async error => {
+			await run.pass?.settle(controller.signal.aborted ? "aborted" : "failed", {
+				errorMessage: error instanceof Error ? error.message : String(error),
+			});
 			logger.debug("Speculative compaction failed", {
 				method,
 				error: error instanceof Error ? error.message : String(error),
@@ -2462,6 +2554,16 @@ export class SessionMaintenance {
 		if (!snapshotLeafId) return clear();
 		const preparation = prepareCompaction(branch, effectiveSettings, model, this.#tokenizer);
 		if (!preparation) return clear();
+		const pass = this.#compactionService.beginPass({
+			trigger: "speculation",
+			method,
+			reason: "threshold",
+			tokensBefore: preparation.tokensBefore,
+		});
+		await pass.plan({ method, reason: "threshold", tokensBefore: preparation.tokensBefore });
+		run.passId = pass.id;
+		run.pass = pass;
+		await pass.enter("summarize", { tokensBefore: preparation.tokensBefore });
 		const signal = run.controller.signal;
 		let armed: ArmedSpeculation;
 		if (method === "handoff") {
@@ -2469,7 +2571,10 @@ export class SessionMaintenance {
 				autoTriggered: true,
 				signal,
 			});
-			if (!generated) return clear();
+			if (!generated) {
+				await pass.settle("failed", { errorMessage: "handoff document was not generated" });
+				return clear();
+			}
 			const { summary, details } = handoffSummaryFromDocument(generated.document, preparation);
 			armed = {
 				result: {
@@ -2488,14 +2593,20 @@ export class SessionMaintenance {
 			const compactionPrep = await this.#prepareCompactionFromHooks(preparation, undefined, signal);
 			// No hookCompaction is passed above, so "fromHook" is unreachable;
 			// the guard just narrows the union.
-			if (compactionPrep.kind === "fromHook") return clear();
+			if (compactionPrep.kind === "fromHook") {
+				await pass.settle("failed", { errorMessage: "extension provided no summarizable preparation" });
+				return clear();
+			}
 			const candidates = this.#getCompactionModelCandidates(
 				this.#host.modelRegistry.getAvailable(),
 				method === "remote" && !effectiveSettings.remoteEndpoint
 					? candidate => canUseLiveProviderNativeCompaction(candidate, model, effectiveSettings)
 					: undefined,
 			);
-			if (candidates.length === 0) return clear();
+			if (candidates.length === 0) {
+				await pass.settle("failed", { errorMessage: "no compaction model candidate was available" });
+				return clear();
+			}
 			const codexCompaction = createCodexCompactionContext({
 				trigger: "auto",
 				reason: "context_limit",
@@ -2531,7 +2642,11 @@ export class SessionMaintenance {
 				contextTokensAtStart: contextTokens,
 			};
 		}
-		if (signal.aborted || this.#speculation !== run) return;
+		if (signal.aborted || this.#speculation !== run) {
+			await pass.settle("aborted", { errorMessage: "speculation was superseded or cancelled" });
+			return;
+		}
+		armed.passId = run.passId;
 		run.armed = armed;
 		logger.debug("Speculative compaction armed", {
 			method,
@@ -2682,7 +2797,18 @@ export class SessionMaintenance {
 		providerReplayThroughEntryId?: string;
 		advisorResetReason: string;
 		detachExtensionEmit?: boolean;
+		/** Speculation pass that produced this summary (armed splice only). */
+		sourcePassId?: string;
 	}): Promise<CompactionEntry | undefined> {
+		// The discarded region as a consistent pre-append snapshot: commit listeners
+		// batch on these ids and must never infer the cut from "everything older".
+		const branchBefore = this.#host.sessionManager.getBranch();
+		const cutIndex = branchBefore.findIndex(entry => entry.id === args.firstKeptEntryId);
+		const discardedEntryIds = cutIndex > 0 ? branchBefore.slice(0, cutIndex).map(entry => entry.id) : [];
+		const tokensAfter =
+			isRecord(args.details) && args.details.kind === "experimental-context-rollover"
+				? this.#projectExperimentalContextRolloverTokens(args)
+				: this.#projectCompactedContextTokens(args);
 		const entryId = this.#host.sessionManager.appendCompaction(
 			args.summary,
 			args.shortSummary,
@@ -2694,10 +2820,7 @@ export class SessionMaintenance {
 				preserveData: args.preserveData,
 				method: args.method,
 				providerReplayThroughEntryId: args.providerReplayThroughEntryId,
-				tokensAfter:
-					isRecord(args.details) && args.details.kind === "experimental-context-rollover"
-						? this.#projectExperimentalContextRolloverTokens(args)
-						: this.#projectCompactedContextTokens(args),
+				tokensAfter,
 			},
 		);
 		this.#host.persistEvalStateContext();
@@ -2725,6 +2848,22 @@ export class SessionMaintenance {
 		// exists once the commit resolves; the host call swallows its own errors,
 		// so a tracking failure can never fail the compaction.
 		if (savedCompactionEntry) await this.#host.recordTrackingCompaction(savedCompactionEntry);
+		if (savedCompactionEntry) {
+			// Stable consumer hook: exactly once per appended entry, after the entry and
+			// the tracking mirror are durable, before `session_compact` fans out.
+			const fidelity = readCompactionFidelity(args.preserveData);
+			await this.#compactionService.notifyCommitted({
+				passId: this.#activeCompactionPass?.id ?? "cmp-unattributed",
+				...(args.sourcePassId ? { sourcePassId: args.sourcePassId } : {}),
+				trigger: this.#activeCompactionPass?.trigger ?? "auto",
+				...(args.method ? { method: args.method } : {}),
+				entry: savedCompactionEntry,
+				cutPoint: { firstKeptEntryId: args.firstKeptEntryId, discardedEntryIds },
+				tokensBefore: args.tokensBefore,
+				tokensAfter,
+				...(fidelity ? { fidelity } : {}),
+			});
+		}
 		if (this.#host.extensionRunner && savedCompactionEntry) {
 			const compactEmit = this.#host.extensionRunner.emit({
 				type: "session_compact",
@@ -3809,13 +3948,16 @@ export class SessionMaintenance {
 			}
 
 			try {
-				return await compact(
-					this.#host.obfuscatePreparationForProvider(preparation),
-					candidate,
-					this.#host.modelRegistry.resolver(candidate, this.#host.sessionId()),
-					this.#host.obfuscateTextForProvider(customInstructions),
+				// The dedicated compaction agent owns the summarizer request and the
+				// summary artifact (extension context + fidelity ledger); this loop
+				// keeps candidate/fallback/error policy.
+				const artifact = await this.#compactionAgent.summarize({
+					preparation: this.#host.obfuscatePreparationForProvider(preparation),
+					model: candidate,
+					resolver: this.#host.modelRegistry.resolver(candidate, this.#host.sessionId()),
+					customInstructions: this.#host.obfuscateTextForProvider(customInstructions),
 					signal,
-					{
+					options: {
 						...options,
 						metadata: this.#host.agent.metadataForProvider(candidate.provider),
 						convertToLlm: messages => this.#host.convertToLlmForSideRequest(messages),
@@ -3856,7 +3998,9 @@ export class SessionMaintenance {
 							return stream.result();
 						},
 					},
-				);
+					tracking: this.#compactionTracking(),
+				});
+				return artifact.result;
 			} catch (error) {
 				const id = AIError.classify(error instanceof NativeCompactionError ? error.cause : error, candidate.api);
 				if (AIError.is(id, AIError.Flag.AuthFailed)) continue;
@@ -4365,14 +4509,27 @@ export class SessionMaintenance {
 		);
 	}
 
-	#compactionDeadEndWarning(remedies: string): string {
-		if (this.#fixedContextExceedsRecoveryBand()) {
-			return (
-				"Compaction cannot create headroom — pausing automatic maintenance. " +
-				"The system prompt and always-sent tool schemas alone exceed the recovery band; " +
-				"reduce fixed context or adjust compaction.modelThresholds."
-			);
+	/**
+	 * When the system prompt and tool schemas alone exceed the recovery band, no
+	 * threshold pass can land under it, and re-running one every turn loops
+	 * (#18589). Returns the blocking result (warning once per session), or
+	 * `undefined` when compaction can still help.
+	 */
+	#thresholdFixedContextDeadEnd(): CompactionCheckResult | undefined {
+		if (!this.#fixedContextExceedsRecoveryBand()) {
+			this.#fixedContextDeadEndNotifiedSessionId = undefined;
+			return undefined;
 		}
+		const sessionId = this.#host.sessionManager.getSessionId();
+		if (this.#fixedContextDeadEndNotifiedSessionId !== sessionId) {
+			this.#host.emitNotice("warning", FIXED_CONTEXT_DEAD_END_WARNING, "compaction");
+			this.#fixedContextDeadEndNotifiedSessionId = sessionId;
+		}
+		return COMPACTION_CHECK_BLOCK_AUTOMATIC_CONTINUATION;
+	}
+
+	#compactionDeadEndWarning(remedies: string): string {
+		if (this.#fixedContextExceedsRecoveryBand()) return FIXED_CONTEXT_DEAD_END_WARNING;
 		return (
 			"Compaction freed too little context to make progress — pausing automatic maintenance to avoid a compaction loop. " +
 			`The most recent turn alone is too large to reduce further; ${remedies} or switch to a larger-context model.`
@@ -5231,6 +5388,11 @@ export class SessionMaintenance {
 		if (reason !== "idle" && !compactionSettings.enabled && !explicitNewContextRequest) {
 			return COMPACTION_CHECK_NONE;
 		}
+		// Every threshold caller and strategy goes through here, so the fixed-context gate lives here once.
+		if (reason === "threshold" && !explicitNewContextRequest) {
+			const deadEnd = this.#thresholdFixedContextDeadEnd();
+			if (deadEnd) return deadEnd;
+		}
 		if (this.#usesExperimentalContextManagement()) {
 			return await this.#runExperimentalContextRollover(reason, willRetry, options);
 		}
@@ -5347,12 +5509,20 @@ export class SessionMaintenance {
 		const autoCompactionSignal = autoCompactionAbortController.signal;
 
 		let compactionCommitted = false;
+		// One pass across the whole auto method-fallback chain; nested fallback
+		// invocations reuse it (same passId, re-emitted plan).
+		const ownsAutoPass = this.#activeCompactionPass === undefined;
+		const autoPass = ownsAutoPass
+			? this.#compactionService.beginPass({ trigger: "auto", method, reason })
+			: this.#activeCompactionPass;
+		if (ownsAutoPass) this.#activeCompactionPass = autoPass;
 		try {
 			// Emit start AFTER the controller is installed so isCompacting is already true
 			// for any listener — and for input routed during this emit's event-loop yield:
 			// a message typed as the compaction loader appears must land in the compaction
 			// queue, not the core steering queue (which handoff's agent.reset() would wipe).
 			const startEvent = { type: "auto_compaction_start" as const, reason, action };
+			await autoPass?.plan({ method, reason, tokensBefore: options.triggerContextTokens });
 			await this.#emitLifecycleEvent(startEvent, false);
 			if (armedSpec) {
 				// A background speculation already produced this compaction's
@@ -5397,6 +5567,7 @@ export class SessionMaintenance {
 					fallbackFromShake,
 					detachPostCommit: options.detachPostCommit === true,
 					autoCompactionSignal,
+					sourcePassId: armedSpec.passId,
 					onCommitted: () => {
 						compactionCommitted = true;
 					},
@@ -5911,6 +6082,7 @@ export class SessionMaintenance {
 						(reason === "threshold" ? "pre_turn" : reason === "idle" ? "standalone_turn" : "mid_turn"),
 				});
 
+				await autoPass?.enter("summarize", { tokensBefore: preparation.tokensBefore });
 				for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
 					const candidate = candidates[candidateIndex];
 					const hasMoreCandidates = candidateIndex < candidates.length - 1;
@@ -5927,13 +6099,12 @@ export class SessionMaintenance {
 					let attempt = 0;
 					while (true) {
 						try {
-							compactResult = await compact(
-								this.#host.obfuscatePreparationForProvider(preparation),
-								candidate,
-								this.#host.modelRegistry.resolver(candidate, this.#host.sessionId()),
-								undefined,
-								autoCompactionSignal,
-								{
+							const artifact = await this.#compactionAgent.summarize({
+								preparation: this.#host.obfuscatePreparationForProvider(preparation),
+								model: candidate,
+								resolver: this.#host.modelRegistry.resolver(candidate, this.#host.sessionId()),
+								signal: autoCompactionSignal,
+								options: {
 									promptOverride: this.#host.obfuscateTextForProvider(compactionPrep.hookPrompt),
 									extraContext: compactionPrep.hookContext,
 									loadExtraContext: compactionPrep.loadMemoryContext,
@@ -5968,7 +6139,9 @@ export class SessionMaintenance {
 									// wait would stack on top of an inner backoff.
 									oneshotRetry: false,
 								},
-							);
+								tracking: this.#compactionTracking(),
+							});
+							compactResult = artifact.result;
 							break;
 						} catch (error) {
 							if (autoCompactionSignal.aborted) {
@@ -6261,6 +6434,12 @@ export class SessionMaintenance {
 			if (this.#autoCompactionAbortController === autoCompactionAbortController) {
 				this.#autoCompactionAbortController = undefined;
 			}
+			if (ownsAutoPass) {
+				await autoPass?.settle(autoCompactionSignal.aborted ? "aborted" : "failed", {
+					...(autoCompactionSignal.aborted ? {} : { errorMessage: "auto-compaction did not commit" }),
+				});
+				if (this.#activeCompactionPass === autoPass) this.#activeCompactionPass = undefined;
+			}
 		}
 		return COMPACTION_CHECK_NONE;
 	}
@@ -6293,6 +6472,8 @@ export class SessionMaintenance {
 		fallbackFromShake: boolean;
 		detachPostCommit: boolean;
 		autoCompactionSignal: AbortSignal;
+		/** Speculation pass that produced the summary for an armed splice. */
+		sourcePassId?: string;
 		onCommitted: () => void;
 	}): Promise<CompactionCheckResult> {
 		const { action, reason, willRetry, detachPostCommit, autoCompactionSignal } = args;
@@ -6324,6 +6505,15 @@ export class SessionMaintenance {
 			providerReplayThroughEntryId: args.providerReplayThroughEntryId,
 			advisorResetReason: "auto-compaction",
 			detachExtensionEmit: detachPostCommit,
+			...(args.sourcePassId ? { sourcePassId: args.sourcePassId } : {}),
+		});
+		await this.#activeCompactionPass?.commit({
+			...(savedCompactionEntry ? { entryId: savedCompactionEntry.id } : {}),
+			tokensBefore: args.tokensBefore,
+			summaryChars: args.summary.length,
+			...(fidelityCounts(readCompactionFidelity(args.preserveData))
+				? { fidelity: fidelityCounts(readCompactionFidelity(args.preserveData)) }
+				: {}),
 		});
 
 		const result: CompactionResult = {

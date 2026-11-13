@@ -76,7 +76,9 @@ export interface Focusable {
 }
 ```
 
-Cursor behavior uses `CURSOR_MARKER` (not `getCursorPosition`). Focused components emit the marker in rendered text; `TUI` extracts it and positions the hardware cursor.
+Cursor behavior uses `CURSOR_MARKER` (not `getCursorPosition`). Focused components emit the marker in rendered text; `TUI` extracts it and positions the hardware cursor. A frame hides the hardware cursor only when it rewrites the row the cursor sits on (or repaints the whole viewport); a quiet repaint leaves a visible cursor untouched, so the IME candidate anchor never flickers at animation rates. On a terminal without synchronized output the hide is emitted immediately before the row writes, never at both ends of every frame. Focus reports (DECSET 1004) are consumed by `TUI`: focus-in re-asserts raw/console input modes, bracketed paste and an active win32-input-mode, then repaints so the hardware cursor returns to the focused input (the IME candidate anchor); a leaked win32-input-mode from a previous process is reset on attach and decoded pass-through. Extensions never need to handle these reports.
+
+Animation-only repaints go through `ui.requestDecorativeRender()` (shimmer, spinner glyphs, strike animation). For 400 ms after a real keystroke that call is held until the pause ends, so decorative frames do not repaint under an IME preedit; input and ordinary content frames are never delayed by it.
 
 Fullscreen overlays opt into the shared hardware cursor only when the user's hardware-cursor preference is enabled and the focused component implements `setUseTerminalCursor`. The focus target must be the top overlay itself or a child it owns via `OverlayFocusOwner.ownsOverlayFocusTarget`; wrappers must forward focus and cursor mode to their input. Emit `CURSOR_MARKER` at the caret without replacing the underlying glyph. With the preference disabled, keep the software cursor; losing focus or removing the marker hides the hardware cursor.
 
@@ -293,6 +295,44 @@ export default function extension(pi: ExtensionAPI): void {
 	});
 }
 ```
+
+## Memory pressure and render-cache shedding
+
+The TUI's render caches are derived data. Markdown renders go through a
+byte-weighted L2 cache (4 MiB aggregate, 512 KiB per entry including the key),
+and transcript blocks release component-owned rows, formatting, and streaming
+state when they retire into native scrollback (`releaseRenderCaches`). Neither
+path drops the semantic transcript, the append-only emission ledger already
+written to scrollback, image ownership, or expansion state.
+
+On Windows the interactive TUI acquires a subscription to Bun's documented
+`process.on("memoryPressure")` event in `InteractiveMode.init()` and releases
+it in `stop()` (`packages/coding-agent/src/task/memory-shed.ts`). Each UI has a
+stable owner identity: repeated init acquires no extra lease, one UI stopping
+does not unsubscribe another, and the last stop removes the shared listener.
+Restart acquires a fresh lease; stale or repeated stops do nothing. Each event
+clears the process-wide Markdown L2 and mermaid L1 caches once, regardless of
+the number of owners. The next frame re-renders from semantic content.
+
+Scope of the claim: Bun's type definitions document the event and its levels,
+but this repository has not observed a native OS signal. Tests inject the level
+and assert that the adapter drops caches; a registered listener is not treated
+as proof of OS delivery. Other platforms keep only the sampled checkpoints
+(spawn permit, workpool ceiling, turn end).
+
+Retention is guarded with consumer bytes rather than cache constants:
+`packages/tui/test/render-cache-consumer-bounds.test.ts` measures retained heap
+after a full GC, and `packages/tui/test/render-cache-pressure-restore.test.ts`
+checks restore-safe output. For profiling, `bun scripts/memory-soak.ts` runs a
+bounded scripted session (large Markdown output, transcript commits, width
+cycles) and samples RSS/heap plus the Windows commit charge
+(`Get-Counter '\Memory\Committed Bytes'`). Each commit query runs
+asynchronously with at most one probe in flight, so the render workload keeps
+running while PowerShell starts; the last received value is carried into later
+samples. The query has a 10 s budget, and a timeout or unusable output records
+no commit value rather than a fabricated zero. It is report-only unless given
+`--max-rss-growth-mib=<measured + headroom>`; do not commit a threshold that was
+not measured on the runner it gates.
 
 ## Key implementation files
 

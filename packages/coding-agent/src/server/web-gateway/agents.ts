@@ -20,6 +20,7 @@ import type { ImageContent } from "@linxiraos/pi-ai";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
+import type { AgentProfileOptions } from "../../agent-profile";
 import type { ImControlParams, ImControlResult } from "../../channels/im-control";
 import { approveRemotePlan } from "../../channels/plan-approval";
 import type { BashResult } from "../../exec/bash-executor";
@@ -34,11 +35,7 @@ import {
 	getExtensionUISelectOptionLabel,
 	timedOutAskDialogResult,
 } from "../../extensibility/extensions/types";
-import {
-	GOAL_CONTINUATION_MODE_WEB,
-	GoalContinuationController,
-	type GoalContinuationOp,
-} from "../../goals/continuation-controller";
+import { RpcGoalController, type RpcGoalOp } from "../../goals/continuation-controller";
 import { RpcLiveBridge } from "../../modes/rpc/rpc-live";
 import { executeAcpBuiltinSlashCommand } from "../../slash-commands/acp-builtins";
 import { type BackendLoopState, LoopContinuationController } from "../../loop/continuation-controller";
@@ -49,6 +46,7 @@ import { createAgentSession } from "../../sdk";
 import { type AgentSession, type ModeId } from "../../session/agent-session";
 import type { AgentSessionEvent } from "../../session/agent-session-events";
 import type { SessionClient } from "../../session/session-entries";
+import { SESSION_CLIENT_HEADER, clientFromHeaderValue } from "../../session/session-client";
 import { SessionManager } from "../../session/session-manager";
 import type { SessionOrigin } from "../../session/session-origin";
 import { type TodoPhase } from "@linxiraos/pi-tui/tools/todo";
@@ -88,7 +86,8 @@ const DRAIN_BLOCKED_COMMANDS = new Set<AgentCommand["type"]>([
 	"guided_goal",
 ]);
 /** Goal ops that arm or resume continuations are new work; get/pause/drop/budget are not. */
-const DRAIN_BLOCKED_GOAL_OPS = new Set<GoalContinuationOp>(["create", "resume"]);
+const GOAL_CONTINUATION_MODE_WEB = "web";
+const DRAIN_BLOCKED_GOAL_OPS = new Set<RpcGoalOp>(["create", "resume"]);
 
 export type AgentCommand =
 	| {
@@ -102,7 +101,7 @@ export type AgentCommand =
 			loopBody?: boolean;
 	  }
 	| { type: "guided_goal"; message?: string; images?: unknown[] }
-	| { type: "goal"; op: GoalContinuationOp; objective?: string; token_budget?: number }
+	| { type: "goal"; op: RpcGoalOp; objective?: string; token_budget?: number }
 	| { type: "remove_queued_message"; message: string; queue: "steering" | "followUp" }
 	| { type: "promote_queued_message"; message: string }
 	| { type: "abort_and_restore_queue" }
@@ -353,7 +352,7 @@ export class AgentSessionWrapper {
 	 * completion/drop exit, reattach across session changes, and the opt-in
 	 * continuation turn (`goal.continuationModes: ["web"]`).
 	 */
-	#goalController: GoalContinuationController;
+	#goalController: RpcGoalController;
 	/** Backend-owned `/loop`; one instance per wrapper, so a loop never crosses sessions. */
 	#loopController: LoopContinuationController;
 	/** Backend-owned live voice; one bridge per wrapper, shared by every attached client. */
@@ -389,7 +388,7 @@ export class AgentSessionWrapper {
 				if (!this.#destroyed) this.#emit({ type: "command_output", text: reason });
 			},
 		});
-		this.#goalController = new GoalContinuationController(inner, {
+		this.#goalController = new RpcGoalController(inner, {
 			continuationMode: GOAL_CONTINUATION_MODE_WEB,
 			continuationSuppressed: () => this.#loopController.active,
 		});
@@ -437,7 +436,7 @@ export class AgentSessionWrapper {
 	}
 
 	/** Shared goal controller; hosted RPC sockets must not create a second one. */
-	getGoalController(): GoalContinuationController {
+	getGoalController(): RpcGoalController {
 		return this.#goalController;
 	}
 
@@ -1476,6 +1475,7 @@ export async function startRpcSession(
 	channelHooks?: SessionChannelHooks,
 	client: SessionClient = "web",
 	origin?: SessionOrigin,
+	agentProfile?: AgentProfileOptions,
 ): Promise<{ session: AgentSessionWrapper; realSessionId: string }> {
 	const existingLock = startLocks.get(key);
 	if (existingLock) return existingLock;
@@ -1510,6 +1510,7 @@ export async function startRpcSession(
 			channelSend: channelHooks?.channelSend,
 			workspaceRun: channelHooks?.workspaceRun,
 			imControl: channelHooks?.imControl,
+			...(agentProfile === undefined ? {} : { agentProfile }),
 			// Serve-hosted sessions own a real UI backend: createGatewayUiContext
 			// below routes select/editor over SSE (`extension_ui_request`) and
 			// resolves them via the `extension_ui_response` command. Declaring
@@ -1560,6 +1561,9 @@ function json(data: unknown, status = 200): Response {
 
 export async function handleAgentNew(req: Request): Promise<Response> {
 	if (isGatewayDraining()) return json({ error: "backend is draining; no new sessions" }, 503);
+	// Transport metadata only, never authorization. An absent/unknown header
+	// keeps the web gateway's own client kind; it never guesses CLI.
+	const runClient = clientFromHeaderValue(req.headers.get(SESSION_CLIENT_HEADER)) ?? "web";
 	try {
 		const body = (await req.json()) as { cwd?: string; type?: string; [key: string]: unknown };
 		const { cwd, ...command } = body;
@@ -1585,7 +1589,7 @@ export async function handleAgentNew(req: Request): Promise<Response> {
 		};
 
 		const tempKey = `__new__${randomUUID()}`;
-		const { session, realSessionId } = await startRpcSession(tempKey, "", cwd, toolNames);
+		const { session, realSessionId } = await startRpcSession(tempKey, "", cwd, toolNames, undefined, runClient);
 
 		if (provider && modelId) {
 			await session.send({ type: "set_model", provider, modelId });
@@ -1607,6 +1611,9 @@ export async function handleAgentNew(req: Request): Promise<Response> {
 }
 
 export async function handleAgentCommand(req: Request, sessionId: string): Promise<Response> {
+	// Metadata only: a resume/attach run records the transport's real client
+	// kind on a run_init entry; the creator's header is never rewritten.
+	const runClient = clientFromHeaderValue(req.headers.get(SESSION_CLIENT_HEADER)) ?? "web";
 	try {
 		const body = (await req.json()) as AgentCommand;
 		if (
@@ -1626,7 +1633,7 @@ export async function handleAgentCommand(req: Request, sessionId: string): Promi
 			return json({ error: "Session not found" }, 404);
 		}
 
-		const { session } = await startRpcSession(sessionId, filePath);
+		const { session } = await startRpcSession(sessionId, filePath, undefined, undefined, undefined, runClient);
 		const result = await session.send(body);
 		return json({ success: true, data: result });
 	} catch (error) {
@@ -1650,6 +1657,7 @@ export async function handleAgentState(sessionId: string): Promise<Response> {
 }
 
 export async function handleAgentEvents(req: Request, sessionId: string): Promise<Response> {
+	const runClient = clientFromHeaderValue(req.headers.get(SESSION_CLIENT_HEADER)) ?? "web";
 	let session = sessions.get(sessionId);
 	if (!session?.isAlive()) {
 		const filePath = await resolveSessionPath(sessionId);
@@ -1657,7 +1665,7 @@ export async function handleAgentEvents(req: Request, sessionId: string): Promis
 			return new Response("Session not found", { status: 404 });
 		}
 		try {
-			({ session } = await startRpcSession(sessionId, filePath));
+			({ session } = await startRpcSession(sessionId, filePath, undefined, undefined, undefined, runClient));
 		} catch (error) {
 			return new Response(`Failed to start agent: ${String(error)}`, { status: 500 });
 		}

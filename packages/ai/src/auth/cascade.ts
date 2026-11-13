@@ -1,9 +1,9 @@
 import { authPolicyFor } from "@linxiraos/pi-catalog/compat/auth";
 import { $env, $envExact, logger } from "@linxiraos/pi-utils";
-import { type ApiKeyResolver, createOAuthProvenance, markAfterSiblingWait, type ResolvedApiKey } from "../auth-retry";
+import { type ApiKeyResolver, createOAuthProvenance, type ResolvedApiKey, resolveAfterRotation } from "../auth-retry";
 import { getEnvApiKey, getEnvApiKeyName } from "../env-api-key";
 import * as AIError from "../error";
-import { isUsageLimitOutcome } from "../error/rate-limit";
+import { assertProviderEnabled, providerPauseReason } from "../registry/oauth";
 import { AUTHENTICATED_SENTINEL } from "../registry/types";
 import type { SessionAffinity } from "./affinity";
 import type { CredentialPool } from "./pool";
@@ -175,7 +175,7 @@ export interface KeyCascadeDeps {
 	sourceLabel?: string;
 }
 
-/** The provider auth precedence cascade (runtime → config → OAuth → login key → env → stored key → compat mirror). */
+/** The provider auth precedence cascade (runtime → config → OAuth → login key → env → stored key). */
 export class KeyCascade implements KeysApi {
 	#deps: KeyCascadeDeps;
 
@@ -232,13 +232,14 @@ export class KeyCascade implements KeysApi {
 	/**
 	 * Classify where a provider's auth comes from, following the same precedence
 	 * as {@link KeyCascade.get}: runtime override → config override →
-	 * stored OAuth → login-stored api_key → config fallback → env var →
-	 * stored api_key → compat mirror. Returns undefined when no auth is configured.
+	 * stored OAuth → login-stored api_key → config fallback → env var → stored api_key.
+	 * Returns undefined when no auth is configured.
 	 *
 	 * Compact, structured counterpart to {@link KeyCascade.describe}; `env`
 	 * selects dedicated-only, alias-aware, or no environment fallback.
 	 */
 	source(provider: string, { env = "dedicated" }: AuthSourceOptions = {}): AuthSource | undefined {
+		if (providerPauseReason(provider) !== undefined) return undefined;
 		if (this.#deps.overrides.runtimeKey(provider) !== undefined) return { kind: "runtime", concrete: true };
 		if (this.#deps.overrides.configKey(provider) !== undefined) return { kind: "config", concrete: true };
 		const bearing = this.#getAuthBearingCredentials(provider);
@@ -281,6 +282,7 @@ export class KeyCascade implements KeysApi {
 	 * one namespace.
 	 */
 	async peek(provider: string, options?: AuthPeekOptions): Promise<string | undefined> {
+		if (providerPauseReason(provider) !== undefined) return undefined;
 		const runtimeKey = this.#deps.overrides.runtimeKey(provider);
 		if (runtimeKey) {
 			return runtimeKey;
@@ -357,6 +359,7 @@ export class KeyCascade implements KeysApi {
 		sessionId?: string,
 		options?: AuthApiKeyOptions,
 	): Promise<ResolvedApiKey | undefined> {
+		assertProviderEnabled(provider);
 		let credentialId: number | undefined;
 		let oauthIdentity: OAuthRequestIdentity | undefined;
 		let oauthAccess: string | undefined;
@@ -377,8 +380,6 @@ export class KeyCascade implements KeysApi {
 	/**
 	 * Get API key for a provider.
 	 * Priority (first match wins): runtime override, config override, OAuth,
-	 * login API key, environment variable, another stored API key, then the
-	 * lowest-tier OMP compat mirror.
 	 * login API key, environment variable, then another stored API key.
 	 * A session restricted by `sessions.restrict` resolves only its allowed
 	 * OAuth accounts and throws {@link AIError.MissingApiKeyError} when none
@@ -411,6 +412,9 @@ export class KeyCascade implements KeysApi {
 		options?: AuthApiKeyOptions,
 		onCredentialId?: (id: number, identity?: OAuthRequestIdentity, oauthAccess?: string) => void,
 	): Promise<string | undefined> {
+		// A provider turned off in its auth rules is reached by no key source:
+		// runtime, models.yml, stored, env or broker.
+		if (providerPauseReason(provider) !== undefined) return undefined;
 		const restricted = this.#deps.affinity.isRestricted(provider, sessionId);
 		// Runtime override takes highest priority
 		const runtimeKey = restricted ? undefined : this.#deps.overrides.runtimeKey(provider);
@@ -540,19 +544,11 @@ export class KeyCascade implements KeysApi {
 				const rotation = await this.#deps.rotate(provider, sessionId, {
 					error,
 					modelId,
+					baseUrl,
 					signal,
 					apiKey: previousKey,
 				});
-				if (!rotation.switched) {
-					const status = AIError.status(error);
-					const message = error instanceof Error ? error.message : typeof error === "string" ? error : undefined;
-					// Preserve no-sibling quota backoff instead of re-resolving an
-					// already-blocked fallback. Hard-auth declines still re-resolve
-					// because a peer may have refreshed the failed bearer.
-					if (AIError.isUsageLimit(error) || isUsageLimitOutcome(status, message)) return undefined;
-				}
-				const resolved = await resolve({ signal });
-				return rotation.afterSiblingWait ? markAfterSiblingWait(resolved) : resolved;
+				return resolveAfterRotation(rotation, error, () => resolve({ signal }));
 			}
 			return resolve({
 				forceRefresh: true,
@@ -573,11 +569,11 @@ export class KeyCascade implements KeysApi {
 	 *   4. API key persisted by a successful `/login`.
 	 *   5. Env var — overrides a stored static api_key (e.g. a stale broker copy).
 	 *   6. Stored api_key credential.
-	 *   7. OMP compatibility mirror (upstream agent.db fallback key).
 	 *
 	 * The string is purely informational; consumers must not parse it.
 	 */
 	describe(provider: string, sessionId?: string): string | undefined {
+		if (providerPauseReason(provider) !== undefined) return undefined;
 		if (this.#deps.overrides.runtimeKey(provider) !== undefined) {
 			return "runtime override (--api-key)";
 		}

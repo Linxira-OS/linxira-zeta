@@ -11,6 +11,7 @@ import type {
   ConfigWriteResult,
   McpServerRecord,
   McpTestResult,
+  PluginPageGroup,
   StudioClient,
 } from "@linxiraos/studio-contract";
 import type { OperatorCommandManifest } from "@linxiraos/studio-protocol";
@@ -41,6 +42,22 @@ import {
   type SkillPreview,
 } from "./skillsPreview";
 import { usePreviewMode } from "./preview/PreviewContext";
+import { pluginViewHref } from "./plugins/bridge";
+import "./plugins/plugins.css";
+
+/** Installed web plugin pages, grouped by plugin; empty when unavailable. */
+async function loadPluginPageGroups(client: StudioClient): Promise<readonly PluginPageGroup[]> {
+  try {
+    const cwd = client !== null && "cwd" in client ? client.cwd : undefined;
+    const model = await client.query(
+      "plugins.pages",
+      typeof cwd === "string" && cwd !== "" ? { cwd } : {},
+    );
+    return model.plugins.filter(group => group.pages.length > 0);
+  } catch {
+    return [];
+  }
+}
 
 export const CAP_INTENT_KEY = "zeta.capIntent";
 
@@ -253,6 +270,7 @@ export function CapabilitiesPage({
   }, [visibleTabs, tab]);
   const [skills, setSkills] = useState<SkillPreview[]>(() => preview ? previewSkills() : []);
   const [plugins, setPlugins] = useState<PluginPreview[]>(() => preview ? previewPlugins() : []);
+  const [pluginPageGroups, setPluginPageGroups] = useState<readonly PluginPageGroup[]>([]);
   const [mcp, setMcp] = useState<PreviewMcp[]>(() => preview ? createPreviewMcp() : []);
   const [mcpServers, setMcpServers] = useState<McpServerRecord[]>([]);
   const [commandManifest, setCommandManifest] = useState<OperatorCommandManifest | undefined>();
@@ -292,16 +310,18 @@ export function CapabilitiesPage({
     if (preview) {
       setSkills(previewSkills());
       setPlugins(previewPlugins());
+      setPluginPageGroups([]);
       setMcp(createPreviewMcp());
       setMcpServers([]);
       setCommandManifest(undefined);
       setLoadError(null);
       return;
     }
-    const [skillsResult, mcpResult, manifestResult] = await Promise.allSettled([
+    const [skillsResult, mcpResult, manifestResult, pageGroups] = await Promise.allSettled([
       client.query("skills.get", {}),
       supports("mcp.get") ? client.query("mcp.get", {}) : Promise.resolve(null),
       supports("commands.getManifest") ? client.query("commands.getManifest", {}) : Promise.resolve(null),
+      loadPluginPageGroups(client),
     ]);
     let identityError: string | null = null;
     if (skillsResult.status === "fulfilled") {
@@ -327,6 +347,7 @@ export function CapabilitiesPage({
       setMcpServers([]);
     }
     setCommandManifest(manifestResult.status === "fulfilled" ? manifestResult.value ?? undefined : undefined);
+    setPluginPageGroups(pageGroups.status === "fulfilled" ? pageGroups.value : []);
     const loadError = skillsResult.status === "rejected"
       ? (skillsResult.reason instanceof Error ? skillsResult.reason.message : "skills.get failed")
       : skillsResult.value.unavailableReason ?? null;
@@ -722,6 +743,37 @@ export function CapabilitiesPage({
             { cls: "red", n: fail, label: t("capabilities.statusFailed") },
           ]}
         />
+        {pluginPageGroups.length > 0 ? (
+          <div className="cap-provide plugin-pages-index">
+            <div className="cap-provide-head">
+              <Icon name="monitor" extra="xs" />
+              <span>{zh ? "插件页面" : "Plugin pages"}</span>
+              <span className="cap-provide-count">{pluginPageGroups.reduce((total, group) => total + group.pages.length, 0)}</span>
+            </div>
+            {pluginPageGroups.map((group) => (
+              <div key={group.id} className="plugin-pages-group">
+                <span className="plugin-pages-group-name" title={group.id}>
+                  {group.name || group.id}{group.name && group.name !== group.id ? ` · ${group.id}` : ""}
+                </span>
+                <div className="cap-provide-items">
+                  {group.pages.map((entry) => {
+                    const href = pluginViewHref(group.id, entry.entry);
+                    return href === null ? null : (
+                      <a
+                        key={`${group.id}/${entry.id}`}
+                        className="cap-provide-item plugin-page-link"
+                        href={href}
+                        title={`${group.id}/${entry.entry}`}
+                      >
+                        {entry.title || entry.entry}
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
         {withUniqueDrawerKeys(plugins).map(({ item: plugin, key }) => {
           const err = Boolean(plugin.err);
           const enabled = plugin.enabled ?? plugin.status === "loaded";

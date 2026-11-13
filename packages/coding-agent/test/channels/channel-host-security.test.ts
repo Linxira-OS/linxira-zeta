@@ -95,22 +95,27 @@ function makeStubCoordinator(): StubCoordinator {
 
 function sentCollector(): {
 	sent: Array<{ channel: string; to: string; text: string }>;
-	send: (channel: string, to: string, text: string) => Promise<void>;
+	send: (instanceId: string, to: string, text: string) => Promise<void>;
 } {
 	const sent: Array<{ channel: string; to: string; text: string }> = [];
 	return {
 		sent,
-		send: async (channel, to, text) => {
-			sent.push({ channel, to, text });
+		send: async (instanceId, to, text) => {
+			sent.push({ channel: instanceId, to, text });
 		},
 	};
+}
+
+/** Instance-scoped allowlist for the `telegram` fixtures in this file. */
+function allow(peers: string[], users?: string[]) {
+	return { perInstance: { telegram: { peers, ...(users ? { users } : {}) } } };
 }
 
 describe("ChannelHost inbound authorization", () => {
 	test("an unauthorized peer is refused before the session sees the message", async () => {
 		const stub = makeStubCoordinator();
 		const { sent, send } = sentCollector();
-		const host = new ChannelHost(stub.session, send, ["owner"]);
+		const host = new ChannelHost(stub.session, send, allow(["owner"]));
 		host.start();
 
 		const result = await host.deliver("telegram", "intruder", "@workspace open /etc");
@@ -124,7 +129,7 @@ describe("ChannelHost inbound authorization", () => {
 	test("an allowed peer reaches the session", async () => {
 		const stub = makeStubCoordinator();
 		const { sent, send } = sentCollector();
-		const host = new ChannelHost(stub.session, send, ["owner"]);
+		const host = new ChannelHost(stub.session, send, allow(["owner"]));
 		host.start();
 
 		const result = await host.deliver("telegram", "owner", "hello");
@@ -135,14 +140,15 @@ describe("ChannelHost inbound authorization", () => {
 		host.stop();
 	});
 
-	test("an empty allowlist keeps the historical open behavior", async () => {
+	test("an empty instance allowlist is deny-by-default, not open", async () => {
 		const stub = makeStubCoordinator();
-		const { send } = sentCollector();
-		const host = new ChannelHost(stub.session, send, []);
+		const { sent, send } = sentCollector();
+		const host = new ChannelHost(stub.session, send, allow([]));
 		host.start();
 
-		expect(await host.deliver("telegram", "anyone", "hi")).toEqual({ ok: true });
-		expect(stub.deliveries).toHaveLength(1);
+		expect(await host.deliver("telegram", "anyone", "hi")).toEqual({ ok: false, reason: "peer-not-allowed" });
+		expect(stub.deliveries).toHaveLength(0);
+		expect(sent).toEqual([{ channel: "telegram", to: "anyone", text: CHANNEL_PEER_REFUSED_TEXT }]);
 		host.stop();
 	});
 });
@@ -151,7 +157,7 @@ describe("ChannelHost dedupe", () => {
 	test("a retried platform message id is injected once", async () => {
 		const stub = makeStubCoordinator();
 		const { sent, send } = sentCollector();
-		const host = new ChannelHost(stub.session, send);
+		const host = new ChannelHost(stub.session, send, allow(["1001"]));
 		host.start();
 
 		expect(await host.deliver("telegram", "1001", "hello", "42")).toEqual({ ok: true });
@@ -168,7 +174,7 @@ describe("ChannelHost dedupe", () => {
 	test("different message ids on the same chat are both delivered", async () => {
 		const stub = makeStubCoordinator();
 		const { send } = sentCollector();
-		const host = new ChannelHost(stub.session, send);
+		const host = new ChannelHost(stub.session, send, allow(["1001"]));
 		host.start();
 
 		expect(await host.deliver("telegram", "1001", "one", "1")).toEqual({ ok: true });
@@ -182,7 +188,7 @@ describe("ChannelHost reply correlation", () => {
 	test("two chats on one session each receive their own answer", async () => {
 		const stub = makeStubCoordinator();
 		const { sent, send } = sentCollector();
-		const host = new ChannelHost(stub.session, send);
+		const host = new ChannelHost(stub.session, send, allow(["peer-a", "peer-b"]));
 		host.start();
 
 		await host.deliver("telegram", "peer-a", "question a");
@@ -206,7 +212,7 @@ describe("ChannelHost reply correlation", () => {
 	test("a Studio/attach turn consumes no IM reply slot", async () => {
 		const stub = makeStubCoordinator();
 		const { sent, send } = sentCollector();
-		const host = new ChannelHost(stub.session, send);
+		const host = new ChannelHost(stub.session, send, allow(["peer-a", "peer-b"]));
 		host.start();
 
 		await host.deliver("telegram", "peer-a", "question");
@@ -224,7 +230,7 @@ describe("ChannelHost reply correlation", () => {
 	test("the auto-reply hook answers the exact delivered message", async () => {
 		const stub = makeStubCoordinator();
 		const { sent, send } = sentCollector();
-		const host = new ChannelHost(stub.session, send);
+		const host = new ChannelHost(stub.session, send, allow(["peer-a", "peer-b"]));
 		host.start();
 
 		await host.deliver("telegram", "peer-a", "question a");

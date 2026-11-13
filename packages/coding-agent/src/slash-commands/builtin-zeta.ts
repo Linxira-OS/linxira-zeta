@@ -3,6 +3,11 @@ import * as path from "node:path";
 import { getProjectTrackingDir } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { handleDesignCommand } from "../design/command";
+import { parseInitTeamArgs, runInitTeamCommand } from "../team/bootstrap-command";
+import { runTeamWorkerCommand } from "../team/engineer-worker";
+import { resolveTeamEntry } from "../team/entry";
+import { createTeamHubDataSource } from "../team/hub-data";
+import { formatTeamHubSnapshot } from "../team/hub-text";
 import { cfgLanguage } from "../zeta-settings";
 import { cfgSessionTimeInjectEvery, cfgTrackingEnabled } from "../tools/settings";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
@@ -47,12 +52,94 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		handle: handleDesignCommand,
 	},
 	{
+		name: "initzetateam",
+		description: () => M.cmdInitZetaTeam,
+		icon: "agents",
+		allowArgs: true,
+		handle: async (command, runtime) => {
+			try {
+				const result = await runInitTeamCommand(parseInitTeamArgs(command.args));
+				await runtime.output(result.text);
+			} catch (error) {
+				await runtime.output(error instanceof Error ? error.message : String(error));
+				return { consumed: true, failed: true };
+			}
+			return commandConsumed();
+		},
+		handleTui: async (command, runtime) => {
+			try {
+				const result = await runInitTeamCommand(parseInitTeamArgs(command.args));
+				runtime.ctx.showStatus(result.text);
+			} catch (error) {
+				runtime.ctx.showWarning(error instanceof Error ? error.message : String(error));
+			}
+			runtime.ctx.editor.setText("");
+		},
+	},
+	{
+		name: "teamworker",
+		description: () => M.cmdTeamWorker,
+		icon: "agents",
+		allowArgs: true,
+		inlineHint: "[on|off|status] [normal|vibe]",
+		handle: async (command, runtime) => {
+			try {
+				await runtime.output(await runTeamWorkerCommand(runtime.session, runtime.cwd, command.args));
+			} catch (error) {
+				await runtime.output(error instanceof Error ? error.message : String(error));
+				return { consumed: true, failed: true };
+			}
+			return commandConsumed();
+		},
+		handleTui: async (command, runtime) => {
+			try {
+				runtime.ctx.showStatus(
+					await runTeamWorkerCommand(
+						runtime.ctx.session,
+						runtime.ctx.session.sessionManager.getCwd(),
+						command.args,
+					),
+				);
+			} catch (error) {
+				runtime.ctx.showWarning(error instanceof Error ? error.message : String(error));
+			}
+			runtime.ctx.editor.setText("");
+		},
+	},
+	{
 		name: "team",
 		description: () => M.cmdTeam,
 		icon: "agents",
 		subcommands: [{ name: "hub", description: () => M.cmdTeamHub }],
 		subcommandOptional: true,
 		allowArgs: true,
+		handle: async (command, runtime) => {
+			const [sub = ""] = command.args.trim().split(/\s+/).filter(Boolean);
+			if (sub.toLowerCase() !== "hub") {
+				await runtime.output(M.teamHubUsage);
+				return commandConsumed();
+			}
+			try {
+				const entry = await resolveTeamEntry(runtime.cwd);
+				if (!entry.teamRoot || !entry.teamId) {
+					await runtime.output(
+						"Team Hub is available inside a Team root or PM/engineer worktree. Run `zetacode team init <name> --root <path>` first.",
+					);
+					return commandConsumed();
+				}
+				const source = createTeamHubDataSource({
+					teamRoot: entry.teamRoot,
+					teamId: entry.teamId,
+					teamName: entry.teamName,
+				});
+				const snapshot = await source.load();
+				await runtime.output(formatTeamHubSnapshot(snapshot));
+			} catch (error) {
+				await runtime.output(`Team Hub unavailable: ${error instanceof Error ? error.message : String(error)}`);
+				return { consumed: true, failed: true };
+			}
+			return commandConsumed();
+		},
 		handleTui: (command, runtime) => {
 			const sub = command.args.trim().split(/\s+/)[0]?.toLowerCase();
 			if (sub === "hub") {
@@ -150,7 +237,8 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		],
 		allowArgs: true,
 		handle: async (command, runtime) => {
-			const { text, notice } = await resolveTrackingCommand(runtime.settings, command, runtime.cwd);
+			const { text, notice, changed } = await resolveTrackingCommand(runtime.settings, command, runtime.cwd);
+			if (changed === false) return commandConsumed();
 			if (notice) {
 				await runtime.session.sendCustomMessage(
 					{ customType: TRACKING_TOGGLE_NOTICE_TYPE, content: notice, display: false },
@@ -161,11 +249,15 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			return commandConsumed();
 		},
 		handleTui: async (command, runtime) => {
-			const { text, notice } = await resolveTrackingCommand(
+			const { text, notice, changed } = await resolveTrackingCommand(
 				runtime.ctx.settings,
 				command,
 				runtime.ctx.sessionManager.getCwd(),
 			);
+			if (changed === false) {
+				runtime.ctx.editor.setText("");
+				return;
+			}
 			if (notice) {
 				await runtime.ctx.session.sendCustomMessage(
 					{ customType: TRACKING_TOGGLE_NOTICE_TYPE, content: notice, display: false },
@@ -242,6 +334,8 @@ interface TrackingCommandOutcome {
 	text: string;
 	/** Model-visible notice; present only when `tracking.enabled` actually flipped. */
 	notice?: string;
+	/** `false` when `on`/`off` was already in that state: no notice and no output. */
+	changed?: boolean;
 }
 
 /**
@@ -259,7 +353,7 @@ async function resolveTrackingCommand(
 	if (arg === "on" || arg === "off") {
 		const enabled = arg === "on";
 		if (cfgTrackingEnabled.get(settings) === enabled) {
-			return { text: M.cmdTrackingUnchanged };
+			return { text: M.cmdTrackingUnchanged, changed: false };
 		}
 		settings.writeValue(cfgTrackingEnabled, enabled, "global");
 		const dir = getProjectTrackingDir(cwd);
@@ -317,71 +411,75 @@ async function buildTrackingReport(command: ParsedSlashCommand, cwd: string): Pr
 	const indexPath = path.join(dir, "INDEX.md");
 	const sessionsDir = path.join(dir, "sessions");
 
-	const emptyHint = `（无追踪数据。用 /tracking start 开始维护项目追踪文档。）`;
+	const emptyHint = M.cmdTrackingEmptyHint;
 
 	switch (arg) {
 		case "start": {
 			let seededNote: string;
 			try {
 				await fs.access(indexPath);
-				seededNote = `索引已存在: ${indexPath}`;
+				seededNote = formatMessage(M.cmdTrackingStartSeededExistsFmt, indexPath);
 			} catch {
 				await Bun.write(indexPath, `${indexTemplate.replace("{{PROJECT}}", "Project Tracking")}\n`);
-				seededNote = `已按三读者模板生成索引: ${indexPath}（人 / agent / 协作者）`;
+				seededNote = formatMessage(M.cmdTrackingStartSeededCreatedFmt, indexPath);
 			}
-			return (
-				"开始维护项目追踪文档：我会在里程碑、重要决策、阶段完成与阻塞解除后调用 tracking_update 工具，\n" +
-				`把状态（status.json）、索引（INDEX.md）、操作日志（actions.<日期>.jsonl.log，5 MB × 3 份轮转）、阶段（sync_todo）与计划（sessions/）写入 ${dir}。\n` +
-				"追踪文档独立于记忆机制，跨会话保留，可在 Web UI 追踪面板查看。三读者定位：人 / agent / 协作者。\n" +
-				"追踪只记过程状态（阶段 / 阻塞 / 计划镜像），绝不存学到的知识事实——事实请用记忆工具；动态状态先写入追踪文档，再由读者读取文档。\n" +
-				seededNote
-			);
+			return formatMessage(M.cmdTrackingStartFmt, dir, seededNote);
 		}
 		case "status": {
 			try {
 				const parsed = JSON.parse(await Bun.file(statusPath).text()) as TrackingStatus;
-				return [
-					`阶段: ${parsed.phase || "（未设置）"}`,
-					`进度: ${parsed.progress || "（未设置）"}`,
-					`阻塞: ${parsed.blockers?.length ? parsed.blockers.join("；") : "无"}`,
-					`决策: ${parsed.decisions?.length ? parsed.decisions.join("；") : "无"}`,
-					`更新: ${parsed.lastUpdated || "—"}`,
-				].join("\n");
+				return formatMessage(
+					M.cmdTrackingStatusReportFmt,
+					parsed.phase || M.cmdTrackingUnset,
+					parsed.progress || M.cmdTrackingUnset,
+					parsed.blockers?.length ? parsed.blockers.join("; ") : M.cmdTrackingNone,
+					parsed.decisions?.length ? parsed.decisions.join("; ") : M.cmdTrackingNone,
+					parsed.lastUpdated || "—",
+				);
 			} catch {
-				return `状态文件不存在: ${statusPath}\n${emptyHint}`;
+				return formatMessage(M.cmdTrackingMissingStatusFmt, statusPath, emptyHint);
 			}
 		}
 		case "index": {
 			try {
 				return await Bun.file(indexPath).text();
 			} catch {
-				return `索引文件不存在: ${indexPath}\n${emptyHint}`;
+				return formatMessage(M.cmdTrackingMissingIndexFmt, indexPath, emptyHint);
 			}
 		}
 		case "log": {
 			const lines = await readTrackingActionRows(dir);
-			if (lines.length === 0) return `操作日志为空: ${dir}\n${emptyHint}`;
+			if (lines.length === 0) return formatMessage(M.cmdTrackingEmptyLogFmt, dir, emptyHint);
 			const rows = lines.slice(-10).map(line => {
 				try {
 					const entry = JSON.parse(line) as { timestamp?: string; action?: string; detail?: string };
-					return `${entry.timestamp ?? "—"}  ${entry.action ?? ""}${entry.detail ? `（${entry.detail}）` : ""}`;
+					return `${entry.timestamp ?? "—"}  ${entry.action ?? ""}${entry.detail ? ` · ${entry.detail}` : ""}`;
 				} catch {
 					return line;
 				}
 			});
-			return `最近 ${rows.length} 条操作（共 ${lines.length} 条）:\n${rows.join("\n")}`;
+			return formatMessage(
+				M.cmdTrackingRecentActionsFmt,
+				String(rows.length),
+				String(lines.length),
+				rows.join("\n"),
+			);
 		}
 		case "plan": {
 			try {
 				const entries = await fs.readdir(sessionsDir).catch(() => [] as string[]);
 				const plans = entries.filter((name: string) => name.endsWith(".md"));
-				if (plans.length === 0) return `暂无追踪计划（${sessionsDir}）`;
-				return `追踪计划（${plans.length}）:\n${plans.map((name: string) => `  - ${name}`).join("\n")}`;
+				if (plans.length === 0) return formatMessage(M.cmdTrackingNoPlansFmt, sessionsDir);
+				return formatMessage(
+					M.cmdTrackingPlansFmt,
+					String(plans.length),
+					plans.map((name: string) => `  - ${name}`).join("\n"),
+				);
 			} catch {
-				return `计划目录不存在: ${sessionsDir}\n${emptyHint}`;
+				return formatMessage(M.cmdTrackingNoPlansFmt, sessionsDir);
 			}
 		}
 		default:
-			return `用法: /tracking <status|plan|log|index|start>`;
+			return M.cmdTrackingUsage;
 	}
 }

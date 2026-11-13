@@ -31,10 +31,15 @@ describe("disabledExtensions runtime filtering", () => {
 	let originalZetaProfileEnv: string | undefined;
 	let originalUserProfile: string | undefined;
 	let originalClaudeConfigDir: string | undefined;
+	let originalForeignSources: string | undefined;
 
 	beforeEach(async () => {
 		resetSettingsForTest();
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
+		originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		// `.gemini/GEMINI.md` is a foreign project source; these cases pin how a
+		// disabled or shadowed project context file is listed in the dashboard.
+		restoreEnvValue("ZETA_FOREIGN_PROJECT_SOURCES", "gemini");
 		delete process.env.CLAUDE_CONFIG_DIR;
 		delete Bun.env.CLAUDE_CONFIG_DIR;
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
@@ -68,6 +73,7 @@ describe("disabledExtensions runtime filtering", () => {
 		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
 		restoreEnvValue("USERPROFILE", originalUserProfile);
 		restoreEnvValue("CLAUDE_CONFIG_DIR", originalClaudeConfigDir);
+		restoreEnvValue("ZETA_FOREIGN_PROJECT_SOURCES", originalForeignSources);
 		__resetDirsFromEnvForTests();
 		await removeWithRetries(tempHomeDir);
 		await removeWithRetries(tempDir);

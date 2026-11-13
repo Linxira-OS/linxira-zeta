@@ -215,10 +215,10 @@ function toProjectsResponse(directory: ResumeDirectory): WebProjectsResponse {
 	};
 }
 
-async function loadResponse(): Promise<WebProjectsResponse> {
-	// Work Studio hides shared-hidden projects/folders/conversations by default;
-	// the TUI reveals them with Show hidden. Metadata only: nothing is deleted.
-	const directory = filterHiddenResumeDirectory(await loadResumeDirectory({ filterSubagents: true }), false);
+async function loadResponse(includeHidden = false): Promise<WebProjectsResponse> {
+	// Visibility is metadata, not an ownership boundary. Internal history/open
+	// callers may resolve a hidden workspace without adding it to the sidebar.
+	const directory = filterHiddenResumeDirectory(await loadResumeDirectory({ filterSubagents: true }), includeHidden);
 	const response = toProjectsResponse(directory);
 	// `lastOpened` lives in the preferences file, not in the directory scan; a
 	// registered workspace with zero conversations is dated only by it.
@@ -231,9 +231,9 @@ async function loadResponse(): Promise<WebProjectsResponse> {
 }
 
 /** GET /api/projects — every registered project with its workspaces. */
-export async function handleProjectsGet(_req: Request): Promise<Response> {
+export async function handleProjectsGet(req: Request): Promise<Response> {
 	try {
-		return json(await loadResponse());
+		return json(await loadResponse(new URL(req.url).searchParams.get("includeHidden") === "true"));
 	} catch (error) {
 		return json({ error: error instanceof Error ? error.message : String(error) }, 500);
 	}

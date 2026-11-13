@@ -68,8 +68,8 @@ function receiptFrom(body: Record<string, unknown>): Record<string, unknown> {
 /** Register a sink that records its arguments and answers with `outcome`. */
 function sinkReturning(outcome: ChannelSendOutcome): Array<[string, string, string]> {
 	const calls: Array<[string, string, string]> = [];
-	registerChannelSend(async (channelId, to, text) => {
-		calls.push([channelId, to, text]);
+	registerChannelSend(async (instanceId, to, text) => {
+		calls.push([instanceId, to, text]);
 		return outcome;
 	});
 	return calls;
@@ -99,14 +99,14 @@ afterEach(async () => {
 describe("POST /api/channels/send", () => {
 	test("sends one message and answers with the channel's receipt", async () => {
 		await setup();
-		const calls = sinkReturning({ ok: true, channelId: "wechat", to: "wx-peer" });
-		const res = await webGatewayFetch(send({ channelId: "wechat", to: "wx-peer", text: "干完了" }), "127.0.0.1");
+		const calls = sinkReturning({ ok: true, instanceId: "wechat", to: "wx-peer" });
+		const res = await webGatewayFetch(send({ instanceId: "wechat", to: "wx-peer", text: "干完了" }), "127.0.0.1");
 		expect(res.status).toBe(200);
 		expect(calls).toEqual([["wechat", "wx-peer", "干完了"]]);
 		const body = await objectBody(res);
 		expect(body["ok"]).toBe(true);
 		const receipt = receiptFrom(body);
-		expect(receipt["channelId"]).toBe("wechat");
+		expect(receipt["instanceId"]).toBe("wechat");
 		expect(receipt["to"]).toBe("wx-peer");
 		expect(receipt["textLength"]).toBe(3);
 		const sentAt = receipt["sentAt"];
@@ -116,7 +116,7 @@ describe("POST /api/channels/send", () => {
 	test("a channel that is not running here is 404", async () => {
 		await setup();
 		sinkReturning({ ok: false, kind: "unknown-channel", message: "Channel not enabled: telegram" });
-		const res = await webGatewayFetch(send({ channelId: "telegram", to: "42", text: "hi" }), "127.0.0.1");
+		const res = await webGatewayFetch(send({ instanceId: "telegram", to: "42", text: "hi" }), "127.0.0.1");
 		expect(res.status).toBe(404);
 		expect(await errorOf(res)).toBe("Channel not enabled: telegram");
 	});
@@ -124,7 +124,7 @@ describe("POST /api/channels/send", () => {
 	test("no channel runtime at all is 404, not a silent success", async () => {
 		await setup();
 		registerChannelSend(null);
-		const res = await webGatewayFetch(send({ channelId: "wechat", to: "wx-peer", text: "hi" }), "127.0.0.1");
+		const res = await webGatewayFetch(send({ instanceId: "wechat", to: "wx-peer", text: "hi" }), "127.0.0.1");
 		expect(res.status).toBe(404);
 		expect(await errorOf(res)).toBe("IM channels are not started");
 	});
@@ -136,7 +136,7 @@ describe("POST /api/channels/send", () => {
 			kind: "unpaired",
 			message: "WeChat: no context token for peer (wait for an inbound message first)",
 		});
-		const res = await webGatewayFetch(send({ channelId: "wechat", to: "stranger", text: "hi" }), "127.0.0.1");
+		const res = await webGatewayFetch(send({ instanceId: "wechat", to: "stranger", text: "hi" }), "127.0.0.1");
 		expect(res.status).toBe(400);
 		expect(await errorOf(res)).toContain("no context token");
 	});
@@ -144,21 +144,21 @@ describe("POST /api/channels/send", () => {
 	test("the platform refusing the send is 500", async () => {
 		await setup();
 		sinkReturning({ ok: false, kind: "failed", message: "Telegram sendMessage failed (HTTP 400): chat not found" });
-		const res = await webGatewayFetch(send({ channelId: "telegram", to: "42", text: "hi" }), "127.0.0.1");
+		const res = await webGatewayFetch(send({ instanceId: "telegram", to: "42", text: "hi" }), "127.0.0.1");
 		expect(res.status).toBe(500);
 		expect(await errorOf(res)).toContain("chat not found");
 	});
 
 	test("every missing or blank field is 400 and never reaches the channel", async () => {
 		await setup();
-		const calls = sinkReturning({ ok: true, channelId: "wechat", to: "wx-peer" });
+		const calls = sinkReturning({ ok: true, instanceId: "wechat", to: "wx-peer" });
 		const bodies: unknown[] = [
 			{ to: "wx-peer", text: "hi" },
-			{ channelId: "wechat", text: "hi" },
-			{ channelId: "wechat", to: "wx-peer" },
-			{ channelId: "wechat", to: "  ", text: "hi" },
-			{ channelId: "wechat", to: "wx-peer", text: "" },
-			{ channelId: 7, to: "wx-peer", text: "hi" },
+			{ instanceId: "wechat", text: "hi" },
+			{ instanceId: "wechat", to: "wx-peer" },
+			{ instanceId: "wechat", to: "  ", text: "hi" },
+			{ instanceId: "wechat", to: "wx-peer", text: "" },
+			{ instanceId: 7, to: "wx-peer", text: "hi" },
 			[],
 			"not a body",
 		];
@@ -171,7 +171,7 @@ describe("POST /api/channels/send", () => {
 
 	test("only POST is allowed", async () => {
 		await setup();
-		sinkReturning({ ok: true, channelId: "wechat", to: "wx-peer" });
+		sinkReturning({ ok: true, instanceId: "wechat", to: "wx-peer" });
 		const res = await webGatewayFetch(
 			new Request("http://127.0.0.1/api/channels/send", { method: "GET" }),
 			"127.0.0.1",
@@ -181,8 +181,8 @@ describe("POST /api/channels/send", () => {
 
 	test("the route rides the gateway's existing access gate", async () => {
 		await setup();
-		const calls = sinkReturning({ ok: true, channelId: "wechat", to: "wx-peer" });
-		const body = { channelId: "wechat", to: "wx-peer", text: "hi" };
+		const calls = sinkReturning({ ok: true, instanceId: "wechat", to: "wx-peer" });
+		const body = { instanceId: "wechat", to: "wx-peer", text: "hi" };
 		// Non-loopback with no token configured, and a cross-site browser
 		// request on loopback: both are refused before the sink is reached.
 		const remote = await webGatewayFetch(send(body), "192.168.1.5");

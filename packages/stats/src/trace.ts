@@ -1103,7 +1103,7 @@ export async function getTraceEntry(fileParam: string, entryId: string): Promise
 // ---------------------------------------------------------------------------
 // Session list
 
-interface SessionMetadata {
+export interface SessionMetadata {
 	title: string | null;
 	cwd: string | null;
 }
@@ -1137,7 +1137,7 @@ async function readSessionMetadataHead(file: string): Promise<string> {
 }
 
 /** Read list metadata from the fixed title slot and session header. */
-async function readSessionMetadata(file: string): Promise<SessionMetadata> {
+export async function readSessionMetadata(file: string): Promise<SessionMetadata> {
 	let mtimeMs: number;
 	try {
 		mtimeMs = (await fs.stat(file)).mtimeMs;

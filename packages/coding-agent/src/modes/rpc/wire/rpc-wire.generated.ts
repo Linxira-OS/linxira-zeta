@@ -846,6 +846,30 @@ export interface PromptAck {
 
 export type AutoCompactionReason = "threshold" | "overflow" | "idle" | "incomplete";
 
+export type CompactionTriggerType = "manual" | "auto" | "speculation";
+
+export type CompactionPhaseName = "plan" | "summarize" | "archive" | "commit" | "failed" | "aborted";
+
+export type CompactionPhaseMethod = "remote" | "snapcompact" | "handoff" | "shake" | "soft" | "experimental" | "extension";
+
+export interface CompactionFidelityCounts {
+	qa: number;
+	paths: number;
+	ids: number;
+	constraints: number;
+	unfinished: number;
+}
+
+export interface CompactionPhaseDetail {
+	tokensBefore?: number;
+	tokensAfter?: number;
+	entryId?: string;
+	durationMs?: number;
+	summaryChars?: number;
+	errorMessage?: string;
+	fidelity?: CompactionFidelityCounts;
+}
+
 export type AutoCompactionAction = "context-full" | "remote" | "handoff" | "shake" | "snapcompact";
 
 export type CacheWarmingPhase = "streaming" | "idle";
@@ -943,6 +967,21 @@ export interface AutoCompactionStartEvent {
 	type: "auto_compaction_start";
 	reason: AutoCompactionReason;
 	action: AutoCompactionAction;
+}
+
+/** Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`. */
+export interface CompactionPhaseEvent {
+	type: "compaction_phase";
+	/** Stable per compaction pass; constant across method fallbacks. */
+	passId: string;
+	trigger: CompactionTriggerType;
+	/** `plan` may repeat in one pass when a method fallback begins; `aborted` means cancellation only. */
+	phase: CompactionPhaseName;
+	/** Emission time (epoch ms). */
+	at: number;
+	method?: CompactionPhaseMethod;
+	reason?: string;
+	detail?: CompactionPhaseDetail;
 }
 
 export interface AutoCompactionEndEvent {
@@ -1106,7 +1145,7 @@ export interface StateVersionChangedEvent {
 }
 
 /** A session event, discriminated by `type`; `set_event_filter` selects which are sent. */
-export type RpcAgentEvent = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | AutoCompactionEndEvent | ManualCompactionStartEvent | ManualCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent | StateVersionChangedEvent;
+export type RpcAgentEvent = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | CompactionPhaseEvent | AutoCompactionEndEvent | ManualCompactionStartEvent | ManualCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent | StateVersionChangedEvent;
 
 /** First frame after startup; transport fields are absent on servers without protocol v2. */
 export interface ReadyEvent {
@@ -1368,7 +1407,7 @@ export interface EditorUiRequest {
 	promptStyle?: boolean;
 }
 
-/** Every question of one `ask` tool call; sent only after `set_ask_dialog` enables it. */
+/** Every question of one extension `ui.askDialog` call; sent only after `set_ask_dialog` enables it. */
 export interface AskUiRequest {
 	type: "extension_ui_request";
 	id: string;
@@ -1437,7 +1476,7 @@ export interface OpenUrlUiRequest {
 /** Extension UI request, discriminated by `method`. */
 export type ExtensionUiRequest = SelectUiRequest | ConfirmUiRequest | InputUiRequest | EditorUiRequest | AskUiRequest | CancelUiRequest | NotifyUiRequest | SetStatusUiRequest | SetWidgetUiRequest | SetTitleUiRequest | SetEditorTextUiRequest | OpenUrlUiRequest;
 
-/** Answer to one `ask` question: exact option labels, plus optional free text. */
+/** Answer to one `ui.askDialog` question: exact option labels, plus optional free text. */
 export interface AskAnswer {
 	id: string;
 	selectedOptions: string[];
@@ -1458,7 +1497,7 @@ export interface ConfirmUiResponse {
 	confirmed: boolean;
 }
 
-/** Dismisses a dialog; `timedOut` reports the host's own deadline (an `ask` then takes its recommended answers). */
+/** Dismisses a dialog; `timedOut` reports the host's own deadline (an `ask` dialog then takes its recommended answers). */
 export interface CancelUiResponse {
 	type: "extension_ui_response";
 	id: string;

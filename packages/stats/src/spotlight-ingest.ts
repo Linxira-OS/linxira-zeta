@@ -107,8 +107,17 @@ export interface SpotlightShapeRow {
 	original: SpotlightOriginalFacts | null;
 	/** Artifact ids the result names (its text's `artifact://N` plus `original.url`); null before the result lands. */
 	artifacts: number[] | null;
-	/** Spotlight's own usage, from the shape entry; null before it lands. */
-	spotlight: { calls: number; failures: number; ms: number; costUsd: number } | null;
+	/**
+	 * Spotlight's own usage, from the shape entry; null before it lands. `failureCauses` counts failed calls by cause
+	 * (`no_credential`, `timeout`, …); null when none failed or the entry predates it.
+	 */
+	spotlight: {
+		calls: number;
+		failures: number;
+		failureCauses: Record<string, number> | null;
+		ms: number;
+		costUsd: number;
+	} | null;
 	/** Wall time shaping took, from the shape entry. */
 	shapeMs: number | null;
 }
@@ -386,9 +395,9 @@ export function selectedLines(selection: ReadSelection): [number, number][] | nu
 	return selection.ranges.length === 0 && selection.tail === null ? null : selection.ranges;
 }
 
-/** A path as written, resolved against the session's working directory (URLs and absolute paths kept). */
+/** A path as written, resolved and normalized against the session's working directory (URLs kept). */
 export function resolveReadPath(target: string, cwd: string | null): string {
-	if (URL_SCHEME.test(target) || !cwd || path.isAbsolute(target)) return target;
+	if (URL_SCHEME.test(target) || !cwd) return target;
 	return path.resolve(cwd, target);
 }
 
@@ -579,11 +588,25 @@ export function shapeFromEntry(
 		spotlight: {
 			calls: finite(usage.calls),
 			failures: finite(usage.failures),
+			failureCauses: parseFailureCauses(usage.failureCauses),
 			ms: finite(usage.ms),
 			costUsd: finite(usage.costUsd),
 		},
 		shapeMs: finite(data.ms),
 	};
+}
+
+/**
+ * Failed calls by cause, keeping positive finite counts; null when none is left. Normalizes both a shape entry's
+ * `failureCauses` at ingest and the decoded `sp_failure_causes` column at aggregation.
+ */
+export function parseFailureCauses(value: unknown): Record<string, number> | null {
+	if (!isRecord(value)) return null;
+	const causes: Record<string, number> = {};
+	for (const [cause, count] of Object.entries(value)) {
+		if (typeof count === "number" && Number.isFinite(count) && count > 0) causes[cause] = count;
+	}
+	return Object.keys(causes).length > 0 ? causes : null;
 }
 
 /** The row a result message's `details.spotlight` describes, or null when it carries none. */

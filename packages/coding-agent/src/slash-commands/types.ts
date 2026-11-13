@@ -39,6 +39,11 @@ export interface BuiltinSlashCommand {
 	 * everyday command menu.
 	 */
 	hidden?: boolean;
+	/**
+	 * Argument completion is directory-only: when it has no match, the editor
+	 * must not fall through to generic file completion.
+	 */
+	argumentCompletionOnly?: boolean;
 	/** Subcommands for dropdown completion (e.g. /mcp add, /mcp list). */
 	subcommands?: SubcommandDef[];
 	/**

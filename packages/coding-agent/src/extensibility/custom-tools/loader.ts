@@ -217,6 +217,27 @@ export class CustomToolLoader {
 	}
 }
 
+/** Tool name implied by a discovered module path (`<dir>/index.ts` → `<dir>`). */
+export function customToolNameFromPath(toolPath: string): string {
+	const base = path.basename(toolPath);
+	if (/^index\.(ts|js|mjs|cjs)$/i.test(base)) return path.basename(path.dirname(toolPath));
+	return base.replace(/\.(ts|js|mjs|cjs)$/i, "");
+}
+
+/**
+ * Keep only paths whose implied tool name passes `isAllowed`.
+ *
+ * This is the cheap pre-import gate for a per-agent allowlist: a denied module
+ * is never imported, so its top-level code and factory never run. The loaded
+ * result is filtered by its authoritative `tool.name` afterwards as well.
+ */
+export function filterCustomToolPaths(
+	paths: readonly ToolPathWithSource[],
+	isAllowed: (name: string) => boolean,
+): ToolPathWithSource[] {
+	return paths.filter(entry => isAllowed(customToolNameFromPath(entry.path)));
+}
+
 /**
  * Load all tools from configuration.
  * @param pathsWithSources - Array of tool paths with optional source metadata

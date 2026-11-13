@@ -15,7 +15,7 @@ if (!lockPath) throw new Error("ZETA_TEST_LOCK_PATH is required");
 
 const result = await acquireChannelLock({
 	lockPath,
-	metadata: { pid: process.pid, host: "cli", cwd: process.cwd(), channels: [] },
+	metadata: { pid: process.pid, host: "cli", cwd: process.cwd(), instances: [] },
 });
 process.stdout.write(
 	`${JSON.stringify({

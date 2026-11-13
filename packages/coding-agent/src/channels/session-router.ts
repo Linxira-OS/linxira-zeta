@@ -23,9 +23,11 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { type ChannelId, ReplyCorrelator, isPeerAllowed } from "@linxiraos/pi-channels";
+import { type ChannelInstanceId, ReplyCorrelator } from "@linxiraos/pi-channels";
 import { isEnoent, logger, Snowflake } from "@linxiraos/pi-utils";
+import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import type { BotSessionEntry, WebConfig } from "../config/web-config";
+import { resolveTeamDbPath, TeamDb } from "../team/db";
 import { Settings, type SettingProvenance } from "../config/settings";
 import { hasWorkspacePersona } from "../default-workspace";
 import { cfgChannelsReportPolicy } from "../tools/settings";
@@ -41,9 +43,33 @@ import type { AgentSessionEvent } from "../session/agent-session-events";
 import { SessionManager } from "../session/session-manager";
 import { isImSession, sameSessionOrigin, type SessionOrigin } from "../session/session-origin";
 import type { ImControlParams, ImControlResult } from "./im-control";
+import { type ImBinding, type ImTarget, targetKey, targetScopedBindingId } from "./im-config";
+import {
+	buildImUserMessageMetadata,
+	normalizeImSwitchControlMetadata,
+	type ImRouteSnapshot,
+	type ImSwitchControlMetadata,
+} from "../session/session-im";
+import { buildImSessionList, createImSessionSelectorState, type ImSessionListSnapshot } from "./im-session-selector";
+import { type AgentProfileOptions, loadImAgentProfilePersona, resolveImAgentProfileRuntime } from "../agent-profile";
+
+let imSessionCandidateReader: (() => Promise<ImSessionListSnapshot>) | null = null;
+
+/** Register the live router's candidate reader for the Team IM page/gateway. */
+export function registerImSessionCandidateReader(reader: (() => Promise<ImSessionListSnapshot>) | null): void {
+	imSessionCandidateReader = reader;
+}
+
+/** The same typed candidates `!session list` uses; null before a router starts. */
+export async function readImSessionCandidates(): Promise<ImSessionListSnapshot | null> {
+	return imSessionCandidateReader ? await imSessionCandidateReader() : null;
+}
 
 /** Upper bound for a delegated `workspace_run` turn (no reply → timeout error). */
 const RUN_TIMEOUT_MS = 10 * 60_000;
+
+/** A staged switch stays confirmable this long, including across a restart. */
+const WORKSPACE_SWITCH_TTL_MS = 10 * 60_000;
 
 /** Reserved alias of the relay coordinator (default workspace). */
 export const COORDINATOR_ALIAS = "main";
@@ -54,6 +80,77 @@ export interface BotSessionProject {
 	alias?: string;
 	/** Absolute project directory; must be a registered workspace. */
 	dir?: string;
+}
+
+/** Context carried from one platform inbound message into its transcript entry. */
+export interface ImDeliveryContext {
+	threadId?: string;
+	userId?: string;
+	/** Platform message id used for provenance and dedupe. */
+	messageId?: string;
+	senderName?: string;
+	sentAt?: number | string;
+	attachments?: readonly { name?: string; mimeType?: string; mime?: string; size?: number }[];
+}
+
+/** One persisted `im_control` request behind a pending switch. */
+export interface ImSwitchControlRecord {
+	id: string;
+	metadata: ImSwitchControlMetadata;
+}
+
+/** Read-only current target for a chat/thread/sender. */
+export interface ImSwitchCurrentView {
+	workspaceAlias?: string;
+	agentId?: string;
+	bindingId?: string;
+	targetKey: string;
+}
+
+/** Read-only pending handshake the Team IM page can confirm or cancel. */
+export interface ImSwitchStatus {
+	current: ImSwitchCurrentView;
+	pending?: {
+		requestId: string;
+		operation: "target" | "unbind";
+		from: ImRouteSnapshot;
+		to: ImRouteSnapshot;
+		requestedAt: string;
+		controlRecord?: ImSwitchControlRecord;
+	};
+}
+
+/** Live controller registered by the server for the web gateway. */
+export interface ImSwitchGateway {
+	status(
+		instanceId: ChannelInstanceId,
+		chatId: string,
+		context?: { threadId?: string; userId?: string },
+	): Promise<ImSwitchStatus>;
+	confirm(
+		instanceId: ChannelInstanceId,
+		chatId: string,
+		context: { threadId?: string; userId?: string },
+		requestId: string,
+	): Promise<{ ok: true; target: ImTarget } | { ok: false; error: string }>;
+	cancel(
+		instanceId: ChannelInstanceId,
+		chatId: string,
+		context: { threadId?: string; userId?: string },
+		requestId: string,
+	): Promise<boolean>;
+}
+
+let imSwitchGateway: ImSwitchGateway | null = null;
+
+/** Register the live router's handshake controller for the Team IM page. */
+export function registerImSwitchGateway(gateway: ImSwitchGateway | null): void {
+	imSwitchGateway = gateway;
+}
+
+/** The live handshake controller; null when no relay host is running. */
+export function readImSwitchGateway(): ImSwitchGateway | null {
+	return imSwitchGateway;
 }
 
 /**
@@ -80,7 +177,7 @@ interface ActiveRun {
 
 /** The chat a bot session most recently answered (channel_send/im_control target). */
 interface BotChatTarget {
-	channelId: ChannelId;
+	channelId: ChannelInstanceId;
 	peer: string;
 }
 
@@ -165,8 +262,8 @@ function samePath(a: string | undefined, b: string | undefined): boolean {
 export class SessionRouter {
 	readonly #coordinator: AgentSession;
 	readonly #webConfig: WebConfig;
-	readonly #getLastInbound: () => { channelId: ChannelId; peer: string } | null;
-	readonly #sendText: (channelId: ChannelId, to: string, text: string) => Promise<void>;
+	readonly #getLastInbound: () => { channelId: ChannelInstanceId; peer: string } | null;
+	readonly #sendText: (channelId: ChannelInstanceId, to: string, text: string) => Promise<void>;
 	/** IM channel tool sinks forwarded to bot sessions (undefined in CLI mode). */
 	readonly #channelSend?: (
 		opts: { text: string; to?: string; channel?: string },
@@ -207,6 +304,22 @@ export class SessionRouter {
 	readonly #runtimeBindings = new Map<string, string>();
 	/** Runtime per-chat agent override from `@agent use` / `@team` (highest precedence). */
 	readonly #agentBindings = new Map<string, string>();
+	/** Pending workspace switch, keyed by instance+chat+thread+user. */
+	#sessionListSnapshot: ImSessionListSnapshot | null = null;
+	readonly #sessionSelectorState = createImSessionSelectorState();
+	readonly #pendingWorkspaceSwitch = new Map<
+		string,
+		| {
+				action: "target";
+				target: ImTarget;
+				/** `@workspace relay` intent: a main-workspace target means the coordinator. */
+				relay: boolean;
+				at: number;
+				requestId: string;
+				control?: ImSwitchControlRecord;
+		  }
+		| { action: "unbind"; at: number; requestId: string; control?: ImSwitchControlRecord }
+	>();
 	/** Cross-process agent roster; defaults to the mesh node plus this process's registry. */
 	readonly #listAgentTargets?: () => Promise<AgentTargetInfo[]> | AgentTargetInfo[];
 	/** Team plugin seam: team name → the address of its host agent. */
@@ -218,8 +331,10 @@ export class SessionRouter {
 	constructor(options: {
 		coordinator: AgentSession;
 		webConfig: WebConfig;
-		getLastInbound: () => { channelId: ChannelId; peer: string } | null;
-		sendText: (channelId: ChannelId, to: string, text: string) => Promise<void>;
+		getLastInbound: () =>
+			| ({ channelId: ChannelInstanceId; peer: string } | { instanceId: string; peer: string })
+			| null;
+		sendText: (channelId: ChannelInstanceId, to: string, text: string) => Promise<void>;
 		/** Default cwd for newly created bot sessions (defaults to process.cwd()). */
 		defaultCwd?: string;
 		/** channel_send sink for bot sessions (defaults to the coordinator's pattern). */
@@ -245,7 +360,13 @@ export class SessionRouter {
 	}) {
 		this.#coordinator = options.coordinator;
 		this.#webConfig = options.webConfig;
-		this.#getLastInbound = options.getLastInbound;
+		this.#getLastInbound = () => {
+			const last = options.getLastInbound();
+			if (!last) return null;
+			return "channelId" in last
+				? { channelId: last.channelId, peer: last.peer }
+				: { channelId: last.instanceId as ChannelInstanceId, peer: last.peer };
+		};
 		this.#sendText = options.sendText;
 		this.#defaultCwd = options.defaultCwd ?? process.cwd();
 		this.#channelSend = options.channelSend;
@@ -329,7 +450,16 @@ export class SessionRouter {
 		const existing = this.#bridges.get(key);
 		if (existing) return existing;
 		const correlator = new ReplyCorrelator({
-			sendText: (target, text) => this.#sendText(target.channelId, target.peer, text),
+			sendText: async (target, text) => {
+				// Origin is delivery metadata. Ordinary answers stay byte-for-byte
+				// unchanged; only a late answer after a switch needs a separate notice.
+				const current = this.#webConfig.findImBinding(target.instanceId, target.peer, target.context ?? {});
+				const currentLabel = current ? `${targetKey(current.target)} · ${current.agentProfileId}` : undefined;
+				if (target.originLabel && currentLabel && currentLabel !== target.originLabel) {
+					await this.#sendText(target.instanceId, target.peer, `原目标回复：${target.originLabel}`);
+				}
+				await this.#sendText(target.instanceId, target.peer, text);
+			},
 		});
 		this.#bridges.set(key, correlator);
 		const observer = session.setIrcWakeTurnObserver;
@@ -435,7 +565,7 @@ export class SessionRouter {
 	 * the row means "this chat belongs to the coordinator", even when an earlier
 	 * direct binding left an alias behind.
 	 */
-	async resolveRoute(channelId: ChannelId, peer: string): Promise<"direct" | "relay"> {
+	async resolveRoute(channelId: ChannelInstanceId, peer: string): Promise<"direct" | "relay"> {
 		const binding = await this.bindingFor(channelId, peer);
 		if (!binding) return "relay";
 		if (binding === COORDINATOR_ALIAS) return "relay";
@@ -488,7 +618,7 @@ export class SessionRouter {
 	 * workspaces own the same bare id) is an explicit error, never a guess.
 	 */
 	async setAgentTarget(
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		selector?: string,
 	): Promise<{ ok: true; target: string } | { ok: false; error: string }> {
@@ -533,7 +663,7 @@ export class SessionRouter {
 	}
 
 	/** Runtime agent override for one chat, if any. */
-	agentTargetFor(channelId: ChannelId, peer: string): string | undefined {
+	agentTargetFor(channelId: ChannelInstanceId, peer: string): string | undefined {
 		return this.#agentBindings.get(`${channelId}:${peer}`);
 	}
 
@@ -552,7 +682,585 @@ export class SessionRouter {
 	 * then {@link resolveRoute} — the documented decision point, which also
 	 * materializes a direct workspace session — then the relay coordinator.
 	 */
-	async resolveChatTarget(channelId: ChannelId, peer: string): Promise<ChatRouteTarget> {
+	/**
+	 * Resolve an agent profile target to a real working directory. Team targets
+	 * come from TeamDb: a PM runs in `team_pms.workspace_path`, an engineer in
+	 * its home worktree (an explicit repo disambiguates several). Missing rows
+	 * are errors, never a fallback to the default workspace.
+	 */
+	async resolveImTargetCwd(
+		target: ImTarget,
+	): Promise<{ ok: true; cwd: string; alias?: string } | { ok: false; error: string }> {
+		if (target.kind === "workspace") {
+			if (target.workspace === COORDINATOR_ALIAS)
+				return { ok: true, cwd: this.#defaultCwd, alias: COORDINATOR_ALIAS };
+			const dir = this.resolveDir(target.workspace);
+			if (!dir) return { ok: false, error: `Unknown workspace "${target.workspace}"` };
+			const stat = await fs.stat(dir).catch(() => null);
+			if (!stat?.isDirectory()) return { ok: false, error: `Workspace directory does not exist: ${dir}` };
+			return { ok: true, cwd: dir, alias: target.workspace };
+		}
+		let db: TeamDb | null = null;
+		try {
+			db = new TeamDb(resolveTeamDbPath());
+			const team = db.listTeams().find(candidate => candidate.name === target.team || candidate.id === target.team);
+			if (!team) return { ok: false, error: `Unknown Team "${target.team}"` };
+			const pm = db.listPms(team.id).find(candidate => candidate.name === target.pm || candidate.id === target.pm);
+			if (!pm) return { ok: false, error: `Unknown PM "${target.pm}" in Team "${team.name}"` };
+			if (target.kind === "team-pm") return { ok: true, cwd: pm.workspacePath };
+			const engineer = db
+				.listEngineers(team.id)
+				.find(
+					candidate =>
+						candidate.pmId === pm.id && (candidate.name === target.engineer || candidate.id === target.engineer),
+				);
+			if (!engineer) return { ok: false, error: `Unknown engineer "${target.engineer}" under PM "${pm.name}"` };
+			let worktrees = db
+				.listWorktrees(team.id)
+				.filter(candidate => candidate.engineerId === engineer.id && candidate.kind === "home");
+			if (target.repo !== undefined) {
+				const repo = db.getRepo(team.id, target.repo) ?? db.getRepoById(target.repo);
+				if (!repo) return { ok: false, error: `Unknown repo "${target.repo}" in Team "${team.name}"` };
+				worktrees = worktrees.filter(candidate => candidate.repoId === repo.id);
+			}
+			if (worktrees.length === 0) return { ok: false, error: `Engineer "${engineer.name}" has no home worktree` };
+			if (worktrees.length > 1) {
+				return {
+					ok: false,
+					error: `Engineer "${engineer.name}" has several home worktrees; set target.repo explicitly`,
+				};
+			}
+			return { ok: true, cwd: worktrees[0]!.path };
+		} catch (error) {
+			return {
+				ok: false,
+				error: `Team target lookup failed: ${error instanceof Error ? error.message : String(error)}`,
+			};
+		} finally {
+			db?.close();
+		}
+	}
+
+	/**
+	 * Materialize the BotSessionEntry that owns one binding. The binding id is
+	 * the stable identity; the entry records the profile/target snapshot and
+	 * lives under the target cwd so a Team PM/engineer never shares a
+	 * transcript or memory home with another binding.
+	 */
+	async ensureImBindingSession(binding: ImBinding): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+		if (binding.sessionId === "relay") return { ok: true, id: "relay" };
+		const resolved = await this.resolveImTargetCwd(binding.target);
+		if (!resolved.ok) return resolved;
+		// One deterministic transcript per binding+target: switching away and
+		// back resumes the same conversation, while a different workspace never
+		// inherits another target's history or memory.
+		const current = this.#webConfig.getBotSession(binding.sessionId);
+		if (
+			current &&
+			current.cwd === resolved.cwd &&
+			(!current.target || targetKey(current.target) === targetKey(binding.target)) &&
+			(!current.agentProfileId || current.agentProfileId === binding.agentProfileId)
+		) {
+			return { ok: true, id: current.id };
+		}
+		const targetSessionId = `im-${targetScopedBindingId(binding).replace(/[^a-z0-9-]+/gi, "-")}`;
+		const existing = this.#webConfig.getBotSession(targetSessionId);
+		if (existing) {
+			if (binding.sessionId !== targetSessionId) {
+				await this.#webConfig.patchImBinding(
+					binding.instanceId,
+					binding.chatId,
+					{ sessionId: targetSessionId },
+					{
+						...(binding.threadId ? { threadId: binding.threadId } : {}),
+						...(binding.userId ? { userId: binding.userId } : {}),
+					},
+				);
+			}
+			return { ok: true, id: existing.id };
+		}
+		if (binding.sessionId !== targetSessionId) {
+			await this.#webConfig.patchImBinding(
+				binding.instanceId,
+				binding.chatId,
+				{ sessionId: targetSessionId },
+				{
+					...(binding.threadId ? { threadId: binding.threadId } : {}),
+					...(binding.userId ? { userId: binding.userId } : {}),
+				},
+			);
+			binding = { ...binding, sessionId: targetSessionId };
+		}
+		const profile = this.#webConfig.getImAgent(binding.agentProfileId);
+		if (!profile) return { ok: false, error: `Unknown agent profile "${binding.agentProfileId}"` };
+		const safeName = `${profile.label}-${targetScopedBindingId(binding)}`.replace(/[^\w\u4e00-\u9fff-]+/g, "-");
+		const entry: BotSessionEntry = {
+			id: targetSessionId,
+			name: `${profile.label} · ${binding.chatId}`,
+			tag: "bot",
+			sessionFile: path.join(SessionManager.getDefaultSessionDir(resolved.cwd), `${safeName}.jsonl`),
+			cwd: resolved.cwd,
+			...(resolved.alias !== undefined ? { workspaceAlias: resolved.alias } : {}),
+			instanceId: binding.instanceId,
+			bindingId: targetScopedBindingId(binding),
+			agentProfileId: binding.agentProfileId,
+			target: binding.target,
+			...(binding.model ? { model: binding.model } : {}),
+			platform: binding.platform,
+			chatId: binding.chatId,
+			...(binding.lang ? { lang: binding.lang } : {}),
+			createdAt: new Date().toISOString(),
+		};
+		await this.#webConfig.upsertBotSession(entry);
+		return { ok: true, id: entry.id };
+	}
+
+	/** Refresh and pin the short-selector snapshot for this entry. */
+	async listSessionCandidates(
+		options: { includePm?: boolean; now?: number; maxAgeMs?: number } = {},
+	): Promise<ImSessionListSnapshot> {
+		this.#sessionListSnapshot = await buildImSessionList(this, this.#webConfig, this.#sessionSelectorState, options);
+		return this.#sessionListSnapshot;
+	}
+
+	/** Resolve a short selector against the list the user saw; never renumber mid-use. */
+	resolveSessionSelector(selector: string): string | null {
+		const cleaned = selector
+			.trim()
+			.replace(/^\{|\}$/g, "")
+			.replace(/^\[|\]$/g, "");
+		if (!cleaned) return null;
+		const fromSnapshot = this.#sessionListSnapshot?.bySelector.get(cleaned)?.canonicalSessionId;
+		if (fromSnapshot) return fromSnapshot;
+		// Explicit registry ids remain valid for scripts and legacy commands.
+		return this.#webConfig.getBotSession(cleaned)?.id ?? null;
+	}
+
+	sessionSelectorSnapshot(): ImSessionListSnapshot | null {
+		return this.#sessionListSnapshot;
+	}
+
+	#workspaceSwitchKey(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string },
+	): string {
+		return [instanceId, peer, context.threadId ?? "", context.userId ?? ""].join("\u0000");
+	}
+
+	/** Stage a workspace change; nothing persists until confirm from the same entry. */
+	async requestWorkspaceSwitch(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		target: ImTarget,
+		context: { threadId?: string; userId?: string } = {},
+		options: { relay?: boolean } = {},
+	): Promise<{ current: string; next: string; same: boolean }> {
+		const key = this.#workspaceSwitchKey(instanceId, peer, context);
+		const binding = this.#webConfig.findImBinding(instanceId, peer, context);
+		const currentTarget =
+			binding?.target ??
+			this.#webConfig.getImAgent(this.#webConfig.getChannelInstance(instanceId)?.agentProfile ?? "")?.location;
+		// A chat pointed at a bot session is not already on that session's project
+		// target: relay must still be able to clear the pointer.
+		const botPointer = binding?.sessionId;
+		const current =
+			this.agentTargetFor(instanceId, peer) ??
+			(botPointer && botPointer !== "relay"
+				? `bot:${botPointer}`
+				: currentTarget
+					? targetKey(currentTarget)
+					: "unbound");
+		const next = targetKey(target);
+		if (current === next) {
+			// "Already there" also supersedes an earlier staged target, otherwise
+			// a restart could resurrect a preview the user replaced.
+			const replaced = this.#pendingWorkspaceSwitch.get(key);
+			this.#pendingWorkspaceSwitch.delete(key);
+			if (replaced) {
+				await this.#recordImControl(
+					instanceId,
+					peer,
+					context,
+					"switch_cancel",
+					replaced.requestId,
+					replaced.action === "target" ? replaced.target : { kind: "workspace", workspace: COORDINATOR_ALIAS },
+					replaced.action,
+				);
+			}
+			return { current, next, same: true };
+		}
+		// One pending request per entry; a new request replaces the old one and
+		// terminates it in the durable handshake so a restart cannot restore it.
+		const replaced = this.#pendingWorkspaceSwitch.get(key);
+		if (replaced) {
+			await this.#recordImControl(
+				instanceId,
+				peer,
+				context,
+				"switch_cancel",
+				replaced.requestId,
+				replaced.action === "target" ? replaced.target : { kind: "workspace", workspace: COORDINATOR_ALIAS },
+				replaced.action,
+			);
+		}
+		const requestId = randomUUID().slice(0, 8);
+		const control = await this.#recordImControl(
+			instanceId,
+			peer,
+			context,
+			"switch_request",
+			requestId,
+			target,
+			"target",
+		);
+		this.#pendingWorkspaceSwitch.set(key, {
+			action: "target",
+			target,
+			relay: options.relay === true,
+			at: Date.now(),
+			requestId,
+			...(control ? { control } : {}),
+		});
+		return { current, next, same: false };
+	}
+
+	/** Apply the pending workspace change atomically; only the same entry may confirm. */
+	async confirmWorkspaceSwitch(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string } = {},
+		expectedRequestId?: string,
+	): Promise<{ ok: true; target: ImTarget } | { ok: false; error: string }> {
+		const key = this.#workspaceSwitchKey(instanceId, peer, context);
+		let pending = this.#pendingWorkspaceSwitch.get(key);
+		if (!pending) {
+			// A preview issued before a restart is still confirmable: rebuild it
+			// from the durable im_control request in the same chat/thread scope.
+			pending = await this.#restorePendingWorkspaceSwitch(instanceId, peer, context);
+			if (pending) this.#pendingWorkspaceSwitch.set(key, pending);
+		}
+		if (!pending) return { ok: false, error: "No pending workspace change for this chat/thread/user." };
+		// The gateway confirms by request id: a preview the UI read must still be
+		// the live pending one, checked atomically before any state changes.
+		if (expectedRequestId !== undefined && pending.requestId !== expectedRequestId) {
+			return { ok: false, error: "stale-request" };
+		}
+		if (Date.now() - pending.at > WORKSPACE_SWITCH_TTL_MS) {
+			this.#pendingWorkspaceSwitch.delete(key);
+			return { ok: false, error: "The pending workspace change expired; send the switch command again." };
+		}
+		this.#pendingWorkspaceSwitch.delete(key);
+		await this.#recordImControl(
+			instanceId,
+			peer,
+			context,
+			"switch_confirm",
+			pending.requestId,
+			pending.action === "target" ? pending.target : { kind: "workspace", workspace: COORDINATOR_ALIAS },
+			pending.action,
+		);
+		try {
+			if (pending.action === "unbind") {
+				// Remove exactly this chat/thread/sender binding, never a sibling
+				// thread's binding on the same chat.
+				const current = this.#webConfig.findImBinding(instanceId, peer, context);
+				if (current) await this.#webConfig.removeImBinding(current.id);
+				this.#agentBindings.delete(`${instanceId}:${peer}`);
+				this.#runtimeBindings.delete(`${instanceId}:${peer}`);
+				return { ok: true, target: { kind: "workspace", workspace: COORDINATOR_ALIAS } };
+			}
+			const current = this.#webConfig.findImBinding(instanceId, peer, context);
+			// Choose the target's existing session before the single atomic binding
+			// write. In particular, leaving relay must not retain its sentinel id.
+			const previous =
+				current &&
+				this.#webConfig
+					.getBotSessions()
+					.find(
+						entry =>
+							entry.instanceId === instanceId &&
+							entry.chatId === peer &&
+							entry.agentProfileId === current.agentProfileId &&
+							entry.target &&
+							targetKey(entry.target) === targetKey(pending.target) &&
+							entry.bindingId === targetScopedBindingId({ id: current.id, target: pending.target }),
+					);
+			// Only an explicit `@workspace relay` request collapses a main-workspace
+			// target to the coordinator sentinel. A plain switch to the main
+			// workspace is a target-scoped bot session like every other project.
+			const relayTarget =
+				pending.action === "target" &&
+				pending.relay &&
+				pending.target.kind === "workspace" &&
+				pending.target.workspace === COORDINATOR_ALIAS;
+			await this.#webConfig.patchImBinding(
+				instanceId,
+				peer,
+				{
+					target: pending.target,
+					...(relayTarget
+						? { sessionId: "relay" }
+						: previous
+							? { sessionId: previous.id }
+							: current
+								? {
+										sessionId: `im-${targetScopedBindingId({ id: current.id, target: pending.target }).replace(/[^a-z0-9-]+/gi, "-")}`,
+									}
+								: {}),
+				},
+				context,
+			);
+			this.#agentBindings.delete(`${instanceId}:${peer}`);
+			this.#runtimeBindings.delete(`${instanceId}:${peer}`);
+			return { ok: true, target: pending.target };
+		} catch (error) {
+			return { ok: false, error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/** Stage removal of this entry's binding (confirm-gated). */
+	async requestWorkspaceUnbind(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string } = {},
+	): Promise<boolean> {
+		const key = this.#workspaceSwitchKey(instanceId, peer, context);
+		const replaced = this.#pendingWorkspaceSwitch.get(key);
+		if (replaced) {
+			await this.#recordImControl(
+				instanceId,
+				peer,
+				context,
+				"switch_cancel",
+				replaced.requestId,
+				replaced.action === "target" ? replaced.target : { kind: "workspace", workspace: COORDINATOR_ALIAS },
+				replaced.action,
+			);
+		}
+		const requestId = randomUUID().slice(0, 8);
+		const control = await this.#recordImControl(
+			instanceId,
+			peer,
+			context,
+			"switch_request",
+			requestId,
+			{ kind: "workspace", workspace: COORDINATOR_ALIAS },
+			"unbind",
+		);
+		this.#pendingWorkspaceSwitch.set(key, {
+			action: "unbind",
+			at: Date.now(),
+			requestId,
+			...(control ? { control } : {}),
+		});
+		return true;
+	}
+
+	async cancelWorkspaceSwitch(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string } = {},
+		expectedRequestId?: string,
+	): Promise<boolean> {
+		const key = this.#workspaceSwitchKey(instanceId, peer, context);
+		const pending = this.#pendingWorkspaceSwitch.get(key);
+		if (!pending) return false;
+		if (expectedRequestId !== undefined && pending.requestId !== expectedRequestId) return false;
+		this.#pendingWorkspaceSwitch.delete(key);
+		await this.#recordImControl(
+			instanceId,
+			peer,
+			context,
+			"switch_cancel",
+			pending.requestId,
+			pending.action === "target" ? pending.target : { kind: "workspace", workspace: COORDINATOR_ALIAS },
+			pending.action,
+		);
+		return true;
+	}
+
+	/** Read-only current target and pending handshake for the Team IM page. */
+	async workspaceSwitchStatus(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string } = {},
+	): Promise<ImSwitchStatus> {
+		const key = this.#workspaceSwitchKey(instanceId, peer, context);
+		let pending = this.#pendingWorkspaceSwitch.get(key);
+		if (!pending) {
+			pending = await this.#restorePendingWorkspaceSwitch(instanceId, peer, context);
+			if (pending) this.#pendingWorkspaceSwitch.set(key, pending);
+		}
+		if (pending && Date.now() - pending.at > WORKSPACE_SWITCH_TTL_MS) {
+			this.#pendingWorkspaceSwitch.delete(key);
+			pending = undefined;
+		}
+		const binding = this.#webConfig.findImBinding(instanceId, peer, context);
+		const current: ImSwitchCurrentView = {
+			...(binding?.target.kind === "workspace" ? { workspaceAlias: binding.target.workspace } : {}),
+			...(binding?.agentProfileId ? { agentId: binding.agentProfileId } : {}),
+			...(binding?.id ? { bindingId: binding.id } : {}),
+			targetKey: binding ? targetKey(binding.target) : `workspace:${COORDINATOR_ALIAS}`,
+		};
+		if (!pending) return { current };
+		const metadata = pending.control?.metadata;
+		const from: ImRouteSnapshot = metadata?.from ?? {
+			...(binding?.target.kind === "workspace" ? { workspaceAlias: binding.target.workspace } : {}),
+			...(binding?.agentProfileId ? { agentId: binding.agentProfileId } : {}),
+			...(binding?.sessionId ? { sessionId: binding.sessionId, botSessionId: binding.sessionId } : {}),
+			...(binding?.id ? { bindingId: binding.id } : {}),
+		};
+		const to: ImRouteSnapshot =
+			metadata?.to ??
+			(pending.action === "target" && pending.target.kind === "workspace"
+				? { workspaceAlias: pending.target.workspace }
+				: { workspaceAlias: COORDINATOR_ALIAS });
+		return {
+			current,
+			pending: {
+				requestId: pending.requestId,
+				operation: pending.action,
+				from,
+				to,
+				requestedAt: new Date(pending.at).toISOString(),
+				...(pending.control ? { controlRecord: pending.control } : {}),
+			},
+		};
+	}
+
+	/**
+	 * Rebuild one chat/thread/sender's pending switch from persisted `im_control`
+	 * rows. A later request supersedes an earlier one; confirm/cancel terminates
+	 * the request. Only handshakes younger than {@link WORKSPACE_SWITCH_TTL_MS}
+	 * are resumed, so an old preview cannot surprise the user days later.
+	 */
+	async #restorePendingWorkspaceSwitch(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string },
+	): Promise<
+		| {
+				action: "target";
+				target: ImTarget;
+				relay: boolean;
+				at: number;
+				requestId: string;
+				control?: ImSwitchControlRecord;
+		  }
+		| { action: "unbind"; at: number; requestId: string; control?: ImSwitchControlRecord }
+		| undefined
+	> {
+		const binding = this.#webConfig.findImBinding(instanceId, peer, context);
+		const managers: SessionManager[] = [];
+		const live = binding ? this.#botSessions.get(binding.sessionId)?.session.sessionManager : undefined;
+		if (live) managers.push(live);
+		if (this.#coordinator.sessionManager && !managers.includes(this.#coordinator.sessionManager)) {
+			managers.push(this.#coordinator.sessionManager);
+		}
+		const entry = binding ? this.#webConfig.getBotSession(binding.sessionId) : undefined;
+		if (!live && entry?.sessionFile) {
+			try {
+				const manager = await SessionManager.open(entry.sessionFile, undefined, undefined, {
+					throwIfMissing: false,
+				});
+				managers.push(manager);
+			} catch {
+				// A missing/unreadable transcript leaves no resumable handshake.
+			}
+		}
+		const requests = new Map<string, { metadata: ImSwitchControlMetadata; at: number; id: string }>();
+		const terminated = new Set<string>();
+		for (const manager of managers) {
+			for (const item of manager.getEntries()) {
+				if (item.type !== "im_control") continue;
+				const metadata = normalizeImSwitchControlMetadata(item.metadata);
+				if (!metadata) continue;
+				if (metadata.instance !== instanceId || metadata.chatId !== peer) continue;
+				if ((metadata.threadId ?? "") !== (context.threadId ?? "")) continue;
+				if ((metadata.senderId ?? "") !== (context.userId ?? "")) continue;
+				if (metadata.action !== "switch_request") {
+					terminated.add(metadata.requestId);
+					continue;
+				}
+				const at = Date.parse(metadata.sentAt);
+				const previous = requests.get(metadata.requestId);
+				if (!previous || at >= previous.at) requests.set(metadata.requestId, { metadata, at, id: item.id });
+			}
+		}
+		let latest: { metadata: ImSwitchControlMetadata; at: number; id: string } | undefined;
+		for (const candidate of requests.values()) {
+			if (terminated.has(candidate.metadata.requestId)) continue;
+			if (!Number.isFinite(candidate.at) || Date.now() - candidate.at > WORKSPACE_SWITCH_TTL_MS) continue;
+			if (!latest || candidate.at > latest.at) latest = candidate;
+		}
+		if (!latest) return undefined;
+		const control = { id: latest.id, metadata: latest.metadata };
+		if ((latest.metadata.operation ?? "target") === "unbind") {
+			return { action: "unbind", at: latest.at, requestId: latest.metadata.requestId, control };
+		}
+		const alias = latest.metadata.to.workspaceAlias;
+		if (!alias) return undefined;
+		return {
+			action: "target",
+			target: { kind: "workspace", workspace: alias },
+			// The durable im_control row records only the target, so a restored
+			// handshake applies the workspace itself; the live relay intent is
+			// re-staged by the next `@workspace relay`.
+			relay: false,
+			at: latest.at,
+			requestId: latest.metadata.requestId,
+			control,
+		};
+	}
+
+	/** Persist an im_control handshake on the target session (never an LLM prompt). */
+	async #recordImControl(
+		instanceId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string },
+		action: "switch_request" | "switch_confirm" | "switch_cancel",
+		requestId: string,
+		to: ImTarget,
+		operation: "target" | "unbind" = "target",
+	): Promise<ImSwitchControlRecord | undefined> {
+		const instance = this.#webConfig.getChannelInstance(instanceId);
+		const binding = this.#webConfig.findImBinding(instanceId, peer, context);
+		const manager =
+			(binding ? this.#botSessions.get(binding.sessionId)?.session.sessionManager : undefined) ??
+			this.#coordinator.sessionManager;
+		if (!manager) return undefined;
+		const fromTarget = binding?.target;
+		const route = (target: ImTarget | undefined) => ({
+			...(target?.kind === "workspace" ? { workspaceAlias: target.workspace } : {}),
+			...(binding?.agentProfileId ? { agentId: binding.agentProfileId } : {}),
+			...(binding?.sessionId ? { sessionId: binding.sessionId, botSessionId: binding.sessionId } : {}),
+			...(binding?.id ? { bindingId: binding.id } : {}),
+		});
+		const metadata: ImSwitchControlMetadata = {
+			source: "im_control",
+			platform: instance?.platform ?? "unknown",
+			instance: instanceId,
+			chatId: peer,
+			...(context.threadId ? { threadId: context.threadId } : {}),
+			...(context.userId ? { senderId: context.userId } : {}),
+			messageId: `control-${requestId}`,
+			sentAt: new Date().toISOString(),
+			action,
+			requestId,
+			operation,
+			from: route(fromTarget),
+			to: route(to),
+		};
+		const id = manager.appendImControl(metadata);
+		return { id, metadata };
+	}
+
+	async resolveChatTarget(
+		channelId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string } = {},
+	): Promise<ChatRouteTarget> {
 		const agent = this.agentTargetFor(channelId, peer);
 		if (agent) return { kind: "agent", target: agent, local: !agent.includes("/") };
 		// A manual `@workspace use` wins: the operator explicitly switched this
@@ -560,17 +1268,55 @@ export class SessionRouter {
 		const runtime = this.#runtimeBindings.get(`${channelId}:${peer}`);
 		if (runtime === COORDINATOR_ALIAS) return { kind: "relay" };
 		if (runtime) return this.#workspaceTarget(runtime);
-		// The chat's selected bot session owns its project: route by that
-		// project, never by the global default workspace.
-		const botId = await this.activeBotSessionIdFor(channelId, peer);
-		if (botId && botId !== "relay") {
-			const entry = this.#webConfig.getBotSession(botId);
-			if (entry) return { kind: "bot", id: botId };
+		// Every instance has a default profile; the first message creates the
+		// persistent binding, so a chat never borrows another chat's session.
+		let imBinding = this.#webConfig.findImBinding(channelId, peer, context);
+		let createdBinding = false;
+		if (!imBinding) {
+			// No configured instance means there is no per-chat profile to
+			// materialize; the default-workspace relay coordinator is the only
+			// safe target. Never invent a repository agent for an unknown entry.
+			const instance = this.#webConfig.getChannelInstance(channelId);
+			if (!instance) return { kind: "relay" };
+			try {
+				const hasAnswer = this.#webConfig
+					.getImBindings()
+					.some(
+						binding =>
+							binding.platform === instance.platform && binding.chatId === peer && binding.role === "answer",
+					);
+				imBinding = await this.#webConfig.patchImBinding(
+					channelId,
+					peer,
+					{ role: hasAnswer ? "mention" : "answer" },
+					context,
+				);
+				createdBinding = true;
+			} catch (error) {
+				return {
+					kind: "unavailable",
+					alias: channelId,
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
 		}
-		// Persisted chat binding, then the channel-default workspace.
-		const binding = await this.bindingFor(channelId, peer);
-		if (!binding || binding === COORDINATOR_ALIAS) return { kind: "relay" };
-		return this.#workspaceTarget(binding);
+		if (imBinding.sessionId === "relay") return { kind: "relay" };
+		// A persisted workspace binding is the chat's repository target: a
+		// sessionId left by an older bot selection must not override it unless
+		// that session exists. A binding created just now from the instance
+		// profile is different: its default location (the main workspace) is a
+		// bot target and materializes below, never a silent relay.
+		if (
+			!createdBinding &&
+			imBinding.target?.kind === "workspace" &&
+			imBinding.target.workspace !== COORDINATOR_ALIAS &&
+			!(imBinding.sessionId && this.#webConfig.getBotSession(imBinding.sessionId))
+		) {
+			return this.#workspaceTarget(imBinding.target.workspace);
+		}
+		const ensured = await this.ensureImBindingSession(imBinding);
+		if (!ensured.ok) return { kind: "unavailable", alias: imBinding.agentProfileId, error: ensured.error };
+		return { kind: "bot", id: ensured.id };
 	}
 
 	/**
@@ -596,7 +1342,7 @@ export class SessionRouter {
 	 */
 	async deliverToAgent(
 		target: string,
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		body: string,
 	): Promise<{ ok: boolean; error?: string }> {
@@ -624,28 +1370,12 @@ export class SessionRouter {
 	}
 
 	/** Resolve the effective workspace alias for one chat ("" = relay coordinator). */
-	async bindingFor(channelId: ChannelId, peer: string): Promise<string | null> {
+	async bindingFor(channelId: ChannelInstanceId, peer: string): Promise<string | null> {
 		const runtime = this.#runtimeBindings.get(`${channelId}:${peer}`);
 		if (runtime) return runtime;
-		const mapping = this.#webConfig.findSessionMapping(channelId, peer);
-		// `mode: "relay"` is the chat's persisted decision to live in the
-		// coordinator; it outranks the alias the same row may still carry.
-		if (mapping?.mode === "relay") return COORDINATOR_ALIAS;
-		// A mapping may carry only lang/sessionId (from !lang / !session use) with
-		// no workspaceAlias — those must NOT shadow the channel-default
-		// workspaceRoot fallback below.
-		if (mapping?.workspaceAlias) return mapping.workspaceAlias;
-		// Channel default workspace (`channels.<id>.workspaceRoot`): messages on
-		// this channel go direct to that repo unless overridden above.
-		const channelDefault = this.#webConfig.getData().channels[channelId]?.workspaceRoot;
-		if (channelDefault) {
-			const entry = this.#webConfig.findWorkspace(channelDefault);
-			if (entry) return entry.alias;
-			// Register the configured default on first use so direct routing works
-			// without a manual `@workspace open`.
-			const opened = await this.open(channelDefault, path.basename(channelDefault));
-			if (opened.ok) return opened.alias;
-		}
+		const binding = this.#webConfig.findImBinding(channelId, peer);
+		if (!binding) return null;
+		if (binding.target.kind === "workspace") return binding.target.workspace;
 		return null;
 	}
 
@@ -666,7 +1396,7 @@ export class SessionRouter {
 	 * Reports that cannot be attributed to a chat are never pushed anywhere.
 	 */
 	async reportDelegation(
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		stage: "progress" | "completion" | "failure",
 		text: string,
@@ -699,7 +1429,7 @@ export class SessionRouter {
 	 * already succeeded and its reply still reaches the coordinator.
 	 */
 	async #forwardReport(
-		chat: { channelId: ChannelId; peer: string } | null,
+		chat: { channelId: ChannelInstanceId; peer: string } | null,
 		stage: "progress" | "completion" | "failure",
 		text: string,
 	): Promise<"sent" | "buffered" | "suppressed"> {
@@ -720,7 +1450,7 @@ export class SessionRouter {
 	 * direct/relay route, persona activation, project-layer memory backend, and
 	 * the relay report policy.
 	 */
-	async statusSnapshot(channelId: ChannelId, peer: string): Promise<ChatStatusSnapshot> {
+	async statusSnapshot(channelId: ChannelInstanceId, peer: string): Promise<ChatStatusSnapshot> {
 		// A selected bot session owns the chat's project; otherwise the persisted
 		// binding (then the channel default) decides the landing workspace.
 		const botId = await this.activeBotSessionIdFor(channelId, peer);
@@ -763,7 +1493,7 @@ export class SessionRouter {
 
 	/** Set a runtime (non-persisted) route override for one chat. */
 	async setRuntimeBinding(
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		alias: string,
 	): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -776,7 +1506,7 @@ export class SessionRouter {
 
 	/** Persist a chat → workspace binding (direct mode). */
 	async bindChat(
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		alias: string,
 	): Promise<{ ok: true; alias: string } | { ok: false; error: string }> {
@@ -793,27 +1523,31 @@ export class SessionRouter {
 		// One merge keeps a chat's language and drops any bot-session pointer: a
 		// workspace binding supersedes both. `mode: direct` is the explicit
 		// project selection that outranks the channel default.
-		await this.#webConfig.updateChatMapping(channelId, peer, {
-			workspaceAlias: alias,
-			mode: "direct",
-			sessionId: null,
+		await this.#webConfig.patchImBinding(channelId, peer, {
+			target: { kind: "workspace", workspace: alias },
 		});
 		return { ok: true, alias };
 	}
 
 	/** Remove a chat's persisted + runtime binding. */
-	async unbindChat(channelId: ChannelId, peer: string): Promise<boolean> {
-		this.#runtimeBindings.delete(`${channelId}:${peer}`);
+	async unbindChat(channelId: ChannelInstanceId, peer: string): Promise<boolean> {
+		// An explicit unbind is a relay decision, not a gap the next lookup fills
+		// with a fresh default bot session.
+		this.#runtimeBindings.set(`${channelId}:${peer}`, COORDINATOR_ALIAS);
 		this.#agentBindings.delete(`${channelId}:${peer}`);
-		return this.#webConfig.removeSessionMapping(channelId, peer);
+		return this.#webConfig.removeImBindingByChat(channelId, peer);
 	}
 
 	/** List every persisted binding for one platform. */
-	bindingsForPlatform(channelId: ChannelId): { chatId: string; workspaceAlias?: string; mode?: string }[] {
+	bindingsForPlatform(channelId: ChannelInstanceId): { chatId: string; workspaceAlias?: string; mode?: string }[] {
 		return this.#webConfig
-			.getSessionMappings()
-			.filter(mapping => mapping.platform === channelId)
-			.map(mapping => ({ chatId: mapping.chatId, workspaceAlias: mapping.workspaceAlias, mode: mapping.mode }));
+			.getImBindings()
+			.filter(binding => binding.instanceId === channelId)
+			.map(binding => ({
+				chatId: binding.chatId,
+				...(binding.target.kind === "workspace" ? { workspaceAlias: binding.target.workspace } : {}),
+				role: binding.role,
+			}));
 	}
 
 	// ------------------------------------------------------------------
@@ -831,7 +1565,7 @@ export class SessionRouter {
 	}
 
 	/** The origin stamp for one registry entry. */
-	#botOrigin(entry: BotSessionEntry, chat?: { channelId: ChannelId; peer: string }): SessionOrigin {
+	#botOrigin(entry: BotSessionEntry, chat?: { channelId: ChannelInstanceId; peer: string }): SessionOrigin {
 		const channel = chat?.channelId ?? entry.platform;
 		const chatId = chat?.peer ?? entry.chatId;
 		return {
@@ -864,7 +1598,7 @@ export class SessionRouter {
 	 * transcript when either changed. A no-op for repeat deliveries from the
 	 * same chat, so the hot path never rewrites web.yml.
 	 */
-	async #rememberBotChat(id: string, channelId: ChannelId, peer: string): Promise<void> {
+	async #rememberBotChat(id: string, channelId: ChannelInstanceId, peer: string): Promise<void> {
 		const entry = this.#webConfig.getBotSession(id);
 		if (!entry) return;
 		const changed = entry.platform !== channelId || entry.chatId !== peer;
@@ -1089,6 +1823,30 @@ export class SessionRouter {
 		return { ok: true };
 	}
 
+	/**
+	 * Compile the entry's agent profile into the SDK admission policy. Every
+	 * binding owns its runtime id/memory namespace/home; a profile is only a
+	 * template. A missing profile or persona is an explicit error.
+	 */
+	async agentProfileForEntry(entry: BotSessionEntry): Promise<AgentProfileOptions | undefined> {
+		// Studio/legacy bot sessions predate profiles; they keep the product
+		// default. An IM binding always carries the full identity.
+		if (!entry.agentProfileId || !entry.bindingId || !entry.instanceId) return undefined;
+		const profile = this.#webConfig.getImAgent(entry.agentProfileId);
+		if (!profile) throw new Error(`Unknown agent profile "${entry.agentProfileId}"`);
+		const cwd = entry.cwd ?? this.#defaultCwd;
+		const personaText = await loadImAgentProfilePersona(profile, { cwd });
+		const options = resolveImAgentProfileRuntime(profile, {
+			instanceId: entry.instanceId,
+			profileId: entry.agentProfileId,
+			bindingId: entry.bindingId,
+			agentDir: getAgentDir(),
+			cwd,
+			...(personaText === undefined ? {} : { personaText }),
+		});
+		return entry.model ? { ...options, model: `${entry.model.provider}/${entry.model.model}` } : options;
+	}
+
 	/** Get (or lazily create) the live session for a registered bot session. */
 	async ensureBotSession(
 		entry: BotSessionEntry,
@@ -1130,9 +1888,11 @@ export class SessionRouter {
 			origin: this.#botOrigin(entry),
 		});
 		const caller = this.#contextForBot(entry);
+		const agentProfile = await this.agentProfileForEntry(entry);
 		const { session } = await createAgentSession({
 			cwd: manager.getCwd(),
 			sessionManager: manager,
+			...(agentProfile === undefined ? {} : { agentProfile }),
 			channelSend: this.#channelSend ? opts => this.#channelSend!(opts, caller) : undefined,
 			workspaceRun: this.#workspaceRun ? opts => this.#workspaceRun!(opts, caller) : undefined,
 			imControl: this.#imControl ? params => this.#imControl!(entry.id, params) : undefined,
@@ -1150,27 +1910,24 @@ export class SessionRouter {
 	}
 
 	/** The bot session id this chat currently uses ("" / null → relay). */
-	async activeBotSessionIdFor(channelId: ChannelId, peer: string): Promise<string | null> {
-		const mapping = this.#webConfig.findSessionMapping(channelId, peer);
-		return mapping?.sessionId ?? null;
+	async activeBotSessionIdFor(channelId: ChannelInstanceId, peer: string): Promise<string | null> {
+		// `relay` is the explicit sentinel; a removed field is the implicit default.
+		return this.#webConfig.findImBinding(channelId, peer)?.sessionId ?? null;
 	}
 
 	/** Point one chat at a bot session (clears direct workspace mode). Relay is
 	 *  the implicit default: `use relay` drops the pointer back to it. */
 	async setActiveBotSession(
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		id: string,
 	): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
 		if (id === "relay") {
-			// Relay means the coordinator: drop the session pointer and any
-			// persisted project/direct binding that would keep answering for a repo.
-			await this.#webConfig.updateChatMapping(channelId, peer, {
-				sessionId: null,
-				workspaceAlias: null,
-				mode: null,
-			});
-			this.#runtimeBindings.delete(`${channelId}:${peer}`);
+			// Relay means the coordinator: drop the chat's row entirely so the
+			// active-session pointer reads null, and pin the runtime route to relay
+			// until a later switch writes a new binding.
+			await this.#webConfig.removeImBindingByChat(channelId, peer);
+			this.#runtimeBindings.set(`${channelId}:${peer}`, COORDINATOR_ALIAS);
 			return { ok: true, id: "relay" };
 		}
 		const entry = this.#webConfig.getBotSession(id);
@@ -1182,10 +1939,14 @@ export class SessionRouter {
 		if (!ensured.ok) return ensured;
 		// The selected session owns its project: a stale workspace binding must
 		// not keep routing this chat to a different repository.
-		await this.#webConfig.updateChatMapping(channelId, peer, {
+		await this.#webConfig.patchImBinding(channelId, peer, {
 			sessionId: id,
-			workspaceAlias: null,
-			mode: null,
+			...(entry.agentProfileId ? { agentProfileId: entry.agentProfileId } : {}),
+			...(entry.target
+				? { target: entry.target }
+				: entry.workspaceAlias
+					? { target: { kind: "workspace" as const, workspace: entry.workspaceAlias } }
+					: {}),
 		});
 		this.#runtimeBindings.delete(`${channelId}:${peer}`);
 		await this.#rememberBotChat(id, channelId, peer);
@@ -1196,12 +1957,13 @@ export class SessionRouter {
 
 	/** Resolve the live session a chat's messages should target (bot session or relay). */
 	async resolveChatTargetSession(
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
+		context: { threadId?: string; userId?: string } = {},
 	): Promise<{ ok: true; session: AgentSession; id: string } | { ok: false; error: string }> {
 		// Same precedence as inbound routing: the chat's bot session or bound
 		// workspace, never a silent jump to the default workspace.
-		const target = await this.resolveChatTarget(channelId, peer);
+		const target = await this.resolveChatTarget(channelId, peer, context);
 		if (target.kind === "bot") {
 			const entry = this.#webConfig.getBotSession(target.id);
 			if (entry) {
@@ -1225,28 +1987,48 @@ export class SessionRouter {
 	 * session id → the chat it is currently replying to (else its bound chat,
 	 * else the relay's last inbound). Never guesses a wrong chat.
 	 */
-	resolveImControlChat(sessionKey: string): { channelId: ChannelId; peer: string } | null {
+	resolveImControlChat(sessionKey: string): { channelId: ChannelInstanceId; peer: string } | null {
 		if (sessionKey === "coordinator") return this.#getLastInbound();
 		const reply = this.#botLastChat.get(sessionKey);
 		if (reply) return { channelId: reply.channelId, peer: reply.peer };
 		const entry = this.#webConfig.getBotSession(sessionKey);
-		if (entry?.platform && entry.chatId) return { channelId: entry.platform as ChannelId, peer: entry.chatId };
+		if (entry?.platform && entry.chatId)
+			return { channelId: entry.platform as ChannelInstanceId, peer: entry.chatId };
 		return this.#getLastInbound();
 	}
 
 	/** Drop a chat's bot-session pointer (falls back to the relay). */
-	async clearActiveBotSession(channelId: ChannelId, peer: string): Promise<void> {
-		await this.#webConfig.updateChatMapping(channelId, peer, { sessionId: null });
+	async clearActiveBotSession(channelId: ChannelInstanceId, peer: string): Promise<void> {
+		await this.#webConfig.patchImBinding(channelId, peer, {
+			sessionId: "relay",
+			target: { kind: "workspace", workspace: COORDINATOR_ALIAS },
+		});
+	}
+
+	/** Persist the chat's model so a restarted binding resumes the same model. */
+	async setChatModel(
+		channelId: ChannelInstanceId,
+		peer: string,
+		model: { provider: string; model: string },
+	): Promise<void> {
+		await this.#webConfig.patchImBinding(channelId, peer, { model });
+		const binding = this.#webConfig.findImBinding(channelId, peer);
+		const entry = binding ? this.#webConfig.getBotSession(binding.sessionId) : undefined;
+		if (entry) await this.#webConfig.upsertBotSession({ ...entry, model });
 	}
 
 	/** The reply language configured for one chat ("" → unset). */
-	async languageFor(channelId: ChannelId, peer: string): Promise<"zh" | "en" | undefined> {
-		return this.#webConfig.findSessionMapping(channelId, peer)?.lang;
+	async languageFor(
+		channelId: ChannelInstanceId,
+		peer: string,
+		context: { threadId?: string; userId?: string } = {},
+	): Promise<"zh" | "en" | undefined> {
+		return this.#webConfig.findImBinding(channelId, peer, context)?.lang;
 	}
 
 	/** Set a chat's reply language and apply it to its active bot session. */
-	async setLanguage(channelId: ChannelId, peer: string, lang: "zh" | "en"): Promise<void> {
-		await this.#webConfig.updateChatMapping(channelId, peer, { lang });
+	async setLanguage(channelId: ChannelInstanceId, peer: string, lang: "zh" | "en"): Promise<void> {
+		await this.#webConfig.patchImBinding(channelId, peer, { lang });
 		const activeId = await this.activeBotSessionIdFor(channelId, peer);
 		if (!activeId) return;
 		const handle = this.#botSessions.get(activeId);
@@ -1257,6 +2039,39 @@ export class SessionRouter {
 	}
 
 	/**
+	 * Entry-level provenance for one real IM user turn. Uses the actual binding
+	 * snapshot captured at delivery, so a later switch cannot rewrite it.
+	 */
+	#imUserMetadata(
+		channelId: ChannelInstanceId,
+		peer: string,
+		context: ImDeliveryContext,
+		route: Record<string, string | undefined>,
+		fallbackMessageId: string,
+		fallbackTs: number,
+	): Record<string, unknown> {
+		const platform = this.#webConfig.getChannelInstance(channelId)?.platform ?? "unknown";
+		return buildImUserMessageMetadata({
+			platform,
+			instance: channelId,
+			chatId: peer,
+			...(context.threadId ? { threadId: context.threadId } : {}),
+			...(context.userId ? { senderId: context.userId } : {}),
+			...(context.senderName ? { senderName: context.senderName } : {}),
+			messageId: context.messageId ?? fallbackMessageId,
+			sentAt: context.sentAt ?? fallbackTs,
+			...(context.attachments ? { attachments: context.attachments } : {}),
+			route: {
+				workspaceAlias: route.workspaceAlias,
+				agentId: route.agentId,
+				sessionId: route.sessionId,
+				botSessionId: route.botSessionId,
+				bindingId: route.bindingId,
+			},
+		}) as unknown as Record<string, unknown>;
+	}
+
+	/**
 	 * Deliver an inbound message into a bot session and bind the chat so the
 	 * session's final reply returns to that chat. The reply is correlated by
 	 * the delivered message (see {@link ReplyCorrelator}), so two chats sharing
@@ -1264,25 +2079,74 @@ export class SessionRouter {
 	 */
 	async deliverToBotSession(
 		id: string,
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		body: string,
+		context: ImDeliveryContext = {},
 	): Promise<{ ok: true } | { ok: false; error: string }> {
-		const handle = this.#botSessions.get(id);
-		if (!handle) return { ok: false, error: `Bot session "${id}" has no runtime session` };
-		const lang = (await this.languageFor(channelId, peer)) ?? handle.entry.lang;
+		let handle = this.#botSessions.get(id);
+		if (!handle) {
+			const entry = this.#webConfig.getBotSession(id);
+			if (!entry) return { ok: false, error: `Bot session "${id}" is not registered` };
+			const ensured = await this.ensureBotSession(entry);
+			if (!ensured.ok) return ensured;
+			handle = this.#botSessions.get(id);
+			if (!handle) return { ok: false, error: `Bot session "${id}" did not start` };
+		}
+		const binding = this.#webConfig.findImBinding(channelId, peer, context);
+		const lang = (await this.languageFor(channelId, peer, context)) ?? handle.entry.lang;
 		if (lang) this.#applyLanguageToSession(handle.session, lang);
 		this.#botLastChat.set(id, { channelId, peer });
 		await this.#rememberBotChat(id, channelId, peer);
 		const bridge = this.#bridgeFor(id, handle.session);
+		const messageId = Snowflake.next();
+		const target = binding?.target ?? handle.entry.target;
 		const msg: IrcMessage = {
-			id: Snowflake.next(),
+			id: messageId,
 			from: this.#coordinator.getAgentId() ?? "coordinator",
 			to: handle.session.getAgentId() ?? id,
 			body,
 			ts: Date.now(),
+			metadata: this.#imUserMetadata(
+				channelId,
+				peer,
+				context,
+				{
+					...(target?.kind === "workspace" ? { workspaceAlias: target.workspace } : {}),
+					agentId: binding?.agentProfileId ?? handle.entry.agentProfileId,
+					sessionId: binding?.sessionId,
+					botSessionId: binding?.sessionId,
+					bindingId: binding?.id,
+				},
+				messageId,
+				Date.now(),
+			),
 		};
-		bridge.expect(msg.id, { kind: "chat", channelId, peer });
+		// `observe` consumes the conversation for memory/context but never sends:
+		// its turn is correlated to a sink that drops the reply.
+		bridge.expect(
+			msg.id,
+			binding?.role === "observe"
+				? { kind: "sink", deliver: () => {} }
+				: {
+						kind: "chat",
+						instanceId: channelId,
+						peer,
+						originLabel: binding
+							? `${targetKey(binding.target)} · ${binding.agentProfileId}`
+							: handle.entry.target
+								? `${targetKey(handle.entry.target)} · ${handle.entry.agentProfileId ?? "default"}`
+								: undefined,
+						...(context.threadId || context.userId
+							? {
+									context: {
+										...(context.threadId ? { threadId: context.threadId } : {}),
+										...(context.userId ? { userId: context.userId } : {}),
+									},
+								}
+							: {}),
+					},
+		);
 		try {
 			await handle.session.deliverIrcMessage(msg);
 		} catch (error) {
@@ -1325,9 +2189,10 @@ export class SessionRouter {
 	 */
 	async deliverDirect(
 		workspaceAlias: string,
-		channelId: ChannelId,
+		channelId: ChannelInstanceId,
 		peer: string,
 		body: string,
+		context: ImDeliveryContext = {},
 	): Promise<{ ok: true } | { ok: false; error: string }> {
 		const dir = this.resolveDir(workspaceAlias);
 		if (!dir) return { ok: false, error: `Unknown workspace "${workspaceAlias}"` };
@@ -1341,14 +2206,16 @@ export class SessionRouter {
 			if (!handle) return { ok: false, error: `Workspace "${workspaceAlias}" has no session` };
 		}
 		const bridge = this.#bridgeFor(dir, handle.session);
+		const messageId = Snowflake.next();
 		const msg: IrcMessage = {
-			id: Snowflake.next(),
+			id: messageId,
 			from: this.#coordinator.getAgentId() ?? "coordinator",
 			to: handle.session.getAgentId() ?? "workspace",
 			body,
 			ts: Date.now(),
+			metadata: this.#imUserMetadata(channelId, peer, context, { workspaceAlias }, messageId, Date.now()),
 		};
-		bridge.expect(msg.id, { kind: "chat", channelId, peer });
+		bridge.expect(msg.id, { kind: "chat", instanceId: channelId, peer });
 		try {
 			await handle.session.deliverIrcMessage(msg);
 		} catch (error) {
@@ -1476,10 +2343,11 @@ export class SessionRouter {
 	resolvePush(
 		opts: { to?: string; channel?: string },
 		caller?: ChannelToolContext,
-	): { channelId: ChannelId; to: string } | null {
+	): { channelId: ChannelInstanceId; to: string } | null {
 		const inbound = this.#getLastInbound();
 		const scoped = this.#chatForContext(caller);
-		const channelId = (opts.channel as ChannelId | undefined) ?? scoped?.channelId ?? inbound?.channelId ?? null;
+		const channelId =
+			(opts.channel as ChannelInstanceId | undefined) ?? scoped?.channelId ?? inbound?.channelId ?? null;
 		const to =
 			opts.to ??
 			(channelId !== null && scoped?.channelId === channelId ? scoped.peer : undefined) ??
@@ -1491,27 +2359,28 @@ export class SessionRouter {
 
 	/**
 	 * Push text through the channel runtime (channel_send tool sink). Outbound
-	 * targets are checked against `channels.allowedPeers`: an agent cannot use
-	 * the tool to message a peer the operator never authorized.
+	 * targets are checked against the target instance's peer allowlist: an
+	 * agent cannot use the tool to message a peer the operator never authorized.
 	 */
 	async push(opts: { text: string; to?: string; channel?: string }, caller?: ChannelToolContext): Promise<void> {
 		const target = this.resolvePush(opts, caller);
 		if (!target) throw new Error("No channel or peer bound to this session");
-		const allowedPeers = this.#webConfig.getData().channels.allowedPeers;
-		if (!isPeerAllowed(target.to, allowedPeers)) {
-			throw new Error(`channel_send: peer "${target.to}" is not in channels.allowedPeers`);
+		const instance = this.#webConfig.getChannelInstance(target.channelId);
+		if (!instance || !instance.allow.peers.includes(target.to)) {
+			throw new Error(`channel_send: peer "${target.to}" is not in the ${target.channelId} instance allowlist`);
 		}
 		await this.#sendText(target.channelId, target.to, opts.text);
 	}
 
 	/** The chat that invoked a channel tool through `caller`'s session. */
-	#chatForContext(caller?: ChannelToolContext): { channelId: ChannelId; peer: string } | null {
+	#chatForContext(caller?: ChannelToolContext): { channelId: ChannelInstanceId; peer: string } | null {
 		if (!caller) return null;
 		if (caller.sessionKey === "coordinator") return this.#getLastInbound();
 		const last = this.#botLastChat.get(caller.sessionKey);
 		if (last) return { channelId: last.channelId, peer: last.peer };
 		const entry = this.#webConfig.getBotSession(caller.sessionKey);
-		if (entry?.platform && entry.chatId) return { channelId: entry.platform as ChannelId, peer: entry.chatId };
+		if (entry?.platform && entry.chatId)
+			return { channelId: entry.platform as ChannelInstanceId, peer: entry.chatId };
 		return null;
 	}
 

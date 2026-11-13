@@ -182,6 +182,7 @@
 .menu {
   position: absolute;
   min-width: 240px;
+  max-width: min(420px, calc(100vw - 24px));
   background: var(--surface);
   border: 1px solid var(--border-float);
   border-radius: var(--r-8);
@@ -199,12 +200,14 @@
   align-items: center;
   gap: var(--sp-8);
   width: 100%;
+  min-width: 0;
   padding: 6px var(--sp-8);
   border-radius: var(--r-6);
   font-size: var(--fs-12);
   color: var(--text-2);
   text-align: left;
 }
+.menu-item-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-item:hover { background: var(--surface-hover); color: var(--text); }
 .menu-item:disabled {
   opacity: 0.45;

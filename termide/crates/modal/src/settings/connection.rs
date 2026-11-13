@@ -2,7 +2,10 @@
 //! one. The page edits the connection in place in the config, so the modal's
 //! own Apply and Cancel cover it like every other field.
 
+use std::collections::BTreeSet;
+
 use termide_config::Connection;
+use termide_core::SecretText;
 use termide_i18n as i18n;
 use unicode_width::UnicodeWidthStr;
 
@@ -10,7 +13,7 @@ use super::fields::{
     bool_str, empty_or, provider_label, step_value, ContentRow, EnumOptions, FieldDescriptor,
     FieldType, MODEL_TYPE_SENTINEL, PROVIDER_VALUES,
 };
-use super::{SettingsModal, SettingsTab};
+use super::{ApiKeyChange, SettingsModal, SettingsTab};
 
 /// The connection page's fields, as indices into [`connection_fields`].
 pub(super) const NAME: usize = 0;
@@ -24,6 +27,18 @@ pub(super) const SUBAGENTS: usize = 7;
 pub(super) const MAX_REQUESTS: usize = 8;
 pub(super) const REVIEWER: usize = 9;
 pub(super) const CONTEXT_LIMIT: usize = 10;
+/// The key kept in the password vault: a dropdown of what can be done
+/// with it, never its value.
+pub(super) const API_KEY: usize = 11;
+/// Whether to identify termide to the endpoint. On the page only for an
+/// endpoint that files usage by app, where the switch means something.
+pub(super) const APP_ATTRIBUTION: usize = 12;
+
+/// The API key dropdown's entries besides the current state, stored as an
+/// empty value.
+pub(super) const API_KEY_ENTER: &str = "\u{0}api-key-enter";
+pub(super) const API_KEY_REMOVE: &str = "\u{0}api-key-remove";
+pub(super) const API_KEY_MOVE_ENV: &str = "\u{0}api-key-move-env";
 
 /// The connection page, while one is open.
 #[derive(Debug, Clone)]
@@ -114,6 +129,14 @@ pub(super) fn connection_fields() -> Vec<FieldDescriptor> {
             label: t.settings_ai_connection_context_limit(),
             field_type: FieldType::OptionalNumber,
         },
+        FieldDescriptor {
+            label: t.settings_agent_api_key(),
+            field_type: FieldType::Enum,
+        },
+        FieldDescriptor {
+            label: t.settings_ai_connection_attribution(),
+            field_type: FieldType::Bool,
+        },
     ]
 }
 
@@ -196,7 +219,19 @@ impl SettingsModal {
             Field(PROVIDER),
         ];
         if !cli {
-            rows.extend([Field(BASE_URL), Field(API_KEY_ENV)]);
+            rows.extend([Field(BASE_URL), Field(API_KEY), Field(API_KEY_ENV)]);
+            // The switch is shown only where it means something: an endpoint
+            // that files usage by the app that sent it. Anywhere else there is
+            // nothing to switch, so there is no row — and as the row goes, so
+            // does what it was switched on for. It follows the URL the page
+            // holds, so it is there once its field is left, without waiting
+            // for the settings to be saved.
+            if self
+                .edited()
+                .is_some_and(|c| termide_config::attribution_of(&c.base_url).is_some())
+            {
+                rows.push(Field(APP_ATTRIBUTION));
+            }
         }
         rows.push(Field(MODEL));
         if !cli {
@@ -308,6 +343,10 @@ impl SettingsModal {
         }
         self.retarget_subagents(name, "");
         self.retarget_reviewers(name, "");
+        self.stored_api_keys.remove(name);
+        self.api_key_changes.push(ApiKeyChange::Remove {
+            connection: name.to_string(),
+        });
         // The default moves to the first left, named, so it stays put.
         if self.config.ai.connection == name {
             self.config.ai.connection = self
@@ -370,12 +409,19 @@ impl SettingsModal {
             NAME => self.open_connection_name().unwrap_or_default().to_string(),
             PROVIDER => provider_label(&connection.provider),
             BASE_URL => empty_or(&connection.base_url),
+            // A key pasted where a variable's name belongs is not shown.
+            API_KEY_ENV if connection.api_key_env_looks_like_key() => "********".to_string(),
             API_KEY_ENV => empty_or(&connection.api_key_env),
+            API_KEY => self.api_key_state().to_string(),
             MODEL => {
                 let model = if connection.model.is_empty() {
                     i18n::t().settings_ai_model_auto().to_string()
                 } else {
-                    connection.model.clone()
+                    // The listed model's name, as its dropdown shows it.
+                    self.model_options
+                        .iter()
+                        .find(|(id, _)| *id == connection.model)
+                        .map_or_else(|| connection.model.clone(), |(_, name)| name.clone())
                 };
                 if self.models_loading {
                     format!("{} {model}", termide_config::constants::spinner_frame())
@@ -402,6 +448,7 @@ impl SettingsModal {
             }
             MAX_REQUESTS => connection.max_concurrent_requests.to_string(),
             REVIEWER => self.reviewer_label(&connection.reviewer),
+            APP_ATTRIBUTION => bool_str(connection.app_attribution),
             _ => String::new(),
         }
     }
@@ -446,17 +493,27 @@ impl SettingsModal {
         }
     }
 
-    /// Toggle the page's switch of whether new sessions start on this
-    /// connection. Exactly one is the default: turned
-    /// off, the default moves to the first other connection by name; the
-    /// only one stays on.
+    /// Toggle one of the page's two switches.
+    ///
+    /// [`APP_ATTRIBUTION`] is the connection's own. [`DEFAULT`] picks which
+    /// connection new sessions start on: exactly one is the default, so turned
+    /// off it moves to the first other connection by name, and the only one
+    /// stays on.
     pub(super) fn toggle_connection_field(&mut self, index: usize) {
-        if index != DEFAULT {
-            return;
-        }
         let Some(name) = self.open_connection_name().map(str::to_string) else {
             return;
         };
+        if index == APP_ATTRIBUTION {
+            let Some(connection) = self.config.ai.connections.get_mut(&name) else {
+                return;
+            };
+            connection.app_attribution = !connection.app_attribution;
+            self.mark_dirty();
+            return;
+        }
+        if index != DEFAULT {
+            return;
+        }
         if self.config.ai.default_connection() != Some(name.as_str()) {
             self.config.ai.connection = name;
         } else if let Some(other) = self.config.ai.connections.keys().find(|n| **n != name) {
@@ -485,6 +542,7 @@ impl SettingsModal {
                 })
             }
             MODEL => Some(model_enum_options(&connection.model, &self.model_options)),
+            API_KEY => Some(self.api_key_options(connection)),
             REVIEWER => {
                 // Any connection reviews: a CLI agent through its subscription.
                 let values: Vec<String> = std::iter::once(String::new())
@@ -534,6 +592,7 @@ impl SettingsModal {
                     connection.reviewer = value.to_string();
                 }
             }
+            API_KEY => self.apply_api_key_choice(value),
             _ => {}
         }
     }
@@ -662,6 +721,13 @@ impl SettingsModal {
             .ai
             .connections
             .insert(new.to_string(), connection);
+        if self.stored_api_keys.remove(old) {
+            self.stored_api_keys.insert(new.to_string());
+        }
+        self.api_key_changes.push(ApiKeyChange::Rename {
+            from: old.to_string(),
+            to: new.to_string(),
+        });
         if self.config.ai.connection == old {
             self.config.ai.connection = new.to_string();
         }
@@ -764,15 +830,165 @@ impl SettingsModal {
     /// Ask the app for the open connection's models — a CLI agent lists
     /// those of its login over ACP — and show the wait in the model field.
     fn request_models(&mut self) {
-        self.model_fetch_request = self.edited().cloned();
+        self.model_fetch_request = self
+            .open_connection_name()
+            .map(str::to_string)
+            .zip(self.edited().cloned());
         self.models_loading = self.model_fetch_request.is_some();
     }
 
-    /// The connection whose models the model dropdown waits for, once: the
-    /// app fetches them off-thread and hands them back with
+    /// The connection, by name, whose models the model dropdown waits for,
+    /// once: the app fetches them off-thread and hands them back with
     /// [`SettingsModal::set_model_options`].
-    pub fn take_model_fetch_request(&mut self) -> Option<Connection> {
+    pub fn take_model_fetch_request(&mut self) -> Option<(String, Connection)> {
         self.model_fetch_request.take()
+    }
+
+    // === The API key in the password vault ===
+
+    /// Tell which connections the password vault keeps an API key for.
+    #[must_use]
+    pub fn with_stored_api_keys(mut self, names: BTreeSet<String>) -> Self {
+        self.stored_api_keys = names;
+        self
+    }
+
+    /// The vault's API keys changed, or a change asked could not be made.
+    pub fn set_stored_api_keys(&mut self, names: BTreeSet<String>) {
+        self.stored_api_keys = names;
+    }
+
+    /// The changes to the vault's API keys asked since the last call, in
+    /// order.
+    pub fn take_api_key_changes(&mut self) -> Vec<ApiKeyChange> {
+        std::mem::take(&mut self.api_key_changes)
+    }
+
+    /// The key pasted into `api_key_env` of `connection` is in the vault
+    /// now: clear the field, if it still holds a key.
+    pub fn forget_api_key_env(&mut self, connection: &str) {
+        let Some(edited) = self.config.ai.connections.get_mut(connection) else {
+            return;
+        };
+        if edited.api_key_env_looks_like_key() {
+            edited.api_key_env.clear();
+            self.mark_dirty();
+        }
+    }
+
+    /// Whether the open connection's key is in the vault.
+    fn has_stored_api_key(&self) -> bool {
+        self.open_connection_name()
+            .is_some_and(|name| self.stored_api_keys.contains(name))
+    }
+
+    /// How the API key row reads: kept in the vault, or not.
+    fn api_key_state(&self) -> &'static str {
+        let t = i18n::t();
+        if self.has_stored_api_key() {
+            t.settings_api_key_stored()
+        } else {
+            t.settings_api_key_not_stored()
+        }
+    }
+
+    /// The API key dropdown: the state first, then what can be done — move
+    /// a key pasted into the variable field (where these settings may set
+    /// it), type a key, remove the one kept.
+    fn api_key_options(&self, connection: &Connection) -> EnumOptions {
+        let t = i18n::t();
+        let stored = self.has_stored_api_key();
+        let mut entries = vec![(String::new(), self.api_key_state().to_string())];
+        if connection.api_key_env_looks_like_key() && !self.is_global_only(API_KEY_ENV) {
+            entries.push((
+                API_KEY_MOVE_ENV.to_string(),
+                t.settings_api_key_move_env().to_string(),
+            ));
+        }
+        let enter = if stored {
+            t.settings_api_key_replace()
+        } else {
+            t.settings_api_key_enter()
+        };
+        entries.push((API_KEY_ENTER.to_string(), enter.to_string()));
+        if stored {
+            entries.push((
+                API_KEY_REMOVE.to_string(),
+                t.settings_api_key_remove().to_string(),
+            ));
+        }
+        let (values, labels) = entries.into_iter().unzip();
+        EnumOptions {
+            values,
+            labels,
+            current: Some(0),
+        }
+    }
+
+    /// Act on an API key dropdown choice; typing a key is
+    /// [`SettingsModal::store_api_key`]'s.
+    fn apply_api_key_choice(&mut self, value: &str) {
+        let Some(name) = self.open_connection_name().map(str::to_string) else {
+            return;
+        };
+        match value {
+            API_KEY_REMOVE => {
+                self.stored_api_keys.remove(&name);
+                self.api_key_changes
+                    .push(ApiKeyChange::Remove { connection: name });
+                self.request_models();
+            }
+            API_KEY_MOVE_ENV => {
+                let Some(pasted) = self
+                    .edited()
+                    .filter(|c| c.api_key_env_looks_like_key())
+                    .map(|c| SecretText::new(c.api_key_env.trim()))
+                else {
+                    return;
+                };
+                // The field is cleared once the key is safely stored.
+                self.stored_api_keys.insert(name.clone());
+                self.api_key_changes.push(ApiKeyChange::Store {
+                    connection: name,
+                    key: pasted,
+                    from_env: true,
+                });
+                self.request_models();
+            }
+            _ => {}
+        }
+    }
+
+    /// Keep `key`, typed into the API key field, for the open connection.
+    pub(super) fn store_api_key(&mut self, key: &str) {
+        let key = key.trim();
+        let Some(name) = self.open_connection_name().map(str::to_string) else {
+            return;
+        };
+        if key.is_empty() {
+            return;
+        }
+        self.stored_api_keys.insert(name.clone());
+        self.api_key_changes.push(ApiKeyChange::Store {
+            connection: name,
+            key: SecretText::new(key),
+            from_env: false,
+        });
+        // The models may list now that the key is there.
+        self.request_models();
+    }
+
+    /// Whether the field being edited is the API key, whose text is masked
+    /// and never kept.
+    pub(super) fn is_api_key_field(&self, index: usize) -> bool {
+        self.field_tab() == SettingsTab::Connection && index == API_KEY
+    }
+
+    /// A warning a field of the open connection carries: a key pasted where
+    /// the name of its variable belongs.
+    pub(super) fn connection_warning(&self, index: usize) -> Option<&'static str> {
+        (index == API_KEY_ENV && self.edited()?.api_key_env_looks_like_key())
+            .then(|| i18n::t().settings_api_key_env_misuse())
     }
 }
 
@@ -781,15 +997,16 @@ impl SettingsModal {
 /// current value kept present), then a "type an id" escape that opens inline
 /// editing. With no fetched models — a CLI provider, or an endpoint that
 /// cannot list — only auto, the current value and the escape show, so typing
-/// still works.
-pub(super) fn model_enum_options(current: &str, model_options: &[String]) -> EnumOptions {
-    let mut values: Vec<String> = model_options.to_vec();
+/// still works. A model shows its name, as the agent panel's picker does.
+pub(super) fn model_enum_options(current: &str, model_options: &[(String, String)]) -> EnumOptions {
+    let mut values: Vec<String> = model_options.iter().map(|(id, _)| id.clone()).collect();
+    let mut labels: Vec<String> = model_options.iter().map(|(_, name)| name.clone()).collect();
     if !current.is_empty() && !values.iter().any(|v| v == current) {
         values.insert(0, current.to_string());
+        labels.insert(0, current.to_string());
     }
     values.insert(0, String::new());
-    let mut labels: Vec<String> = values.clone();
-    labels[0] = i18n::t().settings_ai_model_auto().to_string();
+    labels.insert(0, i18n::t().settings_ai_model_auto().to_string());
     values.push(MODEL_TYPE_SENTINEL.to_string());
     labels.push(i18n::t().agent_model_other().to_string());
     let current_index = values.iter().position(|v| v == current);
@@ -914,6 +1131,70 @@ mod tests {
         assert!(modal.connection_edit.is_none());
     }
 
+    /// The identification switch is on the page only for an endpoint that
+    /// files usage by the app that sent it, and it belongs to the connection.
+    #[test]
+    fn the_identification_switch_shows_only_where_it_means_something() {
+        let mut modal = ai_modal(Config::default());
+        focus(&mut modal, ContentRow::ConnectionAdd);
+        press(&mut modal, KeyCode::Enter);
+        // A local server keeps no such breakdown, so there is nothing to ask.
+        edit(&mut modal, BASE_URL, "http://127.0.0.1:10000/v1");
+        assert!(
+            !modal
+                .content_rows()
+                .contains(&ContentRow::Field(APP_ATTRIBUTION)),
+            "{:?}",
+            modal.content_rows()
+        );
+
+        // OpenRouter files usage by app: the row appears, and on — termide
+        // identifies itself there unless told not to. It follows the URL the
+        // page holds, so it is there as its field is left, while nothing is
+        // saved yet: no Apply, no reload. While the field is still open the
+        // page shows the URL it had.
+        focus(&mut modal, ContentRow::Field(BASE_URL));
+        press(&mut modal, KeyCode::Enter);
+        modal.edit_input.set_text("");
+        type_text(&mut modal, "https://openrouter.ai/api/v1");
+        assert!(!modal
+            .content_rows()
+            .contains(&ContentRow::Field(APP_ATTRIBUTION)));
+        press(&mut modal, KeyCode::Enter);
+        assert!(modal.save_pending, "the URL is set, not saved");
+        assert!(modal
+            .content_rows()
+            .contains(&ContentRow::Field(APP_ATTRIBUTION)));
+        assert_eq!(modal.connection_value(APP_ATTRIBUTION), "true");
+        modal.toggle_connection_field(APP_ATTRIBUTION);
+        assert_eq!(modal.connection_value(APP_ATTRIBUTION), "false");
+        assert!(!modal.config.ai.connections["openai"].app_attribution);
+        modal.toggle_connection_field(APP_ATTRIBUTION);
+        assert!(modal.config.ai.connections["openai"].app_attribution);
+
+        // A URL edit cancelled leaves the page as it was, row and all.
+        focus(&mut modal, ContentRow::Field(BASE_URL));
+        press(&mut modal, KeyCode::Enter);
+        modal.edit_input.set_text("");
+        type_text(&mut modal, "http://127.0.0.1:10000/v1");
+        press(&mut modal, KeyCode::Esc);
+        assert_eq!(
+            modal.config.ai.connections["openai"].base_url,
+            "https://openrouter.ai/api/v1"
+        );
+        assert!(modal
+            .content_rows()
+            .contains(&ContentRow::Field(APP_ATTRIBUTION)));
+
+        // The endpoint changed back under a switch left on: the row goes, and
+        // what is left configured sends nothing.
+        edit(&mut modal, BASE_URL, "http://127.0.0.1:10000/v1");
+        assert!(!modal
+            .content_rows()
+            .contains(&ContentRow::Field(APP_ATTRIBUTION)));
+        assert_eq!(modal.config.ai.connections["openai"].attribution(), None);
+    }
+
     #[test]
     fn a_name_that_is_empty_or_taken_is_refused() {
         let mut config = with_local();
@@ -1021,18 +1302,24 @@ mod tests {
         let mut modal = ai_modal(with_local());
         modal.open_connection("local".into());
         // Opening it asks the app for its models, once.
-        let asked = modal.take_model_fetch_request().expect("a fetch request");
-        assert_eq!(asked.model, "qwen");
+        let (name, asked) = modal.take_model_fetch_request().expect("a fetch request");
+        assert_eq!((name.as_str(), asked.model.as_str()), ("local", "qwen"));
         assert!(modal.take_model_fetch_request().is_none());
 
         // Auto (left to the provider) comes first.
         let options = modal.connection_enum_options(MODEL).unwrap();
         assert_eq!(options.values, ["", "qwen", MODEL_TYPE_SENTINEL]);
         assert_eq!(options.labels[0], i18n::t().settings_ai_model_auto());
-        modal.set_model_options(vec!["a".into(), "qwen".into()]);
+        modal.set_model_options(vec![
+            ("a".into(), "a".into()),
+            ("qwen".into(), "Qwen 3".into()),
+        ]);
         let options = modal.connection_enum_options(MODEL).unwrap();
         assert_eq!(options.values, ["", "a", "qwen", MODEL_TYPE_SENTINEL]);
+        // A model shows its name, the field as well as its dropdown.
+        assert_eq!(options.labels[1..3], ["a", "Qwen 3"]);
         assert_eq!(options.current, Some(2));
+        assert_eq!(modal.connection_value(MODEL), "Qwen 3");
         modal.apply_connection_enum(MODEL, "");
         assert!(modal.config.ai.connections["local"].model.is_empty());
         assert_eq!(
@@ -1061,8 +1348,28 @@ mod tests {
         edit(&mut modal, BASE_URL, "http://other/v1");
         assert!(modal.take_model_fetch_request().is_some());
         modal.apply_connection_enum(PROVIDER, "codex");
-        let asked = modal.take_model_fetch_request().expect("a fetch request");
+        let (_, asked) = modal.take_model_fetch_request().expect("a fetch request");
         assert_eq!(asked.provider, "codex");
+    }
+
+    #[test]
+    fn the_model_dropdown_shows_its_longest_name_whole() {
+        let mut modal = ai_modal(with_local());
+        modal.open_connection("local".into());
+        modal.set_model_options(vec![
+            ("qwen".into(), "Qwen 3".into()),
+            ("g".into(), "Google: Gemini 4 Pro Preview".into()),
+        ]);
+        focus(&mut modal, ContentRow::Field(MODEL));
+        modal.open_enum_picker(MODEL);
+        let rows = screen(&mut modal);
+        let row = rows
+            .iter()
+            .find(|row| row.contains("Google: Gemini"))
+            .expect("the dropdown is drawn");
+        assert!(row.contains("Google: Gemini 4 Pro Preview │"), "{row}");
+        let auto = i18n::t().settings_ai_model_auto();
+        assert!(rows.iter().any(|row| row.contains(auto)), "{rows:#?}");
     }
 
     #[test]
@@ -1420,12 +1727,166 @@ mod tests {
         let mut modal = ai_modal(with_local());
         modal.open_connection("local".into());
         let rows = modal.content_rows();
-        // But a CLI agent's window limit.
-        for index in (0..connection_fields().len()).filter(|i| *i != CONTEXT_LIMIT) {
+        // But a CLI agent's window limit, and the identification switch: that
+        // one shows only for an endpoint that files usage by app, and `local`
+        // keeps no such breakdown (see the switch's own test).
+        for index in
+            (0..connection_fields().len()).filter(|i| *i != CONTEXT_LIMIT && *i != APP_ATTRIBUTION)
+        {
             assert!(rows.contains(&ContentRow::Field(index)), "field {index}");
         }
         // The sidebar leaves the page.
         modal.preview_sidebar_row(crate::settings::SidebarRow::Leaf(SettingsTab::General));
         assert!(modal.connection_edit.is_none());
+    }
+
+    /// The changes asked, with each key shown as the test can compare it.
+    fn key_changes(modal: &mut SettingsModal) -> Vec<String> {
+        modal
+            .take_api_key_changes()
+            .into_iter()
+            .map(|change| match change {
+                ApiKeyChange::Store {
+                    connection,
+                    key,
+                    from_env,
+                } => format!("store {connection} {} {from_env}", key.expose()),
+                ApiKeyChange::Remove { connection } => format!("remove {connection}"),
+                ApiKeyChange::Rename { from, to } => format!("rename {from} {to}"),
+            })
+            .collect()
+    }
+
+    /// Choose `value` in the API key dropdown, as Enter on it does.
+    fn choose_api_key(modal: &mut SettingsModal, value: &str) {
+        focus(modal, ContentRow::Field(API_KEY));
+        modal.open_enum_picker(API_KEY);
+        let options = modal.connection_enum_options(API_KEY).unwrap();
+        let at = options
+            .values
+            .iter()
+            .position(|v| v == value)
+            .unwrap_or_else(|| panic!("{value:?} is not offered"));
+        modal.enum_picker.as_mut().unwrap().cursor = at;
+        modal.commit_enum_picker();
+    }
+
+    #[test]
+    fn a_typed_api_key_goes_to_the_vault_masked_and_never_to_the_config() {
+        let mut modal = ai_modal(with_local());
+        modal.open_connection("local".into());
+        assert_eq!(
+            modal.connection_value(API_KEY),
+            i18n::t().settings_api_key_not_stored()
+        );
+        // Nothing to remove yet.
+        let options = modal.connection_enum_options(API_KEY).unwrap();
+        assert_eq!(options.values, ["", API_KEY_ENTER]);
+        modal.take_save_request();
+
+        choose_api_key(&mut modal, API_KEY_ENTER);
+        assert!(modal.editing);
+        assert_eq!(modal.edit_input.text(), "");
+        type_text(&mut modal, "sk-secret");
+        assert!(!screen(&mut modal)
+            .iter()
+            .any(|line| line.contains("sk-secret")));
+        assert!(screen(&mut modal)
+            .iter()
+            .any(|line| line.contains("*********")));
+        press(&mut modal, KeyCode::Enter);
+
+        assert!(!modal.editing);
+        assert_eq!(modal.edit_input.text(), "");
+        assert_eq!(key_changes(&mut modal), ["store local sk-secret false"]);
+        assert!(
+            modal.take_save_request().is_none(),
+            "the config is untouched"
+        );
+        assert!(modal.config.ai.connections["local"].api_key_env.is_empty());
+        assert_eq!(
+            modal.connection_value(API_KEY),
+            i18n::t().settings_api_key_stored()
+        );
+        // The models may list with the key.
+        assert!(modal.take_model_fetch_request().is_some());
+
+        // Stored, it can be replaced or removed.
+        let options = modal.connection_enum_options(API_KEY).unwrap();
+        assert_eq!(options.values, ["", API_KEY_ENTER, API_KEY_REMOVE]);
+        assert_eq!(options.labels[1], i18n::t().settings_api_key_replace());
+        choose_api_key(&mut modal, API_KEY_REMOVE);
+        assert_eq!(key_changes(&mut modal), ["remove local"]);
+        assert_eq!(
+            modal.connection_value(API_KEY),
+            i18n::t().settings_api_key_not_stored()
+        );
+
+        // Esc drops what was typed.
+        choose_api_key(&mut modal, API_KEY_ENTER);
+        type_text(&mut modal, "half");
+        press(&mut modal, KeyCode::Esc);
+        assert_eq!(modal.edit_input.text(), "");
+        assert!(key_changes(&mut modal).is_empty());
+    }
+
+    #[test]
+    fn a_key_pasted_as_the_variable_is_hidden_flagged_and_moved() {
+        let mut config = with_local();
+        config.ai.connections.get_mut("local").unwrap().api_key_env = "sk-or-v1-abc".into();
+        let mut modal = ai_modal(config);
+        modal.open_connection("local".into());
+        assert_eq!(modal.connection_value(API_KEY_ENV), "********");
+        assert!(modal.connection_warning(API_KEY_ENV).is_some());
+        assert!(modal.connection_warning(API_KEY).is_none());
+        let lines = screen(&mut modal);
+        assert!(!lines.iter().any(|line| line.contains("sk-or-v1")));
+
+        choose_api_key(&mut modal, API_KEY_MOVE_ENV);
+        assert_eq!(key_changes(&mut modal), ["store local sk-or-v1-abc true"]);
+        // The field is cleared only once the app stored the key.
+        assert_eq!(
+            modal.config.ai.connections["local"].api_key_env,
+            "sk-or-v1-abc"
+        );
+        modal.take_save_request();
+        modal.forget_api_key_env("local");
+        assert!(modal.config.ai.connections["local"].api_key_env.is_empty());
+        assert!(modal.take_save_request().is_some());
+        assert!(modal.connection_warning(API_KEY_ENV).is_none());
+
+        // A variable's name is left alone.
+        modal.apply_connection_text(API_KEY_ENV, "OPENROUTER_API_KEY");
+        modal.forget_api_key_env("local");
+        assert_eq!(
+            modal.config.ai.connections["local"].api_key_env,
+            "OPENROUTER_API_KEY"
+        );
+        let options = modal.connection_enum_options(API_KEY).unwrap();
+        assert!(!options.values.iter().any(|v| v == API_KEY_MOVE_ENV));
+    }
+
+    #[test]
+    fn the_api_key_follows_a_rename_and_goes_with_a_delete() {
+        let mut modal = ai_modal(with_local());
+        modal.set_stored_api_keys(["local".to_string()].into());
+        modal.open_connection("local".into());
+        edit(&mut modal, NAME, "remote");
+        assert_eq!(key_changes(&mut modal), ["rename local remote"]);
+        assert_eq!(
+            modal.connection_value(API_KEY),
+            i18n::t().settings_api_key_stored()
+        );
+        modal.delete_connection("remote");
+        assert_eq!(key_changes(&mut modal), ["remove remote"]);
+    }
+
+    #[test]
+    fn a_cli_agent_has_no_api_key_row() {
+        let mut modal = ai_modal(with_local());
+        modal.open_connection("local".into());
+        assert!(modal.content_rows().contains(&ContentRow::Field(API_KEY)));
+        modal.apply_connection_enum(PROVIDER, "claude_code");
+        assert!(!modal.content_rows().contains(&ContentRow::Field(API_KEY)));
     }
 }

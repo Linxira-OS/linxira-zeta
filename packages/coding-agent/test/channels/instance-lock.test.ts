@@ -12,12 +12,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import {
-	acquireChannelLock,
-	channelLockPath,
-	type ChannelLockMetadata,
-	readChannelLock,
-} from "../../src/channels/instance-lock";
+import { acquireChannelLock, channelLockPath, readChannelLock } from "../../src/channels/instance-lock";
 
 const CONTENDER = path.join(import.meta.dir, "..", "fixtures", "channel-lock-contender.ts");
 const cleanups: string[] = [];
@@ -97,7 +92,7 @@ describe("channel lock contention", () => {
 			[0, 1].map(() =>
 				acquireChannelLock({
 					lockPath,
-					metadata: { pid: process.pid, host: "cli", cwd: path.dirname(lockPath), channels: [] },
+					metadata: { pid: process.pid, host: "cli", cwd: path.dirname(lockPath), instances: [] },
 				}),
 			),
 		);
@@ -112,14 +107,15 @@ describe("channel lock contention", () => {
 		// Simulate an older writer that creates the file first and fills it in:
 		// for a few milliseconds the path reads as garbage.
 		await fs.writeFile(lockPath, "", "utf8");
-		const live: ChannelLockMetadata = {
+		// A v1 payload (platform-name `channels`) is the older writer's format.
+		const live = {
 			version: 1,
 			instanceId: "live-holder",
 			pid: process.pid,
 			host: "serve",
 			startedAt: new Date().toISOString(),
 			cwd: path.dirname(lockPath),
-			channels: [],
+			channels: ["wechat", "not-a-platform"],
 		};
 		const publish = (async () => {
 			// Real wall-clock delay on purpose: the contract under test is the
@@ -131,12 +127,61 @@ describe("channel lock contention", () => {
 
 		const result = await acquireChannelLock({
 			lockPath,
-			metadata: { pid: process.pid, host: "cli", cwd: path.dirname(lockPath), channels: [] },
+			metadata: { pid: process.pid, host: "cli", cwd: path.dirname(lockPath), instances: [] },
 		});
 		await publish;
 
 		expect(result.ok).toBe(false);
-		if (!result.ok) expect(result.holder?.metadata.instanceId).toBe("live-holder");
+		if (!result.ok) {
+			expect(result.holder?.metadata.instanceId).toBe("live-holder");
+			// v1 `channels` is read-migrated to v2 `instances`; unknown platform
+			// names are dropped rather than invented.
+			expect(result.holder?.metadata.version).toBe(2);
+			expect(result.holder?.metadata.instances).toEqual([{ id: "wechat", platform: "wechat" }]);
+		}
+	});
+
+	test("a v1 lock is read as v2 and replaced with an instances payload", async () => {
+		const lockPath = await makeLockDir();
+		await fs.writeFile(
+			lockPath,
+			`${JSON.stringify(
+				{
+					version: 1,
+					instanceId: "v1-holder",
+					pid: 424242,
+					host: "serve",
+					startedAt: "2026-01-01T00:00:00.000Z",
+					cwd: path.dirname(lockPath),
+					sessionId: "s1",
+					channels: ["wechat", "telegram"],
+				},
+				null,
+				2,
+			)}\n`,
+			"utf8",
+		);
+
+		const snapshot = await readChannelLock(lockPath, { isAlive: () => false });
+		expect(snapshot?.metadata.version).toBe(2);
+		expect(snapshot?.metadata.instances).toEqual([
+			{ id: "wechat", platform: "wechat" },
+			{ id: "telegram", platform: "telegram" },
+		]);
+		expect(snapshot?.metadata.sessionId).toBe("s1");
+
+		const acquired = await acquireChannelLock({
+			lockPath,
+			isAlive: () => false,
+			metadata: { pid: process.pid, host: "cli", cwd: path.dirname(lockPath), instances: [] },
+		});
+		expect(acquired.ok).toBe(true);
+		if (!acquired.ok) return;
+		const written = JSON.parse(await fs.readFile(lockPath, "utf8")) as Record<string, unknown>;
+		expect(written.version).toBe(2);
+		expect(written.instances).toEqual([]);
+		expect(written.channels).toBeUndefined();
+		await acquired.lock.release();
 	});
 
 	test("a corrupt lock is replaced once the retries are exhausted", async () => {
@@ -144,7 +189,7 @@ describe("channel lock contention", () => {
 		await fs.writeFile(lockPath, "not json at all", "utf8");
 		const result = await acquireChannelLock({
 			lockPath,
-			metadata: { pid: process.pid, host: "cli", cwd: path.dirname(lockPath), channels: [] },
+			metadata: { pid: process.pid, host: "cli", cwd: path.dirname(lockPath), instances: [] },
 		});
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -157,7 +202,7 @@ describe("channel lock contention", () => {
 		const lockPath = await makeLockDir();
 		const acquired = await acquireChannelLock({
 			lockPath,
-			metadata: { pid: process.pid, host: "cli", cwd: path.dirname(lockPath), channels: [] },
+			metadata: { pid: process.pid, host: "cli", cwd: path.dirname(lockPath), instances: [] },
 		});
 		expect(acquired.ok).toBe(true);
 		if (!acquired.ok) return;
@@ -171,11 +216,22 @@ describe("channel lock contention", () => {
 			}
 			return seen;
 		})();
-		const [seen] = await Promise.all([reads, acquired.lock.update({ channels: ["wechat", "telegram"] })]);
+		const [seen] = await Promise.all([
+			reads,
+			acquired.lock.update({
+				instances: [
+					{ id: "wechat", platform: "wechat" },
+					{ id: "telegram", platform: "telegram" },
+				],
+			}),
+		]);
 		expect(seen).not.toContain("malformed");
 		expect(seen).not.toContain("missing");
 		const snapshot = await readChannelLock(lockPath);
-		expect(snapshot?.metadata.channels).toEqual(["wechat", "telegram"]);
+		expect(snapshot?.metadata.instances).toEqual([
+			{ id: "wechat", platform: "wechat" },
+			{ id: "telegram", platform: "telegram" },
+		]);
 		await acquired.lock.release();
 	});
 
@@ -184,9 +240,51 @@ describe("channel lock contention", () => {
 		cleanups.push(agentDir);
 		const lockPath = channelLockPath(agentDir);
 		await fs.mkdir(path.dirname(lockPath), { recursive: true });
+		// The CLI validates the instance before it looks at the lock.
+		await fs.writeFile(
+			path.join(agentDir, "web.yml"),
+			JSON.stringify({
+				channels: {
+					instances: [
+						{
+							id: "wechat",
+							platform: "wechat",
+							label: "WeChat",
+							enabled: true,
+							agentProfile: "companion",
+							allow: { peers: ["wx-peer"] },
+							credentials: {},
+						},
+					],
+				},
+				imAgents: [
+					{
+						id: "companion",
+						label: "Companion",
+						persona: { mode: "workspace" },
+						location: { kind: "workspace", workspace: "main" },
+						tools: {
+							builtin: [],
+							extensions: [],
+							customTools: [],
+							mcpServers: [],
+							skills: [],
+							commands: [],
+						},
+						memory: {},
+					},
+				],
+				remote: {},
+			}),
+		);
 		const held = await acquireChannelLock({
 			lockPath,
-			metadata: { pid: process.pid, host: "serve", cwd: agentDir, channels: ["wechat"] },
+			metadata: {
+				pid: process.pid,
+				host: "serve",
+				cwd: agentDir,
+				instances: [{ id: "wechat", platform: "wechat" }],
+			},
 		});
 		expect(held.ok).toBe(true);
 
@@ -212,8 +310,8 @@ describe("channel lock contention", () => {
 		if (held.ok) await held.lock.release();
 
 		expect(exitCode).toBe(1);
-		const report = JSON.parse(stdout.trim()) as { channel: string; state: string; error: string };
-		expect(report.channel).toBe("wechat");
+		const report = JSON.parse(stdout.trim()) as { instanceId: string; state: string; error: string };
+		expect(report.instanceId).toBe("wechat");
 		expect(report.state).toBe("locked");
 		expect(report.error).toContain(String(process.pid));
 	}, 30_000);

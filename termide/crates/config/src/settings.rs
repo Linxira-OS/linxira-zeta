@@ -167,11 +167,17 @@ pub struct AiSettings {
     /// limit's reset (or back off) and try again, or `stop`.
     #[serde(default)]
     pub on_limit: termide_agent_core::LimitPolicy,
+
+    /// How many terminal sessions (`shell` with `session` or `background`)
+    /// an agent session may have open at once.
+    #[serde(default = "agent_defaults::max_terminal_sessions")]
+    pub max_terminal_sessions: usize,
 }
 
 /// One connection to a model: the wire protocol or CLI agent, where it
-/// listens, the key and the model. The API key is read from `api_key_env`
-/// rather than stored, so the config file never holds a secret.
+/// listens, the key and the model. The API key comes from the variable
+/// `api_key_env` names or from the password vault, under the connection's
+/// name, so the config file never holds a secret.
 ///
 /// Only what a connection sets is written: a new one is a table the
 /// defaults do not have, so the diff-against-defaults save would otherwise
@@ -196,7 +202,8 @@ pub struct Connection {
     /// pre-select on its own login.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub model: String,
-    /// Environment variable holding the API key; empty for local servers.
+    /// Environment variable holding the API key; empty for local servers
+    /// and for a key kept in the password vault.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub api_key_env: String,
     /// Fallback context window in tokens, used only when the provider does
@@ -226,6 +233,16 @@ pub struct Connection {
     /// sessions in `auto` mode; empty leaves it to `[ai.auto_reviewer]`.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub reviewer: String,
+    /// Whether to identify termide to the endpoint, so its usage is filed
+    /// under termide there rather than as unattributed. On by default, and
+    /// offered only for the endpoints that keep such a breakdown
+    /// ([`Connection::attribution`]); left on for one that stops taking them,
+    /// it sends nothing.
+    #[serde(
+        default = "agent_defaults::app_attribution",
+        skip_serializing_if = "agent_defaults::is_app_attribution"
+    )]
+    pub app_attribution: bool,
 }
 
 fn is_zero(n: &u32) -> bool {
@@ -263,8 +280,52 @@ impl Default for Connection {
             subagents: String::new(),
             max_concurrent_requests: 0,
             reviewer: String::new(),
+            app_attribution: agent_defaults::app_attribution(),
         }
     }
+}
+
+/// The endpoints that keep a breakdown of usage by the app that sent it,
+/// and what each expects an app to identify itself with. A fact about the
+/// service, not a guess from its address: any other server — llama.cpp,
+/// vLLM, Ollama, a self-hosted gateway — ignores these headers, so termide
+/// offers the switch only for the hosts listed here.
+///
+/// The referer is the app's identifier at the service, so every user sending
+/// it is filed under one shared app page with usage open to the public.
+pub const ATTRIBUTION_HOSTS: &[(&str, termide_agent_core::Attribution)] = &[(
+    "openrouter.ai",
+    termide_agent_core::Attribution {
+        referer: "https://github.com/termide/termide",
+        title: "Termide",
+        categories: "cli-agent,programming-app",
+    },
+)];
+
+/// The attribution `url`'s host takes: a listed host, or one under it.
+#[must_use]
+pub fn attribution_of(url: &str) -> Option<termide_agent_core::Attribution> {
+    let host = url_host(url);
+    ATTRIBUTION_HOSTS
+        .iter()
+        .find(|(known, _)| host == *known || host.ends_with(&format!(".{known}")))
+        .map(|(_, attribution)| *attribution)
+}
+
+/// The lowercased host of `url`, without its port or an IPv6 address's
+/// brackets.
+#[must_use]
+pub fn url_host(url: &str) -> String {
+    let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
+    let authority = rest.split('/').next().unwrap_or("");
+    let authority = authority
+        .rsplit_once('@')
+        .map_or(authority, |(_, host)| host);
+    let host = match authority.strip_prefix('[') {
+        Some(v6) => v6.split(']').next().unwrap_or(""),
+        None => authority.split(':').next().unwrap_or(""),
+    };
+    host.to_ascii_lowercase()
 }
 
 impl Connection {
@@ -297,10 +358,56 @@ impl Connection {
         matches!(self.provider.as_str(), "claude_code" | "codex")
     }
 
+    /// The headers that identify termide to this connection's endpoint, when
+    /// it files usage by the app that sent it ([`ATTRIBUTION_HOSTS`]) and
+    /// [`Connection::app_attribution`] is on, as it is by default. Neither
+    /// alone is enough: the switch on an endpoint that has no such notion,
+    /// and the headers of a listed endpoint the switch is off for, both send
+    /// nothing — so an endpoint changed under a left-on switch leaks nothing.
+    #[must_use]
+    pub fn attribution(&self) -> Option<termide_agent_core::Attribution> {
+        self.app_attribution
+            .then(|| attribution_of(&self.base_url))?
+    }
+
     /// The smallest context window limit the agent takes, if any.
     #[must_use]
     pub fn min_context_limit(&self) -> Option<u64> {
         (self.provider == "claude_code").then_some(CLAUDE_CODE_MIN_CONTEXT_LIMIT)
+    }
+
+    /// The environment variable `api_key_env` names, when it is set and
+    /// reads as a variable name rather than a pasted key.
+    #[must_use]
+    pub fn api_key_env_name(&self) -> Option<&str> {
+        let name = self.api_key_env.trim();
+        (!name.is_empty() && !self.api_key_env_looks_like_key()).then_some(name)
+    }
+
+    /// Whether `api_key_env` holds what looks like the key itself rather
+    /// than the name of the variable holding it: a character a variable
+    /// name does not have, a leading digit, a key's well-known prefix, or a
+    /// long run of mixed-case letters and digits.
+    #[must_use]
+    pub fn api_key_env_looks_like_key(&self) -> bool {
+        /// Prefixes of the keys of common services that would pass for a
+        /// variable name otherwise.
+        const KEY_PREFIXES: [&str; 5] = ["gsk_", "hf_", "AIza", "ghp_", "github_pat_"];
+        let value = self.api_key_env.trim();
+        if value.is_empty() {
+            return false;
+        }
+        let name_chars = value.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+        let leading_digit = value.starts_with(|c: char| c.is_ascii_digit());
+        let has = |test: fn(&char) -> bool| value.chars().any(|c| test(&c));
+        let random = value.len() >= 32
+            && has(char::is_ascii_lowercase)
+            && has(char::is_ascii_uppercase)
+            && has(char::is_ascii_digit);
+        !name_chars
+            || leading_digit
+            || random
+            || KEY_PREFIXES.iter().any(|prefix| value.starts_with(prefix))
     }
 }
 
@@ -544,6 +651,7 @@ impl Default for AiSettings {
             recall: RecallSettings::default(),
             bell_on_attention: agent_defaults::bell_on_attention(),
             on_limit: termide_agent_core::LimitPolicy::default(),
+            max_terminal_sessions: agent_defaults::max_terminal_sessions(),
         }
     }
 }
@@ -663,6 +771,15 @@ pub struct GeneralSettings {
     /// Unix only; there is no instance host on Windows.
     #[serde(default)]
     pub always_detachable: bool,
+
+    /// Reopen the projects of the last run at launch, in the background,
+    /// around the project started in — what `termide --restore` and the
+    /// Projects menu item do, except that the launch stays in its own
+    /// directory and agents' unfinished work waits until its project is
+    /// entered. `--no-restore` skips it once. Not done for `$EDITOR`
+    /// launches, which take no project.
+    #[serde(default = "default_true")]
+    pub restore_projects: bool,
 
     /// Global keyboard shortcuts
     #[serde(default)]
@@ -1005,6 +1122,18 @@ mod agent_defaults {
     pub fn bell_on_attention() -> bool {
         true
     }
+    pub fn max_terminal_sessions() -> usize {
+        10
+    }
+    /// On: termide names itself to an endpoint that files usage by app, since
+    /// it already sends its name in `User-Agent` to every endpoint. See
+    /// [`Connection::app_attribution`].
+    pub fn app_attribution() -> bool {
+        true
+    }
+    pub fn is_app_attribution(value: &bool) -> bool {
+        *value
+    }
 }
 
 fn default_language() -> String {
@@ -1182,6 +1311,7 @@ impl From<LegacyConfig> for Config {
                 resource_monitor_interval: legacy.resource_monitor_interval,
                 report_all_keys: default_true(),
                 always_detachable: false,
+                restore_projects: default_true(),
                 keybindings: GlobalKeybindings::default(),
             },
             editor: EditorSettings {
@@ -1238,6 +1368,7 @@ impl Default for GeneralSettings {
             resource_monitor_interval: default_resource_monitor_interval(),
             report_all_keys: default_true(),
             always_detachable: false,
+            restore_projects: default_true(),
             keybindings: GlobalKeybindings::default(),
         }
     }
@@ -1325,6 +1456,34 @@ mod ai_settings_tests {
     use super::*;
 
     #[test]
+    fn a_pasted_key_is_told_from_a_variable_name() {
+        let with = |value: &str| Connection {
+            api_key_env: value.to_string(),
+            ..Connection::default()
+        };
+        for name in ["OPENROUTER_API_KEY", "HF_TOKEN", "my_key_2", ""] {
+            assert!(!with(name).api_key_env_looks_like_key(), "{name}");
+        }
+        for key in [
+            "sk-or-v1-0123abcd",
+            "sk-ant-api03-xyz",
+            "gsk_abcdef",
+            "AIzaSyD0123456789",
+            "2abc",
+            "has space",
+            "Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4z",
+        ] {
+            assert!(with(key).api_key_env_looks_like_key(), "{key}");
+        }
+        assert_eq!(
+            with(" OPENAI_API_KEY ").api_key_env_name(),
+            Some("OPENAI_API_KEY")
+        );
+        assert_eq!(with("sk-or-v1-0").api_key_env_name(), None);
+        assert_eq!(with("").api_key_env_name(), None);
+    }
+
+    #[test]
     fn recall_settings_keep_their_defaults_where_left_out() {
         let parsed: AiSettings = toml::from_str(
             r#"
@@ -1400,10 +1559,10 @@ mod ai_settings_tests {
         assert_eq!(defaults.permissions.mode, termide_agent_core::Mode::Auto);
         // A file that only adds a rule keeps the mode.
         let parsed: AiSettings =
-            toml::from_str("[permissions.bash]\n\"ls *\" = \"allow\"\n").unwrap();
+            toml::from_str("[permissions.shell]\n\"ls *\" = \"allow\"\n").unwrap();
         assert_eq!(parsed.permissions.mode, termide_agent_core::Mode::Auto);
         assert_eq!(
-            parsed.permissions.evaluate("bash", "ls -la"),
+            parsed.permissions.evaluate("shell", "ls -la"),
             Some(termide_agent_core::Decision::Allow)
         );
         let parsed: AiSettings =
@@ -1496,6 +1655,49 @@ mod ai_settings_tests {
         );
         let text = toml::to_string(&settings.connections["local"]).unwrap();
         assert!(text.contains("reviewer = \"claude\""), "{text}");
+    }
+
+    /// The identification comes from the endpoint and the switch together:
+    /// neither alone sends anything.
+    #[test]
+    fn a_connection_identifies_termide_only_where_the_endpoint_files_by_app() {
+        // A listed host, and one under it; port and path aside.
+        assert!(attribution_of("https://openrouter.ai/api/v1").is_some());
+        assert!(attribution_of("https://eu.openrouter.ai/api/v1").is_some());
+        // A server with no such notion, and a host that only holds the name:
+        // neither is offered the switch.
+        assert!(attribution_of("http://127.0.0.1:10000/v1").is_none());
+        assert!(attribution_of("https://openrouter.ai.example/v1").is_none());
+
+        let mut connection = Connection {
+            base_url: "https://openrouter.ai/api/v1".into(),
+            ..Connection::default()
+        };
+        // On by default, so a listed endpoint is identified at once.
+        let named = connection.attribution().unwrap();
+        assert_eq!(named.title, "Termide");
+        assert_eq!(named.referer, "https://github.com/termide/termide");
+        assert_eq!(named.categories, "cli-agent,programming-app");
+        // Turned off, nothing goes, though the endpoint would take it.
+        connection.app_attribution = false;
+        assert_eq!(connection.attribution(), None);
+        // The endpoint changed under a switch left on: inert again.
+        connection.app_attribution = true;
+        connection.base_url = "http://127.0.0.1:8080/v1".into();
+        assert_eq!(connection.attribution(), None);
+
+        // Written only when turned off, the default being on, and read back.
+        assert!(!toml::to_string(&Connection::default())
+            .unwrap()
+            .contains("app_attribution"));
+        let text = toml::to_string(&Connection {
+            app_attribution: false,
+            ..Connection::default()
+        })
+        .unwrap();
+        assert!(text.contains("app_attribution = false"), "{text}");
+        assert!(!toml::from_str::<Connection>(&text).unwrap().app_attribution);
+        assert!(toml::from_str::<Connection>("").unwrap().app_attribution);
     }
 
     #[test]

@@ -66,6 +66,37 @@ with unsaved work keeps it: the title shows `[changed on disk]`, saving is
 refused, and you choose between `Ctrl+Shift+R` to take the disk version
 (discarding your changes) and `Ctrl+Shift+S` to save yours elsewhere.
 
+A file without write permission opens read-only, and the editor follows the
+permission afterwards: once a version control system that keeps files
+read-only until they are checked out (`p4 edit`) makes it writable, the editor
+becomes editable, and it turns read-only again when the file does (`p4
+revert`). A buffer with unsaved work is not made read-only. `Ctrl+E` overrides
+the mode until the permission changes next; a file opened to view only stays
+read-only. A plugin may take `Ctrl+E` over for a file that is read-only on
+disk: the built-in Perforce plugin answers it with `p4 edit`, so the file is
+checked out and the editor follows. Turning editing off in a file that is
+opened in Perforce asks whether to revert it or only stop editing, and, with
+unsaved changes, whether to save or discard them (see [Plugins](plugins.md)).
+
+## Ending termide from outside
+
+Quitting asks about unsaved changes. When termide is ended from outside
+instead — its terminal window closed or the SSH connection dropped (SIGHUP),
+`termide --kill` or `kill` (SIGTERM), SIGINT from another process — there is
+nobody to ask, so nothing is discarded: each buffer with unsaved changes, file
+or unnamed, is written to a backup in the project's state directory, the
+layouts of all open projects are saved, and termide exits with status 128 plus
+the signal's number (129 for SIGHUP), never 0. A crash of the event loop ends
+the same way, with status 1 and the error on stderr.
+
+On the next start the file reopens with your changes on top of it: the buffer
+shows as modified and the file on disk is untouched until you save, so undo
+goes back to the disk version. If the file is gone, the changes open in an
+editor of their own. The **Journal** lists what was kept and what was
+restored. Started with file arguments (as `$EDITOR`), termide saves no layout,
+so the changes are recovered as separate editors the next time termide opens
+that directory as a project.
+
 ## Search and Replace
 
 ### Inline Search Bar (Ctrl+F)
@@ -143,7 +174,9 @@ right, shared info follows, and the variable-width position sits last:
   edit/view mode carries over: leaving an editable buffer opens an editable
   hex editor, and vice versa.
 - **`Edit: Yes`/`Edit: No`** — toggles read-only, also bound to `Ctrl+E`
-  (`[viewer.keybindings] toggle_view`).
+  (`[viewer.keybindings] toggle_view`). Turning editing off over unsaved
+  changes first asks whether to save them, discard them (the file is read
+  again) or keep editing.
 - **`Highlight: <lang>`** — opens the language picker (below).
 - **`Tab: <n>`** — sets the tab size. A tab character is drawn as blank
   space up to the next multiple of it; with word wrap, tab stops start over
@@ -289,7 +322,7 @@ When working in the editor, the status bar displays:
 - File name and modification indicator (*)
 - Current cursor position (line:column)
 - Tab size (`Tab: N`) — **clickable**: opens a small input modal that overrides `tab_size` for this editor panel only. The override wins over the global `[editor].tab_size` and survives the per-frame config resync, but doesn't touch `config.toml`. Accepts 1..=16; empty/invalid input is ignored.
-- Line ending format (LF / CRLF) and encoding (UTF-8)
+- Line ending format (LF / CRLF) and encoding (UTF-8). A file with mixed line endings is saved with the one most of its lines use (LF on a tie), applied to every line
 - Search information (number of matches)
 - File type (plain text / read-only)
 
@@ -485,6 +518,10 @@ When opening a file with LSP support, the panel title shows a loading spinner:
 - `⠋ main.rs (starting)` — Server is starting
 - `⠋ main.rs (indexing)` — Server is indexing the project
 - `main.rs` — Server is ready
+- `⠋ main.rs (restarting)` — The server exited or sent a message it could not frame, and a new one is being started; every open file of that server is sent to it again, and the old server's diagnostics are cleared
+- `main.rs (crashed)` — The server crashed again after 3 restarts within 3 minutes and is not restarted on its own any more; its requests fail
+
+A crashed server is restarted on its own after a short pause (half a second, then 1 and 2 seconds), at most 3 times within 3 minutes. **Restart language server** in the command palette or the editor's `[≡]` menu restarts the server of the current file at once, whatever its state, and gives it 3 automatic restarts again. It also starts a server that could not be started when the file was opened, for instance one installed since: the open files of that server are sent to it once it runs. A server that could not be started is not retried on its own.
 
 ### Supported Languages
 

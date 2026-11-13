@@ -256,6 +256,8 @@ export interface SlashCommand {
 	argumentHint?: string;
 	/** Whether the command consumes argument text after the command name. False means the full input stays normal prompt text once args are present. */
 	allowArgs?: boolean;
+	/** Argument completion is directory-only; never fall through to file completion. */
+	argumentCompletionOnly?: boolean;
 	/** Dynamic display-only description for slash-command autocomplete. Must be synchronous and side-effect free. */
 	getAutocompleteDescription?: () => string | undefined;
 	// Function to get argument completions for this command
@@ -762,6 +764,9 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 							prefix: argumentText,
 						};
 					}
+					// Directory-only commands must not receive the generic file
+					// fallback below; accepting a file there always fails `/cd`.
+					if ("argumentCompletionOnly" in command && command.argumentCompletionOnly === true) return null;
 				}
 			}
 		}
@@ -1304,6 +1309,13 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		if (textBeforeCursor.trim().startsWith("/") && !textBeforeCursor.trim().includes(" ")) {
 			return null;
 		}
+		const directoryOnly = this.#argumentOnlyCommand(textBeforeCursor);
+		if (directoryOnly) {
+			const suggestions = await directoryOnly.command.getArgumentCompletions?.(directoryOnly.argumentText);
+			return Array.isArray(suggestions) && suggestions.length > 0
+				? { items: suggestions, prefix: directoryOnly.argumentText }
+				: null;
+		}
 
 		// Force extract path prefix - this will always return something
 		const pathMatch = this.#extractPathPrefix(textBeforeCursor, true);
@@ -1329,8 +1341,26 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		if (textBeforeCursor.trim().startsWith("/") && !textBeforeCursor.trim().includes(" ")) {
 			return false;
 		}
+		if (this.#argumentOnlyCommand(textBeforeCursor)) return false;
 
 		return true;
+	}
+
+	/** Directory-only command and its argument text when the caret is in one. */
+	#argumentOnlyCommand(textBeforeCursor: string): { command: SlashCommand; argumentText: string } | undefined {
+		const trimmed = textBeforeCursor.trimStart();
+		if (!trimmed.startsWith("/")) return undefined;
+		const spaceIndex = trimmed.indexOf(" ");
+		if (spaceIndex === -1) return undefined;
+		const commandName = trimmed.slice(1, spaceIndex);
+		const command = this.#commands.find(
+			candidate =>
+				"argumentCompletionOnly" in candidate &&
+				candidate.argumentCompletionOnly === true &&
+				commandMatchesNameOrAlias(candidate, commandName),
+		);
+		if (!command) return undefined;
+		return { command: command as unknown as SlashCommand, argumentText: trimmed.slice(spaceIndex + 1) };
 	}
 
 	/** Get inline hint text for slash commands with subcommand hints */

@@ -17,7 +17,7 @@ async function invoke<K extends keyof SessionWorktreeResultMap>(client: StudioCl
 async function openWorkspace(client: StudioClient, workspaceId: string, fresh: boolean) {
   const opened = await client.command("workspace.open", { workspaceId: workspaceId as WorkspaceId });
   await waitReceipt(client, opened.requestId);
-  if (fresh) { const created = await client.command("session.create", {}); await waitReceipt(client, created.requestId, 60000); }
+  if (fresh) { const created = await client.command("session.create", { workspaceId: workspaceId as WorkspaceId }); await waitReceipt(client, created.requestId, 60000); }
 }
 
 /** The Runtime independently fences the first prompt until this choice has been resolved. */

@@ -41,6 +41,12 @@ export function isModelHidden(
 		const pattern = raw.trim();
 		if (!pattern) continue;
 		if (pattern === "*") return true;
+		// Match the literal id first: a real catalog id may itself end in
+		// `:high`/`:low`, and stripping it before the exact test would make a
+		// per-provider bulk selector unable to hide that row. The normalized
+		// comparison below still supports a copied role's thinking suffix.
+		if (pattern === `${model.provider}/${model.id}`) return true;
+		if (!pattern.includes("/") && pattern === model.id) return true;
 		const base = stripThinkingSuffix(pattern);
 		if (base === `${model.provider}/${model.id}`) return true;
 		if (!base.includes("/") && base === model.id) return true;
@@ -109,9 +115,15 @@ export function revealModel(
 	const exact = `${model.provider}/${model.id}`;
 	return hiddenModels.filter(raw => {
 		if (typeof raw !== "string") return false;
-		const base = stripThinkingSuffix(raw.trim());
-		if (!base) return false;
+		const pattern = raw.trim();
+		if (!pattern) return false;
+		// A literal id may end in a thinking-looking suffix; remove that exact
+		// rule here as well as the normalized copy of a role selector.
+		if (pattern === exact) return false;
+		if (!pattern.includes("/") && pattern === model.id) return false;
+		const base = stripThinkingSuffix(pattern);
 		if (base === exact) return false;
+		if (!base.includes("/") && base === model.id) return false;
 		if (base === "*" || base === `${model.provider}/*`) return false;
 		if (base.endsWith("/*")) {
 			const scope = base.slice(0, -2);

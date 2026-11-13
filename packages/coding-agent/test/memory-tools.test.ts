@@ -1359,7 +1359,9 @@ describe("Mnemopi backend lifecycle", () => {
 	});
 
 	it("retains the full transcript but extracts and embeds clean projections", async () => {
-		const state = registerMnemopiState(makeMnemopiConfig(), { cwd: "/work/project-alpha" });
+		// Extraction is only scheduled when an LLM mode is enabled; embeddings stay
+		// local. `rememberInScope` is spied, so no provider call happens.
+		const state = registerMnemopiState(makeMnemopiConfig({ llmMode: "smol" }), { cwd: "/work/project-alpha" });
 		const rememberSpy = vi.spyOn(state, "rememberInScope").mockReturnValue("memory-id");
 
 		await state.retainMessages(

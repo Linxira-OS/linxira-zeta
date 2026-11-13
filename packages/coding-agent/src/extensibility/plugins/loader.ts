@@ -63,12 +63,14 @@ installLegacyPiSpecifierShim();
 
 const enabledPluginsCache = new Map<string, Promise<ScopedInstalledPlugin[]>>();
 
-function enabledPluginsCacheKey(cwd: string, home?: string): string {
+function enabledPluginsCacheKey(cwd: string, home?: string, storageHome?: string): string {
 	// The `ui` gate is part of the result: the same roots read differently
 	// inside and outside the workbench (or under the force switch), so a cache
-	// entry taken outside must not answer an inside read.
+	// entry taken outside must not answer an inside read. `storageHome` is part
+	// of the key because each runtime gets distinct host-managed storage dirs.
 	const panels = panelActivation().enabled ? "panels" : "no-panels";
-	return `${path.resolve(cwd)}\0${home === undefined ? "" : path.resolve(home)}\0${panels}`;
+	const storage = storageHome === undefined ? "" : path.resolve(storageHome);
+	return `${path.resolve(cwd)}\0${home === undefined ? "" : path.resolve(home)}\0${storage}\0${panels}`;
 }
 
 function clearEnabledPluginsCache(): void {
@@ -139,6 +141,7 @@ async function collectPluginsAtRoot(
 	projectOverrides: ProjectPluginOverrides,
 	scope: ScopedInstalledPlugin["scope"],
 	home?: string,
+	storageHome?: string,
 ): Promise<ScopedInstalledPlugin[]> {
 	const nodeModulesPath = path.join(root, "node_modules");
 	if (!fs.existsSync(nodeModulesPath)) return [];
@@ -272,7 +275,9 @@ async function collectPluginsAtRoot(
 			manifest,
 			enabledFeatures,
 			enabled,
-			storage: buildPluginStorage(name, home),
+			// Discovery stays on the installed root; only the host-managed storage
+			// tiers move to a per-runtime home.
+			storage: buildPluginStorage(name, storageHome ?? home),
 		});
 	}
 
@@ -294,13 +299,16 @@ async function collectPluginsAtRoot(
  * need to enumerate plugins relative to a non-default home (tests with a
  * tempdir, discovery loaders threaded with `LoadContext.home`).
  */
-export async function getEnabledPlugins(cwd: string, opts: { home?: string } = {}): Promise<ScopedInstalledPlugin[]> {
-	const { home } = opts;
-	const cacheKey = enabledPluginsCacheKey(cwd, home);
+export async function getEnabledPlugins(
+	cwd: string,
+	opts: { home?: string; storageHome?: string } = {},
+): Promise<ScopedInstalledPlugin[]> {
+	const { home, storageHome } = opts;
+	const cacheKey = enabledPluginsCacheKey(cwd, home, storageHome);
 	const cached = enabledPluginsCache.get(cacheKey);
 	if (cached) return cached;
 
-	const loadPromise = loadEnabledPlugins(cwd, home);
+	const loadPromise = loadEnabledPlugins(cwd, home, storageHome);
 	enabledPluginsCache.set(cacheKey, loadPromise);
 	try {
 		return await loadPromise;
@@ -312,8 +320,8 @@ export async function getEnabledPlugins(cwd: string, opts: { home?: string } = {
 	}
 }
 
-async function loadEnabledPlugins(cwd: string, home?: string): Promise<ScopedInstalledPlugin[]> {
-	const plugins = await listInstalledPlugins(cwd, { home });
+async function loadEnabledPlugins(cwd: string, home?: string, storageHome?: string): Promise<ScopedInstalledPlugin[]> {
+	const plugins = await listInstalledPlugins(cwd, { home, storageHome });
 	return plugins.filter(plugin => plugin.enabled);
 }
 
@@ -330,20 +338,20 @@ async function loadEnabledPlugins(cwd: string, home?: string): Promise<ScopedIns
  */
 export async function listInstalledPlugins(
 	cwd: string,
-	opts: { home?: string } = {},
+	opts: { home?: string; storageHome?: string } = {},
 ): Promise<ScopedInstalledPlugin[]> {
-	const { home } = opts;
+	const { home, storageHome } = opts;
 	const projectOverrides = await loadProjectOverrides(cwd);
 
 	const userRoot = getPluginsDir(home);
-	const userPlugins = await collectPluginsAtRoot(userRoot, projectOverrides, "user", home);
+	const userPlugins = await collectPluginsAtRoot(userRoot, projectOverrides, "user", home, storageHome);
 
 	let projectPlugins: ScopedInstalledPlugin[] = [];
 	const projectRegistryPath = await resolveActiveProjectRegistryPath(cwd);
 	if (projectRegistryPath) {
 		const projectRoot = path.dirname(projectRegistryPath);
 		if (normalizePathForComparison(projectRoot) !== normalizePathForComparison(userRoot)) {
-			projectPlugins = await collectPluginsAtRoot(projectRoot, projectOverrides, "project");
+			projectPlugins = await collectPluginsAtRoot(projectRoot, projectOverrides, "project", home, storageHome);
 		}
 	}
 
@@ -385,9 +393,36 @@ async function findOwningPlugin(
 export async function resolvePluginStorage(
 	cwd: string,
 	extensionPath: string,
-	opts: { home?: string } = {},
+	opts: { home?: string; storageHome?: string } = {},
 ): Promise<PluginStorage | undefined> {
 	return (await findOwningPlugin(cwd, extensionPath, opts))?.storage;
+}
+
+/**
+ * Authoritative extension identity: the owning installed plugin's package name,
+ * else the module's file/dir stem. Exact comparison only — plugin ids are
+ * case-sensitive on Linux, and normalizing here would admit `Foo` for `foo`.
+ */
+export async function extensionPathIdentity(
+	cwd: string,
+	extensionPath: string,
+	opts: { home?: string } = {},
+): Promise<string> {
+	const owner = await findOwningPlugin(cwd, extensionPath, opts);
+	if (owner !== undefined) return owner.name;
+	const base = path.basename(extensionPath);
+	if (/^index\.(ts|js|mjs|cjs)$/i.test(base)) return path.basename(path.dirname(extensionPath));
+	return base.replace(/\.[^.]+$/, "");
+}
+
+/** Keep only extension paths whose exact identity is allowed. */
+export async function filterExtensionPathsByAllowlist(
+	paths: readonly string[],
+	cwd: string,
+	isAllowed: (identity: string) => boolean,
+): Promise<string[]> {
+	const identities = await Promise.all(paths.map(extensionPath => extensionPathIdentity(cwd, extensionPath)));
+	return paths.filter((_, index) => isAllowed(identities[index]!));
 }
 
 /**

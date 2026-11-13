@@ -24,14 +24,7 @@ import {
 	type ReverseServerFactory,
 	type SocketFactory,
 } from "@linxiraos/pi-channels";
-import type {
-	DiscordChannelConfig,
-	FeishuChannelConfig,
-	QqChannelConfig,
-	TelegramChannelConfig,
-	WebConfig,
-	WebConfigData,
-} from "../config/web-config";
+import type { WebConfig } from "../config/web-config";
 
 /** Channels that pair without a QR code (a pasted credential or an endpoint). */
 export type CredentialChannel = "feishu" | "telegram" | "discord" | "qq";
@@ -64,6 +57,8 @@ export interface CredentialLoginResult {
 
 export interface CredentialLoginOptions {
 	webConfig: WebConfig;
+	/** Target instance; validation and persistence are scoped to it. */
+	instanceId: string;
 	/** Blank/absent fields fall back to the credentials already in `web.yml`. */
 	appId?: string;
 	appSecret?: string;
@@ -332,8 +327,8 @@ export async function validateDiscordToken(options: {
 }
 
 function readStored(
-	data: WebConfigData,
-	channel: CredentialChannel,
+	webConfig: WebConfig,
+	instanceId: string,
 ): {
 	appId?: string;
 	appSecret?: string;
@@ -344,26 +339,24 @@ function readStored(
 	port?: number;
 	selfId?: string;
 } {
-	if (channel === "feishu") {
-		const feishu = data.channels.feishu as FeishuChannelConfig;
-		return { appId: feishu.appId, appSecret: feishu.appSecret, domain: feishu.domain };
-	}
-	if (channel === "discord") {
-		const discord = data.channels.discord as DiscordChannelConfig;
-		return { botToken: discord.botToken };
-	}
-	if (channel === "qq") {
-		const qq = data.channels.qq as QqChannelConfig;
-		return {
-			endpoint: qq.endpoint,
-			botToken: qq.token,
-			mode: qq.mode,
-			port: qq.port,
-			selfId: qq.selfId,
-		};
-	}
-	const telegram = data.channels.telegram as TelegramChannelConfig;
-	return { botToken: telegram.botToken };
+	const instance = webConfig.getChannelInstance(instanceId);
+	if (!instance) throw new Error(`Unknown channel instance: ${instanceId}`);
+	const c = instance.credentials;
+	const str = (key: string): string | undefined => (typeof c[key] === "string" ? (c[key] as string) : undefined);
+	return {
+		appId: str("appId"),
+		appSecret: str("appSecret"),
+		domain: c.domain === "lark" ? "lark" : c.domain === "feishu" ? "feishu" : undefined,
+		botToken: str("token") ?? str("botToken"),
+		endpoint: str("endpoint"),
+		mode: c.mode === "reverse" ? "reverse" : c.mode === "forward" ? "forward" : undefined,
+		port: typeof c.port === "number" ? c.port : undefined,
+		selfId: str("selfId"),
+	};
+}
+
+function storedCredentials(webConfig: WebConfig, instanceId: string): Record<string, unknown> {
+	return { ...(webConfig.getChannelInstance(instanceId)?.credentials ?? {}) };
 }
 
 /**
@@ -375,7 +368,7 @@ export async function runCredentialLogin(
 	channel: CredentialChannel,
 	options: CredentialLoginOptions,
 ): Promise<CredentialLoginResult> {
-	const stored = readStored(options.webConfig.getData(), channel);
+	const stored = readStored(options.webConfig, options.instanceId);
 	const secrets = [options.appSecret, options.botToken, stored.appSecret, stored.botToken];
 	const fail = (state: CredentialLoginState, message: string): CredentialLoginResult => ({
 		channel,
@@ -401,9 +394,9 @@ export async function runCredentialLogin(
 				...(options.customFetch ? { customFetch: options.customFetch } : {}),
 				...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
 			});
-			await options.webConfig.set("channels.feishu.appId", appId);
-			await options.webConfig.set("channels.feishu.appSecret", appSecret);
-			await options.webConfig.set("channels.feishu.domain", domain);
+			await options.webConfig.setInstance(options.instanceId, {
+				credentials: { ...storedCredentials(options.webConfig, options.instanceId), appId, appSecret, domain },
+			});
 			return { channel, state: "connected", identity, credentialsPersisted: true };
 		}
 
@@ -416,7 +409,9 @@ export async function runCredentialLogin(
 				...(options.customFetch ? { customFetch: options.customFetch } : {}),
 				...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
 			});
-			await options.webConfig.set("channels.discord.botToken", botToken);
+			await options.webConfig.setInstance(options.instanceId, {
+				credentials: { ...storedCredentials(options.webConfig, options.instanceId), botToken },
+			});
 			return { channel, state: "connected", identity, credentialsPersisted: true };
 		}
 
@@ -439,9 +434,14 @@ export async function runCredentialLogin(
 						`Cannot listen on 127.0.0.1:${port} for reverse OneBot: ${error instanceof Error ? error.message : String(error)}`,
 					);
 				}
-				await options.webConfig.set("channels.qq.mode", "reverse");
-				await options.webConfig.set("channels.qq.port", bound);
-				await options.webConfig.set("channels.qq.token", token);
+				await options.webConfig.setInstance(options.instanceId, {
+					credentials: {
+						...storedCredentials(options.webConfig, options.instanceId),
+						mode: "reverse",
+						port: bound,
+						token,
+					},
+				});
 				return {
 					channel,
 					state: "connected",
@@ -457,10 +457,15 @@ export async function runCredentialLogin(
 				...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
 				...(options.createSocket ? { createSocket: options.createSocket } : {}),
 			});
-			await options.webConfig.set("channels.qq.mode", "forward");
-			await options.webConfig.set("channels.qq.endpoint", endpoint);
-			await options.webConfig.set("channels.qq.token", token);
-			if (probed.selfId !== "") await options.webConfig.set("channels.qq.selfId", probed.selfId);
+			await options.webConfig.setInstance(options.instanceId, {
+				credentials: {
+					...storedCredentials(options.webConfig, options.instanceId),
+					mode: "forward",
+					endpoint,
+					token,
+					...(probed.selfId !== "" ? { selfId: probed.selfId } : {}),
+				},
+			});
 			return {
 				channel,
 				state: "connected",
@@ -477,7 +482,9 @@ export async function runCredentialLogin(
 			...(options.customFetch ? { customFetch: options.customFetch } : {}),
 			...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
 		});
-		await options.webConfig.set("channels.telegram.botToken", botToken);
+		await options.webConfig.setInstance(options.instanceId, {
+			credentials: { ...storedCredentials(options.webConfig, options.instanceId), botToken },
+		});
 		return { channel, state: "connected", identity, credentialsPersisted: true };
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);

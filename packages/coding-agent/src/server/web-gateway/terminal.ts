@@ -61,7 +61,10 @@ import {
 	ZETA_BIN_DIR_ENV,
 	type OpenProbeContext,
 } from "../../utils/bin-discovery";
-import { hostIsLoopback, isAllowedOrigin } from "../web-gateway";
+import { isAllowedRequestOrigin } from "./origin";
+import { credentialAllows, isGenuinelyLocalRequest, resolveCredential } from "./remote-access";
+import { bindingDecision, bindingScopeResponse } from "./binding-guard";
+import { deviceRegistry } from "../auth/device-registry";
 import { ZETA_IDE_BINS, resolveTerminal, type ResolvedTerminal } from "./open";
 import {
 	findShellProfile,
@@ -1230,6 +1233,16 @@ export async function handleTerminalEnsure(req: Request): Promise<Response> {
 	return json(sessionPayload(result.session, result.ticket, { reused: result.reused, injected: result.injected }));
 }
 
+/**
+ * Real cwd of a live terminal, for binding attribution.
+ *
+ * A terminal is a shell on the host, so the only honest way to place it is the
+ * cwd it was actually created with — never a caller-declared workspace id.
+ */
+export function terminalCwd(id: string): string | undefined {
+	return manager.get(id)?.cwd;
+}
+
 export function handleTerminalList(): Response {
 	return json({ terminals: manager.list() });
 }
@@ -1289,6 +1302,8 @@ export interface TerminalWsData {
 	/** `studio` sockets are the renderer event feed, dispatched by studio-host. */
 	kind?: "terminal" | "rpc" | "studio";
 	sessionId: string;
+	/** Authenticated device owning this connection, for immediate revocation. */
+	deviceId?: string;
 }
 
 /** Structural stand-in for `Bun.Server` so handlers stay unit-testable. */
@@ -1313,32 +1328,70 @@ export async function handleTerminalWsUpgrade(
 		return json({ error: "expected websocket upgrade" }, 400);
 	}
 	const terminalId = match[1];
-	const loopback = hostIsLoopback(req, remoteAddr);
+	const loopback = isGenuinelyLocalRequest(req, remoteAddr);
+	let deviceId: string | undefined;
 	let authorized = false;
 	if (loopback) {
 		// CSRF parity with the REST gate: an unauthenticated loopback upgrade
 		// must not carry a cross-site Origin (a hostile page driving a WS).
-		authorized = isAllowedOrigin(req.headers.get("origin"));
+		authorized = isAllowedRequestOrigin(req.headers.get("origin"), req.url, true);
 	} else {
-		// Remote browsers cannot attach auth headers to a WebSocket; the
-		// one-time connect ticket from the authorized control plane vouches
-		// for them instead.
+		if (!isAllowedRequestOrigin(req.headers.get("origin"), req.url, false)) {
+			return json({ error: "Forbidden origin" }, 403);
+		}
+		// A GET upgrade opens a shell: require a live write credential as well as
+		// the one-time ticket, then attribute the terminal by its actual cwd.
+		const credential = await resolveCredential(req);
+		if (credential === null || !credentialAllows(credential, "write")) {
+			return json({ error: "insufficient_scope" }, 403);
+		}
+		if (!(await bindingDecision(credential, url.pathname, url, req)).allowed) return bindingScopeResponse();
+		if (credential.kind === "device" || credential.kind === "session") deviceId = credential.device.id;
 		const ticket = url.searchParams.get("ticket") ?? "";
 		authorized = ticket.length > 0 && manager.consumeTicket(ticket, terminalId);
 	}
 	if (!authorized)
-		return json({ error: "Forbidden: terminal WS requires a loopback connection or a connect ticket" }, 403);
+		return json({ error: "Forbidden: terminal WS requires write authentication and a connect ticket" }, 403);
 
 	const session = manager.get(terminalId);
 	if (!session) return json({ error: "terminal not found" }, 404);
 
-	const upgraded = srv.upgrade(req, { data: { sessionId: terminalId } });
+	const upgraded = srv.upgrade(req, {
+		data: { sessionId: terminalId, ...(deviceId !== undefined ? { deviceId } : {}) },
+	});
 	return upgraded ? null : json({ error: "websocket upgrade failed" }, 500);
+}
+
+const remoteTerminalSockets = new Map<AttachedSocket, string>();
+const verifiedTerminalSockets = new WeakSet<AttachedSocket>();
+
+/** Disconnect device-owned shells without terminating the shared terminal. */
+export function dropDeviceTerminalSockets(deviceId?: string): void {
+	for (const [socket, owner] of remoteTerminalSockets) {
+		if (deviceId !== undefined && owner !== deviceId) continue;
+		remoteTerminalSockets.delete(socket);
+		verifiedTerminalSockets.delete(socket);
+		socket.close(4001, "device revoked");
+	}
 }
 
 /** Shared Bun websocket handler; both Bun.serve listeners register it. */
 export const terminalWebSocketHandler: WebSocketHandler<TerminalWsData> = {
-	open(ws) {
+	async open(ws) {
+		if (ws.data.deviceId !== undefined) {
+			// Revocation may have completed between upgrade authorization and open.
+			remoteTerminalSockets.set(ws, ws.data.deviceId);
+			const device = await deviceRegistry()
+				.get(ws.data.deviceId)
+				.catch(() => undefined);
+			if (!remoteTerminalSockets.has(ws)) return;
+			if (device === undefined || device.revokedAt !== null) {
+				remoteTerminalSockets.delete(ws);
+				ws.close(4001, "device revoked");
+				return;
+			}
+			verifiedTerminalSockets.add(ws);
+		}
 		const session = manager.get(ws.data.sessionId);
 		if (!session) {
 			ws.close(4004, "terminal not found");
@@ -1347,12 +1400,15 @@ export const terminalWebSocketHandler: WebSocketHandler<TerminalWsData> = {
 		manager.attachSocket(session, ws);
 	},
 	message(ws, message) {
+		if (ws.data.deviceId !== undefined && !verifiedTerminalSockets.has(ws)) return;
 		const session = manager.get(ws.data.sessionId);
 		if (!session) return;
 		const text = typeof message === "string" ? message : Buffer.from(message).toString("utf8");
 		manager.writeInput(session, text);
 	},
 	close(ws) {
+		remoteTerminalSockets.delete(ws);
+		verifiedTerminalSockets.delete(ws);
 		const session = manager.get(ws.data.sessionId);
 		if (session) manager.detachSocket(session, ws);
 	},

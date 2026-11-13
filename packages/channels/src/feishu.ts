@@ -18,6 +18,7 @@ import type { ChannelCapabilities, ChatChannel, ChatImage, InboundMessage } from
 export type FeishuInboundHandler = (message: InboundMessage) => void;
 
 export interface FeishuChannelOptions {
+	instanceId?: string;
 	appId: string;
 	appSecret: string;
 	domain?: "feishu" | "lark";
@@ -45,7 +46,8 @@ const P2P_ONBOARDING_TEXT =
 	"你好！我是 Zeta 助手。发送消息即可开始对话。\n\nHello! I'm the Zeta assistant. Send a message to start chatting.";
 
 export class FeishuChannel implements ChatChannel {
-	readonly id = "feishu" as const;
+	readonly id: string;
+	readonly platform = "feishu" as const;
 	readonly capabilities: ChannelCapabilities = {
 		maxTextLength: Number.POSITIVE_INFINITY,
 		supportsImages: true,
@@ -60,6 +62,7 @@ export class FeishuChannel implements ChatChannel {
 	#startPromise: Promise<void> | null = null;
 
 	constructor(options: FeishuChannelOptions) {
+		this.id = options.instanceId ?? "feishu";
 		this.#options = options;
 		this.#onMessage = options.onMessage;
 	}

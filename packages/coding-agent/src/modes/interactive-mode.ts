@@ -79,6 +79,7 @@ import { M } from "../i18n";
 import { pickTableChart } from "../auto-graph/planner";
 import { restartArgv } from "../cli/flag-tables";
 import type { BackendAttachLink } from "../backend/attach-link";
+import { installMemoryPressureShed } from "../task/memory-shed";
 import { formatKeyHint, KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import { appKey, editorKey, rawKeyHint } from "@linxiraos/pi-tui/chrome/keybinding-hints";
@@ -171,6 +172,7 @@ import { USER_INTERRUPT_LABEL } from "../session/messages";
 import { resolveMarkdownLinkHrefs } from "../internal-urls/hyperlink-targets";
 import type { ResolveContext } from "../internal-urls/index";
 import { modelMentionChipLabel, shiftImageMarkers } from "@linxiraos/pi-tui/prompt/composer-attachments";
+import { formatQueueShorthand } from "@linxiraos/pi-tui/prompt/queue-input";
 import { isTranscriptEntry, type SessionContext } from "../session/session-context";
 import type { SessionManager } from "../session/session-manager";
 import { loadPinnedSessionIds } from "../session/session-pins";
@@ -383,7 +385,7 @@ import {
 } from "@linxiraos/pi-tui/overlays/session-observer-registry";
 import { createSessionTeardown, type SessionTeardown } from "./session-teardown";
 import { sanitizeStatusText } from "@linxiraos/pi-tui/chrome/shared";
-import { invokeSkillCommandFromText, isKnownSkillCommand } from "./skill-command";
+import { invokeSkillCommandFromText, isKnownSkillCommand, type SkillCommandHost } from "./skill-command";
 import { clearMermaidCache } from "@linxiraos/pi-tui/theme/mermaid-cache";
 import { type ShimmerPalette, shimmerEnabled, shimmerText } from "@linxiraos/pi-tui/theme/shimmer";
 import type { Theme } from "@linxiraos/pi-tui/theme";
@@ -1401,6 +1403,8 @@ const JOBS_SHEET_REFRESH_MS = 250;
 
 export class InteractiveMode implements InteractiveModeContext {
 	#ownsStartedUi: boolean;
+	/** Windows-only Bun memoryPressure listener; installed by `init`, removed by `stop`. */
+	#uninstallMemoryPressureShed: (() => void) | undefined;
 	session: AgentSession;
 	sessionManager: SessionManager;
 	settings: Settings;
@@ -1779,6 +1783,13 @@ export class InteractiveMode implements InteractiveModeContext {
 	lastLeftTapTime = 0;
 	shutdownRequested = false;
 	#isShuttingDown = false;
+	/**
+	 * Cancellation scope of the current `shutdown()`/`restart()` close attempt.
+	 * Every prompt the close shows before teardown (the extension
+	 * `session_before_shutdown` gate, `worktree.onExit` confirmations) runs
+	 * under it; another close request, a signal teardown, or `stop()` aborts it.
+	 */
+	#closeAttempt: AbortController | undefined;
 	/**
 	 * Set once a graceful {@link shutdown} teardown threw. The teardown is
 	 * promise-memoized (and the session manager latches its disk error), so
@@ -2532,6 +2543,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#signalTeardown = createSessionTeardown({
 			getDraftText: () => this.#inputController.getDraftText(),
 			beginDispose: () => {
+				this.#closeAttempt?.abort();
 				this.session.beginDispose();
 				this.statusLine.dispose();
 				this.sidebarGit.dispose();
@@ -2791,6 +2803,10 @@ export class InteractiveMode implements InteractiveModeContext {
 			}),
 		);
 		this.#syncEditorMaxHeight();
+		// Windows-only push shed: an OS memory-pressure event drops derived render
+		// caches (markdown/mermaid); the next frame re-renders them. Off Windows
+		// the installer returns undefined rather than registering a fictional event.
+		this.#uninstallMemoryPressureShed = installMemoryPressureShed({ owner: this });
 		this.isInitialized = true;
 		// The startup composer is already visible. Commit the complete runtime
 		// tree before session_start hooks/reconciliation continue; renderNow keeps
@@ -4097,6 +4113,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			customType?: string;
 			display?: boolean;
 			streamingBehavior?: "steer" | "followUp";
+			followUps?: string[];
 		},
 		options?: { preserveDraft?: boolean; clearEditor?: boolean },
 	): SubmittedUserInput {
@@ -4107,6 +4124,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			customType: input.customType,
 			display: input.display,
 			streamingBehavior: input.streamingBehavior,
+			followUps: input.followUps,
 			cancelled: false,
 			started: false,
 		};
@@ -4120,7 +4138,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		// message, and EventController appends that canonical row on its own. An
 		// ordinary optimistic user row would survive as a duplicate, so mirror the
 		// dispatch condition here.
-		if (!submission.customType && !isKnownSkillCommand(this, submission.text)) {
+		if (!submission.customType && !isKnownSkillCommand(this as unknown as SkillCommandHost, submission.text)) {
 			this.#resetGoalContinuationSuppression();
 			const imageCount = submission.images?.length ?? 0;
 			this.optimisticUserMessageSignature = `${submission.text}\u0000${imageCount}`;
@@ -4171,9 +4189,12 @@ export class InteractiveMode implements InteractiveModeContext {
 			const laterText = this.editor.getExpandedText();
 			const submittedImages = submission.images ?? [];
 			const laterImages = this.editor.pendingImages;
-			const recoveredText = laterText
-				? `${submission.text}\n${shiftImageMarkers(laterText, submittedImages.length)}`
+			const submittedText = submission.followUps
+				? formatQueueShorthand([submission.text, ...submission.followUps])
 				: submission.text;
+			const recoveredText = laterText
+				? `${submittedText}\n${shiftImageMarkers(laterText, submittedImages.length)}`
+				: submittedText;
 			this.editor.pendingImages = [...submittedImages, ...laterImages];
 			this.editor.pendingImageLinks = [
 				...(submission.imageLinks ?? submittedImages.map(() => undefined)),
@@ -4194,6 +4215,10 @@ export class InteractiveMode implements InteractiveModeContext {
 	 * never persisted, so the tree/branch selectors cannot offer it — remove the
 	 * optimistic transcript row and put the typed text back in the editor for editing.
 	 */
+	restoreDroppedPrompt(prompt: DroppedPrompt): void {
+		this.#restoreDroppedPrompt(prompt);
+	}
+
 	#restoreDroppedPrompt(prompt: DroppedPrompt): void {
 		this.clearOptimisticUserMessage();
 		this.#pendingWorkingMessage = undefined;
@@ -4215,7 +4240,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.editor.pendingImages = prompt.images ? [...prompt.images] : [];
 			this.editor.pendingImageLinks = prompt.images ? prompt.images.map(() => undefined) : [];
 			this.editor.imageLinks = this.editor.pendingImageLinks;
-			this.editor.setText(prompt.text);
+			this.editor.setText(prompt.followUps ? formatQueueShorthand([prompt.text, ...prompt.followUps]) : prompt.text);
 		}
 		this.ui.requestRender();
 	}
@@ -5129,6 +5154,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		for (const [id, component] of livePendingTools) {
 			this.pendingTools.set(id, component);
 		}
+		this.#eventController.reconcileReadGroupAfterRebuild();
 		// During the pre-streaming window — after `startPendingSubmission` has
 		// optimistically rendered the user's message but before the user
 		// `message_start` event lands it in `session` entries — any rebuild
@@ -7285,6 +7311,9 @@ export class InteractiveMode implements InteractiveModeContext {
 				);
 				if (!confirmed) return false;
 			}
+			// An open review must not outlive the plan mode it approves: a later pick
+			// would autosave and dispatch the plan while plan mode is paused.
+			this.#hidePlanReview();
 			await this.#exitPlanMode({ paused: true, interruptActiveTurn: true });
 			return false;
 		}
@@ -7308,8 +7337,8 @@ export class InteractiveMode implements InteractiveModeContext {
 		});
 		this.#planModePausedWorkflow = undefined;
 		if (!initialPrompt) return false;
-		if (isKnownSkillCommand(this, initialPrompt)) {
-			await invokeSkillCommandFromText(this, initialPrompt, "steer", {
+		if (isKnownSkillCommand(this as unknown as SkillCommandHost, initialPrompt)) {
+			await invokeSkillCommandFromText(this as unknown as SkillCommandHost, initialPrompt, "steer", {
 				images: input?.images,
 				propagateErrors: true,
 			});
@@ -7439,7 +7468,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 		await this.#enterVibeMode();
 		if (!initialPrompt) return false;
-		if (isKnownSkillCommand(this, initialPrompt)) {
+		if (isKnownSkillCommand(this as unknown as SkillCommandHost, initialPrompt)) {
 			// Append synchronously: the skill file read below yields before the
 			// turn reserves, so a concurrent plain prompt must see this claim
 			// before it can take the idle waiter — and a later skill must queue
@@ -7450,7 +7479,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				try {
 					await prev;
 					await this.#waitForInFlightSubmission(true);
-					await invokeSkillCommandFromText(this, initialPrompt, "steer", {
+					await invokeSkillCommandFromText(this as unknown as SkillCommandHost, initialPrompt, "steer", {
 						images: input?.images,
 						propagateErrors: true,
 					});
@@ -8448,6 +8477,8 @@ export class InteractiveMode implements InteractiveModeContext {
 	}
 
 	stop(): void {
+		this.#closeAttempt?.abort();
+		this.#closeAttempt = undefined;
 		this.syncIdleMaintenanceView(null);
 		this.#hidePlanReview();
 		this.#appearanceRefreshRequest = undefined;
@@ -8503,6 +8534,9 @@ export class InteractiveMode implements InteractiveModeContext {
 			process.stdout.removeListener("resize", this.#resizeHandler);
 			this.#resizeHandler = undefined;
 		}
+		// The push shed must not outlive this UI instance (headless re-init, tests).
+		this.#uninstallMemoryPressureShed?.();
+		this.#uninstallMemoryPressureShed = undefined;
 		if (this.unsubscribe) {
 			this.unsubscribe();
 		}
@@ -8539,8 +8573,18 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 	}
 
-	async shutdown(): Promise<void> {
-		if (this.#isShuttingDown) return;
+	/**
+	 * Close the session and quit. `cancellable: false` is for closes nobody may
+	 * refuse (fatal workspace states, `ctx.shutdown()`); operator quits are
+	 * cancellable and first ask extensions through `session_before_shutdown`.
+	 */
+	async shutdown(options?: { cancellable?: boolean }): Promise<void> {
+		if (this.#isShuttingDown) {
+			// Another close request ends the pending attempt's prompts; that
+			// attempt keeps ownership of teardown and can no longer be cancelled.
+			this.#closeAttempt?.abort();
+			return;
+		}
 		// The previous graceful teardown failed AT the memoized session.dispose()
 		// (the session is already disposing), so it re-rejects identically forever
 		// and the process can never close (#12238: a corrupted session file makes
@@ -8551,8 +8595,19 @@ export class InteractiveMode implements InteractiveModeContext {
 			await this.#quitHostOwned(130);
 			return;
 		}
-		this.#beginClose();
-		const worktreePlan = await this.#planOwnedWorktreeExit();
+		const signal = this.#beginClose();
+		// Reversible decisions first: nothing has been stopped yet, so a refusal
+		// leaves the session exactly as it was.
+		if (options?.cancellable !== false && !(await this.session.confirmClose(signal))) {
+			this.#abandonClose();
+			this.showStatus("Session close cancelled");
+			// The refusal covers only this quit, not a pending `ctx.shutdown()`.
+			if (this.shutdownRequested) void this.checkShutdownRequested();
+			return;
+		}
+		// A signal teardown or stop() took over while extensions were asked.
+		if (this.session.isDisposed || this.#dialogLifetime.signal.aborted) return;
+		const worktreePlan = await this.#planOwnedWorktreeExit(signal);
 		try {
 			await this.#teardown();
 		} catch (error) {
@@ -8587,7 +8642,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	}
 
 	#handleTeardownError(action: "close" | "restart", error: unknown): void {
-		this.#isShuttingDown = false;
+		this.#abandonClose();
 		const detail = error instanceof Error ? error.message : String(error);
 		// Arm the escape hatch only once dispose() has begun: its promise is
 		// memoized, so a retry can only re-fail. A failure BEFORE dispose (a
@@ -8606,7 +8661,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	 * to remove after teardown. Stops the agent turn and live commands first so the
 	 * prompts describe a worktree nothing is still writing to. Never throws.
 	 */
-	async #planOwnedWorktreeExit(): Promise<WorktreeExitPlan[]> {
+	async #planOwnedWorktreeExit(signal: AbortSignal): Promise<WorktreeExitPlan[]> {
 		const policy = cfgWorktreeOnExit.get(this.settings);
 		if (policy === "keep" || this.#ownedWorktrees.length === 0) return [];
 		this.#abortLoopCondition();
@@ -8620,7 +8675,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		return planWorktreeExit(
 			this.#ownedWorktrees,
 			policy,
-			(title, message) => this.showHookConfirm(title, message),
+			(title, message) => this.showHookConfirm(title, message, { signal }),
 			message => this.showWarning(message),
 		);
 	}
@@ -8699,9 +8754,17 @@ export class InteractiveMode implements InteractiveModeContext {
 	 * any await: worktree exit planning, live commands, and BTW history writes can
 	 * all stall, and the user must see a reason for the pause.
 	 */
-	#beginClose(): void {
+	#beginClose(): AbortSignal {
 		this.#isShuttingDown = true;
+		this.#closeAttempt = new AbortController();
 		this.showStatus("Closing session…");
+		return this.#closeAttempt.signal;
+	}
+
+	/** Return to a usable session after a close attempt was refused or failed. */
+	#abandonClose(): void {
+		this.#isShuttingDown = false;
+		this.#closeAttempt = undefined;
 	}
 
 	/** Shared `shutdown()`/`restart()` teardown: dispose the session and hand the terminal back. */
@@ -8800,7 +8863,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		) {
 			return;
 		}
-		await this.shutdown();
+		await this.shutdown({ cancellable: false });
 	}
 
 	// Extension UI integration
@@ -9621,9 +9684,9 @@ export class InteractiveMode implements InteractiveModeContext {
 		await this.#commandController.handleForkCommand(placement);
 	}
 
-	async handleMoveCommand(targetPath?: string): Promise<void> {
+	async handleMoveCommand(targetPath?: string, options?: { allowCreate?: boolean }): Promise<void> {
 		if (this.#vibeSessionTransitionBlocked()) return;
-		await this.#commandController.handleMoveCommand(targetPath);
+		await this.#commandController.handleMoveCommand(targetPath, options);
 	}
 
 	async showDirectoryPicker(): Promise<void> {

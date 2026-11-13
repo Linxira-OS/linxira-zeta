@@ -2,15 +2,88 @@
 
 ## 下一版本（Unreleased）
 
+### 1.5.2（2026-11-12）
+- **性质**：exact owner-review GitHub assets 构建（ADR-0033）；npm 仍为 1.5.1；不是 1.6.0 稳定声明。
+- **上游基线**：OMP `v18.19.0`（tag `04cd1a7549a02d62ad1d24826198d52507595683`，merge `f2ad635e0142bf9c64b8fe8253683da4430698a7`，基于 `ddb44711b5d`）。
+- **发布范围**：17 个 VERIFIED REQ + 5 个 Accepted ADR（0005/0008/0033/0034/0035）；这是资产验收范围，不等于对全部历史 REQ 的重新验证。新增/修复/移除条目见下方各未发布小节。
+- **安全相关**：2FA step-up 单次验证修复；IM 密钥掩码/写入语义与 ADR-0030 权限边界。
+- **未发布/暂挂**：Android、桌面新开发、音频、Work Studio 多终端管理页（ADR-0034）；QQ/WeCom（ADR-0035）；不列入 1.5.2 资产。未验证的 E2E/held 项不作为资产验收证据。
+
+### 发布勘误（未发布）
+- **已发布的 1.5.1 段落不可改写**：`### 1.5.1` 及其条目保持原样（包括 #297 的 logo 归属），不回填、不搬迁历史；勘误只写在本 Unreleased 段落。
+- **以下变更合并在 1.5.1 tag 之后，并未随 1.5.1 发布**：#304（Studio capability matrix）、#307（desktop window controls）、#318（Electron 45）、#319（html-report 技能）、#320（release freeze）、#321（model visibility）。它们只在后续内部构建/1.6.0 中生效；1.5.2 只在 exact owner-review override 下发布 GitHub assets，npm 仍为 1.5.1；1.5.3–1.5.10 仍是 code-only 内部 tag，不发布资产或 npm 包；1.6.0 仍需 owner 明确批准后才公开发布。
+
+### Team Hub headless 与成员命令（未发布）
+- `/team hub` 新增 headless/ACP/IM 纯文本入口：`resolveTeamEntry` + `createTeamHubDataSource` 复用真实 Team DB 快照（PM/工程师/房间/选中房间事件/任务），不新增 backend、agent 或伪造状态。空 Team 只输出真实 CLI next steps；DB row 缺失保留真实 warning。
+- 新增 `zetacode team room member add/remove`，复用既有 `addRoomMember`/`removeRoomMember` 与 PM ownership 规则；TUI 空 Team 指引补上 member 命令。
+- 实测：真实 fixture 在 PM cwd 无 `--root` 创建房间/成员/发事件/任务；ACP `executeAcpBuiltinSlashCommand` 返回 `{consumed:true}` 并显示真实 row/event/task；团队窄测试 37/0。
+- `/lead`（`/pm`）补 headless `handle`：复用 `AgentSession` 的 Lead mode 服务，进出均走同一 PM workspace/工具集/冲突校验，不启用 Vibe；真实 ACP dispatch + tools 恢复测试 7/0（ADR-0032）。
+
+### 移动端安全入口（未发布）
+- 修复手机 Work Studio 的 Settings 入口缺失：File、侧栏 OMP 菜单与 Zeta 菜单此前在 mobile 上隐藏 Settings，现仅隐藏 diagnostics；手机实际 `surface=mobile`（iPhone UA、390px、coarse=true）可点击进入 Settings → 身份与设备。
+- 安全能力矩阵在 mobile 上保持发布策略：设备列表/pairing pass-through、TOTP read-only（首绑仅本机）、remote token/device revoke/enroll 隐藏；删除 `remote-token=hidden` 时仍渲染 Rotate/Revoke 的错误，配对 QR 在隔离 fixture 实际显示成功；mobile 契约测试 14/0。
+- **2FA step-up 单次验证修复**：真实 mounted `AuthStepUpBoundary` + `createStepUpFetch` + repo-local 远端身份 fixture 实际得到 command 403 → 弹窗 → verify 200（一次）→ replay 202；修复前 boundary 与 wrapper 各 verify 一次，第二次 401 导致命令不重放。boundary 现在只收码，wrapper 独占 verify+replay，server replay protection 不变。既有 remote socket 2FA fixture 2/0；custom-prompt 协议测试 4/0；新增 browser-bucket mounted regression 2/0（真 Chromium + 单次 consume server：旧 double-verify 路径会因 verify=2/accepted=0 失败，正确路径 verify=1/protected=2/accepted=1，wrong-code 不 grant）。完整 App 手机 remote 2FA 与原生设备配对仍待 E2E。
+
+### 平台 CLI / IDE 运行边界（未发布）
+- **Android Tier1 CLI**：Gradle 8.9 wrapper、`BUILD SUCCESSFUL` 39s、11 JUnit 0 fail、debug APK 已签名（sha256/证书见 `local://android-cli-build-evidence-20261112.md`）；package `com.zeta.android` min26/target35/compile35。未接 device/emulator，release 仍 unsigned/frozen。
+- **ASCII `!` 指令优先**：workspace/agent/team/session/help 用户入口统一推荐 ASCII 感叹号；全角 `！` 继续由既有 `normalizeFullWidth` 归一化；旧 `@` 别名继续兼容但不推荐。真实 router tests 22/0/121 expect，独立 final-accept 的 SessionRouter/WebConfig/AgentRegistry/TeamDb fixture 验证 EN/ZH、fullwidth、`!workshop` fallback、agent/team/session state；未声称外部平台全链路。
+- **robomp Windows 离线 CLI**：懒加载 POSIX `fcntl`/`grp`、Windows queue-root guard；offline paths/replay/status 19/0、config 31/0、真实 triage/replay SQLite 通过；生产仍按 POSIX/Linux-root 边界，不声称 Windows 生产已验证。
+- **TermIDE walker**：`require_git(false)` 尊重 git root 外 ignore，Windows-only slash normalization；post-fix nextest walk 2/2、三 IDE crates 66/66（3 leaky 已记录），doctest RC0。后续 Esc/JSON/TODO/Git 实测见下条；旧“未打开/早于 fix”表述已由当前实测取代。
+- **TermIDE Esc preview/commit fix**：IdePage 为 transient preview 与 commit box 设置 `captures_escape`；`a189d4385b6` 后 panel-ide 52/52（3 leaky），GNU rebuild RC0 28.84s，doctest RC0 0 examples。实际 pyte 屏幕：JSON tree 值/Esc 退出/折叠、TODO scan/sample jump、独立 Git `[Diff]` hunk 通过；组件级 inline `OpenGitDiff{README.md}` smoke 通过（只显示 `README change`、不含 `SECOND change`，用后删除），`GitDiffPanel::new_for_commit_file` 真实单提交双文件 smoke 1/1（README hunk 在、第二文件不出现，用后删除）；永久 `panel-git-log` per-file filter 与 1200 commits scrolling 测试通过。完整 App IDE lower Git mouse focus/per-file history UI paging 未验，不宣称。
+
+### Owner 范围暂挂（2026-11-12，未发布）
+- **Android**：原生开发与正式发布资产再次挂起（用户原话「安卓这边可以先挂着，等我后面开，反正现在接口有就行了。我们安卓什么时候开发都没问题」）。既有 Android 源码/CLI 接口/Gradle + 11 JUnit + debug APK 证据保留，不装设备/模拟器、不建 release key、不把 APK 作为任何 release 资产；恢复条件为 owner 重新开启 Android。
+- **桌面新开发**：暂挂；既有 Electron 45、打包源码与 SSH bridge 源码保留，不把已实现代码改回“缺失”。SSH 真实目标验收由另一 worker 继续复查。
+- **音频/TTS/STT/系统麦克风/桌面音频**：继续暂挂（用户原话『STT TTS、系统麦克风与桌面音频一直暂挂，暂不开发』）；保留既有 capability gate/host bridge 证据，不新增媒体功能或安装音频服务商。
+- **Work Studio 多终端管理页 + ELYTerminal 参考**：暂挂且架构未裁决（扩展 zetaide vs 复用旧 zetawork TUI 前后端渲染）；ELYTerminal 仅作公开参考，不作为依赖。现有多标签终端（`TerminalPane`/`terminalSessions`，最多恢复 4 个标签）保留，但 Orca 式左侧多终端管理专页尚未存在、未开工。旧 TY/TUI PR 不合并、暂挂。
+- 决策记录为 ADR-0034；roadmap 的“Owner holds (2026-11-12)”与 ledger REQ-018/030/066/089/090 同步。暂挂项不算完成，不作为 1.5.2 资产验收证据。
+
+### QQ / WeCom 通道暂挂（2026-11-12，未发布，docs-only）
+- **QQ 与 WeCom 通道暂停**：第三方 OneBot bridge 生态不可用；QQ 官方接口需要公网回调 + 固定出口 IP 白名单，个人电脑/动态 IP 不满足；WeCom 两类接口都涉及 IP/企业/开发者/用户准入白名单，实际可用性不如飞书。现有 OneBot v11 源码保留、行为不改，但不承诺支持、不做 live 验收、不作为 release 资产；不打包/自动安装 bridge，不新增官方 QQ adapter；WeCom 保持无 adapter；飞书为现有企业通道，TIM 仍 PLANNED。
+- 文档记录 ADR-0035、roadmap Owner holds、ledger REQ-091、`docs/channels.md` 与 `docs/gui-im-channels.md` 的 owner-pause 说明；未改代码/测试。
+
+### 1.6.0 公开发布准入（2026-11-12）
+- 用户明确：只有全部计划内开发有逐项证据、用户在 1.5.x 亲测全部功能并确认稳定、手机全部开发且真实设备流程验收、SSH 真实目标功能完整、无未解决 known bug 后，才考虑 1.6.0；未验/held/blocked 不能算 100%。当前不授权 1.6.0 tag/bump/publish/PR/main-merge，1.5.1 冻结与 1.5.3–1.5.10 code-only 不变，1.5.2 仅按 ADR-0033 exact owner-review override 做资产验收；ADR-0006 仅由 ADR-0033 对 exact 1.5.2 取代，owner exact-version override 仍是最后机械门。本轮 owner 已明确先进行 upstream tag 合并和 1.5.2 资产验收；这不是 1.6.0 的 tag/bump/publish/PR/main-merge 授权。详见 `document/release.md` §1.6.0 readiness。
+
+### 本地工作树/缓存清理（2026-11-12，未发布）
+- 在用户授权下只处理仓库内、已合并且 clean 的 3 个旧 worktree/分支：`fix/browser-relay-hello-race`（`c1f6c6c6a79`）、`feat/ci-buckets`（`06671d0b7860`）、`feat/device-account-ux`（`509e4390233b`），no-follow logical 合计 5,116,494,208 B；worktree 数量 120→117、本地 heads 128→125。
+- 先经 `bun scripts/safe-remove-tree.ts` 删除 junction/`node_modules` 链接（分别为 18/18 links），再 `git worktree remove` 与 `git branch -d`；未使用 `rm -rf`/递归 PowerShell。登记先写“待删除”（`f695f93ad1fd`），结果证据单独提交（`b3cc7077c559`）。
+- 仅清 19 个 Git 识别的 `tmp_pack_*` garbage，pack 目录 3,763,768,558→3,690,089,703 B（−73,678,855 B）；未执行 repack/gc/prune/reflog expiry，未动 pack/idx/promisor。
+- 保留 integration、owner-review、用户/park/dev/backup/sync/release/report-*、root `main` 与外部缓存；未见并发写入，未杀用户进程。
+
+### Agent 自建插件与页面宿主（未发布）
+
+- **会话内开发插件**：主代理可在 `<agentDir>/plugins-dev/<session>/<name>/` 里 scaffold / validate / load_dev / reload / discard 一个自写插件；文件不写仓库、不改全局 settings。`validate` 对 session/插件根、manifest 入口和相对 import 做词法 + `realpath` containment，junction/symlink 逃逸直接拒绝；dev 包必须声明至少一个 `extensions` 入口，tools/hooks-only 清单返回明确错误而不是让 `load_dev` 静默失败。`load_dev` 把扩展工具与命令绑进当前 runner，回合结束检测文件变化后重载并移除旧 runner 注册，失败保留上一版。promote / export 只由用户通过 `zetacode plugin promote|export` 执行，提升到 `~/.zeta/agent/plugins/<name>` 后需重启；`plugin dev cleanup` 清理过期会话目录。YOLO 仍是默认审批，未新增插件级审批、沙箱或安装通道。
+- **版本化页面宿主**：`plugin.json` 的 `ui.panels`（`kind: "html"`）现在决定可挂载页面，网关 `GET /api/plugin-pages` 列出清单、`GET /api/plugin-assets/<plugin>/<path>` 提供受 containment 保护的包内资源；资源 URL 携带 `?cwd=<project>`，iframe 导航无需 Studio 的 `x-zeta-cwd` header 也能解析项目级插件根。Studio 的 `/plugins/view/<plugin>/<entry>` 以 sandbox iframe 打开页面，注入 `window.__zetaPage` v1（ready / callTool / getContext / subscribe / notify / resize）；`subscribe` 当前返回 `UNSUPPORTED_SUBSCRIPTION`，写操作只走 `callTool`；工具必须属于该插件、在当前会话启用，并经既有 tool wrapper/审批执行。HTTP `/api/*` 继续是只读数据面；dev 页面在 promote 前不预览。
+
+### zetaide 工具（未发布）
+- **Git 中心逐文件闭环**：History 在切换标签页/关闭标签页/点击标签页时重新指向当前文件（此前只在首次打开历史时设置过滤）；新增 `L` 键按需读取下一批（标题在仍有历史时显示 `L older`），已读行只追加不重建；`panel-git-log` 的 `d` 现在把文件过滤一起交给 diff；新增 `GitDiffPanel::new_for_commit_file`，app 事件按「提交 + 文件」优先匹配，不再退化成工作区 diff。IDE 内的 `OpenGitDiff` 改为在编辑区以预览面板内联渲染，`Esc` 回到文件。二进制 diff 显示 `binary file — no textual diff`，重命名沿用 `rename to` 的新路径，空结果画 `no changes to show`。
+- **JSON Viewer（只读）**：`panel-ide` 新增自包含 JSON 解析器，数字按源码文本保存（大数/指数不经过 `f64`），字符串保留原始转义；树可折叠、语法错误显示行/列，`c` 复制值、`p` 复制 JSON Pointer，绝不写回文件。`Ctrl+J` 打开当前文件。
+- **TODO Scanner**：复用 `termide-walk` 的 git-ignore walker 与 `termide-core::util::is_binary_file`，跳过二进制与超过 1 MiB 的文件，结果上限 2000，支持取消；`Enter` 通过 `OpenFileAt` 跳到真实编辑器行列。`Ctrl+D` 打开。
+- **未验证**：完整 App IDE lower Git pane 的鼠标焦点与 per-file history UI paging 未验（winpty 鼠标焦点不可用、SGR button click inert）；组件 inline smoke 与永久过滤/滚动测试已过，仍不宣称全 App E2E。完整 App 手机 remote 2FA/native 设备配对与 SSH 真实目标仍待。
+
+### IM 运行时 UI（未发布）
+
+- **按实例管理 IM**：Studio 新增 IM 运行时页（`web-app/src/studio/settings/ImRuntimePage.tsx`，导出给 Studio 路由挂载），消费冻结契约 ADR-IM-0007：`channels.instances` / `remote.imBindings` / `imAgents`。同一平台多实例、实例 id 命名空间、note、启用/停用、平台校验、每实例微信二维码/重连/解绑；密钥读取一律 `••••`，写入语义为“留空保留 / 显式清除写 null / 填值替换”，掩码不回传。
+- **绑定**：实例 + 聊天/线程/用户 + Agent Profile + target（workspace / team-pm / engineer）+ session + **answer/mention/observe**；mention 只在本实例被 @ 时回复、不自动回复，answer 每 (platform,chatId) 唯一。显示 needsReview 与 target-unavailable 原因并阻止保存到不可用目标；写回时剥离 UI 展示字段。
+- **Agent Profile**：persona（inline/file/workspace）、模型、位置、工具白名单（builtin/extensions/MCP/customTools/skills/commands，空=不允许、不继承环境工具）与记忆后端；`capabilities` 已从 schema 删除，页面不提供权限开关也不标示未建模权限；运行身份含 bindingId，由后端计算展示。
+- **Bot 状态**：读取当前绑定/会话/模型/answer-observe/语音能力与命令示例，实例级发送测试（409 ambiguous 待后端给候选实例）。
+- **TUI `/channels`**：新增管理页（instances/targets/bindings、needs-review/unknown-target）与 `enable-instance`/`disable-instance`；只读 v2 `channels.instances`/`remote.imBindings`，不再合成旧 platform path（未迁移时明确提示执行后端迁移）；任何 token/secret 不进入快照或 transcript。
+- **边界**：后端实例契约在 `feat/report-im`（041e8c0），本切片为本地集成；SettingsPage 接入 `imRuntime` 分组与命令面板；App.tsx 只增加 legacy `channels` 深链别名；真实浏览器交互验证见 final-accept @ `f3511fc8`（实例编辑/保存 PUT HTTP 200、`Instance saved.`、持久化到 web.yml、reload 保留、console/pageerror 无 #185），pre-fix #185 未重新复现；验证不要求生产凭据。
+- **Settings 收敛（2026-11-12）**：删除 legacy「IM 渠道」设置组、tab 与命令面板 `set-channels`；`app.settings:channels` 与旧 `zeta.settingsIntent` 统一别名为 `imRuntime`。`ImChannelsPane` 保留为历史组件但不再挂载，不再向用户展示 Discord/QQ「凭据不可用」；QQ/Discord 凭据只在实例编辑器的统一 credential fields 中配置，仍走 `/api/channels/instances/<id>/validate`，不新增第二套 credential store。设备/2FA 仍在「身份与设备」。
 ### Work Studio 诊断（未发布）
+
 - **系统 Runtime 不再被误报为未安装**：当 Host 自身就是运行中的 `compatible-system` Runtime（源码/开发构建）时，诊断页显示「系统 Runtime 运行正常（未托管）」、托管卡片「系统 Runtime（未托管）」、签名「不适用（无托管制品）」、上游「本机 Runtime · 无上游记录」；`runtime.install` 与 `runtime.ensure` 能力分开渲染，不再给出必败的 Install 按钮，也不再弹「无法确认 Runtime 工件通道」。运行中的托管 Runtime 缺少安装记录改为黄色提示，launch/handshake/断连失败保留自身错误文案。
 
 ### 桌面安装包体积（未发布）
+
 - **Electron 版减重 ~165 MiB**：内核二进制已把本平台 native addon 以 zstd 帧内嵌（`packages/natives/scripts/embed-native.ts`，首次运行解压到 `~/.zeta/natives/<版本>/`），`prepare-runtime.mjs` 仍把 `.node` 再复制一份到 `resources/zeta`，1.5.1 Windows 安装树里重复了 124.1 MiB。现不再随包复制，与命令行版发布物保持一致。
 - **Electron 语言包收敛**：`electron-builder.yml` 新增 `electronLanguages: [en-US, zh-CN]`，不再随包 55 个 `.pak`（安装后 42 MiB、安装包约 10 MiB）。
 - **实测**：1.5.1 安装树 744 MiB（约 780 MB）、NSIS 安装包 250 MiB；同配置重建后 572 MiB（本机内核，比发布内核小 6.8 MB）、安装包 192 MiB；换回 1.5.1 发布内核约 579 MiB / 195 MiB。
 - **回归防护**：新增 `desktop/scripts/packaging-budget.mjs`（`package-desktop.mjs` 打包后校验：`resources/zeta` 不得出现 `.node`，`locales/` 只能有 `en-US`/`zh-CN`），附 4 个单测；违反即打包失败。
+
 ### 会话可见性与删除（未发布）
+
 - **统一隐藏 / 移除 / 删除语义**：隐藏对话只写共享元数据（`session-visibility.json`，按会话 id），转写与产物不动；隐藏文件夹写 `resume-projects.json` 的 `hidden` 标志，从 Work Studio 默认项目列表与 TUI 目录默认视图消失，但不删除 checkout 或会话；移除项目只删注册/分组记录（`registered: false` / `unregisterProject`），不碰转写；删除对话由 TUI 选择器与 `DELETE /api/sessions/:id` 共用 `session-delete.ts`，默认移入 `<agentDir>/trash/sessions` 回收站，并清除该会话的隐藏/固定元数据。
 - **TUI**：resume 选择器默认显示全部，新增 `h` 隐藏/取消隐藏、`v` 显示已隐藏项（不重新扫描目录），项目/文件夹菜单同样支持隐藏。
 - **Work Studio**：侧栏与历史默认隐藏共享隐藏项；项目行 `⋯` 只保留「隐藏文件夹」，会话行 `⋯` 只保留 Fork 与「删除对话」（确认后走同一 `session.delete`），删除 `更多（暂未实现）` 占位按钮。
@@ -18,23 +91,45 @@
 - **文档/测试**：`docs/session.md` 记录四种操作的边界与两端显示策略；新增共享可见性、目录过滤、隐藏偏好和共享删除的聚焦测试。
 
 ### Work Studio 默认头像（未发布）
+
 - **默认 Zeta/AI 头像改用产品标记**：对话消息头（原 18px `π` 角色徽标）与 Agent Hub 主对话横幅（原 message 图标）改用概念 04 Cluster 标记；≥32px 用双块簇，16/24 用单块 LZ 回退（`zeta-mark-16.svg`），带细描边、无障碍名称与资源缺失时的内联回退。PM/工程师/子代理等角色图标、项目/文件夹图标和操作员本人头像不变。
 
 ### 品牌文案清理（未发布）
+
 - **Work Studio / `zeta-web` 文案去上游名（#306）**：诊断「会话与维护」此前仍显示「执行 OMP 原生导出与清理」「范围为本机 OMP 数据目录」——渲染器切换只清理了 `web-app/`。本版把 `web-ui/` 两套 Studio 文案（各 42 条，保持两份逐字节一致）与 shell 目录统一为 `Z Work Studio`（产品）/ `Zeta`（运行时），批准卡、历史、设置、技能分享、技能与预览 fixture 同步；文案里的 `~/.omp`、`.omp/` 路径改为 `~/.zeta`（配置根即 `CONFIG_DIR_NAME`），`omp login` / `omp models refresh` / `omp agents unpack` 改为 `zetacode …`（产品没有 `omp` 二进制），助手徽标 `π` 改 `ζ`，演示项目名 `omp-web`/`omp-studio` 改 `zeta-web`/`zeta`，演示仓库与更新 URL 指向本仓库，技能注册表 fixture 改 `skills.sh`。CLI/TUI 侧同步修正 MCP 向导、setup、设置、`ps`、更新/changelog 提示、浏览器与会话迁移报错、凭据来源标签与 catalog 的 GitLab 登录说明（`rules.json` 重新生成）。
 - **文案守卫**：新增 `web-ui/scripts/check-studio-naming.ts`（两条 CI 工作流都跑），扫描 locale 值与 JSX/字符串文案，冻结项（协议名、`OMP.*` 中继方法、`omp:` scheme、IndexedDB/CSS/事件名等）逐条列入允许表；`web-app` 守卫补上 `className` 行上的 JSX 文本（此前漏掉一个 `omp-web` 演示标签）；i18n 品牌测试同时禁止小写 `omp` 与上游项目名。上游出处注释与 MIT 归属保留原名。
 
 ### Team 技能分配（未发布）
+
 - **PM → 工程师技能分配**：Team 数据库新增 `agent_skills` 表（schema v4；`team_id`/`pm_id`/`engineer_id`/`skill_name`/`source`/`qualified_name`/`assigned_by`/`created_at`，按工程师+技能唯一）。Lead 模式新增 `engineer_skills` 工具（`list|assign|remove`），PM 只能操作自己名下的工程师，拒绝 PM 自身与其他 PM；只接受已发现技能名，无路径参数。分配在工程师会话启动/恢复时以隐藏 autoload 提示注入，每次转写只注入一次；运行中的工程师需 `/reload-skills` 或重启，不做热重载。插件/注册表来源（可带 hooks/tools）为高风险，需操作员在 `team.skillAllowlist` 放行；官方/自写技能默认允许。删除只停止后续注入，不回收已加载内容。
 
 ### Team 工作队列（未发布）
-- **持久任务队列**：Team 数据库升级到 schema v5，新增 `tasks` / `task_events`。PM 创建并指派任务，工程师（含 `execution = vibe`）用租约认领；`pending → claimed → review → done`，另有 `rejected → pending` 与 `cancelled`。认领以 `revision` 比较并交换，同一任务只能有一个 owner；租约过期可被同 PM 的其他工程师回收。任务与事件在同一 SQLite 事务提交，进程重启后状态、owner、租约与事件全部保留。
+- **持久任务队列**：Team 数据库升级到 schema v5（随后 v6 增加 bootstrap journal / room subscriptions），新增 `tasks` / `task_events`。PM 创建并指派任务，工程师（含 `execution = vibe`）用租约认领；`pending → claimed → review → done`，另有 `rejected → pending` 与 `cancelled`。认领以 `revision` 比较并交换，同一任务只能有一个 owner；租约过期可被同 PM 的其他工程师回收。任务与事件在同一 SQLite 事务提交，进程重启后状态、owner、租约与事件全部保留。
 - **REQ 关联**：任务标题/正文与 `--req` 中的 `REQ-*` 仓库台账 id 会合并到任务并在每个事件留存；`task comment` 可追加只读审计备注。
 - **CLI**：新增 `zetacode team task create|list|show|assign|claim|renew|release|submit|complete|reject|cancel|comment`；`task list` 显示状态、owner、租约与 REQ id。Lead 工具面与 Team Hub 本版不变（最小完整切片走 CLI）。
 - **doctor**：修复 `room.member` 对已登记 Secretary 的误报；新增任务 PM/assignee/owner/lease/event actor 校验，过期租约只告警。
-- **设计**：`document/team-task-queue.md` 记录 `/initzetateam` 的 plan/apply/journal/回滚/doctor 预检依赖顺序；Vibe worker 自动认领与 IM 每 Agent 绑定均未在本版实现。
+- **设计**：`document/team-task-queue.md` 记录 `/initzetateam` 的 plan/apply/journal/回滚/doctor 预检依赖顺序；IM 每 Agent 绑定未在本版实现。
+
+### Team 引导、实时房间与任务 worker（未发布）
+- **事务化 `/initzetateam`**：新增 schema v6 `team_bootstrap_runs`/`team_bootstrap_steps`。plan 在任何写入前校验无主根（非 Git、无 `AGENTS.md`、无嵌套 Git）、目录空、名称/路径/branch 冲突与 DB 冲突；apply 写前重新 preflight，每步写 journal，崩溃后以持久行/marker adopt；失败可 resume 或 rollback。只删除本 run 创建对象：dirty worktree、移动的 HEAD、增加文件的 clone 保留 DB 行并报 `rollback_failed`，不使用 force，不跨 junction。默认创建 coordination、PM 房间、binding 与指定工程师；`--engineer-only` 在既有 Team 上走同一流程。
+- **房间实时投递**：新增 `room_subscriptions(accepted_through, read_through)`。`room post` 通过既有 `IrcBus`/mesh 投递给已订阅的在线成员；按 seq 最旧优先、失败 seq 不跳过，accepted 用 CAS 单调推进；`read` 只由显式 ack 推进，`queued` 不当作 accepted。离线成员在会话启动时由 `deliverPendingRoomEvents` 补投。
+- **Team Hub**：新增 `TASKS` 列表/详情与 claim/renew/submit/complete/reject/cancel；房间 `m/M` 增删成员、`K` 切换 kind（pm/coordination/room）。
+- **任务 worker**：新增 `/teamworker on|off|status [normal|vibe]`，仅限 engineer worktree 会话；mode 必须与 DB `execution` 一致。会话忙时不认领；只在本会话 idle 后排队一次真实 follow-up turn，等 `agent_end` 终态后才 submit；租约丢失 aborts execution，不能 submit/release 新 owner；review 不自动 complete。无 Vibe 自动启动、无后台 daemon。
+- **文档**：`docs/team.md` 记录 runtime init/rollback、room accepted/read ack、task worker 与 Hub 动作；ADR 草稿 `local://team-adr-bootstrap-live-delivery.md` 由集成编号。
+
+### 自定义命令执行策略（未发布）
+- **命令级 agent/model/template（REQ-052）**：Markdown 与 TypeScript 自定义命令都接受 `agent`、`model`、`template`。执行时按名称解析已发现 agent，把其 persona 追加到本轮提示、把工具面收窄为「会话已有工具 ∩ agent 工具」；agent 声明 `spawns` 时把其允许名单交给 task 既有 spawn policy，名单外的子 agent 会被拒绝；`model` 走与 `--model` 相同的选择器解析，缺省时按 agent 的 model 列表依次尝试。未知 agent、无法解析的 model 在 handler 与模型请求之前明确报错；`template` 取代 Markdown 正文，TypeScript 命令可只给 template 不给 `execute`。优先级是命令 `model` > agent model 列表 > 当前会话 model，命令轮结束（含异常）恢复原 model、思考等级、persona 与工具面。流式运行及 plan/goal/vibe/lead 模式内拒绝带选择器的命令，不做隐式叠加。Codex/OpenCode 发现路径不再在剥离 frontmatter 后丢失这些字段。
+
+### 最终运行时缺陷修复（未发布）
+
+- **事件 socket 与 receipt**：Studio 在 bootstrap 成功、`studio_session` 写入后才订阅 `/api/v1/events`，避免 fresh cookie 下 socket 以无 session 身份 attach 导致 receipt 丢失；command 202 后 UI 收到匹配 `command.receipt` 并清除 busy。
+- **IM 实例保存**：`ImRuntimePage` 移除 loader 对 `botInstance` 的自触发依赖；Save 不再触发 React #185，真实浏览器 PUT HTTP 200、持久化、reload 与 console 干净。
+- **Team 房间即时刷新**：Post 在 durable receipt 后调用 open-room loader，零序列房间轮询执行完整读取；空房事件在收据后约 56ms 出现，无需切房。
+- **Team IM transcript id**：`/api/im/sessions` 增加 additive `transcriptSessionId`（transcript header id），Team IM 用它读取真实 transcript；registry 键 404 保持诚实，缺失 transcript 显示空态，不伪造消息。
+- **验证**：上述修复在 `f3511fc8` 由 final-accept 独立真实 host + Chromium 复验 PASS；`check:ts` RC 0、`check:adr` 18、`check:reqs` 88 行、`web-app` tsc/build 通过。公开发布与 Android/desktop/voice 等硬件验收仍未完成。
 
 ### 1.5.1
+
 - **Work Studio 浏览器终端（#282）**：Studio 界面通过网关 PTY 在浏览器里跑真实终端（xterm.js），支持选择/创建 shell profile（shell、参数、工作目录、环境变量）、实时调整 PTY 尺寸、导航后保留会话列表，并在断线后重连回放而不是留下死面板；profile 由服务端校验，不能越出工作区根。
 - **TUI `/channels` 与安全配对锁（#283）**：列出已配置 IM 渠道及其实时健康（状态、详情、最后错误、起始时间、最后入站），执行 `login`/`status`/`logout`/`unbind`，并按渠道加配对锁，避免两个进程同时配对同一账号；后端 attach 的客户端会拒绝该命令，把配对留给持有进程。
 - **`/cd` 目录切换（#287）**：TUI 内新增高频 `/cd` 命令；无参数打开只列目录的文件夹选择器（Windows 显示真实卷、驱动器类型与卷标，A:/B: 仅在系统存在时出现；POSIX 读 `/proc/mounts`），支持固定目录、输入过滤、键鼠选择，`Ctrl+P` 固定、`Ctrl+R` 在该目录上打开 `/resume`；`/cd <path>` 等价 `/move`。切换会把会话文件与产物迁到目标桶并重绑项目设置/记忆/插件/技能/命令，失败整体回滚；主目录启动仍保留 `~/tmp` 工作区并在启动提示中说明。
@@ -52,6 +147,7 @@
 - **未完成（不要当成已交付）**：**没有 Android 原生应用或 Tier 1 移动客户端**——移动端只有浏览器 UI 与 Work Studio 浏览器版，路线图中的轻量 WebView 外壳未构建，不存在 APK/AAB 或应用商店包；**聊天 → PM 的 `agentId` 持久绑定未做**，聊天绑定目前只映射到工作区别名或机器人会话，设置面板的该列标注“未实现”且从不写入；**2FA 密钥只有文件系统保护**（`0600`，无 OS keychain/TPM），也没有 WebAuthn/passkey 第二因子；**远端 Work Studio 的设备 token 注入仍未端到端打通**，仍需通过 URL fragment/localStorage 手动携带配对令牌。
 
 ### 1.5.0
+
 - **IM 渠道扩展**：新增 **Discord**（官方 Bot API：Gateway v10 + `MESSAGE_CONTENT` intent、服务器频道/私信、@提及与回复触发、附件下载、2000 字分块、429/断线重连、健康状态）与 **QQ**（通用 OneBot v11 客户端：正向/反向 WebSocket、Bearer token、群/私聊、图片、`echo` 关联、重连与 `get_status` 探活）。两个新平台**默认拒绝启动**，必须先配置 `channels.discord.allowedChannels` / `channels.qq.allowedGroups|allowedUsers`；`zetacode channels login discord|qq` 先验证后落盘。QQ 不打包、不自动安装任何桥（NapCat / LLBot / SnowLuma 由用户自行运行，许可证与账号风险自负）。
 - **Zeta Team 落地（无主 Team 根）**：`zetacode team` 新增无主 Team 根（`<root>/.zeta/team.json`；不是 Agent、没有 `AGENTS.md`/Git/Team 根会话）、PM 工作区（`pms/<pm>/`）、规范基础仓库（`repos/<repo>/`，也可用 `repo link` 就地登记）、PM↔仓库绑定、工程师与真实链接工作树（`home` + 每任务）位于 `worktrees/<repo>/<pm>/<engineer>/`；一个 SQLite Team 数据库（默认 `~/.zeta/data/zeta.db`，`ZETA_TEAM_DB` 可覆盖）记录 teams/PM/repos/bindings/engineers/worktrees/rooms/agents，`team doctor` 报告磁盘标记与数据库漂移。没有 team-wide Agent。
 - **Team Hub**：在 Team 根或 PM 工作区直接启动 `zetacode` 打开数据库驱动的 Hub（房间、PM、工程师；房间显示类型/归属/成员数/最新 `seq`，工程师显示记录的 execution 与工作树），`r` 重载、`s` 以真实成员身份发帖、`/` 过滤；Hub 不创建会话或转写，也不伪造 Agent。显式会话启动（`--continue`/`--resume`/提示词等）仍进入普通编码。
@@ -68,10 +164,12 @@
 - **未完成（不要当成已交付）**：聊天 → PM 的持久化绑定仍缺（当前只有运行时与会话/workspace 绑定）；原生 Android 应用推到 1.5.1（目前只有移动 Web UI）；Team 图只读本进程活跃 Agent，跨进程注册表未做；插件的 Team 层重命名与既有数据迁移未做。
 
 ### 1.4.12
+
 - **桌面应用回归，两种发行版**：Work Studio 桌面壳恢复发布，同一 staged runtime（编译后的 `zeta` 内核 + 原生 addon + `web-app` 渲染器）产出 Electron 版（内置 Chromium；Windows NSIS/zip、Linux AppImage/deb/tar.gz）与无浏览器引擎版（`linxira-zeta-<v>-workstudio-browser-*`，启动 `serve` 后用系统默认浏览器打开）。桌面壳不再依赖冻结的 `web-ui`，统一通过 `ZETA_WEB_APP_DIR` 指向随包的渲染器；`serve`/`web` 帮助文案与桌面菜单名统一为 Work Studio。
 - **上游基线**：OMP `v18.18.0`。
 
 ### 1.4.11
+
 - **Work Studio 品牌收口**：启动提示、更新对话框、预览夹具与 Studio 线协议名不再出现上游 `OMP Studio`/`omp-studio`（仓库链接指向 `Linxira-OS/linxira-zeta`，协议名 `zeta-studio`），品牌门禁新增对应规则；`LICENSE` / `NOTICE` / `THIRD-PARTY-NOTICES.txt` 补上 Zeta 维护方的版权行，Studio 不再标注"unmodified"。 README 新增「与上游的差异」：逐面说明 `zetacode`、`zetaide`、Work Studio、`zetawork` 的改动与维护方，并标注 `web-ui/` 为已放弃维护的第三方快照。
 - **Work Studio 成为产品界面**：渲染器换成 `web-app/`（Vite + React），由 `zetacode serve` 同源托管；构建产物随 `@linxiraos/zeta` 出货到 `dist/web-app`，安装后无需仓库布局即可打开。Studio 宿主在 `/api/v1/*` 回答 pair/CSRF/query/command/events，能力清单只广播已实现的操作。`zetawork`（Rust TUI/GUI）与 Electron `desktop/` 按 2026-11-05 裁决暂停；**不存在 Rust UI**，`zetaide` 仍是终端 IDE。
 - **会话转写分页与缓存**：`GET /api/sessions/:id` 支持 `window`/`limit`/`origin` 只回一页（≤768 KiB，边界用条目 id 校验，追加不会让游标失效）；整份响应按 `(mtime,size)` 缓存。8.3 MB / 2000 条会话冷读从 202 ms / 8.3 MB 降到 40 ms / 214 KB。
@@ -83,12 +181,14 @@
 - **上游基线**：仍是 OMP `v18.16.0`（未同步 `v18.17.0`）。
 
 ### 1.4.10
+
 - **OMP 外部导入开关**：新增 `ZETA_OMP_COMPAT=1`，默认不读取旧 `~/.omp` 的 `models.yml`、`agent.db` 和 `.env`；显式 `copy-from-omp` 导入仍可用，`.zeta` 配置始终优先。
 - **GitHub CI 分层**：PR / 非 main dispatch 走快速路径，跳过 Rust、cross 与 native 编译，恢复 main 缓存或 npm native；main 全量并复用精确 native/cross 缓存；release 跳过测试 fan-out，复用 source commit 的 native 缓存。
 - **OpenDesign 设计桥**：新增工作区级 `.zeta/design.yml` 开关、`/design status|enable|disable` 与单个 `design` 工具，封装 OpenDesign MCP 与白名单 `od` CLI；默认关闭，不写全局 MCP/CLI。
 - **发布前门**：`CONTRIBUTING.md` 与 `.github/SECURITY.md` 改为 Zeta 自有流程，移除上游 Discord、个人邮箱与 vouch 规则；私有漏洞报告、secret scanning 与 push protection 已启用。
 
 ### 1.4.7
+
 - **上游同步 OMP v18.14.0**：完整 tag 合并（511 commits、1450 files）；带入 native Chrome WebMCP、自定义 tool-loader 签名、精确 provider-qualified model selector、手动 compaction 事件、Tern 终端代码与 Bun 1.4.4 代码路径。Zeta 保留离线 HTML exporter，不接 hosted viewer。
 - **PTC 编排指引**：main agent 的 system prompt 增加 code-first tool orchestration 指引；subagent 不接收。
 - **TUI Git 侧栏**：右侧 gutter 增加 branch、ahead/behind、staged/unstaged/untracked 与最近 5 个 commit；异步刷新并合并请求，render 路径不做 Git IO。
@@ -97,6 +197,7 @@
 - **发布/CI**：Gitea 本地 CI 的依赖安装、cmake 与 Bazel cache 修复保留在 `fix/gitea-flow-1`，不进入本 release；发布仍以 GitHub `origin` 为准。
 
 ### 1.4.6
+
 - **思源笔记接入**：新增 `siyuan://` 内部 URL，可列笔记本/文档、读 Markdown、大纲、搜索与追加；设置位于 Tools → SiYuan，支持 API 地址与 token，开启但未配置 token 时会提示。
 - **画板场景**：新增 `canvas` 工具，在仓库根 `.canvas/` 下管理 Obsidian `.canvas` 与 Excalidraw `.excalidraw`（list/create/write/outline）；`read <file>:img` 可渲染终端预览，`vault://…?op=canvas` 可生成大纲。`canvas.enabled` 默认关闭，查看/编辑仍由 Obsidian 或 Excalidraw 客户端负责。
 - **发布链**：GitHub release 成功后才通知 packages 仓库执行 PKGBUILD bump；普通 CI push 不会触发。
@@ -104,6 +205,7 @@
 - **配置目录校验**：`ZETA_CONFIG_DIR` 只接受 home 下的相对目录名，绝对路径与 `..` 逃逸直接拒绝，避免文件散落到错误位置。
 
 ### 1.4.5
+
 - **上游同步 v18.13.1 + v18.13.2**：两次完整 tag 合并（基线 v18.12.6 → v18.13.1 → v18.13.2），带上会话自有空闲维护、上下文查看器（替代旧 `/context` 网格）、RPC 会话结算与语音听写、模型发现自述推理档位、`ssh://` 目录直列、TAR 索引按区间读取，以及一批原生 shell 修复（`sort -S` 百分比/内存上限、FIFO 重定向、后台作业回收、取消、jq BOM、`ps` PID 选择）。
 - **`/local` 双模式**：独立模式不变；attach 后端时经网关列出/读取/回写后端会话的 `local://` 文件（28 MiB 上限、路径包含校验），本地编辑后仅回写变化的文件。
 - **`/share` 自定义钩子**：`~/.zeta/agent/share.{ts,js,mjs}` 接管分享；TUI 与后端 headless（attach 转发的 `/share`）两条路径都生效，失败不回退 gist。
@@ -111,10 +213,12 @@
 - **上游商业面台账**：商业端点与替代状态集中记录并纳入 `check-shared-infra` 守卫；CLI `share` 仍默认上传到上游查看器（P1，待替代），上游 18.13.x 的构建服务、遥测设置等商业面继续拒绝进树。
 
 ### 1.4.4
+
 - **桌面默认关闭后端**：`zetawork` 启动时读取 `backend status --json`；`backend.enabled=false`（默认）不再自动拉起 daemon，终端里的 `zetacode` 是本地进程。设置里的“启动/停止/重启”分别走 `backend on` / `backend off`（drain）/ `daemon restart`，启动工作区固定为 `backend.workspace`，退出时不再留下 enabled=true 的空后端。
 - **内置等宽字体**：GUI 终端与编辑器内置 Maple Mono CN Regular（SIL OFL 1.1），覆盖中文、Braille Patterns 和常用字符画，ASCII:CJK 严格 1:2；随包分发 OFL 与第三方声明。`zetawork`/`zetaide` 在外部终端运行时仍使用宿主字体。
 
 ### 1.4.3
+
 - **IDE 版本面**：`zetaide --version` / `termide-editor --version` 改按 Zeta 产品线显示（如 `1.4.3 (termide 0.41.0)`）；vendored TermIDE 的 Cargo workspace 仍保持上游 `0.41.0`，避免每次上游快照重放冲突。
 - **Windows 图标统一**：zetawork GUI、TUI、zetacode、zetaide 以及 editor 载荷全部使用同一个 Zeta logo；安装器和桌面/开始菜单快捷方式固定引用随包 `zetawork.ico`，不再依赖 Explorer 的 exe 图标回退。发布链新增 PE 图标校验：Windows 产物缺 `RT_ICON`/`RT_GROUP_ICON` 或图标载荷与统一 logo 不一致，直接失败。
 - **后端命令面补齐**：`/goal` 生命周期与队列编辑（remove/promote/abort-and-restore）在 WebSocket 存在时优先走协议面；HTTP 回退也实现同名指令，不再出现 `Unsupported command: goal`。
@@ -123,6 +227,7 @@
 - **无协议面也保持状态一致**：模型、思考等级以及 plan/goal/vibe 切换在 WebSocket 不可用时改走 HTTP 命令，不再只改本地副本。
 
 ### 1.4.2
+
 - **`/guided-goal` 后端可用**：interview 从 TUI 专属路径下沉到 `AgentSession.startGuidedGoal`，后端 RPC/网关新增 `guided_goal` 指令，attach 客户端转发并在状态中镜像 `guidedGoalInterview`（访谈期间裸 `c` 仍是回答，不会触发模式切换）。后端会话自己激活 `goal` 工具、发送隐藏 kickoff，收到 goal create 或首个工具调用后结束访谈；不再提示“仅限 TUI”。
 - **后端模式开关**：新增全局 `backend.enabled`（默认关闭）与 `backend.workspace`。关闭时
   裸 `zetacode` 永远是本地进程，不探测、不附着、不自动拉起后端；打开时裸启动成为唯一默认
@@ -146,6 +251,7 @@
   自己会话的下一条手动提示，不会落到默认工作区。
 
 ### 1.4.1
+
 - **终端 attach 与本地会话对齐**：早期版本的 attach 只放开少量展示命令，其余斜杠命令
   一律拒绝，看起来像“连接后少了半套功能”。现在分三层：客户端命令与镜像开关在本地跑
   （`/language`、`/theme`、`/tool`、`/stats`、`/git`、`/model`、`/effort`、`/switch`…），
@@ -168,6 +274,7 @@
   Zeta 自有面。Stats 面板提供 EN ⇄ 中文 切换并记忆选择。
 
 ### 1.4.0
+
 - **`zetacode` 变成客户端 + 后台常驻后端**：直接输入 `zetacode` 不再自己跑一个 agent，
   而是连到本机常驻后端里的会话（当前目录最近的那个，没有就新建），连不上时退回原来
   的进程内模式；`zetacode serve` 仍是前台后端（容器/CI/robomp 不变），新增
@@ -238,7 +345,7 @@
   `instance-lock.ts`；新增 `session-host.ts`，交互式与 `--print` 都能托管运行时。
 - **插件三层的第二层**：插件清单可声明 `ui.panels[]`（`list`/`form`/`chart`/`html`），
   GUI 以原生控件绘制前三类、HTML 面板走 `/plugins/view/…` webview；`zetacode
-  plugins panel <plugin> <panel> --json` 供自动化读取；示例插件
+plugins panel <plugin> <panel> --json` 供自动化读取；示例插件
   `plugins/official/example-panel/` 提供三面板 + 一页面 + 一工具 + 中英词条，发布链
   产出 `zeta-plugin-example-<ver>.zip`。`zetaide`/工作台 TUI 不带插件面（守卫测试）。
 - **GUI「全部设置」与中英双语**：`settings_schema.rs` 按 schema 生成标签页/分组/类型化
@@ -422,7 +529,6 @@
 
 ## 1.1.27（2026-10-07）
 
-
 ### OMP 同步基线
 
 - v18.7.0 → v18.8.6 六 tag 串联合并（524 upstream commits；本轮窗口 v18.8.4→v18.8.6 为 292 commits / 244 文件 / +10555 / −2660）。谱系 gate 精确通过（`git merge-base HEAD v18.8.6` == v18.7.0 peeled `e0fc1cf4ea35`），合并后 `v18.8.6` 为 HEAD 祖先（真双亲合并，未 squash）。账本见 `document/upstream-sync.md`。
@@ -464,7 +570,7 @@
 - **套件命令入口**:`zeta code|editor|ide`(+首字母 c/e/i)接力各工具并透传参数,窗格内工具在 PATH 上时直接敲裸命令名(`zetacode`),与手敲一致;`zeta doctor` 报告全家桶安装状态与精确修复命令;连打别名 `zetawork`/`zeta-work` 随 npm 分发;Windows 默认 shell 修正(pwsh/powershell,不再落入 System32 bash.exe 的 WSL 陷阱)。
 - **CLI 命名定稿**:coding CLI bin = `zeta-c`/`zeta-cli`/`zetacode`(`zeta` 名让位给工作台);IDE 包 @linxiraos/ide(bin `zeta-ide`/`zeta-i`);editor 包不变。
 - **files 腿退场**:yazi 从未是 Zeta 代码,vendored 树整体移除,files 命令与窗格同步下线;终端文件管理器后续以原生 Rust 重做(roadmap 登记)。
-- **CI 发布面**:新门禁 `check-ci-surface.ts`(job 清单/needs 接线/产物名三查);恢复 desktop_linux/desktop_windows/web_ui_build;产物名 zeta-cli-*/zeta-desktop-*;release_main_packages/release_ide_packages 接入发布链。
+- **CI 发布面**:新门禁 `check-ci-surface.ts`(job 清单/needs 接线/产物名三查);恢复 desktop_linux/desktop_windows/web_ui_build;产物名 zeta-cli-_/zeta-desktop-_;release_main_packages/release_ide_packages 接入发布链。
 
 ### 修复
 
@@ -488,8 +594,6 @@
 - **editor handoff 设置归错 tab**:两个 `editor.*` 键原先挂在 appearance tab 并自称 `"Editor"` 组,而 appearance 的 `TAB_GROUPS` 没有该组,`settings-layout` 测试直接红。改挂 interaction tab 的既有 `"Agent"` 组(语义本就属 agent 交互),不新增组。
 - **CI 从不覆盖 editor/ 与 plugins/**:`ci.yml` 的 push 与 pull_request 两个 trigger 的 `paths` 过滤器都漏了这两个源码树,导致只改 editor 或 plugins 的 PR **跳过整个 workflow(零 check 直接绿合并)**。已双双补上。
 - **TTT 汉化范围收窄为契约**:只译设置表单与描述性文案;**菜单栏/下拉动作/面板标题保持英文**——它们与快捷键并列,译名失去指位意义。此前译掉的 72 个菜单标签 + 8 个面板标题已回退,范围写进 `i18n.go` 头注防回潮。
-
-
 
 ## 1.1.20（2026-09-23）
 
@@ -522,6 +626,7 @@
 
 - Component Lineage 表:逐组件列上游来源 vs Zeta 所有权,含 TTT Editor 的插件兼容现状(当前跟随上游插件体系,若不适配则直接内嵌所需插件而非分叉协议)。
 - npm 安装路径、Platform Support 矩阵、Interface Language 节;web/desktop 从 "planned" 更正为已发布;License 补 TTT 上游致谢。
+
 ## 1.1.19（2026-09-23）
 
 ### OMP 同步基线

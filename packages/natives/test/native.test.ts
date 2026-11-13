@@ -405,7 +405,9 @@ try {
 					stderr: "pipe",
 				});
 				// A stuck native callback never reaches a JS timeout; kill the subprocess on regression.
-				const timer = setTimeout(() => child.kill("SIGKILL"), 6_000);
+				// Windows cold Bun spawn under the gate's parallel chunk load can exceed the
+				// Linux budget before the probe even starts; keep the tight bound there.
+				const timer = setTimeout(() => child.kill("SIGKILL"), process.platform === "win32" ? 20_000 : 6_000);
 				try {
 					const [stdout, stderr, exitCode] = await Promise.all([
 						new Response(child.stdout).text(),
@@ -422,7 +424,7 @@ try {
 					if (child.exitCode === null) child.kill("SIGKILL");
 				}
 			},
-			10_000,
+			process.platform === "win32" ? 30_000 : 10_000,
 		);
 
 		it("delivers a completed result after the JS thread resumes past its deadline", async () => {

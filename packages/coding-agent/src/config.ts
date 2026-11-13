@@ -8,9 +8,23 @@ import { expandTilde } from "./tools/path-utils";
 
 export * from "./config/config-file";
 
-const priorityList = [
-	{ dir: CONFIG_DIR_NAME, globalAgentDir: getConfigAgentDirName },
-	{ dir: ".claude" },
+/**
+ * Config sources, highest priority first. `userBase` overrides the default
+ * `~/<dir>` user-level location: omp's own user dir follows
+ * `getConfigAgentDirName()` (profile and `ZETA_CONFIG_DIR` aware) or an
+ * explicit `ZETA_CODING_AGENT_DIR`, read on every call so an env change is
+ * not masked by the cached `getAgentDir()`; Claude's follows its active
+ * config directory.
+ */
+function nativeUserBase(): string {
+	const explicit = process.env.ZETA_CODING_AGENT_DIR?.trim();
+	if (explicit) return path.resolve(expandTilde(explicit));
+	return path.join(os.homedir(), getConfigAgentDirName());
+}
+
+const priorityList: Array<{ dir: string; userBase?: () => string }> = [
+	{ dir: CONFIG_DIR_NAME, userBase: nativeUserBase },
+	{ dir: ".claude", userBase: () => resolveClaudePaths().configDir },
 	{ dir: ".codex" },
 	{ dir: ".gemini" },
 ];
@@ -78,12 +92,11 @@ export function getChangelogPath(): string | undefined {
 // =============================================================================
 
 /**
- * User-level: ~/.zeta/agent, Claude's active config directory, ~/.codex, ~/.gemini
+ * User-level: the omp agent dir (~/.zeta/agent), Claude's active config directory, ~/.codex, ~/.gemini
  * Project-level: .zeta, .claude, .codex, .gemini
  */
-const USER_CONFIG_BASES = priorityList.map(({ dir, globalAgentDir }) => ({
-	base: () =>
-		dir === ".claude" ? resolveClaudePaths().configDir : path.join(os.homedir(), globalAgentDir?.() ?? dir),
+const USER_CONFIG_BASES = priorityList.map(({ dir, userBase }) => ({
+	base: userBase ?? (() => path.join(os.homedir(), dir)),
 	name: dir,
 }));
 
@@ -174,6 +187,11 @@ export interface ConfigFileResult<T> {
  * Find the first existing config file (for non-JSON files like SYSTEM.md).
  * Returns just the path, or undefined if not found.
  */
+/** Discover APPEND_SYSTEM.md (project first, then user); the rebuild re-reads it. */
+export function discoverAppendSystemPromptPath(): string | undefined {
+	return findConfigFile("APPEND_SYSTEM.md", { user: false }) ?? findConfigFile("APPEND_SYSTEM.md", { user: true });
+}
+
 export function findConfigFile(subpath: string, options: GetConfigDirsOptions = {}): string | undefined {
 	const dirs = getConfigDirs("", { ...options, existingOnly: false });
 

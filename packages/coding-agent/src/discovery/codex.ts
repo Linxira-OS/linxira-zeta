@@ -23,7 +23,7 @@ import type { Settings } from "../capability/settings";
 import { settingsCapability } from "../capability/settings";
 import type { Skill } from "../capability/skill";
 import { skillCapability } from "../capability/skill";
-import { type SlashCommand, slashCommandCapability } from "../capability/slash-command";
+import { commandFrontmatterExecution, type SlashCommand, slashCommandCapability } from "../capability/slash-command";
 import { type SystemPrompt, systemPromptCapability } from "../capability/system-prompt";
 import { slashCommandFrontmatterDisplay } from "@linxiraos/pi-tui/overlays/extensions/inspector-model";
 import type { CustomTool } from "../capability/tool";
@@ -329,6 +329,7 @@ async function loadSlashCommands(ctx: LoadContext): Promise<LoadResult<SlashComm
 				path,
 				content: body,
 				...slashCommandFrontmatterDisplay(frontmatter),
+				...commandFrontmatterExecution(frontmatter),
 				...(frontmatter.side === true ? { side: true } : {}),
 				level,
 				_source: source,

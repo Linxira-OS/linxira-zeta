@@ -190,7 +190,10 @@ async function runSmokeTest(): Promise<void> {
 	await smokeTestTerminalOutputWorker();
 	await smokeTestTextPredictDaemon();
 	await smokeTestSubagentWorker();
-	process.stdout.write("smoke-test: ok\n");
+	// Release checks read this line from the artifact itself (REQ-036). Source
+	// runs and git-less installs report `unknown`; that is allowed at runtime —
+	// only the release check refuses an unknown/stale commit.
+	process.stdout.write(`smoke-test: ok\nbuild-commit: ${process.env.ZETA_BUILD_COMMIT ?? "unknown"}\n`);
 }
 
 const TINY_WORKER_ARG = "__zeta_worker_tiny_inference";

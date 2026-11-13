@@ -7,7 +7,7 @@ import { EVAL_STATE_CONTEXT_TYPE } from "@linxiraos/zeta/eval/state";
 import { createSessionManager } from "@linxiraos/zeta/main";
 import { openRpcSession, type RpcOpenSessionSession } from "@linxiraos/zeta/modes/rpc/rpc-mode";
 import { SESSION_EXIT_CUSTOM_TYPE } from "@linxiraos/zeta/session/exit-diagnostics";
-import type { SessionContinuation } from "@linxiraos/zeta/session/session-listing";
+import { findSessionContinuation, type SessionContinuation } from "@linxiraos/zeta/session/session-listing";
 import { readSessionHeaderId } from "@linxiraos/zeta/session/session-loader";
 import { SessionManager, type SessionPersistenceNotice } from "@linxiraos/zeta/session/session-manager";
 import { writeTerminalBreadcrumb } from "@linxiraos/zeta/session/session-paths";
@@ -40,12 +40,12 @@ afterEach(() => {
 type IdleWrite = "warm" | "compact";
 
 /**
- * Another live omp process that resumed `sessionFile`. Commands, one per line:
+ * Another live zeta process that resumed `sessionFile`. Commands, one per line:
  * `append <text>` writes a user turn (the first write makes it the file's
  * owner); `warm` records the usage of an idle cache refresh; `compact` writes
  * an idle compaction and the eval-state snapshot that follows it; `clear`
  * records the reset boundary `/clear` leaves; `exit` records the
- * `session_exit` marker every omp process appends on its way out, then closes.
+ * `session_exit` marker every zeta process appends on its way out, then closes.
  */
 class Holder {
 	readonly #child: Bun.Subprocess<"pipe", "pipe", "pipe">;
@@ -618,6 +618,33 @@ describe("--resume of a session that continued in a sibling file", () => {
 			await manager?.close();
 		}
 	}, 30_000);
+
+	it("reads only the header of a later sibling that continues nothing", async () => {
+		using tempDir = TempDir.createSync("@omp-resume-continuation-");
+		const original = await createSession(tempDir);
+		const created = new Date(Date.now() + 60_000).toISOString();
+		const sibling = tempDir.join(`${created.replace(/[:.]/g, "-")}_unrelated.jsonl`);
+		const header = { type: "session", version: 3, id: "unrelated", timestamp: created, cwd: tempDir.path() };
+		const filler = {
+			type: "custom",
+			customType: "filler",
+			data: "x".repeat(16_384),
+			id: "f1",
+			parentId: null,
+			timestamp: created,
+		};
+		await Bun.write(sibling, `${[header, filler].map(entry => JSON.stringify(entry)).join("\n")}\n`);
+		const scanned: string[] = [];
+		class CountingStorage extends FileSessionStorage {
+			override async scanLines(file: string, visit: (line: string) => boolean): Promise<void> {
+				scanned.push(file);
+				return super.scanLines(file, visit);
+			}
+		}
+
+		expect(await findSessionContinuation(original, new CountingStorage())).toBeUndefined();
+		expect(scanned).not.toContain(sibling);
+	});
 
 	it("does not follow a deliberate fork", async () => {
 		using tempDir = TempDir.createSync("@omp-resume-continuation-");

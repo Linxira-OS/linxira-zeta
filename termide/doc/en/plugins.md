@@ -45,6 +45,28 @@ language features of one installed since reach the editors opened after it.
 lists the installed plugins and their state in the current project, and
 **Plugins: restart <name>** starts one afresh.
 
+## Built-in plugins
+
+termide carries some plugins in its own program, so they need no Python, no
+download and no plugins directory: termide runs itself as one, as
+`termide --plugin <name>`, a process of its own like any installed plugin.
+
+| Plugin | What it does |
+|---|---|
+| `perforce` | Perforce: the file's state in the status bar, `p4 edit` on `Ctrl+E` in a read-only file and revert on turning it off, open for add, diff, opened files by changelist with submit on `Alt+G` outside git, sync, colours in the file manager, changed lines in the editor, tools for the agent. Needs `p4` on `PATH`. |
+
+A built-in plugin is off until the global `config.toml` gives it a mode, since
+every termide carries it whether you want it or not:
+
+```toml
+[plugins.perforce]
+mode = "on"       # every project; or "opt-in" and `enabled = true` per project
+```
+
+A project's `enabled` then switches it as for an installed plugin; a project
+alone never turns it on. A plugin of the same name in the plugins directory
+takes the built-in one's place.
+
 ## Turning plugins on and off
 
 The global `config.toml` sets each plugin's mode:
@@ -134,6 +156,23 @@ plugin in turn, three seconds each, applies the edits to the buffer if it has
 not changed meanwhile, then writes the file. Saving on close and Save As do
 not ask.
 
+`file/will_edit` is a request too: a plugin that subscribes to it is asked
+`{ "path", "edit": true }` when editing is turned on (`Ctrl+E`, or a click on
+`Edit: No`) in an editor of its project whose file is read-only on disk, and
+`{ "path", "edit": false, "modified" }` when it is turned off for a file that
+is writable, `modified` saying whether the buffer has unsaved work. It
+answers `{ "handled": true }` once it has settled it — made the file
+writable, as `p4 edit` does, or agreed with the user to leave editing as it
+is; the editor follows the file's permission. Any other answer, an error, or
+no plugin wanting it toggles editing as `Ctrl+E` does without plugins, which
+asks about unsaved work. Turning editing off, a plugin may answer
+`{ "buffer": "save" }` to have the buffer written first, as `Ctrl+S` does
+(the `file/will_save` plugins included), or `{ "buffer": "discard" }` to have
+it read from disk again — after a revert (`p4 revert`), say; the other
+plugins are then not asked. termide asks such plugins in turn and waits for
+each up to five minutes, the time to answer the questions it may ask on the
+way; the editor stays as it was meanwhile.
+
 The result of `initialize`, and the params of a `contributions/changed`
 notification sent later to replace it:
 
@@ -157,6 +196,11 @@ included — and it is `Ctrl` or `Alt` with another modifier (`Ctrl+Alt+K`,
 `Ctrl+Shift+K`, `Alt+Shift+K`) or an F-key with one (`Shift+F7`): keys a
 program in the terminal rarely wants. A key that does not qualify is left
 unbound, with a line in the log.
+
+A command may stand in for a termide action where termide has nothing to do:
+`"replaces": "open_git_status"` runs it instead of the git status panel
+(`Alt+G`, the menu and the palette) in a project outside a git repository,
+so a version control plugin's own status panel needs no key of its own.
 
 Tools are offered to the agent sessions of the plugin's project as
 `plugin-<plugin>__<tool>`. The agent's permission rules treat them as MCP
@@ -256,6 +300,34 @@ Lines count from 0 and columns as LSP counts them (UTF-16 code units). Without
 is `error`, `warning` (the default), `info` or `hint`. A file opened later
 shows the marks set before; a plugin's marks go when it stops.
 
+### Files and changed lines
+
+A plugin for a version control system other than git shows its state as
+termide shows git's.
+
+`files/status` (request) `{ "items": [{ "path", "status" }] }` colours files
+in the file manager: `status` is `modified`, `added`, `deleted` or `ignored`,
+in git's colours, and `null` says nothing of the file again. Each call
+replaces what the plugin said of the paths it names and leaves the others;
+a directory above a changed file shows as modified. `path` is absolute.
+
+`editor/base` (request) `{ "path", "text" }` gives the file as the plugin's
+version control has it: the editor marks the lines changed against it in the
+gutter, as it does against git's last commit. `text` empty marks every line
+as added; `null` takes the base back. A file opened later gets the base set
+before.
+
+Git comes first in both: a file git has a status for keeps git's colour, and
+a file in a git repository keeps git's markers. Both go when the plugin
+stops.
+
+```json
+{ "items": [
+  { "path": "/home/me/ws/src/main.c", "status": "modified" },
+  { "path": "/home/me/ws/src/new.c", "status": "added" }
+] }
+```
+
 ### Windows
 
 A plugin can ask the user something in one of termide's own windows. The
@@ -269,6 +341,27 @@ request is answered when the user closes the window: with the answer, or
 | `window/input` | `title`, `prompt`, `default` (optional) | the text, or `null` |
 | `window/form` | `title`, `fields`: `[{ "name", "label", "type", "options"?, "default"? }]`, `type` one of `text`, `number`, `bool`, `select` | `{ name: value }` (switches as booleans, numbers as numbers), or `null` |
 | `window/message` | `title`, `message` | `null` |
+| `window/dialog` | `title`, and any of `message`, `input`, `list`, `buttons` (below) | `{ "button", "text"?, "checked"?, "selected"? }`, or `null` |
+
+A **dialog** is put together from parts, each left out when not needed: a
+`message`; an `input`, `{ "label"?, "default"?, "lines"? }`, a text field of
+1 to 10 lines; a `list`, `{ "items", "pick"? }`, whose items are strings or
+`{ "label", "detail"?, "checked"? }` and whose `pick` is `none` (only to
+read, the default), `one` or `many` (to tick); and `buttons`, up to 6
+labels, `["OK"]` when left out. `Tab` and `Shift+Tab` go from part to part.
+In a one-line field, and in the list, `Enter` presses the first button; in a
+field of several lines it starts a new line. `Space` ticks a row; `←`/`→`
+choose a button and `Enter` presses it; a click on a row ticks it, on a
+button presses it. The answer has the button pressed, by its index, then
+only what the dialog has: the field's `text`, the `checked` rows of a list to
+tick, the `selected` row of a list to pick from.
+
+```json
+{ "title": "Submit",
+  "input": { "label": "Description", "lines": 4 },
+  "list": { "items": [{ "label": "src/a.c", "detail": "edit", "checked": true }], "pick": "many" },
+  "buttons": ["Submit", "Cancel"] }
+```
 
 Every window is headed `🧩 <plugin> · <title>` by termide, so that it never
 passes for termide's own questions; the plugin's words are cleaned of control
@@ -281,16 +374,60 @@ When the plugin stops or its project closes, its windows go.
 
 ### Panels
 
-A plugin can open panels of its own, drawn from Markdown it sends: headings,
-lists, tables, code and links as in the Markdown viewer, with its cursor,
-selection, search and copy. A link to `plugin:<action>` is a button: following
-it (`Enter` on it, or a click) sends the action back to the plugin, which
-answers by updating the panel.
+A plugin can open panels of its own, of three kinds.
+
+A **Markdown** panel shows the Markdown the plugin sends: headings, lists,
+tables, code and links as in the Markdown viewer, with its cursor, selection,
+search and copy. A link to `plugin:<action>` is a button: following it
+(`Enter` on it, or a click) sends the action back to the plugin, which answers
+by updating the panel.
+
+A **list** panel shows rows grouped under headings, each with the actions the
+plugin offers on it, and works as the git status panel does: the arrows move
+between rows, `Enter` or a double click runs a row's first action, `Space` (or
+a right click) lists all of them, and the status bar shows them as buttons
+with their keys. An action marked with a `key` takes that git status key, as
+`[git_status.keybindings]` sets it: `view` (`F3`), `edit` (`F4`) or `revert`
+(`Backspace`, `Delete`); the refresh key (`Ctrl+R`) sends the list's `refresh`.
+A row's `status` colours it as the file manager colours git's states. Rows
+with a `path` go after the others of their group in a tree of folders, named
+by the path's last part, as git status shows changed files: a folder takes its
+files' colour, and `←`/`→`, `Enter` or a double click fold and unfold it.
+`buttons` sit under the rows; `Tab` goes to them and back, the arrows choose
+one, and `Enter` or a click presses it.
+
+```json
+{ "groups": [{
+    "label": "Change 7", "detail": "Guard Heal",
+    "actions": [{ "label": "Submit", "action": "submit-7" }],
+    "items": [{
+      "label": "Source/Game/Health.cpp", "path": "Source/Game/Health.cpp",
+      "detail": "edit", "status": "modified",
+      "actions": [
+        { "label": "Open", "action": "open-0", "key": "edit" },
+        { "label": "Diff", "action": "diff-0", "key": "view" },
+        { "label": "Revert", "action": "revert-0", "key": "revert" } ] }] }],
+  "empty": "No files are opened.",
+  "refresh": "refresh",
+  "buttons": [{ "label": "Sync", "action": "sync" }] }
+```
+
+`status` is one of `modified`, `added`, `deleted`, `ignored`; `path`,
+`detail`, the actions, `empty`, `refresh` and `buttons` may be left out. A row
+has at most 6 actions, a list at most 12 buttons, and a key goes to the first
+action that names it.
+
+A **diff** panel shows a unified diff, the text `diff -u` writes, as the git
+diff panel shows git's: a header by file that folds its changes, added and
+removed lines coloured, both sides' line numbers. Files are told apart by their
+`---`/`+++` headers (or `diff --git` lines); a path is taken from the `+++`
+side, without git's `b/`, and relative to the project for `F4` to open it. The
+panel does not reload by itself: the plugin updates it.
 
 | Method | Kind | Direction | Params / result |
 |---|---|---|---|
-| `panel/open` | request | plugin → termide | `title`, `markdown`, `menu` (optional); the result is `{ "panel" }`, its id |
-| `panel/update` | request | plugin → termide | `panel`, `markdown`, `title` and `menu` (optional) |
+| `panel/open` | request | plugin → termide | `title`, one of `markdown`, `list` or `diff`, `menu` (optional); the result is `{ "panel" }`, its id |
+| `panel/update` | request | plugin → termide | `panel`, `markdown`, `list` or `diff` (the kind it was opened with), `title` and `menu` (optional) |
 | `panel/close` | request | plugin → termide | `panel` |
 | `panel/action` | notification | termide → plugin | `panel`, `action` |
 | `panel/closed` | notification | termide → plugin | `panel`: the user closed it |
@@ -304,8 +441,9 @@ characters and cut to length.
 
 A panel opens in the plugin's project, which must be the current one; it is
 not saved with the layout. An update keeps the reader's place as far as the
-new content reaches. When the plugin stops, its panels stay and say so; a
-plugin started again does not get them back.
+new content reaches, a list's selection on the same row and its folded
+folders, and a diff's selected and folded files. When the plugin stops, its panels stay and say so; a plugin
+started again does not get them back.
 
 ```python
 # in the loop of the example below

@@ -671,6 +671,8 @@ function describeBrowser(tab: TabSession): string {
 			return `connected ${handle.cdpUrl ?? handle.kind.cdpUrl}`;
 		case "relay":
 			return `relay ${handle.cdpUrl ?? handle.kind.cdpUrl}`;
+		default:
+			return "browser";
 	}
 }
 

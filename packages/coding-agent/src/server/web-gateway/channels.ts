@@ -36,7 +36,7 @@
  */
 
 import { logger } from "@linxiraos/pi-utils";
-import type { ChannelId } from "../../channels";
+import type { ChannelInstanceId } from "../../channels";
 import { triggerRestartChannels } from "../../channels";
 import { runCredentialLogin } from "../../channels/credential-login";
 import { WebConfig } from "../../config/web-config";
@@ -53,11 +53,11 @@ export type ChannelSendFailure =
 
 /** A runtime push's result: the receipt, or the reason there is none. */
 export type ChannelSendOutcome =
-	| { ok: true; channelId: ChannelId; to: string }
+	| { ok: true; instanceId: ChannelInstanceId; to: string }
 	| { ok: false; kind: ChannelSendFailure; message: string };
 
 /** The runtime sink: one channel send, resolved against the live runtime. */
-export type ChannelSendSink = (channelId: ChannelId, to: string, text: string) => Promise<ChannelSendOutcome>;
+export type ChannelSendSink = (instanceId: ChannelInstanceId, to: string, text: string) => Promise<ChannelSendOutcome>;
 
 let sink: ChannelSendSink | null = null;
 
@@ -129,8 +129,8 @@ export async function handleChannelSend(req: Request): Promise<Response> {
 		return json({ error: "Invalid JSON body: expected an object" }, 400);
 	}
 	const record = body as Record<string, unknown>;
-	const channelId = requiredText(record.channelId);
-	if (!channelId) return json({ error: "Missing channelId" }, 400);
+	const instanceId = requiredText(record.instanceId);
+	if (!instanceId) return json({ error: "Missing instanceId" }, 400);
 	const to = requiredText(record.to);
 	if (!to) return json({ error: "Missing to: no peer to send to" }, 400);
 	const text = requiredText(record.text);
@@ -141,7 +141,7 @@ export async function handleChannelSend(req: Request): Promise<Response> {
 
 	let outcome: ChannelSendOutcome;
 	try {
-		outcome = await send(channelId as ChannelId, to, text);
+		outcome = await send(instanceId, to, text);
 	} catch (error) {
 		// A sink that throws is a wiring fault, not a caller error: report it as
 		// a server failure instead of dressing it up as a bad request.
@@ -151,7 +151,7 @@ export async function handleChannelSend(req: Request): Promise<Response> {
 		return json({
 			ok: true,
 			receipt: {
-				channelId: outcome.channelId,
+				instanceId: outcome.instanceId,
 				to: outcome.to,
 				textLength: text.length,
 				sentAt: new Date().toISOString(),
@@ -195,15 +195,19 @@ export async function handleChannelCredentials(req: Request): Promise<Response> 
 		return json({ error: "Invalid JSON body: expected an object" }, 400);
 	}
 	const record = body as Record<string, unknown>;
-	const channel = requiredText(record.channel);
-	if (channel !== "feishu" && channel !== "telegram" && channel !== "discord" && channel !== "qq") {
-		return json({ error: 'channel must be "feishu", "telegram", "discord" or "qq"' }, 400);
-	}
+	const instanceId = requiredText(record.instanceId);
+	if (!instanceId) return json({ error: "Missing instanceId" }, 400);
+	const webConfig = await WebConfig.shared();
+	const instance = webConfig.getChannelInstance(instanceId);
+	if (!instance) return json({ error: `Unknown channel instance: ${instanceId}` }, 404);
+	const channel = instance.platform;
+	if (channel === "wechat") return json({ error: "WeChat uses the QR route, not credentials" }, 400);
 	const field = (key: string): string | undefined => requiredText(record[key]) ?? undefined;
 	const port = typeof record.port === "number" && Number.isInteger(record.port) ? record.port : undefined;
 
 	const result = await runCredentialLogin(channel, {
-		webConfig: await WebConfig.shared(),
+		webConfig,
+		instanceId,
 		appId: field("appId"),
 		appSecret: field("appSecret"),
 		domain: record.domain === "lark" ? "lark" : record.domain === "feishu" ? "feishu" : undefined,
@@ -215,7 +219,7 @@ export async function handleChannelCredentials(req: Request): Promise<Response> 
 	});
 	if (result.state !== "connected") {
 		return json(
-			{ channel, state: result.state, error: result.error ?? "Credential validation failed" },
+			{ instanceId, state: result.state, error: result.error ?? "Credential validation failed" },
 			result.state === "timeout" ? 504 : 400,
 		);
 	}
@@ -229,7 +233,8 @@ export async function handleChannelCredentials(req: Request): Promise<Response> 
 	});
 	return json({
 		ok: true,
-		channel,
+		instanceId,
+		platform: channel,
 		state: result.state,
 		identity: result.identity,
 		credentialsPersisted: result.credentialsPersisted,

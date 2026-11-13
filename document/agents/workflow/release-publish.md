@@ -7,16 +7,16 @@
 
 ## 发布冻结（ADR 0006，2026-11-11）
 
-- **1.5 是内部高速迭代线。** 1.5.1 是当前公开版本，用户停留在这里；
-  1.5.2–1.5.10 允许正常打**注解 tag**，但 tag 只代表代码，注解固定带
-  `高速迭代 / 内部构建 / 不发布资产`，明确说明不发布 npm 包、安装包、二进制或
-  GitHub Release 资产。CI 仍可构建/打包/测试（仅 Actions artifacts）。
+- **1.5 是内部高速迭代线，仅一个资产例外。** 1.5.1 是 npm 当前公开版本；
+  普通 1.5.2–1.5.10 允许打**注解 code-only tag**。仅精确 `1.5.2` 在匹配
+  owner-review override 时可上传 GitHub full assets，npm 仍保持 1.5.1。
+  默认/错误版本/空原因/release 仍 fail-closed。<br>CI 仍可构建/打包/测试。
 - **默认 fail-closed。** `release_metadata` 输出 `publish-allowed` /
-  `assets-allowed`；所有 npm 发布 job 与独立发布 workflow 都必须等到
-  `publish-allowed == 'true'`，`release_github` 必须等到
-  `assets-allowed == 'true'`。1.5.x tag 因此只跑构建链，不发布。
-  `scripts/ci-release-publish.ts` 在触碰 npm 前再断言一次策略。
-- **1.6.0 才是下一个公开版本**，且需要所有者显式批准：dispatch 输入
+  `assets-allowed`；npm 发布 job 与独立 workflow 等 `publish-allowed == 'true'`，
+  `release_github` 等 `assets-allowed == 'true'`。1.5.2 的匹配 override 只把
+  `assetsAllowed` 置 true，不打开 npm。
+- **1.6.0 是完整公开版本**，且需要所有者显式批准；1.5.2 的资产例外不降低其
+  人工全功能验收、真机/SSH 等 gate。
   `release_override_version` / `release_override_reason`，或仓库变量
   `RELEASE_FREEZE_OVERRIDE_VERSION` / `RELEASE_FREEZE_OVERRIDE_REASON`
   （本地脚本读 `ZETA_RELEASE_OVERRIDE_VERSION` / `..._REASON`）。

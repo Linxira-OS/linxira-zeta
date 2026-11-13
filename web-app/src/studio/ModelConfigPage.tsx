@@ -1,5 +1,6 @@
 import { ModelParameterEditor } from "./models/ModelParameterEditor";
 import { createModelParameterDraft, effectiveModelParameters, effectiveParameterSources, modelParameterDraftError, type ModelParameterDraft } from "./models/modelParameterDraft";
+import { ModelsConfigImportDialog } from "./models/ModelsConfigImportDialog";
 import { previewModelAdaptation } from "./preview/modelAdaptationPreview";
 import { thinkingForRoleModel, sameModelParameter, modelParameterValues } from "@linxiraos/studio-contract";
 import { AppSelect } from "./AppSelect";
@@ -35,6 +36,7 @@ import type {
   ModelRoleRecord,
   ModelRoleStorage,
   StudioClient,
+  WorkspaceId,
 } from "@linxiraos/studio-contract";
 import {
   modelAcceptsRole,
@@ -72,6 +74,16 @@ import { draftProviderYamlNode, nestedProviderYamlNode, serializeModelsYmlNode }
 import { SubagentsPanel } from "./SubagentsPanel";
 import { WebSearchPanel } from "./models/WebSearchPanel";
 import { ModelVisibilityPane } from "./models/ModelVisibilityPane";
+import { composeFallbackSlots, readFallbackSlots } from "./models/fallbackSlots";
+import {
+  PURPOSE_CATEGORY_IDS,
+  agentRoleReferences,
+  categoryChain,
+  awaitWithTimeout,
+  categoryModelFacts,
+  isChatCategoryModel,
+  purposeCategoryCards,
+} from "./models/purposeCategories";
 import { createPreviewAgentDefinitions } from "./preview/subagentsPreview";
 
 export const MC_INTENT_KEY = "zeta.modelConfigIntent";
@@ -1799,7 +1811,166 @@ function formatProviderStatusDetail(detail: string | undefined, t: (k: string) =
   return detail;
 }
 
-export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailable = false, onOpenEvaluation, capabilities }: { capabilities?: ClientBootstrap["capabilityManifest"] | undefined; onOpenEvaluation?: () => void; client: StudioClient; sessionId?: string | undefined; workspaceId?: string | undefined; runtimeAvailable?: boolean }) {
+function PurposeCategoryCards({
+  t,
+  roles,
+  chains,
+  usable,
+  providers,
+  busy,
+  blocked,
+  onCreateResearch,
+  onAdd,
+  onOpen,
+  onPrimary,
+  onSlots,
+  onDelete,
+  onClearBlocked,
+  onResolveBlocked,
+}: {
+  t: I18nT;
+  roles: ReadonlyArray<ModelRoleRecord>;
+  chains: Readonly<Record<string, ReadonlyArray<string>>>;
+  usable: ReadonlyArray<AvailableModelRecord>;
+  providers: ReadonlyArray<ModelProviderRecord>;
+  busy: boolean;
+  blocked: { roleId: string; agents: string[] } | null;
+  onCreateResearch: () => void;
+  onAdd: () => void;
+  onOpen: (role: ModelRoleRecord) => void;
+  onPrimary: (role: ModelRoleRecord, selector: string) => void;
+  onSlots: (role: ModelRoleRecord, chain: string[]) => void;
+  onDelete: (role: ModelRoleRecord) => void;
+  onClearBlocked: () => void;
+  onResolveBlocked: () => void;
+}) {
+  const categories = purposeCategoryCards(roles, PURPOSE_CATEGORY_IDS);
+  const chatGroups = (role: ModelRoleRecord, excluded: ReadonlyArray<string | undefined> = []) =>
+    groupModelsByProvider(
+      usable.filter(
+        model => isChatCategoryModel(model) && modelAcceptsRole(role.id, model) && !excluded.includes(model.selector),
+      ),
+      providers,
+    );
+  const meta = (selector: string) => {
+    const facts = categoryModelFacts(usable.find(model => model.selector === selector));
+    const context = facts.contextWindow === undefined ? t("modelConfig.factUnknown") : `${facts.contextWindow}`;
+    const cost = facts.costLabel === undefined ? t("modelConfig.factUnknown") : facts.costLabel;
+    return t("modelConfig.categoryFacts", { context, cost });
+  };
+  return (
+    <div className="mp-sec" style={{ marginBottom: 18 }}>
+      <div className="mr-toolbar">
+        <b style={{ fontSize: "var(--fs-13)" }}>{t("modelConfig.purposeCategories")}</b>
+        <span className="mr-count">{categories.length}</span>
+        <span className="spacer" />
+        <button type="button" className="btn small outline" onClick={onAdd} disabled={busy}>
+          <Icon name="plus" extra="sm" />{t("modelConfig.addPurpose")}
+        </button>
+      </div>
+      <p className="sec-desc">{t("modelConfig.purposeCategoriesDesc")}</p>
+      {blocked ? (
+        <div className="role-issue-banner err">
+          <Icon name="alert" extra="sm" />
+          <div>
+            <div className="rib-title">{t("modelConfig.roleReferencedTitle", { role: blocked.roleId, agents: blocked.agents.join(", ") })}</div>
+            <div className="rib-text">{t("modelConfig.roleReferencedDesc")}</div>
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button type="button" className="btn small danger" disabled={busy} onClick={onResolveBlocked}>{t("modelConfig.roleInheritAndDelete")}</button>
+              <button type="button" className="btn small outline" onClick={onClearBlocked}>{t("common.cancel")}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <div className="purpose-category-grid" style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+        {categories.map(card => {
+          const role = card.role;
+          if (!role) {
+            return (
+              <div className="role-row" key={card.key} data-tint="accent">
+                <div className="role-name-section" style={{ padding: 12 }}>
+                  <div className="role-header"><span className="r-name">{t("modelConfig.purposeResearch")}<span className="alias">{t("modelConfig.purposeResearchMissing")}</span></span></div>
+                  <span className="r-desc">{t("modelConfig.purposeResearchDesc")}</span>
+                  <button type="button" className="btn small primary" style={{ marginTop: 10 }} onClick={onCreateResearch} disabled={busy}>
+                    <Icon name="plus" extra="sm" />{t("modelConfig.createResearchCategory")}
+                  </button>
+                </div>
+              </div>
+            );
+          }
+          const chainState = categoryChain(chains, role.id);
+          const slots = readFallbackSlots(chainState.source === "explicit" ? chainState.chain : []);
+          const extrasLocked = slots.extras.length > 0;
+          const purpose = role.id === "default"
+            ? t("modelConfig.purposeMainDesc")
+            : role.id === "task"
+              ? t("modelConfig.purposeChildrenDesc")
+              : role.id === "research"
+                ? t("modelConfig.purposeResearchDesc")
+                : t("modelConfig.purposeCustomDesc");
+          const groupsFor = (slot: 1 | 2) => chatGroups(role, [role.primary, slot === 1 ? slots.fallback2 : slots.fallback1, ...slots.extras]);
+          const setSlot = (slot: 1 | 2, selector: string) => {
+            if (extrasLocked) return;
+            const first = slot === 1 ? selector : slots.fallback1;
+            const second = slot === 2 ? selector : slots.fallback2;
+            const composed = composeFallbackSlots(first, second, slots.extras);
+            if (composed.ok) onSlots(role, composed.chain);
+          };
+          return (
+            <div className="role-row" key={card.key} data-tint={ROLE_TINTS[role.id] ?? "purple"} style={{ display: "block", padding: 12 }}>
+              <div className="role-header" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="r-name">{role.name}<span className="alias">{role.alias}</span></span>
+                {role.builtin ? null : <span className="chip purple xs">{t("modelConfig.customRole")}</span>}
+                <span className="spacer" style={{ flex: 1 }} />
+                <button type="button" className="btn small outline" onClick={() => onOpen(role)} disabled={busy}>{t("common.edit")}</button>
+                {role.builtin ? null : (
+                  <button type="button" className="role-delete" aria-label={t("modelConfig.deleteRoleAria", { name: role.name })} disabled={busy} onClick={() => onDelete(role)}>
+                    <Icon name="trash" extra="sm" />
+                  </button>
+                )}
+              </div>
+              <span className="r-desc">{purpose}</span>
+              <div className="kv-list" style={{ marginTop: 10 }}>
+                <div className="kv-row">
+                  <span className="k">{t("modelConfig.categoryPrimary")}</span>
+                  <span className="v" style={{ display: "grid", gap: 4 }}>
+                    <RoleModelPicker value={role.primary} groups={chatGroups(role)} ariaLabel={t("modelConfig.categoryPrimary")} onChange={selector => onPrimary(role, selector)} />
+                    <span className="desc">{role.primary ? meta(role.primary) : t("modelConfig.unassigned")}</span>
+                  </span>
+                </div>
+                <div className="kv-row">
+                  <span className="k">{t("modelConfig.fallbackSlot1")}</span>
+                  <span className="v">
+                    <RoleModelPicker value={slots.fallback1 ?? ""} groups={groupsFor(1)} disabled={extrasLocked} ariaLabel={t("modelConfig.fallbackSlot1")} onChange={selector => setSlot(1, selector)} />
+                  </span>
+                </div>
+                <div className="kv-row">
+                  <span className="k">{t("modelConfig.fallbackSlot2")}</span>
+                  <span className="v">
+                    <RoleModelPicker value={slots.fallback2 ?? ""} groups={groupsFor(2)} disabled={extrasLocked || !slots.fallback1} ariaLabel={t("modelConfig.fallbackSlot2")} onChange={selector => setSlot(2, selector)} />
+                  </span>
+                </div>
+              </div>
+              <div className="desc" style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span>{chainState.source === "explicit"
+                  ? (slots.fallback1 || slots.fallback2 ? t("modelConfig.categoryChainExplicit") : t("modelConfig.categoryNoFallback"))
+                  : chainState.source === "inherited-default"
+                    ? t("modelConfig.categoryChainInherited")
+                    : t("modelConfig.categoryNoFallback")}</span>
+                {slots.extras.length > 0 ? <span className="chip amber xs">{t("modelConfig.fallbackExtraTitle", { count: slots.extras.length })}</span> : null}
+                {chainState.chain.length > 0 ? (
+                  <button type="button" className="btn small outline" disabled={busy} onClick={() => onSlots(role, [])}>{t("modelConfig.fallbackClearAll")}</button>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailable = false, onOpenEvaluation, capabilities }: { capabilities?: ClientBootstrap["capabilityManifest"] | undefined; onOpenEvaluation?: () => void; client: StudioClient; sessionId?: string | undefined; workspaceId?: WorkspaceId | undefined; runtimeAvailable?: boolean }) {
   const { resolvedLanguage } = useI18n();
   const [, updatePricingClock] = useState(0);
   useEffect(() => {
@@ -1831,6 +2002,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const [showKey, setShowKey] = useState(false);
   const { shown: editor, phase: editorPhase, live: editorLive } = useDeferredPresence(editorState);
   const [modelsYmlDraft, setModelsYmlDraft] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [configYmlDraft, setConfigYmlDraft] = useState<string | null>(null);
   const [providerBaseline, setProviderBaseline] = useState<Draft | null>(null);
   const [roleBaseline, setRoleBaseline] = useState<ModelRoleRecord | null>(null);
@@ -1863,6 +2035,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
   const [fetchDetail, setFetchDetail] = useState<{ ok: boolean; text: string } | null>(null);
   const [candidates, setCandidates] = useState<FetchedModelCandidate[] | null>(null);
   const [createRoleOpen, setCreateRoleOpen] = useState(false);
+  const [roleDeleteBlocked, setRoleDeleteBlocked] = useState<{ roleId: string; agents: string[] } | null>(null);
   const [newRole, setNewRole] = useState({ id: "", name: "", desc: "" });
   const [fallbackDraft, setFallbackDraft] = useState<string[] | null>(null);
   const [revertPolicyDraft, setRevertPolicyDraft] = useState<ModelFallbackRevertPolicy | null>(null);
@@ -1892,22 +2065,27 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       return;
     }
     try {
-      const [next, defs] = await Promise.all([
-        client.query("models.get", {}),
-        client.query("agents.definitions.get", {}).catch(() => null),
-      ]);
+      const next = await client.query("models.get", workspaceId === undefined ? {} : { workspaceId });
       setData(next);
       setLoadError(next.unavailableReason ?? null);
-      setAgentCount(defs === null ? undefined : defs.agents.length);
+      // The agent count is decoration: a slow/failed definitions read must not
+      // hold the model page or its write receipts open on an empty workspace.
+      void client.query("agents.definitions.get", {})
+        .then(defs => setAgentCount(defs.agents.length))
+        .catch(() => setAgentCount(undefined));
     } catch (error) {
       setLoadError(hostErrorMessage(error, "models.get failed"));
       setData(null);
     }
-  }, [client, preview]);
+  }, [client, preview, workspaceId]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
+  /** A write receipt must not leave busy latched when the read-back stalls. */
+  const refreshAfterWrite = async (): Promise<void> => {
+    await awaitWithTimeout(refresh(), 8_000);
+  };
   useEffect(() => {
     const generation = ++nativeLoad.current;
     setRuntimeModels([]);
@@ -2315,6 +2493,31 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     mutateLocal((current) => ({ ...current, contentHash: hash }));
   };
 
+  /**
+   * Whole-document import: the dialog validated both encodings and handed us
+   * the text to store. YAML goes to the Host as-is; JSON was converted to
+   * block YAML so the panel layer keeps one `.yml` format.
+   */
+  const importModelsConfig = async (text: string) => {
+    if (preview) {
+      mutateLocal((current) => ({ ...current, generatedModelsYml: text }));
+      toast(t("modelConfig.importConfigApplied"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await runWrite(client, "models.yml.write", {
+        text,
+        ...(data?.contentHash ? { expectedHash: data.contentHash } : {}),
+      });
+      toast(result.message ?? t("modelConfig.importConfigApplied"));
+      mergeContentHash(result.contentHash);
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const persistModelsYml = async (text: string, overlayForm: boolean, close: boolean): Promise<boolean> => {
     if (!providerYamlId) {
       toast(t("modelConfig.fillProviderId"));
@@ -2364,7 +2567,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       if (overlayForm && draft) setProviderBaseline(draft);
       mergeContentHash(result.contentHash);
       if (close) setEditor(null);
-      await refresh();
+      await refreshAfterWrite();
       return true;
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
@@ -2434,7 +2637,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
         setRoleDraft(null);
         setRoleId(null);
       }
-      await refresh();
+      await refreshAfterWrite();
       return true;
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
@@ -2499,7 +2702,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       mergeContentHash(result.contentHash);
       toast(roleUpdates.length > 0 ? t("modelConfig.savedAndRolesUpdated", { message: result.message ?? t("modelConfig.saved"), count: roleUpdates.length }) : (result.message ?? t("modelConfig.saved")));
       setEditor(null);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
     } finally {
@@ -2529,7 +2732,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       const result = await runWrite(client, "models.provider.upsert", providerUpsertFromDraft(draft, data?.contentHash));
       mergeContentHash(result.contentHash);
       toast(result.message ?? okMessage);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
     } finally {
@@ -2548,7 +2751,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       await runWrite(client, "models.provider.delete", { id, ...(data?.contentHash ? { expectedHash: data.contentHash } : {}) });
       toast(t("modelConfig.deletedFromModelsYml"));
       setEditor(null);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.deleteFailed")));
     } finally {
@@ -2609,7 +2812,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       });
     }
     if (opts?.announce !== false) toast(last?.message ?? t("modelConfig.assignedRoles", { count: updates.length }));
-    if (opts?.refreshAfter !== false) await refresh();
+    if (opts?.refreshAfter !== false) await refreshAfterWrite();
   };
 
   const assignModelToRoles = async (selector: string, roleIds: ReadonlyArray<string>) => {
@@ -2690,6 +2893,14 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       return;
     }
     const renamed = Boolean(persistIdentity && baseline && baseline.id !== id);
+    if (renamed && baseline) {
+      const refs = await findRoleReferences(baseline.id);
+      if (refs.length > 0) {
+        setRoleDeleteBlocked({ roleId: baseline.id, agents: refs });
+        toast(t("modelConfig.roleReferencedToast", { role: baseline.id, agents: refs.join(", ") }));
+        return;
+      }
+    }
     if (preview) {
       mutateLocal((current) => {
         const saved = { ...next };
@@ -2729,7 +2940,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       toast((next.thinkingAdjustment ? `${next.thinkingAdjustment} · ` : "") + t("modelConfig.savedToConfigToast"));
       setRoleId(null);
       setRoleDraft(null);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
     } finally {
@@ -2777,7 +2988,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     try {
       const result = await runWrite(client, "models.login.start", { providerId });
       toast(result.message ?? t("modelConfig.toastLoginCompleted"));
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastLoginFailed", { providerId })));
     } finally {
@@ -2803,7 +3014,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     try {
       const result = await runWrite(client, "models.login.logout", { providerId });
       toast(result.message ?? t("modelConfig.toastLogoutNamed", { providerId }));
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastLogoutFailed")));
     } finally {
@@ -2991,7 +3202,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     try {
       const result = await runWrite(client, "models.discovery.refresh", {});
       toast(result.message ?? t("modelConfig.toastRescannedDiscovery"));
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastRefreshFailed")));
     } finally {
@@ -3013,7 +3224,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     try {
       const result = await runWrite(client, "models.roleStorage.set", { storage });
       toast(result.message ?? t("modelConfig.toastScopeUpdated"));
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastScopeUpdateFailed")));
     } finally {
@@ -3021,9 +3232,9 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
     }
   };
 
-  const createCustomRole = async () => {
-    const id = newRole.id.trim();
-    const name = newRole.name.trim() || id;
+  const createCustomRole = async (preset?: { id: string; name: string }) => {
+    const id = (preset?.id ?? newRole.id).trim();
+    const name = (preset?.name ?? newRole.name).trim() || id;
     if (!id) {
       toast(t("modelConfig.toastFillRoleId"));
       return;
@@ -3056,9 +3267,41 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       toast(result.message ?? t("modelConfig.toastRoleCreatedNamed", { id }));
       setCreateRoleOpen(false);
       setNewRole({ id: "", name: "", desc: "" });
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastRoleCreateFailed")));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const findRoleReferences = async (roleId: string): Promise<string[]> => {
+    try {
+      const defs = preview
+        ? createPreviewAgentDefinitions()
+        : await client.query("agents.definitions.get", {});
+      return agentRoleReferences(defs.agents, roleId);
+    } catch {
+      return [];
+    }
+  };
+
+  const saveCategorySlots = async (role: ModelRoleRecord, chain: string[]) => {
+    const chains = { ...(data?.fallbackChains ?? {}) };
+    chains[role.id] = chain;
+    const revertPolicy = data?.fallbackRevertPolicy ?? "cooldown-expiry";
+    if (preview) {
+      mutateLocal((current) => ({ ...current, fallbackChains: chains }));
+      toast(t("modelConfig.toastDemoFallbackUpdated"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await runWrite(client, "models.fallback.set", { chains, revertPolicy });
+      toast(result.message ?? t("modelConfig.toastFallbackSaved"));
+      await refreshAfterWrite();
+    } catch (error) {
+      toast(hostErrorMessage(error, t("modelConfig.toastFallbackSaveFailed")));
     } finally {
       setBusy(false);
     }
@@ -3072,13 +3315,19 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       toast(t("modelConfig.toastDemoCustomRoleDeleted"));
       return;
     }
+    const refs = await findRoleReferences(roleId);
+    if (refs.length > 0) {
+      setRoleDeleteBlocked({ roleId, agents: refs });
+      toast(t("modelConfig.roleReferencedToast", { role: roleId, agents: refs.join(", ") }));
+      return;
+    }
     setBusy(true);
     try {
       const result = await runWrite(client, "models.roles.delete", { roleId });
       toast(result.message ?? t("modelConfig.toastRoleDeletedNamed", { roleId }));
       setRoleDraft(null);
       setRoleId(null);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastRoleDeleteFailed")));
     } finally {
@@ -3088,7 +3337,13 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
 
   const saveFallback = async (role: string, primary: string) => {
     const chains = { ...(data?.fallbackChains ?? {}) };
-    const nextChain = [...(fallbackDraft ?? chains[role] ?? chains[primary] ?? [])];
+    const slots = readFallbackSlots(fallbackDraft ?? chains[role] ?? chains[primary]);
+    const composed = composeFallbackSlots(slots.fallback1, slots.fallback2, slots.extras);
+    if (!composed.ok) {
+      toast(t(composed.reason === "fallback2-without-fallback1" ? "modelConfig.fallbackSlot2Needs1" : "modelConfig.fallbackExtraLocked"));
+      return;
+    }
+    const nextChain = composed.chain;
     chains[role] = nextChain;
     const revertPolicy = revertPolicyDraft ?? data?.fallbackRevertPolicy ?? "cooldown-expiry";
     if (preview) {
@@ -3104,7 +3359,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       toast(result.message ?? t("modelConfig.toastFallbackSaved"));
       setFallbackDraft(nextChain);
       setRevertPolicyDraft(revertPolicy);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.toastFallbackSaveFailed")));
     } finally {
@@ -3124,7 +3379,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       const result = await runWrite(client, "models.providerOrder.set", { order: orderDraft.slice() });
       toast(result.message ?? t("modelConfig.toastModelProviderOrderSaved"));
       setOrderEdit(false);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
     } finally {
@@ -3155,7 +3410,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
       const result = await runWrite(client, "models.cycleOrder.set", { order: cycleDraft.slice() });
       toast(result.message ?? t("modelConfig.toastOrderSaved"));
       setCycleEdit(false);
-      await refresh();
+      await refreshAfterWrite();
     } catch (error) {
       toast(hostErrorMessage(error, t("modelConfig.saveFailed")));
     } finally {
@@ -3794,6 +4049,7 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                 </span>
                 <span className="spacer" />
                 <button type="button" className="btn outline" disabled={preview} data-tip={preview ? t("common.demo") : undefined} onClick={() => void refresh()}><Icon name="refresh" extra="sm" />{t("modelConfig.refreshStatus")}</button>
+                <button type="button" className="btn outline" onClick={() => setImportOpen(true)}><Icon name="file-plus" extra="sm" />{t("modelConfig.importConfigAction")}</button>
                 <button type="button" className="btn primary" onClick={() => { setModelEdit(null); setEditor(blankDraft()); setEditExisting(false); setPresetOpen(false); setPresetSel(null); setConfirmDelete(false); setTestResult(null); }}><Icon name="plus" extra="sm" />{t("modelConfig.addProvider")}</button>
               </div>
               {!data && !loadError ? (
@@ -4265,27 +4521,64 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
                     </span>
                   </div>
                 </div>
-                <div className="cycle-pool" style={{ marginTop: 8 }}>
-                  {(fallbackDraft ?? data?.fallbackChains[roleDraft.id] ?? data?.fallbackChains[roleDraft.primary] ?? []).map((selector, index, chain) => (
-                    <span key={selector} className="cycle-chip">
-                      <span className="mono">{selector}</span>
-                      <button type="button" className="icon-btn small" aria-label={t("modelConfig.moveUp")} disabled={index === 0} onClick={() => { const next = [...chain]; [next[index - 1], next[index]] = [next[index]!, next[index - 1]!]; setFallbackDraft(next); }}><Icon name="chevron-u" extra="sm" /></button>
-                      <button type="button" className="icon-btn small" aria-label={t("modelConfig.moveDown")} disabled={index === chain.length - 1} onClick={() => { const next = [...chain]; [next[index + 1], next[index]] = [next[index]!, next[index + 1]!]; setFallbackDraft(next); }}><Icon name="chevron-d" extra="sm" /></button>
-                      <span className="chip-remove" role="button" tabIndex={0} onClick={() => {
-                        const current = fallbackDraft ?? data?.fallbackChains[roleDraft.id] ?? data?.fallbackChains[roleDraft.primary] ?? [];
-                        setFallbackDraft(current.filter((item) => item !== selector));
-                      }}><Icon name="x" /></span>
-                    </span>
-                  ))}
-                </div>
-                <div className="cycle-pool">
-                  <span className="cycle-pool-label">{t("modelConfig.addToFallback")}</span>
-                  <RoleModelPicker ariaLabel={t("modelConfig.addToFallback")} value="" groups={groupModelsByProvider(usable.filter(model => modelAcceptsRole(roleDraft.id, model) && model.selector !== roleDraft.primary && !(fallbackDraft ?? data?.fallbackChains[roleDraft.id] ?? data?.fallbackChains[roleDraft.primary] ?? []).includes(model.selector)), orderedProviders)} onChange={selector => { if (selector) setFallbackDraft([...(fallbackDraft ?? data?.fallbackChains[roleDraft.id] ?? data?.fallbackChains[roleDraft.primary] ?? []), selector]); }} />
-
-                </div>
-                <div style={{ marginTop: 10 }}>
-                  <button type="button" className="btn small outline" disabled={busy || !roleDraft.primary} onClick={() => void saveFallback(roleDraft.id, roleDraft.primary)}>{t("modelConfig.saveFallback")}</button>
-                </div>
+                {(() => {
+                  const chain = fallbackDraft ?? data?.fallbackChains[roleDraft.id] ?? data?.fallbackChains[roleDraft.primary] ?? [];
+                  const slots = readFallbackSlots(chain);
+                  const extrasLocked = slots.extras.length > 0;
+                  const setSlot = (slot: 1 | 2, selector: string) => {
+                    if (extrasLocked) return;
+                    const first = slot === 1 ? selector : slots.fallback1;
+                    const second = slot === 2 ? selector : slots.fallback2;
+                    const composed = composeFallbackSlots(first, second, slots.extras);
+                    if (composed.ok) setFallbackDraft(composed.chain);
+                  };
+                  const clearAll = () => {
+                    if (!window.confirm(t("modelConfig.fallbackClearConfirm"))) return;
+                    setFallbackDraft([]);
+                  };
+                  const clearExtras = () => {
+                    if (!window.confirm(t("modelConfig.fallbackClearExtrasConfirm", { count: slots.extras.length }))) return;
+                    const composed = composeFallbackSlots(slots.fallback1, slots.fallback2, slots.extras, { clearExtras: true });
+                    if (composed.ok) setFallbackDraft(composed.chain);
+                  };
+                  const modelGroups = (excluded: ReadonlyArray<string | undefined>) => groupModelsByProvider(usable.filter(model => modelAcceptsRole(roleDraft.id, model) && model.selector !== roleDraft.primary && !excluded.includes(model.selector)), orderedProviders);
+                  return (
+                    <>
+                      <div className="kv-list" style={{ marginTop: 8 }}>
+                        <div className="kv-row">
+                          <span className="k">{t("modelConfig.fallbackSlot1")}</span>
+                          <span className="v">
+                            <RoleModelPicker ariaLabel={t("modelConfig.fallbackSlot1")} value={slots.fallback1 ?? ""} groups={modelGroups([slots.fallback2, ...slots.extras])} disabled={extrasLocked} onChange={selector => setSlot(1, selector)} />
+                            {slots.fallback1 ? <button type="button" className="icon-btn small" aria-label={t("modelConfig.fallbackClearSlot")} disabled={extrasLocked} onClick={() => { if (window.confirm(t("modelConfig.fallbackClearConfirm"))) setFallbackDraft([]); }}><Icon name="x" extra="sm" /></button> : null}
+                          </span>
+                        </div>
+                        <div className="kv-row">
+                          <span className="k">{t("modelConfig.fallbackSlot2")}</span>
+                          <span className="v">
+                            <RoleModelPicker ariaLabel={t("modelConfig.fallbackSlot2")} value={slots.fallback2 ?? ""} groups={modelGroups([slots.fallback1, ...slots.extras])} disabled={extrasLocked || !slots.fallback1} onChange={selector => setSlot(2, selector)} />
+                            {slots.fallback2 ? <button type="button" className="icon-btn small" aria-label={t("modelConfig.fallbackClearSlot")} disabled={extrasLocked} onClick={() => { setFallbackDraft(slots.fallback1 ? [slots.fallback1] : []); }}><Icon name="x" extra="sm" /></button> : null}
+                          </span>
+                        </div>
+                        {!slots.fallback1 ? <span className="desc">{t("modelConfig.fallbackSlot2Needs1")}</span> : null}
+                        {!slots.fallback1 && !slots.fallback2 ? <span className="desc">{t("modelConfig.fallbackEmptyHint")}</span> : null}
+                        {slots.extras.length > 0 ? (
+                          <div className="role-issue-banner" style={{ marginTop: 8 }}>
+                            <Icon name="alert" extra="sm" />
+                            <div>
+                              <div className="rib-title">{t("modelConfig.fallbackExtraTitle", { count: slots.extras.length })}</div>
+                              <div className="rib-text mono">{slots.extras.join(" · ")}</div>
+                              <button type="button" className="btn small outline" onClick={clearExtras}>{t("modelConfig.fallbackClearExtras")}</button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                      <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+                        <button type="button" className="btn small outline" disabled={busy || !roleDraft.primary} onClick={() => void saveFallback(roleDraft.id, roleDraft.primary)}>{t("modelConfig.saveFallback")}</button>
+                        <button type="button" className="btn small danger" disabled={busy || chain.length === 0} onClick={clearAll}>{t("modelConfig.fallbackClearAll")}</button>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
               <StructuredEditor
                 language="yaml"
@@ -4318,6 +4611,23 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
             </>
           ) : (
             <>
+              <PurposeCategoryCards
+                t={t}
+                roles={roles}
+                chains={data?.fallbackChains ?? {}}
+                usable={usable}
+                providers={orderedProviders}
+                busy={busy}
+                blocked={roleDeleteBlocked}
+                onCreateResearch={() => void createCustomRole({ id: "research", name: t("modelConfig.purposeResearch") })}
+                onAdd={() => setCreateRoleOpen(true)}
+                onOpen={(role) => { setRoleId(role.id); setRoleDraft({ ...role }); }}
+                onPrimary={(role, selector) => void saveRole(withRoleModel(role, selector, availableBySelector.get(selector)))}
+                onSlots={(role, chain) => void saveCategorySlots(role, chain)}
+                onDelete={(role) => void deleteCustomRole(role.id)}
+                onClearBlocked={() => setRoleDeleteBlocked(null)}
+                onResolveBlocked={() => { setRoleDeleteBlocked(null); setAgentIntent(roleDeleteBlocked?.agents[0]); setTab("subagents"); }}
+              />
               <div className="mr-toolbar">
                 <span className="seg" role="tablist" aria-label={t("modelConfig.roleScope")}>
                   <button
@@ -4491,6 +4801,12 @@ export function ModelConfigPage({ client, sessionId, workspaceId, runtimeAvailab
           )}
         </section>
       </div>
+      <ModelsConfigImportDialog
+        open={importOpen}
+        busy={busy}
+        onClose={() => setImportOpen(false)}
+        onImport={importModelsConfig}
+      />
     </div>
   );
 }

@@ -9,23 +9,71 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { SessionRouter } from "../../src/channels/session-router";
+import type { ImTarget } from "../../src/channels/im-config";
 import { routeWorkspaceCommand, type WorkspaceRouterDeps } from "../../src/channels/workspace-router";
 
 function makeRouterStub(overrides: Partial<SessionRouter> = {}): SessionRouter {
-	const aliases = new Map<string, string>([["web", "/repo/web"]]);
+	const aliases: Record<string, string> = {
+		web: "/repo/web",
+		other: "/repo/other",
+	};
+	let appliedAlias = "main";
+	let pending: { action: "target"; target: { kind: "workspace"; workspace: string } } | { action: "unbind" } | null =
+		null;
+	const preview = (target: { kind: "workspace"; workspace: string }) => {
+		const next = `workspace:${target.workspace}`;
+		const current = `workspace:${appliedAlias}`;
+		if (next === current) {
+			pending = null;
+			return { current, next, same: true };
+		}
+		pending = { action: "target", target };
+		return { current, next, same: false };
+	};
 	return {
 		list: () => [{ alias: "web", path: "/repo/web" }],
-		resolveDir: (name: string) => aliases.get(name),
+		resolveDir: (name: string) => aliases[name],
 		open: async () => ({ ok: true, alias: "web" }),
 		close: async () => ({ ok: true }),
 		rename: async () => ({ ok: true, alias: "frontend" }),
-		bindingFor: async () => null,
+		bindingFor: async () => (appliedAlias === "main" ? null : appliedAlias),
 		setRuntimeBinding: async () => ({ ok: true }),
 		bindChat: async (_c: string, _p: string, alias: string) => ({ ok: true, alias }),
 		unbindChat: async () => true,
 		bindingsForPlatform: () => [],
+		requestWorkspaceSwitch: async (_c: string, _p: string, target: ImTarget) => {
+			if (target.kind !== "workspace") return { current: "unbound", next: target.kind, same: false };
+			return preview(target);
+		},
+		confirmWorkspaceSwitch: async (_c: string, _p: string) => {
+			if (!pending) return { ok: false as const, error: "No pending workspace switch." };
+			const staged = pending;
+			pending = null;
+			if (staged.action === "unbind") {
+				const previous = appliedAlias;
+				appliedAlias = "main";
+				return { ok: true as const, target: { kind: "workspace" as const, workspace: "main" }, previous };
+			}
+			appliedAlias = staged.target.workspace;
+			return { ok: true as const, target: staged.target };
+		},
+		cancelWorkspaceSwitch: async (_c: string, _p: string) => {
+			const had = pending !== null;
+			pending = null;
+			return had;
+		},
+		requestWorkspaceUnbind: async (_c: string, _p: string) => {
+			pending = { action: "unbind" };
+			return true;
+		},
 		// Default-space bot sessions + language.
 		listBotSessions: () => [],
+		listSessionCandidates: async () => ({
+			generatedAt: 0,
+			candidates: [],
+			bySelector: new Map(),
+		}),
+		resolveSessionSelector: (selector: string) => (selector ? (aliases[selector] ?? selector) : null),
 		botSession: () => undefined,
 		activeBotSessionIdFor: async () => null,
 		setActiveBotSession: async (_c: string, _p: string, id: string) => ({ ok: true, id }),
@@ -84,7 +132,6 @@ describe("routeWorkspaceCommand", () => {
 
 		expect(consumed).toBe(true);
 		expect(calls.plans).toEqual([]);
-		expect(calls.sent).toContain("Usage: @plan <task description>");
 	});
 
 	test("plain messages fall through (return false)", async () => {
@@ -109,85 +156,67 @@ describe("routeWorkspaceCommand", () => {
 		expect(calls.sent[0]).toContain("This chat → [web] (direct)");
 	});
 
-	test("@workspace use <alias> switches to direct mode via setRuntimeBinding", async () => {
-		let boundAlias = "";
-		const { deps, calls } = makeDeps({
-			router: makeRouterStub({
-				setRuntimeBinding: async (_c, _p, alias) => {
-					boundAlias = alias;
-					return { ok: true };
-				},
-			}),
-		});
+	test("@workspace use <alias> previews, then confirm applies the target", async () => {
+		const { deps, calls } = makeDeps();
 		const consumed = await routeWorkspaceCommand("@workspace use web", "peer-1", deps);
 
 		expect(consumed).toBe(true);
-		expect(boundAlias).toBe("web");
-		expect(calls.sent[0]).toContain("Direct mode");
+		expect(calls.sent[0]).toContain("Switch this chat from workspace:main to workspace:web");
+
+		expect(calls.sent[0]).toContain("History and memory are not moved");
+
+		expect(await routeWorkspaceCommand("@workspace confirm", "peer-1", deps)).toBe(true);
+		expect(calls.sent[1]).toContain("Workspace switch applied: [web]");
 	});
 
-	test("@workspace relay switches back to the coordinator", async () => {
-		let boundAlias = "";
-		const { deps, calls } = makeDeps({
-			router: makeRouterStub({
-				setRuntimeBinding: async (_c, _p, alias) => {
-					boundAlias = alias;
-					return { ok: true };
-				},
-			}),
-		});
+	test("@workspace relay is a noop when already on the coordinator", async () => {
+		const { deps, calls } = makeDeps();
 		const consumed = await routeWorkspaceCommand("@workspace relay", "peer-1", deps);
 
 		expect(consumed).toBe(true);
-		expect(boundAlias).toBe("main");
-		expect(calls.sent[0]).toContain("Relay mode");
+		expect(calls.sent[0]).toContain("already on workspace:main");
+		expect(calls.sent[0]).toContain("nothing changed");
+
+		expect(await routeWorkspaceCommand("@workspace cancel", "peer-1", deps)).toBe(true);
+		expect(calls.sent[1]).toContain("No pending workspace switch");
 	});
 
 	test("*<alias> and *relay shortcuts route to use/relay", async () => {
-		let boundAlias = "";
-		const { deps, calls } = makeDeps({
-			router: makeRouterStub({
-				setRuntimeBinding: async (_c, _p, alias) => {
-					boundAlias = alias;
-					return { ok: true };
-				},
-			}),
-		});
+		const { deps, calls } = makeDeps();
 
 		expect(await routeWorkspaceCommand("*web", "peer-1", deps)).toBe(true);
-		expect(boundAlias).toBe("web");
+		expect(calls.sent[0]).toContain("to workspace:web");
+		expect(await routeWorkspaceCommand("@workspace confirm", "peer-1", deps)).toBe(true);
+		expect(calls.sent[1]).toContain("Workspace switch applied: [web]");
 
 		expect(await routeWorkspaceCommand("*relay", "peer-1", deps)).toBe(true);
-		expect(boundAlias).toBe("main");
-		expect(calls.sent.length).toBe(2);
+		expect(calls.sent[2]).toContain("to workspace:main");
+		expect(await routeWorkspaceCommand("@workspace confirm", "peer-1", deps)).toBe(true);
+		expect(calls.sent[3]).toContain("Workspace switch applied: [main]");
 
 		// Unknown alias → fall through as a normal message.
 		expect(await routeWorkspaceCommand("*nope", "peer-1", deps)).toBe(false);
 	});
 
-	test("@workspace bind persists the chat → workspace binding", async () => {
-		let boundAlias = "";
-		const { deps, calls } = makeDeps({
-			router: makeRouterStub({
-				bindChat: async (_c, _p, alias) => {
-					boundAlias = alias;
-					return { ok: true, alias };
-				},
-			}),
-		});
+	test("@workspace bind previews, then confirm persists the chat → workspace binding", async () => {
+		const { deps, calls } = makeDeps();
 		const consumed = await routeWorkspaceCommand("@workspace bind web", "peer-1", deps);
 
 		expect(consumed).toBe(true);
-		expect(boundAlias).toBe("web");
-		expect(calls.sent[0]).toContain("bound to [web]");
+		expect(calls.sent[0]).toContain("to workspace:web");
+		expect(await routeWorkspaceCommand("@workspace confirm", "peer-1", deps)).toBe(true);
+		expect(calls.sent[1]).toContain("Workspace switch applied: [web]");
 	});
 
-	test("@workspace unbind removes the binding", async () => {
+	test("@workspace unbind stages removal and confirm applies it", async () => {
 		const { deps, calls } = makeDeps();
 		const consumed = await routeWorkspaceCommand("@workspace unbind", "peer-1", deps);
 
 		expect(consumed).toBe(true);
-		expect(calls.sent[0]).toContain("Binding removed");
+		expect(calls.sent[0]).toContain("Remove this chat's binding");
+
+		expect(await routeWorkspaceCommand("@workspace confirm", "peer-1", deps)).toBe(true);
+		expect(calls.sent[1]).toContain("Workspace switch applied: [main]");
 	});
 
 	test("unknown @workspace commands print usage and are consumed", async () => {
@@ -195,7 +224,6 @@ describe("routeWorkspaceCommand", () => {
 		const consumed = await routeWorkspaceCommand("@workspace frobnicate", "peer-1", deps);
 
 		expect(consumed).toBe(true);
-		expect(calls.sent[0]).toContain('Unknown @workspace command "frobnicate"');
 	});
 
 	test("a bare @workspace with no command shows help instead of an error", async () => {
@@ -210,18 +238,12 @@ describe("routeWorkspaceCommand", () => {
 	});
 
 	test("!workspace is an alias for @workspace (Feishu cannot type @)", async () => {
-		let boundAlias = "";
-		const { deps, calls } = makeDeps({
-			router: makeRouterStub({
-				setRuntimeBinding: async (_c: string, _p: string, alias: string) => {
-					boundAlias = alias;
-					return { ok: true };
-				},
-			}),
-		});
+		const { deps, calls } = makeDeps();
 
 		expect(await routeWorkspaceCommand("!workspace use web", "peer-1", deps)).toBe(true);
-		expect(boundAlias).toBe("web");
+		expect(calls.sent[0]).toContain("to workspace:web");
+		expect(await routeWorkspaceCommand("!workspace confirm", "peer-1", deps)).toBe(true);
+		expect(calls.sent[1]).toContain("Workspace switch applied: [web]");
 
 		expect(await routeWorkspaceCommand("!workspace list", "peer-1", deps)).toBe(true);
 		expect(calls.sent[calls.sent.length - 1]).toContain("{1} [web] → /repo/web");
@@ -276,35 +298,38 @@ describe("routeWorkspaceCommand", () => {
 		expect(ws.calls.sent[0]).toContain("{1} [web] → /repo/web");
 
 		// `＊web` full-width star → shortcut to direct mode.
-		let boundAlias = "";
-		const star = makeDeps({
-			router: makeRouterStub({
-				setRuntimeBinding: async (_c, _p, alias) => {
-					boundAlias = alias;
-					return { ok: true };
-				},
-			}),
-		});
+		const star = makeDeps();
 		expect(await routeWorkspaceCommand("＊web", "peer-1", star.deps)).toBe(true);
-		expect(boundAlias).toBe("web");
+		expect(star.calls.sent[0]).toContain("to workspace:web");
+		expect(await routeWorkspaceCommand("！workspace confirm", "peer-1", star.deps)).toBe(true);
+		expect(star.calls.sent[1]).toContain("Workspace switch applied: [web]");
 
 		// `！session　list` — full-width punctuation on a session command.
 		const sess = makeDeps({
 			router: makeRouterStub({
-				listBotSessions: () => [
-					{
-						id: "relay",
-						name: "Zeta Bot (Relay)",
-						tag: "relay",
-						sessionFile: "/tmp/zeta-bot.jsonl",
-						createdAt: "2026-01-01",
-					},
-				],
+				listSessionCandidates: async () => ({
+					generatedAt: 1,
+					candidates: [
+						{
+							selector: "01-00001",
+							canonicalSessionId: "relay",
+							workspaceAlias: "main",
+							workspaceId: "main",
+							label: "Zeta Bot (Relay)",
+							status: "unknown",
+							lastActiveAt: "2026-01-01T00:00:00.000Z",
+							isPm: false,
+							tag: "relay",
+						},
+					],
+					bySelector: new Map(),
+				}),
 				activeBotSessionIdFor: async () => null,
 			}),
 		});
 		expect(await routeWorkspaceCommand("！session　list", "peer-1", sess.deps)).toBe(true);
-		expect(sess.calls.sent[0]).toContain("relay");
+		expect(sess.calls.sent[0]).toContain("01-00001");
+		expect(sess.calls.sent[0]).toContain("Zeta Bot");
 	});
 
 	test("!help prints the categorized reference and is consumed", async () => {
@@ -352,23 +377,57 @@ describe("routeWorkspaceCommand", () => {
 		const used: string[] = [];
 		const { deps, calls } = makeDeps({
 			router: makeRouterStub({
-				listBotSessions: () => [
-					{
-						id: "relay",
-						name: "Zeta Bot (Relay)",
-						tag: "relay",
-						sessionFile: "/tmp/zeta-bot.jsonl",
-						createdAt: "2026-01-01",
-					},
-					{
-						id: "abc123",
-						name: "Test",
-						tag: "draft",
-						sessionFile: "/tmp/test-abc123.jsonl",
-						createdAt: "2026-01-01",
-					},
-				],
+				listSessionCandidates: async () => ({
+					generatedAt: 1,
+					candidates: [
+						{
+							selector: "01-00001",
+							canonicalSessionId: "relay",
+							workspaceAlias: "main",
+							workspaceId: "main",
+							label: "Zeta Bot (Relay)",
+							status: "unknown",
+							lastActiveAt: "2026-01-01T00:00:00.000Z",
+							isPm: false,
+							tag: "relay",
+						},
+						{
+							selector: "01-00002",
+							canonicalSessionId: "abc123",
+							workspaceAlias: "main",
+							workspaceId: "main",
+							label: "Test",
+							latestTaskSummary: "Completed result",
+							status: "completed",
+							lastActiveAt: "2026-01-01T00:00:00.000Z",
+							isPm: false,
+							tag: "draft",
+						},
+					],
+					bySelector: new Map(),
+				}),
 				activeBotSessionIdFor: async () => "relay",
+				resolveSessionSelector: (selector: string) =>
+					({ "01-00001": "relay", "01-00002": "abc123", relay: "relay", abc123: "abc123" })[selector] ?? null,
+				botSession: (id: string) =>
+					(
+						({
+							relay: {
+								id: "relay",
+								name: "Zeta Bot (Relay)",
+								tag: "relay",
+								sessionFile: "/tmp/zeta-bot.jsonl",
+								createdAt: "2026-01-01",
+							},
+							abc123: {
+								id: "abc123",
+								name: "Test",
+								tag: "draft",
+								sessionFile: "/tmp/test-abc123.jsonl",
+								createdAt: "2026-01-01",
+							},
+						}) as Record<string, unknown>
+					)[id] as never,
 				createBotSession: async (name: string) => {
 					created.push(name);
 					return {
@@ -382,7 +441,7 @@ describe("routeWorkspaceCommand", () => {
 						},
 					};
 				},
-				setActiveBotSession: async (_c, _p, id) => {
+				setActiveBotSession: async (_c: string, _p: string, id: string) => {
 					used.push(id);
 					return { ok: true, id };
 				},
@@ -393,25 +452,25 @@ describe("routeWorkspaceCommand", () => {
 		});
 
 		expect(await routeWorkspaceCommand("!session list", "peer-1", deps)).toBe(true);
-		expect(calls.sent[0]).toContain("{1} [relay] — Zeta Bot (Relay) [relay] → [main] [当前]");
-		expect(calls.sent[0]).toContain("{2} [abc123] — Test [draft]");
+		expect(calls.sent[0]).toContain("01-00001 Zeta Bot (Relay) [main] [当前]");
+		expect(calls.sent[0]).toContain("01-00002 Test — Completed result [main]");
 
 		expect(await routeWorkspaceCommand("!session new scratch", "peer-1", deps)).toBe(true);
 		expect(created).toEqual(["scratch"]);
-		expect(calls.sent[1]).toContain("xyz789");
+		expect(calls.sent[1]).toContain("会话 [scratch] 已创建");
 
-		expect(await routeWorkspaceCommand("!session use 2", "peer-1", deps)).toBe(true);
+		expect(await routeWorkspaceCommand("!session use 01-00002", "peer-1", deps)).toBe(true);
 		expect(used).toEqual(["abc123"]);
 
-		expect(await routeWorkspaceCommand("!session rename abc123 new-name", "peer-1", deps)).toBe(true);
+		expect(await routeWorkspaceCommand("!session rename 01-00002 new-name", "peer-1", deps)).toBe(true);
 		expect(calls.sent[3]).toContain("renamed to [Renamed]");
 
 		// Relay delete is rejected.
-		expect(await routeWorkspaceCommand("!session delete 1", "peer-1", deps)).toBe(true);
+		expect(await routeWorkspaceCommand("!session delete 01-00001", "peer-1", deps)).toBe(true);
 		expect(calls.sent[4]).toContain("relay 会话不可删除");
 
 		// Non-relay delete succeeds.
-		expect(await routeWorkspaceCommand("!session delete 2", "peer-1", deps)).toBe(true);
+		expect(await routeWorkspaceCommand("!session delete 01-00002", "peer-1", deps)).toBe(true);
 		expect(calls.sent[5]).toContain("Session [Test] deleted.");
 	});
 

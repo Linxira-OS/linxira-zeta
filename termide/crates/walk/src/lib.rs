@@ -20,6 +20,9 @@ pub fn walker(base: &Path, respect_gitignore: bool) -> Walk {
         .git_global(respect_gitignore)
         .git_exclude(respect_gitignore);
     if respect_gitignore {
+        // An IDE workspace need not be a git checkout; `.gitignore` still
+        // describes files the user does not want searched.
+        builder.require_git(false);
         builder.filter_entry(|entry| entry.file_name() != ".git");
     }
     builder.build()
@@ -38,7 +41,10 @@ pub fn project_files(root: &Path, cancel: &AtomicBool, limit: usize) -> Vec<Stri
             continue;
         }
         if let Ok(relative) = entry.path().strip_prefix(root) {
-            files.push(relative.display().to_string());
+            #[cfg(windows)]
+            files.push(relative.to_string_lossy().replace('\\', "/"));
+            #[cfg(not(windows))]
+            files.push(relative.to_string_lossy().into_owned());
         }
     }
     files

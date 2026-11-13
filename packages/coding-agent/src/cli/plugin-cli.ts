@@ -17,6 +17,16 @@ import {
 import chalk from "@linxiraos/pi-utils/chalk";
 import { resolveOrDefaultProjectRegistryPath } from "../discovery/helpers";
 import { PluginManager, parseSettingValue, validateSetting } from "../extensibility/plugins";
+import {
+	cleanupExpiredDevPlugins,
+	devPluginsRoot,
+	exportDevPlugin,
+	isValidDevPluginName,
+	listDevPluginNames,
+	promoteDevPlugin,
+	removeTreeSafely,
+	sessionDevRoot,
+} from "../extensibility/plugins/dev";
 import { readCatalogue, readPanelData } from "../extensibility/plugins/panels";
 import { setInstalledPluginEnabled } from "../extensibility/plugins/toggle";
 import {
@@ -49,7 +59,10 @@ export type PluginAction =
 	| "marketplace"
 	| "discover"
 	| "upgrade"
-	| "panel";
+	| "panel"
+	| "promote"
+	| "export"
+	| "dev";
 
 export interface PluginCommandArgs {
 	action: PluginAction;
@@ -64,6 +77,8 @@ export interface PluginCommandArgs {
 		disable?: string;
 		set?: string;
 		scope?: "user" | "project";
+		/** Development-plugin session id for promote/export/dev. */
+		session?: string;
 	};
 }
 
@@ -85,6 +100,9 @@ const VALID_ACTIONS: PluginAction[] = [
 	"discover",
 	"upgrade",
 	"panel",
+	"promote",
+	"export",
+	"dev",
 ];
 
 /**
@@ -143,6 +161,11 @@ export function parsePluginArgs(args: string[]): PluginCommandArgs | undefined {
 		} else if (arg === "--scope") {
 			// --scope with no value following
 			console.error(chalk.red(`--scope requires a value: "user" or "project".`));
+			process.exit(1);
+		} else if (arg === "--session" && i + 1 < args.length && !args[i + 1].startsWith("-")) {
+			result.flags.session = args[++i];
+		} else if (arg === "--session") {
+			console.error(chalk.red("--session requires a session id."));
 			process.exit(1);
 		} else if (!arg.startsWith("-")) {
 			result.args.push(arg);
@@ -214,6 +237,15 @@ export async function runPluginCommand(cmd: PluginCommandArgs): Promise<void> {
 			break;
 		case "panel":
 			await handlePanel(manager, cmd.args, cmd.flags);
+			break;
+		case "promote":
+			await handlePromote(cmd.args, cmd.flags);
+			break;
+		case "export":
+			await handleExport(cmd.args, cmd.flags);
+			break;
+		case "dev":
+			await handleDev(cmd.args, cmd.flags);
 			break;
 	}
 }
@@ -1293,6 +1325,162 @@ async function handleConfigValidate(manager: PluginManager, flags: { json?: bool
 	}
 }
 
+/** Every session directory under the agent-authored plugin root. */
+function devSessionIds(agentDir: string): string[] {
+	try {
+		return fs
+			.readdirSync(devPluginsRoot(agentDir), { withFileTypes: true })
+			.filter(entry => entry.isDirectory() && !entry.name.startsWith("."))
+			.map(entry => entry.name)
+			.sort();
+	} catch {
+		return [];
+	}
+}
+
+/** Resolve a plugin name to the one dev session that owns it, or fail with candidates. */
+function findDevSession(agentDir: string, name: string, requested: string | undefined): string {
+	if (requested !== undefined) {
+		if (!listDevPluginNames(agentDir, requested).includes(name)) {
+			throw new Error(`Session ${requested} has no development plugin "${name}".`);
+		}
+		return requested;
+	}
+	const matches = devSessionIds(agentDir).filter(session => listDevPluginNames(agentDir, session).includes(name));
+	if (matches.length === 0)
+		throw new Error(`No development plugin "${name}" exists under ${devPluginsRoot(agentDir)}.`);
+	if (matches.length > 1) {
+		throw new Error(`"${name}" exists in several sessions; pass --session <id>: ${matches.join(", ")}`);
+	}
+	return matches[0]!;
+}
+
+async function handlePromote(args: string[], flags: PluginCommandArgs["flags"]): Promise<void> {
+	const name = args[0];
+	if (!name) {
+		console.error(chalk.red(`Usage: ${CLI_BIN_NAME} plugin promote <name> [--session <id>] [--force]`));
+		process.exit(1);
+	}
+	refuseDryRun(flags, "promote");
+	const agentDir = getAgentDir();
+	let session: string;
+	try {
+		session = findDevSession(agentDir, name, flags.session);
+	} catch (error) {
+		console.error(chalk.red(`${theme.status.error} ${error instanceof Error ? error.message : String(error)}`));
+		process.exit(1);
+	}
+	try {
+		const result = promoteDevPlugin({ agentDir, sessionId: session, name, overwrite: flags.force === true });
+		if (flags.json) console.log(JSON.stringify({ promoted: result }));
+		else {
+			console.log(
+				chalk.green(`${theme.status.success} Promoted ${name} to ${result.path} (${result.files} files).`),
+			);
+			console.log(chalk.dim("Restart zeta to load the promoted plugin."));
+		}
+	} catch (error) {
+		console.error(
+			chalk.red(`${theme.status.error} Promote failed: ${error instanceof Error ? error.message : String(error)}`),
+		);
+		process.exit(1);
+	}
+}
+
+async function handleExport(args: string[], flags: PluginCommandArgs["flags"]): Promise<void> {
+	const name = args[0];
+	const destination = args[1];
+	if (!name || !destination) {
+		console.error(
+			chalk.red(`Usage: ${CLI_BIN_NAME} plugin export <name> <destination-dir> [--session <id>] [--force]`),
+		);
+		process.exit(1);
+	}
+	refuseDryRun(flags, "export");
+	const agentDir = getAgentDir();
+	let session: string;
+	try {
+		session = findDevSession(agentDir, name, flags.session);
+	} catch (error) {
+		console.error(chalk.red(`${theme.status.error} ${error instanceof Error ? error.message : String(error)}`));
+		process.exit(1);
+	}
+	try {
+		const result = exportDevPlugin({
+			agentDir,
+			sessionId: session,
+			name,
+			destination,
+			overwrite: flags.force === true,
+		});
+		if (flags.json) console.log(JSON.stringify({ exported: result }));
+		else
+			console.log(
+				chalk.green(`${theme.status.success} Exported ${name} to ${result.destination} (${result.files} files).`),
+			);
+	} catch (error) {
+		console.error(
+			chalk.red(`${theme.status.error} Export failed: ${error instanceof Error ? error.message : String(error)}`),
+		);
+		process.exit(1);
+	}
+}
+
+async function handleDev(args: string[], flags: PluginCommandArgs["flags"]): Promise<void> {
+	const agentDir = getAgentDir();
+	const subcommand = args[0] ?? "list";
+	switch (subcommand) {
+		case "list": {
+			const sessions = devSessionIds(agentDir);
+			const rows = sessions.flatMap(session =>
+				listDevPluginNames(agentDir, session).map(name => ({ session, name })),
+			);
+			if (flags.json) console.log(JSON.stringify({ sessions, plugins: rows }));
+			else if (rows.length === 0) console.log(chalk.dim("No development plugins."));
+			else {
+				console.log(`Development plugins (${rows.length}):`);
+				for (const row of rows) console.log(`- ${row.name} [session ${row.session}]`);
+			}
+			return;
+		}
+		case "discard": {
+			const name = args[1];
+			if (!name || !isValidDevPluginName(name)) {
+				console.error(chalk.red(`Usage: ${CLI_BIN_NAME} plugin dev discard <name> [--session <id>]`));
+				process.exit(1);
+			}
+			refuseDryRun(flags, "dev discard");
+			let session: string;
+			try {
+				session = findDevSession(agentDir, name, flags.session);
+			} catch (error) {
+				console.error(chalk.red(`${theme.status.error} ${error instanceof Error ? error.message : String(error)}`));
+				process.exit(1);
+			}
+			const sessionRoot = sessionDevRoot(agentDir, session);
+			removeTreeSafely(path.join(sessionRoot, name), sessionRoot);
+			if (flags.json) console.log(JSON.stringify({ discarded: { name, session } }));
+			else console.log(chalk.green(`${theme.status.success} Discarded ${name} from session ${session}.`));
+			return;
+		}
+		case "cleanup": {
+			refuseDryRun(flags, "dev cleanup");
+			const removed = cleanupExpiredDevPlugins({ agentDir });
+			if (flags.json) console.log(JSON.stringify({ removed }));
+			else if (removed.length === 0) console.log(chalk.dim("No expired development sessions."));
+			else
+				console.log(
+					chalk.green(`${theme.status.success} Removed ${removed.length} expired development session(s).`),
+				);
+			return;
+		}
+		default:
+			console.error(chalk.red(`Unknown dev subcommand: ${subcommand}`));
+			console.error(chalk.dim("Valid subcommands: list, discard, cleanup"));
+			process.exit(1);
+	}
+}
+
 async function handleEnable(
 	manager: PluginManager,
 	plugins: string[],
@@ -1385,6 +1573,9 @@ ${chalk.bold("Commands:")}
   marketplace <cmd>            Manage marketplace sources (add, remove, update, list; "official" is built in)
   discover [marketplace]        Browse available marketplace plugins
   panel <plugin> <panel>        Print one declarative panel's data (what a native host draws)
+  promote <name>                Copy a session's dev plugin into ~/.zeta/agent/plugins (user action)
+  export <name> <dir>           Copy a dev plugin to a directory (user action)
+  dev <list|discard|cleanup>    Inspect, delete, or expire agent-authored dev plugins
 
 ${chalk.bold("Feature Syntax:")}
   pkg                Install with default features
@@ -1414,6 +1605,7 @@ ${chalk.bold("Options:")}
   --fix            Attempt automatic fixes (doctor)
   --force          Overwrite without prompting (install)
   --scope <scope>  Install scope: user (default) or project (install name@marketplace)
+  --session <id>   Dev plugin session for promote/export/dev (required when the name is ambiguous)
   --dry-run        Preview changes without applying (install, uninstall, link, upgrade of marketplace plugins)
   -l, --local      Use project-local overrides
 

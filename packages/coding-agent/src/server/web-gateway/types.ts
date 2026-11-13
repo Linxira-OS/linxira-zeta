@@ -7,7 +7,10 @@
  * (structurally compatible for the fields the web UI consumes).
  */
 
+import type { SessionClient } from "../../session/session-client";
+import type { ImMessageMetadata, ImSwitchControlMetadata } from "../../session/session-im";
 import type { SessionOrigin } from "../../session/session-origin";
+import type { SessionTaskSummary } from "../../session/session-task-summary";
 
 export interface SessionHeader {
 	type: "session";
@@ -18,6 +21,8 @@ export interface SessionHeader {
 	parentSession?: string;
 	name?: string;
 	title?: string;
+	/** Client that created the session; absent on legacy transcripts (unknown). */
+	client?: SessionClient;
 	/** IM/bot/relay provenance; absent on personal sessions and legacy transcripts. */
 	origin?: SessionOrigin;
 }
@@ -124,6 +129,8 @@ export type AgentMessage = UserMessage | AssistantMessage | ToolResultMessage | 
 export interface SessionMessageEntry extends SessionEntryBase {
 	type: "message";
 	message: AgentMessage;
+	/** IM provenance for this row; never part of the provider payload. */
+	metadata?: ImMessageMetadata;
 }
 
 export interface ThinkingLevelChangeEntry extends SessionEntryBase {
@@ -179,6 +186,12 @@ export interface SessionInfoEntry extends SessionEntryBase {
 	name?: string;
 }
 
+/** Workspace/agent switch handshake row; carries metadata only. */
+export interface ImControlEntry extends SessionEntryBase {
+	type: "im_control";
+	metadata: ImSwitchControlMetadata;
+}
+
 export type SessionEntry =
 	| SessionMessageEntry
 	| ThinkingLevelChangeEntry
@@ -188,6 +201,7 @@ export type SessionEntry =
 	| CustomEntry
 	| CustomMessageEntry
 	| LabelEntry
+	| ImControlEntry
 	| SessionInfoEntry;
 
 export interface SessionTreeNode {
@@ -222,6 +236,12 @@ export interface SessionInfo {
 	 * so the UI can keep these out of personal lists. Absent on personal sessions.
 	 */
 	origin?: SessionOrigin;
+	/** Client that created the session; absent on legacy transcripts (unknown). */
+	client?: SessionClient;
+	/** Client that initiated the latest durable run; absent when none was recorded. */
+	runClient?: SessionClient;
+	/** Deterministic latest-task projection from the bounded session window. */
+	taskSummary?: SessionTaskSummary;
 	/** True when the session's cwd resolves inside the OS temp dir (scratch sessions). */
 	temp?: boolean;
 }
@@ -231,4 +251,14 @@ export interface SessionContext {
 	entryIds: string[];
 	thinkingLevel: string;
 	model: { provider: string; modelId: string } | null;
+	/**
+	 * IM provenance parallel to {@link messages}; present when at least one row
+	 * carries it. `null` marks a message without IM metadata.
+	 */
+	messageMetadata?: (ImMessageMetadata | null)[];
+	/**
+	 * Durable IM switch handshakes in transcript order. These are not LLM
+	 * messages; a viewer renders them from the same transcript, no second store.
+	 */
+	controlEvents?: Array<{ entryId: string; metadata: ImSwitchControlMetadata }>;
 }

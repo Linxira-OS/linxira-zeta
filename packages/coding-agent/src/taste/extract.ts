@@ -26,10 +26,12 @@ import extractInputTemplate from "../prompts/taste/extract-input.md" with { type
 import extractSystemTemplate from "../prompts/taste/extract-system.md" with { type: "text" };
 import type { AgentSession } from "../session/agent-session";
 import { customMessageContentText } from "../session/checkpoint-entries";
+import { cfgMemoryBackend } from "../memory-backend/settings";
+import { cfgMnemopiLlmMode } from "../mnemopi/settings";
 import { tasteWriteScope } from "./consolidate";
 import { appendTasteCandidate, type TasteCandidate } from "./queue";
 import { resolveTasteScopes } from "./scope";
-import { cfgTasteMinPromptLength } from "./settings";
+import { cfgTasteExtractionMode, cfgTasteMinPromptLength } from "./settings";
 import { TASTE_CATEGORIES, type TasteCategory, type TastePolarity } from "./store";
 
 const candidateSchema = type({
@@ -103,6 +105,8 @@ export function maybeStartTasteExtraction(options: {
 }): void {
 	try {
 		const { session, settings } = options;
+		if (cfgTasteExtractionMode.get(settings) !== "prompt") return;
+		if (cfgMemoryBackend.get(settings) === "mnemopi" && cfgMnemopiLlmMode.get(settings) === "none") return;
 		if (session.isDisposed || (session as ExtractionHost)[kExtractionInFlight]) return;
 		const text = currentPrompt(session.messages, options.message);
 		if (!text) return;
@@ -161,7 +165,16 @@ async function runTasteExtraction(
 		throw new Error(response.errorMessage || "taste extraction model error");
 	}
 
-	const key = tasteWriteScope({ cwd: session.sessionManager.getCwd(), agentId: session.getAgentId() }, settings);
+	const key = tasteWriteScope(
+		{
+			cwd: session.sessionManager.getCwd(),
+			agentId: session.getAgentId(),
+			...(session.sessionManager?.getMemoryNamespace?.()
+				? { namespace: session.sessionManager?.getMemoryNamespace?.() }
+				: {}),
+		},
+		settings,
+	);
 	for (const block of response.content) {
 		if (block.type !== "toolCall" || block.name !== recordPreferencesTool.name) continue;
 		const args = block.arguments;

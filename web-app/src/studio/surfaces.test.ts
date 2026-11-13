@@ -60,10 +60,10 @@ describe("surface classification", () => {
 		});
 	});
 
-	test("only chat and history survive on mobile", () => {
+	test("mobile opens workbench, history and settings", () => {
 		expect(navAllowedOnSurface("mobile", "workbench")).toBe(true);
 		expect(navAllowedOnSurface("mobile", "history")).toBe(true);
-		expect(navAllowedOnSurface("mobile", "settings")).toBe(false);
+		expect(navAllowedOnSurface("mobile", "settings")).toBe(true);
 		expect(navAllowedOnSurface("mobile", "diagnostics")).toBe(false);
 		expect(navAllowedOnSurface("desktop", "settings")).toBe(true);
 		expect(navAllowedOnSurface("remote-browser", "settings")).toBe(true);
@@ -125,11 +125,14 @@ describe("surface matrix", () => {
 		expect(accessFor("remote-browser", "open-logs").access).toBe("unavailable");
 	});
 
-	test("mobile offers none of the local runtime, credential or device actions", () => {
-		// The host directory picker still works (it is a gateway command), so it
-		// stays pass-through; the mobile *policy* only removes local/security
-		// surfaces. Binding-scoped filtering is a server gap, not a hidden button.
+	test("mobile keeps chat/history plus security facts, without local admin", () => {
+		// The published matrix: settings is reachable, the paired-device list and
+		// pairing card render, and TOTP verification is read-only. Local runtime,
+		// credentials, token mutation and device revocation stay hidden.
 		expect(accessFor("mobile", "file-picker").access).toBe("pass-through");
+		expect(accessFor("mobile", "device-list").access).toBe("pass-through");
+		expect(accessFor("mobile", "totp").access).toBe("read-only");
+		expect(accessFor("mobile", "remote-pairing").access).toBe("pass-through");
 		for (const action of [
 			"runtime-install",
 			"runtime-restart",
@@ -140,10 +143,7 @@ describe("surface matrix", () => {
 			"file-reveal",
 			"im-channels",
 			"im-credentials",
-			"device-list",
 			"device-revoke",
-			"totp",
-			"remote-pairing",
 			"remote-token",
 			"ssh-targets",
 		] as const) {

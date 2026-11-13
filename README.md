@@ -25,7 +25,9 @@ licensed MIT; we modify and extend the upstream tree rather than presenting it
 as our own. Upstream copyright notices and the upstream MIT text are retained
 in [`LICENSE`](./LICENSE); [`NOTICE`](./NOTICE) names the integrated upstream
 release and Zeta's modifications. The sync ledger is
-[`document/upstream-sync.md`](./document/upstream-sync.md).
+[`document/upstream-sync.md`](./document/upstream-sync.md). The pinned release
+tag and status for every upstream we vendor or track are kept in
+[`document/upstream-baselines.md`](./document/upstream-baselines.md).
 
 ## Built on
 
@@ -41,6 +43,62 @@ Two further upstreams shaped earlier work and stay credited: OMP Web (the origin
 of the previous `web-ui/` snapshot) and Pi / Pi Web (the source of semantic
 ports). Per-tree modification ledgers and the full fork declaration are in
 [`THIRD-PARTY-NOTICES.txt`](./THIRD-PARTY-NOTICES.txt).
+
+## Maintenance & ownership
+
+Zeta is a downstream distribution with a deliberate boundary: upstream defects
+follow upstream release process, while Zeta's product behavior, integration,
+and usage differences are ours. The authoritative protocol — issue routing,
+surface ownership, module map, and security channel — is
+[`document/maintenance-ownership.md`](./document/maintenance-ownership.md).
+Release-tag baselines are recorded in
+[`document/upstream-baselines.md`](./document/upstream-baselines.md).
+
+![Zeta maintenance and ownership map](./assets/maintenance-map.svg)
+
+| Surface | Upstream | Maintained by |
+| --- | --- | --- |
+| `zetacode` runtime, CLI, TUI | [OMP](https://github.com/can1357/oh-my-pi), only through named official release tags | **Zeta core maintainers** for Zeta deltas; upstream for a clean upstream defect |
+| Work Studio (`web-app/`), server/Studio host, `/api/v1/*` and Web Gateway | OMP Studio renderer fork; host, contracts, gateway, and fork integration are Zeta-owned | **Zeta server maintainers** |
+| IM (`packages/channels/`, `packages/coding-agent/src/channels/`) | Zeta-originated channel runtime | **Zeta IM maintainers** |
+| `zetaide` and the editor payload (`termide/`, `editor/`) | [TermIDE](https://github.com/termide/termide), vendored fork | **Zeta IDE maintainers** for fork deviations and branding |
+| `desktop/`, `android/`, `main/` | Zeta-originated; paused or experimental lines | **Zeta core maintainers**; no new product work while paused |
+| `plugins/`, `docs/`, `document/` | Zeta registry and documentation surfaces | **Zeta core maintainers** |
+| `web-ui/` | Frozen OMP Web snapshot | No Zeta owner, no sync, not a product surface |
+
+**Where to report:**
+
+1. **Upstream defect** that reproduces without the Zeta overlay → the upstream
+   project's issue tracker. Zeta consumes a fix only through the next **named
+   official release tag**; never merge upstream `main` or a branch. OMP Studio
+   `0.2.0` is currently untagged, so there is no `0.2.0` branch sync.
+2. **Zeta feature, usage difference, or integration** → this repository's issue
+   tracker, with the owning role above. Upstream should not be asked to own our
+   product behavior.
+3. **Security vulnerability** → the private advisory in
+   [`.github/SECURITY.md`](./.github/SECURITY.md), never a public issue or pull
+   request. IM and server findings are private-first.
+
+`zetaide` and coding-agent additions made because of Zeta usage differences are
+maintained by Zeta, not upstream.
+
+### Runtime docs vs internal docs
+
+- [`docs/`](./docs/) is **runtime documentation packaged with the product** and
+  served at `zeta://docs`. It is for users, operators, and extension authors.
+  Any new subcommand, flag, tool, config key, or internal URL surface must be
+  documented here, not only in a CHANGELOG or code comment. Examples:
+  [`docs/channels.md`](./docs/channels.md),
+  [`docs/zeta-serve-web.md`](./docs/zeta-serve-web.md), and the
+  [feature index](./docs/zeta-features.md).
+- [`document/`](./document/) is **internal engineering documentation**, never
+  packaged. It holds architecture, ADRs, roadmap, merge/release procedure, and
+  this maintenance protocol. Examples:
+  [`document/architecture-layers.md`](./document/architecture-layers.md),
+  [`document/upstream-sync.md`](./document/upstream-sync.md), and
+  [`document/maintenance-ownership.md`](./document/maintenance-ownership.md).
+- Moving content between the trees requires cleaning every cross-reference;
+  released CHANGELOG entries are immutable.
 
 ## The Suite
 
@@ -254,7 +312,8 @@ top. Per product surface:
 
 ### `zetaide` — terminal IDE (from TermIDE)
 
-- **Upstream**: `termide/termide` tag `0.46.0`, vendored under `termide/` and
+- **Upstream**: `termide/termide` tag `0.49.0`
+  (`057eb55e0a7c4ee969982fab62dc83bde028e052`), vendored under `termide/` and
   shipped as the `zetaide` command (`@linxiraos/ide`).
 - **Zeta changes**: the fork, the `zetaide` command and npm packaging, editor
   payload handling, theme and brand adaptation; deviations are listed in
@@ -639,6 +698,53 @@ Work Studio(`web-app/`)是 Zeta 接手的 OMP Studio 分支，其宿主
 列在 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt);合并流程记录在
 [document/upstream-sync.md](document/upstream-sync.md)。
 
+### 维护与归属
+
+Zeta 是下游发行版，边界是刻意的：上游缺陷走上游发布流程；Zeta 的产品行为、
+集成和使用差异由 Zeta 负责。权威协议——问题路由、产品面归属、模块地图和安全
+通道——见 [`document/maintenance-ownership.md`](./document/maintenance-ownership.md)，
+发布 tag 基线见 [`document/upstream-baselines.md`](./document/upstream-baselines.md)。
+
+![Zeta 维护与归属地图](./assets/maintenance-map.svg)
+
+| 产品面 | 上游 | 维护者 |
+| --- | --- | --- |
+| `zetacode` 运行时、CLI、TUI | [OMP](https://github.com/can1357/oh-my-pi)，只通过点名的官方 release tag | Zeta 差异由 **Zeta core maintainers** 维护；干净的上游缺陷走上游 |
+| Work Studio（`web-app/`）、server/Studio host、`/api/v1/*` 与 Web Gateway | OMP Studio 渲染器分支；宿主、契约、网关和分支集成归 Zeta | **Zeta server maintainers** |
+| IM（`packages/channels/`、`packages/coding-agent/src/channels/`） | Zeta 原创的频道运行时 | **Zeta IM maintainers** |
+| `zetaide` 与编辑器载荷（`termide/`、`editor/`） | [TermIDE](https://github.com/termide/termide)，vendored 分支 | 分支差异与品牌由 **Zeta IDE maintainers** 维护 |
+| `desktop/`、`android/`、`main/` | Zeta 原创；暂停或实验线 | **Zeta core maintainers**；暂停期间不新增产品工作 |
+| `plugins/`、`docs/`、`document/` | Zeta 插件注册表与文档面 | **Zeta core maintainers** |
+| `web-ui/` | 冻结的 OMP Web 快照 | 无 Zeta 维护者、无同步、不是产品面 |
+
+**报告路径：**
+
+1. **上游缺陷**：在不带 Zeta 覆盖层时也能复现 → 上游项目 issue。Zeta 只通过下一个
+   **点名的官方 release tag** 接收修复；绝不合并上游 `main` 或分支。OMP Studio
+   `0.2.0` 当前没有 tag，因此不存在 `0.2.0` 分支同步。
+2. **Zeta 功能、使用差异或集成问题** → 本仓库 issue，并按上表找对应维护角色。
+   不应要求上游接管我们的产品行为或使用差异。
+3. **安全漏洞** → [`.github/SECURITY.md`](./.github/SECURITY.md) 中的私有 advisory，
+   绝不走公开 issue 或 pull request。IM 与 server 问题一律私有优先。
+
+`zetaide` 与因 Zeta 使用差异新增的 coding-agent 行为由 Zeta 维护，不由上游维护。
+
+#### 运行时文档与内部文档
+
+- [`docs/`](./docs/) 是**随产品打包的运行时文档**，通过 `zeta://docs` 提供，面向
+  用户、运维和扩展作者。新的子命令、标志、工具、配置键或内部 URL 面必须写在这里，
+  不能只留 CHANGELOG 或代码注释。例子：
+  [`docs/channels.md`](./docs/channels.md)、
+  [`docs/zeta-serve-web.md`](./docs/zeta-serve-web.md)、
+  [功能索引](./docs/zeta-features.md)。
+- [`document/`](./document/) 是**内部工程文档，永不打包**。放架构、ADR、路线图、
+  合并/release 流程和维护协议。例子：
+  [`document/architecture-layers.md`](./document/architecture-layers.md)、
+  [`document/upstream-sync.md`](./document/upstream-sync.md)、
+  [`document/maintenance-ownership.md`](./document/maintenance-ownership.md)。
+- 在 `docs/` 与 `document/` 之间移动内容要清理所有交叉引用；已发布 CHANGELOG
+  条目不可变。
+
 ### 组件谱系
 
 该发行版由不同来源的部件组装而成。每个部件继承了什么、Zeta 拥有什么,
@@ -683,7 +789,8 @@ Zeta 修改与新增的部分。按产品面说明：
 
 #### `zetaide` — 终端 IDE（源自 TermIDE）
 
-- **上游**：`termide/termide` tag `0.46.0`，vendored 在 `termide/`，以 `zetaide`
+- **上游**：`termide/termide` tag `0.49.0`
+  （`057eb55e0a7c4ee969982fab62dc83bde028e052`），vendored 在 `termide/`，以 `zetaide`
   命令（`@linxiraos/ide`）发布。
 - **Zeta 的改动**：本分支、`zetaide` 命令与 npm 打包、编辑器载荷处理、主题与品牌适配；
   逐条差异见 `termide/VENDOR.md`。

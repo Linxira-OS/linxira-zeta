@@ -11,8 +11,15 @@ import { parseJsonlLenient } from "@linxiraos/pi-utils/stream";
 import { toError } from "@linxiraos/pi-utils/type-guards";
 import { EVAL_STATE_CONTEXT_TYPE } from "../eval/state";
 import { recoverBackendReplicas } from "./backend-replica-recovery";
+import { normalizeSessionClient, type SessionClient } from "./session-client";
 import { visitEntriesFromFile } from "./session-loader";
 import { computeDefaultSessionDir } from "./session-paths";
+import {
+	excerptTaskText,
+	SESSION_TASK_INTENT_MAX_CHARS,
+	SESSION_TASK_RESULT_MAX_CHARS,
+	type SessionTaskSummary,
+} from "./session-task-summary";
 import { isImSession, isTeamSession, normalizeSessionOrigin, type SessionOrigin } from "./session-origin";
 import { FileSessionStorage, type SessionStorage, type SessionStorageStat } from "./session-storage";
 import { listSessionTitles, lookupSessionTitle, recordSessionTitle, recordSessionTitles } from "./session-index";
@@ -45,6 +52,22 @@ export interface SessionInfo {
 	 * on personal sessions and on transcripts written before the stamp existed.
 	 */
 	origin?: SessionOrigin;
+	/**
+	 * Client that created the session (header stamp). Absent on legacy
+	 * transcripts: unknown, never guessed from cwd or the running process.
+	 */
+	client?: SessionClient;
+	/**
+	 * Client that initiated the latest durable run (`run_init.client`), when the
+	 * scan window contained one. Absent means no recorded run or a legacy file.
+	 */
+	runClient?: SessionClient;
+	/**
+	 * Deterministic latest-task projection from the same bounded window as
+	 * {@link status}. Absent when no reliable window or no message scaling.
+	 * Never an LLM-generated summary and never a borrowed first message.
+	 */
+	taskSummary?: SessionTaskSummary;
 	title?: string;
 	/** Path to the parent session (if this session was forked or spawned as a subagent). */
 	parentSessionPath?: string;
@@ -342,6 +365,96 @@ function parseTurnLine(line: string): Message | undefined {
 	return role === "user" || role === "assistant" ? record.message : undefined;
 }
 
+/** Last message role/status in a bounded window, for a summary when `status` was unknown. */
+function statusFromBoundedEntries(entries: readonly Record<string, unknown>[]): SessionStatus | undefined {
+	for (let index = entries.length - 1; index >= 0; index--) {
+		const entry = entries[index] as { type?: unknown; message?: TailMessage } | undefined;
+		if (entry?.type === "message" && entry.message) return statusFromTailMessage(entry.message);
+	}
+	return undefined;
+}
+
+function timestampOf(entry: unknown): string | undefined {
+	if (typeof entry !== "object" || entry === null) return undefined;
+	const timestamp = (entry as { timestamp?: unknown }).timestamp;
+	return typeof timestamp === "string" && timestamp ? timestamp : undefined;
+}
+
+/**
+ * Latest-task projection from the scan's bounded entries. A clean final turn
+ * yields intent + result; an open/interrupted turn yields intent only; an
+ * unknown window yields nothing. No full-file scan and no LLM call.
+ */
+function buildSessionTaskSummary(
+	entries: readonly Record<string, unknown>[],
+	status: SessionStatus | undefined,
+): SessionTaskSummary | undefined {
+	const effective = status !== undefined && status !== "unknown" ? status : statusFromBoundedEntries(entries);
+	if (effective === undefined || effective === "unknown") return undefined;
+
+	if (effective !== "complete") {
+		let intent: string | undefined;
+		let at: string | undefined;
+		for (let index = entries.length - 1; index >= 0; index--) {
+			const entry = entries[index] as
+				| { type?: unknown; message?: { role?: string; content?: Message["content"] } }
+				| undefined;
+			at ??= timestampOf(entry);
+			if (intent !== undefined || entry?.type !== "message" || entry.message?.role !== "user") continue;
+			intent = excerptTaskText(textContent(entry.message.content ?? "", " "), SESSION_TASK_INTENT_MAX_CHARS);
+		}
+		return {
+			status: "incomplete",
+			...(intent === undefined ? {} : { intent }),
+			...(at === undefined ? {} : { at }),
+			source: "open_turn",
+		};
+	}
+
+	// Complete: the last assistant record is the result; its preceding user
+	// record is the intent of the task that just finished.
+	let assistantIndex = -1;
+	let result: string | undefined;
+	let at: string | undefined;
+	for (let index = entries.length - 1; index >= 0; index--) {
+		const entry = entries[index] as
+			| { type?: unknown; message?: { role?: string; content?: Message["content"] } }
+			| undefined;
+		if (entry?.type !== "message" || entry.message?.role !== "assistant") continue;
+		assistantIndex = index;
+		at = timestampOf(entry);
+		result = excerptTaskText(textContent(entry.message.content ?? "", " "), SESSION_TASK_RESULT_MAX_CHARS);
+		break;
+	}
+	let intent: string | undefined;
+	for (let index = (assistantIndex >= 0 ? assistantIndex : entries.length) - 1; index >= 0; index--) {
+		const entry = entries[index] as
+			| { type?: unknown; message?: { role?: string; content?: Message["content"] } }
+			| undefined;
+		if (entry?.type !== "message" || entry.message?.role !== "user") continue;
+		intent = excerptTaskText(textContent(entry.message.content ?? "", " "), SESSION_TASK_INTENT_MAX_CHARS);
+		break;
+	}
+	return {
+		status: "completed",
+		...(intent === undefined ? {} : { intent }),
+		...(result === undefined ? {} : { result }),
+		...(at === undefined ? {} : { at }),
+		source: "completed_turn",
+	};
+}
+
+/** The newest durable `run_init` record's initiating client in `entries`, if any. */
+function latestRunClient(entries: readonly Record<string, unknown>[]): SessionClient | undefined {
+	for (let index = entries.length - 1; index >= 0; index--) {
+		const entry = entries[index]!;
+		if (entry.type !== "run_init") continue;
+		const client = normalizeSessionClient(entry.client);
+		if (client) return client;
+	}
+	return undefined;
+}
+
 /** The last `model_change`/`model_usage` record's model id in `entries`, if any. */
 function latestModelName(entries: readonly Record<string, unknown>[]): string | undefined {
 	for (let index = entries.length - 1; index >= 0; index--) {
@@ -389,6 +502,7 @@ interface SessionListHeader {
 	id: string;
 	cwd?: string;
 	branch?: string;
+	client?: SessionClient;
 	origin?: SessionOrigin;
 	title?: string;
 	parentSession?: string;
@@ -420,6 +534,7 @@ function sessionListHeaderFromRecord(
 		id: record.id,
 		cwd: typeof record.cwd === "string" ? record.cwd : undefined,
 		branch: typeof record.branch === "string" ? record.branch : undefined,
+		client: normalizeSessionClient(record.client),
 		origin: normalizeSessionOrigin(record.origin),
 		title:
 			titleOverride === null
@@ -440,6 +555,7 @@ function parseSessionListHeaderLine(line: string, titleOverride?: string | null)
 		id,
 		cwd: extractStringProperty(line, "cwd"),
 		branch: extractStringProperty(line, "branch"),
+		client: normalizeSessionClient(extractStringProperty(line, "client")),
 		origin: parseSessionListOrigin(line),
 		title: titleOverride === null ? undefined : (titleOverride ?? extractStringProperty(line, "title")),
 		parentSession: extractStringProperty(line, "parentSession"),
@@ -600,11 +716,15 @@ async function scanSessionFile(
 			}
 		}
 		firstMessage ||= extractFirstDisplayMessageFromPrefix(content) ?? "";
-		// The suffix is the file's tail, so its last model record supersedes any
-		// in the prefix window; fall back to the prefix when the tail has none.
-		const model =
-			(withStatus ? latestModelName(parseJsonlLenient<Record<string, unknown>>(suffix)) : undefined) ??
-			latestModelName(entries);
+		// The suffix is the file's tail, so its last model/run record supersedes
+		// any in the prefix window; fall back to the prefix when the tail has none.
+		const tailEntries = withStatus ? parseJsonlLenient<Record<string, unknown>>(suffix) : undefined;
+		const model = (tailEntries ? latestModelName(tailEntries) : undefined) ?? latestModelName(entries);
+		const runClient = (tailEntries ? latestRunClient(tailEntries) : undefined) ?? latestRunClient(entries);
+		const status = withStatus ? deriveSessionStatus(suffix) : undefined;
+		const taskSummary = withStatus
+			? buildSessionTaskSummary(tailEntries && tailEntries.length > 0 ? tailEntries : entries, status)
+			: undefined;
 		const messageCount = Math.max(parsedMessageCount, countMessageMarkers(content));
 		const info: SessionInfo = {
 			path: file,
@@ -612,6 +732,9 @@ async function scanSessionFile(
 			cwd: header.cwd ?? "",
 			...(header.branch ? { branch: header.branch } : {}),
 			...(header.origin ? { origin: header.origin } : {}),
+			...(header.client ? { client: header.client } : {}),
+			...(runClient ? { runClient } : {}),
+			...(taskSummary ? { taskSummary } : {}),
 			title: header.title ?? shortSummary,
 			parentSessionPath: header.parentSession,
 			...(agent ? { agent } : {}),
@@ -624,7 +747,7 @@ async function scanSessionFile(
 			size,
 			firstMessage: firstMessage || "(no messages)",
 			allMessagesText: allMessages.length > 0 ? allMessages.join(" ") : firstMessage,
-			status: withStatus ? deriveSessionStatus(suffix) : undefined,
+			status,
 		};
 		// The cache keeps its own shallow copy; hits also hand out copies, so
 		// callers can never mutate the shared cached object.
@@ -635,21 +758,19 @@ async function scanSessionFile(
 	}
 }
 
-async function collectSessionsFromFileStride(
-	files: string[],
-	storage: SessionStorage,
-	startIndex: number,
-	stride: number,
-	withStatus: boolean,
-): Promise<SessionInfo[]> {
-	const sessions: SessionInfo[] = [];
-
-	for (let i = startIndex; i < files.length; i += stride) {
-		const session = await scanSessionFile(files[i], storage, withStatus);
-		if (session) sessions.push(session);
-	}
-
-	return sessions;
+/**
+ * `visit` applied to each of `files`, results in `files` order. Large lists
+ * are split across {@link getSessionListWorkerCount} interleaved workers.
+ */
+async function mapSessionFiles<T>(files: string[], visit: (file: string) => Promise<T>): Promise<T[]> {
+	const workerCount = getSessionListWorkerCount(files.length);
+	const results: T[] = [];
+	await Promise.all(
+		Array.from({ length: workerCount }, async (_, worker) => {
+			for (let i = worker; i < files.length; i += workerCount) results[i] = await visit(files[i]);
+		}),
+	);
+	return results;
 }
 
 async function collectSessionsFromFiles(
@@ -657,19 +778,8 @@ async function collectSessionsFromFiles(
 	storage: SessionStorage,
 	withStatus: boolean,
 ): Promise<SessionInfo[]> {
-	const workerCount = getSessionListWorkerCount(files.length);
-	const sessions =
-		workerCount === 1
-			? await collectSessionsFromFileStride(files, storage, 0, 1, withStatus)
-			: (
-					await Promise.all(
-						Array.from({ length: workerCount }, (_, workerIndex) =>
-							collectSessionsFromFileStride(files, storage, workerIndex, workerCount, withStatus),
-						),
-					)
-				).flat();
-
-	return sessions.sort(compareNewestFirst);
+	const sessions = await mapSessionFiles(files, file => scanSessionFile(file, storage, withStatus));
+	return sessions.filter(session => session !== undefined).sort(compareNewestFirst);
 }
 
 /** Newest `modified` first; ties break on `created`, then path, so every listing orders alike. */
@@ -1533,13 +1643,50 @@ async function continuationsAfter(
 		return name !== undefined && name.createdAt >= after && path.resolve(file) !== self;
 	});
 	const continuations = new Map<string, SessionInfo[]>();
-	for (const session of await collectSessionsFromFiles(later, storage, false)) {
+	const linked = await filterContinuationFiles(later, storage);
+	for (const session of await collectSessionsFromFiles(linked, storage, false)) {
 		if (!session.continuationOf) continue;
 		const siblings = continuations.get(session.continuationOf);
 		if (siblings) siblings.push(session);
 		else continuations.set(session.continuationOf, [session]);
 	}
 	return continuations;
+}
+
+/**
+ * The files among `files` whose header names a session in `continuationOf`.
+ * Reads only the prefix {@link scanSessionFile} takes the header from, never
+ * the rest of the file. A file found not to continue anything is cached under
+ * its stat identity.
+ */
+async function filterContinuationFiles(files: string[], storage: SessionStorage): Promise<string[]> {
+	const cache = getSessionScanCache(storage);
+	const continues = async (file: string): Promise<boolean> => {
+		let stat: SessionStorageStat;
+		try {
+			stat = storage.statSync(file);
+		} catch {
+			return false;
+		}
+		for (const key of [`h\0${file}`, `s\0${file}`, `c\0${file}`]) {
+			const cached = cache.get(key);
+			if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+				return cached.info?.continuationOf !== undefined;
+			}
+		}
+		let content: string;
+		try {
+			[content] = await storage.readTextSlices(file, SESSION_LIST_PREFIX_BYTES, 0);
+		} catch {
+			return false;
+		}
+		const header = parseSessionListHeader(content, parseJsonlLenient<Record<string, unknown>>(content));
+		if (header?.continuationOf !== undefined) return true;
+		cache.set(`c\0${file}`, { mtimeMs: stat.mtimeMs, size: stat.size, info: undefined });
+		return false;
+	};
+	const keep = await mapSessionFiles(files, continues);
+	return files.filter((_, i) => keep[i]);
 }
 
 /** {@link lastActivity}, read once per session file. */

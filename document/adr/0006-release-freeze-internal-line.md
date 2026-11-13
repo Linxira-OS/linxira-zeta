@@ -1,9 +1,9 @@
 # 0006. Freeze publishing on the 1.5 internal build line; 1.6.0 is the next public release
 
-- **Status:** Accepted
+- **Status:** Superseded by [0033](0033-1-5-2-owner-asset-review.md)
 - **Date:** 2026-11-11
 - **Deciders:** Zeta owner (release-scope ruling; corrected the same day to keep code-only 1.5 tags)
-- **Links:** [release process](../release.md), [npm publish surface](../agents/workflow/release-publish.md), policy [code](../../scripts/release-policy.ts), [guard test](../../scripts/release-freeze.test.ts)
+- **Links:** [0033 owner-review asset exception](0033-1-5-2-owner-asset-review.md), [release process](../release.md), [npm publish surface](../agents/workflow/release-publish.md), policy [code](../../scripts/release-policy.ts), [guard test](../../scripts/release-freeze.test.ts)
 
 ## Context
 

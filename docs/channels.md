@@ -10,15 +10,34 @@ This page is the CLI/hosting surface. Binding and routing vocabulary is
 defined in [agent-modes.md](./agent-modes.md); the chat command grammar is in
 [remote-workspaces.md](./remote-workspaces.md).
 
+## Local configuration and credentials
+
+Each account is a separate `channels.instances` entry with its own note,
+credentials, allowlist and reconnect tokens. Instance and chat-binding patches
+read the latest file while holding the configuration lock; concurrent writers
+patching different accounts or fields preserve each other's changes. Whole-array
+replacements remain replacements. Masked form saves resolve unchanged secrets
+against the latest stored values under that same lock.
+
+IM credentials and reconnect tokens are **plaintext on disk** in `web.yml`.
+Atomic writes and legacy-migration backups use POSIX mode `0600`. On Windows,
+protection depends on inherited directory ACLs; this does not establish an
+exclusive per-file ACL or encryption. API configuration/status reads mask
+credential values and reconnect tokens, but anyone able to read the file or
+its backups can read the secrets. Protect the agent directory and backups with
+OS access controls, and rotate platform credentials after suspected disclosure.
+There is no automatic migration into the provider credential vault.
+
 ## Status
 
 | Area                                 | Status                        | Where it stands                                                                                                                                                                                                                                                                                                                                                          |
 | ------------------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | WeChat / Feishu / Telegram adapters  | **IMPLEMENTED**               | Real server adapters in `packages/channels/src/{wechat,feishu,telegram}.ts`, hosted by the CLI/TUI session and `zetacode serve` from one runtime. The desktop shell and GUI settings page read/write the same `web.yml`.                                                                                                                                                 |
 | Discord adapter                      | **IMPLEMENTED**               | Official Bot API (Gateway v10 + REST) in `packages/channels/src/discord.ts`: guild channels and DMs, @mention/reply trigger, slash `/help` + `/status`, attachments, split at 2 000 chars, 429 handling, resume/reconnect.                                                                                                                                               |
-| QQ adapter (OneBot v11)              | **IMPLEMENTED**               | Generic OneBot v11 client in `packages/channels/src/onebot.ts`: forward or reverse WebSocket, Bearer token, group/private, images, `echo` correlation, reconnect and `get_status` health. **No bridge is bundled**; the user runs NapCat / LLBot / SnowLuma.                                                                                                             |
-| TIM adapter                          | **PLANNED** — not implemented | No TIM/Tencent-IM adapter exists in the tree; only the three adapters above are compiled in.                                                                                                                                                                                                                                                                             |
-| Channel + chat → agent target        | **IMPLEMENTED**               | In `serve`, each channel+chat resolves to exactly one target: `@agent use` override, active bot session/project, persisted workspace binding, channel-default workspace, else the relay coordinator (the default-workspace bot). See [Remote Workspaces & IM Relay](./remote-workspaces.md).                                                                             |
+| QQ adapter (OneBot v11)              | **IMPLEMENTED CODE / OWNER-PAUSED (2026-11-12)** | Generic OneBot v11 client in `packages/channels/src/onebot.ts` is retained unchanged: forward or reverse WebSocket, Bearer token, group/private, images, `echo` correlation, reconnect and `get_status` health. **No bridge is bundled or auto-installed; there is no official QQ Bot API adapter and no live validation.** Not recommended or supported, and not a release asset; see [ADR-0035](../document/adr/0035-pause-qq-wecom-channels.md). |
+| WeCom / 企业微信 adapter             | **NOT IMPLEMENTED / OWNER-PAUSED (2026-11-12)** | No WeCom adapter, callback, long connection, or webhook/group-robot support exists in the tree. Both WeCom interface families require IP/enterprise/developer/user-admission allowlists; Feishu is the existing enterprise channel. See [ADR-0035](../document/adr/0035-pause-qq-wecom-channels.md). |
+| TIM adapter                          | **PLANNED** — not implemented | No TIM/Tencent-IM adapter exists in the tree; the WeChat/Feishu/Telegram/Discord/QQ adapters are compiled in, but TIM has no code. |
+| Channel + chat → agent target        | **IMPLEMENTED**               | In `serve`, each channel+chat resolves to exactly one target: `!agent use` override, active bot session/project, persisted workspace binding, channel-default workspace, else the relay coordinator (the default-workspace bot). See [Remote Workspaces & IM Relay](./remote-workspaces.md).                                                                             |
 | Relay answers only unbound chats     | **IMPLEMENTED**               | The relay coordinator is the fallback; a chat with any project/workspace/agent binding is not answered by the default workspace, and an unopenable binding returns an error instead of falling back.                                                                                                                                                                     |
 | Allowlist, dedupe, reply correlation | **IMPLEMENTED**               | `channels.allowedPeers` gate (`packages/channels/src/auth.ts`), durable per-channel message-id dedupe (`seen-store.ts`), and per-message reply correlation (`reply-correlator.ts`) are wired into every host.                                                                                                                                                            |
 | Local IM session visibility          | **IMPLEMENTED**               | IM/bot/relay transcripts are stamped with `SessionHeader.origin`. Studio, the resume picker, and `history.list` hide IM conversations by default; Work Studio History exposes an explicit **IM / Bot** (`includeIm`) view, and IM rows show the workspace alias or `IM · <channel>` instead of an absolute cwd. See [session origin](./session.md#header-sessionheader). |
@@ -219,7 +238,16 @@ guild channels must @mention the bot or reply to one of its messages; DMs do
 not. Slash commands `/help` and `/status` answer ephemerally and never start a
 turn.
 
-### QQ over OneBot v11 (bring your own bridge)
+### QQ over OneBot v11 (bring your own bridge; owner-paused)
+
+> **Owner pause (2026-11-12).** The OneBot v11 client is retained in the tree
+> but is **not supported or recommended for production**. Zeta does not bundle,
+> download, or auto-install a bridge, does not provide an official QQ Bot API
+> (QQ Open Platform) adapter, and has no live bridge validation. Third-party
+> bridge availability is not guaranteed and any account risk stays with the
+> user. QQ is not a release asset; see
+> [ADR-0035](../document/adr/0035-pause-qq-wecom-channels.md). The material
+> below documents the retained code, not a support commitment.
 
 Zeta implements the MIT-licensed [OneBot v11](https://github.com/botuniverse/onebot-11)
 protocol only. It does **not** bundle, download, or auto-install a bridge, and
@@ -231,7 +259,7 @@ it never handles QQ login/QR or reads local QQ data. Run a bridge yourself:
 | [LLBot (LLOneBot)](https://github.com/LLOneBot/LuckyLilliaBot) | standalone                    | GPL-2.0                                                                    | OneBot 11 + Satori + Milky                                                      |
 | SnowLuma (community mirror: [TomyJan/SnowLuma](https://github.com/TomyJan/SnowLuma))               | injects the desktop QQ client | source-available non-commercial EULA + proprietary native binaries         | newest and least stable; the official repository is currently unreachable, so do not rely on it for production                       |
 
-Forward mode (Zeta dials the bridge's OneBot WebSocket) is the default:
+In the retained code, forward mode (Zeta dials the bridge's OneBot WebSocket) is the default transport:
 
 ```sh
 zetacode channels login qq --endpoint ws://127.0.0.1:3001 --token <access-token>
@@ -259,6 +287,16 @@ channels:
 Group messages only start a turn when the bot is @mentioned; private chats are
 accepted from every allowlisted user. Peers are namespaced `group:<id>` /
 `user:<id>` so a group and a user with the same number never collide.
+
+### WeCom / 企业微信 (not implemented; owner-paused)
+
+There is **no WeCom adapter** in the tree: no encrypted callback listener, no
+long connection, and no group-robot/webhook support. Both WeCom interface
+families require IP, enterprise, developer, and user-admission allowlists,
+which makes practical availability worse than Feishu. **Feishu / Lark is the
+existing enterprise channel.** The pause is recorded in
+[ADR-0035](../document/adr/0035-pause-qq-wecom-channels.md); no WeCom
+implementation should be inferred from the QQ/OneBot surface.
 
 ## `logout`, `enable`, `disable`
 
@@ -386,7 +424,7 @@ zetacode -p "check the build"
 # Validate a Discord bot token, then save it
 zetacode channels login discord --token MTIz…
 
-# Validate an OneBot bridge endpoint (NapCat/LLBot/SnowLuma)
+# Validate a retained, unsupported OneBot bridge endpoint (owner-paused)
 zetacode channels login qq --endpoint ws://127.0.0.1:3001 --token abc
 
 # Forget the WeChat pairing

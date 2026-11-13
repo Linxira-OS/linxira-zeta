@@ -22,6 +22,10 @@ function pasteRecords(text: string): string {
 	return [...text].map(char => `\x1b[231;0;${char.charCodeAt(0)};1;0;1_`).join("");
 }
 
+function relayRecords(text: string): string[] {
+	return [...text].map(char => `\x1b[0;0;${char.charCodeAt(0)};1;0;1_`);
+}
+
 function decodeOne(data: string): string {
 	const keys = new Win32InputModeDecoder().decode(data);
 	expect(keys).toHaveLength(1);
@@ -296,6 +300,39 @@ describe("ProcessTerminal win32-input-mode fallback", () => {
 		expect(recorder.received).toEqual(["a"]);
 	});
 
+	it.each([
+		["Escape", 1, () => vi.advanceTimersToNextTimer()],
+		["string", 9, () => vi.advanceTimersByTime(5000)],
+	])(
+		"keeps a relayed TSP event intact when a stalled %s timer fires before its queued tail",
+		async (_, split, stall) => {
+			const delivered: string[] = [];
+			harness = createProcessTerminalRenderHarness(
+				100,
+				30,
+				{ conpty: true, nativeWindowsConsole: false },
+				undefined,
+				data => delivered.push(data),
+			);
+			const recorder = new InputRecorder();
+			harness.tui.addChild(recorder);
+			harness.tui.setFocus(recorder);
+			await harness.settle();
+			await harness.feed("\x1b[?1;0c");
+
+			const event = relayRecords('\x1b]877;tsp;e;{"ev":"ack","sf":"s:1","s":12}\x07');
+			process.stdin.emit("data", event.slice(0, split).join(""));
+			// The flush timer comes due during the stall, before stdin delivers the rest of the record.
+			stall();
+			process.stdin.emit("data", event.slice(split).join(""));
+			await harness.settle();
+			await harness.feed("\x1b[65;30;97;1;0;1_");
+
+			expect(recorder.received).toEqual(["a"]);
+			expect(delivered).toEqual(['\x1b_tsp;e;{"ev":"ack","sf":"s:1","s":12}\x1b\\', "a"]);
+		},
+	);
+
 	it("keeps a relayed TSP event out of the composer when a stdin read splits one of its records", async () => {
 		harness = createProcessTerminalRenderHarness(100, 30, { conpty: true, nativeWindowsConsole: false });
 		const recorder = new InputRecorder();
@@ -331,6 +368,19 @@ describe("ProcessTerminal win32-input-mode fallback", () => {
 		expect(recorder.received).toEqual([]);
 		vi.advanceTimersByTime(100);
 		expect(recorder.received).toEqual(["\x1b]"]);
+	});
+
+	it("delivers a lone relayed Escape after the flush window when no tail arrives", async () => {
+		harness = createProcessTerminalRenderHarness(100, 30, { conpty: true, nativeWindowsConsole: false });
+		const recorder = new InputRecorder();
+		harness.tui.addChild(recorder);
+		harness.tui.setFocus(recorder);
+		await harness.settle();
+		await harness.feed("\x1b[?1;0c");
+
+		process.stdin.emit("data", "\x1b[0;0;27;1;0;1_");
+		vi.advanceTimersByTime(100);
+		expect(recorder.received).toEqual(["\x1b"]);
 	});
 
 	it("prefers a late kitty reply and turns win32-input-mode back off", async () => {
@@ -404,6 +454,60 @@ describe("ProcessTerminal win32-input-mode fallback", () => {
 		normalizer.process(prefix.slice(8) + SHIFT_ENTER);
 		normalizer.flush();
 		expect(emitted.join("")).toBe(prefix + SHIFT_ENTER);
+	});
+
+	it("gives a stalled tail one poll pass before releasing a held marker", () => {
+		vi.useFakeTimers();
+		try {
+			const emitted: string[] = [];
+			const normalizer = new Win32PasteMarkerNormalizer(data => emitted.push(data));
+			const prefix = pasteRecords("\x1b[20");
+			normalizer.process(prefix.slice(0, 8));
+			// The record tail is queued behind an event-loop stall: the first
+			// expiry must not release the head as raw key records.
+			vi.advanceTimersByTime(75);
+			normalizer.process(prefix.slice(8) + SHIFT_ENTER);
+			normalizer.flush();
+			expect(emitted.join("")).toBe(prefix + SHIFT_ENTER);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("resets a leaked win32-input-mode and enables focus reporting on attach", async () => {
+		harness = createProcessTerminalRenderHarness(100, 30, { conpty: true, nativeWindowsConsole: true });
+		await harness.settle();
+		const out = harness.writes.join("");
+		expect(out).toContain("\x1b[?9001l");
+		expect(out).toContain("\x1b[?1004h");
+	});
+
+	it("decodes a record left queued by a previous process before the mode is requested", async () => {
+		harness = createProcessTerminalRenderHarness(100, 30, { conpty: true, nativeWindowsConsole: true });
+		const recorder = new InputRecorder();
+		harness.tui.addChild(recorder);
+		harness.tui.setFocus(recorder);
+		await harness.settle();
+
+		// No DA1/kitty reply: the fallback has not sent ?9001h yet. A record can
+		// still arrive from a leaked previous session, and must decode.
+		await harness.feed("\x1b[65;30;97;1;0;1_");
+		expect(recorder.received).toEqual(["a"]);
+	});
+
+	it("re-asserts input modes on focus-in without typing the report", async () => {
+		harness = createProcessTerminalRenderHarness(100, 30, { conpty: true, nativeWindowsConsole: true });
+		const recorder = new InputRecorder();
+		harness.tui.addChild(recorder);
+		harness.tui.setFocus(recorder);
+		await harness.settle();
+		harness.writes.length = 0;
+
+		await harness.feed("\x1b[I");
+		expect(recorder.received).toEqual([]);
+		const out = harness.writes.join("");
+		expect(out).toContain("\x1b[?1004h");
+		expect(out).toContain("\x1b[?2004h");
 	});
 
 	it("does not request win32-input-mode when the console is served by sshd (#14034)", async () => {

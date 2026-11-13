@@ -67,14 +67,18 @@ export interface MnemopiBackendConfig {
 	llmModel?: string;
 }
 
-export function loadMnemopiConfig(settings: Settings, agentDir: string): MnemopiBackendConfig {
+export function loadMnemopiConfig(
+	settings: Settings,
+	agentDir: string,
+	memoryNamespace?: string,
+): MnemopiBackendConfig {
 	const configuredDbPath = cfgMnemopiDbPath.get(settings);
 	const cwd = settings.getCwd();
 	const scoping = cfgMnemopiScoping.get(settings);
 	const dbPath = configuredDbPath?.trim()
 		? expandTilde(configuredDbPath.trim())
 		: path.join(getMemoriesDir(agentDir), "mnemopi", "mnemopi.db");
-	const scope = computeMnemopiBankScope(cfgMnemopiBank.get(settings), cwd, scoping);
+	const scope = computeMnemopiBankScope(cfgMnemopiBank.get(settings), cwd, scoping, memoryNamespace);
 	const recallBanks =
 		scoping === "global" ? scope.recallBanks : extendRecallWithLegacyBanks(scope.recallBanks, dbPath, cwd);
 	const llmMode = cfgMnemopiLlmMode.get(settings);
@@ -153,7 +157,15 @@ export function computeMnemopiBankScope(
 	configured: string | undefined,
 	cwd: string,
 	scoping: MnemopiScoping,
+	memoryNamespace?: string,
 ): MnemopiBankScope {
+	if (memoryNamespace !== undefined && memoryNamespace.trim().length > 0) {
+		// A per-agent namespace owns every mode: an agent's memory is never the
+		// shared global bank and never another project's bank.
+		const label = sanitizeBankName(memoryNamespace) ?? "agent";
+		const bank = limitBankName(`${label}-${Bun.hash(memoryNamespace).toString(36)}`);
+		return { baseBank: bank, bank, globalBank: bank, retainBank: bank, recallBanks: [bank] };
+	}
 	const project = projectBank(configured, cwd);
 	const globalBank = sharedBank(configured);
 	switch (scoping) {

@@ -36,6 +36,7 @@ const CATEGORY_ORDER: readonly ContextUsageCategoryId[] = [
 	"systemPrompt",
 	"systemTools",
 	"systemContext",
+	"instructionFiles",
 	"skills",
 	"messages",
 ];

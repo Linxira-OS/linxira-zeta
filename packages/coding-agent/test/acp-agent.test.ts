@@ -227,6 +227,10 @@ class FakeAgentSession {
 		return ["low", "medium", "high"];
 	}
 
+	getEnabledToolNames(): string[] {
+		return [];
+	}
+
 	setThinkingLevel(level: string | undefined): void {
 		const isChanging = this.thinkingLevel !== level;
 		this.thinkingLevel = level;

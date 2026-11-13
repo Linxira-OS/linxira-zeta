@@ -87,6 +87,7 @@
 - **远程文件系统** - 纯 Rust 实现的 SFTP、FTP 和 FTPS，可在本地与远程面板之间复制；`smb://` 和 `nfs://` 通过系统挂载访问
 - **后台操作** - 复制、移动、上传和下载，带进度显示，支持暂停、恢复和取消
 - **数据库查看器** - 通过书签 URL 打开 SQLite、PostgreSQL 和 MySQL：服务端排序、按列过滤、单元格编辑，整行导出为 TSV、JSON 或 INSERT
+- **CSV 与 TSV 表格** - 以可排序表格显示分隔符文件，自动猜测分隔符和标题行；按窗口从磁盘读取，任意大小的文件都能立即打开
 - **密码保险库** - 远程主机、数据库和 git 的密码保存在由主密码保护的加密保险库中
 - **书签与目录切换器** - 保存常用位置，使用 `Ctrl+\` 快速切换目录
 
@@ -101,7 +102,7 @@
 ### 工作区
 
 - **Git** - 状态、带彩色提交图的日志、差异、暂存、stash、blame、分支及其工作树
-- **项目** - 按项目恢复面板布局；切换离开的项目在后台继续运行，并以按钮形式显示在菜单栏中；`termide --restore` 重新打开上次运行的项目
+- **项目** - 按项目恢复面板布局；切换离开的项目在后台继续运行，并以按钮形式显示在菜单栏中；启动时会围绕启动目录重新打开上次运行的项目
 - **多面板布局** - 高度可调的面板组、全屏切换（`Alt+F11`），终端变窄时自动堆叠
 - **自定义命令** - 全局或项目级命令，支持快捷键、参数表单以及终端 / 后台 / 报告模式
 - **插件** - 全局插件目录中的程序，通过 JSON-RPC 在每个打开的项目旁运行：接收文件打开和保存事件，添加命令、状态栏项和智能体工具；项目只能在你设定的模式内开关它们
@@ -156,37 +157,37 @@ nix run github:termide/termide                     # Nix，无需安装
 
 ```bash
 # Linux x86_64（也适用于 WSL）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-x86_64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.49.0-x86_64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux x86_64（静态 musl — Alpine、distroless 容器、任何无 glibc 的系统）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.49.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # macOS Intel (x86_64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-apple-darwin.tar.gz
-tar xzf termide-0.46.0-x86_64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.49.0-x86_64-apple-darwin.tar.gz
+tar xzf termide-0.49.0-x86_64-apple-darwin.tar.gz
 ./termide
 
 # macOS Apple Silicon (ARM64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-apple-darwin.tar.gz
-tar xzf termide-0.46.0-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.49.0-aarch64-apple-darwin.tar.gz
+tar xzf termide-0.49.0-aarch64-apple-darwin.tar.gz
 ./termide
 
 # Linux ARM64（树莓派、ARM 服务器）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.46.0-aarch64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-aarch64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.49.0-aarch64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux ARM64（静态 musl —— Android/Termux、Alpine ARM、任何无 glibc 的 ARM64）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.49.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 
 # Windows x86_64（从 Releases 下载 .zip，解压后在 Windows Terminal 中运行）
-# https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-pc-windows-msvc.zip
+# https://github.com/termide/termide/releases/latest/download/termide-0.49.0-x86_64-pc-windows-msvc.zip
 ```
 
 </details>
@@ -197,14 +198,14 @@ tar xzf termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
 Termide 通过 ConPTY 在 Windows 10+ 上原生运行。建议使用 **Windows Terminal**
 以获得最佳体验。
 
-1. 从 [GitHub Releases](https://github.com/termide/termide/releases) 下载 `termide-0.46.0-x86_64-pc-windows-msvc.zip`。
+1. 从 [GitHub Releases](https://github.com/termide/termide/releases) 下载 `termide-0.49.0-x86_64-pc-windows-msvc.zip`。
 2. 解压压缩包。
 3. 在 Windows Terminal 中运行 `termide.exe`。
 
 配置、项目布局和日志均位于 `%APPDATA%\termide\`。
 
 或者在 **WSL/WSL2** 中，像在任意 Linux 上一样使用 Linux x86_64 构建
-（`termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz`）。
+（`termide-0.49.0-x86_64-unknown-linux-gnu.tar.gz`）。
 
 </details>
 
@@ -215,8 +216,8 @@ Termide 通过 ConPTY 在 Windows 10+ 上原生运行。建议使用 **Windows T
 
 ```bash
 # 仅限 x86_64（ARM64 请使用上面的 tar.gz）
-wget https://github.com/termide/termide/releases/latest/download/termide_0.46.0-1_amd64.deb
-sudo dpkg -i termide_0.46.0-1_amd64.deb
+wget https://github.com/termide/termide/releases/latest/download/termide_0.49.0-1_amd64.deb
+sudo dpkg -i termide_0.49.0-1_amd64.deb
 ```
 
 </details>
@@ -228,8 +229,8 @@ sudo dpkg -i termide_0.46.0-1_amd64.deb
 
 ```bash
 # 仅限 x86_64（ARM64 请使用上面的 tar.gz）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-1.x86_64.rpm
-sudo rpm -i termide-0.46.0-1.x86_64.rpm
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-1.x86_64.rpm
+sudo rpm -i termide-0.49.0-1.x86_64.rpm
 ```
 
 </details>
@@ -300,8 +301,8 @@ nix profile install github:termide/termide
 
 ```bash
 pkg install git openssh   # termide 会调用的工具（以及所需的 LSP 服务器）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.49.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 ```
 
@@ -360,8 +361,8 @@ russh-sftp —— 无 OpenSSL、无 libssh2），因此这与普通构建是相�
 最简单的方式是从发行版下载预编译的 tarball：
 
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.49.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.49.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # 验证完全静态 —— 无共享库
@@ -395,16 +396,18 @@ termide [OPTIONS] [FILE]...
 选项:
   --log-level <LEVEL>  设置日志级别（trace、debug、info、warn、error）
   --no-lsp             禁用 LSP 语言服务器
-  -r, --restore        在上次运行所在的项目中重新打开上次运行的项目
+  -r, --restore        从上次运行所在的项目开始，而不是当前目录
+  --no-restore         本次只打开当前目录的项目
   --config <PATH>      使用自定义配置文件路径
   --diagnostics        运行启动前诊断并退出（无 UI）
-  --detached           启动一个在终端关闭后仍继续运行的可分离实例，并打印其 ID
+  -d, --detached       启动一个在终端关闭后仍继续运行的可分离实例，并接入它
                        （仅限 Unix）
+  --no-attach          与 --detached 连用：只启动实例并打印其 ID
   --attach [<ID>]      接入某个可分离实例，省略时接入最近的一个
   -f, --force          与 --attach 连用：从已接入的客户端接管该实例，
                        并使该客户端分离
   --kill <ID>          结束某个可分离实例及其中所有 shell 和任务后退出；
-                       其中未保存的更改将丢失
+                       其中未保存的更改会保留到下次启动
   --list-instances     列出可分离实例并退出
   --completions <SHELL>
                        打印补全脚本（bash、zsh、fish）并退出
@@ -490,6 +493,7 @@ project_retention_days = 30
 bell_on_operation_complete = true
 icon_mode = "auto"  # auto, emoji, unicode
 always_detachable = false  # 实例在终端关闭后继续运行（仅限 Unix）
+restore_projects = true  # 启动时重新打开上次运行的项目
 resource_monitor_interval = 1000
 
 [editor]

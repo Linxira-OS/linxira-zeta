@@ -456,13 +456,7 @@ function extractTodoEntries(phases: unknown[]): Array<{ content: string; status:
 }
 
 function isTodoStatus(status: unknown): status is TodoStatus {
-	return (
-		status === "pending" ||
-		status === "in_progress" ||
-		status === "completed" ||
-		status === "abandoned" ||
-		status === "blocked"
-	);
+	return status === "pending" || status === "in_progress" || status === "completed" || status === "abandoned";
 }
 export function buildToolCallStartUpdate(input: {
 	toolCallId: string;

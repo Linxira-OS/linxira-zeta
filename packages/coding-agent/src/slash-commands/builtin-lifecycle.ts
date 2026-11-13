@@ -25,7 +25,7 @@ import {
 } from "../session/session-worktree";
 import { formatShakeSummary, type ShakeMode } from "../session/shake-types";
 import { discoverTitleSystemPromptFile, resolvePromptInput } from "../system-prompt";
-import { resolveToCwd } from "../tools/path-utils";
+import { resolveShellDirectory, resolveToCwd } from "../tools/path-utils";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import { shutdownHandlerTui } from "./helpers/shutdown";
 import { handleSshAcp } from "./helpers/ssh";
@@ -777,10 +777,11 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		acpDescription: () => M.cmdCdAcp,
 		inlineHint: "[<path>]",
 		allowArgs: true,
+		argumentCompletionOnly: true,
 		handle: async (command, runtime) => {
 			if (!command.args) return usage("Usage: /cd <path>", runtime);
 			if (runtime.session.isStreaming) return usage("Cannot change directory while streaming.", runtime);
-			const resolvedPath = resolveToCwd(command.args, runtime.cwd);
+			const resolvedPath = resolveShellDirectory(command.args, runtime.cwd);
 			try {
 				const stat = await fs.stat(resolvedPath);
 				if (!stat.isDirectory()) return usage(`Not a directory: ${resolvedPath}`, runtime);
@@ -802,7 +803,8 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 			clearSubmittedText(runtime);
 			const target = command.args.trim();
 			// `/cd <path>` moves directly; a bare `/cd` opens the folder picker.
-			if (target) await runtime.ctx.handleMoveCommand(target);
+			// `/cd` never creates a directory: TUI, headless and ACP agree.
+			if (target) await runtime.ctx.handleMoveCommand(target, { allowCreate: false });
 			else await runtime.ctx.showDirectoryPicker();
 		},
 	},
@@ -816,14 +818,31 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		handle: async (command, runtime) => {
 			if (runtime.session.isStreaming) return usage("Cannot move while streaming.", runtime);
 			if (!command.args) return usage("Usage: /move <path>", runtime);
-			const resolvedPath = resolveToCwd(command.args, runtime.cwd);
+			const resolvedPath = resolveShellDirectory(command.args, runtime.cwd);
+			let exists = false;
 			try {
 				const stat = await fs.stat(resolvedPath);
-				if (!stat.isDirectory()) {
-					return usage(`Not a directory: ${resolvedPath}`, runtime);
-				}
+				exists = true;
+				if (!stat.isDirectory()) return usage(`Not a directory: ${resolvedPath}`, runtime);
 			} catch {
-				return usage(`Directory does not exist: ${resolvedPath}`, runtime);
+				// Missing target: /move may create it, matching the TUI.
+			}
+			if (!exists) {
+				const parentDir = path.dirname(resolvedPath);
+				let parentExists = false;
+				try {
+					parentExists = (await fs.stat(parentDir)).isDirectory();
+				} catch {
+					parentExists = false;
+				}
+				if (!parentExists) {
+					return usage(`Cannot create "${path.basename(resolvedPath)}": parent directory does not exist`, runtime);
+				}
+				try {
+					await fs.mkdir(resolvedPath, { recursive: true });
+				} catch (error) {
+					return usage(`Failed to create directory: ${errorMessage(error)}`, runtime);
+				}
 			}
 			const failure = await relocateHeadlessSession(runtime, resolvedPath);
 			if (failure) return failure;

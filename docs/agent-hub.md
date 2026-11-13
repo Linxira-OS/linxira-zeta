@@ -30,6 +30,8 @@ The roster updates from the session's agent registry and progress events. Its re
 - assigned task or current activity;
 - cost, active time or elapsed span, request count, tool-call count, and tokens.
 
+Registry changes (spawn, status, removal), lifecycle/message events and the live IRC mailbox generation refresh the picker immediately; only high-frequency streaming progress keeps the row-count-scaled coalescing window (up to 1 s on a 500+ roster). Unread counts come from the mailbox generation stamp plus its change wake-up, even when an undelivered message produced no roster event.
+
 The header aggregates status and usage across measured agents. Press `t` to switch between the operationally ordered flat roster and a parent/child tree. Press `/` to filter agents by id or display name.
 
 On a wide terminal, the selected agent's inspector appears beside the roster. On a narrow terminal, press `Tab` to replace the roster with it. The inspector adds:

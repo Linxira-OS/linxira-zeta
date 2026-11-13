@@ -2,7 +2,8 @@ import {
 	buildMemoryToolDeveloperInstructions,
 	clearMemoryData,
 	clearMemoryToolDeveloperInstructionsCache,
-	enqueueMemoryConsolidation,
+	enqueueLocalMemory,
+	learnMemoryWindow,
 	saveLearnedLesson,
 	startMemoryStartupTask,
 } from "../memories";
@@ -21,6 +22,7 @@ export const localBackend: MemoryBackend = {
 	start(options) {
 		startMemoryStartupTask(options);
 	},
+	learnWindow: learnMemoryWindow,
 	async buildDeveloperInstructions(agentDir, cwd, settings, session) {
 		return buildMemoryToolDeveloperInstructions(agentDir, cwd, settings, session);
 	},
@@ -28,11 +30,16 @@ export const localBackend: MemoryBackend = {
 		clearMemoryToolDeveloperInstructionsCache(session);
 		await clearMemoryData(agentDir, cwd);
 	},
-	async enqueue(agentDir, cwd) {
-		enqueueMemoryConsolidation(agentDir, cwd);
+	async enqueue(agentDir, cwd, session) {
+		await enqueueLocalMemory(agentDir, cwd, session);
 	},
 	async save(context, input) {
-		return saveLearnedLesson(context.agentDir, context.cwd, input);
+		return saveLearnedLesson(
+			context.agentDir,
+			context.cwd,
+			input,
+			context.session?.sessionManager?.getMemoryNamespace?.(),
+		);
 	},
 	async status() {
 		return {

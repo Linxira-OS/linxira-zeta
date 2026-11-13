@@ -28,7 +28,10 @@ describe("zetacode read skill resources", () => {
 		await removeWithRetries(root);
 	});
 
-	async function runReadProbe(skillUrl: string): Promise<{ exitCode: number; output: string; error: string }> {
+	async function runReadProbe(
+		skillUrl: string,
+		extraEnv: Record<string, string> = {},
+	): Promise<{ exitCode: number; output: string; error: string }> {
 		const probePath = path.join(root, "probe.ts");
 		await Bun.write(
 			probePath,
@@ -47,6 +50,7 @@ describe("zetacode read skill resources", () => {
 				USERPROFILE: root,
 				NO_COLOR: "1",
 				ZETA_CODING_AGENT_DIR: agentDir,
+				...extraEnv,
 			},
 		});
 		const stdout = new Response(proc.stdout).text();
@@ -118,7 +122,10 @@ describe("zetacode read skill resources", () => {
 		await fs.mkdir(path.join(projectDir, ".claude"), { recursive: true });
 		await Bun.write(path.join(projectDir, ".claude", "settings.json"), JSON.stringify({ extensions: ["./ext-pkg"] }));
 
-		const { exitCode, output, error } = await runReadProbe("skill://ext-skill");
+		// `.claude/settings.json` is a foreign project source; approve it for this fixture.
+		const { exitCode, output, error } = await runReadProbe("skill://ext-skill", {
+			ZETA_FOREIGN_PROJECT_SOURCES: "claude",
+		});
 
 		expect(exitCode).toBe(0);
 		expect(output).toContain("# Extension Skill");

@@ -226,6 +226,10 @@ export interface SessionHistoryEntry {
   readonly threadId: ThreadId;
   readonly environmentId: EnvironmentId;
   readonly sessionId?: SessionId;
+  /** Canonical cwd identity; optional for older Hosts. Never a path. */
+  readonly workspaceId?: WorkspaceId;
+  /** Full directory basename; never an absolute cwd or session path. */
+  readonly workspaceName?: string;
   /** Safe persisted title; absent while native OMP still considers the session untitled. */
   readonly title?: string;
   /** Safe summary snippet; never a path. */
@@ -273,6 +277,8 @@ export interface RecentThread {
   readonly threadId: ThreadId;
   /** Absent until native OMP persists a session title. */
   readonly title?: string;
+  readonly workspaceId?: WorkspaceId;
+  readonly workspaceName?: string;
   readonly lastActiveAt: string;
 }
 
@@ -285,7 +291,7 @@ export interface WorkspaceRecord {
   readonly workspaceId: WorkspaceId;
   /** Basename only. Never a path. */
   readonly name: string;
-  readonly lastOpenedAt: string;
+  readonly lastOpenedAt: string | null;
   readonly active: boolean;
 }
 
@@ -293,6 +299,8 @@ export interface WorkspaceRecord {
 export interface WorkspaceListReadModel {
   readonly workspaces: ReadonlyArray<WorkspaceRecord>;
   readonly activeWorkspaceId?: WorkspaceId;
+  /** Coordinator/default workspace, independent of renderer selection. */
+  readonly defaultWorkspaceId?: WorkspaceId;
 }
 
 /** A workspace-relative Explorer node. Absolute paths never cross the Host boundary. */
@@ -1065,4 +1073,115 @@ export interface ConfigWriteResult {
   readonly runtimeEffect: ConfigRuntimeEffect;
   readonly message?: string;
   readonly contentHash?: string;
+}
+
+/**
+ * Local Super/Repo/Main room read models.
+ *
+ * These rooms are the contacts-style layer from `document/super-agent-rooms.md`,
+ * not the Team database `rooms` table. Paths never appear: a member's home repo
+ * is reduced to a display basename and the room log stores no tracking/memory.
+ */
+export type LocalRoomKind = "super" | "repo" | "main";
+export type LocalRoomMemberRole = "super" | "repo" | "main" | "resident";
+export type LocalRoomDeliveryMode = "parallel" | "serial" | "mention";
+export type LocalRoomEventKind = "user" | "agent" | "system" | "tool" | "pass" | "stop" | "proposal" | "ack";
+export type LocalRoomMemberStatus = "running" | "idle" | "parked" | "aborted" | "offline";
+
+export interface LocalRoomReadModel {
+  readonly roomId: string;
+  readonly kind: LocalRoomKind;
+  readonly name: string;
+  /** Display basename of the home repository, never a path. */
+  readonly repoName?: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface LocalRoomMemberReadModel {
+  readonly memberId: string;
+  readonly displayName: string;
+  readonly role: LocalRoomMemberRole;
+  /** Display basename of the home repository, never a path. */
+  readonly repoName?: string;
+  readonly status: LocalRoomMemberStatus;
+  readonly unread: number;
+}
+
+export interface LocalRoomActorReadModel {
+  readonly kind: "user" | "agent" | "system";
+  readonly id: string;
+  readonly name: string;
+}
+
+export interface LocalRoomEventReadModel {
+  readonly roomId: string;
+  readonly seq: number;
+  readonly eventId: string;
+  readonly kind: LocalRoomEventKind;
+  readonly actor: LocalRoomActorReadModel;
+  readonly sentAt: string;
+  readonly body: string;
+  readonly replyTo?: number;
+  readonly mentions: ReadonlyArray<string>;
+  readonly roundId?: string;
+}
+
+export interface LocalRoomRoundReadModel {
+  readonly roundId: string;
+  readonly mode: LocalRoomDeliveryMode;
+  readonly status: "open" | "done" | "stopped";
+  readonly triggerSeq: number;
+  readonly createdAt: string;
+  readonly completedAt?: string;
+}
+
+export interface LocalRoomSummaryReadModel {
+  readonly room: LocalRoomReadModel;
+  readonly memberCount: number;
+  readonly lastSeq: number;
+  readonly lastEventAt?: string;
+  readonly unread: number;
+}
+
+export interface LocalRoomSnapshotReadModel {
+  readonly room: LocalRoomReadModel;
+  readonly members: ReadonlyArray<LocalRoomMemberReadModel>;
+  readonly events: ReadonlyArray<LocalRoomEventReadModel>;
+  readonly rounds: ReadonlyArray<LocalRoomRoundReadModel>;
+  readonly lastSeq: number;
+}
+
+export interface LocalRoomContactsReadModel {
+  readonly roomId: string;
+  readonly contacts: ReadonlyArray<LocalRoomMemberReadModel>;
+  readonly generatedAt: string;
+}
+
+export interface LocalRoomPostReadModel {
+  readonly event: LocalRoomEventReadModel;
+  readonly roundId?: string;
+  readonly targetMemberIds: ReadonlyArray<string>;
+}
+
+export interface LocalRoomReplyReadModel {
+  readonly event: LocalRoomEventReadModel;
+  readonly nextMemberIds: ReadonlyArray<string>;
+}
+
+export interface LocalRoomResidentReadModel {
+  readonly agentId: string;
+  readonly status: LocalRoomMemberStatus;
+}
+
+export interface LocalRoomProposalReadModel {
+  readonly proposalId: string;
+  readonly roomId: string;
+  readonly seq: number;
+  readonly targetRepo: string;
+  readonly targetMemberId?: string;
+  readonly decisionId?: string;
+  readonly status: "open" | "accepted" | "rejected" | "stale";
+  readonly createdAt: string;
+  readonly resolvedAt?: string;
 }

@@ -268,12 +268,14 @@ async function waitForEndpointRelease(endpoint: string): Promise<void> {
 }
 
 /** Last 500 chars of a worker's log, minus its readiness banner; `""` when absent or empty. */
+const TINY_WORKER_BANNER = /^zetacode tiny worker listening on /;
+
 async function logTail(logPath: string): Promise<string> {
 	try {
 		const text = await Bun.file(logPath).text();
 		return text
 			.split("\n")
-			.filter(line => !/^zetacode tiny worker listening on /.test(line))
+			.filter(line => !TINY_WORKER_BANNER.test(line))
 			.join("\n")
 			.trim()
 			.slice(-500);

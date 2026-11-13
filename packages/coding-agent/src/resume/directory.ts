@@ -77,6 +77,11 @@ function projectName(root: string): string {
 	return path.basename(root) || root;
 }
 
+/** Shared workspace identity for gateway rows and cwd-only history records. */
+export function resumeWorkspaceIdentity(directory: string): { key: string; name: string } {
+	return { key: resumePathKey(directory), name: projectName(directory) };
+}
+
 function activityTime(value: Date | null): number {
 	return value ? value.getTime() : Number.NEGATIVE_INFINITY;
 }
@@ -132,7 +137,7 @@ function createWorkspace(
 ): ResumeWorkspace {
 	const preference = preferences.workspaces?.[key] ?? {};
 	const alias = preference.alias?.trim() || null;
-	const name = projectName(directory);
+	const { name } = resumeWorkspaceIdentity(directory);
 	return {
 		key,
 		path: directory,
@@ -295,11 +300,15 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 
 	// Registry entries and the default workspace stay listed even with no
 	// conversations. Preference keys are canonicalized by the store on load.
-	for (const key of Object.keys(preferences.projects)) {
-		ensureProject(key);
+	for (const [key, preference] of Object.entries(preferences.projects)) {
+		// The key is the case-folded comparison identity; the stored path is the
+		// user's spelling. A preference-only row must not lowercase the folder.
+		const directory = preference.path !== undefined && resumePathKey(preference.path) === key ? preference.path : key;
+		const bucket = ensureProject(directory);
+		if (preference.registered === true) ensureWorkspace(bucket, directory);
 	}
 	for (const projectRoot of options.registeredProjects ?? []) {
-		if (projectRoot) ensureProject(projectRoot);
+		if (projectRoot) ensureWorkspace(ensureProject(projectRoot), projectRoot);
 	}
 	const defaultBucket = ensureProject(defaultProjectRoot);
 	ensureWorkspace(defaultBucket, defaultWorkspace);

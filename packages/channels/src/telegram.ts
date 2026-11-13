@@ -17,6 +17,8 @@ import { splitText } from "./text";
 export type TelegramInboundHandler = (message: InboundMessage) => void;
 
 export interface TelegramChannelOptions {
+	/** Stable instance id; defaults to the platform name for legacy callers. */
+	instanceId?: string;
 	botToken: string;
 	onMessage: TelegramInboundHandler;
 	/** Test seam: inject a custom fetch implementation (defaults to global fetch). */
@@ -30,7 +32,8 @@ const RETRY_DELAY_MS = 3_000;
 const MAX_TEXT = 4_096;
 
 export class TelegramChannel implements ChatChannel {
-	readonly id = "telegram" as const;
+	readonly id: string;
+	readonly platform = "telegram" as const;
 	readonly capabilities: ChannelCapabilities = {
 		maxTextLength: MAX_TEXT,
 		supportsImages: true,
@@ -46,6 +49,7 @@ export class TelegramChannel implements ChatChannel {
 	#loop: Promise<void> | null = null;
 
 	constructor(options: TelegramChannelOptions) {
+		this.id = options.instanceId ?? "telegram";
 		this.#botToken = options.botToken;
 		this.#onMessage = options.onMessage;
 		this.#fetch = options.customFetch ?? globalThis.fetch;

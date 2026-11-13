@@ -10,6 +10,7 @@ import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner
 import { ExtensionToolWrapper, wrapRegisteredTool } from "@linxiraos/zeta/extensibility/extensions/wrapper";
 import { SettingsManager } from "@linxiraos/zeta/extensibility/legacy-pi-coding-agent-shim";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { YAML } from "bun";
@@ -28,9 +29,14 @@ describe("legacy pi SettingsManager shim (issue #10397)", () => {
 	let tempDir: TempDir;
 	let agentDir: string;
 	let projectDir: string;
+	let originalForeignSources: string | undefined;
 
 	beforeEach(() => {
 		state = beginSettingsTest();
+		originalForeignSources = process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		// `.claude/settings.json` is a foreign project source; these cases read
+		// its raw layer through the legacy shim, so consent to it.
+		process.env.ZETA_FOREIGN_PROJECT_SOURCES = "claude";
 		tempDir = TempDir.createSync("@pi-settings-manager-shim-");
 		agentDir = tempDir.join("agent");
 		projectDir = tempDir.join("project");
@@ -39,7 +45,12 @@ describe("legacy pi SettingsManager shim (issue #10397)", () => {
 	});
 
 	afterEach(() => {
+		if (originalForeignSources === undefined) delete process.env.ZETA_FOREIGN_PROJECT_SOURCES;
+		else process.env.ZETA_FOREIGN_PROJECT_SOURCES = originalForeignSources;
 		restoreSettingsTestState(state);
+		// `Settings.init` opened `<agentDir>/agent.db`; Windows cannot delete it
+		// while the handle is open, so every cleanup would burn its retry budget.
+		AgentStorage.close();
 		tempDir?.[Symbol.dispose]?.();
 	});
 

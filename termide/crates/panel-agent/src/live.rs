@@ -14,7 +14,7 @@
 //! move to another connection, which wakes it at once. Its row stays, and its
 //! answer is owed to the panel that delegated it when it is really done.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 use std::time::Instant;
@@ -40,9 +40,6 @@ struct Live {
     /// A panel follows it: its cards go there rather than to the panel that
     /// delegated it.
     viewed: bool,
-    /// Whether a pause can hold it at all: an external agent runs its own
-    /// program, so pausing the panel leaves that going.
-    pausable: bool,
 }
 
 /// The tasks running out of sight, by the panel and the `task` call that
@@ -71,9 +68,6 @@ pub struct LiveTask<'a> {
     pub session: Option<PathBuf>,
     /// Handed over in the background.
     pub background: bool,
-    /// Whether a pause can hold it: `false` for an external agent, which
-    /// runs its own program and only stops.
-    pub pausable: bool,
 }
 
 /// A task's place in the registry, for as long as it runs: dropped, the
@@ -126,7 +120,6 @@ pub fn register(task: LiveTask<'_>) -> Registration {
                 started: Instant::now(),
                 status: Arc::clone(&status),
                 viewed: false,
-                pausable: task.pausable,
             },
         );
         key
@@ -163,7 +156,7 @@ pub fn is_running(panel: u64, call: &str) -> bool {
 
 /// A task handed over in the background, as its row shows it.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct BackgroundTask {
+pub struct BackgroundTask {
     pub call: String,
     pub agent: String,
     pub task: String,
@@ -171,13 +164,11 @@ pub(crate) struct BackgroundTask {
     pub started: Instant,
     /// Held at the panel's pause.
     pub paused: bool,
-    /// A pause cannot hold it: an external agent runs its own program.
-    pub pausable: bool,
 }
 
 /// The tasks panel `panel` handed over in the background that still run,
 /// oldest first.
-pub(crate) fn background_of(panel: u64) -> Vec<BackgroundTask> {
+pub fn background_of(panel: u64) -> Vec<BackgroundTask> {
     let mut tasks: Vec<BackgroundTask> = lock()
         .iter()
         .filter(|((owner, _), live)| *owner == panel && live.background)
@@ -192,7 +183,6 @@ pub(crate) fn background_of(panel: u64) -> Vec<BackgroundTask> {
                 .clone(),
             started: live.started,
             paused: live.control.is_paused(),
-            pausable: live.pausable,
         })
         .collect();
     tasks.sort_by_key(|task| task.started);
@@ -236,44 +226,168 @@ pub(crate) fn stop(panel: u64, call: &str) {
     }
 }
 
+/// What [`withdraw`] found under the call.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Withdrawn {
+    /// A task running in the background, now stopped; its delegate.
+    Running(String),
+    /// A task parked at a limit, now given up; its delegate.
+    Parked(String),
+    /// No task of the panel's in the background under that call.
+    None,
+}
+
+/// The delegating agent no longer needs the task it handed over in the
+/// background under the `task` call `call` of panel `panel`: stop it, or
+/// give it up where it is parked, without asking — the task is the agent's
+/// own. Its answer is not delivered (see [`take_withdrawn`]): the agent
+/// already knows. A task the run waits on is not the agent's to stop: the
+/// call stands in the way.
+pub fn withdraw(panel: u64, call: &str) -> Withdrawn {
+    let key = (panel, call.to_string());
+    let parked = parked_lock().remove(&key);
+    // A try of it already set off and not yet registered still answers
+    // when done: that answer is dropped too.
+    if parked.as_ref().is_some_and(|parked| parked.launching) {
+        withdrawn_lock().insert(key.clone());
+    }
+    let parked = parked.map(|parked| parked.agent);
+    let registry = lock();
+    let running = registry
+        .get(&key)
+        .filter(|live| live.background && !live.control.is_done());
+    if let Some(live) = running {
+        withdrawn_lock().insert(key.clone());
+        live.control.stop();
+        return Withdrawn::Running(live.agent.clone());
+    }
+    match parked {
+        Some(agent) => Withdrawn::Parked(agent),
+        None => Withdrawn::None,
+    }
+}
+
+/// The user wrote to panel `panel` while its run waits on tasks it handed
+/// over: ask each such task to move to the background, so the run reads the
+/// message rather than wait the task out. The call waiting on it settles the
+/// move (see [`take_aside`]), and may refuse it. How many tasks were asked.
+pub fn ask_aside(panel: u64) -> usize {
+    let registry = lock();
+    let mut aside = aside_lock();
+    let mut asked = 0;
+    for ((owner, call), live) in registry.iter() {
+        if *owner == panel && !live.background && !live.control.is_done() {
+            aside.insert((panel, call.clone()));
+            asked += 1;
+        }
+    }
+    asked
+}
+
+/// The tasks a run waits on that the user's message asked to move aside.
+fn aside_lock() -> std::sync::MutexGuard<'static, HashSet<(u64, String)>> {
+    static ASIDE: OnceLock<Mutex<HashSet<(u64, String)>>> = OnceLock::new();
+    ASIDE
+        .get_or_init(Mutex::default)
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Whether the task the `task` call `call` of panel `panel` waits on was
+/// asked to move to the background. Asked once.
+pub fn take_aside(panel: u64, call: &str) -> bool {
+    aside_lock().remove(&(panel, call.to_string()))
+}
+
+/// The task the `task` call `call` of panel `panel` handed over runs on in
+/// the background from now: no call waits for it any more, so it is listed,
+/// stopped and answered as one handed over so.
+pub fn move_to_background(panel: u64, call: &str) {
+    if let Some(live) = lock().get_mut(&(panel, call.to_string())) {
+        live.background = true;
+    }
+}
+
+/// The background tasks their delegating agent stopped, whose answer is not
+/// to go.
+fn withdrawn_lock() -> std::sync::MutexGuard<'static, HashSet<(u64, String)>> {
+    static WITHDRAWN: OnceLock<Mutex<HashSet<(u64, String)>>> = OnceLock::new();
+    WITHDRAWN
+        .get_or_init(Mutex::default)
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Whether the delegating agent stopped the task the `task` call `call` of
+/// panel `panel` handed over in the background, so its answer is dropped.
+/// Asked once, as the answer would go.
+pub fn take_withdrawn(panel: u64, call: &str) -> bool {
+    withdrawn_lock().remove(&(panel, call.to_string()))
+}
+
 /// Stop every task panel `panel` handed over: it is closing. A pause that
-/// holds them stays in their logs, with the panel's own.
+/// holds one handed over in the background stays in its log, with the
+/// panel's own; a task the run waits on is stopped with the run, and its
+/// log does not read as paused.
 pub fn stop_all(panel: u64) {
     for ((owner, _), live) in lock().iter() {
-        if *owner == panel {
-            live.control.close();
-        }
-    }
-}
-
-/// How the tasks of one panel stand at a pause.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct PauseState {
-    /// Held at the pause, ready to go on where each stood.
-    pub held: usize,
-    /// Still going, because a pause cannot hold them: an external agent runs
-    /// its own program and only stops.
-    pub running: usize,
-}
-
-/// Hold every task panel `panel` handed over in the background at its next
-/// step, as the panel paused its own run. A task the run waits on is the
-/// call in progress, which the panel's pause waits for: held, it would never
-/// return, and the pause never come.
-pub fn pause_all(panel: u64) -> PauseState {
-    let mut state = PauseState::default();
-    for ((owner, _), live) in lock().iter() {
-        if *owner != panel || !live.background {
+        if *owner != panel {
             continue;
         }
-        if live.pausable {
-            live.control.pause();
-            state.held += 1;
+        if live.background {
+            live.control.close();
         } else {
-            state.running += 1;
+            live.control.stop();
         }
     }
-    state
+}
+
+/// Stop every task panel `panel` handed over with the run the user stopped.
+/// What a task handed over in the background answers is then kept for the
+/// panel's next request (see [`take_quiet`]) rather than starting a run the
+/// user has just stopped.
+pub fn stop_with_run(panel: u64) {
+    let registry = lock();
+    let mut quiet = quiet_lock();
+    for ((owner, call), live) in registry.iter() {
+        if *owner != panel {
+            continue;
+        }
+        if live.background && !live.control.is_done() {
+            quiet.insert((panel, call.clone()));
+        }
+        live.control.stop();
+    }
+}
+
+/// The background tasks stopped with their panel's run whose answer is still
+/// to go: it goes with the panel's next request rather than starting one.
+fn quiet_lock() -> std::sync::MutexGuard<'static, HashSet<(u64, String)>> {
+    static QUIET: OnceLock<Mutex<HashSet<(u64, String)>>> = OnceLock::new();
+    QUIET
+        .get_or_init(Mutex::default)
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Whether the answer of the task the `task` call `call` of panel `panel`
+/// handed over in the background is to wait for the panel's next request,
+/// the task having been stopped with the panel's run. Asked once, as the
+/// answer goes.
+pub fn take_quiet(panel: u64, call: &str) -> bool {
+    quiet_lock().remove(&(panel, call.to_string()))
+}
+
+/// Hold every task panel `panel` handed over at its next step, as the panel
+/// paused its own run: one handed over in the background, and the one the
+/// run waits on, which holds the run's pause with it until `/continue` (or a
+/// withdrawn pause) lets it go.
+pub fn pause_all(panel: u64) {
+    for ((owner, _), live) in lock().iter() {
+        if *owner == panel {
+            live.control.pause();
+        }
+    }
 }
 
 /// Lift the pause on every task panel `panel` handed over: none waits any
@@ -286,20 +400,12 @@ pub fn resume_all(panel: u64) {
     }
 }
 
-/// How the tasks panel `panel` handed over stand now.
-pub fn state_of(panel: u64) -> PauseState {
-    let mut state = PauseState::default();
-    for ((owner, _), live) in lock().iter() {
-        if *owner != panel || !live.background {
-            continue;
-        }
-        if live.control.is_paused() {
-            state.held += 1;
-        } else if !live.pausable {
-            state.running += 1;
-        }
-    }
-    state
+/// How many of the tasks panel `panel` handed over its pause holds now.
+pub fn held_of(panel: u64) -> usize {
+    lock()
+        .iter()
+        .filter(|((owner, _), live)| *owner == panel && live.control.is_paused())
+        .count()
 }
 
 /// Whether the task the `task` call `call` of panel `panel` handed over is
@@ -447,7 +553,6 @@ mod tests {
             task: "find it",
             session: Some(PathBuf::from("/tmp/x.jsonl")),
             background,
-            pausable: true,
         }
     }
 
@@ -489,31 +594,27 @@ mod tests {
         assert!(other.control().ended_by_user().is_none());
     }
 
-    /// The panel's pause holds the tasks it handed over, and its resume lets
-    /// them go; an external agent's task is left going and counted, so the
-    /// panel can say so.
+    /// The panel's pause holds the tasks it handed over — the one its run
+    /// waits on too — and its resume lets them go.
     #[test]
     fn a_panels_pause_holds_its_tasks_and_lets_them_go() {
         let held = register(task(Some(7004), "a", true));
-        let mut external = task(Some(7004), "b", true);
-        external.pausable = false;
-        let running = register(external);
         let other = register(task(Some(7005), "c", true));
-        // The call the run waits on: the pause comes once it returns.
         let sync = register(task(Some(7004), "d", false));
 
-        assert_eq!(
-            pause_all(7004),
-            PauseState {
-                held: 1,
-                running: 1
-            },
-            "the external task keeps going"
-        );
+        pause_all(7004);
+        assert_eq!(held_of(7004), 2);
+        assert!(held.control().is_paused());
+        assert!(sync.control().is_paused(), "the call in progress waits too");
+        assert!(is_paused(7004, "a"));
+        assert!(!other.control().is_paused(), "another panel is its own");
+
         // Stopped from its row, a held task is over, not paused; with its
-        // panel closing, it keeps the pause the panel's log keeps too.
+        // panel closing, one in the background keeps the pause the panel's
+        // log keeps too, while the call the run waited on is just stopped.
         let stopped = register(task(Some(7006), "e", true));
         let closed = register(task(Some(7007), "f", true));
+        let closed_sync = register(task(Some(7007), "g", false));
         pause_all(7006);
         pause_all(7007);
         stop(7006, "e");
@@ -522,22 +623,73 @@ mod tests {
         assert!(!stopped.control().is_paused());
         assert!(closed.control().stop_token().is_cancelled());
         assert!(closed.control().is_paused());
-        assert!(held.control().is_paused());
-        assert!(!running.control().is_paused());
-        assert!(is_paused(7004, "a"));
-        assert!(!is_paused(7004, "b"));
-        assert!(!other.control().is_paused(), "another panel is its own");
-        assert!(!sync.control().is_paused(), "the call in progress runs on");
+        assert!(closed_sync.control().stop_token().is_cancelled());
+        assert!(!closed_sync.control().is_paused());
 
         resume_all(7004);
         assert!(!held.control().is_paused());
-        assert_eq!(
-            state_of(7004),
-            PauseState {
-                held: 0,
-                running: 1
-            }
-        );
+        assert!(!sync.control().is_paused());
+        assert_eq!(held_of(7004), 0);
+    }
+
+    /// A stop of the panel's run stops every task it handed over; the answer
+    /// of one in the background is kept for the next request, once.
+    #[test]
+    fn a_stopped_run_stops_its_tasks_and_keeps_their_answers_back() {
+        let background = register(task(Some(7008), "a", true));
+        let sync = register(task(Some(7008), "b", false));
+        let other = register(task(Some(7009), "c", true));
+        pause_all(7008);
+        stop_with_run(7008);
+        assert!(background.control().stop_token().is_cancelled());
+        assert!(!background.control().is_paused(), "stopped, not paused");
+        assert!(sync.control().stop_token().is_cancelled());
+        assert!(!other.control().stop_token().is_cancelled());
+        assert!(take_quiet(7008, "a"));
+        assert!(!take_quiet(7008, "a"), "asked once");
+        assert!(!take_quiet(7008, "b"), "the call's result goes as it does");
+        assert!(!take_quiet(7009, "c"));
+    }
+
+    /// The agent stops its own background task, or gives up its parked one,
+    /// with nothing asked; the task its run waits on is not its to stop.
+    #[test]
+    fn an_agent_withdraws_its_own_background_task() {
+        let background = register(task(Some(7015), "a", true));
+        let sync = register(task(Some(7015), "b", false));
+        assert_eq!(withdraw(7015, "a"), Withdrawn::Running("search".into()));
+        assert!(background.control().stop_token().is_cancelled());
+        assert_eq!(withdraw(7015, "b"), Withdrawn::None);
+        assert!(!sync.control().stop_token().is_cancelled());
+        assert_eq!(withdraw(7016, "a"), Withdrawn::None, "another panel's");
+        assert!(take_withdrawn(7015, "a"));
+        assert!(!take_withdrawn(7015, "a"), "asked once");
+
+        park(7015, parked("c", 100, 400));
+        assert_eq!(withdraw(7015, "c"), Withdrawn::Parked("methodical".into()));
+        assert!(parked_of(7015).is_empty());
+        assert!(!take_withdrawn(7015, "c"), "nothing runs to answer");
+    }
+
+    /// The user writing while the run waits on a task asks that task, and
+    /// only that one, to move aside; moved, it is the agent's to stop.
+    #[test]
+    fn a_waited_task_moves_aside_when_the_user_writes() {
+        let background = register(task(Some(7017), "a", true));
+        let sync = register(task(Some(7017), "b", false));
+        assert_eq!(ask_aside(7017), 1);
+        assert!(!take_aside(7017, "a"), "already in the background");
+        assert!(take_aside(7017, "b"));
+        assert!(!take_aside(7017, "b"), "asked once");
+        assert!(background_of(7017).iter().all(|task| task.call == "a"));
+
+        move_to_background(7017, "b");
+        let calls: Vec<String> = background_of(7017).into_iter().map(|t| t.call).collect();
+        assert_eq!(calls, ["a", "b"]);
+        assert_eq!(withdraw(7017, "b"), Withdrawn::Running("search".into()));
+        assert!(sync.control().stop_token().is_cancelled());
+        assert!(take_withdrawn(7017, "b"));
+        drop(background);
     }
 
     /// A task parked at a usage limit resetting at `wake_at`.

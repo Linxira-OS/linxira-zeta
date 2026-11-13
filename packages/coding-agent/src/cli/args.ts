@@ -77,6 +77,8 @@ export interface Args {
 	fork?: string;
 	models?: string[];
 	tools?: string[];
+	/** Agent profile id from `--agent-profile`; selects tools/persona/model/memory for this session. */
+	agentProfile?: string;
 	noTools?: boolean;
 	noLsp?: boolean;
 	noPty?: boolean;
@@ -374,6 +376,10 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.fromCodex = true;
 		} else if (arg === "--no-session") {
 			result.noSession = true;
+		} else if (arg === "--agent-profile" && i + 1 < args.length) {
+			result.agentProfile = args[++i];
+		} else if (arg.startsWith("--agent-profile=")) {
+			result.agentProfile = arg.slice("--agent-profile=".length);
 		} else if (arg === "--no-tools") {
 			result.noTools = true;
 		} else if (arg === "--no-lsp") {

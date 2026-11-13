@@ -89,7 +89,7 @@ declare global {
         /** Native OS directory picker (desktop preload only). */
         selectDirectory?(startPath?: string): Promise<string | null>;
         /** Pick a directory and register it as a project (desktop preload only). */
-        pickWorkspace?(input?: { startPath?: string; alias?: string }): Promise<{ cancelled: boolean; name?: string }>;
+        pickWorkspace?(input?: { startPath?: string; alias?: string }): Promise<{ cancelled: boolean; workspaceId?: string; name?: string }>;
         /** Fixed by the preload; read it through `src/platform.ts`. Absent on older installs. */
         readonly platform?: "win32" | "darwin" | "linux";
         /** macOS menu bar commands (allowlisted ids from Main). */
@@ -295,10 +295,12 @@ declare global {
    */
   var zetaStudioTerminal:
     | {
-        create(size?: { cols?: number; rows?: number; targetId?: string; workspaceId?: string }): Promise<{ id: string; name: string; cwd: string }>;
+        create(size?: { cols?: number; rows?: number; targetId?: string; workspaceId?: string; profileId?: string; cwd?: string }): Promise<{ id: string; name: string; cwd: string; profile?: string | null; instance?: string; reused?: boolean }>;
         write(id: string, data: string): Promise<void>;
         resize(id: string, cols: number, rows: number): Promise<void>;
         dispose(id: string): Promise<void>;
+        profiles?(targetId?: string): Promise<import("./terminals/gatewayTerminal").TerminalProfileCatalog>;
+        list?(targetId?: string): Promise<{ terminals: Array<Record<string, unknown>> }>;
         recordingStart?(input: { id: string; workspaceId?: string; sessionId?: string }): Promise<{ terminalId: string; state: "idle" | "recording" | "saving" | "saved" | "failed"; elapsedMs: number; bytes: number; artifactId?: string; notice?: string }>;
         recordingStop?(id: string): Promise<{ terminalId: string; state: "idle" | "recording" | "saving" | "saved" | "failed"; elapsedMs: number; bytes: number; artifactId?: string; notice?: string }>;
         recordingStatus?(id: string): Promise<{ terminalId: string; state: "idle" | "recording" | "saving" | "saved" | "failed"; elapsedMs: number; bytes: number; artifactId?: string; notice?: string }>;

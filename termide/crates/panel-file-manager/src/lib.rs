@@ -13,6 +13,7 @@ mod keyboard;
 mod mouse;
 mod navigation;
 mod operations;
+mod plugin_status;
 mod rendering;
 mod search_bar;
 mod selection;
@@ -29,6 +30,7 @@ pub use operations::{is_database_file, is_raster_image, CreateOutcome};
 use search_bar::{BarFocus, SearchBarKind};
 use selection::SelectionState;
 pub use utils::shared_dir_size_cache;
+pub use vfs_state::HostKeyAnswer;
 use vfs_state::VfsState;
 
 /// Case-insensitive string comparison without allocation.
@@ -102,6 +104,8 @@ pub struct FileManager {
     /// Selection state (multi-select and drag)
     selection: SelectionState,
     /// Git status cache for the current directory
+    /// What plugins say of the files git says nothing about.
+    plugin_statuses: plugin_status::PluginStatuses,
     git_status_cache: Option<GitStatusCache>,
     /// Channel receiver for async git status loading
     git_status_receiver: Option<mpsc::Receiver<GitStatusAsyncResult>>,
@@ -182,7 +186,12 @@ pub struct FileManager {
 
 #[derive(Debug, Clone)]
 pub(crate) struct FileEntry {
+    /// Name for display, matching and sorting. Lossy when the real name is
+    /// not valid UTF-8 — build paths from [`Self::path_name`], never this.
     pub name: String,
+    /// The real name when it is not valid UTF-8 (`name` then holds U+FFFD
+    /// in place of the bad bytes); `None` otherwise.
+    pub os_name: Option<std::ffi::OsString>,
     pub is_dir: bool,
     pub is_symlink: bool,
     pub is_executable: bool,
@@ -193,10 +202,18 @@ pub(crate) struct FileEntry {
 }
 
 impl FileEntry {
+    /// The name to join onto the parent directory to reach this entry.
+    pub fn path_name(&self) -> &std::ffi::OsStr {
+        self.os_name
+            .as_deref()
+            .unwrap_or_else(|| std::ffi::OsStr::new(&self.name))
+    }
+
     /// Create FileEntry from VfsEntry (for remote directories).
     pub fn from_vfs_entry(entry: VfsEntry) -> Self {
         Self {
             name: entry.name,
+            os_name: None,
             is_dir: matches!(entry.metadata.file_type, VfsFileType::Directory),
             is_symlink: matches!(entry.metadata.file_type, VfsFileType::Symlink),
             is_executable: entry
@@ -287,6 +304,7 @@ impl FileManager {
             click_tracker: IndexClickTracker::new(),
             selection: SelectionState::default(),
             git_status_cache: None,
+            plugin_statuses: Default::default(),
             git_status_receiver: None,
             dir_size_receiver: None,
             dir_item_count_memo: None,
@@ -384,11 +402,6 @@ impl FileManager {
 
         // Check if this relative path is ignored
         cache.is_path_in_ignored(relative_path)
-    }
-
-    /// Take the watched root (for cleanup when closing)
-    pub fn take_watched_root(&mut self) -> Option<PathBuf> {
-        self.git_root.take()
     }
 
     /// Navigate to a specific directory
@@ -891,7 +904,8 @@ impl Panel for FileManager {
             | PanelCommand::ChecklistDone { .. }
             | PanelCommand::ChecklistButton { .. }
             | PanelCommand::InputSubmitted { .. }
-            | PanelCommand::Confirmed { .. } => CommandResult::None,
+            | PanelCommand::Confirmed { .. }
+            | PanelCommand::RefreshAiConnection => CommandResult::None,
         }
     }
 
@@ -1038,6 +1052,60 @@ impl FileManager {
         ));
     }
 
+    /// Ask whether to trust the SSH server key that stopped the connection
+    /// to `url`. Cancel is preselected, so Enter alone connects nothing; the
+    /// answer comes back through `PendingAction::HostKey` to
+    /// [`Self::answer_host_key`].
+    fn request_host_key_decision(&mut self, url: String, key: termide_vfs::HostKey) {
+        let t = termide_i18n::t();
+        let host = key.known_as.clone();
+        let modal = InfoActionModal::new(
+            t.vfs_host_key_title(),
+            vec![
+                (String::new(), t.vfs_host_key_unknown(&host)),
+                (t.vfs_host_key_host().to_string(), host.clone()),
+                (t.vfs_host_key_type().to_string(), key.algorithm.clone()),
+                (
+                    t.vfs_host_key_fingerprint().to_string(),
+                    key.fingerprint.clone(),
+                ),
+            ],
+            vec![
+                ActionButton::new(t.vfs_host_key_remember(), HostKeyAnswer::REMEMBER),
+                ActionButton::new(t.vfs_host_key_once(), HostKeyAnswer::ONCE),
+                ActionButton::new(t.ui_cancel(), HostKeyAnswer::CANCEL),
+            ],
+        )
+        .with_selected_button(2);
+        self.modal_request = Some((
+            PendingAction::HostKey {
+                url,
+                fingerprint: key.fingerprint,
+            },
+            ActiveModal::InfoAction(Box::new(modal)),
+        ));
+    }
+
+    /// Answer the unknown-host-key question for `url`. Returns `false` when
+    /// this panel is not waiting on the key with `fingerprint`. A key that
+    /// cannot be recorded is reported and nothing is connected.
+    pub fn answer_host_key(&mut self, url: &str, fingerprint: &str, answer: HostKeyAnswer) -> bool {
+        match self.vfs.answer_host_key(url, fingerprint, answer) {
+            None => false,
+            Some(Ok(())) => {
+                if answer != HostKeyAnswer::Cancel {
+                    self.navigation.prepare_for_going_down();
+                }
+                true
+            }
+            Some(Err(e)) => {
+                let t = termide_i18n::t();
+                self.show_info_modal(t.connection_error_title(), &e.to_string());
+                true
+            }
+        }
+    }
+
     /// Ask for the password of the encrypted archive whose root is `archive`;
     /// `wrong` says the last one was rejected.
     fn request_archive_password(&mut self, archive: termide_vfs::VfsPath, wrong: bool) {
@@ -1113,6 +1181,47 @@ mod tests {
     /// The row shown while a directory is still being listed stands for no
     /// file: Enter, F3, F4 and Shift+Enter must not open it, and selection
     /// and batch operations must not pick it up.
+    /// The unknown-key question names host, key type and fingerprint and
+    /// answers through `PendingAction::HostKey`; an answer for a key this
+    /// panel is not waiting on is left for another panel.
+    #[test]
+    fn an_unknown_host_key_is_put_to_the_user() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut fm = FileManager::new_with_path(temp_dir.path().to_path_buf());
+        let key = termide_vfs::HostKey {
+            host: "example.com".to_string(),
+            port: 2222,
+            user: "u".to_string(),
+            known_as: "[example.com]:2222".to_string(),
+            algorithm: "ssh-ed25519".to_string(),
+            fingerprint: "SHA256:Zm9vYmFy".to_string(),
+            openssh: String::new(),
+        };
+        fm.request_host_key_decision("sftp://example.com:2222/".to_string(), key);
+
+        let (action, modal) = fm.modal_request.take().expect("a question");
+        match action {
+            PendingAction::HostKey { url, fingerprint } => {
+                assert_eq!(url, "sftp://example.com:2222/");
+                assert_eq!(fingerprint, "SHA256:Zm9vYmFy");
+            }
+            other => panic!("unexpected action {other:?}"),
+        }
+        let ActiveModal::InfoAction(modal) = modal else {
+            panic!("an info modal with buttons");
+        };
+        let text = modal.message_text();
+        for part in ["[example.com]:2222", "ssh-ed25519", "SHA256:Zm9vYmFy"] {
+            assert!(text.contains(part), "{part} missing from {text}");
+        }
+
+        assert!(!fm.answer_host_key(
+            "sftp://example.com:2222/",
+            "SHA256:Zm9vYmFy",
+            HostKeyAnswer::Remember
+        ));
+    }
+
     #[test]
     fn the_listing_placeholder_is_no_file() {
         let temp_dir = TempDir::new().unwrap();
@@ -1716,6 +1825,46 @@ mod tests {
             fm.modal_request.take(),
             Some((PendingAction::VfsMessage, ActiveModal::InfoAction(_)))
         ));
+    }
+
+    /// A name that is not valid UTF-8 is shown lossily but its path keeps
+    /// the real bytes, so operations reach the file and not `a\u{FFFD}`.
+    #[cfg(unix)]
+    #[test]
+    fn non_utf8_names_keep_their_real_path() {
+        use std::os::unix::ffi::OsStrExt;
+        let raw = std::ffi::OsStr::from_bytes(b"a\xff").to_os_string();
+        let fm = FileManager::new_with_path(PathBuf::from("/base"));
+        let entry = FileEntry {
+            name: raw.to_string_lossy().into_owned(),
+            os_name: Some(raw.clone()),
+            is_dir: false,
+            is_symlink: false,
+            is_executable: false,
+            is_readonly: false,
+            git_status: GitStatus::Unmodified,
+            size: None,
+            modified: None,
+        };
+        let tree = fm.build_top_level_tree(vec![entry]);
+        assert_eq!(tree[0].file_entry.name, "a\u{FFFD}");
+        assert_eq!(tree[0].full_path, PathBuf::from("/base").join(&raw));
+    }
+
+    /// End to end on a filesystem that stores arbitrary bytes (APFS does
+    /// not, so macOS cannot create such a file).
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn listing_a_non_utf8_name_selects_the_real_file() {
+        use std::os::unix::ffi::OsStrExt;
+        let temp_dir = TempDir::new().unwrap();
+        let raw = std::ffi::OsStr::from_bytes(b"a\xff");
+        std::fs::write(temp_dir.path().join(raw), "x").unwrap();
+        let mut fm = FileManager::new_with_path(temp_dir.path().to_path_buf());
+        fm.load_directory().unwrap();
+        wait_for_local_listing(&mut fm);
+        fm.selected = fm.find_entry_index("a\u{FFFD}").unwrap();
+        assert_eq!(fm.get_selected_paths(), [temp_dir.path().join(raw)]);
     }
 
     /// `+` / `-` select and unselect by mask, files and `dir/` patterns

@@ -44,6 +44,60 @@ providers:
 
 `providers` is the only root key the registry consumes. Unknown root keys are not rejected by the current schema, but do not configure model behavior.
 
+### Accepting block-style YAML and standard JSON
+
+The file is YAML, and a JSON document is valid YAML, so both encodings load. Work Studio's
+whole-document import (Providers → **Import Config**) accepts them explicitly and validates the
+same shape before writing the panel layer:
+
+- **Block-style YAML** — the form used throughout this document, including a `providers:` mapping
+  and `models:` sequences.
+- **Standard JSON** — the legacy `models.json` shape and the body the old `/api/models-config` PUT
+  accepted. The root must be an object; a top-level array is rejected.
+
+```json
+{
+  "providers": {
+    "acme": {
+      "baseUrl": "https://api.acme.test/v1",
+      "apiKey": "ACME_API_KEY",
+      "models": [
+        { "id": "acme-chat", "name": "Acme Chat", "contextWindow": 128000 }
+      ]
+    }
+  }
+}
+```
+
+The equivalent block-style YAML is:
+
+```yaml
+providers:
+   acme:
+      baseUrl: https://api.acme.test/v1
+      apiKey: ACME_API_KEY
+      models:
+         - id: acme-chat
+           name: Acme Chat
+           contextWindow: 128000
+```
+
+Import detection is explicit rather than a silent fallback: text whose first non-space character
+is `{` or `[` must parse as JSON, so malformed JSON (including YAML flow-style maps) fails instead
+of quietly being read as YAML. Everything else must parse as YAML. Duplicate mapping keys are
+rejected in both encodings, and validation names the offending path — for example
+`providers.acme.models[1].id must be a non-empty string`. The root must be an object with only a
+`providers` mapping; each provider must be a mapping; `models` must be a list of mappings with a
+non-empty `id`. Unknown keys inside a provider are preserved for forward compatibility, matching
+the loader.
+
+Saving keeps the file format: a pasted YAML document is submitted as YAML, while a JSON import is
+serialized to block YAML because the panel layer is a `.yml` file. The panel layer is normalized
+from provider objects by the gateway, so provider fields and model arrays survive but YAML
+comments do not. The hand-written `models.yml` itself is never rewritten. When both layers define
+the same provider, the hand-written user layer wins; the panel layer supplies only providers the
+user layer does not define.
+
 ## Provider-level fields
 
 ```yaml
@@ -115,6 +169,19 @@ models use its `/api/alpha` sibling on the same host, e.g. a `.../api/v1` relay 
 `.../api/alpha/decisions`.
 
 `omitMaxOutputTokens` omits the model-derived output cap.
+
+`compat.base64SkipThoughtSignature` (Google APIs, default `false`): sends the unsigned-tool-call bypass sentinel base64-encoded. Set it on a `google-generative-ai` model behind a gateway that decodes `thoughtSignature` as base64 and answers the raw `skip_thought_signature_validator` literal with a 400, for example when Gemini replays another model's tool-call history:
+
+```yaml
+providers:
+   my-gemini-gateway:
+      baseUrl: https://gateway.example.com/gemini/v1beta
+      api: google-generative-ai
+      models:
+         - id: gemini-3.8-flash
+           compat:
+              base64SkipThoughtSignature: true
+```
 
 ### Standard Responses WebSockets
 

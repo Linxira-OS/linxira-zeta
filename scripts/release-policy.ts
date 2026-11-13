@@ -48,6 +48,8 @@ export const RELEASE_FREEZE = {
 	internalBuildMax: "1.5.10",
 	/** First public version after the freeze; still requires owner approval. */
 	nextPublicVersion: "1.6.0",
+	/** Exact 1.5.x version the owner may release as GitHub assets only (ADR 0033). */
+	assetReviewVersion: "1.5.2",
 } as const;
 
 /** Mandatory marker in an internal build tag annotation. */
@@ -183,6 +185,48 @@ export function classifyReleaseVersion(input: string): PublishPolicyDecision {
 /** Resolve the release decision, including the owner override. */
 export function evaluatePublishPolicy(input: PublishPolicyInput): PublishPolicyDecision {
 	const decision = classifyReleaseVersion(input.version);
+	// One owner-review release may upload GitHub assets without npm: exact
+	// version (ADR 0033), exact matching override, non-empty audit reason.
+	if (
+		decision.channel === "internal-build" &&
+		decision.version === RELEASE_FREEZE.assetReviewVersion &&
+		decision.tagAllowed
+	) {
+		const overrideVersion = input.overrideVersion?.trim();
+		const overrideReason = input.overrideReason?.trim();
+		if (!overrideVersion) {
+			return {
+				...decision,
+				requiresOverride: true,
+				reason: `${decision.version} is code-only by default; set an exact owner-review override to allow GitHub assets (npm remains disabled)`,
+			};
+		}
+		const parsedOverride = parseReleaseVersion(overrideVersion);
+		if (parsedOverride?.prerelease || parsedOverride?.version !== decision.version) {
+			return {
+				...decision,
+				requiresOverride: true,
+				reason: `${decision.reason}; asset-review override must name the exact stable ${decision.version}, not ${overrideVersion}`,
+			};
+		}
+		if (!overrideReason) {
+			return {
+				...decision,
+				requiresOverride: true,
+				reason: `${decision.reason}; asset-review override for ${decision.version} has no audit reason`,
+			};
+		}
+		return {
+			...decision,
+			channel: "public",
+			tagAllowed: true,
+			publishAllowed: false,
+			assetsAllowed: true,
+			requiresOverride: true,
+			overrideApplied: true,
+			reason: `${decision.version} is an owner-review GitHub-assets release; npm publish remains disabled: ${overrideReason}`,
+		};
+	}
 	// An internal-build/invalid version is never overridable: the override
 	// exists for the 1.6.0+ public line only.
 	if (!decision.requiresOverride || decision.version === null) return decision;

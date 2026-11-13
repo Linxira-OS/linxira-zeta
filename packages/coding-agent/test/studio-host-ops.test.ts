@@ -27,6 +27,7 @@ import type {
 	WorkspaceId,
 } from "../src/server/studio-host/contract/index.js";
 import { countText } from "../src/server/studio-host/ops/text-count.js";
+import { workspaceIdFor } from "../src/server/studio-host/ops/workspace-id.js";
 import { StudioOperations, type StudioHostContext } from "../src/server/studio-host/registry.js";
 
 const operations = new StudioOperations();
@@ -348,13 +349,51 @@ describe("workspace commands", () => {
 		return { workspaceId: row.workspaceId };
 	}
 
+	test("an empty default workspace is listed without a fabricated open date", async () => {
+		const list = await queryResult("projects.list", {});
+		const row = list.workspaces.find(workspace => workspace.name === path.basename(workspaceDir));
+		expect(row).toBeDefined();
+		expect(row?.workspaceId).toBe(workspaceIdFor(workspaceDir));
+		expect(row?.lastOpenedAt).toBeNull();
+		expect(row?.active).toBe(true);
+		expect(list.defaultWorkspaceId).toBe(row?.workspaceId);
+	});
+
+	test("a hidden workspace stays resolvable by id for file operations", async () => {
+		const { workspaceId } = await registerWorkspace();
+		const hidden = await handleProjectsPut(
+			new Request("http://127.0.0.1/api/projects", {
+				method: "PUT",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ path: workspaceDir, hidden: true }),
+			}),
+		);
+		expect(hidden.status).toBe(200);
+		const visible = await queryResult("projects.list", {});
+		expect(visible.workspaces.some(workspace => workspace.workspaceId === workspaceId)).toBe(false);
+		expect(visible.defaultWorkspaceId).toBeDefined();
+
+		const created = await runCommand("workspace.file.create", { workspaceId, path: "hidden.txt" });
+		expect(created.result).toEqual({ applied: true, kind: "file", path: "hidden.txt" });
+		expect(fs.existsSync(path.join(workspaceDir, "hidden.txt"))).toBe(true);
+	});
+
+	test("session.create requires a registered workspace id", async () => {
+		await expect(runCommand("session.create", {} as never)).rejects.toMatchObject({
+			code: "INVALID_ARGUMENT",
+		});
+		await expect(
+			runCommand("session.create", { workspaceId: "ws-0000000000000000" as WorkspaceId }),
+		).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+	});
+
 	test("workspace.open stamps the registry preference and reports the real inventory", async () => {
 		const { workspaceId } = await registerWorkspace();
 		const { result } = await runCommand("workspace.open", { workspaceId });
 		expect(result).toBeDefined();
 		const opened = result!.workspaces[0];
 		expect(opened?.workspaceId).toBe(workspaceId);
-		expect(Number.isFinite(Date.parse(opened!.lastOpenedAt))).toBe(true);
+		expect(Number.isFinite(Date.parse(opened!.lastOpenedAt!))).toBe(true);
 		// `active` names the gateway's own always-open workspace (the default one
 		// the test points at this tree) — the host must never relabel it.
 		expect(result!.activeWorkspaceId).toBe(workspaceId);
@@ -413,5 +452,55 @@ describe("model visibility settings", () => {
 		await expect(runCommand("models.hidden.set", { selectors: [""] })).rejects.toMatchObject({
 			code: "INVALID_ARGUMENT",
 		});
+	});
+
+	test("creates and deletes a custom role through models.get", async () => {
+		await runCommand("models.roles.create", { id: "reviewer", name: "Reviewer", selector: "openai/*" });
+		let result = await queryResult("models.get", {});
+		const created = result.roles.find(role => role.id === "reviewer");
+		expect(created?.builtin).toBe(false);
+		expect(created?.primary).toBe("openai/*");
+
+		await runCommand("models.roleStorage.set", { storage: "project" });
+		result = await queryResult("models.get", {});
+		expect(result.modelRoleStorage).toBe("project");
+
+		await runCommand("models.roles.delete", { roleId: "reviewer" });
+		result = await queryResult("models.get", {});
+		expect(result.roles.some(role => role.id === "reviewer")).toBe(false);
+	});
+
+	test("refuses to delete a built-in role", async () => {
+		await expect(runCommand("models.roles.delete", { roleId: "default" })).rejects.toMatchObject({
+			code: "INVALID_ARGUMENT",
+		});
+	});
+
+	test("advertises per-agent configure but not definition-file CRUD", () => {
+		expect(operations.commands).toContain("agents.definition.configure");
+		expect(operations.commands).not.toContain("agents.definition.upsert");
+		expect(operations.commands).not.toContain("agents.definition.delete");
+	});
+
+	test("configure persists the per-agent model override and clears it", async () => {
+		await runCommand("agents.definition.configure", { name: "scout", overrideModel: "@research" });
+		// The host command goes through the real in-process gateway routes, not a
+		// mock echo: the isolated agent dir now holds the persisted overlay.
+		const configPath = path.join(agentDir.path(), "config.yml");
+		expect(fs.existsSync(configPath)).toBe(true);
+		expect(fs.readFileSync(configPath, "utf8")).toContain("agentModelOverrides");
+		let definitions = await queryResult("agents.definitions.get", {});
+		const scout = definitions.agents.find(agent => agent.name === "scout");
+		expect(scout?.overrideModel).toBe("@research");
+
+		await runCommand("agents.definition.configure", { name: "scout", overrideModel: null });
+		definitions = await queryResult("agents.definitions.get", {});
+		expect(definitions.agents.find(agent => agent.name === "scout")?.overrideModel).toBeUndefined();
+	});
+
+	test("configure refuses an unknown agent before writing", async () => {
+		await expect(
+			runCommand("agents.definition.configure", { name: "not-a-real-agent", overrideModel: "@task" }),
+		).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
 	});
 });

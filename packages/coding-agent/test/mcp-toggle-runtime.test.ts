@@ -26,6 +26,7 @@ describe("applyMcpToggleRuntime", () => {
 			manager: {
 				getConnectionStatus: () => "connected",
 				getTools: () => tools,
+				getServerConfig: () => undefined,
 				disconnectServer: async name => {
 					disconnected.push(name);
 				},
@@ -59,6 +60,7 @@ describe("applyMcpToggleRuntime", () => {
 			manager: {
 				getConnectionStatus: () => "disconnected",
 				getTools: () => tools,
+				getServerConfig: () => undefined,
 				disconnectServer: async () => {
 					throw new Error("enable must not disconnect");
 				},
@@ -92,6 +94,7 @@ describe("applyMcpToggleRuntime", () => {
 			manager: {
 				getConnectionStatus: () => "disconnected",
 				getTools: () => [],
+				getServerConfig: () => undefined,
 				disconnectServer: async () => {
 					throw new Error("enable must not disconnect");
 				},

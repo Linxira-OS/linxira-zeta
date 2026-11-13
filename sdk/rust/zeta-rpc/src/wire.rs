@@ -3711,6 +3711,117 @@ impl AutoCompactionReason {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompactionTriggerType {
+	#[serde(rename = "manual")]
+	Manual,
+	#[serde(rename = "auto")]
+	Auto,
+	#[serde(rename = "speculation")]
+	Speculation,
+}
+
+impl CompactionTriggerType {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Manual => "manual",
+			Self::Auto => "auto",
+			Self::Speculation => "speculation",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompactionPhaseName {
+	#[serde(rename = "plan")]
+	Plan,
+	#[serde(rename = "summarize")]
+	Summarize,
+	#[serde(rename = "archive")]
+	Archive,
+	#[serde(rename = "commit")]
+	Commit,
+	#[serde(rename = "failed")]
+	Failed,
+	#[serde(rename = "aborted")]
+	Aborted,
+}
+
+impl CompactionPhaseName {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Plan => "plan",
+			Self::Summarize => "summarize",
+			Self::Archive => "archive",
+			Self::Commit => "commit",
+			Self::Failed => "failed",
+			Self::Aborted => "aborted",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CompactionPhaseMethod {
+	#[serde(rename = "remote")]
+	Remote,
+	#[serde(rename = "snapcompact")]
+	Snapcompact,
+	#[serde(rename = "handoff")]
+	Handoff,
+	#[serde(rename = "shake")]
+	Shake,
+	#[serde(rename = "soft")]
+	Soft,
+	#[serde(rename = "experimental")]
+	Experimental,
+	#[serde(rename = "extension")]
+	Extension,
+}
+
+impl CompactionPhaseMethod {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Remote => "remote",
+			Self::Snapcompact => "snapcompact",
+			Self::Handoff => "handoff",
+			Self::Shake => "shake",
+			Self::Soft => "soft",
+			Self::Experimental => "experimental",
+			Self::Extension => "extension",
+		}
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CompactionFidelityCounts {
+	pub qa: i64,
+	pub paths: i64,
+	pub ids: i64,
+	pub constraints: i64,
+	pub unfinished: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CompactionPhaseDetail {
+	#[serde(rename = "tokensBefore", default, skip_serializing_if = "Option::is_none")]
+	pub tokens_before: Option<i64>,
+	#[serde(rename = "tokensAfter", default, skip_serializing_if = "Option::is_none")]
+	pub tokens_after: Option<i64>,
+	#[serde(rename = "entryId", default, skip_serializing_if = "Option::is_none")]
+	pub entry_id: Option<String>,
+	#[serde(rename = "durationMs", default, skip_serializing_if = "Option::is_none")]
+	pub duration_ms: Option<i64>,
+	#[serde(rename = "summaryChars", default, skip_serializing_if = "Option::is_none")]
+	pub summary_chars: Option<i64>,
+	#[serde(rename = "errorMessage", default, skip_serializing_if = "Option::is_none")]
+	pub error_message: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub fidelity: Option<CompactionFidelityCounts>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AutoCompactionAction {
 	#[serde(rename = "context-full")]
 	ContextFull,
@@ -3917,6 +4028,25 @@ pub struct AutoCompactionStartEvent {
 	pub action: AutoCompactionAction,
 }
 
+/// Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CompactionPhaseEvent {
+	/// Stable per compaction pass; constant across method fallbacks.
+	#[serde(rename = "passId")]
+	pub pass_id: String,
+	pub trigger: CompactionTriggerType,
+	/// `plan` may repeat in one pass when a method fallback begins; `aborted` means cancellation only.
+	pub phase: CompactionPhaseName,
+	/// Emission time (epoch ms).
+	pub at: i64,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub method: Option<CompactionPhaseMethod>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub reason: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub detail: Option<CompactionPhaseDetail>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AutoCompactionEndEvent {
 	pub action: AutoCompactionAction,
@@ -4114,6 +4244,8 @@ pub enum RpcAgentEvent {
 	ToolStreamUpdate(ToolStreamUpdateEvent),
 	ToolExecutionEnd(ToolExecutionEndEvent),
 	AutoCompactionStart(AutoCompactionStartEvent),
+	/// Granular progress of one compaction pass, additive to the auto/manual start/end pairs; terminal `failed`/`aborted` carries `detail.errorMessage`.
+	CompactionPhase(CompactionPhaseEvent),
 	AutoCompactionEnd(AutoCompactionEndEvent),
 	/// A manual compaction (`compact` command, `/compact`, extension `ctx.compact()`) began; the live turn is already aborted.
 	ManualCompactionStart(ManualCompactionStartEvent),
@@ -4163,6 +4295,7 @@ impl RpcAgentEvent {
 			Some("tool_stream_update") => |value| serde_json::from_value(value).map(Self::ToolStreamUpdate),
 			Some("tool_execution_end") => |value| serde_json::from_value(value).map(Self::ToolExecutionEnd),
 			Some("auto_compaction_start") => |value| serde_json::from_value(value).map(Self::AutoCompactionStart),
+			Some("compaction_phase") => |value| serde_json::from_value(value).map(Self::CompactionPhase),
 			Some("auto_compaction_end") => |value| serde_json::from_value(value).map(Self::AutoCompactionEnd),
 			Some("manual_compaction_start") => |value| serde_json::from_value(value).map(Self::ManualCompactionStart),
 			Some("manual_compaction_end") => |value| serde_json::from_value(value).map(Self::ManualCompactionEnd),
@@ -4208,6 +4341,7 @@ impl Serialize for RpcAgentEvent {
 			Self::ToolStreamUpdate(member) => serialize_tagged(member, &[("type", "tool_stream_update")], serializer),
 			Self::ToolExecutionEnd(member) => serialize_tagged(member, &[("type", "tool_execution_end")], serializer),
 			Self::AutoCompactionStart(member) => serialize_tagged(member, &[("type", "auto_compaction_start")], serializer),
+			Self::CompactionPhase(member) => serialize_tagged(member, &[("type", "compaction_phase")], serializer),
 			Self::AutoCompactionEnd(member) => serialize_tagged(member, &[("type", "auto_compaction_end")], serializer),
 			Self::ManualCompactionStart(member) => serialize_tagged(member, &[("type", "manual_compaction_start")], serializer),
 			Self::ManualCompactionEnd(member) => serialize_tagged(member, &[("type", "manual_compaction_end")], serializer),
@@ -4683,7 +4817,7 @@ pub struct EditorUiRequest {
 	pub prompt_style: Option<bool>,
 }
 
-/// Every question of one `ask` tool call; sent only after `set_ask_dialog` enables it.
+/// Every question of one extension `ui.askDialog` call; sent only after `set_ask_dialog` enables it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AskUiRequest {
 	pub id: String,
@@ -4758,7 +4892,7 @@ pub enum ExtensionUiRequest {
 	Confirm(ConfirmUiRequest),
 	Input(InputUiRequest),
 	Editor(EditorUiRequest),
-	/// Every question of one `ask` tool call; sent only after `set_ask_dialog` enables it.
+	/// Every question of one extension `ui.askDialog` call; sent only after `set_ask_dialog` enables it.
 	Ask(AskUiRequest),
 	/// Close the dialog opened by request `targetId`; a later answer to it is ignored.
 	Cancel(CancelUiRequest),
@@ -4819,7 +4953,7 @@ impl<'de> Deserialize<'de> for ExtensionUiRequest {
 	}
 }
 
-/// Answer to one `ask` question: exact option labels, plus optional free text.
+/// Answer to one `ui.askDialog` question: exact option labels, plus optional free text.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AskAnswer {
 	pub id: String,
@@ -4843,7 +4977,7 @@ pub struct ConfirmUiResponse {
 	pub confirmed: bool,
 }
 
-/// Dismisses a dialog; `timedOut` reports the host's own deadline (an `ask` then takes its recommended answers).
+/// Dismisses a dialog; `timedOut` reports the host's own deadline (an `ask` dialog then takes its recommended answers).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CancelUiResponse {
 	pub id: String,
@@ -4866,7 +5000,7 @@ pub enum ExtensionUiResponse {
 	ValueUiResponse(ValueUiResponse),
 	/// Answers a `confirm` request.
 	ConfirmUiResponse(ConfirmUiResponse),
-	/// Dismisses a dialog; `timedOut` reports the host's own deadline (an `ask` then takes its recommended answers).
+	/// Dismisses a dialog; `timedOut` reports the host's own deadline (an `ask` dialog then takes its recommended answers).
 	CancelUiResponse(CancelUiResponse),
 	/// Answers an `ask` request: one `AskAnswer` per question, in question order.
 	AnswersUiResponse(AnswersUiResponse),
@@ -5238,7 +5372,7 @@ impl RpcNotification {
 			Some("session_info_update") => |value| serde_json::from_value(value).map(Self::SessionInfoUpdate),
 			Some("config_update") => |value| serde_json::from_value(value).map(Self::ConfigUpdate),
 			Some("rpc_frame_error") => |value| serde_json::from_value(value).map(Self::RpcFrameError),
-			Some("agent_start" | "agent_end" | "turn_start" | "turn_end" | "message_start" | "message_update" | "message_end" | "tool_execution_start" | "tool_execution_update" | "tool_stream_update" | "tool_execution_end" | "auto_compaction_start" | "auto_compaction_end" | "manual_compaction_start" | "manual_compaction_end" | "auto_retry_start" | "auto_retry_end" | "cache_warming_start" | "cache_warming_end" | "retry_fallback_applied" | "retry_fallback_succeeded" | "model_changed" | "config_warnings_changed" | "advisor_cost_changed" | "advisor_yielded" | "ttsr_triggered" | "todo_reminder" | "todo_auto_clear" | "irc_message" | "notice" | "thinking_level_changed" | "goal_updated" | "queue_update" | "state_version_changed") => |value| serde_json::from_value(value).map(Self::RpcAgentEvent),
+			Some("agent_start" | "agent_end" | "turn_start" | "turn_end" | "message_start" | "message_update" | "message_end" | "tool_execution_start" | "tool_execution_update" | "tool_stream_update" | "tool_execution_end" | "auto_compaction_start" | "compaction_phase" | "auto_compaction_end" | "manual_compaction_start" | "manual_compaction_end" | "auto_retry_start" | "auto_retry_end" | "cache_warming_start" | "cache_warming_end" | "retry_fallback_applied" | "retry_fallback_succeeded" | "model_changed" | "config_warnings_changed" | "advisor_cost_changed" | "advisor_yielded" | "ttsr_triggered" | "todo_reminder" | "todo_auto_clear" | "irc_message" | "notice" | "thinking_level_changed" | "goal_updated" | "queue_update" | "state_version_changed") => |value| serde_json::from_value(value).map(Self::RpcAgentEvent),
 			_ => |value| Ok(Self::Unknown(value)),
 		};
 		decode(value)
@@ -5301,7 +5435,7 @@ impl RpcServerFrame {
 		let decode: fn(Value) -> Result<Self, serde_json::Error> = match value.get("type").and_then(Value::as_str) {
 			Some("response") => |value| serde_json::from_value(value).map(Self::Response),
 			Some("host_tool_call" | "host_tool_cancel" | "host_uri_request" | "host_uri_cancel") => |value| serde_json::from_value(value).map(Self::RpcHostRequest),
-			Some("ready" | "prompt_result" | "session_settled" | "extension_error" | "extension_ui_request" | "available_commands_update" | "subagent_lifecycle" | "subagent_progress" | "subagent_event" | "live_phase" | "live_levels" | "live_transcript" | "live_end" | "dictation_state" | "dictation_transcript" | "dictation_end" | "btw_delta" | "btw_record" | "command_output" | "session_info_update" | "config_update" | "rpc_frame_error" | "agent_start" | "agent_end" | "turn_start" | "turn_end" | "message_start" | "message_update" | "message_end" | "tool_execution_start" | "tool_execution_update" | "tool_stream_update" | "tool_execution_end" | "auto_compaction_start" | "auto_compaction_end" | "manual_compaction_start" | "manual_compaction_end" | "auto_retry_start" | "auto_retry_end" | "cache_warming_start" | "cache_warming_end" | "retry_fallback_applied" | "retry_fallback_succeeded" | "model_changed" | "config_warnings_changed" | "advisor_cost_changed" | "advisor_yielded" | "ttsr_triggered" | "todo_reminder" | "todo_auto_clear" | "irc_message" | "notice" | "thinking_level_changed" | "goal_updated" | "queue_update" | "state_version_changed") => |value| serde_json::from_value(value).map(Self::RpcNotification),
+			Some("ready" | "prompt_result" | "session_settled" | "extension_error" | "extension_ui_request" | "available_commands_update" | "subagent_lifecycle" | "subagent_progress" | "subagent_event" | "live_phase" | "live_levels" | "live_transcript" | "live_end" | "dictation_state" | "dictation_transcript" | "dictation_end" | "btw_delta" | "btw_record" | "command_output" | "session_info_update" | "config_update" | "rpc_frame_error" | "agent_start" | "agent_end" | "turn_start" | "turn_end" | "message_start" | "message_update" | "message_end" | "tool_execution_start" | "tool_execution_update" | "tool_stream_update" | "tool_execution_end" | "auto_compaction_start" | "compaction_phase" | "auto_compaction_end" | "manual_compaction_start" | "manual_compaction_end" | "auto_retry_start" | "auto_retry_end" | "cache_warming_start" | "cache_warming_end" | "retry_fallback_applied" | "retry_fallback_succeeded" | "model_changed" | "config_warnings_changed" | "advisor_cost_changed" | "advisor_yielded" | "ttsr_triggered" | "todo_reminder" | "todo_auto_clear" | "irc_message" | "notice" | "thinking_level_changed" | "goal_updated" | "queue_update" | "state_version_changed") => |value| serde_json::from_value(value).map(Self::RpcNotification),
 			_ => |value| Ok(Self::Unknown(value)),
 		};
 		decode(value)

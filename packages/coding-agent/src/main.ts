@@ -9,7 +9,7 @@ import * as os from "node:os";
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import type { ImageContent, Model } from "@linxiraos/pi-ai";
 import { getModelPricingStatus } from "@linxiraos/pi-catalog/models";
-import { CLI_BIN_NAME, isEnoent, isEnotdir } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME, ensureSqliteLockShim, isEnoent, isEnotdir } from "@linxiraos/pi-utils";
 import {
 	APP_NAME,
 	directoryIsMissing,
@@ -26,6 +26,7 @@ import * as postmortem from "@linxiraos/pi-utils/postmortem";
 import { fuzzyFilter } from "@linxiraos/pi-tui/fuzzy";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { reset as resetCapabilities } from "./capability";
+import { loadMainAgentProfile } from "./agent-profile";
 import {
 	type Args,
 	reportInvalidFlagValues,
@@ -52,14 +53,16 @@ import { applyStartupCwd } from "./cli/startup-cwd";
 import { M } from "./i18n";
 import { runAutoUpdate } from "./cli/auto-update";
 import { getLatestRelease, isSourceCheckout, managedInstallName } from "./cli/update-cli";
-import { findConfigFile } from "./config";
 import { resolveChannelHosting } from "./channels/channel-status";
 import {
+	activeSessionChannelHost,
 	rememberSessionChannelContext,
 	sendFromSessionChannel,
 	startSessionChannels,
 	stopActiveSessionChannels,
 } from "./channels/session-host";
+import { SessionRouter } from "./channels/session-router";
+import { discoverAppendSystemPromptPath } from "./config";
 import { ModelRegistry } from "./config/model-registry";
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import {
@@ -145,6 +148,8 @@ import {
 import { ForkSourceNotFoundError, SessionManager, SessionMoveRefusedError } from "./session/session-manager";
 import { forkIfMovedAway } from "./session/session-transfer";
 import { shouldShowStartupSplash } from "./startup-splash";
+import { AgentRegistry } from "./registry/agent-registry";
+import { deliverPendingRoomEvents } from "./team/room-delivery";
 import { isTeamHubEntry, resolveTeamEntry } from "./team/entry";
 import {
 	discoverSystemPromptOverride,
@@ -173,7 +178,8 @@ import { cfgGoalEnabled } from "./goals/settings";
 import { cfgPlanDefaultOnStartup, cfgPlanEnabled } from "./plan-mode/settings";
 
 import { cfgAdvisorEnabled } from "./advisor/settings";
-import { cfgAsyncPrintWake, cfgToolsApprovalMode } from "./tools/settings";
+import { cfgAsyncPrintWake, cfgLaunchPersist, cfgToolsApprovalMode } from "./tools/settings";
+import { claimTerminal } from "./tools/browser/terminal-owner";
 import {
 	cfgAutocompleteMaxVisible,
 	cfgAutoResume,
@@ -481,6 +487,7 @@ export async function submitInteractiveInput(
 		| "renderOptimisticSkillMessage"
 		| "clearOptimisticSkillMessage"
 		| "optimisticSkillMessagePending"
+		| "restoreDroppedPrompt"
 	> &
 		Partial<Pick<InteractiveMode, "loopPrompt" | "pauseLoop">>,
 	session: Pick<AgentSession, "buildUserSkillPrompt" | "prompt" | "promptCustomMessage" | "resume" | "isStreaming">,
@@ -514,6 +521,7 @@ export async function submitInteractiveInput(
 			showError: mode.showError.bind(mode),
 			renderOptimisticSkillMessage: mode.renderOptimisticSkillMessage.bind(mode),
 			clearOptimisticSkillMessage: mode.clearOptimisticSkillMessage.bind(mode),
+			restoreDroppedPrompt: mode.restoreDroppedPrompt.bind(mode),
 			get optimisticSkillMessagePending() {
 				return mode.optimisticSkillMessagePending;
 			},
@@ -537,11 +545,16 @@ export async function submitInteractiveInput(
 				imageLinks: input.imageLinks,
 				optimistic: true,
 				propagateErrors: true,
+				followUps: input.followUps,
 			});
 		} else {
 			let forwarded = false;
 			try {
-				forwarded = await session.prompt(input.text, { images: input.images, streamingBehavior });
+				forwarded = await session.prompt(input.text, {
+					images: input.images,
+					streamingBehavior,
+					followUps: input.followUps,
+				});
 			} catch (error: unknown) {
 				mode.showError(error instanceof Error ? error.message : "Unknown error occurred");
 			}
@@ -1487,19 +1500,6 @@ export async function createSessionManager(
 	return undefined;
 }
 
-/** Discover APPEND_SYSTEM.md file if no CLI append system prompt was provided */
-function discoverAppendSystemPromptFile(): string | undefined {
-	const projectPath = findConfigFile("APPEND_SYSTEM.md", { user: false });
-	if (projectPath) {
-		return projectPath;
-	}
-	const globalPath = findConfigFile("APPEND_SYSTEM.md", { user: true });
-	if (globalPath) {
-		return globalPath;
-	}
-	return undefined;
-}
-
 /** Apply resolved CLI/discovered prompt files without bypassing system prompt templates. */
 export function applyResolvedSystemPromptInputs(
 	options: CreateAgentSessionOptions,
@@ -1548,32 +1548,37 @@ export async function buildSessionOptions(
 		throw new Error("--system-prompt and --system-prompt-template cannot be combined");
 	}
 	const cwd = options.cwd;
-	const discoveredOverride =
+	// Explicit prompt inputs win over discovered SYSTEM_TEMPLATE.md/SYSTEM.md.
+	// A discovered literal (SYSTEM.md) stays on buildSystemPrompt's discovery
+	// path so it is re-read on every prompt rebuild; a discovered template is
+	// frozen here because buildSystemPrompt cannot distinguish it from an
+	// explicit one.
+	const discoveredPromptOverride =
 		parsed.systemPrompt === undefined && parsed.systemPromptTemplate === undefined
 			? await discoverSystemPromptOverride(cwd)
 			: undefined;
-	const systemPromptSource =
-		parsed.systemPrompt ?? (discoveredOverride?.kind === "text" ? discoveredOverride.path : undefined);
-	const templatePath =
-		parsed.systemPromptTemplate ?? (discoveredOverride?.kind === "template" ? discoveredOverride.path : undefined);
-	const appendPromptSource = parsed.appendSystemPrompt ?? discoverAppendSystemPromptFile();
+	const explicitTemplatePath = parsed.systemPromptTemplate;
+	const discoveredAppendSource =
+		parsed.appendSystemPrompt === undefined ? discoverAppendSystemPromptPath() : undefined;
 	const titleSystemPromptSource = discoverTitleSystemPromptFile(cwd);
 	const [resolvedSystemPrompt, resolvedAppendPrompt, titleSystemPrompt, resolvedSystemPromptTemplate] =
 		await Promise.all([
-			discoveredOverride?.kind === "text"
-				? Promise.resolve(discoveredOverride.content)
-				: resolvePromptInput(systemPromptSource, "system prompt"),
-			resolvePromptInput(appendPromptSource, "append system prompt"),
+			parsed.systemPrompt === undefined
+				? Promise.resolve(undefined)
+				: resolvePromptInput(parsed.systemPrompt, "system prompt"),
+			parsed.appendSystemPrompt === undefined
+				? Promise.resolve(undefined)
+				: resolvePromptInput(parsed.appendSystemPrompt, "append system prompt"),
 			resolvePromptInput(titleSystemPromptSource, "title system prompt"),
-			// Discovered templates arrive pre-loaded from the capability; only
-			// explicit CLI paths hit the strict file loader here.
-			discoveredOverride?.kind === "template" && parsed.systemPromptTemplate === undefined
-				? Promise.resolve(discoveredOverride.content)
-				: templatePath === undefined
-					? Promise.resolve(undefined)
-					: loadSystemPromptTemplateFile(templatePath),
+			explicitTemplatePath !== undefined
+				? loadSystemPromptTemplateFile(explicitTemplatePath)
+				: discoveredPromptOverride?.kind === "template"
+					? Promise.resolve(discoveredPromptOverride.content)
+					: Promise.resolve(undefined),
 		]);
-
+	if (discoveredAppendSource !== undefined) {
+		options.appendSystemPromptSource = discoveredAppendSource;
+	}
 	if (sessionManager) {
 		options.sessionManager = sessionManager;
 	}
@@ -1661,6 +1666,7 @@ export async function buildSessionOptions(
 			}
 		} else if (resolved.model) {
 			options.model = resolved.model;
+			if (resolved.configuredRole) options.modelRole = resolved.configuredRole;
 			options.rebindModelAfterDiscovery = true;
 			// The recorded role must carry the effort the session actually starts
 			// at, or the first cycle back into `default` overrides it.
@@ -1843,6 +1849,12 @@ export async function buildSessionOptions(
 		options.toolNames = parsed.tools && parsed.tools.length > 0 ? parsed.tools : [];
 	} else if (parsed.tools) {
 		options.toolNames = parsed.tools;
+	}
+	if (parsed.agentProfile) {
+		options.agentProfile = await loadMainAgentProfile(parsed.agentProfile, {
+			cwd: options.cwd ?? getProjectDir(),
+			agentDir: getAgentDir(),
+		});
 	}
 
 	if (parsed.noLsp) {
@@ -2138,6 +2150,8 @@ export async function runRootCommand(
 			});
 			process.exit(exitCode);
 		}
+		// Upstream guard: claim the terminal before browser tabs are opened for this session.
+		if (isInteractive) claimTerminal();
 		// Before session resolution: resume, fork, and import act on these same
 		// startup-parse flags, so rejecting later would leave forked or imported
 		// transcripts (or an opened picker) behind a usage error.
@@ -2255,6 +2269,12 @@ export async function runRootCommand(
 		// explicit --hide-thinking block display option still wins for output display.
 		if (parsedArgs.printThoughts && !isProtocolMode && !isInteractive) {
 			cfgOmitThinking.override(settingsInstance, false);
+		}
+		// Print, RPC and ACP hosts serve a caller (script, harness, editor) that outlives the
+		// session and uses the servers a run leaves running; keep them past this process's
+		// exit, as `nohup cmd &` is.
+		if (!isInteractive) {
+			cfgLaunchPersist.override(settingsInstance, true);
 		}
 		// Apply --hide-thinking CLI flag (ephemeral, not persisted)
 		if (parsedArgs.hideThinking) {
@@ -2578,6 +2598,13 @@ export async function runRootCommand(
 			if (isInteractive) notifs.push({ kind: "warn", message: warning });
 			else writeStartupWarning(warning);
 		};
+		// The CLI moved SQLite onto OFD locks before any store opened; without them a
+		// read of a live store elsewhere in this process can corrupt it (issue #15586).
+		if (process.platform === "linux" && !ensureSqliteLockShim()) {
+			startupWarning(
+				"SQLite lock protection is unavailable with this Bun build: reading omp's own databases from inside omp (e.g. `grep -r ~/.zeta`, `cp ~/.zeta/agent/agent.db`) can corrupt them. Avoid it, and report this with your Bun version (#15586).",
+			);
+		}
 		const buildStartupSessionOptions = async (manager: SessionManager | undefined) => {
 			const options = await logger.time(
 				"buildSessionOptions",
@@ -2649,6 +2676,17 @@ export async function runRootCommand(
 		const createAgentSessionImpl = deps.createAgentSession ?? createAgentSession;
 		const createSession = async (options: CreateAgentSessionOptions): Promise<CreateAgentSessionResult> => {
 			const result = await logger.time("createAgentSession", createAgentSessionImpl, options);
+			const teamRef = AgentRegistry.global()
+				.list()
+				.find(ref => ref.session === result.session && ref.status !== "aborted");
+			if (teamRef) {
+				void deliverPendingRoomEvents({ agentId: teamRef.id, cwd: options.cwd ?? process.cwd() }).catch(error => {
+					logger.debug("team: pending room delivery failed", {
+						agentId: teamRef.id,
+						error: error instanceof Error ? error.message : String(error),
+					});
+				});
+			}
 			// Kick off background model discovery only after createAgentSession finishes its parallel
 			// discovery arms; running these concurrently contends for the event loop and stretches
 			// every parallel arm by ~30ms. Interactive startup defers it further, behind the first
@@ -3042,12 +3080,26 @@ export async function runRootCommand(
 			// contract; the lock prevents a second session/serve from double-binding.
 			// Remember the request even when nothing is enabled yet: `/channels
 			// enable|login` starts the host from this same session after a write.
+			const sessionChannelRouter = sessionChannelsWebConfig
+				? new SessionRouter({
+						coordinator: session,
+						webConfig: sessionChannelsWebConfig,
+						getLastInbound: () => activeSessionChannelHost()?.lastInbound ?? null,
+						sendText: async (instanceId, to, text) => {
+							const host = activeSessionChannelHost();
+							if (!host) throw new Error("IM channels are not started in this session");
+							await host.runtime.sendText(instanceId, to, text);
+						},
+						defaultCwd: session.sessionManager.getCwd(),
+					})
+				: undefined;
 			if (sessionChannelsWebConfig) {
 				rememberSessionChannelContext({
 					session,
 					webConfig: sessionChannelsWebConfig,
 					flag: parsedArgs.channels === true,
 					sessionId: session.sessionManager.getSessionId(),
+					...(sessionChannelRouter ? { router: sessionChannelRouter } : {}),
 				});
 			}
 			const sessionChannels =
@@ -3057,6 +3109,7 @@ export async function runRootCommand(
 							webConfig: sessionChannelsWebConfig,
 							flag: parsedArgs.channels === true,
 							sessionId: session.sessionManager.getSessionId(),
+							...(sessionChannelRouter ? { router: sessionChannelRouter } : {}),
 						}).catch(error => ({
 							started: false as const,
 							reason: "start-failed" as const,

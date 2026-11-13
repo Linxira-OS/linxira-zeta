@@ -17,7 +17,7 @@ import type { AgentSession } from "../session/agent-session";
 import { type BankScope, computeBankScope, type HindsightBankSet } from "./bank";
 import { createHindsightClient } from "./client";
 import { type HindsightConfig, isHindsightConfigured, loadHindsightConfig } from "./config";
-import { type HindsightMessage, hasSubstantiveContent } from "./content";
+import { type HindsightMessage, hasSubstantiveContent, prepareUserRetentionTranscript } from "./content";
 import { HindsightSessionState } from "./state";
 
 import { cfgMemoryBackend } from "../memory-backend/settings";
@@ -132,6 +132,15 @@ export const hindsightBackend: MemoryBackend = {
 		if (!primary) return;
 		await primary.flushRetainQueue();
 		await primary.forceRetainCurrentSession();
+	},
+
+	async learnWindow({ session }, input): Promise<void> {
+		const state = session?.getHindsightSessionState();
+		if (!state || state.aliasOf) throw new Error("Hindsight window learning requires the primary session state.");
+		// Server extraction receives user evidence only; assistant replies cannot establish facts.
+		const { transcript } = prepareUserRetentionTranscript(input.messages);
+		if (!transcript) return;
+		await state.enqueueRetain(`window:${input.id}`, [{ content: transcript }]);
 	},
 
 	async preCompactionContext(
@@ -271,7 +280,11 @@ async function installPrimaryState(
 	if (!isHindsightConfigured(config)) return undefined;
 
 	const client = createHindsightClient(config);
-	const scope = computeBankScope(config, session.sessionManager.getCwd());
+	const scope = computeBankScope(
+		config,
+		session.sessionManager.getCwd(),
+		session.sessionManager?.getMemoryNamespace?.(),
+	);
 
 	// Cleanup any stale state for this session (defensive — prevents leaks
 	// when a session is reused without going through dispose). Flush the
@@ -358,7 +371,11 @@ async function reconcilePrimaryState(session: AgentSession): Promise<boolean> {
 	}
 	if (!current) return false;
 
-	const next = computeBankScope(config, session.sessionManager.getCwd());
+	const next = computeBankScope(
+		config,
+		session.sessionManager.getCwd(),
+		session.sessionManager?.getMemoryNamespace?.(),
+	);
 	if (bankScopesEqual(next, current) && hindsightConfigsEqual(current.config, config)) return false;
 
 	// A confirmed bank includes its mission metadata, not just its server/id.

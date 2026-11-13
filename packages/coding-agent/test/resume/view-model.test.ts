@@ -147,6 +147,7 @@ describe("resume view model scopes", () => {
 			"conversation",
 			"conversation",
 			"project",
+			"workspace",
 		]);
 		expect(view.rows.filter(row => row.type === "project").map(row => row.key)).toEqual([
 			resumePathKey(DEFAULT_WORKSPACE),
@@ -158,8 +159,8 @@ describe("resume view model scopes", () => {
 		expect(view.counts).toMatchObject({
 			conversations: 4,
 			totalConversations: 4,
-			workspaces: 4,
-			totalWorkspaces: 4,
+			workspaces: 5,
+			totalWorkspaces: 5,
 			projects: 4,
 			totalProjects: 4,
 		});

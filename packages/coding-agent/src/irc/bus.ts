@@ -50,7 +50,7 @@ export interface IrcWaitFilter {
 }
 
 /** Whether a bus wait under `filter` consumes `msg`. */
-export function ircWaitAccepts(filter: IrcWaitFilter, msg: IrcMessage): boolean {
+function ircWaitAccepts(filter: IrcWaitFilter, msg: IrcMessage): boolean {
 	if (filter.from !== undefined && msg.from !== filter.from) return false;
 	if (!filter.directOnly || (!msg.broadcast && !msg.progress)) return true;
 	return !msg.progress && (filter.repliesFrom?.includes(msg.from) ?? false);
@@ -64,18 +64,6 @@ interface SendMark {
 
 /** Mailbox cap per agent; oldest messages are dropped beyond it. */
 const MAILBOX_CAP = 100;
-
-/**
- * Raised when a peer's `await` window closes because that peer stopped rather
- * than because the wait timed out — distinct from a normal timeout so callers
- * can report the real cause.
- */
-export class IrcAwaitTargetStopped extends Error {
-	constructor(target: string) {
-		super(`Awaited peer "${target}" stopped without replying.`);
-		this.name = "IrcAwaitTargetStopped";
-	}
-}
 
 /** Public surface of the process-global IRC bus, implemented locally on main and by a proxy in workers. */
 export interface IrcBusApi {
@@ -98,12 +86,24 @@ export interface IrcBusApi {
 	): Promise<IrcMessage | null>;
 	/** Consume the oldest pending message for `agentId` (optionally from `from`). */
 	take(agentId: string, from?: string): IrcMessage | undefined;
-	/** Unread count for the local Agent Hub overlay. */
-	unreadCount(agentId: string): number;
 	/** Drain (or with `peek`, read) `agentId`'s buffered inbox. */
 	inbox(agentId: string, opts?: { peek?: boolean }): IrcMessage[];
+	/** Monotonic mailbox generation used to invalidate cached unread badges. */
+	revision?(): number;
+	/** Subscribe to mailbox generation changes; returns unsubscribe. */
+	onMailboxChange?(listener: () => void): () => void;
+	/** Unread count for the local Agent Hub overlay. */
+	unreadCount(agentId: string): number;
 	/** Count a settled job of agent `from` owned by `to` as `from`'s reply to `to`. */
 	recordReply(from: string, to: string): void;
+}
+
+/** Raised when an awaited peer ran and stopped without replying (Zeta hub messaging). */
+export class IrcAwaitTargetStopped extends Error {
+	constructor(agentId: string) {
+		super(`Agent ${agentId} stopped before replying`);
+		this.name = "IrcAwaitTargetStopped";
+	}
 }
 
 export class IrcBus implements IrcBusApi {
@@ -140,6 +140,9 @@ export class IrcBus implements IrcBusApi {
 	readonly #registry: AgentRegistryApi;
 	readonly #lifecycle: () => AgentLifecycleApi;
 	readonly #mailboxes = new Map<string, IrcMessage[]>();
+	/** Bumped on every mailbox shape change so a cached roster can invalidate unread badges. */
+	#mailboxGeneration = 0;
+	readonly #mailboxListeners = new Set<() => void>();
 	readonly #waiters = new Map<string, IrcWaiter[]>();
 	/** The latest successful non-progress send per `from` → `to`; see {@link sentSince}. */
 	readonly #lastSent = new Map<string, Map<string, SendMark>>();
@@ -170,8 +173,7 @@ export class IrcBus implements IrcBusApi {
 	 * context, so buffering it too would double-deliver via a later
 	 * `wait`/`inbox` and inflate unread counts. Only a failed live hand-off
 	 * is buffered for the recipient to drain later.
-	 */
-	/**
+	 *
 	 * `opts.expectsReply` marks sends whose caller is blocked on an answer
 	 * (`send await:true`). It is forwarded to the recipient session so a
 	 * mid-turn recipient that cannot reach a step boundary can generate an
@@ -598,20 +600,37 @@ export class IrcBus implements IrcBusApi {
 	 * atomic step `wait` performs on entry, exposed for callers that must not
 	 * block without draining the entire backlog.
 	 */
-	/**
-	 * Drain (or peek at) an agent's mailbox. `peek` leaves the messages in place
-	 * so a later `inbox` still returns them.
-	 */
+	/** Monotonic mailbox generation for cache invalidation. */
+	revision(): number {
+		return this.#mailboxGeneration;
+	}
+
+	/** Observe mailbox generation changes; returns the unsubscribe. */
+	onMailboxChange(listener: () => void): () => void {
+		this.#mailboxListeners.add(listener);
+		return () => this.#mailboxListeners.delete(listener);
+	}
+
+	/** Bump the generation and notify observers. */
+	#bumpMailboxGeneration(): void {
+		this.#mailboxGeneration += 1;
+		for (const listener of this.#mailboxListeners) listener();
+	}
+
+	take(agentId: string, from?: string): IrcMessage | undefined {
+		const message = this.#takeFromMailbox(agentId, msg => from === undefined || msg.from === from);
+		if (message) this.#bumpMailboxGeneration();
+		return message;
+	}
+
+	/** Drain (or with `peek`, read) `agentId`'s buffered inbox. */
 	inbox(agentId: string, opts?: { peek?: boolean }): IrcMessage[] {
 		const mailbox = this.#mailboxes.get(agentId);
 		if (!mailbox || mailbox.length === 0) return [];
 		if (opts?.peek) return [...mailbox];
 		this.#mailboxes.delete(agentId);
+		this.#bumpMailboxGeneration();
 		return mailbox;
-	}
-
-	take(agentId: string, from?: string): IrcMessage | undefined {
-		return this.#takeFromMailbox(agentId, msg => from === undefined || msg.from === from);
 	}
 
 	/** Unread count for the local Agent Hub overlay. */
@@ -626,6 +645,7 @@ export class IrcBus implements IrcBusApi {
 			this.#mailboxes.set(message.to, mailbox);
 		}
 		mailbox.push(message);
+		this.#bumpMailboxGeneration();
 		if (mailbox.length > MAILBOX_CAP) {
 			const dropped = mailbox.shift();
 			logger.debug("IrcBus: mailbox full, dropped oldest message", {
@@ -668,9 +688,9 @@ export class IrcBus implements IrcBusApi {
 	/**
 	 * Surface agent↔agent traffic as a display-only card on the main session
 	 * UI. Skipped when the main agent is either endpoint: as recipient its
-	 * own `deliverIrcMessage` (or `wait` tool result) already shows the
-	 * message, and as sender the irc send tool call already rendered the
-	 * outbound body — relaying it again would duplicate it in the transcript.
+	 * own `deliverIrcMessage` already shows the message, and as sender the
+	 * irc send tool call already rendered the outbound body — relaying it
+	 * again would duplicate it in the transcript.
 	 */
 	#relayToMainUi(message: IrcMessage): void {
 		if (message.to === MAIN_AGENT_ID || message.from === MAIN_AGENT_ID) return;

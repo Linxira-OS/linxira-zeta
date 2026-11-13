@@ -14,6 +14,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { isForeignProjectSourceAllowed } from "./foreign-sources";
 import { roleDefaultModels } from "@linxiraos/pi-catalog/compat/behavior";
 import { type GeneratedProvider, getBundledModels } from "@linxiraos/pi-catalog/models";
 import { type Api, type Model, modelKind } from "@linxiraos/pi-catalog/types";
@@ -1407,7 +1408,11 @@ export class Settings {
 		const projectConfigDir = getProjectAgentDir(projectCwd);
 		addFile(path.join(projectConfigDir, "config.yml"));
 		addFile(path.join(projectConfigDir, "settings.json"));
-		addFile(path.join(projectCwd, ".claude", "settings.json"));
+		// Foreign project settings are native-only by default; the consent store
+		// is hash-bound to the file tree, never written into the repository.
+		if (isForeignProjectSourceAllowed("claude", projectCwd)) {
+			addFile(path.join(projectCwd, ".claude", "settings.json"));
+		}
 		for (const file of this.#projectSourcePaths) addFile(file);
 		for (const file of this.#configFiles) addFile(file);
 		return targets;
@@ -3309,15 +3314,21 @@ export class Settings {
 			if (migrated !== undefined) providersObj.tinyModel = migrated;
 		}
 
-		// Saved-reset autoRedeem booleans -> tri-state enums. Existing explicit
-		// false keeps "do not run"; missing config falls through to "unset",
-		// which asks before the first eligible provider-specific spend.
-		const codexResetsObj = raw.codexResets as Record<string, unknown> | undefined;
-		if (codexResetsObj && typeof codexResetsObj.autoRedeem === "boolean") {
-			codexResetsObj.autoRedeem = codexResetsObj.autoRedeem ? "yes" : "no";
-		}
-		if (typeof raw["codexResets.autoRedeem"] === "boolean") {
-			raw["codexResets.autoRedeem"] = raw["codexResets.autoRedeem"] ? "yes" : "no";
+		// Legacy single saved-reset `autoRedeem` (boolean or tri-state) -> the 5h and
+		// weekly window keys not set yet. The Fable window is new and stays `unset`.
+		for (const group of ["codexResets", "claudeResets"] as const) {
+			const nested = isRecord(raw[group]) ? raw[group] : undefined;
+			const dotted = `${group}.autoRedeem`;
+			const legacy = nested?.autoRedeem ?? raw[dotted];
+			if (nested) delete nested.autoRedeem;
+			delete raw[dotted];
+			if (legacy === undefined) continue;
+			const mode = typeof legacy === "boolean" ? (legacy ? "yes" : "no") : legacy;
+			for (const key of ["autoRedeem5h", "autoRedeemWeekly"]) {
+				if (nested?.[key] !== undefined || raw[`${group}.${key}`] !== undefined) continue;
+				if (nested) nested[key] = mode;
+				else raw[`${group}.${key}`] = mode;
+			}
 		}
 
 		// Map legacy `memories.enabled` boolean to the explicit `memory.backend`

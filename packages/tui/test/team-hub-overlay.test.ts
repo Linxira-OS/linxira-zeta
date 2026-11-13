@@ -46,6 +46,19 @@ const snapshotFor = (room: "core" | "coordination"): TeamHubSnapshot => ({
 		},
 	],
 	rooms: [sharedRoom, coreRoom],
+	tasks: [
+		{
+			id: "acme:task:T-1",
+			taskKey: "T-1",
+			title: "Ship the queue",
+			status: "pending" as const,
+			assignedPmId: "acme:core",
+			assigneeAgentId: "acme:core:alice",
+			ownerAgentId: null,
+			leaseExpiresAt: null,
+			reqIds: ["REQ-1"],
+		},
+	],
 	selectedRoom: {
 		room: room === "core" ? coreRoom : sharedRoom,
 		members: [{ agentId: "acme:core", role: "pm", label: "core" }],
@@ -128,6 +141,55 @@ describe("Team Hub overlay", () => {
 		hub.handleInput("\x1b");
 		hub.handleInput("\x1b");
 		expect(closed).toBe(1);
+		hub.dispose();
+	});
+
+	it("shows tasks and runs claim/member/kind actions through the source", async () => {
+		const actions: string[] = [];
+		const hub = new TeamHubOverlayComponent({
+			source: {
+				load: async options => snapshotFor(options?.room === "coordination" ? "coordination" : "core"),
+				post: async () => ({ seq: 10 }),
+				taskAction: async input => {
+					actions.push(`task:${input.action}:${input.task}`);
+					return { message: "task ok" };
+				},
+				addRoomMember: async input => {
+					actions.push(`member:${input.member}`);
+					return { message: "member ok" };
+				},
+				removeRoomMember: async input => {
+					actions.push(`unmember:${input.member}`);
+					return { message: "unmember ok" };
+				},
+				setRoomKind: async input => {
+					actions.push(`kind:${input.kind}`);
+					return { message: "kind ok" };
+				},
+			},
+			ui: { terminal: { rows: 24 }, requestRender() {} } as never,
+			onDone() {},
+			requestRender() {},
+		});
+		await hub.ready;
+		// core room -> T-1 task entry
+		hub.handleInput("j");
+		expect(hub.render(96).join("\n")).toContain("REQ-1");
+		hub.handleInput("c");
+		await hub.ready;
+		expect(actions).toContain("task:claim:T-1");
+
+		hub.handleInput("K");
+		await hub.ready;
+		expect(actions.some(action => action.startsWith("kind:"))).toBe(true);
+
+		hub.handleInput("g");
+		await hub.ready;
+		hub.handleInput("m");
+		hub.handleInput("bob");
+		hub.handleInput("\r");
+		await hub.ready;
+		expect(actions).toContain("member:bob");
 		hub.dispose();
 	});
 

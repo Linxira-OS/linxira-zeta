@@ -1,0 +1,132 @@
+/* ============================================================
+   REQ-055 — plugin HTML page host
+   Scoped to the plugin page route and the capabilities index.
+   ============================================================ */
+
+.plugin-page {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	height: 100%;
+	background: var(--bg);
+	color: var(--text);
+}
+
+.plugin-page-head {
+	display: flex;
+	align-items: center;
+	gap: var(--sp-8);
+	flex: none;
+	height: var(--topbar-h);
+	padding: 0 var(--sp-12);
+	border-bottom: 1px solid var(--border);
+	background: var(--surface);
+}
+
+.plugin-page-title {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--fs-14);
+	font-weight: var(--fw-semibold);
+	color: var(--text);
+}
+
+.plugin-page-plugin {
+	flex: none;
+	max-width: 40%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	padding: 0 var(--sp-6);
+	border: 1px solid var(--border);
+	border-radius: var(--r-4);
+	font-size: var(--fs-11);
+	line-height: 18px;
+	color: var(--text-3);
+}
+
+.plugin-page-spacer {
+	flex: 1 1 auto;
+}
+
+.plugin-page-frame {
+	flex: 1 1 auto;
+	width: 100%;
+	min-height: 0;
+	display: block;
+	border: 0;
+	background: var(--bg-inset);
+}
+
+.plugin-page-notice {
+	display: flex;
+	align-items: center;
+	gap: var(--sp-6);
+	flex: none;
+	padding: var(--sp-6) var(--sp-12);
+	border-bottom: 1px solid var(--border);
+	background: var(--surface-2);
+	color: var(--text-2);
+	font-size: var(--fs-12);
+}
+
+.plugin-page-notice > span {
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.plugin-page-notice.is-warning {
+	background: var(--amber-soft);
+	color: var(--amber);
+}
+
+.plugin-page-notice.is-error {
+	background: var(--red-soft);
+	color: var(--red);
+}
+
+.plugin-page-empty {
+	margin: var(--sp-24);
+	padding: var(--sp-16);
+	border: 1px dashed var(--border-strong);
+	border-radius: var(--r-8);
+	color: var(--text-2);
+	font-size: var(--fs-14);
+}
+
+/* ---------- Capabilities → plugins → pages index ---------- */
+
+.plugin-pages-index {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	width: 100%;
+	gap: var(--sp-8);
+}
+
+.plugin-pages-group {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--sp-8);
+}
+
+.plugin-pages-group-name {
+	flex: none;
+	font-size: var(--fs-12);
+	font-weight: var(--fw-medium);
+	color: var(--text-2);
+}
+
+.plugin-page-link {
+	text-decoration: none;
+	color: var(--text-2);
+}
+
+.plugin-page-link:hover,
+.plugin-page-link:focus-visible {
+	color: var(--accent);
+	border-color: var(--accent-border);
+}

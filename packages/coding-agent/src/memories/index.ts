@@ -20,7 +20,12 @@ import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
 import { redactMemorySecrets as redactSecrets } from "../memory-backend/redact";
-import type { MemoryBackendSaveInput, MemoryBackendSaveResult } from "../memory-backend/types";
+import type {
+	MemoryBackendOperationContext,
+	MemoryBackendSaveInput,
+	MemoryBackendSaveResult,
+} from "../memory-backend/types";
+import type { MemoryLearningWindow } from "../memory-backend/window-types";
 import consolidationTemplate from "../prompts/memories/consolidation.md" with { type: "text" };
 import consolidationSystemTemplate from "../prompts/memories/consolidation_system.md" with { type: "text" };
 import readPathTemplate from "../prompts/memories/read-path.md" with { type: "text" };
@@ -29,6 +34,7 @@ import stageOneSystemTemplate from "../prompts/memories/stage_one_system.md" wit
 import type { AgentSession } from "../session/agent-session";
 import {
 	claimStage1Jobs,
+	claimWindowStage1,
 	clearMemoryData as clearMemoryDataInDb,
 	closeMemoryDb,
 	enqueueGlobalWatermark,
@@ -66,7 +72,7 @@ import {
 	cfgMemoriesSummaryInjectionTokenLimit,
 	cfgMemoriesThreadScanLimit,
 } from "./settings";
-import { cfgMemoryBackend } from "../memory-backend/settings";
+import { cfgMemoryBackend, cfgMemoryExtractionMode } from "../memory-backend/settings";
 
 interface MemoryRuntimeConfig {
 	enabled: boolean;
@@ -126,6 +132,83 @@ interface ConsolidationOutputSchema {
 	skills: ConsolidationSkillSchema[];
 }
 
+const localMemoryScopes = new WeakMap<AgentSession, string>();
+
+/** Run bounded stage-1 extraction and the existing project consolidation queue. */
+export async function learnMemoryWindow(
+	context: MemoryBackendOperationContext,
+	input: MemoryLearningWindow,
+): Promise<void> {
+	const { session, agentDir } = context;
+	const cwd = session && localMemoryScopes.get(session);
+	if (!session || !cwd || session.isDisposed)
+		throw new Error("Local memory backend is not initialised for window learning.");
+	if (!input.messages.some(message => message.role === "user" && message.content.trim())) return;
+	const config = loadMemoryConfig(session.settings);
+	const id = `window-${new Bun.CryptoHasher("sha256").update(input.id).digest("hex")}`;
+	const db = openMemoryDb(getAgentDbPath(agentDir));
+	try {
+		const claim = claimWindowStage1(db, id, cwd, unixNow(), config.stage1LeaseSeconds);
+		if (claim) {
+			try {
+				const model = await resolveMemoryModel({
+					modelRegistry: session.modelRegistry,
+					session,
+					fallbackRole: "default",
+				});
+				if (!model) throw new Error("No model available for local window extraction.");
+				if (!(await session.modelRegistry.getApiKey(model, session.sessionId)))
+					throw new Error("No API key for local window extraction.");
+				const result = await runStage1Job({
+					claim,
+					model,
+					apiKey: session.modelRegistry.resolver(model, session.sessionId),
+					sessionId: session.sessionId,
+					modelMaxTokens: computeModelTokenBudget(model, config),
+					config,
+					// Only user-authored evidence can establish durable memory.
+					responseItems: JSON.stringify(
+						input.messages
+							.filter(message => message.role === "user")
+							.map(message => ({
+								role: message.role,
+								content: redactSecrets(message.content),
+								...(message.timestamp ? { timestamp: message.timestamp } : {}),
+							})),
+					),
+					metadata: session.agent?.metadataForProvider(model.provider),
+				});
+				if (result.kind === "failed") throw new Error(result.reason);
+				const marked =
+					result.kind === "output"
+						? markStage1SucceededWithOutput(db, { ...claim, ...result.output, nowSec: unixNow() })
+						: markStage1SucceededNoOutput(db, { ...claim, nowSec: unixNow() });
+				if (!marked) throw new Error("Local window extraction lost its queue lease.");
+			} catch (error) {
+				markStage1Failed(db, {
+					threadId: id,
+					ownershipToken: claim.ownershipToken,
+					retryDelaySeconds: config.stage1RetryDelaySeconds,
+					reason: String(error),
+					nowSec: unixNow(),
+				});
+				throw error;
+			}
+		}
+	} finally {
+		closeMemoryDb(db);
+	}
+	await runPhase2({
+		session,
+		settings: session.settings,
+		modelRegistry: session.modelRegistry,
+		agentDir,
+		config,
+		signal: new AbortController().signal,
+		windowCwd: cwd,
+	});
+}
+
 /**
  * Start the background memory startup pipeline.
  *
@@ -139,6 +222,8 @@ export function startMemoryStartupTask(options: {
 	taskDepth: number;
 }): void {
 	const { session, settings, modelRegistry, agentDir, taskDepth } = options;
+	localMemoryScopes.set(session, session.sessionManager.getCwd());
+	if (cfgMemoryExtractionMode.get(settings) !== "auto") return;
 	const cfg = loadMemoryConfig(settings);
 	if (!cfg.enabled) return;
 	if (taskDepth > 0) return;
@@ -162,8 +247,31 @@ export function startMemoryStartupTask(options: {
 }
 
 interface MemoryInstructionSession {
-	sessionManager: Pick<AgentSession["sessionManager"], "getSessionFile">;
+	sessionManager: Pick<AgentSession["sessionManager"], "getSessionFile"> & {
+		getMemoryNamespace?: () => string | undefined;
+	};
 	agent?: { state: { messages: readonly unknown[] } };
+}
+
+/** Reversible, injective directory name for a memory namespace. */
+export function encodeMemoryNamespace(namespace: string): string {
+	let out = "";
+	for (const byte of new TextEncoder().encode(namespace)) {
+		const ch = String.fromCharCode(byte);
+		const safe =
+			(byte >= 48 && byte <= 57) ||
+			(byte >= 65 && byte <= 90) ||
+			(byte >= 97 && byte <= 122) ||
+			byte === 46 ||
+			byte === 95 ||
+			byte === 45;
+		out += safe ? ch : `~${byte.toString(16).padStart(2, "0").toUpperCase()}`;
+	}
+	return out.length === 0 ? "_" : out;
+}
+
+function sessionMemoryRoot(agentDir: string, cwd: string, session?: MemoryInstructionSession): string {
+	return getMemoryRoot(agentDir, cwd, session?.sessionManager?.getMemoryNamespace?.());
 }
 
 interface MemoryToolDeveloperInstructionsSnapshot {
@@ -279,7 +387,7 @@ export async function refreshMemoryToolDeveloperInstructionsCacheAfterStartup(
 	if (memoryConversationStarted(session)) return;
 	const sessionFile = getMemoryInstructionSessionFile(session);
 	const cached = memoryToolDeveloperInstructionsBySession.get(session);
-	const root = getMemoryRoot(agentDir, cwd);
+	const root = sessionMemoryRoot(agentDir, cwd, session);
 	const current = await readMemoryToolDeveloperInstructionsSnapshot(root, settings);
 	if (memoryConversationStarted(session)) return;
 	const baseline = memoryToolDeveloperInstructionsByRoot.get(root);
@@ -302,7 +410,7 @@ export async function buildMemoryToolDeveloperInstructions(
 	settings: Settings,
 	session?: MemoryInstructionSession,
 ): Promise<string | undefined> {
-	const root = getMemoryRoot(agentDir, cwd);
+	const root = sessionMemoryRoot(agentDir, cwd, session);
 	if (!session) {
 		const snapshot = await readMemoryToolDeveloperInstructionsSnapshot(root, settings);
 		memoryToolDeveloperInstructionsByRoot.set(root, snapshot);
@@ -342,6 +450,22 @@ export function enqueueMemoryConsolidation(agentDir: string, cwd: string, source
 	}
 }
 
+/** Explicit enqueue drains consolidation even when automatic rollout scans are disabled. */
+export async function enqueueLocalMemory(agentDir: string, cwd: string, session?: AgentSession): Promise<void> {
+	const scope = session ? (localMemoryScopes.get(session) ?? cwd) : cwd;
+	enqueueMemoryConsolidation(agentDir, scope);
+	if (!session) return;
+	await runPhase2({
+		session,
+		settings: session.settings,
+		modelRegistry: session.modelRegistry,
+		agentDir,
+		config: loadMemoryConfig(session.settings),
+		signal: new AbortController().signal,
+		windowCwd: scope,
+	});
+}
+
 interface MemoryStartupOptions {
 	session: AgentSession;
 	settings: Settings;
@@ -349,10 +473,17 @@ interface MemoryStartupOptions {
 	agentDir: string;
 	config: MemoryRuntimeConfig;
 	signal: AbortSignal;
+	/** A bounded delivery runs consolidation only, never startup session scans. */
+	windowCwd?: string;
 }
 
 function isMemoryStartupActive(options: MemoryStartupOptions): boolean {
-	return !options.signal.aborted && !options.session.isDisposed && cfgMemoryBackend.get(options.settings) === "local";
+	return (
+		!options.signal.aborted &&
+		!options.session.isDisposed &&
+		cfgMemoryBackend.get(options.settings) === "local" &&
+		(options.windowCwd !== undefined || cfgMemoryExtractionMode.get(options.settings) === "auto")
+	);
 }
 
 async function runMemoryStartup(options: MemoryStartupOptions): Promise<void> {
@@ -378,7 +509,7 @@ async function runPhase1(options: MemoryStartupOptions): Promise<void> {
 	const db = openMemoryDb(getAgentDbPath(agentDir));
 	const nowSec = unixNow();
 	const workerId = `memory-${process.pid}`;
-	const memoryRoot = getMemoryRoot(agentDir, session.sessionManager.getCwd());
+	const memoryRoot = sessionMemoryRoot(agentDir, session.sessionManager.getCwd(), session);
 	const currentThreadId = session.sessionManager.getSessionId();
 
 	try {
@@ -507,11 +638,11 @@ async function runPhase1(options: MemoryStartupOptions): Promise<void> {
 async function runPhase2(options: MemoryStartupOptions): Promise<void> {
 	if (!isMemoryStartupActive(options)) return;
 	const { session, modelRegistry, agentDir, config } = options;
-	const cwd = session.sessionManager.getCwd();
+	const cwd = options.windowCwd ?? session.sessionManager.getCwd();
 	const db = openMemoryDb(getAgentDbPath(agentDir));
 	const nowSec = unixNow();
 	const workerId = `memory-${process.pid}`;
-	const memoryRoot = getMemoryRoot(agentDir, cwd);
+	const memoryRoot = sessionMemoryRoot(agentDir, cwd, session);
 
 	try {
 		const claimResult = tryClaimGlobalPhase2Job(db, {
@@ -519,8 +650,13 @@ async function runPhase2(options: MemoryStartupOptions): Promise<void> {
 			leaseSeconds: config.phase2LeaseSeconds,
 			nowSec,
 			cwd,
+			windowDelivery: options.windowCwd !== undefined,
 		});
-		if (claimResult.kind !== "claimed") return;
+		if (claimResult.kind !== "claimed") {
+			if (options.windowCwd !== undefined && claimResult.kind === "skipped_running")
+				throw new Error("Local memory consolidation is already running.");
+			return;
+		}
 
 		const claim = claimResult.claim;
 		const outputs = listStage1OutputsForGlobal(db, config.maxRawMemoriesForGlobal, cwd);
@@ -557,6 +693,7 @@ async function runPhase2(options: MemoryStartupOptions): Promise<void> {
 				memoryRoot,
 				cwd,
 			});
+			if (options.windowCwd !== undefined) throw new Error("No model available for local window consolidation.");
 			return;
 		}
 		const phase2ApiKey = await modelRegistry.getApiKey(phase2Model, session.sessionId);
@@ -568,6 +705,7 @@ async function runPhase2(options: MemoryStartupOptions): Promise<void> {
 				memoryRoot,
 				cwd,
 			});
+			if (options.windowCwd !== undefined) throw new Error("No API key available for local window consolidation.");
 			return;
 		}
 
@@ -624,6 +762,7 @@ async function runPhase2(options: MemoryStartupOptions): Promise<void> {
 				cwd,
 				error,
 			});
+			if (options.windowCwd !== undefined) throw error;
 		} finally {
 			clearInterval(heartbeat);
 		}
@@ -872,6 +1011,8 @@ async function runStage1Job(options: {
 	modelMaxTokens: number;
 	config: MemoryRuntimeConfig;
 	metadata?: Record<string, unknown>;
+	/** Preselected window input; bypasses rollout-file reads and tail selection. */
+	responseItems?: string;
 }): Promise<
 	| {
 			kind: "output";
@@ -887,7 +1028,7 @@ async function runStage1Job(options: {
 			config.phase1InputTokenLimit,
 			Math.floor(modelMaxTokens * config.rolloutPayloadPercent),
 		);
-		const truncatedItems = await buildStage1RolloutItems(claim.rolloutPath, budgetTokens);
+		const truncatedItems = options.responseItems ?? (await buildStage1RolloutItems(claim.rolloutPath, budgetTokens));
 		const inputPrompt = prompt.render(stageOneInputTemplate, {
 			thread_id: claim.threadId,
 			response_items_json: truncatedItems,
@@ -1405,7 +1546,15 @@ function loadMemoryConfig(settings: Settings): MemoryRuntimeConfig {
 	};
 }
 
-export function getMemoryRoot(agentDir: string, cwd: string): string {
+/** Stable fallback namespace for a personal/repo session (matches the project memory key). */
+export function canonicalMemoryNamespace(cwd: string): string {
+	return `repo:${encodeProjectPath(normalizeScopeCwd(cwd))}`;
+}
+
+export function getMemoryRoot(agentDir: string, cwd: string, namespace?: string): string {
+	if (namespace !== undefined && namespace.trim().length > 0) {
+		return path.join(getMemoriesDir(agentDir), "agents", encodeMemoryNamespace(namespace));
+	}
 	return path.join(getMemoriesDir(agentDir), encodeProjectPath(normalizeScopeCwd(cwd)));
 }
 
@@ -1467,6 +1616,7 @@ export async function saveLearnedLesson(
 	agentDir: string,
 	cwd: string,
 	input: MemoryBackendSaveInput,
+	namespace?: string,
 ): Promise<MemoryBackendSaveResult> {
 	const content = normalizeLearnedText(input.content, MAX_LEARNED_CONTENT_CHARS);
 	if (!content) {
@@ -1474,7 +1624,7 @@ export async function saveLearnedLesson(
 	}
 	const context = input.context ? normalizeLearnedText(input.context, MAX_LEARNED_CONTEXT_CHARS) : "";
 	const line = context ? `- ${content} _(context: ${context})_` : `- ${content}`;
-	const filePath = path.join(getMemoryRoot(agentDir, cwd), LEARNED_LESSONS_FILE);
+	const filePath = path.join(getMemoryRoot(agentDir, cwd, namespace), LEARNED_LESSONS_FILE);
 
 	// Serialize the read-modify-write per file: parallel `learn` calls (sibling
 	// subagents, or two shared tool calls in one turn) share the project memory

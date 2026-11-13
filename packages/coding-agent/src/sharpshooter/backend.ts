@@ -4,7 +4,7 @@ import type { MemoryBackend, MemoryBackendSearchItem, MemoryBackendStatus } from
 import { truncateApproxTokens } from "../mnemopi/config";
 import type { AgentSession } from "../session/agent-session";
 import { runSharpshooterConsolidation } from "./consolidate";
-import { maybeStartSharpshooterExtraction, resolveSharpshooterModel } from "./extract";
+import { learnSharpshooterWindow, maybeStartSharpshooterExtraction, resolveSharpshooterModel } from "./extract";
 import {
 	readSharpshooterState,
 	sharpshooterBankDir,
@@ -21,6 +21,7 @@ import { cfgSharpshooterInjectionTokenLimit, cfgSharpshooterIntervalMinutes } fr
 interface SharpshooterSessionResources {
 	unsubscribe: () => void;
 	disposeScheduler: () => void;
+	cwd: string;
 }
 
 interface SharpshooterFileSnapshot {
@@ -106,6 +107,7 @@ export const sharpshooterBackend: MemoryBackend = {
 				(session as SharpshooterAgentSession)[kSharpshooterSessionResources] = {
 					unsubscribe,
 					disposeScheduler,
+					cwd: session.sessionManager.getCwd(),
 				};
 			} catch (error) {
 				disposeScheduler();
@@ -150,6 +152,21 @@ export const sharpshooterBackend: MemoryBackend = {
 			sessionId: session.sessionId,
 			force: true,
 		});
+	},
+
+	async learnWindow({ agentDir, session }, input): Promise<void> {
+		const resources = (session as SharpshooterAgentSession | undefined)?.[kSharpshooterSessionResources];
+		if (!session || !resources) throw new Error("Sharpshooter backend is not initialised for window learning.");
+		await learnSharpshooterWindow(
+			{
+				session,
+				settings: session.settings,
+				modelRegistry: session.modelRegistry,
+				agentDir,
+				cwd: resources.cwd,
+			},
+			input,
+		);
 	},
 
 	async status({ agentDir, cwd }): Promise<MemoryBackendStatus> {

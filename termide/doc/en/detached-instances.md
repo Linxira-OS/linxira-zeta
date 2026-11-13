@@ -15,8 +15,8 @@ reporting.
 ## Quick start
 
 ```bash
-termide --detached            # start a instance, print its id
-termide --list-instances       # see what is running
+termide --detached            # start an instance and attach to it
+termide --list-instances      # see what is running
 termide --attach              # attach to the most recent instance
 termide --attach my-project   # attach to a specific one
 ```
@@ -65,7 +65,6 @@ Worth knowing before you enable it:
 ssh server
 cd ~/src/my-project
 termide --detached
-termide --attach
 # … work, start a build, run an agent in a terminal panel …
 # press Alt+D, or just close the SSH connection
 ```
@@ -76,6 +75,11 @@ Later, from any machine:
 ssh server
 termide --attach my-project
 ```
+
+Plain `termide` in `~/src/my-project` does the same: a project is open in
+one Termide at a time, so a launch for a project a detached instance has
+attaches to that instance instead of starting a second one. Without a terminal
+to attach from, it prints the `--attach` line instead.
 
 Closing the SSH connection without detaching is safe. The instance notices the
 client is gone and carries on; the next `--attach` picks it up.
@@ -109,9 +113,10 @@ the way it does in a local instance.
 
 | Command | What it does |
 |---------|--------------|
-| `termide --detached` | Start a detached instance and print its id |
+| `termide --detached` (`-d`) | Start a detached instance and attach to it |
+| `termide --detached --no-attach` | Only start it and print its id — for scripts, and for launches with no terminal, where a plain `--detached` is refused |
 | `termide --detached file.rs` | Same, opening files as usual |
-| `termide --detached --restore` (`-r`) | Same, reopening the projects of the last run in the project that run was in |
+| `termide --detached --restore` (`-r`) | Same, starting in the last run's project instead of this directory |
 | `termide --attach` | Attach to the most recent instance |
 | `termide --attach <ID>` | Attach to a named instance |
 | `termide --attach <ID> --force` (`-f`) | Attach, taking over from a client that is already attached |
@@ -144,10 +149,16 @@ it gone — end it from outside:
 termide --kill my-project
 ```
 
-Termide inside gets SIGTERM, then SIGKILL if it is still there three seconds
-later; if the host process does not go either, `--kill` kills it too. Unsaved
-changes in that instance are lost, and its shells and jobs end with it. A
-client attached at the time is told the instance ended.
+Termide inside gets SIGTERM and shuts down without asking anything: unsaved
+changes in that instance are kept, together with its layout, and come back
+when the project is next opened (see
+[Ending termide from outside](editor.md#ending-termide-from-outside)). Its
+shells and jobs end with it. Should it still be there three seconds later it
+gets SIGKILL, and if the host process does not go either, `--kill` kills that
+too. A client attached at the time is told the instance ended.
+
+Closing the terminal of an attached client ends only the client: the hangup
+reaches the client, never the instance, which goes on detached.
 
 ## Only one client at a time
 
@@ -177,4 +188,7 @@ Sockets live in `$XDG_RUNTIME_DIR/termide/` on Linux and BSD, and in
 the machine can attach to your instances.
 
 Nothing there needs cleaning up by hand: a socket outlives its host only until
-the next `--list-instances` or `--detached`, which prunes it.
+the next `--list-instances` or `--detached`, which prunes it. That includes the
+ones left by a reboot (macOS keeps the directory): an instance is recognised by
+its host process's start time as well as its pid, so a pid since taken by
+another program counts as gone, and `--kill` never signals that program.
