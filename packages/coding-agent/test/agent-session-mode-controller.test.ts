@@ -97,6 +97,8 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 			["write", writeTool],
 			["read", readTool],
 			["goal", goalTool],
+			["tracking_update", makeTool("tracking_update")],
+			["local_room_read", makeTool("local_room_read")],
 		]);
 
 		const mock = options?.mock ?? createMockModel({ responses: [{ content: ["ok"] }] });
@@ -126,6 +128,7 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 			advisorTools: [],
 			createVibeTools: () => [makeTool("vibe_dir"), makeTool("vibe_worker")],
 			createTeamTools: () => [makeTool("team_dir"), makeTool("team_worker")],
+			builtInToolNames: ["ask", "write", "read", "goal", "tracking_update", "local_room_read"],
 		});
 		session = created;
 		return { session: created, mock };
@@ -241,6 +244,8 @@ describe("AgentSession ModeController (plan/goal/vibe)", () => {
 		expect(teamTools).toContain("read");
 		expect(teamTools).toContain("team_dir");
 		expect(teamTools).toContain("team_worker");
+		expect(teamTools).toContain("tracking_update");
+		expect(teamTools).toContain("local_room_read");
 		// Session-scoped runtime override, not a persisted global write.
 		expect(cfgTrackingEnabled.get(settings)).toBe(true);
 		expect(cfgTrackingEnabled.provenance(settings)).toBe("runtime");

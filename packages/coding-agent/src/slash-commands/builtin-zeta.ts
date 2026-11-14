@@ -112,8 +112,8 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		icon: "agents",
 		subcommands: [
 			{ name: "hub", description: () => M.cmdTeamHub },
-			{ name: "on", description: () => "Enter Team mode" },
-			{ name: "off", description: () => "Exit Team mode" },
+			{ name: "on", description: () => M.cmdTeamOn },
+			{ name: "off", description: () => M.cmdTeamOff },
 		],
 		subcommandOptional: true,
 		allowArgs: true,

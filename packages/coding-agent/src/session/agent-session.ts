@@ -1317,6 +1317,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	#leadModeState: LeadModeState | undefined;
 	#teamModeEnabled = false;
 	#teamModePreviousTools: string[] | undefined;
+	#teamModeOwnerScope: VibeOwnerScope | undefined;
 	#teamTrackingPreviousOverride: boolean | undefined;
 	/** Official ADR skill body injected once per Team owner scope (absent when no `adr` skill is loaded). */
 	#teamAdrSkillBody: string | undefined;
@@ -2990,15 +2991,27 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			cfgTrackingEnabled.provenance(this.settings) === "runtime" ? cfgTrackingEnabled.get(this.settings) : undefined;
 		this.#teamTrackingPreviousOverride = previousOverride;
 		cfgTrackingEnabled.override(this.settings, true);
+		// Open the worker scope exactly like Vibe does: spawn admission is closed
+		// after a previous Vibe exit until a new scope is activated.
+		const vibeRegistry = VibeSessionRegistry.global();
+		const ownerScope = vibeRegistry.ownerScope(this.#vibeParentSession());
+		vibeRegistry.activateScope(ownerScope);
+		this.#teamModeOwnerScope = ownerScope;
 		const baseTools = ["read"];
 		if (this.hasBuiltInTool("todo")) baseTools.push("todo");
 		baseTools.push("tracking_update");
+		// Team messaging rides the durable local room log: the lead and workers
+		// exchange task/review events there instead of a second transcript.
+		for (const name of ["local_room_read", "local_room_post", "local_room_reply"]) {
+			if (this.hasBuiltInTool(name)) baseTools.push(name);
+		}
 		try {
 			await this.activateTeamTools(baseTools);
 		} catch (error) {
 			if (previousOverride === undefined) cfgTrackingEnabled.clearOverride(this.settings);
 			else cfgTrackingEnabled.override(this.settings, previousOverride);
 			this.#teamTrackingPreviousOverride = undefined;
+			this.#teamModeOwnerScope = undefined;
 			throw error;
 		}
 		this.#teamModePreviousTools = previousTools;
@@ -3042,7 +3055,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (!this.#teamModeEnabled) return;
 		await this.runModeExitTeardown(async () => {
 			if (this.isStreaming) await this.abort();
-			await VibeSessionRegistry.global().killAll(this.#vibeParentSession());
+			await VibeSessionRegistry.global().killAll(this.#vibeParentSession(), this.#teamModeOwnerScope);
 			await this.deactivateTeamTools(this.#teamModePreviousTools ?? []);
 			this.#teamModeEnabled = false;
 			this.bumpStateVersion();
@@ -3094,7 +3107,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	async exitTeamModePreservingActive(): Promise<void> {
 		if (!this.#teamModeEnabled) return;
 		await this.runModeExitTeardown(async () => {
-			await VibeSessionRegistry.global().killAll(this.#vibeParentSession());
+			await VibeSessionRegistry.global().killAll(this.#vibeParentSession(), this.#teamModeOwnerScope);
 			await this.removeTeamToolsPreservingActive();
 			this.#teamModeEnabled = false;
 			this.bumpStateVersion();
@@ -9337,9 +9350,6 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 	getLeadModeState(): LeadModeState | undefined {
 		return this.#leadModeState;
-	}
-	getTeamModeState(): { enabled: boolean } | undefined {
-		return this.#teamModeEnabled ? { enabled: true } : undefined;
 	}
 
 	setLeadModeState(state: LeadModeState | undefined): void {
