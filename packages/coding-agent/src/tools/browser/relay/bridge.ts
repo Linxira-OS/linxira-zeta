@@ -782,8 +782,8 @@ export class RelayBridge {
 	// ---- extension self-update ------------------------------------------------
 
 	/**
-	 * The older omp version this extension runs, when the relay may replace it: the extension reloads on request,
-	 * its script carries an omp version older than this relay's, its socket named its Chrome id, and the relay has
+	 * The older Zeta version this extension runs, when the relay may replace it: the extension reloads on request,
+	 * its script carries a Zeta version older than this relay's, its socket named its Chrome id, and the relay has
 	 * not already reloaded it from that version (a reload that brings the same version back must not loop).
 	 */
 	#outdatedReloadable(inst: ExtInstance): string | null {
