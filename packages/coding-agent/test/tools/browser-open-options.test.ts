@@ -34,8 +34,6 @@ function browserHost(cwd: string = process.cwd(), settings: Record<string, unkno
 		getSessionFile: () => null,
 		getSessionSpawns: () => "*",
 		settings: Settings.isolated({
-			// Managed Chromium, whether or not omp's WebKit engine is installed on this machine.
-			"browser.webkit": false,
 			"browser.enabled": true,
 			"browser.headless": true,
 			"browser.cmux": false,
@@ -71,9 +69,9 @@ describe("browser open options CDP helpers", () => {
 		// No relay listens here, so an option refused only after connecting fails differently, and no test reaches a real one.
 		const port = await findFreeCdpPort();
 		const host = browserHost(process.cwd(), { "browser.relayUrl": `http://127.0.0.1:${port}` });
-		for (const option of [{ insecure: true }, { downloads: "relay-downloads" }]) {
+		for (const option of [{ ignore_https_errors: true }, { downloads: "relay-downloads" }]) {
 			const name = `relay-option-${crypto.randomUUID()}`;
-			const error = await rejectionOf(host({ action: "open", name, app: "relay", ...option }));
+			const error = await rejectionOf(host({ action: "open", name, app: { relay: true }, ...option }));
 			expect(error).toBeInstanceOf(ToolError);
 			expect(error).toMatchObject({
 				message: expect.stringContaining(
@@ -521,8 +519,8 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 				action: "open",
 				name,
 				url: server.url.href,
-				app: `http://${new URL(wsEndpoint).host}`,
-				insecure: true,
+				app: { cdp_url: `http://${new URL(wsEndpoint).host}` },
+				ignore_https_errors: true,
 			});
 			expect(
 				returnedValue(

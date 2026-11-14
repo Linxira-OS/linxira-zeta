@@ -378,10 +378,7 @@ import {
 	getRunningSubagentBadgeAgentIds,
 	getRunningSubagentBadgeRegistry,
 } from "@linxiraos/pi-tui/overlays/running-subagent-badge";
-import {
-	type ObservableSession,
-	SessionObserverRegistry,
-} from "@linxiraos/pi-tui/overlays/session-observer-registry";
+import { type ObservableSession, SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session-observer-registry";
 import { createSessionTeardown, type SessionTeardown } from "./session-teardown";
 import { sanitizeStatusText } from "@linxiraos/pi-tui/chrome/shared";
 import { invokeSkillCommandFromText, isKnownSkillCommand, type SkillCommandHost } from "./skill-command";

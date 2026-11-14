@@ -280,7 +280,7 @@ function browserTextStart(method: string, previous: string | undefined): number 
 }
 
 /** Drop Chromium headless tabs so the next open uses the selected mode. */
-export async function restartBrowserForModeChange(): Promise<void> {
+export async function applyBrowserModeChange(_headless: boolean): Promise<void> {
 	await dropHeadlessTabs();
 }
 
