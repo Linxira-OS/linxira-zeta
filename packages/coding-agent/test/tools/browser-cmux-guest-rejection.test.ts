@@ -82,6 +82,6 @@ test("an unawaited page-global miss in cmux guest code gets the agent-visible ru
 
 	expect(exitCode, stderr).toBe(0);
 	expect(stdout).toContain("caught:Unhandled rejection (missing await?): document is not defined");
-	expect(stdout).toContain("tab.run code runs in omp's Bun runtime, not in the page");
+	expect(stdout).toContain("tab.run code runs in Zeta's Bun runtime, not in the page");
 	expect(stdout).toContain("run page code with tab.evaluate(...)");
 });

@@ -657,7 +657,9 @@ export function buildHeadlessLaunchArgs(
 		DISABLE_AUTOMATION_CONTROLLED_ARG,
 		"--allow-file-access-from-files",
 		"--hide-scrollbars",
-		"--enable-features=WebMCPTesting,DevToolsWebMCPSupport",
+		// Chrome 157 dropped the WebMCPTesting feature; 156 and older know it. Naming both lets one argv
+		// cover the origin-trial builds and the current WebMCP flag.
+		"--enable-features=WebMCP,WebMCPTesting,DevToolsWebMCPSupport",
 		`--window-size=${viewport.width},${viewport.height}`,
 		...RENDERER_PRIORITY_ARGS,
 	];

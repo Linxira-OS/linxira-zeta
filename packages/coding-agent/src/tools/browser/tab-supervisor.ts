@@ -43,6 +43,7 @@ import {
 	ownsPage,
 	type ReadyInfo,
 	type RunErrorPayload,
+	isMissingPageGlobal,
 	type RunResultOk,
 	type SessionSnapshot,
 	type Transferable,
@@ -815,7 +816,11 @@ export async function runInTab(name: string, opts: RunInTabOptions): Promise<Run
 			browserScreenshotDir: expandBrowserScreenshotDir(opts.session),
 			excludeWebP: webpExclusionForModel(opts.session.getActiveModel?.()),
 		},
-	);
+	).catch(error => {
+		// A worker's run reports this through its payload; an in-process run throws the original.
+		if (isMissingPageGlobal(error)) addPageGlobalHint(error);
+		throw error;
+	});
 	// A worker that exited with no run in flight left the reset unreported; this call reports it. Runs an open
 	// makes on the tab leave it for the open to report.
 	const tab = tabs.get(name);
@@ -855,9 +860,7 @@ async function runInTabWithSnapshot(
 	if (!tab || tab.state === "dead") {
 		const killed = killedTabs.get(name);
 		throw new ToolError(
-			killed
-				? `Tab ${JSON.stringify(name)} was killed: ${killed}. Reopen it.`
-				: `Tab ${JSON.stringify(name)} is not alive. Open it first with action:"open".`,
+			killed ? `Tab ${JSON.stringify(name)} was killed: ${killed}. Reopen it.` : notAliveMessage(name),
 		);
 	}
 	if (tab.pending.size > 0) {
@@ -937,7 +940,7 @@ async function runInTabWithSnapshot(
 		// the closure. `race` — not a bare `await promise` — so a teardown
 		// that never settled the run cannot hang us.
 		tab.pending.delete(id);
-		const notAlive = new ToolError(`Tab ${JSON.stringify(name)} is not alive. Open it first with action:"open".`);
+		const notAlive = new ToolError(notAliveMessage(name));
 		return await Promise.race([promise, Promise.reject(notAlive)]);
 	}
 	// A worker that exited during the resume already failed this run (its exit handler rejected it) and is being
@@ -1759,7 +1762,7 @@ async function buildInitPayload(browser: PuppeteerBrowserHandle, opts: AcquireTa
 			initScripts: opts.initScripts,
 			downloadsPath: opts.downloadsPath,
 			userAgent: opts.userAgent,
-			ignoreHttpsErrors: opts.ignoreHttpsErrors,
+			insecure: opts.ignoreHttpsErrors,
 		};
 	}
 
@@ -1797,7 +1800,7 @@ async function buildInitPayload(browser: PuppeteerBrowserHandle, opts: AcquireTa
 		initScripts: opts.initScripts,
 		downloadsPath: opts.downloadsPath,
 		userAgent: opts.userAgent,
-		ignoreHttpsErrors: opts.ignoreHttpsErrors,
+		insecure: opts.ignoreHttpsErrors,
 		userDriven,
 		relay: browser.kind.kind === "relay",
 	};
@@ -2009,7 +2012,7 @@ async function recycleTimedOutWorkerTab(
 		dialogs: tab.dialogPolicy,
 		allowedDomains: tab.allowedDomains,
 		// The override's CDP session died with the old worker.
-		ignoreHttpsErrors: tab.ignoreHttpsErrors,
+		insecure: tab.ignoreHttpsErrors,
 		// Unblock a wedged page (open JS dialog, hung navigation) before adopting it —
 		// otherwise init stalls, times out, and the tab gets force-killed.
 		recover: opts.recover ?? true,
@@ -2260,7 +2263,21 @@ function errorFromPayload(payload: RunErrorPayload): Error {
 						: new Error(payload.message);
 	error.name = payload.name;
 	if (payload.stack) error.stack = payload.stack;
+	if (payload.missingPageGlobal) addPageGlobalHint(error);
 	return error;
+}
+
+/** Say where `tab.run` code runs, after it failed reaching for a page global. */
+function addPageGlobalHint(error: Error): void {
+	const original = `${error.name}: ${error.message}`;
+	error.message += ": tab.run code runs in Zeta's Bun runtime, not in the page; run page code with tab.evaluate(...)";
+	if (error.stack?.startsWith(original))
+		error.stack = `${error.name}: ${error.message}${error.stack.slice(original.length)}`;
+}
+
+function notAliveMessage(name: string): string {
+	const quoted = JSON.stringify(name);
+	return `Tab ${quoted} is not open (never opened, or closed since). Open it with await browser.open({ name: ${quoted} }) (Python: await browser.open(name=${quoted})), passing the url and app it was opened with.`;
 }
 
 function logWorkerMessage(msg: Extract<WorkerOutbound, { type: "log" }>): void {

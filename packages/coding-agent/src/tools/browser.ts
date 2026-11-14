@@ -91,13 +91,11 @@ export type { Observation, ObservationEntry } from "./browser/tab-protocol";
 const DEFAULT_TAB_NAME = "main";
 const BROWSER_RUN_SCOPE: readonly string[] = ["tab", "page", "browser", "wait", "assert"];
 
-const appSchema = type({
-	"path?": type("string").describe("binary path to spawn"),
-	"cdp_url?": type("string").describe("existing cdp endpoint"),
-	"relay?": type("boolean").describe("drive the user's own tabs via the Zeta browser relay"),
-	"args?": type("string[]").describe("extra cli args"),
-	"target?": type("string").describe("URL/title substring picking the page to drive"),
-});
+/** Browsers `app` names by keyword; any other `app` is a CDP endpoint URL or an executable path. */
+const APP_KEYWORDS: readonly string[] = ["relay", "tern", "webkit", "chromium", "own", "auto"];
+
+/** A `scheme://` string names a CDP endpoint to attach to; Windows drive paths (`C:\`) do not match. */
+const URL_SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i;
 
 const tabCallStepSchema = type({
 	method: "string",
@@ -108,7 +106,11 @@ const browserSchema = type({
 	action: type("'open' | 'close' | 'run' | 'call' | 'tabs' | 'targets'").describe("operation"),
 	"name?": type("string").describe("tab id (default 'main')"),
 	"url?": type("string").describe("url to open"),
-	"app?": appSchema,
+	"app?": type("string").describe(
+		"browser to drive: 'relay' (the user's Chrome), 'tern' (Tern picture-in-picture), 'webkit', 'chromium' (managed), 'own' (Zeta's own browser: WebKit if installed, else Chromium), 'auto' (default choice without the relay), a CDP endpoint URL to attach to, or an executable path to spawn",
+	),
+	"argv?": type("string[]").describe("extra cli args when app is an executable path"),
+	"target?": type("string").describe("URL/title substring picking the page to drive"),
 	"viewport?": {
 		width: "number",
 		height: "number",
@@ -122,9 +124,8 @@ const browserSchema = type({
 	"init_scripts?": type("string[]").describe("document-start JavaScript sources or cwd-relative file paths"),
 	"downloads?": type("string").describe("cwd-relative download directory"),
 	"user_agent?": type("string").describe("tab user agent override"),
-	"ignore_https_errors?": type("boolean").describe("ignore invalid HTTPS certificates"),
-	"allow_file_access?": type("boolean").describe("allow file URLs to read local files"),
-	"headed?": type("boolean").describe("override the configured Chromium display mode"),
+	"insecure?": type("boolean").describe("ignore invalid HTTPS certificates"),
+	"headed?": type("boolean").describe("override the configured display mode: a window for the tab (true) or none"),
 	"code?": type("string").describe("js body to run in tab"),
 	"fn?": type("string").describe("serialized JavaScript function to run in tab"),
 	"args?": type("unknown[]").describe("arguments passed to a serialized function"),
@@ -151,8 +152,11 @@ interface BrowserPreludeDetails {
 }
 
 /**
- * The browser an open drives, by precedence: explicit `app.*` options, the
- * relay, `browser.cdpUrl`, a cmux surface, then Chromium.
+ * The browser an open drives, by precedence: an explicit `app` (an executable
+ * path or CDP URL, or a keyword: `relay`, `tern`, `webkit`, `chromium`, `own`),
+ * the relay, `browser.cdpUrl`, a cmux surface, then Chromium. `app: "auto"`
+ * is that chain without the relay. `app: "tern"` and `app: "webkit"` require
+ * their engines, which this tree does not ship yet.
  */
 export function resolveBrowserKind(
 	params: BrowserParams,
@@ -160,32 +164,41 @@ export function resolveBrowserKind(
 	env: Record<string, string | undefined> = process.env,
 ): BrowserKind {
 	const app = params.app;
-	if (app?.cdp_url) {
-		return { kind: "connected", cdpUrl: app.cdp_url.replace(/\/+$/, "") };
+	if (app !== undefined && URL_SCHEME.test(app)) {
+		return { kind: "connected", cdpUrl: app.replace(/\/+$/, "") };
 	}
-	if (app?.path) {
-		const exe = resolveToCwd(app.path, session.cwd);
-		const args = resolveSpawnArgs(exe, app.args, session.cwd);
-		if (params.ignore_https_errors && !args.includes("--ignore-certificate-errors")) {
+	if (app && !APP_KEYWORDS.includes(app)) {
+		const exe = resolveToCwd(app, session.cwd);
+		const args = resolveSpawnArgs(exe, params.argv, session.cwd);
+		if (params.insecure && !args.includes("--ignore-certificate-errors")) {
 			args.push("--ignore-certificate-errors");
 		}
-		if (params.allow_file_access && !args.includes("--allow-file-access-from-files")) {
+		if (!args.includes("--allow-file-access-from-files")) {
 			args.push("--allow-file-access-from-files");
 		}
 		return { kind: "spawned", path: exe, args };
 	}
 	const relayUrl = cfgBrowserRelayUrl.get(session.settings);
-	// Explicit app.relay wins over every setting; PI_BROWSER_RELAY stays the
+	// Explicit app: "relay" wins over every setting; PI_BROWSER_RELAY stays the
 	// final kill switch (a relay that is down would otherwise brick the tool).
-	if (app?.relay) {
+	if (app === "relay") {
 		const relayKind = resolveRelayKind({ settingEnabled: true, url: relayUrl }, env);
 		if (relayKind) return relayKind;
 	}
+	if (app === "tern") {
+		throw new ToolError('app: "tern" requires running inside a Tern pane, which this build does not support.');
+	}
+	if (app === "webkit") {
+		throw new ToolError(
+			'app: "webkit" requires Zeta\'s WebKit engine, which this build does not ship. Use app: "chromium" or leave app unset for managed Chromium.',
+		);
+	}
+	if (app === "chromium" || app === "own") return chromiumKind(params, session);
 	// Relay before cdpUrl among settings: enabling the opt-out-by-default relay
 	// is a deliberate mode selection, while cdpUrl is a standing fallback
-	// endpoint. A configured endpoint is a default, not an override: explicit
-	// app options win.
-	if (app?.relay !== false) {
+	// endpoint. A configured endpoint is a default, not an override: an
+	// explicit app wins.
+	if (app !== "auto") {
 		const relayKind = resolveRelayKind(
 			{
 				settingEnabled: cfgBrowserRelay.get(session.settings),
@@ -217,8 +230,7 @@ function chromiumKind(params: BrowserParams, session: ToolSession): BrowserKind 
 	return {
 		kind: "headless",
 		headless,
-		ignoreHttpsErrors: params.ignore_https_errors,
-		allowFileAccess: params.allow_file_access,
+		ignoreHttpsErrors: params.insecure,
 	};
 }
 
@@ -230,11 +242,11 @@ export function createBrowserPrelude(session: ToolSession): EvalPreludeDefinitio
 	return createBrowserPreludeDefinition(session, {
 		invoke: (parameters: unknown, context: EvalPreludeContext) => invokeBrowser(session, parameters, context),
 		status: describeBrowserCall,
-		// The documentation promises omp's own browser for an open without `app`; while
-		// the relay takes that open, the prompt names where `app.relay: false` goes instead.
+		// The documentation promises Zeta's own browser for an open without `app`; while
+		// the relay takes that open, the prompt names where `app: "auto"` goes instead.
 		relayFallback:
 			resolveBrowserKind({ action: "open" }, session).kind === "relay"
-				? resolveBrowserKind({ action: "open", app: { relay: false } }, session)
+				? resolveBrowserKind({ action: "open", app: "auto" }, session)
 				: undefined,
 	});
 }
@@ -372,9 +384,9 @@ async function openOnKind(
 		);
 	}
 	// Chrome's extension debugger API exposes no Security domain, so the relay cannot honor the override.
-	if (params.ignore_https_errors && kind.kind === "relay") {
+	if (params.insecure && kind.kind === "relay") {
 		throw new ToolError(
-			"ignore_https_errors is not supported through the Chrome relay: the extension debugger API does not expose the CDP Security domain. Pass app.relay:false to use Zeta's Chromium instead.",
+			'insecure is not supported through the Chrome relay: the extension debugger API does not expose the CDP Security domain. Pass app: "chromium" to use Zeta\'s Chromium instead.',
 		);
 	}
 	// Chrome never lets an extension choose where downloads go. Refused here, before an existing tab is closed to reopen.
@@ -449,7 +461,7 @@ async function openOnKind(
 				(initScripts.length > 0 ||
 					params.downloads !== undefined ||
 					params.user_agent !== undefined ||
-					params.ignore_https_errors === true)
+					params.insecure === true)
 			) {
 				stage = `closing tab ${JSON.stringify(name)} to reopen it`;
 				await untilAborted(openSignal, () => releaseTab(name, { kill: false, timeoutMs }));
@@ -466,7 +478,7 @@ async function openOnKind(
 								deviceScaleFactor: params.viewport.scale,
 							}
 						: undefined,
-					target: params.app?.target,
+					target: params.target,
 					timeoutMs,
 					deadlineStartMs: deadlineStart,
 					dialogs: params.dialogs,
@@ -474,7 +486,7 @@ async function openOnKind(
 					initScripts,
 					downloadsPath,
 					userAgent: params.user_agent,
-					ignoreHttpsErrors: params.ignore_https_errors,
+					ignoreHttpsErrors: params.insecure,
 					signal: openSignal,
 					ownerSessionId: tabOwnerId(session),
 					// Omitted stays undefined: creation defaults it to false
@@ -537,7 +549,7 @@ async function listTargets(
 	const kind = resolveBrowserKind(params, session);
 	if (kind.kind !== "relay") {
 		throw new ToolError(
-			`No pages to adopt here (the browser would be ${describeKind(kind)}): targets exist only with the Zeta relay (app.relay: true or the browser.relay setting).`,
+			`No pages to adopt here (the browser would be ${describeKind(kind)}): targets exist only with the Zeta relay (app: "relay" or the browser.relay setting).`,
 		);
 	}
 	details.browser = kind.kind;

@@ -118,7 +118,7 @@ describe("browser prelude relay guidance", () => {
 			for (const key of ENV_KEYS) delete process.env[key];
 			Object.assign(process.env, env);
 			const session = sessionWith({ "browser.relay": true, ...settings });
-			expect(resolveBrowserKind({ action: "open" }, session).kind).toBe(kind);
+			expect(resolveBrowserKind({ action: "open", app: "auto" }, session).kind).toBe(kind);
 			const guidance = createBrowserPrelude(session).guidance;
 			expect(guidance).toContain(says);
 			expect(guidance).not.toContain("throwaway");

@@ -1,4 +1,5 @@
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 
 export type Transferable = Bun.Transferable;
 
@@ -193,7 +194,19 @@ export interface Transport {
 	close(): void;
 }
 
+/** Globals every page has and Zeta's Bun runtime lacks: run code that cannot find one was written for the page. */
+const PAGE_ONLY_GLOBAL_RE =
+	/^(document|window|location|history|localStorage|sessionStorage|customElements|getComputedStyle|CSS|HTML\w*Element|Element|Node) is not defined$/;
+
+/**
+ * Whether run code itself, in Zeta's runtime, reached for a page-only global. An exception thrown in the page arrives
+ * as a plain `Error` that Puppeteer names after it, so it never counts. A floating rejection arrives wrapped: one
+ * reason as the wrapper's `cause`, or, once an in-process run returned, all of them in its `rejections`.
+ */
 export function isMissingPageGlobal(error: unknown): boolean {
-	const message = error instanceof Error ? error.message : String(error);
-	return /page.*global|global.*page/i.test(message);
+	if (error instanceof ReferenceError) return PAGE_ONLY_GLOBAL_RE.test(error.message);
+	if (!(error instanceof Error)) return false;
+	if (error.cause instanceof ReferenceError) return isMissingPageGlobal(error.cause);
+	const rejections = error instanceof ToolError ? error.context?.rejections : undefined;
+	return Array.isArray(rejections) && rejections.some(isMissingPageGlobal);
 }
