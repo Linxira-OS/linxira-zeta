@@ -39,6 +39,7 @@ import "./mcp-json";
 import "./zeta-plugins";
 import "./skillshare";
 import "./ssh";
+import "./ssh-config";
 import "./vscode";
 import "./windsurf";
 

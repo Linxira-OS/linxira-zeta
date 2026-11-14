@@ -11,7 +11,7 @@ import type {
 	ToolTier,
 } from "@linxiraos/pi-agent-core";
 import { type EditStore, type GrepMatch, GrepOutputMode, type GrepResult } from "@linxiraos/pi-natives";
-import { prompt, untilAborted } from "@linxiraos/pi-utils";
+import { prompt, sanitizeText, untilAborted } from "@linxiraos/pi-utils";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
 import {
 	type ArchiveReader,
@@ -825,6 +825,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 					limitReached: false,
 				};
 				let skippedOversizedCount = 0;
+				let binaryMatches: string[] = [];
 				// Native sets `limitReached` for the per-file cap too; only the total cap
 				// stops the walk before every file has been surfaced.
 				let totalCapReached = false;
@@ -870,6 +871,10 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 								ovnfs,
 							);
 							skippedOversizedCount += targetResult.skippedOversized ?? 0;
+							for (const binaryPath of targetResult.binaryMatches ?? []) {
+								const absolute = resolveSearchResultPath(target.basePath, binaryPath);
+								binaryMatches.push(relativeSearchResultPath(searchPath, absolute));
+							}
 							limitReached = limitReached || Boolean(targetResult.limitReached);
 							totalCapReached ||= targetResult.matches.length >= nativeMaxCount;
 							totalMatches += targetResult.totalMatches;
@@ -921,6 +926,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 							ovnfs,
 						);
 						skippedOversizedCount = result.skippedOversized ?? 0;
+						binaryMatches = result.binaryMatches ?? [];
 						totalCapReached = result.matches.length >= nativeMaxCount;
 					}
 				} catch (err) {
@@ -1089,6 +1095,14 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 					!oversizedNote && skippedOversizedCount > 0
 						? `Skipped ${skippedOversizedCount} unreadable large file(s); target them directly with \`read\``
 						: undefined;
+				// Binary files are skipped unless named; native lists only those whose content matches.
+				const binaryMatchPaths = binaryMatches.map(filePath =>
+					formatResultPath(filePath, true, searchPath, this.session.cwd),
+				);
+				const binaryMatchNote =
+					binaryMatchPaths.length > 0
+						? `Binary files also match (name one as \`path\` to search it as text): ${formatCappedFiles(binaryMatchPaths)}`
+						: undefined;
 				const archiveNote =
 					archiveUnreadable.length > 0
 						? `Skipped archive entries (search supports text members only): ${archiveUnreadable.join(", ")}`
@@ -1100,7 +1114,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 				const missingPathsNote =
 					missingPathsForNote.length > 0 ? `Skipped missing paths: ${missingPathsForNote.join(", ")}` : undefined;
 				const warningNote =
-					[missingPathsNote, archiveNote, oversizedNote, oversizedScanNote]
+					[missingPathsNote, archiveNote, oversizedNote, oversizedScanNote, binaryMatchNote]
 						.filter((s): s is string => Boolean(s))
 						.join("\n") || undefined;
 				if (selectedMatches.length === 0) {
@@ -1112,6 +1126,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 						fileCount: 0,
 						files: [],
 						truncated: false,
+						binaryMatches: binaryMatchPaths.length > 0 ? binaryMatchPaths : undefined,
 						missingPaths: missingPaths.length > 0 ? missingPaths : undefined,
 					};
 					const skipPastEnd = canPaginate && normalizedSkip > 0 && totalFiles > 0 && skipFiles >= totalFiles;
@@ -1119,7 +1134,9 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 						? `No more results (${totalFilesLabel} files total; skip=${normalizedSkip} is past the end)`
 						: oversizedNote
 							? `No matches in searched content (multiline search limited large files to their first ${limitMb}MB)`
-							: "No matches found";
+							: binaryMatchNote
+								? "No matches in text files"
+								: "No matches found";
 					const text = warningNote ? `${noMatchText}\n${warningNote}` : noMatchText;
 					// Zero matches is useless regardless of warnings: by the time
 					// compaction runs, the follow-up call has already corrected course.
@@ -1183,6 +1200,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 					const gutterPad = " ".repeat(lineNumberWidth + 1);
 					for (const match of fileMatches) {
 						const pushLine = (lineNumber: number, line: string, isMatch: boolean) => {
+							line = sanitizeText(line);
 							if (lastEmittedLine !== undefined && lineNumber > lastEmittedLine + 1) {
 								modelOut.push("...");
 								displayOut.push(`${gutterPad}│...`);
@@ -1296,6 +1314,7 @@ export class GrepTool implements AgentTool<typeof searchSchema, GrepToolDetails>
 						count: fileMatchCounts.get(path) ?? 0,
 					})),
 					truncated,
+					binaryMatches: binaryMatchPaths.length > 0 ? binaryMatchPaths : undefined,
 					fileLimitReached: fileLimitReached ? fileWindow : undefined,
 					perFileLimitReached: totalMatchLimitReached
 						? this.#totalMatchLimit

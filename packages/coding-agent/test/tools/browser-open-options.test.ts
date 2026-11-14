@@ -34,8 +34,6 @@ function browserHost(cwd: string = process.cwd(), settings: Record<string, unkno
 		getSessionFile: () => null,
 		getSessionSpawns: () => "*",
 		settings: Settings.isolated({
-			// Managed Chromium, whether or not omp's WebKit engine is installed on this machine.
-			"browser.webkit": false,
 			"browser.enabled": true,
 			"browser.headless": true,
 			"browser.cmux": false,
@@ -71,9 +69,9 @@ describe("browser open options CDP helpers", () => {
 		// No relay listens here, so an option refused only after connecting fails differently, and no test reaches a real one.
 		const port = await findFreeCdpPort();
 		const host = browserHost(process.cwd(), { "browser.relayUrl": `http://127.0.0.1:${port}` });
-		for (const option of [{ insecure: true }, { downloads: "relay-downloads" }]) {
+		for (const option of [{ ignore_https_errors: true }, { downloads: "relay-downloads" }]) {
 			const name = `relay-option-${crypto.randomUUID()}`;
-			const error = await rejectionOf(host({ action: "open", name, app: "relay", ...option }));
+			const error = await rejectionOf(host({ action: "open", name, app: { relay: true }, ...option }));
 			expect(error).toBeInstanceOf(ToolError);
 			expect(error).toMatchObject({
 				message: expect.stringContaining(
@@ -521,8 +519,8 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("browser open options", () => {
 				action: "open",
 				name,
 				url: server.url.href,
-				app: `http://${new URL(wsEndpoint).host}`,
-				insecure: true,
+				app: { cdp_url: `http://${new URL(wsEndpoint).host}` },
+				ignore_https_errors: true,
 			});
 			expect(
 				returnedValue(
@@ -570,6 +568,40 @@ await Promise.withResolvers().promise;`;
 			if (userDataDir) await removeUserDataDir(userDataDir);
 		}
 	}, 30_000);
+
+	it("reports an open on one line, naming the page only when it is not the requested URL", async () => {
+		const server = Bun.serve({
+			port: 0,
+			fetch(request) {
+				const { pathname } = new URL(request.url);
+				if (pathname === "/moved") return Response.redirect(new URL("/landed", request.url).href, 302);
+				const title = pathname === "/landed" ? "Landed" : "Requested page";
+				return new Response(`<title>${title}</title>`, { headers: { "content-type": "text/html" } });
+			},
+		});
+		try {
+			const invoke = browserHost();
+			const name = `one-line-${crypto.randomUUID()}`;
+
+			const first = await invoke({ action: "open", name, url: server.url.origin });
+			const opened = first.content.map(part => (part.type === "text" ? part.text : "")).join("\n");
+			expect(opened).toMatch(new RegExp(`^Opened tab "${name}" on [^\\n]+, titled "Requested page"$`));
+			expect(opened).not.toContain(", at http");
+
+			const landed = new URL("/landed", server.url).href;
+			const second = await invoke({ action: "open", name, url: new URL("/moved", server.url).href });
+			const reused = second.content.map(part => (part.type === "text" ? part.text : "")).join("\n");
+			expect(reused).toBe(reused.split("\n")[0]);
+			expect(reused).toStartWith(`Reused tab "${name}" on `);
+			expect(reused).toEndWith(`, at ${landed}, titled "Landed"`);
+
+			const adopted = await invoke({ action: "open", name });
+			const withoutUrl = adopted.content.map(part => (part.type === "text" ? part.text : "")).join("\n");
+			expect(withoutUrl).toEndWith(`, at ${landed}, titled "Landed"`);
+		} finally {
+			server.stop(true);
+		}
+	});
 
 	it("closes the tab its open created when the navigation fails outright, but keeps a reused one", async () => {
 		// Port 1023 is privileged on Linux and below every OS ephemeral range, so no test that just
@@ -622,7 +654,9 @@ await Promise.withResolvers().promise;`;
 			// Opens of one name run in order, so this one starts after the
 			// cancelled open finished unwinding, and finds no tab to reuse.
 			const reopened = await invoke({ action: "open", name });
-			expect(reopened.content).toEqual([expect.objectContaining({ text: expect.stringMatching(/^Opened tab /) })]);
+			expect(reopened.content).toEqual([
+				expect.objectContaining({ text: expect.stringMatching(/^Opened tab [^\n]+, at about:blank$/) }),
+			]);
 			expect(getTab(name)).not.toBe(cancelled);
 		} finally {
 			server.stop(true);

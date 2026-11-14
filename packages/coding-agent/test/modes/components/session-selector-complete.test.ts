@@ -1,11 +1,19 @@
-import { beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { getKeybindings, setKeybindings } from "@linxiraos/pi-tui";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { SessionSelectorComponent } from "@linxiraos/pi-tui/overlays/session-selector";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
 
+const previousKeybindings = getKeybindings();
+
 beforeAll(async () => {
 	await initTheme();
+	// The app installs its keymap before any picker opens; `getKeybindings()` alone knows only `tui.*` actions.
+	setKeybindings(KeybindingsManager.inMemory());
 });
+
+afterAll(() => setKeybindings(previousKeybindings));
 
 function createSession(id: string, title: string | undefined, modified: string): SessionInfo {
 	return {

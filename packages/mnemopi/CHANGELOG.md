@@ -2,6 +2,11 @@
 
 - Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
 
+### Fixed
+
+- Fixed fact extraction storing decimals, prices, and IP-address fragments as `version` facts and leaving symbols such as `→` in `metric` fact keys ([#18886](https://github.com/can1357/oh-my-pi/issues/18886))
+
+
 ## [1.5.1] - 2026-11-10
 
 ## [1.5.0] - 2026-11-09

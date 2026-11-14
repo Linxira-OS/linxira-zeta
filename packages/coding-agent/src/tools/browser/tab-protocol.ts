@@ -73,8 +73,6 @@ export type WorkerInitPayload =
 			downloadsPath?: string;
 			/** Explicit tab user agent applied during worker initialization. */
 			userAgent?: string;
-			/** Allow the tab to ignore invalid certificates. */
-			insecure?: boolean;
 			/** Ignore invalid HTTPS certificates for this page. */
 			ignoreHttpsErrors?: boolean;
 	  }
@@ -95,8 +93,6 @@ export type WorkerInitPayload =
 			downloadsPath?: string;
 			/** Explicit tab user agent applied during worker initialization. */
 			userAgent?: string;
-			/** Allow the tab to ignore invalid certificates. */
-			insecure?: boolean;
 			/** Ignore invalid HTTPS certificates for this page. */
 			ignoreHttpsErrors?: boolean;
 			/**

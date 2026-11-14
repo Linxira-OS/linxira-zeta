@@ -2,6 +2,11 @@
 
 - Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
 
+### Fixed
+
+- Spotlight stats count a `;`/`,` path `read` once with all its parts, and count a later read of any of its files as a re-read or a needed line ([#18713](https://github.com/can1357/oh-my-pi/pull/18713) by [@eggpeat](https://github.com/eggpeat))
+
+
 ## [1.5.1] - 2026-11-10
 
 - Released as part of Zeta 1.5.1; no package-specific user-visible changes.

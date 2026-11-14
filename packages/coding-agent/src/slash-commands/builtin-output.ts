@@ -15,7 +15,7 @@ import { buildGithubSharePrompt, prepareShareForGithub } from "../export/share-g
 import type { AgentSession } from "../session/agent-session";
 import { currentLanguage, M } from "../i18n";
 import type { InteractiveModeContext } from "../modes/types";
-import { restartBrowserForModeChange } from "../tools/browser";
+import { applyBrowserModeChange } from "../tools/browser";
 import { cfgBrowserEnabled, cfgBrowserHeadless } from "../tools/browser/settings";
 import { copyToClipboard } from "../utils/clipboard";
 import { openPath } from "../utils/open";
@@ -374,7 +374,7 @@ export const BUILTIN_OUTPUT_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			else return usage("Usage: /browser [headless|visible]", runtime);
 			cfgBrowserHeadless.set(runtime.settings, next);
 			try {
-				await restartBrowserForModeChange();
+				await applyBrowserModeChange(next);
 			} catch (err) {
 				// Setting was already mutated; surface the restart failure so the
 				// user knows the browser is in an inconsistent state.
@@ -408,7 +408,7 @@ export const BUILTIN_OUTPUT_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			}
 			cfgBrowserHeadless.set(settings, next);
 			try {
-				await restartBrowserForModeChange();
+				await applyBrowserModeChange(next);
 			} catch (error) {
 				runtime.ctx.showWarning(`Failed to restart browser: ${errorMessage(error)}`);
 				clearSubmittedText(runtime);

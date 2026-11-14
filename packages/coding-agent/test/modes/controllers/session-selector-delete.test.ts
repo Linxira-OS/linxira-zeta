@@ -1,13 +1,24 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
+import { getKeybindings, type KeybindingsManager as TuiKeybindingsManager, setKeybindings } from "@linxiraos/pi-tui";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { SessionSelectorComponent } from "@linxiraos/pi-tui/overlays/session-selector";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
+
+let previous: TuiKeybindingsManager;
 
 beforeAll(() => {
 	initTheme();
 });
 
+// The app installs its keymap before any picker opens; delete runs through `app.session.delete`.
+beforeEach(() => {
+	previous = getKeybindings();
+	setKeybindings(KeybindingsManager.inMemory());
+});
+
 afterEach(() => {
+	setKeybindings(previous);
 	vi.restoreAllMocks();
 });
 

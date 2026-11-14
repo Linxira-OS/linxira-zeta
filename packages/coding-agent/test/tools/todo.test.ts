@@ -4,13 +4,7 @@ import { type } from "@linxiraos/zeta-schema";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import {
-	markdownToPhases,
-	nextActionableTask,
-	phasesToMarkdown,
-	resolveTodoMarkdownPath,
-	TodoTool,
-} from "@linxiraos/zeta/tools";
+import { markdownToPhases, nextActionableTask, resolveTodoMarkdownPath, TodoTool } from "@linxiraos/zeta/tools";
 import {
 	selectCollapsedTodos,
 	TODO_STRIKE_HOLD_FRAMES,

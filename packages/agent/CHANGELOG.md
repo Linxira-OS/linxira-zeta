@@ -2,6 +2,11 @@
 
 - Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
 
+### Changed
+
+- `prepareCompaction()` runs as the `compaction.prepare` loop phase, so a `ui.loop-blocked` stall from a cold token walk over a long branch names compaction instead of "unknown" ([#15027](https://github.com/can1357/oh-my-pi/issues/15027), [#18867](https://github.com/can1357/oh-my-pi/pull/18867) by [@wolfiesch](https://github.com/wolfiesch))
+
+
 ## [9.2.2] - 2026-01-31
 
 ### Added
