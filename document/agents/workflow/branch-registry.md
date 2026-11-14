@@ -123,6 +123,7 @@
 | `feat/team-rooms` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
 | `feat/team-secretary` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
 | `feat/team-vibe-hardening` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-11 | Preserve; owner review |
+| `feat/team-runtime` | feat | Team runtime：Vibe worker 长期身份/local 隔离/递归治理，`/team` 主代理 Team mode、强制 tracking/ADR 架构索引、Work Studio Team v2；旧 PM/Lead 面改名 Super Team 并默认隐藏；worktree `temp/team-runtime` | agent | 2026-11-14 | 完成所有已登记 Team runtime/product/Studio slices、定向测试和要求的 CI 验收后再删（删前登记 SHA） |
 | `feat/tern-cleanup` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-07 | Preserve; owner review |
 | `fix/acp-identity` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-10 | Preserve; owner review |
 | `fix/channels-project-routing` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |

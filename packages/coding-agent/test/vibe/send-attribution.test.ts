@@ -69,7 +69,7 @@ describe("vibe_send attribution", () => {
 			return resultFor(options);
 		});
 		const registry = VibeSessionRegistry.global();
-		const spawned = await registry.spawn(parent, { cli: "fast", prompt: "initial work" });
+		const spawned = await registry.spawn(parent, { cli: "fast", role: "reviewer", prompt: "initial work" });
 		const steer = vi.fn(async () => {});
 		const live = { isStreaming: true, steer } as unknown as AgentSession;
 		AgentRegistry.global().register({
@@ -96,7 +96,7 @@ describe("vibe_send attribution", () => {
 			return resultFor(options);
 		});
 		const registry = VibeSessionRegistry.global();
-		const spawned = await registry.spawn(parent, { cli: "fast", prompt: "initial work" });
+		const spawned = await registry.spawn(parent, { cli: "fast", role: "reviewer", prompt: "initial work" });
 		const steer = vi.fn(async () => {});
 		const live = { isStreaming: false, steer } as unknown as AgentSession;
 		AgentRegistry.global().register({

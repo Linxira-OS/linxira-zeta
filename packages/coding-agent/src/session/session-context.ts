@@ -22,6 +22,7 @@ import {
 	LEAD_MODE_CONTEXT_MESSAGE_TYPE,
 	PREWALK_PLAN_MESSAGE_TYPE,
 	REWIND_REPORT_MESSAGE_TYPE,
+	TEAM_MODE_CONTEXT_MESSAGE_TYPE,
 	VIBE_MODE_CONTEXT_MESSAGE_TYPE,
 } from "./messages";
 import { CONTEXT_NOTES_ENTRY_TYPE, getContextNotes, renderContextNotes } from "./context-notes";
@@ -467,7 +468,8 @@ export function buildSessionContext(
 				!options?.transcript &&
 				(entry.customType === PREWALK_PLAN_MESSAGE_TYPE ||
 					entry.customType === VIBE_MODE_CONTEXT_MESSAGE_TYPE ||
-					entry.customType === LEAD_MODE_CONTEXT_MESSAGE_TYPE)
+					entry.customType === LEAD_MODE_CONTEXT_MESSAGE_TYPE ||
+					entry.customType === TEAM_MODE_CONTEXT_MESSAGE_TYPE)
 			) {
 				return;
 			}

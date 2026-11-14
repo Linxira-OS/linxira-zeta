@@ -16,6 +16,8 @@ import {
 	isUserInvokedSkillPrompt,
 	isUserTurnInitiator,
 } from "@linxiraos/pi-tui/chat/messages";
+/** Custom message type for the transient Team mode directive (coding-agent owned). */
+export const TEAM_MODE_CONTEXT_MESSAGE_TYPE = "team-mode-context";
 export {
 	SKILL_PROMPT_MESSAGE_TYPE,
 	LSP_LATE_DIAGNOSTIC_MESSAGE_TYPE,

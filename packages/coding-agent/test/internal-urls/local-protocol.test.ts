@@ -9,6 +9,7 @@ import {
 	resolveLocalRoot,
 	listLocalFiles,
 	resolveLocalUrlToPath,
+	removeLocalAgentScratch,
 } from "@linxiraos/zeta/internal-urls";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
@@ -68,6 +69,74 @@ describe("LocalProtocolHandler", () => {
 		});
 	});
 
+	it("isolates worker scratch, exposes shared files read-only, and blocks sibling paths", async () => {
+		await withTempDir(async artifactsDir => {
+			const sessionRoot = path.join(artifactsDir, "local");
+			const options = {
+				getArtifactsDir: () => artifactsDir,
+				getSessionId: () => "session-team",
+				agentId: "Main",
+				callerAgentId: "worker-1",
+			};
+			const ownFile = resolveLocalUrlToPath("local://notes.md", options);
+			const sharedFile = resolveLocalUrlToPath("local://shared/architecture.md", {
+				...options,
+				canWriteShared: true,
+			});
+			await fs.mkdir(path.dirname(ownFile), { recursive: true });
+			await fs.mkdir(path.dirname(sharedFile), { recursive: true });
+			await Bun.write(ownFile, "private scratch");
+			await Bun.write(sharedFile, "canonical summary");
+			expect(ownFile).toBe(path.join(sessionRoot, "agents", "worker-1", "notes.md"));
+			expect(
+				await InternalUrlRouter.instance().resolve("local://shared/architecture.md", {
+					localProtocolOptions: options,
+				}),
+			).toMatchObject({
+				content: "canonical summary",
+			});
+			await expect(
+				InternalUrlRouter.instance().locate(
+					"local://shared/new.md",
+					{ localProtocolOptions: options },
+					{ create: true },
+				),
+			).rejects.toThrow("Only the Team owner may write local://shared/ files");
+			expect(() => resolveLocalUrlToPath("local://agents/worker-2/notes.md", options)).toThrow(
+				"cannot cross agent namespaces",
+			);
+			expect(
+				await resolveLocalUrlToPath("local://notes.md", {
+					getArtifactsDir: () => artifactsDir,
+					getSessionId: () => "session-team",
+				}),
+			).toBe(path.join(sessionRoot, "notes.md"));
+		});
+	});
+
+	it("removes only the selected worker scratch directory and preserves other session artifacts", async () => {
+		await withTempDir(async artifactsDir => {
+			const root = path.join(artifactsDir, "local");
+			const first = path.join(root, "agents", "worker-1", "notes.md");
+			const other = path.join(root, "agents", "worker-2", "notes.md");
+			const shared = path.join(root, "shared", "architecture.md");
+			await Promise.all(
+				[first, other, shared].map(async file => {
+					await fs.mkdir(path.dirname(file), { recursive: true });
+					await Bun.write(file, file);
+				}),
+			);
+			await removeLocalAgentScratch({
+				getArtifactsDir: () => artifactsDir,
+				getSessionId: () => "session-cleanup",
+				agentId: "Main",
+				callerAgentId: "worker-1",
+			});
+			expect(await Bun.file(first).exists()).toBe(false);
+			expect(await Bun.file(other).exists()).toBe(true);
+			expect(await Bun.file(shared).exists()).toBe(true);
+		});
+	});
 	it("locates files and the root directory, and nothing for missing entries", async () => {
 		await withTempDir(async tempDir => {
 			const localFile = path.join(tempDir, "local", "report.json");

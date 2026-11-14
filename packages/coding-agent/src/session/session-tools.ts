@@ -183,6 +183,8 @@ interface SessionToolsOptions {
 	autoApprove?: boolean;
 	toolRegistry?: Map<string, AgentTool>;
 	createVibeTools?: () => AgentTool[];
+	/** Team-mode worker and coordination tool factory. */
+	createTeamTools?: () => AgentTool[];
 	/** Creates the private `think` scratchpad tool for runtime setting changes. */
 	createThinkTool?: () => Promise<AgentTool | null>;
 	builtInToolNames?: Iterable<string>;
@@ -310,8 +312,6 @@ const UNKNOWN_SKILL_REDISCOVERY_INTERVAL_MS = 2_000;
 
 /** Equal digests mean equal prompt blocks. */
 function systemPromptDigest(blocks: readonly string[]): string {
-	let hash = BigInt(blocks.length);
-	for (const block of blocks) hash = Bun.hash.wyhash(block, hash);
 	return hash.toString(16);
 }
 
@@ -418,6 +418,8 @@ export class SessionTools {
 	#createLeadTools: (() => AgentTool[]) | undefined;
 	#installedLeadToolNames = new Set<string>();
 	#createVibeTools: (() => AgentTool[]) | undefined;
+	#createTeamTools: (() => AgentTool[]) | undefined;
+	#installedTeamToolNames = new Set<string>();
 	#createThinkTool: SessionToolsOptions["createThinkTool"];
 	#installedVibeToolNames = new Set<string>();
 	/** An MCP refresh landed while vibe narrowed the active set; vibe exit activates its manager tools. */
@@ -573,6 +575,7 @@ export class SessionTools {
 		this.#toolRegistry = options.toolRegistry ?? new Map();
 		this.#createLeadTools = options.createLeadTools;
 		this.#createVibeTools = options.createVibeTools;
+		this.#createTeamTools = options.createTeamTools;
 		this.#createThinkTool = options.createThinkTool;
 		this.#builtInToolNames = new Set(options.builtInToolNames ?? []);
 		this.#mcpManagerToolNames = new Set(options.mcpManagerToolNames ?? []);
@@ -1099,6 +1102,49 @@ export class SessionTools {
 
 			await this.#applyActiveToolsByName([...new Set([...baseToolNames, ...vibeToolNames])]);
 		});
+	}
+
+	/** Installs and activates the ephemeral Team tool set. */
+	activateTeamTools(baseToolNames: string[]): Promise<void> {
+		return this.runToolRegistryMutation(async () => {
+			const createTeamTools = this.#createTeamTools;
+			if (!createTeamTools) throw new Error("Team tools are unavailable in this session.");
+			const tools = createTeamTools();
+			const names = tools.map(tool => tool.name);
+			if (new Set(names).size !== names.length) throw new Error("Team tool names must be unique.");
+			for (const tool of tools) {
+				if (this.#toolRegistry.has(tool.name)) continue;
+				this.#toolRegistry.set(tool.name, this.#wrapRuntimeTool(tool));
+				this.#builtInToolNames.add(tool.name);
+				this.#installedTeamToolNames.add(tool.name);
+			}
+			await this.#applyActiveToolsByName([...new Set([...baseToolNames, ...names])]);
+		});
+	}
+
+	/** Uninstalls Team-only tools and restores the supplied active tool set. */
+	deactivateTeamTools(nextToolNames: string[]): Promise<void> {
+		return this.runToolRegistryMutation(async () => {
+			this.#uninstallTeamTools();
+			await this.#applyActiveToolsByName(nextToolNames);
+		});
+	}
+
+	/** Removes Team tools without applying a source-session toolset snapshot. */
+	removeTeamToolsPreservingActive(): Promise<void> {
+		return this.runToolRegistryMutation(async () => {
+			const removed = new Set(this.#installedTeamToolNames);
+			this.#uninstallTeamTools();
+			await this.#applyActiveToolsByName(this.getEnabledToolNames().filter(name => !removed.has(name)));
+		});
+	}
+
+	#uninstallTeamTools(): void {
+		for (const name of this.#installedTeamToolNames) {
+			this.#toolRegistry.delete(name);
+			this.#builtInToolNames.delete(name);
+		}
+		this.#installedTeamToolNames.clear();
 	}
 
 	/** Uninstalls vibe tools and activates the replacement set. */

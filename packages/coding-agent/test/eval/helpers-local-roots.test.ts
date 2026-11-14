@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { TempDir } from "@linxiraos/pi-utils/temp";
 import { resolveEvalUrlRoots } from "../../src/eval/backend";
@@ -36,6 +37,28 @@ describe("eval js helpers internal-url resolution", () => {
 		// Regression: no literal `local:` directory created under the cwd.
 		expect(await Bun.file(path.join(tmp.path(), "local:")).exists()).toBe(false);
 		expect(await Bun.file(path.join(tmp.path(), "local:", "notes", "merge-map.md")).exists()).toBe(false);
+	});
+
+	it("keeps worker eval writes private while exposing only the explicit shared read root", async () => {
+		using tmp = TempDir.createSync("@eval-helpers-worker-local-");
+		const sessionRoot = path.join(tmp.path(), "local");
+		const privateRoot = path.join(sessionRoot, "agents", "worker-1");
+		const sharedRoot = path.join(sessionRoot, "shared");
+		const helpers = createHelpers(
+			makeCtx(tmp.path(), {
+				local: privateRoot,
+				"local-write": privateRoot,
+				"local-shared": sharedRoot,
+			}),
+		);
+		const written = await helpers.writeFile("local://notes.md", "private");
+		expect(written).toBe(path.join(privateRoot, "notes.md"));
+		await fs.mkdir(sharedRoot, { recursive: true });
+		await Bun.write(path.join(sharedRoot, "architecture.md"), "canonical");
+		expect(await helpers.read("local-shared://architecture.md")).toBe("canonical");
+		await expect(helpers.writeFile("local-shared-write://architecture.md", "overwrite")).rejects.toThrow(
+			/not supported/i,
+		);
 	});
 
 	it("rejects traversal and schemes without an injected root", async () => {

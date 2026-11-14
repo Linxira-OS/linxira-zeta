@@ -610,7 +610,7 @@ export interface ExecutorOptions {
 	compactionThresholdOverride?: CompactionThresholdPair;
 	/** Exact-name `task.agentAccountPools` entry selected by dispatch; see `CreateAgentSessionOptions.oauthAccountPools`. */
 	oauthAccountPools?: OAuthAccountPools;
-	/** Override local:// protocol options so subagent shares parent's local:// root */
+	/** Caller-specific local:// ownership mapping inherited by nested workers. */
 	localProtocolOptions?: LocalProtocolOptions;
 	/**
 	 * Parent session's ArtifactManager. Subagent adopts it so artifact IDs are
@@ -5122,7 +5122,9 @@ async function runSubprocessOnThisThread(options: ExecutorOptions): Promise<Sing
 					mcpManager,
 					// MCP proxies are minted per build as `mcpTools` in buildSubagentSessionOptions.
 					customTools: options.customTools,
-					localProtocolOptions: options.localProtocolOptions,
+					localProtocolOptions: options.localProtocolOptions
+						? { ...options.localProtocolOptions, callerAgentId: id, canWriteShared: false }
+						: undefined,
 					telemetry: subagentTelemetry,
 					// Seance isolation overrides every inherited field above in one place.
 					...(preparedSession ? seanceIsolationOptions(effectiveCwd) : {}),

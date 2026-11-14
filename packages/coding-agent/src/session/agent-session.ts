@@ -19,7 +19,7 @@
 export type { AgentSessionEvent, AgentSessionEventListener } from "./agent-session-events";
 // Zeta: session-layer mode API. Kept as part of this module because the mode
 // controllers, interactive mode and the web gateway all import it from here.
-export type ModeId = "plan" | "goal" | "lead" | "vibe";
+export type ModeId = "plan" | "goal" | "lead" | "vibe" | "team";
 
 export interface PlanModeEntryOptions {
 	initialPrompt?: string;
@@ -62,6 +62,11 @@ export interface GuidedGoalStartOptions {
 	images?: ImageContent[];
 }
 export interface VibeModeEntryOptions {
+	persistModeChange?: boolean;
+	previousTools?: string[];
+}
+
+export interface TeamModeEntryOptions {
 	persistModeChange?: boolean;
 	previousTools?: string[];
 }
@@ -156,6 +161,7 @@ import {
 	escapeXmlText,
 	formatDuration,
 	getAgentDbPath,
+	getProjectTrackingDir,
 	isBunTestRuntime,
 	isInteractiveHost,
 	isRecord,
@@ -221,6 +227,7 @@ import { SkillDescriptionCatalog } from "../extensibility/skill-descriptions";
 import {
 	type BuiltSkillPromptMessage,
 	loadSkillPrompt,
+	loadSkillPromptBody,
 	renderSkillPromptMessage,
 	type Skill,
 	type SkillPromptInput,
@@ -281,6 +288,7 @@ import titleCardPrompt from "../prompts/system/title-card.md" with { type: "text
 import titleForkPrompt from "../prompts/system/title-fork.md" with { type: "text" };
 import skillfulNoticePrompt from "../prompts/system/skillful-notice.md" with { type: "text" };
 import vibeModeActivePrompt from "../prompts/system/vibe-mode-active.md" with { type: "text" };
+import teamModeActivePrompt from "../prompts/team/team-mode-active.md" with { type: "text" };
 import {
 	deobfuscateAssistantContent,
 	deobfuscateSessionContext,
@@ -536,6 +544,7 @@ import {
 	sanitizeAssistantForReparentedHistory,
 	USER_INTERRUPT_LABEL,
 	LEAD_MODE_CONTEXT_MESSAGE_TYPE,
+	TEAM_MODE_CONTEXT_MESSAGE_TYPE,
 	VIBE_MODE_CONTEXT_MESSAGE_TYPE,
 	operatorTitleText,
 } from "./messages";
@@ -698,7 +707,7 @@ import {
 	cfgRatchetEnabled,
 	cfgDevAutoqa,
 	cfgDevAutoqaConsent,
-	cfgTodoEnabled,
+	cfgTrackingEnabled,
 	cfgToolsApproval,
 } from "../tools/settings";
 import { cfgTtsrJudge } from "../export/ttsr-settings";
@@ -1306,6 +1315,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	#planModeState: PlanModeState | undefined;
 	#vibeModeState: VibeModeState | undefined;
 	#leadModeState: LeadModeState | undefined;
+	#teamModeEnabled = false;
+	#teamModePreviousTools: string[] | undefined;
+	#teamTrackingPreviousOverride: boolean | undefined;
+	/** Official ADR skill body injected once per Team owner scope (absent when no `adr` skill is loaded). */
+	#teamAdrSkillBody: string | undefined;
 	#leadModePreviousTools: string[] | undefined;
 	#goalModeState: GoalModeState | undefined;
 	#goalRuntime: GoalRuntime;
@@ -2378,7 +2392,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	}
 
 	/** Current state snapshot for a mode, if active (external-state contract). */
-	getModeState(mode: ModeId): PlanModeState | GoalModeState | LeadModeState | VibeModeState | undefined {
+	getModeState(
+		mode: ModeId,
+	): PlanModeState | GoalModeState | LeadModeState | VibeModeState | { enabled: boolean } | undefined {
 		switch (mode) {
 			case "plan":
 				return this.getPlanModeState();
@@ -2388,6 +2404,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				return this.getLeadModeState();
 			case "vibe":
 				return this.getVibeModeState();
+			case "team":
+				return this.getTeamModeState();
 			default:
 				return undefined;
 		}
@@ -2410,6 +2428,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			case "vibe":
 				await this.enterVibeMode((options ?? {}) as VibeModeEntryOptions);
 				return;
+			case "team":
+				await this.enterTeamMode((options ?? {}) as TeamModeEntryOptions);
+				return;
 		}
 	}
 
@@ -2427,6 +2448,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				return;
 			case "vibe":
 				await this.exitVibeMode();
+				return;
+			case "team":
+				await this.exitTeamMode();
 				return;
 		}
 	}
@@ -2953,6 +2977,133 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		});
 		this.#leadModePreviousTools = undefined;
 		this.sessionManager.appendModeChange("none");
+	}
+	/** Enter Team mode using Vibe-backed workers without using legacy Lead storage. */
+	async enterTeamMode(options: TeamModeEntryOptions = {}): Promise<void> {
+		if (this.#teamModeEnabled) return;
+		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
+		if (this.#goalModeState?.enabled) throw new Error("Exit goal mode first.");
+		if (this.#leadModeState?.enabled) throw new Error("Exit Super Team mode first.");
+		if (this.#vibeModeState?.enabled) throw new Error("Exit Vibe mode first.");
+		const previousTools = options.previousTools ?? this.getEnabledToolNames();
+		const previousOverride =
+			cfgTrackingEnabled.provenance(this.settings) === "runtime" ? cfgTrackingEnabled.get(this.settings) : undefined;
+		this.#teamTrackingPreviousOverride = previousOverride;
+		cfgTrackingEnabled.override(this.settings, true);
+		const baseTools = ["read"];
+		if (this.hasBuiltInTool("todo")) baseTools.push("todo");
+		baseTools.push("tracking_update");
+		try {
+			await this.activateTeamTools(baseTools);
+		} catch (error) {
+			if (previousOverride === undefined) cfgTrackingEnabled.clearOverride(this.settings);
+			else cfgTrackingEnabled.override(this.settings, previousOverride);
+			this.#teamTrackingPreviousOverride = undefined;
+			throw error;
+		}
+		this.#teamModePreviousTools = previousTools;
+		this.#teamModeEnabled = true;
+		this.bumpStateVersion();
+		// One-time ADR skill: loaded once per Team owner scope and re-used by every
+		// later entry in this session, so workers do not re-inflate the prompt.
+		if (this.#teamAdrSkillBody === undefined) {
+			const adrSkill = this.skills.find(skill => skill.name === "adr");
+			if (adrSkill) {
+				try {
+					this.#teamAdrSkillBody = await loadSkillPromptBody(adrSkill);
+				} catch (error) {
+					logger.warn("Team mode: could not load the adr skill", { error: String(error) });
+					this.#teamAdrSkillBody = "";
+				}
+			}
+		}
+		if (this.isStreaming) await this.sendTeamModeContext({ deliverAs: "steer" });
+		if (options.persistModeChange !== false) this.sessionManager.appendModeChange("team", { previousTools });
+	}
+
+	/** Deliver the Team directive to a running turn (entry while streaming, or a re-sync). */
+	async sendTeamModeContext(options?: { deliverAs?: "steer" | "followUp" | "nextTurn" | "aside" }): Promise<void> {
+		const message = this.#buildTeamModeMessage();
+		if (!message) return;
+		await this.sendCustomMessage(
+			{
+				customType: message.customType,
+				content: message.content,
+				display: message.display,
+				details: message.details,
+				attribution: message.attribution,
+			},
+			options ? { deliverAs: options.deliverAs } : undefined,
+		);
+	}
+
+	/** Exit Team mode, stop its workers and restore the previous tool set. */
+	async exitTeamMode(): Promise<void> {
+		if (!this.#teamModeEnabled) return;
+		await this.runModeExitTeardown(async () => {
+			if (this.isStreaming) await this.abort();
+			await VibeSessionRegistry.global().killAll(this.#vibeParentSession());
+			await this.deactivateTeamTools(this.#teamModePreviousTools ?? []);
+			this.#teamModeEnabled = false;
+			this.bumpStateVersion();
+		});
+		this.#stripTeamContextMessages();
+		const previousOverride = this.#teamTrackingPreviousOverride;
+		this.#teamTrackingPreviousOverride = undefined;
+		if (previousOverride === undefined) cfgTrackingEnabled.clearOverride(this.settings);
+		else cfgTrackingEnabled.override(this.settings, previousOverride);
+		this.sessionManager.appendModeChange("none");
+	}
+
+	getTeamModeState(): { enabled: boolean } | undefined {
+		return this.#teamModeEnabled ? { enabled: true } : undefined;
+	}
+
+	/**
+	 * Remove Team directive messages from live history and queues: the directive
+	 * is rebuilt from current mode state each prompt, never replayed stale.
+	 */
+	#stripTeamContextMessages(): void {
+		const isTeamContext = (message: AgentMessage): boolean =>
+			message.role === "custom" && message.customType === TEAM_MODE_CONTEXT_MESSAGE_TYPE;
+		const messages = this.agent.state.messages;
+		const filtered = messages.filter(message => !isTeamContext(message));
+		const historyChanged = filtered.length !== messages.length;
+		if (historyChanged) this.agent.replaceMessages(filtered);
+
+		const steering = this.agent.peekSteeringQueue();
+		const followUp = this.agent.peekFollowUpQueue();
+		const filteredSteering = steering.filter(message => !isTeamContext(message));
+		const filteredFollowUp = followUp.filter(message => !isTeamContext(message));
+		if (filteredSteering.length !== steering.length || filteredFollowUp.length !== followUp.length) {
+			this.agent.replaceQueues(filteredSteering, filteredFollowUp);
+			this.#reconcileQueuedMessageDrain();
+		}
+		this.#pendingNextTurnMessages = this.#pendingNextTurnMessages.filter(message => !isTeamContext(message));
+
+		if (!historyChanged) return;
+		this.#advisors.resetAllRuntimes("team-mode-exit");
+		this.#closeCodexProviderSessionsForHistoryRewrite();
+	}
+
+	/**
+	 * Teardown for a session switch: stop Team workers and drop Team-only tools
+	 * without applying the source session's toolset snapshot (the target
+	 * session's active set is already loaded).
+	 */
+	async exitTeamModePreservingActive(): Promise<void> {
+		if (!this.#teamModeEnabled) return;
+		await this.runModeExitTeardown(async () => {
+			await VibeSessionRegistry.global().killAll(this.#vibeParentSession());
+			await this.removeTeamToolsPreservingActive();
+			this.#teamModeEnabled = false;
+			this.bumpStateVersion();
+		});
+		this.#stripTeamContextMessages();
+		const previousOverride = this.#teamTrackingPreviousOverride;
+		this.#teamTrackingPreviousOverride = undefined;
+		if (previousOverride === undefined) cfgTrackingEnabled.clearOverride(this.settings);
+		else cfgTrackingEnabled.override(this.settings, previousOverride);
 	}
 
 	async getPlanFileContent(planFilePath: string): Promise<string | null> {
@@ -3507,6 +3658,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			autoApprove: config.autoApprove,
 			toolRegistry: config.toolRegistry,
 			createVibeTools: config.createVibeTools,
+			createTeamTools: config.createTeamTools,
 			createLeadTools: config.createLeadTools,
 			createThinkTool: config.createThinkTool,
 			builtInToolNames: config.builtInToolNames,
@@ -5300,7 +5452,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			if (
 				!isPrewalkPlanNudge(message) &&
 				message.customType !== VIBE_MODE_CONTEXT_MESSAGE_TYPE &&
-				message.customType !== LEAD_MODE_CONTEXT_MESSAGE_TYPE
+				message.customType !== LEAD_MODE_CONTEXT_MESSAGE_TYPE &&
+				message.customType !== TEAM_MODE_CONTEXT_MESSAGE_TYPE
 			) {
 				this.sessionManager.appendCustomMessageEntry(
 					message.customType,
@@ -6757,6 +6910,8 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		return {
 			getArtifactsDir: () => this.sessionManager.getArtifactsDir(),
 			getSessionId: () => this.sessionManager.getSessionId(),
+			agentId: this.#agentId ?? undefined,
+			callerAgentId: this.#agentId ?? undefined,
 		};
 	}
 
@@ -8495,6 +8650,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		return this.#tools.activateVibeTools(baseToolNames);
 	}
 
+	/** Installs and activates ephemeral Team tools. */
+	activateTeamTools(baseToolNames: string[]): Promise<void> {
+		return this.#tools.activateTeamTools(baseToolNames);
+	}
 	activateLeadTools(baseToolNames: string[]): Promise<void> {
 		return this.#tools.activateLeadTools(baseToolNames);
 	}
@@ -8510,6 +8669,15 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	/** Uninstalls vibe tools and activates the replacement set. */
 	deactivateVibeTools(nextToolNames: string[]): Promise<void> {
 		return this.#tools.deactivateVibeTools(nextToolNames);
+	}
+	/** Uninstalls Team tools and activates the replacement set. */
+	deactivateTeamTools(nextToolNames: string[]): Promise<void> {
+		return this.#tools.deactivateTeamTools(nextToolNames);
+	}
+
+	/** Removes Team tools without restoring a source-session snapshot. */
+	removeTeamToolsPreservingActive(): Promise<void> {
+		return this.#tools.removeTeamToolsPreservingActive();
 	}
 
 	/** Removes vibe tools without restoring a source-session snapshot. */
@@ -9170,6 +9338,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	getLeadModeState(): LeadModeState | undefined {
 		return this.#leadModeState;
 	}
+	getTeamModeState(): { enabled: boolean } | undefined {
+		return this.#teamModeEnabled ? { enabled: true } : undefined;
+	}
 
 	setLeadModeState(state: LeadModeState | undefined): void {
 		this.#leadModeState = state;
@@ -9581,6 +9752,22 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			customType: VIBE_MODE_CONTEXT_MESSAGE_TYPE,
 			content: prompt.render(vibeModeActivePrompt, {
 				todoAvailable: this.getActiveToolNames().includes("todo"),
+			}),
+			display: false,
+			attribution: "agent",
+			timestamp: Date.now(),
+		};
+	}
+
+	#buildTeamModeMessage(): CustomMessage | null {
+		if (!this.#teamModeEnabled) return null;
+		const trackingDir = getProjectTrackingDir(this.sessionManager.getCwd());
+		return {
+			role: "custom",
+			customType: TEAM_MODE_CONTEXT_MESSAGE_TYPE,
+			content: prompt.render(teamModeActivePrompt, {
+				trackingDir,
+				adrSkill: this.#teamAdrSkillBody ?? "",
 			}),
 			display: false,
 			attribution: "agent",
@@ -10839,6 +11026,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			const vibeModeMessage = this.#buildVibeModeMessage();
 			if (vibeModeMessage) {
 				messages.push(vibeModeMessage);
+			}
+			const teamModeMessage = this.#buildTeamModeMessage();
+			if (teamModeMessage) {
+				messages.push(teamModeMessage);
 			}
 			const leadModeMessage = this.#buildLeadModeMessage();
 			if (leadModeMessage) {

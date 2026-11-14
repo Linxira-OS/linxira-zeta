@@ -1455,6 +1455,8 @@ export class InteractiveMode implements InteractiveModeContext {
 	goalModeEnabled = false;
 	goalModePaused = false;
 	leadModeEnabled = false;
+	/** Vibe-backed Team mode; independent of the hidden legacy Lead mode. */
+	teamModeEnabled = false;
 	vibeModeEnabled = false;
 	planModePlanFilePath: string | undefined = undefined;
 	/** Workflow of the paused plan session, so a resume re-arms ultra (or iterative)
@@ -1470,7 +1472,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		plan: { status: "inactive" },
 		lead: { status: "inactive" },
 		vibe: { status: "inactive" },
-		goal: { status: "inactive" },
+		team: { status: "inactive" },
 		loop: { status: "inactive" },
 	};
 	#reportedModeKey = JSON.stringify(this.#reportedModeState);
@@ -3752,6 +3754,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				? { status: "active", planFilePath: this.session.getPlanModeState()?.planFilePath }
 				: { status: this.planModePaused ? "paused" : "inactive" },
 			lead: { status: this.leadModeEnabled ? "active" : "inactive" },
+			team: { status: this.session.getTeamModeState()?.enabled ? "active" : "inactive" },
 			vibe: { status: this.vibeModeEnabled ? "active" : "inactive" },
 			goal:
 				goalActive || this.goalModePaused
@@ -3895,6 +3898,16 @@ export class InteractiveMode implements InteractiveModeContext {
 				if (goalBlocks) return conflict("goal");
 				if (this.leadModeEnabled) return conflict("lead");
 				return () => this.#enterVibeMode();
+			case "team":
+				if (request.action === "exit")
+					return this.session.getTeamModeState()?.enabled ? () => this.session.exitTeamMode() : undefined;
+				if (request.action !== "enter") break;
+				if (this.session.getTeamModeState()?.enabled) return undefined;
+				if (planBlocks) return conflict("plan");
+				if (goalBlocks) return conflict("goal");
+				if (this.leadModeEnabled) return conflict("lead");
+				if (this.vibeModeEnabled) return conflict("vibe");
+				return () => this.session.enterTeamMode();
 			case "goal":
 				switch (request.action) {
 					case "enter": {
@@ -6064,6 +6077,13 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.#updateLeadModeStatus();
 		}
 
+		if (this.teamModeEnabled) {
+			// Same rule as vibe: the target session's active set is already loaded,
+			// so drop only Team's transient tools and keep it intact.
+			await this.session.exitTeamModePreservingActive();
+			this.teamModeEnabled = false;
+		}
+
 		if (this.vibeModeEnabled && !options?.preserveVibe) {
 			const ownerScope = this.#vibeModeOwnerScope;
 			// This runs only from #reconcileModeFromSession, i.e. after switchSession
@@ -6170,10 +6190,20 @@ export class InteractiveMode implements InteractiveModeContext {
 						: undefined,
 				});
 			} catch {
-				// The cwd no longer resolves to a registered PM workspace; keep
-				// the session as normal coding rather than re-entering a mode
-				// whose rooms cannot be reached.
 				this.sessionManager.appendModeChange("none");
+			}
+			return;
+		}
+		if (sessionContext.mode === "team") {
+			if (!this.session.getTeamModeState()?.enabled) {
+				try {
+					await this.session.enterTeamMode({
+						persistModeChange: false,
+						previousTools: readPersistedToolNames(sessionContext.modeData?.previousTools),
+					});
+				} catch {
+					this.sessionManager.appendModeChange("none");
+				}
 			}
 			return;
 		}
@@ -7441,6 +7471,52 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.lastAssistantUsage = undefined;
 		this.#updateLeadModeStatus();
 		this.showStatus("Lead mode disabled.");
+	}
+
+	/**
+	 * `/team` mode toggle. Team mode reuses the Vibe worker runtime with a
+	 * module-role hierarchy, forces project tracking on for the session scope
+	 * (runtime override, never persisted), and restores the prior toolset and
+	 * tracking state on exit. Legacy Lead/PM state is untouched.
+	 */
+	async handleTeamModeCommand(): Promise<boolean> {
+		if (this.teamModeEnabled || this.session.getTeamModeState()?.enabled) {
+			await this.session.exitTeamMode();
+			this.teamModeEnabled = false;
+			this.lastAssistantUsage = undefined;
+			this.showStatus("Team mode disabled.");
+			this.#notifyModeChanged();
+			return false;
+		}
+		if (this.planModeEnabled || this.planModePaused) {
+			this.#warnPlanModeBlocks();
+			return false;
+		}
+		if (this.goalModeEnabled || this.goalModePaused) {
+			this.showWarning("Exit goal mode first.");
+			return false;
+		}
+		if (this.vibeModeEnabled) {
+			this.showWarning("Exit vibe mode first.");
+			return false;
+		}
+		if (this.leadModeEnabled) {
+			this.showWarning("Exit Super Team (lead) mode first.");
+			return false;
+		}
+		try {
+			await this.session.enterTeamMode();
+		} catch (error) {
+			this.showError(`Could not enter Team mode: ${error instanceof Error ? error.message : String(error)}`);
+			return false;
+		}
+		this.teamModeEnabled = true;
+		this.lastAssistantUsage = undefined;
+		this.showStatus(
+			"Team mode enabled. Workers take stable module roles; tracking is forced on for this session scope.",
+		);
+		this.#notifyModeChanged();
+		return false;
 	}
 
 	/**

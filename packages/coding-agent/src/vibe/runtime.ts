@@ -28,7 +28,7 @@ import { logger, prompt, Snowflake } from "@linxiraos/pi-utils";
 import type { AsyncJob, AsyncJobManagerApi, AsyncJobRunResult } from "../async/job-manager";
 import { validateAgentAccountPools } from "../config/account-pools";
 import { resolveAgentModelSelection } from "../config/model-resolver";
-import { sessionLocalProtocolOptions } from "../internal-urls/context";
+import { removeLocalAgentScratch, sessionLocalProtocolOptions } from "../internal-urls";
 import { registerArtifactsDir } from "../internal-urls/registry-helpers";
 import { MCPManager } from "../mcp/manager";
 import vibeTurnResultTemplate from "../prompts/tools/vibe-turn-result.md" with { type: "text" };
@@ -36,6 +36,17 @@ import { AgentLifecycleManager } from "../registry/agent-lifecycle";
 import { type AgentRef, AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import { SessionManager, SessionPersistenceIndeterminateError } from "../session/session-manager";
 import { getBundledAgent } from "../task/agents";
+import {
+	type VibeLifecycleClass,
+	type VibeWorkerIdentity,
+	parseLifecycleEvent,
+	VIBE_LIFECYCLE_CUSTOM_TYPE,
+	VIBE_LIFECYCLE_VERSION,
+	type VibeLifecycleBase,
+	type VibeLifecycleEvent,
+	type VibeSpawnLifecycleEvent,
+	type VibeTombstoneReason,
+} from "./lifecycle";
 import { type ExecutorOptions, runSubagentFollowUpTurn, runSubprocess } from "../task/executor";
 import { generateTaskName, sanitizeAgentId } from "../task/name-generator";
 import { AgentOutputManager } from "../task/output-manager";
@@ -46,15 +57,6 @@ import { formatDuration } from "@linxiraos/pi-tui/render/render-utils";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { calculateTokensPerSecond } from "../utils/token-rate";
 
-import {
-	parseLifecycleEvent,
-	VIBE_LIFECYCLE_CUSTOM_TYPE,
-	VIBE_LIFECYCLE_VERSION,
-	type VibeLifecycleBase,
-	type VibeLifecycleEvent,
-	type VibeSpawnLifecycleEvent,
-	type VibeTombstoneReason,
-} from "./lifecycle";
 import { type VibeCli } from "@linxiraos/pi-tui/tools/vibe";
 
 import { cfgTaskAgentAccountPools, cfgTaskAgentModelOverrides, cfgTaskEnableLsp } from "../task/settings";
@@ -140,6 +142,7 @@ interface VibeRecord {
 	parentSessionId: string;
 	parentSessionFile: string | null;
 	childSessionFile?: string;
+	identity: VibeWorkerIdentity;
 	agent: AgentDefinition;
 	modelOverride?: string | string[];
 	/** Pre-expansion role alias behind {@link modelOverride}, when the worker agent named one. */
@@ -293,6 +296,7 @@ export class VibeSessionRegistry {
 			parentSessionId: scope.parentSessionId,
 			parentSessionFile: scope.parentSessionFile,
 			agent: getBundledAgent("sonic")!,
+			identity: { role: "test", generation: 1, lifecycle: "resident" },
 			state: record.state ?? "running",
 			createdAt: now,
 			lastActivityAt: now,
@@ -311,6 +315,7 @@ export class VibeSessionRegistry {
 	readonly #terminationTails = new Map<string, Promise<void>>();
 	readonly #terminatedScopes = new Set<string>();
 	#teardownGraceMs = VIBE_TEARDOWN_GRACE_MS;
+	readonly #roleGenerations = new Map<string, number>();
 
 	/** Override the teardown grace period for deterministic lifecycle tests. */
 	setTeardownGraceForTesting(timeoutMs: number): void {
@@ -552,6 +557,7 @@ export class VibeSessionRegistry {
 		records.sort((a, b) => a.createdAt - b.createdAt);
 		return records.map(record => ({
 			id: record.id,
+			identity: record.identity,
 			cli: record.cli,
 			state: record.state,
 			killed: record.killed,
@@ -776,6 +782,7 @@ export class VibeSessionRegistry {
 				cli: spawn.cli,
 				ownerId: scope.ownerId,
 				parentSessionId: scope.parentSessionId,
+				identity: spawn.identity ?? { role: "worker", generation: 1, lifecycle: "resident" },
 				parentSessionFile: scope.parentSessionFile,
 				childSessionFile,
 				agent,
@@ -797,11 +804,39 @@ export class VibeSessionRegistry {
 			});
 			restored++;
 		}
+
 		return restored;
 	}
 
+	#nextRoleGeneration(session: VibeParentSession, scope: VibeOwnerScope, role: string): number {
+		const key = `${scopeKey(scope, "")}${role}`;
+		let generation = this.#roleGenerations.get(key) ?? 0;
+		for (const entry of this.#records.values()) {
+			if (matchesScope(entry, scope) && entry.identity.role === role)
+				generation = Math.max(generation, entry.identity.generation);
+		}
+		for (const entry of session.sessionManager?.getEntries() ?? []) {
+			if (entry.type !== "custom" || entry.customType !== VIBE_LIFECYCLE_CUSTOM_TYPE) continue;
+			const event = parseLifecycleEvent(entry.data);
+			if (
+				event?.action === "spawn" &&
+				event.ownerId === scope.ownerId &&
+				event.parentSessionId === scope.parentSessionId &&
+				event.identity?.role === role
+			) {
+				generation = Math.max(generation, event.identity.generation);
+			}
+		}
+		generation += 1;
+		this.#roleGenerations.set(key, generation);
+		return generation;
+	}
+
 	/** Spawn a persistent worker session and start its first turn in the background. */
-	async spawn(session: ToolSession, args: { cli: VibeCli; name?: string; prompt: string }): Promise<VibeSpawnOutcome> {
+	async spawn(
+		session: ToolSession,
+		args: { cli: VibeCli; role: string; lifecycle?: VibeLifecycleClass; name?: string; prompt: string },
+	): Promise<VibeSpawnOutcome> {
 		const scope = this.ownerScope(session);
 		return this.#withTerminationLock(scope, () => this.#spawnLocked(session, scope, args));
 	}
@@ -809,20 +844,30 @@ export class VibeSessionRegistry {
 	async #spawnLocked(
 		session: ToolSession,
 		scope: VibeOwnerScope,
-		args: { cli: VibeCli; name?: string; prompt: string },
+		args: { cli: VibeCli; role: string; lifecycle?: VibeLifecycleClass; name?: string; prompt: string },
 	): Promise<VibeSpawnOutcome> {
 		if (this.#terminatedScopes.has(scopeKey(scope, ""))) {
 			throw new ToolError("Vibe mode has exited; enter Vibe mode again before spawning a worker.");
 		}
 		const manager = this.#manager(session);
+		const role = args.role.trim().toLowerCase();
+		if (!/^[a-z][a-z0-9-]{0,31}$/.test(role)) {
+			throw new ToolError("Worker role must be a stable module slug (1-32 lowercase letters, digits, or hyphens).");
+		}
+		const lifecycle = args.lifecycle ?? "resident";
+		const generation = this.#nextRoleGeneration(session, scope, role);
 		const { agent, modelOverride, modelRole } = this.#resolveWorker(session, args.cli);
+		const requested = sanitizeAgentId(args.name);
+		const baseName = requested ?? (args.name ? generateTaskName() : `${role}-${generation}`);
 		if (!session.agentOutputManager) {
 			session.agentOutputManager = new AgentOutputManager(session.getArtifactsDir ?? (() => null));
 		}
 		const reservedIds = this.#persistedIds(session, scope);
 		for (const ref of AgentRegistry.global().list()) reservedIds.add(ref.id);
 		await session.agentOutputManager.reserve(reservedIds);
-		const id = await session.agentOutputManager.allocate(sanitizeAgentId(args.name) || generateTaskName());
+		const id = await session.agentOutputManager.allocate(baseName);
+		const identity: VibeWorkerIdentity = { role, generation, lifecycle };
+
 		const parentSessionFile = scope.parentSessionFile;
 		const childSessionName = `${id}.jsonl`;
 		const childSessionFile = parentSessionFile
@@ -836,6 +881,7 @@ export class VibeSessionRegistry {
 			parentSessionId: scope.parentSessionId,
 			parentSessionFile,
 			childSessionFile,
+			identity,
 			agent,
 			modelOverride,
 			modelRole,
@@ -860,6 +906,7 @@ export class VibeSessionRegistry {
 						action: "spawn",
 						cli: args.cli,
 						agent: agent.name,
+						identity,
 						childSessionFile: childSessionName,
 						createdAt,
 					},
@@ -1229,6 +1276,14 @@ export class VibeSessionRegistry {
 			}
 			throw finalPersistenceError;
 		}
+		if (record.terminalPersisted) {
+			await removeLocalAgentScratch({
+				getArtifactsDir: () => record.parentSessionFile?.slice(0, -6) ?? null,
+				getSessionId: () => record.parentSessionId,
+				agentId: record.ownerId,
+				callerAgentId: record.id,
+			});
+		}
 		return { id: record.id, cancelledTurn };
 	}
 
@@ -1240,9 +1295,14 @@ export class VibeSessionRegistry {
 		if (!record.childSessionFile) return;
 		try {
 			const persisted = await SessionManager.peekSessionInit(record.childSessionFile);
-			if (persisted?.init) {
-				await this.#markTerminalRef(record.id, record.ownerId, record.childSessionFile, expected, teardownDeadline);
-			}
+			if (!persisted?.init) return;
+			await this.#markTerminalRef(record.id, record.ownerId, record.childSessionFile, expected, teardownDeadline);
+			await removeLocalAgentScratch({
+				getArtifactsDir: () => record.parentSessionFile?.slice(0, -6) ?? null,
+				getSessionId: () => record.parentSessionId,
+				agentId: record.ownerId,
+				callerAgentId: record.id,
+			});
 		} catch (error) {
 			logger.warn("vibe: failed to retain terminal worker transcript", {
 				id: record.id,
@@ -1279,7 +1339,12 @@ export class VibeSessionRegistry {
 		const artifactsDir = sessionArtifactsDir ?? path.join(os.tmpdir(), `omp-vibe-${Snowflake.next()}`);
 		await fs.mkdir(artifactsDir, { recursive: true });
 		if (!sessionArtifactsDir) registerArtifactsDir(artifactsDir);
-		const localProtocolOptions = sessionLocalProtocolOptions(session);
+		const localProtocolOptions = {
+			...sessionLocalProtocolOptions(session),
+			agentId: session.getAgentId?.() ?? MAIN_AGENT_ID,
+			callerAgentId: record.id,
+			canWriteShared: false,
+		};
 		// Same exact-name pool task dispatch and persisted revival apply, so a
 		// worker is restricted from its first turn, not only after a revive.
 		const agentAccountPools = validateAgentAccountPools(cfgTaskAgentAccountPools.get(session.settings));

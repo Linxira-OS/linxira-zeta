@@ -110,12 +110,37 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "team",
 		description: () => M.cmdTeam,
 		icon: "agents",
-		subcommands: [{ name: "hub", description: () => M.cmdTeamHub }],
+		subcommands: [
+			{ name: "hub", description: () => M.cmdTeamHub },
+			{ name: "on", description: () => "Enter Team mode" },
+			{ name: "off", description: () => "Exit Team mode" },
+		],
 		subcommandOptional: true,
 		allowArgs: true,
 		handle: async (command, runtime) => {
 			const [sub = ""] = command.args.trim().split(/\s+/).filter(Boolean);
-			if (sub.toLowerCase() !== "hub") {
+			const subName = sub.toLowerCase();
+			if (subName === "on" || subName === "off") {
+				try {
+					if (subName === "on") {
+						const state = runtime.session.getTeamModeState();
+						await runtime.session.enterTeamMode();
+						await runtime.output(
+							state?.enabled
+								? "Team mode is already active."
+								: "Team mode enabled: Vibe-backed workers, session-scoped tracking.",
+						);
+					} else {
+						await runtime.session.exitTeamMode();
+						await runtime.output("Team mode disabled.");
+					}
+				} catch (error) {
+					await runtime.output(`Could not change Team mode: ${errorMessage(error)}`);
+					return { consumed: true, failed: true };
+				}
+				return commandConsumed();
+			}
+			if (subName !== "hub") {
 				await runtime.output(M.teamHubUsage);
 				return commandConsumed();
 			}
@@ -144,6 +169,11 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			const sub = command.args.trim().split(/\s+/)[0]?.toLowerCase();
 			if (sub === "hub") {
 				runtime.ctx.showTeamHub();
+				runtime.ctx.editor.setText("");
+				return;
+			}
+			if (sub === "on" || sub === "off" || sub === "") {
+				void runtime.ctx.handleTeamModeCommand();
 				runtime.ctx.editor.setText("");
 				return;
 			}

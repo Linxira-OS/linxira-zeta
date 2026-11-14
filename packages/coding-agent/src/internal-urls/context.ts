@@ -17,12 +17,17 @@ import { cfgCompactionExperimentalContextManagement } from "../session/context-s
  * session's root.
  */
 export function sessionLocalProtocolOptions(session: ToolSession): LocalProtocolOptions {
-	return (
-		session.localProtocolOptions ?? {
-			getArtifactsDir: () => session.getArtifactsDir?.() ?? null,
-			getSessionId: () => session.getSessionId?.() ?? null,
-		}
-	);
+	if (session.localProtocolOptions) {
+		return {
+			...session.localProtocolOptions,
+			callerAgentId: session.getAgentId?.() ?? session.localProtocolOptions.callerAgentId,
+		};
+	}
+	return {
+		getArtifactsDir: () => session.getArtifactsDir?.() ?? null,
+		getSessionId: () => session.getSessionId?.() ?? null,
+		callerAgentId: session.getAgentId?.() ?? undefined,
+	};
 }
 
 /**

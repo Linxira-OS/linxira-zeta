@@ -5605,6 +5605,10 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				(options.taskDepth ?? 0) === 0 && !options.parentTaskPrefix
 					? () => createVibeTools(toolSession)
 					: undefined,
+			createTeamTools:
+				(options.taskDepth ?? 0) === 0 && !options.parentTaskPrefix
+					? () => createVibeTools(toolSession)
+					: undefined,
 			createLeadTools:
 				(options.taskDepth ?? 0) === 0 && !options.parentTaskPrefix
 					? () => createLeadTools(toolSession)

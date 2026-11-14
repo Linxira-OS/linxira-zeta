@@ -98,7 +98,12 @@ it("shares Vibe sibling cache routing by worker type while keeping conversations
 			["GoodB", "good"],
 			["FastA", "fast"],
 		] as const) {
-			const spawned = await registry.spawn(parent, { name, cli, prompt: "Review the supplied code." });
+			const spawned = await registry.spawn(parent, {
+				name,
+				role: name.toLowerCase(),
+				cli,
+				prompt: "Review the supplied code.",
+			});
 			const job = manager.getJob(spawned.jobId);
 			if (!job) throw new Error(`Missing Vibe job ${spawned.jobId}`);
 			await job.promise;

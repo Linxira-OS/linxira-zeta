@@ -16,6 +16,15 @@ export const VIBE_LIFECYCLE_CUSTOM_TYPE = "vibe-session-lifecycle";
 export const VIBE_LIFECYCLE_VERSION = 1;
 
 export type VibeTombstoneReason = "explicit-kill" | "mode-exit" | "spawn-failed" | "unrecoverable";
+export type VibeLifecycleClass = "resident" | "ephemeral";
+
+export interface VibeWorkerIdentity {
+	/** Stable module/persona identity; independent of the current task. */
+	role: string;
+	/** Collision-free generation within the owning parent session. */
+	generation: number;
+	lifecycle: VibeLifecycleClass;
+}
 
 export interface VibeLifecycleBase {
 	version: typeof VIBE_LIFECYCLE_VERSION;
@@ -30,6 +39,7 @@ export interface VibeSpawnLifecycleEvent extends VibeLifecycleBase {
 	agent: string;
 	childSessionFile: string;
 	createdAt: number;
+	identity?: VibeWorkerIdentity;
 }
 
 export interface VibeTurnLifecycleEvent extends VibeLifecycleBase {
@@ -66,6 +76,12 @@ const lifecycleBase = {
 	parentSessionId: "string > 0",
 } as const;
 
+const WorkerIdentity = type({
+	role: "string > 0",
+	generation: "number.integer >= 1",
+	lifecycle: "'resident' | 'ephemeral'",
+});
+
 const LifecycleEvent = type({
 	...lifecycleBase,
 	action: "'spawn'",
@@ -73,6 +89,7 @@ const LifecycleEvent = type({
 	agent: "string",
 	childSessionFile: "string",
 	createdAt: "number",
+	"identity?": WorkerIdentity,
 })
 	.or({ ...lifecycleBase, action: "'turn-started' | 'turn-settled'", turn: "number.integer >= 1" })
 	.or({

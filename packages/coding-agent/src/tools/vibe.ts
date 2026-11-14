@@ -33,8 +33,10 @@ const vibeSpawnSchema = type({
 	cli: type("'fast' | 'good'").describe(
 		"worker flavor: fast = low-latency model for mechanical work; good = strong model for hard work",
 	),
-	"name?": type("string <= 48").describe("optional session name; generated when omitted"),
-	prompt: type("string > 0").describe("first instruction; the worker starts with no other context"),
+	role: type("string <= 32").describe("stable lowercase module slug, separate from each assignment"),
+	"lifecycle?": type("'resident' | 'ephemeral'").describe("retention policy; defaults to resident"),
+	"name?": type("string <= 48").describe("optional display-id prefix; defaults to role-generation"),
+	prompt: type("string > 0").describe("assignment brief; the worker starts with no other context"),
 });
 
 const vibeSendSchema = type({
@@ -271,13 +273,19 @@ export class VibeListTool implements AgentTool<typeof vibeListSchema, VibeToolDe
 	}
 }
 
-/** Creates the ephemeral tools installed while `/vibe` mode is active. */
+/** Creates the ephemeral worker-control tools used by Vibe and Team modes. */
+const createWorkerControlTools = (session: ToolSession): Tool[] => [
+	new VibeSpawnTool(session),
+	new VibeSendTool(session),
+	new VibeWaitTool(session),
+	new VibeKillTool(session),
+	new VibeListTool(session),
+];
+
 export function createVibeTools(session: ToolSession): Tool[] {
-	return [
-		new VibeSpawnTool(session),
-		new VibeSendTool(session),
-		new VibeWaitTool(session),
-		new VibeKillTool(session),
-		new VibeListTool(session),
-	];
+	return createWorkerControlTools(session);
+}
+
+export function createTeamTools(session: ToolSession): Tool[] {
+	return createWorkerControlTools(session);
 }
