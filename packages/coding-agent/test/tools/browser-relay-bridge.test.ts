@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from "bun:test";
 import { createHash } from "node:crypto";
+import { BROWSER_PAGE_PROTOCOL_TIMEOUT_MS } from "@linxiraos/zeta/tools/browser/launch";
 import { closeRelayTarget } from "@linxiraos/zeta/tools/browser/orphan-registry";
 import { type FrontApp, RelayBridge, type RelaySocket } from "@linxiraos/zeta/tools/browser/relay/bridge";
 import type { RelayRpcRequest, RelayToExtMessage, TabSnapshot } from "@linxiraos/zeta/tools/browser/relay/protocol";
@@ -1169,8 +1170,8 @@ describe("RelayBridge command deadlines", () => {
 		}
 	}
 
-	// omp's clients give up at `BROWSER_PROTOCOL_TIMEOUT_MS` (60 s); the relay waits 5 s past that.
-	const clientGivesUpMs = 60_000;
+	// The relay waits 5 s past the page connection's protocol deadline.
+	const clientGivesUpMs = BROWSER_PAGE_PROTOCOL_TIMEOUT_MS;
 	const pageBoundMs = clientGivesUpMs + 5_000;
 
 	it.each([

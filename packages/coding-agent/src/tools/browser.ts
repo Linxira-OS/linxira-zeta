@@ -15,7 +15,8 @@ import {
 	normalizeConnectedCdpUrl,
 	releaseBrowser,
 } from "./browser/registry";
-import { ensureChromiumExecutable } from "./browser/launch";
+import { chromiumNeedsDownload, ensureChromiumExecutable } from "./browser/launch";
+import { sameAddress } from "./browser/navigation";
 import { resolveInitScriptSources } from "./browser/open-options";
 import { resolveRelayKind } from "./browser/relay/kind";
 import { relayExtensionNotice } from "./browser/relay/probe";
@@ -38,7 +39,7 @@ import {
 } from "./browser/tab-supervisor";
 import { renderTabCall, tabCallBudgetSeconds } from "./browser/tab-call";
 import { resolveToCwd } from "./path-utils";
-import { renderCallChain, renderFunctionRun } from "./run-code";
+import { renderFunctionRun, renderStatusCallChain } from "./run-code";
 import { ToolAbortError, throwIfAborted } from "./tool-errors";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
@@ -253,8 +254,10 @@ function describeBrowserCall(parameters: unknown, result: AgentToolResult<unknow
 			return parsed.all ? "close all" : `close ${name}`;
 		case "run":
 			return `${name}.run(${parsed.fn !== undefined ? "fn" : (parsed.code?.trim().split("\n", 1)[0] ?? "")})`;
-		case "call":
-			return `${name}.${renderCallChain(parsed.chain ?? [])}`;
+		case "call": {
+			const chain = parsed.chain ?? [];
+			return `${name}.${renderStatusCallChain(chain, (step, index) => browserTextStart(step.method, chain[index - 1]?.method))}`;
+		}
 		case "tabs":
 			return "tabs";
 		case "targets":
@@ -262,7 +265,21 @@ function describeBrowserCall(parameters: unknown, result: AgentToolResult<unknow
 	}
 }
 
-/** Drop headless tabs so a browser mode change applies to the next open. */
+/** Where the text entered by a browser helper starts in its arguments. */
+function browserTextStart(method: string, previous: string | undefined): number | undefined {
+	switch (method) {
+		case "fill":
+		case "type":
+			return previous === undefined || previous === "frame" ? 1 : 0;
+		case "clipboardWrite":
+		case "handleDialog":
+			return 0;
+		default:
+			return undefined;
+	}
+}
+
+/** Drop Chromium headless tabs so the next open uses the selected mode. */
 export async function restartBrowserForModeChange(): Promise<void> {
 	await dropHeadlessTabs();
 }
@@ -310,7 +327,11 @@ async function invokeBrowser(
 
 	try {
 		throwIfAborted(context.signal);
-		const requested = parsed.timeout ?? (parsed.action === "call" ? tabCallBudgetSeconds(parsed.chain) : undefined);
+		const requested =
+			parsed.timeout ??
+			(parsed.action === "call" || parsed.action === "run"
+				? tabCallBudgetSeconds(parsed.chain, context.cellTimeoutMs)
+				: undefined);
 		const timeoutSeconds = clampTimeout("browser", requested, cfgToolsMaxTimeout.get(session.settings));
 		const timeoutMs = timeoutSeconds * 1000;
 		const name = parsed.name ?? DEFAULT_TAB_NAME;
@@ -503,14 +524,13 @@ async function openOnKind(
 		details.url = url;
 		details.viewport = tab.info.viewport;
 		const verb = result.created ? "Opened" : "Reused";
-		const lines = [
-			`${verb} tab ${JSON.stringify(name)} on ${describeBrowser(tab)}`,
-			`URL: ${url}`,
-			title ? `Title: ${title}` : null,
-			...notes,
-			result.note,
-			relayNotice,
-		].filter((line): line is string => typeof line === "string");
+		// One line: the tab and its browser, where it landed unless that is the URL the call asked for, and its title.
+		let opened = `${verb} tab ${JSON.stringify(name)} on ${describeBrowser(tab)}`;
+		if (!params.url || !sameAddress(params.url, url)) opened += `, at ${url}`;
+		if (title) opened += `, titled ${JSON.stringify(title)}`;
+		const lines = [opened, ...notes, result.note, relayNotice].filter(
+			(line): line is string => typeof line === "string",
+		);
 		return toolResult(details).text(lines.join("\n")).done();
 	} catch (error) {
 		// Caller cancellation stays a ToolAbortError; the requested timeout

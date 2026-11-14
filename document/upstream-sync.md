@@ -9,6 +9,16 @@ _(`v18.18.2` was the header until 2026-11-09; the v18.18.3 round is PR #272 on
 `v18.18.0` until the v18.18.2 round. `v18.18.8` is a later official upstream
 release and is NOT integrated; see the probe below.)_
 
+## v18.20.0 integration in progress (2026-11-14)
+
+- Owner: main assistant personally; user forbids delegating either upstream merge.
+- Start: `main@e37c23c144d`; prior integrated upstream `v18.19.0@04cd1a7549a02d62ad1d24826198d52507595683`.
+- Source: official `v18.20.0@c308970263ae13744ea15ab67302e3dac840e266`; primary remote checked before fetch and after merge start, unchanged. Full `--no-filter` tag fetch.
+- Exact tag window: 614 commits, 441 files, +29,556/-5,962. All lineage checks pass; merge-base equals v18.19.0.
+- Actual `--no-ff --no-commit` merge in `temp/omp-v18.20.0-sync`: initial 74 unresolved paths. Classification and full path inventory: `local://omp-18.20-conflict-classification.md`, `artifact://46252`.
+- Decisions so far: take upstream behavior/test additions with Zeta package mappings; preserve Team/channel sink, explicit foreign-source admission, todo reconcile, resume-tree layout; adapt configured delete key hints to both picker layouts; preserve retired Tern code/tests; restore modified active BTW lifecycle test. Generated catalog rebuilt from merged KDL (1168 rules); Bun/Nix regenerated; Zeta version remains1.5.1. Incoming historical OMP changelogs removed, only new v18.19→v18.20 items folded into Unreleased while keeping released Zeta history.
+- Checks so far: coding-agent typecheck 5,656 clean; tool/retry/picker tests37/0. Version consistency green. Full gates/CI not yet complete; no merge commit/push/PR/main integration claimed.
+
 ## v18.19.0 integration (2026-11-12)
 
 - **Merge**: source tag `v18.19.0` (`04cd1a7549a02d62ad1d24826198d52507595683`,

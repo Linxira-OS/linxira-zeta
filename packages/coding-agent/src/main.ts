@@ -2590,7 +2590,7 @@ export async function runRootCommand(
 			: { shouldStart: false, source: "none" as const, enabled: [] };
 
 		let startupTelemetry: CreateAgentSessionOptions["telemetry"];
-		let startupExtensions: CreateAgentSessionOptions["extensions"];
+		let startupTopLevelExtensions: CreateAgentSessionOptions["topLevelExtensions"];
 		// An interactive launch writes nothing to the terminal before its UI: the
 		// first paint clears the screen, and in Tern the surface would open over
 		// (and briefly flash) any line printed ahead of it.
@@ -2628,7 +2628,7 @@ export async function runRootCommand(
 			options.deferSkillDescriptionCompression = isInteractive;
 			options.settings = settingsInstance;
 			options.telemetry = startupTelemetry;
-			options.extensions = startupExtensions;
+			options.topLevelExtensions = startupTopLevelExtensions;
 			if (sessionChannelsPlan.shouldStart) {
 				options.channelSend = opts => sendFromSessionChannel(opts);
 			}
@@ -2736,8 +2736,9 @@ export async function runRootCommand(
 			// file — and the same result is handed to createAgentSession via
 			// `preloadedExtensions` so the discovery work is not repeated.
 			if (isInteractive && !parsedArgs.trustedExtensions?.length) {
-				startupExtensions = sessionOptions.extensions = [
-					...(sessionOptions.extensions ?? []),
+				// Top-level only: subagents, `/tan` forks, and worker threads never inherit the bridge.
+				startupTopLevelExtensions = sessionOptions.topLevelExtensions = [
+					...(sessionOptions.topLevelExtensions ?? []),
 					createWarpEventBridgeExtension(),
 				];
 			}

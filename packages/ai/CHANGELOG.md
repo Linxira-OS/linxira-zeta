@@ -2,6 +2,27 @@
 
 - Released as part of Zeta 1.5.2 asset review; no package-specific user-visible changes.
 
+### Added
+
+- Added the `google-decisions` judgment API for Google's Gemini Decisions API (`gemini-decision-1`), with text and image input ([#19060](https://github.com/can1357/oh-my-pi/pull/19060) by [@kevcube](https://github.com/kevcube))
+- Added `apiKey` to successful `OAuthAccessResolution` results from `oauth.accessById()` and `oauth.accessAll()`: the key normal requests send for that account, which differs from `accessToken` for providers with structured credentials ([#19030](https://github.com/can1357/oh-my-pi/pull/19030) by [@Xytronix](https://github.com/Xytronix))
+- Added an optional `exemptionAlias` to `ToolCallLoopGuard` so transport calls can match the dispatched tool's name in `exemptTools` ([#18860](https://github.com/can1357/oh-my-pi/issues/18860))
+- Added the `liquid-systemone` judgment API for Liquid AI's decision models, which rejects image sets over Liquid's 10,000 32×32-patch request cap before sending ([#18076](https://github.com/can1357/oh-my-pi/issues/18076), [#18100](https://github.com/can1357/oh-my-pi/pull/18100) by [@SuperUserA](https://github.com/SuperUserA))
+- Added the `nace-systemone` judgment API for Nace's Drex decision models, which sends images as Drex's top-level `images` data URLs and replaces the base64 image, audio, video and PDF data URLs that Drex rejects in judged text with a description ([#18950](https://github.com/can1357/oh-my-pi/pull/18950) by [@alphastorm](https://github.com/alphastorm))
+
+### Fixed
+
+- Fixed a spent Codex account retrying every minute for days when its siblings were only refused the requested model: their short model-policy blocks no longer count as a sibling becoming available, so the usage-limit wait follows the spent account's reset and model fallback can take over ([#17637](https://github.com/can1357/oh-my-pi/issues/17637), [#19019](https://github.com/can1357/oh-my-pi/pull/19019) by [@wolfiesch](https://github.com/wolfiesch))
+- Auth-gateway client tokens (`serve --clients`) can no longer set who a request is from, who pays, or how the gateway reaches the provider: chat routes drop their request headers, `userProfileId`, `initiatorOverride`, `metadata`, `serviceTier`, `cacheRetention` and the other gateway-only options, while the gateway token keeps them ([#19067](https://github.com/can1357/oh-my-pi/pull/19067) by [@alphastorm](https://github.com/alphastorm))
+- Fixed the auth gateway's `/v1/pi/stream` dropping `taskBudget`, `include` and `anthropicPrefixMismatchBehavior`, which its other chat routes accept ([#19067](https://github.com/can1357/oh-my-pi/pull/19067) by [@alphastorm](https://github.com/alphastorm))
+- Fixed requests to Vertex AI Mistral partner models (`mistral-medium-3`, `mistral-small-2503`, `codestral-2`) failing because they were sent in Anthropic's request format ([#19010](https://github.com/can1357/oh-my-pi/issues/19010), [#19022](https://github.com/can1357/oh-my-pi/pull/19022) by [@yuzu-octopus](https://github.com/yuzu-octopus))
+- Added Gemini's `xhigh` thinking level, sent on the Gemini API and Vertex for models whose ladder exposes it (Gemini 4 Hydrogen).
+- Fixed omp failing to start with `ENOTDIR: not a directory, stat '~/.aws/credentials'` when `~/.aws` is a file instead of a directory ([#19083](https://github.com/can1357/oh-my-pi/pull/19083) by [@iamshatter](https://github.com/iamshatter))
+- Fixed sequential-cutoff reasoning summaries duplicating section headers across Codex reasoning items by tracking the cumulative summary response-globally, so replayed sections and replay-only items no longer re-emit text earlier thinking blocks already streamed.
+
+Older entries are archived in [packages/ai/CHANGELOG.md@15b63dda377c](https://github.com/can1357/oh-my-pi/blob/15b63dda377c99cead82ce07d5aac567f2b413b3/packages/ai/CHANGELOG.md).
+
+
 ## [1.5.1] - 2026-11-10
 
 ## [1.5.0] - 2026-11-09

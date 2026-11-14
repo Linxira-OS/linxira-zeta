@@ -165,6 +165,20 @@
 | `sync/omp-release/v18.18.1-2` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
 | `sync/omp-release/v18.18.3` | preserved | Present local branch; owner/review intent not reviewed in this metadata-only pass; do not merge/delete without owner | unassigned | 2026-11-09 | Preserve; owner review |
 | `sync/omp-release/v18.19.0` | sync | OMP v18.19.0 真 merge（`f2ad635e014`），基于 `ddb44711b5d`；worktree `temp/omp-v18.19.0-sync` | agent | 2026-11-12 | 门禁与 CI 绿后合入 `main` 再删（删前记 SHA） |
+| `sync/omp-release/v18.20.0` | sync | Main亲自集成官方v18.19.0→v18.20.0，base e37c23c144d；worktree temp/omp-v18.20.0-sync；不交子代理合并 | main agent | 2026-11-14 | 本地门禁与CI绿、用户手动合PR后登记SHA退役 |
+| `sync/studio-release/v0.2.0` | sync | Main亲自按v0.1.17→v0.2.0映射三方集成renderer/host/desktop；worktree temp/omp-studio-v0.2.0-sync | main agent | 2026-11-14 | 独立审查门禁CI绿、用户手动合PR后退役 |
+| `feat/team-lifecycle-finish` | feat | REQ098生命周期切片；worktree temp/team-lifecycle-finish；不做上游merge | TeamLifecycleFinish | 2026-11-14 | delta整合并验收后登记SHA退役 |
+| `feat/team-rooms-finish` | feat | REQ098房间/IM切片；worktree temp/team-rooms-finish；不做上游merge | TeamRoomsFinish | 2026-11-14 | delta整合并验收后登记SHA退役 |
+| `feat/team-surfaces-finish` | feat | REQ098/100 Team UI与IM逐消息来源切片；worktree temp/team-surfaces-finish | TeamSurfacesFinish | 2026-11-14 | delta整合并验收后登记SHA退役 |
+| `feat/original-gaps-finish` | feat | REQ098原创缺口切片；worktree temp/original-gaps-finish | OriginalGapsFinish | 2026-11-14 | delta整合并验收后登记SHA退役 |
+| `docs/team-lines-adr` | preserved | 既有本地分支，未审查用户工作；不合并不删除 | owner | 2026-11-14 | owner决定 |
+| `docs/toolcall-deferred` | preserved | 既有本地分支，未审查用户工作；不合并不删除 | owner | 2026-11-14 | owner决定 |
+| `feat/resume-background-ownership` | feat | REQ094 source-bound后台切片；保留原worktree未提交实现 | BackgroundOwnership | 2026-11-14 | 集成验收后登记SHA退役 |
+| `feat/team-runtime` | feat | REQ098 Team集成及后台resume/tray修复；temp/team-runtime未提交内容保留 | main agent | 2026-11-14 | 双上游与Team整合验证后owner手动合PR |
+| `feat/team-runtime-resume-agents` | feat | REQ094 running-Agent picker切片；保留原实现 | ResumeRunningAgents | 2026-11-14 | 集成验收后登记SHA退役 |
+| `fix/nix-ci` | preserved | 既有本地Nix修复分支，未审查；不合并不删除 | owner | 2026-11-14 | owner决定 |
+| `fix/remote-probe-zeta-bins` | fix | 已合PR323，远程zetacode探测；保留原分支 | owner | 2026-11-14 | owner决定退役 |
+| `release/1.5.2-bump` | release | 已发布1.5.2 bump与资产证据；禁止重写 | owner | 2026-11-14 | 保留发布历史 |
 | `docs/qq-wecom-pause` | docs | 用户要求的 QQ/WeCom 暂停文档；worktree `temp/active-surface-completion` 之外，保留原分支 | user | 2026-11-12 | 合入 sync 后由 owner 决定；不删 |
 | `release/1.5.2-prep` | release | 1.5.2 资产验收准备：`release-scope.json` 17 REQ/5 ADR + 12 approved deferrals、ledger 1.5.2 证据、14 CHANGELOG Unreleased 与 UPDATE-LOG 1.5.2；worktree `temp/release-152-prep` | agent | 2026-11-12 | 1.5.2 资产验收合并后删（删前记 SHA） |
 | `vendor/termide-0.49.0` | vendor | TermIDE 0.49.0 vendor 分支；保留原分支 | user | 2026-11-12 | owner 决定；不删 |
