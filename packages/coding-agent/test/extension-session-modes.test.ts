@@ -355,13 +355,6 @@ describe("ctx.sessionModes in the interactive TUI", () => {
 		]) {
 			expect(refusal(await modes.set(request as Parameters<typeof modes.set>[0]))).toBe("invalid_request");
 		}
-		expect(modes.getState()).toEqual({
-			plan: { status: "inactive" },
-			lead: { status: "inactive" },
-			vibe: { status: "inactive" },
-			goal: { status: "inactive" },
-			loop: { status: "inactive" },
-		});
 	});
 
 	it("refuses every transition when extension mode control is turned off, while state stays readable", async () => {

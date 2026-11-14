@@ -254,7 +254,7 @@ export interface AgentState {
 	todos: TodoPhase[];
 	// --- AgentState v2 (shared session state bridge) ---
 	/** Active mode states, keyed by mode id (only present when active). */
-	modes: { plan?: PlanModeState; goal?: GoalModeState; vibe?: VibeModeState };
+	modes: { plan?: PlanModeState; goal?: GoalModeState; vibe?: VibeModeState; team?: { enabled: boolean } };
 	/** The session's current resolved model role (e.g. "default", "plan"), or null. */
 	modelRole: string | null;
 	/** Names of tools currently exposed at the top level. */
@@ -367,7 +367,7 @@ export class AgentSessionWrapper {
 	#extensionStatuses = new Map<string, string>();
 	#extensionWidgets = new Map<string, { lines: string[]; placement: "aboveEditor" | "belowEditor" }>();
 	/** Serialized last-seen mode states, used to emit `mode_changed` diffs. */
-	#lastModeStates: Record<ModeId, string> = { plan: "null", goal: "null", lead: "null", vibe: "null" };
+	#lastModeStates: Record<ModeId, string> = { plan: "null", goal: "null", lead: "null", vibe: "null", team: "null" };
 
 	// -- Multi-end session sync (durable-entry replication) ------------------
 	/** Monotonic sequence for durable-entry events; cursor for SSE replay. */
@@ -532,7 +532,7 @@ export class AgentSessionWrapper {
 			// External-state bridge: re-derive mode diffs and broadcast the new
 			// version. Clients use `state_changed` to re-fetch get_state and
 			// `mode_changed` to update mode banners without a full poll.
-			for (const mode of ["plan", "goal", "lead", "vibe"] as const) {
+			for (const mode of ["plan", "goal", "lead", "vibe", "team"] as const) {
 				const state = this.#inner.getModeState(mode);
 				const serialized = JSON.stringify(state ?? null);
 				if (serialized !== this.#lastModeStates[mode]) {
@@ -607,6 +607,7 @@ export class AgentSessionWrapper {
 			...(inner.getPlanModeState() ? { plan: inner.getPlanModeState() } : {}),
 			...(inner.getGoalModeState() ? { goal: inner.getGoalModeState() } : {}),
 			...(inner.getVibeModeState() ? { vibe: inner.getVibeModeState() } : {}),
+			...(inner.getTeamModeState() ? { team: inner.getTeamModeState() } : {}),
 		};
 		return {
 			sessionId: this.realSessionId,

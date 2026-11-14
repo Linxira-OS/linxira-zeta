@@ -10,10 +10,18 @@ CLI as `zetacode`), the native addons, and the Work Studio renderer
 | **Full (Electron)** | Chromium, the kernel, the renderer, tray and window chrome | Windows NSIS installer / portable zip, Linux AppImage / deb / tar.gz                                  |
 | **Browser**         | The kernel and the renderer only; no browser engine        | Windows zip, Linux tar.gz, with a launcher that starts `zetacode serve` and opens the default browser |
 
-The Electron shell spawns the bundled `zetacode serve` and loads it inside its
-window; the browser edition's launcher does the same but hands the URL to the
-user's browser. In both cases the server and the UI are the same Work Studio
-that `zetacode serve` produces from a source checkout.
+The Electron shell first discovers a healthy same-version `zetacode serve`
+and reuses it; otherwise it starts the bundled service. It waits for service
+readiness before opening its window. Closing the shell leaves an externally
+owned service running. The browser edition's launcher starts the service and
+opens its URL in the user's browser. Both editions use the same Work Studio
+server and renderer as `zetacode serve` from a source checkout.
+
+Existing projects and conversations come from the server's shared project
+registry and session files (`projects.list` through `/api/projects`), also used
+by the TUI resume picker. Project discovery must not require selecting a project
+or starting a project-specific Runtime first. Execution still requires a healthy
+server; this does not provide offline execution.
 
 ## Runtime layout
 
@@ -81,6 +89,12 @@ The preload exposes one capability object under **both** `window.piDesktop`
 contract), so the shipped renderer's feature detection works in the installed
 app instead of falling back to browser behavior. A plain browser tab has
 neither global.
+
+The tray menu keeps **Show Window**, **Home**, **Stats Dashboard** and **Open
+Settings**, plus the existing IM, identity/device and notification actions.
+Home and Settings reveal the existing Work Studio window and route within it;
+Stats uses the existing statistics window. These actions reuse the same serve
+backend and do not start another project Runtime.
 
 Capabilities the shell owns (paths never cross into the renderer):
 

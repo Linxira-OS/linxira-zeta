@@ -63,6 +63,7 @@ refactors. A refactor needs an ADR only when it changes one of the contracts abo
 | [0036](0036-upstream-interface-alignment.md) | Align to upstream interfaces before extending; never blanket-allowlist Zeta losses | Accepted | 2026-11-12 | — | [merge damage classes](../agents/merge/damage-classes.md), [maintenance protocol](../maintenance-ownership.md), [upstream sync](../upstream-sync.md) |
 | [0037](0037-team-runtime-governance.md) | `/team` reuses Vibe workers with project governance; legacy PM/Lead is hidden as Super Team | Accepted | 2026-11-14 | — | [Team mode](../../packages/coding-agent/src/session/agent-session.ts), [Vibe](../../packages/coding-agent/src/vibe/runtime.ts), [tracking](../../packages/coding-agent/src/tools/tracking.ts) |
 | [0038](0038-two-lane-agent-hierarchy.md) | Reuse the Vibe worker tree for governed Team mode; hide the legacy Super Team surface | Accepted | 2026-11-14 | — | [Vibe](../../packages/coding-agent/src/vibe/runtime.ts), [local protocol](../../packages/coding-agent/src/internal-urls/local-protocol.ts), [Team docs](../../docs/team.md) |
+| [0039](0039-background-work-source-binding.md) | Background work survives `/resume` by staying bound to its source transcript | Accepted | 2026-11-14 | — | [Vibe mode](../../docs/vibe-mode.md), [AgentSession switch](../../packages/coding-agent/src/session/agent-session.ts), [async delivery](../../packages/coding-agent/src/async/job-manager.ts), [tests](../../packages/coding-agent/test/agent-session-async-delivery.test.ts) |
 
 ## File and numbering rules
 

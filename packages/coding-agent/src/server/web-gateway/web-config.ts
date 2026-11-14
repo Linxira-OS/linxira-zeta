@@ -16,6 +16,7 @@ function json(data: unknown, status = 200): Response {
 const DESKTOP_LABELS: Record<string, Record<string, string>> = {
 	en: {
 		showWindow: "Show Window",
+		home: "Home",
 		statsDashboard: "Stats Dashboard",
 		imChannels: "IM Channels",
 		security: "Identity & Devices",
@@ -31,6 +32,7 @@ const DESKTOP_LABELS: Record<string, Record<string, string>> = {
 	},
 	"zh-CN": {
 		showWindow: "显示主窗口",
+		home: "主页",
 		statsDashboard: "统计面板",
 		imChannels: "IM 渠道",
 		security: "身份与设备",

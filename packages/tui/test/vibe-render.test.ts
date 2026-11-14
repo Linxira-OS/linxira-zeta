@@ -25,6 +25,7 @@ function makeScreen(overrides: Partial<VibeScreenSnapshot> = {}): VibeScreenSnap
 	return {
 		id: "Anna",
 		cli: "fast",
+		identity: { role: "worker", generation: 1, lifecycle: "resident" },
 		state: "running",
 		turns: 1,
 		queued: 0,

@@ -66,6 +66,22 @@ For `SessionInfo` list entries:
 - `firstMessage` is first user message text discoverable from the prefix or `"(no messages)"`
 - the picker also shows modified time, file size, a `current` marker on the live session, lifecycle status (except `unknown`), fork marker, and cwd in all-projects scope
 
+### Running agents in `/resume`
+
+The in-session picker has a separate **Running Agents** section sourced from the
+process agent registry. Each row shows its name, current activity and creation
+date/time. These rows are live agents, not saved main conversations; search
+filters both sections, while ordinary stored subagent transcripts remain outside
+the main-session resume list.
+
+Enter on an agent opens its existing observer. Returning from that observer
+restores the same picker, query and selection. It never loads the worker's JSONL
+as the main conversation. Rows refresh on registry changes and once per second
+for activity changes; refresh stops while hidden and all subscriptions/timers
+are released when the picker closes. A completed or replaced registry generation
+is checked again before focus, so stale rows cannot open a different worker.
+
+
 ## `--continue` resolution and terminal breadcrumb preference
 
 `SessionManager.continueRecent(cwd, sessionDir?, storage?, { onSessionContinuation? })` resolves the target in this order:

@@ -2098,6 +2098,8 @@ export interface Messages {
 	cmdExtensions: string;
 	cmdAgents: string;
 	cmdTeam: string;
+	cmdTeamOn: string;
+	cmdTeamOff: string;
 	cmdTeamHub: string;
 	cmdInitZetaTeam: string;
 	cmdTeamWorker: string;
@@ -2934,6 +2936,11 @@ export interface Messages {
 
 	// ── Session selector (session-selector.ts) ─────────────────────────────
 	ssEmptyNoSessions: string; // "No sessions found" (no indent)
+	ssRunningAgents: string;
+	ssRunningAgentCreated: string;
+	ssRunningAgentOpen: string;
+	ssRunningAgentActivity: string;
+	ssRunningAgentIdle: string;
 	ssEmptyNoFolderSessions: string; // no indent
 	ssLoadingProjects: string; // "Loading all projects…" (no indent)
 	ssCurrentMark: string; // "current"

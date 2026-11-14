@@ -2,6 +2,11 @@
 
 ## 下一版本（Unreleased）
 
+### Team 开发分支修复（未发布）
+- 恢复 `systemPromptDigest()` 的 BigInt seed 与按块 `Bun.hash.wyhash` 累积，修复安装会话探针中的 `hash is not defined`（REQ-093）。CLI settings/session isolation 安装冒烟通过。
+- 修复 TUI `/team on/off` 被误当作切换的问题：显式命令幂等，裸 `/team` 继续切换，命令等待状态变更完成；定向回归 1 pass / 0 fail。
+- Gateway 的 `get_state.modes` 与 `mode_changed` 补上活动 Team 状态，避免 Team 已启用但客户端读不到；真实 AgentSession + wrapper 进出状态与事件回归通过。
+
 ### 1.5.2（2026-11-12）
 - **性质**：exact owner-review GitHub assets 构建（ADR-0033）；npm 仍为 1.5.1；不是 1.6.0 稳定声明。
 - **上游基线**：OMP `v18.19.0`（tag `04cd1a7549a02d62ad1d24826198d52507595683`，merge `f2ad635e0142bf9c64b8fe8253683da4430698a7`，基于 `ddb44711b5d`）。

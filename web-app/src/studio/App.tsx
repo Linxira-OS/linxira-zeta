@@ -8553,6 +8553,7 @@ function AppShell({ state, client, onRoute, selectedHistoryId, onSelectThread, o
       }
     }
     switch (command) {
+      case "app.home": go("home"); return;
       case "app.settings": go("settings"); return;
       case "file.newChat": startNewChat(); return;
       case "file.openProject": void pickProject(); return;

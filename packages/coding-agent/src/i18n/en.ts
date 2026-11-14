@@ -2943,6 +2943,11 @@ export const en = {
 
 	// ── Session selector (session-selector.ts) ─────────────────────────────
 	ssEmptyNoSessions: "No sessions found",
+	ssRunningAgents: "Running Agents",
+	ssRunningAgentCreated: "created",
+	ssRunningAgentOpen: "Open",
+	ssRunningAgentActivity: "Current activity",
+	ssRunningAgentIdle: "No current activity",
 	ssEmptyNoFolderSessions: "No sessions in current folder. Press Tab to view all.",
 	ssLoadingProjects: "Loading all projects…",
 	ssCurrentMark: "current",

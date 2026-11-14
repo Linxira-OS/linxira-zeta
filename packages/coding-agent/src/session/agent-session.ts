@@ -180,7 +180,13 @@ import { frameDataBytesBudget, readerIncludesThinking } from "@linxiraos/zeta-co
 import type { AdvisorConfig } from "@linxiraos/pi-tui/overlays/advisor-config";
 import { formatUsageResetWindow } from "@linxiraos/pi-tui/overlays/usage-display";
 import { loadAdvisorTranscriptCosts } from "../advisor";
-import { ASYNC_JOB_MANAGER_SHUTDOWN_REASON, type AsyncJob, AsyncJobManager, type AsyncJobManagerApi } from "../async";
+import {
+	ASYNC_JOB_MANAGER_SHUTDOWN_REASON,
+	type AsyncJob,
+	AsyncJobManager,
+	type AsyncJobManagerApi,
+	type AsyncJobOrigin,
+} from "../async";
 import { planParallel } from "../auto-parallel/planner";
 import { classifyAutoPrewalk } from "../auto-prewalk/classifier";
 import { reset as resetCapabilities } from "../capability";
@@ -375,7 +381,12 @@ import { generateSessionTitle, nerdGlyphsActive } from "../utils/title-generator
 import { buildNamedToolChoice, isToolChoiceActive } from "../utils/tool-choice";
 import { type LeadModeState, resolveLeadWorkspace } from "../team/lead";
 import { applyEngineerSkillAssignments, type EngineerSkillInjectionResult } from "./engineer-skills";
-import { type VibeOwnerScope, type VibeParentSession, VibeSessionRegistry } from "../vibe/runtime";
+import {
+	type VibeOwnerScope,
+	type VibeParentSession,
+	type VibeSourceSession,
+	VibeSessionRegistry,
+} from "../vibe/runtime";
 import type { VibeModeState } from "../vibe/state";
 import type { AgentSessionEvent, AgentSessionEventListener } from "./agent-session-events";
 import { type AgentViewSession, isLocalAgentSession } from "./agent-session-handle";
@@ -612,7 +623,7 @@ import {
 	copySessionArtifacts,
 	extractSessionInit,
 	type PersistedSessionInit,
-	type SessionManager,
+	SessionManager,
 } from "./session-manager";
 import { SessionMemory, type SessionMemoryHost } from "./session-memory";
 import { buildSessionMetadata } from "./session-metadata";
@@ -708,6 +719,7 @@ import {
 	cfgDevAutoqa,
 	cfgDevAutoqaConsent,
 	cfgTrackingEnabled,
+	cfgTodoEnabled,
 	cfgToolsApproval,
 } from "../tools/settings";
 import { cfgTtsrJudge } from "../export/ttsr-settings";
@@ -1167,6 +1179,64 @@ function commandMetadataSignature(commands: readonly LoadedCustomCommand[]): str
 		.join("\u0001");
 }
 
+/** Immutable identity of the transcript a detached background job belongs to. */
+interface AsyncSourceOrigin {
+	sessionId: string;
+	sessionFile: string | null;
+	leafId: string | null;
+}
+
+/**
+ * Source transcript snapshot kept alive while this owner's work continues in
+ * another session. `SessionManager.cloneCurrentSession` supplies the writer —
+ * the same ownership snapshot the bash runner takes at a session transition —
+ * and `writes` serializes detached async-result appends so the source journal is
+ * never written from two attempts at once.
+ */
+interface AsyncSourceBinding {
+	readonly key: string;
+	readonly origin: AsyncSourceOrigin;
+	/** Refreshed from the live manager each time that source is left again. */
+	manager: SessionManager;
+	/** Tail of detached writes; a switch back to this source awaits it first. */
+	writes: Promise<void>;
+	pendingWrites: number;
+	/** Set before the writer is closed so no late write enters a closed manager. */
+	closed: boolean;
+	readonly jobs: Set<string>;
+}
+
+interface AsyncSourceDetachment {
+	readonly binding: AsyncSourceBinding;
+	readonly previousEpoch: number;
+}
+
+/** Gate that parks detached writes targeting a source transcript mid-switch. */
+interface SourceAttachGate {
+	readonly path: string;
+	readonly completion: Promise<void>;
+	resolve: () => void;
+}
+
+/** Gate that keeps completions for the transcript being left until the switch is decided. */
+interface SourceLeavingGate {
+	readonly completion: Promise<void>;
+	resolve: () => void;
+}
+
+function sourceIdentityKey(sessionId: string, sessionFile: string | null): string {
+	return `${sessionId}\u0000${sessionFile ? path.resolve(sessionFile) : ""}`;
+}
+
+function sourceFileMatches(left: string | null, right: string | null): boolean {
+	if (left === null || right === null) return left === right;
+	return path.resolve(left) === path.resolve(right);
+}
+
+function originsMatch(left: AsyncJobOrigin | AsyncSourceOrigin, right: AsyncSourceOrigin): boolean {
+	return left.sessionId === right.sessionId && sourceFileMatches(left.sessionFile, right.sessionFile);
+}
+
 export class AgentSession implements SettingsScope, AgentViewSession {
 	/** True while a command's agent/model override owns this session's execution policy. */
 	#commandPolicyActive = false;
@@ -1425,12 +1495,33 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	/** Clears this session's owner delivery sink registration; set when a manager + agent id exist. */
 	#unregisterAsyncDeliverySink: (() => void) | undefined;
 	/**
-	 * Async-delivery generation, bumped on every session transition that evicts
-	 * this owner's jobs (see {@link AgentSession.#cancelOwnAsyncJobs}). Stamped
-	 * onto each queued async-result follow-up so a delivery formatted or drained
-	 * across a `/new` or `/resume` is dropped regardless of job-id reuse.
+	 * Async-delivery generation, bumped on every session transition that
+	 * replaces this owner's transcript — `/new` (see
+	 * {@link AgentSession.#cancelOwnAsyncJobs}) and `/resume` (whose jobs
+	 * survive and re-deliver through their source binding). Stamped onto each
+	 * queued async-result follow-up so a delivery formatted or drained across
+	 * the old transcript cannot inject into the new one regardless of job-id
+	 * reuse.
 	 */
 	#asyncDeliveryEpoch = 0;
+	/**
+	 * Latest source snapshot per transcript identity. Only sessions that were
+	 * left with live background work get one; detached completions write here
+	 * while another conversation is active.
+	 */
+	readonly #asyncSourceBindings = new Map<string, AsyncSourceBinding>();
+	/** Job id → source snapshot captured when its owning session was left. */
+	readonly #jobSourceBindings = new Map<string, AsyncSourceBinding>();
+	/** Set while a switch is loading a transcript some detached writer targets. */
+	#sourceAttachGate: SourceAttachGate | undefined;
+	/**
+	 * Transcript being left by the current switch, and the gate that keeps its
+	 * in-flight completions until the switch commits or rolls back. Neither a
+	 * live injection into a replaced transcript nor a detached write into a
+	 * transcript that stays live may happen while the outcome is unknown.
+	 */
+	#leavingAsyncSource: AsyncSourceOrigin | undefined;
+	#leavingSourceGate: SourceLeavingGate | undefined;
 
 	readonly #irc: IrcBridge;
 	#ircWakeTurnObserver:
@@ -3100,14 +3191,14 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	}
 
 	/**
-	 * Teardown for a session switch: stop Team workers and drop Team-only tools
-	 * without applying the source session's toolset snapshot (the target
-	 * session's active set is already loaded).
+	 * Teardown for a session switch: detach Team's transient tools without
+	 * terminating its workers or applying the source session's toolset
+	 * snapshot. The active switch pins the workers to the source transcript
+	 * (ADR 0039), so a return to that session resumes the same Team scope.
 	 */
 	async exitTeamModePreservingActive(): Promise<void> {
 		if (!this.#teamModeEnabled) return;
 		await this.runModeExitTeardown(async () => {
-			await VibeSessionRegistry.global().killAll(this.#vibeParentSession(), this.#teamModeOwnerScope);
 			await this.removeTeamToolsPreservingActive();
 			this.#teamModeEnabled = false;
 			this.bumpStateVersion();
@@ -4608,8 +4699,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 	/**
 	 * Cancel async jobs registered by *this* agent only. Used by lifecycle
-	 * transitions (newSession, switchSession, handoff, dispose) so a subagent
-	 * cleans up its own background work without touching its parent's jobs.
+	 * transitions that replace or destroy the transcript (newSession,
+	 * resetSessionContext, branch/fork, handoff, dispose) so a subagent cleans
+	 * up its own background work without touching its parent's jobs. Session
+	 * switches do NOT call this: their jobs are source-bound (ADR 0039).
 	 *
 	 * Cleanup runs against this session's scoped manager: running jobs are
 	 * cancelled, finished rows are evicted with their pending deliveries, and any
@@ -4762,13 +4855,434 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		await manager.waitForOwnerJobs(this.#agentId, { excludeSuppressed: true });
 		await manager.drainDeliveries({ filter: { ownerId: this.#agentId } });
 		await this.waitForIdle();
+		// Injection returns once the follow-up turn settles; its transcript
+		// commits run through the ordered message_end tail. Wait for that tail so
+		// a caller reading the session file immediately after quiescence observes
+		// the result (the /resume rollback contract does exactly that).
+		await this.#messageEndPersistenceTail;
+	}
+
+	/** True while the active manager is the transcript this delivery belongs to. */
+	#matchesCurrentAsyncSource(origin: AsyncJobOrigin | AsyncSourceOrigin): boolean {
+		return (
+			origin.sessionId === this.sessionManager.getSessionId() &&
+			sourceFileMatches(origin.sessionFile, this.sessionManager.getSessionFile() ?? null)
+		);
+	}
+
+	/** Source a settled delivery belongs to: the explicit job origin, else the switch binding. */
+	#resolveAsyncDeliveryOrigin(jobId: string, job: AsyncJob | undefined): AsyncSourceOrigin | undefined {
+		const bound = this.#jobSourceBindings.get(jobId);
+		const explicit = job?.origin ?? bound?.origin;
+		if (!explicit) {
+			// Another writer may have evicted the row but keep the delivery's
+			// enqueue-time snapshot; a bound job still knows its source.
+			return undefined;
+		}
+		if (bound && originsMatch(explicit, bound.origin)) return bound.origin;
+		const key = sourceIdentityKey(explicit.sessionId, explicit.sessionFile);
+		const latest = this.#asyncSourceBindings.get(key);
+		if (latest && originsMatch(latest.origin, { ...explicit, leafId: latest.origin.leafId })) {
+			return latest.origin;
+		}
+		return { sessionId: explicit.sessionId, sessionFile: explicit.sessionFile, leafId: null };
+	}
+
+	#sourceBindingForOrigin(origin: AsyncSourceOrigin): AsyncSourceBinding | undefined {
+		const binding = this.#asyncSourceBindings.get(sourceIdentityKey(origin.sessionId, origin.sessionFile));
+		return binding && originsMatch(binding.origin, origin) ? binding : undefined;
+	}
+
+	/** The job's result reached its destination; only the binding's provenance remains. */
+	#releaseJobSourceBinding(jobId: string): void {
+		const binding = this.#jobSourceBindings.get(jobId);
+		if (!binding) return;
+		binding.jobs.delete(jobId);
+		this.#jobSourceBindings.delete(jobId);
 	}
 
 	/**
-	 * Delivery sink for async jobs owned by this agent: format the result
-	 * (spilling oversized output to an artifact), enqueue it as an async-result
-	 * follow-up, and settle only after the yield queue injects or discards it.
-	 * This keeps the job body recoverable through `proc://` while injection is pending.
+	 * Open a writer for a source whose switch-time binding is gone (a queued
+	 * Vibe follow-up registered after the switch while no job was observable at
+	 * the transition). File-backed sessions load their current leaf so the
+	 * completion still joins the originating transcript.
+	 */
+	async #createLateSourceBinding(origin: AsyncSourceOrigin): Promise<AsyncSourceBinding | undefined> {
+		if (!origin.sessionFile) return undefined;
+		let manager: SessionManager;
+		try {
+			manager = await SessionManager.open(origin.sessionFile, undefined, undefined, {
+				initialCwd: this.sessionManager.getCwd(),
+				throwIfMissing: true,
+				suppressBreadcrumb: true,
+			});
+		} catch (error) {
+			logger.warn("Could not reopen the source transcript for an async result", {
+				sessionId: origin.sessionId,
+				sessionFile: origin.sessionFile,
+				error: error instanceof Error ? error.message : String(error),
+			});
+			return undefined;
+		}
+		const leafId = manager.getLeafId();
+		const binding: AsyncSourceBinding = {
+			key: sourceIdentityKey(origin.sessionId, origin.sessionFile),
+			origin: { ...origin, leafId },
+			manager,
+			writes: Promise.resolve(),
+			pendingWrites: 0,
+			closed: false,
+			jobs: new Set(),
+		};
+		this.#asyncSourceBindings.set(binding.key, binding);
+		return binding;
+	}
+
+	/**
+	 * Snapshot the outgoing transcript for jobs that outlive the switch. Only
+	 * jobs that have no source yet, or whose source *is* the outgoing session,
+	 * are rebound; a job already bound to an older source keeps that writer so a
+	 * long-running worker cannot drift to every intermediate conversation.
+	 */
+	async #detachAsyncJobsToSource(previousState: {
+		sessionId: string;
+		sessionFile?: string;
+	}): Promise<AsyncSourceDetachment | undefined> {
+		const manager = this.#asyncJobManager;
+		const agentId = this.#agentId;
+		if (!manager || !agentId) return undefined;
+		const sourceOrigin: AsyncSourceOrigin = {
+			sessionId: previousState.sessionId,
+			sessionFile: previousState.sessionFile ?? null,
+			leafId: this.sessionManager.getLeafId(),
+		};
+		const candidates = new Map<string, AsyncJob>();
+		for (const job of manager.getRunningJobs({ ownerId: agentId })) candidates.set(job.id, job);
+		for (const jobId of manager.getDeliveryState({ ownerId: agentId }).pendingJobIds) {
+			const job = manager.getJob(jobId);
+			if (job) candidates.set(jobId, job);
+		}
+		const jobsToBind = [...candidates.values()].filter(job => {
+			const existing = this.#jobSourceBindings.get(job.id);
+			if (existing) return originsMatch(existing.origin, sourceOrigin);
+			return !job.origin || originsMatch(job.origin, sourceOrigin);
+		});
+		const scopeBelongsToSource = (scope: VibeOwnerScope | undefined): scope is VibeOwnerScope =>
+			scope !== undefined &&
+			scope.parentSessionId === sourceOrigin.sessionId &&
+			sourceFileMatches(scope.parentSessionFile, sourceOrigin.sessionFile);
+		const vibeScope =
+			this.#vibeModeState?.enabled && scopeBelongsToSource(this.#vibeModeOwnerScope)
+				? this.#vibeModeOwnerScope
+				: undefined;
+		const teamScope =
+			this.#teamModeEnabled && scopeBelongsToSource(this.#teamModeOwnerScope) ? this.#teamModeOwnerScope : undefined;
+		const registry = VibeSessionRegistry.global();
+		const pendingScopes = [vibeScope, teamScope].filter(
+			(scope): scope is VibeOwnerScope => scope !== undefined && registry.hasPendingWork(scope),
+		);
+		if (jobsToBind.length === 0 && pendingScopes.length === 0) return undefined;
+		// Materialize the source before snapshotting it. Refresh the caller's
+		// rollback snapshot too: the pre-detach capture can say `onDisk: false`,
+		// and restoreState would clear #forceFileCreation even though this call
+		// just created the file. A rolled-back switch would then leave the source
+		// unable to persist the eventual live async result (it has no assistant
+		// message yet and folds the follow-up into context).
+		if (previousState.sessionFile) {
+			await this.sessionManager.ensureOnDisk();
+			Object.assign(previousState, this.sessionManager.captureState());
+		}
+		const key = sourceIdentityKey(sourceOrigin.sessionId, sourceOrigin.sessionFile);
+		const reusable = this.#asyncSourceBindings.get(key);
+		if (reusable && !reusable.closed) {
+			// One binding per transcript identity: repeat /resume cycles refresh
+			// the same writer instead of retaining one entry snapshot per visit.
+			await reusable.writes.catch(() => undefined);
+			const refreshed = this.sessionManager.cloneCurrentSession();
+			await reusable.manager.close().catch(() => undefined);
+			reusable.manager = refreshed;
+			reusable.origin.leafId = sourceOrigin.leafId;
+			reusable.writes = Promise.resolve();
+			reusable.closed = false;
+		}
+		const binding =
+			reusable && !reusable.closed
+				? reusable
+				: ({
+						key,
+						origin: sourceOrigin,
+						manager: this.sessionManager.cloneCurrentSession(),
+						writes: Promise.resolve(),
+						pendingWrites: 0,
+						closed: false,
+						jobs: new Set(),
+					} satisfies AsyncSourceBinding);
+		this.#asyncSourceBindings.set(binding.key, binding);
+		for (const job of jobsToBind) {
+			const previous = this.#jobSourceBindings.get(job.id);
+			if (previous && previous !== binding) previous.jobs.delete(job.id);
+			binding.jobs.add(job.id);
+			this.#jobSourceBindings.set(job.id, binding);
+		}
+		for (const scope of pendingScopes) {
+			const sourceSession: VibeSourceSession = {
+				parentSessionId: sourceOrigin.sessionId,
+				parentSessionFile: sourceOrigin.sessionFile,
+				leafId: sourceOrigin.leafId,
+				sessionManager: binding.manager,
+				serializePersistence: work => this.#runSourcePersistence(binding, work),
+				activeModelString: this.model ? formatModelString(this.model) : undefined,
+			};
+			registry.pinScopeToSource(scope, sourceSession);
+		}
+		// The pin makes Vibe follow-ups state their origin; bind any job that
+		// started while the snapshot was being taken. Registration after this
+		// point carries the origin or belongs to the target.
+		this.#bindJobsToSource(binding, sourceOrigin, manager, agentId);
+		return { binding, previousEpoch: this.#asyncDeliveryEpoch };
+	}
+
+	#bindJobsToSource(
+		binding: AsyncSourceBinding,
+		sourceOrigin: AsyncSourceOrigin,
+		manager: AsyncJobManagerApi,
+		agentId: string,
+	): void {
+		const candidates = new Map<string, AsyncJob>();
+		for (const job of manager.getRunningJobs({ ownerId: agentId })) candidates.set(job.id, job);
+		for (const jobId of manager.getDeliveryState({ ownerId: agentId }).pendingJobIds) {
+			const job = manager.getJob(jobId);
+			if (job) candidates.set(jobId, job);
+		}
+		for (const job of candidates.values()) {
+			const previous = this.#jobSourceBindings.get(job.id);
+			if (previous) {
+				if (!originsMatch(previous.origin, sourceOrigin)) continue;
+				if (previous === binding) continue;
+				previous.jobs.delete(job.id);
+			} else if (job.origin && !originsMatch(job.origin, sourceOrigin)) {
+				continue;
+			}
+			binding.jobs.add(job.id);
+			this.#jobSourceBindings.set(job.id, binding);
+		}
+	}
+
+	async #rollbackAsyncSourceDetachment(detachment: AsyncSourceDetachment): Promise<void> {
+		for (const jobId of detachment.binding.jobs) {
+			if (this.#jobSourceBindings.get(jobId) === detachment.binding) this.#jobSourceBindings.delete(jobId);
+		}
+		const current = this.#asyncSourceBindings.get(detachment.binding.key);
+		if (current === detachment.binding) this.#asyncSourceBindings.delete(detachment.binding.key);
+		VibeSessionRegistry.global().reattachScopeToLive(
+			detachment.binding.origin.sessionId,
+			detachment.binding.origin.sessionFile,
+		);
+		if (this.#asyncDeliveryEpoch === detachment.previousEpoch + 1) {
+			this.#asyncDeliveryEpoch = detachment.previousEpoch;
+		}
+		detachment.binding.closed = true;
+		await detachment.binding.writes.catch(() => undefined);
+		await detachment.binding.manager.close().catch(() => undefined);
+	}
+
+	/**
+	 * Wait for detached writes already targeting this transcript, so loading it
+	 * cannot race a completion append. Deliveries that start later park on
+	 * {@link #sourceAttachGate} and either inject live once this source is
+	 * active again or append after the switch failed.
+	 */
+	async #awaitSourceWritesForTarget(sessionPath: string): Promise<void> {
+		const target = path.resolve(sessionPath);
+		const waits: Promise<void>[] = [];
+		for (const binding of this.#asyncSourceBindings.values()) {
+			if (!binding.origin.sessionFile) continue;
+			if (path.resolve(binding.origin.sessionFile) !== target) continue;
+			waits.push(binding.writes);
+		}
+		await Promise.all(waits);
+	}
+
+	async #reattachAsyncSourcesAfterSwitch(): Promise<void> {
+		const sessionId = this.sessionManager.getSessionId();
+		const sessionFile = this.sessionManager.getSessionFile() ?? null;
+		VibeSessionRegistry.global().reattachScopeToLive(sessionId, sessionFile);
+		for (const binding of [...this.#asyncSourceBindings.values()]) {
+			if (!originsMatch(binding.origin, { sessionId, sessionFile, leafId: binding.origin.leafId })) continue;
+			await this.#closeSourceBindingIfIdle(binding);
+		}
+	}
+
+	/**
+	 * Wait out the parts of an in-flight switch that decide this origin's
+	 * destination: a completion for the transcript being left waits for commit
+	 * or rollback, and a completion targeting the transcript being loaded waits
+	 * for the load. Both gates resolve in `switchSession`'s finally.
+	 */
+	async #awaitSourceSwitchGates(origin: AsyncSourceOrigin): Promise<void> {
+		const leavingGate = this.#leavingSourceGate;
+		const leaving = this.#leavingAsyncSource;
+		if (leavingGate && leaving && originsMatch(origin, leaving)) await leavingGate.completion;
+		const gate = this.#sourceAttachGate;
+		if (gate && origin.sessionFile && path.resolve(origin.sessionFile) === gate.path) {
+			await gate.completion;
+		}
+	}
+
+	/**
+	 * Serialize one write for a pinned source with the async-result writer and
+	 * switch gates. After the gates, a source that is live again is written
+	 * through the real manager; otherwise the pinned clone is used. This closes
+	 * the return race where a captured synthetic parent outlives reattachment:
+	 * the lifecycle entry lands in whichever manager is authoritative now.
+	 */
+	async #runSourcePersistence(
+		binding: AsyncSourceBinding,
+		work: (sessionManager: NonNullable<VibeParentSession["sessionManager"]>) => Promise<boolean>,
+	): Promise<boolean> {
+		// Count the write before waiting out gates so an idle-release cannot close
+		// the manager while a turn-settled write is parked before its destination
+		// is decided.
+		binding.pendingWrites += 1;
+		try {
+			await this.#awaitSourceSwitchGates(binding.origin);
+			if (this.#isDisposed) return false;
+			const leaving = this.#leavingAsyncSource;
+			const live =
+				this.#matchesCurrentAsyncSource(binding.origin) && !(leaving && originsMatch(binding.origin, leaving));
+			if (binding.closed) return live ? await work(this.sessionManager) : false;
+			if (live) return await work(this.sessionManager);
+			const run = binding.writes.then(async () => {
+				if (this.#isDisposed || binding.closed) return false;
+				const current = this.#leavingAsyncSource;
+				if (this.#matchesCurrentAsyncSource(binding.origin) && !(current && originsMatch(binding.origin, current))) {
+					return work(this.sessionManager);
+				}
+				return work(binding.manager);
+			});
+			binding.writes = run.then(
+				() => undefined,
+				() => undefined,
+			);
+			return await run;
+		} finally {
+			binding.pendingWrites -= 1;
+		}
+	}
+
+	/**
+	 * Close a source writer once nothing can still write through it: no bound
+	 * jobs, no queued write, and no Vibe/Team worker turn or directive that
+	 * belongs to that transcript. The entry snapshot is otherwise retained for
+	 * the process lifetime on every /resume, which grows with the transcript.
+	 */
+	async #closeSourceBindingIfIdle(binding: AsyncSourceBinding): Promise<void> {
+		if (binding.closed || binding.jobs.size > 0 || binding.pendingWrites > 0) return;
+		if (this.#asyncSourceBindings.get(binding.key) !== binding) return;
+		if (
+			VibeSessionRegistry.global().hasPendingWorkForTranscript(
+				binding.origin.sessionId,
+				binding.origin.sessionFile,
+			)
+		) {
+			return;
+		}
+		binding.closed = true;
+		this.#asyncSourceBindings.delete(binding.key);
+		await binding.writes.catch(() => undefined);
+		await binding.manager.close().catch(() => undefined);
+	}
+
+	async #appendAsyncResultToSource(
+		manager: AsyncJobManagerApi,
+		jobId: string,
+		text: string,
+		job: AsyncJob | undefined,
+		origin: AsyncSourceOrigin,
+	): Promise<void> {
+		const formatted = await this.#formatAsyncResultForFollowUp(text, job?.latestDetails?.meta);
+		if (this.#isDisposed || manager.isDeliverySuppressed(jobId)) return;
+		await this.#awaitSourceSwitchGates(origin);
+		if (this.#isDisposed || manager.isDeliverySuppressed(jobId)) return;
+		// The old manager still reads as current until `setSessionFile` swaps it,
+		// but this transcript is being left: inject only into a source that is
+		// not being replaced by the in-flight switch.
+		const leaving = this.#leavingAsyncSource;
+		if (this.#matchesCurrentAsyncSource(origin) && !(leaving && originsMatch(origin, leaving))) {
+			await this.#enqueueAsyncResult(jobId, formatted, job);
+			this.#releaseJobSourceBinding(jobId);
+			const binding = this.#sourceBindingForOrigin(origin);
+			if (binding) void this.#closeSourceBindingIfIdle(binding);
+			return;
+		}
+		let binding = this.#sourceBindingForOrigin(origin) ?? (await this.#createLateSourceBinding(origin));
+		if (binding?.closed) binding = await this.#createLateSourceBinding(origin);
+		if (!binding) {
+			logger.warn("Async job completion has no source transcript to persist into", {
+				jobId,
+				sessionId: origin.sessionId,
+				sessionFile: origin.sessionFile,
+			});
+			return;
+		}
+		const durationMs = job ? Math.max(0, (job.endTime ?? Date.now()) - job.startTime) : undefined;
+		const entry: AsyncResultEntry = {
+			jobId,
+			result: formatted,
+			job,
+			durationMs,
+			// The live epoch is irrelevant here: this entry goes straight to the
+			// source transcript, never through the active yield queue.
+			epoch: -1,
+		};
+		const message = buildAsyncResultBatchMessage([entry]);
+		if (!message) {
+			this.#releaseJobSourceBinding(jobId);
+			void this.#closeSourceBindingIfIdle(binding);
+			return;
+		}
+		binding.pendingWrites += 1;
+		const write = binding.writes
+			.then(async () => {
+				if (this.#isDisposed) return;
+				binding.manager.appendMessage(message);
+				await binding.manager.flush();
+			})
+			.catch(error => {
+				logger.warn("Failed to persist async result into its source transcript", {
+					jobId,
+					sessionId: origin.sessionId,
+					error: error instanceof Error ? error.message : String(error),
+				});
+				throw error;
+			})
+			.finally(() => {
+				binding.pendingWrites -= 1;
+			});
+		binding.writes = write.catch(() => undefined);
+		await write;
+		this.#releaseJobSourceBinding(jobId);
+		void this.#closeSourceBindingIfIdle(binding);
+	}
+
+	async #enqueueAsyncResult(jobId: string, formatted: string, job?: AsyncJob): Promise<void> {
+		const durationMs = job ? Math.max(0, (job.endTime ?? Date.now()) - job.startTime) : undefined;
+		await this.yieldQueue.enqueueWithReceipt<AsyncResultEntry>("async-result", {
+			jobId,
+			result: formatted,
+			job,
+			durationMs,
+			epoch: this.#asyncDeliveryEpoch,
+		});
+	}
+
+	/**
+	 * Delivery sink for async jobs owned by this agent. A completion whose
+	 * source transcript is active is formatted and queued as an async-result
+	 * follow-up (settling only after the yield queue injects or discards it);
+	 * one whose source is not active is persisted into that source snapshot.
+	 * This keeps the job body recoverable through `proc://` while delivery is
+	 * pending without leaking it into another conversation.
 	 */
 	async #deliverAsyncJobResult(
 		manager: AsyncJobManagerApi,
@@ -4778,6 +5292,14 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	): Promise<void> {
 		if (this.#isDisposed) return;
 		if (manager.isDeliverySuppressed(jobId)) return;
+		const origin = this.#resolveAsyncDeliveryOrigin(jobId, job);
+		if (origin) {
+			// A source-bound completion is never injected into the conversation
+			// that happens to be active: it either joins its own live transcript
+			// or persists to the source snapshot captured at the switch.
+			await this.#appendAsyncResultToSource(manager, jobId, text, job, origin);
+			return;
+		}
 		// Snapshot the generation before the async format step: a `/new` during it
 		// bumps the epoch, so this delivery belongs to the replaced session and
 		// must not enqueue — the suppression marker alone is unreliable because
@@ -4787,14 +5309,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (this.#isDisposed) return;
 		if (epoch !== this.#asyncDeliveryEpoch) return;
 		if (manager.isDeliverySuppressed(jobId)) return;
-		const durationMs = job ? Math.max(0, (job.endTime ?? Date.now()) - job.startTime) : undefined;
-		await this.yieldQueue.enqueueWithReceipt<AsyncResultEntry>("async-result", {
-			jobId,
-			result: formatted,
-			job,
-			durationMs,
-			epoch,
-		});
+		await this.#enqueueAsyncResult(jobId, formatted, job);
 	}
 
 	/**
@@ -7746,7 +8261,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// explicit hard kill) leaves `#ownedAsyncJobManager` undefined and must
 		// propagate a generic cancellation so its nested children stay terminal.
 		this.#cancelOwnAsyncJobs(manager ? ASYNC_JOB_MANAGER_SHUTDOWN_REASON : undefined);
-		if (!manager) return;
+		if (!manager) {
+			await this.#closeDetachedAsyncSources();
+			return;
+		}
 
 		try {
 			const drained = await manager.dispose({ timeoutMs: 3_000 });
@@ -7755,9 +8273,22 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				logger.warn("Async job completion deliveries still pending during dispose", { ...deliveryState });
 			}
 		} finally {
+			await this.#closeDetachedAsyncSources();
 			if (AsyncJobManager.instance() === manager) {
 				AsyncJobManager.setInstance(undefined);
 			}
+		}
+	}
+
+	/** Release source-transcript writers kept for background work that outlived a switch. */
+	async #closeDetachedAsyncSources(): Promise<void> {
+		const bindings = [...this.#asyncSourceBindings.values()];
+		this.#asyncSourceBindings.clear();
+		this.#jobSourceBindings.clear();
+		for (const binding of bindings) {
+			binding.closed = true;
+			await binding.writes.catch(() => undefined);
+			await binding.manager.close().catch(() => undefined);
 		}
 	}
 
@@ -15641,6 +16172,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		this.#usagePreflightReadyModel = undefined;
 
 		let cwdChangeTarget: string | undefined;
+		let sourceAttachGate: SourceAttachGate | undefined;
+		let sourceLeavingGate: SourceLeavingGate | undefined;
+		let asyncSourceDetachment: AsyncSourceDetachment | undefined;
+		const previousAsyncDeliveryEpoch = this.#asyncDeliveryEpoch;
+		let asyncEpochBumped = false;
 		try {
 			if (switchingToDifferentSession) {
 				// Stop and settle in-flight advisors while the old-session feeds can
@@ -15650,6 +16186,37 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			// The file may be reloaded at the same path with a different latest contract (or the
 			// switch rolled back via restoreState); re-read it on the next model call either way.
 			this.#sessionInit = undefined;
+			if (switchingToDifferentSession) {
+				// This session's background work outlives the navigation. Snapshot
+				// the outgoing transcript and pin its jobs and Vibe/Team workers to
+				// it (ADR 0039); bump the delivery generation so a queued receipt
+				// from the old transcript cannot inject into the target. The gate
+				// parks writes to a transcript this switch is loading until the
+				// outcome is known (live injection on return, source append on
+				// failure).
+				const attach = Promise.withResolvers<void>();
+				sourceAttachGate = {
+					path: path.resolve(sessionPath),
+					completion: attach.promise,
+					resolve: () => attach.resolve(),
+				};
+				this.#sourceAttachGate = sourceAttachGate;
+				const leave = Promise.withResolvers<void>();
+				sourceLeavingGate = {
+					completion: leave.promise,
+					resolve: () => leave.resolve(),
+				};
+				this.#leavingSourceGate = sourceLeavingGate;
+				asyncSourceDetachment = await this.#detachAsyncJobsToSource(previousSessionState);
+				this.#leavingAsyncSource = {
+					sessionId: previousSessionState.sessionId,
+					sessionFile: previousSessionState.sessionFile ?? null,
+					leafId: this.sessionManager.getLeafId(),
+				};
+				this.#asyncDeliveryEpoch += 1;
+				asyncEpochBumped = true;
+				await this.#awaitSourceWritesForTarget(sessionPath);
+			}
 			await this.sessionManager.setSessionFile(sessionPath);
 			this.#bash.markSessionTransition(bashTransition);
 			const newCwd = this.sessionManager.getCwd();
@@ -15720,11 +16287,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 				didSessionMessagesChange(previousSessionContext.messages, sessionContext.messages);
 			this.#rehydrateCheckpointRewindState();
 
-			// As on /new: the outgoing session's background jobs share this agent id, so their
-			// results would otherwise land in the resumed transcript. Cancelled after the cwd and
-			// model checks, so a rejected switch keeps them, and before hooks hear of the switch,
-			// so jobs they start belong to the resumed session. Deliveries are held until now.
-			if (switchingToDifferentSession) this.#cancelOwnAsyncJobs();
+			// Background jobs are not cancelled here: the source snapshot taken
+			// before `setSessionFile` owns their completions until this transcript
+			// is active again (ADR 0039). The delivery generation was bumped at
+			// that same point, so a receipt queued for the old transcript remains
+			// stale and re-delivers through the source binding instead.
 
 			this.#reseedCostGate();
 			// Emit session_switch event to hooks
@@ -15831,6 +16398,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 					error: String(error),
 				});
 			}
+			// Reaching this transcript again makes it the live write destination
+			// for its still-running workers; only their detached writers may have
+			// been writing while it was away.
+			await this.#reattachAsyncSourcesAfterSwitch();
 			// Refresh the workspace-roots block to match the resumed session's directory set.
 			// Wrapped so a rebuild failure (e.g. a gate that intentionally fails in tests)
 			// doesn't roll back an otherwise-successful session switch.
@@ -15870,6 +16441,13 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			return true;
 		} catch (error) {
 			this.sessionManager.restoreState(previousSessionState);
+			if (asyncEpochBumped) {
+				// Restore the source as the live delivery destination. Jobs keep
+				// running; only the detached writer and its generation are undone.
+				if (asyncSourceDetachment) await this.#rollbackAsyncSourceDetachment(asyncSourceDetachment);
+				else this.#asyncDeliveryEpoch = previousAsyncDeliveryEpoch;
+				asyncEpochBumped = false;
+			}
 			this.#freshProviderSessionId = previousFreshProviderSessionId;
 			this.#syncAgentSessionId(previousSessionState.sessionId, false);
 			this.#memory.rekeyForCurrentSessionId();
@@ -15955,6 +16533,12 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			this.#bash.finishSessionTransition(bashTransition, false);
 			if (error === SESSION_CWD_CHANGE_REJECTED) return false;
 			throw error;
+		} finally {
+			if (this.#sourceAttachGate === sourceAttachGate) this.#sourceAttachGate = undefined;
+			if (this.#leavingSourceGate === sourceLeavingGate) this.#leavingSourceGate = undefined;
+			sourceAttachGate?.resolve();
+			sourceLeavingGate?.resolve();
+			this.#leavingAsyncSource = undefined;
 		}
 	}
 
