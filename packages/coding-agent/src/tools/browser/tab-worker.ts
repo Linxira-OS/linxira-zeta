@@ -2103,7 +2103,7 @@ export class WorkerCore {
 			await installVitalsObservers(this.#page);
 			await installCancelledReleaseGuard(this.#page);
 			if (payload.userAgent !== undefined) await applyUserAgentOverride(this.#page, payload.userAgent);
-			if (payload.insecure) this.#certificateOverride = await applyInsecure(this.#page);
+			if (payload.ignoreHttpsErrors) this.#certificateOverride = await applyInsecure(this.#page);
 			this.#targetId = await targetIdForPage(this.#page);
 			this.#initScripts = new InitScriptManager(this.#page);
 			for (const source of payload.initScripts ?? []) await this.#initScripts.add(source);
